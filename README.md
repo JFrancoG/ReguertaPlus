@@ -1,59 +1,57 @@
-# Reguerta Multi
+# ReguertaPlus
 
-Reguerta Multi es un proyecto mobile multiplataforma (iOS + Android) construido
-como monorepo para mantener una evolucion coordinada de funcionalidades,
-arquitectura y nomenclatura entre ambas apps.
+ReguertaPlus is a cross-platform mobile project (iOS + Android) organized as a
+monorepo to keep features, architecture, and naming aligned across both apps.
 
-## Objetivo
+## Goal
 
-Desarrollar en paralelo las apps iOS y Android compartiendo principios de
-arquitectura, nomenclatura y estructura de features para reducir friccion en el
-trabajo diario, acelerar la entrega y facilitar revisiones cruzadas.
+Build iOS and Android in parallel while sharing architectural principles,
+naming, and feature structure to reduce daily friction, accelerate delivery,
+and make cross-reviews easier.
 
-## Arquitectura
+## Architecture
 
-- Patron: MVVM + Clean Architecture en ambas plataformas.
-- Estructura por capas:
-  - Presentacion: Views/Composables -> ViewModel -> UI State
-  - Dominio: casos de uso / reglas de negocio
-  - Datos: repositorios y data sources
+- Pattern: MVVM + Clean Architecture on both platforms.
+- Layered structure:
+  - Presentation: Views/Composables -> ViewModel -> UI State
+  - Domain: use cases / business rules
+  - Data: repositories and data sources
 
-Mas detalles en `common/docs/architecture` y `common/docs-es/architecture`.
+More details in `common/docs/architecture` and `common/docs-es/architecture`.
 
 ## Backend (Firebase)
 
-La plataforma backend elegida es Firebase por su simplicidad, su capa gratuita
-robusta y su conjunto de servicios integrados.
+Firebase is the chosen backend due to its simplicity, strong free tier, and
+integrated set of services.
 
-Servicios en uso:
-- Base de datos: Firestore
-- Autenticacion: Firebase Authentication
-- Almacenamiento: Firebase Storage
+Services in use:
+- Database: Firestore
+- Auth: Firebase Authentication
+- Storage: Firebase Storage
 - Crash reporting: Firebase Crashlytics
-- Notificaciones push: Firebase Cloud Messaging (FCM)
+- Push notifications: Firebase Cloud Messaging (FCM)
 
-Las decisiones arquitectonicas estan documentadas en
-`common/docs/decisions` y `common/docs-es/decisions`.
+Architecture decisions are documented in `common/docs/decisions` and
+`common/docs-es/decisions`.
 
-## Versiones minimas
+## Minimum Versions
 
 - iOS: 18
 - Android: API 29 (Android 10)
 
-## Estructura del repositorio
+## Repository Structure
 
-- `ios/`: app iOS
-- `android/`: app Android
-- `common/`: documentacion compartida (ES/EN)
+- `ios/`: iOS app
+- `android/`: Android app
+- `common/`: shared documentation (ES/EN)
 - `functions/`: Firebase Cloud Functions
-- `firebase.json` y `.firebaserc`: configuracion de Firebase
+- `firebase.json` and `.firebaserc`: Firebase configuration
 
 ## Cloud Functions
 
-Las Cloud Functions viven en la raiz del repo para mantener el backend junto al
-resto del proyecto y facilitar el despliegue.
+Cloud Functions live at the repo root to keep the backend alongside the apps
+and simplify deployment.
 
-## Estado
+## Status
 
-Proyecto en fase inicial. Este README se ira actualizando conforme avance el
-desarrollo.
+Early stage. This README will evolve as development progresses.
