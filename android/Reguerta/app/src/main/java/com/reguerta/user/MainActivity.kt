@@ -14,15 +14,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.navigation3.runtime.NavKey
-import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
-import androidx.navigation3.ui.entryProvider
 import com.reguerta.user.ui.theme.ReguertaTheme
-import kotlinx.serialization.Serializable
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,23 +37,16 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@Serializable
-data object Home : NavKey
+data object Home
 
-@Serializable
-data class Detail(val itemId: String) : NavKey
+data class Detail(val itemId: String)
 
-@Serializable
-data object Settings : NavKey
+data object Settings
 
 @Composable
 fun ReguertaApp(modifier: Modifier = Modifier) {
-    val backStack = rememberNavBackStack(Home)
-    val handleBack = {
-        if (backStack.size > 1) {
-            backStack.removeLast()
-        }
-    }
+    val backStack = remember { mutableStateListOf<Any>(Home) }
+    val handleBack: () -> Unit = { backStack.removeLastOrNull() }
 
     NavDisplay(
         backStack = backStack,
