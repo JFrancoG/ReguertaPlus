@@ -15,7 +15,7 @@ that keeps development efficient while supporting a reasonable user base.
 
 ## Decision
 
-- iOS minimum version: iOS 18
+- iOS minimum version: iOS 26
 - Android minimum API level: 29 (Android 10)
 
 ## Consequences

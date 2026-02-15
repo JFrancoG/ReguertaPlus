@@ -15,7 +15,7 @@ pruebas, manteniendo el desarrollo eficiente y un soporte razonable.
 
 ## Decision
 
-- iOS minimo: iOS 18
+- iOS minimo: iOS 26
 - Android minimo: API 29 (Android 10)
 
 ## Consecuencias

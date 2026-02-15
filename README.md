@@ -17,7 +17,9 @@ and make cross-reviews easier.
   - Domain: use cases / business rules
   - Data: repositories and data sources
 
-More details in `common/docs/architecture` and `common/docs-es/architecture`.
+More details in:
+- `common/docs/architecture` and `common/docs-es/architecture`
+- `common/docs/tech-stack` and `common/docs-es/tech-stack`
 
 ## Backend (Firebase)
 
@@ -36,7 +38,7 @@ Architecture decisions are documented in `common/docs/decisions` and
 
 ## Minimum Versions
 
-- iOS: 18
+- iOS: 26
 - Android: API 29 (Android 10)
 
 ## Repository Structure

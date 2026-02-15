@@ -20,3 +20,4 @@ Backend services:
 - Push notifications: Firebase Cloud Messaging (FCM)
 
 Related decisions live in `../decisions`.
+Technical stack details live in `../tech-stack/README.md`.
