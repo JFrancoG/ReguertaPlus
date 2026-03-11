@@ -12,7 +12,9 @@ Agents may modify any part of this monorepo when needed:
 - `/android`
 - `/ios`
 - `/functions`
-- `/common` (including docs and ADRs)
+- `/docs`
+- `/docs-es`
+- `/spec`
 - Root-level config files
 
 ## Project Snapshot
@@ -36,8 +38,8 @@ Agents may modify any part of this monorepo when needed:
 - Prefer using available skills for platform-specific and UI implementation guidance.
 - Do not duplicate detailed UI design rules here; those are handled by skills and future design-system docs.
 - Canonical stack definitions live in:
-  - `/common/docs/tech-stack/README.md`
-  - `/common/docs-es/tech-stack/README.md`
+  - `/docs/tech-stack/README.md`
+  - `/docs-es/tech-stack/README.md`
 
 ## Instruction Conflicts
 
@@ -81,8 +83,8 @@ When skipped, explicitly state why in the final handoff.
 ## Documentation and ADR Hygiene
 
 - If architecture, platform baseline, or backend decisions change, update ADRs in:
-  - `/common/docs/decisions`
-  - `/common/docs-es/decisions`
+  - `/docs/decisions`
+  - `/docs-es/decisions`
 - Keep English and Spanish docs aligned when updating decision-level documentation.
 
 ## Execution Style
