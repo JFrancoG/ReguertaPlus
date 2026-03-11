@@ -216,10 +216,12 @@ Criterios de aceptacion:
 
 ### HU-024 Toggle masivo de disponibilidad productor
 
-Como productor quiero cambiar todos mis productos a disponibles/no disponibles en una sola accion para gestionar semanas con rapidez.
+Como productor quiero cambiar la visibilidad global de mi catalogo en una sola accion para gestionar semanas de pausa (vacaciones/enfermedad) sin perder la configuracion de cada producto.
 
 Criterios de aceptacion:
-- El productor puede poner toda su oferta disponible o no disponible con confirmacion.
+- El productor puede habilitar o deshabilitar la visibilidad global de su catalogo con confirmacion.
+- Si la visibilidad global del catalogo del productor esta deshabilitada, no deben aparecer ni su `companyName` ni sus productos en listados de pedido.
+- Al re-habilitar la visibilidad global del catalogo, no deben sobrescribirse los valores `isAvailable` de cada producto.
 
 ### HU-025 Pipeline de imagen de producto
 

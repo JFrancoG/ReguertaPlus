@@ -2,7 +2,7 @@
 
 ## Summary
 
-As a producer I want to set all my products available or unavailable in one action so weekly changes are fast.
+As a producer I want to toggle my catalog visibility in one action so weekly pauses are fast without overwriting per-product availability.
 
 ## Links
 - Spec: spec/products/hu-024-producer-bulk-availability-toggle/spec.md
@@ -11,14 +11,15 @@ As a producer I want to set all my products available or unavailable in one acti
 
 ## Acceptance criteria
 
-- Producer can set all own products to available.
-- Producer can set all own products to unavailable.
+- Producer can set own `producerCatalogEnabled` to true/false.
+- Disabling producer catalog visibility hides producer `companyName` and products from ordering lists.
+- Re-enabling producer catalog visibility keeps existing per-product `isAvailable` values.
 - Confirmation is required before applying bulk change.
 
 ## Scope
 ### In Scope
 - Implement story HU-024 within MVP scope.
-- Satisfy linked RFs: RF-CAT-07.
+- Satisfy linked RFs: RF-CAT-07 and RF-CAT-13.
 
 ### Out of Scope
 - Post-MVP functionality.

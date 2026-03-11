@@ -142,6 +142,7 @@ Prefijos de ruta para cada coleccion descrita abajo:
 | `phone` | string | no | si | Telefono de contacto |
 | `roles` | array<string> | si | admin | `member`, `producer`, `admin` |
 | `isActive` | bool | si | admin | Alta/baja operativa |
+| `producerCatalogEnabled` | bool | si | productor/admin | Flag de negocio del productor para visibilidad de su catalogo (por defecto `true`) |
 | `ecoCommitment.mode` | string | si | admin | `weekly` o `biweekly` |
 | `ecoCommitment.parity` | string\|null | no | admin | `even` / `odd` si biweekly |
 | `settings.theme` | string | si | usuario | `light`/`dark`/`system` |
@@ -461,6 +462,7 @@ Nota de migracion:
 
 - `users.roles` debe contener siempre al menos `member` para socios activos.
 - `users.emailNormalized` debe ser unico entre socios activos.
+- `users.producerCatalogEnabled` debe ser booleano y no debe guardarse dentro de `users.settings`.
 - Un usuario autenticado solo tiene acceso operativo si existe `users` con `emailNormalized` coincidente e `isActive == true`.
 - En primer login autorizado, si `users.authUid` es `null`, se enlaza con UID autenticado; si ya existe, debe coincidir.
 - Si no existe socio preautorizado para el email autenticado, la app debe mostrar alerta de no autorizado y bloquear acciones operativas.
@@ -477,6 +479,10 @@ Nota de migracion:
 - `products.vendorId` no se puede modificar tras creacion.
 - Si `products.productImageUrl` tiene valor, debe ser una URL valida de Storage/media.
 - Si `products.stockMode == finite`, entonces `stockQty` es requerido y >= 0.
+- La visibilidad de producto en pedido debe exigir a la vez:
+  - `users.producerCatalogEnabled == true` del productor
+  - `products.isAvailable == true`
+  - `products.archived == false`
 - Un `orders` por `userId + weekKey` (unicidad logica).
 - `orders.total` debe ser suma de `orderlines.subtotal` del pedido.
 - `orders.producerStatus` es obligatorio y solo admite `unread`, `read`, `prepared`, `delivered` (sin estado `null`).

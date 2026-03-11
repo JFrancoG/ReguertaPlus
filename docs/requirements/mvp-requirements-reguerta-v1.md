@@ -98,12 +98,13 @@ Out of MVP (later phase):
 - RF-CAT-04 Product availability and stock controls are required.
 - RF-CAT-05 Stock supports direct edit and extended/infinite mode.
 - RF-CAT-06 `companyName` must be visible in product search results.
-- RF-CAT-07 Producer can toggle own full catalog availability in a single confirmed action.
+- RF-CAT-07 Producer can toggle own full catalog visibility in a single confirmed action via `users.producerCatalogEnabled`, without overwriting per-product `products.isAvailable`.
 - RF-CAT-08 Product form supports image select/crop/upload and persisted Storage URL.
 - RF-CAT-09 (Post-MVP) System must support weighted products with `pricingMode = weight`, single `price`, and member-entered decimal weight quantity.
 - RF-CAT-10 Product model must include `unitAbbreviation` and `packContainerAbbreviation` for compact UI use.
 - RF-CAT-11 Eco-basket products must declare `ecoBasketOption` (`pickup` or `no_pickup`) to avoid string-based logic.
 - RF-CAT-12 Eco-basket product price cannot diverge by option or parity producer.
+- RF-CAT-13 Product listing visibility must combine producer and product states: `producerCatalogEnabled == true`, `isAvailable == true`, and `archived == false`.
 
 ### 3.6 Shared profile and member list
 

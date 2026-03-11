@@ -1,7 +1,8 @@
 # Tasks - HU-024 (Producer bulk availability toggle)
 
 ## 1. Preparation
-- [ ] Confirm owner-scoped product selection logic.
+- [ ] Confirm producer-level source-of-truth field (`users.producerCatalogEnabled`).
+- [ ] Confirm ordering query combines producer and product visibility rules.
 - [ ] Define confirmation and feedback UX.
 
 ## 2. Android implementation
@@ -13,13 +14,13 @@
 - [ ] Implement confirmation and apply flow.
 
 ## 4. Backend / Firestore
-- [ ] Validate owner-only update rules.
-- [ ] Implement safe batch write strategy.
+- [ ] Validate producer can update only own `producerCatalogEnabled`.
+- [ ] Ensure order-list queries filter by `producerCatalogEnabled`, `isAvailable`, and `archived`.
 
 ## 5. Testing
 - [ ] Unit tests for ownership checks.
-- [ ] Integration tests for batch updates.
-- [ ] Manual validation for both toggle directions.
+- [ ] Integration tests for producer-level + product-level combined visibility.
+- [ ] Manual validation for both toggle directions preserving existing `products.isAvailable`.
 
 ## 6. Documentation
 - [ ] Update issue notes and decisions.

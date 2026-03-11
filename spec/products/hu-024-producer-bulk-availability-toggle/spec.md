@@ -8,29 +8,33 @@
 
 ## Context and problem
 
-Producers need to quickly enable/disable their full catalog for weekly operation changes.
+Producers need to quickly pause/resume catalog visibility for weekly operation changes (vacation/sickness) without losing product-level availability setup.
 
 ## User story
 
-As a producer I want to set all my products available or unavailable in one action so weekly changes are fast.
+As a producer I want to toggle my catalog visibility in one action so weekly pauses are fast and product-level availability is preserved.
 
 ## Scope
 
 ### In Scope
-- Bulk toggle action for producer-owned products.
+- Catalog visibility toggle stored in `users.producerCatalogEnabled` for producer-owned account.
 - Confirmation step before applying change.
+- Ordering visibility rule combining producer and product state.
 
 ### Out of Scope
+- Bulk rewriting all `products.isAvailable` values.
 - Advanced segmented/batched partial toggle rules.
 
 ## Linked functional requirements
 
 - RF-CAT-07
+- RF-CAT-13
 
 ## Acceptance criteria
 
-- Producer can set all own products to available.
-- Producer can set all own products to unavailable.
+- Producer can set own `producerCatalogEnabled` to true/false.
+- Disabling producer catalog visibility hides producer `companyName` and products from ordering lists.
+- Re-enabling producer catalog visibility keeps previous `products.isAvailable` values unchanged.
 - A confirmation step is required before applying the bulk change.
 
 ## Dependencies

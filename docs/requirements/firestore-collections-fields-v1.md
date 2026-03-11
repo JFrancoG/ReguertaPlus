@@ -63,6 +63,7 @@ Path prefixes for every collection below:
 - `phone`: string (optional)
 - `roles`: array<string> (required)
 - `isActive`: bool (required)
+- `producerCatalogEnabled`: bool (required, default `true`; producer business flag for catalog visibility)
 - `ecoCommitment`: map
   - `mode`: string (`weekly`|`biweekly`)
   - `parity`: string|null (`even`|`odd`|null)
@@ -351,6 +352,7 @@ Migration note:
 
 - `users.roles` includes at least `member` for active members.
 - `users.emailNormalized` must be unique across active member records.
+- `users.producerCatalogEnabled` must be boolean and must not be stored in `users.settings`.
 - Firebase-authenticated access is operationally authorized only when a `users` record exists with matching `emailNormalized` and `isActive == true`.
 - On first authorized login, if `users.authUid` is null it is linked to the authenticated UID; if already set, it must match authenticated UID.
 - If no authorized `users` record exists for authenticated email, app must show unauthorized alert and block operational actions.
@@ -367,6 +369,10 @@ Migration note:
 - `products.vendorId` immutable after creation.
 - If `products.productImageUrl` is set, it must be a valid Storage/media URL.
 - If `stockMode == finite`, `stockQty` is required and >= 0.
+- Product visibility in ordering must require all of:
+  - producer `users.producerCatalogEnabled == true`
+  - `products.isAvailable == true`
+  - `products.archived == false`
 - One order per `userId + weekKey`.
 - `orders.total` equals sum of related `orderlines.subtotal`.
 - `orders.producerStatus` is mandatory and must be one of `unread`, `read`, `prepared`, `delivered` (no null state).

@@ -217,10 +217,12 @@ Acceptance criteria:
 
 ### HU-024 Producer bulk availability toggle
 
-As a producer I want to toggle all products available/unavailable in one action so that weekly availability changes are fast.
+As a producer I want to toggle my catalog visibility in one action so that weekly pauses (vacation/sickness) are fast without losing per-product setup.
 
 Acceptance criteria:
-- Producer can set all own products available or unavailable with confirmation.
+- Producer can enable or disable own catalog visibility with confirmation.
+- When producer catalog visibility is disabled, neither producer `companyName` nor producer products appear in ordering lists.
+- Re-enabling producer catalog visibility does not overwrite existing per-product `isAvailable` values.
 
 ### HU-025 Product image handling pipeline
 

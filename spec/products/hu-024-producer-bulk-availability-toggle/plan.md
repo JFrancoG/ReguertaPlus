@@ -2,13 +2,13 @@
 
 ## 1. Technical approach
 
-Add a producer-level bulk action that updates `isAvailable` for all producer-owned products.
+Add a producer-level toggle that updates `users.producerCatalogEnabled` and keep `products.isAvailable` for product-level availability only.
 
 ## 2. Layer impact
 - UI: Bulk toggle control, confirmation, success/error feedback.
 - Domain: Ownership and authorization validation.
-- Data: Batch/transaction update strategy for product availability.
-- Backend: Firestore rules compatibility and safety checks.
+- Data: Producer user-document update plus ordering-query filter alignment.
+- Backend: Firestore rules compatibility and safety checks for producer-owned user document.
 - Docs: Story/issue updates.
 
 ## 3. Platform-specific changes
@@ -19,12 +19,12 @@ Add a producer-level bulk action that updates `isAvailable` for all producer-own
 - Add equivalent bulk availability action and confirmation.
 
 ### Functions/Backend
-- Ensure write rules allow only producer-owned updates.
+- Ensure write rules allow only producer-owned `producerCatalogEnabled` updates.
 
 ## 4. Test strategy
 - Unit tests for ownership/authorization checks.
-- Integration tests for batch updates.
-- Manual tests for available/unavailable toggles.
+- Integration tests for producer-level visibility + product-level availability combined filtering.
+- Manual tests for disable/enable toggle preserving prior `products.isAvailable` values.
 
 ## 5. Rollout and validation
 - Validate with producer test users in develop.
@@ -35,11 +35,11 @@ Add a producer-level bulk action that updates `isAvailable` for all producer-own
 - Confirm exact scope of affected products.
 
 ### Phase 2 - Implementation
-- Implement UX + data updates + safeguards.
+- Implement UX + producer flag update + visibility filtering safeguards.
 
 ### Phase 3 - Closure
 - Validate outcomes and document evidence.
 
 ## 7. Risks and mitigation
-- Risk: partial update failures.
-  - Mitigation: transactional/batched write approach with retry strategy.
+- Risk: accidental catalog hide.
+  - Mitigation: confirmation dialog and explicit state feedback.

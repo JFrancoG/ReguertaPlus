@@ -98,12 +98,13 @@ Fuera de MVP (fase posterior):
 - `RF-CAT-04` Debe existir `disponible` y control de stock.
 - `RF-CAT-05` El stock debe poder editarse por entrada directa y soportar modo extendido/infinito.
 - `RF-CAT-06` En buscador de productos debe mostrarse `companyName` para desambiguar.
-- `RF-CAT-07` El productor puede alternar toda su oferta propia a disponible/no disponible en una sola accion confirmada.
+- `RF-CAT-07` El productor puede alternar la visibilidad global de su catalogo en una sola accion confirmada mediante `users.producerCatalogEnabled`, sin sobrescribir `products.isAvailable`.
 - `RF-CAT-08` El formulario de producto soporta seleccion/recorte/subida de imagen y persistencia de URL en Storage.
 - `RF-CAT-09` (Post-MVP) El sistema debe soportar productos a granel con `pricingMode = weight`, `price` unico y cantidad decimal de peso introducida por el socio.
 - `RF-CAT-10` El modelo de producto debe incluir `unitAbbreviation` y `packContainerAbbreviation` para UIs compactas.
 - `RF-CAT-11` Los productos de ecocesta deben declarar `ecoBasketOption` (`pickup` o `no_pickup`) para evitar logica por texto libre.
 - `RF-CAT-12` El precio de producto ecocesta no puede divergir por opcion ni por productor par/impar.
+- `RF-CAT-13` La visibilidad en listado debe combinar estado de productor y producto: `producerCatalogEnabled == true`, `isAvailable == true` y `archived == false`.
 
 ### 3.6 Perfil compartido y lista de socios
 
