@@ -1,854 +1,1062 @@
 {
-  "sourceLanguage" : "en",
-  "strings" : {
-    "access.action.dismiss_message" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dismiss message"
+  "sourceLanguage": "en",
+  "strings": {
+    "access.action.dismiss_message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dismiss message"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cerrar mensaje"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerrar mensaje"
           }
         }
       }
     },
-    "access.action.sign_in" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign in"
+    "access.action.sign_in": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Iniciar sesion"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iniciar sesion"
           }
         }
       }
     },
-    "access.action.sign_out" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign out"
+    "access.action.sign_out": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign out"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cerrar sesion"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerrar sesion"
           }
         }
       }
     },
-    "access.action.signing_in" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Signing in..."
+    "access.action.signing_in": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signing in..."
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Iniciando sesion..."
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iniciando sesion..."
           }
         }
       }
     },
-    "access.card.authentication" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Authentication"
+    "access.card.authentication": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authentication"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Autenticacion"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autenticacion"
           }
         }
       }
     },
-    "access.input.auth_uid.label" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Auth UID"
+    "access.input.auth_uid.label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auth UID"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Auth UID"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auth UID"
           }
         }
       }
     },
-    "access.members_roles.title" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Members and Roles"
+    "access.members_roles.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Members and Roles"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Miembros y roles"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Miembros y roles"
           }
         }
       }
     },
-    "access.signed_in_email" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Signed in email: %@"
+    "access.signed_in_email": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signed in email: %@"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Email de sesion: %@"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Email de sesion: %@"
           }
         }
       }
     },
-    "access.signed_out.hint" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign in with a pre-authorized member email to unlock operational modules."
+    "access.signed_out.hint": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in with a pre-authorized member email to unlock operational modules."
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inicia sesion con un email de miembro preautorizado para desbloquear los modulos operativos."
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inicia sesion con un email de miembro preautorizado para desbloquear los modulos operativos."
           }
         }
       }
     },
-    "admin.action.activate" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Activate"
+    "admin.action.activate": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activate"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Activar"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activar"
           }
         }
       }
     },
-    "admin.action.create_member" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Create member"
+    "admin.action.create_member": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create member"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Crear miembro"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crear miembro"
           }
         }
       }
     },
-    "admin.action.deactivate" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Deactivate"
+    "admin.action.deactivate": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deactivate"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Desactivar"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desactivar"
           }
         }
       }
     },
-    "admin.action.grant_admin" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Grant admin"
+    "admin.action.grant_admin": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grant admin"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dar admin"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dar admin"
           }
         }
       }
     },
-    "admin.action.revoke_admin" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Revoke admin"
+    "admin.action.revoke_admin": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revoke admin"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quitar admin"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quitar admin"
           }
         }
       }
     },
-    "admin.create_pre_authorized_member.title" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Create pre-authorized member"
+    "admin.create_pre_authorized_member.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create pre-authorized member"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Crear miembro preautorizado"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crear miembro preautorizado"
           }
         }
       }
     },
-    "admin.input.display_name.label" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Display name"
+    "admin.input.display_name.label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display name"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nombre visible"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nombre visible"
           }
         }
       }
     },
-    "admin.manage_members.subtitle" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Create / edit / deactivate members and roles"
+    "admin.manage_members.subtitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create / edit / deactivate members and roles"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Crear / editar / desactivar miembros y roles"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crear / editar / desactivar miembros y roles"
           }
         }
       }
     },
-    "admin.manage_members.title" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Admin | Manage members"
+    "admin.manage_members.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Admin | Manage members"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Admin | Gestion de miembros"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Admin | Gestion de miembros"
           }
         }
       }
     },
-    "auth_error.member.unauthorized" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unauthorized user"
+    "auth_error.member.unauthorized": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unauthorized user"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Usuario no autorizado"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usuario no autorizado"
           }
         }
       }
     },
-    "auth_info.member.restricted_mode" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Operational modules remain disabled until an admin pre-authorizes this email."
+    "auth_info.member.restricted_mode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Operational modules remain disabled until an admin pre-authorizes this email."
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Los modulos operativos seguiran desactivados hasta que un admin preautorice este email."
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los modulos operativos seguiran desactivados hasta que un admin preautorice este email."
           }
         }
       }
     },
-    "common.brand.reguerta" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reguerta"
+    "common.brand.reguerta": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reguerta"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reguerta"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reguerta"
           }
         }
       }
     },
-    "common.input.email.label" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Email"
+    "common.input.email.label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Email"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Email"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Email"
           }
         }
       }
     },
-    "common.no" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No"
+    "common.no": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No"
           }
         }
       }
     },
-    "common.reason" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reason: %@"
+    "common.reason": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reason: %@"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Motivo: %@"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Motivo: %@"
           }
         }
       }
     },
-    "common.roles" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Roles: %@"
+    "common.roles": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Roles: %@"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Roles: %@"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Roles: %@"
           }
         }
       }
     },
-    "common.status" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Status: %@"
+    "common.status": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status: %@"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Estado: %@"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estado: %@"
           }
         }
       }
     },
-    "common.status.active" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Active"
+    "common.status.active": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Activo"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activo"
           }
         }
       }
     },
-    "common.status.inactive" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inactive"
+    "common.status.inactive": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inactive"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inactivo"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inactivo"
           }
         }
       }
     },
-    "common.yes" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Yes"
+    "common.yes": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yes"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Si"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Si"
           }
         }
       }
     },
-    "feedback.cannot_remove_last_admin" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cannot leave the app without active admins"
+    "feedback.cannot_remove_last_admin": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot leave the app without active admins"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No se puede dejar la app sin admins activos"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se puede dejar la app sin admins activos"
           }
         }
       }
     },
-    "feedback.display_name_email_required" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Display name and email are required"
+    "feedback.display_name_email_required": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display name and email are required"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nombre visible y email son obligatorios"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nombre visible y email son obligatorios"
           }
         }
       }
     },
-    "feedback.email_uid_required" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Email and UID are required"
+    "feedback.email_uid_required": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Email and UID are required"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Email y UID son obligatorios"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Email y UID son obligatorios"
           }
         }
       }
     },
-    "feedback.member_exists" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Member already exists"
+    "feedback.member_exists": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Member already exists"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "El miembro ya existe"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El miembro ya existe"
           }
         }
       }
     },
-    "feedback.only_admin_create" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Only admins can create members"
+    "feedback.only_admin_create": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only admins can create members"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Solo los admins pueden crear miembros"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solo los admins pueden crear miembros"
           }
         }
       }
     },
-    "feedback.only_admin_edit_roles" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Only admins can edit roles"
+    "feedback.only_admin_edit_roles": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only admins can edit roles"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Solo los admins pueden editar roles"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solo los admins pueden editar roles"
           }
         }
       }
     },
-    "feedback.only_admin_manage_members" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Only admins can manage members"
+    "feedback.only_admin_manage_members": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only admins can manage members"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Solo los admins pueden gestionar miembros"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solo los admins pueden gestionar miembros"
           }
         }
       }
     },
-    "feedback.only_admin_toggle_active" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Only admins can activate or deactivate"
+    "feedback.only_admin_toggle_active": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only admins can activate or deactivate"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Solo los admins pueden activar o desactivar"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solo los admins pueden activar o desactivar"
           }
         }
       }
     },
-    "feedback.select_role" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Select at least one role"
+    "feedback.select_role": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select at least one role"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Selecciona al menos un rol"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selecciona al menos un rol"
           }
         }
       }
     },
-    "feedback.unable_save_changes" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unable to save changes"
+    "feedback.unable_save_changes": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to save changes"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No se pudieron guardar los cambios"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudieron guardar los cambios"
           }
         }
       }
     },
-    "home.title" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Home"
+    "home.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inicio"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inicio"
           }
         }
       }
     },
-    "home.welcome" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Welcome %@"
+    "home.welcome": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Welcome %@"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bienvenido %@"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bienvenido %@"
           }
         }
       }
     },
-    "member.auth_linked" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Auth linked: %@"
+    "member.auth_linked": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auth linked: %@"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Auth vinculada: %@"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auth vinculada: %@"
           }
         }
       }
     },
-    "operational_modules.catalog" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Catalog"
+    "operational_modules.catalog": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Catalog"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Catalogo"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Catalogo"
           }
         }
       }
     },
-    "operational_modules.my_order" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "My order"
+    "operational_modules.my_order": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "My order"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mi pedido"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mi pedido"
           }
         }
       }
     },
-    "operational_modules.shifts" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Shifts"
+    "operational_modules.shifts": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shifts"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Turnos"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turnos"
           }
         }
       }
     },
-    "operational_modules.title" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Operational modules"
+    "operational_modules.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Operational modules"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Modulos operativos"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modulos operativos"
           }
         }
       }
     },
-    "role.active" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Active"
+    "role.active": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Activo"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activo"
           }
         }
       }
     },
-    "role.admin" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Admin"
+    "role.admin": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Admin"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Admin"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Admin"
           }
         }
       }
     },
-    "role.member" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Member"
+    "role.member": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Member"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Miembro"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Miembro"
           }
         }
       }
     },
-    "role.producer" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Producer"
+    "role.producer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Producer"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Productor"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Productor"
           }
         }
       }
     },
-    "role.value.admin" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "admin"
+    "role.value.admin": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "admin"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "admin"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "admin"
           }
         }
       }
     },
-    "role.value.member" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "member"
+    "role.value.member": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "member"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "miembro"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "miembro"
           }
         }
       }
     },
-    "role.value.producer" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "producer"
+    "role.value.producer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "producer"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "productor"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "productor"
+          }
+        }
+      }
+    },
+    "auth_shell.splash.loading": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing experience..."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparando experiencia..."
+          }
+        }
+      }
+    },
+    "common.action.back": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volver"
+          }
+        }
+      }
+    },
+    "welcome.title.prefix": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Welcome to"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bienvenido a"
+          }
+        }
+      }
+    },
+    "welcome.title.brand": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reguerta"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reguerta"
+          }
+        }
+      }
+    },
+    "welcome.subtitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use one consistent auth flow in both platforms."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usa el mismo flujo de auth en ambas plataformas."
+          }
+        }
+      }
+    },
+    "welcome.cta.enter": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter the app"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entrar a la app"
+          }
+        }
+      }
+    },
+    "login.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter your credentials"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Introduce tus credenciales"
+          }
+        }
+      }
+    },
+    "login.link.register": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create account"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crear cuenta"
+          }
+        }
+      }
+    },
+    "login.link.forgot_password": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forgot your password?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Has olvidado tu contrasena?"
+          }
+        }
+      }
+    },
+    "register.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registration"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registro"
+          }
+        }
+      }
+    },
+    "register.subtitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registration screen is wired into navigation and will be completed in HU-031."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La pantalla de registro ya esta integrada en navegacion y se completara en HU-031."
+          }
+        }
+      }
+    },
+    "recover.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recover password"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recuperar contrasena"
+          }
+        }
+      }
+    },
+    "recover.subtitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recover screen is wired into navigation and will be completed in HU-032."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La pantalla de recuperacion ya esta integrada en navegacion y se completara en HU-032."
           }
         }
       }
     }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }

@@ -2,6 +2,7 @@ package com.reguerta.user.presentation.access
 
 import android.annotation.SuppressLint
 import android.content.Context
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,20 +16,24 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -42,6 +47,7 @@ import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.ResolveAuthorizedSessionUseCase
 import com.reguerta.user.domain.access.UnauthorizedReason
 import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
+import kotlinx.coroutines.delay
 
 @Composable
 fun rememberSessionViewModel(): SessionViewModel {
@@ -69,12 +75,38 @@ fun ReguertaRoot(
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
+    var shellState by remember { mutableStateOf(AuthShellState()) }
+    val isAuthenticatedSession = state.mode is SessionMode.Authorized || state.mode is SessionMode.Unauthorized
+
     LaunchedEffect(viewModel) {
         viewModel.uiEvents.collect { event ->
             if (event is SessionUiEvent.ShowMessage) {
                 snackbarHostState.showSnackbar(context.getString(event.messageRes))
             }
         }
+    }
+
+    LaunchedEffect(shellState.currentRoute, isAuthenticatedSession) {
+        if (shellState.currentRoute == AuthShellRoute.SPLASH) {
+            delay(1200)
+            shellState = reduceAuthShell(
+                state = shellState,
+                action = AuthShellAction.SplashCompleted(isAuthenticated = isAuthenticatedSession),
+            )
+        }
+    }
+
+    LaunchedEffect(isAuthenticatedSession) {
+        if (isAuthenticatedSession && shellState.currentRoute != AuthShellRoute.SPLASH) {
+            shellState = reduceAuthShell(
+                state = shellState,
+                action = AuthShellAction.SessionAuthenticated,
+            )
+        }
+    }
+
+    BackHandler(enabled = shellState.canGoBack) {
+        shellState = reduceAuthShell(state = shellState, action = AuthShellAction.Back)
     }
 
     Scaffold(
@@ -89,44 +121,276 @@ fun ReguertaRoot(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(
-                text = stringResource(R.string.access_members_roles_title),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-            )
+            when (shellState.currentRoute) {
+                AuthShellRoute.SPLASH -> SplashRoute()
 
-            SignInCard(state = state, viewModel = viewModel)
+                AuthShellRoute.WELCOME -> WelcomeRoute(
+                    onContinue = {
+                        shellState = reduceAuthShell(
+                            state = shellState,
+                            action = AuthShellAction.ContinueFromWelcome,
+                        )
+                    },
+                )
 
-            when (val mode = state.mode) {
-                is SessionMode.SignedOut -> {
-                    Text(
-                        text = stringResource(R.string.access_signed_out_hint),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
+                AuthShellRoute.LOGIN -> LoginRoute(
+                    state = state,
+                    onSignIn = viewModel::signIn,
+                    onOpenRegister = {
+                        shellState = reduceAuthShell(
+                            state = shellState,
+                            action = AuthShellAction.OpenRegisterFromLogin,
+                        )
+                    },
+                    onOpenRecover = {
+                        shellState = reduceAuthShell(
+                            state = shellState,
+                            action = AuthShellAction.OpenRecoverFromLogin,
+                        )
+                    },
+                    onEmailChanged = viewModel::onEmailChanged,
+                    onUidChanged = viewModel::onUidChanged,
+                )
 
-                is SessionMode.Unauthorized -> {
-                    UnauthorizedCard(mode = mode)
-                    OperationalModules(enabled = false)
-                }
+                AuthShellRoute.REGISTER -> PlaceholderAuthRoute(
+                    titleRes = R.string.register_title,
+                    subtitleRes = R.string.register_subtitle,
+                    actionLabelRes = R.string.common_action_back,
+                    onAction = {
+                        shellState = reduceAuthShell(
+                            state = shellState,
+                            action = AuthShellAction.Back,
+                        )
+                    },
+                )
 
-                is SessionMode.Authorized -> {
-                    AuthorizedHome(
-                        mode = mode,
-                        draft = state.memberDraft,
-                        onDraftChanged = viewModel::onMemberDraftChanged,
-                        onToggleAdmin = viewModel::toggleAdmin,
-                        onToggleActive = viewModel::toggleActive,
-                        onCreateMember = viewModel::createAuthorizedMember,
-                    )
-                }
+                AuthShellRoute.RECOVER_PASSWORD -> PlaceholderAuthRoute(
+                    titleRes = R.string.recover_title,
+                    subtitleRes = R.string.recover_subtitle,
+                    actionLabelRes = R.string.common_action_back,
+                    onAction = {
+                        shellState = reduceAuthShell(
+                            state = shellState,
+                            action = AuthShellAction.Back,
+                        )
+                    },
+                )
+
+                AuthShellRoute.HOME -> HomeRoute(
+                    mode = state.mode,
+                    draft = state.memberDraft,
+                    onDraftChanged = viewModel::onMemberDraftChanged,
+                    onToggleAdmin = viewModel::toggleAdmin,
+                    onToggleActive = viewModel::toggleActive,
+                    onCreateMember = viewModel::createAuthorizedMember,
+                    onSignOut = {
+                        viewModel.signOut()
+                        shellState = reduceAuthShell(
+                            state = shellState,
+                            action = AuthShellAction.SignedOut,
+                        )
+                    },
+                )
             }
         }
     }
 }
 
 @Composable
-private fun SignInCard(state: SessionUiState, viewModel: SessionViewModel) {
+private fun SplashRoute() {
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.access_members_roles_title),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            CircularProgressIndicator()
+            Text(
+                text = stringResource(R.string.auth_shell_splash_loading),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}
+
+@Composable
+private fun WelcomeRoute(
+    onContinue: () -> Unit,
+) {
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.welcome_title_prefix),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = stringResource(R.string.welcome_title_brand),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = stringResource(R.string.welcome_subtitle),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Button(
+                onClick = onContinue,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.welcome_cta_enter))
+            }
+        }
+    }
+}
+
+@Composable
+private fun LoginRoute(
+    state: SessionUiState,
+    onSignIn: () -> Unit,
+    onOpenRegister: () -> Unit,
+    onOpenRecover: () -> Unit,
+    onEmailChanged: (String) -> Unit,
+    onUidChanged: (String) -> Unit,
+) {
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.login_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = stringResource(R.string.access_signed_out_hint),
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
+
+    SignInCard(
+        state = state,
+        onSignIn = onSignIn,
+        onEmailChanged = onEmailChanged,
+        onUidChanged = onUidChanged,
+    )
+
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        TextButton(onClick = onOpenRegister) {
+            Text(stringResource(R.string.login_link_register))
+        }
+        TextButton(onClick = onOpenRecover) {
+            Text(stringResource(R.string.login_link_forgot_password))
+        }
+    }
+}
+
+@Composable
+private fun PlaceholderAuthRoute(
+    titleRes: Int,
+    subtitleRes: Int,
+    actionLabelRes: Int,
+    onAction: () -> Unit,
+) {
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(titleRes),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = stringResource(subtitleRes),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Button(
+                onClick = onAction,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(actionLabelRes))
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeRoute(
+    mode: SessionMode,
+    draft: MemberDraft,
+    onDraftChanged: (MemberDraft) -> Unit,
+    onToggleAdmin: (String) -> Unit,
+    onToggleActive: (String) -> Unit,
+    onCreateMember: () -> Unit,
+    onSignOut: () -> Unit,
+) {
+    Card {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.home_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            TextButton(onClick = onSignOut) {
+                Text(stringResource(R.string.access_action_sign_out))
+            }
+        }
+    }
+
+    when (mode) {
+        is SessionMode.Unauthorized -> {
+            UnauthorizedCard(mode = mode)
+            OperationalModules(enabled = false)
+        }
+
+        is SessionMode.Authorized -> {
+            AuthorizedHome(
+                mode = mode,
+                draft = draft,
+                onDraftChanged = onDraftChanged,
+                onToggleAdmin = onToggleAdmin,
+                onToggleActive = onToggleActive,
+                onCreateMember = onCreateMember,
+            )
+        }
+
+        SessionMode.SignedOut -> {
+            Text(stringResource(R.string.access_signed_out_hint))
+        }
+    }
+}
+
+@Composable
+private fun SignInCard(
+    state: SessionUiState,
+    onSignIn: () -> Unit,
+    onEmailChanged: (String) -> Unit,
+    onUidChanged: (String) -> Unit,
+) {
     Card {
         Column(
             modifier = Modifier
@@ -137,36 +401,31 @@ private fun SignInCard(state: SessionUiState, viewModel: SessionViewModel) {
             Text(stringResource(R.string.access_card_authentication))
             OutlinedTextField(
                 value = state.emailInput,
-                onValueChange = viewModel::onEmailChanged,
+                onValueChange = onEmailChanged,
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text(stringResource(R.string.common_input_email_label)) },
                 singleLine = true,
             )
             OutlinedTextField(
                 value = state.uidInput,
-                onValueChange = viewModel::onUidChanged,
+                onValueChange = onUidChanged,
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text(stringResource(R.string.access_input_auth_uid_label)) },
                 singleLine = true,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(
-                    onClick = viewModel::signIn,
-                    enabled = !state.isAuthenticating,
-                ) {
-                    Text(
-                        stringResource(
-                            if (state.isAuthenticating) {
-                                R.string.access_action_signing_in
-                            } else {
-                                R.string.access_action_sign_in
-                            },
-                        ),
-                    )
-                }
-                Button(onClick = viewModel::signOut) {
-                    Text(stringResource(R.string.access_action_sign_out))
-                }
+            Button(
+                onClick = onSignIn,
+                enabled = !state.isAuthenticating,
+            ) {
+                Text(
+                    stringResource(
+                        if (state.isAuthenticating) {
+                            R.string.access_action_signing_in
+                        } else {
+                            R.string.access_action_sign_in
+                        },
+                    ),
+                )
             }
         }
     }
@@ -214,11 +473,10 @@ private fun AuthorizedHome(
         ) {
             val context = LocalContext.current
             Text(
-                stringResource(R.string.home_title),
+                stringResource(R.string.home_welcome_format, mode.member.displayName),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
-            Text(stringResource(R.string.home_welcome_format, mode.member.displayName))
             Text(stringResource(R.string.common_roles_format, mode.member.roles.toPrettyRoles(context)))
             Text(
                 stringResource(

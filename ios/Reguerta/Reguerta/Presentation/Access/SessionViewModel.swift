@@ -243,3 +243,14 @@ final class SessionViewModel {
         return "member_\(suffix)"
     }
 }
+
+extension SessionMode {
+    var isAuthenticatedSession: Bool {
+        switch self {
+        case .authorized, .unauthorized:
+            return true
+        case .signedOut:
+            return false
+        }
+    }
+}

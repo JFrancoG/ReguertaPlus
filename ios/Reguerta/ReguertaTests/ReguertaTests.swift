@@ -95,4 +95,47 @@ struct ReguertaTests {
         #expect(created.normalizedEmail == "nuevo@reguerta.app")
         #expect(await repository.findByEmailNormalized("nuevo@reguerta.app") != nil)
     }
+
+    @Test
+    func authShellRoutesSplashToWelcomeWhenNoSession() {
+        let reduced = reduceAuthShell(
+            state: AuthShellState(),
+            action: .splashCompleted(isAuthenticated: false)
+        )
+
+        #expect(reduced.currentRoute == .welcome)
+        #expect(reduced.canGoBack == false)
+    }
+
+    @Test
+    func authShellDeterministicBackFlowForLoginRegister() {
+        let welcome = AuthShellState(backStack: [.welcome])
+        let login = reduceAuthShell(state: welcome, action: .continueFromWelcome)
+        let register = reduceAuthShell(state: login, action: .openRegisterFromLogin)
+        let backToLogin = reduceAuthShell(state: register, action: .back)
+        let backToWelcome = reduceAuthShell(state: backToLogin, action: .back)
+
+        #expect(login.currentRoute == .login)
+        #expect(register.currentRoute == .register)
+        #expect(backToLogin.currentRoute == .login)
+        #expect(backToWelcome.currentRoute == .welcome)
+    }
+
+    @Test
+    func authShellResetsToHomeOnAuthenticatedSession() {
+        let state = AuthShellState(backStack: [.welcome, .login, .recoverPassword])
+        let reduced = reduceAuthShell(state: state, action: .sessionAuthenticated)
+
+        #expect(reduced.currentRoute == .home)
+        #expect(reduced.canGoBack == false)
+    }
+
+    @Test
+    func authShellResetsToWelcomeOnSignOut() {
+        let state = AuthShellState(backStack: [.home])
+        let reduced = reduceAuthShell(state: state, action: .signedOut)
+
+        #expect(reduced.currentRoute == .welcome)
+        #expect(reduced.canGoBack == false)
+    }
 }

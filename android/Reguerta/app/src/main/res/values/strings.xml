@@ -10,6 +10,19 @@
     <string name="access_action_sign_in">Sign in</string>
     <string name="access_action_sign_out">Sign out</string>
     <string name="access_action_dismiss_message">Dismiss message</string>
+    <string name="auth_shell_splash_loading">Preparing experience...</string>
+    <string name="welcome_title_prefix">Welcome to</string>
+    <string name="welcome_title_brand">Reguerta</string>
+    <string name="welcome_subtitle">Use one consistent auth flow in both platforms.</string>
+    <string name="welcome_cta_enter">Enter the app</string>
+    <string name="login_title">Enter your credentials</string>
+    <string name="login_link_register">Create account</string>
+    <string name="login_link_forgot_password">Forgot your password?</string>
+    <string name="register_title">Registration</string>
+    <string name="register_subtitle">Registration screen is wired into navigation and will be completed in HU-031.</string>
+    <string name="recover_title">Recover password</string>
+    <string name="recover_subtitle">Recover screen is wired into navigation and will be completed in HU-032.</string>
+    <string name="common_action_back">Back</string>
 
     <string name="auth_error_member_unauthorized">Unauthorized user</string>
     <string name="access_signed_in_email_format">Signed in email: %1$s</string>
