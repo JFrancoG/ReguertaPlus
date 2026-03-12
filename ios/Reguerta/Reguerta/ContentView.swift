@@ -7,59 +7,65 @@ struct ContentView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("Members and Roles")
+                    Text(localizedKey(AccessL10nKey.membersRolesTitle))
                         .font(.title2.bold())
 
                     signInCard
 
                     switch viewModel.mode {
                     case .signedOut:
-                        Text("Sign in with a pre-authorized member email to unlock operational modules.")
+                        Text(localizedKey(AccessL10nKey.signedOutHint))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                    case .unauthorized(let email, let message):
-                        unauthorizedCard(email: email, message: message)
+                    case .unauthorized(let email, let reason):
+                        unauthorizedCard(email: email, reason: reason)
                         operationalModules(enabled: false)
                     case .authorized(let session):
                         authorizedHome(session: session)
                     }
 
-                    if let feedback = viewModel.feedbackMessage {
-                        Text(feedback)
+                    if let feedbackKey = viewModel.feedbackMessageKey {
+                        Text(l10n(feedbackKey))
                             .font(.footnote)
                             .foregroundStyle(.red)
-                        Button("Dismiss message") {
+                        Button {
                             viewModel.clearFeedbackMessage()
+                        } label: {
+                            Text(localizedKey(AccessL10nKey.dismissMessage))
                         }
                     }
                 }
                 .padding()
             }
-            .navigationTitle("Reguerta")
+            .navigationTitle(localizedKey(AccessL10nKey.brandReguerta))
         }
     }
 
     private var signInCard: some View {
         cardContainer {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Authentication")
+                Text(localizedKey(AccessL10nKey.authenticationCardTitle))
                     .font(.headline)
 
-                TextField("Email", text: binding(\.emailInput))
+                TextField(localizedKey(AccessL10nKey.emailLabel), text: binding(\.emailInput))
                     .textInputAutocapitalization(.never)
                     .textFieldStyle(.roundedBorder)
-                TextField("Auth UID", text: binding(\.uidInput))
+                TextField(localizedKey(AccessL10nKey.authUidLabel), text: binding(\.uidInput))
                     .textInputAutocapitalization(.never)
                     .textFieldStyle(.roundedBorder)
 
                 HStack {
-                    Button(viewModel.isAuthenticating ? "Signing in..." : "Sign in") {
+                    Button {
                         viewModel.signIn()
+                    } label: {
+                        Text(localizedKey(viewModel.isAuthenticating ? AccessL10nKey.signingIn : AccessL10nKey.signIn))
                     }
                     .disabled(viewModel.isAuthenticating)
 
-                    Button("Sign out") {
+                    Button {
                         viewModel.signOut()
+                    } label: {
+                        Text(localizedKey(AccessL10nKey.signOut))
                     }
                 }
             }
@@ -67,14 +73,14 @@ struct ContentView: View {
     }
 
     @ViewBuilder
-    private func unauthorizedCard(email: String, message: String) -> some View {
+    private func unauthorizedCard(email: String, reason: UnauthorizedReason) -> some View {
         cardContainer {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Unauthorized user")
+                Text(localizedKey(AccessL10nKey.unauthorized))
                     .font(.headline)
-                Text("Signed in email: \(email)")
-                Text("Operational modules remain disabled until an admin pre-authorizes this email.")
-                Text("Reason: \(message)")
+                Text(l10n(AccessL10nKey.signedInEmail, email))
+                Text(localizedKey(AccessL10nKey.restrictedModeInfo))
+                Text(l10n(AccessL10nKey.reason, localizedUnauthorizedReason(reason)))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -85,11 +91,16 @@ struct ContentView: View {
     private func authorizedHome(session: AuthorizedSession) -> some View {
         cardContainer {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Home")
+                Text(localizedKey(AccessL10nKey.homeTitle))
                     .font(.headline)
-                Text("Welcome \(session.member.displayName)")
-                Text("Roles: \(session.member.roles.prettyList)")
-                Text("Status: \(session.member.isActive ? "Active" : "Inactive")")
+                Text(l10n(AccessL10nKey.homeWelcome, session.member.displayName))
+                Text(l10n(AccessL10nKey.roles, session.member.roles.prettyListLocalized))
+                Text(
+                    l10n(
+                        AccessL10nKey.status,
+                        l10n(session.member.isActive ? AccessL10nKey.statusActive : AccessL10nKey.statusInactive)
+                    )
+                )
             }
         }
 
@@ -104,14 +115,23 @@ struct ContentView: View {
     private func operationalModules(enabled: Bool) -> some View {
         cardContainer {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Operational modules")
+                Text(localizedKey(AccessL10nKey.operationalModulesTitle))
                     .font(.headline)
-                Button("My order") {}
-                    .disabled(!enabled)
-                Button("Catalog") {}
-                    .disabled(!enabled)
-                Button("Shifts") {}
-                    .disabled(!enabled)
+                Button {
+                } label: {
+                    Text(localizedKey(AccessL10nKey.myOrder))
+                }
+                .disabled(!enabled)
+                Button {
+                } label: {
+                    Text(localizedKey(AccessL10nKey.catalog))
+                }
+                .disabled(!enabled)
+                Button {
+                } label: {
+                    Text(localizedKey(AccessL10nKey.shifts))
+                }
+                .disabled(!enabled)
             }
         }
     }
@@ -120,9 +140,9 @@ struct ContentView: View {
     private func adminMembersCard(session: AuthorizedSession) -> some View {
         cardContainer {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Admin | Manage members")
+                Text(localizedKey(AccessL10nKey.adminManageMembersTitle))
                     .font(.headline)
-                Text("Create / edit / deactivate members and roles")
+                Text(localizedKey(AccessL10nKey.adminManageMembersSubtitle))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
@@ -132,21 +152,23 @@ struct ContentView: View {
 
                 Divider()
 
-                Text("Create pre-authorized member")
+                Text(localizedKey(AccessL10nKey.adminCreatePreAuthorizedTitle))
                     .font(.headline)
-                TextField("Display name", text: draftBinding(\.displayName))
+                TextField(localizedKey(AccessL10nKey.displayNameLabel), text: draftBinding(\.displayName))
                     .textFieldStyle(.roundedBorder)
-                TextField("Email", text: draftBinding(\.email))
+                TextField(localizedKey(AccessL10nKey.emailLabel), text: draftBinding(\.email))
                     .textInputAutocapitalization(.never)
                     .textFieldStyle(.roundedBorder)
 
-                Toggle("Member", isOn: draftBinding(\.isMember))
-                Toggle("Producer", isOn: draftBinding(\.isProducer))
-                Toggle("Admin", isOn: draftBinding(\.isAdmin))
-                Toggle("Active", isOn: draftBinding(\.isActive))
+                Toggle(localizedKey(AccessL10nKey.roleMember), isOn: draftBinding(\.isMember))
+                Toggle(localizedKey(AccessL10nKey.roleProducer), isOn: draftBinding(\.isProducer))
+                Toggle(localizedKey(AccessL10nKey.roleAdmin), isOn: draftBinding(\.isAdmin))
+                Toggle(localizedKey(AccessL10nKey.roleActive), isOn: draftBinding(\.isActive))
 
-                Button("Create member") {
+                Button {
                     viewModel.createAuthorizedMember()
+                } label: {
+                    Text(localizedKey(AccessL10nKey.createMember))
                 }
             }
         }
@@ -159,19 +181,28 @@ struct ContentView: View {
                 .font(.subheadline.bold())
             Text(member.normalizedEmail)
                 .font(.subheadline)
-            Text("Roles: \(member.roles.prettyList)")
+            Text(l10n(AccessL10nKey.roles, member.roles.prettyListLocalized))
                 .font(.footnote)
-            Text("Auth linked: \(member.authUid == nil ? "No" : "Yes")")
+            Text(l10n(AccessL10nKey.authLinked, l10n(member.authUid == nil ? AccessL10nKey.no : AccessL10nKey.yes)))
                 .font(.footnote)
-            Text("Status: \(member.isActive ? "Active" : "Inactive")")
-                .font(.footnote)
+            Text(
+                l10n(
+                    AccessL10nKey.status,
+                    l10n(member.isActive ? AccessL10nKey.statusActive : AccessL10nKey.statusInactive)
+                )
+            )
+            .font(.footnote)
 
             HStack {
-                Button(member.isAdmin ? "Revoke admin" : "Grant admin") {
+                Button {
                     viewModel.toggleAdmin(memberId: member.id)
+                } label: {
+                    Text(localizedKey(member.isAdmin ? AccessL10nKey.revokeAdmin : AccessL10nKey.grantAdmin))
                 }
-                Button(member.isActive ? "Deactivate" : "Activate") {
+                Button {
                     viewModel.toggleActive(memberId: member.id)
+                } label: {
+                    Text(localizedKey(member.isActive ? AccessL10nKey.deactivate : AccessL10nKey.activate))
                 }
             }
         }
@@ -222,12 +253,16 @@ struct ContentView: View {
             }
         )
     }
+
+    private func localizedKey(_ key: String) -> LocalizedStringKey {
+        LocalizedStringKey(key)
+    }
 }
 
 private extension Set<MemberRole> {
-    var prettyList: String {
+    var prettyListLocalized: String {
         sorted { lhs, rhs in lhs.rawValue < rhs.rawValue }
-            .map(\.rawValue)
+            .map(localizedRoleValue(_:))
             .joined(separator: ", ")
     }
 }

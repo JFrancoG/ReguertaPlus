@@ -24,7 +24,7 @@ final class ReguertaUITests: XCTestCase {
 
     @MainActor
     func testUnauthorizedUserShowsRestrictedMode() throws {
-        let app = XCUIApplication()
+        let app = configuredApp()
         app.launch()
 
         let emailField = app.textFields["Email"]
@@ -46,7 +46,7 @@ final class ReguertaUITests: XCTestCase {
 
     @MainActor
     func testPreAuthorizedAdminEntersHomeWithModulesEnabled() throws {
-        let app = XCUIApplication()
+        let app = configuredApp()
         app.launch()
 
         let emailField = app.textFields["Email"]
@@ -82,7 +82,13 @@ final class ReguertaUITests: XCTestCase {
     func testLaunchPerformance() throws {
         // This measures how long it takes to launch your application.
         measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
+            configuredApp().launch()
         }
+    }
+
+    private func configuredApp() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        return app
     }
 }

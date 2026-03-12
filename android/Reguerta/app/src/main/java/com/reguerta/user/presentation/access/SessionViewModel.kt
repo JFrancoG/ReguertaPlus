@@ -1,7 +1,9 @@
 package com.reguerta.user.presentation.access
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.reguerta.user.R
 import com.reguerta.user.domain.access.AccessResolutionResult
 import com.reguerta.user.domain.access.AuthPrincipal
 import com.reguerta.user.domain.access.Member
@@ -9,6 +11,7 @@ import com.reguerta.user.domain.access.MemberManagementException
 import com.reguerta.user.domain.access.MemberRepository
 import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.ResolveAuthorizedSessionUseCase
+import com.reguerta.user.domain.access.UnauthorizedReason
 import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,7 +42,7 @@ sealed interface SessionMode {
 
     data class Unauthorized(
         val email: String,
-        val message: String,
+        val reason: UnauthorizedReason,
     ) : SessionMode
 }
 
@@ -52,7 +55,7 @@ data class SessionUiState(
 )
 
 sealed interface SessionUiEvent {
-    data class ShowMessage(val message: String) : SessionUiEvent
+    data class ShowMessage(@param:StringRes val messageRes: Int) : SessionUiEvent
 }
 
 class SessionViewModel(
@@ -80,7 +83,7 @@ class SessionViewModel(
         val uid = currentState.uidInput.trim()
 
         if (email.isBlank() || uid.isBlank()) {
-            emitMessage("Email and UID are required")
+            emitMessage(R.string.feedback_email_uid_required)
             return
         }
 
@@ -108,7 +111,7 @@ class SessionViewModel(
                             isAuthenticating = false,
                             mode = SessionMode.Unauthorized(
                                 email = email,
-                                message = result.message,
+                                reason = result.reason,
                             ),
                         )
                     }
@@ -134,13 +137,13 @@ class SessionViewModel(
     fun createAuthorizedMember() {
         val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
         if (!mode.member.isAdmin) {
-            emitMessage("Only admins can create members")
+            emitMessage(R.string.feedback_only_admin_create)
             return
         }
 
         val draft = _uiState.value.memberDraft
         if (draft.displayName.isBlank() || draft.email.isBlank()) {
-            emitMessage("Display name and email are required")
+            emitMessage(R.string.feedback_display_name_email_required)
             return
         }
 
@@ -148,13 +151,13 @@ class SessionViewModel(
         val allMembers = mode.members
         val memberId = buildMemberId(normalizedEmail)
         if (allMembers.any { it.id == memberId || it.normalizedEmail == normalizedEmail }) {
-            emitMessage("Member already exists")
+            emitMessage(R.string.feedback_member_exists)
             return
         }
 
         val roles = buildRoles(draft)
         if (roles.isEmpty()) {
-            emitMessage("Select at least one role")
+            emitMessage(R.string.feedback_select_role)
             return
         }
 
@@ -176,7 +179,7 @@ class SessionViewModel(
     fun toggleAdmin(memberId: String) {
         val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
         if (!mode.member.isAdmin) {
-            emitMessage("Only admins can edit roles")
+            emitMessage(R.string.feedback_only_admin_edit_roles)
             return
         }
 
@@ -199,7 +202,7 @@ class SessionViewModel(
     fun toggleActive(memberId: String) {
         val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
         if (!mode.member.isAdmin) {
-            emitMessage("Only admins can activate or deactivate")
+            emitMessage(R.string.feedback_only_admin_toggle_active)
             return
         }
 
@@ -217,10 +220,13 @@ class SessionViewModel(
             val updatedMember = try {
                 upsertMemberByAdmin(actorAuthUid = mode.principal.uid, target = target)
             } catch (_: MemberManagementException.AccessDenied) {
-                emitMessage("Only admins can manage members")
+                emitMessage(R.string.feedback_only_admin_manage_members)
                 return@launch
             } catch (_: MemberManagementException.LastAdminRemoval) {
-                emitMessage("Cannot leave the app without active admins")
+                emitMessage(R.string.feedback_cannot_remove_last_admin)
+                return@launch
+            } catch (_: Exception) {
+                emitMessage(R.string.feedback_unable_save_changes)
                 return@launch
             }
 
@@ -245,9 +251,9 @@ class SessionViewModel(
         }
     }
 
-    private fun emitMessage(message: String) {
+    private fun emitMessage(@StringRes messageRes: Int) {
         viewModelScope.launch {
-            _uiEvents.emit(SessionUiEvent.ShowMessage(message))
+            _uiEvents.emit(SessionUiEvent.ShowMessage(messageRes))
         }
     }
 
