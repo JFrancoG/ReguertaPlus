@@ -10,6 +10,19 @@
     <string name="access_action_sign_in">Iniciar sesion</string>
     <string name="access_action_sign_out">Cerrar sesion</string>
     <string name="access_action_dismiss_message">Cerrar mensaje</string>
+    <string name="auth_shell_splash_loading">Preparando experiencia...</string>
+    <string name="welcome_title_prefix">Bienvenido a</string>
+    <string name="welcome_title_brand">Reguerta</string>
+    <string name="welcome_subtitle">Usa el mismo flujo de auth en ambas plataformas.</string>
+    <string name="welcome_cta_enter">Entrar a la app</string>
+    <string name="login_title">Introduce tus credenciales</string>
+    <string name="login_link_register">Crear cuenta</string>
+    <string name="login_link_forgot_password">Has olvidado tu contrasena?</string>
+    <string name="register_title">Registro</string>
+    <string name="register_subtitle">La pantalla de registro ya esta integrada en navegacion y se completara en HU-031.</string>
+    <string name="recover_title">Recuperar contrasena</string>
+    <string name="recover_subtitle">La pantalla de recuperacion ya esta integrada en navegacion y se completara en HU-032.</string>
+    <string name="common_action_back">Volver</string>
 
     <string name="auth_error_member_unauthorized">Usuario no autorizado</string>
     <string name="access_signed_in_email_format">Email de sesion: %1$s</string>

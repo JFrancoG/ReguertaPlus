@@ -26,6 +26,7 @@ final class ReguertaUITests: XCTestCase {
     func testUnauthorizedUserShowsRestrictedMode() throws {
         let app = configuredApp()
         app.launch()
+        app.buttons["Enter the app"].tap()
 
         let emailField = app.textFields["Email"]
         XCTAssertTrue(emailField.waitForExistence(timeout: 5))
@@ -48,6 +49,7 @@ final class ReguertaUITests: XCTestCase {
     func testPreAuthorizedAdminEntersHomeWithModulesEnabled() throws {
         let app = configuredApp()
         app.launch()
+        app.buttons["Enter the app"].tap()
 
         let emailField = app.textFields["Email"]
         XCTAssertTrue(emailField.waitForExistence(timeout: 5), "Email field not found")
@@ -88,7 +90,7 @@ final class ReguertaUITests: XCTestCase {
 
     private func configuredApp() -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-skipSplash"]
         return app
     }
 }

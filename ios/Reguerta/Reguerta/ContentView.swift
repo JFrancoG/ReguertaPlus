@@ -2,26 +2,35 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var viewModel = SessionViewModel()
+    @State private var shellState = AuthShellState()
+
+    private var shouldSkipSplash: Bool {
+        ProcessInfo.processInfo.arguments.contains("-skipSplash")
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text(localizedKey(AccessL10nKey.membersRolesTitle))
-                        .font(.title2.bold())
-
-                    signInCard
-
-                    switch viewModel.mode {
-                    case .signedOut:
-                        Text(localizedKey(AccessL10nKey.signedOutHint))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    case .unauthorized(let email, let reason):
-                        unauthorizedCard(email: email, reason: reason)
-                        operationalModules(enabled: false)
-                    case .authorized(let session):
-                        authorizedHome(session: session)
+                    switch shellState.currentRoute {
+                    case .splash:
+                        splashRoute
+                    case .welcome:
+                        welcomeRoute
+                    case .login:
+                        loginRoute
+                    case .register:
+                        placeholderRoute(
+                            titleKey: AccessL10nKey.registerTitle,
+                            subtitleKey: AccessL10nKey.registerSubtitle
+                        )
+                    case .recoverPassword:
+                        placeholderRoute(
+                            titleKey: AccessL10nKey.recoverTitle,
+                            subtitleKey: AccessL10nKey.recoverSubtitle
+                        )
+                    case .home:
+                        homeRoute
                     }
 
                     if let feedbackKey = viewModel.feedbackMessageKey {
@@ -37,7 +46,121 @@ struct ContentView: View {
                 }
                 .padding()
             }
-            .navigationTitle(localizedKey(AccessL10nKey.brandReguerta))
+            .navigationTitle(routeTitle(for: shellState.currentRoute))
+            .toolbar {
+                if shellState.canGoBack {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            dispatchShell(.back)
+                        } label: {
+                            Text(localizedKey(AccessL10nKey.commonBack))
+                        }
+                    }
+                }
+            }
+        }
+        .task(id: shellState.currentRoute) {
+            await handleSplashIfNeeded()
+        }
+        .onChange(of: viewModel.mode) { _, mode in
+            if mode.isAuthenticatedSession, shellState.currentRoute != .splash {
+                dispatchShell(.sessionAuthenticated)
+            }
+        }
+    }
+
+    private var splashRoute: some View {
+        cardContainer {
+            VStack(alignment: .center, spacing: 16) {
+                Text(localizedKey(AccessL10nKey.membersRolesTitle))
+                    .font(.title2.bold())
+                ProgressView()
+                Text(localizedKey(AccessL10nKey.splashLoading))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    private var welcomeRoute: some View {
+        cardContainer {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(localizedKey(AccessL10nKey.welcomeTitlePrefix))
+                    .font(.headline)
+                Text(localizedKey(AccessL10nKey.welcomeTitleBrand))
+                    .font(.title.bold())
+                Text(localizedKey(AccessL10nKey.welcomeSubtitle))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Button {
+                    dispatchShell(.continueFromWelcome)
+                } label: {
+                    Text(localizedKey(AccessL10nKey.welcomeCtaEnter))
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+    }
+
+    private var loginRoute: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            cardContainer {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(localizedKey(AccessL10nKey.loginTitle))
+                        .font(.headline)
+                    Text(localizedKey(AccessL10nKey.signedOutHint))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            signInCard
+
+            HStack {
+                Button {
+                    dispatchShell(.openRegisterFromLogin)
+                } label: {
+                    Text(localizedKey(AccessL10nKey.loginLinkRegister))
+                }
+
+                Button {
+                    dispatchShell(.openRecoverFromLogin)
+                } label: {
+                    Text(localizedKey(AccessL10nKey.loginLinkForgotPassword))
+                }
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var homeRoute: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            cardContainer {
+                HStack {
+                    Text(localizedKey(AccessL10nKey.homeTitle))
+                        .font(.headline)
+                    Spacer()
+                    Button {
+                        viewModel.signOut()
+                        dispatchShell(.signedOut)
+                    } label: {
+                        Text(localizedKey(AccessL10nKey.signOut))
+                    }
+                }
+            }
+
+            switch viewModel.mode {
+            case .signedOut:
+                Text(localizedKey(AccessL10nKey.signedOutHint))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            case .unauthorized(let email, let reason):
+                unauthorizedCard(email: email, reason: reason)
+                operationalModules(enabled: false)
+            case .authorized(let session):
+                authorizedHome(session: session)
+            }
         }
     }
 
@@ -54,20 +177,12 @@ struct ContentView: View {
                     .textInputAutocapitalization(.never)
                     .textFieldStyle(.roundedBorder)
 
-                HStack {
-                    Button {
-                        viewModel.signIn()
-                    } label: {
-                        Text(localizedKey(viewModel.isAuthenticating ? AccessL10nKey.signingIn : AccessL10nKey.signIn))
-                    }
-                    .disabled(viewModel.isAuthenticating)
-
-                    Button {
-                        viewModel.signOut()
-                    } label: {
-                        Text(localizedKey(AccessL10nKey.signOut))
-                    }
+                Button {
+                    viewModel.signIn()
+                } label: {
+                    Text(localizedKey(viewModel.isAuthenticating ? AccessL10nKey.signingIn : AccessL10nKey.signIn))
                 }
+                .disabled(viewModel.isAuthenticating)
             }
         }
     }
@@ -91,8 +206,6 @@ struct ContentView: View {
     private func authorizedHome(session: AuthorizedSession) -> some View {
         cardContainer {
             VStack(alignment: .leading, spacing: 8) {
-                Text(localizedKey(AccessL10nKey.homeTitle))
-                    .font(.headline)
                 Text(l10n(AccessL10nKey.homeWelcome, session.member.displayName))
                 Text(l10n(AccessL10nKey.roles, session.member.roles.prettyListLocalized))
                 Text(
@@ -213,6 +326,24 @@ struct ContentView: View {
     }
 
     @ViewBuilder
+    private func placeholderRoute(titleKey: String, subtitleKey: String) -> some View {
+        cardContainer {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(localizedKey(titleKey))
+                    .font(.title3.bold())
+                Text(localizedKey(subtitleKey))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Button {
+                    dispatchShell(.back)
+                } label: {
+                    Text(localizedKey(AccessL10nKey.commonBack))
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
     private func cardContainer<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         content()
             .padding()
@@ -256,6 +387,38 @@ struct ContentView: View {
 
     private func localizedKey(_ key: String) -> LocalizedStringKey {
         LocalizedStringKey(key)
+    }
+
+    private func dispatchShell(_ action: AuthShellAction) {
+        shellState = reduceAuthShell(state: shellState, action: action)
+    }
+
+    private func handleSplashIfNeeded() async {
+        guard shellState.currentRoute == .splash else { return }
+
+        if shouldSkipSplash {
+            dispatchShell(.splashCompleted(isAuthenticated: viewModel.mode.isAuthenticatedSession))
+            return
+        }
+
+        try? await Task.sleep(nanoseconds: 1_200_000_000)
+        guard shellState.currentRoute == .splash else { return }
+        dispatchShell(.splashCompleted(isAuthenticated: viewModel.mode.isAuthenticatedSession))
+    }
+
+    private func routeTitle(for route: AuthShellRoute) -> LocalizedStringKey {
+        switch route {
+        case .splash, .welcome:
+            return localizedKey(AccessL10nKey.brandReguerta)
+        case .login:
+            return localizedKey(AccessL10nKey.loginTitle)
+        case .register:
+            return localizedKey(AccessL10nKey.registerTitle)
+        case .recoverPassword:
+            return localizedKey(AccessL10nKey.recoverTitle)
+        case .home:
+            return localizedKey(AccessL10nKey.homeTitle)
+        }
     }
 }
 
