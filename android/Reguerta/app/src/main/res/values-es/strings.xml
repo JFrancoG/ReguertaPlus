@@ -2,13 +2,13 @@
     <string name="app_name">Reguerta</string>
 
     <string name="access_members_roles_title">Miembros y roles</string>
-    <string name="access_signed_out_hint">Inicia sesion con un email de miembro preautorizado para desbloquear los modulos operativos.</string>
-    <string name="access_card_authentication">Autenticacion</string>
+    <string name="access_signed_out_hint">Inicia sesión con un email de miembro preautorizado para desbloquear los módulos operativos.</string>
+    <string name="access_card_authentication">Autenticación</string>
     <string name="common_input_email_label">Email</string>
     <string name="access_input_auth_uid_label">Auth UID</string>
-    <string name="access_action_signing_in">Iniciando sesion...</string>
-    <string name="access_action_sign_in">Iniciar sesion</string>
-    <string name="access_action_sign_out">Cerrar sesion</string>
+    <string name="access_action_signing_in">Iniciando sesión...</string>
+    <string name="access_action_sign_in">Iniciar sesión</string>
+    <string name="access_action_sign_out">Cerrar sesión</string>
     <string name="access_action_dismiss_message">Cerrar mensaje</string>
     <string name="auth_shell_splash_loading">Preparando experiencia...</string>
     <string name="welcome_title_prefix">Bienvenido a</string>
@@ -17,16 +17,16 @@
     <string name="welcome_cta_enter">Entrar a la app</string>
     <string name="login_title">Introduce tus credenciales</string>
     <string name="login_link_register">Crear cuenta</string>
-    <string name="login_link_forgot_password">Has olvidado tu contrasena?</string>
+    <string name="login_link_forgot_password">¿Has olvidado tu contraseña?</string>
     <string name="register_title">Registro</string>
-    <string name="register_subtitle">La pantalla de registro ya esta integrada en navegacion y se completara en HU-031.</string>
-    <string name="recover_title">Recuperar contrasena</string>
-    <string name="recover_subtitle">La pantalla de recuperacion ya esta integrada en navegacion y se completara en HU-032.</string>
+    <string name="register_subtitle">La pantalla de registro ya está integrada en navegación y se completará en HU-031.</string>
+    <string name="recover_title">Recuperar contraseña</string>
+    <string name="recover_subtitle">La pantalla de recuperación ya está integrada en navegación y se completará en HU-032.</string>
     <string name="common_action_back">Volver</string>
 
     <string name="auth_error_member_unauthorized">Usuario no autorizado</string>
-    <string name="access_signed_in_email_format">Email de sesion: %1$s</string>
-    <string name="auth_info_member_restricted_mode">Los modulos operativos seguiran desactivados hasta que un admin preautorice este email.</string>
+    <string name="access_signed_in_email_format">Email de sesión: %1$s</string>
+    <string name="auth_info_member_restricted_mode">Los módulos operativos seguirán desactivados hasta que un admin preautorice este email.</string>
     <string name="common_reason_format">Motivo: %1$s</string>
 
     <string name="home_title">Inicio</string>
@@ -36,12 +36,12 @@
     <string name="common_status_active">Activo</string>
     <string name="common_status_inactive">Inactivo</string>
 
-    <string name="operational_modules_title">Modulos operativos</string>
+    <string name="operational_modules_title">Módulos operativos</string>
     <string name="module_my_order">Mi pedido</string>
-    <string name="module_catalog">Catalogo</string>
+    <string name="module_catalog">Catálogo</string>
     <string name="module_shifts">Turnos</string>
 
-    <string name="admin_manage_members_title">Admin | Gestion de miembros</string>
+    <string name="admin_manage_members_title">Admin | Gestión de miembros</string>
     <string name="admin_manage_members_subtitle">Crear / editar / desactivar miembros y roles</string>
     <string name="admin_create_pre_authorized_member">Crear miembro preautorizado</string>
     <string name="admin_input_display_name_label">Nombre visible</string>
@@ -51,7 +51,7 @@
     <string name="role_active">Activo</string>
     <string name="admin_action_create_member">Crear miembro</string>
     <string name="member_auth_linked_format">Auth vinculada: %1$s</string>
-    <string name="common_yes">Si</string>
+    <string name="common_yes">Sí</string>
     <string name="common_no">No</string>
     <string name="admin_action_revoke_admin">Quitar admin</string>
     <string name="admin_action_grant_admin">Dar admin</string>
