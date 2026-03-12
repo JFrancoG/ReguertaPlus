@@ -72,3 +72,22 @@ Permitido:
 No permitido:
 
 - Semanticas divergentes para acciones core (`primary`, `danger`, `disabled`, `focus`).
+
+## 8. Baseline implementado HU-035 (2026-03-13)
+
+Puntos de entrada actuales en codigo:
+
+- Android (theme wrapper + paleta semantica):
+  - `android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Theme.kt`
+  - `android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Color.kt`
+  - `android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Type.kt`
+  - `android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/DesignTokens.kt`
+- iOS (theme wrapper + tokens semanticos):
+  - `ios/Reguerta/Reguerta/Reguerta/DesignSystem/ReguertaTheme.swift`
+  - `ios/Reguerta/Reguerta/Reguerta/ReguertaApp.swift`
+
+Baseline de migracion auth shell:
+
+- Las rutas Splash / Welcome / Login consumen spacing/radius/tipografia del foundation layer en:
+  - `android/Reguerta/app/src/main/java/com/reguerta/user/presentation/access/ReguertaRoot.kt`
+  - `ios/Reguerta/Reguerta/Reguerta/ContentView.swift`

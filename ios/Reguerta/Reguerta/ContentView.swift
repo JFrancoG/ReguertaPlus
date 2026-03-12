@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
+    @Environment(\.reguertaTokens) private var tokens
     @State private var viewModel = SessionViewModel()
     @State private var shellState = AuthShellState()
     @State private var splashScale: CGFloat = SplashAnimationContract.initialScale
@@ -15,7 +16,7 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: tokens.spacing.lg) {
                     switch shellState.currentRoute {
                     case .splash:
                         splashRoute
@@ -39,8 +40,8 @@ struct ContentView: View {
 
                     if let feedbackKey = viewModel.feedbackMessageKey {
                         Text(l10n(feedbackKey))
-                            .font(.footnote)
-                            .foregroundStyle(.red)
+                            .font(tokens.typography.label)
+                            .foregroundStyle(tokens.colors.feedbackError)
                         Button {
                             viewModel.clearFeedbackMessage()
                         } label: {
@@ -48,7 +49,7 @@ struct ContentView: View {
                         }
                     }
                 }
-                .padding()
+                .padding(tokens.spacing.lg)
             }
             .navigationTitle(routeTitle(for: shellState.currentRoute))
             .toolbar {
@@ -80,9 +81,10 @@ struct ContentView: View {
 
     private var splashRoute: some View {
         cardContainer {
-            VStack(alignment: .center, spacing: 16) {
+            VStack(alignment: .center, spacing: tokens.spacing.lg) {
                 Text(localizedKey(AccessL10nKey.membersRolesTitle))
-                    .font(.title2.bold())
+                    .font(tokens.typography.titleSection)
+                    .foregroundStyle(tokens.colors.textPrimary)
                 Image("brand_logo")
                     .resizable()
                     .scaledToFit()
@@ -91,8 +93,8 @@ struct ContentView: View {
                     .rotationEffect(.degrees(splashRotation))
                     .opacity(splashOpacity)
                 Text(localizedKey(AccessL10nKey.splashLoading))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(tokens.typography.bodySecondary)
+                    .foregroundStyle(tokens.colors.textSecondary)
             }
             .frame(maxWidth: .infinity)
             .task(id: shellState.currentRoute) {
@@ -103,14 +105,16 @@ struct ContentView: View {
 
     private var welcomeRoute: some View {
         cardContainer {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: tokens.spacing.md) {
                 Text(localizedKey(AccessL10nKey.welcomeTitlePrefix))
-                    .font(.headline)
+                    .font(tokens.typography.titleCard)
+                    .foregroundStyle(tokens.colors.textPrimary)
                 Text(localizedKey(AccessL10nKey.welcomeTitleBrand))
-                    .font(.title.bold())
+                    .font(tokens.typography.titleHero)
+                    .foregroundStyle(tokens.colors.textPrimary)
                 Text(localizedKey(AccessL10nKey.welcomeSubtitle))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(tokens.typography.bodySecondary)
+                    .foregroundStyle(tokens.colors.textSecondary)
                 Button {
                     dispatchShell(.continueFromWelcome)
                 } label: {
@@ -122,14 +126,15 @@ struct ContentView: View {
     }
 
     private var loginRoute: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: tokens.spacing.md) {
             cardContainer {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: tokens.spacing.md) {
                     Text(localizedKey(AccessL10nKey.loginTitle))
-                        .font(.headline)
+                        .font(tokens.typography.titleCard)
+                        .foregroundStyle(tokens.colors.textPrimary)
                     Text(localizedKey(AccessL10nKey.signedOutHint))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
                 }
             }
 
@@ -153,11 +158,11 @@ struct ContentView: View {
     }
 
     private var homeRoute: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
             cardContainer {
                 HStack {
                     Text(localizedKey(AccessL10nKey.homeTitle))
-                        .font(.headline)
+                        .font(tokens.typography.titleCard)
                     Spacer()
                     Button {
                         viewModel.signOut()
@@ -171,8 +176,8 @@ struct ContentView: View {
             switch viewModel.mode {
             case .signedOut:
                 Text(localizedKey(AccessL10nKey.signedOutHint))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(tokens.typography.bodySecondary)
+                    .foregroundStyle(tokens.colors.textSecondary)
             case .unauthorized(let email, let reason):
                 unauthorizedCard(email: email, reason: reason)
                 operationalModules(enabled: false)
@@ -184,9 +189,9 @@ struct ContentView: View {
 
     private var signInCard: some View {
         cardContainer {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: tokens.spacing.md) {
                 Text(localizedKey(AccessL10nKey.authenticationCardTitle))
-                    .font(.headline)
+                    .font(tokens.typography.titleCard)
 
                 TextField(localizedKey(AccessL10nKey.emailLabel), text: binding(\.emailInput))
                     .textInputAutocapitalization(.never)
@@ -208,14 +213,14 @@ struct ContentView: View {
     @ViewBuilder
     private func unauthorizedCard(email: String, reason: UnauthorizedReason) -> some View {
         cardContainer {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 Text(localizedKey(AccessL10nKey.unauthorized))
-                    .font(.headline)
+                    .font(tokens.typography.titleCard)
                 Text(l10n(AccessL10nKey.signedInEmail, email))
                 Text(localizedKey(AccessL10nKey.restrictedModeInfo))
                 Text(l10n(AccessL10nKey.reason, localizedUnauthorizedReason(reason)))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.textSecondary)
             }
         }
     }
@@ -223,7 +228,7 @@ struct ContentView: View {
     @ViewBuilder
     private func authorizedHome(session: AuthorizedSession) -> some View {
         cardContainer {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 Text(l10n(AccessL10nKey.homeWelcome, session.member.displayName))
                 Text(l10n(AccessL10nKey.roles, session.member.roles.prettyListLocalized))
                 Text(
@@ -245,9 +250,9 @@ struct ContentView: View {
     @ViewBuilder
     private func operationalModules(enabled: Bool) -> some View {
         cardContainer {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 Text(localizedKey(AccessL10nKey.operationalModulesTitle))
-                    .font(.headline)
+                    .font(tokens.typography.titleCard)
                 Button {
                 } label: {
                     Text(localizedKey(AccessL10nKey.myOrder))
@@ -270,12 +275,12 @@ struct ContentView: View {
     @ViewBuilder
     private func adminMembersCard(session: AuthorizedSession) -> some View {
         cardContainer {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: tokens.spacing.md) {
                 Text(localizedKey(AccessL10nKey.adminManageMembersTitle))
-                    .font(.headline)
+                    .font(tokens.typography.titleCard)
                 Text(localizedKey(AccessL10nKey.adminManageMembersSubtitle))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(tokens.typography.bodySecondary)
+                    .foregroundStyle(tokens.colors.textSecondary)
 
                 ForEach(session.members) { member in
                     memberRow(member: member)
@@ -284,7 +289,7 @@ struct ContentView: View {
                 Divider()
 
                 Text(localizedKey(AccessL10nKey.adminCreatePreAuthorizedTitle))
-                    .font(.headline)
+                    .font(tokens.typography.titleCard)
                 TextField(localizedKey(AccessL10nKey.displayNameLabel), text: draftBinding(\.displayName))
                     .textFieldStyle(.roundedBorder)
                 TextField(localizedKey(AccessL10nKey.emailLabel), text: draftBinding(\.email))
@@ -307,22 +312,22 @@ struct ContentView: View {
 
     @ViewBuilder
     private func memberRow(member: Member) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: tokens.spacing.xs + 2) {
             Text(member.displayName)
-                .font(.subheadline.bold())
+                .font(tokens.typography.bodySecondary.weight(.semibold))
             Text(member.normalizedEmail)
-                .font(.subheadline)
+                .font(tokens.typography.bodySecondary)
             Text(l10n(AccessL10nKey.roles, member.roles.prettyListLocalized))
-                .font(.footnote)
+                .font(tokens.typography.label)
             Text(l10n(AccessL10nKey.authLinked, l10n(member.authUid == nil ? AccessL10nKey.no : AccessL10nKey.yes)))
-                .font(.footnote)
+                .font(tokens.typography.label)
             Text(
                 l10n(
                     AccessL10nKey.status,
                     l10n(member.isActive ? AccessL10nKey.statusActive : AccessL10nKey.statusInactive)
                 )
             )
-            .font(.footnote)
+            .font(tokens.typography.label)
 
             HStack {
                 Button {
@@ -337,21 +342,21 @@ struct ContentView: View {
                 }
             }
         }
-        .padding(10)
+        .padding(tokens.spacing.sm + 2)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .background(tokens.colors.surfaceSecondary)
+        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
     }
 
     @ViewBuilder
     private func placeholderRoute(titleKey: String, subtitleKey: String) -> some View {
         cardContainer {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: tokens.spacing.md) {
                 Text(localizedKey(titleKey))
-                    .font(.title3.bold())
+                    .font(tokens.typography.titleSection)
                 Text(localizedKey(subtitleKey))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(tokens.typography.bodySecondary)
+                    .foregroundStyle(tokens.colors.textSecondary)
                 Button {
                     dispatchShell(.back)
                 } label: {
@@ -364,14 +369,14 @@ struct ContentView: View {
     @ViewBuilder
     private func cardContainer<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         content()
-            .padding()
+            .padding(tokens.spacing.lg)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.systemBackground))
+            .background(tokens.colors.surfacePrimary)
             .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(Color(.separator), lineWidth: 1)
+                RoundedRectangle(cornerRadius: tokens.radius.md)
+                    .stroke(tokens.colors.borderSubtle, lineWidth: 1)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
     }
 
     private func binding(_ keyPath: ReferenceWritableKeyPath<SessionViewModel, String>) -> Binding<String> {

@@ -14,7 +14,9 @@ struct ReguertaApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ReguertaTheme {
+                ContentView()
+            }
         }
     }
 }
