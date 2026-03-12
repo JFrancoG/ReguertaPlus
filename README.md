@@ -67,6 +67,10 @@ Technical stack:
 - `docs/tech-stack/README.md`
 - `docs-es/tech-stack/README.md`
 
+Design system:
+- `docs/design-system/README.md`
+- `docs-es/design-system/README.md`
+
 Current requirements baseline (English, source of truth):
 - `docs/requirements/mvp-requirements-reguerta-v1.md`
 - `docs/requirements/user-stories-mvp-reguerta-v1.md`
