@@ -1,3 +1,62 @@
 <resources>
     <string name="app_name">Reguerta</string>
+
+    <string name="access_members_roles_title">Members and Roles</string>
+    <string name="access_signed_out_hint">Sign in with a pre-authorized member email to unlock operational modules.</string>
+    <string name="access_card_authentication">Authentication</string>
+    <string name="common_input_email_label">Email</string>
+    <string name="access_input_auth_uid_label">Auth UID</string>
+    <string name="access_action_signing_in">Signing in...</string>
+    <string name="access_action_sign_in">Sign in</string>
+    <string name="access_action_sign_out">Sign out</string>
+    <string name="access_action_dismiss_message">Dismiss message</string>
+
+    <string name="auth_error_member_unauthorized">Unauthorized user</string>
+    <string name="access_signed_in_email_format">Signed in email: %1$s</string>
+    <string name="auth_info_member_restricted_mode">Operational modules remain disabled until an admin pre-authorizes this email.</string>
+    <string name="common_reason_format">Reason: %1$s</string>
+
+    <string name="home_title">Home</string>
+    <string name="home_welcome_format">Welcome %1$s</string>
+    <string name="common_roles_format">Roles: %1$s</string>
+    <string name="common_status_format">Status: %1$s</string>
+    <string name="common_status_active">Active</string>
+    <string name="common_status_inactive">Inactive</string>
+
+    <string name="operational_modules_title">Operational modules</string>
+    <string name="module_my_order">My order</string>
+    <string name="module_catalog">Catalog</string>
+    <string name="module_shifts">Shifts</string>
+
+    <string name="admin_manage_members_title">Admin | Manage members</string>
+    <string name="admin_manage_members_subtitle">Create / edit / deactivate members and roles</string>
+    <string name="admin_create_pre_authorized_member">Create pre-authorized member</string>
+    <string name="admin_input_display_name_label">Display name</string>
+    <string name="role_member">Member</string>
+    <string name="role_producer">Producer</string>
+    <string name="role_admin">Admin</string>
+    <string name="role_active">Active</string>
+    <string name="admin_action_create_member">Create member</string>
+    <string name="member_auth_linked_format">Auth linked: %1$s</string>
+    <string name="common_yes">Yes</string>
+    <string name="common_no">No</string>
+    <string name="admin_action_revoke_admin">Revoke admin</string>
+    <string name="admin_action_grant_admin">Grant admin</string>
+    <string name="admin_action_deactivate">Deactivate</string>
+    <string name="admin_action_activate">Activate</string>
+
+    <string name="feedback_email_uid_required">Email and UID are required</string>
+    <string name="feedback_only_admin_create">Only admins can create members</string>
+    <string name="feedback_display_name_email_required">Display name and email are required</string>
+    <string name="feedback_member_exists">Member already exists</string>
+    <string name="feedback_select_role">Select at least one role</string>
+    <string name="feedback_only_admin_edit_roles">Only admins can edit roles</string>
+    <string name="feedback_only_admin_toggle_active">Only admins can activate or deactivate</string>
+    <string name="feedback_only_admin_manage_members">Only admins can manage members</string>
+    <string name="feedback_cannot_remove_last_admin">Cannot leave the app without active admins</string>
+    <string name="feedback_unable_save_changes">Unable to save changes</string>
+
+    <string name="role_value_member">member</string>
+    <string name="role_value_producer">producer</string>
+    <string name="role_value_admin">admin</string>
 </resources>

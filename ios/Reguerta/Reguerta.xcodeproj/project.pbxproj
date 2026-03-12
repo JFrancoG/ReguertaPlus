@@ -213,10 +213,11 @@
 			buildConfigurationList = E03FA03D2F353C1A0038B8EB /* Build configuration list for PBXProject "Reguerta" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
-			knownRegions = (
-				en,
-				Base,
-			);
+				knownRegions = (
+					en,
+					es,
+					Base,
+				);
 			mainGroup = E03FA0392F353C1A0038B8EB;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (

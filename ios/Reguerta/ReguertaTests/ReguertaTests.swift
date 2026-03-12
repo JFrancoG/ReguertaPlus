@@ -13,7 +13,7 @@ struct ReguertaTests {
             authPrincipal: AuthPrincipal(uid: "uid_unknown", email: "unknown@reguerta.app")
         )
 
-        #expect(result == .unauthorized("Unauthorized user"))
+        #expect(result == .unauthorized(.userNotAuthorized))
     }
 
     @Test

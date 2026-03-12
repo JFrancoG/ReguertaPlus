@@ -18,7 +18,7 @@ struct AuthorizedSession: Equatable, Sendable {
 
 enum SessionMode: Equatable, Sendable {
     case signedOut
-    case unauthorized(email: String, message: String)
+    case unauthorized(email: String, reason: UnauthorizedReason)
     case authorized(AuthorizedSession)
 }
 
@@ -30,7 +30,7 @@ final class SessionViewModel {
     var isAuthenticating = false
     var mode: SessionMode = .signedOut
     var memberDraft = MemberDraft()
-    var feedbackMessage: String?
+    var feedbackMessageKey: String?
 
     private let repository: any MemberRepository
     private let resolveAuthorizedSession: ResolveAuthorizedSessionUseCase
@@ -54,7 +54,7 @@ final class SessionViewModel {
         let email = emailInput.trimmingCharacters(in: .whitespacesAndNewlines)
         let uid = uidInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !email.isEmpty, !uid.isEmpty else {
-            feedbackMessage = "Email and UID are required"
+            feedbackMessageKey = AccessL10nKey.feedbackEmailUidRequired
             return
         }
 
@@ -74,8 +74,8 @@ final class SessionViewModel {
                         members: members
                     )
                 )
-            case .unauthorized(let message):
-                mode = .unauthorized(email: email, message: message)
+            case .unauthorized(let reason):
+                mode = .unauthorized(email: email, reason: reason)
             }
 
             isAuthenticating = false
@@ -93,25 +93,25 @@ final class SessionViewModel {
             return
         }
         guard session.member.isAdmin else {
-            feedbackMessage = "Only admins can create members"
+            feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminCreate
             return
         }
 
         let normalizedEmail = normalizeEmail(memberDraft.email)
         guard !memberDraft.displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               !normalizedEmail.isEmpty else {
-            feedbackMessage = "Display name and email are required"
+            feedbackMessageKey = AccessL10nKey.feedbackDisplayNameEmailRequired
             return
         }
 
         let roles = buildRoles(from: memberDraft)
         guard !roles.isEmpty else {
-            feedbackMessage = "Select at least one role"
+            feedbackMessageKey = AccessL10nKey.feedbackSelectRole
             return
         }
 
         if session.members.contains(where: { $0.normalizedEmail == normalizedEmail }) {
-            feedbackMessage = "Member already exists"
+            feedbackMessageKey = AccessL10nKey.feedbackMemberExists
             return
         }
 
@@ -136,7 +136,7 @@ final class SessionViewModel {
             return
         }
         guard session.member.isAdmin else {
-            feedbackMessage = "Only admins can edit roles"
+            feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminEditRoles
             return
         }
         guard let target = session.members.first(where: { $0.id == memberId }) else {
@@ -173,7 +173,7 @@ final class SessionViewModel {
             return
         }
         guard session.member.isAdmin else {
-            feedbackMessage = "Only admins can activate or deactivate"
+            feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminToggleActive
             return
         }
         guard let target = session.members.first(where: { $0.id == memberId }) else {
@@ -196,7 +196,7 @@ final class SessionViewModel {
     }
 
     func clearFeedbackMessage() {
-        feedbackMessage = nil
+        feedbackMessageKey = nil
     }
 
     private func persistMember(target: Member, session: AuthorizedSession) async {
@@ -215,11 +215,11 @@ final class SessionViewModel {
                 )
             )
         } catch MemberManagementError.accessDenied {
-            feedbackMessage = "Only admins can manage members"
+            feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminManageMembers
         } catch MemberManagementError.lastAdminRemoval {
-            feedbackMessage = "Cannot leave the app without active admins"
+            feedbackMessageKey = AccessL10nKey.feedbackCannotRemoveLastAdmin
         } catch {
-            feedbackMessage = "Unable to save changes"
+            feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
         }
     }
 

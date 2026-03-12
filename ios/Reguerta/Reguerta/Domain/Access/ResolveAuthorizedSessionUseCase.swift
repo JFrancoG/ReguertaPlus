@@ -11,13 +11,13 @@ struct ResolveAuthorizedSessionUseCase: Sendable {
         let normalizedEmail = normalizeEmail(authPrincipal.email)
 
         guard let member = await repository.findByEmailNormalized(normalizedEmail), member.isActive else {
-            return .unauthorized("Unauthorized user")
+            return .unauthorized(.userNotAuthorized)
         }
 
         let linkedMember: Member?
         if let authUid = member.authUid {
             guard authUid == authPrincipal.uid else {
-                return .unauthorized("Unauthorized user")
+                return .unauthorized(.userNotAuthorized)
             }
             linkedMember = member
         } else {
@@ -25,7 +25,7 @@ struct ResolveAuthorizedSessionUseCase: Sendable {
         }
 
         guard let linkedMember else {
-            return .unauthorized("Unauthorized user")
+            return .unauthorized(.userNotAuthorized)
         }
 
         return .authorized(linkedMember)
