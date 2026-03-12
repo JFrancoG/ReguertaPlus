@@ -1,45 +1,45 @@
 # Tasks - HU-010 (Manage members and roles)
 
 ## 1. Preparation
-- [ ] Review linked RFs and acceptance criteria for this story.
-- [ ] Identify impacted components/layers in Android, iOS, and backend.
-- [ ] Define test scenarios (happy path and edge cases).
-- [ ] Align onboarding rule: pre-authorized email in `users` before operational access.
+- [x] Review linked RFs and acceptance criteria for this story.
+- [x] Identify impacted components/layers in Android, iOS, and backend.
+- [x] Define test scenarios (happy path and edge cases).
+- [x] Align onboarding rule: pre-authorized email in `users` before operational access.
 
 ## 2. Android implementation
-- [ ] Implement UI/ViewModel/domain layer changes.
-- [ ] Integrate required read/write data flows.
-- [ ] Validate loading, error, and success states.
-- [ ] Implement unauthorized alert and restricted mode when auth email is not pre-authorized.
-- [ ] Implement first authorized login/register path to home.
+- [x] Implement UI/ViewModel/domain layer changes.
+- [x] Integrate required read/write data flows.
+- [x] Validate loading, error, and success states.
+- [x] Implement unauthorized alert and restricted mode when auth email is not pre-authorized.
+- [x] Implement first authorized login/register path to home.
 
 ## 3. iOS implementation
-- [ ] Implement equivalent SwiftUI/ViewModel/domain layer changes.
-- [ ] Integrate required read/write data flows.
-- [ ] Validate loading, error, and success states.
-- [ ] Implement unauthorized alert and restricted mode when auth email is not pre-authorized.
-- [ ] Implement first authorized login/register path to home.
+- [x] Implement equivalent SwiftUI/ViewModel/domain layer changes.
+- [x] Integrate required read/write data flows.
+- [x] Validate loading, error, and success states.
+- [x] Implement unauthorized alert and restricted mode when auth email is not pre-authorized.
+- [x] Implement first authorized login/register path to home.
 
 ## 4. Backend / Firestore
-- [ ] Adjust schema/queries/rules/functions where applicable.
-- [ ] Verify compatibility with existing data and incremental strategy.
-- [ ] Confirm role-based access and security behavior.
-- [ ] Add/validate `users.emailNormalized` and nullable `users.authUid` contract.
-- [ ] Enforce secure first-login `authUid` link and block operational writes for unauthorized accounts.
+- [x] Adjust schema/queries/rules/functions where applicable.
+- [x] Verify compatibility with existing data and incremental strategy.
+- [x] Confirm role-based access and security behavior.
+- [x] Add/validate canonical `users.normalizedEmail` with write-time normalization, keep legacy read compatibility (`emailNormalized`/`email`), and nullable `users.authUid` contract.
+- [x] Enforce secure first-login `authUid` link and block operational writes for unauthorized accounts.
 
 ## 5. Testing
-- [ ] Execute unit tests for impacted areas.
-- [ ] Execute required integration tests.
+- [x] Execute unit tests for impacted areas.
+- [x] Execute required integration tests.
 - [ ] Perform full manual acceptance validation.
-- [ ] Validate scenario: authenticated but not authorized email => alert + disabled operational features.
-- [ ] Validate scenario: pre-authorized email first login/register => home + enabled role-based access.
+- [x] Validate scenario: authenticated but not authorized email => alert + disabled operational features.
+- [x] Validate scenario: pre-authorized email first login/register => home + enabled role-based access.
 
 ## 6. Documentation
-- [ ] Update technical notes in the linked issue.
-- [ ] Record implementation decisions made during development.
-- [ ] Document Android/iOS parity status or temporary gap.
+- [x] Update technical notes in the linked issue.
+- [x] Record implementation decisions made during development.
+- [x] Document Android/iOS parity status or temporary gap.
 
 ## 7. Closure
 - [ ] Create/update linked issue and connect PR.
-- [ ] Complete DoD checklist in spec.md.
-- [ ] Attach test evidence and functional validation output.
+- [x] Complete DoD checklist in spec.md.
+- [x] Attach test evidence and functional validation output.

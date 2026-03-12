@@ -20,9 +20,11 @@ try {
   ENV = "develop";
 }
 
+const firestore = admin.firestore();
+
 const updateTimestamp = async (env: string, collectionName: string) => {
   const now = admin.firestore.Timestamp.now();
-  await admin.firestore()
+  await firestore
     .collection(`${env}/collections/config`)
     .doc("global")
     .set({
@@ -32,27 +34,51 @@ const updateTimestamp = async (env: string, collectionName: string) => {
     }, {merge: true});
 };
 
-/*
-export const onProductWrite = defineFunction({
-  region: "europe-west1",
-  trigger: {
-    eventTrigger: {
-      eventType: "google.cloud.firestore.document.v1.written",
-      eventFilters: [
-        {
-          attribute: "document",
-          value: "products/{productId}",
-          operator: "match-path-pattern",
-        },
-      ],
-      triggerRegion: "europe-west1",
-    },
-  },
-}, async (event: FirestoreEvent<unknown>) => {
-  logger.info(`🟢 Trigger FIXED: productId = ${event.params.productId}`);
-  await updateTimestamp("products");
-});
-*/
+const parseBody = (value: unknown): Record<string, unknown> => {
+  if (value !== null && typeof value === "object") {
+    return value as Record<string, unknown>;
+  }
+  return {};
+};
+
+const usersCollection = (env: string) =>
+  firestore.collection(`${env}/collections/users`);
+
+const normalizeEmail = (email: string): string => email.trim().toLowerCase();
+
+const parseString = (value: unknown): string | null =>
+  typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+
+const parseBoolean = (value: unknown, fallback: boolean): boolean =>
+  typeof value === "boolean" ? value : fallback;
+
+const parseRoles = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    return ["member"];
+  }
+
+  const allowedRoles = new Set(["member", "producer", "admin"]);
+  const roles = value
+    .filter((item): item is string => typeof item === "string")
+    .map((role) => role.trim().toLowerCase())
+    .filter((role) => allowedRoles.has(role));
+
+  return roles.length > 0 ? Array.from(new Set(roles)) : ["member"];
+};
+
+const isAdminRecord = (data: Record<string, unknown>): boolean => {
+  const isActive = data.isActive !== false;
+  const roles = parseRoles(data.roles);
+  return isActive && roles.includes("admin");
+};
+
+const buildMemberId = (normalizedEmail: string): string => {
+  const sanitized = normalizedEmail
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  const suffix = sanitized.length > 0 ? sanitized.slice(0, 40) : "member";
+  return `member_${suffix}`;
+};
 
 export const onProductWrite = onRequest(async (req, res) => {
   const env = (req.query.env as string) || ENV;
@@ -63,37 +89,6 @@ export const onProductWrite = onRequest(async (req, res) => {
   );
   res.status(200).send(`Timestamp updated for: ${collectionName}, env: ${env}`);
 });
-
-/*
-export const onOrderlineWrite = onDocumentWritten(
-  "orderlines/{orderlineId}",
-  async () => {
-    await updateTimestamp("orderlines");
-  }
-);
-
-export const onContainerWrite = onDocumentWritten(
-  "containers/{containerId}",
-  async () => {
-    await updateTimestamp("containers");
-  }
-);
-
-export const onMeasureWrite = onDocumentWritten(
-  "measures/{measureId}",
-  async () => {
-    await updateTimestamp("measures");
-  }
-);
-
-export const onOrderWrite = onDocumentWritten(
-  "orders/{orderId}",
-  async () => {
-    await updateTimestamp("orders");
-  }
-);
-*/
-
 
 export const onContainerWrite = onRequest(async (req, res) => {
   const env = (req.query.env as string) || ENV;
@@ -109,16 +104,6 @@ export const onMeasureWrite = onRequest(async (req, res) => {
   res.status(200).send(`Timestamp updated for: measures, env: ${env}`);
 });
 
-
-/*
-export const onUserWrite = onDocumentWritten(
-  "users/{userId}",
-  async () => {
-    await updateTimestamp("users");
-  }
-);
-*/
-
 export const onUserWrite = onRequest(async (req, res) => {
   const env = (req.query.env as string) || ENV;
   await updateTimestamp(env, "users");
@@ -133,13 +118,185 @@ export const onOrderWrite = onRequest(async (req, res) => {
   res.status(200).send(`Timestamp updated for: orders in env: ${env}`);
 });
 
+export const resolveAuthorizedMember = onRequest(async (req, res) => {
+  if (req.method !== "POST") {
+    res.status(405).json({error: "Method Not Allowed"});
+    return;
+  }
+
+  const body = parseBody(req.body);
+  const env = parseString(body.env) || parseString(req.query.env) || ENV;
+  const authUid = parseString(body.authUid);
+  const rawEmail = parseString(body.email);
+  const emailInput = rawEmail || parseString(body.normalizedEmail);
+
+  if (!authUid || !emailInput) {
+    res.status(400).json({error: "authUid and email are required"});
+    return;
+  }
+
+  const normalizedEmail = normalizeEmail(emailInput);
+  const collection = usersCollection(env);
+
+  let memberQuery = await collection
+    .where("normalizedEmail", "==", normalizedEmail)
+    .limit(1)
+    .get();
+
+  if (memberQuery.empty) {
+    memberQuery = await collection
+      .where("emailNormalized", "==", normalizedEmail)
+      .limit(1)
+      .get();
+  }
+
+  if (memberQuery.empty && rawEmail) {
+    memberQuery = await collection
+      .where("email", "==", rawEmail)
+      .limit(1)
+      .get();
+  }
+
+  if (memberQuery.empty) {
+    res.status(403).json({authorized: false, message: "Unauthorized user"});
+    return;
+  }
+
+  const memberDoc = memberQuery.docs[0];
+  const memberData = parseBody(memberDoc.data());
+
+  if (memberData.isActive === false) {
+    res.status(403).json({authorized: false, message: "Unauthorized user"});
+    return;
+  }
+
+  const existingAuthUid = parseString(memberData.authUid);
+  if (existingAuthUid && existingAuthUid !== authUid) {
+    res.status(403).json({authorized: false, message: "Unauthorized user"});
+    return;
+  }
+
+  const firstLoginLinked = !existingAuthUid;
+  if (firstLoginLinked) {
+    await memberDoc.ref.set({
+      authUid,
+      normalizedEmail,
+      email: admin.firestore.FieldValue.delete(),
+      emailNormalized: admin.firestore.FieldValue.delete(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+  }
+
+  const roles = parseRoles(memberData.roles);
+  res.status(200).json({
+    authorized: true,
+    memberId: memberDoc.id,
+    roles,
+    isActive: true,
+    firstLoginLinked,
+  });
+});
+
+export const upsertMemberByAdmin = onRequest(async (req, res) => {
+  if (req.method !== "POST") {
+    res.status(405).json({error: "Method Not Allowed"});
+    return;
+  }
+
+  const body = parseBody(req.body);
+  const env = parseString(body.env) || parseString(req.query.env) || ENV;
+  const actorAuthUid = parseString(body.actorAuthUid);
+  const displayName = parseString(body.displayName);
+  const normalizedEmailInput = parseString(body.normalizedEmail) ||
+    parseString(body.email);
+
+  if (!actorAuthUid || !displayName || !normalizedEmailInput) {
+    res.status(400).json({
+      error: "actorAuthUid, displayName and normalizedEmail are required",
+    });
+    return;
+  }
+
+  const normalizedEmail = normalizeEmail(normalizedEmailInput);
+  const roles = parseRoles(body.roles);
+  const isActive = parseBoolean(body.isActive, true);
+  const producerCatalogEnabled = parseBoolean(
+    body.producerCatalogEnabled,
+    true
+  );
+  const requestedMemberId = parseString(body.memberId);
+
+  const collection = usersCollection(env);
+  const actorQuery = await collection
+    .where("authUid", "==", actorAuthUid)
+    .limit(1)
+    .get();
+
+  if (
+    actorQuery.empty ||
+    !isAdminRecord(parseBody(actorQuery.docs[0].data()))
+  ) {
+    res.status(403).json({error: "Only active admins can manage members"});
+    return;
+  }
+
+  const memberId = requestedMemberId || buildMemberId(normalizedEmail);
+  const memberRef = collection.doc(memberId);
+  const memberSnapshot = await memberRef.get();
+  const currentData = parseBody(memberSnapshot.data());
+
+  const wasActiveAdmin = memberSnapshot.exists && isAdminRecord(currentData);
+  const willBeActiveAdmin = isActive && roles.includes("admin");
+
+  if (wasActiveAdmin && !willBeActiveAdmin) {
+    const activeAdmins = await collection
+      .where("isActive", "==", true)
+      .where("roles", "array-contains", "admin")
+      .get();
+
+    if (activeAdmins.size <= 1) {
+      res.status(409).json({
+        error: "Cannot leave the app without active admins",
+      });
+      return;
+    }
+  }
+
+  const payload: Record<string, unknown> = {
+    displayName,
+    normalizedEmail,
+    email: admin.firestore.FieldValue.delete(),
+    emailNormalized: admin.firestore.FieldValue.delete(),
+    roles,
+    isActive,
+    producerCatalogEnabled,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  if (!memberSnapshot.exists) {
+    payload.createdAt = admin.firestore.FieldValue.serverTimestamp();
+    payload.authUid = null;
+  } else if (currentData.authUid !== undefined) {
+    payload.authUid = currentData.authUid;
+  }
+
+  await memberRef.set(payload, {merge: true});
+
+  logger.info(`✅ Member ${memberId} upserted by admin`, {env, actorAuthUid});
+  res.status(200).json({
+    ok: true,
+    memberId,
+    roles,
+    isActive,
+  });
+});
 
 export const cloneGlobalConfig = onRequest(async (_req, res) => {
-  const sourceDoc = admin.firestore()
+  const sourceDoc = firestore
     .collection("develop/collections/config")
     .doc("global");
 
-  const targetDoc = admin.firestore()
+  const targetDoc = firestore
     .collection("production/collections/config")
     .doc("global");
 
