@@ -3,7 +3,12 @@ package com.reguerta.user.presentation.access
 import android.annotation.SuppressLint
 import android.content.Context
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,7 +21,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -29,10 +33,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -47,7 +55,8 @@ import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.ResolveAuthorizedSessionUseCase
 import com.reguerta.user.domain.access.UnauthorizedReason
 import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
-import kotlinx.coroutines.delay
+
+private const val SplashAnimationDurationMillis = 1_500
 
 @Composable
 fun rememberSessionViewModel(): SessionViewModel {
@@ -86,16 +95,6 @@ fun ReguertaRoot(
         }
     }
 
-    LaunchedEffect(shellState.currentRoute, isAuthenticatedSession) {
-        if (shellState.currentRoute == AuthShellRoute.SPLASH) {
-            delay(1200)
-            shellState = reduceAuthShell(
-                state = shellState,
-                action = AuthShellAction.SplashCompleted(isAuthenticated = isAuthenticatedSession),
-            )
-        }
-    }
-
     LaunchedEffect(isAuthenticatedSession) {
         if (isAuthenticatedSession && shellState.currentRoute != AuthShellRoute.SPLASH) {
             shellState = reduceAuthShell(
@@ -122,7 +121,14 @@ fun ReguertaRoot(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             when (shellState.currentRoute) {
-                AuthShellRoute.SPLASH -> SplashRoute()
+                AuthShellRoute.SPLASH -> SplashRoute(
+                    onAnimationFinished = {
+                        shellState = reduceAuthShell(
+                            state = shellState,
+                            action = AuthShellAction.SplashCompleted(isAuthenticated = isAuthenticatedSession),
+                        )
+                    },
+                )
 
                 AuthShellRoute.WELCOME -> WelcomeRoute(
                     onContinue = {
@@ -197,7 +203,33 @@ fun ReguertaRoot(
 }
 
 @Composable
-private fun SplashRoute() {
+private fun SplashRoute(
+    onAnimationFinished: () -> Unit,
+) {
+    val progress = remember { Animatable(0f) }
+    var completed by remember { mutableStateOf(false) }
+    val latestOnAnimationFinished by rememberUpdatedState(onAnimationFinished)
+
+    LaunchedEffect(Unit) {
+        progress.snapTo(0f)
+        progress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(
+                durationMillis = SplashAnimationDurationMillis,
+                easing = FastOutSlowInEasing,
+            ),
+        )
+        if (!completed) {
+            completed = true
+            latestOnAnimationFinished()
+        }
+    }
+
+    val fraction = progress.value
+    val scale = lerp(0.84f, 1.34f, fraction)
+    val rotation = lerp(-6f, 8f, fraction)
+    val alpha = lerp(0.94f, 0f, fraction)
+
     Card {
         Column(
             modifier = Modifier
@@ -206,12 +238,24 @@ private fun SplashRoute() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(
-                text = stringResource(R.string.access_members_roles_title),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-            )
-            CircularProgressIndicator()
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.reguerta_logo),
+                    contentDescription = stringResource(R.string.app_name),
+                    modifier = Modifier
+                        .height(120.dp)
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                            rotationZ = rotation
+                            this.alpha = alpha
+                        },
+                    contentScale = ContentScale.Fit,
+                )
+            }
             Text(
                 text = stringResource(R.string.auth_shell_splash_loading),
                 style = MaterialTheme.typography.bodyMedium,
@@ -219,6 +263,9 @@ private fun SplashRoute() {
         }
     }
 }
+
+private fun lerp(start: Float, end: Float, fraction: Float): Float =
+    start + (end - start) * fraction
 
 @Composable
 private fun WelcomeRoute(

@@ -3,6 +3,10 @@ import SwiftUI
 struct ContentView: View {
     @State private var viewModel = SessionViewModel()
     @State private var shellState = AuthShellState()
+    @State private var splashScale: CGFloat = SplashAnimationContract.initialScale
+    @State private var splashRotation: Double = SplashAnimationContract.initialRotation
+    @State private var splashOpacity: Double = SplashAnimationContract.initialOpacity
+    @State private var didStartSplashAnimation = false
 
     private var shouldSkipSplash: Bool {
         ProcessInfo.processInfo.arguments.contains("-skipSplash")
@@ -67,6 +71,11 @@ struct ContentView: View {
                 dispatchShell(.sessionAuthenticated)
             }
         }
+        .onChange(of: shellState.currentRoute) { _, route in
+            if route != .splash {
+                resetSplashAnimationState()
+            }
+        }
     }
 
     private var splashRoute: some View {
@@ -74,12 +83,21 @@ struct ContentView: View {
             VStack(alignment: .center, spacing: 16) {
                 Text(localizedKey(AccessL10nKey.membersRolesTitle))
                     .font(.title2.bold())
-                ProgressView()
+                Image("brand_logo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 120, height: 120)
+                    .scaleEffect(splashScale)
+                    .rotationEffect(.degrees(splashRotation))
+                    .opacity(splashOpacity)
                 Text(localizedKey(AccessL10nKey.splashLoading))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity)
+            .task(id: shellState.currentRoute) {
+                startSplashAnimationIfNeeded()
+            }
         }
     }
 
@@ -401,9 +419,31 @@ struct ContentView: View {
             return
         }
 
-        try? await Task.sleep(nanoseconds: 1_200_000_000)
+        try? await Task.sleep(nanoseconds: SplashAnimationContract.durationNanoseconds)
         guard shellState.currentRoute == .splash else { return }
         dispatchShell(.splashCompleted(isAuthenticated: viewModel.mode.isAuthenticatedSession))
+    }
+
+    @MainActor
+    private func startSplashAnimationIfNeeded() {
+        guard shellState.currentRoute == .splash else { return }
+        guard !shouldSkipSplash else { return }
+        guard !didStartSplashAnimation else { return }
+        didStartSplashAnimation = true
+
+        withAnimation(.easeInOut(duration: SplashAnimationContract.durationSeconds)) {
+            splashScale = SplashAnimationContract.finalScale
+            splashRotation = SplashAnimationContract.finalRotation
+            splashOpacity = SplashAnimationContract.finalOpacity
+        }
+    }
+
+    @MainActor
+    private func resetSplashAnimationState() {
+        didStartSplashAnimation = false
+        splashScale = SplashAnimationContract.initialScale
+        splashRotation = SplashAnimationContract.initialRotation
+        splashOpacity = SplashAnimationContract.initialOpacity
     }
 
     private func routeTitle(for route: AuthShellRoute) -> LocalizedStringKey {
@@ -432,4 +472,15 @@ private extension Set<MemberRole> {
 
 #Preview {
     ContentView()
+}
+
+private enum SplashAnimationContract {
+    static let durationSeconds: Double = 1.5
+    static let durationNanoseconds: UInt64 = 1_500_000_000
+    static let initialScale: CGFloat = 0.84
+    static let finalScale: CGFloat = 1.34
+    static let initialRotation: Double = -6
+    static let finalRotation: Double = 8
+    static let initialOpacity: Double = 0.94
+    static let finalOpacity: Double = 0.0
 }
