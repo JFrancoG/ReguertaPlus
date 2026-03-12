@@ -10,14 +10,14 @@ Trabajo priorizado para pasar del estado actual a un design-system cross-platfor
 
 ## P1 (Siguiente)
 
-- Normalizar variantes y naming de botones entre Android/iOS.
-- Normalizar modelo de estado de inputs (`touched`, `error`, `focus`, `disabled`).
+- [x] Normalizar variantes y naming de botones entre Android/iOS.
+- [x] Normalizar modelo de estado de inputs (`error`, `focus`, `disabled`, helper text).
 - Normalizar API de dialogs y modelo de acciones.
 - Retirar o aislar elementos explicitamente deprecated/sin uso.
 
 ## P2 (Cuando entre Auth/Onboarding UI)
 
-- Construir splash/welcome/auth solo con primitivas stable/candidate del design-system.
+- [x] Construir splash/welcome/auth solo con primitivas stable/candidate del design-system.
 - Validar responsive en dispositivos compactos y grandes.
 - Anadir pantalla catalogo/sandbox para regresion visual.
 

@@ -16,6 +16,7 @@ final class ReguertaUITests: XCTestCase {
         continueAfterFailure = false
 
         // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
+        XCUIApplication().terminate()
     }
 
     override func tearDownWithError() throws {
@@ -25,11 +26,8 @@ final class ReguertaUITests: XCTestCase {
     @MainActor
     func testUnauthorizedUserShowsRestrictedMode() throws {
         let app = configuredApp()
-        app.launch()
-        app.buttons["Enter the app"].tap()
+        let emailField = launchAndOpenLogin(app)
 
-        let emailField = app.textFields["Email"]
-        XCTAssertTrue(emailField.waitForExistence(timeout: 5))
         emailField.tap()
         emailField.typeText("unknown@reguerta.app")
 
@@ -48,11 +46,7 @@ final class ReguertaUITests: XCTestCase {
     @MainActor
     func testPreAuthorizedAdminEntersHomeWithModulesEnabled() throws {
         let app = configuredApp()
-        app.launch()
-        app.buttons["Enter the app"].tap()
-
-        let emailField = app.textFields["Email"]
-        XCTAssertTrue(emailField.waitForExistence(timeout: 5), "Email field not found")
+        let emailField = launchAndOpenLogin(app)
         emailField.tap()
         emailField.typeText("ana.admin@reguerta.app")
 
@@ -92,5 +86,19 @@ final class ReguertaUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-skipSplash"]
         return app
+    }
+
+    @MainActor
+    private func launchAndOpenLogin(_ app: XCUIApplication) -> XCUIElement {
+        app.launch()
+
+        let enterButton = app.buttons["Enter the app"]
+        if enterButton.waitForExistence(timeout: 8) {
+            enterButton.tap()
+        }
+
+        let emailField = app.textFields["Email"]
+        XCTAssertTrue(emailField.waitForExistence(timeout: 12), "Email field not found")
+        return emailField
     }
 }

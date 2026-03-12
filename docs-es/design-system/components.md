@@ -1,38 +1,45 @@
 # Components
 
-Este catalogo define intencion compartida y estado de paridad.
+Este catálogo define el contrato actual de componentes y su estado de paridad para auth/onboarding.
 
 ## 1. Leyenda de estado
 
-- `stable`: listo como default para features nuevas.
-- `candidate`: casi alineado, pendiente de normalizacion.
-- `experimental`: util, pero API/naming puede cambiar.
-- `deprecated`: no usar en codigo nuevo.
+- `stable`: listo como valor por defecto para nuevas features.
+- `candidate`: casi alineado, pendiente de pulir API.
+- `experimental`: útil, pero el naming/API puede cambiar.
+- `deprecated`: no usar en código nuevo.
 
-## 2. Matriz cross-platform
+## 2. Core Components V1 (HU-036)
 
-| Componente | Android | iOS | Intencion compartida | Estado | Notas |
+| Componente | Android | iOS | Intención compartida | Estado | Notas |
 |---|---|---|---|---|---|
-| Theme wrapper | `ReguertaTheme` | estilos/tokens globales app | Baseline visual global | candidate | Falta alinear naming |
-| Screen scaffold | `Screen` + `ReguertaScaffold` | wrappers de vista | Estructura base de pantalla | candidate | Equivalente iOS menos explicito |
-| Top bar | `ReguertaTopBar` | `HeaderView` | Titulo + back/acciones | candidate | Normalizar API |
-| Buttons | familia `ReguertaButton` | `FullStyle`, `FlatStyle`, `MainStyle` | Acciones primaria/secundaria/destructiva | candidate | Mantener variantes semanticas |
-| Inputs | `ReguertaEmailInput`, `ReguertaPasswordInput`, `TextReguertaInput` | `InputView`, `CustomTextField` | Formulario con validacion | candidate | Normalizar modelo de estado |
-| Dialogs | `ReguertaAlertDialog` | `GenericDialogView` | Confirmacion/feedback con variantes | candidate | Alinear modelo de botones |
-| Card | `ReguertaCard` | estilos wrapper de celdas/vistas | Agrupar contenido relacionado | candidate | Normalizar niveles/tipos |
-| Checkbox | `ReguertaCheckBox` | `CheckBoxView` | Seleccion booleana | stable | Baja variacion |
-| Counter | `ReguertaCounter` | controles de cantidad | Patron incremento/decremento | candidate | Consolidar reglas disabled |
-| Dropdown/select | `DropdownSelectable` | patrones picker custom | Selector de opcion unica | experimental | Definir API compartida |
-| Remote image | `ImageUrl`, `ProductImage` | patron `URLImage` | Carga async + fallback | candidate | Estandarizar contrato fallback |
-| Loading animation | `LoadingAnimation` | estilos de progreso | Feedback de carga | experimental | Decidir regla lottie vs nativo |
+| Card/contenedor | `ui/components/auth/ReguertaCard.kt` | `DesignSystem/Components/ReguertaCard.swift` | Agrupar contenido con surface + borde/radio semánticos | stable | Shell principal de splash/welcome/login/register/recover |
+| Button | `ReguertaButton` + `ReguertaButtonVariant` | `ReguertaButton` + `ReguertaButtonVariant` | Modelo unificado primaria/secundaria/texto con loading y disabled | stable | Variantes: `primary`, `secondary`, `text` |
+| Input/Auth field | `ReguertaInputField` | `ReguertaInputField` | Label, placeholder, helper/error text, trailing action, estados focus/disabled/error | stable | `keyboardType` expuesto en ambas plataformas |
+| Feedback inline | `ReguertaInlineFeedback` + `ReguertaFeedbackKind` | `ReguertaInlineFeedback` + `ReguertaFeedbackKind` | Mensajes reutilizables de info/warning/error | stable | Uso en auth shell y zonas de feedback |
 
-## 3. Reglas de contrato
+## 3. Referencia de uso en Auth
 
-- Definir APIs por comportamiento y estados, no por contexto de pantalla.
-- Mantener `enabled`, `disabled`, `loading`, `error`, `focus` explicitos en contratos.
-- Preferir wrappers composables/swiftui frente a duplicar logica visual por feature.
+Flujo de referencia implementado de extremo a extremo con los componentes V1:
 
-## 4. Exclusiones legacy explicitas
+- Android: `presentation/access/ReguertaRoot.kt`
+  - Splash usa `ReguertaCard`.
+  - Welcome usa `ReguertaCard` + `ReguertaButton`.
+  - Login usa `ReguertaCard`, `ReguertaInputField`, `ReguertaInlineFeedback`, `ReguertaButton`.
+  - Placeholders de registro/recuperar usan `ReguertaCard` + `ReguertaButton`.
+- iOS: `ContentView.swift`
+  - Splash usa `ReguertaCard`.
+  - Welcome usa `ReguertaCard` + `ReguertaButton`.
+  - Login usa `ReguertaCard`, `ReguertaInputField`, `ReguertaInlineFeedback`, `ReguertaButton`.
+  - Placeholders de registro/recuperar usan `ReguertaCard` + `ReguertaButton`.
+
+## 4. Reglas de contrato
+
+- Definir APIs por comportamiento y estados explícitos, no por contexto de una pantalla concreta.
+- Mantener `enabled`, `disabled`, `loading`, `focus` y `error` visibles en el contrato del componente.
+- Consumir solo theme/tokens semánticos. Evitar colores y medidas hardcodeadas en vistas de feature.
+
+## 5. Exclusiones legacy explícitas
 
 - Android `NavigationDrawerInfo` (deprecated).
 - Android params legacy en `InverseReguertaButton` (`borderSize`, `cornerSize`).
