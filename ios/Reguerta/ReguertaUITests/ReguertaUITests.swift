@@ -23,12 +23,59 @@ final class ReguertaUITests: XCTestCase {
     }
 
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
+    func testUnauthorizedUserShowsRestrictedMode() throws {
         let app = XCUIApplication()
         app.launch()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
+        let emailField = app.textFields["Email"]
+        XCTAssertTrue(emailField.waitForExistence(timeout: 5))
+        emailField.tap()
+        emailField.typeText("unknown@reguerta.app")
+
+        let uidField = app.textFields["Auth UID"]
+        uidField.tap()
+        uidField.typeText("uid_unknown")
+
+        app.buttons["Sign in"].tap()
+
+        XCTAssertTrue(app.staticTexts["Unauthorized user"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["My order"].isEnabled)
+        XCTAssertFalse(app.buttons["Catalog"].isEnabled)
+        XCTAssertFalse(app.buttons["Shifts"].isEnabled)
+    }
+
+    @MainActor
+    func testPreAuthorizedAdminEntersHomeWithModulesEnabled() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        let emailField = app.textFields["Email"]
+        XCTAssertTrue(emailField.waitForExistence(timeout: 5), "Email field not found")
+        emailField.tap()
+        emailField.typeText("ana.admin@reguerta.app")
+
+        let uidField = app.textFields["Auth UID"]
+        uidField.tap()
+        uidField.typeText("uid_admin_ui")
+
+        app.buttons["Sign in"].tap()
+
+        XCTAssertTrue(
+            app.staticTexts["Home"].waitForExistence(timeout: 8),
+            "Home should be visible for pre-authorized admin"
+        )
+
+        let myOrderButton = app.buttons["My order"]
+        let catalogButton = app.buttons["Catalog"]
+        let shiftsButton = app.buttons["Shifts"]
+
+        XCTAssertTrue(myOrderButton.waitForExistence(timeout: 3), "My order button not found")
+        XCTAssertTrue(catalogButton.waitForExistence(timeout: 3), "Catalog button not found")
+        XCTAssertTrue(shiftsButton.waitForExistence(timeout: 3), "Shifts button not found")
+
+        XCTAssertTrue(myOrderButton.isEnabled, "My order should be enabled")
+        XCTAssertTrue(catalogButton.isEnabled, "Catalog should be enabled")
+        XCTAssertTrue(shiftsButton.isEnabled, "Shifts should be enabled")
     }
 
     @MainActor
