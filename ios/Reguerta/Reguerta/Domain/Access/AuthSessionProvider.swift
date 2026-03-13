@@ -17,8 +17,14 @@ enum AuthSignInResult: Equatable, Sendable {
     case failure(AuthSignInFailureReason)
 }
 
+enum AuthPasswordResetResult: Equatable, Sendable {
+    case success
+    case failure(AuthSignInFailureReason)
+}
+
 protocol AuthSessionProvider: Sendable {
     func signIn(email: String, password: String) async -> AuthSignInResult
     func signUp(email: String, password: String) async -> AuthSignInResult
+    func sendPasswordReset(email: String) async -> AuthPasswordResetResult
     func signOut()
 }

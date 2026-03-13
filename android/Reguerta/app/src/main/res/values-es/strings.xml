@@ -27,7 +27,9 @@
     <string name="register_action_create_account">Crear cuenta</string>
     <string name="register_action_creating">Creando cuenta...</string>
     <string name="recover_title">Recuperar contraseña</string>
-    <string name="recover_subtitle">La pantalla de recuperación ya está integrada en navegación y se completará en HU-032.</string>
+    <string name="recover_subtitle">Introduce tu email y te enviaremos instrucciones para restablecerla</string>
+    <string name="recover_action_send_email">Enviar email de recuperación</string>
+    <string name="recover_action_sending">Enviando email...</string>
     <string name="common_action_back">Volver</string>
 
     <string name="auth_error_member_unauthorized">Usuario no autorizado</string>
@@ -74,6 +76,7 @@
     <string name="auth_error_too_many_requests">Demasiados intentos. Inténtalo más tarde</string>
     <string name="auth_error_network">Revisa tu conexión e inténtalo de nuevo</string>
     <string name="auth_error_unknown">No se pudo iniciar sesión ahora mismo</string>
+    <string name="auth_info_password_reset_sent">Si existe una cuenta para este email, hemos enviado instrucciones de recuperación</string>
     <string name="auth_error_email_already_in_use">Este email ya está en uso</string>
     <string name="auth_error_weak_password">Usa una contraseña más segura (mínimo 6 caracteres)</string>
     <string name="feedback_password_repeat_required">Debes repetir la contraseña</string>

@@ -27,7 +27,9 @@
     <string name="register_action_create_account">Create account</string>
     <string name="register_action_creating">Creating account...</string>
     <string name="recover_title">Recover password</string>
-    <string name="recover_subtitle">Recover screen is wired into navigation and will be completed in HU-032.</string>
+    <string name="recover_subtitle">Enter your email and we will send reset instructions</string>
+    <string name="recover_action_send_email">Send reset email</string>
+    <string name="recover_action_sending">Sending email...</string>
     <string name="common_action_back">Back</string>
 
     <string name="auth_error_member_unauthorized">Unauthorized user</string>
@@ -74,6 +76,7 @@
     <string name="auth_error_too_many_requests">Too many attempts. Try again later</string>
     <string name="auth_error_network">Check your connection and try again</string>
     <string name="auth_error_unknown">Unable to sign in right now</string>
+    <string name="auth_info_password_reset_sent">If an account exists for this email, reset instructions were sent</string>
     <string name="auth_error_email_already_in_use">This email is already in use</string>
     <string name="auth_error_weak_password">Use a stronger password (at least 6 characters)</string>
     <string name="feedback_password_repeat_required">Repeat password is required</string>

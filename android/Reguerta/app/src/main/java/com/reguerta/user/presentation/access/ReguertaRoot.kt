@@ -191,11 +191,11 @@ fun ReguertaRoot(
                     },
                 )
 
-                AuthShellRoute.RECOVER_PASSWORD -> PlaceholderAuthRoute(
-                    titleRes = R.string.recover_title,
-                    subtitleRes = R.string.recover_subtitle,
-                    actionLabelRes = R.string.common_action_back,
-                    onAction = {
+                AuthShellRoute.RECOVER_PASSWORD -> RecoverPasswordRoute(
+                    state = state,
+                    onEmailChanged = viewModel::onRecoverEmailChanged,
+                    onSendReset = viewModel::sendPasswordReset,
+                    onBack = {
                         shellState = reduceAuthShell(
                             state = shellState,
                             action = AuthShellAction.Back,
@@ -439,32 +439,85 @@ private fun RegisterRoute(
 }
 
 @Composable
-private fun PlaceholderAuthRoute(
-    titleRes: Int,
-    subtitleRes: Int,
-    actionLabelRes: Int,
-    onAction: () -> Unit,
+private fun RecoverPasswordRoute(
+    state: SessionUiState,
+    onEmailChanged: (String) -> Unit,
+    onSendReset: () -> Unit,
+    onBack: () -> Unit,
 ) {
     val spacing = ReguertaThemeTokens.spacing
     ReguertaCard {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(spacing.xl),
+                .padding(spacing.lg),
             verticalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
             Text(
-                text = stringResource(titleRes),
-                style = MaterialTheme.typography.titleLarge,
+                text = stringResource(R.string.recover_title),
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = stringResource(subtitleRes),
+                text = stringResource(R.string.recover_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
             )
+        }
+    }
+
+    RecoverPasswordCard(
+        state = state,
+        onEmailChanged = onEmailChanged,
+        onSendReset = onSendReset,
+    )
+
+    Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+        ReguertaButton(
+            label = stringResource(R.string.common_action_back),
+            onClick = onBack,
+            variant = ReguertaButtonVariant.TEXT,
+            fullWidth = false,
+        )
+    }
+}
+
+@Composable
+private fun RecoverPasswordCard(
+    state: SessionUiState,
+    onEmailChanged: (String) -> Unit,
+    onSendReset: () -> Unit,
+) {
+    val spacing = ReguertaThemeTokens.spacing
+    val canSubmit = !state.isRecoveringPassword &&
+        state.recoverEmailInput.trim().matches(LoginEmailPatternRegex)
+
+    ReguertaCard {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(spacing.md),
+        ) {
+            Text(stringResource(R.string.access_card_authentication))
+            ReguertaInputField(
+                label = stringResource(R.string.common_input_email_label),
+                value = state.recoverEmailInput,
+                onValueChange = onEmailChanged,
+                helperMessage = stringResource(R.string.recover_subtitle),
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Email,
+                errorMessage = state.recoverEmailErrorRes?.let { stringResource(it) },
+            )
             ReguertaButton(
-                label = stringResource(actionLabelRes),
-                onClick = onAction,
+                label = stringResource(
+                    if (state.isRecoveringPassword) {
+                        R.string.recover_action_sending
+                    } else {
+                        R.string.recover_action_send_email
+                    },
+                ),
+                onClick = onSendReset,
+                enabled = canSubmit,
+                loading = state.isRecoveringPassword,
             )
         }
     }

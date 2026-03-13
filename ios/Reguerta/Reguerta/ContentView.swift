@@ -27,10 +27,7 @@ struct ContentView: View {
                     case .register:
                         registerRoute
                     case .recoverPassword:
-                        placeholderRoute(
-                            titleKey: AccessL10nKey.recoverTitle,
-                            subtitleKey: AccessL10nKey.recoverSubtitle
-                        )
+                        recoverRoute
                     case .home:
                         homeRoute
                     }
@@ -195,6 +192,33 @@ struct ContentView: View {
         }
     }
 
+    private var recoverRoute: some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.md) {
+            ReguertaCard {
+                VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                    Text(localizedKey(AccessL10nKey.recoverTitle))
+                        .font(tokens.typography.titleCard)
+                        .foregroundStyle(tokens.colors.textPrimary)
+                    Text(localizedKey(AccessL10nKey.recoverSubtitle))
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                }
+            }
+
+            recoverPasswordCard
+
+            HStack {
+                ReguertaButton(
+                    localizedKey(AccessL10nKey.commonBack),
+                    variant: .text,
+                    fullWidth: false
+                ) {
+                    dispatchShell(.back)
+                }
+            }
+        }
+    }
+
     private var homeRoute: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
             cardContainer {
@@ -304,6 +328,33 @@ struct ContentView: View {
                     isLoading: viewModel.isRegistering
                 ) {
                     viewModel.signUp()
+                }
+            }
+        }
+    }
+
+    private var recoverPasswordCard: some View {
+        ReguertaCard {
+            VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                Text(localizedKey(AccessL10nKey.authenticationCardTitle))
+                    .font(tokens.typography.titleCard)
+
+                ReguertaInputField(
+                    localizedKey(AccessL10nKey.emailLabel),
+                    text: binding(\.recoverEmailInput),
+                    placeholder: localizedKey(AccessL10nKey.emailLabel),
+                    helperMessage: localizedKey(AccessL10nKey.recoverSubtitle),
+                    errorMessage: viewModel.recoverEmailErrorKey.map(localizedKey),
+                    isEnabled: !viewModel.isRecoveringPassword,
+                    keyboardType: .emailAddress
+                )
+
+                ReguertaButton(
+                    localizedKey(viewModel.isRecoveringPassword ? AccessL10nKey.recoverActionSending : AccessL10nKey.recoverActionSendEmail),
+                    isEnabled: viewModel.canSubmitPasswordReset,
+                    isLoading: viewModel.isRecoveringPassword
+                ) {
+                    viewModel.sendPasswordReset()
                 }
             }
         }

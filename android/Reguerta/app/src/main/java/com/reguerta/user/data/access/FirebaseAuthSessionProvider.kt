@@ -8,6 +8,7 @@ import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.reguerta.user.domain.access.AuthPrincipal
+import com.reguerta.user.domain.access.AuthPasswordResetResult
 import com.reguerta.user.domain.access.AuthSessionProvider
 import com.reguerta.user.domain.access.AuthSignInFailureReason
 import com.reguerta.user.domain.access.AuthSignInResult
@@ -50,6 +51,16 @@ class FirebaseAuthSessionProvider(
             )
         } catch (exception: Exception) {
             AuthSignInResult.Failure(exception.toFailureReason())
+        }
+    }
+
+    override suspend fun sendPasswordReset(email: String): AuthPasswordResetResult = withContext(Dispatchers.IO) {
+        val trimmedEmail = email.trim()
+        return@withContext try {
+            Tasks.await(auth.sendPasswordResetEmail(trimmedEmail))
+            AuthPasswordResetResult.Success
+        } catch (exception: Exception) {
+            AuthPasswordResetResult.Failure(exception.toFailureReason())
         }
     }
 
