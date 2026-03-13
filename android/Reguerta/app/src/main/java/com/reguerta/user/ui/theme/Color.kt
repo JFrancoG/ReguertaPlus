@@ -2,10 +2,23 @@ package com.reguerta.user.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// Semantic color tokens (core -> semantic mapping for HU-035).
+val ColorActionPrimaryDefaultLight = Color(0xFF6DA539)
+val ColorActionPrimaryDefaultDark = Color(0xFF8BBF5A)
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+val ColorActionOnPrimary = Color(0xFFFFFFFF)
+
+val ColorSurfacePrimaryDefaultLight = Color(0xFFF2F8E1)
+val ColorSurfacePrimaryDefaultDark = Color(0xFF0F1D0D)
+
+val ColorSurfaceSecondaryDefaultLight = Color(0xFFDDE5C0)
+val ColorSurfaceSecondaryDefaultDark = Color(0xFF1A2B1B)
+
+val ColorTextPrimaryDefaultLight = Color(0xFF2A3B2A)
+val ColorTextPrimaryDefaultDark = Color(0xFFD1E1D1)
+
+val ColorBorderSubtleLight = Color(0xFFB9C8A2)
+val ColorBorderSubtleDark = Color(0xFF37513B)
+
+val ColorFeedbackErrorDefault = Color(0xFFB04B4B)
+val ColorFeedbackWarningDefault = Color(0xFFEB6200)

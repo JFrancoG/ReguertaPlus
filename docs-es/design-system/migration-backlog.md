@@ -4,8 +4,8 @@ Trabajo priorizado para pasar del estado actual a un design-system cross-platfor
 
 ## P0 (Ahora)
 
-- Definir diccionario canonico de tokens semanticos para color/tipo/spacing/radius.
-- Publicar tabla de mapping cross-platform (legacy -> canonico).
+- [x] Definir diccionario canonico de tokens semanticos para color/tipo/spacing/radius.
+- [x] Publicar tabla de mapping cross-platform (legacy -> canonico).
 - Mantener source snapshots trazables y actualizados.
 
 ## P1 (Siguiente)

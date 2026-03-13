@@ -1,44 +1,49 @@
 package com.reguerta.user.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = ColorActionPrimaryDefaultDark,
+    onPrimary = ColorActionOnPrimary,
+    secondary = ColorSurfaceSecondaryDefaultDark,
+    tertiary = ColorFeedbackWarningDefault,
+    background = ColorSurfacePrimaryDefaultDark,
+    surface = ColorSurfacePrimaryDefaultDark,
+    onBackground = ColorTextPrimaryDefaultDark,
+    onSurface = ColorTextPrimaryDefaultDark,
+    error = ColorFeedbackErrorDefault,
+    outline = ColorBorderSubtleDark,
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    primary = ColorActionPrimaryDefaultLight,
+    onPrimary = ColorActionOnPrimary,
+    secondary = ColorSurfaceSecondaryDefaultLight,
+    tertiary = ColorFeedbackWarningDefault,
+    background = ColorSurfacePrimaryDefaultLight,
+    surface = ColorSurfacePrimaryDefaultLight,
+    onBackground = ColorTextPrimaryDefaultLight,
+    onSurface = ColorTextPrimaryDefaultLight,
+    error = ColorFeedbackErrorDefault,
+    outline = ColorBorderSubtleLight,
 )
 
 @Composable
 fun ReguertaTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
+    // Keep explicit app branding by default; can be enabled if product decides.
+    dynamicColor: Boolean = false,
+    content: @Composable () -> Unit,
 ) {
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
@@ -50,9 +55,22 @@ fun ReguertaTheme(
         else -> LightColorScheme
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    val tokens = ReguertaTokens()
+
+    CompositionLocalProvider(LocalReguertaTokens provides tokens) {
+        MaterialTheme(
+            colorScheme = colorScheme.withSemanticSurfaceDefaults(),
+            typography = ReguertaTypography,
+            content = content,
+        )
+    }
 }
+
+private fun ColorScheme.withSemanticSurfaceDefaults(): ColorScheme =
+    copy(
+        surfaceVariant = secondary,
+        onSurfaceVariant = onSurface,
+        surfaceContainer = surface,
+        surfaceContainerHigh = secondary,
+        surfaceContainerLowest = surface,
+    )

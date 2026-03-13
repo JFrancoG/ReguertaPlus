@@ -7,6 +7,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -55,6 +57,7 @@ import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.ResolveAuthorizedSessionUseCase
 import com.reguerta.user.domain.access.UnauthorizedReason
 import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
+import com.reguerta.user.ui.theme.ReguertaThemeTokens
 
 private const val SplashAnimationDurationMillis = 1_500
 
@@ -83,6 +86,7 @@ fun ReguertaRoot(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val spacing = ReguertaThemeTokens.spacing
 
     var shellState by remember { mutableStateOf(AuthShellState()) }
     val isAuthenticatedSession = state.mode is SessionMode.Authorized || state.mode is SessionMode.Unauthorized
@@ -117,8 +121,8 @@ fun ReguertaRoot(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(innerPadding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(spacing.lg),
         ) {
             when (shellState.currentRoute) {
                 AuthShellRoute.SPLASH -> SplashRoute(
@@ -206,6 +210,8 @@ fun ReguertaRoot(
 private fun SplashRoute(
     onAnimationFinished: () -> Unit,
 ) {
+    val spacing = ReguertaThemeTokens.spacing
+    val radius = ReguertaThemeTokens.radius
     val progress = remember { Animatable(0f) }
     var completed by remember { mutableStateOf(false) }
     val latestOnAnimationFinished by rememberUpdatedState(onAnimationFinished)
@@ -230,13 +236,16 @@ private fun SplashRoute(
     val rotation = lerp(-6f, 8f, fraction)
     val alpha = lerp(0.94f, 0f, fraction)
 
-    Card {
+    Card(
+        shape = RoundedCornerShape(radius.md),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
+                .padding(spacing.xxl),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(spacing.lg),
         ) {
             Box(
                 modifier = Modifier.fillMaxWidth(),
@@ -271,12 +280,17 @@ private fun lerp(start: Float, end: Float, fraction: Float): Float =
 private fun WelcomeRoute(
     onContinue: () -> Unit,
 ) {
-    Card {
+    val spacing = ReguertaThemeTokens.spacing
+    val radius = ReguertaThemeTokens.radius
+    Card(
+        shape = RoundedCornerShape(radius.md),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(spacing.xl),
+            verticalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
             Text(
                 text = stringResource(R.string.welcome_title_prefix),
@@ -310,12 +324,17 @@ private fun LoginRoute(
     onEmailChanged: (String) -> Unit,
     onUidChanged: (String) -> Unit,
 ) {
-    Card {
+    val spacing = ReguertaThemeTokens.spacing
+    val radius = ReguertaThemeTokens.radius
+    Card(
+        shape = RoundedCornerShape(radius.md),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
             Text(
                 text = stringResource(R.string.login_title),
@@ -336,7 +355,7 @@ private fun LoginRoute(
         onUidChanged = onUidChanged,
     )
 
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
         TextButton(onClick = onOpenRegister) {
             Text(stringResource(R.string.login_link_register))
         }
@@ -353,12 +372,17 @@ private fun PlaceholderAuthRoute(
     actionLabelRes: Int,
     onAction: () -> Unit,
 ) {
-    Card {
+    val spacing = ReguertaThemeTokens.spacing
+    val radius = ReguertaThemeTokens.radius
+    Card(
+        shape = RoundedCornerShape(radius.md),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(spacing.xl),
+            verticalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
             Text(
                 text = stringResource(titleRes),
@@ -438,12 +462,17 @@ private fun SignInCard(
     onEmailChanged: (String) -> Unit,
     onUidChanged: (String) -> Unit,
 ) {
-    Card {
+    val spacing = ReguertaThemeTokens.spacing
+    val radius = ReguertaThemeTokens.radius
+    Card(
+        shape = RoundedCornerShape(radius.md),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
             Text(stringResource(R.string.access_card_authentication))
             OutlinedTextField(

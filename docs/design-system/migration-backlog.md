@@ -4,8 +4,8 @@ Prioritized tasks to move from current state to a cleaner cross-platform design-
 
 ## P0 (Now)
 
-- Define canonical semantic token dictionary for color/type/spacing/radius.
-- Publish cross-platform mapping table (legacy -> canonical).
+- [x] Define canonical semantic token dictionary for color/type/spacing/radius.
+- [x] Publish cross-platform mapping table (legacy -> canonical).
 - Keep source snapshots current and traceable.
 
 ## P1 (Next)

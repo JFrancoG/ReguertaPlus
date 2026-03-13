@@ -72,3 +72,22 @@ Allowed:
 Not allowed:
 
 - Divergent semantics for core actions (`primary`, `danger`, `disabled`, `focus`).
+
+## 8. HU-035 Implementation Baseline (2026-03-13)
+
+Current code entry points:
+
+- Android theme wrapper and semantic palette:
+  - `android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Theme.kt`
+  - `android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Color.kt`
+  - `android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Type.kt`
+  - `android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/DesignTokens.kt`
+- iOS theme wrapper and semantic tokens:
+  - `ios/Reguerta/Reguerta/Reguerta/DesignSystem/ReguertaTheme.swift`
+  - `ios/Reguerta/Reguerta/Reguerta/ReguertaApp.swift`
+
+Auth shell migration baseline:
+
+- Splash / Welcome / Login routes now consume foundation spacing/radius/typography via theme tokens in:
+  - `android/Reguerta/app/src/main/java/com/reguerta/user/presentation/access/ReguertaRoot.kt`
+  - `ios/Reguerta/Reguerta/Reguerta/ContentView.swift`
