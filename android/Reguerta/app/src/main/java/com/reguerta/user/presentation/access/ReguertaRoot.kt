@@ -506,6 +506,7 @@ private fun RecoverPasswordCard(
                 helperMessage = stringResource(R.string.recover_subtitle),
                 keyboardType = androidx.compose.ui.text.input.KeyboardType.Email,
                 errorMessage = state.recoverEmailErrorRes?.let { stringResource(it) },
+                showClearAction = true,
             )
             ReguertaButton(
                 label = stringResource(
@@ -604,6 +605,7 @@ private fun SignInCard(
                 helperMessage = stringResource(R.string.access_signed_out_hint),
                 keyboardType = androidx.compose.ui.text.input.KeyboardType.Email,
                 errorMessage = state.emailErrorRes?.let { stringResource(it) },
+                showClearAction = true,
             )
             ReguertaInputField(
                 label = stringResource(R.string.common_input_password_label),
@@ -613,6 +615,7 @@ private fun SignInCard(
                 },
                 keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
                 isPassword = true,
+                showPasswordToggle = true,
                 errorMessage = state.passwordErrorRes?.let { stringResource(it) },
             )
             ReguertaButton(
@@ -662,6 +665,7 @@ private fun SignUpCard(
                 onValueChange = onEmailChanged,
                 keyboardType = androidx.compose.ui.text.input.KeyboardType.Email,
                 errorMessage = state.registerEmailErrorRes?.let { stringResource(it) },
+                showClearAction = true,
             )
             ReguertaInputField(
                 label = stringResource(R.string.common_input_password_label),
@@ -669,6 +673,7 @@ private fun SignUpCard(
                 onValueChange = onPasswordChanged,
                 keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
                 isPassword = true,
+                showPasswordToggle = true,
                 errorMessage = state.registerPasswordErrorRes?.let { stringResource(it) },
             )
             ReguertaInputField(
@@ -677,6 +682,7 @@ private fun SignUpCard(
                 onValueChange = onRepeatPasswordChanged,
                 keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
                 isPassword = true,
+                showPasswordToggle = true,
                 errorMessage = state.registerRepeatPasswordErrorRes?.let { stringResource(it) },
             )
             ReguertaButton(

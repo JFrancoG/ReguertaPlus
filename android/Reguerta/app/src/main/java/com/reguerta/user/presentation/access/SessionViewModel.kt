@@ -8,7 +8,6 @@ import com.reguerta.user.domain.access.AccessResolutionResult
 import com.reguerta.user.domain.access.AuthPasswordResetResult
 import com.reguerta.user.domain.access.AuthPrincipal
 import com.reguerta.user.domain.access.AuthSessionProvider
-import com.reguerta.user.domain.access.AuthSignInFailureReason
 import com.reguerta.user.domain.access.AuthSignInResult
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberManagementException
@@ -172,15 +171,19 @@ class SessionViewModel(
                 }
 
                 is AuthSignInResult.Failure -> {
+                    val mappedError = mapAuthFailure(
+                        reason = authResult.reason,
+                        flow = AuthErrorFlow.SIGN_IN,
+                    )
                     _uiState.update {
                         it.copy(
                             isAuthenticating = false,
-                            emailErrorRes = authResult.reason.emailErrorRes(),
-                            passwordErrorRes = authResult.reason.passwordErrorRes(),
+                            emailErrorRes = mappedError.emailErrorRes,
+                            passwordErrorRes = mappedError.passwordErrorRes,
                         )
                     }
 
-                    authResult.reason.globalMessageResOrNull()?.let(::emitMessage)
+                    mappedError.globalMessageRes?.let(::emitMessage)
                 }
             }
         }
@@ -263,15 +266,19 @@ class SessionViewModel(
                 }
 
                 is AuthSignInResult.Failure -> {
+                    val mappedError = mapAuthFailure(
+                        reason = authResult.reason,
+                        flow = AuthErrorFlow.SIGN_UP,
+                    )
                     _uiState.update {
                         it.copy(
                             isRegistering = false,
-                            registerEmailErrorRes = authResult.reason.registerEmailErrorRes(),
-                            registerPasswordErrorRes = authResult.reason.registerPasswordErrorRes(),
+                            registerEmailErrorRes = mappedError.emailErrorRes,
+                            registerPasswordErrorRes = mappedError.passwordErrorRes,
                         )
                     }
 
-                    authResult.reason.globalMessageResOrNull()?.let(::emitMessage)
+                    mappedError.globalMessageRes?.let(::emitMessage)
                 }
             }
         }
@@ -306,13 +313,17 @@ class SessionViewModel(
                 }
 
                 is AuthPasswordResetResult.Failure -> {
+                    val mappedError = mapAuthFailure(
+                        reason = result.reason,
+                        flow = AuthErrorFlow.PASSWORD_RESET,
+                    )
                     _uiState.update {
                         it.copy(
                             isRecoveringPassword = false,
-                            recoverEmailErrorRes = result.reason.recoverEmailErrorRes(),
+                            recoverEmailErrorRes = mappedError.emailErrorRes,
                         )
                     }
-                    result.reason.globalMessageResOrNull()?.let(::emitMessage)
+                    mappedError.globalMessageRes?.let(::emitMessage)
                 }
             }
         }
@@ -484,53 +495,3 @@ class SessionViewModel(
 }
 
 private val EmailPatternRegex = "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$".toRegex(setOf(RegexOption.IGNORE_CASE))
-
-@StringRes
-private fun AuthSignInFailureReason.emailErrorRes(): Int? =
-    when (this) {
-        AuthSignInFailureReason.INVALID_EMAIL -> R.string.feedback_email_invalid
-        AuthSignInFailureReason.USER_NOT_FOUND -> R.string.auth_error_user_not_found
-        AuthSignInFailureReason.USER_DISABLED -> R.string.auth_error_user_disabled
-        else -> null
-    }
-
-@StringRes
-private fun AuthSignInFailureReason.passwordErrorRes(): Int? =
-    when (this) {
-        AuthSignInFailureReason.INVALID_CREDENTIALS -> R.string.auth_error_invalid_credentials
-        else -> null
-    }
-
-@StringRes
-private fun AuthSignInFailureReason.registerEmailErrorRes(): Int? =
-    when (this) {
-        AuthSignInFailureReason.INVALID_EMAIL -> R.string.feedback_email_invalid
-        AuthSignInFailureReason.EMAIL_ALREADY_IN_USE -> R.string.auth_error_email_already_in_use
-        AuthSignInFailureReason.USER_DISABLED -> R.string.auth_error_user_disabled
-        else -> null
-    }
-
-@StringRes
-private fun AuthSignInFailureReason.registerPasswordErrorRes(): Int? =
-    when (this) {
-        AuthSignInFailureReason.WEAK_PASSWORD -> R.string.auth_error_weak_password
-        else -> null
-    }
-
-@StringRes
-private fun AuthSignInFailureReason.recoverEmailErrorRes(): Int? =
-    when (this) {
-        AuthSignInFailureReason.INVALID_EMAIL -> R.string.feedback_email_invalid
-        AuthSignInFailureReason.USER_NOT_FOUND -> R.string.auth_error_user_not_found
-        AuthSignInFailureReason.USER_DISABLED -> R.string.auth_error_user_disabled
-        else -> null
-    }
-
-@StringRes
-private fun AuthSignInFailureReason.globalMessageResOrNull(): Int? =
-    when (this) {
-        AuthSignInFailureReason.TOO_MANY_REQUESTS -> R.string.auth_error_too_many_requests
-        AuthSignInFailureReason.NETWORK -> R.string.auth_error_network
-        AuthSignInFailureReason.UNKNOWN -> R.string.auth_error_unknown
-        else -> null
-    }

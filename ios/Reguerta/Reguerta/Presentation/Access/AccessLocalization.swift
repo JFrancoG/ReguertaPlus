@@ -15,6 +15,9 @@ enum AccessL10nKey {
     static let dismissMessage = "access.action.dismiss_message"
     static let splashLoading = "auth_shell.splash.loading"
     static let commonBack = "common.action.back"
+    static let commonClear = "common.action.clear"
+    static let commonShowPassword = "common.action.show_password"
+    static let commonHidePassword = "common.action.hide_password"
 
     static let unauthorized = "auth_error.member.unauthorized"
     static let signedInEmail = "access.signed_in_email"

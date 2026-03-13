@@ -171,4 +171,17 @@ struct ReguertaTests {
         #expect(mapFirebaseAuthError(tooMany) == .tooManyRequests)
         #expect(mapFirebaseAuthError(network) == .network)
     }
+
+    @Test
+    func authErrorPresentationMappingByFlow() {
+        let signIn = mapAuthFailure(.invalidCredentials, flow: .signIn)
+        #expect(signIn.passwordErrorKey == AccessL10nKey.authErrorInvalidCredentials)
+        #expect(signIn.emailErrorKey == nil)
+
+        let signUp = mapAuthFailure(.emailAlreadyInUse, flow: .signUp)
+        #expect(signUp.emailErrorKey == AccessL10nKey.authErrorEmailAlreadyInUse)
+
+        let passwordReset = mapAuthFailure(.invalidCredentials, flow: .passwordReset)
+        #expect(passwordReset.globalMessageKey == AccessL10nKey.authErrorUnknown)
+    }
 }

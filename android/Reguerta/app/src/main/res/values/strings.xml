@@ -31,6 +31,9 @@
     <string name="recover_action_send_email">Send reset email</string>
     <string name="recover_action_sending">Sending email...</string>
     <string name="common_action_back">Back</string>
+    <string name="common_action_clear">Clear</string>
+    <string name="common_action_show_password">Show password</string>
+    <string name="common_action_hide_password">Hide password</string>
 
     <string name="auth_error_member_unauthorized">Unauthorized user</string>
     <string name="access_signed_in_email_format">Signed in email: %1$s</string>

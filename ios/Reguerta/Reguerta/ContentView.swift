@@ -262,6 +262,7 @@ struct ContentView: View {
                     helperMessage: localizedKey(AccessL10nKey.signedOutHint),
                     errorMessage: viewModel.emailErrorKey.map(localizedKey),
                     isEnabled: !viewModel.isAuthenticating,
+                    showsClearAction: true,
                     keyboardType: .emailAddress
                 )
 
@@ -272,6 +273,7 @@ struct ContentView: View {
                     errorMessage: viewModel.passwordErrorKey.map(localizedKey),
                     isEnabled: !viewModel.isAuthenticating,
                     isSecure: true,
+                    showsPasswordToggle: true,
                     keyboardType: .default
                 )
 
@@ -299,6 +301,7 @@ struct ContentView: View {
                     helperMessage: localizedKey(AccessL10nKey.signedOutHint),
                     errorMessage: viewModel.registerEmailErrorKey.map(localizedKey),
                     isEnabled: !viewModel.isRegistering,
+                    showsClearAction: true,
                     keyboardType: .emailAddress
                 )
 
@@ -309,6 +312,7 @@ struct ContentView: View {
                     errorMessage: viewModel.registerPasswordErrorKey.map(localizedKey),
                     isEnabled: !viewModel.isRegistering,
                     isSecure: true,
+                    showsPasswordToggle: true,
                     keyboardType: .default
                 )
 
@@ -319,6 +323,7 @@ struct ContentView: View {
                     errorMessage: viewModel.registerRepeatPasswordErrorKey.map(localizedKey),
                     isEnabled: !viewModel.isRegistering,
                     isSecure: true,
+                    showsPasswordToggle: true,
                     keyboardType: .default
                 )
 
@@ -346,6 +351,7 @@ struct ContentView: View {
                     helperMessage: localizedKey(AccessL10nKey.recoverSubtitle),
                     errorMessage: viewModel.recoverEmailErrorKey.map(localizedKey),
                     isEnabled: !viewModel.isRecoveringPassword,
+                    showsClearAction: true,
                     keyboardType: .emailAddress
                 )
 
