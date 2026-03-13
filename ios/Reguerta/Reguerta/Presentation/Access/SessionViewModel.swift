@@ -394,72 +394,23 @@ final class SessionViewModel {
     }
 
     private func applySignInFailure(_ reason: AuthSignInFailureReason) {
-        switch reason {
-        case .invalidEmail:
-            emailErrorKey = AccessL10nKey.feedbackEmailInvalid
-        case .invalidCredentials:
-            passwordErrorKey = AccessL10nKey.authErrorInvalidCredentials
-        case .emailAlreadyInUse:
-            emailErrorKey = AccessL10nKey.authErrorEmailAlreadyInUse
-        case .weakPassword:
-            passwordErrorKey = AccessL10nKey.authErrorWeakPassword
-        case .userNotFound:
-            emailErrorKey = AccessL10nKey.authErrorUserNotFound
-        case .userDisabled:
-            emailErrorKey = AccessL10nKey.authErrorUserDisabled
-        case .tooManyRequests:
-            feedbackMessageKey = AccessL10nKey.authErrorTooManyRequests
-        case .network:
-            feedbackMessageKey = AccessL10nKey.authErrorNetwork
-        case .unknown:
-            feedbackMessageKey = AccessL10nKey.authErrorUnknown
-        }
+        let mapped = mapAuthFailure(reason, flow: .signIn)
+        emailErrorKey = mapped.emailErrorKey
+        passwordErrorKey = mapped.passwordErrorKey
+        feedbackMessageKey = mapped.globalMessageKey
     }
 
     private func applySignUpFailure(_ reason: AuthSignInFailureReason) {
-        switch reason {
-        case .invalidEmail:
-            registerEmailErrorKey = AccessL10nKey.feedbackEmailInvalid
-        case .invalidCredentials:
-            registerPasswordErrorKey = AccessL10nKey.authErrorInvalidCredentials
-        case .emailAlreadyInUse:
-            registerEmailErrorKey = AccessL10nKey.authErrorEmailAlreadyInUse
-        case .weakPassword:
-            registerPasswordErrorKey = AccessL10nKey.authErrorWeakPassword
-        case .userNotFound:
-            registerEmailErrorKey = AccessL10nKey.authErrorUserNotFound
-        case .userDisabled:
-            registerEmailErrorKey = AccessL10nKey.authErrorUserDisabled
-        case .tooManyRequests:
-            feedbackMessageKey = AccessL10nKey.authErrorTooManyRequests
-        case .network:
-            feedbackMessageKey = AccessL10nKey.authErrorNetwork
-        case .unknown:
-            feedbackMessageKey = AccessL10nKey.authErrorUnknown
-        }
+        let mapped = mapAuthFailure(reason, flow: .signUp)
+        registerEmailErrorKey = mapped.emailErrorKey
+        registerPasswordErrorKey = mapped.passwordErrorKey
+        feedbackMessageKey = mapped.globalMessageKey
     }
 
     private func applyPasswordResetFailure(_ reason: AuthSignInFailureReason) {
-        switch reason {
-        case .invalidEmail:
-            recoverEmailErrorKey = AccessL10nKey.feedbackEmailInvalid
-        case .userNotFound:
-            recoverEmailErrorKey = AccessL10nKey.authErrorUserNotFound
-        case .userDisabled:
-            recoverEmailErrorKey = AccessL10nKey.authErrorUserDisabled
-        case .tooManyRequests:
-            feedbackMessageKey = AccessL10nKey.authErrorTooManyRequests
-        case .network:
-            feedbackMessageKey = AccessL10nKey.authErrorNetwork
-        case .unknown:
-            feedbackMessageKey = AccessL10nKey.authErrorUnknown
-        case .invalidCredentials:
-            feedbackMessageKey = AccessL10nKey.authErrorUnknown
-        case .emailAlreadyInUse:
-            feedbackMessageKey = AccessL10nKey.authErrorUnknown
-        case .weakPassword:
-            feedbackMessageKey = AccessL10nKey.authErrorUnknown
-        }
+        let mapped = mapAuthFailure(reason, flow: .passwordReset)
+        recoverEmailErrorKey = mapped.emailErrorKey
+        feedbackMessageKey = mapped.globalMessageKey
     }
 
     private func applyAuthorizedSession(principal: AuthPrincipal) async {

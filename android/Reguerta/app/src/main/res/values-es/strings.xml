@@ -31,6 +31,9 @@
     <string name="recover_action_send_email">Enviar email de recuperación</string>
     <string name="recover_action_sending">Enviando email...</string>
     <string name="common_action_back">Volver</string>
+    <string name="common_action_clear">Borrar</string>
+    <string name="common_action_show_password">Mostrar contraseña</string>
+    <string name="common_action_hide_password">Ocultar contraseña</string>
 
     <string name="auth_error_member_unauthorized">Usuario no autorizado</string>
     <string name="access_signed_in_email_format">Email de sesión: %1$s</string>

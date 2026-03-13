@@ -5,6 +5,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -19,6 +25,8 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.res.stringResource
+import com.reguerta.user.R
 import com.reguerta.user.ui.theme.ReguertaThemeTokens
 
 enum class ReguertaInputState {
@@ -40,9 +48,12 @@ fun ReguertaInputField(
     keyboardType: KeyboardType = KeyboardType.Text,
     errorMessage: String? = null,
     isPassword: Boolean = false,
+    showClearAction: Boolean = false,
+    showPasswordToggle: Boolean = isPassword,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
+    var passwordVisible by remember { mutableStateOf(false) }
     val spacing = ReguertaThemeTokens.spacing
     val hasError = !errorMessage.isNullOrBlank()
     val state = when {
@@ -69,8 +80,41 @@ fun ReguertaInputField(
             },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-            visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-            trailingIcon = trailing,
+            visualTransformation = if (isPassword && !passwordVisible) {
+                PasswordVisualTransformation()
+            } else {
+                VisualTransformation.None
+            },
+            trailingIcon = {
+                when {
+                    isPassword && showPasswordToggle -> {
+                        IconButton(
+                            onClick = { passwordVisible = !passwordVisible },
+                            enabled = enabled,
+                        ) {
+                            Icon(
+                                imageVector = if (passwordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                contentDescription = if (passwordVisible) {
+                                    stringResource(R.string.common_action_hide_password)
+                                } else {
+                                    stringResource(R.string.common_action_show_password)
+                                },
+                            )
+                        }
+                    }
+
+                    showClearAction && enabled && value.isNotEmpty() -> {
+                        IconButton(onClick = { onValueChange("") }) {
+                            Icon(
+                                imageVector = Icons.Filled.Clear,
+                                contentDescription = stringResource(R.string.common_action_clear),
+                            )
+                        }
+                    }
+
+                    trailing != null -> trailing()
+                }
+            },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = stateBorderColor(ReguertaInputState.FOCUSED),
                 unfocusedBorderColor = stateBorderColor(ReguertaInputState.DEFAULT),

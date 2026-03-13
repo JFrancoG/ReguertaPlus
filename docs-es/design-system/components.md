@@ -26,20 +26,37 @@ Flujo de referencia implementado de extremo a extremo con los componentes V1:
   - Splash usa `ReguertaCard`.
   - Welcome usa `ReguertaCard` + `ReguertaButton`.
   - Login usa `ReguertaCard`, `ReguertaInputField`, `ReguertaInlineFeedback`, `ReguertaButton`.
-  - Placeholders de registro/recuperar usan `ReguertaCard` + `ReguertaButton`.
+  - Registro usa `ReguertaCard`, `ReguertaInputField`, `ReguertaButton`.
+  - Recuperar usa `ReguertaCard`, `ReguertaInputField`, `ReguertaButton`.
 - iOS: `ContentView.swift`
   - Splash usa `ReguertaCard`.
   - Welcome usa `ReguertaCard` + `ReguertaButton`.
   - Login usa `ReguertaCard`, `ReguertaInputField`, `ReguertaInlineFeedback`, `ReguertaButton`.
-  - Placeholders de registro/recuperar usan `ReguertaCard` + `ReguertaButton`.
+  - Registro usa `ReguertaCard`, `ReguertaInputField`, `ReguertaButton`.
+  - Recuperar usa `ReguertaCard`, `ReguertaInputField`, `ReguertaButton`.
 
-## 4. Reglas de contrato
+## 4. Contrato Input V2 (HU-033)
+
+- Estados canónicos: `default`, `focused`, `error`, `disabled`.
+- Icono opcional para borrar valor cuando el campo está editable y no vacío.
+- Toggle opcional de visibilidad para campos de contraseña.
+- El slot de error inline tiene prioridad sobre el helper.
+- Ninguna pantalla debe mostrar texto raw del backend/provider directamente en errores de input.
+
+Referencias actuales:
+
+- Android input: `ui/components/auth/ReguertaInputField.kt`
+- iOS input: `DesignSystem/Components/ReguertaInputField.swift`
+- Android mapeo auth: `presentation/access/AuthErrorMapping.kt`
+- iOS mapeo auth: `Presentation/Access/AuthErrorMapping.swift`
+
+## 5. Reglas de contrato
 
 - Definir APIs por comportamiento y estados explícitos, no por contexto de una pantalla concreta.
 - Mantener `enabled`, `disabled`, `loading`, `focus` y `error` visibles en el contrato del componente.
 - Consumir solo theme/tokens semánticos. Evitar colores y medidas hardcodeadas en vistas de feature.
 
-## 5. Exclusiones legacy explícitas
+## 6. Exclusiones legacy explícitas
 
 - Android `NavigationDrawerInfo` (deprecated).
 - Android params legacy en `InverseReguertaButton` (`borderSize`, `cornerSize`).

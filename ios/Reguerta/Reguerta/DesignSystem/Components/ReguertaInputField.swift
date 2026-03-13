@@ -10,6 +10,7 @@ enum ReguertaInputState {
 struct ReguertaInputField: View {
     @Environment(\.reguertaTokens) private var tokens
     @FocusState private var isFocused: Bool
+    @State private var isPasswordVisible = false
 
     let label: LocalizedStringKey
     @Binding var text: String
@@ -18,6 +19,8 @@ struct ReguertaInputField: View {
     let errorMessage: LocalizedStringKey?
     let isEnabled: Bool
     let isSecure: Bool
+    let showsClearAction: Bool
+    let showsPasswordToggle: Bool
     let keyboardType: UIKeyboardType
     let trailingIcon: Image?
     let onTrailingTap: (() -> Void)?
@@ -30,6 +33,8 @@ struct ReguertaInputField: View {
         errorMessage: LocalizedStringKey? = nil,
         isEnabled: Bool = true,
         isSecure: Bool = false,
+        showsClearAction: Bool = false,
+        showsPasswordToggle: Bool = true,
         keyboardType: UIKeyboardType = .default,
         trailingIcon: Image? = nil,
         onTrailingTap: (() -> Void)? = nil
@@ -41,6 +46,8 @@ struct ReguertaInputField: View {
         self.errorMessage = errorMessage
         self.isEnabled = isEnabled
         self.isSecure = isSecure
+        self.showsClearAction = showsClearAction
+        self.showsPasswordToggle = showsPasswordToggle
         self.keyboardType = keyboardType
         self.trailingIcon = trailingIcon
         self.onTrailingTap = onTrailingTap
@@ -67,7 +74,7 @@ struct ReguertaInputField: View {
                             .foregroundStyle(tokens.colors.textSecondary.opacity(0.65))
                             .opacity(text.isEmpty ? 1 : 0)
                     }
-                    if isSecure {
+                    if isSecure && !isPasswordVisible {
                         SecureField("", text: $text)
                             .font(tokens.typography.body)
                             .disabled(!isEnabled)
@@ -84,6 +91,29 @@ struct ReguertaInputField: View {
                             .keyboardType(keyboardType)
                             .accessibilityLabel(Text(label))
                     }
+                }
+
+                if isSecure && showsPasswordToggle {
+                    Button {
+                        isPasswordVisible.toggle()
+                    } label: {
+                        Image(systemName: isPasswordVisible ? "eye.slash.fill" : "eye.fill")
+                            .foregroundStyle(tokens.colors.textSecondary)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!isEnabled)
+                    .accessibilityLabel(Text(isPasswordVisible ? "common.action.hide_password" : "common.action.show_password"))
+                }
+
+                if showsClearAction && isEnabled && !text.isEmpty {
+                    Button {
+                        text = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(tokens.colors.textSecondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text("common.action.clear"))
                 }
 
                 if let trailingIcon {
