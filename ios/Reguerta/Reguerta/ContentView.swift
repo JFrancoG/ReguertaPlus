@@ -122,6 +122,18 @@ struct ContentView: View {
                 ReguertaButton(localizedKey(AccessL10nKey.welcomeCtaEnter)) {
                     dispatchShell(.continueFromWelcome)
                 }
+                HStack(spacing: tokens.spacing.sm) {
+                    Text(localizedKey(AccessL10nKey.welcomeNotRegistered))
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                    ReguertaButton(
+                        localizedKey(AccessL10nKey.welcomeLinkRegister),
+                        variant: .text,
+                        fullWidth: false
+                    ) {
+                        dispatchShell(.openRegisterFromWelcome)
+                    }
+                }
             }
         }
     }

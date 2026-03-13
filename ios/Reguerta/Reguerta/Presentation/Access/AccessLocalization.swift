@@ -24,6 +24,8 @@ enum AccessL10nKey {
     static let welcomeTitleBrand = "welcome.title.brand"
     static let welcomeSubtitle = "welcome.subtitle"
     static let welcomeCtaEnter = "welcome.cta.enter"
+    static let welcomeNotRegistered = "welcome.not_registered"
+    static let welcomeLinkRegister = "welcome.link.register"
     static let loginTitle = "login.title"
     static let loginLinkRegister = "login.link.register"
     static let loginLinkForgotPassword = "login.link.forgot_password"

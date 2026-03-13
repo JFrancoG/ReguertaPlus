@@ -34,6 +34,17 @@ class AuthShellRoutingTest {
     }
 
     @Test
+    fun `welcome can open register directly from secondary cta`() {
+        val welcome = AuthShellState(backStack = listOf(AuthShellRoute.WELCOME))
+
+        val register = reduceAuthShell(welcome, AuthShellAction.OpenRegisterFromWelcome)
+        val backToWelcome = reduceAuthShell(register, AuthShellAction.Back)
+
+        assertEquals(AuthShellRoute.REGISTER, register.currentRoute)
+        assertEquals(AuthShellRoute.WELCOME, backToWelcome.currentRoute)
+    }
+
+    @Test
     fun `session authenticated always resets to home`() {
         val fromRecover = AuthShellState(
             backStack = listOf(

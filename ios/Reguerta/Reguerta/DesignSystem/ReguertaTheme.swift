@@ -30,9 +30,9 @@ struct ReguertaDesignTokens {
     }
 
     struct Typography {
-        let titleHero: Font = .system(.title, design: .rounded).weight(.bold)
-        let titleSection: Font = .system(.title3, design: .rounded).weight(.semibold)
-        let titleCard: Font = .system(.headline, design: .rounded).weight(.semibold)
+        let titleHero: Font = .custom("CabinSketch-Bold", size: 36, relativeTo: .title)
+        let titleSection: Font = .custom("CabinSketch-Bold", size: 24, relativeTo: .title3)
+        let titleCard: Font = .custom("CabinSketch-Regular", size: 20, relativeTo: .headline)
         let body: Font = .system(.body, design: .default)
         let bodySecondary: Font = .system(.subheadline, design: .default)
         let label: Font = .system(.footnote, design: .default)

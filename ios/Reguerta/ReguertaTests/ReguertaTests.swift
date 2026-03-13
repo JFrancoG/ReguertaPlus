@@ -122,6 +122,16 @@ struct ReguertaTests {
     }
 
     @Test
+    func authShellCanOpenRegisterDirectlyFromWelcome() {
+        let welcome = AuthShellState(backStack: [.welcome])
+        let register = reduceAuthShell(state: welcome, action: .openRegisterFromWelcome)
+        let backToWelcome = reduceAuthShell(state: register, action: .back)
+
+        #expect(register.currentRoute == .register)
+        #expect(backToWelcome.currentRoute == .welcome)
+    }
+
+    @Test
     func authShellResetsToHomeOnAuthenticatedSession() {
         let state = AuthShellState(backStack: [.welcome, .login, .recoverPassword])
         let reduced = reduceAuthShell(state: state, action: .sessionAuthenticated)

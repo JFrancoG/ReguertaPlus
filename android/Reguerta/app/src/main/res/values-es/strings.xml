@@ -15,6 +15,8 @@
     <string name="welcome_title_brand">Reguerta</string>
     <string name="welcome_subtitle">Usa el mismo flujo de auth en ambas plataformas.</string>
     <string name="welcome_cta_enter">Entrar a la app</string>
+    <string name="welcome_not_registered">¿Aún no tienes cuenta?</string>
+    <string name="welcome_link_register">Crear cuenta</string>
     <string name="login_title">Introduce tus credenciales</string>
     <string name="login_link_register">Crear cuenta</string>
     <string name="login_link_forgot_password">¿Has olvidado tu contraseña?</string>
