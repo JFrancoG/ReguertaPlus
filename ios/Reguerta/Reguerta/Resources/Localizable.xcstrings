@@ -28,7 +28,7 @@
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Iniciar sesion"
+            "value": "Iniciar sesión"
           }
         }
       }
@@ -44,7 +44,7 @@
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cerrar sesion"
+            "value": "Cerrar sesión"
           }
         }
       }
@@ -60,7 +60,7 @@
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Iniciando sesion..."
+            "value": "Iniciando sesión..."
           }
         }
       }
@@ -76,7 +76,7 @@
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Autenticacion"
+            "value": "Autenticación"
           }
         }
       }
@@ -124,7 +124,7 @@
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Email de sesion: %@"
+            "value": "Email de sesión: %@"
           }
         }
       }
@@ -140,7 +140,7 @@
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Inicia sesion con un email de miembro preautorizado para desbloquear los modulos operativos."
+            "value": "Inicia sesión con un email de miembro preautorizado para desbloquear los módulos operativos."
           }
         }
       }
@@ -284,7 +284,7 @@
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Admin | Gestion de miembros"
+            "value": "Admin | Gestión de miembros"
           }
         }
       }
@@ -316,7 +316,7 @@
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Los modulos operativos seguiran desactivados hasta que un admin preautorice este email."
+            "value": "Los módulos operativos seguirán desactivados hasta que un admin preautorice este email."
           }
         }
       }
@@ -460,7 +460,7 @@
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Si"
+            "value": "Sí"
           }
         }
       }
@@ -684,7 +684,7 @@
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Catalogo"
+            "value": "Catálogo"
           }
         }
       }
@@ -732,7 +732,7 @@
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Modulos operativos"
+            "value": "Módulos operativos"
           }
         }
       }
@@ -988,7 +988,7 @@
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Has olvidado tu contrasena?"
+            "value": "¿Has olvidado tu contraseña?"
           }
         }
       }
@@ -1020,7 +1020,7 @@
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "La pantalla de registro ya esta integrada en navegacion y se completara en HU-031."
+            "value": "La pantalla de registro ya está integrada en navegación y se completará en HU-031."
           }
         }
       }
@@ -1036,7 +1036,7 @@
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Recuperar contrasena"
+            "value": "Recuperar contraseña"
           }
         }
       }
@@ -1052,7 +1052,7 @@
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "La pantalla de recuperacion ya esta integrada en navegacion y se completara en HU-032."
+            "value": "La pantalla de recuperación ya está integrada en navegación y se completará en HU-032."
           }
         }
       }
