@@ -45,8 +45,8 @@ As a member I want app version policy to be validated at startup so unsupported 
 
 ## Definition of Done (DoD)
 
-- [ ] Story acceptance criteria validated.
-- [ ] Android/iOS parity reviewed or temporary gap documented.
-- [ ] Tests executed.
-- [ ] Documentation updated.
-- [ ] Issue and PR linked.
+- [x] Story acceptance criteria validated.
+- [x] Android/iOS parity reviewed or temporary gap documented.
+- [x] Tests executed.
+- [x] Documentation updated.
+- [x] Issue and PR linked.

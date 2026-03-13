@@ -35,9 +35,21 @@ struct ReguertaButton: View {
     var body: some View {
         switch variant {
         case .primary:
-            baseButton.buttonStyle(.borderedProminent)
+            baseButton
+                .padding(.horizontal, fullWidth ? 0 : tokens.spacing.sm)
+                .background(primaryBackground)
+                .foregroundStyle(primaryForeground)
+                .clipShape(Capsule())
         case .secondary:
-            baseButton.buttonStyle(.bordered)
+            baseButton
+                .padding(.horizontal, fullWidth ? 0 : tokens.spacing.sm)
+                .background(tokens.colors.surfacePrimary)
+                .overlay(
+                    Capsule()
+                        .stroke(tokens.colors.borderSubtle, lineWidth: 1)
+                )
+                .foregroundStyle(tokens.colors.textPrimary)
+                .clipShape(Capsule())
         case .text:
             baseButton.buttonStyle(.plain)
         }
@@ -48,13 +60,26 @@ struct ReguertaButton: View {
             HStack(spacing: tokens.spacing.sm) {
                 if isLoading {
                     ProgressView()
-                        .tint(variant == .primary ? tokens.colors.actionOnPrimary : tokens.colors.actionPrimary)
+                        .tint(variant == .primary ? primaryForeground : tokens.colors.actionPrimary)
                 }
                 Text(title)
             }
-            .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: 44)
+            .font(tokens.typography.titleCard)
+            .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: 52)
             .contentShape(Rectangle())
         }
         .disabled(!isEnabled || isLoading)
+    }
+
+    private var primaryBackground: Color {
+        (isEnabled && !isLoading)
+            ? tokens.colors.actionPrimary
+            : tokens.colors.surfaceSecondary
+    }
+
+    private var primaryForeground: Color {
+        (isEnabled && !isLoading)
+            ? tokens.colors.actionOnPrimary
+            : tokens.colors.textSecondary
     }
 }
