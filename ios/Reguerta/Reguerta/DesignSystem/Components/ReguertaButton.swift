@@ -52,7 +52,8 @@ struct ReguertaButton: View {
                 }
                 Text(title)
             }
-            .frame(maxWidth: fullWidth ? .infinity : nil)
+            .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: 44)
+            .contentShape(Rectangle())
         }
         .disabled(!isEnabled || isLoading)
     }

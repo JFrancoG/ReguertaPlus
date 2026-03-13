@@ -24,6 +24,7 @@ struct AuthShellState: Equatable, Sendable {
 enum AuthShellAction: Equatable, Sendable {
     case splashCompleted(isAuthenticated: Bool)
     case continueFromWelcome
+    case openRegisterFromWelcome
     case openRegisterFromLogin
     case openRecoverFromLogin
     case sessionAuthenticated
@@ -37,6 +38,8 @@ func reduceAuthShell(state: AuthShellState, action: AuthShellAction) -> AuthShel
         return state.resetTo(isAuthenticated ? .home : .welcome)
     case .continueFromWelcome:
         return state.push(.login)
+    case .openRegisterFromWelcome:
+        return state.push(.register)
     case .openRegisterFromLogin:
         return state.push(.register)
     case .openRecoverFromLogin:

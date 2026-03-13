@@ -24,6 +24,8 @@ sealed interface AuthShellAction {
 
     data object ContinueFromWelcome : AuthShellAction
 
+    data object OpenRegisterFromWelcome : AuthShellAction
+
     data object OpenRegisterFromLogin : AuthShellAction
 
     data object OpenRecoverFromLogin : AuthShellAction
@@ -45,6 +47,7 @@ fun reduceAuthShell(
         }
 
         AuthShellAction.ContinueFromWelcome -> state.push(AuthShellRoute.LOGIN)
+        AuthShellAction.OpenRegisterFromWelcome -> state.push(AuthShellRoute.REGISTER)
         AuthShellAction.OpenRegisterFromLogin -> state.push(AuthShellRoute.REGISTER)
         AuthShellAction.OpenRecoverFromLogin -> state.push(AuthShellRoute.RECOVER_PASSWORD)
         AuthShellAction.SessionAuthenticated -> state.resetTo(AuthShellRoute.HOME)

@@ -145,6 +145,12 @@ fun ReguertaRoot(
                             action = AuthShellAction.ContinueFromWelcome,
                         )
                     },
+                    onOpenRegister = {
+                        shellState = reduceAuthShell(
+                            state = shellState,
+                            action = AuthShellAction.OpenRegisterFromWelcome,
+                        )
+                    },
                 )
 
                 AuthShellRoute.LOGIN -> LoginRoute(
@@ -279,6 +285,7 @@ private fun lerp(start: Float, end: Float, fraction: Float): Float =
 @Composable
 private fun WelcomeRoute(
     onContinue: () -> Unit,
+    onOpenRegister: () -> Unit,
 ) {
     val spacing = ReguertaThemeTokens.spacing
     ReguertaCard {
@@ -305,6 +312,22 @@ private fun WelcomeRoute(
                 label = stringResource(R.string.welcome_cta_enter),
                 onClick = onContinue,
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.welcome_not_registered),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                ReguertaButton(
+                    label = stringResource(R.string.welcome_link_register),
+                    onClick = onOpenRegister,
+                    variant = ReguertaButtonVariant.TEXT,
+                    fullWidth = false,
+                )
+            }
         }
     }
 }
