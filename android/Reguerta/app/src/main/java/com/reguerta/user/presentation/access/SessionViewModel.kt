@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.reguerta.user.R
 import com.reguerta.user.domain.access.AccessResolutionResult
+import com.reguerta.user.domain.access.AuthPasswordResetResult
 import com.reguerta.user.domain.access.AuthPrincipal
 import com.reguerta.user.domain.access.AuthSessionProvider
 import com.reguerta.user.domain.access.AuthSignInFailureReason
@@ -62,6 +63,9 @@ data class SessionUiState(
     @param:StringRes val registerPasswordErrorRes: Int? = null,
     @param:StringRes val registerRepeatPasswordErrorRes: Int? = null,
     val isRegistering: Boolean = false,
+    val recoverEmailInput: String = "",
+    @param:StringRes val recoverEmailErrorRes: Int? = null,
+    val isRecoveringPassword: Boolean = false,
     val mode: SessionMode = SessionMode.SignedOut,
     val memberDraft: MemberDraft = MemberDraft(),
 )
@@ -105,6 +109,10 @@ class SessionViewModel(
                 registerRepeatPasswordErrorRes = null,
             )
         }
+    }
+
+    fun onRecoverEmailChanged(value: String) {
+        _uiState.update { it.copy(recoverEmailInput = value, recoverEmailErrorRes = null) }
     }
 
     fun signIn() {
@@ -269,6 +277,47 @@ class SessionViewModel(
         }
     }
 
+    fun sendPasswordReset() {
+        val currentState = _uiState.value
+        val email = currentState.recoverEmailInput.trim()
+        val emailErrorRes = when {
+            email.isBlank() -> R.string.feedback_email_required
+            !email.matches(EmailPatternRegex) -> R.string.feedback_email_invalid
+            else -> null
+        }
+
+        if (emailErrorRes != null) {
+            _uiState.update { it.copy(recoverEmailErrorRes = emailErrorRes) }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRecoveringPassword = true, recoverEmailErrorRes = null) }
+
+            when (val result = authSessionProvider.sendPasswordReset(email = email)) {
+                AuthPasswordResetResult.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isRecoveringPassword = false,
+                            recoverEmailInput = "",
+                        )
+                    }
+                    emitMessage(R.string.auth_info_password_reset_sent)
+                }
+
+                is AuthPasswordResetResult.Failure -> {
+                    _uiState.update {
+                        it.copy(
+                            isRecoveringPassword = false,
+                            recoverEmailErrorRes = result.reason.recoverEmailErrorRes(),
+                        )
+                    }
+                    result.reason.globalMessageResOrNull()?.let(::emitMessage)
+                }
+            }
+        }
+    }
+
     fun signOut() {
         authSessionProvider.signOut()
         _uiState.update {
@@ -285,6 +334,9 @@ class SessionViewModel(
                 registerPasswordErrorRes = null,
                 registerRepeatPasswordErrorRes = null,
                 isRegistering = false,
+                recoverEmailInput = "",
+                recoverEmailErrorRes = null,
+                isRecoveringPassword = false,
                 memberDraft = MemberDraft(),
             )
         }
@@ -462,6 +514,15 @@ private fun AuthSignInFailureReason.registerEmailErrorRes(): Int? =
 private fun AuthSignInFailureReason.registerPasswordErrorRes(): Int? =
     when (this) {
         AuthSignInFailureReason.WEAK_PASSWORD -> R.string.auth_error_weak_password
+        else -> null
+    }
+
+@StringRes
+private fun AuthSignInFailureReason.recoverEmailErrorRes(): Int? =
+    when (this) {
+        AuthSignInFailureReason.INVALID_EMAIL -> R.string.feedback_email_invalid
+        AuthSignInFailureReason.USER_NOT_FOUND -> R.string.auth_error_user_not_found
+        AuthSignInFailureReason.USER_DISABLED -> R.string.auth_error_user_disabled
         else -> null
     }
 

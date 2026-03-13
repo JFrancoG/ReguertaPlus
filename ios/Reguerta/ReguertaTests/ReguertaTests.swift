@@ -155,6 +155,8 @@ struct ReguertaTests {
     func firebaseAuthErrorMappingCoversKnownCodes() {
         let invalidEmail = NSError(domain: AuthErrorDomain, code: AuthErrorCode.invalidEmail.rawValue)
         let wrongPassword = NSError(domain: AuthErrorDomain, code: AuthErrorCode.wrongPassword.rawValue)
+        let emailAlreadyInUse = NSError(domain: AuthErrorDomain, code: AuthErrorCode.emailAlreadyInUse.rawValue)
+        let weakPassword = NSError(domain: AuthErrorDomain, code: AuthErrorCode.weakPassword.rawValue)
         let notFound = NSError(domain: AuthErrorDomain, code: AuthErrorCode.userNotFound.rawValue)
         let disabled = NSError(domain: AuthErrorDomain, code: AuthErrorCode.userDisabled.rawValue)
         let tooMany = NSError(domain: AuthErrorDomain, code: AuthErrorCode.tooManyRequests.rawValue)
@@ -162,6 +164,8 @@ struct ReguertaTests {
 
         #expect(mapFirebaseAuthError(invalidEmail) == .invalidEmail)
         #expect(mapFirebaseAuthError(wrongPassword) == .invalidCredentials)
+        #expect(mapFirebaseAuthError(emailAlreadyInUse) == .emailAlreadyInUse)
+        #expect(mapFirebaseAuthError(weakPassword) == .weakPassword)
         #expect(mapFirebaseAuthError(notFound) == .userNotFound)
         #expect(mapFirebaseAuthError(disabled) == .userDisabled)
         #expect(mapFirebaseAuthError(tooMany) == .tooManyRequests)

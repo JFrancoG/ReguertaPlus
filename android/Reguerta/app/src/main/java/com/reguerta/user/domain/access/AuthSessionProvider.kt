@@ -18,10 +18,18 @@ sealed interface AuthSignInResult {
     data class Failure(val reason: AuthSignInFailureReason) : AuthSignInResult
 }
 
+sealed interface AuthPasswordResetResult {
+    data object Success : AuthPasswordResetResult
+
+    data class Failure(val reason: AuthSignInFailureReason) : AuthPasswordResetResult
+}
+
 interface AuthSessionProvider {
     suspend fun signIn(email: String, password: String): AuthSignInResult
 
     suspend fun signUp(email: String, password: String): AuthSignInResult
+
+    suspend fun sendPasswordReset(email: String): AuthPasswordResetResult
 
     fun signOut()
 }

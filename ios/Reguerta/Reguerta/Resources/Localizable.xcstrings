@@ -449,6 +449,22 @@
         }
       }
     },
+    "auth_info.password_reset_sent": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If an account exists for this email, reset instructions were sent"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Si existe una cuenta para este email, hemos enviado instrucciones de recuperación"
+          }
+        }
+      }
+    },
     "common.brand.reguerta": {
       "localizations": {
         "en": {
@@ -1350,13 +1366,45 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Recover screen is wired into navigation and will be completed in HU-032."
+            "value": "Enter your email and we will send reset instructions"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "La pantalla de recuperación ya está integrada en navegación y se completará en HU-032."
+            "value": "Introduce tu email y te enviaremos instrucciones para restablecerla"
+          }
+        }
+      }
+    },
+    "recover.action.send_email": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send reset email"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enviar email de recuperación"
+          }
+        }
+      }
+    },
+    "recover.action.sending": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sending email..."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enviando email..."
           }
         }
       }

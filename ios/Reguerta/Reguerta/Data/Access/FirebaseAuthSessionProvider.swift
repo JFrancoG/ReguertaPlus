@@ -38,6 +38,17 @@ struct FirebaseAuthSessionProvider: AuthSessionProvider {
         }
     }
 
+    func sendPasswordReset(email: String) async -> AuthPasswordResetResult {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        do {
+            try await auth.sendPasswordReset(withEmail: trimmedEmail)
+            return .success
+        } catch {
+            return .failure(mapFirebaseAuthError(error))
+        }
+    }
+
     func signOut() {
         try? auth.signOut()
     }

@@ -21,6 +21,10 @@ struct MockAuthSessionProvider: AuthSessionProvider {
         return .success(AuthPrincipal(uid: uid, email: normalizedEmail))
     }
 
+    func sendPasswordReset(email: String) async -> AuthPasswordResetResult {
+        .success
+    }
+
     func signOut() {
     }
 }

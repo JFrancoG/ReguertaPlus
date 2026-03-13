@@ -60,13 +60,22 @@ final class SessionViewModel {
             }
         }
     }
+    var recoverEmailInput = "" {
+        didSet {
+            if oldValue != recoverEmailInput {
+                recoverEmailErrorKey = nil
+            }
+        }
+    }
     var emailErrorKey: String?
     var passwordErrorKey: String?
     var registerEmailErrorKey: String?
     var registerPasswordErrorKey: String?
     var registerRepeatPasswordErrorKey: String?
+    var recoverEmailErrorKey: String?
     var isAuthenticating = false
     var isRegistering = false
+    var isRecoveringPassword = false
     var mode: SessionMode = .signedOut
     var memberDraft = MemberDraft()
     var feedbackMessageKey: String?
@@ -90,6 +99,12 @@ final class SessionViewModel {
             !registerPasswordInput.isEmpty &&
             !registerRepeatPasswordInput.isEmpty &&
             registerPasswordInput == registerRepeatPasswordInput
+    }
+
+    var canSubmitPasswordReset: Bool {
+        !isRecoveringPassword &&
+            !normalizeEmail(recoverEmailInput).isEmpty &&
+            normalizeEmail(recoverEmailInput).isValidEmail
     }
 
     init(
@@ -178,16 +193,47 @@ final class SessionViewModel {
         registerEmailInput = ""
         registerPasswordInput = ""
         registerRepeatPasswordInput = ""
+        recoverEmailInput = ""
         emailErrorKey = nil
         passwordErrorKey = nil
         registerEmailErrorKey = nil
         registerPasswordErrorKey = nil
         registerRepeatPasswordErrorKey = nil
+        recoverEmailErrorKey = nil
         isAuthenticating = false
         isRegistering = false
+        isRecoveringPassword = false
         feedbackMessageKey = nil
         mode = .signedOut
         memberDraft = MemberDraft()
+    }
+
+    func sendPasswordReset() {
+        let email = normalizeEmail(recoverEmailInput)
+        feedbackMessageKey = nil
+        recoverEmailErrorKey = nil
+
+        if email.isEmpty {
+            recoverEmailErrorKey = AccessL10nKey.feedbackEmailRequired
+            return
+        }
+        if !email.isValidEmail {
+            recoverEmailErrorKey = AccessL10nKey.feedbackEmailInvalid
+            return
+        }
+
+        isRecoveringPassword = true
+        Task {
+            let result = await authSessionProvider.sendPasswordReset(email: email)
+            switch result {
+            case .success:
+                recoverEmailInput = ""
+                feedbackMessageKey = AccessL10nKey.authInfoPasswordResetSent
+            case .failure(let reason):
+                applyPasswordResetFailure(reason)
+            }
+            isRecoveringPassword = false
+        }
     }
 
     func createAuthorizedMember() {
@@ -389,6 +435,29 @@ final class SessionViewModel {
         case .network:
             feedbackMessageKey = AccessL10nKey.authErrorNetwork
         case .unknown:
+            feedbackMessageKey = AccessL10nKey.authErrorUnknown
+        }
+    }
+
+    private func applyPasswordResetFailure(_ reason: AuthSignInFailureReason) {
+        switch reason {
+        case .invalidEmail:
+            recoverEmailErrorKey = AccessL10nKey.feedbackEmailInvalid
+        case .userNotFound:
+            recoverEmailErrorKey = AccessL10nKey.authErrorUserNotFound
+        case .userDisabled:
+            recoverEmailErrorKey = AccessL10nKey.authErrorUserDisabled
+        case .tooManyRequests:
+            feedbackMessageKey = AccessL10nKey.authErrorTooManyRequests
+        case .network:
+            feedbackMessageKey = AccessL10nKey.authErrorNetwork
+        case .unknown:
+            feedbackMessageKey = AccessL10nKey.authErrorUnknown
+        case .invalidCredentials:
+            feedbackMessageKey = AccessL10nKey.authErrorUnknown
+        case .emailAlreadyInUse:
+            feedbackMessageKey = AccessL10nKey.authErrorUnknown
+        case .weakPassword:
             feedbackMessageKey = AccessL10nKey.authErrorUnknown
         }
     }
