@@ -3,6 +3,8 @@ package com.reguerta.user.domain.access
 enum class AuthSignInFailureReason {
     INVALID_EMAIL,
     INVALID_CREDENTIALS,
+    EMAIL_ALREADY_IN_USE,
+    WEAK_PASSWORD,
     USER_NOT_FOUND,
     USER_DISABLED,
     TOO_MANY_REQUESTS,
@@ -18,6 +20,8 @@ sealed interface AuthSignInResult {
 
 interface AuthSessionProvider {
     suspend fun signIn(email: String, password: String): AuthSignInResult
+
+    suspend fun signUp(email: String, password: String): AuthSignInResult
 
     fun signOut()
 }

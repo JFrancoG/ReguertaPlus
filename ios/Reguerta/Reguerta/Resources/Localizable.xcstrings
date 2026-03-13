@@ -353,6 +353,38 @@
         }
       }
     },
+    "auth_error.email_already_in_use": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This email is already in use"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este email ya está en uso"
+          }
+        }
+      }
+    },
+    "auth_error.weak_password": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use a stronger password (at least 6 characters)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usa una contraseña más segura (mínimo 6 caracteres)"
+          }
+        }
+      }
+    },
     "auth_error.too_many_requests": {
       "localizations": {
         "en": {
@@ -653,6 +685,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "La contraseña es obligatoria"
+          }
+        }
+      }
+    },
+    "feedback.password_repeat_required": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repeat password is required"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repetir la contraseña es obligatorio"
+          }
+        }
+      }
+    },
+    "feedback.password_mismatch": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passwords do not match"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Las contraseñas no coinciden"
           }
         }
       }
@@ -1206,13 +1270,61 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Registration screen is wired into navigation and will be completed in HU-031."
+            "value": "Create your account to continue"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "La pantalla de registro ya está integrada en navegación y se completará en HU-031."
+            "value": "Crea tu cuenta para continuar"
+          }
+        }
+      }
+    },
+    "register.repeat_password.label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repeat password"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repetir contraseña"
+          }
+        }
+      }
+    },
+    "register.action.create_account": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create account"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crear cuenta"
+          }
+        }
+      }
+    },
+    "register.action.creating": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Creating account..."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Creando cuenta..."
           }
         }
       }

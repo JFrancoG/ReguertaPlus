@@ -23,6 +23,21 @@ struct FirebaseAuthSessionProvider: AuthSessionProvider {
         }
     }
 
+    func signUp(email: String, password: String) async -> AuthSignInResult {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        do {
+            let result = try await auth.createUser(withEmail: trimmedEmail, password: password)
+            let principal = AuthPrincipal(
+                uid: result.user.uid,
+                email: (result.user.email ?? trimmedEmail).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            )
+            return .success(principal)
+        } catch {
+            return .failure(mapFirebaseAuthError(error))
+        }
+    }
+
     func signOut() {
         try? auth.signOut()
     }
@@ -39,6 +54,10 @@ func mapFirebaseAuthError(_ error: Error) -> AuthSignInFailureReason {
         return .invalidEmail
     case .wrongPassword, .invalidCredential:
         return .invalidCredentials
+    case .emailAlreadyInUse:
+        return .emailAlreadyInUse
+    case .weakPassword:
+        return .weakPassword
     case .userNotFound:
         return .userNotFound
     case .userDisabled:

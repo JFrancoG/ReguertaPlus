@@ -24,6 +24,8 @@ class FirebaseAuthSessionProviderTest {
     @Test
     fun `maps account related firebase error codes`() {
         assertEquals(AuthSignInFailureReason.INVALID_EMAIL, mapFirebaseAuthErrorCode("ERROR_INVALID_EMAIL"))
+        assertEquals(AuthSignInFailureReason.EMAIL_ALREADY_IN_USE, mapFirebaseAuthErrorCode("ERROR_EMAIL_ALREADY_IN_USE"))
+        assertEquals(AuthSignInFailureReason.WEAK_PASSWORD, mapFirebaseAuthErrorCode("ERROR_WEAK_PASSWORD"))
         assertEquals(AuthSignInFailureReason.USER_NOT_FOUND, mapFirebaseAuthErrorCode("ERROR_USER_NOT_FOUND"))
         assertEquals(AuthSignInFailureReason.USER_DISABLED, mapFirebaseAuthErrorCode("ERROR_USER_DISABLED"))
     }

@@ -39,9 +39,34 @@ final class SessionViewModel {
             }
         }
     }
+    var registerEmailInput = "" {
+        didSet {
+            if oldValue != registerEmailInput {
+                registerEmailErrorKey = nil
+            }
+        }
+    }
+    var registerPasswordInput = "" {
+        didSet {
+            if oldValue != registerPasswordInput {
+                registerPasswordErrorKey = nil
+            }
+        }
+    }
+    var registerRepeatPasswordInput = "" {
+        didSet {
+            if oldValue != registerRepeatPasswordInput {
+                registerRepeatPasswordErrorKey = nil
+            }
+        }
+    }
     var emailErrorKey: String?
     var passwordErrorKey: String?
+    var registerEmailErrorKey: String?
+    var registerPasswordErrorKey: String?
+    var registerRepeatPasswordErrorKey: String?
     var isAuthenticating = false
+    var isRegistering = false
     var mode: SessionMode = .signedOut
     var memberDraft = MemberDraft()
     var feedbackMessageKey: String?
@@ -56,6 +81,15 @@ final class SessionViewModel {
             !normalizeEmail(emailInput).isEmpty &&
             normalizeEmail(emailInput).isValidEmail &&
             !passwordInput.isEmpty
+    }
+
+    var canSubmitSignUp: Bool {
+        !isRegistering &&
+            !normalizeEmail(registerEmailInput).isEmpty &&
+            normalizeEmail(registerEmailInput).isValidEmail &&
+            !registerPasswordInput.isEmpty &&
+            !registerRepeatPasswordInput.isEmpty &&
+            registerPasswordInput == registerRepeatPasswordInput
     }
 
     init(
@@ -81,7 +115,7 @@ final class SessionViewModel {
     }
 
     func signIn() {
-        let email = emailInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let email = normalizeEmail(emailInput)
         let password = passwordInput
         feedbackMessageKey = nil
         emailErrorKey = nil
@@ -97,20 +131,7 @@ final class SessionViewModel {
 
             switch authResult {
             case .success(let principal):
-                let result = await resolveAuthorizedSession.execute(authPrincipal: principal)
-                switch result {
-                case .authorized(let member):
-                    let members = await repository.allMembers()
-                    mode = .authorized(
-                        AuthorizedSession(
-                            principal: principal,
-                            member: member,
-                            members: members
-                        )
-                    )
-                case .unauthorized(let reason):
-                    mode = .unauthorized(email: principal.email, reason: reason)
-                }
+                await applyAuthorizedSession(principal: principal)
             case .failure(let reason):
                 applySignInFailure(reason)
             }
@@ -119,11 +140,52 @@ final class SessionViewModel {
         }
     }
 
+    func signUp() {
+        let email = normalizeEmail(registerEmailInput)
+        let password = registerPasswordInput
+        let repeatedPassword = registerRepeatPasswordInput
+        feedbackMessageKey = nil
+        registerEmailErrorKey = nil
+        registerPasswordErrorKey = nil
+        registerRepeatPasswordErrorKey = nil
+
+        guard validateSignUpInputs(email: email, password: password, repeatedPassword: repeatedPassword) else {
+            return
+        }
+
+        isRegistering = true
+        Task {
+            let authResult = await authSessionProvider.signUp(email: email, password: password)
+
+            switch authResult {
+            case .success(let principal):
+                await applyAuthorizedSession(principal: principal)
+                registerEmailInput = ""
+                registerPasswordInput = ""
+                registerRepeatPasswordInput = ""
+            case .failure(let reason):
+                applySignUpFailure(reason)
+            }
+
+            isRegistering = false
+        }
+    }
+
     func signOut() {
         authSessionProvider.signOut()
+        emailInput = ""
         passwordInput = ""
+        registerEmailInput = ""
+        registerPasswordInput = ""
+        registerRepeatPasswordInput = ""
         emailErrorKey = nil
         passwordErrorKey = nil
+        registerEmailErrorKey = nil
+        registerPasswordErrorKey = nil
+        registerRepeatPasswordErrorKey = nil
+        isAuthenticating = false
+        isRegistering = false
+        feedbackMessageKey = nil
         mode = .signedOut
         memberDraft = MemberDraft()
     }
@@ -258,12 +320,43 @@ final class SessionViewModel {
         return isValid
     }
 
+    private func validateSignUpInputs(email: String, password: String, repeatedPassword: String) -> Bool {
+        var isValid = true
+
+        if email.isEmpty {
+            registerEmailErrorKey = AccessL10nKey.feedbackEmailRequired
+            isValid = false
+        } else if !email.isValidEmail {
+            registerEmailErrorKey = AccessL10nKey.feedbackEmailInvalid
+            isValid = false
+        }
+
+        if password.isEmpty {
+            registerPasswordErrorKey = AccessL10nKey.feedbackPasswordRequired
+            isValid = false
+        }
+
+        if repeatedPassword.isEmpty {
+            registerRepeatPasswordErrorKey = AccessL10nKey.feedbackPasswordRepeatRequired
+            isValid = false
+        } else if repeatedPassword != password {
+            registerRepeatPasswordErrorKey = AccessL10nKey.feedbackPasswordMismatch
+            isValid = false
+        }
+
+        return isValid
+    }
+
     private func applySignInFailure(_ reason: AuthSignInFailureReason) {
         switch reason {
         case .invalidEmail:
             emailErrorKey = AccessL10nKey.feedbackEmailInvalid
         case .invalidCredentials:
             passwordErrorKey = AccessL10nKey.authErrorInvalidCredentials
+        case .emailAlreadyInUse:
+            emailErrorKey = AccessL10nKey.authErrorEmailAlreadyInUse
+        case .weakPassword:
+            passwordErrorKey = AccessL10nKey.authErrorWeakPassword
         case .userNotFound:
             emailErrorKey = AccessL10nKey.authErrorUserNotFound
         case .userDisabled:
@@ -274,6 +367,46 @@ final class SessionViewModel {
             feedbackMessageKey = AccessL10nKey.authErrorNetwork
         case .unknown:
             feedbackMessageKey = AccessL10nKey.authErrorUnknown
+        }
+    }
+
+    private func applySignUpFailure(_ reason: AuthSignInFailureReason) {
+        switch reason {
+        case .invalidEmail:
+            registerEmailErrorKey = AccessL10nKey.feedbackEmailInvalid
+        case .invalidCredentials:
+            registerPasswordErrorKey = AccessL10nKey.authErrorInvalidCredentials
+        case .emailAlreadyInUse:
+            registerEmailErrorKey = AccessL10nKey.authErrorEmailAlreadyInUse
+        case .weakPassword:
+            registerPasswordErrorKey = AccessL10nKey.authErrorWeakPassword
+        case .userNotFound:
+            registerEmailErrorKey = AccessL10nKey.authErrorUserNotFound
+        case .userDisabled:
+            registerEmailErrorKey = AccessL10nKey.authErrorUserDisabled
+        case .tooManyRequests:
+            feedbackMessageKey = AccessL10nKey.authErrorTooManyRequests
+        case .network:
+            feedbackMessageKey = AccessL10nKey.authErrorNetwork
+        case .unknown:
+            feedbackMessageKey = AccessL10nKey.authErrorUnknown
+        }
+    }
+
+    private func applyAuthorizedSession(principal: AuthPrincipal) async {
+        let result = await resolveAuthorizedSession.execute(authPrincipal: principal)
+        switch result {
+        case .authorized(let member):
+            let members = await repository.allMembers()
+            mode = .authorized(
+                AuthorizedSession(
+                    principal: principal,
+                    member: member,
+                    members: members
+                )
+            )
+        case .unauthorized(let reason):
+            mode = .unauthorized(email: principal.email, reason: reason)
         }
     }
 
