@@ -45,9 +45,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.reguerta.user.R
 import com.reguerta.user.data.access.ChainedMemberRepository
+import com.reguerta.user.data.access.FirebaseAuthSessionProvider
 import com.reguerta.user.data.access.FirestoreMemberRepository
 import com.reguerta.user.data.access.InMemoryMemberRepository
 import com.reguerta.user.domain.access.Member
@@ -64,6 +66,8 @@ import com.reguerta.user.ui.components.auth.ReguertaInputField
 import com.reguerta.user.ui.theme.ReguertaThemeTokens
 
 private const val SplashAnimationDurationMillis = 1_500
+private val LoginEmailPatternRegex =
+    "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$".toRegex(setOf(RegexOption.IGNORE_CASE))
 
 @Composable
 fun rememberSessionViewModel(): SessionViewModel {
@@ -75,6 +79,7 @@ fun rememberSessionViewModel(): SessionViewModel {
     return remember {
         SessionViewModel(
             repository = repository,
+            authSessionProvider = FirebaseAuthSessionProvider(auth = FirebaseAuth.getInstance()),
             resolveAuthorizedSession = ResolveAuthorizedSessionUseCase(memberRepository = repository),
             upsertMemberByAdmin = UpsertMemberByAdminUseCase(memberRepository = repository),
         )
@@ -169,7 +174,7 @@ fun ReguertaRoot(
                         )
                     },
                     onEmailChanged = viewModel::onEmailChanged,
-                    onUidChanged = viewModel::onUidChanged,
+                    onPasswordChanged = viewModel::onPasswordChanged,
                 )
 
                 AuthShellRoute.REGISTER -> PlaceholderAuthRoute(
@@ -339,7 +344,7 @@ private fun LoginRoute(
     onOpenRegister: () -> Unit,
     onOpenRecover: () -> Unit,
     onEmailChanged: (String) -> Unit,
-    onUidChanged: (String) -> Unit,
+    onPasswordChanged: (String) -> Unit,
 ) {
     val spacing = ReguertaThemeTokens.spacing
     ReguertaCard {
@@ -365,7 +370,7 @@ private fun LoginRoute(
         state = state,
         onSignIn = onSignIn,
         onEmailChanged = onEmailChanged,
-        onUidChanged = onUidChanged,
+        onPasswordChanged = onPasswordChanged,
     )
 
     Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
@@ -473,11 +478,12 @@ private fun SignInCard(
     state: SessionUiState,
     onSignIn: () -> Unit,
     onEmailChanged: (String) -> Unit,
-    onUidChanged: (String) -> Unit,
+    onPasswordChanged: (String) -> Unit,
 ) {
     val spacing = ReguertaThemeTokens.spacing
-    var submitAttempted by remember { mutableStateOf(false) }
-    val missingCredentials = submitAttempted && (state.emailInput.isBlank() || state.uidInput.isBlank())
+    val canSubmit = !state.isAuthenticating &&
+        state.emailInput.trim().matches(LoginEmailPatternRegex) &&
+        state.passwordInput.isNotBlank()
 
     ReguertaCard {
         Column(
@@ -492,24 +498,20 @@ private fun SignInCard(
                 value = state.emailInput,
                 onValueChange = {
                     onEmailChanged(it)
-                    if (submitAttempted) submitAttempted = false
                 },
                 helperMessage = stringResource(R.string.access_signed_out_hint),
                 keyboardType = androidx.compose.ui.text.input.KeyboardType.Email,
-                errorMessage = if (missingCredentials) {
-                    stringResource(R.string.feedback_email_uid_required)
-                } else {
-                    null
-                },
+                errorMessage = state.emailErrorRes?.let { stringResource(it) },
             )
             ReguertaInputField(
-                label = stringResource(R.string.access_input_auth_uid_label),
-                value = state.uidInput,
+                label = stringResource(R.string.common_input_password_label),
+                value = state.passwordInput,
                 onValueChange = {
-                    onUidChanged(it)
-                    if (submitAttempted) submitAttempted = false
+                    onPasswordChanged(it)
                 },
-                keyboardType = androidx.compose.ui.text.input.KeyboardType.Ascii,
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
+                isPassword = true,
+                errorMessage = state.passwordErrorRes?.let { stringResource(it) },
             )
             ReguertaButton(
                 label = stringResource(
@@ -520,10 +522,9 @@ private fun SignInCard(
                     },
                 ),
                 onClick = {
-                    submitAttempted = true
                     onSignIn()
                 },
-                enabled = !state.isAuthenticating,
+                enabled = canSubmit,
                 loading = state.isAuthenticating,
             )
         }

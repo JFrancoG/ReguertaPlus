@@ -25,19 +25,42 @@ enum SessionMode: Equatable, Sendable {
 @MainActor
 @Observable
 final class SessionViewModel {
-    var emailInput = ""
-    var uidInput = ""
+    var emailInput = "" {
+        didSet {
+            if oldValue != emailInput {
+                emailErrorKey = nil
+            }
+        }
+    }
+    var passwordInput = "" {
+        didSet {
+            if oldValue != passwordInput {
+                passwordErrorKey = nil
+            }
+        }
+    }
+    var emailErrorKey: String?
+    var passwordErrorKey: String?
     var isAuthenticating = false
     var mode: SessionMode = .signedOut
     var memberDraft = MemberDraft()
     var feedbackMessageKey: String?
 
     private let repository: any MemberRepository
+    private let authSessionProvider: any AuthSessionProvider
     private let resolveAuthorizedSession: ResolveAuthorizedSessionUseCase
     private let upsertMemberByAdmin: UpsertMemberByAdminUseCase
 
+    var canSubmitSignIn: Bool {
+        !isAuthenticating &&
+            !normalizeEmail(emailInput).isEmpty &&
+            normalizeEmail(emailInput).isValidEmail &&
+            !passwordInput.isEmpty
+    }
+
     init(
         repository: (any MemberRepository)? = nil,
+        authSessionProvider: (any AuthSessionProvider)? = nil,
         resolveAuthorizedSession: ResolveAuthorizedSessionUseCase? = nil,
         upsertMemberByAdmin: UpsertMemberByAdminUseCase? = nil
     ) {
@@ -45,37 +68,51 @@ final class SessionViewModel {
             primary: FirestoreMemberRepository(),
             fallback: InMemoryMemberRepository()
         )
+        let selectedAuthProvider = authSessionProvider ?? {
+            if ProcessInfo.processInfo.arguments.contains("-useMockAuth") {
+                return MockAuthSessionProvider()
+            }
+            return FirebaseAuthSessionProvider()
+        }()
         self.repository = selectedRepository
+        self.authSessionProvider = selectedAuthProvider
         self.resolveAuthorizedSession = resolveAuthorizedSession ?? ResolveAuthorizedSessionUseCase(repository: selectedRepository)
         self.upsertMemberByAdmin = upsertMemberByAdmin ?? UpsertMemberByAdminUseCase(repository: selectedRepository)
     }
 
     func signIn() {
         let email = emailInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        let uid = uidInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !email.isEmpty, !uid.isEmpty else {
-            feedbackMessageKey = AccessL10nKey.feedbackEmailUidRequired
+        let password = passwordInput
+        feedbackMessageKey = nil
+        emailErrorKey = nil
+        passwordErrorKey = nil
+
+        guard validateSignInInputs(email: email, password: password) else {
             return
         }
 
         isAuthenticating = true
         Task {
-            let result = await resolveAuthorizedSession.execute(
-                authPrincipal: AuthPrincipal(uid: uid, email: email)
-            )
+            let authResult = await authSessionProvider.signIn(email: email, password: password)
 
-            switch result {
-            case .authorized(let member):
-                let members = await repository.allMembers()
-                mode = .authorized(
-                    AuthorizedSession(
-                        principal: AuthPrincipal(uid: uid, email: email),
-                        member: member,
-                        members: members
+            switch authResult {
+            case .success(let principal):
+                let result = await resolveAuthorizedSession.execute(authPrincipal: principal)
+                switch result {
+                case .authorized(let member):
+                    let members = await repository.allMembers()
+                    mode = .authorized(
+                        AuthorizedSession(
+                            principal: principal,
+                            member: member,
+                            members: members
+                        )
                     )
-                )
-            case .unauthorized(let reason):
-                mode = .unauthorized(email: email, reason: reason)
+                case .unauthorized(let reason):
+                    mode = .unauthorized(email: principal.email, reason: reason)
+                }
+            case .failure(let reason):
+                applySignInFailure(reason)
             }
 
             isAuthenticating = false
@@ -83,7 +120,10 @@ final class SessionViewModel {
     }
 
     func signOut() {
-        uidInput = ""
+        authSessionProvider.signOut()
+        passwordInput = ""
+        emailErrorKey = nil
+        passwordErrorKey = nil
         mode = .signedOut
         memberDraft = MemberDraft()
     }
@@ -199,6 +239,44 @@ final class SessionViewModel {
         feedbackMessageKey = nil
     }
 
+    private func validateSignInInputs(email: String, password: String) -> Bool {
+        var isValid = true
+
+        if email.isEmpty {
+            emailErrorKey = AccessL10nKey.feedbackEmailRequired
+            isValid = false
+        } else if !email.isValidEmail {
+            emailErrorKey = AccessL10nKey.feedbackEmailInvalid
+            isValid = false
+        }
+
+        if password.isEmpty {
+            passwordErrorKey = AccessL10nKey.feedbackPasswordRequired
+            isValid = false
+        }
+
+        return isValid
+    }
+
+    private func applySignInFailure(_ reason: AuthSignInFailureReason) {
+        switch reason {
+        case .invalidEmail:
+            emailErrorKey = AccessL10nKey.feedbackEmailInvalid
+        case .invalidCredentials:
+            passwordErrorKey = AccessL10nKey.authErrorInvalidCredentials
+        case .userNotFound:
+            emailErrorKey = AccessL10nKey.authErrorUserNotFound
+        case .userDisabled:
+            emailErrorKey = AccessL10nKey.authErrorUserDisabled
+        case .tooManyRequests:
+            feedbackMessageKey = AccessL10nKey.authErrorTooManyRequests
+        case .network:
+            feedbackMessageKey = AccessL10nKey.authErrorNetwork
+        case .unknown:
+            feedbackMessageKey = AccessL10nKey.authErrorUnknown
+        }
+    }
+
     private func persistMember(target: Member, session: AuthorizedSession) async {
         do {
             let updated = try await upsertMemberByAdmin.execute(
@@ -241,6 +319,15 @@ final class SessionViewModel {
             .trimmingCharacters(in: CharacterSet(charactersIn: "_"))
         let suffix = sanitized.isEmpty ? "member" : String(sanitized.prefix(40))
         return "member_\(suffix)"
+    }
+}
+
+private extension String {
+    var isValidEmail: Bool {
+        range(
+            of: "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$",
+            options: [.regularExpression, .caseInsensitive]
+        ) != nil
     }
 }
 

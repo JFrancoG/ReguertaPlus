@@ -31,9 +31,10 @@ final class ReguertaUITests: XCTestCase {
         emailField.tap()
         emailField.typeText("unknown@reguerta.app")
 
-        let uidField = app.textFields["Auth UID"]
-        uidField.tap()
-        uidField.typeText("uid_unknown")
+        let passwordField = app.secureTextFields["Password"]
+        XCTAssertTrue(passwordField.waitForExistence(timeout: 5), "Password field not found")
+        passwordField.tap()
+        passwordField.typeText("test1234")
 
         app.buttons["Sign in"].tap()
 
@@ -50,9 +51,10 @@ final class ReguertaUITests: XCTestCase {
         emailField.tap()
         emailField.typeText("ana.admin@reguerta.app")
 
-        let uidField = app.textFields["Auth UID"]
-        uidField.tap()
-        uidField.typeText("uid_admin_ui")
+        let passwordField = app.secureTextFields["Password"]
+        XCTAssertTrue(passwordField.waitForExistence(timeout: 5), "Password field not found")
+        passwordField.tap()
+        passwordField.typeText("test1234")
 
         app.buttons["Sign in"].tap()
 
@@ -84,7 +86,7 @@ final class ReguertaUITests: XCTestCase {
 
     private func configuredApp() -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-skipSplash"]
+        app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-skipSplash", "-useMockAuth"]
         return app
     }
 

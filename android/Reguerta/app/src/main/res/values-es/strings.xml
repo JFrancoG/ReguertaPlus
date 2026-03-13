@@ -5,6 +5,7 @@
     <string name="access_signed_out_hint">Inicia sesión con un email de miembro preautorizado para desbloquear los módulos operativos.</string>
     <string name="access_card_authentication">Autenticación</string>
     <string name="common_input_email_label">Email</string>
+    <string name="common_input_password_label">Contraseña</string>
     <string name="access_input_auth_uid_label">Auth UID</string>
     <string name="access_action_signing_in">Iniciando sesión...</string>
     <string name="access_action_sign_in">Iniciar sesión</string>
@@ -61,6 +62,15 @@
     <string name="admin_action_activate">Activar</string>
 
     <string name="feedback_email_uid_required">Email y UID son obligatorios</string>
+    <string name="feedback_email_required">El email es obligatorio</string>
+    <string name="feedback_password_required">La contraseña es obligatoria</string>
+    <string name="feedback_email_invalid">Introduce un email válido</string>
+    <string name="auth_error_invalid_credentials">Email o contraseña incorrectos</string>
+    <string name="auth_error_user_not_found">No existe una cuenta con este email</string>
+    <string name="auth_error_user_disabled">Esta cuenta está desactivada</string>
+    <string name="auth_error_too_many_requests">Demasiados intentos. Inténtalo más tarde</string>
+    <string name="auth_error_network">Revisa tu conexión e inténtalo de nuevo</string>
+    <string name="auth_error_unknown">No se pudo iniciar sesión ahora mismo</string>
     <string name="feedback_only_admin_create">Solo los admins pueden crear miembros</string>
     <string name="feedback_display_name_email_required">Nombre visible y email son obligatorios</string>
     <string name="feedback_member_exists">El miembro ya existe</string>

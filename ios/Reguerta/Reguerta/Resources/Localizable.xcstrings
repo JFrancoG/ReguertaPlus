@@ -305,6 +305,102 @@
         }
       }
     },
+    "auth_error.invalid_credentials": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incorrect email or password"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Email o contraseña incorrectos"
+          }
+        }
+      }
+    },
+    "auth_error.user_not_found": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No account found for this email"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No existe una cuenta con este email"
+          }
+        }
+      }
+    },
+    "auth_error.user_disabled": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This account is disabled"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta cuenta está desactivada"
+          }
+        }
+      }
+    },
+    "auth_error.too_many_requests": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Too many attempts. Try again later"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demasiados intentos. Inténtalo más tarde"
+          }
+        }
+      }
+    },
+    "auth_error.network": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check your connection and try again"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revisa tu conexión e inténtalo de nuevo"
+          }
+        }
+      }
+    },
+    "auth_error.unknown": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to sign in right now"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo iniciar sesión ahora mismo"
+          }
+        }
+      }
+    },
     "auth_info.member.restricted_mode": {
       "localizations": {
         "en": {
@@ -349,6 +445,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Email"
+          }
+        }
+      }
+    },
+    "common.input.password.label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Password"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contraseña"
           }
         }
       }
@@ -509,6 +621,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "Email y UID son obligatorios"
+          }
+        }
+      }
+    },
+    "feedback.email_required": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Email is required"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El email es obligatorio"
+          }
+        }
+      }
+    },
+    "feedback.password_required": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Password is required"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La contraseña es obligatoria"
+          }
+        }
+      }
+    },
+    "feedback.email_invalid": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a valid email address"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Introduce un email válido"
           }
         }
       }

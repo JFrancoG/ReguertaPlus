@@ -5,6 +5,7 @@
     <string name="access_signed_out_hint">Sign in with a pre-authorized member email to unlock operational modules.</string>
     <string name="access_card_authentication">Authentication</string>
     <string name="common_input_email_label">Email</string>
+    <string name="common_input_password_label">Password</string>
     <string name="access_input_auth_uid_label">Auth UID</string>
     <string name="access_action_signing_in">Signing in...</string>
     <string name="access_action_sign_in">Sign in</string>
@@ -61,6 +62,15 @@
     <string name="admin_action_activate">Activate</string>
 
     <string name="feedback_email_uid_required">Email and UID are required</string>
+    <string name="feedback_email_required">Email is required</string>
+    <string name="feedback_password_required">Password is required</string>
+    <string name="feedback_email_invalid">Enter a valid email address</string>
+    <string name="auth_error_invalid_credentials">Incorrect email or password</string>
+    <string name="auth_error_user_not_found">No account found for this email</string>
+    <string name="auth_error_user_disabled">This account is disabled</string>
+    <string name="auth_error_too_many_requests">Too many attempts. Try again later</string>
+    <string name="auth_error_network">Check your connection and try again</string>
+    <string name="auth_error_unknown">Unable to sign in right now</string>
     <string name="feedback_only_admin_create">Only admins can create members</string>
     <string name="feedback_display_name_email_required">Display name and email are required</string>
     <string name="feedback_member_exists">Member already exists</string>
