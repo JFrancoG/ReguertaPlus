@@ -22,7 +22,10 @@
     <string name="login_link_register">Create account</string>
     <string name="login_link_forgot_password">Forgot your password?</string>
     <string name="register_title">Registration</string>
-    <string name="register_subtitle">Registration screen is wired into navigation and will be completed in HU-031.</string>
+    <string name="register_subtitle">Create your account to continue</string>
+    <string name="register_repeat_password_label">Repeat password</string>
+    <string name="register_action_create_account">Create account</string>
+    <string name="register_action_creating">Creating account...</string>
     <string name="recover_title">Recover password</string>
     <string name="recover_subtitle">Recover screen is wired into navigation and will be completed in HU-032.</string>
     <string name="common_action_back">Back</string>
@@ -71,6 +74,10 @@
     <string name="auth_error_too_many_requests">Too many attempts. Try again later</string>
     <string name="auth_error_network">Check your connection and try again</string>
     <string name="auth_error_unknown">Unable to sign in right now</string>
+    <string name="auth_error_email_already_in_use">This email is already in use</string>
+    <string name="auth_error_weak_password">Use a stronger password (at least 6 characters)</string>
+    <string name="feedback_password_repeat_required">Repeat password is required</string>
+    <string name="feedback_password_mismatch">Passwords do not match</string>
     <string name="feedback_only_admin_create">Only admins can create members</string>
     <string name="feedback_display_name_email_required">Display name and email are required</string>
     <string name="feedback_member_exists">Member already exists</string>

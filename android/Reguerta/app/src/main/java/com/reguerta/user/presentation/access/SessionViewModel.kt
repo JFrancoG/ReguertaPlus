@@ -55,6 +55,13 @@ data class SessionUiState(
     @param:StringRes val emailErrorRes: Int? = null,
     @param:StringRes val passwordErrorRes: Int? = null,
     val isAuthenticating: Boolean = false,
+    val registerEmailInput: String = "",
+    val registerPasswordInput: String = "",
+    val registerRepeatPasswordInput: String = "",
+    @param:StringRes val registerEmailErrorRes: Int? = null,
+    @param:StringRes val registerPasswordErrorRes: Int? = null,
+    @param:StringRes val registerRepeatPasswordErrorRes: Int? = null,
+    val isRegistering: Boolean = false,
     val mode: SessionMode = SessionMode.SignedOut,
     val memberDraft: MemberDraft = MemberDraft(),
 )
@@ -81,6 +88,23 @@ class SessionViewModel(
 
     fun onPasswordChanged(value: String) {
         _uiState.update { it.copy(passwordInput = value, passwordErrorRes = null) }
+    }
+
+    fun onRegisterEmailChanged(value: String) {
+        _uiState.update { it.copy(registerEmailInput = value, registerEmailErrorRes = null) }
+    }
+
+    fun onRegisterPasswordChanged(value: String) {
+        _uiState.update { it.copy(registerPasswordInput = value, registerPasswordErrorRes = null) }
+    }
+
+    fun onRegisterRepeatPasswordChanged(value: String) {
+        _uiState.update {
+            it.copy(
+                registerRepeatPasswordInput = value,
+                registerRepeatPasswordErrorRes = null,
+            )
+        }
     }
 
     fun signIn() {
@@ -154,6 +178,97 @@ class SessionViewModel(
         }
     }
 
+    fun signUp() {
+        val currentState = _uiState.value
+        val email = currentState.registerEmailInput.trim()
+        val password = currentState.registerPasswordInput
+        val repeatedPassword = currentState.registerRepeatPasswordInput
+
+        val emailErrorRes = when {
+            email.isBlank() -> R.string.feedback_email_required
+            !email.matches(EmailPatternRegex) -> R.string.feedback_email_invalid
+            else -> null
+        }
+        val passwordErrorRes = if (password.isBlank()) R.string.feedback_password_required else null
+        val repeatedPasswordErrorRes = when {
+            repeatedPassword.isBlank() -> R.string.feedback_password_repeat_required
+            repeatedPassword != password -> R.string.feedback_password_mismatch
+            else -> null
+        }
+
+        if (emailErrorRes != null || passwordErrorRes != null || repeatedPasswordErrorRes != null) {
+            _uiState.update {
+                it.copy(
+                    registerEmailErrorRes = emailErrorRes,
+                    registerPasswordErrorRes = passwordErrorRes,
+                    registerRepeatPasswordErrorRes = repeatedPasswordErrorRes,
+                )
+            }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isRegistering = true,
+                    registerEmailErrorRes = null,
+                    registerPasswordErrorRes = null,
+                    registerRepeatPasswordErrorRes = null,
+                )
+            }
+
+            when (val authResult = authSessionProvider.signUp(email = email, password = password)) {
+                is AuthSignInResult.Success -> {
+                    when (val result = resolveAuthorizedSession(authResult.principal)) {
+                        is AccessResolutionResult.Authorized -> {
+                            val members = repository.getAllMembers()
+                            _uiState.update {
+                                it.copy(
+                                    isRegistering = false,
+                                    registerEmailInput = "",
+                                    registerPasswordInput = "",
+                                    registerRepeatPasswordInput = "",
+                                    mode = SessionMode.Authorized(
+                                        principal = authResult.principal,
+                                        member = result.member,
+                                        members = members,
+                                    ),
+                                )
+                            }
+                        }
+
+                        is AccessResolutionResult.Unauthorized -> {
+                            _uiState.update {
+                                it.copy(
+                                    isRegistering = false,
+                                    registerEmailInput = "",
+                                    registerPasswordInput = "",
+                                    registerRepeatPasswordInput = "",
+                                    mode = SessionMode.Unauthorized(
+                                        email = authResult.principal.email,
+                                        reason = result.reason,
+                                    ),
+                                )
+                            }
+                        }
+                    }
+                }
+
+                is AuthSignInResult.Failure -> {
+                    _uiState.update {
+                        it.copy(
+                            isRegistering = false,
+                            registerEmailErrorRes = authResult.reason.registerEmailErrorRes(),
+                            registerPasswordErrorRes = authResult.reason.registerPasswordErrorRes(),
+                        )
+                    }
+
+                    authResult.reason.globalMessageResOrNull()?.let(::emitMessage)
+                }
+            }
+        }
+    }
+
     fun signOut() {
         authSessionProvider.signOut()
         _uiState.update {
@@ -162,6 +277,14 @@ class SessionViewModel(
                 passwordInput = "",
                 emailErrorRes = null,
                 passwordErrorRes = null,
+                isAuthenticating = false,
+                registerEmailInput = "",
+                registerPasswordInput = "",
+                registerRepeatPasswordInput = "",
+                registerEmailErrorRes = null,
+                registerPasswordErrorRes = null,
+                registerRepeatPasswordErrorRes = null,
+                isRegistering = false,
                 memberDraft = MemberDraft(),
             )
         }
@@ -323,6 +446,22 @@ private fun AuthSignInFailureReason.emailErrorRes(): Int? =
 private fun AuthSignInFailureReason.passwordErrorRes(): Int? =
     when (this) {
         AuthSignInFailureReason.INVALID_CREDENTIALS -> R.string.auth_error_invalid_credentials
+        else -> null
+    }
+
+@StringRes
+private fun AuthSignInFailureReason.registerEmailErrorRes(): Int? =
+    when (this) {
+        AuthSignInFailureReason.INVALID_EMAIL -> R.string.feedback_email_invalid
+        AuthSignInFailureReason.EMAIL_ALREADY_IN_USE -> R.string.auth_error_email_already_in_use
+        AuthSignInFailureReason.USER_DISABLED -> R.string.auth_error_user_disabled
+        else -> null
+    }
+
+@StringRes
+private fun AuthSignInFailureReason.registerPasswordErrorRes(): Int? =
+    when (this) {
+        AuthSignInFailureReason.WEAK_PASSWORD -> R.string.auth_error_weak_password
         else -> null
     }
 

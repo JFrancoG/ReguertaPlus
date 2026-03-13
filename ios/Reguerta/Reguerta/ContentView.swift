@@ -25,10 +25,7 @@ struct ContentView: View {
                     case .login:
                         loginRoute
                     case .register:
-                        placeholderRoute(
-                            titleKey: AccessL10nKey.registerTitle,
-                            subtitleKey: AccessL10nKey.registerSubtitle
-                        )
+                        registerRoute
                     case .recoverPassword:
                         placeholderRoute(
                             titleKey: AccessL10nKey.recoverTitle,
@@ -171,6 +168,33 @@ struct ContentView: View {
         }
     }
 
+    private var registerRoute: some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.md) {
+            ReguertaCard {
+                VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                    Text(localizedKey(AccessL10nKey.registerTitle))
+                        .font(tokens.typography.titleCard)
+                        .foregroundStyle(tokens.colors.textPrimary)
+                    Text(localizedKey(AccessL10nKey.registerSubtitle))
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                }
+            }
+
+            signUpCard
+
+            HStack {
+                ReguertaButton(
+                    localizedKey(AccessL10nKey.commonBack),
+                    variant: .text,
+                    fullWidth: false
+                ) {
+                    dispatchShell(.back)
+                }
+            }
+        }
+    }
+
     private var homeRoute: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
             cardContainer {
@@ -233,6 +257,53 @@ struct ContentView: View {
                     isLoading: viewModel.isAuthenticating
                 ) {
                     viewModel.signIn()
+                }
+            }
+        }
+    }
+
+    private var signUpCard: some View {
+        ReguertaCard {
+            VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                Text(localizedKey(AccessL10nKey.authenticationCardTitle))
+                    .font(tokens.typography.titleCard)
+
+                ReguertaInputField(
+                    localizedKey(AccessL10nKey.emailLabel),
+                    text: binding(\.registerEmailInput),
+                    placeholder: localizedKey(AccessL10nKey.emailLabel),
+                    helperMessage: localizedKey(AccessL10nKey.signedOutHint),
+                    errorMessage: viewModel.registerEmailErrorKey.map(localizedKey),
+                    isEnabled: !viewModel.isRegistering,
+                    keyboardType: .emailAddress
+                )
+
+                ReguertaInputField(
+                    localizedKey(AccessL10nKey.passwordLabel),
+                    text: binding(\.registerPasswordInput),
+                    placeholder: localizedKey(AccessL10nKey.passwordLabel),
+                    errorMessage: viewModel.registerPasswordErrorKey.map(localizedKey),
+                    isEnabled: !viewModel.isRegistering,
+                    isSecure: true,
+                    keyboardType: .default
+                )
+
+                ReguertaInputField(
+                    localizedKey(AccessL10nKey.registerRepeatPasswordLabel),
+                    text: binding(\.registerRepeatPasswordInput),
+                    placeholder: localizedKey(AccessL10nKey.registerRepeatPasswordLabel),
+                    errorMessage: viewModel.registerRepeatPasswordErrorKey.map(localizedKey),
+                    isEnabled: !viewModel.isRegistering,
+                    isSecure: true,
+                    keyboardType: .default
+                )
+
+                ReguertaButton(
+                    localizedKey(viewModel.isRegistering ? AccessL10nKey.registerActionCreating : AccessL10nKey.registerActionCreateAccount),
+                    isEnabled: viewModel.canSubmitSignUp,
+                    isLoading: viewModel.isRegistering
+                ) {
+                    viewModel.signUp()
                 }
             }
         }

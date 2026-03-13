@@ -3,6 +3,8 @@ import Foundation
 enum AuthSignInFailureReason: Equatable, Sendable {
     case invalidEmail
     case invalidCredentials
+    case emailAlreadyInUse
+    case weakPassword
     case userNotFound
     case userDisabled
     case tooManyRequests
@@ -17,5 +19,6 @@ enum AuthSignInResult: Equatable, Sendable {
 
 protocol AuthSessionProvider: Sendable {
     func signIn(email: String, password: String) async -> AuthSignInResult
+    func signUp(email: String, password: String) async -> AuthSignInResult
     func signOut()
 }

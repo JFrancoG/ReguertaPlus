@@ -22,7 +22,10 @@
     <string name="login_link_register">Crear cuenta</string>
     <string name="login_link_forgot_password">¿Has olvidado tu contraseña?</string>
     <string name="register_title">Registro</string>
-    <string name="register_subtitle">La pantalla de registro ya está integrada en navegación y se completará en HU-031.</string>
+    <string name="register_subtitle">Crea tu cuenta para continuar</string>
+    <string name="register_repeat_password_label">Repetir contraseña</string>
+    <string name="register_action_create_account">Crear cuenta</string>
+    <string name="register_action_creating">Creando cuenta...</string>
     <string name="recover_title">Recuperar contraseña</string>
     <string name="recover_subtitle">La pantalla de recuperación ya está integrada en navegación y se completará en HU-032.</string>
     <string name="common_action_back">Volver</string>
@@ -71,6 +74,10 @@
     <string name="auth_error_too_many_requests">Demasiados intentos. Inténtalo más tarde</string>
     <string name="auth_error_network">Revisa tu conexión e inténtalo de nuevo</string>
     <string name="auth_error_unknown">No se pudo iniciar sesión ahora mismo</string>
+    <string name="auth_error_email_already_in_use">Este email ya está en uso</string>
+    <string name="auth_error_weak_password">Usa una contraseña más segura (mínimo 6 caracteres)</string>
+    <string name="feedback_password_repeat_required">Debes repetir la contraseña</string>
+    <string name="feedback_password_mismatch">Las contraseñas no coinciden</string>
     <string name="feedback_only_admin_create">Solo los admins pueden crear miembros</string>
     <string name="feedback_display_name_email_required">Nombre visible y email son obligatorios</string>
     <string name="feedback_member_exists">El miembro ya existe</string>

@@ -177,11 +177,13 @@ fun ReguertaRoot(
                     onPasswordChanged = viewModel::onPasswordChanged,
                 )
 
-                AuthShellRoute.REGISTER -> PlaceholderAuthRoute(
-                    titleRes = R.string.register_title,
-                    subtitleRes = R.string.register_subtitle,
-                    actionLabelRes = R.string.common_action_back,
-                    onAction = {
+                AuthShellRoute.REGISTER -> RegisterRoute(
+                    state = state,
+                    onSignUp = viewModel::signUp,
+                    onEmailChanged = viewModel::onRegisterEmailChanged,
+                    onPasswordChanged = viewModel::onRegisterPasswordChanged,
+                    onRepeatPasswordChanged = viewModel::onRegisterRepeatPasswordChanged,
+                    onBack = {
                         shellState = reduceAuthShell(
                             state = shellState,
                             action = AuthShellAction.Back,
@@ -390,6 +392,53 @@ private fun LoginRoute(
 }
 
 @Composable
+private fun RegisterRoute(
+    state: SessionUiState,
+    onSignUp: () -> Unit,
+    onEmailChanged: (String) -> Unit,
+    onPasswordChanged: (String) -> Unit,
+    onRepeatPasswordChanged: (String) -> Unit,
+    onBack: () -> Unit,
+) {
+    val spacing = ReguertaThemeTokens.spacing
+    ReguertaCard {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(spacing.md),
+        ) {
+            Text(
+                text = stringResource(R.string.register_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            ReguertaInlineFeedback(
+                message = stringResource(R.string.access_signed_out_hint),
+                kind = ReguertaFeedbackKind.INFO,
+            )
+        }
+    }
+
+    SignUpCard(
+        state = state,
+        onSignUp = onSignUp,
+        onEmailChanged = onEmailChanged,
+        onPasswordChanged = onPasswordChanged,
+        onRepeatPasswordChanged = onRepeatPasswordChanged,
+    )
+
+    Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+        ReguertaButton(
+            label = stringResource(R.string.common_action_back),
+            onClick = onBack,
+            variant = ReguertaButtonVariant.TEXT,
+            fullWidth = false,
+        )
+    }
+}
+
+@Composable
 private fun PlaceholderAuthRoute(
     titleRes: Int,
     subtitleRes: Int,
@@ -526,6 +575,68 @@ private fun SignInCard(
                 },
                 enabled = canSubmit,
                 loading = state.isAuthenticating,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SignUpCard(
+    state: SessionUiState,
+    onSignUp: () -> Unit,
+    onEmailChanged: (String) -> Unit,
+    onPasswordChanged: (String) -> Unit,
+    onRepeatPasswordChanged: (String) -> Unit,
+) {
+    val spacing = ReguertaThemeTokens.spacing
+    val canSubmit = !state.isRegistering &&
+        state.registerEmailInput.trim().matches(LoginEmailPatternRegex) &&
+        state.registerPasswordInput.isNotBlank() &&
+        state.registerRepeatPasswordInput == state.registerPasswordInput &&
+        state.registerRepeatPasswordInput.isNotBlank()
+
+    ReguertaCard {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(spacing.md),
+        ) {
+            Text(stringResource(R.string.access_card_authentication))
+            ReguertaInputField(
+                label = stringResource(R.string.common_input_email_label),
+                value = state.registerEmailInput,
+                onValueChange = onEmailChanged,
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Email,
+                errorMessage = state.registerEmailErrorRes?.let { stringResource(it) },
+            )
+            ReguertaInputField(
+                label = stringResource(R.string.common_input_password_label),
+                value = state.registerPasswordInput,
+                onValueChange = onPasswordChanged,
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
+                isPassword = true,
+                errorMessage = state.registerPasswordErrorRes?.let { stringResource(it) },
+            )
+            ReguertaInputField(
+                label = stringResource(R.string.register_repeat_password_label),
+                value = state.registerRepeatPasswordInput,
+                onValueChange = onRepeatPasswordChanged,
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
+                isPassword = true,
+                errorMessage = state.registerRepeatPasswordErrorRes?.let { stringResource(it) },
+            )
+            ReguertaButton(
+                label = stringResource(
+                    if (state.isRegistering) {
+                        R.string.register_action_creating
+                    } else {
+                        R.string.register_action_create_account
+                    },
+                ),
+                onClick = onSignUp,
+                enabled = canSubmit,
+                loading = state.isRegistering,
             )
         }
     }
