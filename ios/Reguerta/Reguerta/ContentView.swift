@@ -13,54 +13,45 @@ struct ContentView: View {
         ProcessInfo.processInfo.arguments.contains("-skipSplash")
     }
 
+    private var isHomeRoute: Bool {
+        shellState.currentRoute == .home
+    }
+
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-                    switch shellState.currentRoute {
-                    case .splash:
-                        splashRoute
-                    case .welcome:
-                        welcomeRoute
-                    case .login:
-                        loginRoute
-                    case .register:
-                        registerRoute
-                    case .recoverPassword:
-                        recoverRoute
-                    case .home:
-                        homeRoute
-                    }
-
-                    if let feedbackKey = viewModel.feedbackMessageKey {
-                        ReguertaCard {
-                            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                                ReguertaInlineFeedback(localizedKey(feedbackKey))
-                                ReguertaButton(
-                                    localizedKey(AccessL10nKey.dismissMessage),
-                                    variant: .text,
-                                    fullWidth: false
-                                ) {
-                                    viewModel.clearFeedbackMessage()
-                                }
-                            }
+            Group {
+                if isHomeRoute {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                            homeRoute
+                            feedbackMessageRoute
                         }
                     }
-                }
-                .padding(tokens.spacing.lg)
-            }
-            .navigationTitle(routeTitle(for: shellState.currentRoute))
-            .toolbar {
-                if shellState.canGoBack {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button {
-                            dispatchShell(.back)
-                        } label: {
-                            Text(localizedKey(AccessL10nKey.commonBack))
+                } else {
+                    VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                        switch shellState.currentRoute {
+                        case .splash:
+                            splashRoute
+                        case .welcome:
+                            welcomeRoute
+                        case .login:
+                            loginRoute
+                        case .register:
+                            registerRoute
+                        case .recoverPassword:
+                            recoverRoute
+                        case .home:
+                            EmptyView()
                         }
+                        feedbackMessageRoute
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 }
             }
+            .padding(tokens.spacing.lg)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .background(tokens.colors.surfacePrimary.ignoresSafeArea())
+            .toolbar(.hidden, for: .navigationBar)
         }
         .task(id: shellState.currentRoute) {
             await handleSplashIfNeeded()
@@ -77,145 +68,134 @@ struct ContentView: View {
         }
     }
 
-    private var splashRoute: some View {
-        ReguertaCard {
-            VStack(alignment: .center, spacing: tokens.spacing.lg) {
-                Text(localizedKey(AccessL10nKey.membersRolesTitle))
-                    .font(tokens.typography.titleSection)
-                    .foregroundStyle(tokens.colors.textPrimary)
-                Image("brand_logo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 120, height: 120)
-                    .scaleEffect(splashScale)
-                    .rotationEffect(.degrees(splashRotation))
-                    .opacity(splashOpacity)
-                Text(localizedKey(AccessL10nKey.splashLoading))
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-            }
-            .frame(maxWidth: .infinity)
-            .task(id: shellState.currentRoute) {
-                startSplashAnimationIfNeeded()
-            }
-        }
-    }
-
-    private var welcomeRoute: some View {
-        ReguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text(localizedKey(AccessL10nKey.welcomeTitlePrefix))
-                    .font(tokens.typography.titleCard)
-                    .foregroundStyle(tokens.colors.textPrimary)
-                Text(localizedKey(AccessL10nKey.welcomeTitleBrand))
-                    .font(tokens.typography.titleHero)
-                    .foregroundStyle(tokens.colors.textPrimary)
-                Text(localizedKey(AccessL10nKey.welcomeSubtitle))
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                ReguertaButton(localizedKey(AccessL10nKey.welcomeCtaEnter)) {
-                    dispatchShell(.continueFromWelcome)
-                }
-                HStack(spacing: tokens.spacing.sm) {
-                    Text(localizedKey(AccessL10nKey.welcomeNotRegistered))
-                        .font(tokens.typography.bodySecondary)
-                        .foregroundStyle(tokens.colors.textSecondary)
+    @ViewBuilder
+    private var feedbackMessageRoute: some View {
+        if let feedbackKey = viewModel.feedbackMessageKey {
+            ReguertaCard {
+                VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                    ReguertaInlineFeedback(localizedKey(feedbackKey))
                     ReguertaButton(
-                        localizedKey(AccessL10nKey.welcomeLinkRegister),
+                        localizedKey(AccessL10nKey.dismissMessage),
                         variant: .text,
                         fullWidth: false
                     ) {
-                        dispatchShell(.openRegisterFromWelcome)
+                        viewModel.clearFeedbackMessage()
                     }
                 }
             }
         }
     }
 
+    private var splashRoute: some View {
+        VStack {
+            Spacer(minLength: 0)
+            Image("brand_logo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 100, height: 100)
+                .scaleEffect(splashScale)
+                .rotationEffect(.degrees(splashRotation))
+                .opacity(splashOpacity)
+                .task(id: shellState.currentRoute) {
+                    startSplashAnimationIfNeeded()
+                }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var welcomeRoute: some View {
+        VStack(spacing: tokens.spacing.md) {
+            Spacer(minLength: tokens.spacing.lg)
+
+            Text(localizedKey(AccessL10nKey.welcomeTitlePrefix))
+                .font(tokens.typography.titleCard)
+                .foregroundStyle(tokens.colors.textPrimary)
+
+            Text(localizedKey(AccessL10nKey.welcomeTitleBrand))
+                .font(tokens.typography.titleHero)
+                .foregroundStyle(tokens.colors.actionPrimary)
+
+            Spacer().frame(height: 28)
+
+            Image("brand_logo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 220, height: 220)
+
+            Spacer(minLength: tokens.spacing.xxl)
+
+            ReguertaButton(localizedKey(AccessL10nKey.welcomeCtaEnter)) {
+                dispatchShell(.continueFromWelcome)
+            }
+
+            Spacer(minLength: 88)
+
+            HStack(spacing: tokens.spacing.xs) {
+                Text(localizedKey(AccessL10nKey.welcomeNotRegistered))
+                    .font(tokens.typography.titleCard)
+                    .foregroundStyle(tokens.colors.textSecondary)
+                ReguertaButton(
+                    localizedKey(AccessL10nKey.welcomeLinkRegister),
+                    variant: .text,
+                    fullWidth: false
+                ) {
+                    dispatchShell(.openRegisterFromWelcome)
+                }
+            }
+            .frame(maxWidth: .infinity)
+
+            Spacer(minLength: tokens.spacing.lg)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
     private var loginRoute: some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.md) {
-            ReguertaCard {
-                VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                    Text(localizedKey(AccessL10nKey.loginTitle))
-                        .font(tokens.typography.titleCard)
-                        .foregroundStyle(tokens.colors.textPrimary)
-                    ReguertaInlineFeedback(localizedKey(AccessL10nKey.signedOutHint), kind: .info)
-                }
-            }
-
+        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+            Text(localizedKey(AccessL10nKey.loginTitle))
+                .font(tokens.typography.titleHero)
+                .foregroundStyle(tokens.colors.actionPrimary)
             signInCard
-
-            HStack {
-                ReguertaButton(
-                    localizedKey(AccessL10nKey.loginLinkRegister),
-                    variant: .text,
-                    fullWidth: false
-                ) {
-                    dispatchShell(.openRegisterFromLogin)
-                }
-
-                ReguertaButton(
-                    localizedKey(AccessL10nKey.loginLinkForgotPassword),
-                    variant: .text,
-                    fullWidth: false
-                ) {
-                    dispatchShell(.openRecoverFromLogin)
-                }
-            }
         }
     }
 
     private var registerRoute: some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.md) {
-            ReguertaCard {
-                VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                    Text(localizedKey(AccessL10nKey.registerTitle))
-                        .font(tokens.typography.titleCard)
-                        .foregroundStyle(tokens.colors.textPrimary)
-                    Text(localizedKey(AccessL10nKey.registerSubtitle))
-                        .font(tokens.typography.bodySecondary)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                }
-            }
-
-            signUpCard
-
+        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
             HStack {
-                ReguertaButton(
-                    localizedKey(AccessL10nKey.commonBack),
-                    variant: .text,
-                    fullWidth: false
-                ) {
+                Button {
                     dispatchShell(.back)
+                } label: {
+                    Label(localizedKey(AccessL10nKey.commonBack), systemImage: "chevron.left")
+                        .font(tokens.typography.body)
+                        .foregroundStyle(tokens.colors.textPrimary)
                 }
+                .buttonStyle(.plain)
+                Spacer()
             }
+            Text(localizedKey(AccessL10nKey.registerTitle))
+                .font(tokens.typography.titleHero)
+                .foregroundStyle(tokens.colors.actionPrimary)
+            signUpCard
         }
     }
 
     private var recoverRoute: some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.md) {
-            ReguertaCard {
-                VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                    Text(localizedKey(AccessL10nKey.recoverTitle))
-                        .font(tokens.typography.titleCard)
-                        .foregroundStyle(tokens.colors.textPrimary)
-                    Text(localizedKey(AccessL10nKey.recoverSubtitle))
-                        .font(tokens.typography.bodySecondary)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                }
-            }
-
-            recoverPasswordCard
-
+        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
             HStack {
-                ReguertaButton(
-                    localizedKey(AccessL10nKey.commonBack),
-                    variant: .text,
-                    fullWidth: false
-                ) {
+                Button {
                     dispatchShell(.back)
+                } label: {
+                    Label(localizedKey(AccessL10nKey.commonBack), systemImage: "chevron.left")
+                        .font(tokens.typography.body)
+                        .foregroundStyle(tokens.colors.textPrimary)
                 }
+                .buttonStyle(.plain)
+                Spacer()
             }
+            Text(localizedKey(AccessL10nKey.recoverTitle))
+                .font(tokens.typography.titleHero)
+                .foregroundStyle(tokens.colors.actionPrimary)
+            recoverPasswordCard
         }
     }
 
@@ -250,118 +230,118 @@ struct ContentView: View {
     }
 
     private var signInCard: some View {
-        ReguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text(localizedKey(AccessL10nKey.authenticationCardTitle))
-                    .font(tokens.typography.titleCard)
+        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+            ReguertaInputField(
+                localizedKey(AccessL10nKey.emailLabel),
+                text: binding(\.emailInput),
+                placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
+                errorMessage: viewModel.emailErrorKey.map(localizedKey),
+                isEnabled: !viewModel.isAuthenticating,
+                showsClearAction: true,
+                keyboardType: .emailAddress
+            )
 
-                ReguertaInputField(
-                    localizedKey(AccessL10nKey.emailLabel),
-                    text: binding(\.emailInput),
-                    placeholder: localizedKey(AccessL10nKey.emailLabel),
-                    helperMessage: localizedKey(AccessL10nKey.signedOutHint),
-                    errorMessage: viewModel.emailErrorKey.map(localizedKey),
-                    isEnabled: !viewModel.isAuthenticating,
-                    showsClearAction: true,
-                    keyboardType: .emailAddress
-                )
+            ReguertaInputField(
+                localizedKey(AccessL10nKey.passwordLabel),
+                text: binding(\.passwordInput),
+                placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
+                errorMessage: viewModel.passwordErrorKey.map(localizedKey),
+                isEnabled: !viewModel.isAuthenticating,
+                isSecure: true,
+                showsPasswordToggle: true,
+                keyboardType: .default
+            )
 
-                ReguertaInputField(
-                    localizedKey(AccessL10nKey.passwordLabel),
-                    text: binding(\.passwordInput),
-                    placeholder: localizedKey(AccessL10nKey.passwordLabel),
-                    errorMessage: viewModel.passwordErrorKey.map(localizedKey),
-                    isEnabled: !viewModel.isAuthenticating,
-                    isSecure: true,
-                    showsPasswordToggle: true,
-                    keyboardType: .default
-                )
-
+            HStack {
+                Spacer()
                 ReguertaButton(
-                    localizedKey(viewModel.isAuthenticating ? AccessL10nKey.signingIn : AccessL10nKey.signIn),
-                    isEnabled: viewModel.canSubmitSignIn,
-                    isLoading: viewModel.isAuthenticating
+                    localizedKey(AccessL10nKey.loginLinkForgotPassword),
+                    variant: .text,
+                    fullWidth: false
                 ) {
-                    viewModel.signIn()
+                    dispatchShell(.openRecoverFromLogin)
                 }
+            }
+            .padding(.top, tokens.spacing.xs)
+
+            Spacer(minLength: 72)
+
+            ReguertaButton(
+                localizedKey(viewModel.isAuthenticating ? AccessL10nKey.signingIn : AccessL10nKey.signIn),
+                isEnabled: viewModel.canSubmitSignIn,
+                isLoading: viewModel.isAuthenticating
+            ) {
+                viewModel.signIn()
             }
         }
     }
 
     private var signUpCard: some View {
-        ReguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text(localizedKey(AccessL10nKey.authenticationCardTitle))
-                    .font(tokens.typography.titleCard)
+        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+            ReguertaInputField(
+                localizedKey(AccessL10nKey.emailLabel),
+                text: binding(\.registerEmailInput),
+                placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
+                errorMessage: viewModel.registerEmailErrorKey.map(localizedKey),
+                isEnabled: !viewModel.isRegistering,
+                showsClearAction: true,
+                keyboardType: .emailAddress
+            )
 
-                ReguertaInputField(
-                    localizedKey(AccessL10nKey.emailLabel),
-                    text: binding(\.registerEmailInput),
-                    placeholder: localizedKey(AccessL10nKey.emailLabel),
-                    helperMessage: localizedKey(AccessL10nKey.signedOutHint),
-                    errorMessage: viewModel.registerEmailErrorKey.map(localizedKey),
-                    isEnabled: !viewModel.isRegistering,
-                    showsClearAction: true,
-                    keyboardType: .emailAddress
-                )
+            ReguertaInputField(
+                localizedKey(AccessL10nKey.passwordLabel),
+                text: binding(\.registerPasswordInput),
+                placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
+                errorMessage: viewModel.registerPasswordErrorKey.map(localizedKey),
+                isEnabled: !viewModel.isRegistering,
+                isSecure: true,
+                showsPasswordToggle: true,
+                keyboardType: .default
+            )
 
-                ReguertaInputField(
-                    localizedKey(AccessL10nKey.passwordLabel),
-                    text: binding(\.registerPasswordInput),
-                    placeholder: localizedKey(AccessL10nKey.passwordLabel),
-                    errorMessage: viewModel.registerPasswordErrorKey.map(localizedKey),
-                    isEnabled: !viewModel.isRegistering,
-                    isSecure: true,
-                    showsPasswordToggle: true,
-                    keyboardType: .default
-                )
+            ReguertaInputField(
+                localizedKey(AccessL10nKey.registerRepeatPasswordLabel),
+                text: binding(\.registerRepeatPasswordInput),
+                placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
+                errorMessage: viewModel.registerRepeatPasswordErrorKey.map(localizedKey),
+                isEnabled: !viewModel.isRegistering,
+                isSecure: true,
+                showsPasswordToggle: true,
+                keyboardType: .default
+            )
 
-                ReguertaInputField(
-                    localizedKey(AccessL10nKey.registerRepeatPasswordLabel),
-                    text: binding(\.registerRepeatPasswordInput),
-                    placeholder: localizedKey(AccessL10nKey.registerRepeatPasswordLabel),
-                    errorMessage: viewModel.registerRepeatPasswordErrorKey.map(localizedKey),
-                    isEnabled: !viewModel.isRegistering,
-                    isSecure: true,
-                    showsPasswordToggle: true,
-                    keyboardType: .default
-                )
+            Spacer(minLength: 72)
 
-                ReguertaButton(
-                    localizedKey(viewModel.isRegistering ? AccessL10nKey.registerActionCreating : AccessL10nKey.registerActionCreateAccount),
-                    isEnabled: viewModel.canSubmitSignUp,
-                    isLoading: viewModel.isRegistering
-                ) {
-                    viewModel.signUp()
-                }
+            ReguertaButton(
+                localizedKey(viewModel.isRegistering ? AccessL10nKey.registerActionCreating : AccessL10nKey.registerActionCreateAccount),
+                isEnabled: viewModel.canSubmitSignUp,
+                isLoading: viewModel.isRegistering
+            ) {
+                viewModel.signUp()
             }
         }
     }
 
     private var recoverPasswordCard: some View {
-        ReguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text(localizedKey(AccessL10nKey.authenticationCardTitle))
-                    .font(tokens.typography.titleCard)
+        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+            ReguertaInputField(
+                localizedKey(AccessL10nKey.emailLabel),
+                text: binding(\.recoverEmailInput),
+                placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
+                errorMessage: viewModel.recoverEmailErrorKey.map(localizedKey),
+                isEnabled: !viewModel.isRecoveringPassword,
+                showsClearAction: true,
+                keyboardType: .emailAddress
+            )
 
-                ReguertaInputField(
-                    localizedKey(AccessL10nKey.emailLabel),
-                    text: binding(\.recoverEmailInput),
-                    placeholder: localizedKey(AccessL10nKey.emailLabel),
-                    helperMessage: localizedKey(AccessL10nKey.recoverSubtitle),
-                    errorMessage: viewModel.recoverEmailErrorKey.map(localizedKey),
-                    isEnabled: !viewModel.isRecoveringPassword,
-                    showsClearAction: true,
-                    keyboardType: .emailAddress
-                )
+            Spacer(minLength: 88)
 
-                ReguertaButton(
-                    localizedKey(viewModel.isRecoveringPassword ? AccessL10nKey.recoverActionSending : AccessL10nKey.recoverActionSendEmail),
-                    isEnabled: viewModel.canSubmitPasswordReset,
-                    isLoading: viewModel.isRecoveringPassword
-                ) {
-                    viewModel.sendPasswordReset()
-                }
+            ReguertaButton(
+                localizedKey(viewModel.isRecoveringPassword ? AccessL10nKey.recoverActionSending : AccessL10nKey.recoverActionSendEmail),
+                isEnabled: viewModel.canSubmitPasswordReset,
+                isLoading: viewModel.isRecoveringPassword
+            ) {
+                viewModel.sendPasswordReset()
             }
         }
     }
@@ -636,10 +616,10 @@ private extension Set<MemberRole> {
 private enum SplashAnimationContract {
     static let durationSeconds: Double = 1.5
     static let durationNanoseconds: UInt64 = 1_500_000_000
-    static let initialScale: CGFloat = 0.84
-    static let finalScale: CGFloat = 1.34
-    static let initialRotation: Double = -6
-    static let finalRotation: Double = 8
-    static let initialOpacity: Double = 0.94
+    static let initialScale: CGFloat = 0.2
+    static let finalScale: CGFloat = 18.0
+    static let initialRotation: Double = 0
+    static let finalRotation: Double = 720.0
+    static let initialOpacity: Double = 1.0
     static let finalOpacity: Double = 0.0
 }

@@ -8,6 +8,7 @@ enum AccessL10nKey {
     static let authenticationCardTitle = "access.card.authentication"
     static let emailLabel = "common.input.email.label"
     static let passwordLabel = "common.input.password.label"
+    static let inputPlaceholderTapToType = "common.input.tap_to_type"
     static let authUidLabel = "access.input.auth_uid.label"
     static let signingIn = "access.action.signing_in"
     static let signIn = "access.action.sign_in"

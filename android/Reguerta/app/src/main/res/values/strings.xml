@@ -1,11 +1,12 @@
 <resources>
-    <string name="app_name">Reguerta</string>
+    <string name="app_name">La RegÜerta</string>
 
     <string name="access_members_roles_title">Members and Roles</string>
     <string name="access_signed_out_hint">Sign in with a pre-authorized member email to unlock operational modules.</string>
     <string name="access_card_authentication">Authentication</string>
     <string name="common_input_email_label">Email</string>
     <string name="common_input_password_label">Password</string>
+    <string name="common_input_tap_to_type">Tap to type</string>
     <string name="access_input_auth_uid_label">Auth UID</string>
     <string name="access_action_signing_in">Signing in...</string>
     <string name="access_action_sign_in">Sign in</string>
@@ -13,20 +14,20 @@
     <string name="access_action_dismiss_message">Dismiss message</string>
     <string name="auth_shell_splash_loading">Preparing experience...</string>
     <string name="welcome_title_prefix">Welcome to</string>
-    <string name="welcome_title_brand">Reguerta</string>
+    <string name="welcome_title_brand">La RegÜerta</string>
     <string name="welcome_subtitle">Use one consistent auth flow in both platforms.</string>
     <string name="welcome_cta_enter">Enter the app</string>
     <string name="welcome_not_registered">Not registered yet?</string>
-    <string name="welcome_link_register">Create account</string>
+    <string name="welcome_link_register">Sign up</string>
     <string name="login_title">Enter your credentials</string>
     <string name="login_link_register">Create account</string>
     <string name="login_link_forgot_password">Forgot your password?</string>
-    <string name="register_title">Registration</string>
+    <string name="register_title">Sign up</string>
     <string name="register_subtitle">Create your account to continue</string>
     <string name="register_repeat_password_label">Repeat password</string>
-    <string name="register_action_create_account">Create account</string>
+    <string name="register_action_create_account">Sign up</string>
     <string name="register_action_creating">Creating account...</string>
-    <string name="recover_title">Recover password</string>
+    <string name="recover_title">Enter your registration email</string>
     <string name="recover_subtitle">Enter your email and we will send reset instructions</string>
     <string name="recover_action_send_email">Send reset email</string>
     <string name="recover_action_sending">Sending email...</string>

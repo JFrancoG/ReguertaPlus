@@ -64,13 +64,14 @@ struct ReguertaInputField: View {
         VStack(alignment: .leading, spacing: tokens.spacing.xs) {
             Text(label)
                 .font(tokens.typography.label)
+                .textCase(.uppercase)
                 .foregroundStyle(labelColor(for: visualState))
 
             HStack(spacing: tokens.spacing.sm) {
                 ZStack(alignment: .leading) {
                     if let placeholder {
                         Text(placeholder)
-                            .font(tokens.typography.body)
+                            .font(tokens.typography.bodySecondary)
                             .foregroundStyle(tokens.colors.textSecondary.opacity(0.65))
                             .opacity(text.isEmpty ? 1 : 0)
                     }
@@ -79,6 +80,7 @@ struct ReguertaInputField: View {
                             .font(tokens.typography.body)
                             .disabled(!isEnabled)
                             .focused($isFocused)
+                            .autocorrectionDisabled()
                             .textInputAutocapitalization(.never)
                             .keyboardType(keyboardType)
                             .accessibilityLabel(Text(label))
@@ -87,17 +89,19 @@ struct ReguertaInputField: View {
                             .font(tokens.typography.body)
                             .disabled(!isEnabled)
                             .focused($isFocused)
+                            .autocorrectionDisabled()
                             .textInputAutocapitalization(.never)
                             .keyboardType(keyboardType)
                             .accessibilityLabel(Text(label))
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 if isSecure && showsPasswordToggle {
                     Button {
                         isPasswordVisible.toggle()
                     } label: {
-                        Image(systemName: isPasswordVisible ? "eye.slash.fill" : "eye.fill")
+                        Image(systemName: isPasswordVisible ? "eye.slash" : "eye")
                             .foregroundStyle(tokens.colors.textSecondary)
                     }
                     .buttonStyle(.plain)
@@ -109,7 +113,7 @@ struct ReguertaInputField: View {
                     Button {
                         text = ""
                     } label: {
-                        Image(systemName: "xmark.circle.fill")
+                        Image(systemName: "xmark")
                             .foregroundStyle(tokens.colors.textSecondary)
                     }
                     .buttonStyle(.plain)
@@ -129,37 +133,34 @@ struct ReguertaInputField: View {
                     }
                 }
             }
-            .padding(.horizontal, tokens.spacing.md)
-            .padding(.vertical, tokens.spacing.sm + 2)
-            .background(tokens.colors.surfacePrimary)
-            .overlay(
-                RoundedRectangle(cornerRadius: tokens.radius.sm)
-                    .stroke(borderColor(for: visualState), lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
+            .padding(.vertical, tokens.spacing.xs)
+
+            Rectangle()
+                .fill(lineColor(for: visualState))
+                .frame(height: 1)
 
             if let errorMessage {
                 Text(errorMessage)
-                    .font(tokens.typography.label)
+                    .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.feedbackError)
             } else if let helperMessage {
                 Text(helperMessage)
-                    .font(tokens.typography.label)
+                    .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
             }
         }
     }
 
-    private func borderColor(for state: ReguertaInputState) -> Color {
+    private func lineColor(for state: ReguertaInputState) -> Color {
         switch state {
         case .default:
-            tokens.colors.borderSubtle
+            tokens.colors.textSecondary
         case .focused:
             tokens.colors.actionPrimary
         case .error:
             tokens.colors.feedbackError
         case .disabled:
-            tokens.colors.borderSubtle.opacity(0.5)
+            tokens.colors.borderSubtle.opacity(0.6)
         }
     }
 
