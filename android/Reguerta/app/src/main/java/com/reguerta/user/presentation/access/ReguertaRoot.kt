@@ -7,7 +7,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,7 +20,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -57,6 +55,12 @@ import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.ResolveAuthorizedSessionUseCase
 import com.reguerta.user.domain.access.UnauthorizedReason
 import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
+import com.reguerta.user.ui.components.auth.ReguertaButton
+import com.reguerta.user.ui.components.auth.ReguertaButtonVariant
+import com.reguerta.user.ui.components.auth.ReguertaCard
+import com.reguerta.user.ui.components.auth.ReguertaFeedbackKind
+import com.reguerta.user.ui.components.auth.ReguertaInlineFeedback
+import com.reguerta.user.ui.components.auth.ReguertaInputField
 import com.reguerta.user.ui.theme.ReguertaThemeTokens
 
 private const val SplashAnimationDurationMillis = 1_500
@@ -211,7 +215,6 @@ private fun SplashRoute(
     onAnimationFinished: () -> Unit,
 ) {
     val spacing = ReguertaThemeTokens.spacing
-    val radius = ReguertaThemeTokens.radius
     val progress = remember { Animatable(0f) }
     var completed by remember { mutableStateOf(false) }
     val latestOnAnimationFinished by rememberUpdatedState(onAnimationFinished)
@@ -236,10 +239,7 @@ private fun SplashRoute(
     val rotation = lerp(-6f, 8f, fraction)
     val alpha = lerp(0.94f, 0f, fraction)
 
-    Card(
-        shape = RoundedCornerShape(radius.md),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
+    ReguertaCard {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -281,11 +281,7 @@ private fun WelcomeRoute(
     onContinue: () -> Unit,
 ) {
     val spacing = ReguertaThemeTokens.spacing
-    val radius = ReguertaThemeTokens.radius
-    Card(
-        shape = RoundedCornerShape(radius.md),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
+    ReguertaCard {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -305,12 +301,10 @@ private fun WelcomeRoute(
                 text = stringResource(R.string.welcome_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
             )
-            Button(
+            ReguertaButton(
+                label = stringResource(R.string.welcome_cta_enter),
                 onClick = onContinue,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(R.string.welcome_cta_enter))
-            }
+            )
         }
     }
 }
@@ -325,11 +319,7 @@ private fun LoginRoute(
     onUidChanged: (String) -> Unit,
 ) {
     val spacing = ReguertaThemeTokens.spacing
-    val radius = ReguertaThemeTokens.radius
-    Card(
-        shape = RoundedCornerShape(radius.md),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
+    ReguertaCard {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -341,9 +331,9 @@ private fun LoginRoute(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
-            Text(
-                text = stringResource(R.string.access_signed_out_hint),
-                style = MaterialTheme.typography.bodySmall,
+            ReguertaInlineFeedback(
+                message = stringResource(R.string.access_signed_out_hint),
+                kind = ReguertaFeedbackKind.INFO,
             )
         }
     }
@@ -356,12 +346,18 @@ private fun LoginRoute(
     )
 
     Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-        TextButton(onClick = onOpenRegister) {
-            Text(stringResource(R.string.login_link_register))
-        }
-        TextButton(onClick = onOpenRecover) {
-            Text(stringResource(R.string.login_link_forgot_password))
-        }
+        ReguertaButton(
+            label = stringResource(R.string.login_link_register),
+            onClick = onOpenRegister,
+            variant = ReguertaButtonVariant.TEXT,
+            fullWidth = false,
+        )
+        ReguertaButton(
+            label = stringResource(R.string.login_link_forgot_password),
+            onClick = onOpenRecover,
+            variant = ReguertaButtonVariant.TEXT,
+            fullWidth = false,
+        )
     }
 }
 
@@ -373,11 +369,7 @@ private fun PlaceholderAuthRoute(
     onAction: () -> Unit,
 ) {
     val spacing = ReguertaThemeTokens.spacing
-    val radius = ReguertaThemeTokens.radius
-    Card(
-        shape = RoundedCornerShape(radius.md),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
+    ReguertaCard {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -393,12 +385,10 @@ private fun PlaceholderAuthRoute(
                 text = stringResource(subtitleRes),
                 style = MaterialTheme.typography.bodyMedium,
             )
-            Button(
+            ReguertaButton(
+                label = stringResource(actionLabelRes),
                 onClick = onAction,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(actionLabelRes))
-            }
+            )
         }
     }
 }
@@ -463,11 +453,10 @@ private fun SignInCard(
     onUidChanged: (String) -> Unit,
 ) {
     val spacing = ReguertaThemeTokens.spacing
-    val radius = ReguertaThemeTokens.radius
-    Card(
-        shape = RoundedCornerShape(radius.md),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
+    var submitAttempted by remember { mutableStateOf(false) }
+    val missingCredentials = submitAttempted && (state.emailInput.isBlank() || state.uidInput.isBlank())
+
+    ReguertaCard {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -475,34 +464,45 @@ private fun SignInCard(
             verticalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
             Text(stringResource(R.string.access_card_authentication))
-            OutlinedTextField(
+            ReguertaInputField(
+                label = stringResource(R.string.common_input_email_label),
                 value = state.emailInput,
-                onValueChange = onEmailChanged,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.common_input_email_label)) },
-                singleLine = true,
+                onValueChange = {
+                    onEmailChanged(it)
+                    if (submitAttempted) submitAttempted = false
+                },
+                helperMessage = stringResource(R.string.access_signed_out_hint),
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Email,
+                errorMessage = if (missingCredentials) {
+                    stringResource(R.string.feedback_email_uid_required)
+                } else {
+                    null
+                },
             )
-            OutlinedTextField(
+            ReguertaInputField(
+                label = stringResource(R.string.access_input_auth_uid_label),
                 value = state.uidInput,
-                onValueChange = onUidChanged,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.access_input_auth_uid_label)) },
-                singleLine = true,
+                onValueChange = {
+                    onUidChanged(it)
+                    if (submitAttempted) submitAttempted = false
+                },
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Ascii,
             )
-            Button(
-                onClick = onSignIn,
+            ReguertaButton(
+                label = stringResource(
+                    if (state.isAuthenticating) {
+                        R.string.access_action_signing_in
+                    } else {
+                        R.string.access_action_sign_in
+                    },
+                ),
+                onClick = {
+                    submitAttempted = true
+                    onSignIn()
+                },
                 enabled = !state.isAuthenticating,
-            ) {
-                Text(
-                    stringResource(
-                        if (state.isAuthenticating) {
-                            R.string.access_action_signing_in
-                        } else {
-                            R.string.access_action_sign_in
-                        },
-                    ),
-                )
-            }
+                loading = state.isAuthenticating,
+            )
         }
     }
 }

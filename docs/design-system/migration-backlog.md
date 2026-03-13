@@ -10,14 +10,14 @@ Prioritized tasks to move from current state to a cleaner cross-platform design-
 
 ## P1 (Next)
 
-- Normalize button variants and naming across Android/iOS.
-- Normalize input state model (`touched`, `error`, `focus`, `disabled`).
+- [x] Normalize button variants and naming across Android/iOS.
+- [x] Normalize input state model (`error`, `focus`, `disabled`, helper text).
 - Normalize dialog API and action model.
 - Remove or isolate explicitly deprecated/unused elements.
 
 ## P2 (After Auth/Onboarding UI work starts)
 
-- Build splash/welcome/auth screens only with stable/candidate design-system primitives.
+- [x] Build splash/welcome/auth screens only with stable/candidate design-system primitives.
 - Validate responsive behavior in compact and large devices.
 - Add UI catalog/sandbox screen for visual regression checks.
 

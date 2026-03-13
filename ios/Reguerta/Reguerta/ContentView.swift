@@ -39,13 +39,17 @@ struct ContentView: View {
                     }
 
                     if let feedbackKey = viewModel.feedbackMessageKey {
-                        Text(l10n(feedbackKey))
-                            .font(tokens.typography.label)
-                            .foregroundStyle(tokens.colors.feedbackError)
-                        Button {
-                            viewModel.clearFeedbackMessage()
-                        } label: {
-                            Text(localizedKey(AccessL10nKey.dismissMessage))
+                        ReguertaCard {
+                            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                                ReguertaInlineFeedback(localizedKey(feedbackKey))
+                                ReguertaButton(
+                                    localizedKey(AccessL10nKey.dismissMessage),
+                                    variant: .text,
+                                    fullWidth: false
+                                ) {
+                                    viewModel.clearFeedbackMessage()
+                                }
+                            }
                         }
                     }
                 }
@@ -80,7 +84,7 @@ struct ContentView: View {
     }
 
     private var splashRoute: some View {
-        cardContainer {
+        ReguertaCard {
             VStack(alignment: .center, spacing: tokens.spacing.lg) {
                 Text(localizedKey(AccessL10nKey.membersRolesTitle))
                     .font(tokens.typography.titleSection)
@@ -104,7 +108,7 @@ struct ContentView: View {
     }
 
     private var welcomeRoute: some View {
-        cardContainer {
+        ReguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
                 Text(localizedKey(AccessL10nKey.welcomeTitlePrefix))
                     .font(tokens.typography.titleCard)
@@ -115,45 +119,43 @@ struct ContentView: View {
                 Text(localizedKey(AccessL10nKey.welcomeSubtitle))
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
-                Button {
+                ReguertaButton(localizedKey(AccessL10nKey.welcomeCtaEnter)) {
                     dispatchShell(.continueFromWelcome)
-                } label: {
-                    Text(localizedKey(AccessL10nKey.welcomeCtaEnter))
                 }
-                .buttonStyle(.borderedProminent)
             }
         }
     }
 
     private var loginRoute: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.md) {
-            cardContainer {
+            ReguertaCard {
                 VStack(alignment: .leading, spacing: tokens.spacing.md) {
                     Text(localizedKey(AccessL10nKey.loginTitle))
                         .font(tokens.typography.titleCard)
                         .foregroundStyle(tokens.colors.textPrimary)
-                    Text(localizedKey(AccessL10nKey.signedOutHint))
-                        .font(tokens.typography.bodySecondary)
-                        .foregroundStyle(tokens.colors.textSecondary)
+                    ReguertaInlineFeedback(localizedKey(AccessL10nKey.signedOutHint), kind: .info)
                 }
             }
 
             signInCard
 
             HStack {
-                Button {
+                ReguertaButton(
+                    localizedKey(AccessL10nKey.loginLinkRegister),
+                    variant: .text,
+                    fullWidth: false
+                ) {
                     dispatchShell(.openRegisterFromLogin)
-                } label: {
-                    Text(localizedKey(AccessL10nKey.loginLinkRegister))
                 }
 
-                Button {
+                ReguertaButton(
+                    localizedKey(AccessL10nKey.loginLinkForgotPassword),
+                    variant: .text,
+                    fullWidth: false
+                ) {
                     dispatchShell(.openRecoverFromLogin)
-                } label: {
-                    Text(localizedKey(AccessL10nKey.loginLinkForgotPassword))
                 }
             }
-            .buttonStyle(.plain)
         }
     }
 
@@ -188,24 +190,36 @@ struct ContentView: View {
     }
 
     private var signInCard: some View {
-        cardContainer {
+        ReguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
                 Text(localizedKey(AccessL10nKey.authenticationCardTitle))
                     .font(tokens.typography.titleCard)
 
-                TextField(localizedKey(AccessL10nKey.emailLabel), text: binding(\.emailInput))
-                    .textInputAutocapitalization(.never)
-                    .textFieldStyle(.roundedBorder)
-                TextField(localizedKey(AccessL10nKey.authUidLabel), text: binding(\.uidInput))
-                    .textInputAutocapitalization(.never)
-                    .textFieldStyle(.roundedBorder)
+                ReguertaInputField(
+                    localizedKey(AccessL10nKey.emailLabel),
+                    text: binding(\.emailInput),
+                    placeholder: localizedKey(AccessL10nKey.emailLabel),
+                    helperMessage: localizedKey(AccessL10nKey.signedOutHint),
+                    errorMessage: signInValidationError,
+                    isEnabled: !viewModel.isAuthenticating,
+                    keyboardType: .emailAddress
+                )
 
-                Button {
+                ReguertaInputField(
+                    localizedKey(AccessL10nKey.authUidLabel),
+                    text: binding(\.uidInput),
+                    placeholder: localizedKey(AccessL10nKey.authUidLabel),
+                    isEnabled: !viewModel.isAuthenticating,
+                    keyboardType: .asciiCapable
+                )
+
+                ReguertaButton(
+                    localizedKey(viewModel.isAuthenticating ? AccessL10nKey.signingIn : AccessL10nKey.signIn),
+                    isEnabled: !viewModel.isAuthenticating,
+                    isLoading: viewModel.isAuthenticating
+                ) {
                     viewModel.signIn()
-                } label: {
-                    Text(localizedKey(viewModel.isAuthenticating ? AccessL10nKey.signingIn : AccessL10nKey.signIn))
                 }
-                .disabled(viewModel.isAuthenticating)
             }
         }
     }
@@ -350,20 +364,25 @@ struct ContentView: View {
 
     @ViewBuilder
     private func placeholderRoute(titleKey: String, subtitleKey: String) -> some View {
-        cardContainer {
+        ReguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
                 Text(localizedKey(titleKey))
                     .font(tokens.typography.titleSection)
                 Text(localizedKey(subtitleKey))
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
-                Button {
+                ReguertaButton(localizedKey(AccessL10nKey.commonBack)) {
                     dispatchShell(.back)
-                } label: {
-                    Text(localizedKey(AccessL10nKey.commonBack))
                 }
             }
         }
+    }
+
+    private var signInValidationError: LocalizedStringKey? {
+        guard viewModel.feedbackMessageKey == AccessL10nKey.feedbackEmailUidRequired else {
+            return nil
+        }
+        return localizedKey(AccessL10nKey.feedbackEmailUidRequired)
     }
 
     @ViewBuilder
