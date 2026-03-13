@@ -8,6 +8,7 @@ As a member I want app version policy to be validated at startup so unsupported 
 - Spec: spec/app/hu-021-startup-remote-version-gate/spec.md
 - Plan: spec/app/hu-021-startup-remote-version-gate/plan.md
 - Tasks: spec/app/hu-021-startup-remote-version-gate/tasks.md
+- PR: https://github.com/JFrancoG/ReguertaPlus/pull/51
 
 ## Acceptance criteria
 

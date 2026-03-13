@@ -26,5 +26,5 @@
 - [x] Record parity status.
 
 ## 7. Closure
-- [ ] Link issue and PR.
+- [x] Link issue and PR.
 - [ ] Complete DoD checklist.

@@ -49,4 +49,4 @@ As a member I want app version policy to be validated at startup so unsupported 
 - [x] Android/iOS parity reviewed or temporary gap documented.
 - [x] Tests executed.
 - [x] Documentation updated.
-- [ ] Issue and PR linked.
+- [x] Issue and PR linked.
