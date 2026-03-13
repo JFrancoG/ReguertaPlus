@@ -2,6 +2,8 @@ package com.reguerta.user.presentation.access
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -18,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
@@ -52,17 +55,23 @@ import com.reguerta.user.data.access.ChainedMemberRepository
 import com.reguerta.user.data.access.FirebaseAuthSessionProvider
 import com.reguerta.user.data.access.FirestoreMemberRepository
 import com.reguerta.user.data.access.InMemoryMemberRepository
+import com.reguerta.user.data.startup.FirestoreStartupVersionPolicyRepository
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.ResolveAuthorizedSessionUseCase
 import com.reguerta.user.domain.access.UnauthorizedReason
 import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
+import com.reguerta.user.domain.startup.ResolveStartupVersionGateUseCase
+import com.reguerta.user.domain.startup.StartupPlatform
+import com.reguerta.user.domain.startup.StartupVersionGateDecision
 import com.reguerta.user.ui.components.auth.ReguertaButton
 import com.reguerta.user.ui.components.auth.ReguertaButtonVariant
 import com.reguerta.user.ui.components.auth.ReguertaInputField
 import com.reguerta.user.ui.theme.ReguertaThemeTokens
+import kotlinx.coroutines.withTimeoutOrNull
 
 private const val SplashAnimationDurationMillis = 1_500
+private const val StartupPolicyFetchTimeoutMillis = 2_500L
 private val LoginEmailPatternRegex =
     "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$".toRegex(setOf(RegexOption.IGNORE_CASE))
 
@@ -93,9 +102,41 @@ fun ReguertaRoot(
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val spacing = ReguertaThemeTokens.spacing
+    val installedVersion = remember(context) {
+        resolveInstalledVersionName(context)
+    }
+    val startupVersionGateResolver = remember {
+        ResolveStartupVersionGateUseCase(
+            repository = FirestoreStartupVersionPolicyRepository(firestore = FirebaseFirestore.getInstance()),
+        )
+    }
 
     var shellState by remember { mutableStateOf(AuthShellState()) }
+    var splashAnimationFinished by remember { mutableStateOf(false) }
+    var startupGateState by remember {
+        mutableStateOf<StartupGateUiState>(StartupGateUiState.Checking)
+    }
     val isAuthenticatedSession = state.mode is SessionMode.Authorized || state.mode is SessionMode.Unauthorized
+
+    LaunchedEffect(startupVersionGateResolver) {
+        val decision = withTimeoutOrNull(StartupPolicyFetchTimeoutMillis) {
+            startupVersionGateResolver(
+                platform = StartupPlatform.ANDROID,
+                installedVersion = installedVersion,
+            )
+        } ?: StartupVersionGateDecision.Allow
+
+        startupGateState = when (decision) {
+            StartupVersionGateDecision.Allow -> StartupGateUiState.Ready
+            is StartupVersionGateDecision.OptionalUpdate -> StartupGateUiState.OptionalUpdate(
+                storeUrl = decision.storeUrl,
+            )
+
+            is StartupVersionGateDecision.ForcedUpdate -> StartupGateUiState.ForcedUpdate(
+                storeUrl = decision.storeUrl,
+            )
+        }
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.uiEvents.collect { event ->
@@ -112,6 +153,28 @@ fun ReguertaRoot(
                 action = AuthShellAction.SessionAuthenticated,
             )
         }
+    }
+
+    LaunchedEffect(
+        shellState.currentRoute,
+        splashAnimationFinished,
+        startupGateState,
+        isAuthenticatedSession,
+    ) {
+        if (shellState.currentRoute != AuthShellRoute.SPLASH) {
+            return@LaunchedEffect
+        }
+        if (!splashAnimationFinished) {
+            return@LaunchedEffect
+        }
+        if (!startupGateState.allowsContinuation) {
+            return@LaunchedEffect
+        }
+
+        shellState = reduceAuthShell(
+            state = shellState,
+            action = AuthShellAction.SplashCompleted(isAuthenticated = isAuthenticatedSession),
+        )
     }
 
     BackHandler(enabled = shellState.canGoBack) {
@@ -157,10 +220,7 @@ fun ReguertaRoot(
                 when (shellState.currentRoute) {
                     AuthShellRoute.SPLASH -> SplashRoute(
                         onAnimationFinished = {
-                            shellState = reduceAuthShell(
-                                state = shellState,
-                                action = AuthShellAction.SplashCompleted(isAuthenticated = isAuthenticatedSession),
-                            )
+                            splashAnimationFinished = true
                         },
                     )
 
@@ -220,6 +280,18 @@ fun ReguertaRoot(
 
                     AuthShellRoute.HOME -> Unit
                 }
+
+                if (shellState.currentRoute == AuthShellRoute.SPLASH) {
+                    StartupVersionGateDialog(
+                        state = startupGateState,
+                        onUpdateNow = { storeUrl ->
+                            openStoreUrl(context = context, storeUrl = storeUrl)
+                        },
+                        onDismissOptional = {
+                            startupGateState = StartupGateUiState.OptionalDismissed
+                        },
+                    )
+                }
             }
         }
     }
@@ -275,6 +347,73 @@ private fun SplashRoute(
 
 private fun lerp(start: Float, end: Float, fraction: Float): Float =
     start + (end - start) * fraction
+
+@Composable
+private fun StartupVersionGateDialog(
+    state: StartupGateUiState,
+    onUpdateNow: (String) -> Unit,
+    onDismissOptional: () -> Unit,
+) {
+    when (state) {
+        is StartupGateUiState.OptionalUpdate -> {
+            AlertDialog(
+                onDismissRequest = onDismissOptional,
+                title = { Text(text = stringResource(R.string.startup_update_optional_title)) },
+                text = { Text(text = stringResource(R.string.startup_update_message)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            onUpdateNow(state.storeUrl)
+                            onDismissOptional()
+                        },
+                    ) {
+                        Text(text = stringResource(R.string.startup_update_action_update))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = onDismissOptional) {
+                        Text(text = stringResource(R.string.startup_update_action_later))
+                    }
+                },
+            )
+        }
+
+        is StartupGateUiState.ForcedUpdate -> {
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text(text = stringResource(R.string.startup_update_forced_title)) },
+                text = { Text(text = stringResource(R.string.startup_update_message)) },
+                confirmButton = {
+                    TextButton(onClick = { onUpdateNow(state.storeUrl) }) {
+                        Text(text = stringResource(R.string.startup_update_action_update))
+                    }
+                },
+            )
+        }
+
+        StartupGateUiState.Checking,
+        StartupGateUiState.Ready,
+        StartupGateUiState.OptionalDismissed,
+            -> Unit
+    }
+}
+
+private fun openStoreUrl(
+    context: Context,
+    storeUrl: String,
+) {
+    val uri = runCatching { Uri.parse(storeUrl) }.getOrNull() ?: return
+    val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    runCatching { context.startActivity(intent) }
+}
+
+private fun resolveInstalledVersionName(context: Context): String =
+    runCatching {
+        @Suppress("DEPRECATION")
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
+    }.getOrDefault("")
 
 @Composable
 private fun WelcomeRoute(
@@ -909,3 +1048,18 @@ private fun UnauthorizedReason.toMessageResId(): Int =
     when (this) {
         UnauthorizedReason.USER_NOT_AUTHORIZED -> R.string.auth_error_member_unauthorized
     }
+
+private sealed interface StartupGateUiState {
+    data object Checking : StartupGateUiState
+
+    data object Ready : StartupGateUiState
+
+    data class OptionalUpdate(val storeUrl: String) : StartupGateUiState
+
+    data class ForcedUpdate(val storeUrl: String) : StartupGateUiState
+
+    data object OptionalDismissed : StartupGateUiState
+}
+
+private val StartupGateUiState.allowsContinuation: Boolean
+    get() = this == StartupGateUiState.Ready || this == StartupGateUiState.OptionalDismissed

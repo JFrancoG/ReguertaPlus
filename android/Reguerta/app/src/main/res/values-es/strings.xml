@@ -13,6 +13,11 @@
     <string name="access_action_sign_out">Cerrar sesión</string>
     <string name="access_action_dismiss_message">Cerrar mensaje</string>
     <string name="auth_shell_splash_loading">Preparando experiencia...</string>
+    <string name="startup_update_forced_title">Actualización obligatoria</string>
+    <string name="startup_update_optional_title">Actualización disponible</string>
+    <string name="startup_update_message">Hay una versión más reciente de la app para una experiencia más segura y estable.</string>
+    <string name="startup_update_action_update">Actualizar ahora</string>
+    <string name="startup_update_action_later">Más tarde</string>
     <string name="welcome_title_prefix">Bienvenido a</string>
     <string name="welcome_title_brand">La RegÜerta</string>
     <string name="welcome_subtitle">Usa el mismo flujo de auth en ambas plataformas.</string>

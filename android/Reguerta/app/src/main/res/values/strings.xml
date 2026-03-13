@@ -13,6 +13,11 @@
     <string name="access_action_sign_out">Sign out</string>
     <string name="access_action_dismiss_message">Dismiss message</string>
     <string name="auth_shell_splash_loading">Preparing experience...</string>
+    <string name="startup_update_forced_title">Update required</string>
+    <string name="startup_update_optional_title">Update available</string>
+    <string name="startup_update_message">A newer app version is available for a safer and more stable experience.</string>
+    <string name="startup_update_action_update">Update now</string>
+    <string name="startup_update_action_later">Later</string>
     <string name="welcome_title_prefix">Welcome to</string>
     <string name="welcome_title_brand">La RegÜerta</string>
     <string name="welcome_subtitle">Use one consistent auth flow in both platforms.</string>

@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
+    @Environment(\.openURL) private var openURL
     @Environment(\.reguertaTokens) private var tokens
     @State private var viewModel = SessionViewModel()
     @State private var shellState = AuthShellState()
@@ -8,6 +9,13 @@ struct ContentView: View {
     @State private var splashRotation: Double = SplashAnimationContract.initialRotation
     @State private var splashOpacity: Double = SplashAnimationContract.initialOpacity
     @State private var didStartSplashAnimation = false
+    @State private var splashDelayCompleted = false
+    @State private var startupGateState: StartupGateUIState = .checking
+    @State private var didEvaluateStartupGate = false
+
+    private let startupVersionGateUseCase = ResolveStartupVersionGateUseCase(
+        repository: FirestoreStartupVersionPolicyRepository()
+    )
 
     private var shouldSkipSplash: Bool {
         ProcessInfo.processInfo.arguments.contains("-skipSplash")
@@ -56,10 +64,19 @@ struct ContentView: View {
         .task(id: shellState.currentRoute) {
             await handleSplashIfNeeded()
         }
+        .task {
+            await evaluateStartupGateIfNeeded()
+        }
         .onChange(of: viewModel.mode) { _, mode in
             if mode.isAuthenticatedSession, shellState.currentRoute != .splash {
                 dispatchShell(.sessionAuthenticated)
             }
+        }
+        .onChange(of: startupGateState) { _, _ in
+            continueFromSplashIfAllowed()
+        }
+        .onChange(of: splashDelayCompleted) { _, _ in
+            continueFromSplashIfAllowed()
         }
         .onChange(of: shellState.currentRoute) { _, route in
             if route != .splash {
@@ -87,21 +104,91 @@ struct ContentView: View {
     }
 
     private var splashRoute: some View {
-        VStack {
-            Spacer(minLength: 0)
-            Image("brand_logo")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 100, height: 100)
-                .scaleEffect(splashScale)
-                .rotationEffect(.degrees(splashRotation))
-                .opacity(splashOpacity)
-                .task(id: shellState.currentRoute) {
-                    startSplashAnimationIfNeeded()
-                }
-            Spacer(minLength: 0)
+        ZStack {
+            VStack {
+                Spacer(minLength: 0)
+                Image("brand_logo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 100, height: 100)
+                    .scaleEffect(splashScale)
+                    .rotationEffect(.degrees(splashRotation))
+                    .opacity(splashOpacity)
+                    .task(id: shellState.currentRoute) {
+                        startSplashAnimationIfNeeded()
+                    }
+                Spacer(minLength: 0)
+            }
+
+            startupVersionGateOverlay
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private var startupVersionGateOverlay: some View {
+        switch startupGateState {
+        case .optionalUpdate(let storeURL):
+            startupVersionGateCard(
+                titleKey: AccessL10nKey.startupUpdateOptionalTitle,
+                messageKey: AccessL10nKey.startupUpdateMessage,
+                primaryActionTitleKey: AccessL10nKey.startupUpdateActionUpdate,
+                secondaryActionTitleKey: AccessL10nKey.startupUpdateActionLater,
+                onPrimaryAction: {
+                    openStoreURL(storeURL)
+                    startupGateState = .optionalDismissed
+                },
+                onSecondaryAction: {
+                    startupGateState = .optionalDismissed
+                }
+            )
+        case .forcedUpdate(let storeURL):
+            startupVersionGateCard(
+                titleKey: AccessL10nKey.startupUpdateForcedTitle,
+                messageKey: AccessL10nKey.startupUpdateMessage,
+                primaryActionTitleKey: AccessL10nKey.startupUpdateActionUpdate,
+                secondaryActionTitleKey: nil,
+                onPrimaryAction: {
+                    openStoreURL(storeURL)
+                },
+                onSecondaryAction: nil
+            )
+        case .checking, .ready, .optionalDismissed:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private func startupVersionGateCard(
+        titleKey: String,
+        messageKey: String,
+        primaryActionTitleKey: String,
+        secondaryActionTitleKey: String?,
+        onPrimaryAction: @escaping () -> Void,
+        onSecondaryAction: (() -> Void)?
+    ) -> some View {
+        ReguertaCard {
+            VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                Text(localizedKey(titleKey))
+                    .font(tokens.typography.titleCard)
+                    .foregroundStyle(tokens.colors.textPrimary)
+                Text(localizedKey(messageKey))
+                    .font(tokens.typography.bodySecondary)
+                    .foregroundStyle(tokens.colors.textSecondary)
+                ReguertaButton(localizedKey(primaryActionTitleKey)) {
+                    onPrimaryAction()
+                }
+                if let secondaryActionTitleKey, let onSecondaryAction {
+                    ReguertaButton(
+                        localizedKey(secondaryActionTitleKey),
+                        variant: .text
+                    ) {
+                        onSecondaryAction()
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: 420)
     }
 
     private var welcomeRoute: some View {
@@ -554,13 +641,73 @@ struct ContentView: View {
         guard shellState.currentRoute == .splash else { return }
 
         if shouldSkipSplash {
-            dispatchShell(.splashCompleted(isAuthenticated: viewModel.mode.isAuthenticatedSession))
+            splashDelayCompleted = true
+            startupGateState = .optionalDismissed
+            continueFromSplashIfAllowed()
             return
         }
 
         try? await Task.sleep(nanoseconds: SplashAnimationContract.durationNanoseconds)
         guard shellState.currentRoute == .splash else { return }
+        splashDelayCompleted = true
+        continueFromSplashIfAllowed()
+    }
+
+    private func evaluateStartupGateIfNeeded() async {
+        guard !didEvaluateStartupGate else { return }
+        didEvaluateStartupGate = true
+
+        if shouldSkipSplash {
+            startupGateState = .optionalDismissed
+            return
+        }
+
+        let installedVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+        let decision = await resolveStartupGateDecision(installedVersion: installedVersion)
+
+        switch decision {
+        case .allow:
+            startupGateState = .ready
+        case .optionalUpdate(let storeURL):
+            startupGateState = .optionalUpdate(storeURL: storeURL)
+        case .forcedUpdate(let storeURL):
+            startupGateState = .forcedUpdate(storeURL: storeURL)
+        }
+
+        continueFromSplashIfAllowed()
+    }
+
+    private func resolveStartupGateDecision(installedVersion: String) async -> StartupVersionGateDecision {
+        await withTaskGroup(of: StartupVersionGateDecision.self) { group in
+            group.addTask {
+                await startupVersionGateUseCase.execute(
+                    platform: .ios,
+                    installedVersion: installedVersion
+                )
+            }
+            group.addTask {
+                try? await Task.sleep(nanoseconds: StartupGateContract.fetchTimeoutNanoseconds)
+                return .allow
+            }
+
+            let firstResult = await group.next() ?? .allow
+            group.cancelAll()
+            return firstResult
+        }
+    }
+
+    private func continueFromSplashIfAllowed() {
+        guard shellState.currentRoute == .splash else { return }
+        guard splashDelayCompleted else { return }
+        guard startupGateState.allowsContinuation else { return }
         dispatchShell(.splashCompleted(isAuthenticated: viewModel.mode.isAuthenticatedSession))
+    }
+
+    private func openStoreURL(_ rawURL: String) {
+        guard let url = URL(string: rawURL.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+            return
+        }
+        openURL(url)
     }
 
     @MainActor
@@ -580,6 +727,7 @@ struct ContentView: View {
     @MainActor
     private func resetSplashAnimationState() {
         didStartSplashAnimation = false
+        splashDelayCompleted = false
         splashScale = SplashAnimationContract.initialScale
         splashRotation = SplashAnimationContract.initialRotation
         splashOpacity = SplashAnimationContract.initialOpacity
@@ -598,6 +746,18 @@ struct ContentView: View {
         case .home:
             return localizedKey(AccessL10nKey.homeTitle)
         }
+    }
+}
+
+private enum StartupGateUIState: Equatable {
+    case checking
+    case ready
+    case optionalUpdate(storeURL: String)
+    case forcedUpdate(storeURL: String)
+    case optionalDismissed
+
+    var allowsContinuation: Bool {
+        self == .ready || self == .optionalDismissed
     }
 }
 
@@ -622,4 +782,8 @@ private enum SplashAnimationContract {
     static let finalRotation: Double = 720.0
     static let initialOpacity: Double = 1.0
     static let finalOpacity: Double = 0.0
+}
+
+private enum StartupGateContract {
+    static let fetchTimeoutNanoseconds: UInt64 = 2_500_000_000
 }

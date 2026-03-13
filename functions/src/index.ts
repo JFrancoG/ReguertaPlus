@@ -80,6 +80,106 @@ const buildMemberId = (normalizedEmail: string): string => {
   return `member_${suffix}`;
 };
 
+type VersionPlatformKey = "android" | "ios";
+
+type VersionPolicy = {
+  current: string;
+  min: string;
+  forceUpdate: boolean;
+  storeUrl: string;
+};
+
+const VERSION_STRING_REGEX = /^\d+(?:\.\d+)*$/;
+const DEFAULT_VERSION_POLICY_ENVS = ["local", "develop", "production"];
+const DEFAULT_VERSION_POLICIES: Record<VersionPlatformKey, VersionPolicy> = {
+  android: {
+    current: "0.3.0",
+    min: "0.3.0",
+    forceUpdate: false,
+    storeUrl: "https://play.google.com/store/apps/details?id=com.reguerta.user",
+  },
+  ios: {
+    current: "0.3.0",
+    min: "0.3.0",
+    forceUpdate: false,
+    storeUrl: "https://apps.apple.com",
+  },
+};
+
+const parseEnvList = (value: unknown): string[] => {
+  const source = Array.isArray(value) ? value : [value];
+
+  return Array.from(new Set(
+    source
+      .flatMap((entry) =>
+        typeof entry === "string" ? entry.split(",") : []
+      )
+      .map((entry) => entry.trim().toLowerCase())
+      .filter((entry) => entry.length > 0)
+  ));
+};
+
+const parseVersionValue = (value: unknown, fallback: string): string => {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+  const normalized = value.trim();
+  if (!VERSION_STRING_REGEX.test(normalized)) {
+    return fallback;
+  }
+  return normalized;
+};
+
+const parseStoreUrlValue = (value: unknown, fallback: string): string => {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+  const normalized = value.trim();
+  if (!normalized) {
+    return fallback;
+  }
+  try {
+    const parsed = new URL(normalized);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return fallback;
+    }
+    return parsed.toString();
+  } catch {
+    return fallback;
+  }
+};
+
+const sanitizeVersionPolicy = (
+  value: unknown,
+  fallback: VersionPolicy,
+): VersionPolicy => {
+  const source = parseBody(value);
+
+  return {
+    current: parseVersionValue(source.current, fallback.current),
+    min: parseVersionValue(source.min, fallback.min),
+    forceUpdate: parseBoolean(source.forceUpdate, fallback.forceUpdate),
+    storeUrl: parseStoreUrlValue(source.storeUrl, fallback.storeUrl),
+  };
+};
+
+const sanitizeVersionPolicies = (
+  value: unknown,
+): Record<VersionPlatformKey, VersionPolicy> => {
+  const source = parseBody(value);
+
+  return {
+    android: sanitizeVersionPolicy(
+      source.android,
+      DEFAULT_VERSION_POLICIES.android
+    ),
+    ios: sanitizeVersionPolicy(
+      source.ios,
+      DEFAULT_VERSION_POLICIES.ios
+    ),
+  };
+};
+
 export const onProductWrite = onRequest(async (req, res) => {
   const env = (req.query.env as string) || ENV;
   const collectionName = (req.query.collectionName ?? "products") as string;
@@ -291,6 +391,34 @@ export const upsertMemberByAdmin = onRequest(async (req, res) => {
   });
 });
 
+export const validateGlobalVersionPolicy = onRequest(async (req, res) => {
+  const envs = parseEnvList(req.query.envs ?? req.query.env);
+  const targetEnvs = envs.length > 0 ? envs : DEFAULT_VERSION_POLICY_ENVS;
+  const summary: {env: string; existed: boolean}[] = [];
+
+  for (const env of targetEnvs) {
+    const globalDoc = firestore
+      .collection(`${env}/collections/config`)
+      .doc("global");
+    const snapshot = await globalDoc.get();
+    const current = parseBody(snapshot.data());
+    const versions = sanitizeVersionPolicies(current.versions);
+
+    await globalDoc.set({versions}, {merge: true});
+
+    summary.push({
+      env,
+      existed: snapshot.exists,
+    });
+  }
+
+  logger.info("✅ Global version policy validated", {summary});
+  res.status(200).json({
+    ok: true,
+    summary,
+  });
+});
+
 export const cloneGlobalConfig = onRequest(async (_req, res) => {
   const sourceDoc = firestore
     .collection("develop/collections/config")
@@ -319,6 +447,7 @@ export const cloneGlobalConfig = onRequest(async (_req, res) => {
 
   const overridden = {
     ...data,
+    versions: sanitizeVersionPolicies(data.versions),
     lastTimestamps: {
       products: baseTimestamp,
       containers: baseTimestamp,

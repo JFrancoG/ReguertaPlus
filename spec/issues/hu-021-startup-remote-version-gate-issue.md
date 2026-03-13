@@ -24,11 +24,11 @@ As a member I want app version policy to be validated at startup so unsupported 
 - Refactors not required to close acceptance criteria.
 
 ## Implementation checklist
-- [ ] Android
-- [ ] iOS
-- [ ] Backend / Firestore
-- [ ] Testing
-- [ ] Documentation
+- [x] Android
+- [x] iOS
+- [x] Backend / Firestore
+- [x] Testing
+- [x] Documentation
 
 ## Suggested labels
 - type:feature

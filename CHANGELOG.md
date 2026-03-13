@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - 2026-03-13 | ✨ feat(auth-ui): align splash and auth views
+- 2026-03-13 | ✨ feat(app): implement startup remote version gate (HU-021)
 
 ### Maintenance
 

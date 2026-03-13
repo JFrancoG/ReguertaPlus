@@ -184,4 +184,98 @@ struct ReguertaTests {
         let passwordReset = mapAuthFailure(.invalidCredentials, flow: .passwordReset)
         #expect(passwordReset.globalMessageKey == AccessL10nKey.authErrorUnknown)
     }
+
+    @Test
+    func semanticComparatorSupportsVariableVersionSegments() {
+        #expect(SemanticVersionComparator.compare("0.3", "0.3.0") == 0)
+        #expect(SemanticVersionComparator.compare("0.3.0.1", "0.3.0") == 1)
+        #expect(SemanticVersionComparator.compare("0.2.9", "0.3.0") == -1)
+        #expect(SemanticVersionComparator.compare("0.3-beta", "0.3.0") == nil)
+    }
+
+    @Test
+    func startupGateBlocksOutdatedVersionWhenForceUpdateIsActive() {
+        let useCase = ResolveStartupVersionGateUseCase(
+            repository: FixedStartupVersionPolicyRepository(
+                policy: StartupVersionPolicy(
+                    currentVersion: "0.3.1",
+                    minimumVersion: "0.3.0",
+                    forceUpdate: true,
+                    storeURL: "https://apps.apple.com"
+                )
+            )
+        )
+
+        let decision = useCase.evaluate(
+            installedVersion: "0.2.9",
+            policy: StartupVersionPolicy(
+                currentVersion: "0.3.1",
+                minimumVersion: "0.3.0",
+                forceUpdate: true,
+                storeURL: "https://apps.apple.com"
+            )
+        )
+
+        #expect(decision == .forcedUpdate(storeURL: "https://apps.apple.com"))
+    }
+
+    @Test
+    func startupGateWarnsWhenVersionIsBelowCurrent() {
+        let useCase = ResolveStartupVersionGateUseCase(
+            repository: FixedStartupVersionPolicyRepository(
+                policy: StartupVersionPolicy(
+                    currentVersion: "0.3.1",
+                    minimumVersion: "0.3.0",
+                    forceUpdate: false,
+                    storeURL: "https://apps.apple.com"
+                )
+            )
+        )
+
+        let decision = useCase.evaluate(
+            installedVersion: "0.3.0",
+            policy: StartupVersionPolicy(
+                currentVersion: "0.3.1",
+                minimumVersion: "0.3.0",
+                forceUpdate: false,
+                storeURL: "https://apps.apple.com"
+            )
+        )
+
+        #expect(decision == .optionalUpdate(storeURL: "https://apps.apple.com"))
+    }
+
+    @Test
+    func startupGateFallsBackToAllowWhenPolicyIsMalformed() {
+        let useCase = ResolveStartupVersionGateUseCase(
+            repository: FixedStartupVersionPolicyRepository(
+                policy: StartupVersionPolicy(
+                    currentVersion: "invalid",
+                    minimumVersion: "0.3.0",
+                    forceUpdate: true,
+                    storeURL: "https://apps.apple.com"
+                )
+            )
+        )
+
+        let decision = useCase.evaluate(
+            installedVersion: "0.2.9",
+            policy: StartupVersionPolicy(
+                currentVersion: "invalid",
+                minimumVersion: "0.3.0",
+                forceUpdate: true,
+                storeURL: "https://apps.apple.com"
+            )
+        )
+
+        #expect(decision == .allow)
+    }
+}
+
+private struct FixedStartupVersionPolicyRepository: StartupVersionPolicyRepository {
+    let policy: StartupVersionPolicy?
+
+    func policy(for platform: StartupPlatform) async -> StartupVersionPolicy? {
+        policy
+    }
 }
