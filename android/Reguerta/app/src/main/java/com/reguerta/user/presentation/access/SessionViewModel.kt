@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.reguerta.user.R
 import com.reguerta.user.domain.access.AccessResolutionResult
 import com.reguerta.user.domain.access.AuthPrincipal
+import com.reguerta.user.domain.access.AuthSessionProvider
+import com.reguerta.user.domain.access.AuthSignInFailureReason
+import com.reguerta.user.domain.access.AuthSignInResult
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberManagementException
 import com.reguerta.user.domain.access.MemberRepository
@@ -48,7 +51,9 @@ sealed interface SessionMode {
 
 data class SessionUiState(
     val emailInput: String = "",
-    val uidInput: String = "",
+    val passwordInput: String = "",
+    @param:StringRes val emailErrorRes: Int? = null,
+    @param:StringRes val passwordErrorRes: Int? = null,
     val isAuthenticating: Boolean = false,
     val mode: SessionMode = SessionMode.SignedOut,
     val memberDraft: MemberDraft = MemberDraft(),
@@ -60,6 +65,7 @@ sealed interface SessionUiEvent {
 
 class SessionViewModel(
     private val repository: MemberRepository,
+    private val authSessionProvider: AuthSessionProvider,
     private val resolveAuthorizedSession: ResolveAuthorizedSessionUseCase,
     private val upsertMemberByAdmin: UpsertMemberByAdminUseCase,
 ) : ViewModel() {
@@ -70,61 +76,92 @@ class SessionViewModel(
     val uiEvents: SharedFlow<SessionUiEvent> = _uiEvents.asSharedFlow()
 
     fun onEmailChanged(value: String) {
-        _uiState.update { it.copy(emailInput = value) }
+        _uiState.update { it.copy(emailInput = value, emailErrorRes = null) }
     }
 
-    fun onUidChanged(value: String) {
-        _uiState.update { it.copy(uidInput = value) }
+    fun onPasswordChanged(value: String) {
+        _uiState.update { it.copy(passwordInput = value, passwordErrorRes = null) }
     }
 
     fun signIn() {
         val currentState = _uiState.value
         val email = currentState.emailInput.trim()
-        val uid = currentState.uidInput.trim()
+        val password = currentState.passwordInput
 
-        if (email.isBlank() || uid.isBlank()) {
-            emitMessage(R.string.feedback_email_uid_required)
+        val emailErrorRes = when {
+            email.isBlank() -> R.string.feedback_email_required
+            !email.matches(EmailPatternRegex) -> R.string.feedback_email_invalid
+            else -> null
+        }
+        val passwordErrorRes = if (password.isBlank()) R.string.feedback_password_required else null
+
+        if (emailErrorRes != null || passwordErrorRes != null) {
+            _uiState.update {
+                it.copy(
+                    emailErrorRes = emailErrorRes,
+                    passwordErrorRes = passwordErrorRes,
+                )
+            }
             return
         }
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isAuthenticating = true) }
+            _uiState.update { it.copy(isAuthenticating = true, emailErrorRes = null, passwordErrorRes = null) }
 
-            when (val result = resolveAuthorizedSession(AuthPrincipal(uid = uid, email = email))) {
-                is AccessResolutionResult.Authorized -> {
-                    val members = repository.getAllMembers()
-                    _uiState.update {
-                        it.copy(
-                            isAuthenticating = false,
-                            mode = SessionMode.Authorized(
-                                principal = AuthPrincipal(uid = uid, email = email),
-                                member = result.member,
-                                members = members,
-                            ),
-                        )
+            when (val authResult = authSessionProvider.signIn(email = email, password = password)) {
+                is AuthSignInResult.Success -> {
+                    when (val result = resolveAuthorizedSession(authResult.principal)) {
+                        is AccessResolutionResult.Authorized -> {
+                            val members = repository.getAllMembers()
+                            _uiState.update {
+                                it.copy(
+                                    isAuthenticating = false,
+                                    mode = SessionMode.Authorized(
+                                        principal = authResult.principal,
+                                        member = result.member,
+                                        members = members,
+                                    ),
+                                )
+                            }
+                        }
+
+                        is AccessResolutionResult.Unauthorized -> {
+                            _uiState.update {
+                                it.copy(
+                                    isAuthenticating = false,
+                                    mode = SessionMode.Unauthorized(
+                                        email = authResult.principal.email,
+                                        reason = result.reason,
+                                    ),
+                                )
+                            }
+                        }
                     }
                 }
 
-                is AccessResolutionResult.Unauthorized -> {
+                is AuthSignInResult.Failure -> {
                     _uiState.update {
                         it.copy(
                             isAuthenticating = false,
-                            mode = SessionMode.Unauthorized(
-                                email = email,
-                                reason = result.reason,
-                            ),
+                            emailErrorRes = authResult.reason.emailErrorRes(),
+                            passwordErrorRes = authResult.reason.passwordErrorRes(),
                         )
                     }
+
+                    authResult.reason.globalMessageResOrNull()?.let(::emitMessage)
                 }
             }
         }
     }
 
     fun signOut() {
+        authSessionProvider.signOut()
         _uiState.update {
             it.copy(
                 mode = SessionMode.SignedOut,
-                uidInput = "",
+                passwordInput = "",
+                emailErrorRes = null,
+                passwordErrorRes = null,
                 memberDraft = MemberDraft(),
             )
         }
@@ -270,3 +307,30 @@ class SessionViewModel(
         return "member_${suffix.take(40)}"
     }
 }
+
+private val EmailPatternRegex = "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$".toRegex(setOf(RegexOption.IGNORE_CASE))
+
+@StringRes
+private fun AuthSignInFailureReason.emailErrorRes(): Int? =
+    when (this) {
+        AuthSignInFailureReason.INVALID_EMAIL -> R.string.feedback_email_invalid
+        AuthSignInFailureReason.USER_NOT_FOUND -> R.string.auth_error_user_not_found
+        AuthSignInFailureReason.USER_DISABLED -> R.string.auth_error_user_disabled
+        else -> null
+    }
+
+@StringRes
+private fun AuthSignInFailureReason.passwordErrorRes(): Int? =
+    when (this) {
+        AuthSignInFailureReason.INVALID_CREDENTIALS -> R.string.auth_error_invalid_credentials
+        else -> null
+    }
+
+@StringRes
+private fun AuthSignInFailureReason.globalMessageResOrNull(): Int? =
+    when (this) {
+        AuthSignInFailureReason.TOO_MANY_REQUESTS -> R.string.auth_error_too_many_requests
+        AuthSignInFailureReason.NETWORK -> R.string.auth_error_network
+        AuthSignInFailureReason.UNKNOWN -> R.string.auth_error_unknown
+        else -> null
+    }

@@ -212,22 +212,24 @@ struct ContentView: View {
                     text: binding(\.emailInput),
                     placeholder: localizedKey(AccessL10nKey.emailLabel),
                     helperMessage: localizedKey(AccessL10nKey.signedOutHint),
-                    errorMessage: signInValidationError,
+                    errorMessage: viewModel.emailErrorKey.map(localizedKey),
                     isEnabled: !viewModel.isAuthenticating,
                     keyboardType: .emailAddress
                 )
 
                 ReguertaInputField(
-                    localizedKey(AccessL10nKey.authUidLabel),
-                    text: binding(\.uidInput),
-                    placeholder: localizedKey(AccessL10nKey.authUidLabel),
+                    localizedKey(AccessL10nKey.passwordLabel),
+                    text: binding(\.passwordInput),
+                    placeholder: localizedKey(AccessL10nKey.passwordLabel),
+                    errorMessage: viewModel.passwordErrorKey.map(localizedKey),
                     isEnabled: !viewModel.isAuthenticating,
-                    keyboardType: .asciiCapable
+                    isSecure: true,
+                    keyboardType: .default
                 )
 
                 ReguertaButton(
                     localizedKey(viewModel.isAuthenticating ? AccessL10nKey.signingIn : AccessL10nKey.signIn),
-                    isEnabled: !viewModel.isAuthenticating,
+                    isEnabled: viewModel.canSubmitSignIn,
                     isLoading: viewModel.isAuthenticating
                 ) {
                     viewModel.signIn()
@@ -388,13 +390,6 @@ struct ContentView: View {
                 }
             }
         }
-    }
-
-    private var signInValidationError: LocalizedStringKey? {
-        guard viewModel.feedbackMessageKey == AccessL10nKey.feedbackEmailUidRequired else {
-            return nil
-        }
-        return localizedKey(AccessL10nKey.feedbackEmailUidRequired)
     }
 
     @ViewBuilder

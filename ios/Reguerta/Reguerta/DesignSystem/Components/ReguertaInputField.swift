@@ -17,6 +17,7 @@ struct ReguertaInputField: View {
     let helperMessage: LocalizedStringKey?
     let errorMessage: LocalizedStringKey?
     let isEnabled: Bool
+    let isSecure: Bool
     let keyboardType: UIKeyboardType
     let trailingIcon: Image?
     let onTrailingTap: (() -> Void)?
@@ -28,6 +29,7 @@ struct ReguertaInputField: View {
         helperMessage: LocalizedStringKey? = nil,
         errorMessage: LocalizedStringKey? = nil,
         isEnabled: Bool = true,
+        isSecure: Bool = false,
         keyboardType: UIKeyboardType = .default,
         trailingIcon: Image? = nil,
         onTrailingTap: (() -> Void)? = nil
@@ -38,6 +40,7 @@ struct ReguertaInputField: View {
         self.helperMessage = helperMessage
         self.errorMessage = errorMessage
         self.isEnabled = isEnabled
+        self.isSecure = isSecure
         self.keyboardType = keyboardType
         self.trailingIcon = trailingIcon
         self.onTrailingTap = onTrailingTap
@@ -64,13 +67,23 @@ struct ReguertaInputField: View {
                             .foregroundStyle(tokens.colors.textSecondary.opacity(0.65))
                             .opacity(text.isEmpty ? 1 : 0)
                     }
-                    TextField("", text: $text)
-                        .font(tokens.typography.body)
-                        .disabled(!isEnabled)
-                        .focused($isFocused)
-                        .textInputAutocapitalization(.never)
-                        .keyboardType(keyboardType)
-                        .accessibilityLabel(Text(label))
+                    if isSecure {
+                        SecureField("", text: $text)
+                            .font(tokens.typography.body)
+                            .disabled(!isEnabled)
+                            .focused($isFocused)
+                            .textInputAutocapitalization(.never)
+                            .keyboardType(keyboardType)
+                            .accessibilityLabel(Text(label))
+                    } else {
+                        TextField("", text: $text)
+                            .font(tokens.typography.body)
+                            .disabled(!isEnabled)
+                            .focused($isFocused)
+                            .textInputAutocapitalization(.never)
+                            .keyboardType(keyboardType)
+                            .accessibilityLabel(Text(label))
+                    }
                 }
 
                 if let trailingIcon {

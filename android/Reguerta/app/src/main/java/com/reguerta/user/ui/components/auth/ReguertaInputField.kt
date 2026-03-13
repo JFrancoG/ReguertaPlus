@@ -17,6 +17,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import com.reguerta.user.ui.theme.ReguertaThemeTokens
 
 enum class ReguertaInputState {
@@ -37,6 +39,7 @@ fun ReguertaInputField(
     enabled: Boolean = true,
     keyboardType: KeyboardType = KeyboardType.Text,
     errorMessage: String? = null,
+    isPassword: Boolean = false,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
@@ -66,6 +69,7 @@ fun ReguertaInputField(
             },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
             trailingIcon = trailing,
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = stateBorderColor(ReguertaInputState.FOCUSED),

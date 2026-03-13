@@ -1,3 +1,5 @@
+import FirebaseAuth
+import Foundation
 import Testing
 
 @testable import Reguerta
@@ -147,5 +149,22 @@ struct ReguertaTests {
 
         #expect(reduced.currentRoute == .welcome)
         #expect(reduced.canGoBack == false)
+    }
+
+    @Test
+    func firebaseAuthErrorMappingCoversKnownCodes() {
+        let invalidEmail = NSError(domain: AuthErrorDomain, code: AuthErrorCode.invalidEmail.rawValue)
+        let wrongPassword = NSError(domain: AuthErrorDomain, code: AuthErrorCode.wrongPassword.rawValue)
+        let notFound = NSError(domain: AuthErrorDomain, code: AuthErrorCode.userNotFound.rawValue)
+        let disabled = NSError(domain: AuthErrorDomain, code: AuthErrorCode.userDisabled.rawValue)
+        let tooMany = NSError(domain: AuthErrorDomain, code: AuthErrorCode.tooManyRequests.rawValue)
+        let network = NSError(domain: AuthErrorDomain, code: AuthErrorCode.networkError.rawValue)
+
+        #expect(mapFirebaseAuthError(invalidEmail) == .invalidEmail)
+        #expect(mapFirebaseAuthError(wrongPassword) == .invalidCredentials)
+        #expect(mapFirebaseAuthError(notFound) == .userNotFound)
+        #expect(mapFirebaseAuthError(disabled) == .userDisabled)
+        #expect(mapFirebaseAuthError(tooMany) == .tooManyRequests)
+        #expect(mapFirebaseAuthError(network) == .network)
     }
 }
