@@ -29,6 +29,20 @@ Cada vez que se crea o modifica un documento en ciertas colecciones, puedes llam
 | `orders`      | `lastTimestamps.orders`                           | `https://europe-west1-reguerta-9f27f.cloudfunctions.net/onOrderWrite`     |
 | `users`       | `lastTimestamps.users`                            | `https://europe-west1-reguerta-9f27f.cloudfunctions.net/onUserWrite`      |
 
+### ✅ Validación de política de versión remota
+
+Para asegurar que `config/global.versions.{android,ios}` siempre tenga
+`current|min|forceUpdate|storeUrl`, existe el endpoint:
+
+`https://europe-west1-reguerta-9f27f.cloudfunctions.net/validateGlobalVersionPolicy`
+
+Parámetros opcionales:
+- `env=develop` o `env=production` o `env=local`
+- `envs=local,develop,production` (lista separada por comas)
+
+Si no se envía ningún parámetro, valida/siembra por defecto en:
+`local`, `develop` y `production`.
+
 ## ⚙️ Configuración del entorno
 
 Este proyecto usa una variable `ENV` para determinar si se debe escribir en la rama `develop` o `production`. Puedes establecerla con:

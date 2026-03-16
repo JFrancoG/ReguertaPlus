@@ -33,9 +33,9 @@ struct ReguertaDesignTokens {
         let titleHero: Font = .custom("CabinSketch-Bold", size: 36, relativeTo: .title)
         let titleSection: Font = .custom("CabinSketch-Bold", size: 24, relativeTo: .title3)
         let titleCard: Font = .custom("CabinSketch-Regular", size: 20, relativeTo: .headline)
-        let body: Font = .system(.body, design: .default)
-        let bodySecondary: Font = .system(.subheadline, design: .default)
-        let label: Font = .system(.footnote, design: .default)
+        let body: Font = .custom("CabinSketch-Regular", size: 18, relativeTo: .body)
+        let bodySecondary: Font = .custom("CabinSketch-Regular", size: 16, relativeTo: .subheadline)
+        let label: Font = .custom("CabinSketch-Bold", size: 14, relativeTo: .footnote)
     }
 
     let colors: Colors
