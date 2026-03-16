@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -31,8 +32,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.reguerta.user.R
+import com.reguerta.user.ui.theme.ReguertaAdaptive
 import com.reguerta.user.ui.theme.ReguertaThemeTokens
 
 enum class ReguertaInputState {
@@ -53,15 +56,34 @@ fun ReguertaInputField(
     enabled: Boolean = true,
     keyboardType: KeyboardType = KeyboardType.Text,
     errorMessage: String? = null,
+    liveValidationErrorMessage: String? = null,
+    liveValidation: ((String) -> Boolean)? = null,
+    liveValidationErrorProvider: ((String) -> String?)? = null,
     isPassword: Boolean = false,
     showClearAction: Boolean = false,
     showPasswordToggle: Boolean = isPassword,
+    passwordVisible: Boolean? = null,
+    onPasswordVisibilityChange: ((Boolean) -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
-    var passwordVisible by remember { mutableStateOf(false) }
+    var interacted by remember { mutableStateOf(false) }
+    var internalPasswordVisible by remember { mutableStateOf(false) }
+    val resolvedPasswordVisible = passwordVisible ?: internalPasswordVisible
+    val controlScale = ReguertaAdaptive.profile.tokenScale.controls
     val spacing = ReguertaThemeTokens.spacing
-    val hasError = !errorMessage.isNullOrBlank()
+    val trailingIconSize: Dp = (24f * controlScale).dp
+    val liveErrorMessage = when {
+        !enabled -> null
+        !interacted -> null
+        liveValidationErrorProvider != null -> liveValidationErrorProvider(value)
+        liveValidation == null -> null
+        liveValidationErrorMessage.isNullOrBlank() -> null
+        liveValidation(value) -> null
+        else -> liveValidationErrorMessage
+    }
+    val effectiveErrorMessage = errorMessage ?: liveErrorMessage
+    val hasError = !effectiveErrorMessage.isNullOrBlank()
     val state = when {
         !enabled -> ReguertaInputState.DISABLED
         hasError -> ReguertaInputState.ERROR
@@ -98,46 +120,68 @@ fun ReguertaInputField(
 
                 BasicTextField(
                     value = value,
-                    onValueChange = onValueChange,
+                    onValueChange = {
+                        interacted = true
+                        onValueChange(it)
+                    },
                     enabled = enabled,
                     singleLine = true,
                     textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
                     keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-                    visualTransformation = if (isPassword && !passwordVisible) {
+                    visualTransformation = if (isPassword && !resolvedPasswordVisible) {
                         PasswordVisualTransformation()
                     } else {
                         VisualTransformation.None
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .onFocusChanged { focused = it.isFocused },
+                        .onFocusChanged {
+                            focused = it.isFocused
+                            if (it.isFocused) {
+                                interacted = true
+                            }
+                        },
                 )
             }
 
             when {
                 isPassword && showPasswordToggle -> {
                     IconButton(
-                        onClick = { passwordVisible = !passwordVisible },
+                        onClick = {
+                            val next = !resolvedPasswordVisible
+                            if (onPasswordVisibilityChange != null) {
+                                onPasswordVisibilityChange(next)
+                            } else {
+                                internalPasswordVisible = next
+                            }
+                        },
                         enabled = enabled,
                     ) {
                         Icon(
-                            imageVector = if (passwordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                            contentDescription = if (passwordVisible) {
+                            imageVector = if (resolvedPasswordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                            contentDescription = if (resolvedPasswordVisible) {
                                 stringResource(R.string.common_action_hide_password)
                             } else {
                                 stringResource(R.string.common_action_show_password)
                             },
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(trailingIconSize),
                         )
                     }
                 }
 
-                showClearAction && enabled && value.isNotEmpty() -> {
-                    IconButton(onClick = { onValueChange("") }) {
+                showClearAction && enabled -> {
+                    IconButton(onClick = {
+                        interacted = true
+                        if (value.isNotEmpty()) {
+                            onValueChange("")
+                        }
+                    }) {
                         Icon(
                             imageVector = Icons.Filled.Close,
                             contentDescription = stringResource(R.string.common_action_clear),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(trailingIconSize),
                         )
                     }
                 }
@@ -148,9 +192,9 @@ fun ReguertaInputField(
 
         HorizontalDivider(color = lineColor(state), thickness = 1.dp)
 
-        if (hasError) {
+        if (!effectiveErrorMessage.isNullOrBlank()) {
             Text(
-                text = errorMessage.orEmpty(),
+                text = effectiveErrorMessage,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(horizontal = spacing.xs),

@@ -10,11 +10,12 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
     primary = ColorActionPrimaryDefaultDark,
-    onPrimary = ColorActionOnPrimary,
+    onPrimary = ColorActionOnPrimaryDark,
     secondary = ColorSurfaceSecondaryDefaultDark,
     tertiary = ColorFeedbackWarningDefault,
     background = ColorSurfacePrimaryDefaultDark,
@@ -23,11 +24,12 @@ private val DarkColorScheme = darkColorScheme(
     onSurface = ColorTextPrimaryDefaultDark,
     error = ColorFeedbackErrorDefault,
     outline = ColorBorderSubtleDark,
+    scrim = ColorDialogBackDark,
 )
 
 private val LightColorScheme = lightColorScheme(
     primary = ColorActionPrimaryDefaultLight,
-    onPrimary = ColorActionOnPrimary,
+    onPrimary = ColorActionOnPrimaryLight,
     secondary = ColorSurfaceSecondaryDefaultLight,
     tertiary = ColorFeedbackWarningDefault,
     background = ColorSurfacePrimaryDefaultLight,
@@ -36,6 +38,7 @@ private val LightColorScheme = lightColorScheme(
     onSurface = ColorTextPrimaryDefaultLight,
     error = ColorFeedbackErrorDefault,
     outline = ColorBorderSubtleLight,
+    scrim = ColorDialogBackLight,
 )
 
 @Composable
@@ -45,6 +48,7 @@ fun ReguertaTheme(
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
 ) {
+    val adaptiveProfile = rememberReguertaAdaptiveProfile()
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
@@ -55,12 +59,20 @@ fun ReguertaTheme(
         else -> LightColorScheme
     }
 
-    val tokens = ReguertaTokens()
+    val tokens = remember(adaptiveProfile) {
+        ReguertaTokens().scaled(adaptiveProfile.tokenScale)
+    }
+    val typography = remember(adaptiveProfile.typographyScale) {
+        reguertaTypography(scale = adaptiveProfile.typographyScale)
+    }
 
-    CompositionLocalProvider(LocalReguertaTokens provides tokens) {
+    CompositionLocalProvider(
+        LocalReguertaTokens provides tokens,
+        LocalReguertaAdaptiveProfile provides adaptiveProfile,
+    ) {
         MaterialTheme(
             colorScheme = colorScheme.withSemanticSurfaceDefaults(),
-            typography = ReguertaTypography,
+            typography = typography,
             content = content,
         )
     }

@@ -9,21 +9,30 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -38,15 +47,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -66,12 +78,20 @@ import com.reguerta.user.domain.startup.StartupPlatform
 import com.reguerta.user.domain.startup.StartupVersionGateDecision
 import com.reguerta.user.ui.components.auth.ReguertaButton
 import com.reguerta.user.ui.components.auth.ReguertaButtonVariant
+import com.reguerta.user.ui.components.auth.ReguertaDialog
+import com.reguerta.user.ui.components.auth.ReguertaDialogAction
+import com.reguerta.user.ui.components.auth.ReguertaDialogType
+import com.reguerta.user.ui.components.auth.ReguertaFlatButton
+import com.reguerta.user.ui.components.auth.ReguertaFullButton
 import com.reguerta.user.ui.components.auth.ReguertaInputField
+import com.reguerta.user.ui.theme.ReguertaAdaptive
 import com.reguerta.user.ui.theme.ReguertaThemeTokens
 import kotlinx.coroutines.withTimeoutOrNull
 
 private const val SplashAnimationDurationMillis = 1_500
 private const val StartupPolicyFetchTimeoutMillis = 2_500L
+private const val PasswordMinLength = 6
+private const val PasswordMaxLength = 16
 private val LoginEmailPatternRegex =
     "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$".toRegex(setOf(RegexOption.IGNORE_CASE))
 
@@ -177,7 +197,20 @@ fun ReguertaRoot(
         )
     }
 
+    val clearRouteForm: (AuthShellRoute) -> Unit = { route ->
+        when (route) {
+            AuthShellRoute.LOGIN -> viewModel.clearLoginForm()
+            AuthShellRoute.REGISTER -> viewModel.clearRegisterForm()
+            AuthShellRoute.RECOVER_PASSWORD -> viewModel.clearRecoverForm()
+            AuthShellRoute.SPLASH,
+            AuthShellRoute.WELCOME,
+            AuthShellRoute.HOME,
+                -> Unit
+        }
+    }
+
     BackHandler(enabled = shellState.canGoBack) {
+        clearRouteForm(shellState.currentRoute)
         shellState = reduceAuthShell(state = shellState, action = AuthShellAction.Back)
     }
 
@@ -215,7 +248,7 @@ fun ReguertaRoot(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .padding(spacing.lg),
+                    .padding(start = spacing.lg, end = spacing.lg, bottom = spacing.lg),
             ) {
                 when (shellState.currentRoute) {
                     AuthShellRoute.SPLASH -> SplashRoute(
@@ -226,12 +259,14 @@ fun ReguertaRoot(
 
                     AuthShellRoute.WELCOME -> WelcomeRoute(
                         onContinue = {
+                            viewModel.clearLoginForm()
                             shellState = reduceAuthShell(
                                 state = shellState,
                                 action = AuthShellAction.ContinueFromWelcome,
                             )
                         },
                         onOpenRegister = {
+                            viewModel.clearRegisterForm()
                             shellState = reduceAuthShell(
                                 state = shellState,
                                 action = AuthShellAction.OpenRegisterFromWelcome,
@@ -242,7 +277,15 @@ fun ReguertaRoot(
                     AuthShellRoute.LOGIN -> LoginRoute(
                         state = state,
                         onSignIn = viewModel::signIn,
+                        onBack = {
+                            clearRouteForm(AuthShellRoute.LOGIN)
+                            shellState = reduceAuthShell(
+                                state = shellState,
+                                action = AuthShellAction.Back,
+                            )
+                        },
                         onOpenRecover = {
+                            viewModel.clearRecoverForm()
                             shellState = reduceAuthShell(
                                 state = shellState,
                                 action = AuthShellAction.OpenRecoverFromLogin,
@@ -259,6 +302,7 @@ fun ReguertaRoot(
                         onPasswordChanged = viewModel::onRegisterPasswordChanged,
                         onRepeatPasswordChanged = viewModel::onRegisterRepeatPasswordChanged,
                         onBack = {
+                            clearRouteForm(AuthShellRoute.REGISTER)
                             shellState = reduceAuthShell(
                                 state = shellState,
                                 action = AuthShellAction.Back,
@@ -270,7 +314,13 @@ fun ReguertaRoot(
                         state = state,
                         onEmailChanged = viewModel::onRecoverEmailChanged,
                         onSendReset = viewModel::sendPasswordReset,
+                        onResetEmailDialogAccepted = {
+                            viewModel.dismissRecoverSuccessDialog()
+                            clearRouteForm(AuthShellRoute.RECOVER_PASSWORD)
+                            shellState = AuthShellState(backStack = listOf(AuthShellRoute.WELCOME))
+                        },
                         onBack = {
+                            clearRouteForm(AuthShellRoute.RECOVER_PASSWORD)
                             shellState = reduceAuthShell(
                                 state = shellState,
                                 action = AuthShellAction.Back,
@@ -356,38 +406,35 @@ private fun StartupVersionGateDialog(
 ) {
     when (state) {
         is StartupGateUiState.OptionalUpdate -> {
-            AlertDialog(
+            ReguertaDialog(
+                type = ReguertaDialogType.INFO,
+                title = stringResource(R.string.startup_update_optional_title),
+                message = stringResource(R.string.startup_update_message),
+                primaryAction = ReguertaDialogAction(
+                    label = stringResource(R.string.startup_update_action_update),
+                    onClick = {
+                        onUpdateNow(state.storeUrl)
+                        onDismissOptional()
+                    },
+                ),
+                secondaryAction = ReguertaDialogAction(
+                    label = stringResource(R.string.startup_update_action_later),
+                    onClick = onDismissOptional,
+                ),
                 onDismissRequest = onDismissOptional,
-                title = { Text(text = stringResource(R.string.startup_update_optional_title)) },
-                text = { Text(text = stringResource(R.string.startup_update_message)) },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            onUpdateNow(state.storeUrl)
-                            onDismissOptional()
-                        },
-                    ) {
-                        Text(text = stringResource(R.string.startup_update_action_update))
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = onDismissOptional) {
-                        Text(text = stringResource(R.string.startup_update_action_later))
-                    }
-                },
             )
         }
 
         is StartupGateUiState.ForcedUpdate -> {
-            AlertDialog(
+            ReguertaDialog(
+                type = ReguertaDialogType.ERROR,
+                title = stringResource(R.string.startup_update_forced_title),
+                message = stringResource(R.string.startup_update_message),
+                primaryAction = ReguertaDialogAction(
+                    label = stringResource(R.string.startup_update_action_update),
+                    onClick = { onUpdateNow(state.storeUrl) },
+                ),
                 onDismissRequest = {},
-                title = { Text(text = stringResource(R.string.startup_update_forced_title)) },
-                text = { Text(text = stringResource(R.string.startup_update_message)) },
-                confirmButton = {
-                    TextButton(onClick = { onUpdateNow(state.storeUrl) }) {
-                        Text(text = stringResource(R.string.startup_update_action_update))
-                    }
-                },
             )
         }
 
@@ -420,56 +467,121 @@ private fun WelcomeRoute(
     onContinue: () -> Unit,
     onOpenRegister: () -> Unit,
 ) {
+    val adaptiveProfile = ReguertaAdaptive.profile
     val spacing = ReguertaThemeTokens.spacing
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Spacer(modifier = Modifier.height(spacing.xl))
-        Text(
-            text = stringResource(R.string.welcome_title_prefix),
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Text(
-            text = stringResource(R.string.welcome_title_brand),
-            style = MaterialTheme.typography.displayLarge,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Spacer(modifier = Modifier.height(spacing.lg))
-        Image(
-            painter = painterResource(id = R.drawable.ic_splash_logo),
-            contentDescription = stringResource(R.string.app_name),
-            modifier = Modifier.height(280.dp),
-            contentScale = ContentScale.Fit,
-        )
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        ReguertaButton(
-            label = stringResource(R.string.welcome_cta_enter),
-            onClick = onContinue,
-        )
-        Spacer(modifier = Modifier.height(88.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(R.string.welcome_not_registered),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+    val typeScale = adaptiveProfile.typographyScale
+    val controlScale = adaptiveProfile.tokenScale.controls
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val compactHeight = maxHeight < 760.dp || maxWidth < 390.dp
+        val logoWidth = if (compactHeight) 0.68f else 0.74f
+        val buttonWidth = if (compactHeight) maxWidth * 0.84f else maxWidth * 0.88f
+        val topSpacing = if (compactHeight) (8f * controlScale).dp else (44f * controlScale).dp
+        val bottomSpacing = if (compactHeight) (6f * controlScale).dp else (10f * controlScale).dp
+        val titleToLogoWeight = if (compactHeight) 0.18f else 0.35f
+        val middleSectionWeight = if (compactHeight) 0.62f else 0.9f
+        val prefixStyle = if (compactHeight) {
+            MaterialTheme.typography.headlineSmall.copy(
+                fontWeight = FontWeight.Normal,
+                fontSize = (22f * typeScale).sp,
+                lineHeight = (28f * typeScale).sp,
             )
-            ReguertaButton(
-                label = stringResource(R.string.welcome_link_register),
-                onClick = onOpenRegister,
-                variant = ReguertaButtonVariant.TEXT,
-                fullWidth = false,
+        } else {
+            MaterialTheme.typography.displayLarge.copy(
+                fontWeight = FontWeight.Normal,
+                fontSize = (26f * typeScale).sp,
+                lineHeight = (32f * typeScale).sp,
             )
         }
-        Spacer(modifier = Modifier.height(spacing.lg))
+        val brandStyle = if (compactHeight) {
+            MaterialTheme.typography.displayLarge.copy(
+                fontSize = (46f * typeScale).sp,
+                lineHeight = (50f * typeScale).sp,
+            )
+        } else {
+            MaterialTheme.typography.displayLarge.copy(
+                fontSize = (56f * typeScale).sp,
+                lineHeight = (62f * typeScale).sp,
+            )
+        }
+        val ctaStyle = if (compactHeight) {
+            MaterialTheme.typography.titleLarge.copy(
+                fontSize = (26f * typeScale).sp,
+                lineHeight = (30f * typeScale).sp,
+            )
+        } else {
+            MaterialTheme.typography.headlineSmall.copy(
+                fontSize = (34f * typeScale).sp,
+                lineHeight = (38f * typeScale).sp,
+            )
+        }
+
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Spacer(modifier = Modifier.height(topSpacing))
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = stringResource(R.string.welcome_title_prefix),
+                    style = prefixStyle,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = stringResource(R.string.welcome_title_brand),
+                    style = brandStyle,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = spacing.sm),
+                )
+            }
+
+            Spacer(modifier = Modifier.weight(titleToLogoWeight))
+
+            Image(
+                painter = painterResource(id = R.drawable.reguerta_logo),
+                contentDescription = stringResource(R.string.app_name),
+                modifier = Modifier
+                    .fillMaxWidth(logoWidth)
+                    .aspectRatio(1f),
+                contentScale = ContentScale.Fit,
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(middleSectionWeight),
+                contentAlignment = Alignment.Center,
+            ) {
+                ReguertaFullButton(
+                    label = stringResource(R.string.welcome_cta_enter),
+                    onClick = onContinue,
+                    textStyle = ctaStyle,
+                    fullWidth = false,
+                    modifier = Modifier.width(buttonWidth),
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.welcome_not_registered),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal),
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                ReguertaFlatButton(
+                    label = stringResource(R.string.welcome_link_register),
+                    onClick = onOpenRegister,
+                    textStyle = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal),
+                )
+            }
+
+            Spacer(modifier = Modifier.height(bottomSpacing))
+        }
     }
 }
 
@@ -477,20 +589,27 @@ private fun WelcomeRoute(
 private fun LoginRoute(
     state: SessionUiState,
     onSignIn: () -> Unit,
+    onBack: () -> Unit,
     onOpenRecover: () -> Unit,
     onEmailChanged: (String) -> Unit,
     onPasswordChanged: (String) -> Unit,
 ) {
+    val adaptiveProfile = ReguertaAdaptive.profile
     val spacing = ReguertaThemeTokens.spacing
     Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(spacing.lg),
+        modifier = Modifier
+            .fillMaxSize()
+            .offset(y = (-20f * adaptiveProfile.tokenScale.controls).dp),
     ) {
+        AuthBackButton(onBack = onBack)
+
         Text(
             text = stringResource(R.string.login_title),
             style = MaterialTheme.typography.displayLarge,
             color = MaterialTheme.colorScheme.primary,
         )
+
+        Spacer(modifier = Modifier.height(spacing.xl))
 
         SignInCard(
             state = state,
@@ -498,6 +617,7 @@ private fun LoginRoute(
             onOpenRecover = onOpenRecover,
             onEmailChanged = onEmailChanged,
             onPasswordChanged = onPasswordChanged,
+            modifier = Modifier.fillMaxSize(),
         )
     }
 }
@@ -511,24 +631,20 @@ private fun RegisterRoute(
     onRepeatPasswordChanged: (String) -> Unit,
     onBack: () -> Unit,
 ) {
+    val adaptiveProfile = ReguertaAdaptive.profile
     val spacing = ReguertaThemeTokens.spacing
     Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(spacing.lg),
+        modifier = Modifier
+            .fillMaxSize()
+            .offset(y = (-20f * adaptiveProfile.tokenScale.controls).dp),
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
-            ReguertaButton(
-                label = stringResource(R.string.common_action_back),
-                onClick = onBack,
-                variant = ReguertaButtonVariant.TEXT,
-                fullWidth = false,
-            )
-        }
+        AuthBackButton(onBack = onBack)
         Text(
             text = stringResource(R.string.register_title),
             style = MaterialTheme.typography.displayLarge,
             color = MaterialTheme.colorScheme.primary,
         )
+        Spacer(modifier = Modifier.height(spacing.xl))
 
         SignUpCard(
             state = state,
@@ -536,6 +652,7 @@ private fun RegisterRoute(
             onEmailChanged = onEmailChanged,
             onPasswordChanged = onPasswordChanged,
             onRepeatPasswordChanged = onRepeatPasswordChanged,
+            modifier = Modifier.fillMaxSize(),
         )
     }
 }
@@ -545,31 +662,61 @@ private fun RecoverPasswordRoute(
     state: SessionUiState,
     onEmailChanged: (String) -> Unit,
     onSendReset: () -> Unit,
+    onResetEmailDialogAccepted: () -> Unit,
     onBack: () -> Unit,
 ) {
+    val adaptiveProfile = ReguertaAdaptive.profile
     val spacing = ReguertaThemeTokens.spacing
     Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(spacing.lg),
+        modifier = Modifier
+            .fillMaxSize()
+            .offset(y = (-20f * adaptiveProfile.tokenScale.controls).dp),
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
-            ReguertaButton(
-                label = stringResource(R.string.common_action_back),
-                onClick = onBack,
-                variant = ReguertaButtonVariant.TEXT,
-                fullWidth = false,
-            )
-        }
+        AuthBackButton(onBack = onBack)
         Text(
             text = stringResource(R.string.recover_title),
             style = MaterialTheme.typography.displayLarge,
             color = MaterialTheme.colorScheme.primary,
         )
+        Spacer(modifier = Modifier.height(spacing.xl))
 
         RecoverPasswordCard(
             state = state,
             onEmailChanged = onEmailChanged,
             onSendReset = onSendReset,
+            modifier = Modifier.fillMaxSize(),
+        )
+
+        if (state.showRecoverSuccessDialog) {
+            ReguertaDialog(
+                type = ReguertaDialogType.INFO,
+                title = stringResource(R.string.recover_success_dialog_title),
+                message = stringResource(R.string.recover_success_dialog_message),
+                primaryAction = ReguertaDialogAction(
+                    label = stringResource(R.string.common_action_accept),
+                    onClick = onResetEmailDialogAccepted,
+                ),
+                onDismissRequest = onResetEmailDialogAccepted,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AuthBackButton(onBack: () -> Unit) {
+    val controlScale = ReguertaAdaptive.profile.tokenScale.controls
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Start,
+    ) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = stringResource(R.string.common_action_back),
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier
+                .offset(x = (-2f * controlScale).dp)
+                .size((24f * controlScale).dp)
+                .clickable(onClick = onBack),
         )
     }
 }
@@ -579,26 +726,41 @@ private fun RecoverPasswordCard(
     state: SessionUiState,
     onEmailChanged: (String) -> Unit,
     onSendReset: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
+    val controlScale = ReguertaAdaptive.profile.tokenScale.controls
     val spacing = ReguertaThemeTokens.spacing
+    val focusManager = LocalFocusManager.current
     val canSubmit = !state.isRecoveringPassword &&
-        state.recoverEmailInput.trim().matches(LoginEmailPatternRegex)
+        isValidEmail(state.recoverEmailInput)
 
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(spacing.lg),
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .imePadding(),
     ) {
-        ReguertaInputField(
-            label = stringResource(R.string.common_input_email_label),
-            value = state.recoverEmailInput,
-            onValueChange = onEmailChanged,
-            placeholder = stringResource(R.string.common_input_tap_to_type),
-            keyboardType = androidx.compose.ui.text.input.KeyboardType.Email,
-            errorMessage = state.recoverEmailErrorRes?.let { stringResource(it) },
-            showClearAction = true,
-        )
-        Spacer(modifier = Modifier.height(88.dp))
-        ReguertaButton(
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopStart)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(spacing.lg),
+        ) {
+            ReguertaInputField(
+                label = stringResource(R.string.common_input_email_label),
+                value = state.recoverEmailInput,
+                onValueChange = onEmailChanged,
+                placeholder = stringResource(R.string.common_input_tap_to_type),
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Email,
+                errorMessage = state.recoverEmailErrorRes?.let { stringResource(it) },
+                liveValidationErrorMessage = stringResource(R.string.feedback_email_invalid),
+                liveValidation = ::isValidEmail,
+                showClearAction = true,
+            )
+            Spacer(modifier = Modifier.height((96f * controlScale).dp))
+        }
+
+        ReguertaFullButton(
             label = stringResource(
                 if (state.isRecoveringPassword) {
                     R.string.recover_action_sending
@@ -606,9 +768,17 @@ private fun RecoverPasswordCard(
                     R.string.recover_action_send_email
                 },
             ),
-            onClick = onSendReset,
+            onClick = {
+                focusManager.clearFocus(force = true)
+                onSendReset()
+            },
             enabled = canSubmit,
             loading = state.isRecoveringPassword,
+            fullWidth = true,
+            textStyle = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth(),
         )
     }
 }
@@ -672,51 +842,69 @@ private fun SignInCard(
     onOpenRecover: () -> Unit,
     onEmailChanged: (String) -> Unit,
     onPasswordChanged: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
+    val controlScale = ReguertaAdaptive.profile.tokenScale.controls
     val spacing = ReguertaThemeTokens.spacing
+    val focusManager = LocalFocusManager.current
     val canSubmit = !state.isAuthenticating &&
-        state.emailInput.trim().matches(LoginEmailPatternRegex) &&
-        state.passwordInput.isNotBlank()
+        isValidEmail(state.emailInput) &&
+        isValidPassword(state.passwordInput) &&
+        state.emailErrorRes == null &&
+        state.passwordErrorRes == null
 
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(spacing.lg),
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .imePadding(),
     ) {
-        ReguertaInputField(
-            label = stringResource(R.string.common_input_email_label),
-            value = state.emailInput,
-            onValueChange = {
-                onEmailChanged(it)
-            },
-            placeholder = stringResource(R.string.common_input_tap_to_type),
-            keyboardType = androidx.compose.ui.text.input.KeyboardType.Email,
-            errorMessage = state.emailErrorRes?.let { stringResource(it) },
-            showClearAction = true,
-        )
-        ReguertaInputField(
-            label = stringResource(R.string.common_input_password_label),
-            value = state.passwordInput,
-            onValueChange = {
-                onPasswordChanged(it)
-            },
-            placeholder = stringResource(R.string.common_input_tap_to_type),
-            keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
-            isPassword = true,
-            showPasswordToggle = true,
-            errorMessage = state.passwordErrorRes?.let { stringResource(it) },
-        )
-
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            ReguertaButton(
-                label = stringResource(R.string.login_link_forgot_password),
-                onClick = onOpenRecover,
-                variant = ReguertaButtonVariant.TEXT,
-                fullWidth = false,
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopStart)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(spacing.xl),
+        ) {
+            ReguertaInputField(
+                label = stringResource(R.string.common_input_email_label),
+                value = state.emailInput,
+                onValueChange = {
+                    onEmailChanged(it)
+                },
+                placeholder = stringResource(R.string.common_input_tap_to_type),
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Email,
+                errorMessage = state.emailErrorRes?.let { stringResource(it) },
+                liveValidationErrorMessage = stringResource(R.string.feedback_email_invalid),
+                liveValidation = ::isValidEmail,
+                showClearAction = true,
             )
+            ReguertaInputField(
+                label = stringResource(R.string.common_input_password_label),
+                value = state.passwordInput,
+                onValueChange = {
+                    onPasswordChanged(it)
+                },
+                placeholder = stringResource(R.string.common_input_tap_to_type),
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
+                isPassword = true,
+                showPasswordToggle = true,
+                errorMessage = state.passwordErrorRes?.let { stringResource(it) },
+                liveValidationErrorMessage = stringResource(R.string.feedback_password_invalid_length),
+                liveValidation = ::isValidPassword,
+            )
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                ReguertaButton(
+                    label = stringResource(R.string.login_link_forgot_password),
+                    onClick = onOpenRecover,
+                    variant = ReguertaButtonVariant.TEXT,
+                    fullWidth = false,
+                )
+            }
+            Spacer(modifier = Modifier.height((96f * controlScale).dp))
         }
 
-        Spacer(modifier = Modifier.height(72.dp))
-        ReguertaButton(
+        ReguertaFullButton(
             label = stringResource(
                 if (state.isAuthenticating) {
                     R.string.access_action_signing_in
@@ -725,10 +913,16 @@ private fun SignInCard(
                 },
             ),
             onClick = {
+                focusManager.clearFocus(force = true)
                 onSignIn()
             },
             enabled = canSubmit,
             loading = state.isAuthenticating,
+            fullWidth = true,
+            textStyle = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth(),
         )
     }
 }
@@ -740,49 +934,85 @@ private fun SignUpCard(
     onEmailChanged: (String) -> Unit,
     onPasswordChanged: (String) -> Unit,
     onRepeatPasswordChanged: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
+    val controlScale = ReguertaAdaptive.profile.tokenScale.controls
     val spacing = ReguertaThemeTokens.spacing
+    val focusManager = LocalFocusManager.current
+    var registerPasswordVisible by rememberSaveable { mutableStateOf(false) }
+    val repeatRequiredMessage = stringResource(R.string.feedback_password_repeat_required)
+    val invalidPasswordMessage = stringResource(R.string.feedback_password_invalid_length)
+    val passwordMismatchMessage = stringResource(R.string.feedback_password_mismatch)
     val canSubmit = !state.isRegistering &&
-        state.registerEmailInput.trim().matches(LoginEmailPatternRegex) &&
-        state.registerPasswordInput.isNotBlank() &&
+        isValidEmail(state.registerEmailInput) &&
+        isValidPassword(state.registerPasswordInput) &&
         state.registerRepeatPasswordInput == state.registerPasswordInput &&
-        state.registerRepeatPasswordInput.isNotBlank()
+        isValidPassword(state.registerRepeatPasswordInput) &&
+        state.registerEmailErrorRes == null &&
+        state.registerPasswordErrorRes == null &&
+        state.registerRepeatPasswordErrorRes == null
 
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(spacing.lg),
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .imePadding(),
     ) {
-        ReguertaInputField(
-            label = stringResource(R.string.common_input_email_label),
-            value = state.registerEmailInput,
-            onValueChange = onEmailChanged,
-            placeholder = stringResource(R.string.common_input_tap_to_type),
-            keyboardType = androidx.compose.ui.text.input.KeyboardType.Email,
-            errorMessage = state.registerEmailErrorRes?.let { stringResource(it) },
-            showClearAction = true,
-        )
-        ReguertaInputField(
-            label = stringResource(R.string.common_input_password_label),
-            value = state.registerPasswordInput,
-            onValueChange = onPasswordChanged,
-            placeholder = stringResource(R.string.common_input_tap_to_type),
-            keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
-            isPassword = true,
-            showPasswordToggle = true,
-            errorMessage = state.registerPasswordErrorRes?.let { stringResource(it) },
-        )
-        ReguertaInputField(
-            label = stringResource(R.string.register_repeat_password_label),
-            value = state.registerRepeatPasswordInput,
-            onValueChange = onRepeatPasswordChanged,
-            placeholder = stringResource(R.string.common_input_tap_to_type),
-            keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
-            isPassword = true,
-            showPasswordToggle = true,
-            errorMessage = state.registerRepeatPasswordErrorRes?.let { stringResource(it) },
-        )
-        Spacer(modifier = Modifier.height(72.dp))
-        ReguertaButton(
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopStart)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(spacing.xl),
+        ) {
+            ReguertaInputField(
+                label = stringResource(R.string.common_input_email_label),
+                value = state.registerEmailInput,
+                onValueChange = onEmailChanged,
+                placeholder = stringResource(R.string.common_input_tap_to_type),
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Email,
+                errorMessage = state.registerEmailErrorRes?.let { stringResource(it) },
+                liveValidationErrorMessage = stringResource(R.string.feedback_email_invalid),
+                liveValidation = ::isValidEmail,
+                showClearAction = true,
+            )
+            ReguertaInputField(
+                label = stringResource(R.string.common_input_password_label),
+                value = state.registerPasswordInput,
+                onValueChange = onPasswordChanged,
+                placeholder = stringResource(R.string.common_input_tap_to_type),
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
+                isPassword = true,
+                showPasswordToggle = true,
+                passwordVisible = registerPasswordVisible,
+                onPasswordVisibilityChange = { registerPasswordVisible = it },
+                errorMessage = state.registerPasswordErrorRes?.let { stringResource(it) },
+                liveValidationErrorMessage = stringResource(R.string.feedback_password_invalid_length),
+                liveValidation = ::isValidPassword,
+            )
+            ReguertaInputField(
+                label = stringResource(R.string.register_repeat_password_label),
+                value = state.registerRepeatPasswordInput,
+                onValueChange = onRepeatPasswordChanged,
+                placeholder = stringResource(R.string.common_input_tap_to_type),
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
+                isPassword = true,
+                showPasswordToggle = true,
+                passwordVisible = registerPasswordVisible,
+                onPasswordVisibilityChange = { registerPasswordVisible = it },
+                errorMessage = state.registerRepeatPasswordErrorRes?.let { stringResource(it) },
+                liveValidationErrorProvider = { repeatedPassword ->
+                    when {
+                        repeatedPassword.isBlank() -> repeatRequiredMessage
+                        !isValidPassword(repeatedPassword) -> invalidPasswordMessage
+                        repeatedPassword != state.registerPasswordInput -> passwordMismatchMessage
+                        else -> null
+                    }
+                },
+            )
+            Spacer(modifier = Modifier.height((96f * controlScale).dp))
+        }
+
+        ReguertaFullButton(
             label = stringResource(
                 if (state.isRegistering) {
                     R.string.register_action_creating
@@ -790,9 +1020,17 @@ private fun SignUpCard(
                     R.string.register_action_create_account
                 },
             ),
-            onClick = onSignUp,
+            onClick = {
+                focusManager.clearFocus(force = true)
+                onSignUp()
+            },
             enabled = canSubmit,
             loading = state.isRegistering,
+            fullWidth = true,
+            textStyle = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth(),
         )
     }
 }
@@ -1048,6 +1286,12 @@ private fun UnauthorizedReason.toMessageResId(): Int =
     when (this) {
         UnauthorizedReason.USER_NOT_AUTHORIZED -> R.string.auth_error_member_unauthorized
     }
+
+private fun isValidEmail(email: String): Boolean =
+    email.trim().matches(LoginEmailPatternRegex)
+
+private fun isValidPassword(password: String): Boolean =
+    password.length in PasswordMinLength..PasswordMaxLength
 
 private sealed interface StartupGateUiState {
     data object Checking : StartupGateUiState

@@ -2,11 +2,13 @@ package com.reguerta.user.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Semantic color tokens (core -> semantic mapping for HU-035).
+// Semantic color tokens aligned with iOS Color Sets.
 val ColorActionPrimaryDefaultLight = Color(0xFF6DA539)
-val ColorActionPrimaryDefaultDark = Color(0xFF8BBF5A)
+val ColorActionPrimaryDefaultDark = Color(0xFF6DA539)
 
-val ColorActionOnPrimary = Color(0xFFFFFFFF)
+val ColorActionOnPrimaryLight = Color(0xFFF2F8E1)
+val ColorActionOnPrimaryDark = Color(0xFF0F1D0D)
+val ColorTextFullButton = Color(0xFF2B3809)
 
 val ColorSurfacePrimaryDefaultLight = Color(0xFFF2F8E1)
 val ColorSurfacePrimaryDefaultDark = Color(0xFF0F1D0D)
@@ -22,3 +24,9 @@ val ColorBorderSubtleDark = Color(0xFF37513B)
 
 val ColorFeedbackErrorDefault = Color(0xFFB04B4B)
 val ColorFeedbackWarningDefault = Color(0xFFEB6200)
+
+val ColorDialogBackLight = Color(0x66938E8E)
+val ColorDialogBackDark = Color(0x21FEFFFF)
+
+val ColorSlimShadowLight = Color(0x33000000)
+val ColorSlimShadowDark = Color(0x33FFFFFF)
