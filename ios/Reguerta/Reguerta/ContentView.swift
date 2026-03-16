@@ -12,6 +12,8 @@ struct ContentView: View {
     @State private var splashDelayCompleted = false
     @State private var startupGateState: StartupGateUIState = .checking
     @State private var didEvaluateStartupGate = false
+    @State private var areRegisterPasswordsVisible = false
+    @State private var showsRecoverSuccessDialog = false
 
     private let startupVersionGateUseCase = ResolveStartupVersionGateUseCase(
         repository: FirestoreStartupVersionPolicyRepository()
@@ -35,31 +37,44 @@ struct ContentView: View {
                             feedbackMessageRoute
                         }
                     }
+                } else if shellState.currentRoute == .splash {
+                    splashRoute
                 } else {
-                    VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-                        switch shellState.currentRoute {
-                        case .splash:
-                            splashRoute
-                        case .welcome:
-                            welcomeRoute
-                        case .login:
-                            loginRoute
-                        case .register:
-                            registerRoute
-                        case .recoverPassword:
-                            recoverRoute
-                        case .home:
-                            EmptyView()
+                    GeometryReader { proxy in
+                        ScrollView(.vertical, showsIndicators: false) {
+                            VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                                currentAuthRoute
+                                feedbackMessageRoute
+                            }
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .frame(minHeight: proxy.size.height, alignment: .top)
+                            .padding(.bottom, tokens.spacing.md)
                         }
-                        feedbackMessageRoute
+                        .scrollDismissesKeyboard(.interactively)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 }
             }
             .padding(tokens.spacing.lg)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(tokens.colors.surfacePrimary.ignoresSafeArea())
+            .overlay {
+                DeviceScaleCaptureView()
+            }
             .toolbar(.hidden, for: .navigationBar)
+        }
+        .overlay {
+            if showsRecoverSuccessDialog {
+                ReguertaDialog(
+                    type: .info,
+                    title: "Restablecer contraseña",
+                    message: "Se ha enviado el correo de restablecimiento de la contraseña con éxito. Revisa tu correo.",
+                    primaryAction: ReguertaDialogAction(
+                        title: "Aceptar",
+                        action: handleRecoverSuccessDialogDismiss
+                    ),
+                    onDismiss: handleRecoverSuccessDialogDismiss
+                )
+            }
         }
         .task(id: shellState.currentRoute) {
             await handleSplashIfNeeded()
@@ -78,10 +93,32 @@ struct ContentView: View {
         .onChange(of: splashDelayCompleted) { _, _ in
             continueFromSplashIfAllowed()
         }
-        .onChange(of: shellState.currentRoute) { _, route in
+        .onChange(of: shellState.currentRoute) { previousRoute, route in
             if route != .splash {
                 resetSplashAnimationState()
             }
+            handleAuthRouteExit(from: previousRoute, to: route)
+        }
+        .onChange(of: viewModel.feedbackMessageKey) { _, feedbackKey in
+            guard feedbackKey == AccessL10nKey.authInfoPasswordResetSent else { return }
+            viewModel.clearFeedbackMessage()
+            showsRecoverSuccessDialog = true
+        }
+    }
+
+    @ViewBuilder
+    private var currentAuthRoute: some View {
+        switch shellState.currentRoute {
+        case .welcome:
+            welcomeRoute
+        case .login:
+            loginRoute
+        case .register:
+            registerRoute
+        case .recoverPassword:
+            recoverRoute
+        case .splash, .home:
+            EmptyView()
         }
     }
 
@@ -110,7 +147,7 @@ struct ContentView: View {
                 Image("brand_logo")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 100, height: 100)
+                    .frame(width: 100.resize, height: 100.resize)
                     .scaleEffect(splashScale)
                     .rotationEffect(.degrees(splashRotation))
                     .opacity(splashOpacity)
@@ -167,78 +204,85 @@ struct ContentView: View {
         onPrimaryAction: @escaping () -> Void,
         onSecondaryAction: (() -> Void)?
     ) -> some View {
-        ReguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text(localizedKey(titleKey))
-                    .font(tokens.typography.titleCard)
-                    .foregroundStyle(tokens.colors.textPrimary)
-                Text(localizedKey(messageKey))
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                ReguertaButton(localizedKey(primaryActionTitleKey)) {
-                    onPrimaryAction()
-                }
-                if let secondaryActionTitleKey, let onSecondaryAction {
-                    ReguertaButton(
-                        localizedKey(secondaryActionTitleKey),
-                        variant: .text
-                    ) {
-                        onSecondaryAction()
-                    }
-                }
-            }
-        }
-        .frame(maxWidth: 420)
+        ReguertaDialog(
+            type: onSecondaryAction == nil ? .error : .info,
+            title: l10n(titleKey),
+            message: l10n(messageKey),
+            primaryAction: ReguertaDialogAction(
+                title: l10n(primaryActionTitleKey),
+                action: onPrimaryAction
+            ),
+            secondaryAction: {
+                guard let secondaryActionTitleKey, let onSecondaryAction else { return nil }
+                return ReguertaDialogAction(
+                    title: l10n(secondaryActionTitleKey),
+                    action: onSecondaryAction
+                )
+            }(),
+            onDismiss: onSecondaryAction
+        )
     }
 
     private var welcomeRoute: some View {
         VStack(spacing: tokens.spacing.md) {
-            Spacer(minLength: tokens.spacing.lg)
+            Spacer(minLength: tokens.spacing.md)
 
             Text(localizedKey(AccessL10nKey.welcomeTitlePrefix))
-                .font(tokens.typography.titleCard)
+                .font(.custom("CabinSketch-Regular", size: 22.resize, relativeTo: .headline))
                 .foregroundStyle(tokens.colors.textPrimary)
+                .frame(maxWidth: .infinity)
 
             Text(localizedKey(AccessL10nKey.welcomeTitleBrand))
-                .font(tokens.typography.titleHero)
+                .font(.custom("CabinSketch-Bold", size: 40.resize, relativeTo: .title))
                 .foregroundStyle(tokens.colors.actionPrimary)
+                .frame(maxWidth: .infinity)
 
-            Spacer().frame(height: 28)
+            Spacer().frame(height: 24.resize)
 
             Image("brand_logo")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 220, height: 220)
+                .frame(width: 214.resize, height: 214.resize)
+                .frame(maxWidth: .infinity)
 
-            Spacer(minLength: tokens.spacing.xxl)
+            Spacer(minLength: 0)
 
-            ReguertaButton(localizedKey(AccessL10nKey.welcomeCtaEnter)) {
+            ReguertaButton(
+                localizedKey(AccessL10nKey.welcomeCtaEnter),
+                fullWidth: true
+            ) {
                 dispatchShell(.continueFromWelcome)
             }
+            .frame(maxWidth: 320.resize)
+            .frame(maxWidth: .infinity)
 
-            Spacer(minLength: 88)
+            Spacer(minLength: 0)
 
             HStack(spacing: tokens.spacing.xs) {
                 Text(localizedKey(AccessL10nKey.welcomeNotRegistered))
                     .font(tokens.typography.titleCard)
                     .foregroundStyle(tokens.colors.textSecondary)
-                ReguertaButton(
-                    localizedKey(AccessL10nKey.welcomeLinkRegister),
-                    variant: .text,
-                    fullWidth: false
-                ) {
+                Button {
                     dispatchShell(.openRegisterFromWelcome)
+                } label: {
+                    Text(localizedKey(AccessL10nKey.welcomeLinkRegister))
+                        .font(tokens.typography.titleCard)
+                        .foregroundStyle(tokens.colors.actionPrimary)
                 }
+                .buttonStyle(.plain)
             }
             .frame(maxWidth: .infinity)
-
-            Spacer(minLength: tokens.spacing.lg)
+            .padding(.bottom, tokens.spacing.sm)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var loginRoute: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+            HStack {
+                authBackButton
+                Spacer()
+            }
             Text(localizedKey(AccessL10nKey.loginTitle))
                 .font(tokens.typography.titleHero)
                 .foregroundStyle(tokens.colors.actionPrimary)
@@ -249,14 +293,7 @@ struct ContentView: View {
     private var registerRoute: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
             HStack {
-                Button {
-                    dispatchShell(.back)
-                } label: {
-                    Label(localizedKey(AccessL10nKey.commonBack), systemImage: "chevron.left")
-                        .font(tokens.typography.body)
-                        .foregroundStyle(tokens.colors.textPrimary)
-                }
-                .buttonStyle(.plain)
+                authBackButton
                 Spacer()
             }
             Text(localizedKey(AccessL10nKey.registerTitle))
@@ -269,14 +306,7 @@ struct ContentView: View {
     private var recoverRoute: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
             HStack {
-                Button {
-                    dispatchShell(.back)
-                } label: {
-                    Label(localizedKey(AccessL10nKey.commonBack), systemImage: "chevron.left")
-                        .font(tokens.typography.body)
-                        .foregroundStyle(tokens.colors.textPrimary)
-                }
-                .buttonStyle(.plain)
+                authBackButton
                 Spacer()
             }
             Text(localizedKey(AccessL10nKey.recoverTitle))
@@ -323,6 +353,8 @@ struct ContentView: View {
                 text: binding(\.emailInput),
                 placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
                 errorMessage: viewModel.emailErrorKey.map(localizedKey),
+                liveValidationMessage: localizedKey(AccessL10nKey.feedbackEmailInvalid),
+                liveValidation: { isValidEmail($0) },
                 isEnabled: !viewModel.isAuthenticating,
                 showsClearAction: true,
                 keyboardType: .emailAddress
@@ -333,6 +365,8 @@ struct ContentView: View {
                 text: binding(\.passwordInput),
                 placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
                 errorMessage: viewModel.passwordErrorKey.map(localizedKey),
+                liveValidationMessage: localizedKey(AccessL10nKey.authErrorWeakPassword),
+                liveValidation: { isValidPassword($0) },
                 isEnabled: !viewModel.isAuthenticating,
                 isSecure: true,
                 showsPasswordToggle: true,
@@ -341,17 +375,18 @@ struct ContentView: View {
 
             HStack {
                 Spacer()
-                ReguertaButton(
-                    localizedKey(AccessL10nKey.loginLinkForgotPassword),
-                    variant: .text,
-                    fullWidth: false
-                ) {
+                Button {
                     dispatchShell(.openRecoverFromLogin)
+                } label: {
+                    Text(localizedKey(AccessL10nKey.loginLinkForgotPassword))
+                        .font(tokens.button.textFont)
+                        .foregroundStyle(tokens.colors.actionPrimary)
                 }
+                .buttonStyle(.plain)
             }
             .padding(.top, tokens.spacing.xs)
 
-            Spacer(minLength: 72)
+            Spacer(minLength: 72.resize)
 
             ReguertaButton(
                 localizedKey(viewModel.isAuthenticating ? AccessL10nKey.signingIn : AccessL10nKey.signIn),
@@ -370,6 +405,8 @@ struct ContentView: View {
                 text: binding(\.registerEmailInput),
                 placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
                 errorMessage: viewModel.registerEmailErrorKey.map(localizedKey),
+                liveValidationMessage: localizedKey(AccessL10nKey.feedbackEmailInvalid),
+                liveValidation: { isValidEmail($0) },
                 isEnabled: !viewModel.isRegistering,
                 showsClearAction: true,
                 keyboardType: .emailAddress
@@ -380,8 +417,11 @@ struct ContentView: View {
                 text: binding(\.registerPasswordInput),
                 placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
                 errorMessage: viewModel.registerPasswordErrorKey.map(localizedKey),
+                liveValidationMessage: localizedKey(AccessL10nKey.authErrorWeakPassword),
+                liveValidation: { isValidPassword($0) },
                 isEnabled: !viewModel.isRegistering,
                 isSecure: true,
+                sharedPasswordVisibility: $areRegisterPasswordsVisible,
                 showsPasswordToggle: true,
                 keyboardType: .default
             )
@@ -391,13 +431,26 @@ struct ContentView: View {
                 text: binding(\.registerRepeatPasswordInput),
                 placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
                 errorMessage: viewModel.registerRepeatPasswordErrorKey.map(localizedKey),
+                liveValidationMessageProvider: { repeatedPassword in
+                    if repeatedPassword.isEmpty {
+                        return localizedKey(AccessL10nKey.feedbackPasswordRepeatRequired)
+                    }
+                    if !isValidPassword(repeatedPassword) {
+                        return localizedKey(AccessL10nKey.authErrorWeakPassword)
+                    }
+                    if repeatedPassword != viewModel.registerPasswordInput {
+                        return localizedKey(AccessL10nKey.feedbackPasswordMismatch)
+                    }
+                    return nil
+                },
                 isEnabled: !viewModel.isRegistering,
                 isSecure: true,
+                sharedPasswordVisibility: $areRegisterPasswordsVisible,
                 showsPasswordToggle: true,
                 keyboardType: .default
             )
 
-            Spacer(minLength: 72)
+            Spacer(minLength: 72.resize)
 
             ReguertaButton(
                 localizedKey(viewModel.isRegistering ? AccessL10nKey.registerActionCreating : AccessL10nKey.registerActionCreateAccount),
@@ -416,12 +469,14 @@ struct ContentView: View {
                 text: binding(\.recoverEmailInput),
                 placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
                 errorMessage: viewModel.recoverEmailErrorKey.map(localizedKey),
+                liveValidationMessage: localizedKey(AccessL10nKey.feedbackEmailInvalid),
+                liveValidation: { isValidEmail($0) },
                 isEnabled: !viewModel.isRecoveringPassword,
                 showsClearAction: true,
                 keyboardType: .emailAddress
             )
 
-            Spacer(minLength: 88)
+            Spacer(minLength: 88.resize)
 
             ReguertaButton(
                 localizedKey(viewModel.isRecoveringPassword ? AccessL10nKey.recoverActionSending : AccessL10nKey.recoverActionSendEmail),
@@ -746,6 +801,56 @@ struct ContentView: View {
         case .home:
             return localizedKey(AccessL10nKey.homeTitle)
         }
+    }
+
+    private var authBackButton: some View {
+        Button {
+            dispatchShell(.back)
+        } label: {
+            Image(systemName: "chevron.left")
+                .font(tokens.typography.body)
+                .foregroundStyle(tokens.colors.textPrimary)
+                .frame(width: 64.resize, height: 36.resize, alignment: .leading)
+        }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+    }
+
+    private func handleAuthRouteExit(from previousRoute: AuthShellRoute, to newRoute: AuthShellRoute) {
+        guard previousRoute != newRoute else { return }
+
+        switch previousRoute {
+        case .login where newRoute != .login:
+            viewModel.resetSignInDraft()
+            viewModel.clearFeedbackMessage()
+        case .register where newRoute != .register:
+            viewModel.resetSignUpDraft()
+            viewModel.clearFeedbackMessage()
+            areRegisterPasswordsVisible = false
+        case .recoverPassword where newRoute != .recoverPassword:
+            viewModel.resetRecoverDraft()
+            viewModel.clearFeedbackMessage()
+            showsRecoverSuccessDialog = false
+        default:
+            break
+        }
+    }
+
+    private func handleRecoverSuccessDialogDismiss() {
+        showsRecoverSuccessDialog = false
+        viewModel.resetRecoverDraft()
+        dispatchShell(.signedOut)
+    }
+
+    private func isValidEmail(_ value: String) -> Bool {
+        value.trimmingCharacters(in: .whitespacesAndNewlines).range(
+            of: "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$",
+            options: [.regularExpression, .caseInsensitive]
+        ) != nil
+    }
+
+    private func isValidPassword(_ value: String) -> Bool {
+        (6...16).contains(value.count)
     }
 }
 

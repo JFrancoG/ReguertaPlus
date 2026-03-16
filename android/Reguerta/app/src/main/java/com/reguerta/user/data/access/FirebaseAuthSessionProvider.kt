@@ -86,7 +86,9 @@ internal fun mapFirebaseAuthErrorCode(errorCode: String?): AuthSignInFailureReas
         "ERROR_INVALID_CREDENTIAL",
         "ERROR_INVALID_LOGIN_CREDENTIALS",
         -> AuthSignInFailureReason.INVALID_CREDENTIALS
-        "ERROR_EMAIL_ALREADY_IN_USE" -> AuthSignInFailureReason.EMAIL_ALREADY_IN_USE
+        "ERROR_EMAIL_ALREADY_IN_USE",
+        "ERROR_ACCOUNT_EXISTS_WITH_DIFFERENT_CREDENTIAL",
+        -> AuthSignInFailureReason.EMAIL_ALREADY_IN_USE
         "ERROR_WEAK_PASSWORD" -> AuthSignInFailureReason.WEAK_PASSWORD
         "ERROR_USER_NOT_FOUND" -> AuthSignInFailureReason.USER_NOT_FOUND
         "ERROR_USER_DISABLED" -> AuthSignInFailureReason.USER_DISABLED

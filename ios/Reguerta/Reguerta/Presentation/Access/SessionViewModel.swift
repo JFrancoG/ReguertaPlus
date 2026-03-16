@@ -22,7 +22,6 @@ enum SessionMode: Equatable, Sendable {
     case authorized(AuthorizedSession)
 }
 
-@MainActor
 @Observable
 final class SessionViewModel {
     var emailInput = "" {
@@ -89,22 +88,28 @@ final class SessionViewModel {
         !isAuthenticating &&
             !normalizeEmail(emailInput).isEmpty &&
             normalizeEmail(emailInput).isValidEmail &&
-            !passwordInput.isEmpty
+            passwordInput.isValidPassword &&
+            emailErrorKey == nil &&
+            passwordErrorKey == nil
     }
 
     var canSubmitSignUp: Bool {
         !isRegistering &&
             !normalizeEmail(registerEmailInput).isEmpty &&
             normalizeEmail(registerEmailInput).isValidEmail &&
-            !registerPasswordInput.isEmpty &&
-            !registerRepeatPasswordInput.isEmpty &&
-            registerPasswordInput == registerRepeatPasswordInput
+            registerPasswordInput.isValidPassword &&
+            registerRepeatPasswordInput.isValidPassword &&
+            registerPasswordInput == registerRepeatPasswordInput &&
+            registerEmailErrorKey == nil &&
+            registerPasswordErrorKey == nil &&
+            registerRepeatPasswordErrorKey == nil
     }
 
     var canSubmitPasswordReset: Bool {
         !isRecoveringPassword &&
             !normalizeEmail(recoverEmailInput).isEmpty &&
-            normalizeEmail(recoverEmailInput).isValidEmail
+            normalizeEmail(recoverEmailInput).isValidEmail &&
+            recoverEmailErrorKey == nil
     }
 
     init(
@@ -141,7 +146,7 @@ final class SessionViewModel {
         }
 
         isAuthenticating = true
-        Task {
+        Task { @MainActor in
             let authResult = await authSessionProvider.signIn(email: email, password: password)
 
             switch authResult {
@@ -169,7 +174,7 @@ final class SessionViewModel {
         }
 
         isRegistering = true
-        Task {
+        Task { @MainActor in
             let authResult = await authSessionProvider.signUp(email: email, password: password)
 
             switch authResult {
@@ -223,11 +228,10 @@ final class SessionViewModel {
         }
 
         isRecoveringPassword = true
-        Task {
+        Task { @MainActor in
             let result = await authSessionProvider.sendPasswordReset(email: email)
             switch result {
             case .success:
-                recoverEmailInput = ""
                 feedbackMessageKey = AccessL10nKey.authInfoPasswordResetSent
             case .failure(let reason):
                 applyPasswordResetFailure(reason)
@@ -273,7 +277,7 @@ final class SessionViewModel {
             producerCatalogEnabled: true
         )
 
-        Task {
+        Task { @MainActor in
             await persistMember(target: member, session: session)
             memberDraft = MemberDraft()
         }
@@ -311,7 +315,7 @@ final class SessionViewModel {
             producerCatalogEnabled: target.producerCatalogEnabled
         )
 
-        Task {
+        Task { @MainActor in
             await persistMember(target: updated, session: session)
         }
     }
@@ -338,13 +342,37 @@ final class SessionViewModel {
             producerCatalogEnabled: target.producerCatalogEnabled
         )
 
-        Task {
+        Task { @MainActor in
             await persistMember(target: updated, session: session)
         }
     }
 
     func clearFeedbackMessage() {
         feedbackMessageKey = nil
+    }
+
+    func resetSignInDraft() {
+        emailInput = ""
+        passwordInput = ""
+        emailErrorKey = nil
+        passwordErrorKey = nil
+        isAuthenticating = false
+    }
+
+    func resetSignUpDraft() {
+        registerEmailInput = ""
+        registerPasswordInput = ""
+        registerRepeatPasswordInput = ""
+        registerEmailErrorKey = nil
+        registerPasswordErrorKey = nil
+        registerRepeatPasswordErrorKey = nil
+        isRegistering = false
+    }
+
+    func resetRecoverDraft() {
+        recoverEmailInput = ""
+        recoverEmailErrorKey = nil
+        isRecoveringPassword = false
     }
 
     private func validateSignInInputs(email: String, password: String) -> Bool {
@@ -360,6 +388,9 @@ final class SessionViewModel {
 
         if password.isEmpty {
             passwordErrorKey = AccessL10nKey.feedbackPasswordRequired
+            isValid = false
+        } else if !password.isValidPassword {
+            passwordErrorKey = AccessL10nKey.authErrorWeakPassword
             isValid = false
         }
 
@@ -380,10 +411,16 @@ final class SessionViewModel {
         if password.isEmpty {
             registerPasswordErrorKey = AccessL10nKey.feedbackPasswordRequired
             isValid = false
+        } else if !password.isValidPassword {
+            registerPasswordErrorKey = AccessL10nKey.authErrorWeakPassword
+            isValid = false
         }
 
         if repeatedPassword.isEmpty {
             registerRepeatPasswordErrorKey = AccessL10nKey.feedbackPasswordRepeatRequired
+            isValid = false
+        } else if !repeatedPassword.isValidPassword {
+            registerRepeatPasswordErrorKey = AccessL10nKey.authErrorWeakPassword
             isValid = false
         } else if repeatedPassword != password {
             registerRepeatPasswordErrorKey = AccessL10nKey.feedbackPasswordMismatch
@@ -481,6 +518,10 @@ private extension String {
             of: "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$",
             options: [.regularExpression, .caseInsensitive]
         ) != nil
+    }
+
+    var isValidPassword: Bool {
+        (6...16).contains(count)
     }
 }
 
