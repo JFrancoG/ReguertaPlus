@@ -11,14 +11,19 @@ struct ReguertaInputField: View {
     @Environment(\.reguertaTokens) private var tokens
     @FocusState private var isFocused: Bool
     @State private var isPasswordVisible = false
+    @State private var hasInteracted = false
 
     let label: LocalizedStringKey
     @Binding var text: String
     let placeholder: LocalizedStringKey?
     let helperMessage: LocalizedStringKey?
     let errorMessage: LocalizedStringKey?
+    let liveValidationMessage: LocalizedStringKey?
+    let liveValidation: ((String) -> Bool)?
+    let liveValidationMessageProvider: ((String) -> LocalizedStringKey?)?
     let isEnabled: Bool
     let isSecure: Bool
+    let sharedPasswordVisibility: Binding<Bool>?
     let showsClearAction: Bool
     let showsPasswordToggle: Bool
     let keyboardType: UIKeyboardType
@@ -31,8 +36,12 @@ struct ReguertaInputField: View {
         placeholder: LocalizedStringKey? = nil,
         helperMessage: LocalizedStringKey? = nil,
         errorMessage: LocalizedStringKey? = nil,
+        liveValidationMessage: LocalizedStringKey? = nil,
+        liveValidation: ((String) -> Bool)? = nil,
+        liveValidationMessageProvider: ((String) -> LocalizedStringKey?)? = nil,
         isEnabled: Bool = true,
         isSecure: Bool = false,
+        sharedPasswordVisibility: Binding<Bool>? = nil,
         showsClearAction: Bool = false,
         showsPasswordToggle: Bool = true,
         keyboardType: UIKeyboardType = .default,
@@ -44,8 +53,12 @@ struct ReguertaInputField: View {
         self.placeholder = placeholder
         self.helperMessage = helperMessage
         self.errorMessage = errorMessage
+        self.liveValidationMessage = liveValidationMessage
+        self.liveValidation = liveValidation
+        self.liveValidationMessageProvider = liveValidationMessageProvider
         self.isEnabled = isEnabled
         self.isSecure = isSecure
+        self.sharedPasswordVisibility = sharedPasswordVisibility
         self.showsClearAction = showsClearAction
         self.showsPasswordToggle = showsPasswordToggle
         self.keyboardType = keyboardType
@@ -53,11 +66,27 @@ struct ReguertaInputField: View {
         self.onTrailingTap = onTrailingTap
     }
 
+    private var effectiveErrorMessage: LocalizedStringKey? {
+        if let errorMessage { return errorMessage }
+        guard hasInteracted else { return nil }
+
+        if let liveValidationMessageProvider {
+            return liveValidationMessageProvider(text)
+        }
+
+        guard let liveValidation, let liveValidationMessage else { return nil }
+        return liveValidation(text) ? nil : liveValidationMessage
+    }
+
     private var visualState: ReguertaInputState {
         if !isEnabled { return .disabled }
-        if errorMessage != nil { return .error }
+        if effectiveErrorMessage != nil { return .error }
         if isFocused { return .focused }
         return .default
+    }
+
+    private var passwordVisibility: Bool {
+        sharedPasswordVisibility?.wrappedValue ?? isPasswordVisible
     }
 
     var body: some View {
@@ -75,7 +104,7 @@ struct ReguertaInputField: View {
                             .foregroundStyle(tokens.colors.textSecondary.opacity(0.65))
                             .opacity(text.isEmpty ? 1 : 0)
                     }
-                    if isSecure && !isPasswordVisible {
+                    if isSecure && !passwordVisibility {
                         SecureField("", text: $text)
                             .font(tokens.typography.body)
                             .disabled(!isEnabled)
@@ -99,14 +128,15 @@ struct ReguertaInputField: View {
 
                 if isSecure && showsPasswordToggle {
                     Button {
-                        isPasswordVisible.toggle()
+                        togglePasswordVisibility()
                     } label: {
-                        Image(systemName: isPasswordVisible ? "eye.slash" : "eye")
+                        Image(systemName: passwordVisibility ? "eye.slash" : "eye")
                             .foregroundStyle(tokens.colors.textSecondary)
+                            .frame(width: 24.resize, height: 24.resize)
                     }
                     .buttonStyle(.plain)
                     .disabled(!isEnabled)
-                    .accessibilityLabel(Text(isPasswordVisible ? "common.action.hide_password" : "common.action.show_password"))
+                    .accessibilityLabel(Text(passwordVisibility ? "common.action.hide_password" : "common.action.show_password"))
                 }
 
                 if showsClearAction && isEnabled && !text.isEmpty {
@@ -115,6 +145,8 @@ struct ReguertaInputField: View {
                     } label: {
                         Image(systemName: "xmark")
                             .foregroundStyle(tokens.colors.textSecondary)
+                            .frame(width: 24.resize, height: 24.resize)
+                            .offset(x: -1.resize)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(Text("common.action.clear"))
@@ -139,8 +171,8 @@ struct ReguertaInputField: View {
                 .fill(lineColor(for: visualState))
                 .frame(height: 1)
 
-            if let errorMessage {
-                Text(errorMessage)
+            if let effectiveErrorMessage {
+                Text(effectiveErrorMessage)
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.feedbackError)
             } else if let helperMessage {
@@ -149,6 +181,19 @@ struct ReguertaInputField: View {
                     .foregroundStyle(tokens.colors.textSecondary)
             }
         }
+        .onChange(of: isFocused) { _, focused in
+            if focused {
+                hasInteracted = true
+            }
+        }
+    }
+
+    private func togglePasswordVisibility() {
+        if let sharedPasswordVisibility {
+            sharedPasswordVisibility.wrappedValue.toggle()
+            return
+        }
+        isPasswordVisible.toggle()
     }
 
     private func lineColor(for state: ReguertaInputState) -> Color {

@@ -3,6 +3,7 @@ import SwiftUI
 enum ReguertaButtonVariant {
     case primary
     case secondary
+    case destructive
     case text
 }
 
@@ -14,6 +15,7 @@ struct ReguertaButton: View {
     let isEnabled: Bool
     let isLoading: Bool
     let fullWidth: Bool
+    let fixedWidth: CGFloat?
     let action: () -> Void
 
     init(
@@ -22,6 +24,7 @@ struct ReguertaButton: View {
         isEnabled: Bool = true,
         isLoading: Bool = false,
         fullWidth: Bool = true,
+        fixedWidth: CGFloat? = nil,
         action: @escaping () -> Void
     ) {
         self.title = title
@@ -29,6 +32,7 @@ struct ReguertaButton: View {
         self.isEnabled = isEnabled
         self.isLoading = isLoading
         self.fullWidth = fullWidth
+        self.fixedWidth = fixedWidth
         self.action = action
     }
 
@@ -50,6 +54,12 @@ struct ReguertaButton: View {
                 )
                 .foregroundStyle(tokens.colors.textPrimary)
                 .clipShape(Capsule())
+        case .destructive:
+            baseButton
+                .padding(.horizontal, fullWidth ? 0 : tokens.spacing.sm)
+                .background(destructiveBackground)
+                .foregroundStyle(destructiveForeground)
+                .clipShape(Capsule())
         case .text:
             baseButton.buttonStyle(.plain)
         }
@@ -60,12 +70,16 @@ struct ReguertaButton: View {
             HStack(spacing: tokens.spacing.sm) {
                 if isLoading {
                     ProgressView()
-                        .tint(variant == .primary ? primaryForeground : tokens.colors.actionPrimary)
+                        .tint(progressTint)
                 }
                 Text(title)
             }
-            .font(tokens.typography.titleCard)
-            .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: 52)
+            .font(fontStyle)
+            .frame(
+                maxWidth: fullWidth ? .infinity : nil,
+                minHeight: tokens.button.fullHeight
+            )
+            .frame(width: fixedWidth)
             .contentShape(Rectangle())
         }
         .disabled(!isEnabled || isLoading)
@@ -81,5 +95,39 @@ struct ReguertaButton: View {
         (isEnabled && !isLoading)
             ? tokens.colors.actionOnPrimary
             : tokens.colors.textSecondary
+    }
+
+    private var destructiveBackground: Color {
+        (isEnabled && !isLoading)
+            ? tokens.colors.feedbackError
+            : tokens.colors.surfaceSecondary
+    }
+
+    private var destructiveForeground: Color {
+        (isEnabled && !isLoading)
+            ? tokens.colors.actionOnPrimary
+            : tokens.colors.textSecondary
+    }
+
+    private var progressTint: Color {
+        switch variant {
+        case .primary:
+            primaryForeground
+        case .destructive:
+            destructiveForeground
+        case .secondary, .text:
+            tokens.colors.actionPrimary
+        }
+    }
+
+    private var fontStyle: Font {
+        switch variant {
+        case .primary, .destructive:
+            tokens.button.primaryFont
+        case .secondary:
+            tokens.button.secondaryFont
+        case .text:
+            tokens.button.textFont
+        }
     }
 }

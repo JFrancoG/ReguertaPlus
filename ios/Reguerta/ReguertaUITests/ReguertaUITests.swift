@@ -77,6 +77,28 @@ final class ReguertaUITests: XCTestCase {
     }
 
     @MainActor
+    func testInvalidCredentialsShowsInlineErrorWithoutCrash() throws {
+        let app = configuredApp()
+        let emailField = launchAndOpenLogin(app)
+
+        emailField.tap()
+        emailField.typeText("ana.admin@reguerta.app")
+
+        let passwordField = app.secureTextFields["Password"]
+        XCTAssertTrue(passwordField.waitForExistence(timeout: 5), "Password field not found")
+        passwordField.tap()
+        passwordField.typeText("wrong123")
+
+        app.buttons["Sign in"].tap()
+
+        XCTAssertTrue(
+            app.staticTexts["Incorrect email or password"].waitForExistence(timeout: 5),
+            "Invalid credentials inline error should be shown"
+        )
+        XCTAssertTrue(app.buttons["Sign in"].exists, "App should remain alive on invalid credentials")
+    }
+
+    @MainActor
     func testLaunchPerformance() throws {
         // This measures how long it takes to launch your application.
         measure(metrics: [XCTApplicationLaunchMetric()]) {

@@ -65,6 +65,7 @@ data class SessionUiState(
     val recoverEmailInput: String = "",
     @param:StringRes val recoverEmailErrorRes: Int? = null,
     val isRecoveringPassword: Boolean = false,
+    val showRecoverSuccessDialog: Boolean = false,
     val mode: SessionMode = SessionMode.SignedOut,
     val memberDraft: MemberDraft = MemberDraft(),
 )
@@ -86,25 +87,53 @@ class SessionViewModel(
     val uiEvents: SharedFlow<SessionUiEvent> = _uiEvents.asSharedFlow()
 
     fun onEmailChanged(value: String) {
-        _uiState.update { it.copy(emailInput = value, emailErrorRes = null) }
+        _uiState.update {
+            it.copy(
+                emailInput = value,
+                emailErrorRes = null,
+                passwordErrorRes = null,
+            )
+        }
     }
 
     fun onPasswordChanged(value: String) {
-        _uiState.update { it.copy(passwordInput = value, passwordErrorRes = null) }
+        _uiState.update {
+            it.copy(
+                passwordInput = value,
+                emailErrorRes = null,
+                passwordErrorRes = null,
+            )
+        }
     }
 
     fun onRegisterEmailChanged(value: String) {
-        _uiState.update { it.copy(registerEmailInput = value, registerEmailErrorRes = null) }
+        _uiState.update {
+            it.copy(
+                registerEmailInput = value,
+                registerEmailErrorRes = null,
+                registerPasswordErrorRes = null,
+                registerRepeatPasswordErrorRes = null,
+            )
+        }
     }
 
     fun onRegisterPasswordChanged(value: String) {
-        _uiState.update { it.copy(registerPasswordInput = value, registerPasswordErrorRes = null) }
+        _uiState.update {
+            it.copy(
+                registerPasswordInput = value,
+                registerEmailErrorRes = null,
+                registerPasswordErrorRes = null,
+                registerRepeatPasswordErrorRes = null,
+            )
+        }
     }
 
     fun onRegisterRepeatPasswordChanged(value: String) {
         _uiState.update {
             it.copy(
                 registerRepeatPasswordInput = value,
+                registerEmailErrorRes = null,
+                registerPasswordErrorRes = null,
                 registerRepeatPasswordErrorRes = null,
             )
         }
@@ -112,6 +141,47 @@ class SessionViewModel(
 
     fun onRecoverEmailChanged(value: String) {
         _uiState.update { it.copy(recoverEmailInput = value, recoverEmailErrorRes = null) }
+    }
+
+    fun clearLoginForm() {
+        _uiState.update {
+            it.copy(
+                emailInput = "",
+                passwordInput = "",
+                emailErrorRes = null,
+                passwordErrorRes = null,
+                isAuthenticating = false,
+            )
+        }
+    }
+
+    fun clearRegisterForm() {
+        _uiState.update {
+            it.copy(
+                registerEmailInput = "",
+                registerPasswordInput = "",
+                registerRepeatPasswordInput = "",
+                registerEmailErrorRes = null,
+                registerPasswordErrorRes = null,
+                registerRepeatPasswordErrorRes = null,
+                isRegistering = false,
+            )
+        }
+    }
+
+    fun clearRecoverForm() {
+        _uiState.update {
+            it.copy(
+                recoverEmailInput = "",
+                recoverEmailErrorRes = null,
+                isRecoveringPassword = false,
+                showRecoverSuccessDialog = false,
+            )
+        }
+    }
+
+    fun dismissRecoverSuccessDialog() {
+        _uiState.update { it.copy(showRecoverSuccessDialog = false) }
     }
 
     fun signIn() {
@@ -124,7 +194,11 @@ class SessionViewModel(
             !email.matches(EmailPatternRegex) -> R.string.feedback_email_invalid
             else -> null
         }
-        val passwordErrorRes = if (password.isBlank()) R.string.feedback_password_required else null
+        val passwordErrorRes = when {
+            password.isBlank() -> R.string.feedback_password_required
+            !password.isValidPassword() -> R.string.feedback_password_invalid_length
+            else -> null
+        }
 
         if (emailErrorRes != null || passwordErrorRes != null) {
             _uiState.update {
@@ -175,15 +249,19 @@ class SessionViewModel(
                         reason = authResult.reason,
                         flow = AuthErrorFlow.SIGN_IN,
                     )
+                    val fallbackEmailErrorRes = when {
+                        mappedError.emailErrorRes != null -> null
+                        mappedError.passwordErrorRes != null -> null
+                        mappedError.globalMessageRes != null -> mappedError.globalMessageRes
+                        else -> R.string.auth_error_unknown
+                    }
                     _uiState.update {
                         it.copy(
                             isAuthenticating = false,
-                            emailErrorRes = mappedError.emailErrorRes,
+                            emailErrorRes = mappedError.emailErrorRes ?: fallbackEmailErrorRes,
                             passwordErrorRes = mappedError.passwordErrorRes,
                         )
                     }
-
-                    mappedError.globalMessageRes?.let(::emitMessage)
                 }
             }
         }
@@ -200,9 +278,14 @@ class SessionViewModel(
             !email.matches(EmailPatternRegex) -> R.string.feedback_email_invalid
             else -> null
         }
-        val passwordErrorRes = if (password.isBlank()) R.string.feedback_password_required else null
+        val passwordErrorRes = when {
+            password.isBlank() -> R.string.feedback_password_required
+            !password.isValidPassword() -> R.string.feedback_password_invalid_length
+            else -> null
+        }
         val repeatedPasswordErrorRes = when {
             repeatedPassword.isBlank() -> R.string.feedback_password_repeat_required
+            !repeatedPassword.isValidPassword() -> R.string.feedback_password_invalid_length
             repeatedPassword != password -> R.string.feedback_password_mismatch
             else -> null
         }
@@ -270,15 +353,19 @@ class SessionViewModel(
                         reason = authResult.reason,
                         flow = AuthErrorFlow.SIGN_UP,
                     )
+                    val fallbackEmailErrorRes = when {
+                        mappedError.emailErrorRes != null -> null
+                        mappedError.passwordErrorRes != null -> null
+                        mappedError.globalMessageRes != null -> mappedError.globalMessageRes
+                        else -> R.string.auth_error_register_generic
+                    }
                     _uiState.update {
                         it.copy(
                             isRegistering = false,
-                            registerEmailErrorRes = mappedError.emailErrorRes,
+                            registerEmailErrorRes = mappedError.emailErrorRes ?: fallbackEmailErrorRes,
                             registerPasswordErrorRes = mappedError.passwordErrorRes,
                         )
                     }
-
-                    mappedError.globalMessageRes?.let(::emitMessage)
                 }
             }
         }
@@ -307,9 +394,10 @@ class SessionViewModel(
                         it.copy(
                             isRecoveringPassword = false,
                             recoverEmailInput = "",
+                            recoverEmailErrorRes = null,
+                            showRecoverSuccessDialog = true,
                         )
                     }
-                    emitMessage(R.string.auth_info_password_reset_sent)
                 }
 
                 is AuthPasswordResetResult.Failure -> {
@@ -317,13 +405,13 @@ class SessionViewModel(
                         reason = result.reason,
                         flow = AuthErrorFlow.PASSWORD_RESET,
                     )
+                    val fallbackEmailErrorRes = mappedError.globalMessageRes ?: R.string.auth_error_recover_generic
                     _uiState.update {
                         it.copy(
                             isRecoveringPassword = false,
-                            recoverEmailErrorRes = mappedError.emailErrorRes,
+                            recoverEmailErrorRes = mappedError.emailErrorRes ?: fallbackEmailErrorRes,
                         )
                     }
-                    mappedError.globalMessageRes?.let(::emitMessage)
                 }
             }
         }
@@ -348,6 +436,7 @@ class SessionViewModel(
                 recoverEmailInput = "",
                 recoverEmailErrorRes = null,
                 isRecoveringPassword = false,
+                showRecoverSuccessDialog = false,
                 memberDraft = MemberDraft(),
             )
         }
@@ -495,3 +584,7 @@ class SessionViewModel(
 }
 
 private val EmailPatternRegex = "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$".toRegex(setOf(RegexOption.IGNORE_CASE))
+private const val PasswordMinLength = 6
+private const val PasswordMaxLength = 16
+
+private fun String.isValidPassword(): Boolean = length in PasswordMinLength..PasswordMaxLength
