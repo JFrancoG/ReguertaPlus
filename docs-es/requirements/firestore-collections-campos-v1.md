@@ -213,10 +213,13 @@ Regla: lectura para socios autenticados; escritura solo propietario o admin.
 | `ecoBasketOption` | string\|null | no | si | `pickup` o `no_pickup` cuando `isEcoBasket = true` |
 | `isCommonPurchase` | bool | si | si | Marca compra comun |
 | `commonPurchaseType` | string\|null | no | si | `seasonal`/`spot` |
-| `seasonKey` | string\|null | no | si | Ej. `2026-mango` |
 | `archived` | bool | si | admin/productor | Borrado logico |
 | `createdAt` | timestamp | si | no | |
 | `updatedAt` | timestamp | si | sistema | |
+
+Nota de modelado:
+- `products` debe mantenerse como catalogo estable sin atarlo a una campaña o año concreto.
+- La temporalidad pertenece a `seasonalCommitments` y, si hiciera falta mas adelante, a una futura entidad de campañas.
 
 ## 4.4 `orders/{orderId}`
 

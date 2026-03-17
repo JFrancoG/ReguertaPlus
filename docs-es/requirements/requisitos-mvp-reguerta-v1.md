@@ -107,6 +107,7 @@ Fuera de MVP (fase posterior):
 - `RF-CAT-11` Los productos de ecocesta deben declarar `ecoBasketOption` (`pickup` o `no_pickup`) para evitar logica por texto libre.
 - `RF-CAT-12` El precio de producto ecocesta no puede divergir por opcion ni por productor par/impar.
 - `RF-CAT-13` La visibilidad en listado debe combinar estado de productor y producto: `producerCatalogEnabled == true`, `isAvailable == true` y `archived == false`.
+- `RF-CAT-14` `products` debe mantenerse ajeno a temporadas concretas; el seguimiento anual o por campaña pertenece a `seasonalCommitments`, no al documento de producto.
 
 ### 3.6 Perfil compartido y lista de socios
 

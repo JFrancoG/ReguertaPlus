@@ -61,6 +61,7 @@ Legacy-rich `orderlines` fields are already present and should be preserved unti
 - Keep `products.productImageUrl` as canonical image source for product cards/details.
 - Use `users.producerCatalogEnabled` as producer-level catalog visibility switch and keep `products.isAvailable` as product-level availability.
 - Keep producer classification explicit in `users` with `producerParity` (`even`|`odd`|`null`) and `isCommonPurchaseManager` (boolean), instead of adding extra role values.
+- Keep `products` season-agnostic; yearly or campaign-specific seasonality belongs in `seasonalCommitments`, with a separate campaign entity only if later needed.
 - Use hybrid calendar resolution: default day in `config/global.deliveryDayOfWeek` + week overrides in `deliveryCalendar/{weekKey}`.
 - Keep schema extension points for weighted products (`pricingMode = weight` with single `price`) to avoid future breaking migrations.
 - Use explicit eco-basket option values (`pickup`, `no_pickup`) instead of free-text naming conventions.

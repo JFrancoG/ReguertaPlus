@@ -123,10 +123,13 @@ Subcollection `users/{userId}/devices/{deviceId}`:
 - `ecoBasketOption`: string|null (`pickup`|`no_pickup`|null)
 - `isCommonPurchase`: bool (required)
 - `commonPurchaseType`: string|null
-- `seasonKey`: string|null
 - `archived`: bool (required)
 - `createdAt`: timestamp (required)
 - `updatedAt`: timestamp (required)
+
+Modeling note:
+- `products` must remain season-agnostic stable catalog entities.
+- Seasonal lifecycle belongs in `seasonalCommitments` (and future campaign entities if needed), not in `products`.
 
 ### 4.4 `orders/{orderId}`
 

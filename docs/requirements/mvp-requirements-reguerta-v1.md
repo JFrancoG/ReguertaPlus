@@ -107,6 +107,7 @@ Out of MVP (later phase):
 - RF-CAT-11 Eco-basket products must declare `ecoBasketOption` (`pickup` or `no_pickup`) to avoid string-based logic.
 - RF-CAT-12 Eco-basket product price cannot diverge by option or parity producer.
 - RF-CAT-13 Product listing visibility must combine producer and product states: `producerCatalogEnabled == true`, `isAvailable == true`, and `archived == false`.
+- RF-CAT-14 `products` must remain season-agnostic; seasonal/yearly tracking belongs in `seasonalCommitments`, not in the product document.
 
 ### 3.6 Shared profile and member list
 
