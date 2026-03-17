@@ -104,7 +104,7 @@ Fuera de MVP (fase posterior):
 - `RF-CAT-08` El formulario de producto soporta seleccion/recorte/subida de imagen y persistencia de URL en Storage.
 - `RF-CAT-09` (Post-MVP) El sistema debe soportar productos a granel con `pricingMode = weight`, `price` unico y cantidad decimal de peso introducida por el socio.
 - `RF-CAT-10` El modelo de producto debe incluir `unitAbbreviation` y `packContainerAbbreviation` para UIs compactas.
-- `RF-CAT-11` Los productos de ecocesta deben declarar `ecoBasketOption` (`pickup` o `no_pickup`) para evitar logica por texto libre.
+- `RF-CAT-11` La eleccion de recogida de ecocesta debe guardarse en la linea de pedido como `ecoBasketOptionAtOrder` (`pickup` o `no_pickup`), no en el documento de producto.
 - `RF-CAT-12` El precio de producto ecocesta no puede divergir por opcion ni por productor par/impar.
 - `RF-CAT-13` La visibilidad en listado debe combinar estado de productor y producto: `producerCatalogEnabled == true`, `isAvailable == true` y `archived == false`.
 - `RF-CAT-14` `products` debe mantenerse ajeno a temporadas concretas; el seguimiento anual o por campaña pertenece a `seasonalCommitments`, no al documento de producto.

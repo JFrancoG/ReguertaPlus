@@ -104,7 +104,7 @@ Out of MVP (later phase):
 - RF-CAT-08 Product form supports image select/crop/upload and persisted Storage URL.
 - RF-CAT-09 (Post-MVP) System must support weighted products with `pricingMode = weight`, single `price`, and member-entered decimal weight quantity.
 - RF-CAT-10 Product model must include `unitAbbreviation` and `packContainerAbbreviation` for compact UI use.
-- RF-CAT-11 Eco-basket products must declare `ecoBasketOption` (`pickup` or `no_pickup`) to avoid string-based logic.
+- RF-CAT-11 Eco-basket pickup choice must be captured on the order line as `ecoBasketOptionAtOrder` (`pickup` or `no_pickup`), not on the product document.
 - RF-CAT-12 Eco-basket product price cannot diverge by option or parity producer.
 - RF-CAT-13 Product listing visibility must combine producer and product states: `producerCatalogEnabled == true`, `isAvailable == true`, and `archived == false`.
 - RF-CAT-14 `products` must remain season-agnostic; seasonal/yearly tracking belongs in `seasonalCommitments`, not in the product document.

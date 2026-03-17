@@ -73,7 +73,7 @@ Definir de forma cerrada las colecciones Firestore y los campos de cada una para
 - `fixed`
 - `weight`
 
-### 3.6.c Opcion ecocesta (`products.ecoBasketOption`)
+### 3.6.c Opcion ecocesta en pedido (`orderlines.ecoBasketOptionAtOrder`)
 - `pickup`
 - `no_pickup`
 - `null`
@@ -210,7 +210,6 @@ Regla: lectura para socios autenticados; escritura solo propietario o admin.
 | `stockMode` | string | si | si | `finite` o `infinite` |
 | `stockQty` | number\|null | no | si | Requerido si `finite` |
 | `isEcoBasket` | bool | si | si | Marca ecocesta |
-| `ecoBasketOption` | string\|null | no | si | `pickup` o `no_pickup` cuando `isEcoBasket = true` |
 | `isCommonPurchase` | bool | si | si | Marca compra comun |
 | `commonPurchaseType` | string\|null | no | si | `seasonal`/`spot` |
 | `archived` | bool | si | admin/productor | Borrado logico |
@@ -220,6 +219,7 @@ Regla: lectura para socios autenticados; escritura solo propietario o admin.
 Nota de modelado:
 - `products` debe mantenerse como catalogo estable sin atarlo a una campaña o año concreto.
 - La temporalidad pertenece a `seasonalCommitments` y, si hiciera falta mas adelante, a una futura entidad de campañas.
+- La eleccion `pickup`/`no_pickup` no es atributo de producto; pertenece a la linea de pedido semanal.
 
 ## 4.4 `orders/{orderId}`
 
@@ -504,9 +504,9 @@ Nota de migracion:
   - ecocesta semanal/bisemanal,
   - compromisos de temporada activos.
 - La cantidad minima de ecocesta es una regla fija (=1) y no se modela como campo por socio.
-- Si `products.isEcoBasket == true`, `products.ecoBasketOption` es obligatorio y solo admite `pickup` o `no_pickup`.
-- `ecoBasketOption = no_pickup` significa que se paga igualmente, pero el productor no la prepara para recogida.
-- Todos los productos de ecocesta activos deben compartir el mismo `price`, sin diferencias por `ecoBasketOption` (`pickup`/`no_pickup`) ni por productor par/impar.
+- Si existe una linea de ecocesta, `orderlines.ecoBasketOptionAtOrder` puede ser `pickup` o `no_pickup`.
+- `ecoBasketOptionAtOrder = no_pickup` significa que se paga igualmente, pero el productor no la prepara para recogida.
+- Todos los productos de ecocesta activos deben compartir el mismo `price`, sin diferencias por `orderlines.ecoBasketOptionAtOrder` (`pickup`/`no_pickup`) ni por productor par/impar.
 - Socio con `isActive == false` queda excluido de:
   - recordatorios por olvido,
   - auto-generacion de pedido por olvido,

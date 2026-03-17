@@ -64,7 +64,7 @@ Acceptance criteria:
 - `vendorId` cannot be changed after product creation.
 - Stock can be set by direct input and extended/infinite mode.
 - Product edition supports `unitAbbreviation` and `packContainerAbbreviation`.
-- Eco-basket products explicitly declare `ecoBasketOption` (`pickup` or `no_pickup`).
+- Eco-basket products remain a single catalog product; `pickup` or `no_pickup` is chosen later on the order line.
 - Eco-basket product pricing is constrained to the shared eco-basket price used by both parity producers and both pickup options.
 
 ### HU-008 View received orders

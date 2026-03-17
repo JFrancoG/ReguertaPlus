@@ -64,7 +64,7 @@ Legacy-rich `orderlines` fields are already present and should be preserved unti
 - Keep `products` season-agnostic; yearly or campaign-specific seasonality belongs in `seasonalCommitments`, with a separate campaign entity only if later needed.
 - Use hybrid calendar resolution: default day in `config/global.deliveryDayOfWeek` + week overrides in `deliveryCalendar/{weekKey}`.
 - Keep schema extension points for weighted products (`pricingMode = weight` with single `price`) to avoid future breaking migrations.
-- Use explicit eco-basket option values (`pickup`, `no_pickup`) instead of free-text naming conventions.
+- Use explicit eco-basket option values (`pickup`, `no_pickup`) on order lines instead of free-text naming conventions.
 - Avoid over-normalization in MVP.
 - Add new collections only for missing critical capabilities.
 
@@ -151,7 +151,7 @@ Delivery calendar scope:
 
 Phase 1:
 - Keep current collections.
-- Add optional fields gradually, including `users.emailNormalized`, nullable `users.authUid`, `users.lastDeviceId`, `users.producerParity`, `users.isCommonPurchaseManager`, `products.unitAbbreviation`, `products.packContainerAbbreviation`, and `products.ecoBasketOption`.
+- Add optional fields gradually, including `users.emailNormalized`, nullable `users.authUid`, `users.lastDeviceId`, `users.producerParity`, `users.isCommonPurchaseManager`, `products.unitAbbreviation`, and `products.packContainerAbbreviation`.
 - Keep/align `users/{userId}/devices/{deviceId}` as canonical source for per-device metadata.
 - Keep/align environment-scoped `config/global` contract based on current fields:
   - `cacheExpirationMinutes`
@@ -163,7 +163,7 @@ Phase 1:
 Phase 2:
 - Introduce new collections (`deliveryCalendar`, `seasonalCommitments`, `sharedProfiles`, `shifts`, `shiftSwapRequests`, `news`).
 - Add commitment validations.
-- Include eco-basket `no_pickup` as a paid commitment-valid option.
+- Include eco-basket `no_pickup` as a paid commitment-valid option on order lines.
 - Enforce single eco-basket price across parity producers and pickup options (`pickup`/`no_pickup`).
 
 Phase 3:

@@ -64,7 +64,7 @@ Criterios de aceptación:
 - Dado un producto existente, cuando intento cambiar `vendorId`, entonces el sistema no lo permite.
 - Dado un producto de disponibilidad continua, cuando edito stock, entonces puedo introducir valor directo o modo extendido/infinito.
 - Dado la edicion de producto, cuando guardo unidad/pack, entonces puedo persistir `unitAbbreviation` y `packContainerAbbreviation`.
-- Dado un producto de ecocesta, cuando se configura, entonces debe declararse `ecoBasketOption` (`pickup` o `no_pickup`).
+- Dado un producto de ecocesta, cuando se configura, entonces sigue siendo un unico producto de catalogo y la eleccion `pickup` o `no_pickup` se hace en la linea de pedido.
 - Dado un producto de ecocesta, cuando se define precio, entonces queda alineado al precio comun de ecocesta (sin diferencias por opcion ni paridad).
 
 ### HU-008 Consultar pedidos recibidos
