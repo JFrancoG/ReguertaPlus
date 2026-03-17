@@ -56,6 +56,8 @@ Fuera de MVP (fase posterior):
 - `RF-ROL-06` Un admin debe dar de alta/preautorizar al socio en `users` con su email antes del primer acceso operativo.
 - `RF-ROL-07` Si un usuario autenticado usa un email no preautorizado, la app muestra alerta `Usuario no autorizado` y mantiene deshabilitados los módulos operativos hasta alta/autorización admin.
 - `RF-ROL-08` Si el email autenticado está preautorizado, en el primer login/registro se enlaza la identidad auth con la ficha del socio y se accede a home.
+- `RF-ROL-09` La clasificacion de productor debe persistirse en `users.producerParity` (`even`|`odd`|`null`) cuando aplique.
+- `RF-ROL-10` La capacidad de encargado de compras comunes debe representarse con `users.isCommonPurchaseManager` (booleano) sin introducir valores extra en `roles`.
 
 ### 3.2 Estado del socio y compromisos
 

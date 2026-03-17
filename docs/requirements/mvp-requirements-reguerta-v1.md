@@ -56,6 +56,8 @@ Out of MVP (later phase):
 - RF-ROL-06 Admin must pre-register a member in `users` with authorized email before first operational access.
 - RF-ROL-07 If authenticated email is not in the authorized member list, app shows `Unauthorized user` alert and keeps all operational modules disabled until admin authorization exists.
 - RF-ROL-08 If authenticated email is authorized, first login/register links auth identity to that member record and routes user to home.
+- RF-ROL-09 Producer member classification must be persisted with `users.producerParity` (`even`|`odd`|`null`) when applicable.
+- RF-ROL-10 Common-purchase manager capability must be represented by `users.isCommonPurchaseManager` (boolean) and must not introduce extra role values.
 
 ### 3.2 Member state and commitments
 

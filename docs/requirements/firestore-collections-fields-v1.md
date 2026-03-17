@@ -34,6 +34,7 @@ Define collections and fields as a closed contract so Android, iOS, and backend 
 - Producer status: `unread`, `read`, `prepared`, `delivered`
 - Eco commitment mode: `weekly`, `biweekly`
 - Eco parity: `even`, `odd`, `null`
+- Producer parity: `even`, `odd`, `null`
 - Product stock mode: `finite`, `infinite`
 - Product pricing mode: `fixed`, `weight`
 - Eco basket option: `pickup`, `no_pickup`, `null`
@@ -64,6 +65,8 @@ Path prefixes for every collection below:
 - `roles`: array<string> (required)
 - `isActive`: bool (required)
 - `producerCatalogEnabled`: bool (required, default `true`; producer business flag for catalog visibility)
+- `producerParity`: string|null (`even`|`odd`|null) (producer classification for fixed parity producer assignment)
+- `isCommonPurchaseManager`: bool (required, default `false`; identifies members acting as common-purchase managers)
 - `ecoCommitment`: map
   - `mode`: string (`weekly`|`biweekly`)
   - `parity`: string|null (`even`|`odd`|null)
@@ -353,6 +356,8 @@ Migration note:
 - `users.roles` includes at least `member` for active members.
 - `users.emailNormalized` must be unique across active member records.
 - `users.producerCatalogEnabled` must be boolean and must not be stored in `users.settings`.
+- `users.producerParity` must be `even`, `odd`, or `null`.
+- `users.isCommonPurchaseManager` must be boolean.
 - Firebase-authenticated access is operationally authorized only when a `users` record exists with matching `emailNormalized` and `isActive == true`.
 - On first authorized login, if `users.authUid` is null it is linked to the authenticated UID; if already set, it must match authenticated UID.
 - If no authorized `users` record exists for authenticated email, app must show unauthorized alert and block operational actions.

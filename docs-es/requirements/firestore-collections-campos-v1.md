@@ -60,6 +60,11 @@ Definir de forma cerrada las colecciones Firestore y los campos de cada una para
 - `odd`
 - `null` (si no aplica)
 
+### 3.5.b Paridad de productor (`users.producerParity`)
+- `even`
+- `odd`
+- `null` (si no aplica)
+
 ### 3.6 Stock de producto (`products.stockMode`)
 - `finite`
 - `infinite`
@@ -143,6 +148,8 @@ Prefijos de ruta para cada coleccion descrita abajo:
 | `roles` | array<string> | si | admin | `member`, `producer`, `admin` |
 | `isActive` | bool | si | admin | Alta/baja operativa |
 | `producerCatalogEnabled` | bool | si | productor/admin | Flag de negocio del productor para visibilidad de su catalogo (por defecto `true`) |
+| `producerParity` | string\|null | no | admin | `even` / `odd` / `null`; clasifica productores de ecocesta por paridad fija |
+| `isCommonPurchaseManager` | bool | si | admin | Marca si el socio gestiona compras comunes |
 | `ecoCommitment.mode` | string | si | admin | `weekly` o `biweekly` |
 | `ecoCommitment.parity` | string\|null | no | admin | `even` / `odd` si biweekly |
 | `settings.theme` | string | si | usuario | `light`/`dark`/`system` |
@@ -463,6 +470,8 @@ Nota de migracion:
 - `users.roles` debe contener siempre al menos `member` para socios activos.
 - `users.emailNormalized` debe ser unico entre socios activos.
 - `users.producerCatalogEnabled` debe ser booleano y no debe guardarse dentro de `users.settings`.
+- `users.producerParity` debe ser `even`, `odd` o `null`.
+- `users.isCommonPurchaseManager` debe ser booleano.
 - Un usuario autenticado solo tiene acceso operativo si existe `users` con `emailNormalized` coincidente e `isActive == true`.
 - En primer login autorizado, si `users.authUid` es `null`, se enlaza con UID autenticado; si ya existe, debe coincidir.
 - Si no existe socio preautorizado para el email autenticado, la app debe mostrar alerta de no autorizado y bloquear acciones operativas.
