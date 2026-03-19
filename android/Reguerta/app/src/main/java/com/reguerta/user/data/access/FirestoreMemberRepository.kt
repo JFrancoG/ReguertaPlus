@@ -4,6 +4,9 @@ import com.google.android.gms.tasks.Tasks
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.QuerySnapshot
+import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
+import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
+import com.reguerta.user.data.firestore.ReguertaFirestorePath
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRepository
 import com.reguerta.user.domain.access.MemberRole
@@ -12,10 +15,12 @@ import kotlinx.coroutines.withContext
 
 class FirestoreMemberRepository(
     private val firestore: FirebaseFirestore,
-    private val env: String = "develop",
+    private val environment: ReguertaFirestoreEnvironment = ReguertaFirestoreEnvironment.DEVELOP,
 ) : MemberRepository {
+    private val firestorePath = ReguertaFirestorePath(environment = environment)
+
     private val usersCollectionPath: String
-        get() = "$env/collections/users"
+        get() = firestorePath.collectionPath(ReguertaFirestoreCollection.USERS)
 
     override suspend fun findByEmailNormalized(emailNormalized: String): Member? = withContext(Dispatchers.IO) {
         runCatching {

@@ -2,6 +2,10 @@ package com.reguerta.user.data.startup
 
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.firestore.FirebaseFirestore
+import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
+import com.reguerta.user.data.firestore.ReguertaFirestoreDocument
+import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
+import com.reguerta.user.data.firestore.ReguertaFirestorePath
 import com.reguerta.user.domain.startup.StartupPlatform
 import com.reguerta.user.domain.startup.StartupVersionPolicy
 import com.reguerta.user.domain.startup.StartupVersionPolicyRepository
@@ -10,17 +14,20 @@ import kotlinx.coroutines.withContext
 
 class FirestoreStartupVersionPolicyRepository(
     private val firestore: FirebaseFirestore,
-    private val env: String = "develop",
+    private val environment: ReguertaFirestoreEnvironment = ReguertaFirestoreEnvironment.DEVELOP,
 ) : StartupVersionPolicyRepository {
-    private val configCollectionPath: String
-        get() = "$env/collections/config"
+    private val firestorePath = ReguertaFirestorePath(environment = environment)
+
+    private val globalConfigDocumentPath: String
+        get() = firestorePath.documentPath(
+            collection = ReguertaFirestoreCollection.CONFIG,
+            documentId = ReguertaFirestoreDocument.GLOBAL.wireValue,
+        )
 
     override suspend fun getPolicy(platform: StartupPlatform): StartupVersionPolicy? = withContext(Dispatchers.IO) {
         runCatching {
             val snapshot = Tasks.await(
-                firestore.collection(configCollectionPath)
-                    .document("global")
-                    .get(),
+                firestore.document(globalConfigDocumentPath).get(),
             )
 
             val versions = snapshot.get("versions") as? Map<*, *> ?: return@runCatching null

@@ -3,15 +3,18 @@ import FirebaseFirestore
 
 final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
     private let db: Firestore
-    private let env: String
+    private let environment: ReguertaFirestoreEnvironment
 
-    init(db: Firestore = Firestore.firestore(), env: String = "develop") {
+    init(
+        db: Firestore = Firestore.firestore(),
+        environment: ReguertaFirestoreEnvironment = .develop
+    ) {
         self.db = db
-        self.env = env
+        self.environment = environment
     }
 
     private var usersCollection: CollectionReference {
-        db.collection("\(env)/collections/users")
+        db.reguertaCollection(.users, environment: environment)
     }
 
     func findByEmailNormalized(_ emailNormalized: String) async -> Member? {
