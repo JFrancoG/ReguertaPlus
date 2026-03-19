@@ -3,18 +3,20 @@ import FirebaseFirestore
 
 final class FirestoreStartupVersionPolicyRepository: @unchecked Sendable, StartupVersionPolicyRepository {
     private let db: Firestore
-    private let env: String
+    private let environment: ReguertaFirestoreEnvironment
 
-    init(db: Firestore = Firestore.firestore(), env: String = "develop") {
+    init(
+        db: Firestore = Firestore.firestore(),
+        environment: ReguertaFirestoreEnvironment = .develop
+    ) {
         self.db = db
-        self.env = env
+        self.environment = environment
     }
 
     func policy(for platform: StartupPlatform) async -> StartupVersionPolicy? {
         do {
             let snapshot = try await db
-                .collection("\(env)/collections/config")
-                .document("global")
+                .reguertaDocument(.global, in: .config, environment: environment)
                 .getDocument()
 
             guard let data = snapshot.data(),
