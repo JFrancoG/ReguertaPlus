@@ -67,9 +67,12 @@ import com.reguerta.user.data.access.ChainedMemberRepository
 import com.reguerta.user.data.access.FirebaseAuthSessionProvider
 import com.reguerta.user.data.access.FirestoreMemberRepository
 import com.reguerta.user.data.access.InMemoryMemberRepository
+import com.reguerta.user.data.freshness.DataStoreCriticalDataFreshnessLocalRepository
+import com.reguerta.user.data.freshness.FirestoreCriticalDataFreshnessRemoteRepository
 import com.reguerta.user.data.startup.FirestoreStartupVersionPolicyRepository
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
+import com.reguerta.user.domain.freshness.ResolveCriticalDataFreshnessUseCase
 import com.reguerta.user.domain.access.ResolveAuthorizedSessionUseCase
 import com.reguerta.user.domain.access.UnauthorizedReason
 import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
@@ -97,10 +100,14 @@ private val LoginEmailPatternRegex =
 
 @Composable
 fun rememberSessionViewModel(): SessionViewModel {
+    val context = LocalContext.current
     val repository = remember {
         val fallback = InMemoryMemberRepository()
         val primary = FirestoreMemberRepository(firestore = FirebaseFirestore.getInstance())
         ChainedMemberRepository(primary = primary, fallback = fallback)
+    }
+    val freshnessLocalRepository = remember(context) {
+        DataStoreCriticalDataFreshnessLocalRepository(context.applicationContext)
     }
     return remember {
         SessionViewModel(
@@ -108,6 +115,13 @@ fun rememberSessionViewModel(): SessionViewModel {
             authSessionProvider = FirebaseAuthSessionProvider(auth = FirebaseAuth.getInstance()),
             resolveAuthorizedSession = ResolveAuthorizedSessionUseCase(memberRepository = repository),
             upsertMemberByAdmin = UpsertMemberByAdminUseCase(memberRepository = repository),
+            resolveCriticalDataFreshness = ResolveCriticalDataFreshnessUseCase(
+                remoteRepository = FirestoreCriticalDataFreshnessRemoteRepository(
+                    firestore = FirebaseFirestore.getInstance(),
+                ),
+                localRepository = freshnessLocalRepository,
+            ),
+            criticalDataFreshnessLocalRepository = freshnessLocalRepository,
         )
     }
 }
@@ -229,11 +243,13 @@ fun ReguertaRoot(
             ) {
                 HomeRoute(
                     mode = state.mode,
+                    myOrderFreshnessState = state.myOrderFreshnessState,
                     draft = state.memberDraft,
                     onDraftChanged = viewModel::onMemberDraftChanged,
                     onToggleAdmin = viewModel::toggleAdmin,
                     onToggleActive = viewModel::toggleActive,
                     onCreateMember = viewModel::createAuthorizedMember,
+                    onRetryMyOrderFreshness = viewModel::refreshMyOrderFreshness,
                     onSignOut = {
                         viewModel.signOut()
                         shellState = reduceAuthShell(
@@ -786,11 +802,13 @@ private fun RecoverPasswordCard(
 @Composable
 private fun HomeRoute(
     mode: SessionMode,
+    myOrderFreshnessState: MyOrderFreshnessUiState,
     draft: MemberDraft,
     onDraftChanged: (MemberDraft) -> Unit,
     onToggleAdmin: (String) -> Unit,
     onToggleActive: (String) -> Unit,
     onCreateMember: () -> Unit,
+    onRetryMyOrderFreshness: () -> Unit,
     onSignOut: () -> Unit,
 ) {
     Card {
@@ -815,17 +833,23 @@ private fun HomeRoute(
     when (mode) {
         is SessionMode.Unauthorized -> {
             UnauthorizedCard(mode = mode)
-            OperationalModules(enabled = false)
+            OperationalModules(
+                modulesEnabled = false,
+                myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
+                onRetryMyOrderFreshness = onRetryMyOrderFreshness,
+            )
         }
 
         is SessionMode.Authorized -> {
             AuthorizedHome(
                 mode = mode,
+                myOrderFreshnessState = myOrderFreshnessState,
                 draft = draft,
                 onDraftChanged = onDraftChanged,
                 onToggleAdmin = onToggleAdmin,
                 onToggleActive = onToggleActive,
                 onCreateMember = onCreateMember,
+                onRetryMyOrderFreshness = onRetryMyOrderFreshness,
             )
         }
 
@@ -1062,11 +1086,13 @@ private fun UnauthorizedCard(mode: SessionMode.Unauthorized) {
 @Composable
 private fun AuthorizedHome(
     mode: SessionMode.Authorized,
+    myOrderFreshnessState: MyOrderFreshnessUiState,
     draft: MemberDraft,
     onDraftChanged: (MemberDraft) -> Unit,
     onToggleAdmin: (String) -> Unit,
     onToggleActive: (String) -> Unit,
     onCreateMember: () -> Unit,
+    onRetryMyOrderFreshness: () -> Unit,
 ) {
     Card {
         Column(
@@ -1091,7 +1117,11 @@ private fun AuthorizedHome(
         }
     }
 
-    OperationalModules(enabled = true)
+    OperationalModules(
+        modulesEnabled = true,
+        myOrderFreshnessState = myOrderFreshnessState,
+        onRetryMyOrderFreshness = onRetryMyOrderFreshness,
+    )
 
     if (mode.member.isAdmin) {
         AdminMembersCard(
@@ -1106,7 +1136,11 @@ private fun AuthorizedHome(
 }
 
 @Composable
-private fun OperationalModules(enabled: Boolean) {
+private fun OperationalModules(
+    modulesEnabled: Boolean,
+    myOrderFreshnessState: MyOrderFreshnessUiState,
+    onRetryMyOrderFreshness: () -> Unit,
+) {
     Card {
         Column(
             modifier = Modifier
@@ -1115,14 +1149,48 @@ private fun OperationalModules(enabled: Boolean) {
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(stringResource(R.string.operational_modules_title))
-            Button(onClick = {}, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = {},
+                enabled = modulesEnabled && myOrderFreshnessState == MyOrderFreshnessUiState.Ready,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Text(stringResource(R.string.module_my_order))
             }
-            Button(onClick = {}, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = {}, enabled = modulesEnabled, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.module_catalog))
             }
-            Button(onClick = {}, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = {}, enabled = modulesEnabled, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.module_shifts))
+            }
+
+            when (myOrderFreshnessState) {
+                MyOrderFreshnessUiState.Checking -> {
+                    Text(
+                        text = stringResource(R.string.my_order_freshness_checking),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+
+                MyOrderFreshnessUiState.TimedOut,
+                MyOrderFreshnessUiState.Unavailable,
+                    -> {
+                        Text(
+                            text = stringResource(R.string.my_order_freshness_error_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = stringResource(R.string.my_order_freshness_error_message),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        TextButton(onClick = onRetryMyOrderFreshness) {
+                            Text(stringResource(R.string.my_order_freshness_retry))
+                        }
+                    }
+
+                MyOrderFreshnessUiState.Idle,
+                MyOrderFreshnessUiState.Ready,
+                    -> Unit
             }
         }
     }

@@ -22,6 +22,14 @@ enum SessionMode: Equatable, Sendable {
     case authorized(AuthorizedSession)
 }
 
+enum MyOrderFreshnessState: Equatable, Sendable {
+    case idle
+    case checking
+    case ready
+    case timedOut
+    case unavailable
+}
+
 @Observable
 final class SessionViewModel {
     var emailInput = "" {
@@ -78,11 +86,14 @@ final class SessionViewModel {
     var mode: SessionMode = .signedOut
     var memberDraft = MemberDraft()
     var feedbackMessageKey: String?
+    var myOrderFreshnessState: MyOrderFreshnessState = .idle
 
     private let repository: any MemberRepository
     private let authSessionProvider: any AuthSessionProvider
     private let resolveAuthorizedSession: ResolveAuthorizedSessionUseCase
     private let upsertMemberByAdmin: UpsertMemberByAdminUseCase
+    private let resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase
+    private let criticalDataFreshnessLocalRepository: any CriticalDataFreshnessLocalRepository
 
     var canSubmitSignIn: Bool {
         !isAuthenticating &&
@@ -128,10 +139,29 @@ final class SessionViewModel {
             }
             return FirebaseAuthSessionProvider()
         }()
+        let freshnessLocalRepository = UserDefaultsCriticalDataFreshnessLocalRepository()
+        let freshnessRemoteRepository: any CriticalDataFreshnessRemoteRepository
+        if ProcessInfo.processInfo.arguments.contains("-useMockAuth") {
+            freshnessRemoteRepository = FixedCriticalDataFreshnessRemoteRepository(
+                config: CriticalDataFreshnessConfig(
+                    cacheExpirationMinutes: 15,
+                    remoteTimestampsMillis: Dictionary(
+                        uniqueKeysWithValues: CriticalCollection.allCases.map { ($0, 1_000) }
+                    )
+                )
+            )
+        } else {
+            freshnessRemoteRepository = FirestoreCriticalDataFreshnessRemoteRepository()
+        }
         self.repository = selectedRepository
         self.authSessionProvider = selectedAuthProvider
         self.resolveAuthorizedSession = resolveAuthorizedSession ?? ResolveAuthorizedSessionUseCase(repository: selectedRepository)
         self.upsertMemberByAdmin = upsertMemberByAdmin ?? UpsertMemberByAdminUseCase(repository: selectedRepository)
+        self.resolveCriticalDataFreshness = ResolveCriticalDataFreshnessUseCase(
+            remoteRepository: freshnessRemoteRepository,
+            localRepository: freshnessLocalRepository
+        )
+        self.criticalDataFreshnessLocalRepository = freshnessLocalRepository
     }
 
     func signIn() {
@@ -211,6 +241,45 @@ final class SessionViewModel {
         feedbackMessageKey = nil
         mode = .signedOut
         memberDraft = MemberDraft()
+        myOrderFreshnessState = .idle
+        Task {
+            await criticalDataFreshnessLocalRepository.clear()
+        }
+    }
+
+    func refreshMyOrderFreshness() {
+        guard case .authorized(let session) = mode else {
+            return
+        }
+
+        myOrderFreshnessState = .checking
+        Task { @MainActor in
+            let resolution = await withTaskGroup(of: CriticalDataFreshnessResolution?.self) { group in
+                group.addTask {
+                    await self.resolveCriticalDataFreshness.execute()
+                }
+                group.addTask {
+                    try? await Task.sleep(nanoseconds: 2_500_000_000)
+                    return nil
+                }
+                let first = await group.next() ?? nil
+                group.cancelAll()
+                return first
+            }
+
+            guard case .authorized(let latestSession) = mode, latestSession == session else {
+                return
+            }
+
+            switch resolution {
+            case .fresh:
+                myOrderFreshnessState = .ready
+            case .invalidConfig:
+                myOrderFreshnessState = .unavailable
+            case nil:
+                myOrderFreshnessState = .timedOut
+            }
+        }
     }
 
     func sendPasswordReset() {
@@ -462,8 +531,11 @@ final class SessionViewModel {
                     members: members
                 )
             )
+            myOrderFreshnessState = .checking
+            refreshMyOrderFreshness()
         case .unauthorized(let reason):
             mode = .unauthorized(email: principal.email, reason: reason)
+            myOrderFreshnessState = .idle
         }
     }
 
@@ -533,5 +605,13 @@ extension SessionMode {
         case .signedOut:
             return false
         }
+    }
+}
+
+private struct FixedCriticalDataFreshnessRemoteRepository: CriticalDataFreshnessRemoteRepository {
+    let config: CriticalDataFreshnessConfig?
+
+    func getConfig() async -> CriticalDataFreshnessConfig? {
+        config
     }
 }

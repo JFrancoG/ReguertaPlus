@@ -71,6 +71,10 @@ final class ReguertaUITests: XCTestCase {
         XCTAssertTrue(catalogButton.waitForExistence(timeout: 3), "Catalog button not found")
         XCTAssertTrue(shiftsButton.waitForExistence(timeout: 3), "Shifts button not found")
 
+        let enabledPredicate = NSPredicate(format: "isEnabled == true")
+        expectation(for: enabledPredicate, evaluatedWith: myOrderButton)
+        waitForExpectations(timeout: 5)
+
         XCTAssertTrue(myOrderButton.isEnabled, "My order should be enabled")
         XCTAssertTrue(catalogButton.isEnabled, "Catalog should be enabled")
         XCTAssertTrue(shiftsButton.isEnabled, "Shifts should be enabled")

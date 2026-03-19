@@ -339,7 +339,10 @@ struct ContentView: View {
                     .foregroundStyle(tokens.colors.textSecondary)
             case .unauthorized(let email, let reason):
                 unauthorizedCard(email: email, reason: reason)
-                operationalModules(enabled: false)
+                operationalModules(
+                    modulesEnabled: false,
+                    myOrderFreshnessState: .idle
+                )
             case .authorized(let session):
                 authorizedHome(session: session)
             }
@@ -518,7 +521,10 @@ struct ContentView: View {
             }
         }
 
-        operationalModules(enabled: true)
+        operationalModules(
+            modulesEnabled: true,
+            myOrderFreshnessState: viewModel.myOrderFreshnessState
+        )
 
         if session.member.isAdmin {
             adminMembersCard(session: session)
@@ -526,7 +532,10 @@ struct ContentView: View {
     }
 
     @ViewBuilder
-    private func operationalModules(enabled: Bool) -> some View {
+    private func operationalModules(
+        modulesEnabled: Bool,
+        myOrderFreshnessState: MyOrderFreshnessState
+    ) -> some View {
         cardContainer {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 Text(localizedKey(AccessL10nKey.operationalModulesTitle))
@@ -535,17 +544,37 @@ struct ContentView: View {
                 } label: {
                     Text(localizedKey(AccessL10nKey.myOrder))
                 }
-                .disabled(!enabled)
+                .disabled(!modulesEnabled || myOrderFreshnessState != .ready)
                 Button {
                 } label: {
                     Text(localizedKey(AccessL10nKey.catalog))
                 }
-                .disabled(!enabled)
+                .disabled(!modulesEnabled)
                 Button {
                 } label: {
                     Text(localizedKey(AccessL10nKey.shifts))
                 }
-                .disabled(!enabled)
+                .disabled(!modulesEnabled)
+
+                switch myOrderFreshnessState {
+                case .checking:
+                    Text(localizedKey(AccessL10nKey.myOrderFreshnessChecking))
+                        .font(tokens.typography.label)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                case .timedOut, .unavailable:
+                    Text(localizedKey(AccessL10nKey.myOrderFreshnessErrorTitle))
+                        .font(tokens.typography.bodySecondary.weight(.semibold))
+                    Text(localizedKey(AccessL10nKey.myOrderFreshnessErrorMessage))
+                        .font(tokens.typography.label)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                    Button {
+                        viewModel.refreshMyOrderFreshness()
+                    } label: {
+                        Text(localizedKey(AccessL10nKey.myOrderFreshnessRetry))
+                    }
+                case .idle, .ready:
+                    EmptyView()
+                }
             }
         }
     }

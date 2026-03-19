@@ -270,6 +270,90 @@ struct ReguertaTests {
 
         #expect(decision == .allow)
     }
+
+    @Test
+    func criticalDataFreshnessRejectsMissingTimestampKeys() {
+        let useCase = ResolveCriticalDataFreshnessUseCase(
+            remoteRepository: FixedCriticalDataFreshnessRemoteRepository(config: nil),
+            localRepository: InMemoryCriticalDataFreshnessLocalRepository()
+        )
+
+        let evaluation = useCase.evaluate(
+            config: CriticalDataFreshnessConfig(
+                cacheExpirationMinutes: 15,
+                remoteTimestampsMillis: [
+                    .users: 1_000,
+                    .products: 1_000,
+                    .orders: 1_000,
+                    .containers: 1_000,
+                    .measures: 1_000,
+                ]
+            ),
+            metadata: nil,
+            nowMillis: 10_000
+        )
+
+        #expect(evaluation == .invalidConfig)
+    }
+
+    @Test
+    func criticalDataFreshnessPersistsWhenRemoteTimestampsChange() {
+        let useCase = ResolveCriticalDataFreshnessUseCase(
+            remoteRepository: FixedCriticalDataFreshnessRemoteRepository(config: nil),
+            localRepository: InMemoryCriticalDataFreshnessLocalRepository()
+        )
+        let remoteTimestamps = Dictionary(
+            uniqueKeysWithValues: CriticalCollection.allCases.map { ($0, Int64(2_000)) }
+        )
+
+        let evaluation = useCase.evaluate(
+            config: CriticalDataFreshnessConfig(
+                cacheExpirationMinutes: 15,
+                remoteTimestampsMillis: remoteTimestamps
+            ),
+            metadata: CriticalDataFreshnessMetadata(
+                validatedAtMillis: 5_000,
+                acknowledgedTimestampsMillis: Dictionary(
+                    uniqueKeysWithValues: CriticalCollection.allCases.map { ($0, Int64(1_000)) }
+                )
+            ),
+            nowMillis: 6_000
+        )
+
+        #expect(
+            evaluation == .accepted(
+                metadataToPersist: CriticalDataFreshnessMetadata(
+                    validatedAtMillis: 6_000,
+                    acknowledgedTimestampsMillis: remoteTimestamps
+                )
+            )
+        )
+    }
+
+    @Test
+    func criticalDataFreshnessKeepsMetadataWhenTtlIsStillValid() {
+        let useCase = ResolveCriticalDataFreshnessUseCase(
+            remoteRepository: FixedCriticalDataFreshnessRemoteRepository(config: nil),
+            localRepository: InMemoryCriticalDataFreshnessLocalRepository()
+        )
+        let remoteTimestamps = Dictionary(
+            uniqueKeysWithValues: CriticalCollection.allCases.map { ($0, Int64(2_000)) }
+        )
+
+        let evaluation = useCase.evaluate(
+            config: CriticalDataFreshnessConfig(
+                cacheExpirationMinutes: 15,
+                remoteTimestampsMillis: remoteTimestamps
+            ),
+            metadata: CriticalDataFreshnessMetadata(
+                validatedAtMillis: 10_000,
+                acknowledgedTimestampsMillis: remoteTimestamps
+            ),
+            nowMillis: 20_000
+        )
+
+        #expect(evaluation == .accepted(metadataToPersist: nil))
+    }
 }
 
 private struct FixedStartupVersionPolicyRepository: StartupVersionPolicyRepository {
@@ -277,5 +361,29 @@ private struct FixedStartupVersionPolicyRepository: StartupVersionPolicyReposito
 
     func policy(for platform: StartupPlatform) async -> StartupVersionPolicy? {
         policy
+    }
+}
+
+private struct FixedCriticalDataFreshnessRemoteRepository: CriticalDataFreshnessRemoteRepository {
+    let config: CriticalDataFreshnessConfig?
+
+    func getConfig() async -> CriticalDataFreshnessConfig? {
+        config
+    }
+}
+
+private actor InMemoryCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLocalRepository {
+    private var metadata: CriticalDataFreshnessMetadata?
+
+    func getMetadata() async -> CriticalDataFreshnessMetadata? {
+        metadata
+    }
+
+    func saveMetadata(_ metadata: CriticalDataFreshnessMetadata) async {
+        self.metadata = metadata
+    }
+
+    func clear() async {
+        metadata = nil
     }
 }
