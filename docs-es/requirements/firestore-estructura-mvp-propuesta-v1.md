@@ -57,6 +57,7 @@ Conclusión: ya existe base útil para pedidos e histórico; no conviene redise�
 - Soportar alta preautorizada por email y enlace de UID en primer login autorizado.
 - Formalizar politica remota de version en arranque y sincronizacion selectiva guiada por frescura.
 - Borrado lógico para entidades históricas (productos/usuarios) en vez de borrado físico.
+- Mantener snapshot del nombre visible del comprador en `orders` y `orderlines` para histórico y vistas de productor.
 - Snapshot en `orderlines` para preservar trazabilidad económica de cada compra.
 - Modelar la opcion de ecocesta `pickup`/`no_pickup` en la linea de pedido y no por naming libre (`Renuncia`).
 - Mantener `products.productImageUrl` como fuente canonica de imagen para listados y detalle.

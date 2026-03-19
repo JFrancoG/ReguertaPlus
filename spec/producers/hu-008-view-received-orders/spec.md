@@ -32,6 +32,7 @@ As a producer I want to review received orders by product and by member so that 
 
 - During enabled period, tabs by product and by member are visible.
 - Outside enabled period, access appears disabled.
+- Member tab may be built from producer-scoped `orderlines`, grouped by `consumerDisplayName`, without requiring a separate `orders` primary list fetch.
 
 ## Dependencies
 

@@ -134,6 +134,7 @@ Modeling note:
 ### 4.4 `orders/{orderId}`
 
 - `userId`: string (required)
+- `consumerDisplayName`: string (required, buyer display-name snapshot at order level)
 - `week`: number (required)
 - `weekKey`: string (required)
 - `deliveryDate`: timestamp (required)
@@ -149,9 +150,15 @@ Modeling note:
 
 Uniqueness rule: one order per `userId + weekKey`.
 
+Snapshot rule:
+- `consumerDisplayName` must be copied from `users.displayName` when the order is first created.
+- If the user profile name changes later, historical orders must keep the stored snapshot unchanged.
+- If business rules allow replacing the buyer identity of an existing order, the snapshot must be rewritten together with `userId`; otherwise it remains immutable.
+
 ### 4.5 `orderlines/{orderlineId}`
 
 - `orderId`, `userId`, `productId`, `vendorId`: string (required)
+- `consumerDisplayName`: string (required, duplicated buyer display-name snapshot for producer views/grouping)
 - `companyName`, `productName`: string (required)
 - `productImageUrl`: string|null
 - `quantity`: number (required)
@@ -169,6 +176,17 @@ Uniqueness rule: one order per `userId + weekKey`.
 - `weekKey`: string (required)
 - `createdAt`: timestamp (required)
 - `updatedAt`: timestamp (required)
+
+Producer read-model note:
+- Prefer loading producer `Received orders` from `orderlines` filtered by `vendorId`.
+- Product tab groups/sorts the loaded lines by product/company fields.
+- Member tab groups/sorts the same loaded lines by `consumerDisplayName` (with `userId` as stable fallback key).
+- `orders` stays as the source for whole-order status/totals/traceability, while `orderlines` acts as the main list/read model for producer work views.
+
+Snapshot rule:
+- `consumerDisplayName` must be written from the same value stored in `orders.consumerDisplayName` whenever an order line is created.
+- When order lines are regenerated/rebuilt from an existing order, preserve or repopulate the same snapshot value from the parent order.
+- Profile edits in `users.displayName` must not retroactively update existing order lines.
 
 ### 4.6 `deliveryCalendar/{weekKey}`
 

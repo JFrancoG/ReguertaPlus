@@ -23,6 +23,8 @@ Implement this story incrementally, following Clean Architecture and reusing exi
 ### Functions/Backend
 - Implement/adjust data rules and automations only if required by this HU.
 - Keep compatibility with the proposed MVP Firestore structure.
+- Persist `consumerDisplayName` snapshot on both `orders` and `orderlines`; for producer UI, treat `orderlines` filtered by `vendorId` as the primary read model and derive both tabs from that dataset.
+- Freeze `consumerDisplayName` as historical snapshot data: write it from `users.displayName` at order creation time, copy it from parent order to each order line, and do not backfill old docs on later profile-name edits.
 
 ## 4. Test strategy
 - Unit tests for impacted business rules.

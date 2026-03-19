@@ -13,6 +13,10 @@ All notable changes to this project will be documented in this file.
 
 - 2026-03-19 | 🐛 fix(firestore): use plus-collections paths
 
+### Documentation
+
+- 2026-03-19 | 📝 docs(orders): define consumer name snapshots
+
 ### Maintenance
 
 - 2026-02-15 | 🔧 chore(repo): align stack docs and iOS baseline

@@ -226,6 +226,7 @@ Nota de modelado:
 | Campo | Tipo | Req | Editable | Notas |
 |---|---|---|---|---|
 | `userId` | string | si | no | Propietario pedido |
+| `consumerDisplayName` | string | si | no | Snapshot del nombre visible del comprador a nivel pedido |
 | `week` | number | si | no | Semana ISO numerica |
 | `weekKey` | string | si | no | Formato `YYYY-Www` |
 | `deliveryDate` | timestamp | si | no/admin | Deriva de `deliveryCalendar` |
@@ -241,6 +242,11 @@ Nota de modelado:
 
 Regla: un pedido por usuario+weekKey (unicidad logica).
 
+Regla de snapshot:
+- `consumerDisplayName` debe copiarse desde `users.displayName` al crear el pedido por primera vez.
+- Si el socio cambia luego su nombre de perfil, los pedidos historicos deben conservar el valor ya guardado.
+- Si una regla de negocio permitiera sustituir la identidad compradora de un pedido ya existente, el snapshot debe reescribirse junto con `userId`; en caso contrario permanece inmutable.
+
 ## 4.5 `orderlines/{orderlineId}`
 
 | Campo | Tipo | Req | Editable | Notas |
@@ -249,6 +255,7 @@ Regla: un pedido por usuario+weekKey (unicidad logica).
 | `userId` | string | si | no | Duplicado para query |
 | `productId` | string | si | no | |
 | `vendorId` | string | si | no | |
+| `consumerDisplayName` | string | si | no | Snapshot duplicado del comprador para agrupacion/vistas de productor |
 | `companyName` | string | si | no | Snapshot |
 | `productName` | string | si | no | Snapshot |
 | `productImageUrl` | string\|null | no | no | Snapshot |
@@ -269,6 +276,17 @@ Regla: un pedido por usuario+weekKey (unicidad logica).
 | `weekKey` | string | si | no | |
 | `createdAt` | timestamp | si | no | |
 | `updatedAt` | timestamp | si | sistema | |
+
+Nota de modelo de lectura para productor:
+- Conviene cargar `Pedidos recibidos` desde `orderlines` filtradas por `vendorId`.
+- La pestaña por producto agrupa/ordena esas lineas por producto/productor.
+- La pestaña por usuario reutiliza el mismo dataset agrupando por `consumerDisplayName` (con `userId` como clave estable de respaldo).
+- `orders` queda como fuente de estado global, totales y trazabilidad del pedido completo.
+
+Regla de snapshot:
+- `consumerDisplayName` debe escribirse en la linea con el mismo valor guardado en `orders.consumerDisplayName` al crear cada `orderline`.
+- Si las lineas de un pedido se regeneran o reconstruyen, deben conservar o repoblar ese mismo valor desde el pedido padre.
+- Los cambios posteriores en `users.displayName` no deben propagarse retroactivamente a lineas ya historicas.
 
 ## 4.6 `deliveryCalendar/{weekKey}`
 
