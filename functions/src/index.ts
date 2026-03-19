@@ -44,6 +44,11 @@ const parseBody = (value: unknown): Record<string, unknown> => {
 const usersCollection = (env: string) =>
   firestore.collection(`${env}/collections/users`);
 
+const globalConfigDocRefs = (env: string) => [
+  firestore.collection(`${env}/collections/config`).doc("global"),
+  firestore.collection(`${env}/plus-collections/config`).doc("global"),
+];
+
 const normalizeEmail = (email: string): string => email.trim().toLowerCase();
 
 const parseString = (value: unknown): string | null =>
@@ -431,19 +436,19 @@ export const validateGlobalVersionPolicy = onRequest(async (req, res) => {
   const summary: {env: string; existed: boolean}[] = [];
 
   for (const env of targetEnvs) {
-    const globalDoc = firestore
-      .collection(`${env}/collections/config`)
-      .doc("global");
-    const snapshot = await globalDoc.get();
-    const current = parseBody(snapshot.data());
-    const versions = sanitizeVersionPolicies(current.versions);
+    const docRefs = globalConfigDocRefs(env);
+    let existed = false;
 
-    await globalDoc.set({versions}, {merge: true});
+    for (const globalDoc of docRefs) {
+      const snapshot = await globalDoc.get();
+      const current = parseBody(snapshot.data());
+      const versions = sanitizeVersionPolicies(current.versions);
 
-    summary.push({
-      env,
-      existed: snapshot.exists,
-    });
+      await globalDoc.set({versions}, {merge: true});
+      existed = existed || snapshot.exists;
+    }
+
+    summary.push({env, existed});
   }
 
   logger.info("✅ Global version policy validated", {summary});
@@ -462,27 +467,28 @@ export const validateGlobalFreshnessConfig = onRequest(async (req, res) => {
   );
 
   for (const env of targetEnvs) {
-    const globalDoc = firestore
-      .collection(`${env}/collections/config`)
-      .doc("global");
-    const snapshot = await globalDoc.get();
-    const current = parseBody(snapshot.data());
+    const docRefs = globalConfigDocRefs(env);
+    let existed = false;
 
-    await globalDoc.set({
-      cacheExpirationMinutes: parsePositiveInteger(
-        current.cacheExpirationMinutes,
-        DEFAULT_CACHE_EXPIRATION_MINUTES
-      ),
-      lastTimestamps: sanitizeLastTimestamps(
-        current.lastTimestamps,
-        fallbackTimestamp
-      ),
-    }, {merge: true});
+    for (const globalDoc of docRefs) {
+      const snapshot = await globalDoc.get();
+      const current = parseBody(snapshot.data());
 
-    summary.push({
-      env,
-      existed: snapshot.exists,
-    });
+      await globalDoc.set({
+        cacheExpirationMinutes: parsePositiveInteger(
+          current.cacheExpirationMinutes,
+          DEFAULT_CACHE_EXPIRATION_MINUTES
+        ),
+        lastTimestamps: sanitizeLastTimestamps(
+          current.lastTimestamps,
+          fallbackTimestamp
+        ),
+      }, {merge: true});
+
+      existed = existed || snapshot.exists;
+    }
+
+    summary.push({env, existed});
   }
 
   logger.info("✅ Global freshness config validated", {summary});

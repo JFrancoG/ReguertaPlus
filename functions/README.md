@@ -53,6 +53,10 @@ existe el endpoint:
 
 `https://europe-west1-reguerta-9f27f.cloudfunctions.net/validateGlobalFreshnessConfig`
 
+La validación actualiza tanto:
+- `{env}/collections/config/global`
+- `{env}/plus-collections/config/global`
+
 Parámetros opcionales:
 - `env=develop` o `env=production` o `env=local`
 - `envs=local,develop,production` (lista separada por comas)
