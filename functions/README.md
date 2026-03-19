@@ -43,6 +43,24 @@ Parámetros opcionales:
 Si no se envía ningún parámetro, valida/siembra por defecto en:
 `local`, `develop` y `production`.
 
+### ✅ Validación de contrato de frescura crítica
+
+Para asegurar que `config/global` siempre incluya:
+- `cacheExpirationMinutes > 0`
+- `lastTimestamps.{products,containers,measures,orders,orderlines,users}`
+
+existe el endpoint:
+
+`https://europe-west1-reguerta-9f27f.cloudfunctions.net/validateGlobalFreshnessConfig`
+
+La validación actualiza tanto:
+- `{env}/collections/config/global`
+- `{env}/plus-collections/config/global`
+
+Parámetros opcionales:
+- `env=develop` o `env=production` o `env=local`
+- `envs=local,develop,production` (lista separada por comas)
+
 ## ⚙️ Configuración del entorno
 
 Este proyecto usa una variable `ENV` para determinar si se debe escribir en la rama `develop` o `production`. Puedes establecerla con:

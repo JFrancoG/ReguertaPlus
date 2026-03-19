@@ -44,6 +44,11 @@ const parseBody = (value: unknown): Record<string, unknown> => {
 const usersCollection = (env: string) =>
   firestore.collection(`${env}/collections/users`);
 
+const globalConfigDocRefs = (env: string) => [
+  firestore.collection(`${env}/collections/config`).doc("global"),
+  firestore.collection(`${env}/plus-collections/config`).doc("global"),
+];
+
 const normalizeEmail = (email: string): string => email.trim().toLowerCase();
 
 const parseString = (value: unknown): string | null =>
@@ -91,6 +96,15 @@ type VersionPolicy = {
 
 const VERSION_STRING_REGEX = /^\d+(?:\.\d+)*$/;
 const DEFAULT_VERSION_POLICY_ENVS = ["local", "develop", "production"];
+const DEFAULT_CACHE_EXPIRATION_MINUTES = 15;
+const REQUIRED_FRESHNESS_COLLECTIONS = [
+  "products",
+  "containers",
+  "measures",
+  "orders",
+  "orderlines",
+  "users",
+] as const;
 const DEFAULT_VERSION_POLICIES: Record<VersionPlatformKey, VersionPolicy> = {
   android: {
     current: "0.3.0",
@@ -147,6 +161,31 @@ const parseStoreUrlValue = (value: unknown, fallback: string): string => {
   } catch {
     return fallback;
   }
+};
+
+const parsePositiveInteger = (value: unknown, fallback: number): number => {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return Math.floor(parsed);
+};
+
+const sanitizeLastTimestamps = (
+  value: unknown,
+  fallback: admin.firestore.Timestamp,
+): Record<string, admin.firestore.Timestamp> => {
+  const source = parseBody(value);
+
+  return Object.fromEntries(
+    REQUIRED_FRESHNESS_COLLECTIONS.map((collection) => {
+      const rawValue = source[collection];
+      const timestamp = rawValue instanceof admin.firestore.Timestamp ?
+        rawValue :
+        fallback;
+      return [collection, timestamp];
+    })
+  );
 };
 
 const sanitizeVersionPolicy = (
@@ -397,25 +436,66 @@ export const validateGlobalVersionPolicy = onRequest(async (req, res) => {
   const summary: {env: string; existed: boolean}[] = [];
 
   for (const env of targetEnvs) {
-    const globalDoc = firestore
-      .collection(`${env}/collections/config`)
-      .doc("global");
-    const snapshot = await globalDoc.get();
-    const current = parseBody(snapshot.data());
-    const versions = sanitizeVersionPolicies(current.versions);
+    const docRefs = globalConfigDocRefs(env);
+    let existed = false;
 
-    await globalDoc.set({versions}, {merge: true});
+    for (const globalDoc of docRefs) {
+      const snapshot = await globalDoc.get();
+      const current = parseBody(snapshot.data());
+      const versions = sanitizeVersionPolicies(current.versions);
 
-    summary.push({
-      env,
-      existed: snapshot.exists,
-    });
+      await globalDoc.set({versions}, {merge: true});
+      existed = existed || snapshot.exists;
+    }
+
+    summary.push({env, existed});
   }
 
   logger.info("✅ Global version policy validated", {summary});
   res.status(200).json({
     ok: true,
     summary,
+  });
+});
+
+export const validateGlobalFreshnessConfig = onRequest(async (req, res) => {
+  const envs = parseEnvList(req.query.envs ?? req.query.env);
+  const targetEnvs = envs.length > 0 ? envs : DEFAULT_VERSION_POLICY_ENVS;
+  const summary: {env: string; existed: boolean}[] = [];
+  const fallbackTimestamp = admin.firestore.Timestamp.fromDate(
+    new Date("2025-01-01T00:00:00Z")
+  );
+
+  for (const env of targetEnvs) {
+    const docRefs = globalConfigDocRefs(env);
+    let existed = false;
+
+    for (const globalDoc of docRefs) {
+      const snapshot = await globalDoc.get();
+      const current = parseBody(snapshot.data());
+
+      await globalDoc.set({
+        cacheExpirationMinutes: parsePositiveInteger(
+          current.cacheExpirationMinutes,
+          DEFAULT_CACHE_EXPIRATION_MINUTES
+        ),
+        lastTimestamps: sanitizeLastTimestamps(
+          current.lastTimestamps,
+          fallbackTimestamp
+        ),
+      }, {merge: true});
+
+      existed = existed || snapshot.exists;
+    }
+
+    summary.push({env, existed});
+  }
+
+  logger.info("✅ Global freshness config validated", {summary});
+  res.status(200).json({
+    ok: true,
+    summary,
+    requiredCollections: REQUIRED_FRESHNESS_COLLECTIONS,
   });
 });
 
@@ -447,15 +527,12 @@ export const cloneGlobalConfig = onRequest(async (_req, res) => {
 
   const overridden = {
     ...data,
+    cacheExpirationMinutes: parsePositiveInteger(
+      data.cacheExpirationMinutes,
+      DEFAULT_CACHE_EXPIRATION_MINUTES
+    ),
     versions: sanitizeVersionPolicies(data.versions),
-    lastTimestamps: {
-      products: baseTimestamp,
-      containers: baseTimestamp,
-      measures: baseTimestamp,
-      orders: baseTimestamp,
-      orderlines: baseTimestamp,
-      users: baseTimestamp,
-    },
+    lastTimestamps: sanitizeLastTimestamps(data.lastTimestamps, baseTimestamp),
   };
 
   await targetDoc.set(overridden, {merge: true});

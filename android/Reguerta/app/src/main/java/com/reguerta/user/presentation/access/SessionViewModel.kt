@@ -16,6 +16,9 @@ import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.ResolveAuthorizedSessionUseCase
 import com.reguerta.user.domain.access.UnauthorizedReason
 import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
+import com.reguerta.user.domain.freshness.CriticalDataFreshnessLocalRepository
+import com.reguerta.user.domain.freshness.CriticalDataFreshnessResolution
+import com.reguerta.user.domain.freshness.ResolveCriticalDataFreshnessUseCase
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -24,6 +27,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 data class MemberDraft(
     val displayName: String = "",
@@ -68,10 +72,23 @@ data class SessionUiState(
     val showRecoverSuccessDialog: Boolean = false,
     val mode: SessionMode = SessionMode.SignedOut,
     val memberDraft: MemberDraft = MemberDraft(),
+    val myOrderFreshnessState: MyOrderFreshnessUiState = MyOrderFreshnessUiState.Idle,
 )
 
 sealed interface SessionUiEvent {
     data class ShowMessage(@param:StringRes val messageRes: Int) : SessionUiEvent
+}
+
+sealed interface MyOrderFreshnessUiState {
+    data object Idle : MyOrderFreshnessUiState
+
+    data object Checking : MyOrderFreshnessUiState
+
+    data object Ready : MyOrderFreshnessUiState
+
+    data object TimedOut : MyOrderFreshnessUiState
+
+    data object Unavailable : MyOrderFreshnessUiState
 }
 
 class SessionViewModel(
@@ -79,6 +96,8 @@ class SessionViewModel(
     private val authSessionProvider: AuthSessionProvider,
     private val resolveAuthorizedSession: ResolveAuthorizedSessionUseCase,
     private val upsertMemberByAdmin: UpsertMemberByAdminUseCase,
+    private val resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase,
+    private val criticalDataFreshnessLocalRepository: CriticalDataFreshnessLocalRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SessionUiState())
     val uiState: StateFlow<SessionUiState> = _uiState.asStateFlow()
@@ -226,8 +245,10 @@ class SessionViewModel(
                                         member = result.member,
                                         members = members,
                                     ),
+                                    myOrderFreshnessState = MyOrderFreshnessUiState.Checking,
                                 )
                             }
+                            refreshMyOrderFreshness()
                         }
 
                         is AccessResolutionResult.Unauthorized -> {
@@ -238,6 +259,7 @@ class SessionViewModel(
                                         email = authResult.principal.email,
                                         reason = result.reason,
                                     ),
+                                    myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
                                 )
                             }
                         }
@@ -327,8 +349,10 @@ class SessionViewModel(
                                         member = result.member,
                                         members = members,
                                     ),
+                                    myOrderFreshnessState = MyOrderFreshnessUiState.Checking,
                                 )
                             }
+                            refreshMyOrderFreshness()
                         }
 
                         is AccessResolutionResult.Unauthorized -> {
@@ -342,6 +366,7 @@ class SessionViewModel(
                                         email = authResult.principal.email,
                                         reason = result.reason,
                                     ),
+                                    myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
                                 )
                             }
                         }
@@ -419,6 +444,9 @@ class SessionViewModel(
 
     fun signOut() {
         authSessionProvider.signOut()
+        viewModelScope.launch {
+            criticalDataFreshnessLocalRepository.clear()
+        }
         _uiState.update {
             it.copy(
                 mode = SessionMode.SignedOut,
@@ -438,7 +466,33 @@ class SessionViewModel(
                 isRecoveringPassword = false,
                 showRecoverSuccessDialog = false,
                 memberDraft = MemberDraft(),
+                myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
             )
+        }
+    }
+
+    fun refreshMyOrderFreshness() {
+        val currentMode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        _uiState.update { it.copy(myOrderFreshnessState = MyOrderFreshnessUiState.Checking) }
+
+        viewModelScope.launch {
+            val resolution = withTimeoutOrNull(MY_ORDER_FRESHNESS_TIMEOUT_MILLIS) {
+                resolveCriticalDataFreshness()
+            }
+
+            val nextState = when (resolution) {
+                null -> MyOrderFreshnessUiState.TimedOut
+                CriticalDataFreshnessResolution.Fresh -> MyOrderFreshnessUiState.Ready
+                CriticalDataFreshnessResolution.InvalidConfig -> MyOrderFreshnessUiState.Unavailable
+            }
+
+            _uiState.update { state ->
+                if (state.mode != currentMode) {
+                    state
+                } else {
+                    state.copy(myOrderFreshnessState = nextState)
+                }
+            }
         }
     }
 
@@ -584,6 +638,7 @@ class SessionViewModel(
 }
 
 private val EmailPatternRegex = "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$".toRegex(setOf(RegexOption.IGNORE_CASE))
+private const val MY_ORDER_FRESHNESS_TIMEOUT_MILLIS = 2_500L
 private const val PasswordMinLength = 6
 private const val PasswordMaxLength = 16
 

@@ -46,7 +46,7 @@ As a member I want `My order` enabled only when critical data is fresh so orderi
 ## Definition of Done (DoD)
 
 - [ ] Story acceptance criteria validated.
-- [ ] Android/iOS parity reviewed or temporary gap documented.
-- [ ] Tests executed.
-- [ ] Documentation updated.
+- [x] Android/iOS parity reviewed or temporary gap documented.
+- [x] Tests executed.
+- [x] Documentation updated.
 - [ ] Issue and PR linked.

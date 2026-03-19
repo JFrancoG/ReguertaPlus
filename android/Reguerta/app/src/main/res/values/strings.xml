@@ -60,6 +60,10 @@
     <string name="module_my_order">My order</string>
     <string name="module_catalog">Catalog</string>
     <string name="module_shifts">Shifts</string>
+    <string name="my_order_freshness_checking">Checking critical data freshness before enabling My order…</string>
+    <string name="my_order_freshness_error_title">My order is temporarily unavailable</string>
+    <string name="my_order_freshness_error_message">Critical data could not be validated in time. Retry to continue without restarting the app.</string>
+    <string name="my_order_freshness_retry">Retry check</string>
 
     <string name="admin_manage_members_title">Admin | Manage members</string>
     <string name="admin_manage_members_subtitle">Create / edit / deactivate members and roles</string>

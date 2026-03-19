@@ -60,6 +60,10 @@
     <string name="module_my_order">Mi pedido</string>
     <string name="module_catalog">Catálogo</string>
     <string name="module_shifts">Turnos</string>
+    <string name="my_order_freshness_checking">Comprobando la frescura de los datos críticos antes de activar Mi pedido…</string>
+    <string name="my_order_freshness_error_title">Mi pedido no está disponible temporalmente</string>
+    <string name="my_order_freshness_error_message">No se pudieron validar a tiempo los datos críticos. Reintenta para continuar sin reiniciar la app.</string>
+    <string name="my_order_freshness_retry">Reintentar comprobación</string>
 
     <string name="admin_manage_members_title">Admin | Gestión de miembros</string>
     <string name="admin_manage_members_subtitle">Crear / editar / desactivar miembros y roles</string>
