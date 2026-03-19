@@ -46,7 +46,7 @@ Layout de namespaces detectado:
 
 Campos existentes relevantes en `orderlines` (según datos reales migrados 2025):
 - Núcleo: `orderId`, `userId`, `productId`, `quantity`, `subtotal`, `week`, `weekKey`, `companyName`, `vendorId`.
-- Snapshot histórico: `productName`, `productImageUrl`, `priceAtOrder`, `unitName`, `unitPlural`, `unitQty`, `packContainerName`, `packContainerPlural`, `packContainerQty`, `lineTotal`, `createdAt`, `archivedFrom`, `schemaVersion`.
+- Snapshot histórico: `productName`, `productImageUrl`, `priceAtOrder`, `unitName`, `unitPlural`, `unitQty`, `packContainerName`, `packContainerPlural`, `packContainerQty`, `createdAt`, `vendorId`, `weekKey`.
 
 Conclusión: ya existe base útil para pedidos e histórico; no conviene rediseñar desde cero.
 
@@ -147,8 +147,6 @@ Campos base propuestos:
 
 ### `orderlines/{orderlineId}`
 
-Mantener modelo actual con `schemaVersion` y campos snapshot.
-
 Campos recomendados mínimos:
 - `orderId`, `userId`, `productId`, `vendorId`
 - `companyName`, `productName`, `productImageUrl`
@@ -159,11 +157,9 @@ Campos recomendados mínimos:
 - `ecoBasketOptionAtOrder`
 - `week`, `weekKey`
 - `createdAt`, `updatedAt`
-- `schemaVersion`
 
 Recomendación:
-- Mantener coexistencia de campos legacy 2025.
-- Depuración futura condicionada a verificación de uso real en app.
+- Mantener `orderlines` como snapshot histórico autónomo, sin campos legacy de compatibilidad.
 
 ## 4.2 Colecciones nuevas (mínimas para MVP)
 
@@ -359,7 +355,6 @@ Fase 1 (sin ruptura):
 - Mantener colecciones actuales y añadir solo campos nuevos opcionales (`stockMode`, `emailNormalized`, `authUid`, `lastDeviceId`, `producerParity`, `isCommonPurchaseManager`, `unitAbbreviation`, `packContainerAbbreviation`, etc.).
 - Mantener y normalizar `users/{userId}/devices/{deviceId}` como fuente canonica de metadatos de dispositivo.
 - Mantener/alinear contrato `config/global` por entorno con campos actuales (`cacheExpirationMinutes`, `lastTimestamps`, `otherConfig.deliveryDayOfWeek`, `versions.{android,ios}.{current,min,forceUpdate,storeUrl}`).
-- Mantener lectura de legacy `orderlines` con `schemaVersion`.
 
 Fase 2 (capacidad nueva):
 - Introducir `deliveryCalendar`, `seasonalCommitments`, `sharedProfiles`, `shifts`, `shiftSwapRequests`, `news`.

@@ -158,7 +158,6 @@ Phase 1:
   - `lastTimestamps`
   - `otherConfig.deliveryDayOfWeek` (with normalized top-level `deliveryDayOfWeek` as target)
   - `versions.{android,ios}.{current,min,forceUpdate,storeUrl}`
-- Keep `schemaVersion` compatibility in orderlines.
 
 Phase 2:
 - Introduce new collections (`deliveryCalendar`, `seasonalCommitments`, `sharedProfiles`, `shifts`, `shiftSwapRequests`, `news`).

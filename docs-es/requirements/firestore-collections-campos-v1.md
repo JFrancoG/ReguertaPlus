@@ -269,11 +269,6 @@ Regla: un pedido por usuario+weekKey (unicidad logica).
 | `weekKey` | string | si | no | |
 | `createdAt` | timestamp | si | no | |
 | `updatedAt` | timestamp | si | sistema | |
-| `schemaVersion` | number | si | sistema | Version DTO |
-| `archivedFrom` | string\|null | no | no | Legacy (ej. `legacy-2025`) |
-| `lineTotal` | number\|null | no | no | Legacy compat |
-
-Nota: mantener campos legacy existentes hasta cierre de migracion.
 
 ## 4.6 `deliveryCalendar/{weekKey}`
 

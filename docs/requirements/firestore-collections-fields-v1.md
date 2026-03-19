@@ -169,9 +169,6 @@ Uniqueness rule: one order per `userId + weekKey`.
 - `weekKey`: string (required)
 - `createdAt`: timestamp (required)
 - `updatedAt`: timestamp (required)
-- `schemaVersion`: number (required)
-- `archivedFrom`: string|null (legacy)
-- `lineTotal`: number|null (legacy)
 
 ### 4.6 `deliveryCalendar/{weekKey}`
 

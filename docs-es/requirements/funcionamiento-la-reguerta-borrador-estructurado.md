@@ -315,8 +315,8 @@ Fecha de consolidación: 2026-03-06 (zona horaria Europa/Madrid).
   - No es necesario guardar el motivo concreto de la baja.
 - `Q10` Resuelta:
   - Estado actual de línea de pedido en Firestore: incluye como mínimo `orderId`, `userId`, `productId`, `companyName`, `quantity`, `subtotal`, `week`.
-  - En histórico 2025 migrado se añadieron más campos para preservar contexto (ejemplos observados): `archivedFrom`, `createdAt`, `lineTotal`, `packContainerName`, `packContainerPlural`, `packContainerQty`, `priceAtOrder`, `productImageUrl`, `productName`, `schemaVersion`, `unitName`, `unitPlural`, `unitQty`, `vendorId`, `weekKey`.
-  - Decisión actual: mantener riqueza de datos por seguridad histórica y depurar más adelante lo que sobre.
+  - En histórico 2025 migrado se añadieron más campos snapshot para preservar contexto: `createdAt`, `packContainerName`, `packContainerPlural`, `packContainerQty`, `priceAtOrder`, `productImageUrl`, `productName`, `unitName`, `unitPlural`, `unitQty`, `vendorId`, `weekKey`.
+  - Decisión actual: mantener riqueza de datos histórica útil y eliminar del esquema objetivo los campos legacy de compatibilidad que ya no aportan (`archivedFrom`, `lineTotal`, `schemaVersion`).
 - `Q11` Resuelta:
   - Pedido confirmado editable dentro de plazo con operaciones completas:
     - Aumentar/disminuir cantidad.
