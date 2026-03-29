@@ -92,7 +92,6 @@ Como admin quiero gestionar altas/bajas, autorización de acceso inicial y privi
 Criterios de aceptación:
 - Dado que soy admin, cuando entro en lista de usuarios, entonces veo acciones de alta/edición/baja.
 - Dado un socio, cuando otorgo/revoco admin, entonces se aplica salvo que deje el sistema sin admins.
-- Dado que un usuario se autentica con email no preautorizado, cuando entra en la app, entonces aparece `Usuario no autorizado` y las funcionalidades operativas quedan deshabilitadas.
 - Dado que el email fue preautorizado por admin, cuando hace su primer login/registro, entonces entra a home con acceso habilitado por rol.
 
 ### HU-011 Gestionar calendario de reparto
@@ -213,6 +212,16 @@ Como socio quiero refresco de sesion en eventos de lifecycle para mantener acces
 Criterios de aceptacion:
 - Refresco de sesion/token en arranque y foreground.
 - Sesion expirada muestra mensaje explicito y camino de recuperacion.
+
+### HU-027 Home restringido para usuario autenticado no autorizado
+
+Como persona autenticada pero aun no autorizada quiero feedback claro de acceso restringido en home para entender por que no puedo usar la app y que tiene que pasar despues.
+
+Criterios de aceptacion:
+- Si un usuario se autentica en Firebase pero no existe un registro activo autorizado en `users` para ese email, home muestra un estado explicito de no autorizado.
+- En estado no autorizado, los modulos operativos siguen deshabilitados y los flujos protegidos permanecen bloqueados.
+- El estado no autorizado ofrece una salida segura de cierre de sesion distinta de la recuperacion por sesion expirada.
+- Si ese usuario pasa a estar autorizado despues, la siguiente resolucion de sesion restaura el acceso normal al home.
 
 ### HU-024 Toggle masivo de disponibilidad productor
 

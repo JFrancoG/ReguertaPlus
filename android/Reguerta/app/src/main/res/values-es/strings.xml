@@ -48,8 +48,10 @@
     <string name="common_action_hide_password">Ocultar contraseña</string>
 
     <string name="auth_error_member_unauthorized">Usuario no autorizado</string>
+    <string name="auth_info_member_unauthorized_explanation">Esta cuenta ha iniciado sesión, pero todavía no está autorizada para usar La RegÜerta.</string>
     <string name="access_signed_in_email_format">Email de sesión: %1$s</string>
     <string name="auth_info_member_restricted_mode">Los módulos operativos seguirán desactivados hasta que un admin preautorice este email.</string>
+    <string name="auth_info_member_contact_admin">Pide a un admin que autorice este email en users, o cierra sesión y prueba con otra cuenta.</string>
     <string name="common_reason_format">Motivo: %1$s</string>
 
     <string name="home_title">Inicio</string>
@@ -63,6 +65,7 @@
     <string name="module_my_order">Mi pedido</string>
     <string name="module_catalog">Catálogo</string>
     <string name="module_shifts">Turnos</string>
+    <string name="operational_modules_restricted_unauthorized">Estos módulos están bloqueados porque esta cuenta todavía no está autorizada.</string>
     <string name="my_order_freshness_checking">Comprobando la frescura de los datos críticos antes de activar Mi pedido…</string>
     <string name="my_order_freshness_error_title">Mi pedido no está disponible temporalmente</string>
     <string name="my_order_freshness_error_message">No se pudieron validar a tiempo los datos críticos. Reintenta para continuar sin reiniciar la app.</string>

@@ -10,14 +10,12 @@
 - [x] Implement UI/ViewModel/domain layer changes.
 - [x] Integrate required read/write data flows.
 - [x] Validate loading, error, and success states.
-- [x] Implement unauthorized alert and restricted mode when auth email is not pre-authorized.
 - [x] Implement first authorized login/register path to home.
 
 ## 3. iOS implementation
 - [x] Implement equivalent SwiftUI/ViewModel/domain layer changes.
 - [x] Integrate required read/write data flows.
 - [x] Validate loading, error, and success states.
-- [x] Implement unauthorized alert and restricted mode when auth email is not pre-authorized.
 - [x] Implement first authorized login/register path to home.
 
 ## 4. Backend / Firestore
@@ -31,7 +29,6 @@
 - [x] Execute unit tests for impacted areas.
 - [x] Execute required integration tests.
 - [ ] Perform full manual acceptance validation.
-- [x] Validate scenario: authenticated but not authorized email => alert + disabled operational features.
 - [x] Validate scenario: pre-authorized email first login/register => home + enabled role-based access.
 
 ## 6. Documentation

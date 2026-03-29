@@ -343,11 +343,13 @@ struct ContentView: View {
                     Text(localizedKey(AccessL10nKey.homeTitle))
                         .font(tokens.typography.titleCard)
                     Spacer()
-                    Button {
-                        viewModel.signOut()
-                        dispatchShell(.signedOut)
-                    } label: {
-                        Text(localizedKey(AccessL10nKey.signOut))
+                    if case .authorized = viewModel.mode {
+                        Button {
+                            viewModel.signOut()
+                            dispatchShell(.signedOut)
+                        } label: {
+                            Text(localizedKey(AccessL10nKey.signOut))
+                        }
                     }
                 }
             }
@@ -361,7 +363,8 @@ struct ContentView: View {
                 unauthorizedCard(email: email, reason: reason)
                 operationalModules(
                     modulesEnabled: false,
-                    myOrderFreshnessState: .idle
+                    myOrderFreshnessState: .idle,
+                    disabledMessageKey: AccessL10nKey.operationalModulesRestrictedUnauthorized
                 )
             case .authorized(let session):
                 authorizedHome(session: session)
@@ -517,11 +520,20 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 Text(localizedKey(AccessL10nKey.unauthorized))
                     .font(tokens.typography.titleCard)
+                Text(localizedKey(AccessL10nKey.unauthorizedExplanation))
+                    .font(tokens.typography.body)
                 Text(l10n(AccessL10nKey.signedInEmail, email))
                 Text(localizedKey(AccessL10nKey.restrictedModeInfo))
+                Text(localizedKey(AccessL10nKey.unauthorizedContactAdmin))
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.textSecondary)
                 Text(l10n(AccessL10nKey.reason, localizedUnauthorizedReason(reason)))
                     .font(tokens.typography.label)
                     .foregroundStyle(tokens.colors.textSecondary)
+                ReguertaButton(localizedKey(AccessL10nKey.signOut)) {
+                    viewModel.signOut()
+                    dispatchShell(.signedOut)
+                }
             }
         }
     }
@@ -554,7 +566,8 @@ struct ContentView: View {
     @ViewBuilder
     private func operationalModules(
         modulesEnabled: Bool,
-        myOrderFreshnessState: MyOrderFreshnessState
+        myOrderFreshnessState: MyOrderFreshnessState,
+        disabledMessageKey: String? = nil
     ) -> some View {
         cardContainer {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
@@ -575,6 +588,12 @@ struct ContentView: View {
                     Text(localizedKey(AccessL10nKey.shifts))
                 }
                 .disabled(!modulesEnabled)
+
+                if !modulesEnabled, let disabledMessageKey {
+                    Text(localizedKey(disabledMessageKey))
+                        .font(tokens.typography.label)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                }
 
                 switch myOrderFreshnessState {
                 case .checking:

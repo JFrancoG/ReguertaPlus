@@ -484,6 +484,40 @@
         }
       }
     },
+    "auth_info.member.contact_admin" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ask an admin to authorize this email in users, or sign out and try another account."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pide a un admin que autorice este email en users, o cierra sesión y prueba con otra cuenta."
+          }
+        }
+      }
+    },
+    "auth_info.member.unauthorized_explanation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This account is signed in, but it is not authorized to use Reguerta yet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta cuenta ha iniciado sesión, pero todavía no está autorizada para usar La RegÜerta."
+          }
+        }
+      }
+    },
     "auth_info.password_reset_sent" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1191,6 +1225,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Módulos operativos"
+          }
+        }
+      }
+    },
+    "operational_modules.restricted.unauthorized" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These modules are locked because this account is not authorized yet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estos módulos están bloqueados porque esta cuenta todavía no está autorizada."
           }
         }
       }

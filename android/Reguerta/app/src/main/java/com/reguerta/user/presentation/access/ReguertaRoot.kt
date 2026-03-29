@@ -872,19 +872,25 @@ private fun HomeRoute(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
-            TextButton(onClick = onSignOut) {
-                Text(stringResource(R.string.access_action_sign_out))
+            if (mode is SessionMode.Authorized) {
+                TextButton(onClick = onSignOut) {
+                    Text(stringResource(R.string.access_action_sign_out))
+                }
             }
         }
     }
 
     when (mode) {
         is SessionMode.Unauthorized -> {
-            UnauthorizedCard(mode = mode)
+            UnauthorizedCard(
+                mode = mode,
+                onSignOut = onSignOut,
+            )
             OperationalModules(
                 modulesEnabled = false,
                 myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
                 onRetryMyOrderFreshness = onRetryMyOrderFreshness,
+                disabledMessage = stringResource(R.string.operational_modules_restricted_unauthorized),
             )
         }
 
@@ -1108,7 +1114,10 @@ private fun SignUpCard(
 }
 
 @Composable
-private fun UnauthorizedCard(mode: SessionMode.Unauthorized) {
+private fun UnauthorizedCard(
+    mode: SessionMode.Unauthorized,
+    onSignOut: () -> Unit,
+) {
     Card {
         Column(
             modifier = Modifier
@@ -1121,12 +1130,26 @@ private fun UnauthorizedCard(mode: SessionMode.Unauthorized) {
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
+            Text(
+                stringResource(R.string.auth_info_member_unauthorized_explanation),
+                style = MaterialTheme.typography.bodyMedium,
+            )
             Text(stringResource(R.string.access_signed_in_email_format, mode.email))
             Text(stringResource(R.string.auth_info_member_restricted_mode))
+            Text(
+                stringResource(R.string.auth_info_member_contact_admin),
+                style = MaterialTheme.typography.bodySmall,
+            )
             Text(
                 stringResource(R.string.common_reason_format, stringResource(mode.reason.toMessageResId())),
                 style = MaterialTheme.typography.bodySmall,
             )
+            Button(
+                onClick = onSignOut,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.access_action_sign_out))
+            }
         }
     }
 }
@@ -1188,6 +1211,7 @@ private fun OperationalModules(
     modulesEnabled: Boolean,
     myOrderFreshnessState: MyOrderFreshnessUiState,
     onRetryMyOrderFreshness: () -> Unit,
+    disabledMessage: String? = null,
 ) {
     Card {
         Column(
@@ -1209,6 +1233,13 @@ private fun OperationalModules(
             }
             Button(onClick = {}, enabled = modulesEnabled, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.module_shifts))
+            }
+
+            if (!modulesEnabled && disabledMessage != null) {
+                Text(
+                    text = disabledMessage,
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
 
             when (myOrderFreshnessState) {

@@ -26,8 +26,10 @@ enum AccessL10nKey {
     static let commonHidePassword = "common.action.hide_password"
 
     static let unauthorized = "auth_error.member.unauthorized"
+    static let unauthorizedExplanation = "auth_info.member.unauthorized_explanation"
     static let signedInEmail = "access.signed_in_email"
     static let restrictedModeInfo = "auth_info.member.restricted_mode"
+    static let unauthorizedContactAdmin = "auth_info.member.contact_admin"
     static let reason = "common.reason"
 
     static let welcomeTitlePrefix = "welcome.title.prefix"
@@ -63,6 +65,7 @@ enum AccessL10nKey {
     static let myOrder = "operational_modules.my_order"
     static let catalog = "operational_modules.catalog"
     static let shifts = "operational_modules.shifts"
+    static let operationalModulesRestrictedUnauthorized = "operational_modules.restricted.unauthorized"
     static let myOrderFreshnessChecking = "operational_modules.my_order.freshness.checking"
     static let myOrderFreshnessErrorTitle = "operational_modules.my_order.freshness.error.title"
     static let myOrderFreshnessErrorMessage = "operational_modules.my_order.freshness.error.message"
