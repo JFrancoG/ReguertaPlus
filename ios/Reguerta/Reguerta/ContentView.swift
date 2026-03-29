@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.reguertaTokens) private var tokens
+    @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel = SessionViewModel()
     @State private var shellState = AuthShellState()
     @State private var splashScale: CGFloat = SplashAnimationContract.initialScale
@@ -75,17 +76,36 @@ struct ContentView: View {
                     onDismiss: handleRecoverSuccessDialogDismiss
                 )
             }
+            if viewModel.showSessionExpiredDialog {
+                ReguertaDialog(
+                    type: .error,
+                    title: l10n(AccessL10nKey.sessionExpiredTitle),
+                    message: l10n(AccessL10nKey.sessionExpiredMessage),
+                    primaryAction: ReguertaDialogAction(
+                        title: l10n(AccessL10nKey.sessionExpiredAction),
+                        action: handleSessionExpiredDialogAction
+                    ),
+                    onDismiss: handleSessionExpiredDialogAction
+                )
+            }
         }
         .task(id: shellState.currentRoute) {
             await handleSplashIfNeeded()
         }
         .task {
+            viewModel.refreshSession(trigger: .startup)
             await evaluateStartupGateIfNeeded()
         }
         .onChange(of: viewModel.mode) { _, mode in
             if mode.isAuthenticatedSession, shellState.currentRoute != .splash {
                 dispatchShell(.sessionAuthenticated)
+            } else if mode == .signedOut, shellState.currentRoute == .home {
+                dispatchShell(.signedOut)
             }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active else { return }
+            viewModel.refreshSession(trigger: .foreground)
         }
         .onChange(of: startupGateState) { _, _ in
             continueFromSplashIfAllowed()
@@ -719,6 +739,12 @@ struct ContentView: View {
 
     private func dispatchShell(_ action: AuthShellAction) {
         shellState = reduceAuthShell(state: shellState, action: action)
+    }
+
+    private func handleSessionExpiredDialogAction() {
+        viewModel.dismissSessionExpiredDialog()
+        viewModel.resetSignInDraft()
+        dispatchShell(.reauthenticate)
     }
 
     private func handleSplashIfNeeded() async {

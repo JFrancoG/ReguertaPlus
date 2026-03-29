@@ -83,6 +83,7 @@ final class SessionViewModel {
     var isAuthenticating = false
     var isRegistering = false
     var isRecoveringPassword = false
+    var showSessionExpiredDialog = false
     var mode: SessionMode = .signedOut
     var memberDraft = MemberDraft()
     var feedbackMessageKey: String?
@@ -94,6 +95,10 @@ final class SessionViewModel {
     private let upsertMemberByAdmin: UpsertMemberByAdminUseCase
     private let resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase
     private let criticalDataFreshnessLocalRepository: any CriticalDataFreshnessLocalRepository
+    private let sessionRefreshPolicy: SessionRefreshPolicy
+    private let nowMillisProvider: @Sendable () -> Int64
+    private var lastSessionRefreshAtMillis: Int64?
+    private var isSessionRefreshInFlight = false
 
     var canSubmitSignIn: Bool {
         !isAuthenticating &&
@@ -127,7 +132,9 @@ final class SessionViewModel {
         repository: (any MemberRepository)? = nil,
         authSessionProvider: (any AuthSessionProvider)? = nil,
         resolveAuthorizedSession: ResolveAuthorizedSessionUseCase? = nil,
-        upsertMemberByAdmin: UpsertMemberByAdminUseCase? = nil
+        upsertMemberByAdmin: UpsertMemberByAdminUseCase? = nil,
+        sessionRefreshPolicy: SessionRefreshPolicy = SessionRefreshPolicy(),
+        nowMillisProvider: @escaping @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1_000) }
     ) {
         let selectedRepository = repository ?? ChainedMemberRepository(
             primary: FirestoreMemberRepository(),
@@ -162,6 +169,8 @@ final class SessionViewModel {
             localRepository: freshnessLocalRepository
         )
         self.criticalDataFreshnessLocalRepository = freshnessLocalRepository
+        self.sessionRefreshPolicy = sessionRefreshPolicy
+        self.nowMillisProvider = nowMillisProvider
     }
 
     func signIn() {
@@ -223,6 +232,7 @@ final class SessionViewModel {
 
     func signOut() {
         authSessionProvider.signOut()
+        clearSessionRefreshTracking()
         emailInput = ""
         passwordInput = ""
         registerEmailInput = ""
@@ -238,12 +248,55 @@ final class SessionViewModel {
         isAuthenticating = false
         isRegistering = false
         isRecoveringPassword = false
+        showSessionExpiredDialog = false
         feedbackMessageKey = nil
         mode = .signedOut
         memberDraft = MemberDraft()
         myOrderFreshnessState = .idle
         Task {
             await criticalDataFreshnessLocalRepository.clear()
+        }
+    }
+
+    func dismissSessionExpiredDialog() {
+        showSessionExpiredDialog = false
+    }
+
+    func refreshSession(trigger: SessionRefreshTrigger) {
+        let nowMillis = nowMillisProvider()
+        guard sessionRefreshPolicy.shouldRefresh(
+            trigger: trigger,
+            lastRefreshAtMillis: lastSessionRefreshAtMillis,
+            nowMillis: nowMillis,
+            isRefreshInFlight: isSessionRefreshInFlight
+        ) else {
+            return
+        }
+
+        isSessionRefreshInFlight = true
+        let hadAuthenticatedSession = mode.isAuthenticatedSession
+
+        Task { @MainActor in
+            defer {
+                lastSessionRefreshAtMillis = nowMillisProvider()
+                isSessionRefreshInFlight = false
+            }
+
+            let result = await authSessionProvider.refreshCurrentSession()
+            switch result {
+            case .noSession:
+                if hadAuthenticatedSession {
+                    await handleExpiredSession()
+                }
+            case .active(let principal):
+                let shouldRefreshCriticalData = !hadAuthenticatedSession || shouldRefreshCriticalData(for: principal)
+                await applyAuthorizedSession(
+                    principal: principal,
+                    shouldRefreshCriticalData: shouldRefreshCriticalData
+                )
+            case .expired:
+                await handleExpiredSession()
+            }
         }
     }
 
@@ -519,7 +572,10 @@ final class SessionViewModel {
         feedbackMessageKey = mapped.globalMessageKey
     }
 
-    private func applyAuthorizedSession(principal: AuthPrincipal) async {
+    private func applyAuthorizedSession(
+        principal: AuthPrincipal,
+        shouldRefreshCriticalData: Bool = true
+    ) async {
         let result = await resolveAuthorizedSession.execute(authPrincipal: principal)
         switch result {
         case .authorized(let member):
@@ -531,12 +587,57 @@ final class SessionViewModel {
                     members: members
                 )
             )
-            myOrderFreshnessState = .checking
-            refreshMyOrderFreshness()
+            showSessionExpiredDialog = false
+            if shouldRefreshCriticalData {
+                myOrderFreshnessState = .checking
+                refreshMyOrderFreshness()
+            }
         case .unauthorized(let reason):
             mode = .unauthorized(email: principal.email, reason: reason)
+            showSessionExpiredDialog = false
             myOrderFreshnessState = .idle
         }
+    }
+
+    private func shouldRefreshCriticalData(for principal: AuthPrincipal) -> Bool {
+        switch mode {
+        case .signedOut:
+            return true
+        case .unauthorized(let email, _):
+            return email != principal.email
+        case .authorized(let session):
+            return session.principal.uid != principal.uid
+        }
+    }
+
+    private func handleExpiredSession() async {
+        clearSessionRefreshTracking()
+        emailInput = ""
+        passwordInput = ""
+        registerEmailInput = ""
+        registerPasswordInput = ""
+        registerRepeatPasswordInput = ""
+        recoverEmailInput = ""
+        emailErrorKey = nil
+        passwordErrorKey = nil
+        registerEmailErrorKey = nil
+        registerPasswordErrorKey = nil
+        registerRepeatPasswordErrorKey = nil
+        recoverEmailErrorKey = nil
+        isAuthenticating = false
+        isRegistering = false
+        isRecoveringPassword = false
+        feedbackMessageKey = nil
+        mode = .signedOut
+        memberDraft = MemberDraft()
+        myOrderFreshnessState = .idle
+        showSessionExpiredDialog = true
+        await criticalDataFreshnessLocalRepository.clear()
+    }
+
+    private func clearSessionRefreshTracking() {
+        lastSessionRefreshAtMillis = nil
+        isSessionRefreshInFlight = false
     }
 
     private func persistMember(target: Member, session: AuthorizedSession) async {

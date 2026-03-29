@@ -354,6 +354,87 @@ struct ReguertaTests {
 
         #expect(evaluation == .accepted(metadataToPersist: nil))
     }
+
+    @Test
+    func sessionRefreshPolicyDebouncesForegroundTransitions() {
+        let policy = SessionRefreshPolicy(minimumForegroundIntervalMillis: 15_000)
+
+        #expect(policy.shouldRefresh(
+            trigger: .startup,
+            lastRefreshAtMillis: nil,
+            nowMillis: 1_000,
+            isRefreshInFlight: false
+        ))
+        #expect(!policy.shouldRefresh(
+            trigger: .startup,
+            lastRefreshAtMillis: 1_000,
+            nowMillis: 2_000,
+            isRefreshInFlight: false
+        ))
+        #expect(!policy.shouldRefresh(
+            trigger: .foreground,
+            lastRefreshAtMillis: 10_000,
+            nowMillis: 20_000,
+            isRefreshInFlight: false
+        ))
+        #expect(policy.shouldRefresh(
+            trigger: .foreground,
+            lastRefreshAtMillis: 10_000,
+            nowMillis: 25_000,
+            isRefreshInFlight: false
+        ))
+    }
+
+    @Test
+    func startupRefreshRestoresAuthorizedSession() async {
+        let provider = TestAuthSessionProvider(
+            refreshResult: .active(AuthPrincipal(uid: "uid_admin_restore", email: "ana.admin@reguerta.app"))
+        )
+        let viewModel = SessionViewModel(
+            repository: InMemoryMemberRepository(),
+            authSessionProvider: provider,
+            sessionRefreshPolicy: SessionRefreshPolicy(minimumForegroundIntervalMillis: 15_000),
+            nowMillisProvider: { 1_000 }
+        )
+
+        viewModel.refreshSession(trigger: .startup)
+        await waitForCondition { viewModel.mode.isAuthenticatedSession }
+
+        guard case .authorized(let session) = viewModel.mode else {
+            Issue.record("Expected restored authorized session")
+            return
+        }
+
+        #expect(session.principal.uid == "uid_admin_restore")
+        #expect(viewModel.showSessionExpiredDialog == false)
+    }
+
+    @Test
+    func expiredRefreshSignsOutAndShowsRecoveryDialog() async {
+        let provider = TestAuthSessionProvider(
+            signInResult: .success(AuthPrincipal(uid: "uid_admin_expired", email: "ana.admin@reguerta.app")),
+            refreshResult: .expired
+        )
+        let viewModel = SessionViewModel(
+            repository: InMemoryMemberRepository(),
+            authSessionProvider: provider,
+            sessionRefreshPolicy: SessionRefreshPolicy(minimumForegroundIntervalMillis: 15_000),
+            nowMillisProvider: { 1_000 }
+        )
+
+        viewModel.emailInput = "ana.admin@reguerta.app"
+        viewModel.passwordInput = "test1234"
+        viewModel.signIn()
+        await waitForCondition { viewModel.mode.isAuthenticatedSession }
+
+        #expect(viewModel.mode.isAuthenticatedSession)
+
+        viewModel.refreshSession(trigger: .foreground)
+        await waitForCondition { viewModel.mode == .signedOut && viewModel.showSessionExpiredDialog }
+
+        #expect(viewModel.mode == .signedOut)
+        #expect(viewModel.showSessionExpiredDialog)
+    }
 }
 
 private struct FixedStartupVersionPolicyRepository: StartupVersionPolicyRepository {
@@ -385,5 +466,53 @@ private actor InMemoryCriticalDataFreshnessLocalRepository: CriticalDataFreshnes
 
     func clear() async {
         metadata = nil
+    }
+}
+
+@MainActor
+private final class TestAuthSessionProvider: AuthSessionProvider {
+    private let signInResult: AuthSignInResult
+    private let refreshResult: AuthSessionRefreshResult
+
+    init(
+        signInResult: AuthSignInResult = .failure(.invalidCredentials),
+        refreshResult: AuthSessionRefreshResult = .noSession
+    ) {
+        self.signInResult = signInResult
+        self.refreshResult = refreshResult
+    }
+
+    func signIn(email: String, password: String) async -> AuthSignInResult {
+        signInResult
+    }
+
+    func signUp(email: String, password: String) async -> AuthSignInResult {
+        signInResult
+    }
+
+    func sendPasswordReset(email: String) async -> AuthPasswordResetResult {
+        .success
+    }
+
+    func refreshCurrentSession() async -> AuthSessionRefreshResult {
+        refreshResult
+    }
+
+    func signOut() {
+    }
+}
+
+@MainActor
+private func waitForCondition(
+    timeoutNanoseconds: UInt64 = 500_000_000,
+    pollNanoseconds: UInt64 = 10_000_000,
+    condition: @escaping @MainActor () -> Bool
+) async {
+    let start = ContinuousClock.now
+    while !condition() {
+        if ContinuousClock.now - start >= .nanoseconds(Int(timeoutNanoseconds)) {
+            return
+        }
+        try? await Task.sleep(nanoseconds: pollNanoseconds)
     }
 }

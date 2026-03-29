@@ -38,6 +38,9 @@
     <string name="recover_action_sending">Sending email…</string>
     <string name="recover_success_dialog_title">Recover password</string>
     <string name="recover_success_dialog_message">The password reset email was sent successfully. Check your inbox.</string>
+    <string name="session_expired_dialog_title">Session expired</string>
+    <string name="session_expired_dialog_message">Your session is no longer valid. Sign in again to continue safely.</string>
+    <string name="session_expired_dialog_action">Sign in again</string>
     <string name="common_action_back">Back</string>
     <string name="common_action_accept">Accept</string>
     <string name="common_action_clear">Clear</string>

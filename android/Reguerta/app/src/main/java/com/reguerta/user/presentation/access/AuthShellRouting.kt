@@ -24,6 +24,8 @@ sealed interface AuthShellAction {
 
     data object ContinueFromWelcome : AuthShellAction
 
+    data object Reauthenticate : AuthShellAction
+
     data object OpenRegisterFromWelcome : AuthShellAction
 
     data object OpenRegisterFromLogin : AuthShellAction
@@ -47,6 +49,7 @@ fun reduceAuthShell(
         }
 
         AuthShellAction.ContinueFromWelcome -> state.push(AuthShellRoute.LOGIN)
+        AuthShellAction.Reauthenticate -> state.resetTo(listOf(AuthShellRoute.WELCOME, AuthShellRoute.LOGIN))
         AuthShellAction.OpenRegisterFromWelcome -> state.push(AuthShellRoute.REGISTER)
         AuthShellAction.OpenRegisterFromLogin -> state.push(AuthShellRoute.REGISTER)
         AuthShellAction.OpenRecoverFromLogin -> state.push(AuthShellRoute.RECOVER_PASSWORD)
@@ -62,6 +65,9 @@ private fun AuthShellState.push(route: AuthShellRoute): AuthShellState {
 
 private fun AuthShellState.resetTo(route: AuthShellRoute): AuthShellState =
     copy(backStack = listOf(route))
+
+private fun AuthShellState.resetTo(routes: List<AuthShellRoute>): AuthShellState =
+    copy(backStack = routes)
 
 private fun AuthShellState.popOrStay(): AuthShellState {
     if (!canGoBack) return this
