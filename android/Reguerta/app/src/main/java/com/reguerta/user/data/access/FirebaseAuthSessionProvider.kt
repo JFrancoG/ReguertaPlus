@@ -9,6 +9,7 @@ import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.reguerta.user.domain.access.AuthPrincipal
 import com.reguerta.user.domain.access.AuthPasswordResetResult
+import com.reguerta.user.domain.access.AuthSessionRefreshResult
 import com.reguerta.user.domain.access.AuthSessionProvider
 import com.reguerta.user.domain.access.AuthSignInFailureReason
 import com.reguerta.user.domain.access.AuthSignInResult
@@ -61,6 +62,45 @@ class FirebaseAuthSessionProvider(
             AuthPasswordResetResult.Success
         } catch (exception: Exception) {
             AuthPasswordResetResult.Failure(exception.toFailureReason())
+        }
+    }
+
+    override suspend fun refreshCurrentSession(): AuthSessionRefreshResult = withContext(Dispatchers.IO) {
+        val user = auth.currentUser ?: return@withContext AuthSessionRefreshResult.NoSession
+        val fallbackPrincipal = AuthPrincipal(
+            uid = user.uid,
+            email = (user.email ?: "").trim().lowercase(),
+        )
+
+        return@withContext try {
+            Tasks.await(user.reload())
+            val refreshedUser = auth.currentUser ?: return@withContext AuthSessionRefreshResult.Expired
+            Tasks.await(refreshedUser.getIdToken(false))
+
+            AuthSessionRefreshResult.Active(
+                principal = AuthPrincipal(
+                    uid = refreshedUser.uid,
+                    email = (refreshedUser.email ?: fallbackPrincipal.email).trim().lowercase(),
+                ),
+            )
+        } catch (exception: Exception) {
+            when (exception.toFailureReason()) {
+                AuthSignInFailureReason.USER_DISABLED,
+                AuthSignInFailureReason.USER_NOT_FOUND,
+                AuthSignInFailureReason.INVALID_CREDENTIALS,
+                    -> {
+                        auth.signOut()
+                        AuthSessionRefreshResult.Expired
+                    }
+
+                AuthSignInFailureReason.NETWORK,
+                AuthSignInFailureReason.TOO_MANY_REQUESTS,
+                AuthSignInFailureReason.UNKNOWN,
+                AuthSignInFailureReason.INVALID_EMAIL,
+                AuthSignInFailureReason.EMAIL_ALREADY_IN_USE,
+                AuthSignInFailureReason.WEAK_PASSWORD,
+                    -> AuthSessionRefreshResult.Active(fallbackPrincipal)
+            }
         }
     }
 

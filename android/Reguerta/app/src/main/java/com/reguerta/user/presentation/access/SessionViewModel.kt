@@ -7,6 +7,7 @@ import com.reguerta.user.R
 import com.reguerta.user.domain.access.AccessResolutionResult
 import com.reguerta.user.domain.access.AuthPasswordResetResult
 import com.reguerta.user.domain.access.AuthPrincipal
+import com.reguerta.user.domain.access.AuthSessionRefreshResult
 import com.reguerta.user.domain.access.AuthSessionProvider
 import com.reguerta.user.domain.access.AuthSignInResult
 import com.reguerta.user.domain.access.Member
@@ -14,6 +15,8 @@ import com.reguerta.user.domain.access.MemberManagementException
 import com.reguerta.user.domain.access.MemberRepository
 import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.ResolveAuthorizedSessionUseCase
+import com.reguerta.user.domain.access.SessionRefreshPolicy
+import com.reguerta.user.domain.access.SessionRefreshTrigger
 import com.reguerta.user.domain.access.UnauthorizedReason
 import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessLocalRepository
@@ -28,6 +31,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.atomic.AtomicBoolean
 
 data class MemberDraft(
     val displayName: String = "",
@@ -70,6 +74,7 @@ data class SessionUiState(
     @param:StringRes val recoverEmailErrorRes: Int? = null,
     val isRecoveringPassword: Boolean = false,
     val showRecoverSuccessDialog: Boolean = false,
+    val showSessionExpiredDialog: Boolean = false,
     val mode: SessionMode = SessionMode.SignedOut,
     val memberDraft: MemberDraft = MemberDraft(),
     val myOrderFreshnessState: MyOrderFreshnessUiState = MyOrderFreshnessUiState.Idle,
@@ -98,12 +103,16 @@ class SessionViewModel(
     private val upsertMemberByAdmin: UpsertMemberByAdminUseCase,
     private val resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase,
     private val criticalDataFreshnessLocalRepository: CriticalDataFreshnessLocalRepository,
+    private val sessionRefreshPolicy: SessionRefreshPolicy = SessionRefreshPolicy(),
+    private val nowMillisProvider: () -> Long = { System.currentTimeMillis() },
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SessionUiState())
     val uiState: StateFlow<SessionUiState> = _uiState.asStateFlow()
 
     private val _uiEvents = MutableSharedFlow<SessionUiEvent>(replay = 0)
     val uiEvents: SharedFlow<SessionUiEvent> = _uiEvents.asSharedFlow()
+    private val isSessionRefreshInFlight = AtomicBoolean(false)
+    private var lastSessionRefreshAtMillis: Long? = null
 
     fun onEmailChanged(value: String) {
         _uiState.update {
@@ -201,6 +210,10 @@ class SessionViewModel(
 
     fun dismissRecoverSuccessDialog() {
         _uiState.update { it.copy(showRecoverSuccessDialog = false) }
+    }
+
+    fun dismissSessionExpiredDialog() {
+        _uiState.update { it.copy(showSessionExpiredDialog = false) }
     }
 
     fun signIn() {
@@ -444,6 +457,7 @@ class SessionViewModel(
 
     fun signOut() {
         authSessionProvider.signOut()
+        clearSessionRefreshTracking()
         viewModelScope.launch {
             criticalDataFreshnessLocalRepository.clear()
         }
@@ -465,9 +479,54 @@ class SessionViewModel(
                 recoverEmailErrorRes = null,
                 isRecoveringPassword = false,
                 showRecoverSuccessDialog = false,
+                showSessionExpiredDialog = false,
                 memberDraft = MemberDraft(),
                 myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
             )
+        }
+    }
+
+    fun refreshSession(trigger: SessionRefreshTrigger) {
+        val nowMillis = nowMillisProvider()
+        if (!sessionRefreshPolicy.shouldRefresh(
+                trigger = trigger,
+                lastRefreshAtMillis = lastSessionRefreshAtMillis,
+                nowMillis = nowMillis,
+                isRefreshInFlight = isSessionRefreshInFlight.get(),
+            )
+        ) {
+            return
+        }
+        if (!isSessionRefreshInFlight.compareAndSet(false, true)) {
+            return
+        }
+
+        viewModelScope.launch {
+            val hadAuthenticatedSession = _uiState.value.mode.isAuthenticatedSession()
+            try {
+                when (val result = authSessionProvider.refreshCurrentSession()) {
+                    AuthSessionRefreshResult.NoSession -> {
+                        if (hadAuthenticatedSession) {
+                            handleExpiredSession()
+                        }
+                    }
+
+                    is AuthSessionRefreshResult.Active -> {
+                        val shouldRefreshCriticalData = !hadAuthenticatedSession || shouldRefreshCriticalDataFor(result.principal)
+                        applyAuthorizedSession(
+                            principal = result.principal,
+                            shouldRefreshCriticalData = shouldRefreshCriticalData,
+                        )
+                    }
+
+                    AuthSessionRefreshResult.Expired -> {
+                        handleExpiredSession()
+                    }
+                }
+            } finally {
+                lastSessionRefreshAtMillis = nowMillisProvider()
+                isSessionRefreshInFlight.set(false)
+            }
         }
     }
 
@@ -623,6 +682,90 @@ class SessionViewModel(
         }
     }
 
+    private suspend fun applyAuthorizedSession(
+        principal: AuthPrincipal,
+        shouldRefreshCriticalData: Boolean,
+    ) {
+        when (val result = resolveAuthorizedSession(principal)) {
+            is AccessResolutionResult.Authorized -> {
+                val members = repository.getAllMembers()
+                _uiState.update {
+                    it.copy(
+                        mode = SessionMode.Authorized(
+                            principal = principal,
+                            member = result.member,
+                            members = members,
+                        ),
+                        showSessionExpiredDialog = false,
+                        myOrderFreshnessState = if (shouldRefreshCriticalData) {
+                            MyOrderFreshnessUiState.Checking
+                        } else {
+                            it.myOrderFreshnessState
+                        },
+                    )
+                }
+                if (shouldRefreshCriticalData) {
+                    refreshMyOrderFreshness()
+                }
+            }
+
+            is AccessResolutionResult.Unauthorized -> {
+                _uiState.update {
+                    it.copy(
+                        mode = SessionMode.Unauthorized(
+                            email = principal.email,
+                            reason = result.reason,
+                        ),
+                        showSessionExpiredDialog = false,
+                        myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
+                    )
+                }
+            }
+        }
+    }
+
+    private fun shouldRefreshCriticalDataFor(principal: AuthPrincipal): Boolean {
+        val currentMode = _uiState.value.mode
+        return when (currentMode) {
+            SessionMode.SignedOut -> true
+            is SessionMode.Unauthorized -> currentMode.email != principal.email
+            is SessionMode.Authorized -> currentMode.principal.uid != principal.uid
+        }
+    }
+
+    private suspend fun handleExpiredSession() {
+        clearSessionRefreshTracking()
+        criticalDataFreshnessLocalRepository.clear()
+        _uiState.update {
+            it.copy(
+                mode = SessionMode.SignedOut,
+                passwordInput = "",
+                emailErrorRes = null,
+                passwordErrorRes = null,
+                isAuthenticating = false,
+                registerEmailInput = "",
+                registerPasswordInput = "",
+                registerRepeatPasswordInput = "",
+                registerEmailErrorRes = null,
+                registerPasswordErrorRes = null,
+                registerRepeatPasswordErrorRes = null,
+                isRegistering = false,
+                recoverEmailInput = "",
+                recoverEmailErrorRes = null,
+                isRecoveringPassword = false,
+                showRecoverSuccessDialog = false,
+                showSessionExpiredDialog = true,
+                memberDraft = MemberDraft(),
+                myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
+            )
+        }
+    }
+
+    private fun clearSessionRefreshTracking() {
+        lastSessionRefreshAtMillis = null
+        isSessionRefreshInFlight.set(false)
+    }
+
     private fun buildRoles(draft: MemberDraft): Set<MemberRole> {
         val roles = mutableSetOf<MemberRole>()
         if (draft.isMember) roles.add(MemberRole.MEMBER)
@@ -643,3 +786,6 @@ private const val PasswordMinLength = 6
 private const val PasswordMaxLength = 16
 
 private fun String.isValidPassword(): Boolean = length in PasswordMinLength..PasswordMaxLength
+
+private fun SessionMode.isAuthenticatedSession(): Boolean =
+    this is SessionMode.Authorized || this is SessionMode.Unauthorized

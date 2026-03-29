@@ -48,6 +48,9 @@ enum AccessL10nKey {
     static let recoverSubtitle = "recover.subtitle"
     static let recoverActionSendEmail = "recover.action.send_email"
     static let recoverActionSending = "recover.action.sending"
+    static let sessionExpiredTitle = "session.expired.title"
+    static let sessionExpiredMessage = "session.expired.message"
+    static let sessionExpiredAction = "session.expired.action"
 
     static let homeTitle = "home.title"
     static let homeWelcome = "home.welcome"

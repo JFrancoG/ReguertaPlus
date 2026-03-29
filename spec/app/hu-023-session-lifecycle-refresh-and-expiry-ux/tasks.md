@@ -1,27 +1,27 @@
 # Tasks - HU-023 (Session lifecycle refresh and expiry UX)
 
 ## 1. Preparation
-- [ ] Define lifecycle trigger matrix.
-- [ ] Define expiry UX and recovery behavior.
+- [x] Define lifecycle trigger matrix.
+- [x] Define expiry UX and recovery behavior.
 
 ## 2. Android implementation
-- [ ] Add refresh on startup and foreground.
-- [ ] Implement explicit expiry UX and recovery navigation.
+- [x] Add refresh on startup and foreground.
+- [x] Implement explicit expiry UX and recovery navigation.
 
 ## 3. iOS implementation
-- [ ] Add refresh on startup and foreground.
-- [ ] Implement explicit expiry UX and recovery navigation.
+- [x] Add refresh on startup and foreground.
+- [x] Implement explicit expiry UX and recovery navigation.
 
 ## 4. Backend / Firestore
-- [ ] Validate no backend schema changes are required.
+- [x] Validate no backend schema changes are required.
 
 ## 5. Testing
-- [ ] Unit tests for refresh trigger/debounce logic.
-- [ ] Integration tests for expired session flow.
+- [x] Unit tests for refresh trigger/debounce logic.
+- [x] Integration tests for expired session flow.
 - [ ] Manual tests for user-facing recovery path.
 
 ## 6. Documentation
-- [ ] Document lifecycle trigger policy.
+- [x] Document lifecycle trigger policy.
 - [ ] Update issue evidence.
 
 ## 7. Closure

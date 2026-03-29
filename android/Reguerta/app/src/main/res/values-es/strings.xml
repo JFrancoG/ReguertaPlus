@@ -38,6 +38,9 @@
     <string name="recover_action_sending">Enviando email…</string>
     <string name="recover_success_dialog_title">Recuperar contraseña</string>
     <string name="recover_success_dialog_message">Se ha enviado el correo de restablecimiento de la contraseña con éxito. Revisa tu correo.</string>
+    <string name="session_expired_dialog_title">Sesión caducada</string>
+    <string name="session_expired_dialog_message">Tu sesión ya no es válida. Vuelve a iniciar sesión para continuar de forma segura.</string>
+    <string name="session_expired_dialog_action">Iniciar sesión otra vez</string>
     <string name="common_action_back">Volver</string>
     <string name="common_action_accept">Aceptar</string>
     <string name="common_action_clear">Borrar</string>

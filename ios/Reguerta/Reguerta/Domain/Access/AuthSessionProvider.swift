@@ -22,9 +22,17 @@ enum AuthPasswordResetResult: Equatable, Sendable {
     case failure(AuthSignInFailureReason)
 }
 
-protocol AuthSessionProvider: Sendable {
+enum AuthSessionRefreshResult: Equatable, Sendable {
+    case noSession
+    case active(AuthPrincipal)
+    case expired
+}
+
+@MainActor
+protocol AuthSessionProvider {
     func signIn(email: String, password: String) async -> AuthSignInResult
     func signUp(email: String, password: String) async -> AuthSignInResult
     func sendPasswordReset(email: String) async -> AuthPasswordResetResult
+    func refreshCurrentSession() async -> AuthSessionRefreshResult
     func signOut()
 }

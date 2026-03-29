@@ -41,6 +41,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,6 +60,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -74,6 +78,7 @@ import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.freshness.ResolveCriticalDataFreshnessUseCase
 import com.reguerta.user.domain.access.ResolveAuthorizedSessionUseCase
+import com.reguerta.user.domain.access.SessionRefreshTrigger
 import com.reguerta.user.domain.access.UnauthorizedReason
 import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
 import com.reguerta.user.domain.startup.ResolveStartupVersionGateUseCase
@@ -135,6 +140,7 @@ fun ReguertaRoot(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val spacing = ReguertaThemeTokens.spacing
     val installedVersion = remember(context) {
         resolveInstalledVersionName(context)
@@ -173,6 +179,10 @@ fun ReguertaRoot(
     }
 
     LaunchedEffect(viewModel) {
+        viewModel.refreshSession(SessionRefreshTrigger.STARTUP)
+    }
+
+    LaunchedEffect(viewModel) {
         viewModel.uiEvents.collect { event ->
             if (event is SessionUiEvent.ShowMessage) {
                 snackbarHostState.showSnackbar(context.getString(event.messageRes))
@@ -180,12 +190,29 @@ fun ReguertaRoot(
         }
     }
 
-    LaunchedEffect(isAuthenticatedSession) {
+    LaunchedEffect(state.mode) {
         if (isAuthenticatedSession && shellState.currentRoute != AuthShellRoute.SPLASH) {
             shellState = reduceAuthShell(
                 state = shellState,
                 action = AuthShellAction.SessionAuthenticated,
             )
+        } else if (state.mode is SessionMode.SignedOut && shellState.currentRoute == AuthShellRoute.HOME) {
+            shellState = reduceAuthShell(
+                state = shellState,
+                action = AuthShellAction.SignedOut,
+            )
+        }
+    }
+
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_START) {
+                viewModel.refreshSession(SessionRefreshTrigger.FOREGROUND)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
@@ -221,6 +248,14 @@ fun ReguertaRoot(
             AuthShellRoute.HOME,
                 -> Unit
         }
+    }
+    val routeToReauthentication = {
+        viewModel.dismissSessionExpiredDialog()
+        viewModel.clearLoginForm()
+        shellState = reduceAuthShell(
+            state = shellState,
+            action = AuthShellAction.Reauthenticate,
+        )
     }
 
     BackHandler(enabled = shellState.canGoBack) {
@@ -356,6 +391,19 @@ fun ReguertaRoot(
                         onDismissOptional = {
                             startupGateState = StartupGateUiState.OptionalDismissed
                         },
+                    )
+                }
+
+                if (state.showSessionExpiredDialog) {
+                    ReguertaDialog(
+                        type = ReguertaDialogType.ERROR,
+                        title = stringResource(R.string.session_expired_dialog_title),
+                        message = stringResource(R.string.session_expired_dialog_message),
+                        primaryAction = ReguertaDialogAction(
+                            label = stringResource(R.string.session_expired_dialog_action),
+                            onClick = routeToReauthentication,
+                        ),
+                        onDismissRequest = routeToReauthentication,
                     )
                 }
             }

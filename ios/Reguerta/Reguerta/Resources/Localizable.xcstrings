@@ -1535,6 +1535,57 @@
         }
       }
     },
+    "session.expired.action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in again"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciar sesión otra vez"
+          }
+        }
+      }
+    },
+    "session.expired.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your session is no longer valid. Sign in again to continue safely."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu sesión ya no es válida. Vuelve a iniciar sesión para continuar de forma segura."
+          }
+        }
+      }
+    },
+    "session.expired.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Session expired"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sesión caducada"
+          }
+        }
+      }
+    },
     "startup.update.action.later" : {
       "extractionState" : "stale",
       "localizations" : {

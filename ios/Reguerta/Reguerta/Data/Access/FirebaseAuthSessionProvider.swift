@@ -1,6 +1,8 @@
 import FirebaseAuth
 import Foundation
 
+extension User: @retroactive @unchecked Sendable {}
+
 struct FirebaseAuthSessionProvider: AuthSessionProvider {
     private let auth: Auth
 
@@ -49,11 +51,45 @@ struct FirebaseAuthSessionProvider: AuthSessionProvider {
         }
     }
 
+    func refreshCurrentSession() async -> AuthSessionRefreshResult {
+        guard let user = auth.currentUser else {
+            return .noSession
+        }
+
+        let fallbackPrincipal = AuthPrincipal(
+            uid: user.uid,
+            email: (user.email ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        )
+
+        do {
+            try await user.reload()
+            guard let refreshedUser = auth.currentUser else {
+                return .expired
+            }
+            _ = try await refreshedUser.getIDTokenResult(forcingRefresh: false)
+
+            let principal = AuthPrincipal(
+                uid: refreshedUser.uid,
+                email: (refreshedUser.email ?? fallbackPrincipal.email)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .lowercased()
+            )
+            return .active(principal)
+        } catch {
+            if isExpiredSessionError(error) {
+                try? auth.signOut()
+                return .expired
+            }
+            return .active(fallbackPrincipal)
+        }
+    }
+
     func signOut() {
         try? auth.signOut()
     }
 }
 
+@MainActor
 func mapFirebaseAuthError(_ error: Error) -> AuthSignInFailureReason {
     let nsError = error as NSError
     guard let code = AuthErrorCode(rawValue: nsError.code) else {
@@ -79,5 +115,20 @@ func mapFirebaseAuthError(_ error: Error) -> AuthSignInFailureReason {
         return .network
     default:
         return .unknown
+    }
+}
+
+@MainActor
+private func isExpiredSessionError(_ error: Error) -> Bool {
+    let nsError = error as NSError
+    guard let code = AuthErrorCode(rawValue: nsError.code) else {
+        return false
+    }
+
+    switch code {
+    case .userDisabled, .userNotFound, .invalidCredential, .userTokenExpired, .invalidUserToken:
+        return true
+    default:
+        return false
     }
 }

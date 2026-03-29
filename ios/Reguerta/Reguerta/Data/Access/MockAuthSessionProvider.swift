@@ -1,22 +1,21 @@
 import Foundation
 
-struct MockAuthSessionProvider: AuthSessionProvider {
+@MainActor
+final class MockAuthSessionProvider: AuthSessionProvider {
+    private var currentPrincipal: AuthPrincipal?
+
     func signIn(email: String, password: String) async -> AuthSignInResult {
         guard password == "test1234" else {
             return .failure(.invalidCredentials)
         }
 
-        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let uidSuffix = normalizedEmail
-            .replacingOccurrences(of: "[^a-z0-9]+", with: "_", options: .regularExpression)
-            .trimmingCharacters(in: CharacterSet(charactersIn: "_"))
-        let uid = "mock_\(uidSuffix.isEmpty ? "user" : uidSuffix)"
-
-        return .success(AuthPrincipal(uid: uid, email: normalizedEmail))
+        let principal = buildPrincipal(from: email)
+        currentPrincipal = principal
+        return .success(principal)
     }
 
     func signUp(email: String, password: String) async -> AuthSignInResult {
-        if !password.isValidMockPassword {
+        if !(6...16).contains(password.count) {
             return .failure(.weakPassword)
         }
 
@@ -24,12 +23,10 @@ struct MockAuthSessionProvider: AuthSessionProvider {
         if normalizedEmail.contains("exists") {
             return .failure(.emailAlreadyInUse)
         }
-        let uidSuffix = normalizedEmail
-            .replacingOccurrences(of: "[^a-z0-9]+", with: "_", options: .regularExpression)
-            .trimmingCharacters(in: CharacterSet(charactersIn: "_"))
-        let uid = "mock_\(uidSuffix.isEmpty ? "user" : uidSuffix)"
 
-        return .success(AuthPrincipal(uid: uid, email: normalizedEmail))
+        let principal = buildPrincipal(from: email)
+        currentPrincipal = principal
+        return .success(principal)
     }
 
     func sendPasswordReset(email: String) async -> AuthPasswordResetResult {
@@ -40,12 +37,23 @@ struct MockAuthSessionProvider: AuthSessionProvider {
         return .success
     }
 
-    func signOut() {
+    func refreshCurrentSession() async -> AuthSessionRefreshResult {
+        guard let currentPrincipal else {
+            return .noSession
+        }
+        return .active(currentPrincipal)
     }
-}
 
-private extension String {
-    var isValidMockPassword: Bool {
-        (6...16).contains(count)
+    func signOut() {
+        currentPrincipal = nil
+    }
+
+    private func buildPrincipal(from email: String) -> AuthPrincipal {
+        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let uidSuffix = normalizedEmail
+            .replacingOccurrences(of: "[^a-z0-9]+", with: "_", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "_"))
+        let uid = "mock_\(uidSuffix.isEmpty ? "user" : uidSuffix)"
+        return AuthPrincipal(uid: uid, email: normalizedEmail)
     }
 }
