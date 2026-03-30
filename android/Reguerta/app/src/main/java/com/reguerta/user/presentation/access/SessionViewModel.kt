@@ -270,8 +270,10 @@ class SessionViewModel(
                         }
 
                         is AccessResolutionResult.Unauthorized -> {
-                            val showUnauthorizedDialog =
-                                shouldShowUnauthorizedDialog(authResult.principal.email)
+                            val showUnauthorizedDialog = shouldShowUnauthorizedDialog(
+                                email = authResult.principal.email,
+                                reason = result.reason,
+                            )
                             _uiState.update {
                                 it.copy(
                                     isAuthenticating = false,
@@ -377,8 +379,10 @@ class SessionViewModel(
                         }
 
                         is AccessResolutionResult.Unauthorized -> {
-                            val showUnauthorizedDialog =
-                                shouldShowUnauthorizedDialog(authResult.principal.email)
+                            val showUnauthorizedDialog = shouldShowUnauthorizedDialog(
+                                email = authResult.principal.email,
+                                reason = result.reason,
+                            )
                             _uiState.update {
                                 it.copy(
                                     isRegistering = false,
@@ -723,7 +727,10 @@ class SessionViewModel(
             }
 
             is AccessResolutionResult.Unauthorized -> {
-                val showUnauthorizedDialog = shouldShowUnauthorizedDialog(principal.email)
+                val showUnauthorizedDialog = shouldShowUnauthorizedDialog(
+                    email = principal.email,
+                    reason = result.reason,
+                )
                 _uiState.update {
                     it.copy(
                         mode = SessionMode.Unauthorized(
@@ -748,7 +755,13 @@ class SessionViewModel(
         }
     }
 
-    private fun shouldShowUnauthorizedDialog(email: String): Boolean {
+    private fun shouldShowUnauthorizedDialog(
+        email: String,
+        reason: UnauthorizedReason,
+    ): Boolean {
+        if (reason != UnauthorizedReason.USER_NOT_FOUND_IN_AUTHORIZED_USERS) {
+            return false
+        }
         val currentMode = _uiState.value.mode
         return currentMode !is SessionMode.Unauthorized || currentMode.email != email
     }

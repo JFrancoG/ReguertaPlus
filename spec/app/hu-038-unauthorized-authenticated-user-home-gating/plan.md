@@ -1,4 +1,4 @@
-# Plan - HU-027 (Unauthorized authenticated user home gating)
+# Plan - HU-038 (Unauthorized authenticated user home gating)
 
 ## 1. Technical approach
 
@@ -9,7 +9,7 @@ Separate unauthorized-access UX from session-expiry UX while keeping the same au
 - Domain: Session-resolution outcomes already expose unauthorized state and may need small refinements for UX clarity.
 - Data: Reuse existing email-to-user authorization lookup and active-member checks.
 - Backend: No schema change expected; only confirm current `users` contract is sufficient.
-- Docs: Add HU-027 and realign HU-010/HU-023 references.
+- Docs: Add HU-038 and realign HU-010/HU-023 references.
 
 ## 3. Platform-specific changes
 ### Android

@@ -59,6 +59,29 @@ enum AccessL10nKey {
 
     static let homeTitle = "home.title"
     static let homeWelcome = "home.welcome"
+    static let homeShellMenu = "home.shell.menu"
+    static let homeShellNotifications = "home.shell.notifications"
+    static let homeShellProfilePlaceholder = "home.shell.profile_placeholder"
+    static let homeShellSectionCommon = "home.shell.section.common"
+    static let homeShellSectionProducer = "home.shell.section.producer"
+    static let homeShellSectionAdmin = "home.shell.section.admin"
+    static let homeShellActionProducts = "home.shell.action.products"
+    static let homeShellActionReceivedOrders = "home.shell.action.received_orders"
+    static let homeShellActionUsers = "home.shell.action.users"
+    static let homeShellBadgeSoon = "home.shell.badge.soon"
+    static let homeShellWeeklyTitle = "home.shell.weekly.title"
+    static let homeShellWeeklyResponsible = "home.shell.weekly.responsible"
+    static let homeShellWeeklySupport = "home.shell.weekly.support"
+    static let homeShellWeeklyMainProducer = "home.shell.weekly.main_producer"
+    static let homeShellWeeklyDelivery = "home.shell.weekly.delivery"
+    static let homeShellWeeklyDeliveryDefault = "home.shell.weekly.delivery.default"
+    static let homeShellWeeklyPending = "home.shell.weekly.pending"
+    static let homeShellNewsTitle = "home.shell.news.title"
+    static let homeShellNewsIntro = "home.shell.news.intro"
+    static let homeShellNewsItemOne = "home.shell.news.item_one"
+    static let homeShellNewsItemTwo = "home.shell.news.item_two"
+    static let homeShellVersion = "home.shell.version"
+
     static let roles = "common.roles"
     static let status = "common.status"
     static let statusActive = "common.status.active"
@@ -66,6 +89,7 @@ enum AccessL10nKey {
 
     static let operationalModulesTitle = "operational_modules.title"
     static let myOrder = "operational_modules.my_order"
+    static let myOrders = "operational_modules.my_orders"
     static let catalog = "operational_modules.catalog"
     static let shifts = "operational_modules.shifts"
     static let operationalModulesRestrictedUnauthorized = "operational_modules.restricted.unauthorized"
@@ -131,7 +155,7 @@ func l10n(_ key: String, _ arguments: CVarArg...) -> String {
 
 func localizedUnauthorizedReason(_ reason: UnauthorizedReason) -> String {
     switch reason {
-    case .userNotAuthorized:
+    case .userNotFoundInAuthorizedUsers, .userAccessRestricted:
         return l10n(AccessL10nKey.unauthorized)
     }
 }

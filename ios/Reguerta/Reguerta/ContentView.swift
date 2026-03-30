@@ -15,6 +15,9 @@ struct ContentView: View {
     @State private var didEvaluateStartupGate = false
     @State private var areRegisterPasswordsVisible = false
     @State private var showsRecoverSuccessDialog = false
+    @State private var isHomeDrawerOpen = false
+    @State private var homeDrawerDragOffset: CGFloat = 0
+    @State private var isAdminToolsExpanded = false
 
     private let startupVersionGateUseCase = ResolveStartupVersionGateUseCase(
         repository: FirestoreStartupVersionPolicyRepository()
@@ -28,16 +31,15 @@ struct ContentView: View {
         shellState.currentRoute == .home
     }
 
+    private var installedVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
+    }
+
     var body: some View {
         NavigationStack {
             Group {
                 if isHomeRoute {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-                            homeRoute
-                            feedbackMessageRoute
-                        }
-                    }
+                    homeRoute
                 } else if shellState.currentRoute == .splash {
                     splashRoute
                 } else {
@@ -349,37 +351,102 @@ struct ContentView: View {
     }
 
     private var homeRoute: some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-            cardContainer {
-                HStack {
-                    Text(localizedKey(AccessL10nKey.homeTitle))
-                        .font(tokens.typography.titleCard)
-                    Spacer()
-                    if case .authorized = viewModel.mode {
-                        Button {
-                            viewModel.signOut()
-                            dispatchShell(.signedOut)
-                        } label: {
-                            Text(localizedKey(AccessL10nKey.signOut))
+        GeometryReader { proxy in
+            let drawerWidth = min(320.resize, proxy.size.width * 0.78)
+
+            ZStack(alignment: .leading) {
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                        homeShellTopBar
+                        weeklyContextCard
+
+                        switch viewModel.mode {
+                        case .signedOut:
+                            cardContainer {
+                                Text(localizedKey(AccessL10nKey.signedOutHint))
+                                    .font(tokens.typography.bodySecondary)
+                                    .foregroundStyle(tokens.colors.textSecondary)
+                            }
+                        case .unauthorized:
+                            EmptyView()
+                        case .authorized(let session):
+                            authorizedHome(session: session)
+                        }
+
+                        latestNewsCard
+
+                        if viewModel.feedbackMessageKey != nil {
+                            feedbackMessageRoute
                         }
                     }
+                    .padding(.vertical, tokens.spacing.lg)
+                }
+                .disabled(isHomeDrawerOpen)
+
+                if isHomeDrawerOpen {
+                    Color.black.opacity(0.18)
+                        .ignoresSafeArea()
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            closeHomeDrawer()
+                        }
+                }
+
+                homeDrawerPanel(drawerWidth: drawerWidth)
+
+                if !isHomeDrawerOpen {
+                    Color.clear
+                        .frame(width: 22.resize)
+                        .contentShape(Rectangle())
+                        .gesture(
+                            DragGesture(minimumDistance: 12)
+                                .onChanged { gesture in
+                                    homeDrawerDragOffset = max(0, min(drawerWidth, gesture.translation.width))
+                                }
+                                .onEnded { gesture in
+                                    if gesture.translation.width > 48.resize {
+                                        openHomeDrawer()
+                                    } else {
+                                        homeDrawerDragOffset = 0
+                                    }
+                                }
+                        )
                 }
             }
+        }
+    }
 
-            switch viewModel.mode {
-            case .signedOut:
-                Text(localizedKey(AccessL10nKey.signedOutHint))
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-            case .unauthorized(let email, let reason):
-                unauthorizedCard(email: email, reason: reason)
-                operationalModules(
-                    modulesEnabled: false,
-                    myOrderFreshnessState: .idle,
-                    disabledMessageKey: AccessL10nKey.operationalModulesRestrictedUnauthorized
-                )
-            case .authorized(let session):
-                authorizedHome(session: session)
+    private var homeShellTopBar: some View {
+        cardContainer {
+            HStack {
+                Button {
+                    openHomeDrawer()
+                } label: {
+                    Image(systemName: "line.3.horizontal")
+                        .font(.system(size: 22.resize, weight: .semibold))
+                        .foregroundStyle(tokens.colors.textPrimary)
+                        .frame(width: 44.resize, height: 44.resize)
+                }
+                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+
+                Spacer()
+
+                Text(localizedKey(AccessL10nKey.homeTitle))
+                    .font(tokens.typography.titleCard)
+                    .foregroundStyle(tokens.colors.textPrimary)
+
+                Spacer()
+
+                Button {
+                } label: {
+                    Image(systemName: "bell")
+                        .font(.system(size: 20.resize, weight: .semibold))
+                        .foregroundStyle(tokens.colors.textPrimary)
+                        .frame(width: 44.resize, height: 44.resize)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(localizedKey(AccessL10nKey.homeShellNotifications))
             }
         }
     }
@@ -552,26 +619,52 @@ struct ContentView: View {
 
     @ViewBuilder
     private func authorizedHome(session: AuthorizedSession) -> some View {
-        cardContainer {
-            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                Text(l10n(AccessL10nKey.homeWelcome, session.member.displayName))
-                Text(l10n(AccessL10nKey.roles, session.member.roles.prettyListLocalized))
-                Text(
-                    l10n(
-                        AccessL10nKey.status,
-                        l10n(session.member.isActive ? AccessL10nKey.statusActive : AccessL10nKey.statusInactive)
-                    )
-                )
-            }
-        }
-
         operationalModules(
             modulesEnabled: true,
             myOrderFreshnessState: viewModel.myOrderFreshnessState
         )
 
         if session.member.isAdmin {
-            adminMembersCard(session: session)
+            adminToolsCard(session: session)
+        }
+    }
+
+    private var weeklyContextCard: some View {
+        cardContainer {
+            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                Text(localizedKey(AccessL10nKey.homeShellWeeklyTitle))
+                    .font(tokens.typography.titleCard)
+                weeklyContextRow(
+                    titleKey: AccessL10nKey.homeShellWeeklyResponsible,
+                    value: localizedKey(AccessL10nKey.homeShellWeeklyPending)
+                )
+                weeklyContextRow(
+                    titleKey: AccessL10nKey.homeShellWeeklySupport,
+                    value: localizedKey(AccessL10nKey.homeShellWeeklyPending)
+                )
+                weeklyContextRow(
+                    titleKey: AccessL10nKey.homeShellWeeklyMainProducer,
+                    value: localizedKey(AccessL10nKey.homeShellWeeklyPending)
+                )
+                weeklyContextRow(
+                    titleKey: AccessL10nKey.homeShellWeeklyDelivery,
+                    value: localizedKey(AccessL10nKey.homeShellWeeklyDeliveryDefault)
+                )
+            }
+        }
+    }
+
+    private var latestNewsCard: some View {
+        cardContainer {
+            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                Text(localizedKey(AccessL10nKey.homeShellNewsTitle))
+                    .font(tokens.typography.titleCard)
+                Text(localizedKey(AccessL10nKey.homeShellNewsIntro))
+                    .font(tokens.typography.bodySecondary)
+                    .foregroundStyle(tokens.colors.textSecondary)
+                newsRow(AccessL10nKey.homeShellNewsItemOne)
+                newsRow(AccessL10nKey.homeShellNewsItemTwo)
+            }
         }
     }
 
@@ -630,39 +723,67 @@ struct ContentView: View {
         }
     }
 
+    private func weeklyContextRow(titleKey: String, value: LocalizedStringKey) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(localizedKey(titleKey))
+                .font(tokens.typography.bodySecondary)
+                .foregroundStyle(tokens.colors.textPrimary)
+            Spacer(minLength: tokens.spacing.md)
+            Text(value)
+                .font(tokens.typography.label)
+                .foregroundStyle(tokens.colors.textSecondary)
+        }
+    }
+
+    private func newsRow(_ key: String) -> some View {
+        HStack(alignment: .top, spacing: tokens.spacing.sm) {
+            Text("•")
+                .font(tokens.typography.body)
+                .foregroundStyle(tokens.colors.actionPrimary)
+            Text(localizedKey(key))
+                .font(tokens.typography.bodySecondary)
+                .foregroundStyle(tokens.colors.textPrimary)
+        }
+    }
+
     @ViewBuilder
-    private func adminMembersCard(session: AuthorizedSession) -> some View {
+    private func adminToolsCard(session: AuthorizedSession) -> some View {
         cardContainer {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text(localizedKey(AccessL10nKey.adminManageMembersTitle))
-                    .font(tokens.typography.titleCard)
-                Text(localizedKey(AccessL10nKey.adminManageMembersSubtitle))
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
+            DisclosureGroup(isExpanded: $isAdminToolsExpanded) {
+                VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                    ForEach(session.members) { member in
+                        memberRow(member: member)
+                    }
 
-                ForEach(session.members) { member in
-                    memberRow(member: member)
+                    Divider()
+
+                    Text(localizedKey(AccessL10nKey.adminCreatePreAuthorizedTitle))
+                        .font(tokens.typography.titleCard)
+                    TextField(localizedKey(AccessL10nKey.displayNameLabel), text: draftBinding(\.displayName))
+                        .textFieldStyle(.roundedBorder)
+                    TextField(localizedKey(AccessL10nKey.emailLabel), text: draftBinding(\.email))
+                        .textInputAutocapitalization(.never)
+                        .textFieldStyle(.roundedBorder)
+
+                    Toggle(localizedKey(AccessL10nKey.roleMember), isOn: draftBinding(\.isMember))
+                    Toggle(localizedKey(AccessL10nKey.roleProducer), isOn: draftBinding(\.isProducer))
+                    Toggle(localizedKey(AccessL10nKey.roleAdmin), isOn: draftBinding(\.isAdmin))
+                    Toggle(localizedKey(AccessL10nKey.roleActive), isOn: draftBinding(\.isActive))
+
+                    Button {
+                        viewModel.createAuthorizedMember()
+                    } label: {
+                        Text(localizedKey(AccessL10nKey.createMember))
+                    }
                 }
-
-                Divider()
-
-                Text(localizedKey(AccessL10nKey.adminCreatePreAuthorizedTitle))
-                    .font(tokens.typography.titleCard)
-                TextField(localizedKey(AccessL10nKey.displayNameLabel), text: draftBinding(\.displayName))
-                    .textFieldStyle(.roundedBorder)
-                TextField(localizedKey(AccessL10nKey.emailLabel), text: draftBinding(\.email))
-                    .textInputAutocapitalization(.never)
-                    .textFieldStyle(.roundedBorder)
-
-                Toggle(localizedKey(AccessL10nKey.roleMember), isOn: draftBinding(\.isMember))
-                Toggle(localizedKey(AccessL10nKey.roleProducer), isOn: draftBinding(\.isProducer))
-                Toggle(localizedKey(AccessL10nKey.roleAdmin), isOn: draftBinding(\.isAdmin))
-                Toggle(localizedKey(AccessL10nKey.roleActive), isOn: draftBinding(\.isActive))
-
-                Button {
-                    viewModel.createAuthorizedMember()
-                } label: {
-                    Text(localizedKey(AccessL10nKey.createMember))
+                .padding(.top, tokens.spacing.sm)
+            } label: {
+                VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+                    Text(localizedKey(AccessL10nKey.adminManageMembersTitle))
+                        .font(tokens.typography.titleCard)
+                    Text(localizedKey(AccessL10nKey.adminManageMembersSubtitle))
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
                 }
             }
         }
@@ -704,6 +825,156 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(tokens.colors.surfaceSecondary)
         .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
+    }
+
+    private func homeDrawerPanel(drawerWidth: CGFloat) -> some View {
+        let drawerOffset = resolvedHomeDrawerOffset(drawerWidth: drawerWidth)
+
+        return HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                HStack {
+                    Button {
+                        closeHomeDrawer()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 20.resize, weight: .semibold))
+                            .foregroundStyle(tokens.colors.textPrimary)
+                            .frame(width: 36.resize, height: 36.resize)
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+                    Spacer()
+                }
+
+                VStack(spacing: tokens.spacing.md) {
+                    Image("brand_logo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 108.resize, height: 108.resize)
+
+                    Circle()
+                        .fill(tokens.colors.actionPrimary.opacity(0.14))
+                        .frame(width: 76.resize, height: 76.resize)
+                        .overlay {
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 30.resize, weight: .semibold))
+                                .foregroundStyle(tokens.colors.actionPrimary)
+                        }
+
+                    if let member = currentHomeMember {
+                        Text(member.displayName)
+                            .font(tokens.typography.titleCard)
+                            .foregroundStyle(tokens.colors.textPrimary)
+                            .multilineTextAlignment(.center)
+                        Text(member.normalizedEmail)
+                            .font(tokens.typography.label)
+                            .foregroundStyle(tokens.colors.textSecondary)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, tokens.spacing.sm)
+
+                drawerSection(titleKey: AccessL10nKey.homeShellSectionCommon)
+                homeDrawerItem("house.fill", titleKey: AccessL10nKey.homeTitle, badgeKey: nil)
+                homeDrawerItem("cart.fill", titleKey: AccessL10nKey.myOrder, badgeKey: AccessL10nKey.homeShellBadgeSoon)
+                homeDrawerItem("doc.text.fill", titleKey: AccessL10nKey.myOrders, badgeKey: AccessL10nKey.homeShellBadgeSoon)
+                homeDrawerItem("calendar", titleKey: AccessL10nKey.shifts, badgeKey: AccessL10nKey.homeShellBadgeSoon)
+
+                if currentHomeMember?.isProducer == true {
+                    drawerSection(titleKey: AccessL10nKey.homeShellSectionProducer)
+                    homeDrawerItem("shippingbox.fill", titleKey: AccessL10nKey.homeShellActionProducts, badgeKey: AccessL10nKey.homeShellBadgeSoon)
+                    homeDrawerItem("tray.full.fill", titleKey: AccessL10nKey.homeShellActionReceivedOrders, badgeKey: AccessL10nKey.homeShellBadgeSoon)
+                }
+
+                if currentHomeMember?.isAdmin == true {
+                    drawerSection(titleKey: AccessL10nKey.homeShellSectionAdmin)
+                    homeDrawerItem("person.3.fill", titleKey: AccessL10nKey.homeShellActionUsers, badgeKey: AccessL10nKey.homeShellBadgeSoon)
+                    homeDrawerItem("newspaper.fill", titleKey: AccessL10nKey.homeShellNewsTitle, badgeKey: AccessL10nKey.homeShellBadgeSoon)
+                }
+
+                Spacer(minLength: tokens.spacing.md)
+
+                Divider()
+
+                ReguertaButton(localizedKey(AccessL10nKey.signOut)) {
+                    closeHomeDrawer()
+                    viewModel.signOut()
+                    dispatchShell(.signedOut)
+                }
+                .padding(.top, tokens.spacing.xs)
+
+                Text(l10n(AccessL10nKey.homeShellVersion, installedVersion))
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(tokens.spacing.lg)
+            .frame(width: drawerWidth)
+            .frame(maxHeight: .infinity, alignment: .topLeading)
+            .background(tokens.colors.surfacePrimary)
+            .overlay(alignment: .trailing) {
+                Rectangle()
+                    .fill(tokens.colors.borderSubtle.opacity(0.4))
+                    .frame(width: 1)
+            }
+            .offset(x: drawerOffset)
+            .gesture(
+                DragGesture(minimumDistance: 12)
+                    .onChanged { gesture in
+                        if isHomeDrawerOpen {
+                            homeDrawerDragOffset = min(0, gesture.translation.width)
+                        }
+                    }
+                    .onEnded { gesture in
+                        guard isHomeDrawerOpen else { return }
+                        if gesture.translation.width < -56.resize {
+                            closeHomeDrawer()
+                        } else {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                                homeDrawerDragOffset = 0
+                            }
+                        }
+                    }
+            )
+
+            Spacer(minLength: 0)
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(isHomeDrawerOpen)
+        .animation(.spring(response: 0.28, dampingFraction: 0.82), value: isHomeDrawerOpen)
+        .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.84), value: homeDrawerDragOffset)
+    }
+
+    private func drawerSection(titleKey: String) -> some View {
+        Text(localizedKey(titleKey))
+            .font(tokens.typography.label)
+            .foregroundStyle(tokens.colors.actionPrimary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, tokens.spacing.xs)
+    }
+
+    private func homeDrawerItem(
+        _ systemImage: String,
+        titleKey: String,
+        badgeKey: String?
+    ) -> some View {
+        HStack(spacing: tokens.spacing.md) {
+            Image(systemName: systemImage)
+                .font(.system(size: 18.resize, weight: .semibold))
+                .foregroundStyle(tokens.colors.actionPrimary)
+                .frame(width: 24.resize)
+            Text(localizedKey(titleKey))
+                .font(tokens.typography.bodySecondary)
+                .foregroundStyle(tokens.colors.textPrimary)
+            Spacer(minLength: tokens.spacing.sm)
+            if let badgeKey {
+                Text(localizedKey(badgeKey))
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.actionPrimary)
+            }
+        }
+        .padding(.vertical, tokens.spacing.xs + 2)
     }
 
     @ViewBuilder
@@ -768,8 +1039,38 @@ struct ContentView: View {
         LocalizedStringKey(key)
     }
 
+    private var currentHomeMember: Member? {
+        switch viewModel.mode {
+        case .authorized(let session):
+            return session.member
+        case .signedOut, .unauthorized:
+            return nil
+        }
+    }
+
     private func dispatchShell(_ action: AuthShellAction) {
         shellState = reduceAuthShell(state: shellState, action: action)
+    }
+
+    private func resolvedHomeDrawerOffset(drawerWidth: CGFloat) -> CGFloat {
+        if isHomeDrawerOpen {
+            return min(0, homeDrawerDragOffset)
+        }
+        return -drawerWidth + max(0, homeDrawerDragOffset)
+    }
+
+    private func openHomeDrawer() {
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+            isHomeDrawerOpen = true
+            homeDrawerDragOffset = 0
+        }
+    }
+
+    private func closeHomeDrawer() {
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+            isHomeDrawerOpen = false
+            homeDrawerDragOffset = 0
+        }
     }
 
     private func handleSessionExpiredDialogAction() {
@@ -909,6 +1210,10 @@ struct ContentView: View {
 
     private func handleAuthRouteExit(from previousRoute: AuthShellRoute, to newRoute: AuthShellRoute) {
         guard previousRoute != newRoute else { return }
+        if previousRoute == .home || newRoute != .home {
+            isHomeDrawerOpen = false
+            homeDrawerDragOffset = 0
+        }
 
         switch previousRoute {
         case .login where newRoute != .login:
@@ -962,6 +1267,12 @@ private extension Set<MemberRole> {
         sorted { lhs, rhs in lhs.rawValue < rhs.rawValue }
             .map(localizedRoleValue(_:))
             .joined(separator: ", ")
+    }
+}
+
+private extension Member {
+    var isProducer: Bool {
+        roles.contains(.producer)
     }
 }
 

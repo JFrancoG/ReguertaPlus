@@ -1,13 +1,13 @@
-# [HU-027] Unauthorized authenticated user home gating
+# [HU-038] Unauthorized authenticated user home gating
 
 ## Summary
 
 As an authenticated but not yet authorized person I want clear restricted-access feedback in home so that I understand why I cannot use the app and what must happen next.
 
 ## Links
-- Spec: spec/app/hu-027-unauthorized-authenticated-user-home-gating/spec.md
-- Plan: spec/app/hu-027-unauthorized-authenticated-user-home-gating/plan.md
-- Tasks: spec/app/hu-027-unauthorized-authenticated-user-home-gating/tasks.md
+- Spec: spec/app/hu-038-unauthorized-authenticated-user-home-gating/spec.md
+- Plan: spec/app/hu-038-unauthorized-authenticated-user-home-gating/plan.md
+- Tasks: spec/app/hu-038-unauthorized-authenticated-user-home-gating/tasks.md
 
 ## Acceptance criteria
 
@@ -18,7 +18,7 @@ As an authenticated but not yet authorized person I want clear restricted-access
 
 ## Scope
 ### In Scope
-- Implement story HU-027 within MVP scope.
+- Implement story HU-038 within MVP scope.
 - Satisfy linked RFs: RF-ROL-06, RF-ROL-07, and RF-ROL-08.
 
 ### Out of Scope

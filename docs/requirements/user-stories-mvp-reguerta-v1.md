@@ -214,7 +214,7 @@ Acceptance criteria:
 - Session/token refresh runs on startup and foreground.
 - Expired session shows explicit message and safe recovery path.
 
-### HU-027 Unauthorized authenticated user home gating
+### HU-038 Unauthorized authenticated user home gating
 
 As an authenticated but not yet authorized person I want clear restricted-access feedback in home so that I understand why I cannot use the app and what must happen next.
 
@@ -224,7 +224,7 @@ Acceptance criteria:
 - Unauthorized state exposes a safe sign-out path distinct from expired-session recovery.
 - If the user becomes authorized later, the next session resolution restores normal home access.
 
-### HU-028 Role-aware home shell and drawer navigation
+### HU-039 Role-aware home shell and drawer navigation
 
 As a member, producer, or admin I want a clearer home shell with role-aware navigation so that I can understand my available areas and key weekly context from a single entry point.
 

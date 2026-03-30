@@ -1,7 +1,8 @@
 import Foundation
 
 enum UnauthorizedReason: Equatable, Sendable {
-    case userNotAuthorized
+    case userNotFoundInAuthorizedUsers
+    case userAccessRestricted
 }
 
 enum AccessResolutionResult: Equatable, Sendable {

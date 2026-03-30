@@ -1,4 +1,4 @@
-# Tasks - HU-027 (Unauthorized authenticated user home gating)
+# Tasks - HU-038 (Unauthorized authenticated user home gating)
 
 ## 1. Preparation
 - [x] Confirm final unauthorized-state UX scope in home.
@@ -25,7 +25,7 @@
 - [ ] Perform manual functional validation with unauthorized and then authorized user states.
 
 ## 6. Documentation
-- [x] Update technical and functional docs for HU-027 scope.
+- [x] Update technical and functional docs for HU-038 scope.
 - [x] Align HU-010 / HU-023 references to avoid duplicated ownership.
 
 ## 7. Closure

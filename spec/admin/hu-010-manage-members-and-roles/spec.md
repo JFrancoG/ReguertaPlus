@@ -8,7 +8,7 @@
 
 ## Context and problem
 
-This story covers admin-driven member lifecycle, pre-authorization, and role safety rules. End-user unauthorized home UX is tracked separately in HU-027.
+This story covers admin-driven member lifecycle, pre-authorization, and role safety rules. End-user unauthorized home UX is tracked separately in HU-038.
 
 ## User story
 
@@ -40,7 +40,7 @@ As an admin I want to manage member lifecycle, onboarding authorization, and pri
 - Functional references: docs/requirements/user-stories-mvp-reguerta-v1.md.
 - Data references: docs/requirements/firestore-structure-mvp-proposal-v1.md.
 - Depends on authentication, role permissions, and MVP Firestore model.
-- Unauthorized authenticated-user home gating is tracked in HU-027.
+- Unauthorized authenticated-user home gating is tracked in HU-038.
 
 ## Risks
 

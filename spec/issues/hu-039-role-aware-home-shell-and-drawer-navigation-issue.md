@@ -1,13 +1,14 @@
-# [HU-028] Role-aware home shell and drawer navigation
+# [HU-039] Role-aware home shell and drawer navigation
 
 ## Summary
 
 As a member, producer, or admin I want a clearer home shell with role-aware navigation so that I can understand my available areas and key weekly context from a single entry point.
 
 ## Links
-- Spec: spec/app/hu-028-role-aware-home-shell-and-drawer-navigation/spec.md
-- Plan: spec/app/hu-028-role-aware-home-shell-and-drawer-navigation/plan.md
-- Tasks: spec/app/hu-028-role-aware-home-shell-and-drawer-navigation/tasks.md
+- GitHub Issue: #56
+- Spec: spec/app/hu-039-role-aware-home-shell-and-drawer-navigation/spec.md
+- Plan: spec/app/hu-039-role-aware-home-shell-and-drawer-navigation/plan.md
+- Tasks: spec/app/hu-039-role-aware-home-shell-and-drawer-navigation/tasks.md
 
 ## Acceptance criteria
 
@@ -19,20 +20,20 @@ As a member, producer, or admin I want a clearer home shell with role-aware navi
 
 ## Scope
 ### In Scope
-- Implement story HU-028 within MVP shell/navigation scope.
+- Implement story HU-039 within MVP shell/navigation scope.
 - Build the visual structure for role-aware home navigation and placeholders.
 
 ### Out of Scope
 - Real notifications/news logic.
 - Final weekly summary business data.
-- Unauthorized gating from HU-027.
+- Unauthorized gating from HU-038.
 
 ## Implementation checklist
-- [ ] Android
-- [ ] iOS
-- [ ] Backend / Firestore
+- [x] Android
+- [x] iOS
+- [x] Backend / Firestore
 - [ ] Testing
-- [ ] Documentation
+- [x] Documentation
 
 ## Suggested labels
 - type:feature
@@ -41,5 +42,5 @@ As a member, producer, or admin I want a clearer home shell with role-aware navi
 - priority:P2
 
 ## Dependencies
-- #54 (HU-027)
+- #54 (HU-038)
 - #1 (HU-010)
