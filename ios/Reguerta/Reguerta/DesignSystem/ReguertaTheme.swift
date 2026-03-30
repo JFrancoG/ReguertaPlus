@@ -32,8 +32,10 @@ struct ReguertaDesignTokens {
     struct Typography {
         var titleHero: Font { .custom("CabinSketch-Bold", size: 36.resize, relativeTo: .title) }
         var titleSection: Font { .custom("CabinSketch-Bold", size: 24.resize, relativeTo: .title3) }
+        var titleDialog: Font { .custom("CabinSketch-Bold", size: 22.resize, relativeTo: .headline) }
         var titleCard: Font { .custom("CabinSketch-Regular", size: 20.resize, relativeTo: .headline) }
         var body: Font { .custom("CabinSketch-Regular", size: 18.resize, relativeTo: .body) }
+        var bodyDialog: Font { .custom("CabinSketch-Regular", size: 16.resize, relativeTo: .body) }
         var bodySecondary: Font { .custom("CabinSketch-Regular", size: 16.resize, relativeTo: .subheadline) }
         var label: Font { .custom("CabinSketch-Bold", size: 14.resize, relativeTo: .footnote) }
     }

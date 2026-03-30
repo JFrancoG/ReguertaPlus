@@ -8,7 +8,7 @@
 
 ## Context and problem
 
-This story enables a critical part of the Reguerta MVP workflow and must preserve Android/iOS functional parity when applicable.
+This story covers admin-driven member lifecycle, pre-authorization, and role safety rules. End-user unauthorized home UX is tracked separately in HU-027.
 
 ## User story
 
@@ -26,13 +26,12 @@ As an admin I want to manage member lifecycle, onboarding authorization, and pri
 
 ## Linked functional requirements
 
-- RF-ROL-03, RF-ROL-04, RF-ROL-05, RF-ROL-06, RF-ROL-07, RF-ROL-08
+- RF-ROL-03, RF-ROL-04, RF-ROL-05, RF-ROL-06, RF-ROL-08
 
 ## Acceptance criteria
 
 - Admin can access create/edit/deactivate actions.
 - Granting/revoking admin cannot leave the app with zero admins.
-- If a signed-in email is not pre-authorized in members list, app shows `Unauthorized user` and keeps operational modules disabled.
 - If member email is pre-authorized by admin, first login/register enters home with role-based enabled access.
 
 ## Dependencies
@@ -41,6 +40,7 @@ As an admin I want to manage member lifecycle, onboarding authorization, and pri
 - Functional references: docs/requirements/user-stories-mvp-reguerta-v1.md.
 - Data references: docs/requirements/firestore-structure-mvp-proposal-v1.md.
 - Depends on authentication, role permissions, and MVP Firestore model.
+- Unauthorized authenticated-user home gating is tracked in HU-027.
 
 ## Risks
 

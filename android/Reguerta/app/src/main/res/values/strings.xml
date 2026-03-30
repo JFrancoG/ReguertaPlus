@@ -48,8 +48,13 @@
     <string name="common_action_hide_password">Hide password</string>
 
     <string name="auth_error_member_unauthorized">Unauthorized user</string>
+    <string name="unauthorized_dialog_title">Unauthorized user email</string>
+    <string name="unauthorized_dialog_message">The email address you used to sign in is not authorized.\nContact a La Reguerta admin so they can grant you access.</string>
+    <string name="unauthorized_dialog_action">Sign out</string>
+    <string name="auth_info_member_unauthorized_explanation">This account is signed in, but it is not authorized to use Reguerta yet.</string>
     <string name="access_signed_in_email_format">Signed in email: %1$s</string>
     <string name="auth_info_member_restricted_mode">Operational modules remain disabled until an admin pre-authorizes this email.</string>
+    <string name="auth_info_member_contact_admin">Ask an admin to authorize this email in users, or sign out and try another account.</string>
     <string name="common_reason_format">Reason: %1$s</string>
 
     <string name="home_title">Home</string>
@@ -63,6 +68,7 @@
     <string name="module_my_order">My order</string>
     <string name="module_catalog">Catalog</string>
     <string name="module_shifts">Shifts</string>
+    <string name="operational_modules_restricted_unauthorized">These modules are locked because this account is not authorized yet.</string>
     <string name="my_order_freshness_checking">Checking critical data freshness before enabling My order…</string>
     <string name="my_order_freshness_error_title">My order is temporarily unavailable</string>
     <string name="my_order_freshness_error_message">Critical data could not be validated in time. Retry to continue without restarting the app.</string>

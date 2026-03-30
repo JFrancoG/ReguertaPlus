@@ -92,7 +92,6 @@ As an admin I want to manage member lifecycle, onboarding authorization, and pri
 Acceptance criteria:
 - Admin sees create/edit/deactivate actions for members.
 - Grant/revoke admin is blocked if it leaves zero active admins.
-- If a signed-in email is not pre-authorized in members list, app shows `Unauthorized user` and keeps operational features disabled.
 - If a member is pre-authorized by admin, first login/register enters home with full role-based access.
 
 ### HU-011 Manage delivery calendar
@@ -214,6 +213,27 @@ As a member I want session refresh on app lifecycle events so that access remain
 Acceptance criteria:
 - Session/token refresh runs on startup and foreground.
 - Expired session shows explicit message and safe recovery path.
+
+### HU-027 Unauthorized authenticated user home gating
+
+As an authenticated but not yet authorized person I want clear restricted-access feedback in home so that I understand why I cannot use the app and what must happen next.
+
+Acceptance criteria:
+- If a user authenticates in Firebase but no active authorized `users` record exists for that email, home shows an explicit unauthorized state.
+- In unauthorized state, operational modules stay disabled and protected flows remain blocked.
+- Unauthorized state exposes a safe sign-out path distinct from expired-session recovery.
+- If the user becomes authorized later, the next session resolution restores normal home access.
+
+### HU-028 Role-aware home shell and drawer navigation
+
+As a member, producer, or admin I want a clearer home shell with role-aware navigation so that I can understand my available areas and key weekly context from a single entry point.
+
+Acceptance criteria:
+- Home shows a top-level shell prepared for menu access and notifications.
+- Drawer exposes common sections to everyone and additional sections only when user role allows them.
+- Drawer can be opened and closed through the menu trigger, and gesture support is reviewed per platform.
+- Home reserves visible space for weekly context and latest news, even if backed initially by placeholders.
+- App version remains visible in the drawer footer.
 
 ### HU-024 Producer bulk availability toggle
 

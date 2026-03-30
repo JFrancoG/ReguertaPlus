@@ -73,6 +73,10 @@ Resuelto el 2026-03-07:
 - P1: Opcion A
 - P2: Opcion A
 - P3: Opcion A
+
+Aclaracion anadida el 2026-03-30:
+- P3 se mantiene resuelta como modo restringido para no autorizados (sin forzar logout por no autorizado).
+- El detalle de UX en home, modulos deshabilitados y accion de cierre de sesion para no autorizados se sigue en la HU-027 para no mezclarlo con la expiracion de sesion de HU-023.
 - P4: Opcion A
 - P5: Opcion A
 - P6: Opcion A

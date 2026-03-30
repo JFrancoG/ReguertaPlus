@@ -4,13 +4,18 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -20,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.reguerta.user.ui.theme.ReguertaThemeTokens
@@ -41,11 +47,20 @@ fun ReguertaDialog(
     message: String,
     primaryAction: ReguertaDialogAction,
     secondaryAction: ReguertaDialogAction? = null,
+    dismissible: Boolean = secondaryAction != null,
     onDismissRequest: () -> Unit = {},
 ) {
     val spacing = ReguertaThemeTokens.spacing
     val radius = ReguertaThemeTokens.radius
     val buttonTokens = ReguertaThemeTokens.button
+    val dialogTitleStyle = MaterialTheme.typography.headlineMedium.copy(
+        fontSize = 20.sp,
+        lineHeight = 26.sp,
+    )
+    val dialogBodyStyle = MaterialTheme.typography.bodyMedium.copy(
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
+    )
     val accentColor = if (type == ReguertaDialogType.ERROR) {
         MaterialTheme.colorScheme.error
     } else {
@@ -55,11 +70,15 @@ fun ReguertaDialog(
     Dialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(
-            dismissOnClickOutside = secondaryAction != null,
-            dismissOnBackPress = secondaryAction != null,
+            dismissOnClickOutside = dismissible,
+            dismissOnBackPress = dismissible,
+            usePlatformDefaultWidth = false,
         ),
     ) {
         Surface(
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .widthIn(max = 360.dp),
             shape = RoundedCornerShape(radius.lg),
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 2.dp,
@@ -75,23 +94,26 @@ fun ReguertaDialog(
 
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = dialogTitleStyle,
                     color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center,
                 )
 
                 Text(
                     text = message,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = dialogBodyStyle,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(spacing.sm, Alignment.CenterHorizontally),
-                ) {
-                    if (secondaryAction != null) {
+                if (secondaryAction != null) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(spacing.sm, Alignment.CenterHorizontally),
+                    ) {
                         ReguertaButton(
                             label = secondaryAction.label,
                             onClick = secondaryAction.onClick,
@@ -99,8 +121,20 @@ fun ReguertaDialog(
                             fullWidth = false,
                             modifier = Modifier.width(buttonTokens.dialogTwoButtonsWidth),
                         )
-                    }
 
+                        ReguertaButton(
+                            label = primaryAction.label,
+                            onClick = primaryAction.onClick,
+                            variant = if (type == ReguertaDialogType.ERROR) {
+                                ReguertaButtonVariant.DESTRUCTIVE
+                            } else {
+                                ReguertaButtonVariant.PRIMARY
+                            },
+                            fullWidth = false,
+                            modifier = Modifier.width(buttonTokens.dialogTwoButtonsWidth),
+                        )
+                    }
+                } else {
                     ReguertaButton(
                         label = primaryAction.label,
                         onClick = primaryAction.onClick,
@@ -109,14 +143,8 @@ fun ReguertaDialog(
                         } else {
                             ReguertaButtonVariant.PRIMARY
                         },
-                        fullWidth = false,
-                        modifier = Modifier.width(
-                            if (secondaryAction != null) {
-                                buttonTokens.dialogTwoButtonsWidth
-                            } else {
-                                buttonTokens.dialogSingleButtonWidth
-                            },
-                        ),
+                        modifier = Modifier.padding(top = 8.dp),
+                        fullWidth = true,
                     )
                 }
             }
@@ -129,7 +157,12 @@ private fun DialogIcon(
     type: ReguertaDialogType,
     accentColor: Color,
 ) {
-    val iconLabel = if (type == ReguertaDialogType.ERROR) "!" else "i"
+    val icon = if (type == ReguertaDialogType.ERROR) {
+        Icons.Filled.Error
+    } else {
+        Icons.Filled.Info
+    }
+    val contentDescription = if (type == ReguertaDialogType.ERROR) "Error" else "Information"
 
     Box(
         modifier = Modifier
@@ -137,17 +170,11 @@ private fun DialogIcon(
             .background(accentColor.copy(alpha = 0.22f), CircleShape),
         contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .background(accentColor, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = iconLabel,
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onPrimary,
-            )
-        }
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(38.dp),
+            tint = accentColor,
+        )
     }
 }
