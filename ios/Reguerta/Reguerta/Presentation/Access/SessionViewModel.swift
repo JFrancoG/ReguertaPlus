@@ -84,6 +84,7 @@ final class SessionViewModel {
     var isRegistering = false
     var isRecoveringPassword = false
     var showSessionExpiredDialog = false
+    var showUnauthorizedDialog = false
     var mode: SessionMode = .signedOut
     var memberDraft = MemberDraft()
     var feedbackMessageKey: String?
@@ -249,6 +250,7 @@ final class SessionViewModel {
         isRegistering = false
         isRecoveringPassword = false
         showSessionExpiredDialog = false
+        showUnauthorizedDialog = false
         feedbackMessageKey = nil
         mode = .signedOut
         memberDraft = MemberDraft()
@@ -260,6 +262,10 @@ final class SessionViewModel {
 
     func dismissSessionExpiredDialog() {
         showSessionExpiredDialog = false
+    }
+
+    func dismissUnauthorizedDialog() {
+        showUnauthorizedDialog = false
     }
 
     func refreshSession(trigger: SessionRefreshTrigger) {
@@ -588,13 +594,16 @@ final class SessionViewModel {
                 )
             )
             showSessionExpiredDialog = false
+            showUnauthorizedDialog = false
             if shouldRefreshCriticalData {
                 myOrderFreshnessState = .checking
                 refreshMyOrderFreshness()
             }
         case .unauthorized(let reason):
+            let shouldShowUnauthorizedDialog = shouldShowUnauthorizedDialog(for: principal.email)
             mode = .unauthorized(email: principal.email, reason: reason)
             showSessionExpiredDialog = false
+            showUnauthorizedDialog = shouldShowUnauthorizedDialog
             myOrderFreshnessState = .idle
         }
     }
@@ -608,6 +617,13 @@ final class SessionViewModel {
         case .authorized(let session):
             return session.principal.uid != principal.uid
         }
+    }
+
+    private func shouldShowUnauthorizedDialog(for email: String) -> Bool {
+        if case .unauthorized(let currentEmail, _) = mode {
+            return currentEmail != email
+        }
+        return true
     }
 
     private func handleExpiredSession() async {
@@ -632,6 +648,7 @@ final class SessionViewModel {
         memberDraft = MemberDraft()
         myOrderFreshnessState = .idle
         showSessionExpiredDialog = true
+        showUnauthorizedDialog = false
         await criticalDataFreshnessLocalRepository.clear()
     }
 

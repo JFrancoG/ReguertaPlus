@@ -223,6 +223,17 @@ Criterios de aceptacion:
 - El estado no autorizado ofrece una salida segura de cierre de sesion distinta de la recuperacion por sesion expirada.
 - Si ese usuario pasa a estar autorizado despues, la siguiente resolucion de sesion restaura el acceso normal al home.
 
+### HU-028 Shell del home con drawer y navegacion por rol
+
+Como socio, productor o admin quiero un shell de home mas claro con navegacion por rol para entender mis areas disponibles y el contexto semanal principal desde un unico punto de entrada.
+
+Criterios de aceptacion:
+- Home muestra un shell superior preparado para acceso al menu y a notificaciones.
+- El drawer expone secciones comunes para todos y secciones adicionales solo cuando el rol del usuario lo permite.
+- El drawer puede abrirse y cerrarse desde el disparador de menu, y el soporte de gestos se revisa por plataforma.
+- Home reserva espacio visible para contexto semanal y ultimas noticias, aunque inicialmente usen placeholders.
+- La version de la app sigue visible en el footer del drawer.
+
 ### HU-024 Toggle masivo de disponibilidad productor
 
 Como productor quiero cambiar la visibilidad global de mi catalogo en una sola accion para gestionar semanas de pausa (vacaciones/enfermedad) sin perder la configuracion de cada producto.

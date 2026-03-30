@@ -224,6 +224,17 @@ Acceptance criteria:
 - Unauthorized state exposes a safe sign-out path distinct from expired-session recovery.
 - If the user becomes authorized later, the next session resolution restores normal home access.
 
+### HU-028 Role-aware home shell and drawer navigation
+
+As a member, producer, or admin I want a clearer home shell with role-aware navigation so that I can understand my available areas and key weekly context from a single entry point.
+
+Acceptance criteria:
+- Home shows a top-level shell prepared for menu access and notifications.
+- Drawer exposes common sections to everyone and additional sections only when user role allows them.
+- Drawer can be opened and closed through the menu trigger, and gesture support is reviewed per platform.
+- Home reserves visible space for weekly context and latest news, even if backed initially by placeholders.
+- App version remains visible in the drawer footer.
+
 ### HU-024 Producer bulk availability toggle
 
 As a producer I want to toggle my catalog visibility in one action so that weekly pauses (vacation/sickness) are fast without losing per-product setup.

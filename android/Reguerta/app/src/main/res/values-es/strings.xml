@@ -48,6 +48,9 @@
     <string name="common_action_hide_password">Ocultar contraseña</string>
 
     <string name="auth_error_member_unauthorized">Usuario no autorizado</string>
+    <string name="unauthorized_dialog_title">Email de usuario no autorizado</string>
+    <string name="unauthorized_dialog_message">El email que has usado para iniciar sesión no está autorizado.\nPonte en contacto con algún admin de La Regüerta para que te den acceso.</string>
+    <string name="unauthorized_dialog_action">Cerrar sesión</string>
     <string name="auth_info_member_unauthorized_explanation">Esta cuenta ha iniciado sesión, pero todavía no está autorizada para usar La RegÜerta.</string>
     <string name="access_signed_in_email_format">Email de sesión: %1$s</string>
     <string name="auth_info_member_restricted_mode">Los módulos operativos seguirán desactivados hasta que un admin preautorice este email.</string>

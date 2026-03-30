@@ -26,6 +26,9 @@ enum AccessL10nKey {
     static let commonHidePassword = "common.action.hide_password"
 
     static let unauthorized = "auth_error.member.unauthorized"
+    static let unauthorizedDialogTitle = "auth_dialog.member.unauthorized.title"
+    static let unauthorizedDialogMessage = "auth_dialog.member.unauthorized.message"
+    static let unauthorizedDialogAction = "auth_dialog.member.unauthorized.action"
     static let unauthorizedExplanation = "auth_info.member.unauthorized_explanation"
     static let signedInEmail = "access.signed_in_email"
     static let restrictedModeInfo = "auth_info.member.restricted_mode"

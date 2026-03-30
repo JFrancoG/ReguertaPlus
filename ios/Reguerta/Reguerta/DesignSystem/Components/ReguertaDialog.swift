@@ -18,6 +18,7 @@ struct ReguertaDialog: View {
     let message: String
     let primaryAction: ReguertaDialogAction
     let secondaryAction: ReguertaDialogAction?
+    let dismissible: Bool
     let onDismiss: (() -> Void)?
 
     init(
@@ -26,6 +27,7 @@ struct ReguertaDialog: View {
         message: String,
         primaryAction: ReguertaDialogAction,
         secondaryAction: ReguertaDialogAction? = nil,
+        dismissible: Bool? = nil,
         onDismiss: (() -> Void)? = nil
     ) {
         self.type = type
@@ -33,6 +35,7 @@ struct ReguertaDialog: View {
         self.message = message
         self.primaryAction = primaryAction
         self.secondaryAction = secondaryAction
+        self.dismissible = dismissible ?? (onDismiss != nil)
         self.onDismiss = onDismiss
     }
 
@@ -41,6 +44,7 @@ struct ReguertaDialog: View {
             dialogBackdropColor
                 .ignoresSafeArea()
                 .onTapGesture {
+                    guard dismissible else { return }
                     onDismiss?()
                 }
 
@@ -48,17 +52,17 @@ struct ReguertaDialog: View {
                 dialogIcon
 
                 Text(title)
-                    .font(tokens.typography.titleSection)
+                    .font(tokens.typography.titleDialog)
                     .foregroundStyle(tokens.colors.textPrimary)
                     .multilineTextAlignment(.center)
 
                 Text(message)
-                    .font(tokens.typography.bodySecondary)
+                    .font(tokens.typography.bodyDialog)
                     .foregroundStyle(tokens.colors.textSecondary)
                     .multilineTextAlignment(.center)
 
-                HStack(spacing: tokens.spacing.sm) {
-                    if let secondaryAction {
+                if let secondaryAction {
+                    HStack(spacing: tokens.spacing.sm) {
                         ReguertaButton(
                             LocalizedStringKey(secondaryAction.title),
                             variant: .secondary,
@@ -67,20 +71,28 @@ struct ReguertaDialog: View {
                         ) {
                             secondaryAction.action()
                         }
-                    }
 
+                        ReguertaButton(
+                            LocalizedStringKey(primaryAction.title),
+                            variant: type == .error ? .destructive : .primary,
+                            fullWidth: false,
+                            fixedWidth: tokens.button.dialogTwoButtonsWidth
+                        ) {
+                            primaryAction.action()
+                        }
+                    }
+                    .padding(.top, tokens.spacing.sm)
+                } else {
                     ReguertaButton(
                         LocalizedStringKey(primaryAction.title),
                         variant: type == .error ? .destructive : .primary,
-                        fullWidth: false,
-                        fixedWidth: secondaryAction == nil
-                            ? tokens.button.dialogSingleWidth
-                            : tokens.button.dialogTwoButtonsWidth
+                        fullWidth: true,
+                        fixedWidth: nil
                     ) {
                         primaryAction.action()
                     }
+                    .padding(.top, tokens.spacing.sm)
                 }
-                .padding(.top, tokens.spacing.sm)
             }
             .padding(tokens.spacing.lg)
             .frame(maxWidth: 360)
@@ -94,15 +106,30 @@ struct ReguertaDialog: View {
         }
     }
 
-    private var dialogIcon: some View {
+    private var dial
+    : some View {
         ZStack {
             Circle()
                 .fill(accentColor.opacity(0.22))
                 .frame(width: 88, height: 88)
 
-            Image(systemName: type == .error ? "exclamationmark.triangle.fill" : "info.circle.fill")
-                .font(.system(size: 34, weight: .semibold))
-                .foregroundStyle(accentColor)
+            Circle()
+                .fill(accentColor)
+                .frame(width: 38, height: 38)
+
+            Image(systemName: dialogSymbolName)
+                .font(.system(size: 18, weight: .bold))
+                .symbolRenderingMode(.monochrome)
+                .foregroundStyle(tokens.colors.actionOnPrimary)
+        }
+    }
+
+    private var dialogSymbolName: String {
+        switch type {
+        case .info:
+            "info"
+        case .error:
+            "exclamationmark"
         }
     }
 

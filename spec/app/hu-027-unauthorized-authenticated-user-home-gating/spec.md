@@ -36,6 +36,7 @@ As an authenticated but not yet authorized person I want clear restricted-access
 ## Acceptance criteria
 
 - If a user authenticates successfully in Firebase but no active authorized `users` record exists for that email, home shows an explicit unauthorized state.
+- Unauthorized state opens a dedicated informational dialog that explains the lack of authorization and offers a clear `Sign out` action without implying session expiry.
 - In unauthorized state, operational modules remain disabled and do not allow navigation into protected flows.
 - Unauthorized state offers a safe sign-out path without implying session expiry.
 - If the same email becomes authorized later, the next session resolution removes the unauthorized gate and restores normal home access.

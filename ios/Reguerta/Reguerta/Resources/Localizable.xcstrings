@@ -314,6 +314,57 @@
         }
       }
     },
+    "auth_dialog.member.unauthorized.action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign out"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerrar sesión"
+          }
+        }
+      }
+    },
+    "auth_dialog.member.unauthorized.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The email address you used to sign in is not authorized.\nContact a La Reguerta admin so they can grant you access."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El email que has usado para iniciar sesión no está autorizado.\nPonte en contacto con algún admin de La Regüerta para que te den acceso."
+          }
+        }
+      }
+    },
+    "auth_dialog.member.unauthorized.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unauthorized user email"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email de usuario no autorizado"
+          }
+        }
+      }
+    },
     "auth_error.email_already_in_use" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -467,23 +518,6 @@
         }
       }
     },
-    "auth_info.member.restricted_mode" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Operational modules remain disabled until an admin pre-authorizes this email."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Los módulos operativos seguirán desactivados hasta que un admin preautorice este email."
-          }
-        }
-      }
-    },
     "auth_info.member.contact_admin" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -497,6 +531,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pide a un admin que autorice este email en users, o cierra sesión y prueba con otra cuenta."
+          }
+        }
+      }
+    },
+    "auth_info.member.restricted_mode" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Operational modules remain disabled until an admin pre-authorizes this email."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los módulos operativos seguirán desactivados hasta que un admin preautorice este email."
           }
         }
       }
@@ -1195,6 +1246,91 @@
         }
       }
     },
+    "operational_modules.my_order.freshness.checking" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking critical data freshness before enabling My order…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comprobando la frescura de los datos críticos antes de activar Mi pedido…"
+          }
+        }
+      }
+    },
+    "operational_modules.my_order.freshness.error.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Critical data could not be validated in time. Retry to continue without restarting the app."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudieron validar a tiempo los datos críticos. Reintenta para continuar sin reiniciar la app."
+          }
+        }
+      }
+    },
+    "operational_modules.my_order.freshness.error.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "My order is temporarily unavailable"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mi pedido no está disponible temporalmente"
+          }
+        }
+      }
+    },
+    "operational_modules.my_order.freshness.retry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry check"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reintentar comprobación"
+          }
+        }
+      }
+    },
+    "operational_modules.restricted.unauthorized" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These modules are locked because this account is not authorized yet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estos módulos están bloqueados porque esta cuenta todavía no está autorizada."
+          }
+        }
+      }
+    },
     "operational_modules.shifts" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1225,91 +1361,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Módulos operativos"
-          }
-        }
-      }
-    },
-    "operational_modules.restricted.unauthorized" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "These modules are locked because this account is not authorized yet."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Estos módulos están bloqueados porque esta cuenta todavía no está autorizada."
-          }
-        }
-      }
-    },
-    "operational_modules.my_order.freshness.checking" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Checking critical data freshness before enabling My order…"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Comprobando la frescura de los datos críticos antes de activar Mi pedido…"
-          }
-        }
-      }
-    },
-    "operational_modules.my_order.freshness.error.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "My order is temporarily unavailable"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mi pedido no está disponible temporalmente"
-          }
-        }
-      }
-    },
-    "operational_modules.my_order.freshness.error.message" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Critical data could not be validated in time. Retry to continue without restarting the app."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No se pudieron validar a tiempo los datos críticos. Reintenta para continuar sin reiniciar la app."
-          }
-        }
-      }
-    },
-    "operational_modules.my_order.freshness.retry" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Retry check"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reintentar comprobación"
           }
         }
       }

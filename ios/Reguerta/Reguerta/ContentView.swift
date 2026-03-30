@@ -88,6 +88,18 @@ struct ContentView: View {
                     onDismiss: handleSessionExpiredDialogAction
                 )
             }
+            if viewModel.showUnauthorizedDialog {
+                ReguertaDialog(
+                    type: .info,
+                    title: l10n(AccessL10nKey.unauthorizedDialogTitle),
+                    message: l10n(AccessL10nKey.unauthorizedDialogMessage),
+                    primaryAction: ReguertaDialogAction(
+                        title: l10n(AccessL10nKey.unauthorizedDialogAction),
+                        action: handleUnauthorizedDialogSignOut
+                    ),
+                    dismissible: false
+                )
+            }
         }
         .task(id: shellState.currentRoute) {
             await handleSplashIfNeeded()
@@ -764,6 +776,11 @@ struct ContentView: View {
         viewModel.dismissSessionExpiredDialog()
         viewModel.resetSignInDraft()
         dispatchShell(.reauthenticate)
+    }
+
+    private func handleUnauthorizedDialogSignOut() {
+        viewModel.signOut()
+        dispatchShell(.signedOut)
     }
 
     private func handleSplashIfNeeded() async {

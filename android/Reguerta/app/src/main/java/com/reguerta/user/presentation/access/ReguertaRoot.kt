@@ -257,6 +257,13 @@ fun ReguertaRoot(
             action = AuthShellAction.Reauthenticate,
         )
     }
+    val signOutAndRoute = {
+        viewModel.signOut()
+        shellState = reduceAuthShell(
+            state = shellState,
+            action = AuthShellAction.SignedOut,
+        )
+    }
 
     BackHandler(enabled = shellState.canGoBack) {
         clearRouteForm(shellState.currentRoute)
@@ -285,14 +292,22 @@ fun ReguertaRoot(
                     onToggleActive = viewModel::toggleActive,
                     onCreateMember = viewModel::createAuthorizedMember,
                     onRetryMyOrderFreshness = viewModel::refreshMyOrderFreshness,
-                    onSignOut = {
-                        viewModel.signOut()
-                        shellState = reduceAuthShell(
-                            state = shellState,
-                            action = AuthShellAction.SignedOut,
-                        )
-                    },
+                    onSignOut = signOutAndRoute,
                 )
+
+                if (state.showUnauthorizedDialog) {
+                    ReguertaDialog(
+                        type = ReguertaDialogType.INFO,
+                        title = stringResource(R.string.unauthorized_dialog_title),
+                        message = stringResource(R.string.unauthorized_dialog_message),
+                        primaryAction = ReguertaDialogAction(
+                            label = stringResource(R.string.unauthorized_dialog_action),
+                            onClick = signOutAndRoute,
+                        ),
+                        dismissible = false,
+                        onDismissRequest = {},
+                    )
+                }
             }
         } else {
             Box(

@@ -28,6 +28,12 @@ internal fun reguertaTypography(scale: Float = 1f): Typography {
             fontSize = (24f * safeScale).sp,
             lineHeight = (30f * safeScale).sp,
         ),
+        headlineMedium = TextStyle(
+            fontFamily = CabinSketch,
+            fontWeight = FontWeight.Bold,
+            fontSize = (22f * safeScale).sp,
+            lineHeight = (28f * safeScale).sp,
+        ),
         titleLarge = TextStyle(
             fontFamily = CabinSketch,
             fontWeight = FontWeight.SemiBold,

@@ -8,11 +8,13 @@
 - [x] Refine unauthorized home UI and restricted actions.
 - [x] Ensure protected modules remain disabled and non-navigable.
 - [x] Add explicit sign-out affordance for unauthorized state.
+- [x] Align unauthorized dialog styling and blocking behavior with approved mockup.
 
 ## 3. iOS implementation
 - [x] Implement equivalent unauthorized home UI and restricted actions.
 - [x] Ensure protected modules remain disabled and non-navigable.
 - [x] Add explicit sign-out affordance for unauthorized state.
+- [x] Align unauthorized dialog styling and blocking behavior with approved mockup.
 
 ## 4. Backend / Firestore
 - [x] Validate no schema or rules changes are required beyond current `users` authorization contract.

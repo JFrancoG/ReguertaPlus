@@ -75,6 +75,7 @@ data class SessionUiState(
     val isRecoveringPassword: Boolean = false,
     val showRecoverSuccessDialog: Boolean = false,
     val showSessionExpiredDialog: Boolean = false,
+    val showUnauthorizedDialog: Boolean = false,
     val mode: SessionMode = SessionMode.SignedOut,
     val memberDraft: MemberDraft = MemberDraft(),
     val myOrderFreshnessState: MyOrderFreshnessUiState = MyOrderFreshnessUiState.Idle,
@@ -216,6 +217,10 @@ class SessionViewModel(
         _uiState.update { it.copy(showSessionExpiredDialog = false) }
     }
 
+    fun dismissUnauthorizedDialog() {
+        _uiState.update { it.copy(showUnauthorizedDialog = false) }
+    }
+
     fun signIn() {
         val currentState = _uiState.value
         val email = currentState.emailInput.trim()
@@ -265,6 +270,8 @@ class SessionViewModel(
                         }
 
                         is AccessResolutionResult.Unauthorized -> {
+                            val showUnauthorizedDialog =
+                                shouldShowUnauthorizedDialog(authResult.principal.email)
                             _uiState.update {
                                 it.copy(
                                     isAuthenticating = false,
@@ -272,6 +279,7 @@ class SessionViewModel(
                                         email = authResult.principal.email,
                                         reason = result.reason,
                                     ),
+                                    showUnauthorizedDialog = showUnauthorizedDialog,
                                     myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
                                 )
                             }
@@ -369,6 +377,8 @@ class SessionViewModel(
                         }
 
                         is AccessResolutionResult.Unauthorized -> {
+                            val showUnauthorizedDialog =
+                                shouldShowUnauthorizedDialog(authResult.principal.email)
                             _uiState.update {
                                 it.copy(
                                     isRegistering = false,
@@ -379,6 +389,7 @@ class SessionViewModel(
                                         email = authResult.principal.email,
                                         reason = result.reason,
                                     ),
+                                    showUnauthorizedDialog = showUnauthorizedDialog,
                                     myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
                                 )
                             }
@@ -480,6 +491,7 @@ class SessionViewModel(
                 isRecoveringPassword = false,
                 showRecoverSuccessDialog = false,
                 showSessionExpiredDialog = false,
+                showUnauthorizedDialog = false,
                 memberDraft = MemberDraft(),
                 myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
             )
@@ -697,6 +709,7 @@ class SessionViewModel(
                             members = members,
                         ),
                         showSessionExpiredDialog = false,
+                        showUnauthorizedDialog = false,
                         myOrderFreshnessState = if (shouldRefreshCriticalData) {
                             MyOrderFreshnessUiState.Checking
                         } else {
@@ -710,6 +723,7 @@ class SessionViewModel(
             }
 
             is AccessResolutionResult.Unauthorized -> {
+                val showUnauthorizedDialog = shouldShowUnauthorizedDialog(principal.email)
                 _uiState.update {
                     it.copy(
                         mode = SessionMode.Unauthorized(
@@ -717,6 +731,7 @@ class SessionViewModel(
                             reason = result.reason,
                         ),
                         showSessionExpiredDialog = false,
+                        showUnauthorizedDialog = showUnauthorizedDialog,
                         myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
                     )
                 }
@@ -731,6 +746,11 @@ class SessionViewModel(
             is SessionMode.Unauthorized -> currentMode.email != principal.email
             is SessionMode.Authorized -> currentMode.principal.uid != principal.uid
         }
+    }
+
+    private fun shouldShowUnauthorizedDialog(email: String): Boolean {
+        val currentMode = _uiState.value.mode
+        return currentMode !is SessionMode.Unauthorized || currentMode.email != email
     }
 
     private suspend fun handleExpiredSession() {
@@ -755,6 +775,7 @@ class SessionViewModel(
                 isRecoveringPassword = false,
                 showRecoverSuccessDialog = false,
                 showSessionExpiredDialog = true,
+                showUnauthorizedDialog = false,
                 memberDraft = MemberDraft(),
                 myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
             )
