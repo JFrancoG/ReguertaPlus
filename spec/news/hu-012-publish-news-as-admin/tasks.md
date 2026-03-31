@@ -1,34 +1,34 @@
 # Tasks - HU-012 (Publish news as admin)
 
 ## 1. Preparation
-- [ ] Review linked RFs and acceptance criteria for this story.
-- [ ] Identify impacted components/layers in Android, iOS, and backend.
-- [ ] Define test scenarios (happy path and edge cases).
+- [x] Review linked RFs and acceptance criteria for this story.
+- [x] Align `news/{newsId}` contract with optional `urlImage`.
+- [x] Define route transitions and admin/member expectations.
 
 ## 2. Android implementation
-- [ ] Implement UI/ViewModel/domain layer changes.
-- [ ] Integrate required read/write data flows.
-- [ ] Validate loading, error, and success states.
+- [x] Add news repository/model and Firestore path.
+- [x] Load latest active news into home.
+- [x] Implement all-news list and admin create/edit/delete flow.
+- [x] Validate loading, error, and success states.
 
 ## 3. iOS implementation
-- [ ] Implement equivalent SwiftUI/ViewModel/domain layer changes.
-- [ ] Integrate required read/write data flows.
-- [ ] Validate loading, error, and success states.
+- [x] Add news repository/model and Firestore path.
+- [x] Load latest active news into home.
+- [x] Implement all-news list and admin create/edit/delete flow.
+- [x] Validate loading, error, and success states.
 
 ## 4. Backend / Firestore
-- [ ] Adjust schema/queries/rules/functions where applicable.
-- [ ] Verify compatibility with existing data and incremental strategy.
-- [ ] Confirm role-based access and security behavior.
+- [x] Update Firestore docs with the final field contract for `news`.
+- [x] Verify compatibility with `develop/plus-collections/news` and `production/plus-collections/news`.
 
 ## 5. Testing
-- [ ] Execute unit tests for impacted areas.
-- [ ] Execute required integration tests.
+- [x] Execute unit tests for impacted areas.
 - [ ] Perform full manual acceptance validation.
 
 ## 6. Documentation
-- [ ] Update technical notes in the linked issue.
-- [ ] Record implementation decisions made during development.
-- [ ] Document Android/iOS parity status or temporary gap.
+- [x] Update technical notes in the linked issue.
+- [x] Record implementation decisions made during development.
+- [x] Document Android/iOS parity status or temporary gap.
 
 ## 7. Closure
 - [ ] Create/update linked issue and connect PR.

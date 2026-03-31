@@ -10,6 +10,13 @@ struct MemberDraft: Equatable, Sendable {
     var isActive = true
 }
 
+struct NewsDraft: Equatable, Sendable {
+    var title = ""
+    var body = ""
+    var urlImage = ""
+    var active = true
+}
+
 struct AuthorizedSession: Equatable, Sendable {
     var principal: AuthPrincipal
     var member: Member
@@ -89,8 +96,15 @@ final class SessionViewModel {
     var memberDraft = MemberDraft()
     var feedbackMessageKey: String?
     var myOrderFreshnessState: MyOrderFreshnessState = .idle
+    var latestNews: [NewsArticle] = []
+    var newsFeed: [NewsArticle] = []
+    var newsDraft = NewsDraft()
+    var editingNewsId: String?
+    var isLoadingNews = false
+    var isSavingNews = false
 
     private let repository: any MemberRepository
+    private let newsRepository: any NewsRepository
     private let authSessionProvider: any AuthSessionProvider
     private let resolveAuthorizedSession: ResolveAuthorizedSessionUseCase
     private let upsertMemberByAdmin: UpsertMemberByAdminUseCase
@@ -141,6 +155,10 @@ final class SessionViewModel {
             primary: FirestoreMemberRepository(),
             fallback: InMemoryMemberRepository()
         )
+        let selectedNewsRepository: any NewsRepository = ChainedNewsRepository(
+            primary: FirestoreNewsRepository(),
+            fallback: InMemoryNewsRepository()
+        )
         let selectedAuthProvider = authSessionProvider ?? {
             if ProcessInfo.processInfo.arguments.contains("-useMockAuth") {
                 return MockAuthSessionProvider()
@@ -162,6 +180,7 @@ final class SessionViewModel {
             freshnessRemoteRepository = FirestoreCriticalDataFreshnessRemoteRepository()
         }
         self.repository = selectedRepository
+        self.newsRepository = selectedNewsRepository
         self.authSessionProvider = selectedAuthProvider
         self.resolveAuthorizedSession = resolveAuthorizedSession ?? ResolveAuthorizedSessionUseCase(repository: selectedRepository)
         self.upsertMemberByAdmin = upsertMemberByAdmin ?? UpsertMemberByAdminUseCase(repository: selectedRepository)
@@ -255,6 +274,12 @@ final class SessionViewModel {
         mode = .signedOut
         memberDraft = MemberDraft()
         myOrderFreshnessState = .idle
+        latestNews = []
+        newsFeed = []
+        newsDraft = NewsDraft()
+        editingNewsId = nil
+        isLoadingNews = false
+        isSavingNews = false
         Task {
             await criticalDataFreshnessLocalRepository.clear()
         }
@@ -266,6 +291,126 @@ final class SessionViewModel {
 
     func dismissUnauthorizedDialog() {
         showUnauthorizedDialog = false
+    }
+
+    func updateNewsDraft(_ update: (inout NewsDraft) -> Void) {
+        var draft = newsDraft
+        update(&draft)
+        newsDraft = draft
+    }
+
+    func startCreatingNews() {
+        guard case .authorized(let session) = mode else { return }
+        guard session.member.isAdmin else {
+            feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminPublishNews
+            return
+        }
+
+        newsDraft = NewsDraft()
+        editingNewsId = nil
+    }
+
+    func startEditingNews(newsId: String) {
+        guard case .authorized(let session) = mode else { return }
+        guard session.member.isAdmin else {
+            feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminEditNews
+            return
+        }
+        guard let article = newsFeed.first(where: { $0.id == newsId }) else { return }
+
+        newsDraft = NewsDraft(
+            title: article.title,
+            body: article.body,
+            urlImage: article.urlImage ?? "",
+            active: article.active
+        )
+        editingNewsId = article.id
+    }
+
+    func clearNewsEditor() {
+        newsDraft = NewsDraft()
+        editingNewsId = nil
+        isSavingNews = false
+    }
+
+    func refreshNews() {
+        guard case .authorized(let session) = mode else { return }
+        isLoadingNews = true
+        Task { @MainActor in
+            let allNews = await newsRepository.allNews()
+            latestNews = allNews.filter(\.active).prefix(3).map { $0 }
+            newsFeed = session.member.isAdmin ? allNews : allNews.filter(\.active)
+            isLoadingNews = false
+        }
+    }
+
+    func saveNews(onSuccess: @escaping @MainActor () -> Void = {}) {
+        guard case .authorized(let session) = mode else { return }
+        guard session.member.isAdmin else {
+            feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminPublishNews
+            return
+        }
+        guard !newsDraft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !newsDraft.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            feedbackMessageKey = AccessL10nKey.feedbackNewsTitleBodyRequired
+            return
+        }
+
+        isSavingNews = true
+        Task { @MainActor in
+            let existing = newsFeed.first(where: { $0.id == editingNewsId })
+            let saved = await newsRepository.upsert(
+                article: NewsArticle(
+                    id: editingNewsId ?? "",
+                    title: newsDraft.title.trimmingCharacters(in: .whitespacesAndNewlines),
+                    body: newsDraft.body.trimmingCharacters(in: .whitespacesAndNewlines),
+                    active: newsDraft.active,
+                    publishedBy: existing?.publishedBy ?? session.member.displayName,
+                    publishedAtMillis: existing?.publishedAtMillis ?? nowMillisProvider(),
+                    urlImage: {
+                        let trimmed = newsDraft.urlImage.trimmingCharacters(in: .whitespacesAndNewlines)
+                        return trimmed.isEmpty ? nil : trimmed
+                    }()
+                )
+            )
+            let allNews = await newsRepository.allNews()
+            latestNews = allNews.filter(\.active).prefix(3).map { $0 }
+            newsFeed = allNews
+            newsDraft = NewsDraft(
+                title: saved.title,
+                body: saved.body,
+                urlImage: saved.urlImage ?? "",
+                active: saved.active
+            )
+            editingNewsId = saved.id
+            isSavingNews = false
+            feedbackMessageKey = existing == nil ? AccessL10nKey.feedbackNewsCreated : AccessL10nKey.feedbackNewsUpdated
+            onSuccess()
+        }
+    }
+
+    func deleteNews(newsId: String, onSuccess: @escaping @MainActor () -> Void = {}) {
+        guard case .authorized(let session) = mode else { return }
+        guard session.member.isAdmin else {
+            feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminDeleteNews
+            return
+        }
+
+        Task { @MainActor in
+            let deleted = await newsRepository.delete(newsId: newsId)
+            guard deleted else {
+                feedbackMessageKey = AccessL10nKey.feedbackNewsDeleteFailed
+                return
+            }
+            let allNews = await newsRepository.allNews()
+            latestNews = allNews.filter(\.active).prefix(3).map { $0 }
+            newsFeed = allNews
+            if editingNewsId == newsId {
+                clearNewsEditor()
+            }
+            feedbackMessageKey = AccessL10nKey.feedbackNewsDeleted
+            onSuccess()
+        }
     }
 
     func refreshSession(trigger: SessionRefreshTrigger) {
@@ -599,6 +744,11 @@ final class SessionViewModel {
                 myOrderFreshnessState = .checking
                 refreshMyOrderFreshness()
             }
+            isLoadingNews = true
+            let allNews = await newsRepository.allNews()
+            latestNews = allNews.filter(\.active).prefix(3).map { $0 }
+            newsFeed = member.isAdmin ? allNews : allNews.filter(\.active)
+            isLoadingNews = false
         case .unauthorized(let reason):
             let shouldShowUnauthorizedDialog = shouldShowUnauthorizedDialog(
                 for: principal.email,
@@ -608,6 +758,12 @@ final class SessionViewModel {
             showSessionExpiredDialog = false
             showUnauthorizedDialog = shouldShowUnauthorizedDialog
             myOrderFreshnessState = .idle
+            latestNews = []
+            newsFeed = []
+            newsDraft = NewsDraft()
+            editingNewsId = nil
+            isLoadingNews = false
+            isSavingNews = false
         }
     }
 
@@ -655,6 +811,12 @@ final class SessionViewModel {
         myOrderFreshnessState = .idle
         showSessionExpiredDialog = true
         showUnauthorizedDialog = false
+        latestNews = []
+        newsFeed = []
+        newsDraft = NewsDraft()
+        editingNewsId = nil
+        isLoadingNews = false
+        isSavingNews = false
         await criticalDataFreshnessLocalRepository.clear()
     }
 

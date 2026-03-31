@@ -28,12 +28,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -59,6 +62,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
@@ -100,6 +104,9 @@ import com.reguerta.user.data.access.FirestoreMemberRepository
 import com.reguerta.user.data.access.InMemoryMemberRepository
 import com.reguerta.user.data.freshness.DataStoreCriticalDataFreshnessLocalRepository
 import com.reguerta.user.data.freshness.FirestoreCriticalDataFreshnessRemoteRepository
+import com.reguerta.user.data.news.ChainedNewsRepository
+import com.reguerta.user.data.news.FirestoreNewsRepository
+import com.reguerta.user.data.news.InMemoryNewsRepository
 import com.reguerta.user.data.startup.FirestoreStartupVersionPolicyRepository
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
@@ -108,6 +115,7 @@ import com.reguerta.user.domain.access.ResolveAuthorizedSessionUseCase
 import com.reguerta.user.domain.access.SessionRefreshTrigger
 import com.reguerta.user.domain.access.UnauthorizedReason
 import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
+import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.startup.ResolveStartupVersionGateUseCase
 import com.reguerta.user.domain.startup.StartupPlatform
 import com.reguerta.user.domain.startup.StartupVersionGateDecision
@@ -125,24 +133,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 private const val SplashAnimationDurationMillis = 1_500
-
-private enum class HomeDestination(
-    val titleRes: Int,
-) {
-    HOME(R.string.home_title),
-    MY_ORDER(R.string.module_my_order),
-    MY_ORDERS(R.string.module_my_orders),
-    SHIFTS(R.string.module_shifts),
-    NEWS(R.string.home_shell_news_title),
-    NOTIFICATIONS(R.string.home_shell_notifications),
-    PROFILE(R.string.home_shell_action_profile),
-    SETTINGS(R.string.home_shell_action_settings),
-    PRODUCTS(R.string.home_shell_action_products),
-    RECEIVED_ORDERS(R.string.home_shell_action_received_orders),
-    USERS(R.string.home_shell_action_users),
-    PUBLISH_NEWS(R.string.home_shell_action_publish_news),
-    SEND_EXTRA_NOTIFICATION(R.string.home_shell_action_send_extra_notification),
-}
 private const val StartupPolicyFetchTimeoutMillis = 2_500L
 private const val PasswordMinLength = 6
 private const val PasswordMaxLength = 16
@@ -157,12 +147,18 @@ fun rememberSessionViewModel(): SessionViewModel {
         val primary = FirestoreMemberRepository(firestore = FirebaseFirestore.getInstance())
         ChainedMemberRepository(primary = primary, fallback = fallback)
     }
+    val newsRepository = remember {
+        val fallback = InMemoryNewsRepository()
+        val primary = FirestoreNewsRepository(firestore = FirebaseFirestore.getInstance())
+        ChainedNewsRepository(primary = primary, fallback = fallback)
+    }
     val freshnessLocalRepository = remember(context) {
         DataStoreCriticalDataFreshnessLocalRepository(context.applicationContext)
     }
     return remember {
         SessionViewModel(
             repository = repository,
+            newsRepository = newsRepository,
             authSessionProvider = FirebaseAuthSessionProvider(auth = FirebaseAuth.getInstance()),
             resolveAuthorizedSession = ResolveAuthorizedSessionUseCase(memberRepository = repository),
             upsertMemberByAdmin = UpsertMemberByAdminUseCase(memberRepository = repository),
@@ -331,10 +327,23 @@ fun ReguertaRoot(
                     mode = state.mode,
                     myOrderFreshnessState = state.myOrderFreshnessState,
                     draft = state.memberDraft,
+                    latestNews = state.latestNews,
+                    newsFeed = state.newsFeed,
+                    newsDraft = state.newsDraft,
+                    editingNewsId = state.editingNewsId,
+                    isLoadingNews = state.isLoadingNews,
+                    isSavingNews = state.isSavingNews,
                     onDraftChanged = viewModel::onMemberDraftChanged,
+                    onNewsDraftChanged = viewModel::onNewsDraftChanged,
                     onToggleAdmin = viewModel::toggleAdmin,
                     onToggleActive = viewModel::toggleActive,
                     onCreateMember = viewModel::createAuthorizedMember,
+                    onStartCreatingNews = viewModel::startCreatingNews,
+                    onStartEditingNews = viewModel::startEditingNews,
+                    onSaveNews = viewModel::saveNews,
+                    onDeleteNews = viewModel::deleteNews,
+                    onRefreshNews = viewModel::refreshNews,
+                    onClearNewsEditor = viewModel::clearNewsEditor,
                     onRetryMyOrderFreshness = viewModel::refreshMyOrderFreshness,
                     onSignOut = signOutAndRoute,
                     installedVersion = installedVersion,
@@ -907,42 +916,62 @@ private fun RecoverPasswordCard(
     }
 }
 
+private enum class HomeDestination {
+    DASHBOARD,
+    MY_ORDER,
+    MY_ORDERS,
+    SHIFTS,
+    NEWS,
+    NOTIFICATIONS,
+    PROFILE,
+    SETTINGS,
+    PRODUCTS,
+    RECEIVED_ORDERS,
+    USERS,
+    PUBLISH_NEWS,
+    ADMIN_BROADCAST,
+}
+
 @Composable
 private fun HomeRoute(
     modifier: Modifier = Modifier,
     mode: SessionMode,
     myOrderFreshnessState: MyOrderFreshnessUiState,
     draft: MemberDraft,
+    latestNews: List<NewsArticle>,
+    newsFeed: List<NewsArticle>,
+    newsDraft: NewsDraft,
+    editingNewsId: String?,
+    isLoadingNews: Boolean,
+    isSavingNews: Boolean,
     onDraftChanged: (MemberDraft) -> Unit,
+    onNewsDraftChanged: (NewsDraft) -> Unit,
     onToggleAdmin: (String) -> Unit,
     onToggleActive: (String) -> Unit,
     onCreateMember: () -> Unit,
+    onStartCreatingNews: () -> Unit,
+    onStartEditingNews: (String) -> Unit,
+    onSaveNews: (onSuccess: () -> Unit) -> Unit,
+    onDeleteNews: (String, () -> Unit) -> Unit,
+    onRefreshNews: () -> Unit,
+    onClearNewsEditor: () -> Unit,
     onRetryMyOrderFreshness: () -> Unit,
     onSignOut: () -> Unit,
     installedVersion: String,
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    var currentDestination by rememberSaveable { mutableStateOf(HomeDestination.HOME) }
-    var showSignOutConfirmation by rememberSaveable { mutableStateOf(false) }
+    var currentDestination by rememberSaveable { mutableStateOf(HomeDestination.DASHBOARD) }
+    var newsPendingDeletionId by rememberSaveable { mutableStateOf<String?>(null) }
     val member = when (mode) {
         is SessionMode.Authorized -> mode.member
         SessionMode.SignedOut,
         is SessionMode.Unauthorized,
             -> null
     }
-    val closeDrawer: () -> Unit = {
-        scope.launch { drawerState.close() }
-    }
 
     BackHandler(enabled = drawerState.isOpen) {
         scope.launch { drawerState.close() }
-    }
-
-    LaunchedEffect(member) {
-        if (member == null) {
-            currentDestination = HomeDestination.HOME
-        }
     }
 
     ModalNavigationDrawer(
@@ -956,14 +985,21 @@ private fun HomeRoute(
                     member = member,
                     currentDestination = currentDestination,
                     installedVersion = installedVersion,
-                    onCloseDrawer = { closeDrawer() },
-                    onDestinationSelected = { destination ->
+                    onNavigate = { destination ->
                         currentDestination = destination
-                        closeDrawer()
+                        if (destination == HomeDestination.NEWS) {
+                            onRefreshNews()
+                        } else if (destination == HomeDestination.PUBLISH_NEWS) {
+                            onStartCreatingNews()
+                        }
+                        scope.launch { drawerState.close() }
                     },
-                    onSignOutRequested = {
-                        closeDrawer()
-                        showSignOutConfirmation = true
+                    onCloseDrawer = {
+                        scope.launch { drawerState.close() }
+                    },
+                    onSignOut = {
+                        scope.launch { drawerState.close() }
+                        onSignOut()
                     },
                 )
             }
@@ -976,29 +1012,32 @@ private fun HomeRoute(
                 .fillMaxWidth()
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .imePadding()
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             HomeShellTopBar(
-                title = stringResource(currentDestination.titleRes),
+                title = stringResource(currentDestination.titleRes()),
+                canNavigateBack = currentDestination != HomeDestination.DASHBOARD,
+                onBack = {
+                    if (currentDestination == HomeDestination.PUBLISH_NEWS) {
+                        onClearNewsEditor()
+                    }
+                    currentDestination = if (currentDestination == HomeDestination.PUBLISH_NEWS) {
+                        HomeDestination.NEWS
+                    } else {
+                        HomeDestination.DASHBOARD
+                    }
+                },
                 onOpenMenu = {
                     scope.launch { drawerState.open() }
                 },
-                onOpenNotifications = {
-                    if (member != null) {
-                        currentDestination = HomeDestination.NOTIFICATIONS
-                    }
-                },
-                notificationsEnabled = member != null,
             )
-
             when (currentDestination) {
-                HomeDestination.HOME -> {
+                HomeDestination.DASHBOARD -> {
                     WeeklyContextCard()
-
                     when (mode) {
                         is SessionMode.Unauthorized -> Unit
-
                         is SessionMode.Authorized -> {
                             AuthorizedHome(
                                 mode = mode,
@@ -1009,8 +1048,6 @@ private fun HomeRoute(
                                 onToggleActive = onToggleActive,
                                 onCreateMember = onCreateMember,
                                 onRetryMyOrderFreshness = onRetryMyOrderFreshness,
-                                onOpenMyOrder = { currentDestination = HomeDestination.MY_ORDER },
-                                onOpenShifts = { currentDestination = HomeDestination.SHIFTS },
                             )
                         }
 
@@ -1023,44 +1060,79 @@ private fun HomeRoute(
                             }
                         }
                     }
-
-                    LatestNewsCard()
-                }
-
-                HomeDestination.SETTINGS -> {
-                    SettingsPlaceholderRoute(
-                        member = member,
-                        onBackHome = { currentDestination = HomeDestination.HOME },
+                    LatestNewsCard(
+                        news = latestNews,
+                        onViewAll = {
+                            currentDestination = HomeDestination.NEWS
+                            onRefreshNews()
+                        },
                     )
                 }
 
-                else -> {
-                    HomePlaceholderRoute(
-                        destination = currentDestination,
-                        onBackHome = { currentDestination = HomeDestination.HOME },
-                    )
-                }
+                HomeDestination.NEWS -> NewsFeedRoute(
+                    articles = newsFeed,
+                    isLoading = isLoadingNews,
+                    isAdmin = member?.isAdmin == true,
+                    onRefresh = onRefreshNews,
+                    onCreateNews = {
+                        onStartCreatingNews()
+                        currentDestination = HomeDestination.PUBLISH_NEWS
+                    },
+                    onEditNews = { newsId ->
+                        onStartEditingNews(newsId)
+                        currentDestination = HomeDestination.PUBLISH_NEWS
+                    },
+                    onRequestDeleteNews = { newsId ->
+                        newsPendingDeletionId = newsId
+                    },
+                )
+
+                HomeDestination.PUBLISH_NEWS -> NewsEditorRoute(
+                    draft = newsDraft,
+                    isSaving = isSavingNews,
+                    isEditing = editingNewsId != null,
+                    onDraftChanged = onNewsDraftChanged,
+                    onCancel = {
+                        onClearNewsEditor()
+                        currentDestination = HomeDestination.NEWS
+                    },
+                    onSave = {
+                        onSaveNews {
+                            currentDestination = HomeDestination.NEWS
+                        }
+                    },
+                )
+
+                else -> HomePlaceholderRoute(
+                    title = stringResource(currentDestination.titleRes()),
+                    subtitle = stringResource(currentDestination.subtitleRes()),
+                    onBackHome = {
+                        currentDestination = HomeDestination.DASHBOARD
+                    },
+                )
             }
         }
     }
 
-    if (showSignOutConfirmation) {
+    newsPendingDeletionId?.let { pendingId ->
+        val title = newsFeed.firstOrNull { it.id == pendingId }?.title.orEmpty()
         ReguertaDialog(
-            type = ReguertaDialogType.INFO,
-            title = stringResource(R.string.sign_out_confirm_title),
-            message = stringResource(R.string.sign_out_confirm_message),
+            type = ReguertaDialogType.ERROR,
+            title = stringResource(R.string.news_delete_dialog_title),
+            message = stringResource(R.string.news_delete_dialog_message, title),
             primaryAction = ReguertaDialogAction(
-                label = stringResource(R.string.access_action_sign_out),
+                label = stringResource(R.string.news_delete_action_confirm),
                 onClick = {
-                    showSignOutConfirmation = false
-                    onSignOut()
+                    onDeleteNews(pendingId) {
+                        newsPendingDeletionId = null
+                    }
                 },
             ),
             secondaryAction = ReguertaDialogAction(
-                label = stringResource(R.string.common_action_cancel),
-                onClick = { showSignOutConfirmation = false },
+                label = stringResource(R.string.news_delete_action_cancel),
+                onClick = { newsPendingDeletionId = null },
             ),
-            onDismissRequest = { showSignOutConfirmation = false },
+            onDismissRequest = { newsPendingDeletionId = null },
         )
     }
 }
@@ -1068,9 +1140,9 @@ private fun HomeRoute(
 @Composable
 private fun HomeShellTopBar(
     title: String,
+    canNavigateBack: Boolean,
+    onBack: () -> Unit,
     onOpenMenu: () -> Unit,
-    onOpenNotifications: () -> Unit,
-    notificationsEnabled: Boolean,
 ) {
     Card {
         Row(
@@ -1080,10 +1152,14 @@ private fun HomeShellTopBar(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = onOpenMenu) {
+            IconButton(onClick = if (canNavigateBack) onBack else onOpenMenu) {
                 Icon(
-                    imageVector = Icons.Filled.Menu,
-                    contentDescription = stringResource(R.string.home_shell_menu),
+                    imageVector = if (canNavigateBack) Icons.AutoMirrored.Filled.ArrowBack else Icons.Filled.Menu,
+                    contentDescription = if (canNavigateBack) {
+                        stringResource(R.string.common_action_back)
+                    } else {
+                        stringResource(R.string.home_shell_menu)
+                    },
                 )
             }
 
@@ -1093,10 +1169,7 @@ private fun HomeShellTopBar(
                 fontWeight = FontWeight.SemiBold,
             )
 
-            IconButton(
-                onClick = onOpenNotifications,
-                enabled = notificationsEnabled,
-            ) {
+            IconButton(onClick = {}) {
                 Icon(
                     imageVector = Icons.Filled.Notifications,
                     contentDescription = stringResource(R.string.home_shell_notifications),
@@ -1107,207 +1180,119 @@ private fun HomeShellTopBar(
 }
 
 @Composable
-private fun HomePlaceholderRoute(
-    destination: HomeDestination,
-    onBackHome: () -> Unit,
-) {
-    val noteRes = when (destination) {
-        HomeDestination.MY_ORDERS -> R.string.home_placeholder_my_orders_history_note
-        HomeDestination.RECEIVED_ORDERS -> R.string.home_placeholder_received_orders_history_note
-        else -> null
-    }
-
-    Card {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                text = stringResource(destination.titleRes),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = stringResource(R.string.home_placeholder_ready_message),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (noteRes != null) {
-                Text(
-                    text = stringResource(noteRes),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Button(onClick = onBackHome, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.home_placeholder_back_home))
-            }
-        }
-    }
-}
-
-@Composable
-private fun SettingsPlaceholderRoute(
-    member: Member?,
-    onBackHome: () -> Unit,
-) {
-    Card {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.home_shell_action_settings),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = stringResource(R.string.home_placeholder_settings_intro),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            HomeDrawerSection(title = stringResource(R.string.home_shell_section_common))
-            Text(text = stringResource(R.string.home_shell_action_profile), style = MaterialTheme.typography.bodyMedium)
-            Text(text = stringResource(R.string.home_shell_notifications), style = MaterialTheme.typography.bodyMedium)
-
-            if (member?.isProducer == true) {
-                HomeDrawerSection(title = stringResource(R.string.home_shell_section_producer))
-                Text(text = stringResource(R.string.home_shell_action_products), style = MaterialTheme.typography.bodyMedium)
-            }
-
-            if (member?.isAdmin == true) {
-                HomeDrawerSection(title = stringResource(R.string.home_shell_section_admin))
-                Text(text = stringResource(R.string.home_shell_action_users), style = MaterialTheme.typography.bodyMedium)
-                Text(text = stringResource(R.string.home_shell_action_publish_news), style = MaterialTheme.typography.bodyMedium)
-                Text(text = stringResource(R.string.home_shell_action_send_extra_notification), style = MaterialTheme.typography.bodyMedium)
-            }
-
-            Button(onClick = onBackHome, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.home_placeholder_back_home))
-            }
-        }
-    }
-}
-
-@Composable
 private fun HomeDrawerContent(
     member: Member?,
     currentDestination: HomeDestination,
     installedVersion: String,
+    onNavigate: (HomeDestination) -> Unit,
     onCloseDrawer: () -> Unit,
-    onDestinationSelected: (HomeDestination) -> Unit,
-    onSignOutRequested: () -> Unit,
+    onSignOut: () -> Unit,
 ) {
-    val context = LocalContext.current
-
+    val drawerScrollState = rememberScrollState()
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp, vertical = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Start,
+        ) {
+            IconButton(onClick = onCloseDrawer) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.common_action_back),
+                )
+            }
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(76.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.AccountCircle,
+                    contentDescription = stringResource(R.string.home_shell_profile_placeholder),
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(44.dp),
+                )
+            }
+            if (member != null) {
+                Text(
+                    text = member.displayName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = member.normalizedEmail,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+
         Column(
             modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 20.dp),
+                .weight(1f, fill = true)
+                .verticalScroll(drawerScrollState),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Start,
-            ) {
-                IconButton(onClick = onCloseDrawer) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.common_action_back),
-                    )
-                }
-            }
-
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(76.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.AccountCircle,
-                        contentDescription = stringResource(R.string.home_shell_profile_placeholder),
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(44.dp),
-                    )
-                }
-                if (member != null) {
-                    Text(
-                        text = member.displayName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        text = member.normalizedEmail,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-            }
-
+            HomeDrawerSection(title = stringResource(R.string.home_shell_section_common))
             HomeDrawerItem(
                 icon = Icons.Filled.Home,
                 label = stringResource(R.string.home_title),
-                selected = currentDestination == HomeDestination.HOME,
-                onClick = { onDestinationSelected(HomeDestination.HOME) },
+                selected = currentDestination == HomeDestination.DASHBOARD,
+                onClick = { onNavigate(HomeDestination.DASHBOARD) },
             )
-
-            HomeDrawerSection(title = stringResource(R.string.home_shell_section_common))
             HomeDrawerItem(
                 icon = Icons.Filled.ShoppingCart,
                 label = stringResource(R.string.module_my_order),
                 selected = currentDestination == HomeDestination.MY_ORDER,
-                onClick = { onDestinationSelected(HomeDestination.MY_ORDER) },
+                onClick = { onNavigate(HomeDestination.MY_ORDER) },
             )
             HomeDrawerItem(
                 icon = Icons.AutoMirrored.Filled.Article,
                 label = stringResource(R.string.module_my_orders),
                 selected = currentDestination == HomeDestination.MY_ORDERS,
-                onClick = { onDestinationSelected(HomeDestination.MY_ORDERS) },
+                onClick = { onNavigate(HomeDestination.MY_ORDERS) },
             )
             HomeDrawerItem(
                 icon = Icons.Filled.CalendarToday,
                 label = stringResource(R.string.module_shifts),
                 selected = currentDestination == HomeDestination.SHIFTS,
-                onClick = { onDestinationSelected(HomeDestination.SHIFTS) },
+                onClick = { onNavigate(HomeDestination.SHIFTS) },
             )
             HomeDrawerItem(
                 icon = Icons.AutoMirrored.Filled.Article,
                 label = stringResource(R.string.home_shell_news_title),
                 selected = currentDestination == HomeDestination.NEWS,
-                onClick = { onDestinationSelected(HomeDestination.NEWS) },
+                onClick = { onNavigate(HomeDestination.NEWS) },
             )
             HomeDrawerItem(
                 icon = Icons.Filled.Notifications,
                 label = stringResource(R.string.home_shell_notifications),
                 selected = currentDestination == HomeDestination.NOTIFICATIONS,
-                onClick = { onDestinationSelected(HomeDestination.NOTIFICATIONS) },
+                onClick = { onNavigate(HomeDestination.NOTIFICATIONS) },
             )
             HomeDrawerItem(
                 icon = Icons.Filled.Person,
                 label = stringResource(R.string.home_shell_action_profile),
                 selected = currentDestination == HomeDestination.PROFILE,
-                onClick = { onDestinationSelected(HomeDestination.PROFILE) },
+                onClick = { onNavigate(HomeDestination.PROFILE) },
             )
             HomeDrawerItem(
                 icon = Icons.Filled.Settings,
                 label = stringResource(R.string.home_shell_action_settings),
                 selected = currentDestination == HomeDestination.SETTINGS,
-                onClick = { onDestinationSelected(HomeDestination.SETTINGS) },
+                onClick = { onNavigate(HomeDestination.SETTINGS) },
             )
 
             if (member?.isProducer == true) {
@@ -1316,13 +1301,13 @@ private fun HomeDrawerContent(
                     icon = Icons.Filled.Storefront,
                     label = stringResource(R.string.home_shell_action_products),
                     selected = currentDestination == HomeDestination.PRODUCTS,
-                    onClick = { onDestinationSelected(HomeDestination.PRODUCTS) },
+                    onClick = { onNavigate(HomeDestination.PRODUCTS) },
                 )
                 HomeDrawerItem(
                     icon = Icons.Filled.Inbox,
                     label = stringResource(R.string.home_shell_action_received_orders),
                     selected = currentDestination == HomeDestination.RECEIVED_ORDERS,
-                    onClick = { onDestinationSelected(HomeDestination.RECEIVED_ORDERS) },
+                    onClick = { onNavigate(HomeDestination.RECEIVED_ORDERS) },
                 )
             }
 
@@ -1332,47 +1317,35 @@ private fun HomeDrawerContent(
                     icon = Icons.Filled.Group,
                     label = stringResource(R.string.home_shell_action_users),
                     selected = currentDestination == HomeDestination.USERS,
-                    onClick = { onDestinationSelected(HomeDestination.USERS) },
+                    onClick = { onNavigate(HomeDestination.USERS) },
                 )
                 HomeDrawerItem(
-                    icon = Icons.AutoMirrored.Filled.Article,
+                    icon = Icons.Filled.Add,
                     label = stringResource(R.string.home_shell_action_publish_news),
                     selected = currentDestination == HomeDestination.PUBLISH_NEWS,
-                    onClick = { onDestinationSelected(HomeDestination.PUBLISH_NEWS) },
+                    onClick = { onNavigate(HomeDestination.PUBLISH_NEWS) },
                 )
                 HomeDrawerItem(
-                    icon = Icons.Filled.Notifications,
-                    label = stringResource(R.string.home_shell_action_send_extra_notification),
-                    selected = currentDestination == HomeDestination.SEND_EXTRA_NOTIFICATION,
-                    onClick = { onDestinationSelected(HomeDestination.SEND_EXTRA_NOTIFICATION) },
+                    icon = Icons.Filled.Campaign,
+                    label = stringResource(R.string.home_shell_action_admin_broadcast),
+                    selected = currentDestination == HomeDestination.ADMIN_BROADCAST,
+                    onClick = { onNavigate(HomeDestination.ADMIN_BROADCAST) },
                 )
             }
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+        HorizontalDivider()
+        TextButton(
+            onClick = onSignOut,
+            modifier = Modifier.fillMaxWidth(),
         ) {
-            HorizontalDivider()
-            TextButton(
-                onClick = onSignOutRequested,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(R.string.access_action_sign_out))
-            }
-            Text(
-                text = stringResource(R.string.home_shell_version_format, installedVersion.ifBlank { "0.0.0" }),
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Text(
-                text = stringResource(R.string.common_roles_format, member?.roles?.toPrettyRoles(context) ?: "-"),
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            Text(stringResource(R.string.access_action_sign_out))
         }
+        Text(
+            text = stringResource(R.string.home_shell_version_format, installedVersion.ifBlank { "0.0.0" }),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
@@ -1392,22 +1365,18 @@ private fun HomeDrawerSection(
 private fun HomeDrawerItem(
     icon: ImageVector,
     label: String,
-    selected: Boolean,
-    onClick: (() -> Unit)? = null,
+    selected: Boolean = false,
+    onClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
             .background(
-                if (selected) {
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
-                } else {
-                    MaterialTheme.colorScheme.surface
-                },
+                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surface,
             )
-            .clickable(enabled = onClick != null) { onClick?.invoke() }
-            .padding(vertical = 10.dp),
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -1481,7 +1450,10 @@ private fun WeeklyContextRow(
 }
 
 @Composable
-private fun LatestNewsCard() {
+private fun LatestNewsCard(
+    news: List<NewsArticle>,
+    onViewAll: () -> Unit,
+) {
     Card {
         Column(
             modifier = Modifier
@@ -1494,20 +1466,299 @@ private fun LatestNewsCard() {
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
-            Text(
-                text = stringResource(R.string.home_shell_news_intro),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                text = "\u2022 ${stringResource(R.string.home_shell_news_item_one)}",
-                style = MaterialTheme.typography.bodySmall,
-            )
-            Text(
-                text = "\u2022 ${stringResource(R.string.home_shell_news_item_two)}",
-                style = MaterialTheme.typography.bodySmall,
+            if (news.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.news_empty_state),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            } else {
+                news.forEach { article ->
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = article.title,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = article.body,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 3,
+                        )
+                    }
+                }
+            }
+            ReguertaFlatButton(
+                label = stringResource(R.string.news_view_all),
+                onClick = onViewAll,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }
+}
+
+@Composable
+private fun NewsFeedRoute(
+    articles: List<NewsArticle>,
+    isLoading: Boolean,
+    isAdmin: Boolean,
+    onRefresh: () -> Unit,
+    onCreateNews: () -> Unit,
+    onEditNews: (String) -> Unit,
+    onRequestDeleteNews: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Card {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.home_shell_news_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = stringResource(R.string.news_list_subtitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                if (isAdmin) {
+                    ReguertaFullButton(
+                        label = stringResource(R.string.news_create_action),
+                        onClick = onCreateNews,
+                        fullWidth = true,
+                    )
+                }
+                ReguertaFlatButton(
+                    label = stringResource(R.string.news_refresh_action),
+                    onClick = onRefresh,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+
+        if (isLoading) {
+            Card {
+                Text(
+                    text = stringResource(R.string.news_loading),
+                    modifier = Modifier.padding(16.dp),
+                )
+            }
+        } else if (articles.isEmpty()) {
+            Card {
+                Text(
+                    text = stringResource(R.string.news_empty_state),
+                    modifier = Modifier.padding(16.dp),
+                )
+            }
+        } else {
+            articles.forEach { article ->
+                Card {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = article.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = stringResource(R.string.news_meta_format, article.publishedBy),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        if (!article.active) {
+                            Text(
+                                text = stringResource(R.string.news_inactive_badge),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                        Text(
+                            text = article.body,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        article.urlImage?.let { url ->
+                            Text(
+                                text = url,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                        if (isAdmin) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                ReguertaFlatButton(
+                                    label = stringResource(R.string.news_edit_action),
+                                    onClick = { onEditNews(article.id) },
+                                )
+                                TextButton(onClick = { onRequestDeleteNews(article.id) }) {
+                                    Text(stringResource(R.string.news_delete_action))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NewsEditorRoute(
+    draft: NewsDraft,
+    isSaving: Boolean,
+    isEditing: Boolean,
+    onDraftChanged: (NewsDraft) -> Unit,
+    onCancel: () -> Unit,
+    onSave: () -> Unit,
+) {
+    val focusManager = LocalFocusManager.current
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .imePadding()
+                .navigationBarsPadding()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(
+                    if (isEditing) R.string.news_editor_title_edit else R.string.news_editor_title_create,
+                ),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            OutlinedTextField(
+                value = draft.title,
+                onValueChange = { onDraftChanged(draft.copy(title = it)) },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.news_field_title)) },
+                enabled = !isSaving,
+            )
+            OutlinedTextField(
+                value = draft.body,
+                onValueChange = { onDraftChanged(draft.copy(body = it)) },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.news_field_body)) },
+                minLines = 6,
+                enabled = !isSaving,
+            )
+            OutlinedTextField(
+                value = draft.urlImage,
+                onValueChange = { onDraftChanged(draft.copy(urlImage = it)) },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.news_field_url_image)) },
+                enabled = !isSaving,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(text = stringResource(R.string.news_field_active))
+                Switch(
+                    checked = draft.active,
+                    onCheckedChange = { onDraftChanged(draft.copy(active = it)) },
+                    enabled = !isSaving,
+                )
+            }
+            ReguertaFullButton(
+                label = stringResource(
+                    if (isSaving) {
+                        R.string.news_save_action_saving
+                    } else if (isEditing) {
+                        R.string.news_save_action_update
+                    } else {
+                        R.string.news_save_action_create
+                    },
+                ),
+                onClick = {
+                    focusManager.clearFocus(force = true)
+                    onSave()
+                },
+                fullWidth = true,
+                enabled = !isSaving,
+            )
+            ReguertaFlatButton(
+                label = stringResource(R.string.common_action_back),
+                onClick = {
+                    focusManager.clearFocus(force = true)
+                    onCancel()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isSaving,
+            )
+            Spacer(modifier = Modifier.height(64.dp))
+        }
+    }
+}
+
+@Composable
+private fun HomePlaceholderRoute(
+    title: String,
+    subtitle: String,
+    onBackHome: () -> Unit,
+) {
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            ReguertaFlatButton(
+                label = stringResource(R.string.common_action_back),
+                onClick = onBackHome,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+private fun HomeDestination.titleRes(): Int = when (this) {
+    HomeDestination.DASHBOARD -> R.string.home_title
+    HomeDestination.MY_ORDER -> R.string.module_my_order
+    HomeDestination.MY_ORDERS -> R.string.module_my_orders
+    HomeDestination.SHIFTS -> R.string.module_shifts
+    HomeDestination.NEWS -> R.string.home_shell_news_title
+    HomeDestination.NOTIFICATIONS -> R.string.home_shell_notifications
+    HomeDestination.PROFILE -> R.string.home_shell_action_profile
+    HomeDestination.SETTINGS -> R.string.home_shell_action_settings
+    HomeDestination.PRODUCTS -> R.string.home_shell_action_products
+    HomeDestination.RECEIVED_ORDERS -> R.string.home_shell_action_received_orders
+    HomeDestination.USERS -> R.string.home_shell_action_users
+    HomeDestination.PUBLISH_NEWS -> R.string.home_shell_action_publish_news
+    HomeDestination.ADMIN_BROADCAST -> R.string.home_shell_action_admin_broadcast
+}
+
+private fun HomeDestination.subtitleRes(): Int = when (this) {
+    HomeDestination.DASHBOARD -> R.string.home_placeholder_subtitle
+    HomeDestination.MY_ORDER -> R.string.home_placeholder_my_order
+    HomeDestination.MY_ORDERS -> R.string.home_placeholder_my_orders
+    HomeDestination.SHIFTS -> R.string.home_placeholder_shifts
+    HomeDestination.NEWS -> R.string.news_list_subtitle
+    HomeDestination.NOTIFICATIONS -> R.string.home_placeholder_notifications
+    HomeDestination.PROFILE -> R.string.home_placeholder_profile
+    HomeDestination.SETTINGS -> R.string.home_placeholder_settings
+    HomeDestination.PRODUCTS -> R.string.home_placeholder_products
+    HomeDestination.RECEIVED_ORDERS -> R.string.home_placeholder_received_orders
+    HomeDestination.USERS -> R.string.home_placeholder_users
+    HomeDestination.PUBLISH_NEWS -> R.string.news_editor_subtitle
+    HomeDestination.ADMIN_BROADCAST -> R.string.home_placeholder_admin_broadcast
 }
 
 @Composable
@@ -1761,15 +2012,11 @@ private fun AuthorizedHome(
     onToggleActive: (String) -> Unit,
     onCreateMember: () -> Unit,
     onRetryMyOrderFreshness: () -> Unit,
-    onOpenMyOrder: () -> Unit,
-    onOpenShifts: () -> Unit,
 ) {
     OperationalModules(
         modulesEnabled = true,
         myOrderFreshnessState = myOrderFreshnessState,
         onRetryMyOrderFreshness = onRetryMyOrderFreshness,
-        onOpenMyOrder = onOpenMyOrder,
-        onOpenShifts = onOpenShifts,
     )
 
     if (mode.member.isAdmin) {
@@ -1886,8 +2133,6 @@ private fun OperationalModules(
     modulesEnabled: Boolean,
     myOrderFreshnessState: MyOrderFreshnessUiState,
     onRetryMyOrderFreshness: () -> Unit,
-    onOpenMyOrder: () -> Unit = {},
-    onOpenShifts: () -> Unit = {},
     disabledMessage: String? = null,
 ) {
     Card {
@@ -1899,7 +2144,7 @@ private fun OperationalModules(
         ) {
             Text(stringResource(R.string.operational_modules_title))
             Button(
-                onClick = onOpenMyOrder,
+                onClick = {},
                 enabled = modulesEnabled && myOrderFreshnessState == MyOrderFreshnessUiState.Ready,
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -1908,7 +2153,7 @@ private fun OperationalModules(
             Button(onClick = {}, enabled = modulesEnabled, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.module_catalog))
             }
-            Button(onClick = onOpenShifts, enabled = modulesEnabled, modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = {}, enabled = modulesEnabled, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.module_shifts))
             }
 

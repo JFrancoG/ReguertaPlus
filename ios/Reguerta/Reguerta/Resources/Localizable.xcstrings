@@ -2453,6 +2453,575 @@
         }
       }
     },
+    "feedback.news_created" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "News published successfully" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Noticia publicada correctamente" } }
+      }
+    },
+    "feedback.news_delete_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Unable to delete the selected news" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "No se pudo eliminar la noticia seleccionada" } }
+      }
+    },
+    "feedback.news_deleted" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "News deleted successfully" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Noticia eliminada correctamente" } }
+      }
+    },
+    "feedback.news_title_body_required" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Title and body are required" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "El título y el cuerpo son obligatorios" } }
+      }
+    },
+    "feedback.news_updated" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "News updated successfully" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Noticia actualizada correctamente" } }
+      }
+    },
+    "feedback.only_admin_delete_news" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Only admins can delete news" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Solo los admins pueden borrar noticias" } }
+      }
+    },
+    "feedback.only_admin_edit_news" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Only admins can edit news" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Solo los admins pueden editar noticias" } }
+      }
+    },
+    "feedback.only_admin_publish_news" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Only admins can publish news" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Solo los admins pueden publicar noticias" } }
+      }
+    },
+    "home.placeholder.admin_broadcast" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Extraordinary admin notifications will connect here in a later story." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Las notificaciones extraordinarias de admin se conectarán aquí en una historia posterior." } }
+      }
+    },
+    "home.placeholder.my_order" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The My order flow will connect here in a dedicated story." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "El flujo de Mi pedido se conectará aquí en una historia dedicada." } }
+      }
+    },
+    "home.placeholder.my_orders" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Order history will live here once the next order routes are implemented." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "El histórico de pedidos vivirá aquí cuando se implementen las siguientes rutas de pedidos." } }
+      }
+    },
+    "home.placeholder.notifications" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Notifications will connect here once the notification feature is implemented." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Las notificaciones se conectarán aquí cuando se implemente esa funcionalidad." } }
+      }
+    },
+    "home.placeholder.products" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Product management will connect here in its dedicated story." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "La gestión de productos se conectará aquí en su historia dedicada." } }
+      }
+    },
+    "home.placeholder.profile" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Profile settings will connect here in a later iteration." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "El perfil se conectará aquí en una iteración posterior." } }
+      }
+    },
+    "home.placeholder.received_orders" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Received orders and historical filters will connect here in a later story." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Los pedidos recibidos y su histórico se conectarán aquí en una historia posterior." } }
+      }
+    },
+    "home.placeholder.settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Role-aware settings will connect here in a later iteration." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Los ajustes por rol se conectarán aquí en una iteración posterior." } }
+      }
+    },
+    "home.placeholder.shifts" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Shift management will connect here in a later iteration." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "La gestión de turnos se conectará aquí en una iteración posterior." } }
+      }
+    },
+    "home.placeholder.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Use the drawer to navigate through the app sections." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Usa el menú lateral para navegar por las distintas secciones de la app." } }
+      }
+    },
+    "home.placeholder.users" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "User management will connect here in its dedicated story." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "La gestión de usuarios se conectará aquí en su historia dedicada." } }
+      }
+    },
+    "home.shell.action.admin_broadcast" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Send notification" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Mandar notificación" } }
+      }
+    },
+    "home.shell.action.profile" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Profile" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Perfil" } }
+      }
+    },
+    "home.shell.action.publish_news" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Publish news" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Publicar noticia" } }
+      }
+    },
+    "home.shell.action.settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Settings" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Ajustes" } }
+      }
+    },
+    "news.create.action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New news"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nueva noticia"
+          }
+        }
+      }
+    },
+    "news.delete.action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Borrar"
+          }
+        }
+      }
+    },
+    "news.delete.action.cancel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancelar"
+          }
+        }
+      }
+    },
+    "news.delete.action.confirm" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Borrar"
+          }
+        }
+      }
+    },
+    "news.delete.dialog.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Are you sure you want to delete “%@”?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Seguro que quieres borrar “%@”?"
+          }
+        }
+      }
+    },
+    "news.delete.dialog.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete news"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Borrar noticia"
+          }
+        }
+      }
+    },
+    "news.edit.action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Editar"
+          }
+        }
+      }
+    },
+    "news.editor.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create or edit community news and then return to the full list."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crea o edita noticias de la comunidad y vuelve después al listado completo."
+          }
+        }
+      }
+    },
+    "news.editor.title.create" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Publish news"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Publicar noticia"
+          }
+        }
+      }
+    },
+    "news.editor.title.edit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit news"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Editar noticia"
+          }
+        }
+      }
+    },
+    "news.empty_state" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There are no news items to show yet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todavía no hay noticias para mostrar."
+          }
+        }
+      }
+    },
+    "news.field.active" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visible to users"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visible para usuarios"
+          }
+        }
+      }
+    },
+    "news.field.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Body"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuerpo"
+          }
+        }
+      }
+    },
+    "news.field.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Title"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Título"
+          }
+        }
+      }
+    },
+    "news.field.url_image" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Image URL (optional)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL de imagen (opcional)"
+          }
+        }
+      }
+    },
+    "news.inactive_badge" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inactive"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inactiva"
+          }
+        }
+      }
+    },
+    "news.list.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read the latest community updates in reverse publication order."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consulta las últimas novedades de la comunidad en orden inverso de publicación."
+          }
+        }
+      }
+    },
+    "news.loading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading news…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cargando noticias…"
+          }
+        }
+      }
+    },
+    "news.meta_format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Published by %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Publicada por %@"
+          }
+        }
+      }
+    },
+    "news.refresh.action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh list"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actualizar lista"
+          }
+        }
+      }
+    },
+    "news.save.action.create" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Publish news"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Publicar noticia"
+          }
+        }
+      }
+    },
+    "news.save.action.saving" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saving…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guardando…"
+          }
+        }
+      }
+    },
+    "news.save.action.update" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save changes"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guardar cambios"
+          }
+        }
+      }
+    },
+    "news.view_all" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View all news"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ver todas las noticias"
+          }
+        }
+      }
+    },
     "welcome.title.prefix" : {
       "extractionState" : "stale",
       "localizations" : {

@@ -22,6 +22,8 @@ import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessLocalRepository
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessResolution
 import com.reguerta.user.domain.freshness.ResolveCriticalDataFreshnessUseCase
+import com.reguerta.user.domain.news.NewsArticle
+import com.reguerta.user.domain.news.NewsRepository
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -40,6 +42,13 @@ data class MemberDraft(
     val isProducer: Boolean = false,
     val isAdmin: Boolean = false,
     val isActive: Boolean = true,
+)
+
+data class NewsDraft(
+    val title: String = "",
+    val body: String = "",
+    val urlImage: String = "",
+    val active: Boolean = true,
 )
 
 sealed interface SessionMode {
@@ -79,6 +88,12 @@ data class SessionUiState(
     val mode: SessionMode = SessionMode.SignedOut,
     val memberDraft: MemberDraft = MemberDraft(),
     val myOrderFreshnessState: MyOrderFreshnessUiState = MyOrderFreshnessUiState.Idle,
+    val latestNews: List<NewsArticle> = emptyList(),
+    val newsFeed: List<NewsArticle> = emptyList(),
+    val newsDraft: NewsDraft = NewsDraft(),
+    val editingNewsId: String? = null,
+    val isLoadingNews: Boolean = false,
+    val isSavingNews: Boolean = false,
 )
 
 sealed interface SessionUiEvent {
@@ -99,6 +114,7 @@ sealed interface MyOrderFreshnessUiState {
 
 class SessionViewModel(
     private val repository: MemberRepository,
+    private val newsRepository: NewsRepository,
     private val authSessionProvider: AuthSessionProvider,
     private val resolveAuthorizedSession: ResolveAuthorizedSessionUseCase,
     private val upsertMemberByAdmin: UpsertMemberByAdminUseCase,
@@ -219,6 +235,167 @@ class SessionViewModel(
 
     fun dismissUnauthorizedDialog() {
         _uiState.update { it.copy(showUnauthorizedDialog = false) }
+    }
+
+    fun onNewsDraftChanged(newDraft: NewsDraft) {
+        _uiState.update { it.copy(newsDraft = newDraft) }
+    }
+
+    fun startCreatingNews() {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        if (!mode.member.isAdmin) {
+            emitMessage(R.string.feedback_only_admin_publish_news)
+            return
+        }
+
+        _uiState.update {
+            it.copy(
+                newsDraft = NewsDraft(active = true),
+                editingNewsId = null,
+            )
+        }
+    }
+
+    fun startEditingNews(newsId: String) {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        if (!mode.member.isAdmin) {
+            emitMessage(R.string.feedback_only_admin_edit_news)
+            return
+        }
+        val article = _uiState.value.newsFeed.firstOrNull { it.id == newsId } ?: return
+        _uiState.update {
+            it.copy(
+                newsDraft = NewsDraft(
+                    title = article.title,
+                    body = article.body,
+                    urlImage = article.urlImage.orEmpty(),
+                    active = article.active,
+                ),
+                editingNewsId = article.id,
+            )
+        }
+    }
+
+    fun clearNewsEditor() {
+        _uiState.update {
+            it.copy(
+                newsDraft = NewsDraft(),
+                editingNewsId = null,
+                isSavingNews = false,
+            )
+        }
+    }
+
+    fun refreshNews() {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingNews = true) }
+            val allNews = newsRepository.getAllNews()
+            val visibleNews = if (mode.member.isAdmin) {
+                allNews
+            } else {
+                allNews.filter { article -> article.active }
+            }
+            val latestActiveNews = allNews.filter { it.active }.take(3)
+            _uiState.update {
+                val currentMode = it.mode as? SessionMode.Authorized
+                if (currentMode?.principal?.uid != mode.principal.uid) {
+                    it
+                } else {
+                    it.copy(
+                        latestNews = latestActiveNews,
+                        newsFeed = visibleNews,
+                        isLoadingNews = false,
+                    )
+                }
+            }
+        }
+    }
+
+    fun saveNews(onSuccess: () -> Unit = {}) {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        if (!mode.member.isAdmin) {
+            emitMessage(R.string.feedback_only_admin_publish_news)
+            return
+        }
+
+        val draft = _uiState.value.newsDraft
+        if (draft.title.trim().isBlank() || draft.body.trim().isBlank()) {
+            emitMessage(R.string.feedback_news_title_body_required)
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSavingNews = true) }
+            val nowMillis = nowMillisProvider()
+            val existing = _uiState.value.newsFeed.firstOrNull { it.id == _uiState.value.editingNewsId }
+            val saved = newsRepository.upsertNews(
+                NewsArticle(
+                    id = _uiState.value.editingNewsId.orEmpty(),
+                    title = draft.title.trim(),
+                    body = draft.body.trim(),
+                    active = draft.active,
+                    publishedBy = existing?.publishedBy ?: mode.member.displayName,
+                    publishedAtMillis = existing?.publishedAtMillis ?: nowMillis,
+                    urlImage = draft.urlImage.trim().ifBlank { null },
+                ),
+            )
+            val allNews = newsRepository.getAllNews()
+            val visibleNews = allNews
+            val latestActiveNews = allNews.filter { it.active }.take(3)
+            _uiState.update {
+                it.copy(
+                    latestNews = latestActiveNews,
+                    newsFeed = visibleNews,
+                    newsDraft = NewsDraft(
+                        title = saved.title,
+                        body = saved.body,
+                        urlImage = saved.urlImage.orEmpty(),
+                        active = saved.active,
+                    ),
+                    editingNewsId = saved.id,
+                    isSavingNews = false,
+                )
+            }
+            emitMessage(
+                if (existing == null) {
+                    R.string.feedback_news_created
+                } else {
+                    R.string.feedback_news_updated
+                },
+            )
+            onSuccess()
+        }
+    }
+
+    fun deleteNews(
+        newsId: String,
+        onSuccess: () -> Unit = {},
+    ) {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        if (!mode.member.isAdmin) {
+            emitMessage(R.string.feedback_only_admin_delete_news)
+            return
+        }
+
+        viewModelScope.launch {
+            val deleted = newsRepository.deleteNews(newsId)
+            if (!deleted) {
+                emitMessage(R.string.feedback_news_delete_failed)
+                return@launch
+            }
+            val allNews = newsRepository.getAllNews()
+            _uiState.update {
+                it.copy(
+                    latestNews = allNews.filter { article -> article.active }.take(3),
+                    newsFeed = allNews,
+                    newsDraft = if (it.editingNewsId == newsId) NewsDraft() else it.newsDraft,
+                    editingNewsId = if (it.editingNewsId == newsId) null else it.editingNewsId,
+                )
+            }
+            emitMessage(R.string.feedback_news_deleted)
+            onSuccess()
+        }
     }
 
     fun signIn() {
@@ -498,6 +675,12 @@ class SessionViewModel(
                 showUnauthorizedDialog = false,
                 memberDraft = MemberDraft(),
                 myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
+                latestNews = emptyList(),
+                newsFeed = emptyList(),
+                newsDraft = NewsDraft(),
+                editingNewsId = null,
+                isLoadingNews = false,
+                isSavingNews = false,
             )
         }
     }
@@ -719,7 +902,25 @@ class SessionViewModel(
                         } else {
                             it.myOrderFreshnessState
                         },
+                        isLoadingNews = true,
                     )
+                }
+                val allNews = newsRepository.getAllNews()
+                _uiState.update {
+                    val currentMode = it.mode as? SessionMode.Authorized
+                    if (currentMode?.principal?.uid != principal.uid) {
+                        it
+                    } else {
+                        it.copy(
+                            latestNews = allNews.filter { article -> article.active }.take(3),
+                            newsFeed = if (result.member.isAdmin) {
+                                allNews
+                            } else {
+                                allNews.filter { article -> article.active }
+                            },
+                            isLoadingNews = false,
+                        )
+                    }
                 }
                 if (shouldRefreshCriticalData) {
                     refreshMyOrderFreshness()
@@ -740,6 +941,12 @@ class SessionViewModel(
                         showSessionExpiredDialog = false,
                         showUnauthorizedDialog = showUnauthorizedDialog,
                         myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
+                        latestNews = emptyList(),
+                        newsFeed = emptyList(),
+                        newsDraft = NewsDraft(),
+                        editingNewsId = null,
+                        isLoadingNews = false,
+                        isSavingNews = false,
                     )
                 }
             }
@@ -791,6 +998,12 @@ class SessionViewModel(
                 showUnauthorizedDialog = false,
                 memberDraft = MemberDraft(),
                 myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
+                latestNews = emptyList(),
+                newsFeed = emptyList(),
+                newsDraft = NewsDraft(),
+                editingNewsId = null,
+                isLoadingNews = false,
+                isSavingNews = false,
             )
         }
     }

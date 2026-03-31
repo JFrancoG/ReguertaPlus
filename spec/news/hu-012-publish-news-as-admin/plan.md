@@ -2,32 +2,37 @@
 
 ## 1. Technical approach
 
-Implement this story incrementally, following Clean Architecture and reusing existing models/layers to reduce risk and regressions.
+Implement a lightweight news slice in both apps:
+- Firestore-backed repository under `plus-collections/news`
+- Home summary card fed by the latest active news
+- Full news list route for all authorized users
+- Shared create/edit form for admins
+- Basic delete flow for admins with confirmation in UI
 
 ## 2. Layer impact
-- UI: Screen, state, and user action updates required by HU-012.
-- Domain: Business rules and validations tied to linked RFs.
-- Data: Repository/DTO/mapper/query changes as needed.
-- Backend: Firestore/rules/functions/job updates if applicable.
-- Docs: Spec/tasks and issue evidence updates.
+- UI: Home latest-news card, news list route, news editor route, admin actions.
+- Domain: News entity/repository contract plus admin-only write rules in presentation/domain flow.
+- Data: Firestore collection path, mapper, list/save/delete operations.
+- Backend: no Functions work expected for MVP iteration unless validation reveals a blocker.
+- Docs: Spec/tasks plus Firestore field docs updated with optional `urlImage`.
 
 ## 3. Platform-specific changes
 ### Android
-- Implement flow and validations in ViewModel + data layer.
-- Ensure UI states match weekly rules and permissions.
+- Add `news` domain/data slice and wire it into `SessionViewModel`.
+- Replace home placeholder news with real latest active news.
+- Implement all-news and admin create/edit flows from the home shell.
 
 ### iOS
-- Implement equivalent flow and validations in ViewModel + data layer.
-- Verify functional equivalence against Android.
+- Mirror Android behavior with the same Firestore contract and admin restrictions.
+- Keep all-news and admin create/edit flow functionally aligned with Android.
 
 ### Functions/Backend
-- Implement/adjust data rules and automations only if required by this HU.
-- Keep compatibility with the proposed MVP Firestore structure.
+- No backend code planned unless Firestore contract validation reveals a missing dependency.
 
 ## 4. Test strategy
-- Unit tests for impacted business rules.
-- Integration tests for relevant repository/data paths.
-- End-to-end manual validation of acceptance criteria.
+- Unit tests for news ordering / permissions-sensitive save flow where practical.
+- Android and iOS regression builds/tests.
+- Manual validation in develop for member vs admin behavior and create/edit/delete flow.
 
 ## 5. Rollout and functional validation
 - Validate changes in develop environment.
@@ -36,12 +41,12 @@ Implement this story incrementally, following Clean Architecture and reusing exi
 
 ## 6. Phased implementation sequence
 ### Phase 1 - Preparation
-- Align data contracts and linked RFs.
-- Define test cases and edge scenarios.
+- Align Firestore/news contract and localization copy.
+- Define route transitions: home -> news list -> editor -> news list.
 
 ### Phase 2 - Implementation
-- Implement Android/iOS changes.
-- Implement backend/rules changes when needed.
+- Implement Android slice and UI wiring.
+- Implement iOS slice and UI wiring.
 
 ### Phase 3 - Closure
 - Execute tests and validate acceptance criteria.
@@ -52,3 +57,5 @@ Implement this story incrementally, following Clean Architecture and reusing exi
   - Mitigation: parity checklist per acceptance criterion.
 - Risk: Firestore data inconsistencies.
   - Mitigation: domain validations plus security rules.
+- Risk: `publishedAt` ordering drift if local timestamps differ.
+  - Mitigation: store timestamps consistently and sort descending in repositories/UI.
