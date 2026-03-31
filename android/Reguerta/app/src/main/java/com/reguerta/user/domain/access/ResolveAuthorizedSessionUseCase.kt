@@ -5,6 +5,15 @@ class ResolveAuthorizedSessionUseCase(
 ) {
     suspend operator fun invoke(authPrincipal: AuthPrincipal): AccessResolutionResult {
         val normalizedEmail = normalizeEmail(authPrincipal.email)
+        val linkedByAuthUid = memberRepository.findByAuthUid(authPrincipal.uid)
+        if (linkedByAuthUid != null) {
+            return if (linkedByAuthUid.isActive) {
+                AccessResolutionResult.Authorized(linkedByAuthUid)
+            } else {
+                AccessResolutionResult.Unauthorized(reason = UnauthorizedReason.USER_ACCESS_RESTRICTED)
+            }
+        }
+
         val member = memberRepository.findByEmailNormalized(normalizedEmail)
             ?: return AccessResolutionResult.Unauthorized(
                 reason = UnauthorizedReason.USER_NOT_FOUND_IN_AUTHORIZED_USERS,

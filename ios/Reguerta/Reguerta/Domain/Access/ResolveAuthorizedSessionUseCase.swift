@@ -10,6 +10,13 @@ struct ResolveAuthorizedSessionUseCase: Sendable {
     func execute(authPrincipal: AuthPrincipal) async -> AccessResolutionResult {
         let normalizedEmail = normalizeEmail(authPrincipal.email)
 
+        if let linkedMember = await repository.findByAuthUid(authPrincipal.uid) {
+            guard linkedMember.isActive else {
+                return .unauthorized(.userAccessRestricted)
+            }
+            return .authorized(linkedMember)
+        }
+
         guard let member = await repository.findByEmailNormalized(normalizedEmail) else {
             return .unauthorized(.userNotFoundInAuthorizedUsers)
         }

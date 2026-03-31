@@ -97,4 +97,32 @@ class AccessUseCasesTest {
         assertEquals("nuevo@reguerta.app", created.normalizedEmail)
         assertTrue(repository.findByEmailNormalized("nuevo@reguerta.app") != null)
     }
+
+    @Test
+    fun `prefers auth uid match over email match`() = runBlocking {
+        resolveAuthorizedSession(
+            AuthPrincipal(uid = "uid_admin_linked", email = "ana.admin@reguerta.app"),
+        )
+
+        repository.upsertMember(
+            Member(
+                id = "member_duplicate_email",
+                displayName = "Duplicado",
+                normalizedEmail = "ana.admin@reguerta.app",
+                authUid = null,
+                roles = setOf(MemberRole.MEMBER),
+                isActive = true,
+                producerCatalogEnabled = true,
+            ),
+        )
+
+        val result = resolveAuthorizedSession(
+            AuthPrincipal(uid = "uid_admin_linked", email = "ana.admin@reguerta.app"),
+        )
+
+        assertTrue(result is AccessResolutionResult.Authorized)
+        val authorized = result as AccessResolutionResult.Authorized
+        assertEquals("uid_admin_linked", authorized.member.authUid)
+        assertTrue(authorized.member.roles.contains(MemberRole.ADMIN))
+    }
 }

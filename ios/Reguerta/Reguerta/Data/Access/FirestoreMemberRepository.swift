@@ -123,7 +123,7 @@ final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
         guard let normalizedEmail else {
             return nil
         }
-        let authUid = data["authUid"] as? String
+        let authUid = normalizedOptionalString(data["authUid"])
         let isActive = (data["isActive"] as? Bool) ?? true
         let producerCatalogEnabled = (data["producerCatalogEnabled"] as? Bool) ?? true
         let rawRoles = (data["roles"] as? [String]) ?? ["member"]
@@ -139,5 +139,13 @@ final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
             isActive: isActive,
             producerCatalogEnabled: producerCatalogEnabled
         )
+    }
+
+    private static func normalizedOptionalString(_ value: Any?) -> String? {
+        guard let string = value as? String else {
+            return nil
+        }
+        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
