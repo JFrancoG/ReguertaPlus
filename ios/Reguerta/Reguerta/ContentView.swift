@@ -18,6 +18,8 @@ struct ContentView: View {
     @State private var isHomeDrawerOpen = false
     @State private var homeDrawerDragOffset: CGFloat = 0
     @State private var isAdminToolsExpanded = false
+    @State private var homeDestination: HomeDestination = .dashboard
+    @State private var pendingNewsDeletionId: String?
 
     private let startupVersionGateUseCase = ResolveStartupVersionGateUseCase(
         repository: FirestoreStartupVersionPolicyRepository()
@@ -66,42 +68,7 @@ struct ContentView: View {
             .toolbar(.hidden, for: .navigationBar)
         }
         .overlay {
-            if showsRecoverSuccessDialog {
-                ReguertaDialog(
-                    type: .info,
-                    title: "Restablecer contraseña",
-                    message: "Se ha enviado el correo de restablecimiento de la contraseña con éxito. Revisa tu correo.",
-                    primaryAction: ReguertaDialogAction(
-                        title: "Aceptar",
-                        action: handleRecoverSuccessDialogDismiss
-                    ),
-                    onDismiss: handleRecoverSuccessDialogDismiss
-                )
-            }
-            if viewModel.showSessionExpiredDialog {
-                ReguertaDialog(
-                    type: .error,
-                    title: l10n(AccessL10nKey.sessionExpiredTitle),
-                    message: l10n(AccessL10nKey.sessionExpiredMessage),
-                    primaryAction: ReguertaDialogAction(
-                        title: l10n(AccessL10nKey.sessionExpiredAction),
-                        action: handleSessionExpiredDialogAction
-                    ),
-                    onDismiss: handleSessionExpiredDialogAction
-                )
-            }
-            if viewModel.showUnauthorizedDialog {
-                ReguertaDialog(
-                    type: .info,
-                    title: l10n(AccessL10nKey.unauthorizedDialogTitle),
-                    message: l10n(AccessL10nKey.unauthorizedDialogMessage),
-                    primaryAction: ReguertaDialogAction(
-                        title: l10n(AccessL10nKey.unauthorizedDialogAction),
-                        action: handleUnauthorizedDialogSignOut
-                    ),
-                    dismissible: false
-                )
-            }
+            overlayDialogs
         }
         .task(id: shellState.currentRoute) {
             await handleSplashIfNeeded()
@@ -113,13 +80,22 @@ struct ContentView: View {
         .onChange(of: viewModel.mode) { _, mode in
             if mode.isAuthenticatedSession, shellState.currentRoute != .splash {
                 dispatchShell(.sessionAuthenticated)
-            } else if mode == .signedOut, shellState.currentRoute == .home {
-                dispatchShell(.signedOut)
+            } else if shellState.currentRoute == .home {
+                switch mode {
+                case .signedOut:
+                    dispatchShell(.signedOut)
+                case .authorized, .unauthorized:
+                    break
+                }
             }
         }
         .onChange(of: scenePhase) { _, newPhase in
-            guard newPhase == .active else { return }
-            viewModel.refreshSession(trigger: .foreground)
+            switch newPhase {
+            case .active:
+                viewModel.refreshSession(trigger: .foreground)
+            default:
+                break
+            }
         }
         .onChange(of: startupGateState) { _, _ in
             continueFromSplashIfAllowed()
@@ -137,6 +113,62 @@ struct ContentView: View {
             guard feedbackKey == AccessL10nKey.authInfoPasswordResetSent else { return }
             viewModel.clearFeedbackMessage()
             showsRecoverSuccessDialog = true
+        }
+    }
+
+    @ViewBuilder
+    private var overlayDialogs: some View {
+        if showsRecoverSuccessDialog {
+            ReguertaDialog(
+                type: .info,
+                title: "Restablecer contraseña",
+                message: "Se ha enviado el correo de restablecimiento de la contraseña con éxito. Revisa tu correo.",
+                primaryAction: ReguertaDialogAction(
+                    title: "Aceptar",
+                    action: handleRecoverSuccessDialogDismiss
+                ),
+                onDismiss: handleRecoverSuccessDialogDismiss
+            )
+        }
+        if viewModel.showSessionExpiredDialog {
+            ReguertaDialog(
+                type: .error,
+                title: l10n(AccessL10nKey.sessionExpiredTitle),
+                message: l10n(AccessL10nKey.sessionExpiredMessage),
+                primaryAction: ReguertaDialogAction(
+                    title: l10n(AccessL10nKey.sessionExpiredAction),
+                    action: handleSessionExpiredDialogAction
+                ),
+                onDismiss: handleSessionExpiredDialogAction
+            )
+        }
+        if viewModel.showUnauthorizedDialog {
+            ReguertaDialog(
+                type: .info,
+                title: l10n(AccessL10nKey.unauthorizedDialogTitle),
+                message: l10n(AccessL10nKey.unauthorizedDialogMessage),
+                primaryAction: ReguertaDialogAction(
+                    title: l10n(AccessL10nKey.unauthorizedDialogAction),
+                    action: handleUnauthorizedDialogSignOut
+                ),
+                dismissible: false
+            )
+        }
+        if let article = pendingNewsDeletionArticle {
+            ReguertaDialog(
+                type: .error,
+                title: l10n(AccessL10nKey.newsDeleteDialogTitle),
+                message: l10n(AccessL10nKey.newsDeleteDialogMessage, article.title),
+                primaryAction: ReguertaDialogAction(
+                    title: l10n(AccessL10nKey.newsDeleteActionConfirm),
+                    action: confirmPendingNewsDeletion
+                ),
+                secondaryAction: ReguertaDialogAction(
+                    title: l10n(AccessL10nKey.newsDeleteActionCancel),
+                    action: clearPendingNewsDeletion
+                ),
+                onDismiss: clearPendingNewsDeletion
+            )
         }
     }
 
@@ -358,22 +390,7 @@ struct ContentView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: tokens.spacing.lg) {
                         homeShellTopBar
-                        weeklyContextCard
-
-                        switch viewModel.mode {
-                        case .signedOut:
-                            cardContainer {
-                                Text(localizedKey(AccessL10nKey.signedOutHint))
-                                    .font(tokens.typography.bodySecondary)
-                                    .foregroundStyle(tokens.colors.textSecondary)
-                            }
-                        case .unauthorized:
-                            EmptyView()
-                        case .authorized(let session):
-                            authorizedHome(session: session)
-                        }
-
-                        latestNewsCard
+                        homeRouteContent
 
                         if viewModel.feedbackMessageKey != nil {
                             feedbackMessageRoute
@@ -381,6 +398,7 @@ struct ContentView: View {
                     }
                     .padding(.vertical, tokens.spacing.lg)
                 }
+                .scrollDismissesKeyboard(.interactively)
                 .disabled(isHomeDrawerOpen)
 
                 if isHomeDrawerOpen {
@@ -416,13 +434,59 @@ struct ContentView: View {
         }
     }
 
+    @ViewBuilder
+    private var homeRouteContent: some View {
+        switch homeDestination {
+        case .dashboard:
+            dashboardRoute
+        case .news:
+            newsListRoute
+        case .publishNews:
+            newsEditorRoute
+        default:
+            placeholderRoute(
+                titleKey: homeDestination.titleKey,
+                subtitleKey: homeDestination.subtitleKey
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var dashboardRoute: some View {
+        weeklyContextCard
+
+        switch viewModel.mode {
+        case .signedOut:
+            cardContainer {
+                Text(localizedKey(AccessL10nKey.signedOutHint))
+                    .font(tokens.typography.bodySecondary)
+                    .foregroundStyle(tokens.colors.textSecondary)
+            }
+        case .unauthorized:
+            EmptyView()
+        case .authorized(let session):
+            authorizedHome(session: session)
+        }
+
+        latestNewsCard
+    }
+
     private var homeShellTopBar: some View {
         cardContainer {
             HStack {
                 Button {
-                    openHomeDrawer()
+                    if homeDestination == .dashboard {
+                        openHomeDrawer()
+                    } else {
+                        if homeDestination == .publishNews {
+                            viewModel.clearNewsEditor()
+                            homeDestination = .news
+                        } else {
+                            homeDestination = .dashboard
+                        }
+                    }
                 } label: {
-                    Image(systemName: "line.3.horizontal")
+                    Image(systemName: homeDestination == .dashboard ? "line.3.horizontal" : "chevron.left")
                         .font(.system(size: 22.resize, weight: .semibold))
                         .foregroundStyle(tokens.colors.textPrimary)
                         .frame(width: 44.resize, height: 44.resize)
@@ -432,7 +496,7 @@ struct ContentView: View {
 
                 Spacer()
 
-                Text(localizedKey(AccessL10nKey.homeTitle))
+                Text(localizedKey(homeDestination.titleKey))
                     .font(tokens.typography.titleCard)
                     .foregroundStyle(tokens.colors.textPrimary)
 
@@ -659,11 +723,30 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 Text(localizedKey(AccessL10nKey.homeShellNewsTitle))
                     .font(tokens.typography.titleCard)
-                Text(localizedKey(AccessL10nKey.homeShellNewsIntro))
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                newsRow(AccessL10nKey.homeShellNewsItemOne)
-                newsRow(AccessL10nKey.homeShellNewsItemTwo)
+                if viewModel.latestNews.isEmpty {
+                    Text(localizedKey(AccessL10nKey.newsEmptyState))
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                } else {
+                    ForEach(viewModel.latestNews) { article in
+                        VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+                            Text(article.title)
+                                .font(tokens.typography.body.weight(.semibold))
+                                .foregroundStyle(tokens.colors.textPrimary)
+                            Text(article.body)
+                                .font(tokens.typography.bodySecondary)
+                                .foregroundStyle(tokens.colors.textSecondary)
+                                .lineLimit(3)
+                        }
+                    }
+                }
+                ReguertaButton(
+                    localizedKey(AccessL10nKey.newsViewAll),
+                    variant: .text
+                ) {
+                    homeDestination = .news
+                    viewModel.refreshNews()
+                }
             }
         }
     }
@@ -743,6 +826,169 @@ struct ContentView: View {
             Text(localizedKey(key))
                 .font(tokens.typography.bodySecondary)
                 .foregroundStyle(tokens.colors.textPrimary)
+        }
+    }
+
+    private var newsListRoute: some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+            newsListHeaderCard
+
+            if viewModel.isLoadingNews {
+                cardContainer {
+                    Text(localizedKey(AccessL10nKey.newsLoading))
+                        .font(tokens.typography.bodySecondary)
+                }
+            } else if viewModel.newsFeed.isEmpty {
+                cardContainer {
+                    Text(localizedKey(AccessL10nKey.newsEmptyState))
+                        .font(tokens.typography.bodySecondary)
+                }
+            } else {
+                ForEach(viewModel.newsFeed) { article in
+                    newsArticleCard(article)
+                }
+            }
+        }
+    }
+
+    private var newsListHeaderCard: some View {
+        cardContainer {
+            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                Text(localizedKey(AccessL10nKey.homeShellNewsTitle))
+                    .font(tokens.typography.titleCard)
+                Text(localizedKey(AccessL10nKey.newsListSubtitle))
+                    .font(tokens.typography.bodySecondary)
+                    .foregroundStyle(tokens.colors.textSecondary)
+                if currentHomeMember?.isAdmin == true {
+                    ReguertaButton(localizedKey(AccessL10nKey.newsCreateAction)) {
+                        viewModel.startCreatingNews()
+                        homeDestination = .publishNews
+                    }
+                }
+                ReguertaButton(
+                    localizedKey(AccessL10nKey.newsRefreshAction),
+                    variant: .text
+                ) {
+                    viewModel.refreshNews()
+                }
+            }
+        }
+    }
+
+    private func newsArticleCard(_ article: NewsArticle) -> some View {
+        cardContainer {
+            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                Text(article.title)
+                    .font(tokens.typography.titleCard)
+                Text(l10n(AccessL10nKey.newsMetaFormat, article.publishedBy))
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.textSecondary)
+                if !article.active {
+                    Text(localizedKey(AccessL10nKey.newsInactiveBadge))
+                        .font(tokens.typography.label)
+                        .foregroundStyle(tokens.colors.actionPrimary)
+                }
+                Text(article.body)
+                    .font(tokens.typography.bodySecondary)
+                    .foregroundStyle(tokens.colors.textPrimary)
+                if let urlImage = article.urlImage {
+                    Text(urlImage)
+                        .font(tokens.typography.label)
+                        .foregroundStyle(tokens.colors.actionPrimary)
+                }
+                if currentHomeMember?.isAdmin == true {
+                    HStack {
+                        ReguertaButton(
+                            localizedKey(AccessL10nKey.newsEditAction),
+                            variant: .text,
+                            fullWidth: false
+                        ) {
+                            viewModel.startEditingNews(newsId: article.id)
+                            homeDestination = .publishNews
+                        }
+                        ReguertaButton(
+                            localizedKey(AccessL10nKey.newsDeleteAction),
+                            variant: .text,
+                            fullWidth: false
+                        ) {
+                            pendingNewsDeletionId = article.id
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var newsEditorRoute: some View {
+        cardContainer {
+            VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                Text(
+                    localizedKey(
+                        viewModel.editingNewsId == nil
+                        ? AccessL10nKey.newsEditorTitleCreate
+                        : AccessL10nKey.newsEditorTitleEdit
+                    )
+                )
+                .font(tokens.typography.titleCard)
+
+                Text(localizedKey(AccessL10nKey.newsEditorSubtitle))
+                    .font(tokens.typography.bodySecondary)
+                    .foregroundStyle(tokens.colors.textSecondary)
+
+                TextField(
+                    "",
+                    text: newsTitleBinding,
+                    prompt: Text(localizedKey(AccessL10nKey.newsFieldTitle))
+                )
+                .textFieldStyle(.roundedBorder)
+
+                TextField(
+                    "",
+                    text: newsUrlImageBinding,
+                    prompt: Text(localizedKey(AccessL10nKey.newsFieldURLImage))
+                )
+                .textFieldStyle(.roundedBorder)
+
+                Text(localizedKey(AccessL10nKey.newsFieldBody))
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.textSecondary)
+                TextEditor(
+                    text: newsBodyBinding
+                )
+                .frame(minHeight: 180.resize)
+                .padding(tokens.spacing.sm)
+                .background(tokens.colors.surfaceSecondary)
+                .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
+
+                Toggle(
+                    localizedKey(AccessL10nKey.newsFieldActive),
+                    isOn: newsActiveBinding
+                )
+
+                ReguertaButton(
+                    localizedKey(
+                        viewModel.isSavingNews
+                        ? AccessL10nKey.newsSaveActionSaving
+                        : (viewModel.editingNewsId == nil ? AccessL10nKey.newsSaveActionCreate : AccessL10nKey.newsSaveActionUpdate)
+                    ),
+                    isEnabled: !viewModel.isSavingNews,
+                    isLoading: viewModel.isSavingNews
+                ) {
+                    viewModel.saveNews {
+                        homeDestination = .news
+                    }
+                }
+
+                ReguertaButton(
+                    localizedKey(AccessL10nKey.commonBack),
+                    variant: .text
+                ) {
+                    viewModel.clearNewsEditor()
+                    homeDestination = .news
+                }
+
+                Spacer(minLength: tokens.spacing.sm)
+            }
         }
     }
 
@@ -832,82 +1078,19 @@ struct ContentView: View {
 
         return HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                HStack {
-                    Button {
-                        closeHomeDrawer()
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 20.resize, weight: .semibold))
-                            .foregroundStyle(tokens.colors.textPrimary)
-                            .frame(width: 36.resize, height: 36.resize)
+                homeDrawerHeader
+
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                        homeDrawerProfile
+                        homeDrawerNavigationSections
                     }
-                    .buttonStyle(.plain)
-                    .contentShape(Rectangle())
-                    Spacer()
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-
-                VStack(spacing: tokens.spacing.md) {
-                    Image("brand_logo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 108.resize, height: 108.resize)
-
-                    Circle()
-                        .fill(tokens.colors.actionPrimary.opacity(0.14))
-                        .frame(width: 76.resize, height: 76.resize)
-                        .overlay {
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 30.resize, weight: .semibold))
-                                .foregroundStyle(tokens.colors.actionPrimary)
-                        }
-
-                    if let member = currentHomeMember {
-                        Text(member.displayName)
-                            .font(tokens.typography.titleCard)
-                            .foregroundStyle(tokens.colors.textPrimary)
-                            .multilineTextAlignment(.center)
-                        Text(member.normalizedEmail)
-                            .font(tokens.typography.label)
-                            .foregroundStyle(tokens.colors.textSecondary)
-                            .multilineTextAlignment(.center)
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.bottom, tokens.spacing.sm)
-
-                drawerSection(titleKey: AccessL10nKey.homeShellSectionCommon)
-                homeDrawerItem("house.fill", titleKey: AccessL10nKey.homeTitle, badgeKey: nil)
-                homeDrawerItem("cart.fill", titleKey: AccessL10nKey.myOrder, badgeKey: AccessL10nKey.homeShellBadgeSoon)
-                homeDrawerItem("doc.text.fill", titleKey: AccessL10nKey.myOrders, badgeKey: AccessL10nKey.homeShellBadgeSoon)
-                homeDrawerItem("calendar", titleKey: AccessL10nKey.shifts, badgeKey: AccessL10nKey.homeShellBadgeSoon)
-
-                if currentHomeMember?.isProducer == true {
-                    drawerSection(titleKey: AccessL10nKey.homeShellSectionProducer)
-                    homeDrawerItem("shippingbox.fill", titleKey: AccessL10nKey.homeShellActionProducts, badgeKey: AccessL10nKey.homeShellBadgeSoon)
-                    homeDrawerItem("tray.full.fill", titleKey: AccessL10nKey.homeShellActionReceivedOrders, badgeKey: AccessL10nKey.homeShellBadgeSoon)
-                }
-
-                if currentHomeMember?.isAdmin == true {
-                    drawerSection(titleKey: AccessL10nKey.homeShellSectionAdmin)
-                    homeDrawerItem("person.3.fill", titleKey: AccessL10nKey.homeShellActionUsers, badgeKey: AccessL10nKey.homeShellBadgeSoon)
-                    homeDrawerItem("newspaper.fill", titleKey: AccessL10nKey.homeShellNewsTitle, badgeKey: AccessL10nKey.homeShellBadgeSoon)
-                }
-
-                Spacer(minLength: tokens.spacing.md)
 
                 Divider()
 
-                ReguertaButton(localizedKey(AccessL10nKey.signOut)) {
-                    closeHomeDrawer()
-                    viewModel.signOut()
-                    dispatchShell(.signedOut)
-                }
-                .padding(.top, tokens.spacing.xs)
-
-                Text(l10n(AccessL10nKey.homeShellVersion, installedVersion))
-                    .font(tokens.typography.label)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                homeDrawerFooter
             }
             .padding(tokens.spacing.lg)
             .frame(width: drawerWidth)
@@ -946,6 +1129,92 @@ struct ContentView: View {
         .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.84), value: homeDrawerDragOffset)
     }
 
+    private var homeDrawerHeader: some View {
+        HStack {
+            Button {
+                closeHomeDrawer()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 20.resize, weight: .semibold))
+                    .foregroundStyle(tokens.colors.textPrimary)
+                    .frame(width: 36.resize, height: 36.resize)
+            }
+            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+            Spacer()
+        }
+    }
+
+    @ViewBuilder
+    private var homeDrawerProfile: some View {
+        VStack(spacing: tokens.spacing.md) {
+            Circle()
+                .fill(tokens.colors.actionPrimary.opacity(0.14))
+                .frame(width: 76.resize, height: 76.resize)
+                .overlay {
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 30.resize, weight: .semibold))
+                        .foregroundStyle(tokens.colors.actionPrimary)
+                }
+
+            if let member = currentHomeMember {
+                Text(member.displayName)
+                    .font(tokens.typography.titleCard)
+                    .foregroundStyle(tokens.colors.textPrimary)
+                    .multilineTextAlignment(.center)
+                Text(member.normalizedEmail)
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, tokens.spacing.sm)
+    }
+
+    @ViewBuilder
+    private var homeDrawerNavigationSections: some View {
+        drawerSection(titleKey: AccessL10nKey.homeShellSectionCommon)
+        homeDrawerItem("house.fill", titleKey: AccessL10nKey.homeTitle, destination: .dashboard)
+        homeDrawerItem("cart.fill", titleKey: AccessL10nKey.myOrder, destination: .myOrder)
+        homeDrawerItem("doc.text.fill", titleKey: AccessL10nKey.myOrders, destination: .myOrders)
+        homeDrawerItem("calendar", titleKey: AccessL10nKey.shifts, destination: .shifts)
+        homeDrawerItem("newspaper.fill", titleKey: AccessL10nKey.homeShellNewsTitle, destination: .news)
+        homeDrawerItem("bell", titleKey: AccessL10nKey.homeShellNotifications, destination: .notifications)
+        homeDrawerItem("person.fill", titleKey: AccessL10nKey.homeShellActionProfile, destination: .profile)
+        homeDrawerItem("gearshape.fill", titleKey: AccessL10nKey.homeShellActionSettings, destination: .settings)
+
+        if currentHomeMember?.isProducer == true {
+            drawerSection(titleKey: AccessL10nKey.homeShellSectionProducer)
+            homeDrawerItem("shippingbox.fill", titleKey: AccessL10nKey.homeShellActionProducts, destination: .products)
+            homeDrawerItem("tray.full.fill", titleKey: AccessL10nKey.homeShellActionReceivedOrders, destination: .receivedOrders)
+        }
+
+        if currentHomeMember?.isAdmin == true {
+            drawerSection(titleKey: AccessL10nKey.homeShellSectionAdmin)
+            homeDrawerItem("person.3.fill", titleKey: AccessL10nKey.homeShellActionUsers, destination: .users)
+            homeDrawerItem("plus.square.fill", titleKey: AccessL10nKey.homeShellActionPublishNews, destination: .publishNews)
+            homeDrawerItem("megaphone.fill", titleKey: AccessL10nKey.homeShellActionAdminBroadcast, destination: .adminBroadcast)
+        }
+    }
+
+    private var homeDrawerFooter: some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+            ReguertaButton(localizedKey(AccessL10nKey.signOut)) {
+                closeHomeDrawer()
+                homeDestination = .dashboard
+                viewModel.signOut()
+                dispatchShell(.signedOut)
+            }
+            .padding(.top, tokens.spacing.xs)
+
+            Text(l10n(AccessL10nKey.homeShellVersion, installedVersion))
+                .font(tokens.typography.label)
+                .foregroundStyle(tokens.colors.textSecondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
     private func drawerSection(titleKey: String) -> some View {
         Text(localizedKey(titleKey))
             .font(tokens.typography.label)
@@ -957,7 +1226,7 @@ struct ContentView: View {
     private func homeDrawerItem(
         _ systemImage: String,
         titleKey: String,
-        badgeKey: String?
+        destination: HomeDestination
     ) -> some View {
         HStack(spacing: tokens.spacing.md) {
             Image(systemName: systemImage)
@@ -968,13 +1237,26 @@ struct ContentView: View {
                 .font(tokens.typography.bodySecondary)
                 .foregroundStyle(tokens.colors.textPrimary)
             Spacer(minLength: tokens.spacing.sm)
-            if let badgeKey {
-                Text(localizedKey(badgeKey))
-                    .font(tokens.typography.label)
-                    .foregroundStyle(tokens.colors.actionPrimary)
-            }
         }
         .padding(.vertical, tokens.spacing.xs + 2)
+        .padding(.horizontal, tokens.spacing.sm)
+        .background(
+            homeDestination == destination
+            ? tokens.colors.actionPrimary.opacity(0.10)
+            : Color.clear
+        )
+        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if destination == .publishNews {
+                viewModel.startCreatingNews()
+            }
+            if destination == .news {
+                viewModel.refreshNews()
+            }
+            homeDestination = destination
+            closeHomeDrawer()
+        }
     }
 
     @ViewBuilder
@@ -987,7 +1269,7 @@ struct ContentView: View {
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
                 ReguertaButton(localizedKey(AccessL10nKey.commonBack)) {
-                    dispatchShell(.back)
+                    homeDestination = .dashboard
                 }
             }
         }
@@ -1024,6 +1306,42 @@ struct ContentView: View {
         )
     }
 
+    private var newsTitleBinding: Binding<String> {
+        Binding(
+            get: { viewModel.newsDraft.title },
+            set: { value in
+                viewModel.updateNewsDraft { $0.title = value }
+            }
+        )
+    }
+
+    private var newsBodyBinding: Binding<String> {
+        Binding(
+            get: { viewModel.newsDraft.body },
+            set: { value in
+                viewModel.updateNewsDraft { $0.body = value }
+            }
+        )
+    }
+
+    private var newsUrlImageBinding: Binding<String> {
+        Binding(
+            get: { viewModel.newsDraft.urlImage },
+            set: { value in
+                viewModel.updateNewsDraft { $0.urlImage = value }
+            }
+        )
+    }
+
+    private var newsActiveBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel.newsDraft.active },
+            set: { value in
+                viewModel.updateNewsDraft { $0.active = value }
+            }
+        )
+    }
+
     private func draftBinding(_ keyPath: WritableKeyPath<MemberDraft, Bool>) -> Binding<Bool> {
         Binding(
             get: { viewModel.memberDraft[keyPath: keyPath] },
@@ -1046,6 +1364,11 @@ struct ContentView: View {
         case .signedOut, .unauthorized:
             return nil
         }
+    }
+
+    private var pendingNewsDeletionArticle: NewsArticle? {
+        guard let pendingNewsDeletionId else { return nil }
+        return viewModel.newsFeed.first(where: { $0.id == pendingNewsDeletionId })
     }
 
     private func dispatchShell(_ action: AuthShellAction) {
@@ -1080,8 +1403,20 @@ struct ContentView: View {
     }
 
     private func handleUnauthorizedDialogSignOut() {
+        homeDestination = .dashboard
         viewModel.signOut()
         dispatchShell(.signedOut)
+    }
+
+    private func confirmPendingNewsDeletion() {
+        guard let pendingNewsDeletionId else { return }
+        viewModel.deleteNews(newsId: pendingNewsDeletionId) {
+            self.pendingNewsDeletionId = nil
+        }
+    }
+
+    private func clearPendingNewsDeletion() {
+        pendingNewsDeletionId = nil
     }
 
     private func handleSplashIfNeeded() async {
@@ -1247,6 +1582,60 @@ struct ContentView: View {
 
     private func isValidPassword(_ value: String) -> Bool {
         (6...16).contains(value.count)
+    }
+}
+
+private enum HomeDestination: String, Sendable {
+    case dashboard
+    case myOrder
+    case myOrders
+    case shifts
+    case news
+    case notifications
+    case profile
+    case settings
+    case products
+    case receivedOrders
+    case users
+    case publishNews
+    case adminBroadcast
+}
+
+private extension HomeDestination {
+    var titleKey: String {
+        switch self {
+        case .dashboard: AccessL10nKey.homeTitle
+        case .myOrder: AccessL10nKey.myOrder
+        case .myOrders: AccessL10nKey.myOrders
+        case .shifts: AccessL10nKey.shifts
+        case .news: AccessL10nKey.homeShellNewsTitle
+        case .notifications: AccessL10nKey.homeShellNotifications
+        case .profile: AccessL10nKey.homeShellActionProfile
+        case .settings: AccessL10nKey.homeShellActionSettings
+        case .products: AccessL10nKey.homeShellActionProducts
+        case .receivedOrders: AccessL10nKey.homeShellActionReceivedOrders
+        case .users: AccessL10nKey.homeShellActionUsers
+        case .publishNews: AccessL10nKey.homeShellActionPublishNews
+        case .adminBroadcast: AccessL10nKey.homeShellActionAdminBroadcast
+        }
+    }
+
+    var subtitleKey: String {
+        switch self {
+        case .dashboard: AccessL10nKey.homePlaceholderSubtitle
+        case .myOrder: AccessL10nKey.homePlaceholderMyOrder
+        case .myOrders: AccessL10nKey.homePlaceholderMyOrders
+        case .shifts: AccessL10nKey.homePlaceholderShifts
+        case .news: AccessL10nKey.newsListSubtitle
+        case .notifications: AccessL10nKey.homePlaceholderNotifications
+        case .profile: AccessL10nKey.homePlaceholderProfile
+        case .settings: AccessL10nKey.homePlaceholderSettings
+        case .products: AccessL10nKey.homePlaceholderProducts
+        case .receivedOrders: AccessL10nKey.homePlaceholderReceivedOrders
+        case .users: AccessL10nKey.homePlaceholderUsers
+        case .publishNews: AccessL10nKey.newsEditorSubtitle
+        case .adminBroadcast: AccessL10nKey.homePlaceholderAdminBroadcast
+        }
     }
 }
 

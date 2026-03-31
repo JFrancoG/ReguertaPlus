@@ -9,6 +9,7 @@ enum ReguertaFirestoreEnvironment: String, Sendable {
 enum ReguertaFirestoreCollection: String, Sendable {
     case users
     case config
+    case news
 
     fileprivate var pathComponent: String {
         "plus-collections/\(rawValue)"

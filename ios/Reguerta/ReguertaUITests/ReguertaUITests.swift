@@ -38,10 +38,11 @@ final class ReguertaUITests: XCTestCase {
 
         app.buttons["Sign in"].tap()
 
-        XCTAssertTrue(app.staticTexts["Unauthorized user"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["My order"].isEnabled)
-        XCTAssertFalse(app.buttons["Catalog"].isEnabled)
-        XCTAssertFalse(app.buttons["Shifts"].isEnabled)
+        XCTAssertTrue(app.staticTexts["Unauthorized user email"].waitForExistence(timeout: 5))
+        let signOutButton = app.buttons.matching(identifier: "Sign out").firstMatch
+        XCTAssertTrue(signOutButton.waitForExistence(timeout: 5))
+        signOutButton.tap()
+        XCTAssertTrue(app.buttons["Enter the app"].waitForExistence(timeout: 5))
     }
 
     @MainActor

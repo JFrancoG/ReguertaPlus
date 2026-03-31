@@ -352,6 +352,7 @@ Estrategia canonica de calendario:
 | `publishedBy` | string | si | sistema/admin | |
 | `publishedAt` | timestamp | si | sistema/admin | |
 | `active` | bool | si | admin | |
+| `urlImage` | string\|null | no | admin | URL opcional de imagen para enriquecer la noticia |
 
 ## 4.11 `notificationEvents/{eventId}` (recomendado MVP)
 

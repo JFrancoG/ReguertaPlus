@@ -176,6 +176,38 @@ struct ReguertaTests {
     }
 
     @Test
+    func inMemoryNewsRepositoryReturnsNewestFirst() async {
+        let repository = InMemoryNewsRepository()
+
+        _ = await repository.upsert(
+            article: NewsArticle(
+                id: "news_002",
+                title: "Nueva noticia",
+                body: "Texto",
+                active: true,
+                publishedBy: "Ana Admin",
+                publishedAtMillis: 4_000_000_000_000,
+                urlImage: nil
+            )
+        )
+
+        let news = await repository.allNews()
+
+        #expect(news.first?.id == "news_002")
+    }
+
+    @Test
+    func inMemoryNewsRepositoryDeletesExistingNews() async {
+        let repository = InMemoryNewsRepository()
+
+        let deleted = await repository.delete(newsId: "news_welcome_001")
+        let remaining = await repository.allNews()
+
+        #expect(deleted == true)
+        #expect(remaining.contains(where: { $0.id == "news_welcome_001" }) == false)
+    }
+
+    @Test
     func firebaseAuthErrorMappingCoversKnownCodes() {
         let invalidEmail = NSError(domain: AuthErrorDomain, code: AuthErrorCode.invalidEmail.rawValue)
         let wrongPassword = NSError(domain: AuthErrorDomain, code: AuthErrorCode.wrongPassword.rawValue)

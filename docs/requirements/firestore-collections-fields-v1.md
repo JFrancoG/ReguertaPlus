@@ -242,6 +242,7 @@ Delivery calendar strategy (canonical):
 - `publishedBy`: string (required)
 - `publishedAt`: timestamp (required)
 - `active`: bool (required)
+- `urlImage`: string|null (optional)
 
 ### 4.11 `notificationEvents/{eventId}` (recommended)
 

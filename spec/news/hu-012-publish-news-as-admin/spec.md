@@ -4,7 +4,7 @@
 - issue_id: #16
 - priority: P2
 - platform: both
-- status: ready
+- status: implemented
 
 ## Context and problem
 
@@ -17,12 +17,17 @@ As an admin I want to publish news so that I can inform the community.
 ## Scope
 
 ### In Scope
-- Implement capability defined by HU-012 within MVP boundaries.
-- Fulfill story-specific acceptance criteria for HU-012.
+- Admin can create news with `title`, `body`, `active`, `publishedBy`, `publishedAt`, and optional `urlImage`.
+- All authorized users can access a full news list from the drawer.
+- Home shows the latest active news items ordered by `publishedAt` descending.
+- Admin can open the create flow from the drawer and from the all-news screen.
+- Admin can edit existing news and delete old news from the all-news screen.
+- After creating or editing news, the flow returns to the all-news screen.
 
 ### Out of Scope
 - Functionality marked as post-MVP in global requirements.
 - Refactors not required to satisfy this story.
+- Visual polish beyond the minimum shell/form/list needed to validate the workflow.
 
 ## Linked functional requirements
 
@@ -30,8 +35,13 @@ As an admin I want to publish news so that I can inform the community.
 
 ## Acceptance criteria
 
-- Admin can publish news visible to members.
-- Non-admin cannot publish.
+- Admin can publish active news visible to authorized members in Android and iOS.
+- Non-admin users can read the news list but cannot create, edit, or delete news.
+- Home shows the latest 3 active news items ordered by `publishedAt` descending.
+- The drawer exposes a full news list for all authorized users.
+- Admin can create a news item from the dedicated admin entry point and from the all-news screen.
+- Admin can edit or delete an older news item from the all-news screen.
+- After saving a new or edited news item, the app routes back to the all-news screen and the newest item appears first when applicable.
 
 ## Dependencies
 
@@ -50,8 +60,8 @@ As an admin I want to publish news so that I can inform the community.
 ## Definition of Done (DoD)
 
 - [ ] Story acceptance criteria validated.
-- [ ] Implementation aligned with linked RFs.
-- [ ] Android/iOS parity reviewed or temporary gap documented.
-- [ ] Agreed tests executed.
-- [ ] Technical/functional documentation updated.
+- [x] Implementation aligned with linked RFs.
+- [x] Android/iOS parity reviewed or temporary gap documented.
+- [x] Agreed tests executed.
+- [x] Technical/functional documentation updated.
 - [ ] Issue and PR linked.
