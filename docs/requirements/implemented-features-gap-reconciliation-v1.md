@@ -76,7 +76,7 @@ Resolved on 2026-03-07:
 
 Clarification added on 2026-03-30:
 - Q3 remains resolved as restricted mode (no forced logout for unauthorized users).
-- Detailed unauthorized-home UX, disabled module behavior, and sign-out affordance are tracked separately in HU-027 to avoid mixing them with session-expiry work from HU-023.
+- Detailed unauthorized-home UX, disabled module behavior, and sign-out affordance are tracked separately in HU-038 to avoid mixing them with session-expiry work from HU-023.
 - Q5: Option A
 - Q6: Option A
 - Q7: Option A

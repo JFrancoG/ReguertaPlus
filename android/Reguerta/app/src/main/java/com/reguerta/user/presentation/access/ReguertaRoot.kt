@@ -9,6 +9,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,40 +26,63 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Article
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.material3.DrawerValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -94,6 +119,7 @@ import com.reguerta.user.ui.components.auth.ReguertaFullButton
 import com.reguerta.user.ui.components.auth.ReguertaInputField
 import com.reguerta.user.ui.theme.ReguertaAdaptive
 import com.reguerta.user.ui.theme.ReguertaThemeTokens
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 private const val SplashAnimationDurationMillis = 1_500
@@ -275,15 +301,13 @@ fun ReguertaRoot(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
     ) { innerPadding ->
         if (shellState.currentRoute == AuthShellRoute.HOME) {
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
                     .padding(innerPadding)
-                    .padding(spacing.lg),
-                verticalArrangement = Arrangement.spacedBy(spacing.lg),
             ) {
                 HomeRoute(
+                    modifier = Modifier.fillMaxSize(),
                     mode = state.mode,
                     myOrderFreshnessState = state.myOrderFreshnessState,
                     draft = state.memberDraft,
@@ -293,6 +317,7 @@ fun ReguertaRoot(
                     onCreateMember = viewModel::createAuthorizedMember,
                     onRetryMyOrderFreshness = viewModel::refreshMyOrderFreshness,
                     onSignOut = signOutAndRoute,
+                    installedVersion = installedVersion,
                 )
 
                 if (state.showUnauthorizedDialog) {
@@ -864,6 +889,7 @@ private fun RecoverPasswordCard(
 
 @Composable
 private fun HomeRoute(
+    modifier: Modifier = Modifier,
     mode: SessionMode,
     myOrderFreshnessState: MyOrderFreshnessUiState,
     draft: MemberDraft,
@@ -873,57 +899,392 @@ private fun HomeRoute(
     onCreateMember: () -> Unit,
     onRetryMyOrderFreshness: () -> Unit,
     onSignOut: () -> Unit,
+    installedVersion: String,
+) {
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    val member = when (mode) {
+        is SessionMode.Authorized -> mode.member
+        SessionMode.SignedOut,
+        is SessionMode.Unauthorized,
+            -> null
+    }
+
+    BackHandler(enabled = drawerState.isOpen) {
+        scope.launch { drawerState.close() }
+    }
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet(
+                modifier = Modifier.widthIn(max = 320.dp),
+                windowInsets = WindowInsets(0.dp),
+            ) {
+                HomeDrawerContent(
+                    member = member,
+                    installedVersion = installedVersion,
+                    onCloseDrawer = {
+                        scope.launch { drawerState.close() }
+                    },
+                    onSignOut = {
+                        scope.launch { drawerState.close() }
+                        onSignOut()
+                    },
+                )
+            }
+        },
+        modifier = modifier,
+        gesturesEnabled = true,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            HomeShellTopBar(
+                onOpenMenu = {
+                    scope.launch { drawerState.open() }
+                },
+            )
+            WeeklyContextCard()
+
+            when (mode) {
+                is SessionMode.Unauthorized -> Unit
+
+                is SessionMode.Authorized -> {
+                    AuthorizedHome(
+                        mode = mode,
+                        myOrderFreshnessState = myOrderFreshnessState,
+                        draft = draft,
+                        onDraftChanged = onDraftChanged,
+                        onToggleAdmin = onToggleAdmin,
+                        onToggleActive = onToggleActive,
+                        onCreateMember = onCreateMember,
+                        onRetryMyOrderFreshness = onRetryMyOrderFreshness,
+                    )
+                }
+
+                SessionMode.SignedOut -> {
+                    Card {
+                        Text(
+                            text = stringResource(R.string.access_signed_out_hint),
+                            modifier = Modifier.padding(16.dp),
+                        )
+                    }
+                }
+            }
+
+            LatestNewsCard()
+        }
+    }
+}
+
+@Composable
+private fun HomeShellTopBar(
+    onOpenMenu: () -> Unit,
 ) {
     Card {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            IconButton(onClick = onOpenMenu) {
+                Icon(
+                    imageVector = Icons.Filled.Menu,
+                    contentDescription = stringResource(R.string.home_shell_menu),
+                )
+            }
+
             Text(
                 text = stringResource(R.string.home_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
-            if (mode is SessionMode.Authorized) {
-                TextButton(onClick = onSignOut) {
-                    Text(stringResource(R.string.access_action_sign_out))
-                }
+
+            IconButton(onClick = {}) {
+                Icon(
+                    imageVector = Icons.Filled.Notifications,
+                    contentDescription = stringResource(R.string.home_shell_notifications),
+                )
             }
         }
     }
+}
 
-    when (mode) {
-        is SessionMode.Unauthorized -> {
-            UnauthorizedCard(
-                mode = mode,
-                onSignOut = onSignOut,
+@Composable
+private fun HomeDrawerContent(
+    member: Member?,
+    installedVersion: String,
+    onCloseDrawer: () -> Unit,
+    onSignOut: () -> Unit,
+) {
+    val context = LocalContext.current
+    val badge = stringResource(R.string.home_shell_badge_soon)
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp, vertical = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Start,
+        ) {
+            IconButton(onClick = onCloseDrawer) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.common_action_back),
+                )
+            }
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.reguerta_logo),
+                contentDescription = stringResource(R.string.app_name),
+                modifier = Modifier.size(112.dp),
+                contentScale = ContentScale.Fit,
             )
-            OperationalModules(
-                modulesEnabled = false,
-                myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
-                onRetryMyOrderFreshness = onRetryMyOrderFreshness,
-                disabledMessage = stringResource(R.string.operational_modules_restricted_unauthorized),
+            Box(
+                modifier = Modifier
+                    .size(76.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.AccountCircle,
+                    contentDescription = stringResource(R.string.home_shell_profile_placeholder),
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(44.dp),
+                )
+            }
+            if (member != null) {
+                Text(
+                    text = member.displayName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = member.normalizedEmail,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+
+        HomeDrawerSection(title = stringResource(R.string.home_shell_section_common))
+        HomeDrawerItem(
+            icon = Icons.Filled.Home,
+            label = stringResource(R.string.home_title),
+            onClick = onCloseDrawer,
+        )
+        HomeDrawerItem(
+            icon = Icons.Filled.ShoppingCart,
+            label = stringResource(R.string.module_my_order),
+            badge = badge,
+        )
+        HomeDrawerItem(
+            icon = Icons.AutoMirrored.Filled.Article,
+            label = stringResource(R.string.module_my_orders),
+            badge = badge,
+        )
+        HomeDrawerItem(
+            icon = Icons.Filled.CalendarToday,
+            label = stringResource(R.string.module_shifts),
+            badge = badge,
+        )
+
+        if (member?.isProducer == true) {
+            HomeDrawerSection(title = stringResource(R.string.home_shell_section_producer))
+            HomeDrawerItem(
+                icon = Icons.Filled.Storefront,
+                label = stringResource(R.string.home_shell_action_products),
+                badge = badge,
+            )
+            HomeDrawerItem(
+                icon = Icons.Filled.Inbox,
+                label = stringResource(R.string.home_shell_action_received_orders),
+                badge = badge,
             )
         }
 
-        is SessionMode.Authorized -> {
-            AuthorizedHome(
-                mode = mode,
-                myOrderFreshnessState = myOrderFreshnessState,
-                draft = draft,
-                onDraftChanged = onDraftChanged,
-                onToggleAdmin = onToggleAdmin,
-                onToggleActive = onToggleActive,
-                onCreateMember = onCreateMember,
-                onRetryMyOrderFreshness = onRetryMyOrderFreshness,
+        if (member?.isAdmin == true) {
+            HomeDrawerSection(title = stringResource(R.string.home_shell_section_admin))
+            HomeDrawerItem(
+                icon = Icons.Filled.Group,
+                label = stringResource(R.string.home_shell_action_users),
+                badge = badge,
+            )
+            HomeDrawerItem(
+                icon = Icons.AutoMirrored.Filled.Article,
+                label = stringResource(R.string.home_shell_news_title),
+                badge = badge,
             )
         }
 
-        SessionMode.SignedOut -> {
-            Text(stringResource(R.string.access_signed_out_hint))
+        Spacer(modifier = Modifier.weight(1f))
+        HorizontalDivider()
+        TextButton(
+            onClick = onSignOut,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.access_action_sign_out))
+        }
+        Text(
+            text = stringResource(R.string.home_shell_version_format, installedVersion.ifBlank { "0.0.0" }),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            text = stringResource(R.string.common_roles_format, member?.roles?.toPrettyRoles(context) ?: "-"),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+@Composable
+private fun HomeDrawerSection(
+    title: String,
+) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        fontWeight = FontWeight.SemiBold,
+    )
+}
+
+@Composable
+private fun HomeDrawerItem(
+    icon: ImageVector,
+    label: String,
+    badge: String? = null,
+    onClick: (() -> Unit)? = null,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            .clickable(enabled = onClick != null) { onClick?.invoke() }
+            .padding(vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
+        if (badge != null) {
+            Text(
+                text = badge,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun WeeklyContextCard() {
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.home_shell_weekly_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            WeeklyContextRow(
+                title = stringResource(R.string.home_shell_weekly_responsible),
+                value = stringResource(R.string.home_shell_weekly_pending),
+            )
+            WeeklyContextRow(
+                title = stringResource(R.string.home_shell_weekly_support),
+                value = stringResource(R.string.home_shell_weekly_pending),
+            )
+            WeeklyContextRow(
+                title = stringResource(R.string.home_shell_weekly_main_producer),
+                value = stringResource(R.string.home_shell_weekly_pending),
+            )
+            WeeklyContextRow(
+                title = stringResource(R.string.home_shell_weekly_delivery),
+                value = stringResource(R.string.home_shell_weekly_delivery_default),
+            )
+        }
+    }
+}
+
+@Composable
+private fun WeeklyContextRow(
+    title: String,
+    value: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun LatestNewsCard() {
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.home_shell_news_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = stringResource(R.string.home_shell_news_intro),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                text = "\u2022 ${stringResource(R.string.home_shell_news_item_one)}",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+                text = "\u2022 ${stringResource(R.string.home_shell_news_item_two)}",
+                style = MaterialTheme.typography.bodySmall,
+            )
         }
     }
 }
@@ -1180,29 +1541,6 @@ private fun AuthorizedHome(
     onCreateMember: () -> Unit,
     onRetryMyOrderFreshness: () -> Unit,
 ) {
-    Card {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            val context = LocalContext.current
-            Text(
-                stringResource(R.string.home_welcome_format, mode.member.displayName),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(stringResource(R.string.common_roles_format, mode.member.roles.toPrettyRoles(context)))
-            Text(
-                stringResource(
-                    R.string.common_status_format,
-                    stringResource(if (mode.member.isActive) R.string.common_status_active else R.string.common_status_inactive),
-                ),
-            )
-        }
-    }
-
     OperationalModules(
         modulesEnabled = true,
         myOrderFreshnessState = myOrderFreshnessState,
@@ -1210,7 +1548,7 @@ private fun AuthorizedHome(
     )
 
     if (mode.member.isAdmin) {
-        AdminMembersCard(
+        AdminToolsCard(
             members = mode.members,
             draft = draft,
             onDraftChanged = onDraftChanged,
@@ -1218,6 +1556,103 @@ private fun AuthorizedHome(
             onToggleActive = onToggleActive,
             onCreateMember = onCreateMember,
         )
+    }
+}
+
+@Composable
+private fun AdminToolsCard(
+    members: List<Member>,
+    draft: MemberDraft,
+    onDraftChanged: (MemberDraft) -> Unit,
+    onToggleAdmin: (String) -> Unit,
+    onToggleActive: (String) -> Unit,
+    onCreateMember: () -> Unit,
+) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        stringResource(R.string.admin_manage_members_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        stringResource(R.string.admin_manage_members_subtitle),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                IconButton(onClick = { expanded = !expanded }) {
+                    Icon(
+                        imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                        contentDescription = null,
+                    )
+                }
+            }
+
+            if (expanded) {
+                members.forEach { member ->
+                    MemberRow(member = member, onToggleAdmin = onToggleAdmin, onToggleActive = onToggleActive)
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(stringResource(R.string.admin_create_pre_authorized_member), fontWeight = FontWeight.Medium)
+
+                OutlinedTextField(
+                    value = draft.displayName,
+                    onValueChange = { onDraftChanged(draft.copy(displayName = it)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.admin_input_display_name_label)) },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = draft.email,
+                    onValueChange = { onDraftChanged(draft.copy(email = it)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.common_input_email_label)) },
+                    singleLine = true,
+                )
+
+                RoleCheckboxRow(
+                    checked = draft.isMember,
+                    label = stringResource(R.string.role_member),
+                    onCheckedChange = { onDraftChanged(draft.copy(isMember = it)) },
+                )
+                RoleCheckboxRow(
+                    checked = draft.isProducer,
+                    label = stringResource(R.string.role_producer),
+                    onCheckedChange = { onDraftChanged(draft.copy(isProducer = it)) },
+                )
+                RoleCheckboxRow(
+                    checked = draft.isAdmin,
+                    label = stringResource(R.string.role_admin),
+                    onCheckedChange = { onDraftChanged(draft.copy(isAdmin = it)) },
+                )
+                RoleCheckboxRow(
+                    checked = draft.isActive,
+                    label = stringResource(R.string.role_active),
+                    onCheckedChange = { onDraftChanged(draft.copy(isActive = it)) },
+                )
+
+                Button(onClick = onCreateMember, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.admin_action_create_member))
+                }
+            }
+        }
     }
 }
 
@@ -1285,79 +1720,6 @@ private fun OperationalModules(
                 MyOrderFreshnessUiState.Idle,
                 MyOrderFreshnessUiState.Ready,
                     -> Unit
-            }
-        }
-    }
-}
-
-@Composable
-private fun AdminMembersCard(
-    members: List<Member>,
-    draft: MemberDraft,
-    onDraftChanged: (MemberDraft) -> Unit,
-    onToggleAdmin: (String) -> Unit,
-    onToggleActive: (String) -> Unit,
-    onCreateMember: () -> Unit,
-) {
-    Card {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                stringResource(R.string.admin_manage_members_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(stringResource(R.string.admin_manage_members_subtitle))
-
-            members.forEach { member ->
-                MemberRow(member = member, onToggleAdmin = onToggleAdmin, onToggleActive = onToggleActive)
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(stringResource(R.string.admin_create_pre_authorized_member), fontWeight = FontWeight.Medium)
-
-            OutlinedTextField(
-                value = draft.displayName,
-                onValueChange = { onDraftChanged(draft.copy(displayName = it)) },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.admin_input_display_name_label)) },
-                singleLine = true,
-            )
-            OutlinedTextField(
-                value = draft.email,
-                onValueChange = { onDraftChanged(draft.copy(email = it)) },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.common_input_email_label)) },
-                singleLine = true,
-            )
-
-            RoleCheckboxRow(
-                checked = draft.isMember,
-                label = stringResource(R.string.role_member),
-                onCheckedChange = { onDraftChanged(draft.copy(isMember = it)) },
-            )
-            RoleCheckboxRow(
-                checked = draft.isProducer,
-                label = stringResource(R.string.role_producer),
-                onCheckedChange = { onDraftChanged(draft.copy(isProducer = it)) },
-            )
-            RoleCheckboxRow(
-                checked = draft.isAdmin,
-                label = stringResource(R.string.role_admin),
-                onCheckedChange = { onDraftChanged(draft.copy(isAdmin = it)) },
-            )
-            RoleCheckboxRow(
-                checked = draft.isActive,
-                label = stringResource(R.string.role_active),
-                onCheckedChange = { onDraftChanged(draft.copy(isActive = it)) },
-            )
-
-            Button(onClick = onCreateMember, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.admin_action_create_member))
             }
         }
     }
@@ -1444,9 +1806,14 @@ private fun Set<MemberRole>.toPrettyRoles(context: Context): String =
         }
     }
 
+private val Member.isProducer: Boolean
+    get() = roles.contains(MemberRole.PRODUCER)
+
 private fun UnauthorizedReason.toMessageResId(): Int =
     when (this) {
-        UnauthorizedReason.USER_NOT_AUTHORIZED -> R.string.auth_error_member_unauthorized
+        UnauthorizedReason.USER_NOT_FOUND_IN_AUTHORIZED_USERS,
+        UnauthorizedReason.USER_ACCESS_RESTRICTED,
+            -> R.string.auth_error_member_unauthorized
     }
 
 private fun isValidEmail(email: String): Boolean =

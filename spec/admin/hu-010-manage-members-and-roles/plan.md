@@ -2,7 +2,7 @@
 
 ## 1. Technical approach
 
-Implement this story incrementally, following Clean Architecture and reusing existing models/layers to reduce risk and regressions, including pre-authorized onboarding and first-login auth linking. Unauthorized home UX refinement is owned by HU-027.
+Implement this story incrementally, following Clean Architecture and reusing existing models/layers to reduce risk and regressions, including pre-authorized onboarding and first-login auth linking. Unauthorized home UX refinement is owned by HU-038.
 
 ## 2. Layer impact
 - UI: Screen, state, and user action updates required by HU-010.

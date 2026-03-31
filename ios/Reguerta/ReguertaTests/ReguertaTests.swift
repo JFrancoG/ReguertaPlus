@@ -15,7 +15,31 @@ struct ReguertaTests {
             authPrincipal: AuthPrincipal(uid: "uid_unknown", email: "unknown@reguerta.app")
         )
 
-        #expect(result == .unauthorized(.userNotAuthorized))
+        #expect(result == .unauthorized(.userNotFoundInAuthorizedUsers))
+    }
+
+    @Test
+    func existingInactiveMemberDoesNotUseMissingUsersReason() async {
+        let repository = InMemoryMemberRepository()
+        let useCase = ResolveAuthorizedSessionUseCase(repository: repository)
+
+        _ = await repository.upsert(
+            member: Member(
+                id: "member_inactive_001",
+                displayName: "Inactiva",
+                normalizedEmail: "inactive@reguerta.app",
+                authUid: nil,
+                roles: [.member],
+                isActive: false,
+                producerCatalogEnabled: true
+            )
+        )
+
+        let result = await useCase.execute(
+            authPrincipal: AuthPrincipal(uid: "uid_inactive", email: "inactive@reguerta.app")
+        )
+
+        #expect(result == .unauthorized(.userAccessRestricted))
     }
 
     @Test

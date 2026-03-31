@@ -1,10 +1,10 @@
-# HU-028 - Role-aware home shell and drawer navigation
+# HU-039 - Role-aware home shell and drawer navigation
 
 ## Metadata
-- issue_id: TBD
+- issue_id: 56
 - priority: P2
 - platform: both
-- status: draft
+- status: in_review
 
 ## Context and problem
 
@@ -28,7 +28,7 @@ As a member, producer, or admin I want a clearer home shell with role-aware navi
 - Real notification center logic.
 - Real news feed backend integration.
 - Final weekly-summary data contract and live business calculations.
-- Unauthorized access handling, already tracked by HU-027.
+- Unauthorized access handling, already tracked by HU-038.
 
 ## Linked functional requirements
 
@@ -46,7 +46,7 @@ As a member, producer, or admin I want a clearer home shell with role-aware navi
 
 ## Dependencies
 
-- Depends on HU-027 for unauthorized-state gating rules.
+- Depends on HU-038 for unauthorized-state gating rules.
 - Depends on existing role resolution from HU-010.
 
 ## Risks
@@ -58,8 +58,8 @@ As a member, producer, or admin I want a clearer home shell with role-aware navi
 
 ## Definition of Done (DoD)
 
-- [ ] Story acceptance criteria implemented in code.
-- [ ] Android/iOS parity reviewed.
-- [ ] Agreed test coverage executed.
-- [ ] Documentation updated.
+- [x] Story acceptance criteria implemented in code.
+- [x] Android/iOS parity reviewed.
+- [x] Agreed test coverage executed.
+- [x] Documentation updated.
 - [ ] Story acceptance criteria validated manually in develop.

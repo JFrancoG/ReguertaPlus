@@ -213,7 +213,7 @@ Criterios de aceptacion:
 - Refresco de sesion/token en arranque y foreground.
 - Sesion expirada muestra mensaje explicito y camino de recuperacion.
 
-### HU-027 Home restringido para usuario autenticado no autorizado
+### HU-038 Home restringido para usuario autenticado no autorizado
 
 Como persona autenticada pero aun no autorizada quiero feedback claro de acceso restringido en home para entender por que no puedo usar la app y que tiene que pasar despues.
 
@@ -223,7 +223,7 @@ Criterios de aceptacion:
 - El estado no autorizado ofrece una salida segura de cierre de sesion distinta de la recuperacion por sesion expirada.
 - Si ese usuario pasa a estar autorizado despues, la siguiente resolucion de sesion restaura el acceso normal al home.
 
-### HU-028 Shell del home con drawer y navegacion por rol
+### HU-039 Shell del home con drawer y navegacion por rol
 
 Como socio, productor o admin quiero un shell de home mas claro con navegacion por rol para entender mis areas disponibles y el contexto semanal principal desde un unico punto de entrada.
 

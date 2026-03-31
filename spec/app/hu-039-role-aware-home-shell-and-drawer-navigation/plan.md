@@ -1,4 +1,4 @@
-# Plan - HU-028 (Role-aware home shell and drawer navigation)
+# Plan - HU-039 (Role-aware home shell and drawer navigation)
 
 ## 1. Technical approach
 
@@ -9,7 +9,7 @@ Introduce a reusable home shell with a role-aware drawer and structured content 
 - Domain: Role visibility mapping for drawer sections.
 - Data: Read-only use of existing session/member role data; later weekly/news data can plug into the shell.
 - Backend: No immediate schema changes required for visual shell scaffolding.
-- Docs: Add HU-028 and clarify ownership against HU-027.
+- Docs: Add HU-039 and clarify ownership against HU-038.
 
 ## 3. Platform-specific changes
 ### Android

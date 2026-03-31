@@ -19,6 +19,35 @@ class AccessUseCasesTest {
         )
 
         assertTrue(result is AccessResolutionResult.Unauthorized)
+        assertEquals(
+            UnauthorizedReason.USER_NOT_FOUND_IN_AUTHORIZED_USERS,
+            (result as AccessResolutionResult.Unauthorized).reason,
+        )
+    }
+
+    @Test
+    fun `returns restricted unauthorized when member exists but is inactive`() = runBlocking {
+        repository.upsertMember(
+            Member(
+                id = "member_inactive_001",
+                displayName = "Inactiva",
+                normalizedEmail = "inactive@reguerta.app",
+                authUid = null,
+                roles = setOf(MemberRole.MEMBER),
+                isActive = false,
+                producerCatalogEnabled = true,
+            ),
+        )
+
+        val result = resolveAuthorizedSession(
+            AuthPrincipal(uid = "uid_inactive", email = "inactive@reguerta.app"),
+        )
+
+        assertTrue(result is AccessResolutionResult.Unauthorized)
+        assertEquals(
+            UnauthorizedReason.USER_ACCESS_RESTRICTED,
+            (result as AccessResolutionResult.Unauthorized).reason,
+        )
     }
 
     @Test

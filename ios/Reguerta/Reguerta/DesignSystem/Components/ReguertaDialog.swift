@@ -106,8 +106,7 @@ struct ReguertaDialog: View {
         }
     }
 
-    private var dial
-    : some View {
+    private var dialogIcon: some View {
         ZStack {
             Circle()
                 .fill(accentColor.opacity(0.22))

@@ -1,4 +1,4 @@
-# HU-027 - Unauthorized authenticated user home gating
+# HU-038 - Unauthorized authenticated user home gating
 
 ## Metadata
 - issue_id: #54

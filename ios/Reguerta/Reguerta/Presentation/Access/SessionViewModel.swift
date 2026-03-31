@@ -600,7 +600,10 @@ final class SessionViewModel {
                 refreshMyOrderFreshness()
             }
         case .unauthorized(let reason):
-            let shouldShowUnauthorizedDialog = shouldShowUnauthorizedDialog(for: principal.email)
+            let shouldShowUnauthorizedDialog = shouldShowUnauthorizedDialog(
+                for: principal.email,
+                reason: reason
+            )
             mode = .unauthorized(email: principal.email, reason: reason)
             showSessionExpiredDialog = false
             showUnauthorizedDialog = shouldShowUnauthorizedDialog
@@ -619,7 +622,10 @@ final class SessionViewModel {
         }
     }
 
-    private func shouldShowUnauthorizedDialog(for email: String) -> Bool {
+    private func shouldShowUnauthorizedDialog(for email: String, reason: UnauthorizedReason) -> Bool {
+        guard reason == .userNotFoundInAuthorizedUsers else {
+            return false
+        }
         if case .unauthorized(let currentEmail, _) = mode {
             return currentEmail != email
         }
