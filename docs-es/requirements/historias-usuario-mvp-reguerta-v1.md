@@ -234,6 +234,17 @@ Criterios de aceptacion:
 - Home reserva espacio visible para contexto semanal y ultimas noticias, aunque inicialmente usen placeholders.
 - La version de la app sigue visible en el footer del drawer.
 
+### HU-040 Mapa de navegacion del drawer y rutas placeholder
+
+Como socio, productor o admin quiero que el drawer abra destinos reales de la app, aunque algunas secciones sigan siendo placeholder, para que la navegacion quede clara y las siguientes historias se apoyen sobre rutas estables.
+
+Criterios de aceptacion:
+- Cada item visible del drawer abre una ruta concreta en lugar de quedarse como placeholder muerto.
+- Las rutas comunes son visibles para todos los usuarios autorizados y las de productor/admin siguen controladas por rol.
+- `Cerrar sesion` aparece como accion del drawer y pide confirmacion explicita antes de cerrar la sesion.
+- Las rutas placeholder comunican claramente que el destino existe pero su funcionalidad de negocio aun esta pendiente.
+- La ruta de `Ajustes` existe y queda preparada para alojar secciones por rol mas adelante.
+
 ### HU-024 Toggle masivo de disponibilidad productor
 
 Como productor quiero cambiar la visibilidad global de mi catalogo en una sola accion para gestionar semanas de pausa (vacaciones/enfermedad) sin perder la configuracion de cada producto.

@@ -235,6 +235,17 @@ Acceptance criteria:
 - Home reserves visible space for weekly context and latest news, even if backed initially by placeholders.
 - App version remains visible in the drawer footer.
 
+### HU-040 Drawer navigation map and placeholder routes
+
+As a member, producer, or admin I want the drawer to open real app destinations, even when some sections are still placeholders, so that navigation is clear and future stories can be implemented on top of stable routes.
+
+Acceptance criteria:
+- Every drawer item visible to the user opens a concrete route instead of remaining a dead placeholder.
+- Common routes are visible to all authorized users, while producer/admin routes remain role-gated.
+- `Sign out` is exposed as a drawer action and asks for explicit confirmation before closing the session.
+- Placeholder routes clearly communicate that the destination exists but the business implementation is pending.
+- Settings route exists and is ready to host role-aware sections later.
+
 ### HU-024 Producer bulk availability toggle
 
 As a producer I want to toggle my catalog visibility in one action so that weekly pauses (vacation/sickness) are fast without losing per-product setup.
