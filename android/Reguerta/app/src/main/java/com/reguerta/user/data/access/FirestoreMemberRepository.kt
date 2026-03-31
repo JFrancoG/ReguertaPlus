@@ -113,7 +113,7 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toMember(): Member? {
         ?: getString("emailNormalized")
         ?: getString("email")?.trim()?.lowercase()
         ?: return null
-    val authUid = getString("authUid")
+    val authUid = getString("authUid")?.trim()?.takeIf { it.isNotEmpty() }
     val isActive = getBoolean("isActive") ?: true
     val producerCatalogEnabled = getBoolean("producerCatalogEnabled") ?: true
 

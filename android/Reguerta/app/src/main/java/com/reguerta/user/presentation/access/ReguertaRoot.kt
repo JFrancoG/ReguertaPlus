@@ -42,6 +42,8 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.Button
@@ -123,6 +125,24 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 private const val SplashAnimationDurationMillis = 1_500
+
+private enum class HomeDestination(
+    val titleRes: Int,
+) {
+    HOME(R.string.home_title),
+    MY_ORDER(R.string.module_my_order),
+    MY_ORDERS(R.string.module_my_orders),
+    SHIFTS(R.string.module_shifts),
+    NEWS(R.string.home_shell_news_title),
+    NOTIFICATIONS(R.string.home_shell_notifications),
+    PROFILE(R.string.home_shell_action_profile),
+    SETTINGS(R.string.home_shell_action_settings),
+    PRODUCTS(R.string.home_shell_action_products),
+    RECEIVED_ORDERS(R.string.home_shell_action_received_orders),
+    USERS(R.string.home_shell_action_users),
+    PUBLISH_NEWS(R.string.home_shell_action_publish_news),
+    SEND_EXTRA_NOTIFICATION(R.string.home_shell_action_send_extra_notification),
+}
 private const val StartupPolicyFetchTimeoutMillis = 2_500L
 private const val PasswordMinLength = 6
 private const val PasswordMaxLength = 16
@@ -903,15 +923,26 @@ private fun HomeRoute(
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    var currentDestination by rememberSaveable { mutableStateOf(HomeDestination.HOME) }
+    var showSignOutConfirmation by rememberSaveable { mutableStateOf(false) }
     val member = when (mode) {
         is SessionMode.Authorized -> mode.member
         SessionMode.SignedOut,
         is SessionMode.Unauthorized,
             -> null
     }
+    val closeDrawer: () -> Unit = {
+        scope.launch { drawerState.close() }
+    }
 
     BackHandler(enabled = drawerState.isOpen) {
         scope.launch { drawerState.close() }
+    }
+
+    LaunchedEffect(member) {
+        if (member == null) {
+            currentDestination = HomeDestination.HOME
+        }
     }
 
     ModalNavigationDrawer(
@@ -923,13 +954,16 @@ private fun HomeRoute(
             ) {
                 HomeDrawerContent(
                     member = member,
+                    currentDestination = currentDestination,
                     installedVersion = installedVersion,
-                    onCloseDrawer = {
-                        scope.launch { drawerState.close() }
+                    onCloseDrawer = { closeDrawer() },
+                    onDestinationSelected = { destination ->
+                        currentDestination = destination
+                        closeDrawer()
                     },
-                    onSignOut = {
-                        scope.launch { drawerState.close() }
-                        onSignOut()
+                    onSignOutRequested = {
+                        closeDrawer()
+                        showSignOutConfirmation = true
                     },
                 )
             }
@@ -946,46 +980,97 @@ private fun HomeRoute(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             HomeShellTopBar(
+                title = stringResource(currentDestination.titleRes),
                 onOpenMenu = {
                     scope.launch { drawerState.open() }
                 },
+                onOpenNotifications = {
+                    if (member != null) {
+                        currentDestination = HomeDestination.NOTIFICATIONS
+                    }
+                },
+                notificationsEnabled = member != null,
             )
-            WeeklyContextCard()
 
-            when (mode) {
-                is SessionMode.Unauthorized -> Unit
+            when (currentDestination) {
+                HomeDestination.HOME -> {
+                    WeeklyContextCard()
 
-                is SessionMode.Authorized -> {
-                    AuthorizedHome(
-                        mode = mode,
-                        myOrderFreshnessState = myOrderFreshnessState,
-                        draft = draft,
-                        onDraftChanged = onDraftChanged,
-                        onToggleAdmin = onToggleAdmin,
-                        onToggleActive = onToggleActive,
-                        onCreateMember = onCreateMember,
-                        onRetryMyOrderFreshness = onRetryMyOrderFreshness,
+                    when (mode) {
+                        is SessionMode.Unauthorized -> Unit
+
+                        is SessionMode.Authorized -> {
+                            AuthorizedHome(
+                                mode = mode,
+                                myOrderFreshnessState = myOrderFreshnessState,
+                                draft = draft,
+                                onDraftChanged = onDraftChanged,
+                                onToggleAdmin = onToggleAdmin,
+                                onToggleActive = onToggleActive,
+                                onCreateMember = onCreateMember,
+                                onRetryMyOrderFreshness = onRetryMyOrderFreshness,
+                                onOpenMyOrder = { currentDestination = HomeDestination.MY_ORDER },
+                                onOpenShifts = { currentDestination = HomeDestination.SHIFTS },
+                            )
+                        }
+
+                        SessionMode.SignedOut -> {
+                            Card {
+                                Text(
+                                    text = stringResource(R.string.access_signed_out_hint),
+                                    modifier = Modifier.padding(16.dp),
+                                )
+                            }
+                        }
+                    }
+
+                    LatestNewsCard()
+                }
+
+                HomeDestination.SETTINGS -> {
+                    SettingsPlaceholderRoute(
+                        member = member,
+                        onBackHome = { currentDestination = HomeDestination.HOME },
                     )
                 }
 
-                SessionMode.SignedOut -> {
-                    Card {
-                        Text(
-                            text = stringResource(R.string.access_signed_out_hint),
-                            modifier = Modifier.padding(16.dp),
-                        )
-                    }
+                else -> {
+                    HomePlaceholderRoute(
+                        destination = currentDestination,
+                        onBackHome = { currentDestination = HomeDestination.HOME },
+                    )
                 }
             }
-
-            LatestNewsCard()
         }
+    }
+
+    if (showSignOutConfirmation) {
+        ReguertaDialog(
+            type = ReguertaDialogType.INFO,
+            title = stringResource(R.string.sign_out_confirm_title),
+            message = stringResource(R.string.sign_out_confirm_message),
+            primaryAction = ReguertaDialogAction(
+                label = stringResource(R.string.access_action_sign_out),
+                onClick = {
+                    showSignOutConfirmation = false
+                    onSignOut()
+                },
+            ),
+            secondaryAction = ReguertaDialogAction(
+                label = stringResource(R.string.common_action_cancel),
+                onClick = { showSignOutConfirmation = false },
+            ),
+            onDismissRequest = { showSignOutConfirmation = false },
+        )
     }
 }
 
 @Composable
 private fun HomeShellTopBar(
+    title: String,
     onOpenMenu: () -> Unit,
+    onOpenNotifications: () -> Unit,
+    notificationsEnabled: Boolean,
 ) {
     Card {
         Row(
@@ -1003,12 +1088,15 @@ private fun HomeShellTopBar(
             }
 
             Text(
-                text = stringResource(R.string.home_title),
+                text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
 
-            IconButton(onClick = {}) {
+            IconButton(
+                onClick = onOpenNotifications,
+                enabled = notificationsEnabled,
+            ) {
                 Icon(
                     imageVector = Icons.Filled.Notifications,
                     contentDescription = stringResource(R.string.home_shell_notifications),
@@ -1019,139 +1107,272 @@ private fun HomeShellTopBar(
 }
 
 @Composable
+private fun HomePlaceholderRoute(
+    destination: HomeDestination,
+    onBackHome: () -> Unit,
+) {
+    val noteRes = when (destination) {
+        HomeDestination.MY_ORDERS -> R.string.home_placeholder_my_orders_history_note
+        HomeDestination.RECEIVED_ORDERS -> R.string.home_placeholder_received_orders_history_note
+        else -> null
+    }
+
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(destination.titleRes),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = stringResource(R.string.home_placeholder_ready_message),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (noteRes != null) {
+                Text(
+                    text = stringResource(noteRes),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Button(onClick = onBackHome, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.home_placeholder_back_home))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsPlaceholderRoute(
+    member: Member?,
+    onBackHome: () -> Unit,
+) {
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.home_shell_action_settings),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = stringResource(R.string.home_placeholder_settings_intro),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            HomeDrawerSection(title = stringResource(R.string.home_shell_section_common))
+            Text(text = stringResource(R.string.home_shell_action_profile), style = MaterialTheme.typography.bodyMedium)
+            Text(text = stringResource(R.string.home_shell_notifications), style = MaterialTheme.typography.bodyMedium)
+
+            if (member?.isProducer == true) {
+                HomeDrawerSection(title = stringResource(R.string.home_shell_section_producer))
+                Text(text = stringResource(R.string.home_shell_action_products), style = MaterialTheme.typography.bodyMedium)
+            }
+
+            if (member?.isAdmin == true) {
+                HomeDrawerSection(title = stringResource(R.string.home_shell_section_admin))
+                Text(text = stringResource(R.string.home_shell_action_users), style = MaterialTheme.typography.bodyMedium)
+                Text(text = stringResource(R.string.home_shell_action_publish_news), style = MaterialTheme.typography.bodyMedium)
+                Text(text = stringResource(R.string.home_shell_action_send_extra_notification), style = MaterialTheme.typography.bodyMedium)
+            }
+
+            Button(onClick = onBackHome, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.home_placeholder_back_home))
+            }
+        }
+    }
+}
+
+@Composable
 private fun HomeDrawerContent(
     member: Member?,
+    currentDestination: HomeDestination,
     installedVersion: String,
     onCloseDrawer: () -> Unit,
-    onSignOut: () -> Unit,
+    onDestinationSelected: (HomeDestination) -> Unit,
+    onSignOutRequested: () -> Unit,
 ) {
     val context = LocalContext.current
-    val badge = stringResource(R.string.home_shell_badge_soon)
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.fillMaxSize(),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Start,
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            IconButton(onClick = onCloseDrawer) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.common_action_back),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Start,
+            ) {
+                IconButton(onClick = onCloseDrawer) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.common_action_back),
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(76.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.AccountCircle,
+                        contentDescription = stringResource(R.string.home_shell_profile_placeholder),
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(44.dp),
+                    )
+                }
+                if (member != null) {
+                    Text(
+                        text = member.displayName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = member.normalizedEmail,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+
+            HomeDrawerItem(
+                icon = Icons.Filled.Home,
+                label = stringResource(R.string.home_title),
+                selected = currentDestination == HomeDestination.HOME,
+                onClick = { onDestinationSelected(HomeDestination.HOME) },
+            )
+
+            HomeDrawerSection(title = stringResource(R.string.home_shell_section_common))
+            HomeDrawerItem(
+                icon = Icons.Filled.ShoppingCart,
+                label = stringResource(R.string.module_my_order),
+                selected = currentDestination == HomeDestination.MY_ORDER,
+                onClick = { onDestinationSelected(HomeDestination.MY_ORDER) },
+            )
+            HomeDrawerItem(
+                icon = Icons.AutoMirrored.Filled.Article,
+                label = stringResource(R.string.module_my_orders),
+                selected = currentDestination == HomeDestination.MY_ORDERS,
+                onClick = { onDestinationSelected(HomeDestination.MY_ORDERS) },
+            )
+            HomeDrawerItem(
+                icon = Icons.Filled.CalendarToday,
+                label = stringResource(R.string.module_shifts),
+                selected = currentDestination == HomeDestination.SHIFTS,
+                onClick = { onDestinationSelected(HomeDestination.SHIFTS) },
+            )
+            HomeDrawerItem(
+                icon = Icons.AutoMirrored.Filled.Article,
+                label = stringResource(R.string.home_shell_news_title),
+                selected = currentDestination == HomeDestination.NEWS,
+                onClick = { onDestinationSelected(HomeDestination.NEWS) },
+            )
+            HomeDrawerItem(
+                icon = Icons.Filled.Notifications,
+                label = stringResource(R.string.home_shell_notifications),
+                selected = currentDestination == HomeDestination.NOTIFICATIONS,
+                onClick = { onDestinationSelected(HomeDestination.NOTIFICATIONS) },
+            )
+            HomeDrawerItem(
+                icon = Icons.Filled.Person,
+                label = stringResource(R.string.home_shell_action_profile),
+                selected = currentDestination == HomeDestination.PROFILE,
+                onClick = { onDestinationSelected(HomeDestination.PROFILE) },
+            )
+            HomeDrawerItem(
+                icon = Icons.Filled.Settings,
+                label = stringResource(R.string.home_shell_action_settings),
+                selected = currentDestination == HomeDestination.SETTINGS,
+                onClick = { onDestinationSelected(HomeDestination.SETTINGS) },
+            )
+
+            if (member?.isProducer == true) {
+                HomeDrawerSection(title = stringResource(R.string.home_shell_section_producer))
+                HomeDrawerItem(
+                    icon = Icons.Filled.Storefront,
+                    label = stringResource(R.string.home_shell_action_products),
+                    selected = currentDestination == HomeDestination.PRODUCTS,
+                    onClick = { onDestinationSelected(HomeDestination.PRODUCTS) },
+                )
+                HomeDrawerItem(
+                    icon = Icons.Filled.Inbox,
+                    label = stringResource(R.string.home_shell_action_received_orders),
+                    selected = currentDestination == HomeDestination.RECEIVED_ORDERS,
+                    onClick = { onDestinationSelected(HomeDestination.RECEIVED_ORDERS) },
+                )
+            }
+
+            if (member?.isAdmin == true) {
+                HomeDrawerSection(title = stringResource(R.string.home_shell_section_admin))
+                HomeDrawerItem(
+                    icon = Icons.Filled.Group,
+                    label = stringResource(R.string.home_shell_action_users),
+                    selected = currentDestination == HomeDestination.USERS,
+                    onClick = { onDestinationSelected(HomeDestination.USERS) },
+                )
+                HomeDrawerItem(
+                    icon = Icons.AutoMirrored.Filled.Article,
+                    label = stringResource(R.string.home_shell_action_publish_news),
+                    selected = currentDestination == HomeDestination.PUBLISH_NEWS,
+                    onClick = { onDestinationSelected(HomeDestination.PUBLISH_NEWS) },
+                )
+                HomeDrawerItem(
+                    icon = Icons.Filled.Notifications,
+                    label = stringResource(R.string.home_shell_action_send_extra_notification),
+                    selected = currentDestination == HomeDestination.SEND_EXTRA_NOTIFICATION,
+                    onClick = { onDestinationSelected(HomeDestination.SEND_EXTRA_NOTIFICATION) },
                 )
             }
         }
 
         Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.reguerta_logo),
-                contentDescription = stringResource(R.string.app_name),
-                modifier = Modifier.size(112.dp),
-                contentScale = ContentScale.Fit,
-            )
-            Box(
-                modifier = Modifier
-                    .size(76.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
-                contentAlignment = Alignment.Center,
+            HorizontalDivider()
+            TextButton(
+                onClick = onSignOutRequested,
+                modifier = Modifier.fillMaxWidth(),
             ) {
-                Icon(
-                    imageVector = Icons.Filled.AccountCircle,
-                    contentDescription = stringResource(R.string.home_shell_profile_placeholder),
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(44.dp),
-                )
+                Text(stringResource(R.string.access_action_sign_out))
             }
-            if (member != null) {
-                Text(
-                    text = member.displayName,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = member.normalizedEmail,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-        }
-
-        HomeDrawerSection(title = stringResource(R.string.home_shell_section_common))
-        HomeDrawerItem(
-            icon = Icons.Filled.Home,
-            label = stringResource(R.string.home_title),
-            onClick = onCloseDrawer,
-        )
-        HomeDrawerItem(
-            icon = Icons.Filled.ShoppingCart,
-            label = stringResource(R.string.module_my_order),
-            badge = badge,
-        )
-        HomeDrawerItem(
-            icon = Icons.AutoMirrored.Filled.Article,
-            label = stringResource(R.string.module_my_orders),
-            badge = badge,
-        )
-        HomeDrawerItem(
-            icon = Icons.Filled.CalendarToday,
-            label = stringResource(R.string.module_shifts),
-            badge = badge,
-        )
-
-        if (member?.isProducer == true) {
-            HomeDrawerSection(title = stringResource(R.string.home_shell_section_producer))
-            HomeDrawerItem(
-                icon = Icons.Filled.Storefront,
-                label = stringResource(R.string.home_shell_action_products),
-                badge = badge,
+            Text(
+                text = stringResource(R.string.home_shell_version_format, installedVersion.ifBlank { "0.0.0" }),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.fillMaxWidth(),
             )
-            HomeDrawerItem(
-                icon = Icons.Filled.Inbox,
-                label = stringResource(R.string.home_shell_action_received_orders),
-                badge = badge,
+            Text(
+                text = stringResource(R.string.common_roles_format, member?.roles?.toPrettyRoles(context) ?: "-"),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
-
-        if (member?.isAdmin == true) {
-            HomeDrawerSection(title = stringResource(R.string.home_shell_section_admin))
-            HomeDrawerItem(
-                icon = Icons.Filled.Group,
-                label = stringResource(R.string.home_shell_action_users),
-                badge = badge,
-            )
-            HomeDrawerItem(
-                icon = Icons.AutoMirrored.Filled.Article,
-                label = stringResource(R.string.home_shell_news_title),
-                badge = badge,
-            )
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-        HorizontalDivider()
-        TextButton(
-            onClick = onSignOut,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(stringResource(R.string.access_action_sign_out))
-        }
-        Text(
-            text = stringResource(R.string.home_shell_version_format, installedVersion.ifBlank { "0.0.0" }),
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Text(
-            text = stringResource(R.string.common_roles_format, member?.roles?.toPrettyRoles(context) ?: "-"),
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.fillMaxWidth(),
-        )
     }
 }
 
@@ -1171,13 +1392,20 @@ private fun HomeDrawerSection(
 private fun HomeDrawerItem(
     icon: ImageVector,
     label: String,
-    badge: String? = null,
+    selected: Boolean,
     onClick: (() -> Unit)? = null,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
+            .background(
+                if (selected) {
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                } else {
+                    MaterialTheme.colorScheme.surface
+                },
+            )
             .clickable(enabled = onClick != null) { onClick?.invoke() }
             .padding(vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -1193,13 +1421,6 @@ private fun HomeDrawerItem(
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.weight(1f),
         )
-        if (badge != null) {
-            Text(
-                text = badge,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
-        }
     }
 }
 
@@ -1540,11 +1761,15 @@ private fun AuthorizedHome(
     onToggleActive: (String) -> Unit,
     onCreateMember: () -> Unit,
     onRetryMyOrderFreshness: () -> Unit,
+    onOpenMyOrder: () -> Unit,
+    onOpenShifts: () -> Unit,
 ) {
     OperationalModules(
         modulesEnabled = true,
         myOrderFreshnessState = myOrderFreshnessState,
         onRetryMyOrderFreshness = onRetryMyOrderFreshness,
+        onOpenMyOrder = onOpenMyOrder,
+        onOpenShifts = onOpenShifts,
     )
 
     if (mode.member.isAdmin) {
@@ -1661,6 +1886,8 @@ private fun OperationalModules(
     modulesEnabled: Boolean,
     myOrderFreshnessState: MyOrderFreshnessUiState,
     onRetryMyOrderFreshness: () -> Unit,
+    onOpenMyOrder: () -> Unit = {},
+    onOpenShifts: () -> Unit = {},
     disabledMessage: String? = null,
 ) {
     Card {
@@ -1672,7 +1899,7 @@ private fun OperationalModules(
         ) {
             Text(stringResource(R.string.operational_modules_title))
             Button(
-                onClick = {},
+                onClick = onOpenMyOrder,
                 enabled = modulesEnabled && myOrderFreshnessState == MyOrderFreshnessUiState.Ready,
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -1681,7 +1908,7 @@ private fun OperationalModules(
             Button(onClick = {}, enabled = modulesEnabled, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.module_catalog))
             }
-            Button(onClick = {}, enabled = modulesEnabled, modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = onOpenShifts, enabled = modulesEnabled, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.module_shifts))
             }
 

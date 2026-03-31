@@ -1,5 +1,52 @@
 import SwiftUI
 
+private enum HomeDestination: String, CaseIterable {
+    case home
+    case myOrder
+    case myOrders
+    case shifts
+    case news
+    case notifications
+    case profile
+    case settings
+    case products
+    case receivedOrders
+    case users
+    case publishNews
+    case sendExtraNotification
+
+    var titleKey: String {
+        switch self {
+        case .home:
+            AccessL10nKey.homeTitle
+        case .myOrder:
+            AccessL10nKey.myOrder
+        case .myOrders:
+            AccessL10nKey.myOrders
+        case .shifts:
+            AccessL10nKey.shifts
+        case .news:
+            AccessL10nKey.homeShellNewsTitle
+        case .notifications:
+            AccessL10nKey.homeShellNotifications
+        case .profile:
+            AccessL10nKey.homeShellActionProfile
+        case .settings:
+            AccessL10nKey.homeShellActionSettings
+        case .products:
+            AccessL10nKey.homeShellActionProducts
+        case .receivedOrders:
+            AccessL10nKey.homeShellActionReceivedOrders
+        case .users:
+            AccessL10nKey.homeShellActionUsers
+        case .publishNews:
+            AccessL10nKey.homeShellActionPublishNews
+        case .sendExtraNotification:
+            AccessL10nKey.homeShellActionSendExtraNotification
+        }
+    }
+}
+
 struct ContentView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.reguertaTokens) private var tokens
@@ -18,6 +65,8 @@ struct ContentView: View {
     @State private var isHomeDrawerOpen = false
     @State private var homeDrawerDragOffset: CGFloat = 0
     @State private var isAdminToolsExpanded = false
+    @State private var homeDestination: HomeDestination = .home
+    @State private var showsSignOutConfirmationDialog = false
 
     private let startupVersionGateUseCase = ResolveStartupVersionGateUseCase(
         repository: FirestoreStartupVersionPolicyRepository()
@@ -102,6 +151,23 @@ struct ContentView: View {
                     dismissible: false
                 )
             }
+            if showsSignOutConfirmationDialog {
+                ReguertaDialog(
+                    type: .info,
+                    title: l10n(AccessL10nKey.signOutConfirmTitle),
+                    message: l10n(AccessL10nKey.signOutConfirmMessage),
+                    primaryAction: ReguertaDialogAction(
+                        title: l10n(AccessL10nKey.signOut),
+                        action: confirmDrawerSignOut
+                    ),
+                    secondaryAction: ReguertaDialogAction(
+                        title: l10n(AccessL10nKey.commonCancel),
+                        action: { showsSignOutConfirmationDialog = false }
+                    ),
+                    dismissible: true,
+                    onDismiss: { showsSignOutConfirmationDialog = false }
+                )
+            }
         }
         .task(id: shellState.currentRoute) {
             await handleSplashIfNeeded()
@@ -115,6 +181,10 @@ struct ContentView: View {
                 dispatchShell(.sessionAuthenticated)
             } else if mode == .signedOut, shellState.currentRoute == .home {
                 dispatchShell(.signedOut)
+            }
+            if case .authorized = mode {
+            } else {
+                homeDestination = .home
             }
         }
         .onChange(of: scenePhase) { _, newPhase in
@@ -358,22 +428,30 @@ struct ContentView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: tokens.spacing.lg) {
                         homeShellTopBar
-                        weeklyContextCard
 
-                        switch viewModel.mode {
-                        case .signedOut:
-                            cardContainer {
-                                Text(localizedKey(AccessL10nKey.signedOutHint))
-                                    .font(tokens.typography.bodySecondary)
-                                    .foregroundStyle(tokens.colors.textSecondary)
+                        switch homeDestination {
+                        case .home:
+                            weeklyContextCard
+
+                            switch viewModel.mode {
+                            case .signedOut:
+                                cardContainer {
+                                    Text(localizedKey(AccessL10nKey.signedOutHint))
+                                        .font(tokens.typography.bodySecondary)
+                                        .foregroundStyle(tokens.colors.textSecondary)
+                                }
+                            case .unauthorized:
+                                EmptyView()
+                            case .authorized(let session):
+                                authorizedHome(session: session)
                             }
-                        case .unauthorized:
-                            EmptyView()
-                        case .authorized(let session):
-                            authorizedHome(session: session)
-                        }
 
-                        latestNewsCard
+                            latestNewsCard
+                        case .settings:
+                            settingsPlaceholderRoute
+                        default:
+                            placeholderDestinationRoute(homeDestination)
+                        }
 
                         if viewModel.feedbackMessageKey != nil {
                             feedbackMessageRoute
@@ -432,13 +510,10 @@ struct ContentView: View {
 
                 Spacer()
 
-                Text(localizedKey(AccessL10nKey.homeTitle))
-                    .font(tokens.typography.titleCard)
-                    .foregroundStyle(tokens.colors.textPrimary)
-
-                Spacer()
-
                 Button {
+                    if currentHomeMember != nil {
+                        homeDestination = .notifications
+                    }
                 } label: {
                     Image(systemName: "bell")
                         .font(.system(size: 20.resize, weight: .semibold))
@@ -446,7 +521,13 @@ struct ContentView: View {
                         .frame(width: 44.resize, height: 44.resize)
                 }
                 .buttonStyle(.plain)
+                .disabled(currentHomeMember == nil)
                 .accessibilityLabel(localizedKey(AccessL10nKey.homeShellNotifications))
+            }
+            .overlay {
+                Text(localizedKey(homeDestination.titleKey))
+                    .font(tokens.typography.titleCard)
+                    .foregroundStyle(tokens.colors.textPrimary)
             }
         }
     }
@@ -621,7 +702,9 @@ struct ContentView: View {
     private func authorizedHome(session: AuthorizedSession) -> some View {
         operationalModules(
             modulesEnabled: true,
-            myOrderFreshnessState: viewModel.myOrderFreshnessState
+            myOrderFreshnessState: viewModel.myOrderFreshnessState,
+            onOpenMyOrder: { homeDestination = .myOrder },
+            onOpenShifts: { homeDestination = .shifts }
         )
 
         if session.member.isAdmin {
@@ -672,6 +755,8 @@ struct ContentView: View {
     private func operationalModules(
         modulesEnabled: Bool,
         myOrderFreshnessState: MyOrderFreshnessState,
+        onOpenMyOrder: @escaping () -> Void = {},
+        onOpenShifts: @escaping () -> Void = {},
         disabledMessageKey: String? = nil
     ) -> some View {
         cardContainer {
@@ -679,6 +764,7 @@ struct ContentView: View {
                 Text(localizedKey(AccessL10nKey.operationalModulesTitle))
                     .font(tokens.typography.titleCard)
                 Button {
+                    onOpenMyOrder()
                 } label: {
                     Text(localizedKey(AccessL10nKey.myOrder))
                 }
@@ -689,6 +775,7 @@ struct ContentView: View {
                 }
                 .disabled(!modulesEnabled)
                 Button {
+                    onOpenShifts()
                 } label: {
                     Text(localizedKey(AccessL10nKey.shifts))
                 }
@@ -831,85 +918,91 @@ struct ContentView: View {
         let drawerOffset = resolvedHomeDrawerOffset(drawerWidth: drawerWidth)
 
         return HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                HStack {
-                    Button {
-                        closeHomeDrawer()
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 20.resize, weight: .semibold))
-                            .foregroundStyle(tokens.colors.textPrimary)
-                            .frame(width: 36.resize, height: 36.resize)
-                    }
-                    .buttonStyle(.plain)
-                    .contentShape(Rectangle())
-                    Spacer()
-                }
-
-                VStack(spacing: tokens.spacing.md) {
-                    Image("brand_logo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 108.resize, height: 108.resize)
-
-                    Circle()
-                        .fill(tokens.colors.actionPrimary.opacity(0.14))
-                        .frame(width: 76.resize, height: 76.resize)
-                        .overlay {
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 30.resize, weight: .semibold))
-                                .foregroundStyle(tokens.colors.actionPrimary)
+            VStack(alignment: .leading, spacing: 0) {
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                        HStack {
+                            Button {
+                                closeHomeDrawer()
+                            } label: {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 20.resize, weight: .semibold))
+                                    .foregroundStyle(tokens.colors.textPrimary)
+                                    .frame(width: 36.resize, height: 36.resize)
+                            }
+                            .buttonStyle(.plain)
+                            .contentShape(Rectangle())
+                            Spacer()
                         }
 
-                    if let member = currentHomeMember {
-                        Text(member.displayName)
-                            .font(tokens.typography.titleCard)
-                            .foregroundStyle(tokens.colors.textPrimary)
-                            .multilineTextAlignment(.center)
-                        Text(member.normalizedEmail)
-                            .font(tokens.typography.label)
-                            .foregroundStyle(tokens.colors.textSecondary)
-                            .multilineTextAlignment(.center)
+                        VStack(spacing: tokens.spacing.md) {
+                            Circle()
+                                .fill(tokens.colors.actionPrimary.opacity(0.14))
+                                .frame(width: 76.resize, height: 76.resize)
+                                .overlay {
+                                    Image(systemName: "person.fill")
+                                        .font(.system(size: 30.resize, weight: .semibold))
+                                        .foregroundStyle(tokens.colors.actionPrimary)
+                                }
+
+                            if let member = currentHomeMember {
+                                Text(member.displayName)
+                                    .font(tokens.typography.titleCard)
+                                    .foregroundStyle(tokens.colors.textPrimary)
+                                    .multilineTextAlignment(.center)
+                                Text(member.normalizedEmail)
+                                    .font(tokens.typography.label)
+                                    .foregroundStyle(tokens.colors.textSecondary)
+                                    .multilineTextAlignment(.center)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.bottom, tokens.spacing.sm)
+
+                        homeDrawerItem("house.fill", destination: .home)
+
+                        drawerSection(titleKey: AccessL10nKey.homeShellSectionCommon)
+                        homeDrawerItem("cart.fill", destination: .myOrder)
+                        homeDrawerItem("doc.text.fill", destination: .myOrders)
+                        homeDrawerItem("calendar", destination: .shifts)
+                        homeDrawerItem("newspaper.fill", destination: .news)
+                        homeDrawerItem("bell.fill", destination: .notifications)
+                        homeDrawerItem("person.fill", destination: .profile)
+                        homeDrawerItem("gearshape.fill", destination: .settings)
+
+                        if currentHomeMember?.isProducer == true {
+                            drawerSection(titleKey: AccessL10nKey.homeShellSectionProducer)
+                            homeDrawerItem("shippingbox.fill", destination: .products)
+                            homeDrawerItem("tray.full.fill", destination: .receivedOrders)
+                        }
+
+                        if currentHomeMember?.isAdmin == true {
+                            drawerSection(titleKey: AccessL10nKey.homeShellSectionAdmin)
+                            homeDrawerItem("person.3.fill", destination: .users)
+                            homeDrawerItem("square.and.pencil", destination: .publishNews)
+                            homeDrawerItem("megaphone.fill", destination: .sendExtraNotification)
+                        }
                     }
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.bottom, tokens.spacing.sm)
-
-                drawerSection(titleKey: AccessL10nKey.homeShellSectionCommon)
-                homeDrawerItem("house.fill", titleKey: AccessL10nKey.homeTitle, badgeKey: nil)
-                homeDrawerItem("cart.fill", titleKey: AccessL10nKey.myOrder, badgeKey: AccessL10nKey.homeShellBadgeSoon)
-                homeDrawerItem("doc.text.fill", titleKey: AccessL10nKey.myOrders, badgeKey: AccessL10nKey.homeShellBadgeSoon)
-                homeDrawerItem("calendar", titleKey: AccessL10nKey.shifts, badgeKey: AccessL10nKey.homeShellBadgeSoon)
-
-                if currentHomeMember?.isProducer == true {
-                    drawerSection(titleKey: AccessL10nKey.homeShellSectionProducer)
-                    homeDrawerItem("shippingbox.fill", titleKey: AccessL10nKey.homeShellActionProducts, badgeKey: AccessL10nKey.homeShellBadgeSoon)
-                    homeDrawerItem("tray.full.fill", titleKey: AccessL10nKey.homeShellActionReceivedOrders, badgeKey: AccessL10nKey.homeShellBadgeSoon)
+                    .padding(tokens.spacing.lg)
                 }
 
-                if currentHomeMember?.isAdmin == true {
-                    drawerSection(titleKey: AccessL10nKey.homeShellSectionAdmin)
-                    homeDrawerItem("person.3.fill", titleKey: AccessL10nKey.homeShellActionUsers, badgeKey: AccessL10nKey.homeShellBadgeSoon)
-                    homeDrawerItem("newspaper.fill", titleKey: AccessL10nKey.homeShellNewsTitle, badgeKey: AccessL10nKey.homeShellBadgeSoon)
+                VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+                    Divider()
+
+                    ReguertaButton(localizedKey(AccessL10nKey.signOut)) {
+                        closeHomeDrawer()
+                        showsSignOutConfirmationDialog = true
+                    }
+                    .padding(.top, tokens.spacing.xs)
+
+                    Text(l10n(AccessL10nKey.homeShellVersion, installedVersion))
+                        .font(tokens.typography.label)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-
-                Spacer(minLength: tokens.spacing.md)
-
-                Divider()
-
-                ReguertaButton(localizedKey(AccessL10nKey.signOut)) {
-                    closeHomeDrawer()
-                    viewModel.signOut()
-                    dispatchShell(.signedOut)
-                }
-                .padding(.top, tokens.spacing.xs)
-
-                Text(l10n(AccessL10nKey.homeShellVersion, installedVersion))
-                    .font(tokens.typography.label)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, tokens.spacing.lg)
+                .padding(.bottom, tokens.spacing.lg)
             }
-            .padding(tokens.spacing.lg)
             .frame(width: drawerWidth)
             .frame(maxHeight: .infinity, alignment: .topLeading)
             .background(tokens.colors.surfacePrimary)
@@ -956,38 +1049,92 @@ struct ContentView: View {
 
     private func homeDrawerItem(
         _ systemImage: String,
-        titleKey: String,
-        badgeKey: String?
+        destination: HomeDestination
     ) -> some View {
         HStack(spacing: tokens.spacing.md) {
             Image(systemName: systemImage)
                 .font(.system(size: 18.resize, weight: .semibold))
                 .foregroundStyle(tokens.colors.actionPrimary)
                 .frame(width: 24.resize)
-            Text(localizedKey(titleKey))
+            Text(localizedKey(destination.titleKey))
                 .font(tokens.typography.bodySecondary)
                 .foregroundStyle(tokens.colors.textPrimary)
             Spacer(minLength: tokens.spacing.sm)
-            if let badgeKey {
-                Text(localizedKey(badgeKey))
-                    .font(tokens.typography.label)
-                    .foregroundStyle(tokens.colors.actionPrimary)
-            }
         }
         .padding(.vertical, tokens.spacing.xs + 2)
+        .contentShape(Rectangle())
+        .background(
+            RoundedRectangle(cornerRadius: tokens.radius.sm)
+                .fill(homeDestination == destination ? tokens.colors.actionPrimary.opacity(0.10) : .clear)
+        )
+        .onTapGesture {
+            selectHomeDestination(destination)
+        }
     }
 
     @ViewBuilder
-    private func placeholderRoute(titleKey: String, subtitleKey: String) -> some View {
-        ReguertaCard {
+    private func placeholderDestinationRoute(_ destination: HomeDestination) -> some View {
+        cardContainer {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text(localizedKey(titleKey))
+                Text(localizedKey(destination.titleKey))
                     .font(tokens.typography.titleSection)
-                Text(localizedKey(subtitleKey))
+                Text(localizedKey(AccessL10nKey.homePlaceholderReadyMessage))
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
-                ReguertaButton(localizedKey(AccessL10nKey.commonBack)) {
-                    dispatchShell(.back)
+
+                switch destination {
+                case .myOrders:
+                    Text(localizedKey(AccessL10nKey.homePlaceholderMyOrdersHistoryNote))
+                        .font(tokens.typography.label)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                case .receivedOrders:
+                    Text(localizedKey(AccessL10nKey.homePlaceholderReceivedOrdersHistoryNote))
+                        .font(tokens.typography.label)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                default:
+                    EmptyView()
+                }
+
+                ReguertaButton(localizedKey(AccessL10nKey.homePlaceholderBackHome)) {
+                    homeDestination = .home
+                }
+            }
+        }
+    }
+
+    private var settingsPlaceholderRoute: some View {
+        cardContainer {
+            VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                Text(localizedKey(AccessL10nKey.homeShellActionSettings))
+                    .font(tokens.typography.titleSection)
+                Text(localizedKey(AccessL10nKey.homePlaceholderSettingsIntro))
+                    .font(tokens.typography.bodySecondary)
+                    .foregroundStyle(tokens.colors.textSecondary)
+
+                drawerSection(titleKey: AccessL10nKey.homeShellSectionCommon)
+                Text(localizedKey(AccessL10nKey.homeShellActionProfile))
+                    .font(tokens.typography.bodySecondary)
+                Text(localizedKey(AccessL10nKey.homeShellNotifications))
+                    .font(tokens.typography.bodySecondary)
+
+                if currentHomeMember?.isProducer == true {
+                    drawerSection(titleKey: AccessL10nKey.homeShellSectionProducer)
+                    Text(localizedKey(AccessL10nKey.homeShellActionProducts))
+                        .font(tokens.typography.bodySecondary)
+                }
+
+                if currentHomeMember?.isAdmin == true {
+                    drawerSection(titleKey: AccessL10nKey.homeShellSectionAdmin)
+                    Text(localizedKey(AccessL10nKey.homeShellActionUsers))
+                        .font(tokens.typography.bodySecondary)
+                    Text(localizedKey(AccessL10nKey.homeShellActionPublishNews))
+                        .font(tokens.typography.bodySecondary)
+                    Text(localizedKey(AccessL10nKey.homeShellActionSendExtraNotification))
+                        .font(tokens.typography.bodySecondary)
+                }
+
+                ReguertaButton(localizedKey(AccessL10nKey.homePlaceholderBackHome)) {
+                    homeDestination = .home
                 }
             }
         }
@@ -1071,6 +1218,17 @@ struct ContentView: View {
             isHomeDrawerOpen = false
             homeDrawerDragOffset = 0
         }
+    }
+
+    private func selectHomeDestination(_ destination: HomeDestination) {
+        homeDestination = destination
+        closeHomeDrawer()
+    }
+
+    private func confirmDrawerSignOut() {
+        showsSignOutConfirmationDialog = false
+        viewModel.signOut()
+        dispatchShell(.signedOut)
     }
 
     private func handleSessionExpiredDialogAction() {

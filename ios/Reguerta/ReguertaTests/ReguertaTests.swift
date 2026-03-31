@@ -123,6 +123,39 @@ struct ReguertaTests {
     }
 
     @Test
+    func authUidMatchWinsOverEmailDuplicate() async {
+        let repository = InMemoryMemberRepository()
+        let useCase = ResolveAuthorizedSessionUseCase(repository: repository)
+
+        _ = await useCase.execute(
+            authPrincipal: AuthPrincipal(uid: "uid_admin_linked", email: "ana.admin@reguerta.app")
+        )
+
+        _ = await repository.upsert(
+            member: Member(
+                id: "member_duplicate_email",
+                displayName: "Duplicado",
+                normalizedEmail: "ana.admin@reguerta.app",
+                authUid: nil,
+                roles: [.member],
+                isActive: true,
+                producerCatalogEnabled: true
+            )
+        )
+
+        let result = await useCase.execute(
+            authPrincipal: AuthPrincipal(uid: "uid_admin_linked", email: "ana.admin@reguerta.app")
+        )
+
+        guard case .authorized(let member) = result else {
+            Issue.record("Expected linked authorization to succeed")
+            return
+        }
+        #expect(member.authUid == "uid_admin_linked")
+        #expect(member.roles.contains(.admin))
+    }
+
+    @Test
     func authShellRoutesSplashToWelcomeWhenNoSession() {
         let reduced = reduceAuthShell(
             state: AuthShellState(),
