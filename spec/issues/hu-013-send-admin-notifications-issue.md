@@ -16,7 +16,7 @@ As an admin I want to send notifications through the enabled MVP mode so that I 
 - Notifications remain immutable in this MVP iteration.
 - App clients persist and consult `notificationEvents` correctly for in-app usage.
 - App clients upsert `users/{userId}/devices/{deviceId}` and `users.lastDeviceId` after an authorized session, including the latest known `fcmToken` when available.
-- Real push delivery remains pending on backend dispatch work.
+- Real push delivery is dispatched from backend when a new `notificationEvents` document is created.
 
 ## Scope
 ### In Scope
@@ -33,7 +33,7 @@ As an admin I want to send notifications through the enabled MVP mode so that I 
 ## Implementation checklist
 - [x] Android
 - [x] iOS
-- [ ] Backend / Firestore push delivery
+- [x] Backend / Firestore push delivery
 - [x] Testing
 - [x] Documentation
 

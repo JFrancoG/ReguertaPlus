@@ -28,6 +28,8 @@ import com.reguerta.user.domain.news.NewsRepository
 import com.reguerta.user.domain.notifications.NotificationAudience
 import com.reguerta.user.domain.notifications.NotificationEvent
 import com.reguerta.user.domain.notifications.NotificationRepository
+import com.reguerta.user.domain.profiles.SharedProfile
+import com.reguerta.user.domain.profiles.SharedProfileRepository
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -59,6 +61,12 @@ data class NotificationDraft(
     val title: String = "",
     val body: String = "",
     val audience: NotificationAudience = NotificationAudience.ALL,
+)
+
+data class SharedProfileDraft(
+    val familyNames: String = "",
+    val photoUrl: String = "",
+    val about: String = "",
 )
 
 sealed interface SessionMode {
@@ -103,11 +111,16 @@ data class SessionUiState(
     val newsDraft: NewsDraft = NewsDraft(),
     val notificationsFeed: List<NotificationEvent> = emptyList(),
     val notificationDraft: NotificationDraft = NotificationDraft(),
+    val sharedProfiles: List<SharedProfile> = emptyList(),
+    val sharedProfileDraft: SharedProfileDraft = SharedProfileDraft(),
     val editingNewsId: String? = null,
     val isLoadingNews: Boolean = false,
     val isSavingNews: Boolean = false,
     val isLoadingNotifications: Boolean = false,
     val isSendingNotification: Boolean = false,
+    val isLoadingSharedProfiles: Boolean = false,
+    val isSavingSharedProfile: Boolean = false,
+    val isDeletingSharedProfile: Boolean = false,
 )
 
 sealed interface SessionUiEvent {
@@ -130,6 +143,7 @@ class SessionViewModel(
     private val repository: MemberRepository,
     private val newsRepository: NewsRepository,
     private val notificationRepository: NotificationRepository,
+    private val sharedProfileRepository: SharedProfileRepository,
     private val authSessionProvider: AuthSessionProvider,
     private val resolveAuthorizedSession: ResolveAuthorizedSessionUseCase,
     private val upsertMemberByAdmin: UpsertMemberByAdminUseCase,
@@ -330,6 +344,87 @@ class SessionViewModel(
         }
     }
 
+    fun onSharedProfileDraftChanged(draft: SharedProfileDraft) {
+        _uiState.update { it.copy(sharedProfileDraft = draft) }
+    }
+
+    fun refreshSharedProfiles() {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingSharedProfiles = true) }
+            val profiles = sharedProfileRepository.getAllSharedProfiles()
+            val ownProfile = profiles.firstOrNull { it.userId == mode.member.id }
+            _uiState.update {
+                val currentMode = it.mode as? SessionMode.Authorized
+                if (currentMode?.principal?.uid != mode.principal.uid) {
+                    it
+                } else {
+                    it.copy(
+                        sharedProfiles = profiles.filter { profile -> profile.hasVisibleContent },
+                        sharedProfileDraft = ownProfile?.toDraft() ?: SharedProfileDraft(),
+                        isLoadingSharedProfiles = false,
+                    )
+                }
+            }
+        }
+    }
+
+    fun saveSharedProfile(onSuccess: () -> Unit = {}) {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        val draft = _uiState.value.sharedProfileDraft.normalized()
+        if (!draft.hasVisibleContent) {
+            emitMessage(R.string.feedback_shared_profile_content_required)
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSavingSharedProfile = true) }
+            val saved = sharedProfileRepository.upsertSharedProfile(
+                SharedProfile(
+                    userId = mode.member.id,
+                    familyNames = draft.familyNames,
+                    photoUrl = draft.photoUrl.ifBlank { null },
+                    about = draft.about,
+                    updatedAtMillis = nowMillisProvider(),
+                ),
+            )
+            val profiles = sharedProfileRepository.getAllSharedProfiles()
+            _uiState.update {
+                it.copy(
+                    sharedProfiles = profiles.filter { profile -> profile.hasVisibleContent },
+                    sharedProfileDraft = saved.toDraft(),
+                    isSavingSharedProfile = false,
+                )
+            }
+            emitMessage(R.string.feedback_shared_profile_saved)
+            onSuccess()
+        }
+    }
+
+    fun deleteSharedProfile(onSuccess: () -> Unit = {}) {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isDeletingSharedProfile = true) }
+            val deleted = sharedProfileRepository.deleteSharedProfile(mode.member.id)
+            val profiles = sharedProfileRepository.getAllSharedProfiles()
+            _uiState.update {
+                it.copy(
+                    sharedProfiles = profiles.filter { profile -> profile.hasVisibleContent },
+                    sharedProfileDraft = SharedProfileDraft(),
+                    isDeletingSharedProfile = false,
+                )
+            }
+            emitMessage(
+                if (deleted) {
+                    R.string.feedback_shared_profile_deleted
+                } else {
+                    R.string.feedback_shared_profile_delete_failed
+                },
+            )
+            onSuccess()
+        }
+    }
+
     fun refreshNews() {
         val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
         viewModelScope.launch {
@@ -487,7 +582,7 @@ class SessionViewModel(
                     userIds = emptyList(),
                     segmentType = draft.audience.toSegmentType(),
                     targetRole = draft.audience.toTargetRole(),
-                    createdBy = mode.principal.uid,
+                    createdBy = mode.member.id,
                     sentAtMillis = nowMillisProvider(),
                     weekKey = null,
                 ),
@@ -801,11 +896,16 @@ class SessionViewModel(
                 newsDraft = NewsDraft(),
                 notificationsFeed = emptyList(),
                 notificationDraft = NotificationDraft(),
+                sharedProfiles = emptyList(),
+                sharedProfileDraft = SharedProfileDraft(),
                 editingNewsId = null,
                 isLoadingNews = false,
                 isSavingNews = false,
                 isLoadingNotifications = false,
                 isSendingNotification = false,
+                isLoadingSharedProfiles = false,
+                isSavingSharedProfile = false,
+                isDeletingSharedProfile = false,
             )
         }
     }
@@ -1014,6 +1114,8 @@ class SessionViewModel(
             is AccessResolutionResult.Authorized -> {
                 val members = repository.getAllMembers()
                 val allNotifications = notificationRepository.getAllNotifications()
+                val sharedProfiles = sharedProfileRepository.getAllSharedProfiles()
+                val ownSharedProfile = sharedProfiles.firstOrNull { it.userId == result.member.id }
                 _uiState.update {
                     it.copy(
                         mode = SessionMode.Authorized(
@@ -1030,6 +1132,7 @@ class SessionViewModel(
                         },
                         isLoadingNews = true,
                         isLoadingNotifications = true,
+                        isLoadingSharedProfiles = true,
                     )
                 }
                 val allNews = newsRepository.getAllNews()
@@ -1046,8 +1149,11 @@ class SessionViewModel(
                                 allNews.filter { article -> article.active }
                             },
                             notificationsFeed = allNotifications.filter { event -> event.isVisibleTo(result.member) },
+                            sharedProfiles = sharedProfiles.filter { profile -> profile.hasVisibleContent },
+                            sharedProfileDraft = ownSharedProfile?.toDraft() ?: SharedProfileDraft(),
                             isLoadingNews = false,
                             isLoadingNotifications = false,
+                            isLoadingSharedProfiles = false,
                         )
                     }
                 }
@@ -1076,11 +1182,16 @@ class SessionViewModel(
                         newsDraft = NewsDraft(),
                         notificationsFeed = emptyList(),
                         notificationDraft = NotificationDraft(),
+                        sharedProfiles = emptyList(),
+                        sharedProfileDraft = SharedProfileDraft(),
                         editingNewsId = null,
                         isLoadingNews = false,
                         isSavingNews = false,
                         isLoadingNotifications = false,
                         isSendingNotification = false,
+                        isLoadingSharedProfiles = false,
+                        isSavingSharedProfile = false,
+                        isDeletingSharedProfile = false,
                     )
                 }
             }
@@ -1172,6 +1283,23 @@ class SessionViewModel(
         return "member_${suffix.take(40)}"
     }
 }
+
+private fun SharedProfile.toDraft(): SharedProfileDraft =
+    SharedProfileDraft(
+        familyNames = familyNames,
+        photoUrl = photoUrl.orEmpty(),
+        about = about,
+    )
+
+private fun SharedProfileDraft.normalized(): SharedProfileDraft =
+    copy(
+        familyNames = familyNames.trim(),
+        photoUrl = photoUrl.trim(),
+        about = about.trim(),
+    )
+
+private val SharedProfileDraft.hasVisibleContent: Boolean
+    get() = familyNames.isNotBlank() || photoUrl.isNotBlank() || about.isNotBlank()
 
 private val EmailPatternRegex = "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$".toRegex(setOf(RegexOption.IGNORE_CASE))
 private const val MY_ORDER_FRESHNESS_TIMEOUT_MILLIS = 2_500L

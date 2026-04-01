@@ -69,7 +69,7 @@
     <string name="home_shell_action_products">Productos</string>
     <string name="home_shell_action_received_orders">Pedidos recibidos</string>
     <string name="home_shell_action_users">Usuarios</string>
-    <string name="home_shell_action_profile">Perfil</string>
+    <string name="home_shell_action_profile">Comunidad</string>
     <string name="home_shell_action_settings">Ajustes</string>
     <string name="home_shell_action_publish_news">Publicar noticia</string>
     <string name="home_shell_action_admin_broadcast">Mandar notificación</string>
@@ -167,6 +167,10 @@
     <string name="feedback_only_admin_send_notification">Solo los admins pueden mandar notificaciones</string>
     <string name="feedback_notification_title_body_required">El título y el cuerpo son obligatorios</string>
     <string name="feedback_notification_sent">Notificación enviada correctamente</string>
+    <string name="feedback_shared_profile_content_required">Añade al menos un dato al perfil compartido</string>
+    <string name="feedback_shared_profile_saved">Perfil compartido guardado correctamente</string>
+    <string name="feedback_shared_profile_deleted">Perfil compartido borrado correctamente</string>
+    <string name="feedback_shared_profile_delete_failed">No se pudo borrar el perfil compartido</string>
 
     <string name="role_value_member">miembro</string>
     <string name="role_value_producer">productor</string>
@@ -213,4 +217,26 @@
     <string name="notifications_target_producers">Productores</string>
     <string name="notifications_target_admins">Admins</string>
     <string name="notifications_target_users">Usuarios seleccionados</string>
+    <string name="profile_shared_title">Perfil compartido</string>
+    <string name="profile_shared_subtitle">Comparte un poco sobre tu familia para que el resto de la comunidad os conozca mejor.</string>
+    <string name="profile_shared_family_names_label">Nombres de la familia</string>
+    <string name="profile_shared_photo_url_label">URL de la foto (opcional)</string>
+    <string name="profile_shared_about_label">Sobre nosotros</string>
+    <string name="profile_shared_photo_preview">Vista previa de la foto del perfil compartido</string>
+    <string name="profile_shared_hub_title">Conozcámonos mejor</string>
+    <string name="profile_shared_hub_subtitle">Comparte lo que quieras con la comunidad para conocernos mejor.</string>
+    <string name="profile_shared_editor_title_create">Crear mi perfil compartido</string>
+    <string name="profile_shared_editor_title_edit">Editar mi perfil compartido</string>
+    <string name="profile_shared_editor_subtitle">Podrás actualizar o eliminar este perfil cuando quieras.</string>
+    <string name="profile_shared_action_view_my_profile">Ver mi perfil</string>
+    <string name="profile_shared_action_create">Crear mi perfil</string>
+    <string name="profile_shared_action_edit">Editar perfil</string>
+    <string name="profile_shared_action_save">Guardar perfil</string>
+    <string name="profile_shared_action_saving">Guardando perfil…</string>
+    <string name="profile_shared_action_delete">Borrar perfil compartido</string>
+    <string name="profile_shared_action_deleting">Borrando perfil…</string>
+    <string name="profile_shared_community_title">Perfiles compartidos</string>
+    <string name="profile_shared_community_subtitle">Pulsa en una familia para ver su perfil completo.</string>
+    <string name="profile_shared_loading">Cargando perfiles compartidos…</string>
+    <string name="profile_shared_empty">No hay ningún perfil aún.</string>
 </resources>

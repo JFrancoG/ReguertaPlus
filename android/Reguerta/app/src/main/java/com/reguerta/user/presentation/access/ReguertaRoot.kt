@@ -11,6 +11,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
@@ -30,6 +31,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -88,7 +91,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -112,6 +115,9 @@ import com.reguerta.user.data.news.InMemoryNewsRepository
 import com.reguerta.user.data.notifications.ChainedNotificationRepository
 import com.reguerta.user.data.notifications.FirestoreNotificationRepository
 import com.reguerta.user.data.notifications.InMemoryNotificationRepository
+import com.reguerta.user.data.profiles.ChainedSharedProfileRepository
+import com.reguerta.user.data.profiles.FirestoreSharedProfileRepository
+import com.reguerta.user.data.profiles.InMemorySharedProfileRepository
 import com.reguerta.user.data.startup.FirestoreStartupVersionPolicyRepository
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
@@ -123,6 +129,7 @@ import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
 import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.notifications.NotificationAudience
 import com.reguerta.user.domain.notifications.NotificationEvent
+import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.startup.ResolveStartupVersionGateUseCase
 import com.reguerta.user.domain.startup.StartupPlatform
 import com.reguerta.user.domain.startup.StartupVersionGateDecision
@@ -138,6 +145,7 @@ import com.reguerta.user.ui.theme.ReguertaAdaptive
 import com.reguerta.user.ui.theme.ReguertaThemeTokens
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import coil3.compose.AsyncImage
 import java.text.DateFormat
 
 private const val SplashAnimationDurationMillis = 1_500
@@ -165,6 +173,11 @@ fun rememberSessionViewModel(): SessionViewModel {
         val primary = FirestoreNotificationRepository(firestore = FirebaseFirestore.getInstance())
         ChainedNotificationRepository(primary = primary, fallback = fallback)
     }
+    val sharedProfileRepository = remember {
+        val fallback = InMemorySharedProfileRepository()
+        val primary = FirestoreSharedProfileRepository(firestore = FirebaseFirestore.getInstance())
+        ChainedSharedProfileRepository(primary = primary, fallback = fallback)
+    }
     val freshnessLocalRepository = remember(context) {
         DataStoreCriticalDataFreshnessLocalRepository(context.applicationContext)
     }
@@ -182,6 +195,7 @@ fun rememberSessionViewModel(): SessionViewModel {
             repository = repository,
             newsRepository = newsRepository,
             notificationRepository = notificationRepository,
+            sharedProfileRepository = sharedProfileRepository,
             authSessionProvider = FirebaseAuthSessionProvider(auth = FirebaseAuth.getInstance()),
             resolveAuthorizedSession = ResolveAuthorizedSessionUseCase(memberRepository = repository),
             upsertMemberByAdmin = UpsertMemberByAdminUseCase(memberRepository = repository),
@@ -356,14 +370,20 @@ fun ReguertaRoot(
                     newsDraft = state.newsDraft,
                     notificationsFeed = state.notificationsFeed,
                     notificationDraft = state.notificationDraft,
+                    sharedProfiles = state.sharedProfiles,
+                    sharedProfileDraft = state.sharedProfileDraft,
                     editingNewsId = state.editingNewsId,
                     isLoadingNews = state.isLoadingNews,
                     isSavingNews = state.isSavingNews,
                     isLoadingNotifications = state.isLoadingNotifications,
                     isSendingNotification = state.isSendingNotification,
+                    isLoadingSharedProfiles = state.isLoadingSharedProfiles,
+                    isSavingSharedProfile = state.isSavingSharedProfile,
+                    isDeletingSharedProfile = state.isDeletingSharedProfile,
                     onDraftChanged = viewModel::onMemberDraftChanged,
                     onNewsDraftChanged = viewModel::onNewsDraftChanged,
                     onNotificationDraftChanged = viewModel::onNotificationDraftChanged,
+                    onSharedProfileDraftChanged = viewModel::onSharedProfileDraftChanged,
                     onToggleAdmin = viewModel::toggleAdmin,
                     onToggleActive = viewModel::toggleActive,
                     onCreateMember = viewModel::createAuthorizedMember,
@@ -375,8 +395,11 @@ fun ReguertaRoot(
                     onDeleteNews = viewModel::deleteNews,
                     onRefreshNews = viewModel::refreshNews,
                     onRefreshNotifications = viewModel::refreshNotifications,
+                    onRefreshSharedProfiles = viewModel::refreshSharedProfiles,
                     onClearNewsEditor = viewModel::clearNewsEditor,
                     onClearNotificationEditor = viewModel::clearNotificationEditor,
+                    onSaveSharedProfile = viewModel::saveSharedProfile,
+                    onDeleteSharedProfile = viewModel::deleteSharedProfile,
                     onRetryMyOrderFreshness = viewModel::refreshMyOrderFreshness,
                     onSignOut = signOutAndRoute,
                     installedVersion = installedVersion,
@@ -976,14 +999,20 @@ private fun HomeRoute(
     newsDraft: NewsDraft,
     notificationsFeed: List<NotificationEvent>,
     notificationDraft: NotificationDraft,
+    sharedProfiles: List<SharedProfile>,
+    sharedProfileDraft: SharedProfileDraft,
     editingNewsId: String?,
     isLoadingNews: Boolean,
     isSavingNews: Boolean,
     isLoadingNotifications: Boolean,
     isSendingNotification: Boolean,
+    isLoadingSharedProfiles: Boolean,
+    isSavingSharedProfile: Boolean,
+    isDeletingSharedProfile: Boolean,
     onDraftChanged: (MemberDraft) -> Unit,
     onNewsDraftChanged: (NewsDraft) -> Unit,
     onNotificationDraftChanged: (NotificationDraft) -> Unit,
+    onSharedProfileDraftChanged: (SharedProfileDraft) -> Unit,
     onToggleAdmin: (String) -> Unit,
     onToggleActive: (String) -> Unit,
     onCreateMember: () -> Unit,
@@ -995,8 +1024,11 @@ private fun HomeRoute(
     onDeleteNews: (String, () -> Unit) -> Unit,
     onRefreshNews: () -> Unit,
     onRefreshNotifications: () -> Unit,
+    onRefreshSharedProfiles: () -> Unit,
     onClearNewsEditor: () -> Unit,
     onClearNotificationEditor: () -> Unit,
+    onSaveSharedProfile: (onSuccess: () -> Unit) -> Unit,
+    onDeleteSharedProfile: (onSuccess: () -> Unit) -> Unit,
     onRetryMyOrderFreshness: () -> Unit,
     onSignOut: () -> Unit,
     installedVersion: String,
@@ -1033,6 +1065,8 @@ private fun HomeRoute(
                             onRefreshNews()
                         } else if (destination == HomeDestination.NOTIFICATIONS) {
                             onRefreshNotifications()
+                        } else if (destination == HomeDestination.PROFILE) {
+                            onRefreshSharedProfiles()
                         } else if (destination == HomeDestination.PUBLISH_NEWS) {
                             onStartCreatingNews()
                         } else if (destination == HomeDestination.ADMIN_BROADCAST) {
@@ -1178,6 +1212,24 @@ private fun HomeRoute(
                         onSendNotification {
                             currentDestination = HomeDestination.NOTIFICATIONS
                         }
+                    },
+                )
+
+                HomeDestination.PROFILE -> SharedProfileRoute(
+                    currentMember = member,
+                    members = (mode as? SessionMode.Authorized)?.members.orEmpty(),
+                    profiles = sharedProfiles,
+                    draft = sharedProfileDraft,
+                    isLoading = isLoadingSharedProfiles,
+                    isSaving = isSavingSharedProfile,
+                    isDeleting = isDeletingSharedProfile,
+                    onDraftChanged = onSharedProfileDraftChanged,
+                    onRefresh = onRefreshSharedProfiles,
+                    onSave = {
+                        onSaveSharedProfile { currentDestination = HomeDestination.PROFILE }
+                    },
+                    onDelete = {
+                        onDeleteSharedProfile { currentDestination = HomeDestination.PROFILE }
                     },
                 )
 
@@ -1362,7 +1414,7 @@ private fun HomeDrawerContent(
                 onClick = { onNavigate(HomeDestination.NOTIFICATIONS) },
             )
             HomeDrawerItem(
-                icon = Icons.Filled.Person,
+                icon = Icons.Filled.Group,
                 label = stringResource(R.string.home_shell_action_profile),
                 selected = currentDestination == HomeDestination.PROFILE,
                 onClick = { onNavigate(HomeDestination.PROFILE) },
@@ -1983,6 +2035,358 @@ private fun HomePlaceholderRoute(
                 onClick = onBackHome,
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
+    }
+}
+
+@Composable
+private fun SharedProfileRoute(
+    currentMember: Member?,
+    members: List<Member>,
+    profiles: List<SharedProfile>,
+    draft: SharedProfileDraft,
+    isLoading: Boolean,
+    isSaving: Boolean,
+    isDeleting: Boolean,
+    onDraftChanged: (SharedProfileDraft) -> Unit,
+    onRefresh: () -> Unit,
+    onSave: (onSuccess: () -> Unit) -> Unit,
+    onDelete: () -> Unit,
+) {
+    val member = currentMember ?: return
+    var selectedProfileUserId by rememberSaveable { mutableStateOf<String?>(null) }
+    var isEditingOwnProfile by rememberSaveable { mutableStateOf(false) }
+    val sortedProfiles = profiles.sortedBy {
+        members.firstOrNull { memberItem -> memberItem.id == it.userId }?.displayName ?: it.userId
+    }
+    val selectedProfile = sortedProfiles.firstOrNull { it.userId == selectedProfileUserId }
+    val isOwnSelectedProfile = selectedProfile?.userId == member.id
+
+    when {
+        isEditingOwnProfile -> {
+            Card {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        text = if (profiles.any { it.userId == member.id }) {
+                            stringResource(R.string.profile_shared_editor_title_edit)
+                        } else {
+                            stringResource(R.string.profile_shared_editor_title_create)
+                        },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = stringResource(R.string.profile_shared_editor_subtitle),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+
+                    OutlinedTextField(
+                        value = draft.familyNames,
+                        onValueChange = { onDraftChanged(draft.copy(familyNames = it)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.profile_shared_family_names_label)) },
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        value = draft.photoUrl,
+                        onValueChange = { onDraftChanged(draft.copy(photoUrl = it)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.profile_shared_photo_url_label)) },
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        value = draft.about,
+                        onValueChange = { onDraftChanged(draft.copy(about = it)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.profile_shared_about_label)) },
+                        minLines = 5,
+                    )
+
+                    ReguertaFullButton(
+                        label = stringResource(
+                            if (isSaving) {
+                                R.string.profile_shared_action_saving
+                            } else if (profiles.any { it.userId == member.id }) {
+                                R.string.profile_shared_action_save
+                            } else {
+                                R.string.profile_shared_action_create
+                            },
+                        ),
+                        onClick = {
+                            onSave {
+                                isEditingOwnProfile = false
+                                selectedProfileUserId = null
+                            }
+                        },
+                        enabled = !isSaving,
+                        loading = isSaving,
+                        fullWidth = true,
+                    )
+                    ReguertaFlatButton(
+                        label = stringResource(R.string.common_action_back),
+                        onClick = { isEditingOwnProfile = false },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        }
+
+        selectedProfile != null -> {
+            Card {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    SharedProfileCard(
+                        profile = selectedProfile,
+                        member = members.firstOrNull { it.id == selectedProfile.userId },
+                    )
+
+                    if (isOwnSelectedProfile) {
+                        ReguertaFullButton(
+                            label = stringResource(R.string.profile_shared_action_edit),
+                            onClick = { isEditingOwnProfile = true },
+                            fullWidth = true,
+                        )
+                        ReguertaFlatButton(
+                            label = stringResource(
+                                if (isDeleting) {
+                                    R.string.profile_shared_action_deleting
+                                } else {
+                                    R.string.profile_shared_action_delete
+                                },
+                            ),
+                            onClick = {
+                                onDelete()
+                                selectedProfileUserId = null
+                            },
+                            enabled = !isDeleting,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+
+                    ReguertaFlatButton(
+                        label = stringResource(R.string.common_action_back),
+                        onClick = { selectedProfileUserId = null },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        }
+
+        else -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Card {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.profile_shared_hub_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = stringResource(R.string.profile_shared_hub_subtitle),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+
+                        ReguertaFullButton(
+                            label = stringResource(
+                                if (profiles.any { it.userId == member.id }) {
+                                    R.string.profile_shared_action_view_my_profile
+                                } else {
+                                    R.string.profile_shared_action_create
+                                },
+                            ),
+                            onClick = {
+                                if (profiles.any { it.userId == member.id }) {
+                                    selectedProfileUserId = member.id
+                                } else {
+                                    isEditingOwnProfile = true
+                                }
+                            },
+                            fullWidth = true,
+                        )
+                    }
+                }
+
+                Card {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.profile_shared_community_title),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Text(
+                                    text = stringResource(R.string.profile_shared_community_subtitle),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                            TextButton(onClick = onRefresh) {
+                                Text(stringResource(R.string.notifications_refresh_action))
+                            }
+                        }
+
+                        if (isLoading) {
+                            Text(
+                                text = stringResource(R.string.profile_shared_loading),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        } else if (sortedProfiles.isEmpty()) {
+                            Text(
+                                text = stringResource(R.string.profile_shared_empty),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        } else {
+                            sortedProfiles.forEach { profile ->
+                                SharedProfileListRow(
+                                    profile = profile,
+                                    member = members.firstOrNull { it.id == profile.userId },
+                                    onClick = { selectedProfileUserId = profile.userId },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SharedProfileListRow(
+    profile: SharedProfile,
+    member: Member?,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f))
+            .padding(12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = member?.displayName ?: profile.userId,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            if (profile.familyNames.isNotBlank()) {
+                Text(
+                    text = profile.familyNames,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = null,
+            modifier = Modifier.graphicsLayer { rotationZ = 180f },
+        )
+    }
+}
+
+@Composable
+private fun SharedProfileCard(
+    profile: SharedProfile,
+    member: Member?,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+            .padding(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        if (!profile.photoUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = profile.photoUrl,
+                contentDescription = member?.displayName ?: profile.userId,
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Person,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = member?.displayName ?: profile.userId,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (profile.familyNames.isNotBlank()) {
+                Text(
+                    text = profile.familyNames,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+            if (profile.about.isNotBlank()) {
+                Text(
+                    text = profile.about,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
         }
     }
 }

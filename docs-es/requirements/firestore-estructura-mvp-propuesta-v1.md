@@ -258,7 +258,7 @@ Campos:
 - `targetPayload` (map)
 - `sentAt` (timestamp)
 - `createdBy` (string): `system` | userId
-- `weekKey` (string|null)
+- `weekKey` (string, opcional solo cuando aplique a una semana concreta)
 
 Contrato de `targetPayload`:
 - `all`: vacío o `null`
