@@ -2184,8 +2184,7 @@ private fun SharedProfileRoute(
         else -> {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
+                    .fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Card {
