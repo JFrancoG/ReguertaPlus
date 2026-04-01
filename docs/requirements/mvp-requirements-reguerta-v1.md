@@ -134,7 +134,7 @@ Governance note: final policy for post-publication absence replacement remains a
 - RF-NOTI-02 Push notifications are mandatory.
 - RF-NOTI-03 Automatic reminders for members with pending commitment orders on Sunday 20:00, 22:00, 23:00.
 - RF-NOTI-04 Admin can use all notification delivery modes enabled in MVP.
-- RF-NOTI-05 System must store user devices in `users/{userId}/devices/{deviceId}` and keep `users.lastDeviceId` updated with the latest active device.
+- RF-NOTI-05 System must store user devices in `users/{userId}/devices/{deviceId}`, persist the latest known `fcmToken` per device when available, and keep `users.lastDeviceId` updated with the latest active device.
 
 ### 3.9 Reviewer account (Apple/TestFlight)
 

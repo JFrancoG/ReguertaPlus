@@ -2488,6 +2488,27 @@
         "es" : { "stringUnit" : { "state" : "translated", "value" : "Noticia actualizada correctamente" } }
       }
     },
+    "feedback.notification_sent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Notification sent successfully" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Notificación enviada correctamente" } }
+      }
+    },
+    "feedback.notification_title_body_required" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Title and body are required" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "El título y el cuerpo son obligatorios" } }
+      }
+    },
+    "feedback.only_admin_send_notification" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Only admins can send notifications" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Solo los admins pueden mandar notificaciones" } }
+      }
+    },
     "feedback.only_admin_delete_news" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3020,6 +3041,132 @@
             "value" : "Ver todas las noticias"
           }
         }
+      }
+    },
+    "notifications.create.action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Send notification" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Mandar notificación" } }
+      }
+    },
+    "notifications.editor.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Compose a push notification and choose who should receive it." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Redacta una push notification y elige quién debe recibirla." } }
+      }
+    },
+    "notifications.editor.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Send extraordinary notification" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Mandar notificación extraordinaria" } }
+      }
+    },
+    "notifications.empty_state" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "There are no notifications to show yet." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Todavía no hay notificaciones para mostrar." } }
+      }
+    },
+    "notifications.field.audience" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Audience" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Destinatarios" } }
+      }
+    },
+    "notifications.field.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Body" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Cuerpo" } }
+      }
+    },
+    "notifications.field.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Title" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Título" } }
+      }
+    },
+    "notifications.list.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Read the latest notifications in reverse publication order." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Consulta las últimas notificaciones en orden inverso de envío." } }
+      }
+    },
+    "notifications.loading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Loading notifications…" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Cargando notificaciones…" } }
+      }
+    },
+    "notifications.meta_format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Sent on %@" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Enviada el %@" } }
+      }
+    },
+    "notifications.refresh.action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Refresh notifications" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Actualizar notificaciones" } }
+      }
+    },
+    "notifications.send.action.send" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Send notification" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Mandar notificación" } }
+      }
+    },
+    "notifications.send.action.sending" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Sending…" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Enviando…" } }
+      }
+    },
+    "notifications.target.admins" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Admins" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Admins" } }
+      }
+    },
+    "notifications.target.all" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "All members" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Todos los socios" } }
+      }
+    },
+    "notifications.target.members" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Members" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Socios" } }
+      }
+    },
+    "notifications.target.producers" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Producers" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Productores" } }
+      }
+    },
+    "notifications.target.users" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Selected users" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Usuarios seleccionados" } }
       }
     },
     "welcome.title.prefix" : {

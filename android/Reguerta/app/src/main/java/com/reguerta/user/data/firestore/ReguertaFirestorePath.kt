@@ -9,6 +9,7 @@ enum class ReguertaFirestoreCollection(val pathComponent: String) {
     USERS("plus-collections/users"),
     CONFIG("plus-collections/config"),
     NEWS("plus-collections/news"),
+    NOTIFICATION_EVENTS("plus-collections/notificationEvents"),
 }
 
 enum class ReguertaFirestoreDocument(val wireValue: String) {

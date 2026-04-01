@@ -164,6 +164,9 @@
     <string name="feedback_news_updated">News updated successfully</string>
     <string name="feedback_news_deleted">News deleted successfully</string>
     <string name="feedback_news_delete_failed">Unable to delete the selected news</string>
+    <string name="feedback_only_admin_send_notification">Only admins can send notifications</string>
+    <string name="feedback_notification_title_body_required">Title and body are required</string>
+    <string name="feedback_notification_sent">Notification sent successfully</string>
 
     <string name="role_value_member">member</string>
     <string name="role_value_producer">producer</string>
@@ -192,4 +195,22 @@
     <string name="news_save_action_create">Publish news</string>
     <string name="news_save_action_update">Save changes</string>
     <string name="news_save_action_saving">Saving…</string>
+    <string name="notifications_empty_state">There are no notifications to show yet.</string>
+    <string name="notifications_list_subtitle">Read the latest notifications in reverse publication order.</string>
+    <string name="notifications_refresh_action">Refresh notifications</string>
+    <string name="notifications_loading">Loading notifications…</string>
+    <string name="notifications_meta_format">Sent on %1$s</string>
+    <string name="notifications_create_action">Send notification</string>
+    <string name="notifications_editor_title">Send extraordinary notification</string>
+    <string name="notifications_editor_subtitle">Compose a push notification and choose who should receive it.</string>
+    <string name="notifications_field_title">Title</string>
+    <string name="notifications_field_body">Body</string>
+    <string name="notifications_field_audience">Audience</string>
+    <string name="notifications_send_action_send">Send notification</string>
+    <string name="notifications_send_action_sending">Sending…</string>
+    <string name="notifications_target_all">All members</string>
+    <string name="notifications_target_members">Members</string>
+    <string name="notifications_target_producers">Producers</string>
+    <string name="notifications_target_admins">Admins</string>
+    <string name="notifications_target_users">Selected users</string>
 </resources>

@@ -241,6 +241,31 @@ struct ReguertaTests {
     }
 
     @Test
+    func inMemoryNotificationRepositoryReturnsNewestFirst() async {
+        let repository = InMemoryNotificationRepository()
+
+        _ = await repository.send(
+            event: NotificationEvent(
+                id: "notification_002",
+                title: "Aviso",
+                body: "Texto",
+                type: "admin_broadcast",
+                target: "all",
+                userIds: [],
+                segmentType: nil,
+                targetRole: nil,
+                createdBy: "adminUid",
+                sentAtMillis: 4_000_000_000_000,
+                weekKey: nil
+            )
+        )
+
+        let notifications = await repository.allNotifications()
+
+        #expect(notifications.first?.id == "notification_002")
+    }
+
+    @Test
     func firebaseAuthErrorMappingCoversKnownCodes() {
         let invalidEmail = NSError(domain: AuthErrorDomain, code: AuthErrorCode.invalidEmail.rawValue)
         let wrongPassword = NSError(domain: AuthErrorDomain, code: AuthErrorCode.wrongPassword.rawValue)

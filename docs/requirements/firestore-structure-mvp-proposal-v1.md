@@ -51,7 +51,7 @@ Legacy-rich `orderlines` fields are already present and should be preserved unti
 ## 3. MVP design principles
 
 - Keep `users`, `products`, `orders`, `orderlines` as core.
-- Reuse existing per-user device registry for push delivery (`users/{userId}/devices`).
+- Reuse existing per-user device registry for push delivery (`users/{userId}/devices`), including the latest known `fcmToken`.
 - Support pre-authorized onboarding by email with first-login UID linking.
 - Formalize startup remote version policy and freshness-driven selective sync.
 - Use logical delete for historical entities.
@@ -98,6 +98,8 @@ Shift/source semantics:
 - `shifts.source` uses `google_sheets` when coming from Sheets integration/sync.
 
 Notification event contract:
+- `title`: string
+- `body`: string
 - `type`: `order_reminder` | `order_auto_generated` | `shift_swap_requested` | `shift_swap_accepted` | `shift_swap_applied` | `shift_updated` | `news_published` | `admin_broadcast`
 - `target`: `all` | `users` | `segment`
 - `targetPayload`:
@@ -139,7 +141,7 @@ Delivery calendar scope:
 ## 7. Security model summary
 
 - `users`: admin writes for lifecycle/roles; first authorized login can link `authUid` under controlled rules.
-- `users/{userId}/devices`: authenticated user self-write for own device metadata; admin read/support access.
+- `users/{userId}/devices`: authenticated user self-write for own device metadata and token refresh; admin read/support access.
 - `config/global`: authenticated read; controlled write (admin/system) for version/sync policy.
 - `sharedProfiles`: authenticated member read; owner write.
 - `products`: producer-owner or admin write; `vendorId` immutable.

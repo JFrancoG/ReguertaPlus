@@ -102,11 +102,16 @@ import com.reguerta.user.data.access.ChainedMemberRepository
 import com.reguerta.user.data.access.FirebaseAuthSessionProvider
 import com.reguerta.user.data.access.FirestoreMemberRepository
 import com.reguerta.user.data.access.InMemoryMemberRepository
+import com.reguerta.user.data.devices.FirebaseAuthorizedDeviceRegistrar
+import com.reguerta.user.data.devices.FirestoreDeviceRegistrationRepository
 import com.reguerta.user.data.freshness.DataStoreCriticalDataFreshnessLocalRepository
 import com.reguerta.user.data.freshness.FirestoreCriticalDataFreshnessRemoteRepository
 import com.reguerta.user.data.news.ChainedNewsRepository
 import com.reguerta.user.data.news.FirestoreNewsRepository
 import com.reguerta.user.data.news.InMemoryNewsRepository
+import com.reguerta.user.data.notifications.ChainedNotificationRepository
+import com.reguerta.user.data.notifications.FirestoreNotificationRepository
+import com.reguerta.user.data.notifications.InMemoryNotificationRepository
 import com.reguerta.user.data.startup.FirestoreStartupVersionPolicyRepository
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
@@ -116,6 +121,8 @@ import com.reguerta.user.domain.access.SessionRefreshTrigger
 import com.reguerta.user.domain.access.UnauthorizedReason
 import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
 import com.reguerta.user.domain.news.NewsArticle
+import com.reguerta.user.domain.notifications.NotificationAudience
+import com.reguerta.user.domain.notifications.NotificationEvent
 import com.reguerta.user.domain.startup.ResolveStartupVersionGateUseCase
 import com.reguerta.user.domain.startup.StartupPlatform
 import com.reguerta.user.domain.startup.StartupVersionGateDecision
@@ -131,6 +138,7 @@ import com.reguerta.user.ui.theme.ReguertaAdaptive
 import com.reguerta.user.ui.theme.ReguertaThemeTokens
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import java.text.DateFormat
 
 private const val SplashAnimationDurationMillis = 1_500
 private const val StartupPolicyFetchTimeoutMillis = 2_500L
@@ -152,16 +160,32 @@ fun rememberSessionViewModel(): SessionViewModel {
         val primary = FirestoreNewsRepository(firestore = FirebaseFirestore.getInstance())
         ChainedNewsRepository(primary = primary, fallback = fallback)
     }
+    val notificationRepository = remember {
+        val fallback = InMemoryNotificationRepository()
+        val primary = FirestoreNotificationRepository(firestore = FirebaseFirestore.getInstance())
+        ChainedNotificationRepository(primary = primary, fallback = fallback)
+    }
     val freshnessLocalRepository = remember(context) {
         DataStoreCriticalDataFreshnessLocalRepository(context.applicationContext)
+    }
+    val deviceRegistrationRepository = remember {
+        FirestoreDeviceRegistrationRepository(firestore = FirebaseFirestore.getInstance())
+    }
+    val authorizedDeviceRegistrar = remember(context.applicationContext) {
+        FirebaseAuthorizedDeviceRegistrar(
+            context = context.applicationContext,
+            repository = deviceRegistrationRepository,
+        )
     }
     return remember {
         SessionViewModel(
             repository = repository,
             newsRepository = newsRepository,
+            notificationRepository = notificationRepository,
             authSessionProvider = FirebaseAuthSessionProvider(auth = FirebaseAuth.getInstance()),
             resolveAuthorizedSession = ResolveAuthorizedSessionUseCase(memberRepository = repository),
             upsertMemberByAdmin = UpsertMemberByAdminUseCase(memberRepository = repository),
+            authorizedDeviceRegistrar = authorizedDeviceRegistrar,
             resolveCriticalDataFreshness = ResolveCriticalDataFreshnessUseCase(
                 remoteRepository = FirestoreCriticalDataFreshnessRemoteRepository(
                     firestore = FirebaseFirestore.getInstance(),
@@ -330,20 +354,29 @@ fun ReguertaRoot(
                     latestNews = state.latestNews,
                     newsFeed = state.newsFeed,
                     newsDraft = state.newsDraft,
+                    notificationsFeed = state.notificationsFeed,
+                    notificationDraft = state.notificationDraft,
                     editingNewsId = state.editingNewsId,
                     isLoadingNews = state.isLoadingNews,
                     isSavingNews = state.isSavingNews,
+                    isLoadingNotifications = state.isLoadingNotifications,
+                    isSendingNotification = state.isSendingNotification,
                     onDraftChanged = viewModel::onMemberDraftChanged,
                     onNewsDraftChanged = viewModel::onNewsDraftChanged,
+                    onNotificationDraftChanged = viewModel::onNotificationDraftChanged,
                     onToggleAdmin = viewModel::toggleAdmin,
                     onToggleActive = viewModel::toggleActive,
                     onCreateMember = viewModel::createAuthorizedMember,
                     onStartCreatingNews = viewModel::startCreatingNews,
+                    onStartCreatingNotification = viewModel::startCreatingNotification,
                     onStartEditingNews = viewModel::startEditingNews,
                     onSaveNews = viewModel::saveNews,
+                    onSendNotification = viewModel::sendNotification,
                     onDeleteNews = viewModel::deleteNews,
                     onRefreshNews = viewModel::refreshNews,
+                    onRefreshNotifications = viewModel::refreshNotifications,
                     onClearNewsEditor = viewModel::clearNewsEditor,
+                    onClearNotificationEditor = viewModel::clearNotificationEditor,
                     onRetryMyOrderFreshness = viewModel::refreshMyOrderFreshness,
                     onSignOut = signOutAndRoute,
                     installedVersion = installedVersion,
@@ -941,20 +974,29 @@ private fun HomeRoute(
     latestNews: List<NewsArticle>,
     newsFeed: List<NewsArticle>,
     newsDraft: NewsDraft,
+    notificationsFeed: List<NotificationEvent>,
+    notificationDraft: NotificationDraft,
     editingNewsId: String?,
     isLoadingNews: Boolean,
     isSavingNews: Boolean,
+    isLoadingNotifications: Boolean,
+    isSendingNotification: Boolean,
     onDraftChanged: (MemberDraft) -> Unit,
     onNewsDraftChanged: (NewsDraft) -> Unit,
+    onNotificationDraftChanged: (NotificationDraft) -> Unit,
     onToggleAdmin: (String) -> Unit,
     onToggleActive: (String) -> Unit,
     onCreateMember: () -> Unit,
     onStartCreatingNews: () -> Unit,
+    onStartCreatingNotification: () -> Unit,
     onStartEditingNews: (String) -> Unit,
     onSaveNews: (onSuccess: () -> Unit) -> Unit,
+    onSendNotification: (onSuccess: () -> Unit) -> Unit,
     onDeleteNews: (String, () -> Unit) -> Unit,
     onRefreshNews: () -> Unit,
+    onRefreshNotifications: () -> Unit,
     onClearNewsEditor: () -> Unit,
+    onClearNotificationEditor: () -> Unit,
     onRetryMyOrderFreshness: () -> Unit,
     onSignOut: () -> Unit,
     installedVersion: String,
@@ -989,8 +1031,12 @@ private fun HomeRoute(
                         currentDestination = destination
                         if (destination == HomeDestination.NEWS) {
                             onRefreshNews()
+                        } else if (destination == HomeDestination.NOTIFICATIONS) {
+                            onRefreshNotifications()
                         } else if (destination == HomeDestination.PUBLISH_NEWS) {
                             onStartCreatingNews()
+                        } else if (destination == HomeDestination.ADMIN_BROADCAST) {
+                            onStartCreatingNotification()
                         }
                         scope.launch { drawerState.close() }
                     },
@@ -1022,15 +1068,21 @@ private fun HomeRoute(
                 onBack = {
                     if (currentDestination == HomeDestination.PUBLISH_NEWS) {
                         onClearNewsEditor()
+                    } else if (currentDestination == HomeDestination.ADMIN_BROADCAST) {
+                        onClearNotificationEditor()
                     }
-                    currentDestination = if (currentDestination == HomeDestination.PUBLISH_NEWS) {
-                        HomeDestination.NEWS
-                    } else {
-                        HomeDestination.DASHBOARD
+                    currentDestination = when (currentDestination) {
+                        HomeDestination.PUBLISH_NEWS -> HomeDestination.NEWS
+                        HomeDestination.ADMIN_BROADCAST -> HomeDestination.NOTIFICATIONS
+                        else -> HomeDestination.DASHBOARD
                     }
                 },
                 onOpenMenu = {
                     scope.launch { drawerState.open() }
+                },
+                onOpenNotifications = {
+                    currentDestination = HomeDestination.NOTIFICATIONS
+                    onRefreshNotifications()
                 },
             )
             when (currentDestination) {
@@ -1103,6 +1155,32 @@ private fun HomeRoute(
                     },
                 )
 
+                HomeDestination.NOTIFICATIONS -> NotificationsFeedRoute(
+                    notifications = notificationsFeed,
+                    isLoading = isLoadingNotifications,
+                    isAdmin = member?.isAdmin == true,
+                    onRefresh = onRefreshNotifications,
+                    onCreateNotification = {
+                        onStartCreatingNotification()
+                        currentDestination = HomeDestination.ADMIN_BROADCAST
+                    },
+                )
+
+                HomeDestination.ADMIN_BROADCAST -> NotificationEditorRoute(
+                    draft = notificationDraft,
+                    isSending = isSendingNotification,
+                    onDraftChanged = onNotificationDraftChanged,
+                    onCancel = {
+                        onClearNotificationEditor()
+                        currentDestination = HomeDestination.NOTIFICATIONS
+                    },
+                    onSend = {
+                        onSendNotification {
+                            currentDestination = HomeDestination.NOTIFICATIONS
+                        }
+                    },
+                )
+
                 else -> HomePlaceholderRoute(
                     title = stringResource(currentDestination.titleRes()),
                     subtitle = stringResource(currentDestination.subtitleRes()),
@@ -1143,6 +1221,7 @@ private fun HomeShellTopBar(
     canNavigateBack: Boolean,
     onBack: () -> Unit,
     onOpenMenu: () -> Unit,
+    onOpenNotifications: () -> Unit,
 ) {
     Card {
         Row(
@@ -1169,7 +1248,7 @@ private fun HomeShellTopBar(
                 fontWeight = FontWeight.SemiBold,
             )
 
-            IconButton(onClick = {}) {
+            IconButton(onClick = onOpenNotifications) {
                 Icon(
                     imageVector = Icons.Filled.Notifications,
                     contentDescription = stringResource(R.string.home_shell_notifications),
@@ -1699,6 +1778,185 @@ private fun NewsEditorRoute(
 }
 
 @Composable
+private fun NotificationsFeedRoute(
+    notifications: List<NotificationEvent>,
+    isLoading: Boolean,
+    isAdmin: Boolean,
+    onRefresh: () -> Unit,
+    onCreateNotification: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Card {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.home_shell_notifications),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = stringResource(R.string.notifications_list_subtitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                if (isAdmin) {
+                    ReguertaFullButton(
+                        label = stringResource(R.string.notifications_create_action),
+                        onClick = onCreateNotification,
+                        fullWidth = true,
+                    )
+                }
+                ReguertaFlatButton(
+                    label = stringResource(R.string.notifications_refresh_action),
+                    onClick = onRefresh,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+
+        if (isLoading) {
+            Card {
+                Text(
+                    text = stringResource(R.string.notifications_loading),
+                    modifier = Modifier.padding(16.dp),
+                )
+            }
+        } else if (notifications.isEmpty()) {
+            Card {
+                Text(
+                    text = stringResource(R.string.notifications_empty_state),
+                    modifier = Modifier.padding(16.dp),
+                )
+            }
+        } else {
+            notifications.forEach { event ->
+                Card {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = event.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = stringResource(
+                                R.string.notifications_meta_format,
+                                event.sentAtMillis.toLocalizedDateTime(),
+                            ),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            text = event.body,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            text = stringResource(event.audienceLabelRes()),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NotificationEditorRoute(
+    draft: NotificationDraft,
+    isSending: Boolean,
+    onDraftChanged: (NotificationDraft) -> Unit,
+    onCancel: () -> Unit,
+    onSend: () -> Unit,
+) {
+    val focusManager = LocalFocusManager.current
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .imePadding()
+                .navigationBarsPadding()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.notifications_editor_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = stringResource(R.string.notifications_editor_subtitle),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            OutlinedTextField(
+                value = draft.title,
+                onValueChange = { onDraftChanged(draft.copy(title = it)) },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.notifications_field_title)) },
+                enabled = !isSending,
+            )
+            OutlinedTextField(
+                value = draft.body,
+                onValueChange = { onDraftChanged(draft.copy(body = it)) },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 5,
+                label = { Text(stringResource(R.string.notifications_field_body)) },
+                enabled = !isSending,
+            )
+            Text(
+                text = stringResource(R.string.notifications_field_audience),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            NotificationAudience.values().forEach { audience ->
+                ReguertaFlatButton(
+                    label = buildString {
+                        if (draft.audience == audience) append("• ")
+                        append(stringResource(audience.labelRes()))
+                    },
+                    onClick = { onDraftChanged(draft.copy(audience = audience)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isSending,
+                )
+            }
+            ReguertaFullButton(
+                label = stringResource(
+                    if (isSending) {
+                        R.string.notifications_send_action_sending
+                    } else {
+                        R.string.notifications_send_action_send
+                    },
+                ),
+                onClick = {
+                    focusManager.clearFocus(force = true)
+                    onSend()
+                },
+                enabled = !isSending,
+                fullWidth = true,
+            )
+            ReguertaFlatButton(
+                label = stringResource(R.string.common_action_back),
+                onClick = {
+                    focusManager.clearFocus(force = true)
+                    onCancel()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isSending,
+            )
+            Spacer(modifier = Modifier.height(48.dp))
+        }
+    }
+}
+
+@Composable
 private fun HomePlaceholderRoute(
     title: String,
     subtitle: String,
@@ -1751,14 +2009,14 @@ private fun HomeDestination.subtitleRes(): Int = when (this) {
     HomeDestination.MY_ORDERS -> R.string.home_placeholder_my_orders
     HomeDestination.SHIFTS -> R.string.home_placeholder_shifts
     HomeDestination.NEWS -> R.string.news_list_subtitle
-    HomeDestination.NOTIFICATIONS -> R.string.home_placeholder_notifications
+    HomeDestination.NOTIFICATIONS -> R.string.notifications_list_subtitle
     HomeDestination.PROFILE -> R.string.home_placeholder_profile
     HomeDestination.SETTINGS -> R.string.home_placeholder_settings
     HomeDestination.PRODUCTS -> R.string.home_placeholder_products
     HomeDestination.RECEIVED_ORDERS -> R.string.home_placeholder_received_orders
     HomeDestination.USERS -> R.string.home_placeholder_users
     HomeDestination.PUBLISH_NEWS -> R.string.news_editor_subtitle
-    HomeDestination.ADMIN_BROADCAST -> R.string.home_placeholder_admin_broadcast
+    HomeDestination.ADMIN_BROADCAST -> R.string.notifications_editor_subtitle
 }
 
 @Composable
@@ -2293,6 +2551,27 @@ private fun isValidEmail(email: String): Boolean =
 
 private fun isValidPassword(password: String): Boolean =
     password.length in PasswordMinLength..PasswordMaxLength
+
+private fun NotificationAudience.labelRes(): Int =
+    when (this) {
+        NotificationAudience.ALL -> R.string.notifications_target_all
+        NotificationAudience.MEMBERS -> R.string.notifications_target_members
+        NotificationAudience.PRODUCERS -> R.string.notifications_target_producers
+        NotificationAudience.ADMINS -> R.string.notifications_target_admins
+    }
+
+private fun NotificationEvent.audienceLabelRes(): Int =
+    when {
+        target == "all" -> R.string.notifications_target_all
+        target == "users" -> R.string.notifications_target_users
+        segmentType == "role" && targetRole == MemberRole.MEMBER -> R.string.notifications_target_members
+        segmentType == "role" && targetRole == MemberRole.PRODUCER -> R.string.notifications_target_producers
+        segmentType == "role" && targetRole == MemberRole.ADMIN -> R.string.notifications_target_admins
+        else -> R.string.notifications_target_all
+    }
+
+private fun Long.toLocalizedDateTime(): String =
+    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(java.util.Date(this))
 
 private sealed interface StartupGateUiState {
     data object Checking : StartupGateUiState

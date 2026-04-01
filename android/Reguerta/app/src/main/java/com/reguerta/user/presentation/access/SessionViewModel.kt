@@ -19,11 +19,15 @@ import com.reguerta.user.domain.access.SessionRefreshPolicy
 import com.reguerta.user.domain.access.SessionRefreshTrigger
 import com.reguerta.user.domain.access.UnauthorizedReason
 import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
+import com.reguerta.user.domain.devices.AuthorizedDeviceRegistrar
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessLocalRepository
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessResolution
 import com.reguerta.user.domain.freshness.ResolveCriticalDataFreshnessUseCase
 import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.news.NewsRepository
+import com.reguerta.user.domain.notifications.NotificationAudience
+import com.reguerta.user.domain.notifications.NotificationEvent
+import com.reguerta.user.domain.notifications.NotificationRepository
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -49,6 +53,12 @@ data class NewsDraft(
     val body: String = "",
     val urlImage: String = "",
     val active: Boolean = true,
+)
+
+data class NotificationDraft(
+    val title: String = "",
+    val body: String = "",
+    val audience: NotificationAudience = NotificationAudience.ALL,
 )
 
 sealed interface SessionMode {
@@ -91,9 +101,13 @@ data class SessionUiState(
     val latestNews: List<NewsArticle> = emptyList(),
     val newsFeed: List<NewsArticle> = emptyList(),
     val newsDraft: NewsDraft = NewsDraft(),
+    val notificationsFeed: List<NotificationEvent> = emptyList(),
+    val notificationDraft: NotificationDraft = NotificationDraft(),
     val editingNewsId: String? = null,
     val isLoadingNews: Boolean = false,
     val isSavingNews: Boolean = false,
+    val isLoadingNotifications: Boolean = false,
+    val isSendingNotification: Boolean = false,
 )
 
 sealed interface SessionUiEvent {
@@ -115,9 +129,11 @@ sealed interface MyOrderFreshnessUiState {
 class SessionViewModel(
     private val repository: MemberRepository,
     private val newsRepository: NewsRepository,
+    private val notificationRepository: NotificationRepository,
     private val authSessionProvider: AuthSessionProvider,
     private val resolveAuthorizedSession: ResolveAuthorizedSessionUseCase,
     private val upsertMemberByAdmin: UpsertMemberByAdminUseCase,
+    private val authorizedDeviceRegistrar: AuthorizedDeviceRegistrar = AuthorizedDeviceRegistrar { },
     private val resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase,
     private val criticalDataFreshnessLocalRepository: CriticalDataFreshnessLocalRepository,
     private val sessionRefreshPolicy: SessionRefreshPolicy = SessionRefreshPolicy(),
@@ -241,6 +257,10 @@ class SessionViewModel(
         _uiState.update { it.copy(newsDraft = newDraft) }
     }
 
+    fun onNotificationDraftChanged(newDraft: NotificationDraft) {
+        _uiState.update { it.copy(notificationDraft = newDraft) }
+    }
+
     fun startCreatingNews() {
         val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
         if (!mode.member.isAdmin) {
@@ -286,6 +306,30 @@ class SessionViewModel(
         }
     }
 
+    fun startCreatingNotification() {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        if (!mode.member.isAdmin) {
+            emitMessage(R.string.feedback_only_admin_send_notification)
+            return
+        }
+
+        _uiState.update {
+            it.copy(
+                notificationDraft = NotificationDraft(),
+                isSendingNotification = false,
+            )
+        }
+    }
+
+    fun clearNotificationEditor() {
+        _uiState.update {
+            it.copy(
+                notificationDraft = NotificationDraft(),
+                isSendingNotification = false,
+            )
+        }
+    }
+
     fun refreshNews() {
         val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
         viewModelScope.launch {
@@ -306,6 +350,26 @@ class SessionViewModel(
                         latestNews = latestActiveNews,
                         newsFeed = visibleNews,
                         isLoadingNews = false,
+                    )
+                }
+            }
+        }
+    }
+
+    fun refreshNotifications() {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingNotifications = true) }
+            val allNotifications = notificationRepository.getAllNotifications()
+            val visibleNotifications = allNotifications.filter { event -> event.isVisibleTo(mode.member) }
+            _uiState.update {
+                val currentMode = it.mode as? SessionMode.Authorized
+                if (currentMode?.principal?.uid != mode.principal.uid) {
+                    it
+                } else {
+                    it.copy(
+                        notificationsFeed = visibleNotifications,
+                        isLoadingNotifications = false,
                     )
                 }
             }
@@ -398,6 +462,49 @@ class SessionViewModel(
         }
     }
 
+    fun sendNotification(onSuccess: () -> Unit = {}) {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        if (!mode.member.isAdmin) {
+            emitMessage(R.string.feedback_only_admin_send_notification)
+            return
+        }
+
+        val draft = _uiState.value.notificationDraft
+        if (draft.title.trim().isBlank() || draft.body.trim().isBlank()) {
+            emitMessage(R.string.feedback_notification_title_body_required)
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSendingNotification = true) }
+            notificationRepository.sendNotification(
+                NotificationEvent(
+                    id = "",
+                    title = draft.title.trim(),
+                    body = draft.body.trim(),
+                    type = "admin_broadcast",
+                    target = draft.audience.toTarget(),
+                    userIds = emptyList(),
+                    segmentType = draft.audience.toSegmentType(),
+                    targetRole = draft.audience.toTargetRole(),
+                    createdBy = mode.principal.uid,
+                    sentAtMillis = nowMillisProvider(),
+                    weekKey = null,
+                ),
+            )
+            val allNotifications = notificationRepository.getAllNotifications()
+            _uiState.update {
+                it.copy(
+                    notificationsFeed = allNotifications.filter { event -> event.isVisibleTo(mode.member) },
+                    notificationDraft = NotificationDraft(),
+                    isSendingNotification = false,
+                )
+            }
+            emitMessage(R.string.feedback_notification_sent)
+            onSuccess()
+        }
+    }
+
     fun signIn() {
         val currentState = _uiState.value
         val email = currentState.emailInput.trim()
@@ -432,6 +539,7 @@ class SessionViewModel(
                     when (val result = resolveAuthorizedSession(authResult.principal)) {
                         is AccessResolutionResult.Authorized -> {
                             val members = repository.getAllMembers()
+                            val allNotifications = notificationRepository.getAllNotifications()
                             _uiState.update {
                                 it.copy(
                                     isAuthenticating = false,
@@ -441,8 +549,10 @@ class SessionViewModel(
                                         members = members,
                                     ),
                                     myOrderFreshnessState = MyOrderFreshnessUiState.Checking,
+                                    notificationsFeed = allNotifications.filter { event -> event.isVisibleTo(result.member) },
                                 )
                             }
+                            registerAuthorizedDevice(result.member)
                             refreshMyOrderFreshness()
                         }
 
@@ -460,6 +570,10 @@ class SessionViewModel(
                                     ),
                                     showUnauthorizedDialog = showUnauthorizedDialog,
                                     myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
+                                    notificationsFeed = emptyList(),
+                                    notificationDraft = NotificationDraft(),
+                                    isLoadingNotifications = false,
+                                    isSendingNotification = false,
                                 )
                             }
                         }
@@ -538,6 +652,7 @@ class SessionViewModel(
                     when (val result = resolveAuthorizedSession(authResult.principal)) {
                         is AccessResolutionResult.Authorized -> {
                             val members = repository.getAllMembers()
+                            val allNotifications = notificationRepository.getAllNotifications()
                             _uiState.update {
                                 it.copy(
                                     isRegistering = false,
@@ -550,8 +665,10 @@ class SessionViewModel(
                                         members = members,
                                     ),
                                     myOrderFreshnessState = MyOrderFreshnessUiState.Checking,
+                                    notificationsFeed = allNotifications.filter { event -> event.isVisibleTo(result.member) },
                                 )
                             }
+                            registerAuthorizedDevice(result.member)
                             refreshMyOrderFreshness()
                         }
 
@@ -572,6 +689,10 @@ class SessionViewModel(
                                     ),
                                     showUnauthorizedDialog = showUnauthorizedDialog,
                                     myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
+                                    notificationsFeed = emptyList(),
+                                    notificationDraft = NotificationDraft(),
+                                    isLoadingNotifications = false,
+                                    isSendingNotification = false,
                                 )
                             }
                         }
@@ -678,9 +799,13 @@ class SessionViewModel(
                 latestNews = emptyList(),
                 newsFeed = emptyList(),
                 newsDraft = NewsDraft(),
+                notificationsFeed = emptyList(),
+                notificationDraft = NotificationDraft(),
                 editingNewsId = null,
                 isLoadingNews = false,
                 isSavingNews = false,
+                isLoadingNotifications = false,
+                isSendingNotification = false,
             )
         }
     }
@@ -888,6 +1013,7 @@ class SessionViewModel(
         when (val result = resolveAuthorizedSession(principal)) {
             is AccessResolutionResult.Authorized -> {
                 val members = repository.getAllMembers()
+                val allNotifications = notificationRepository.getAllNotifications()
                 _uiState.update {
                     it.copy(
                         mode = SessionMode.Authorized(
@@ -903,6 +1029,7 @@ class SessionViewModel(
                             it.myOrderFreshnessState
                         },
                         isLoadingNews = true,
+                        isLoadingNotifications = true,
                     )
                 }
                 val allNews = newsRepository.getAllNews()
@@ -918,10 +1045,13 @@ class SessionViewModel(
                             } else {
                                 allNews.filter { article -> article.active }
                             },
+                            notificationsFeed = allNotifications.filter { event -> event.isVisibleTo(result.member) },
                             isLoadingNews = false,
+                            isLoadingNotifications = false,
                         )
                     }
                 }
+                registerAuthorizedDevice(result.member)
                 if (shouldRefreshCriticalData) {
                     refreshMyOrderFreshness()
                 }
@@ -944,9 +1074,13 @@ class SessionViewModel(
                         latestNews = emptyList(),
                         newsFeed = emptyList(),
                         newsDraft = NewsDraft(),
+                        notificationsFeed = emptyList(),
+                        notificationDraft = NotificationDraft(),
                         editingNewsId = null,
                         isLoadingNews = false,
                         isSavingNews = false,
+                        isLoadingNotifications = false,
+                        isSendingNotification = false,
                     )
                 }
             }
@@ -1001,9 +1135,13 @@ class SessionViewModel(
                 latestNews = emptyList(),
                 newsFeed = emptyList(),
                 newsDraft = NewsDraft(),
+                notificationsFeed = emptyList(),
+                notificationDraft = NotificationDraft(),
                 editingNewsId = null,
                 isLoadingNews = false,
                 isSavingNews = false,
+                isLoadingNotifications = false,
+                isSendingNotification = false,
             )
         }
     }
@@ -1011,6 +1149,14 @@ class SessionViewModel(
     private fun clearSessionRefreshTracking() {
         lastSessionRefreshAtMillis = null
         isSessionRefreshInFlight.set(false)
+    }
+
+    private fun registerAuthorizedDevice(member: Member) {
+        viewModelScope.launch {
+            runCatching {
+                authorizedDeviceRegistrar.register(member)
+            }
+        }
     }
 
     private fun buildRoles(draft: MemberDraft): Set<MemberRole> {
@@ -1036,3 +1182,29 @@ private fun String.isValidPassword(): Boolean = length in PasswordMinLength..Pas
 
 private fun SessionMode.isAuthenticatedSession(): Boolean =
     this is SessionMode.Authorized || this is SessionMode.Unauthorized
+
+private fun NotificationAudience.toTarget(): String =
+    when (this) {
+        NotificationAudience.ALL -> "all"
+        NotificationAudience.MEMBERS,
+        NotificationAudience.PRODUCERS,
+        NotificationAudience.ADMINS,
+            -> "segment"
+    }
+
+private fun NotificationAudience.toSegmentType(): String? =
+    when (this) {
+        NotificationAudience.ALL -> null
+        NotificationAudience.MEMBERS,
+        NotificationAudience.PRODUCERS,
+        NotificationAudience.ADMINS,
+            -> "role"
+    }
+
+private fun NotificationAudience.toTargetRole(): MemberRole? =
+    when (this) {
+        NotificationAudience.ALL -> null
+        NotificationAudience.MEMBERS -> MemberRole.MEMBER
+        NotificationAudience.PRODUCERS -> MemberRole.PRODUCER
+        NotificationAudience.ADMINS -> MemberRole.ADMIN
+    }

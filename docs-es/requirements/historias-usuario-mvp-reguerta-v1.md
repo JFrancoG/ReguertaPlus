@@ -119,7 +119,7 @@ Como admin quiero enviar notificaciones usando los tipos habilitados para comuni
 
 Criterios de aceptación:
 - Dado que soy admin, cuando creo notificación, entonces puedo usar los segmentos/modos habilitados en MVP.
-- Dado un envío de notificaciones, cuando se resuelven destinatarios, entonces se usan los dispositivos registrados en `users/{userId}/devices`.
+- Dado un envío de notificaciones, cuando se resuelven destinatarios, entonces se usan los dispositivos registrados en `users/{userId}/devices` y su `fcmToken` cuando exista.
 - Dado un socio con actividad reciente, cuando se consulta su último dispositivo, entonces `users.lastDeviceId` apunta al dispositivo activo más reciente.
 
 ## 4. Socio (perfil compartido)
