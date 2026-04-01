@@ -134,7 +134,7 @@ Nota de gobierno: la política definitiva para cubrir bajas sobrevenidas tras pu
 - `RF-NOTI-02` Debe existir envío de notificaciones push.
 - `RF-NOTI-03` Recordatorios automáticos para socios con compromiso y pedido no confirmado en domingo a las 20:00, 22:00 y 23:00.
 - `RF-NOTI-04` Admin puede usar los tipos de envío de notificaciones disponibles en el sistema MVP.
-- `RF-NOTI-05` El sistema debe guardar dispositivos por socio en `users/{userId}/devices/{deviceId}` y mantener `users.lastDeviceId` con el ultimo dispositivo activo.
+- `RF-NOTI-05` El sistema debe guardar dispositivos por socio en `users/{userId}/devices/{deviceId}`, persistir el ultimo `fcmToken` conocido cuando exista, y mantener `users.lastDeviceId` con el ultimo dispositivo activo.
 
 ### 3.9 Usuario revisor (Apple/TestFlight)
 

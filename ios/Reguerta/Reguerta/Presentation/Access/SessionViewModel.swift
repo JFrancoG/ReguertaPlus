@@ -17,6 +17,12 @@ struct NewsDraft: Equatable, Sendable {
     var active = true
 }
 
+struct NotificationDraft: Equatable, Sendable {
+    var title = ""
+    var body = ""
+    var audience: NotificationAudience = .all
+}
+
 struct AuthorizedSession: Equatable, Sendable {
     var principal: AuthPrincipal
     var member: Member
@@ -99,15 +105,21 @@ final class SessionViewModel {
     var latestNews: [NewsArticle] = []
     var newsFeed: [NewsArticle] = []
     var newsDraft = NewsDraft()
+    var notificationsFeed: [NotificationEvent] = []
+    var notificationDraft = NotificationDraft()
     var editingNewsId: String?
     var isLoadingNews = false
     var isSavingNews = false
+    var isLoadingNotifications = false
+    var isSendingNotification = false
 
     private let repository: any MemberRepository
     private let newsRepository: any NewsRepository
+    private let notificationRepository: any NotificationRepository
     private let authSessionProvider: any AuthSessionProvider
     private let resolveAuthorizedSession: ResolveAuthorizedSessionUseCase
     private let upsertMemberByAdmin: UpsertMemberByAdminUseCase
+    private let authorizedDeviceRegistrar: any AuthorizedDeviceRegistrar
     private let resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase
     private let criticalDataFreshnessLocalRepository: any CriticalDataFreshnessLocalRepository
     private let sessionRefreshPolicy: SessionRefreshPolicy
@@ -148,6 +160,7 @@ final class SessionViewModel {
         authSessionProvider: (any AuthSessionProvider)? = nil,
         resolveAuthorizedSession: ResolveAuthorizedSessionUseCase? = nil,
         upsertMemberByAdmin: UpsertMemberByAdminUseCase? = nil,
+        authorizedDeviceRegistrar: (any AuthorizedDeviceRegistrar)? = nil,
         sessionRefreshPolicy: SessionRefreshPolicy = SessionRefreshPolicy(),
         nowMillisProvider: @escaping @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1_000) }
     ) {
@@ -158,6 +171,10 @@ final class SessionViewModel {
         let selectedNewsRepository: any NewsRepository = ChainedNewsRepository(
             primary: FirestoreNewsRepository(),
             fallback: InMemoryNewsRepository()
+        )
+        let selectedNotificationRepository: any NotificationRepository = ChainedNotificationRepository(
+            primary: FirestoreNotificationRepository(),
+            fallback: InMemoryNotificationRepository()
         )
         let selectedAuthProvider = authSessionProvider ?? {
             if ProcessInfo.processInfo.arguments.contains("-useMockAuth") {
@@ -181,9 +198,11 @@ final class SessionViewModel {
         }
         self.repository = selectedRepository
         self.newsRepository = selectedNewsRepository
+        self.notificationRepository = selectedNotificationRepository
         self.authSessionProvider = selectedAuthProvider
         self.resolveAuthorizedSession = resolveAuthorizedSession ?? ResolveAuthorizedSessionUseCase(repository: selectedRepository)
         self.upsertMemberByAdmin = upsertMemberByAdmin ?? UpsertMemberByAdminUseCase(repository: selectedRepository)
+        self.authorizedDeviceRegistrar = authorizedDeviceRegistrar ?? NoOpAuthorizedDeviceRegistrar()
         self.resolveCriticalDataFreshness = ResolveCriticalDataFreshnessUseCase(
             remoteRepository: freshnessRemoteRepository,
             localRepository: freshnessLocalRepository
@@ -253,6 +272,9 @@ final class SessionViewModel {
     func signOut() {
         authSessionProvider.signOut()
         clearSessionRefreshTracking()
+        Task {
+            await KeyManager.shared.remove(.authorizedMemberId)
+        }
         emailInput = ""
         passwordInput = ""
         registerEmailInput = ""
@@ -277,9 +299,13 @@ final class SessionViewModel {
         latestNews = []
         newsFeed = []
         newsDraft = NewsDraft()
+        notificationsFeed = []
+        notificationDraft = NotificationDraft()
         editingNewsId = nil
         isLoadingNews = false
         isSavingNews = false
+        isLoadingNotifications = false
+        isSendingNotification = false
         Task {
             await criticalDataFreshnessLocalRepository.clear()
         }
@@ -297,6 +323,12 @@ final class SessionViewModel {
         var draft = newsDraft
         update(&draft)
         newsDraft = draft
+    }
+
+    func updateNotificationDraft(_ update: (inout NotificationDraft) -> Void) {
+        var draft = notificationDraft
+        update(&draft)
+        notificationDraft = draft
     }
 
     func startCreatingNews() {
@@ -333,6 +365,22 @@ final class SessionViewModel {
         isSavingNews = false
     }
 
+    func startCreatingNotification() {
+        guard case .authorized(let session) = mode else { return }
+        guard session.member.isAdmin else {
+            feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminSendNotification
+            return
+        }
+
+        notificationDraft = NotificationDraft()
+        isSendingNotification = false
+    }
+
+    func clearNotificationEditor() {
+        notificationDraft = NotificationDraft()
+        isSendingNotification = false
+    }
+
     func refreshNews() {
         guard case .authorized(let session) = mode else { return }
         isLoadingNews = true
@@ -341,6 +389,16 @@ final class SessionViewModel {
             latestNews = allNews.filter(\.active).prefix(3).map { $0 }
             newsFeed = session.member.isAdmin ? allNews : allNews.filter(\.active)
             isLoadingNews = false
+        }
+    }
+
+    func refreshNotifications() {
+        guard case .authorized(let session) = mode else { return }
+        isLoadingNotifications = true
+        Task { @MainActor in
+            let allNotifications = await notificationRepository.allNotifications()
+            notificationsFeed = allNotifications.filter { $0.isVisible(to: session.member) }
+            isLoadingNotifications = false
         }
     }
 
@@ -409,6 +467,44 @@ final class SessionViewModel {
                 clearNewsEditor()
             }
             feedbackMessageKey = AccessL10nKey.feedbackNewsDeleted
+            onSuccess()
+        }
+    }
+
+    func sendNotification(onSuccess: @escaping @MainActor () -> Void = {}) {
+        guard case .authorized(let session) = mode else { return }
+        guard session.member.isAdmin else {
+            feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminSendNotification
+            return
+        }
+        guard !notificationDraft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !notificationDraft.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            feedbackMessageKey = AccessL10nKey.feedbackNotificationTitleBodyRequired
+            return
+        }
+
+        isSendingNotification = true
+        Task { @MainActor in
+            _ = await notificationRepository.send(
+                event: NotificationEvent(
+                    id: "",
+                    title: notificationDraft.title.trimmingCharacters(in: .whitespacesAndNewlines),
+                    body: notificationDraft.body.trimmingCharacters(in: .whitespacesAndNewlines),
+                    type: "admin_broadcast",
+                    target: notificationDraft.audience.targetValue,
+                    userIds: [],
+                    segmentType: notificationDraft.audience.segmentType,
+                    targetRole: notificationDraft.audience.targetRole,
+                    createdBy: session.principal.uid,
+                    sentAtMillis: nowMillisProvider(),
+                    weekKey: nil
+                )
+            )
+            let allNotifications = await notificationRepository.allNotifications()
+            notificationsFeed = allNotifications.filter { $0.isVisible(to: session.member) }
+            notificationDraft = NotificationDraft()
+            isSendingNotification = false
+            feedbackMessageKey = AccessL10nKey.feedbackNotificationSent
             onSuccess()
         }
     }
@@ -731,6 +827,7 @@ final class SessionViewModel {
         switch result {
         case .authorized(let member):
             let members = await repository.allMembers()
+            let allNotifications = await notificationRepository.allNotifications()
             mode = .authorized(
                 AuthorizedSession(
                     principal: principal,
@@ -745,10 +842,14 @@ final class SessionViewModel {
                 refreshMyOrderFreshness()
             }
             isLoadingNews = true
+            isLoadingNotifications = true
             let allNews = await newsRepository.allNews()
             latestNews = allNews.filter(\.active).prefix(3).map { $0 }
             newsFeed = member.isAdmin ? allNews : allNews.filter(\.active)
+            notificationsFeed = allNotifications.filter { $0.isVisible(to: member) }
             isLoadingNews = false
+            isLoadingNotifications = false
+            await authorizedDeviceRegistrar.register(member: member)
         case .unauthorized(let reason):
             let shouldShowUnauthorizedDialog = shouldShowUnauthorizedDialog(
                 for: principal.email,
@@ -761,9 +862,13 @@ final class SessionViewModel {
             latestNews = []
             newsFeed = []
             newsDraft = NewsDraft()
+            notificationsFeed = []
+            notificationDraft = NotificationDraft()
             editingNewsId = nil
             isLoadingNews = false
             isSavingNews = false
+            isLoadingNotifications = false
+            isSendingNotification = false
         }
     }
 
@@ -814,9 +919,13 @@ final class SessionViewModel {
         latestNews = []
         newsFeed = []
         newsDraft = NewsDraft()
+        notificationsFeed = []
+        notificationDraft = NotificationDraft()
         editingNewsId = nil
         isLoadingNews = false
         isSavingNews = false
+        isLoadingNotifications = false
+        isSendingNotification = false
         await criticalDataFreshnessLocalRepository.clear()
     }
 
@@ -870,6 +979,10 @@ final class SessionViewModel {
     }
 }
 
+private struct NoOpAuthorizedDeviceRegistrar: AuthorizedDeviceRegistrar {
+    func register(member: Member) async {}
+}
+
 private extension String {
     var isValidEmail: Bool {
         range(
@@ -880,6 +993,39 @@ private extension String {
 
     var isValidPassword: Bool {
         (6...16).contains(count)
+    }
+}
+
+private extension NotificationAudience {
+    var targetValue: String {
+        switch self {
+        case .all:
+            return "all"
+        case .members, .producers, .admins:
+            return "segment"
+        }
+    }
+
+    var segmentType: String? {
+        switch self {
+        case .all:
+            return nil
+        case .members, .producers, .admins:
+            return "role"
+        }
+    }
+
+    var targetRole: MemberRole? {
+        switch self {
+        case .all:
+            return nil
+        case .members:
+            return .member
+        case .producers:
+            return .producer
+        case .admins:
+            return .admin
+        }
     }
 }
 

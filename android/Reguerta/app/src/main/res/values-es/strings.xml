@@ -164,6 +164,9 @@
     <string name="feedback_news_updated">Noticia actualizada correctamente</string>
     <string name="feedback_news_deleted">Noticia eliminada correctamente</string>
     <string name="feedback_news_delete_failed">No se pudo eliminar la noticia seleccionada</string>
+    <string name="feedback_only_admin_send_notification">Solo los admins pueden mandar notificaciones</string>
+    <string name="feedback_notification_title_body_required">El título y el cuerpo son obligatorios</string>
+    <string name="feedback_notification_sent">Notificación enviada correctamente</string>
 
     <string name="role_value_member">miembro</string>
     <string name="role_value_producer">productor</string>
@@ -192,4 +195,22 @@
     <string name="news_save_action_create">Publicar noticia</string>
     <string name="news_save_action_update">Guardar cambios</string>
     <string name="news_save_action_saving">Guardando…</string>
+    <string name="notifications_empty_state">Todavía no hay notificaciones para mostrar.</string>
+    <string name="notifications_list_subtitle">Consulta las últimas notificaciones en orden inverso de envío.</string>
+    <string name="notifications_refresh_action">Actualizar notificaciones</string>
+    <string name="notifications_loading">Cargando notificaciones…</string>
+    <string name="notifications_meta_format">Enviada el %1$s</string>
+    <string name="notifications_create_action">Mandar notificación</string>
+    <string name="notifications_editor_title">Mandar notificación extraordinaria</string>
+    <string name="notifications_editor_subtitle">Redacta una push notification y elige quién debe recibirla.</string>
+    <string name="notifications_field_title">Título</string>
+    <string name="notifications_field_body">Cuerpo</string>
+    <string name="notifications_field_audience">Destinatarios</string>
+    <string name="notifications_send_action_send">Mandar notificación</string>
+    <string name="notifications_send_action_sending">Enviando…</string>
+    <string name="notifications_target_all">Todos los socios</string>
+    <string name="notifications_target_members">Socios</string>
+    <string name="notifications_target_producers">Productores</string>
+    <string name="notifications_target_admins">Admins</string>
+    <string name="notifications_target_users">Usuarios seleccionados</string>
 </resources>

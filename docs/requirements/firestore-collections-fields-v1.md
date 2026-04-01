@@ -85,6 +85,8 @@ Subcollection `users/{userId}/devices/{deviceId}`:
 - `apiLevel`: number|null (Android API level; must be `null` on iOS)
 - `manufacturer`: string|null (required on Android, nullable on iOS)
 - `model`: string|null (required on Android, nullable on iOS)
+- `fcmToken`: string|null (latest FCM token known for this device)
+- `tokenUpdatedAt`: timestamp|null (last refresh time for `fcmToken`)
 - `firstSeenAt`: timestamp (required)
 - `lastSeenAt`: timestamp (required)
 
@@ -246,6 +248,8 @@ Delivery calendar strategy (canonical):
 
 ### 4.11 `notificationEvents/{eventId}` (recommended)
 
+- `title`: string (required)
+- `body`: string (required)
 - `type`: string (`order_reminder`|`order_auto_generated`|`shift_swap_requested`|`shift_swap_accepted`|`shift_swap_applied`|`shift_updated`|`news_published`|`admin_broadcast`) (required)
 - `target`: string (`all`|`users`|`segment`) (required)
 - `targetPayload`: map

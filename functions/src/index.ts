@@ -1,5 +1,6 @@
 import {setGlobalOptions} from "firebase-functions/v2";
 import {onRequest} from "firebase-functions/v2/https";
+import {onDocumentCreated} from "firebase-functions/v2/firestore";
 import {logger, config} from "firebase-functions";
 import * as admin from "firebase-admin";
 
@@ -44,6 +45,9 @@ const parseBody = (value: unknown): Record<string, unknown> => {
 const usersCollection = (env: string) =>
   firestore.collection(`${env}/collections/users`);
 
+const plusUsersCollection = (env: string) =>
+  firestore.collection(`${env}/plus-collections/users`);
+
 const globalConfigDocRefs = (env: string) => [
   firestore.collection(`${env}/collections/config`).doc("global"),
   firestore.collection(`${env}/plus-collections/config`).doc("global"),
@@ -69,6 +73,19 @@ const parseRoles = (value: unknown): string[] => {
     .filter((role) => allowedRoles.has(role));
 
   return roles.length > 0 ? Array.from(new Set(roles)) : ["member"];
+};
+
+const parseStringArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return Array.from(new Set(
+    value
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0)
+  ));
 };
 
 const isAdminRecord = (data: Record<string, unknown>): boolean => {
@@ -218,6 +235,207 @@ const sanitizeVersionPolicies = (
     ),
   };
 };
+
+type NotificationDispatchPayload = {
+  title: string;
+  body: string;
+  type: string;
+  target: string;
+  userIds: string[];
+  segmentType: string | null;
+  targetRole: string | null;
+};
+
+const parseNotificationDispatchPayload = (
+  value: Record<string, unknown>,
+): NotificationDispatchPayload | null => {
+  const title = parseString(value.title);
+  const body = parseString(value.body);
+  const type = parseString(value.type);
+  const target = parseString(value.target);
+  const targetPayload = parseBody(value.targetPayload);
+
+  if (!title || !body || !type || !target) {
+    return null;
+  }
+
+  return {
+    title,
+    body,
+    type,
+    target,
+    userIds: parseStringArray(targetPayload.userIds),
+    segmentType: parseString(targetPayload.segmentType),
+    targetRole: parseString(targetPayload.role)?.toLowerCase() || null,
+  };
+};
+
+const chunkArray = <T>(items: T[], size: number): T[][] => {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+};
+
+const resolveTargetUserIds = async (
+  env: string,
+  payload: NotificationDispatchPayload,
+): Promise<string[]> => {
+  const collection = plusUsersCollection(env);
+
+  switch (payload.target) {
+  case "all": {
+    const snapshot = await collection
+      .where("isActive", "==", true)
+      .get();
+    return snapshot.docs.map((doc) => doc.id);
+  }
+  case "users": {
+    const userIds = payload.userIds;
+    if (userIds.length === 0) {
+      return [];
+    }
+
+    const snapshots = await firestore.getAll(
+      ...userIds.map((userId) => collection.doc(userId))
+    );
+
+    return snapshots
+      .filter(
+        (snapshot) => snapshot.exists && snapshot.get("isActive") !== false
+      )
+      .map((snapshot) => snapshot.id);
+  }
+  case "segment": {
+    if (payload.segmentType !== "role" || !payload.targetRole) {
+      return [];
+    }
+
+    const snapshot = await collection
+      .where("isActive", "==", true)
+      .where("roles", "array-contains", payload.targetRole)
+      .get();
+    return snapshot.docs.map((doc) => doc.id);
+  }
+  default:
+    return [];
+  }
+};
+
+const resolveDeviceTokens = async (
+  env: string,
+  userIds: string[],
+): Promise<string[]> => {
+  const uniqueTokens = new Set<string>();
+  const collection = plusUsersCollection(env);
+
+  for (const userId of userIds) {
+    const devicesSnapshot = await collection
+      .doc(userId)
+      .collection("devices")
+      .get();
+    for (const deviceDoc of devicesSnapshot.docs) {
+      const token = parseString(deviceDoc.get("fcmToken"));
+      if (token) {
+        uniqueTokens.add(token);
+      }
+    }
+  }
+
+  return Array.from(uniqueTokens);
+};
+
+export const onNotificationEventCreated = onDocumentCreated(
+  "{env}/plus-collections/notificationEvents/{eventId}",
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) {
+      return;
+    }
+
+    const env = event.params.env;
+    const eventId = event.params.eventId;
+    const payload = parseNotificationDispatchPayload(
+      parseBody(snapshot.data())
+    );
+    if (!payload) {
+      logger.warn(
+        "Skipping notification dispatch due to malformed payload",
+        {env, eventId}
+      );
+      return;
+    }
+
+    const targetUserIds = await resolveTargetUserIds(env, payload);
+    const tokens = await resolveDeviceTokens(env, targetUserIds);
+    const eventRef = snapshot.ref;
+
+    if (tokens.length === 0) {
+      await eventRef.set({
+        dispatch: {
+          attemptedAt: admin.firestore.FieldValue.serverTimestamp(),
+          dispatchedAt: null,
+          resolvedUsersCount: targetUserIds.length,
+          deliveredTokensCount: 0,
+          failedTokensCount: 0,
+          status: "no_tokens",
+        },
+      }, {merge: true});
+      logger.warn(
+        "Notification dispatch skipped because no device tokens were found",
+        {
+          env,
+          eventId,
+          target: payload.target,
+          resolvedUsersCount: targetUserIds.length,
+        }
+      );
+      return;
+    }
+
+    let deliveredTokensCount = 0;
+    let failedTokensCount = 0;
+
+    for (const tokenChunk of chunkArray(tokens, 500)) {
+      const response = await admin.messaging().sendEachForMulticast({
+        tokens: tokenChunk,
+        notification: {
+          title: payload.title,
+          body: payload.body,
+        },
+        data: {
+          eventId,
+          type: payload.type,
+          target: payload.target,
+        },
+      });
+
+      deliveredTokensCount += response.successCount;
+      failedTokensCount += response.failureCount;
+    }
+
+    await eventRef.set({
+      dispatch: {
+        attemptedAt: admin.firestore.FieldValue.serverTimestamp(),
+        dispatchedAt: admin.firestore.FieldValue.serverTimestamp(),
+        resolvedUsersCount: targetUserIds.length,
+        deliveredTokensCount,
+        failedTokensCount,
+        status: failedTokensCount > 0 ? "partial_success" : "success",
+      },
+    }, {merge: true});
+
+    logger.info("Notification event dispatched", {
+      env,
+      eventId,
+      target: payload.target,
+      resolvedUsersCount: targetUserIds.length,
+      deliveredTokensCount,
+      failedTokensCount,
+    });
+  }
+);
 
 export const onProductWrite = onRequest(async (req, res) => {
   const env = (req.query.env as string) || ENV;

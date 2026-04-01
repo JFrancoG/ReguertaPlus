@@ -4,7 +4,7 @@ struct ContentView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.reguertaTokens) private var tokens
     @Environment(\.scenePhase) private var scenePhase
-    @State private var viewModel = SessionViewModel()
+    @State private var viewModel: SessionViewModel
     @State private var shellState = AuthShellState()
     @State private var splashScale: CGFloat = SplashAnimationContract.initialScale
     @State private var splashRotation: Double = SplashAnimationContract.initialRotation
@@ -25,6 +25,15 @@ struct ContentView: View {
         repository: FirestoreStartupVersionPolicyRepository()
     )
 
+    init() {
+        let deviceRepository = FirestoreDeviceRegistrationRepository()
+        _viewModel = State(
+            initialValue: SessionViewModel(
+                authorizedDeviceRegistrar: FirebaseAuthorizedDeviceRegistrar(repository: deviceRepository)
+            )
+        )
+    }
+
     private var shouldSkipSplash: Bool {
         ProcessInfo.processInfo.arguments.contains("-skipSplash")
     }
@@ -34,7 +43,7 @@ struct ContentView: View {
     }
 
     private var installedVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
+        resolveInstalledAppVersion()
     }
 
     var body: some View {
@@ -441,8 +450,12 @@ struct ContentView: View {
             dashboardRoute
         case .news:
             newsListRoute
+        case .notifications:
+            notificationsListRoute
         case .publishNews:
             newsEditorRoute
+        case .adminBroadcast:
+            notificationEditorRoute
         default:
             placeholderRoute(
                 titleKey: homeDestination.titleKey,
@@ -481,6 +494,9 @@ struct ContentView: View {
                         if homeDestination == .publishNews {
                             viewModel.clearNewsEditor()
                             homeDestination = .news
+                        } else if homeDestination == .adminBroadcast {
+                            viewModel.clearNotificationEditor()
+                            homeDestination = .notifications
                         } else {
                             homeDestination = .dashboard
                         }
@@ -503,6 +519,8 @@ struct ContentView: View {
                 Spacer()
 
                 Button {
+                    homeDestination = .notifications
+                    viewModel.refreshNotifications()
                 } label: {
                     Image(systemName: "bell")
                         .font(.system(size: 20.resize, weight: .semibold))
@@ -992,6 +1010,127 @@ struct ContentView: View {
         }
     }
 
+    private var notificationsListRoute: some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+            notificationsListHeaderCard
+
+            if viewModel.isLoadingNotifications {
+                cardContainer {
+                    Text(localizedKey(AccessL10nKey.notificationsLoading))
+                        .font(tokens.typography.bodySecondary)
+                }
+            } else if viewModel.notificationsFeed.isEmpty {
+                cardContainer {
+                    Text(localizedKey(AccessL10nKey.notificationsEmptyState))
+                        .font(tokens.typography.bodySecondary)
+                }
+            } else {
+                ForEach(viewModel.notificationsFeed) { notification in
+                    notificationCard(notification)
+                }
+            }
+        }
+    }
+
+    private var notificationsListHeaderCard: some View {
+        cardContainer {
+            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                Text(localizedKey(AccessL10nKey.homeShellNotifications))
+                    .font(tokens.typography.titleCard)
+                Text(localizedKey(AccessL10nKey.notificationsListSubtitle))
+                    .font(tokens.typography.bodySecondary)
+                    .foregroundStyle(tokens.colors.textSecondary)
+                if currentHomeMember?.isAdmin == true {
+                    ReguertaButton(localizedKey(AccessL10nKey.notificationsCreateAction)) {
+                        viewModel.startCreatingNotification()
+                        homeDestination = .adminBroadcast
+                    }
+                }
+                ReguertaButton(
+                    localizedKey(AccessL10nKey.notificationsRefreshAction),
+                    variant: .text
+                ) {
+                    viewModel.refreshNotifications()
+                }
+            }
+        }
+    }
+
+    private func notificationCard(_ notification: NotificationEvent) -> some View {
+        cardContainer {
+            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                Text(notification.title)
+                    .font(tokens.typography.titleCard)
+                Text(l10n(AccessL10nKey.notificationsMetaFormat, localizedDateTime(notification.sentAtMillis)))
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.textSecondary)
+                Text(notification.body)
+                    .font(tokens.typography.bodySecondary)
+                    .foregroundStyle(tokens.colors.textPrimary)
+                Text(localizedKey(notification.audienceTitleKey))
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.actionPrimary)
+            }
+        }
+    }
+
+    private var notificationEditorRoute: some View {
+        cardContainer {
+            VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                Text(localizedKey(AccessL10nKey.notificationsEditorTitle))
+                    .font(tokens.typography.titleCard)
+
+                Text(localizedKey(AccessL10nKey.notificationsEditorSubtitle))
+                    .font(tokens.typography.bodySecondary)
+                    .foregroundStyle(tokens.colors.textSecondary)
+
+                TextField(
+                    "",
+                    text: notificationTitleBinding,
+                    prompt: Text(localizedKey(AccessL10nKey.notificationsFieldTitle))
+                )
+                .textFieldStyle(.roundedBorder)
+
+                Text(localizedKey(AccessL10nKey.notificationsFieldBody))
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.textSecondary)
+                TextEditor(text: notificationBodyBinding)
+                    .frame(minHeight: 180.resize)
+                    .padding(tokens.spacing.sm)
+                    .background(tokens.colors.surfaceSecondary)
+                    .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
+
+                Picker(localizedKey(AccessL10nKey.notificationsFieldAudience), selection: notificationAudienceBinding) {
+                    ForEach(NotificationAudience.allCases, id: \.self) { audience in
+                        Text(localizedKey(audience.titleKey)).tag(audience)
+                    }
+                }
+
+                ReguertaButton(
+                    localizedKey(
+                        viewModel.isSendingNotification
+                        ? AccessL10nKey.notificationsSendActionSending
+                        : AccessL10nKey.notificationsSendActionSend
+                    ),
+                    isEnabled: !viewModel.isSendingNotification,
+                    isLoading: viewModel.isSendingNotification
+                ) {
+                    viewModel.sendNotification {
+                        homeDestination = .notifications
+                    }
+                }
+
+                ReguertaButton(
+                    localizedKey(AccessL10nKey.commonBack),
+                    variant: .text
+                ) {
+                    viewModel.clearNotificationEditor()
+                    homeDestination = .notifications
+                }
+            }
+        }
+    }
+
     @ViewBuilder
     private func adminToolsCard(session: AuthorizedSession) -> some View {
         cardContainer {
@@ -1251,8 +1390,14 @@ struct ContentView: View {
             if destination == .publishNews {
                 viewModel.startCreatingNews()
             }
+            if destination == .adminBroadcast {
+                viewModel.startCreatingNotification()
+            }
             if destination == .news {
                 viewModel.refreshNews()
+            }
+            if destination == .notifications {
+                viewModel.refreshNotifications()
             }
             homeDestination = destination
             closeHomeDrawer()
@@ -1338,6 +1483,33 @@ struct ContentView: View {
             get: { viewModel.newsDraft.active },
             set: { value in
                 viewModel.updateNewsDraft { $0.active = value }
+            }
+        )
+    }
+
+    private var notificationTitleBinding: Binding<String> {
+        Binding(
+            get: { viewModel.notificationDraft.title },
+            set: { value in
+                viewModel.updateNotificationDraft { $0.title = value }
+            }
+        )
+    }
+
+    private var notificationBodyBinding: Binding<String> {
+        Binding(
+            get: { viewModel.notificationDraft.body },
+            set: { value in
+                viewModel.updateNotificationDraft { $0.body = value }
+            }
+        )
+    }
+
+    private var notificationAudienceBinding: Binding<NotificationAudience> {
+        Binding(
+            get: { viewModel.notificationDraft.audience },
+            set: { value in
+                viewModel.updateNotificationDraft { $0.audience = value }
             }
         )
     }
@@ -1583,6 +1755,13 @@ struct ContentView: View {
     private func isValidPassword(_ value: String) -> Bool {
         (6...16).contains(value.count)
     }
+
+    private func localizedDateTime(_ millis: Int64) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: Date(timeIntervalSince1970: TimeInterval(millis) / 1_000))
+    }
 }
 
 private enum HomeDestination: String, Sendable {
@@ -1627,14 +1806,14 @@ private extension HomeDestination {
         case .myOrders: AccessL10nKey.homePlaceholderMyOrders
         case .shifts: AccessL10nKey.homePlaceholderShifts
         case .news: AccessL10nKey.newsListSubtitle
-        case .notifications: AccessL10nKey.homePlaceholderNotifications
+        case .notifications: AccessL10nKey.notificationsListSubtitle
         case .profile: AccessL10nKey.homePlaceholderProfile
         case .settings: AccessL10nKey.homePlaceholderSettings
         case .products: AccessL10nKey.homePlaceholderProducts
         case .receivedOrders: AccessL10nKey.homePlaceholderReceivedOrders
         case .users: AccessL10nKey.homePlaceholderUsers
         case .publishNews: AccessL10nKey.newsEditorSubtitle
-        case .adminBroadcast: AccessL10nKey.homePlaceholderAdminBroadcast
+        case .adminBroadcast: AccessL10nKey.notificationsEditorSubtitle
         }
     }
 }
@@ -1662,6 +1841,40 @@ private extension Set<MemberRole> {
 private extension Member {
     var isProducer: Bool {
         roles.contains(.producer)
+    }
+}
+
+private extension NotificationAudience {
+    var titleKey: String {
+        switch self {
+        case .all:
+            return AccessL10nKey.notificationsTargetAll
+        case .members:
+            return AccessL10nKey.notificationsTargetMembers
+        case .producers:
+            return AccessL10nKey.notificationsTargetProducers
+        case .admins:
+            return AccessL10nKey.notificationsTargetAdmins
+        }
+    }
+}
+
+private extension NotificationEvent {
+    var audienceTitleKey: String {
+        switch (target, segmentType, targetRole) {
+        case ("all", _, _):
+            return AccessL10nKey.notificationsTargetAll
+        case ("users", _, _):
+            return AccessL10nKey.notificationsTargetUsers
+        case ("segment", "role"?, .member?):
+            return AccessL10nKey.notificationsTargetMembers
+        case ("segment", "role"?, .producer?):
+            return AccessL10nKey.notificationsTargetProducers
+        case ("segment", "role"?, .admin?):
+            return AccessL10nKey.notificationsTargetAdmins
+        default:
+            return AccessL10nKey.notificationsTargetAll
+        }
     }
 }
 

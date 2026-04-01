@@ -12,6 +12,16 @@ Este proyecto contiene funciones en la nube (Cloud Functions) para mantener actu
 
 ## 🧠 Funcionalidad
 
+Además de los endpoints HTTP de soporte, el backend ahora despacha notificaciones push reales cuando se crea un documento en:
+
+`{env}/plus-collections/notificationEvents/{eventId}`
+
+El trigger:
+- resuelve la audiencia (`all`, `users`, `segment.role`)
+- busca destinatarios en `{env}/plus-collections/users/{userId}/devices/{deviceId}`
+- usa `fcmToken` como destino de FCM
+- deja trazabilidad mínima en `notificationEvents.dispatch`
+
 Cada vez que se crea o modifica un documento en ciertas colecciones, puedes llamar manualmente a una función HTTP para actualizar el campo correspondiente en el documento:
 
 ```

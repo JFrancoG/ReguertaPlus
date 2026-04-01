@@ -169,6 +169,8 @@ Subcoleccion `users/{userId}/devices/{deviceId}`:
 | `apiLevel` | number\|null | no | sistema/usuario | Android: numero; iOS: `null` |
 | `manufacturer` | string\|null | no | sistema/usuario | Requerido en Android, nullable en iOS |
 | `model` | string\|null | no | sistema/usuario | Requerido en Android, nullable en iOS |
+| `fcmToken` | string\|null | no | sistema | Ultimo token FCM conocido del dispositivo |
+| `tokenUpdatedAt` | timestamp\|null | no | sistema | Ultima actualizacion del token FCM |
 | `firstSeenAt` | timestamp | si | sistema | Primera vez detectado |
 | `lastSeenAt` | timestamp | si | sistema | Ultima actividad detectada |
 
@@ -358,6 +360,8 @@ Estrategia canonica de calendario:
 
 | Campo | Tipo | Req | Editable | Notas |
 |---|---|---|---|---|
+| `title` | string | si | sistema/admin | titulo mostrado en push y listado |
+| `body` | string | si | sistema/admin | cuerpo mostrado en push y listado |
 | `type` | string | si | sistema/admin | `order_reminder`/`order_auto_generated`/`shift_swap_requested`/`shift_swap_accepted`/`shift_swap_applied`/`shift_updated`/`news_published`/`admin_broadcast` |
 | `target` | string | si | sistema/admin | `all`/`segment`/`users` |
 | `targetPayload` | map | no | sistema/admin | Contrato segun `target` |
