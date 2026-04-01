@@ -58,7 +58,7 @@ final class FirestoreNotificationRepository: @unchecked Sendable, NotificationRe
         }
 
         do {
-            try await notificationsCollection.document(documentId).setData([
+            var payload: [String: Any] = [
                 "title": persisted.title,
                 "body": persisted.body,
                 "type": persisted.type,
@@ -66,8 +66,11 @@ final class FirestoreNotificationRepository: @unchecked Sendable, NotificationRe
                 "targetPayload": targetPayload,
                 "sentAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(persisted.sentAtMillis) / 1_000)),
                 "createdBy": persisted.createdBy,
-                "weekKey": persisted.weekKey as Any,
-            ], merge: true)
+            ]
+            if let weekKey = persisted.weekKey {
+                payload["weekKey"] = weekKey
+            }
+            try await notificationsCollection.document(documentId).setData(payload, merge: true)
             return persisted
         } catch {
             return persisted

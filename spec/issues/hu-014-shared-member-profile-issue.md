@@ -13,6 +13,7 @@ As a member I want to share a photo and family text so that other members can kn
 
 - Member can create/edit/delete own shared profile.
 - Members can view photo, family names, and text from other members.
+- This MVP iteration uses the existing `photoUrl` field directly and does not yet add native image upload/picking.
 
 ## Scope
 ### In Scope
@@ -24,11 +25,11 @@ As a member I want to share a photo and family text so that other members can kn
 - Refactors not required to close acceptance criteria.
 
 ## Implementation checklist
-- [ ] Android
-- [ ] iOS
-- [ ] Backend / Firestore
-- [ ] Testing
-- [ ] Documentation
+- [x] Android
+- [x] iOS
+- [x] Backend / Firestore
+- [x] Testing
+- [x] Documentation
 
 ## Suggested labels
 - type:feature

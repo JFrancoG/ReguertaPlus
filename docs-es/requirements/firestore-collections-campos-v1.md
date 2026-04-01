@@ -366,8 +366,8 @@ Estrategia canonica de calendario:
 | `target` | string | si | sistema/admin | `all`/`segment`/`users` |
 | `targetPayload` | map | no | sistema/admin | Contrato segun `target` |
 | `sentAt` | timestamp | si | sistema | |
-| `createdBy` | string | si | sistema/admin | `system` o UID |
-| `weekKey` | string\|null | no | sistema | |
+| `createdBy` | string | si | sistema/admin | `system` o `userId` autorizado |
+| `weekKey` | string | no | sistema | Solo cuando la notificacion aplique a una semana concreta |
 
 Contrato de `targetPayload`:
 - Para `target == all`: mapa vacio o `null`.

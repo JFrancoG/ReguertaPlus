@@ -2617,8 +2617,8 @@
     "home.shell.action.profile" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Profile" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Perfil" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Community" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Comunidad" } }
       }
     },
     "home.shell.action.publish_news" : {
@@ -3167,6 +3167,188 @@
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Selected users" } },
         "es" : { "stringUnit" : { "state" : "translated", "value" : "Usuarios seleccionados" } }
+      }
+    },
+    "feedback.shared_profile_content_required" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add at least one piece of shared profile information" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Añade al menos un dato al perfil compartido" } }
+      }
+    },
+    "feedback.shared_profile_delete_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Unable to delete the shared profile" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "No se pudo borrar el perfil compartido" } }
+      }
+    },
+    "feedback.shared_profile_deleted" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Shared profile deleted successfully" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Perfil compartido borrado correctamente" } }
+      }
+    },
+    "feedback.shared_profile_saved" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Shared profile saved successfully" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Perfil compartido guardado correctamente" } }
+      }
+    },
+    "profile.shared.about.label" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "About us" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Sobre nosotros" } }
+      }
+    },
+    "profile.shared.action.delete" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete shared profile" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Borrar perfil compartido" } }
+      }
+    },
+    "profile.shared.action.deleting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Deleting profile…" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Borrando perfil…" } }
+      }
+    },
+    "profile.shared.action.edit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Edit profile" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Editar perfil" } }
+      }
+    },
+    "profile.shared.action.create" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Create my profile" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Crear mi perfil" } }
+      }
+    },
+    "profile.shared.action.save" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Save profile" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Guardar perfil" } }
+      }
+    },
+    "profile.shared.action.saving" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Saving profile…" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Guardando perfil…" } }
+      }
+    },
+    "profile.shared.action.view_my_profile" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "View my profile" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Ver mi perfil" } }
+      }
+    },
+    "profile.shared.community.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Tap a family to read its shared profile." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Pulsa en una familia para ver su perfil completo." } }
+      }
+    },
+    "profile.shared.community.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Shared profiles" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Perfiles compartidos" } }
+      }
+    },
+    "profile.shared.editor.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "You can update or remove this profile whenever you want." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Podrás actualizar o eliminar este perfil cuando quieras." } }
+      }
+    },
+    "profile.shared.editor.title.create" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Create my shared profile" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Crear mi perfil compartido" } }
+      }
+    },
+    "profile.shared.editor.title.edit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Edit my shared profile" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Editar mi perfil compartido" } }
+      }
+    },
+    "profile.shared.empty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "There are no shared profiles yet." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "No hay ningún perfil aún." } }
+      }
+    },
+    "profile.shared.family_names.label" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Family names" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Nombres de la familia" } }
+      }
+    },
+    "profile.shared.loading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Loading shared profiles…" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Cargando perfiles compartidos…" } }
+      }
+    },
+    "profile.shared.hub.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Share what you want with the community so we can get to know each other better." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Comparte lo que quieras con la comunidad para conocernos mejor." } }
+      }
+    },
+    "profile.shared.hub.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Let’s get to know each other better" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Conozcámonos mejor" } }
+      }
+    },
+    "profile.shared.photo.preview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Shared profile photo preview" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Vista previa de la foto del perfil compartido" } }
+      }
+    },
+    "profile.shared.photo_url.label" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Photo URL (optional)" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "URL de la foto (opcional)" } }
+      }
+    },
+    "profile.shared.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Share a little about your family so the rest of the community can get to know you better." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Comparte un poco sobre tu familia para que el resto de la comunidad os conozca mejor." } }
+      }
+    },
+    "profile.shared.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Shared profile" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Perfil compartido" } }
       }
     },
     "welcome.title.prefix" : {

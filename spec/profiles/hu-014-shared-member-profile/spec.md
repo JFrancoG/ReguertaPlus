@@ -19,6 +19,9 @@ As a member I want to share a photo and family text so that other members can kn
 ### In Scope
 - Implement capability defined by HU-014 within MVP boundaries.
 - Fulfill story-specific acceptance criteria for HU-014.
+- Use the existing `sharedProfiles/{userId}` contract with `familyNames`, `photoUrl`, `about`, and `updatedAt`.
+- Provide one shared `Profile` route where the member can edit their own content and browse community profiles.
+- Keep this iteration aligned to the documented `photoUrl` field without adding a native upload pipeline yet.
 
 ### Out of Scope
 - Functionality marked as post-MVP in global requirements.
@@ -49,9 +52,9 @@ As a member I want to share a photo and family text so that other members can kn
 
 ## Definition of Done (DoD)
 
-- [ ] Story acceptance criteria validated.
-- [ ] Implementation aligned with linked RFs.
-- [ ] Android/iOS parity reviewed or temporary gap documented.
-- [ ] Agreed tests executed.
-- [ ] Technical/functional documentation updated.
+- [x] Story acceptance criteria validated.
+- [x] Implementation aligned with linked RFs.
+- [x] Android/iOS parity reviewed or temporary gap documented.
+- [x] Agreed tests executed.
+- [x] Technical/functional documentation updated.
 - [ ] Issue and PR linked.

@@ -110,6 +110,9 @@ Notification event contract:
     - `users_with_shift` (requires `shiftId`)
     - `producers_by_vendor` (requires `vendorId`)
     - `role` (requires `role`: `member` | `producer` | `admin`)
+- `sentAt`: timestamp
+- `createdBy`: `system` or authorized `userId`
+- `weekKey`: optional, only when the event applies to a concrete week
 
 Delivery calendar scope:
 - `deliveryCalendar` stores exception weeks only (doc ID = `weekKey`).

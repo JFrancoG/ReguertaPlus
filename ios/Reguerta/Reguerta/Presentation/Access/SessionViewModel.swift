@@ -23,6 +23,24 @@ struct NotificationDraft: Equatable, Sendable {
     var audience: NotificationAudience = .all
 }
 
+struct SharedProfileDraft: Equatable, Sendable {
+    var familyNames = ""
+    var photoUrl = ""
+    var about = ""
+
+    var normalized: SharedProfileDraft {
+        SharedProfileDraft(
+            familyNames: familyNames.trimmingCharacters(in: .whitespacesAndNewlines),
+            photoUrl: photoUrl.trimmingCharacters(in: .whitespacesAndNewlines),
+            about: about.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+    }
+
+    var hasVisibleContent: Bool {
+        !familyNames.isEmpty || !photoUrl.isEmpty || !about.isEmpty
+    }
+}
+
 struct AuthorizedSession: Equatable, Sendable {
     var principal: AuthPrincipal
     var member: Member
@@ -107,15 +125,21 @@ final class SessionViewModel {
     var newsDraft = NewsDraft()
     var notificationsFeed: [NotificationEvent] = []
     var notificationDraft = NotificationDraft()
+    var sharedProfiles: [SharedProfile] = []
+    var sharedProfileDraft = SharedProfileDraft()
     var editingNewsId: String?
     var isLoadingNews = false
     var isSavingNews = false
     var isLoadingNotifications = false
     var isSendingNotification = false
+    var isLoadingSharedProfiles = false
+    var isSavingSharedProfile = false
+    var isDeletingSharedProfile = false
 
     private let repository: any MemberRepository
     private let newsRepository: any NewsRepository
     private let notificationRepository: any NotificationRepository
+    private let sharedProfileRepository: any SharedProfileRepository
     private let authSessionProvider: any AuthSessionProvider
     private let resolveAuthorizedSession: ResolveAuthorizedSessionUseCase
     private let upsertMemberByAdmin: UpsertMemberByAdminUseCase
@@ -157,6 +181,7 @@ final class SessionViewModel {
 
     init(
         repository: (any MemberRepository)? = nil,
+        sharedProfileRepository: (any SharedProfileRepository)? = nil,
         authSessionProvider: (any AuthSessionProvider)? = nil,
         resolveAuthorizedSession: ResolveAuthorizedSessionUseCase? = nil,
         upsertMemberByAdmin: UpsertMemberByAdminUseCase? = nil,
@@ -175,6 +200,10 @@ final class SessionViewModel {
         let selectedNotificationRepository: any NotificationRepository = ChainedNotificationRepository(
             primary: FirestoreNotificationRepository(),
             fallback: InMemoryNotificationRepository()
+        )
+        let selectedSharedProfileRepository = sharedProfileRepository ?? ChainedSharedProfileRepository(
+            primary: FirestoreSharedProfileRepository(),
+            fallback: InMemorySharedProfileRepository()
         )
         let selectedAuthProvider = authSessionProvider ?? {
             if ProcessInfo.processInfo.arguments.contains("-useMockAuth") {
@@ -199,6 +228,7 @@ final class SessionViewModel {
         self.repository = selectedRepository
         self.newsRepository = selectedNewsRepository
         self.notificationRepository = selectedNotificationRepository
+        self.sharedProfileRepository = selectedSharedProfileRepository
         self.authSessionProvider = selectedAuthProvider
         self.resolveAuthorizedSession = resolveAuthorizedSession ?? ResolveAuthorizedSessionUseCase(repository: selectedRepository)
         self.upsertMemberByAdmin = upsertMemberByAdmin ?? UpsertMemberByAdminUseCase(repository: selectedRepository)
@@ -301,11 +331,16 @@ final class SessionViewModel {
         newsDraft = NewsDraft()
         notificationsFeed = []
         notificationDraft = NotificationDraft()
+        sharedProfiles = []
+        sharedProfileDraft = SharedProfileDraft()
         editingNewsId = nil
         isLoadingNews = false
         isSavingNews = false
         isLoadingNotifications = false
         isSendingNotification = false
+        isLoadingSharedProfiles = false
+        isSavingSharedProfile = false
+        isDeletingSharedProfile = false
         Task {
             await criticalDataFreshnessLocalRepository.clear()
         }
@@ -379,6 +414,62 @@ final class SessionViewModel {
     func clearNotificationEditor() {
         notificationDraft = NotificationDraft()
         isSendingNotification = false
+    }
+
+    func refreshSharedProfiles() {
+        guard case .authorized(let session) = mode else { return }
+        isLoadingSharedProfiles = true
+        Task { @MainActor in
+            let profiles = await sharedProfileRepository.allSharedProfiles()
+            sharedProfiles = profiles.filter(\.hasVisibleContent)
+            sharedProfileDraft = profiles.first(where: { $0.userId == session.member.id })?.toDraft() ?? SharedProfileDraft()
+            isLoadingSharedProfiles = false
+        }
+    }
+
+    func saveSharedProfile(onSuccess: @escaping @MainActor () -> Void = {}) {
+        guard case .authorized(let session) = mode else { return }
+        let draft = sharedProfileDraft.normalized
+        guard draft.hasVisibleContent else {
+            feedbackMessageKey = AccessL10nKey.feedbackSharedProfileContentRequired
+            return
+        }
+
+        isSavingSharedProfile = true
+        Task { @MainActor in
+            let saved = await sharedProfileRepository.upsert(
+                profile: SharedProfile(
+                    userId: session.member.id,
+                    familyNames: draft.familyNames,
+                    photoUrl: draft.photoUrl.isEmpty ? nil : draft.photoUrl,
+                    about: draft.about,
+                    updatedAtMillis: nowMillisProvider()
+                )
+            )
+            let profiles = await sharedProfileRepository.allSharedProfiles()
+            sharedProfiles = profiles.filter(\.hasVisibleContent)
+            sharedProfileDraft = saved.toDraft()
+            isSavingSharedProfile = false
+            feedbackMessageKey = AccessL10nKey.feedbackSharedProfileSaved
+            onSuccess()
+        }
+    }
+
+    func deleteSharedProfile(onSuccess: @escaping @MainActor () -> Void = {}) {
+        guard case .authorized(let session) = mode else { return }
+
+        isDeletingSharedProfile = true
+        Task { @MainActor in
+            let deleted = await sharedProfileRepository.deleteSharedProfile(userId: session.member.id)
+            let profiles = await sharedProfileRepository.allSharedProfiles()
+            sharedProfiles = profiles.filter(\.hasVisibleContent)
+            sharedProfileDraft = SharedProfileDraft()
+            isDeletingSharedProfile = false
+            feedbackMessageKey = deleted
+                ? AccessL10nKey.feedbackSharedProfileDeleted
+                : AccessL10nKey.feedbackSharedProfileDeleteFailed
+            onSuccess()
+        }
     }
 
     func refreshNews() {
@@ -495,7 +586,7 @@ final class SessionViewModel {
                     userIds: [],
                     segmentType: notificationDraft.audience.segmentType,
                     targetRole: notificationDraft.audience.targetRole,
-                    createdBy: session.principal.uid,
+                    createdBy: session.member.id,
                     sentAtMillis: nowMillisProvider(),
                     weekKey: nil
                 )
@@ -828,6 +919,7 @@ final class SessionViewModel {
         case .authorized(let member):
             let members = await repository.allMembers()
             let allNotifications = await notificationRepository.allNotifications()
+            let profiles = await sharedProfileRepository.allSharedProfiles()
             mode = .authorized(
                 AuthorizedSession(
                     principal: principal,
@@ -843,12 +935,16 @@ final class SessionViewModel {
             }
             isLoadingNews = true
             isLoadingNotifications = true
+            isLoadingSharedProfiles = true
             let allNews = await newsRepository.allNews()
             latestNews = allNews.filter(\.active).prefix(3).map { $0 }
             newsFeed = member.isAdmin ? allNews : allNews.filter(\.active)
             notificationsFeed = allNotifications.filter { $0.isVisible(to: member) }
+            sharedProfiles = profiles.filter(\.hasVisibleContent)
+            sharedProfileDraft = profiles.first(where: { $0.userId == member.id })?.toDraft() ?? SharedProfileDraft()
             isLoadingNews = false
             isLoadingNotifications = false
+            isLoadingSharedProfiles = false
             await authorizedDeviceRegistrar.register(member: member)
         case .unauthorized(let reason):
             let shouldShowUnauthorizedDialog = shouldShowUnauthorizedDialog(
@@ -864,11 +960,16 @@ final class SessionViewModel {
             newsDraft = NewsDraft()
             notificationsFeed = []
             notificationDraft = NotificationDraft()
+            sharedProfiles = []
+            sharedProfileDraft = SharedProfileDraft()
             editingNewsId = nil
             isLoadingNews = false
             isSavingNews = false
             isLoadingNotifications = false
             isSendingNotification = false
+            isLoadingSharedProfiles = false
+            isSavingSharedProfile = false
+            isDeletingSharedProfile = false
         }
     }
 
@@ -976,6 +1077,16 @@ final class SessionViewModel {
             .trimmingCharacters(in: CharacterSet(charactersIn: "_"))
         let suffix = sanitized.isEmpty ? "member" : String(sanitized.prefix(40))
         return "member_\(suffix)"
+    }
+}
+
+private extension SharedProfile {
+    func toDraft() -> SharedProfileDraft {
+        SharedProfileDraft(
+            familyNames: familyNames,
+            photoUrl: photoUrl ?? "",
+            about: about
+        )
     }
 }
 

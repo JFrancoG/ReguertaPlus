@@ -254,8 +254,8 @@ Delivery calendar strategy (canonical):
 - `target`: string (`all`|`users`|`segment`) (required)
 - `targetPayload`: map
 - `sentAt`: timestamp (required)
-- `createdBy`: string (required)
-- `weekKey`: string|null
+- `createdBy`: string (required, `system` or authorized `userId`)
+- `weekKey`: string (optional, only when the notification applies to a specific week)
 
 `targetPayload` contract:
 - For `target == all`: empty map or null.

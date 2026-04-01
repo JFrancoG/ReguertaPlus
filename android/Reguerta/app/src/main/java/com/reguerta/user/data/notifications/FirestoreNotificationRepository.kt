@@ -48,8 +48,8 @@ class FirestoreNotificationRepository(
                 ((persisted.sentAtMillis % 1_000) * 1_000_000).toInt(),
             ),
             "createdBy" to persisted.createdBy,
-            "weekKey" to persisted.weekKey,
         )
+        persisted.weekKey?.let { payload["weekKey"] = it }
         val targetPayload = when (persisted.target) {
             "users" -> mapOf("userIds" to persisted.userIds)
             "segment" -> when (persisted.segmentType) {

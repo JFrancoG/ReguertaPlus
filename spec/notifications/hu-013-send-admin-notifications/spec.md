@@ -23,7 +23,7 @@ As an admin I want to send notifications through the enabled MVP mode so that I 
 - Let admins send notifications from the admin drawer entry and from the notifications screen.
 - Order notifications by `sentAt` descending.
 - Reuse the documented `notificationEvents` contract already defined in requirements docs.
-- Persist notification events from the apps using `title`, `body`, `type`, `target`, `targetPayload`, `sentAt`, `createdBy`, and `weekKey`.
+- Persist notification events from the apps using `title`, `body`, `type`, `target`, `targetPayload`, `sentAt`, `createdBy` (`userId`), and `weekKey` only when the notification is week-scoped.
 - Register/update `users/{userId}/devices/{deviceId}` after an authorized session is established, including `lastDeviceId` and the latest known `fcmToken` when available.
 - Dispatch real FCM push from backend when a new `notificationEvents/{eventId}` document is created.
 
