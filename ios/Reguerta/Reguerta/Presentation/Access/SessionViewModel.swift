@@ -127,6 +127,9 @@ final class SessionViewModel {
     var notificationDraft = NotificationDraft()
     var sharedProfiles: [SharedProfile] = []
     var sharedProfileDraft = SharedProfileDraft()
+    var shiftsFeed: [ShiftAssignment] = []
+    var nextDeliveryShift: ShiftAssignment?
+    var nextMarketShift: ShiftAssignment?
     var editingNewsId: String?
     var isLoadingNews = false
     var isSavingNews = false
@@ -135,11 +138,13 @@ final class SessionViewModel {
     var isLoadingSharedProfiles = false
     var isSavingSharedProfile = false
     var isDeletingSharedProfile = false
+    var isLoadingShifts = false
 
     private let repository: any MemberRepository
     private let newsRepository: any NewsRepository
     private let notificationRepository: any NotificationRepository
     private let sharedProfileRepository: any SharedProfileRepository
+    private let shiftRepository: any ShiftRepository
     private let authSessionProvider: any AuthSessionProvider
     private let resolveAuthorizedSession: ResolveAuthorizedSessionUseCase
     private let upsertMemberByAdmin: UpsertMemberByAdminUseCase
@@ -205,6 +210,10 @@ final class SessionViewModel {
             primary: FirestoreSharedProfileRepository(),
             fallback: InMemorySharedProfileRepository()
         )
+        let selectedShiftRepository: any ShiftRepository = ChainedShiftRepository(
+            primary: FirestoreShiftRepository(),
+            fallback: InMemoryShiftRepository()
+        )
         let selectedAuthProvider = authSessionProvider ?? {
             if ProcessInfo.processInfo.arguments.contains("-useMockAuth") {
                 return MockAuthSessionProvider()
@@ -229,6 +238,7 @@ final class SessionViewModel {
         self.newsRepository = selectedNewsRepository
         self.notificationRepository = selectedNotificationRepository
         self.sharedProfileRepository = selectedSharedProfileRepository
+        self.shiftRepository = selectedShiftRepository
         self.authSessionProvider = selectedAuthProvider
         self.resolveAuthorizedSession = resolveAuthorizedSession ?? ResolveAuthorizedSessionUseCase(repository: selectedRepository)
         self.upsertMemberByAdmin = upsertMemberByAdmin ?? UpsertMemberByAdminUseCase(repository: selectedRepository)
@@ -333,6 +343,9 @@ final class SessionViewModel {
         notificationDraft = NotificationDraft()
         sharedProfiles = []
         sharedProfileDraft = SharedProfileDraft()
+        shiftsFeed = []
+        nextDeliveryShift = nil
+        nextMarketShift = nil
         editingNewsId = nil
         isLoadingNews = false
         isSavingNews = false
@@ -341,6 +354,7 @@ final class SessionViewModel {
         isLoadingSharedProfiles = false
         isSavingSharedProfile = false
         isDeletingSharedProfile = false
+        isLoadingShifts = false
         Task {
             await criticalDataFreshnessLocalRepository.clear()
         }
@@ -424,6 +438,26 @@ final class SessionViewModel {
             sharedProfiles = profiles.filter(\.hasVisibleContent)
             sharedProfileDraft = profiles.first(where: { $0.userId == session.member.id })?.toDraft() ?? SharedProfileDraft()
             isLoadingSharedProfiles = false
+        }
+    }
+
+    func refreshShifts() {
+        guard case .authorized(let session) = mode else { return }
+        isLoadingShifts = true
+        Task { @MainActor in
+            let shifts = await shiftRepository.allShifts()
+            shiftsFeed = shifts
+            nextDeliveryShift = shifts.nextAssignedShift(
+                memberId: session.member.id,
+                type: .delivery,
+                nowMillis: nowMillisProvider()
+            )
+            nextMarketShift = shifts.nextAssignedShift(
+                memberId: session.member.id,
+                type: .market,
+                nowMillis: nowMillisProvider()
+            )
+            isLoadingShifts = false
         }
     }
 
@@ -920,6 +954,7 @@ final class SessionViewModel {
             let members = await repository.allMembers()
             let allNotifications = await notificationRepository.allNotifications()
             let profiles = await sharedProfileRepository.allSharedProfiles()
+            let shifts = await shiftRepository.allShifts()
             mode = .authorized(
                 AuthorizedSession(
                     principal: principal,
@@ -936,15 +971,28 @@ final class SessionViewModel {
             isLoadingNews = true
             isLoadingNotifications = true
             isLoadingSharedProfiles = true
+            isLoadingShifts = true
             let allNews = await newsRepository.allNews()
             latestNews = allNews.filter(\.active).prefix(3).map { $0 }
             newsFeed = member.isAdmin ? allNews : allNews.filter(\.active)
             notificationsFeed = allNotifications.filter { $0.isVisible(to: member) }
             sharedProfiles = profiles.filter(\.hasVisibleContent)
             sharedProfileDraft = profiles.first(where: { $0.userId == member.id })?.toDraft() ?? SharedProfileDraft()
+            shiftsFeed = shifts
+            nextDeliveryShift = shifts.nextAssignedShift(
+                memberId: member.id,
+                type: .delivery,
+                nowMillis: nowMillisProvider()
+            )
+            nextMarketShift = shifts.nextAssignedShift(
+                memberId: member.id,
+                type: .market,
+                nowMillis: nowMillisProvider()
+            )
             isLoadingNews = false
             isLoadingNotifications = false
             isLoadingSharedProfiles = false
+            isLoadingShifts = false
             await authorizedDeviceRegistrar.register(member: member)
         case .unauthorized(let reason):
             let shouldShowUnauthorizedDialog = shouldShowUnauthorizedDialog(
@@ -962,6 +1010,9 @@ final class SessionViewModel {
             notificationDraft = NotificationDraft()
             sharedProfiles = []
             sharedProfileDraft = SharedProfileDraft()
+            shiftsFeed = []
+            nextDeliveryShift = nil
+            nextMarketShift = nil
             editingNewsId = nil
             isLoadingNews = false
             isSavingNews = false
@@ -970,6 +1021,7 @@ final class SessionViewModel {
             isLoadingSharedProfiles = false
             isSavingSharedProfile = false
             isDeletingSharedProfile = false
+            isLoadingShifts = false
         }
     }
 
@@ -1022,11 +1074,20 @@ final class SessionViewModel {
         newsDraft = NewsDraft()
         notificationsFeed = []
         notificationDraft = NotificationDraft()
+        sharedProfiles = []
+        sharedProfileDraft = SharedProfileDraft()
+        shiftsFeed = []
+        nextDeliveryShift = nil
+        nextMarketShift = nil
         editingNewsId = nil
         isLoadingNews = false
         isSavingNews = false
         isLoadingNotifications = false
         isSendingNotification = false
+        isLoadingSharedProfiles = false
+        isSavingSharedProfile = false
+        isDeletingSharedProfile = false
+        isLoadingShifts = false
         await criticalDataFreshnessLocalRepository.clear()
     }
 
@@ -1087,6 +1148,18 @@ private extension SharedProfile {
             photoUrl: photoUrl ?? "",
             about: about
         )
+    }
+}
+
+private extension Array where Element == ShiftAssignment {
+    func nextAssignedShift(
+        memberId: String,
+        type: ShiftType,
+        nowMillis: Int64
+    ) -> ShiftAssignment? {
+        self
+            .filter { $0.type == type && $0.dateMillis >= nowMillis && $0.isAssigned(to: memberId) }
+            .min { $0.dateMillis < $1.dateMillis }
     }
 }
 

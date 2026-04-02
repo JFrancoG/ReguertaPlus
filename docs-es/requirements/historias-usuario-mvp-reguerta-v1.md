@@ -159,6 +159,15 @@ Criterios de aceptación:
 - Dado un socio con `isActive = false`, cuando se genera planificación, entonces no entra en rotación.
 - Dado un socio nuevo o reactivado, cuando se incorpora, entonces se coloca al final de la rotación.
 
+### HU-041 Tablero segmentado de turnos y celdas dedicadas
+
+Como socio quiero que el tablero de turnos se separe en pestañas de reparto y mercadillo con celdas específicas para leer la planificación más rápido.
+
+Criterios de aceptación:
+- La pestaña de reparto muestra número de semana y rango de fechas, más encargado y ayudante.
+- La pestaña de mercadillo muestra mes y fecha exacta del sábado, más los nombres asignados.
+- El tablero sigue siendo desplazable y legible en Android e iOS.
+
 ## 6. Revisor Apple/TestFlight
 
 ### HU-018 Probar app de producción sin tocar datos reales
@@ -185,6 +194,7 @@ Como socio/admin quiero que los turnos se lean y actualicen desde una fuente com
 
 Criterios de aceptación:
 - Dado origen en Google Sheets, cuando la app consulta turnos, entonces refleja datos vigentes.
+- Dado que se hace un cambio manual en Google Sheets, cuando la sincronización entra, entonces la app refleja ese cambio.
 - Dado un cambio de turno confirmado, cuando se materializa, entonces se sincroniza fuente y se notifica.
 
 ## 8. Arranque de app y operaciones de catalogo

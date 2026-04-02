@@ -9,16 +9,21 @@
 - [ ] Implement UI/ViewModel/domain layer changes.
 - [ ] Integrate required read/write data flows.
 - [ ] Validate loading, error, and success states.
+- [ ] Add entry point from the shifts board into the swap-request flow.
+- [ ] Implement request form with selected shift, target member, and reason.
 
 ## 3. iOS implementation
 - [ ] Implement equivalent SwiftUI/ViewModel/domain layer changes.
 - [ ] Integrate required read/write data flows.
 - [ ] Validate loading, error, and success states.
+- [ ] Add entry point from the shifts board into the swap-request flow.
+- [ ] Implement request form with selected shift, target member, and reason.
 
 ## 4. Backend / Firestore
 - [ ] Adjust schema/queries/rules/functions where applicable.
 - [ ] Verify compatibility with existing data and incremental strategy.
 - [ ] Confirm role-based access and security behavior.
+- [ ] Persist request lifecycle and final confirmation state.
 
 ## 5. Testing
 - [ ] Execute unit tests for impacted areas.

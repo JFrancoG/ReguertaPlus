@@ -32,6 +32,8 @@ As a member/admin I want shifts to be read and updated from a shared source so t
 
 - App reads current shifts from Google Sheets.
 - Confirmed changes sync source and notify all members.
+- Manual edits performed directly in Google Sheets are ingested back into Firestore/app state.
+- Confirmed changes from the app write back to Google Sheets with deterministic conflict handling.
 
 ## Dependencies
 
@@ -39,6 +41,7 @@ As a member/admin I want shifts to be read and updated from a shared source so t
 - Functional references: docs-es/requirements/historias-usuario-mvp-reguerta-v1.md.
 - Data references: docs-es/requirements/firestore-estructura-mvp-propuesta-v1.md.
 - Depends on local+cloud hybrid strategy and/or Google Sheets integration.
+- Recommended before HU-041 and HU-016 so the app UX works with synchronized real data.
 
 ## Risks
 

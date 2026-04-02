@@ -2635,6 +2635,125 @@
         "es" : { "stringUnit" : { "state" : "translated", "value" : "Ajustes" } }
       }
     },
+    "shifts.assigned_members.format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Assigned: %1$@" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Asignados: %1$@" } }
+      }
+    },
+    "shifts.empty_state" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "There are no shifts scheduled yet." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Todavía no hay turnos planificados." } }
+      }
+    },
+    "shifts.helper.format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Helper: %1$@" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Ayudante: %1$@" } }
+      }
+    },
+    "shifts.list.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Check the global shift board in chronological order." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Consulta el tablón global de turnos en orden cronológico." } }
+      }
+    },
+    "shifts.loading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Loading shifts…" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Cargando turnos…" } }
+      }
+    },
+    "shifts.next.delivery" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Next delivery" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Próximo reparto" } }
+      }
+    },
+    "shifts.next.market" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Next market" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Próximo mercadillo" } }
+      }
+    },
+    "shifts.next.pending" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Pending assignment" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Pendiente de asignación" } }
+      }
+    },
+    "shifts.next.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Keep track of your upcoming delivery and market assignments." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Consulta tu próximo reparto y tu próximo mercadillo." } }
+      }
+    },
+    "shifts.next.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Your next shifts" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Tus próximos turnos" } }
+      }
+    },
+    "shifts.refresh.action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Refresh shifts" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Recargar turnos" } }
+      }
+    },
+    "shifts.status.confirmed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Confirmed" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Confirmado" } }
+      }
+    },
+    "shifts.status.planned" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Planned" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Planificado" } }
+      }
+    },
+    "shifts.status.swap_pending" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Swap pending" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Intercambio pendiente" } }
+      }
+    },
+    "shifts.type.delivery" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delivery" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Reparto" } }
+      }
+    },
+    "shifts.type.market" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Market" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Mercadillo" } }
+      }
+    },
+    "shifts.view_all" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "View all shifts" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Ver todos los turnos" } }
+      }
+    },
     "news.create.action" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -30,6 +30,9 @@ import com.reguerta.user.domain.notifications.NotificationEvent
 import com.reguerta.user.domain.notifications.NotificationRepository
 import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.profiles.SharedProfileRepository
+import com.reguerta.user.domain.shifts.ShiftAssignment
+import com.reguerta.user.domain.shifts.ShiftRepository
+import com.reguerta.user.domain.shifts.ShiftType
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -113,6 +116,9 @@ data class SessionUiState(
     val notificationDraft: NotificationDraft = NotificationDraft(),
     val sharedProfiles: List<SharedProfile> = emptyList(),
     val sharedProfileDraft: SharedProfileDraft = SharedProfileDraft(),
+    val shiftsFeed: List<ShiftAssignment> = emptyList(),
+    val nextDeliveryShift: ShiftAssignment? = null,
+    val nextMarketShift: ShiftAssignment? = null,
     val editingNewsId: String? = null,
     val isLoadingNews: Boolean = false,
     val isSavingNews: Boolean = false,
@@ -121,6 +127,7 @@ data class SessionUiState(
     val isLoadingSharedProfiles: Boolean = false,
     val isSavingSharedProfile: Boolean = false,
     val isDeletingSharedProfile: Boolean = false,
+    val isLoadingShifts: Boolean = false,
 )
 
 sealed interface SessionUiEvent {
@@ -144,6 +151,7 @@ class SessionViewModel(
     private val newsRepository: NewsRepository,
     private val notificationRepository: NotificationRepository,
     private val sharedProfileRepository: SharedProfileRepository,
+    private val shiftRepository: ShiftRepository,
     private val authSessionProvider: AuthSessionProvider,
     private val resolveAuthorizedSession: ResolveAuthorizedSessionUseCase,
     private val upsertMemberByAdmin: UpsertMemberByAdminUseCase,
@@ -363,6 +371,35 @@ class SessionViewModel(
                         sharedProfiles = profiles.filter { profile -> profile.hasVisibleContent },
                         sharedProfileDraft = ownProfile?.toDraft() ?: SharedProfileDraft(),
                         isLoadingSharedProfiles = false,
+                    )
+                }
+            }
+        }
+    }
+
+    fun refreshShifts() {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingShifts = true) }
+            val shifts = shiftRepository.getAllShifts()
+            _uiState.update {
+                val currentMode = it.mode as? SessionMode.Authorized
+                if (currentMode?.principal?.uid != mode.principal.uid) {
+                    it
+                } else {
+                    it.copy(
+                        shiftsFeed = shifts,
+                        nextDeliveryShift = shifts.nextAssignedShift(
+                            memberId = mode.member.id,
+                            type = ShiftType.DELIVERY,
+                            nowMillis = nowMillisProvider(),
+                        ),
+                        nextMarketShift = shifts.nextAssignedShift(
+                            memberId = mode.member.id,
+                            type = ShiftType.MARKET,
+                            nowMillis = nowMillisProvider(),
+                        ),
+                        isLoadingShifts = false,
                     )
                 }
             }
@@ -898,6 +935,9 @@ class SessionViewModel(
                 notificationDraft = NotificationDraft(),
                 sharedProfiles = emptyList(),
                 sharedProfileDraft = SharedProfileDraft(),
+                shiftsFeed = emptyList(),
+                nextDeliveryShift = null,
+                nextMarketShift = null,
                 editingNewsId = null,
                 isLoadingNews = false,
                 isSavingNews = false,
@@ -906,6 +946,7 @@ class SessionViewModel(
                 isLoadingSharedProfiles = false,
                 isSavingSharedProfile = false,
                 isDeletingSharedProfile = false,
+                isLoadingShifts = false,
             )
         }
     }
@@ -1115,6 +1156,7 @@ class SessionViewModel(
                 val members = repository.getAllMembers()
                 val allNotifications = notificationRepository.getAllNotifications()
                 val sharedProfiles = sharedProfileRepository.getAllSharedProfiles()
+                val allShifts = shiftRepository.getAllShifts()
                 val ownSharedProfile = sharedProfiles.firstOrNull { it.userId == result.member.id }
                 _uiState.update {
                     it.copy(
@@ -1133,6 +1175,7 @@ class SessionViewModel(
                         isLoadingNews = true,
                         isLoadingNotifications = true,
                         isLoadingSharedProfiles = true,
+                        isLoadingShifts = true,
                     )
                 }
                 val allNews = newsRepository.getAllNews()
@@ -1151,9 +1194,21 @@ class SessionViewModel(
                             notificationsFeed = allNotifications.filter { event -> event.isVisibleTo(result.member) },
                             sharedProfiles = sharedProfiles.filter { profile -> profile.hasVisibleContent },
                             sharedProfileDraft = ownSharedProfile?.toDraft() ?: SharedProfileDraft(),
+                            shiftsFeed = allShifts,
+                            nextDeliveryShift = allShifts.nextAssignedShift(
+                                memberId = result.member.id,
+                                type = ShiftType.DELIVERY,
+                                nowMillis = nowMillisProvider(),
+                            ),
+                            nextMarketShift = allShifts.nextAssignedShift(
+                                memberId = result.member.id,
+                                type = ShiftType.MARKET,
+                                nowMillis = nowMillisProvider(),
+                            ),
                             isLoadingNews = false,
                             isLoadingNotifications = false,
                             isLoadingSharedProfiles = false,
+                            isLoadingShifts = false,
                         )
                     }
                 }
@@ -1184,6 +1239,9 @@ class SessionViewModel(
                         notificationDraft = NotificationDraft(),
                         sharedProfiles = emptyList(),
                         sharedProfileDraft = SharedProfileDraft(),
+                        shiftsFeed = emptyList(),
+                        nextDeliveryShift = null,
+                        nextMarketShift = null,
                         editingNewsId = null,
                         isLoadingNews = false,
                         isSavingNews = false,
@@ -1192,6 +1250,7 @@ class SessionViewModel(
                         isLoadingSharedProfiles = false,
                         isSavingSharedProfile = false,
                         isDeletingSharedProfile = false,
+                        isLoadingShifts = false,
                     )
                 }
             }
@@ -1248,11 +1307,20 @@ class SessionViewModel(
                 newsDraft = NewsDraft(),
                 notificationsFeed = emptyList(),
                 notificationDraft = NotificationDraft(),
+                sharedProfiles = emptyList(),
+                sharedProfileDraft = SharedProfileDraft(),
+                shiftsFeed = emptyList(),
+                nextDeliveryShift = null,
+                nextMarketShift = null,
                 editingNewsId = null,
                 isLoadingNews = false,
                 isSavingNews = false,
                 isLoadingNotifications = false,
                 isSendingNotification = false,
+                isLoadingSharedProfiles = false,
+                isSavingSharedProfile = false,
+                isDeletingSharedProfile = false,
+                isLoadingShifts = false,
             )
         }
     }
@@ -1300,6 +1368,15 @@ private fun SharedProfileDraft.normalized(): SharedProfileDraft =
 
 private val SharedProfileDraft.hasVisibleContent: Boolean
     get() = familyNames.isNotBlank() || photoUrl.isNotBlank() || about.isNotBlank()
+
+private fun List<ShiftAssignment>.nextAssignedShift(
+    memberId: String,
+    type: ShiftType,
+    nowMillis: Long,
+): ShiftAssignment? =
+    asSequence()
+        .filter { shift -> shift.type == type && shift.dateMillis >= nowMillis && shift.isAssignedTo(memberId) }
+        .minByOrNull { shift -> shift.dateMillis }
 
 private val EmailPatternRegex = "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$".toRegex(setOf(RegexOption.IGNORE_CASE))
 private const val MY_ORDER_FRESHNESS_TIMEOUT_MILLIS = 2_500L

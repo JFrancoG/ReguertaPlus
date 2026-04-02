@@ -10,6 +10,7 @@ enum ReguertaFirestoreCollection: String, Sendable {
     case users
     case config
     case sharedProfiles
+    case shifts
     case news
     case notificationEvents
 

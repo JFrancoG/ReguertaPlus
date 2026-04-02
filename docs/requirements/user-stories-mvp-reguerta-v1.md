@@ -160,6 +160,15 @@ Acceptance criteria:
 - New/reactivated members are appended to rotation end.
 - Market shifts enforce minimum 3 assigned members.
 
+### HU-041 Segmented shifts board and cells
+
+As a member I want the shifts board split into delivery and market tabs with dedicated cells so that I can scan planning quickly.
+
+Acceptance criteria:
+- Delivery tab shows week number and week date range plus responsible/helper names.
+- Market tab shows month and market date plus the assigned names.
+- Board stays scrollable and readable on Android and iOS.
+
 ## 6. Reviewer (Apple/TestFlight)
 
 ### HU-018 Test production app safely
@@ -186,6 +195,7 @@ As member/admin I want shift read/write through a shared source (Google Sheets).
 
 Acceptance criteria:
 - App reads current shifts from source.
+- Manual edits in Google Sheets are ingested back into app-visible shifts.
 - Confirmed swap/change syncs source and sends notification.
 
 ## 8. App startup and catalog operations

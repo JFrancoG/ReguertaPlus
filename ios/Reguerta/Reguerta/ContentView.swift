@@ -448,6 +448,8 @@ struct ContentView: View {
         switch homeDestination {
         case .dashboard:
             dashboardRoute
+        case .shifts:
+            shiftsRoute
         case .news:
             newsListRoute
         case .notifications:
@@ -468,7 +470,7 @@ struct ContentView: View {
 
     @ViewBuilder
     private var dashboardRoute: some View {
-        weeklyContextCard
+        nextShiftsCard
 
         switch viewModel.mode {
         case .signedOut:
@@ -713,27 +715,31 @@ struct ContentView: View {
         }
     }
 
-    private var weeklyContextCard: some View {
+    private var nextShiftsCard: some View {
         cardContainer {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                Text(localizedKey(AccessL10nKey.homeShellWeeklyTitle))
+                Text(localizedKey(AccessL10nKey.shiftsNextTitle))
                     .font(tokens.typography.titleCard)
-                weeklyContextRow(
-                    titleKey: AccessL10nKey.homeShellWeeklyResponsible,
-                    value: localizedKey(AccessL10nKey.homeShellWeeklyPending)
-                )
-                weeklyContextRow(
-                    titleKey: AccessL10nKey.homeShellWeeklySupport,
-                    value: localizedKey(AccessL10nKey.homeShellWeeklyPending)
-                )
-                weeklyContextRow(
-                    titleKey: AccessL10nKey.homeShellWeeklyMainProducer,
-                    value: localizedKey(AccessL10nKey.homeShellWeeklyPending)
-                )
-                weeklyContextRow(
-                    titleKey: AccessL10nKey.homeShellWeeklyDelivery,
-                    value: localizedKey(AccessL10nKey.homeShellWeeklyDeliveryDefault)
-                )
+                Text(localizedKey(AccessL10nKey.shiftsNextSubtitle))
+                    .font(tokens.typography.bodySecondary)
+                    .foregroundStyle(tokens.colors.textSecondary)
+                if viewModel.isLoadingShifts {
+                    Text(localizedKey(AccessL10nKey.shiftsLoading))
+                        .font(tokens.typography.bodySecondary)
+                } else {
+                    shiftSummaryRow(
+                        titleKey: AccessL10nKey.shiftsNextDelivery,
+                        shift: viewModel.nextDeliveryShift
+                    )
+                    shiftSummaryRow(
+                        titleKey: AccessL10nKey.shiftsNextMarket,
+                        shift: viewModel.nextMarketShift
+                    )
+                }
+                ReguertaButton(localizedKey(AccessL10nKey.shiftsViewAll), variant: .text) {
+                    homeDestination = .shifts
+                    viewModel.refreshShifts()
+                }
             }
         }
     }
@@ -792,6 +798,8 @@ struct ContentView: View {
                 }
                 .disabled(!modulesEnabled)
                 Button {
+                    homeDestination = .shifts
+                    viewModel.refreshShifts()
                 } label: {
                     Text(localizedKey(AccessL10nKey.shifts))
                 }
@@ -826,15 +834,83 @@ struct ContentView: View {
         }
     }
 
-    private func weeklyContextRow(titleKey: String, value: LocalizedStringKey) -> some View {
+    private func shiftSummaryRow(titleKey: String, shift: ShiftAssignment?) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(localizedKey(titleKey))
                 .font(tokens.typography.bodySecondary)
                 .foregroundStyle(tokens.colors.textPrimary)
             Spacer(minLength: tokens.spacing.md)
-            Text(value)
+            Text(shift.map { shiftSummary($0) } ?? l10n(AccessL10nKey.shiftsNextPending))
                 .font(tokens.typography.label)
                 .foregroundStyle(tokens.colors.textSecondary)
+        }
+    }
+
+    @ViewBuilder
+    private var shiftsRoute: some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+            cardContainer {
+                VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                    Text(localizedKey(AccessL10nKey.shifts))
+                        .font(tokens.typography.titleCard)
+                    Text(localizedKey(AccessL10nKey.shiftsListSubtitle))
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                    ReguertaButton(localizedKey(AccessL10nKey.shiftsRefreshAction), variant: .text) {
+                        viewModel.refreshShifts()
+                    }
+                }
+            }
+
+            nextShiftsCard
+
+            if viewModel.isLoadingShifts {
+                cardContainer {
+                    Text(localizedKey(AccessL10nKey.shiftsLoading))
+                        .font(tokens.typography.bodySecondary)
+                }
+            } else if viewModel.shiftsFeed.isEmpty {
+                cardContainer {
+                    Text(localizedKey(AccessL10nKey.shiftsEmptyState))
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                }
+            } else {
+                ForEach(viewModel.shiftsFeed) { shift in
+                    shiftCard(shift)
+                }
+            }
+        }
+    }
+
+    private func shiftCard(_ shift: ShiftAssignment) -> some View {
+        let isAssignedToCurrentMember = currentHomeMember.map { shift.isAssigned(to: $0.id) } ?? false
+        return cardContainer {
+            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                HStack {
+                    Text(localizedKey(shift.type.titleKey))
+                        .font(tokens.typography.titleCard)
+                    Spacer()
+                    Text(localizedKey(shift.status.titleKey))
+                        .font(tokens.typography.label)
+                        .foregroundStyle(isAssignedToCurrentMember ? tokens.colors.actionPrimary : tokens.colors.textSecondary)
+                }
+                Text(localizedDateTime(shift.dateMillis))
+                    .font(tokens.typography.body)
+                Text(l10n(AccessL10nKey.shiftsAssignedMembersFormat, memberNames(for: shift.assignedUserIds)))
+                    .font(tokens.typography.bodySecondary)
+                    .foregroundStyle(tokens.colors.textSecondary)
+                if let helperUserId = shift.helperUserId {
+                    Text(
+                        l10n(
+                            AccessL10nKey.shiftsHelperFormat,
+                            currentHomeSession.map { displayName(for: helperUserId, session: $0) } ?? helperUserId
+                        )
+                    )
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                }
+            }
         }
     }
 
@@ -1679,6 +1755,9 @@ struct ContentView: View {
             if destination == .profile {
                 viewModel.refreshSharedProfiles()
             }
+            if destination == .shifts {
+                viewModel.refreshShifts()
+            }
             homeDestination = destination
             closeHomeDrawer()
         }
@@ -1834,6 +1913,18 @@ struct ContentView: View {
 
     private func displayName(for userId: String, session: AuthorizedSession) -> String {
         session.members.first(where: { $0.id == userId })?.displayName ?? userId
+    }
+
+    private func memberNames(for userIds: [String]) -> String {
+        guard let session = currentHomeSession else {
+            return userIds.joined(separator: ", ")
+        }
+        let names = userIds.map { displayName(for: $0, session: session) }
+        return names.isEmpty ? "—" : names.joined(separator: ", ")
+    }
+
+    private func shiftSummary(_ shift: ShiftAssignment) -> String {
+        "\(localizedDateTime(shift.dateMillis)) · \(memberNames(for: shift.assignedUserIds))"
     }
 
     private func dispatchShell(_ action: AuthShellAction) {
@@ -2167,6 +2258,30 @@ private extension NotificationEvent {
             return AccessL10nKey.notificationsTargetAdmins
         default:
             return AccessL10nKey.notificationsTargetAll
+        }
+    }
+}
+
+private extension ShiftType {
+    var titleKey: String {
+        switch self {
+        case .delivery:
+            return AccessL10nKey.shiftsTypeDelivery
+        case .market:
+            return AccessL10nKey.shiftsTypeMarket
+        }
+    }
+}
+
+private extension ShiftStatus {
+    var titleKey: String {
+        switch self {
+        case .planned:
+            return AccessL10nKey.shiftsStatusPlanned
+        case .swapPending:
+            return AccessL10nKey.shiftsStatusSwapPending
+        case .confirmed:
+            return AccessL10nKey.shiftsStatusConfirmed
         }
     }
 }

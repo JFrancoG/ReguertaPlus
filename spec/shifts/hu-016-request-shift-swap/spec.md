@@ -33,6 +33,8 @@ As a member I want to request a shift swap when I cannot attend so that I can re
 - Request stays pending for target member.
 - Acceptance plus final confirmation applies the change.
 - Applied change notifies all members.
+- The request can be started from the shifts board against a specific assigned member or helper.
+- A dedicated request screen captures the target member, reason, and shift context before submission.
 
 ## Dependencies
 
@@ -40,6 +42,7 @@ As a member I want to request a shift swap when I cannot attend so that I can re
 - Functional references: docs-es/requirements/historias-usuario-mvp-reguerta-v1.md.
 - Data references: docs-es/requirements/firestore-estructura-mvp-propuesta-v1.md.
 - Depends on shifts, swap requests, and change notifications.
+- Recommended after HU-020 and HU-041 so the workflow runs on synchronized data and the board already exposes the entry point.
 
 ## Risks
 
