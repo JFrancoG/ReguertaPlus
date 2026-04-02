@@ -1,10 +1,10 @@
 # HU-041 - Segmented shifts board and cells
 
 ## Metadata
-- issue_id: pending
+- issue_id: #65
 - priority: P2
 - platform: both
-- status: ready
+- status: implemented
 
 ## Context and problem
 
@@ -52,9 +52,9 @@ As a member I want the shifts board to be split into delivery and market tabs wi
 
 ## Definition of Done (DoD)
 
-- [ ] Story acceptance criteria validated.
-- [ ] Implementation aligned with linked RFs.
-- [ ] Android/iOS parity reviewed or temporary gap documented.
-- [ ] Agreed tests executed.
-- [ ] Technical/functional documentation updated.
+- [x] Story acceptance criteria validated.
+- [x] Implementation aligned with linked RFs.
+- [x] Android/iOS parity reviewed or temporary gap documented.
+- [x] Agreed tests executed.
+- [x] Technical/functional documentation updated.
 - [ ] Issue and PR linked.

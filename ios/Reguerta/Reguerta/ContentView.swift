@@ -20,6 +20,7 @@ struct ContentView: View {
     @State private var isAdminToolsExpanded = false
     @State private var homeDestination: HomeDestination = .dashboard
     @State private var pendingNewsDeletionId: String?
+    @State private var selectedShiftSegment: ShiftBoardSegment = .delivery
 
     private let startupVersionGateUseCase = ResolveStartupVersionGateUseCase(
         repository: FirestoreStartupVersionPolicyRepository()
@@ -848,6 +849,14 @@ struct ContentView: View {
 
     @ViewBuilder
     private var shiftsRoute: some View {
+        let deliveryShifts = viewModel.shiftsFeed
+            .filter { $0.type == .delivery }
+            .sorted { $0.dateMillis < $1.dateMillis }
+        let marketShifts = viewModel.shiftsFeed
+            .filter { $0.type == .market }
+            .sorted { $0.dateMillis < $1.dateMillis }
+        let visibleShifts = selectedShiftSegment == .delivery ? deliveryShifts : marketShifts
+
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
             cardContainer {
                 VStack(alignment: .leading, spacing: tokens.spacing.sm) {
@@ -876,38 +885,53 @@ struct ContentView: View {
                         .foregroundStyle(tokens.colors.textSecondary)
                 }
             } else {
-                ForEach(viewModel.shiftsFeed) { shift in
-                    shiftCard(shift)
+                Picker("", selection: $selectedShiftSegment) {
+                    ForEach(ShiftBoardSegment.allCases, id: \.self) { segment in
+                        Text(localizedKey(segment.titleKey)).tag(segment)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                if visibleShifts.isEmpty {
+                    cardContainer {
+                        Text(localizedKey(AccessL10nKey.shiftsEmptyState))
+                            .font(tokens.typography.bodySecondary)
+                            .foregroundStyle(tokens.colors.textSecondary)
+                    }
+                } else {
+                    ForEach(visibleShifts) { shift in
+                        shiftBoardCard(shift)
+                    }
                 }
             }
         }
     }
 
-    private func shiftCard(_ shift: ShiftAssignment) -> some View {
+    private func shiftBoardCard(_ shift: ShiftAssignment) -> some View {
         let isAssignedToCurrentMember = currentHomeMember.map { shift.isAssigned(to: $0.id) } ?? false
         return cardContainer {
-            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                HStack {
-                    Text(localizedKey(shift.type.titleKey))
+            HStack(alignment: .top, spacing: tokens.spacing.md) {
+                VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+                    Text(shift.leftBoardTitle)
                         .font(tokens.typography.titleCard)
-                    Spacer()
+                    Text(shift.leftBoardSubtitle)
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                }
+
+                VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+                    ForEach(Array(shift.boardNames(session: currentHomeSession).enumerated()), id: \.offset) { index, name in
+                        Text(name)
+                            .font(index == 0 ? tokens.typography.body : tokens.typography.bodySecondary)
+                            .fontWeight(index == 0 ? .semibold : .regular)
+                            .foregroundStyle(
+                                index == 0 && isAssignedToCurrentMember ?
+                                    tokens.colors.actionPrimary :
+                                    tokens.colors.textPrimary
+                            )
+                    }
                     Text(localizedKey(shift.status.titleKey))
                         .font(tokens.typography.label)
-                        .foregroundStyle(isAssignedToCurrentMember ? tokens.colors.actionPrimary : tokens.colors.textSecondary)
-                }
-                Text(localizedDateTime(shift.dateMillis))
-                    .font(tokens.typography.body)
-                Text(l10n(AccessL10nKey.shiftsAssignedMembersFormat, memberNames(for: shift.assignedUserIds)))
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                if let helperUserId = shift.helperUserId {
-                    Text(
-                        l10n(
-                            AccessL10nKey.shiftsHelperFormat,
-                            currentHomeSession.map { displayName(for: helperUserId, session: $0) } ?? helperUserId
-                        )
-                    )
-                        .font(tokens.typography.bodySecondary)
                         .foregroundStyle(tokens.colors.textSecondary)
                 }
             }
@@ -2270,6 +2294,82 @@ private extension ShiftType {
         case .market:
             return AccessL10nKey.shiftsTypeMarket
         }
+    }
+}
+
+private enum ShiftBoardSegment: CaseIterable {
+    case delivery
+    case market
+
+    var titleKey: String {
+        switch self {
+        case .delivery:
+            return AccessL10nKey.shiftsTypeDelivery
+        case .market:
+            return AccessL10nKey.shiftsTypeMarket
+        }
+    }
+}
+
+private extension ShiftAssignment {
+    var localDate: Date {
+        Date(timeIntervalSince1970: TimeInterval(dateMillis) / 1_000)
+    }
+
+    var leftBoardTitle: String {
+        switch type {
+        case .delivery:
+            let calendar = Calendar(identifier: .iso8601)
+            let week = calendar.component(.weekOfYear, from: localDate)
+            return "W\(week)"
+        case .market:
+            let formatter = DateFormatter()
+            formatter.locale = Locale.current
+            formatter.dateFormat = "LLLL"
+            return formatter.string(from: localDate).capitalized
+        }
+    }
+
+    var leftBoardSubtitle: String {
+        switch type {
+        case .delivery:
+            let calendar = Calendar(identifier: .iso8601)
+            guard
+                let weekInterval = calendar.dateInterval(of: .weekOfYear, for: localDate)
+            else {
+                return ""
+            }
+            let formatter = DateFormatter()
+            formatter.locale = Locale.current
+            formatter.dateFormat = "d MMM"
+            return "\(formatter.string(from: weekInterval.start)) - \(formatter.string(from: weekInterval.end.addingTimeInterval(-86_400)))"
+        case .market:
+            let formatter = DateFormatter()
+            formatter.locale = Locale.current
+            formatter.dateFormat = "EEEE d MMM"
+            return formatter.string(from: localDate).capitalized
+        }
+    }
+
+    func boardNames(session: AuthorizedSession?) -> [String] {
+        switch type {
+        case .delivery:
+            var names: [String] = []
+            if let firstAssigned = assignedUserIds.first {
+                names.append(displayName(for: firstAssigned, session: session))
+            }
+            if let helperUserId {
+                names.append(displayName(for: helperUserId, session: session))
+            }
+            return names.isEmpty ? ["—"] : names
+        case .market:
+            let names = assignedUserIds.map { displayName(for: $0, session: session) }
+            return names.isEmpty ? ["—"] : names
+        }
+    }
+
+    private func displayName(for memberId: String, session: AuthorizedSession?) -> String {
+        session?.members.first(where: { $0.id == memberId })?.displayName ?? memberId
     }
 }
 

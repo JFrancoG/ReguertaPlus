@@ -154,6 +154,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import coil3.compose.AsyncImage
 import java.text.DateFormat
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.temporal.WeekFields
+import java.util.Locale
 
 private const val SplashAnimationDurationMillis = 1_500
 private const val StartupPolicyFetchTimeoutMillis = 2_500L
@@ -1657,6 +1663,14 @@ private fun ShiftsRoute(
     isLoading: Boolean,
     onRefresh: () -> Unit,
 ) {
+    var selectedSegment by rememberSaveable { mutableStateOf(ShiftBoardSegment.DELIVERY) }
+    val deliveryShifts = remember(shifts) {
+        shifts.filter { it.type == ShiftType.DELIVERY }.sortedBy { it.dateMillis }
+    }
+    val marketShifts = remember(shifts) {
+        shifts.filter { it.type == ShiftType.MARKET }.sortedBy { it.dateMillis }
+    }
+
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -1706,11 +1720,74 @@ private fun ShiftsRoute(
                 )
             }
         } else {
-            shifts.forEach { shift ->
-                ShiftCard(
-                    shift = shift,
-                    members = members,
-                    isAssignedToCurrentMember = currentMember?.let { shift.isAssignedTo(it.id) } == true,
+            ShiftBoardSegmentSelector(
+                selectedSegment = selectedSegment,
+                onSegmentSelected = { selectedSegment = it },
+            )
+
+            val boardShifts = when (selectedSegment) {
+                ShiftBoardSegment.DELIVERY -> deliveryShifts
+                ShiftBoardSegment.MARKET -> marketShifts
+            }
+
+            if (boardShifts.isEmpty()) {
+                Card {
+                    Text(
+                        text = stringResource(R.string.shifts_empty_state),
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
+            } else {
+                boardShifts.forEach { shift ->
+                    ShiftBoardCard(
+                        shift = shift,
+                        members = members,
+                        isAssignedToCurrentMember = currentMember?.let {
+                            shift.isAssignedTo(it.id)
+                        } == true,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShiftBoardSegmentSelector(
+    selectedSegment: ShiftBoardSegment,
+    onSegmentSelected: (ShiftBoardSegment) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        ShiftBoardSegment.entries.forEach { segment ->
+            val isSelected = selectedSegment == segment
+            TextButton(
+                onClick = { onSegmentSelected(segment) },
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(
+                        if (isSelected) {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+                        } else {
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0f)
+                        }
+                    ),
+            ) {
+                Text(
+                    text = stringResource(segment.labelRes),
+                    color = if (isSelected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                 )
             }
         }
@@ -1718,62 +1795,68 @@ private fun ShiftsRoute(
 }
 
 @Composable
-private fun ShiftCard(
+private fun ShiftBoardCard(
     shift: ShiftAssignment,
     members: List<Member>,
     isAssignedToCurrentMember: Boolean,
 ) {
     Card {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+            Column(
+                modifier = Modifier.weight(0.38f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
-                    text = stringResource(shift.type.labelRes()),
-                    style = MaterialTheme.typography.titleSmall,
+                    text = shift.leftBoardTitle(),
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = stringResource(shift.status.labelRes()),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (isAssignedToCurrentMember) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
+                    text = shift.leftBoardSubtitle(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Text(
-                text = shift.dateMillis.toLocalizedDateTime(),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                text = stringResource(
-                    R.string.shifts_assigned_members_format,
-                    shift.assignedUserIds.toMemberNames(members),
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            shift.helperUserId?.let { helperId ->
+
+            Column(
+                modifier = Modifier.weight(0.62f),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                val primaryNames = shift.primaryBoardNames(members)
+                primaryNames.forEachIndexed { index, name ->
+                    Text(
+                        text = name,
+                        style = if (index == 0) {
+                            MaterialTheme.typography.bodyLarge
+                        } else {
+                            MaterialTheme.typography.bodyMedium
+                        },
+                        fontWeight = if (index == 0) FontWeight.SemiBold else FontWeight.Normal,
+                        color = if (index == 0 && isAssignedToCurrentMember) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                    )
+                }
                 Text(
-                    text = stringResource(
-                        R.string.shifts_helper_format,
-                        members.displayNameFor(helperId),
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
+                    text = stringResource(shift.status.labelRes()),
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
     }
+}
+
+private enum class ShiftBoardSegment(@StringRes val labelRes: Int) {
+    DELIVERY(R.string.shifts_type_delivery),
+    MARKET(R.string.shifts_type_market),
 }
 
 @Composable
@@ -2634,6 +2717,44 @@ private fun ShiftStatus.labelRes(): Int = when (this) {
 private fun ShiftAssignment.toSummaryLine(members: List<Member>): String =
     "${dateMillis.toLocalizedDateTime()} · ${assignedUserIds.toMemberNames(members)}"
 
+private fun ShiftAssignment.leftBoardTitle(): String = when (type) {
+    ShiftType.DELIVERY -> {
+        val week = dateMillis.toLocalDate()
+            .get(WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear())
+        "W$week"
+    }
+    ShiftType.MARKET -> {
+        val formatter = DateTimeFormatter.ofPattern("LLLL", Locale.getDefault())
+        formatter.format(dateMillis.toLocalDate())
+            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+    }
+}
+
+private fun ShiftAssignment.leftBoardSubtitle(): String = when (type) {
+    ShiftType.DELIVERY -> {
+        val date = dateMillis.toLocalDate()
+        val start = date.with(java.time.DayOfWeek.MONDAY)
+        val end = date.with(java.time.DayOfWeek.SUNDAY)
+        val formatter = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
+        "${formatter.format(start)} - ${formatter.format(end)}"
+    }
+    ShiftType.MARKET -> {
+        val formatter = DateTimeFormatter.ofPattern("EEEE d MMM", Locale.getDefault())
+        formatter.format(dateMillis.toLocalDate())
+            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+    }
+}
+
+private fun ShiftAssignment.primaryBoardNames(members: List<Member>): List<String> = when (type) {
+    ShiftType.DELIVERY -> buildList {
+        assignedUserIds.firstOrNull()?.let { add(members.displayNameFor(it)) }
+        helperUserId?.let { add(members.displayNameFor(it)) }
+    }.ifEmpty { listOf("—") }
+    ShiftType.MARKET -> assignedUserIds
+        .map { memberId -> members.displayNameFor(memberId) }
+        .ifEmpty { listOf("—") }
+}
+
 private fun List<String>.toMemberNames(members: List<Member>): String =
     map { memberId -> members.displayNameFor(memberId) }
         .joinToString(separator = ", ")
@@ -2641,6 +2762,11 @@ private fun List<String>.toMemberNames(members: List<Member>): String =
 
 private fun List<Member>.displayNameFor(memberId: String): String =
     firstOrNull { member -> member.id == memberId }?.displayName ?: memberId
+
+private fun Long.toLocalDate(): LocalDate =
+    Instant.ofEpochMilli(this)
+        .atZone(ZoneId.systemDefault())
+        .toLocalDate()
 
 @Composable
 private fun SignInCard(
