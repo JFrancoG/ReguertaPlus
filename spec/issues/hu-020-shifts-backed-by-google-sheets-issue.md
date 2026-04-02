@@ -26,11 +26,11 @@ As a member/admin I want shifts to be read and updated from a shared source so t
 - Refactors not required to close acceptance criteria.
 
 ## Implementation checklist
-- [ ] Android
-- [ ] iOS
-- [ ] Backend / Firestore
-- [ ] Testing
-- [ ] Documentation
+- [x] Android
+- [x] iOS
+- [x] Backend / Firestore
+- [x] Testing
+- [x] Documentation
 
 ## Suggested labels
 - type:feature

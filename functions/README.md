@@ -22,6 +22,83 @@ El trigger:
 - usa `fcmToken` como destino de FCM
 - deja trazabilidad mínima en `notificationEvents.dispatch`
 
+## 📅 Sincronización de turnos con Google Sheets
+
+`HU-020` deja `plus-collections/shifts` como fuente que consumen Android/iOS,
+pero respaldada por una hoja compartida de Google Sheets.
+
+### Flujo inbound
+
+El endpoint HTTP:
+
+`https://europe-west1-reguerta-9f27f.cloudfunctions.net/syncShiftsFromGoogleSheets`
+
+lee los rangos configurados de Google Sheets y actualiza:
+
+`{env}/plus-collections/shifts/{shiftId}`
+
+Reglas MVP:
+- si la hoja trae `shiftId`, se reutiliza como id estable
+- si no, se genera un id determinista a partir de `type + date`
+- el documento se marca con `source: "google_sheets"`
+- se guarda trazabilidad mínima en `shifts.syncMeta`
+
+### Flujo outbound
+
+- El endpoint HTTP:
+
+  `https://europe-west1-reguerta-9f27f.cloudfunctions.net/exportShiftsToGoogleSheets`
+
+  hace export completo de `plus-collections/shifts` hacia la hoja.
+
+- El trigger Firestore sobre:
+
+  `{env}/plus-collections/shifts/{shiftId}`
+
+  exporta de forma incremental los cambios confirmados hechos desde la app
+  (`source != google_sheets` y `status == confirmed`) y además crea una
+  `notificationEvents` de tipo `shift_updated`.
+
+### Contrato de hoja esperado
+
+Cada pestaña usa esta cabecera:
+
+`shiftId,type,date,assignedUserIds,assignedDisplayNames,helperUserId,helperDisplayName,status,source`
+
+Rangos por defecto:
+- `Delivery!A:Z`
+- `Market!A:Z`
+
+La importación intenta resolver participantes por:
+- `userId`
+- `normalizedEmail`
+- `displayName`
+
+### Configuración requerida
+
+Comparte la hoja con la service account de Firebase Functions y configura:
+
+```bash
+firebase functions:config:set \
+  sheets.spreadsheet_id="YOUR_SPREADSHEET_ID" \
+  sheets.delivery_range="Delivery!A:Z" \
+  sheets.market_range="Market!A:Z"
+```
+
+Opcionalmente puedes separar por entorno:
+
+```bash
+firebase functions:config:set \
+  sheets.spreadsheet_id_develop="YOUR_DEV_SPREADSHEET_ID" \
+  sheets.spreadsheet_id_production="YOUR_PROD_SPREADSHEET_ID"
+```
+
+Después:
+
+```bash
+firebase deploy --only functions
+```
+
 Cada vez que se crea o modifica un documento en ciertas colecciones, puedes llamar manualmente a una función HTTP para actualizar el campo correspondiente en el documento:
 
 ```
