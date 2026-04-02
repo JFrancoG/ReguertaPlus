@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.annotation.StringRes
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -118,6 +119,9 @@ import com.reguerta.user.data.notifications.InMemoryNotificationRepository
 import com.reguerta.user.data.profiles.ChainedSharedProfileRepository
 import com.reguerta.user.data.profiles.FirestoreSharedProfileRepository
 import com.reguerta.user.data.profiles.InMemorySharedProfileRepository
+import com.reguerta.user.data.shifts.ChainedShiftRepository
+import com.reguerta.user.data.shifts.FirestoreShiftRepository
+import com.reguerta.user.data.shifts.InMemoryShiftRepository
 import com.reguerta.user.data.startup.FirestoreStartupVersionPolicyRepository
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
@@ -130,6 +134,9 @@ import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.notifications.NotificationAudience
 import com.reguerta.user.domain.notifications.NotificationEvent
 import com.reguerta.user.domain.profiles.SharedProfile
+import com.reguerta.user.domain.shifts.ShiftAssignment
+import com.reguerta.user.domain.shifts.ShiftStatus
+import com.reguerta.user.domain.shifts.ShiftType
 import com.reguerta.user.domain.startup.ResolveStartupVersionGateUseCase
 import com.reguerta.user.domain.startup.StartupPlatform
 import com.reguerta.user.domain.startup.StartupVersionGateDecision
@@ -178,6 +185,11 @@ fun rememberSessionViewModel(): SessionViewModel {
         val primary = FirestoreSharedProfileRepository(firestore = FirebaseFirestore.getInstance())
         ChainedSharedProfileRepository(primary = primary, fallback = fallback)
     }
+    val shiftRepository = remember {
+        val fallback = InMemoryShiftRepository()
+        val primary = FirestoreShiftRepository(firestore = FirebaseFirestore.getInstance())
+        ChainedShiftRepository(primary = primary, fallback = fallback)
+    }
     val freshnessLocalRepository = remember(context) {
         DataStoreCriticalDataFreshnessLocalRepository(context.applicationContext)
     }
@@ -196,6 +208,7 @@ fun rememberSessionViewModel(): SessionViewModel {
             newsRepository = newsRepository,
             notificationRepository = notificationRepository,
             sharedProfileRepository = sharedProfileRepository,
+            shiftRepository = shiftRepository,
             authSessionProvider = FirebaseAuthSessionProvider(auth = FirebaseAuth.getInstance()),
             resolveAuthorizedSession = ResolveAuthorizedSessionUseCase(memberRepository = repository),
             upsertMemberByAdmin = UpsertMemberByAdminUseCase(memberRepository = repository),
@@ -372,6 +385,9 @@ fun ReguertaRoot(
                     notificationDraft = state.notificationDraft,
                     sharedProfiles = state.sharedProfiles,
                     sharedProfileDraft = state.sharedProfileDraft,
+                    shiftsFeed = state.shiftsFeed,
+                    nextDeliveryShift = state.nextDeliveryShift,
+                    nextMarketShift = state.nextMarketShift,
                     editingNewsId = state.editingNewsId,
                     isLoadingNews = state.isLoadingNews,
                     isSavingNews = state.isSavingNews,
@@ -380,6 +396,7 @@ fun ReguertaRoot(
                     isLoadingSharedProfiles = state.isLoadingSharedProfiles,
                     isSavingSharedProfile = state.isSavingSharedProfile,
                     isDeletingSharedProfile = state.isDeletingSharedProfile,
+                    isLoadingShifts = state.isLoadingShifts,
                     onDraftChanged = viewModel::onMemberDraftChanged,
                     onNewsDraftChanged = viewModel::onNewsDraftChanged,
                     onNotificationDraftChanged = viewModel::onNotificationDraftChanged,
@@ -396,11 +413,13 @@ fun ReguertaRoot(
                     onRefreshNews = viewModel::refreshNews,
                     onRefreshNotifications = viewModel::refreshNotifications,
                     onRefreshSharedProfiles = viewModel::refreshSharedProfiles,
+                    onRefreshShifts = viewModel::refreshShifts,
                     onClearNewsEditor = viewModel::clearNewsEditor,
                     onClearNotificationEditor = viewModel::clearNotificationEditor,
                     onSaveSharedProfile = viewModel::saveSharedProfile,
                     onDeleteSharedProfile = viewModel::deleteSharedProfile,
                     onRetryMyOrderFreshness = viewModel::refreshMyOrderFreshness,
+                    onOpenShifts = viewModel::refreshShifts,
                     onSignOut = signOutAndRoute,
                     installedVersion = installedVersion,
                 )
@@ -1001,6 +1020,9 @@ private fun HomeRoute(
     notificationDraft: NotificationDraft,
     sharedProfiles: List<SharedProfile>,
     sharedProfileDraft: SharedProfileDraft,
+    shiftsFeed: List<ShiftAssignment>,
+    nextDeliveryShift: ShiftAssignment?,
+    nextMarketShift: ShiftAssignment?,
     editingNewsId: String?,
     isLoadingNews: Boolean,
     isSavingNews: Boolean,
@@ -1009,6 +1031,7 @@ private fun HomeRoute(
     isLoadingSharedProfiles: Boolean,
     isSavingSharedProfile: Boolean,
     isDeletingSharedProfile: Boolean,
+    isLoadingShifts: Boolean,
     onDraftChanged: (MemberDraft) -> Unit,
     onNewsDraftChanged: (NewsDraft) -> Unit,
     onNotificationDraftChanged: (NotificationDraft) -> Unit,
@@ -1025,11 +1048,13 @@ private fun HomeRoute(
     onRefreshNews: () -> Unit,
     onRefreshNotifications: () -> Unit,
     onRefreshSharedProfiles: () -> Unit,
+    onRefreshShifts: () -> Unit,
     onClearNewsEditor: () -> Unit,
     onClearNotificationEditor: () -> Unit,
     onSaveSharedProfile: (onSuccess: () -> Unit) -> Unit,
     onDeleteSharedProfile: (onSuccess: () -> Unit) -> Unit,
     onRetryMyOrderFreshness: () -> Unit,
+    onOpenShifts: () -> Unit,
     onSignOut: () -> Unit,
     installedVersion: String,
 ) {
@@ -1067,6 +1092,8 @@ private fun HomeRoute(
                             onRefreshNotifications()
                         } else if (destination == HomeDestination.PROFILE) {
                             onRefreshSharedProfiles()
+                        } else if (destination == HomeDestination.SHIFTS) {
+                            onRefreshShifts()
                         } else if (destination == HomeDestination.PUBLISH_NEWS) {
                             onStartCreatingNews()
                         } else if (destination == HomeDestination.ADMIN_BROADCAST) {
@@ -1121,7 +1148,16 @@ private fun HomeRoute(
             )
             when (currentDestination) {
                 HomeDestination.DASHBOARD -> {
-                    WeeklyContextCard()
+                    NextShiftsCard(
+                        nextDeliveryShift = nextDeliveryShift,
+                        nextMarketShift = nextMarketShift,
+                        isLoading = isLoadingShifts,
+                        members = (mode as? SessionMode.Authorized)?.members.orEmpty(),
+                        onViewAll = {
+                            currentDestination = HomeDestination.SHIFTS
+                            onRefreshShifts()
+                        },
+                    )
                     when (mode) {
                         is SessionMode.Unauthorized -> Unit
                         is SessionMode.Authorized -> {
@@ -1134,6 +1170,10 @@ private fun HomeRoute(
                                 onToggleActive = onToggleActive,
                                 onCreateMember = onCreateMember,
                                 onRetryMyOrderFreshness = onRetryMyOrderFreshness,
+                                onOpenShifts = {
+                                    currentDestination = HomeDestination.SHIFTS
+                                    onRefreshShifts()
+                                },
                             )
                         }
 
@@ -1231,6 +1271,16 @@ private fun HomeRoute(
                     onDelete = {
                         onDeleteSharedProfile { currentDestination = HomeDestination.PROFILE }
                     },
+                )
+
+                HomeDestination.SHIFTS -> ShiftsRoute(
+                    shifts = shiftsFeed,
+                    nextDeliveryShift = nextDeliveryShift,
+                    nextMarketShift = nextMarketShift,
+                    currentMember = member,
+                    members = (mode as? SessionMode.Authorized)?.members.orEmpty(),
+                    isLoading = isLoadingShifts,
+                    onRefresh = onRefreshShifts,
                 )
 
                 else -> HomePlaceholderRoute(
@@ -1525,58 +1575,204 @@ private fun HomeDrawerItem(
 }
 
 @Composable
-private fun WeeklyContextCard() {
+private fun NextShiftsCard(
+    nextDeliveryShift: ShiftAssignment?,
+    nextMarketShift: ShiftAssignment?,
+    isLoading: Boolean,
+    members: List<Member>,
+    onViewAll: () -> Unit,
+) {
     Card {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = stringResource(R.string.home_shell_weekly_title),
+                text = stringResource(R.string.shifts_next_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
-            WeeklyContextRow(
-                title = stringResource(R.string.home_shell_weekly_responsible),
-                value = stringResource(R.string.home_shell_weekly_pending),
+            Text(
+                text = stringResource(R.string.shifts_next_subtitle),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            WeeklyContextRow(
-                title = stringResource(R.string.home_shell_weekly_support),
-                value = stringResource(R.string.home_shell_weekly_pending),
-            )
-            WeeklyContextRow(
-                title = stringResource(R.string.home_shell_weekly_main_producer),
-                value = stringResource(R.string.home_shell_weekly_pending),
-            )
-            WeeklyContextRow(
-                title = stringResource(R.string.home_shell_weekly_delivery),
-                value = stringResource(R.string.home_shell_weekly_delivery_default),
-            )
+            if (isLoading) {
+                Text(
+                    text = stringResource(R.string.shifts_loading),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            } else {
+                ShiftSummaryRow(
+                    label = stringResource(R.string.shifts_next_delivery),
+                    shift = nextDeliveryShift,
+                    members = members,
+                )
+                ShiftSummaryRow(
+                    label = stringResource(R.string.shifts_next_market),
+                    shift = nextMarketShift,
+                    members = members,
+                )
+            }
+            Button(onClick = onViewAll) {
+                Text(text = stringResource(R.string.shifts_view_all))
+            }
         }
     }
 }
 
 @Composable
-private fun WeeklyContextRow(
-    title: String,
-    value: String,
+private fun ShiftSummaryRow(
+    label: String,
+    shift: ShiftAssignment?,
+    members: List<Member>,
 ) {
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(
-            text = title,
-            style = MaterialTheme.typography.bodyMedium,
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
         )
         Text(
-            text = value,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            text = shift?.toSummaryLine(members).orEmpty().ifBlank {
+                stringResource(R.string.shifts_next_pending)
+            },
+            style = MaterialTheme.typography.bodyMedium,
         )
+    }
+}
+
+@Composable
+private fun ShiftsRoute(
+    shifts: List<ShiftAssignment>,
+    nextDeliveryShift: ShiftAssignment?,
+    nextMarketShift: ShiftAssignment?,
+    currentMember: Member?,
+    members: List<Member>,
+    isLoading: Boolean,
+    onRefresh: () -> Unit,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Card {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.shifts_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = stringResource(R.string.shifts_list_subtitle),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Button(onClick = onRefresh) {
+                    Text(text = stringResource(R.string.shifts_refresh_action))
+                }
+            }
+        }
+
+        NextShiftsCard(
+            nextDeliveryShift = nextDeliveryShift,
+            nextMarketShift = nextMarketShift,
+            isLoading = isLoading,
+            members = members,
+            onViewAll = onRefresh,
+        )
+
+        if (isLoading) {
+            Card {
+                Text(
+                    text = stringResource(R.string.shifts_loading),
+                    modifier = Modifier.padding(16.dp),
+                )
+            }
+        } else if (shifts.isEmpty()) {
+            Card {
+                Text(
+                    text = stringResource(R.string.shifts_empty_state),
+                    modifier = Modifier.padding(16.dp),
+                )
+            }
+        } else {
+            shifts.forEach { shift ->
+                ShiftCard(
+                    shift = shift,
+                    members = members,
+                    isAssignedToCurrentMember = currentMember?.let { shift.isAssignedTo(it.id) } == true,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShiftCard(
+    shift: ShiftAssignment,
+    members: List<Member>,
+    isAssignedToCurrentMember: Boolean,
+) {
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(shift.type.labelRes()),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = stringResource(shift.status.labelRes()),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (isAssignedToCurrentMember) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
+            Text(
+                text = shift.dateMillis.toLocalizedDateTime(),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                text = stringResource(
+                    R.string.shifts_assigned_members_format,
+                    shift.assignedUserIds.toMemberNames(members),
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            shift.helperUserId?.let { helperId ->
+                Text(
+                    text = stringResource(
+                        R.string.shifts_helper_format,
+                        members.displayNameFor(helperId),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 
@@ -2422,6 +2618,30 @@ private fun HomeDestination.subtitleRes(): Int = when (this) {
     HomeDestination.ADMIN_BROADCAST -> R.string.notifications_editor_subtitle
 }
 
+@StringRes
+private fun ShiftType.labelRes(): Int = when (this) {
+    ShiftType.DELIVERY -> R.string.shifts_type_delivery
+    ShiftType.MARKET -> R.string.shifts_type_market
+}
+
+@StringRes
+private fun ShiftStatus.labelRes(): Int = when (this) {
+    ShiftStatus.PLANNED -> R.string.shifts_status_planned
+    ShiftStatus.SWAP_PENDING -> R.string.shifts_status_swap_pending
+    ShiftStatus.CONFIRMED -> R.string.shifts_status_confirmed
+}
+
+private fun ShiftAssignment.toSummaryLine(members: List<Member>): String =
+    "${dateMillis.toLocalizedDateTime()} · ${assignedUserIds.toMemberNames(members)}"
+
+private fun List<String>.toMemberNames(members: List<Member>): String =
+    map { memberId -> members.displayNameFor(memberId) }
+        .joinToString(separator = ", ")
+        .ifBlank { "—" }
+
+private fun List<Member>.displayNameFor(memberId: String): String =
+    firstOrNull { member -> member.id == memberId }?.displayName ?: memberId
+
 @Composable
 private fun SignInCard(
     state: SessionUiState,
@@ -2673,11 +2893,13 @@ private fun AuthorizedHome(
     onToggleActive: (String) -> Unit,
     onCreateMember: () -> Unit,
     onRetryMyOrderFreshness: () -> Unit,
+    onOpenShifts: () -> Unit,
 ) {
     OperationalModules(
         modulesEnabled = true,
         myOrderFreshnessState = myOrderFreshnessState,
         onRetryMyOrderFreshness = onRetryMyOrderFreshness,
+        onOpenShifts = onOpenShifts,
     )
 
     if (mode.member.isAdmin) {
@@ -2794,6 +3016,7 @@ private fun OperationalModules(
     modulesEnabled: Boolean,
     myOrderFreshnessState: MyOrderFreshnessUiState,
     onRetryMyOrderFreshness: () -> Unit,
+    onOpenShifts: () -> Unit,
     disabledMessage: String? = null,
 ) {
     Card {
@@ -2814,7 +3037,7 @@ private fun OperationalModules(
             Button(onClick = {}, enabled = modulesEnabled, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.module_catalog))
             }
-            Button(onClick = {}, enabled = modulesEnabled, modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = onOpenShifts, enabled = modulesEnabled, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.module_shifts))
             }
 

@@ -19,6 +19,9 @@
 - [ ] Adjust schema/queries/rules/functions where applicable.
 - [ ] Verify compatibility with existing data and incremental strategy.
 - [ ] Confirm role-based access and security behavior.
+- [ ] Implement inbound sync from Google Sheets into `plus-collections/shifts`.
+- [ ] Implement outbound sync from confirmed app changes back into Google Sheets.
+- [ ] Define and test conflict/reconciliation rules for manual sheet edits vs app writes.
 
 ## 5. Testing
 - [ ] Execute unit tests for impacted areas.

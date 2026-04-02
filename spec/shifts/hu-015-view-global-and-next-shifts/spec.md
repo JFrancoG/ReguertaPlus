@@ -4,7 +4,7 @@
 - issue_id: #11
 - priority: P1
 - platform: both
-- status: ready
+- status: implemented
 
 ## Context and problem
 
@@ -49,9 +49,9 @@ As a member I want to see all shifts and my upcoming ones so that I can plan ahe
 
 ## Definition of Done (DoD)
 
-- [ ] Story acceptance criteria validated.
-- [ ] Implementation aligned with linked RFs.
-- [ ] Android/iOS parity reviewed or temporary gap documented.
-- [ ] Agreed tests executed.
-- [ ] Technical/functional documentation updated.
+- [x] Story acceptance criteria validated.
+- [x] Implementation aligned with linked RFs.
+- [x] Android/iOS parity reviewed or temporary gap documented.
+- [x] Agreed tests executed.
+- [x] Technical/functional documentation updated.
 - [ ] Issue and PR linked.

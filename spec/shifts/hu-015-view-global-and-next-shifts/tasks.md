@@ -1,36 +1,36 @@
 # Tasks - HU-015 (View global and next shifts)
 
 ## 1. Preparation
-- [ ] Review linked RFs and acceptance criteria for this story.
-- [ ] Identify impacted components/layers in Android, iOS, and backend.
-- [ ] Define test scenarios (happy path and edge cases).
+- [x] Review linked RFs and acceptance criteria for this story.
+- [x] Identify impacted components/layers in Android and iOS app-shell layers.
+- [x] Define test scenarios (global list, next assigned delivery, next assigned market, empty state).
 
 ## 2. Android implementation
-- [ ] Implement UI/ViewModel/domain layer changes.
-- [ ] Integrate required read/write data flows.
-- [ ] Validate loading, error, and success states.
+- [x] Implement UI/ViewModel/domain layer changes.
+- [x] Integrate required read data flows from `plus-collections/shifts`.
+- [x] Validate loading, empty, and assigned-summary states.
 
 ## 3. iOS implementation
-- [ ] Implement equivalent SwiftUI/ViewModel/domain layer changes.
-- [ ] Integrate required read/write data flows.
-- [ ] Validate loading, error, and success states.
+- [x] Implement equivalent SwiftUI/ViewModel/domain layer changes.
+- [x] Integrate required read data flows from `plus-collections/shifts`.
+- [x] Validate loading, empty, and assigned-summary states.
 
 ## 4. Backend / Firestore
-- [ ] Adjust schema/queries/rules/functions where applicable.
-- [ ] Verify compatibility with existing data and incremental strategy.
-- [ ] Confirm role-based access and security behavior.
+- [x] No backend/schema change required; reused existing `shifts` contract.
+- [x] Verified compatibility with the existing Firestore structure and fallback repositories.
+- [x] Confirmed read-only behavior for authorized members in app shell.
 
 ## 5. Testing
-- [ ] Execute unit tests for impacted areas.
-- [ ] Execute required integration tests.
+- [x] Execute unit tests for impacted areas.
+- [x] Execute required platform validation builds.
 - [ ] Perform full manual acceptance validation.
 
 ## 6. Documentation
-- [ ] Update technical notes in the linked issue.
-- [ ] Record implementation decisions made during development.
-- [ ] Document Android/iOS parity status or temporary gap.
+- [x] Update technical notes in the linked issue artifacts.
+- [x] Record implementation decisions made during development.
+- [x] Document Android/iOS parity status or temporary gap.
 
 ## 7. Closure
 - [ ] Create/update linked issue and connect PR.
-- [ ] Complete DoD checklist in spec.md.
+- [x] Complete DoD checklist in spec.md except issue/PR linkage.
 - [ ] Attach test evidence and functional validation output.

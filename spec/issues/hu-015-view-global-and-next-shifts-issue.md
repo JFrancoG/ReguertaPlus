@@ -24,11 +24,11 @@ As a member I want to see all shifts and my upcoming ones so that I can plan ahe
 - Refactors not required to close acceptance criteria.
 
 ## Implementation checklist
-- [ ] Android
-- [ ] iOS
-- [ ] Backend / Firestore
-- [ ] Testing
-- [ ] Documentation
+- [x] Android
+- [x] iOS
+- [x] Backend / Firestore not required beyond existing `shifts` collection contract
+- [x] Testing
+- [x] Documentation
 
 ## Suggested labels
 - type:feature

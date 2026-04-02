@@ -13,6 +13,8 @@ As a member/admin I want shifts to be read and updated from a shared source so t
 
 - App reads current shifts from Google Sheets.
 - Confirmed changes sync source and notify all members.
+- Manual edits made directly in Google Sheets are ingested back into app-visible shifts.
+- Confirmed app-side changes write back to Google Sheets with defined reconciliation rules.
 
 ## Scope
 ### In Scope

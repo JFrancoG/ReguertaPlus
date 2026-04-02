@@ -14,6 +14,8 @@ As a member I want to request a shift swap when I cannot attend so that I can re
 - Request stays pending for target member.
 - Acceptance plus final confirmation applies the change.
 - Applied change notifies all members.
+- The request starts from the shifts board and opens a dedicated request screen.
+- The request includes shift context, target member, and reason.
 
 ## Scope
 ### In Scope
