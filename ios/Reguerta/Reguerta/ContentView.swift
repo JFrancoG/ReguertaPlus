@@ -930,9 +930,11 @@ struct ContentView: View {
                                     tokens.colors.textPrimary
                             )
                     }
-                    Text(localizedKey(shift.status.titleKey))
-                        .font(tokens.typography.label)
-                        .foregroundStyle(tokens.colors.textSecondary)
+                    if shift.status != .planned {
+                        Text(localizedKey(shift.status.titleKey))
+                            .font(tokens.typography.label)
+                            .foregroundStyle(tokens.colors.textSecondary)
+                    }
                 }
             }
         }
@@ -2321,10 +2323,11 @@ private extension ShiftAssignment {
         case .delivery:
             let calendar = Calendar(identifier: .iso8601)
             let week = calendar.component(.weekOfYear, from: localDate)
-            return "W\(week)"
+            let year = calendar.component(.yearForWeekOfYear, from: localDate)
+            return String(format: "%04d-W%02d", year, week)
         case .market:
             let formatter = DateFormatter()
-            formatter.locale = Locale.current
+            formatter.locale = Locale(identifier: "es_ES")
             formatter.dateFormat = "LLLL"
             return formatter.string(from: localDate).capitalized
         }
@@ -2333,19 +2336,13 @@ private extension ShiftAssignment {
     var leftBoardSubtitle: String {
         switch type {
         case .delivery:
-            let calendar = Calendar(identifier: .iso8601)
-            guard
-                let weekInterval = calendar.dateInterval(of: .weekOfYear, for: localDate)
-            else {
-                return ""
-            }
             let formatter = DateFormatter()
-            formatter.locale = Locale.current
-            formatter.dateFormat = "d MMM"
-            return "\(formatter.string(from: weekInterval.start)) - \(formatter.string(from: weekInterval.end.addingTimeInterval(-86_400)))"
+            formatter.locale = Locale(identifier: "es_ES")
+            formatter.dateFormat = "EEE d MMM"
+            return formatter.string(from: localDate).capitalized
         case .market:
             let formatter = DateFormatter()
-            formatter.locale = Locale.current
+            formatter.locale = Locale(identifier: "es_ES")
             formatter.dateFormat = "EEEE d MMM"
             return formatter.string(from: localDate).capitalized
         }
@@ -2358,13 +2355,16 @@ private extension ShiftAssignment {
             if let firstAssigned = assignedUserIds.first {
                 names.append(displayName(for: firstAssigned, session: session))
             }
-            if let helperUserId {
-                names.append(displayName(for: helperUserId, session: session))
-            }
-            return names.isEmpty ? ["—"] : names
+            names.append(
+                helperUserId.map { displayName(for: $0, session: session) } ?? "—"
+            )
+            return names.isEmpty ? ["—", "—"] : names
         case .market:
             let names = assignedUserIds.map { displayName(for: $0, session: session) }
-            return names.isEmpty ? ["—"] : names
+            if names.isEmpty {
+                return ["—", "—", "—"]
+            }
+            return Array((names + Array(repeating: "—", count: max(0, 3 - names.count))).prefix(3))
         }
     }
 

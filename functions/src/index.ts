@@ -402,6 +402,12 @@ type MemberSheetRef = {
   phone: string | null;
 };
 
+type MarketParticipantRow = {
+  listedName: string;
+  phone: string | null;
+  replacementName: string | null;
+};
+
 type NormalizedShiftSheetRow = {
   shiftId: string;
   type: ShiftType;
@@ -510,7 +516,17 @@ const shiftsCollection = (env: string) =>
   firestore.collection(`${env}/plus-collections/shifts`);
 
 const normalizeLookupKey = (value: string): string =>
-  value.trim().toLowerCase().replace(/\s+/g, " ");
+  value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const normalizePhoneKey = (value: string): string =>
+  value.replace(/\D+/g, "").trim();
 
 const MONTH_INDEX_BY_NAME: Record<string, number> = {
   enero: 0,
@@ -540,20 +556,6 @@ const MONTH_INDEX_BY_NAME: Record<string, number> = {
   december: 11,
 };
 
-const parseParticipantTokens = (value: unknown): string[] => {
-  const text = parseString(value);
-  if (!text) {
-    return [];
-  }
-
-  return Array.from(new Set(
-    text
-      .split(/[,\n;|]+/g)
-      .map((entry) => entry.trim())
-      .filter((entry) => entry.length > 0)
-  ));
-};
-
 const isShiftType = (value: string): value is ShiftType =>
   value === "delivery" || value === "market";
 
@@ -580,16 +582,16 @@ const parseDateInput = (value: unknown): admin.firestore.Timestamp | null => {
     return null;
   }
 
-  const isoMillis = Date.parse(text);
-  if (!Number.isNaN(isoMillis)) {
-    return admin.firestore.Timestamp.fromMillis(isoMillis);
-  }
-
   const dayMonthYear = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (dayMonthYear) {
     const [, day, month, year] = dayMonthYear;
     const millis = Date.UTC(Number(year), Number(month) - 1, Number(day));
     return admin.firestore.Timestamp.fromMillis(millis);
+  }
+
+  const isoMillis = Date.parse(text);
+  if (!Number.isNaN(isoMillis)) {
+    return admin.firestore.Timestamp.fromMillis(isoMillis);
   }
 
   const normalizedText = text
@@ -643,6 +645,13 @@ const buildMemberLookup = async (
       }
       lookup.set(normalizeLookupKey(key), memberRef);
     });
+
+    if (memberRef.phone) {
+      const normalizedPhone = normalizePhoneKey(memberRef.phone);
+      if (normalizedPhone) {
+        lookup.set(normalizedPhone, memberRef);
+      }
+    }
   });
 
   return lookup;
@@ -653,16 +662,33 @@ const resolveMemberId = (
   value: string,
 ): string | null => lookup.get(normalizeLookupKey(value))?.id || null;
 
-const resolveParticipantIds = (
+const resolveMemberIdByPhone = (
   lookup: Map<string, MemberSheetRef>,
-  values: string[],
-): string[] =>
-  Array.from(new Set(
-    values
-      .flatMap((value) => parseParticipantTokens(value))
-      .map((token) => resolveMemberId(lookup, token))
-      .filter((value): value is string => Boolean(value))
-  ));
+  value: string,
+): string | null => {
+  const normalizedPhone = normalizePhoneKey(value);
+  if (!normalizedPhone) {
+    return null;
+  }
+  return lookup.get(normalizedPhone)?.id || null;
+};
+
+const resolveMemberIdFromCandidate = (
+  lookup: Map<string, MemberSheetRef>,
+  name: string | null,
+  phone: string | null = null,
+): string | null => {
+  if (name) {
+    const byName = resolveMemberId(lookup, name);
+    if (byName) {
+      return byName;
+    }
+  }
+  if (phone) {
+    return resolveMemberIdByPhone(lookup, phone);
+  }
+  return null;
+};
 
 const parseReplacementName = (value: unknown): string | null => {
   const text = parseString(value);
@@ -689,15 +715,19 @@ const toDeliveryShiftSheetRow = (
   if (!listedName) {
     return null;
   }
+  const listedPhone = parseString(row[2]);
   const replacementName = parseReplacementName(row[4]);
-  const effectiveName = replacementName || listedName;
-  const assignedUserId = resolveMemberId(lookup, effectiveName);
+  const assignedUserId = replacementName ?
+    resolveMemberIdFromCandidate(lookup, replacementName) ||
+      resolveMemberIdFromCandidate(lookup, listedName, listedPhone) :
+    resolveMemberIdFromCandidate(lookup, listedName, listedPhone);
   if (!assignedUserId) {
     logger.warn(
       "Skipping delivery shift row because member could not be resolved",
       {
         rowNumber,
         listedName,
+        listedPhone,
         replacementName,
         sheetName: parseSheetName(definition.range),
       }
@@ -721,18 +751,35 @@ const toDeliveryShiftSheetRow = (
 
 const buildMarketShiftSheetRow = (
   date: admin.firestore.Timestamp,
-  participantNames: string[],
+  participants: MarketParticipantRow[],
   rowNumber: number,
   definition: SheetRangeDefinition,
   lookup: Map<string, MemberSheetRef>,
 ): NormalizedShiftSheetRow | null => {
-  const assignedUserIds = resolveParticipantIds(lookup, participantNames);
+  const assignedUserIds = Array.from(new Set(
+    participants
+      .map((participant) =>
+        participant.replacementName ?
+          resolveMemberIdFromCandidate(lookup, participant.replacementName) ||
+            resolveMemberIdFromCandidate(
+              lookup,
+              participant.listedName,
+              participant.phone,
+            ) :
+          resolveMemberIdFromCandidate(
+            lookup,
+            participant.listedName,
+            participant.phone,
+          )
+      )
+      .filter((value): value is string => Boolean(value))
+  ));
   if (assignedUserIds.length === 0) {
     logger.warn(
       "Skipping market shift block because no participants were resolved",
       {
         rowNumber,
-        participantNames,
+        participants,
         sheetName: parseSheetName(definition.range),
       }
     );
@@ -786,7 +833,7 @@ const fetchSheetRows = async (
   const marketRows: NormalizedShiftSheetRow[] = [];
   let currentDate: admin.firestore.Timestamp | null = null;
   let currentDateRowNumber = 0;
-  let participantNames: string[] = [];
+  let participants: MarketParticipantRow[] = [];
 
   const flushCurrentBlock = () => {
     if (!currentDate) {
@@ -794,7 +841,7 @@ const fetchSheetRows = async (
     }
     const shiftRow = buildMarketShiftSheetRow(
       currentDate,
-      participantNames,
+      participants,
       currentDateRowNumber,
       definition,
       lookup,
@@ -804,7 +851,7 @@ const fetchSheetRows = async (
     }
     currentDate = null;
     currentDateRowNumber = 0;
-    participantNames = [];
+    participants = [];
   };
 
   rows.forEach((row, index) => {
@@ -830,11 +877,39 @@ const fetchSheetRows = async (
     }
 
     const replacementName = parseReplacementName(row[2]);
-    participantNames.push(replacementName || firstCell);
+    participants.push({
+      listedName: firstCell,
+      phone: secondCell,
+      replacementName,
+    });
   });
 
   flushCurrentBlock();
   return marketRows;
+};
+
+const withDerivedDeliveryHelpers = (
+  rows: NormalizedShiftSheetRow[],
+): NormalizedShiftSheetRow[] => {
+  const deliveryRows = rows
+    .filter((row) => row.type === "delivery")
+    .sort((left, right) => left.date.toMillis() - right.date.toMillis());
+  const helperByRowKey = new Map<string, string | null>();
+
+  deliveryRows.forEach((row, index) => {
+    const nextShift = deliveryRows[index + 1];
+    helperByRowKey.set(
+      row.rowKey,
+      nextShift?.assignedUserIds?.[0] || null,
+    );
+  });
+
+  return rows.map((row) =>
+    row.type === "delivery" ? {
+      ...row,
+      helperUserId: helperByRowKey.get(row.rowKey) || null,
+    } : row
+  );
 };
 
 const syncShiftRowsIntoFirestore = async (
@@ -1234,7 +1309,7 @@ const syncShiftsFromGoogleSheetsInternal = async (
       )
     )
   );
-  const rows = rowsByRange.flat();
+  const rows = withDerivedDeliveryHelpers(rowsByRange.flat());
   const importedCount = await syncShiftRowsIntoFirestore(env, rows);
 
   return {

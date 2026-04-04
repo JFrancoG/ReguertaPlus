@@ -1800,6 +1800,7 @@ private fun ShiftBoardCard(
     members: List<Member>,
     isAssignedToCurrentMember: Boolean,
 ) {
+    val primaryNames = shift.primaryBoardNames(members)
     Card {
         Row(
             modifier = Modifier
@@ -1827,7 +1828,6 @@ private fun ShiftBoardCard(
                 modifier = Modifier.weight(0.62f),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                val primaryNames = shift.primaryBoardNames(members)
                 primaryNames.forEachIndexed { index, name ->
                     Text(
                         text = name,
@@ -1844,11 +1844,13 @@ private fun ShiftBoardCard(
                         },
                     )
                 }
-                Text(
-                    text = stringResource(shift.status.labelRes()),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                if (shift.status != ShiftStatus.PLANNED) {
+                    Text(
+                        text = stringResource(shift.status.labelRes()),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
@@ -2719,9 +2721,7 @@ private fun ShiftAssignment.toSummaryLine(members: List<Member>): String =
 
 private fun ShiftAssignment.leftBoardTitle(): String = when (type) {
     ShiftType.DELIVERY -> {
-        val week = dateMillis.toLocalDate()
-            .get(WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear())
-        "W$week"
+        dateMillis.toWeekKey()
     }
     ShiftType.MARKET -> {
         val formatter = DateTimeFormatter.ofPattern("LLLL", Locale.getDefault())
@@ -2732,11 +2732,10 @@ private fun ShiftAssignment.leftBoardTitle(): String = when (type) {
 
 private fun ShiftAssignment.leftBoardSubtitle(): String = when (type) {
     ShiftType.DELIVERY -> {
-        val date = dateMillis.toLocalDate()
-        val start = date.with(java.time.DayOfWeek.MONDAY)
-        val end = date.with(java.time.DayOfWeek.SUNDAY)
-        val formatter = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
-        "${formatter.format(start)} - ${formatter.format(end)}"
+        val spanishLocale = Locale.forLanguageTag("es-ES")
+        val formatter = DateTimeFormatter.ofPattern("EEE d MMM", spanishLocale)
+        formatter.format(dateMillis.toLocalDate())
+            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(spanishLocale) else it.toString() }
     }
     ShiftType.MARKET -> {
         val formatter = DateTimeFormatter.ofPattern("EEEE d MMM", Locale.getDefault())
@@ -2748,11 +2747,17 @@ private fun ShiftAssignment.leftBoardSubtitle(): String = when (type) {
 private fun ShiftAssignment.primaryBoardNames(members: List<Member>): List<String> = when (type) {
     ShiftType.DELIVERY -> buildList {
         assignedUserIds.firstOrNull()?.let { add(members.displayNameFor(it)) }
-        helperUserId?.let { add(members.displayNameFor(it)) }
-    }.ifEmpty { listOf("—") }
+        add(helperUserId?.let { members.displayNameFor(it) } ?: "—")
+    }.ifEmpty { listOf("—", "—") }
     ShiftType.MARKET -> assignedUserIds
         .map { memberId -> members.displayNameFor(memberId) }
-        .ifEmpty { listOf("—") }
+        .let { names ->
+            if (names.isEmpty()) {
+                listOf("—", "—", "—")
+            } else {
+                (names + List(maxOf(0, 3 - names.size)) { "—" }).take(3)
+            }
+        }
 }
 
 private fun List<String>.toMemberNames(members: List<Member>): String =
@@ -2767,6 +2772,14 @@ private fun Long.toLocalDate(): LocalDate =
     Instant.ofEpochMilli(this)
         .atZone(ZoneId.systemDefault())
         .toLocalDate()
+
+private fun Long.toWeekKey(): String {
+    val localDate = toLocalDate()
+    val weekFields = WeekFields.ISO
+    val week = localDate.get(weekFields.weekOfWeekBasedYear())
+    val year = localDate.get(weekFields.weekBasedYear())
+    return String.format(Locale.US, "%04d-W%02d", year, week)
+}
 
 @Composable
 private fun SignInCard(
