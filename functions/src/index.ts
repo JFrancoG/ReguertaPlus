@@ -362,12 +362,14 @@ type SheetShiftConfig = {
 type SheetRangeDefinition = {
   range: string;
   defaultType: ShiftType;
+  layout: "delivery_human" | "market_human";
 };
 
 type MemberSheetRef = {
   id: string;
   displayName: string;
   normalizedEmail: string;
+  phone: string | null;
 };
 
 type NormalizedShiftSheetRow = {
@@ -392,18 +394,6 @@ type FirestoreShiftRecord = {
   status: ShiftStatus;
   source: string;
 };
-
-const SHIFT_SHEET_HEADERS = [
-  "shiftId",
-  "type",
-  "date",
-  "assignedUserIds",
-  "assignedDisplayNames",
-  "helperUserId",
-  "helperDisplayName",
-  "status",
-  "source",
-] as const;
 
 const SHIFT_NOTIFICATION_TYPE = "shift_updated";
 
@@ -455,10 +445,12 @@ const sheetRangeDefinitions = (
   {
     range: configValue.deliveryRange,
     defaultType: "delivery",
+    layout: "delivery_human",
   },
   {
     range: configValue.marketRange,
     defaultType: "market",
+    layout: "market_human",
   },
 ];
 
@@ -476,25 +468,36 @@ const getSheetsClient = async () => {
 const shiftsCollection = (env: string) =>
   firestore.collection(`${env}/plus-collections/shifts`);
 
-const normalizeHeader = (value: string): string =>
-  value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
-
 const normalizeLookupKey = (value: string): string =>
   value.trim().toLowerCase().replace(/\s+/g, " ");
 
-const parseShiftType = (value: unknown, fallback: ShiftType): ShiftType => {
-  const normalized = parseString(value)?.toLowerCase();
-  return normalized === "market" ? "market" : normalized === "delivery" ?
-    "delivery" :
-    fallback;
+const MONTH_INDEX_BY_NAME: Record<string, number> = {
+  enero: 0,
+  febrero: 1,
+  marzo: 2,
+  abril: 3,
+  mayo: 4,
+  junio: 5,
+  julio: 6,
+  agosto: 7,
+  septiembre: 8,
+  setiembre: 8,
+  octubre: 9,
+  noviembre: 10,
+  diciembre: 11,
+  january: 0,
+  february: 1,
+  march: 2,
+  april: 3,
+  may: 4,
+  june: 5,
+  july: 6,
+  august: 7,
+  september: 8,
+  october: 9,
+  november: 10,
+  december: 11,
 };
-
-const parseShiftStatus = (value: unknown): ShiftStatus =>
-  parseString(value)?.toLowerCase() === "swap_pending" ?
-    "swap_pending" :
-    parseString(value)?.toLowerCase() === "confirmed" ?
-      "confirmed" :
-      "planned";
 
 const parseParticipantTokens = (value: unknown): string[] => {
   const text = parseString(value);
@@ -548,58 +551,27 @@ const parseDateInput = (value: unknown): admin.firestore.Timestamp | null => {
     return admin.firestore.Timestamp.fromMillis(millis);
   }
 
+  const normalizedText = text
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+  const dayMonthNameYear = normalizedText.match(
+    /^(\d{1,2})\s+([a-záéíóúñ]+)\s+(\d{4})$/i
+  );
+  if (dayMonthNameYear) {
+    const [, day, monthName, year] = dayMonthNameYear;
+    const monthIndex = MONTH_INDEX_BY_NAME[monthName];
+    if (monthIndex !== undefined) {
+      const millis = Date.UTC(Number(year), monthIndex, Number(day));
+      return admin.firestore.Timestamp.fromMillis(millis);
+    }
+  }
+
   return null;
 };
 
 const parseSheetName = (range: string): string =>
   range.includes("!") ? range.split("!")[0] : "Sheet1";
-
-const buildHeaderIndex = (
-  headerRow: string[],
-): Record<string, number> =>
-  Object.fromEntries(
-    headerRow.map((header, index) => [normalizeHeader(header), index])
-  );
-
-const firstNonEmptyCell = (
-  row: string[],
-  headerIndex: Record<string, number>,
-  aliases: string[],
-): string | null => {
-  for (const alias of aliases) {
-    const index = headerIndex[normalizeHeader(alias)];
-    if (index === undefined) {
-      continue;
-    }
-    const value = parseString(row[index]);
-    if (value) {
-      return value;
-    }
-  }
-  return null;
-};
-
-const collectParticipantCells = (
-  row: string[],
-  headerIndex: Record<string, number>,
-  aliases: string[],
-): string[] => {
-  const values: string[] = [];
-  Object.entries(headerIndex).forEach(([normalizedHeader, index]) => {
-    if (
-      aliases.includes(normalizedHeader) ||
-      /^assigned[0-9]+$/.test(normalizedHeader) ||
-      /^participant[0-9]+$/.test(normalizedHeader) ||
-      /^member[0-9]+$/.test(normalizedHeader)
-    ) {
-      const raw = parseString(row[index]);
-      if (raw) {
-        values.push(raw);
-      }
-    }
-  });
-  return values;
-};
 
 const buildMemberLookup = async (
   env: string,
@@ -617,6 +589,7 @@ const buildMemberLookup = async (
       id: doc.id,
       displayName,
       normalizedEmail,
+      phone: parseString(doc.get("phone")),
     };
 
     [
@@ -650,73 +623,91 @@ const resolveParticipantIds = (
       .filter((value): value is string => Boolean(value))
   ));
 
-const toNormalizedShiftSheetRow = (
+const parseReplacementName = (value: unknown): string | null => {
+  const text = parseString(value);
+  if (!text) {
+    return null;
+  }
+
+  const match = text.match(/lo hace\s+(.+)$/i);
+  return match?.[1]?.trim() || null;
+};
+
+const toDeliveryShiftSheetRow = (
   row: string[],
   rowNumber: number,
   definition: SheetRangeDefinition,
   lookup: Map<string, MemberSheetRef>,
-  headerIndex: Record<string, number>,
 ): NormalizedShiftSheetRow | null => {
-  const date = parseDateInput(
-    firstNonEmptyCell(row, headerIndex, ["date", "fecha"])
-  );
+  const date = parseDateInput(row[0]);
   if (!date) {
     return null;
   }
 
-  const type = parseShiftType(
-    firstNonEmptyCell(row, headerIndex, ["type", "tipo"]),
-    definition.defaultType,
-  );
-  const statusRaw = firstNonEmptyCell(row, headerIndex, ["status", "estado"]);
-  const status = parseShiftStatus(statusRaw);
-  const participantValues = [
-    firstNonEmptyCell(
-      row,
-      headerIndex,
-      ["assignedUserIds", "assignedusers", "assigneddisplaynames"]
-    ) || "",
-    ...collectParticipantCells(
-      row,
-      headerIndex,
-      [
-        normalizeHeader("responsible"),
-        normalizeHeader("encargado"),
-        normalizeHeader("assigned"),
-        normalizeHeader("asignados"),
-      ],
-    ),
-  ];
-  const assignedUserIds = resolveParticipantIds(lookup, participantValues);
-  if (assignedUserIds.length === 0) {
+  const listedName = parseString(row[1]);
+  if (!listedName) {
+    return null;
+  }
+  const replacementName = parseReplacementName(row[4]);
+  const effectiveName = replacementName || listedName;
+  const assignedUserId = resolveMemberId(lookup, effectiveName);
+  if (!assignedUserId) {
+    logger.warn(
+      "Skipping delivery shift row because member could not be resolved",
+      {
+        rowNumber,
+        listedName,
+        replacementName,
+        sheetName: parseSheetName(definition.range),
+      }
+    );
     return null;
   }
 
-  const helperValue = firstNonEmptyCell(
-    row,
-    headerIndex,
-    ["helperUserId", "helperDisplayName", "helper", "ayudante"]
-  );
-  const helperUserId = helperValue ?
-    resolveMemberId(lookup, helperValue) :
-    null;
-  const shiftId = firstNonEmptyCell(
-    row,
-    headerIndex,
-    ["shiftId", "id", "shift_id"]
-  ) || buildShiftId(type, date);
-  const rowKey = buildShiftRowKey(type, date);
-
   return {
-    shiftId,
-    type,
+    shiftId: buildShiftId(definition.defaultType, date),
+    type: definition.defaultType,
     date,
-    assignedUserIds,
-    helperUserId,
-    status,
+    assignedUserIds: [assignedUserId],
+    helperUserId: null,
+    status: "planned",
     source: "google_sheets",
     rowNumber,
-    rowKey,
+    rowKey: buildShiftRowKey(definition.defaultType, date),
+    sheetName: parseSheetName(definition.range),
+  };
+};
+
+const buildMarketShiftSheetRow = (
+  date: admin.firestore.Timestamp,
+  participantNames: string[],
+  rowNumber: number,
+  definition: SheetRangeDefinition,
+  lookup: Map<string, MemberSheetRef>,
+): NormalizedShiftSheetRow | null => {
+  const assignedUserIds = resolveParticipantIds(lookup, participantNames);
+  if (assignedUserIds.length === 0) {
+    logger.warn(
+      "Skipping market shift block because no participants were resolved",
+      {
+        rowNumber,
+        participantNames,
+        sheetName: parseSheetName(definition.range),
+      }
+    );
+    return null;
+  }
+
+  return {
+    shiftId: buildShiftId(definition.defaultType, date),
+    type: definition.defaultType,
+    date,
+    assignedUserIds,
+    helperUserId: null,
+    status: "planned",
+    source: "google_sheets",
+    rowNumber,
+    rowKey: buildShiftRowKey(definition.defaultType, date),
     sheetName: parseSheetName(definition.range),
   };
 };
@@ -731,27 +722,78 @@ const fetchSheetRows = async (
     spreadsheetId,
     range: definition.range,
   });
-  const rows = response.data.values || [];
+  const rows = (response.data.values || []).map((row) =>
+    row.map((cell) => `${cell}`)
+  );
   if (rows.length === 0) {
     return [];
   }
 
-  const headerIndex = buildHeaderIndex(
-    rows[0].map((cell) => `${cell}`)
-  );
-
-  return rows
-    .slice(1)
-    .map((row, index) =>
-      toNormalizedShiftSheetRow(
-        row.map((cell) => `${cell}`),
-        index + 2,
-        definition,
-        lookup,
-        headerIndex,
+  if (definition.layout === "delivery_human") {
+    return rows
+      .map((row, index) =>
+        toDeliveryShiftSheetRow(
+          row,
+          index + 1,
+          definition,
+          lookup,
+        )
       )
-    )
-    .filter((row): row is NormalizedShiftSheetRow => Boolean(row));
+      .filter((row): row is NormalizedShiftSheetRow => Boolean(row));
+  }
+
+  const marketRows: NormalizedShiftSheetRow[] = [];
+  let currentDate: admin.firestore.Timestamp | null = null;
+  let currentDateRowNumber = 0;
+  let participantNames: string[] = [];
+
+  const flushCurrentBlock = () => {
+    if (!currentDate) {
+      return;
+    }
+    const shiftRow = buildMarketShiftSheetRow(
+      currentDate,
+      participantNames,
+      currentDateRowNumber,
+      definition,
+      lookup,
+    );
+    if (shiftRow) {
+      marketRows.push(shiftRow);
+    }
+    currentDate = null;
+    currentDateRowNumber = 0;
+    participantNames = [];
+  };
+
+  rows.forEach((row, index) => {
+    const rowNumber = index + 1;
+    const firstCell = parseString(row[0]);
+    const secondCell = parseString(row[1]);
+    const maybeDate = parseDateInput(firstCell);
+
+    if (maybeDate && !secondCell) {
+      flushCurrentBlock();
+      currentDate = maybeDate;
+      currentDateRowNumber = rowNumber;
+      return;
+    }
+
+    if (!currentDate) {
+      return;
+    }
+
+    if (!firstCell) {
+      flushCurrentBlock();
+      return;
+    }
+
+    const replacementName = parseReplacementName(row[2]);
+    participantNames.push(replacementName || firstCell);
+  });
+
+  flushCurrentBlock();
+  return marketRows;
 };
 
 const syncShiftRowsIntoFirestore = async (
@@ -828,57 +870,94 @@ const toShiftRecord = (
   };
 };
 
-const toShiftSheetRow = (
+const formatHumanShortDate = (
+  timestamp: admin.firestore.Timestamp,
+): string => {
+  const date = timestamp.toDate();
+  return `${date.getUTCDate()}/${date.getUTCMonth() + 1}` +
+    `/${date.getUTCFullYear()}`;
+};
+
+const formatHumanLongDate = (
+  timestamp: admin.firestore.Timestamp,
+): string => {
+  const formatter = new Intl.DateTimeFormat("es-ES", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  return formatter.format(timestamp.toDate()).toUpperCase();
+};
+
+const formatHumanMonthHeading = (
+  timestamp: admin.firestore.Timestamp,
+): string => {
+  const formatter = new Intl.DateTimeFormat("es-ES", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  return formatter.format(timestamp.toDate()).toUpperCase();
+};
+
+const isoWeekNumber = (
+  timestamp: admin.firestore.Timestamp,
+): number => {
+  const date = timestamp.toDate();
+  const utcDate = new Date(Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate(),
+  ));
+  const day = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+  return Math.ceil(
+    (((utcDate.getTime() - yearStart.getTime()) / 86400000) + 1) / 7
+  );
+};
+
+const toDeliveryHumanRow = (
   shift: FirestoreShiftRecord,
   membersById: Map<string, MemberSheetRef>,
+  existingRow: string[] = [],
 ): string[] => {
-  const assignedMembers = shift.assignedUserIds
+  const responsible = shift.assignedUserIds
     .map((userId) => membersById.get(userId))
-    .filter((value): value is MemberSheetRef => Boolean(value));
-  const helperMember = shift.helperUserId ?
+    .find((value): value is MemberSheetRef => Boolean(value));
+  const helper = shift.helperUserId ?
     membersById.get(shift.helperUserId) || null :
     null;
 
   return [
-    shift.id,
-    shift.type,
-    timestampToSheetDate(shift.date),
-    shift.assignedUserIds.join(","),
-    assignedMembers.map((member) => member.displayName).join(", "),
-    shift.helperUserId || "",
-    helperMember?.displayName || "",
-    shift.status,
-    shift.source,
+    formatHumanShortDate(shift.date),
+    responsible?.displayName || existingRow[1] || "",
+    responsible?.phone || existingRow[2] || "",
+    existingRow[3] || "",
+    helper ? `LO HACE ${helper.displayName}` : "",
+    `${isoWeekNumber(shift.date)}`,
   ];
 };
 
-const ensureSheetHeaders = async (
-  sheets: Awaited<ReturnType<typeof getSheetsClient>>,
-  spreadsheetId: string,
-  range: string,
-): Promise<void> => {
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: `${parseSheetName(range)}!A1:I1`,
-  });
-  const currentHeader = response.data.values?.[0] || [];
-  const isMatching = SHIFT_SHEET_HEADERS.every(
-    (header, index) => currentHeader[index] === header
+const toMarketHumanParticipantRows = (
+  shift: FirestoreShiftRecord,
+  membersById: Map<string, MemberSheetRef>,
+  existingRows: string[][] = [],
+): string[][] =>
+  Array.from({length: Math.max(3, shift.assignedUserIds.length)}).map(
+    (_, index) => {
+      const member = shift.assignedUserIds[index] ?
+        membersById.get(shift.assignedUserIds[index]) :
+        null;
+      const existingRow = existingRows[index] || [];
+      return [
+        member?.displayName || existingRow[0] || "",
+        member?.phone || existingRow[1] || "",
+        existingRow[2] || "",
+      ];
+    }
   );
-
-  if (isMatching) {
-    return;
-  }
-
-  await sheets.spreadsheets.values.update({
-    spreadsheetId,
-    range: `${parseSheetName(range)}!A1:I1`,
-    valueInputOption: "RAW",
-    requestBody: {
-      values: [Array.from(SHIFT_SHEET_HEADERS)],
-    },
-  });
-};
 
 const upsertShiftRowInSheet = async (
   sheets: Awaited<ReturnType<typeof getSheetsClient>>,
@@ -887,52 +966,76 @@ const upsertShiftRowInSheet = async (
   shift: FirestoreShiftRecord,
   membersById: Map<string, MemberSheetRef>,
 ): Promise<"updated" | "appended"> => {
-  await ensureSheetHeaders(sheets, spreadsheetId, range);
-  const response = await sheets.spreadsheets.values.get({
+  const valuesResponse = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range,
   });
-  const rows = response.data.values || [];
-  if (rows.length === 0) {
-    await ensureSheetHeaders(sheets, spreadsheetId, range);
+  const rows = valuesResponse.data.values || [];
+  const normalizedRows = rows.map((row) => row.map((cell) => `${cell}`));
+
+  if (shift.type === "delivery") {
+    for (let rowOffset = 0; rowOffset < normalizedRows.length; rowOffset += 1) {
+      const row = normalizedRows[rowOffset];
+      const rowDate = parseDateInput(row[0]);
+      if (
+        rowDate &&
+        timestampToSheetDate(rowDate) === timestampToSheetDate(shift.date)
+      ) {
+        const rowNumber = rowOffset + 1;
+        await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: `${parseSheetName(range)}!A${rowNumber}:F${rowNumber}`,
+          valueInputOption: "RAW",
+          requestBody: {
+            values: [toDeliveryHumanRow(shift, membersById, row)],
+          },
+        });
+        return "updated";
+      }
+    }
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: `${parseSheetName(range)}!A:F`,
+      valueInputOption: "RAW",
+      insertDataOption: "INSERT_ROWS",
+      requestBody: {
+        values: [
+          [formatHumanMonthHeading(shift.date)],
+          toDeliveryHumanRow(shift, membersById),
+          [""],
+        ],
+      },
+    });
+    return "appended";
   }
 
-  const normalizedRows = rows.map((row) => row.map((cell) => `${cell}`));
-  const headerIndex = normalizedRows.length > 0 ?
-    buildHeaderIndex(normalizedRows[0]) :
-    {};
-  const shiftIdIndex = headerIndex[normalizeHeader("shiftId")];
-  const shiftRow = toShiftSheetRow(shift, membersById);
-  const targetRowKey = buildShiftRowKey(shift.type, shift.date);
-  const normalizedDate = timestampToSheetDate(shift.date);
-
-  for (let rowOffset = 1; rowOffset < normalizedRows.length; rowOffset += 1) {
+  for (let rowOffset = 0; rowOffset < normalizedRows.length; rowOffset += 1) {
     const row = normalizedRows[rowOffset];
-    const rowShiftId = shiftIdIndex !== undefined ?
-      parseString(row[shiftIdIndex]) :
-      null;
-    const rowDate = firstNonEmptyCell(row, headerIndex, ["date", "fecha"]);
-    const rowType = firstNonEmptyCell(row, headerIndex, ["type", "tipo"]);
-    const rowKey = rowDate && rowType ?
-      buildShiftRowKey(
-        parseShiftType(rowType, shift.type),
-        admin.firestore.Timestamp.fromDate(new Date(rowDate))
-      ) :
-      null;
-
+    const rowDate = parseDateInput(row[0]);
     if (
-      rowShiftId === shift.id ||
-      rowKey === targetRowKey ||
-      (rowType?.toLowerCase() === shift.type &&
-        rowDate === normalizedDate)
+      rowDate &&
+      timestampToSheetDate(rowDate) === timestampToSheetDate(shift.date)
     ) {
-      const rowNumber = rowOffset + 1;
+      const dateRowNumber = rowOffset + 1;
+      const existingParticipantRows = normalizedRows.slice(
+        rowOffset + 1,
+        rowOffset + 4,
+      );
+      const participantRows = toMarketHumanParticipantRows(
+        shift,
+        membersById,
+        existingParticipantRows,
+      );
+
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `${parseSheetName(range)}!A${rowNumber}:I${rowNumber}`,
+        range:
+          `${parseSheetName(range)}!A${dateRowNumber}:` +
+          `C${dateRowNumber + participantRows.length}`,
         valueInputOption: "RAW",
         requestBody: {
-          values: [shiftRow],
+          values: [[formatHumanLongDate(shift.date)], ...participantRows],
         },
       });
       return "updated";
@@ -941,11 +1044,15 @@ const upsertShiftRowInSheet = async (
 
   await sheets.spreadsheets.values.append({
     spreadsheetId,
-    range: `${parseSheetName(range)}!A:I`,
+    range: `${parseSheetName(range)}!A:C`,
     valueInputOption: "RAW",
     insertDataOption: "INSERT_ROWS",
     requestBody: {
-      values: [shiftRow],
+      values: [
+        [formatHumanLongDate(shift.date)],
+        ...toMarketHumanParticipantRows(shift, membersById),
+        [""],
+      ],
     },
   });
   return "appended";
@@ -1011,39 +1118,6 @@ const readAllShifts = async (
     .filter((shift): shift is FirestoreShiftRecord => Boolean(shift));
 };
 
-const groupShiftsByType = (
-  shifts: FirestoreShiftRecord[],
-): Record<ShiftType, FirestoreShiftRecord[]> => ({
-  delivery: shifts.filter((shift) => shift.type === "delivery"),
-  market: shifts.filter((shift) => shift.type === "market"),
-});
-
-const writeShiftRowsToSheet = async (
-  sheets: Awaited<ReturnType<typeof getSheetsClient>>,
-  spreadsheetId: string,
-  range: string,
-  rows: string[][],
-): Promise<void> => {
-  const sheetName = parseSheetName(range);
-  await sheets.spreadsheets.values.clear({
-    spreadsheetId,
-    range: `${sheetName}!A2:I`,
-  });
-
-  if (rows.length === 0) {
-    return;
-  }
-
-  await sheets.spreadsheets.values.update({
-    spreadsheetId,
-    range: `${sheetName}!A2:I${rows.length + 1}`,
-    valueInputOption: "RAW",
-    requestBody: {
-      values: rows,
-    },
-  });
-};
-
 const exportAllShiftsToGoogleSheets = async (
   env: string,
 ): Promise<{
@@ -1064,36 +1138,30 @@ const exportAllShiftsToGoogleSheets = async (
     loadMembersById(env),
     readAllShifts(env),
   ]);
-  const grouped = groupShiftsByType(shifts);
+  let deliveryCount = 0;
+  let marketCount = 0;
 
-  await ensureSheetHeaders(
-    sheets,
-    sheetConfig.spreadsheetId,
-    sheetConfig.deliveryRange,
-  );
-  await ensureSheetHeaders(
-    sheets,
-    sheetConfig.spreadsheetId,
-    sheetConfig.marketRange,
-  );
-
-  await writeShiftRowsToSheet(
-    sheets,
-    sheetConfig.spreadsheetId,
-    sheetConfig.deliveryRange,
-    grouped.delivery.map((shift) => toShiftSheetRow(shift, membersById)),
-  );
-  await writeShiftRowsToSheet(
-    sheets,
-    sheetConfig.spreadsheetId,
-    sheetConfig.marketRange,
-    grouped.market.map((shift) => toShiftSheetRow(shift, membersById)),
-  );
+  for (const shift of shifts) {
+    await upsertShiftRowInSheet(
+      sheets,
+      sheetConfig.spreadsheetId,
+      shift.type === "market" ?
+        sheetConfig.marketRange :
+        sheetConfig.deliveryRange,
+      shift,
+      membersById,
+    );
+    if (shift.type === "market") {
+      marketCount += 1;
+    } else {
+      deliveryCount += 1;
+    }
+  }
 
   return {
     exportedCount: shifts.length,
-    deliveryCount: grouped.delivery.length,
-    marketCount: grouped.market.length,
+    deliveryCount,
+    marketCount,
   };
 };
 
