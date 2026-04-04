@@ -1801,6 +1801,7 @@ private fun ShiftBoardCard(
     isAssignedToCurrentMember: Boolean,
 ) {
     val primaryNames = shift.primaryBoardNames(members)
+    val leftLines = shift.leftBoardLines()
     Card {
         Row(
             modifier = Modifier
@@ -1812,16 +1813,14 @@ private fun ShiftBoardCard(
                 modifier = Modifier.weight(0.38f),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text(
-                    text = shift.leftBoardTitle(),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = shift.leftBoardSubtitle(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                leftLines.forEach { line ->
+                    Text(
+                        text = line.text,
+                        style = line.style,
+                        fontWeight = line.fontWeight,
+                        color = line.color ?: MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
 
             Column(
@@ -1829,15 +1828,18 @@ private fun ShiftBoardCard(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 primaryNames.forEachIndexed { index, name ->
+                    val marketStyle = MaterialTheme.typography.bodyMedium
                     Text(
                         text = name,
-                        style = if (index == 0) {
+                        style = if (shift.type == ShiftType.MARKET) {
+                            marketStyle
+                        } else if (index == 0) {
                             MaterialTheme.typography.bodyLarge
                         } else {
                             MaterialTheme.typography.bodyMedium
                         },
-                        fontWeight = if (index == 0) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (index == 0 && isAssignedToCurrentMember) {
+                        fontWeight = if (shift.type == ShiftType.MARKET) FontWeight.Normal else if (index == 0) FontWeight.SemiBold else FontWeight.Normal,
+                        color = if (shift.type != ShiftType.MARKET && index == 0 && isAssignedToCurrentMember) {
                             MaterialTheme.colorScheme.primary
                         } else {
                             MaterialTheme.colorScheme.onSurface
@@ -1860,6 +1862,13 @@ private enum class ShiftBoardSegment(@StringRes val labelRes: Int) {
     DELIVERY(R.string.shifts_type_delivery),
     MARKET(R.string.shifts_type_market),
 }
+
+private data class ShiftBoardLine(
+    val text: String,
+    val style: androidx.compose.ui.text.TextStyle,
+    val fontWeight: FontWeight = FontWeight.Normal,
+    val color: androidx.compose.ui.graphics.Color? = null,
+)
 
 @Composable
 private fun LatestNewsCard(
@@ -2719,28 +2728,50 @@ private fun ShiftStatus.labelRes(): Int = when (this) {
 private fun ShiftAssignment.toSummaryLine(members: List<Member>): String =
     "${dateMillis.toLocalizedDateTime()} · ${assignedUserIds.toMemberNames(members)}"
 
-private fun ShiftAssignment.leftBoardTitle(): String = when (type) {
-    ShiftType.DELIVERY -> {
-        dateMillis.toWeekKey()
-    }
-    ShiftType.MARKET -> {
-        val formatter = DateTimeFormatter.ofPattern("LLLL", Locale.getDefault())
-        formatter.format(dateMillis.toLocalDate())
-            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
-    }
-}
-
-private fun ShiftAssignment.leftBoardSubtitle(): String = when (type) {
+@Composable
+private fun ShiftAssignment.leftBoardLines(): List<ShiftBoardLine> = when (type) {
     ShiftType.DELIVERY -> {
         val spanishLocale = Locale.forLanguageTag("es-ES")
         val formatter = DateTimeFormatter.ofPattern("EEE d MMM", spanishLocale)
-        formatter.format(dateMillis.toLocalDate())
-            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(spanishLocale) else it.toString() }
+        listOf(
+            ShiftBoardLine(
+                text = dateMillis.toWeekKey(),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            ),
+            ShiftBoardLine(
+                text = formatter.format(dateMillis.toLocalDate())
+                    .replaceFirstChar { if (it.isLowerCase()) it.titlecase(spanishLocale) else it.toString() },
+                style = MaterialTheme.typography.bodySmall,
+            ),
+        )
     }
     ShiftType.MARKET -> {
-        val formatter = DateTimeFormatter.ofPattern("EEEE d MMM", Locale.getDefault())
-        formatter.format(dateMillis.toLocalDate())
-            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+        val spanishLocale = Locale.forLanguageTag("es-ES")
+        val monthFormatter = DateTimeFormatter.ofPattern("LLLL", spanishLocale)
+        val weekdayFormatter = DateTimeFormatter.ofPattern("EEEE", spanishLocale)
+        val dayFormatter = DateTimeFormatter.ofPattern("d", spanishLocale)
+        listOf(
+            ShiftBoardLine(
+                text = monthFormatter.format(dateMillis.toLocalDate())
+                    .replaceFirstChar { if (it.isLowerCase()) it.titlecase(spanishLocale) else it.toString() },
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            ),
+            ShiftBoardLine(
+                text = weekdayFormatter.format(dateMillis.toLocalDate())
+                    .replaceFirstChar { if (it.isLowerCase()) it.titlecase(spanishLocale) else it.toString() },
+                style = MaterialTheme.typography.bodySmall,
+            ),
+            ShiftBoardLine(
+                text = dayFormatter.format(dateMillis.toLocalDate()),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            ),
+        )
     }
 }
 

@@ -912,20 +912,21 @@ struct ContentView: View {
         return cardContainer {
             HStack(alignment: .top, spacing: tokens.spacing.md) {
                 VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                    Text(shift.leftBoardTitle)
-                        .font(tokens.typography.titleCard)
-                    Text(shift.leftBoardSubtitle)
-                        .font(tokens.typography.bodySecondary)
-                        .foregroundStyle(tokens.colors.textSecondary)
+                    ForEach(Array(shift.leftBoardLines(tokens: tokens).enumerated()), id: \.offset) { _, line in
+                        Text(line.text)
+                            .font(line.font)
+                            .fontWeight(line.weight)
+                            .foregroundStyle(line.color)
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: tokens.spacing.xs) {
                     ForEach(Array(shift.boardNames(session: currentHomeSession).enumerated()), id: \.offset) { index, name in
                         Text(name)
-                            .font(index == 0 ? tokens.typography.body : tokens.typography.bodySecondary)
-                            .fontWeight(index == 0 ? .semibold : .regular)
+                            .font(shift.type == .market ? tokens.typography.bodySecondary : (index == 0 ? tokens.typography.body : tokens.typography.bodySecondary))
+                            .fontWeight(shift.type == .market ? .regular : (index == 0 ? .semibold : .regular))
                             .foregroundStyle(
-                                index == 0 && isAssignedToCurrentMember ?
+                                shift.type != .market && index == 0 && isAssignedToCurrentMember ?
                                     tokens.colors.actionPrimary :
                                     tokens.colors.textPrimary
                             )
@@ -2313,38 +2314,68 @@ private enum ShiftBoardSegment: CaseIterable {
     }
 }
 
+private struct ShiftBoardLine {
+    let text: String
+    let font: Font
+    let weight: Font.Weight
+    let color: Color
+}
+
 private extension ShiftAssignment {
     var localDate: Date {
         Date(timeIntervalSince1970: TimeInterval(dateMillis) / 1_000)
     }
 
-    var leftBoardTitle: String {
-        switch type {
-        case .delivery:
-            let calendar = Calendar(identifier: .iso8601)
-            let week = calendar.component(.weekOfYear, from: localDate)
-            let year = calendar.component(.yearForWeekOfYear, from: localDate)
-            return String(format: "%04d-W%02d", year, week)
-        case .market:
-            let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "es_ES")
-            formatter.dateFormat = "LLLL"
-            return formatter.string(from: localDate).capitalized
-        }
-    }
-
-    var leftBoardSubtitle: String {
+    func leftBoardLines(tokens: ReguertaDesignTokens) -> [ShiftBoardLine] {
         switch type {
         case .delivery:
             let formatter = DateFormatter()
             formatter.locale = Locale(identifier: "es_ES")
             formatter.dateFormat = "EEE d MMM"
-            return formatter.string(from: localDate).capitalized
+            return [
+                ShiftBoardLine(
+                    text: weekKey,
+                    font: tokens.typography.bodySecondary,
+                    weight: .semibold,
+                    color: tokens.colors.textPrimary
+                ),
+                ShiftBoardLine(
+                    text: formatter.string(from: localDate).capitalized,
+                    font: tokens.typography.bodySecondary,
+                    weight: .regular,
+                    color: tokens.colors.textSecondary
+                ),
+            ]
         case .market:
-            let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "es_ES")
-            formatter.dateFormat = "EEEE d MMM"
-            return formatter.string(from: localDate).capitalized
+            let monthFormatter = DateFormatter()
+            monthFormatter.locale = Locale(identifier: "es_ES")
+            monthFormatter.dateFormat = "LLLL"
+            let weekdayFormatter = DateFormatter()
+            weekdayFormatter.locale = Locale(identifier: "es_ES")
+            weekdayFormatter.dateFormat = "EEEE"
+            let dayFormatter = DateFormatter()
+            dayFormatter.locale = Locale(identifier: "es_ES")
+            dayFormatter.dateFormat = "d"
+            return [
+                ShiftBoardLine(
+                    text: monthFormatter.string(from: localDate).capitalized,
+                    font: tokens.typography.bodySecondary,
+                    weight: .semibold,
+                    color: tokens.colors.textPrimary
+                ),
+                ShiftBoardLine(
+                    text: weekdayFormatter.string(from: localDate).capitalized,
+                    font: tokens.typography.bodySecondary,
+                    weight: .regular,
+                    color: tokens.colors.textSecondary
+                ),
+                ShiftBoardLine(
+                    text: dayFormatter.string(from: localDate),
+                    font: tokens.typography.titleCard,
+                    weight: .semibold,
+                    color: tokens.colors.textPrimary
+                ),
+            ]
         }
     }
 
@@ -2366,6 +2397,13 @@ private extension ShiftAssignment {
             }
             return Array((names + Array(repeating: "—", count: max(0, 3 - names.count))).prefix(3))
         }
+    }
+
+    private var weekKey: String {
+        let calendar = Calendar(identifier: .iso8601)
+        let week = calendar.component(.weekOfYear, from: localDate)
+        let year = calendar.component(.yearForWeekOfYear, from: localDate)
+        return String(format: "%04d-W%02d", year, week)
     }
 
     private func displayName(for memberId: String, session: AuthorizedSession?) -> String {

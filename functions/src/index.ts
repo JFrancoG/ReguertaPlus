@@ -918,6 +918,7 @@ const syncShiftRowsIntoFirestore = async (
 ): Promise<number> => {
   const collection = firestore.collection(`${env}/plus-collections/shifts`);
   const importedAt = admin.firestore.FieldValue.serverTimestamp();
+  const importedIds = rows.map((row) => row.shiftId);
   let writes = 0;
 
   for (const row of rows) {
@@ -944,6 +945,18 @@ const syncShiftRowsIntoFirestore = async (
       },
     }, {merge: true});
     writes += 1;
+  }
+
+  const staleSnapshot = await collection
+    .where("source", "==", "google_sheets")
+    .get();
+  const staleDocs = staleSnapshot.docs.filter((doc) =>
+    !importedIds.includes(doc.id)
+  );
+  while (staleDocs.length > 0) {
+    const batch = firestore.batch();
+    staleDocs.splice(0, 400).forEach((doc) => batch.delete(doc.ref));
+    await batch.commit();
   }
 
   return writes;
