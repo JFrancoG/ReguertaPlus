@@ -633,6 +633,19 @@ const buildMemberLookup = async (
 ): Promise<Map<string, MemberSheetRef>> => {
   const snapshot = await plusUsersCollection(env).get();
   const lookup = new Map<string, MemberSheetRef>();
+  const aliasCandidates = new Map<string, MemberSheetRef[]>();
+
+  const registerAliasCandidate = (
+    alias: string,
+    memberRef: MemberSheetRef,
+  ) => {
+    if (!alias) {
+      return;
+    }
+    const current = aliasCandidates.get(alias) || [];
+    current.push(memberRef);
+    aliasCandidates.set(alias, current);
+  };
 
   snapshot.docs.forEach((doc) => {
     const normalizedEmail =
@@ -662,6 +675,28 @@ const buildMemberLookup = async (
       phoneLookupKeys(memberRef.phone).forEach((phoneKey) => {
         lookup.set(phoneKey, memberRef);
       });
+    }
+
+    const displayNameTokens = normalizeLookupKey(displayName)
+      .split(" ")
+      .filter((token) => token.length > 0);
+    if (displayNameTokens.length > 0) {
+      registerAliasCandidate(displayNameTokens[0], memberRef);
+    }
+    if (displayNameTokens.length >= 2) {
+      registerAliasCandidate(
+        `${displayNameTokens[0]} ${displayNameTokens[1]}`,
+        memberRef,
+      );
+    }
+  });
+
+  aliasCandidates.forEach((candidates, alias) => {
+    const uniqueCandidates = Array.from(new Map(
+      candidates.map((candidate) => [candidate.id, candidate]),
+    ).values());
+    if (uniqueCandidates.length === 1 && !lookup.has(alias)) {
+      lookup.set(alias, uniqueCandidates[0]);
     }
   });
 
