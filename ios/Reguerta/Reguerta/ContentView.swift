@@ -909,16 +909,20 @@ struct ContentView: View {
 
     private func shiftBoardCard(_ shift: ShiftAssignment) -> some View {
         let isAssignedToCurrentMember = currentHomeMember.map { shift.isAssigned(to: $0.id) } ?? false
+        let leftColumnWidth = shift.type == .market ? 88.resize : 104.resize
+        let leftAlignment: HorizontalAlignment = shift.type == .market ? .center : .leading
         return cardContainer {
             HStack(alignment: .top, spacing: tokens.spacing.md) {
-                VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+                VStack(alignment: leftAlignment, spacing: tokens.spacing.xs) {
                     ForEach(Array(shift.leftBoardLines(tokens: tokens).enumerated()), id: \.offset) { _, line in
                         Text(line.text)
                             .font(line.font)
                             .fontWeight(line.weight)
                             .foregroundStyle(line.color)
+                            .multilineTextAlignment(shift.type == .market ? .center : .leading)
                     }
                 }
+                .frame(width: leftColumnWidth, alignment: shift.type == .market ? .center : .leading)
 
                 VStack(alignment: .leading, spacing: tokens.spacing.xs) {
                     ForEach(Array(shift.boardNames(session: currentHomeSession).enumerated()), id: \.offset) { index, name in
@@ -2329,18 +2333,15 @@ private extension ShiftAssignment {
     func leftBoardLines(tokens: ReguertaDesignTokens) -> [ShiftBoardLine] {
         switch type {
         case .delivery:
-            let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "es_ES")
-            formatter.dateFormat = "EEE d MMM"
             return [
                 ShiftBoardLine(
                     text: weekKey,
-                    font: tokens.typography.bodySecondary,
+                    font: tokens.typography.label,
                     weight: .semibold,
                     color: tokens.colors.textPrimary
                 ),
                 ShiftBoardLine(
-                    text: formatter.string(from: localDate).capitalized,
+                    text: boardDateLabel,
                     font: tokens.typography.bodySecondary,
                     weight: .regular,
                     color: tokens.colors.textSecondary
@@ -2353,9 +2354,6 @@ private extension ShiftAssignment {
             let weekdayFormatter = DateFormatter()
             weekdayFormatter.locale = Locale(identifier: "es_ES")
             weekdayFormatter.dateFormat = "EEEE"
-            let dayFormatter = DateFormatter()
-            dayFormatter.locale = Locale(identifier: "es_ES")
-            dayFormatter.dateFormat = "d"
             return [
                 ShiftBoardLine(
                     text: monthFormatter.string(from: localDate).capitalized,
@@ -2365,12 +2363,12 @@ private extension ShiftAssignment {
                 ),
                 ShiftBoardLine(
                     text: weekdayFormatter.string(from: localDate).capitalized,
-                    font: tokens.typography.bodySecondary,
+                    font: tokens.typography.label,
                     weight: .regular,
                     color: tokens.colors.textSecondary
                 ),
                 ShiftBoardLine(
-                    text: dayFormatter.string(from: localDate),
+                    text: dayNumberLabel,
                     font: tokens.typography.titleCard,
                     weight: .semibold,
                     color: tokens.colors.textPrimary
@@ -2404,6 +2402,42 @@ private extension ShiftAssignment {
         let week = calendar.component(.weekOfYear, from: localDate)
         let year = calendar.component(.yearForWeekOfYear, from: localDate)
         return String(format: "%04d-W%02d", year, week)
+    }
+
+    private var boardDateLabel: String {
+        let weekdayFormatter = DateFormatter()
+        weekdayFormatter.locale = Locale(identifier: "es_ES")
+        weekdayFormatter.dateFormat = "EEE"
+        let weekday = weekdayFormatter.string(from: localDate)
+            .replacingOccurrences(of: ".", with: "")
+            .capitalized
+        return "\(weekday) \(dayNumberLabel) \(shortMonthLabel)"
+    }
+
+    private var shortMonthLabel: String {
+        let month = Calendar(identifier: .iso8601).component(.month, from: localDate)
+        switch month {
+        case 1: return "ene"
+        case 2: return "feb"
+        case 3: return "mar"
+        case 4: return "abr"
+        case 5: return "may"
+        case 6: return "jun"
+        case 7: return "jul"
+        case 8: return "ago"
+        case 9: return "sep"
+        case 10: return "oct"
+        case 11: return "nov"
+        case 12: return "dic"
+        default: return ""
+        }
+    }
+
+    private var dayNumberLabel: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "es_ES")
+        formatter.dateFormat = "d"
+        return formatter.string(from: localDate)
     }
 
     private func displayName(for memberId: String, session: AuthorizedSession?) -> String {

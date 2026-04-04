@@ -92,6 +92,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -156,8 +157,10 @@ import coil3.compose.AsyncImage
 import java.text.DateFormat
 import java.time.Instant
 import java.time.LocalDate
+import java.time.Month
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
 import java.time.temporal.WeekFields
 import java.util.Locale
 
@@ -1802,6 +1805,7 @@ private fun ShiftBoardCard(
 ) {
     val primaryNames = shift.primaryBoardNames(members)
     val leftLines = shift.leftBoardLines()
+    val leftAlignment = if (shift.type == ShiftType.MARKET) Alignment.CenterHorizontally else Alignment.Start
     Card {
         Row(
             modifier = Modifier
@@ -1811,6 +1815,7 @@ private fun ShiftBoardCard(
         ) {
             Column(
                 modifier = Modifier.weight(0.38f),
+                horizontalAlignment = leftAlignment,
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 leftLines.forEach { line ->
@@ -1819,6 +1824,7 @@ private fun ShiftBoardCard(
                         style = line.style,
                         fontWeight = line.fontWeight,
                         color = line.color ?: MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = if (shift.type == ShiftType.MARKET) TextAlign.Center else TextAlign.Start,
                     )
                 }
             }
@@ -2731,42 +2737,35 @@ private fun ShiftAssignment.toSummaryLine(members: List<Member>): String =
 @Composable
 private fun ShiftAssignment.leftBoardLines(): List<ShiftBoardLine> = when (type) {
     ShiftType.DELIVERY -> {
-        val spanishLocale = Locale.forLanguageTag("es-ES")
-        val formatter = DateTimeFormatter.ofPattern("EEE d MMM", spanishLocale)
+        val localDate = dateMillis.toLocalDate()
         listOf(
             ShiftBoardLine(
                 text = dateMillis.toWeekKey(),
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
             ),
             ShiftBoardLine(
-                text = formatter.format(dateMillis.toLocalDate())
-                    .replaceFirstChar { if (it.isLowerCase()) it.titlecase(spanishLocale) else it.toString() },
+                text = localDate.toSpanishBoardDate(),
                 style = MaterialTheme.typography.bodySmall,
             ),
         )
     }
     ShiftType.MARKET -> {
-        val spanishLocale = Locale.forLanguageTag("es-ES")
-        val monthFormatter = DateTimeFormatter.ofPattern("LLLL", spanishLocale)
-        val weekdayFormatter = DateTimeFormatter.ofPattern("EEEE", spanishLocale)
-        val dayFormatter = DateTimeFormatter.ofPattern("d", spanishLocale)
+        val localDate = dateMillis.toLocalDate()
         listOf(
             ShiftBoardLine(
-                text = monthFormatter.format(dateMillis.toLocalDate())
-                    .replaceFirstChar { if (it.isLowerCase()) it.titlecase(spanishLocale) else it.toString() },
+                text = localDate.toSpanishMonthLabel(),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
             ),
             ShiftBoardLine(
-                text = weekdayFormatter.format(dateMillis.toLocalDate())
-                    .replaceFirstChar { if (it.isLowerCase()) it.titlecase(spanishLocale) else it.toString() },
-                style = MaterialTheme.typography.bodySmall,
+                text = localDate.toSpanishWeekdayLabel(),
+                style = MaterialTheme.typography.labelMedium,
             ),
             ShiftBoardLine(
-                text = dayFormatter.format(dateMillis.toLocalDate()),
+                text = localDate.dayOfMonth.toString(),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -2811,6 +2810,41 @@ private fun Long.toWeekKey(): String {
     val year = localDate.get(weekFields.weekBasedYear())
     return String.format(Locale.US, "%04d-W%02d", year, week)
 }
+
+private fun LocalDate.toSpanishBoardDate(): String {
+    val locale = Locale.forLanguageTag("es-ES")
+    val weekday = dayOfWeek.getDisplayName(TextStyle.SHORT, locale)
+        .replace(".", "")
+        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(locale) else it.toString() }
+    return "$weekday $dayOfMonth ${toSpanishShortMonthLabel()}"
+}
+
+private fun LocalDate.toSpanishShortMonthLabel(): String = when (month) {
+    Month.JANUARY -> "ene"
+    Month.FEBRUARY -> "feb"
+    Month.MARCH -> "mar"
+    Month.APRIL -> "abr"
+    Month.MAY -> "may"
+    Month.JUNE -> "jun"
+    Month.JULY -> "jul"
+    Month.AUGUST -> "ago"
+    Month.SEPTEMBER -> "sep"
+    Month.OCTOBER -> "oct"
+    Month.NOVEMBER -> "nov"
+    Month.DECEMBER -> "dic"
+}
+
+private fun LocalDate.toSpanishMonthLabel(): String =
+    month.getDisplayName(TextStyle.FULL, Locale.forLanguageTag("es-ES"))
+        .replaceFirstChar {
+            if (it.isLowerCase()) it.titlecase(Locale.forLanguageTag("es-ES")) else it.toString()
+        }
+
+private fun LocalDate.toSpanishWeekdayLabel(): String =
+    dayOfWeek.getDisplayName(TextStyle.FULL, Locale.forLanguageTag("es-ES"))
+        .replaceFirstChar {
+            if (it.isLowerCase()) it.titlecase(Locale.forLanguageTag("es-ES")) else it.toString()
+        }
 
 @Composable
 private fun SignInCard(

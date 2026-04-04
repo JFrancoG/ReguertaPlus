@@ -528,6 +528,18 @@ const normalizeLookupKey = (value: string): string =>
 const normalizePhoneKey = (value: string): string =>
   value.replace(/\D+/g, "").trim();
 
+const phoneLookupKeys = (value: string): string[] => {
+  const normalized = normalizePhoneKey(value);
+  if (!normalized) {
+    return [];
+  }
+
+  return Array.from(new Set([
+    normalized,
+    normalized.length > 9 ? normalized.slice(-9) : normalized,
+  ]));
+};
+
 const MONTH_INDEX_BY_NAME: Record<string, number> = {
   enero: 0,
   febrero: 1,
@@ -647,10 +659,9 @@ const buildMemberLookup = async (
     });
 
     if (memberRef.phone) {
-      const normalizedPhone = normalizePhoneKey(memberRef.phone);
-      if (normalizedPhone) {
-        lookup.set(normalizedPhone, memberRef);
-      }
+      phoneLookupKeys(memberRef.phone).forEach((phoneKey) => {
+        lookup.set(phoneKey, memberRef);
+      });
     }
   });
 
@@ -666,11 +677,14 @@ const resolveMemberIdByPhone = (
   lookup: Map<string, MemberSheetRef>,
   value: string,
 ): string | null => {
-  const normalizedPhone = normalizePhoneKey(value);
-  if (!normalizedPhone) {
-    return null;
+  const phoneKeys = phoneLookupKeys(value);
+  for (const phoneKey of phoneKeys) {
+    const resolved = lookup.get(phoneKey)?.id || null;
+    if (resolved) {
+      return resolved;
+    }
   }
-  return lookup.get(normalizedPhone)?.id || null;
+  return null;
 };
 
 const resolveMemberIdFromCandidate = (
