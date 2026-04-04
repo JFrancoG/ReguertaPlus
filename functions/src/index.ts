@@ -4,7 +4,7 @@ import {
   onDocumentCreated,
   onDocumentWritten,
 } from "firebase-functions/v2/firestore";
-import {logger, config} from "firebase-functions";
+import {logger} from "firebase-functions";
 import * as admin from "firebase-admin";
 import {google} from "googleapis";
 
@@ -19,11 +19,41 @@ setGlobalOptions({
 });
 
 let ENV = "develop";
-try {
-  ENV = config().app?.env || "develop";
-} catch {
-  ENV = "develop";
-}
+
+const parseRuntimeConfig = (): Record<string, unknown> => {
+  const rawConfig = process.env.CLOUD_RUNTIME_CONFIG;
+  if (!rawConfig) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(rawConfig);
+    return parsed !== null && typeof parsed === "object" ?
+      parsed as Record<string, unknown> :
+      {};
+  } catch {
+    return {};
+  }
+};
+
+const runtimeConfig = parseRuntimeConfig();
+
+const getRuntimeConfigNamespace = (
+  namespace: string,
+): Record<string, unknown> => {
+  const value = runtimeConfig[namespace];
+  return value !== null && typeof value === "object" ?
+    value as Record<string, unknown> :
+    {};
+};
+
+const parseOptionalEnvString = (value: unknown): string | null =>
+  typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+
+const appConfig = getRuntimeConfigNamespace("app");
+ENV = parseOptionalEnvString(process.env.APP_ENV) ||
+  parseOptionalEnvString(appConfig.env) ||
+  "develop";
 
 const firestore = admin.firestore();
 
@@ -411,7 +441,18 @@ const getEnvScopedConfigValue = (
   getConfigValue(source, key);
 
 const getSheetConfig = (env: string): SheetShiftConfig | null => {
-  const sheetsConfig = parseBody(config().sheets);
+  const sheetsConfig = {
+    ...getRuntimeConfigNamespace("sheets"),
+    spreadsheet_id: process.env.SHEETS_SPREADSHEET_ID,
+    spreadsheet_id_develop: process.env.SHEETS_SPREADSHEET_ID_DEVELOP,
+    spreadsheet_id_production: process.env.SHEETS_SPREADSHEET_ID_PRODUCTION,
+    delivery_range: process.env.SHEETS_DELIVERY_RANGE,
+    delivery_range_develop: process.env.SHEETS_DELIVERY_RANGE_DEVELOP,
+    delivery_range_production: process.env.SHEETS_DELIVERY_RANGE_PRODUCTION,
+    market_range: process.env.SHEETS_MARKET_RANGE,
+    market_range_develop: process.env.SHEETS_MARKET_RANGE_DEVELOP,
+    market_range_production: process.env.SHEETS_MARKET_RANGE_PRODUCTION,
+  };
   const spreadsheetId = getEnvScopedConfigValue(
     sheetsConfig,
     "spreadsheet_id",
