@@ -129,6 +129,7 @@ data class SessionUiState(
     val sharedProfileDraft: SharedProfileDraft = SharedProfileDraft(),
     val shiftsFeed: List<ShiftAssignment> = emptyList(),
     val shiftSwapRequests: List<ShiftSwapRequest> = emptyList(),
+    val dismissedShiftSwapRequestIds: Set<String> = emptySet(),
     val shiftSwapDraft: ShiftSwapDraft = ShiftSwapDraft(),
     val nextDeliveryShift: ShiftAssignment? = null,
     val nextMarketShift: ShiftAssignment? = null,
@@ -199,6 +200,7 @@ class SessionViewModel(
         _uiState.update {
             it.copy(
                 mode = mode.copy(member = target),
+                dismissedShiftSwapRequestIds = emptySet(),
                 shiftSwapDraft = ShiftSwapDraft(),
             )
         }
@@ -215,6 +217,7 @@ class SessionViewModel(
         _uiState.update {
             it.copy(
                 mode = mode.copy(member = mode.authenticatedMember),
+                dismissedShiftSwapRequestIds = emptySet(),
                 shiftSwapDraft = ShiftSwapDraft(),
             )
         }
@@ -222,6 +225,12 @@ class SessionViewModel(
         refreshNotifications()
         refreshSharedProfiles()
         refreshShifts()
+    }
+
+    fun dismissShiftSwapActivity(requestId: String) {
+        _uiState.update {
+            it.copy(dismissedShiftSwapRequestIds = it.dismissedShiftSwapRequestIds + requestId)
+        }
     }
 
     fun onEmailChanged(value: String) {

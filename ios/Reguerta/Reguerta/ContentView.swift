@@ -999,7 +999,9 @@ struct ContentView: View {
             }
         }
         let outgoing = requesterOpen.filter { $0.availableResponses.isEmpty }
-        let history = relevantRequests.filter { $0.status != .open }
+        let history = relevantRequests.filter {
+            $0.status != .open && !viewModel.dismissedShiftSwapRequestIds.contains($0.id)
+        }
 
         return cardContainer {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
@@ -1144,6 +1146,11 @@ struct ContentView: View {
                         Text(shiftSwapCopy.selected(displayNameForSwap(selectedUserId)))
                             .font(tokens.typography.label)
                             .foregroundStyle(tokens.colors.textSecondary)
+                    }
+                    if request.status == .applied {
+                        ReguertaButton(LocalizedStringKey(shiftSwapCopy.acknowledge), variant: .text, fullWidth: false) {
+                            viewModel.dismissShiftSwapActivity(requestId: request.id)
+                        }
                     }
                 }
                 .padding(tokens.spacing.sm)
@@ -2682,6 +2689,7 @@ private struct ShiftSwapCopy {
     let back: String
     let cancel: String
     let confirm: String
+    let acknowledge: String
     let noReason: String
     let responses: String
     let open: String
@@ -2716,6 +2724,7 @@ private struct ShiftSwapCopy {
         back: "Volver",
         cancel: "Cancelar solicitud",
         confirm: "Confirmar cambio",
+        acknowledge: "Entendido",
         noReason: "Sin motivo adicional",
         responses: "Pueden cubrirlo",
         open: "Abierta",
@@ -2751,6 +2760,7 @@ private struct ShiftSwapCopy {
         back: "Back",
         cancel: "Cancel request",
         confirm: "Confirm change",
+        acknowledge: "OK",
         noReason: "No extra reason",
         responses: "Available members",
         open: "Open",

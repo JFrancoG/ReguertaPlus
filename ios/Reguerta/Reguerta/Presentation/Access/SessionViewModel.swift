@@ -135,6 +135,7 @@ final class SessionViewModel {
     var sharedProfileDraft = SharedProfileDraft()
     var shiftsFeed: [ShiftAssignment] = []
     var shiftSwapRequests: [ShiftSwapRequest] = []
+    var dismissedShiftSwapRequestIds = Set<String>()
     var shiftSwapDraft = ShiftSwapDraft()
     var nextDeliveryShift: ShiftAssignment?
     var nextMarketShift: ShiftAssignment?
@@ -522,6 +523,7 @@ final class SessionViewModel {
                 members: session.members
             )
         )
+        dismissedShiftSwapRequestIds = []
         shiftSwapDraft = ShiftSwapDraft()
         refreshNews()
         refreshNotifications()
@@ -542,11 +544,16 @@ final class SessionViewModel {
                 members: session.members
             )
         )
+        dismissedShiftSwapRequestIds = []
         shiftSwapDraft = ShiftSwapDraft()
         refreshNews()
         refreshNotifications()
         refreshSharedProfiles()
         refreshShifts()
+    }
+
+    func dismissShiftSwapActivity(requestId: String) {
+        dismissedShiftSwapRequestIds.insert(requestId)
     }
 
     func saveSharedProfile(onSuccess: @escaping @MainActor () -> Void = {}) {

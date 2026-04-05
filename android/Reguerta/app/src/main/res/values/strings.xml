@@ -119,6 +119,7 @@
     <string name="shift_swap_request_accept_short">I can</string>
     <string name="shift_swap_request_reject_short">I can’t</string>
     <string name="shift_swap_request_confirm">Confirm change</string>
+    <string name="shift_swap_request_acknowledge">OK</string>
     <string name="shift_swap_request_requested_by_format">Requested by %1$s</string>
     <string name="shift_swap_request_reason_format">Reason: %1$s</string>
     <string name="shift_swap_request_reason_empty">No reason provided</string>

@@ -408,6 +408,7 @@ fun ReguertaRoot(
                     sharedProfileDraft = state.sharedProfileDraft,
                     shiftsFeed = state.shiftsFeed,
                     shiftSwapRequests = state.shiftSwapRequests,
+                    dismissedShiftSwapRequestIds = state.dismissedShiftSwapRequestIds,
                     shiftSwapDraft = state.shiftSwapDraft,
                     nextDeliveryShift = state.nextDeliveryShift,
                     nextMarketShift = state.nextMarketShift,
@@ -449,6 +450,7 @@ fun ReguertaRoot(
                     onRejectShiftSwapRequest = viewModel::rejectShiftSwapRequest,
                     onCancelShiftSwapRequest = viewModel::cancelShiftSwapRequest,
                     onConfirmShiftSwapRequest = viewModel::confirmShiftSwapRequest,
+                    onDismissShiftSwapActivity = viewModel::dismissShiftSwapActivity,
                     onSaveSharedProfile = viewModel::saveSharedProfile,
                     onDeleteSharedProfile = viewModel::deleteSharedProfile,
                     onRetryMyOrderFreshness = viewModel::refreshMyOrderFreshness,
@@ -1059,6 +1061,7 @@ private fun HomeRoute(
     sharedProfileDraft: SharedProfileDraft,
     shiftsFeed: List<ShiftAssignment>,
     shiftSwapRequests: List<ShiftSwapRequest>,
+    dismissedShiftSwapRequestIds: Set<String>,
     shiftSwapDraft: ShiftSwapDraft,
     nextDeliveryShift: ShiftAssignment?,
     nextMarketShift: ShiftAssignment?,
@@ -1100,6 +1103,7 @@ private fun HomeRoute(
     onRejectShiftSwapRequest: (String, String) -> Unit,
     onCancelShiftSwapRequest: (String) -> Unit,
     onConfirmShiftSwapRequest: (String, String) -> Unit,
+    onDismissShiftSwapActivity: (String) -> Unit,
     onSaveSharedProfile: (onSuccess: () -> Unit) -> Unit,
     onDeleteSharedProfile: (onSuccess: () -> Unit) -> Unit,
     onRetryMyOrderFreshness: () -> Unit,
@@ -1333,6 +1337,7 @@ private fun HomeRoute(
                 HomeDestination.SHIFTS -> ShiftsRoute(
                     shifts = shiftsFeed,
                     shiftSwapRequests = shiftSwapRequests,
+                    dismissedShiftSwapRequestIds = dismissedShiftSwapRequestIds,
                     nextDeliveryShift = nextDeliveryShift,
                     nextMarketShift = nextMarketShift,
                     currentMember = member,
@@ -1348,6 +1353,7 @@ private fun HomeRoute(
                     onRejectShiftSwapRequest = onRejectShiftSwapRequest,
                     onCancelShiftSwapRequest = onCancelShiftSwapRequest,
                     onConfirmShiftSwapRequest = onConfirmShiftSwapRequest,
+                    onDismissShiftSwapActivity = onDismissShiftSwapActivity,
                 )
 
                 HomeDestination.SHIFT_SWAP_REQUEST -> ShiftSwapRequestRoute(
@@ -1744,6 +1750,7 @@ private fun ShiftSummaryRow(
 private fun ShiftsRoute(
     shifts: List<ShiftAssignment>,
     shiftSwapRequests: List<ShiftSwapRequest>,
+    dismissedShiftSwapRequestIds: Set<String>,
     nextDeliveryShift: ShiftAssignment?,
     nextMarketShift: ShiftAssignment?,
     currentMember: Member?,
@@ -1756,6 +1763,7 @@ private fun ShiftsRoute(
     onRejectShiftSwapRequest: (String, String) -> Unit,
     onCancelShiftSwapRequest: (String) -> Unit,
     onConfirmShiftSwapRequest: (String, String) -> Unit,
+    onDismissShiftSwapActivity: (String) -> Unit,
 ) {
     var selectedSegment by rememberSaveable { mutableStateOf(ShiftBoardSegment.DELIVERY) }
     val deliveryShifts = remember(shifts) {
@@ -1801,6 +1809,7 @@ private fun ShiftsRoute(
 
         ShiftSwapRequestsCard(
             requests = shiftSwapRequests,
+            dismissedRequestIds = dismissedShiftSwapRequestIds,
             shifts = shifts,
             members = members,
             currentMemberId = currentMember?.id,
@@ -1810,6 +1819,7 @@ private fun ShiftsRoute(
             onReject = onRejectShiftSwapRequest,
             onCancel = onCancelShiftSwapRequest,
             onConfirm = onConfirmShiftSwapRequest,
+            onDismissRequest = onDismissShiftSwapActivity,
         )
 
         if (isLoading) {
@@ -2002,6 +2012,7 @@ private data class ShiftBoardLine(
 @Composable
 private fun ShiftSwapRequestsCard(
     requests: List<ShiftSwapRequest>,
+    dismissedRequestIds: Set<String>,
     shifts: List<ShiftAssignment>,
     members: List<Member>,
     currentMemberId: String?,
@@ -2011,6 +2022,7 @@ private fun ShiftSwapRequestsCard(
     onReject: (String, String) -> Unit,
     onCancel: (String) -> Unit,
     onConfirm: (String, String) -> Unit,
+    onDismissRequest: (String) -> Unit,
 ) {
     val relevantRequests = remember(requests, shifts, selectedSegment) {
         requests.filter { request ->
@@ -2063,7 +2075,10 @@ private fun ShiftSwapRequestsCard(
                 }
             }
             val waiting = requesterOpen.filter { request -> request.availableResponses().isEmpty() }
-            val history = relevantRequests.filter { request -> request.status != ShiftSwapRequestStatus.OPEN }
+            val history = relevantRequests.filter { request ->
+                request.status != ShiftSwapRequestStatus.OPEN &&
+                    request.id !in dismissedRequestIds
+            }
 
             if (incoming.isNotEmpty()) {
                 IncomingShiftSwapSection(
@@ -2104,6 +2119,7 @@ private fun ShiftSwapRequestsCard(
                     requests = history,
                     shifts = shifts,
                     members = members,
+                    onDismissRequest = onDismissRequest,
                 )
             }
         }
@@ -2292,6 +2308,7 @@ private fun HistoryShiftSwapSection(
     requests: List<ShiftSwapRequest>,
     shifts: List<ShiftAssignment>,
     members: List<Member>,
+    onDismissRequest: (String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
@@ -2305,6 +2322,7 @@ private fun HistoryShiftSwapSection(
                 request = request,
                 shift = shifts.firstOrNull { it.id == request.requestedShiftId },
                 members = members,
+                onDismiss = onDismissRequest,
             )
         }
     }
@@ -2315,6 +2333,7 @@ private fun ShiftSwapRequestHistoryItem(
     request: ShiftSwapRequest,
     shift: ShiftAssignment?,
     members: List<Member>,
+    onDismiss: (String) -> Unit,
 ) {
     Card {
         Column(
@@ -2356,6 +2375,13 @@ private fun ShiftSwapRequestHistoryItem(
                     ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (request.status == ShiftSwapRequestStatus.APPLIED) {
+                ReguertaFlatButton(
+                    label = stringResource(R.string.shift_swap_request_acknowledge),
+                    onClick = { onDismiss(request.id) },
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         }

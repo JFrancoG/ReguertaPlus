@@ -119,6 +119,7 @@
     <string name="shift_swap_request_accept_short">Puedo</string>
     <string name="shift_swap_request_reject_short">No puedo</string>
     <string name="shift_swap_request_confirm">Confirmar cambio</string>
+    <string name="shift_swap_request_acknowledge">Entendido</string>
     <string name="shift_swap_request_requested_by_format">Solicita: %1$s</string>
     <string name="shift_swap_request_reason_format">Motivo: %1$s</string>
     <string name="shift_swap_request_reason_empty">Sin motivo adicional</string>
