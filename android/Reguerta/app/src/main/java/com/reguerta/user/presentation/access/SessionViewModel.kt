@@ -32,6 +32,10 @@ import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.profiles.SharedProfileRepository
 import com.reguerta.user.domain.shifts.ShiftAssignment
 import com.reguerta.user.domain.shifts.ShiftRepository
+import com.reguerta.user.domain.shifts.ShiftSwapRequest
+import com.reguerta.user.domain.shifts.ShiftSwapRequestRepository
+import com.reguerta.user.domain.shifts.ShiftSwapResponse
+import com.reguerta.user.domain.shifts.ShiftSwapRequestStatus
 import com.reguerta.user.domain.shifts.ShiftType
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,6 +47,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.Locale
 
 data class MemberDraft(
     val displayName: String = "",
@@ -72,11 +77,17 @@ data class SharedProfileDraft(
     val about: String = "",
 )
 
+data class ShiftSwapDraft(
+    val shiftId: String = "",
+    val reason: String = "",
+)
+
 sealed interface SessionMode {
     data object SignedOut : SessionMode
 
     data class Authorized(
         val principal: AuthPrincipal,
+        val authenticatedMember: Member,
         val member: Member,
         val members: List<Member>,
     ) : SessionMode
@@ -117,6 +128,8 @@ data class SessionUiState(
     val sharedProfiles: List<SharedProfile> = emptyList(),
     val sharedProfileDraft: SharedProfileDraft = SharedProfileDraft(),
     val shiftsFeed: List<ShiftAssignment> = emptyList(),
+    val shiftSwapRequests: List<ShiftSwapRequest> = emptyList(),
+    val shiftSwapDraft: ShiftSwapDraft = ShiftSwapDraft(),
     val nextDeliveryShift: ShiftAssignment? = null,
     val nextMarketShift: ShiftAssignment? = null,
     val editingNewsId: String? = null,
@@ -128,6 +141,8 @@ data class SessionUiState(
     val isSavingSharedProfile: Boolean = false,
     val isDeletingSharedProfile: Boolean = false,
     val isLoadingShifts: Boolean = false,
+    val isSavingShiftSwapRequest: Boolean = false,
+    val isUpdatingShiftSwapRequest: Boolean = false,
 )
 
 sealed interface SessionUiEvent {
@@ -152,6 +167,10 @@ class SessionViewModel(
     private val notificationRepository: NotificationRepository,
     private val sharedProfileRepository: SharedProfileRepository,
     private val shiftRepository: ShiftRepository,
+    private val shiftSwapRequestRepository: ShiftSwapRequestRepository = object : ShiftSwapRequestRepository {
+        override suspend fun getAllShiftSwapRequests(): List<ShiftSwapRequest> = emptyList()
+        override suspend fun upsertShiftSwapRequest(request: ShiftSwapRequest): ShiftSwapRequest = request
+    },
     private val authSessionProvider: AuthSessionProvider,
     private val resolveAuthorizedSession: ResolveAuthorizedSessionUseCase,
     private val upsertMemberByAdmin: UpsertMemberByAdminUseCase,
@@ -160,6 +179,7 @@ class SessionViewModel(
     private val criticalDataFreshnessLocalRepository: CriticalDataFreshnessLocalRepository,
     private val sessionRefreshPolicy: SessionRefreshPolicy = SessionRefreshPolicy(),
     private val nowMillisProvider: () -> Long = { System.currentTimeMillis() },
+    private val developImpersonationEnabled: Boolean = false,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SessionUiState())
     val uiState: StateFlow<SessionUiState> = _uiState.asStateFlow()
@@ -168,6 +188,41 @@ class SessionViewModel(
     val uiEvents: SharedFlow<SessionUiEvent> = _uiEvents.asSharedFlow()
     private val isSessionRefreshInFlight = AtomicBoolean(false)
     private var lastSessionRefreshAtMillis: Long? = null
+
+    val isDevelopImpersonationEnabled: Boolean
+        get() = developImpersonationEnabled
+
+    fun impersonateMember(memberId: String) {
+        if (!developImpersonationEnabled) return
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        val target = mode.members.firstOrNull { it.id == memberId && it.isActive } ?: return
+        _uiState.update {
+            it.copy(
+                mode = mode.copy(member = target),
+                shiftSwapDraft = ShiftSwapDraft(),
+            )
+        }
+        refreshNews()
+        refreshNotifications()
+        refreshSharedProfiles()
+        refreshShifts()
+    }
+
+    fun clearImpersonation() {
+        if (!developImpersonationEnabled) return
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        if (mode.member.id == mode.authenticatedMember.id) return
+        _uiState.update {
+            it.copy(
+                mode = mode.copy(member = mode.authenticatedMember),
+                shiftSwapDraft = ShiftSwapDraft(),
+            )
+        }
+        refreshNews()
+        refreshNotifications()
+        refreshSharedProfiles()
+        refreshShifts()
+    }
 
     fun onEmailChanged(value: String) {
         _uiState.update {
@@ -356,6 +411,29 @@ class SessionViewModel(
         _uiState.update { it.copy(sharedProfileDraft = draft) }
     }
 
+    fun onShiftSwapDraftChanged(draft: ShiftSwapDraft) {
+        _uiState.update { it.copy(shiftSwapDraft = draft) }
+    }
+
+    fun startCreatingShiftSwap(shiftId: String) {
+        _uiState.update {
+            it.copy(
+                shiftSwapDraft = ShiftSwapDraft(
+                    shiftId = shiftId,
+                ),
+            )
+        }
+    }
+
+    fun clearShiftSwapDraft() {
+        _uiState.update {
+            it.copy(
+                shiftSwapDraft = ShiftSwapDraft(),
+                isSavingShiftSwapRequest = false,
+            )
+        }
+    }
+
     fun refreshSharedProfiles() {
         val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
         viewModelScope.launch {
@@ -382,6 +460,7 @@ class SessionViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingShifts = true) }
             val shifts = shiftRepository.getAllShifts()
+            val requests = shiftSwapRequestRepository.getAllShiftSwapRequests()
             _uiState.update {
                 val currentMode = it.mode as? SessionMode.Authorized
                 if (currentMode?.principal?.uid != mode.principal.uid) {
@@ -389,6 +468,7 @@ class SessionViewModel(
                 } else {
                     it.copy(
                         shiftsFeed = shifts,
+                        shiftSwapRequests = requests.visibleTo(mode.member.id),
                         nextDeliveryShift = shifts.nextAssignedShift(
                             memberId = mode.member.id,
                             type = ShiftType.DELIVERY,
@@ -637,6 +717,252 @@ class SessionViewModel(
         }
     }
 
+    fun saveShiftSwapRequest(onSuccess: () -> Unit = {}) {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        val draft = _uiState.value.shiftSwapDraft
+        if (draft.shiftId.isBlank()) {
+            return
+        }
+        val shift = _uiState.value.shiftsFeed.firstOrNull { it.id == draft.shiftId } ?: return
+        val candidates = shift.swapCandidates(
+            allShifts = _uiState.value.shiftsFeed,
+            requesterUserId = mode.member.id,
+            nowMillis = nowMillisProvider(),
+        )
+        if (candidates.isEmpty()) {
+            emitMessage(R.string.feedback_shift_swap_no_candidates)
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSavingShiftSwapRequest = true) }
+            val persisted = shiftSwapRequestRepository.upsertShiftSwapRequest(
+                ShiftSwapRequest(
+                    id = "",
+                    requestedShiftId = shift.id,
+                    requesterUserId = mode.member.id,
+                    reason = draft.reason.trim(),
+                    status = ShiftSwapRequestStatus.OPEN,
+                    candidates = candidates,
+                    responses = emptyList(),
+                    selectedCandidateUserId = null,
+                    selectedCandidateShiftId = null,
+                    requestedAtMillis = nowMillisProvider(),
+                    confirmedAtMillis = null,
+                    appliedAtMillis = null,
+                ),
+            )
+            sendShiftSwapNotification(
+                title = "Solicitud de cambio de turno",
+                body = "${mode.member.displayName} solicita cambio para el turno del ${shift.dateMillis.toShiftNotificationDateTime()}",
+                type = "shift_swap_requested",
+                targetUserIds = persisted.candidates.map { it.userId }.distinct(),
+                createdBy = mode.member.id,
+            )
+            val allRequests = shiftSwapRequestRepository.getAllShiftSwapRequests()
+            _uiState.update {
+                it.copy(
+                    shiftSwapRequests = allRequests.visibleTo(mode.member.id),
+                    shiftSwapDraft = ShiftSwapDraft(),
+                    isSavingShiftSwapRequest = false,
+                )
+            }
+            onSuccess()
+        }
+    }
+
+    fun acceptShiftSwapRequest(requestId: String, candidateShiftId: String) {
+        respondToShiftSwapRequest(
+            requestId = requestId,
+            candidateShiftId = candidateShiftId,
+            responseStatus = com.reguerta.user.domain.shifts.ShiftSwapResponseStatus.AVAILABLE,
+        )
+    }
+
+    fun rejectShiftSwapRequest(requestId: String, candidateShiftId: String) {
+        respondToShiftSwapRequest(
+            requestId = requestId,
+            candidateShiftId = candidateShiftId,
+            responseStatus = com.reguerta.user.domain.shifts.ShiftSwapResponseStatus.UNAVAILABLE,
+        )
+    }
+
+    fun cancelShiftSwapRequest(requestId: String) {
+        updateShiftSwapRequest(requestId) { request, _, _ ->
+            request.copy(
+                status = ShiftSwapRequestStatus.CANCELLED,
+            )
+        }
+    }
+
+    fun confirmShiftSwapRequest(requestId: String, candidateShiftId: String) {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        val request = _uiState.value.shiftSwapRequests.firstOrNull { it.id == requestId } ?: return
+        val requestedShift = _uiState.value.shiftsFeed.firstOrNull { it.id == request.requestedShiftId } ?: return
+        val candidate = request.candidates.firstOrNull { it.shiftId == candidateShiftId } ?: return
+        val candidateShift = _uiState.value.shiftsFeed.firstOrNull { it.id == candidate.shiftId } ?: return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isUpdatingShiftSwapRequest = true) }
+            val now = nowMillisProvider()
+            val updatedRequest = request.copy(
+                status = ShiftSwapRequestStatus.APPLIED,
+                selectedCandidateUserId = candidate.userId,
+                selectedCandidateShiftId = candidate.shiftId,
+                confirmedAtMillis = now,
+                appliedAtMillis = now,
+            )
+            val (updatedRequestedShift, updatedCandidateShift) = requestedShift.swapMemberWith(
+                other = candidateShift,
+                requesterUserId = request.requesterUserId,
+                responderUserId = candidate.userId,
+                nowMillis = now,
+            )
+            shiftSwapRequestRepository.upsertShiftSwapRequest(updatedRequest)
+            val existingShifts = shiftRepository.getAllShifts()
+            val shiftsToPersist = existingShifts.applyConfirmedSwap(
+                updatedRequestedShift = updatedRequestedShift,
+                updatedCandidateShift = updatedCandidateShift,
+                nowMillis = now,
+            )
+            shiftsToPersist.forEach { shiftRepository.upsertShift(it) }
+            sendShiftSwapNotification(
+                title = "Cambio de turno aplicado",
+                body = "Se ha confirmado el cambio entre ${mode.member.displayName} y ${mode.members.displayNameFor(candidate.userId)} para ${requestedShift.dateMillis.toShiftNotificationDateTime()} y ${candidateShift.dateMillis.toShiftNotificationDateTime()}.",
+                type = "shift_swap_applied",
+                targetUserIds = mode.members.filter { it.isActive }.map { it.id }.distinct(),
+                createdBy = mode.member.id,
+            )
+            val allRequests = shiftSwapRequestRepository.getAllShiftSwapRequests()
+            val allShifts = shiftRepository.getAllShifts()
+            _uiState.update {
+                it.copy(
+                    shiftSwapRequests = allRequests.visibleTo(mode.member.id),
+                    shiftsFeed = allShifts,
+                    nextDeliveryShift = allShifts.nextAssignedShift(mode.member.id, ShiftType.DELIVERY, nowMillisProvider()),
+                    nextMarketShift = allShifts.nextAssignedShift(mode.member.id, ShiftType.MARKET, nowMillisProvider()),
+                    isUpdatingShiftSwapRequest = false,
+                )
+            }
+        }
+    }
+
+    private fun updateShiftSwapRequest(
+        requestId: String,
+        transform: (ShiftSwapRequest, SessionMode.Authorized, Long) -> ShiftSwapRequest,
+    ) {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        val request = _uiState.value.shiftSwapRequests.firstOrNull { it.id == requestId } ?: return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isUpdatingShiftSwapRequest = true) }
+            val now = nowMillisProvider()
+            val updatedRequest = transform(request, mode, now)
+            shiftSwapRequestRepository.upsertShiftSwapRequest(updatedRequest)
+            val allRequests = shiftSwapRequestRepository.getAllShiftSwapRequests()
+            val allShifts = shiftRepository.getAllShifts()
+            _uiState.update {
+                it.copy(
+                    shiftSwapRequests = allRequests.visibleTo(mode.member.id),
+                    shiftsFeed = allShifts,
+                    nextDeliveryShift = allShifts.nextAssignedShift(mode.member.id, ShiftType.DELIVERY, nowMillisProvider()),
+                    nextMarketShift = allShifts.nextAssignedShift(mode.member.id, ShiftType.MARKET, nowMillisProvider()),
+                    isUpdatingShiftSwapRequest = false,
+                )
+            }
+        }
+    }
+
+    private fun respondToShiftSwapRequest(
+        requestId: String,
+        candidateShiftId: String,
+        responseStatus: com.reguerta.user.domain.shifts.ShiftSwapResponseStatus,
+    ) {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        val request = _uiState.value.shiftSwapRequests.firstOrNull { it.id == requestId } ?: return
+        val candidate = request.candidates.firstOrNull { it.userId == mode.member.id && it.shiftId == candidateShiftId } ?: return
+        val requestedShift = _uiState.value.shiftsFeed.firstOrNull { it.id == request.requestedShiftId } ?: return
+        val candidateShift = _uiState.value.shiftsFeed.firstOrNull { it.id == candidate.shiftId }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isUpdatingShiftSwapRequest = true) }
+            val now = nowMillisProvider()
+            val updatedResponses = request.responses
+                .filterNot { it.userId == candidate.userId && it.shiftId == candidate.shiftId }
+                .plus(
+                    ShiftSwapResponse(
+                        userId = candidate.userId,
+                        shiftId = candidate.shiftId,
+                        status = responseStatus,
+                        respondedAtMillis = now,
+                    ),
+                )
+                .sortedByDescending { it.respondedAtMillis }
+            val updatedRequest = request.copy(responses = updatedResponses)
+            shiftSwapRequestRepository.upsertShiftSwapRequest(updatedRequest)
+            sendShiftSwapNotification(
+                title = if (responseStatus == com.reguerta.user.domain.shifts.ShiftSwapResponseStatus.AVAILABLE) {
+                    "Socio disponible para cambio"
+                } else {
+                    "Socio no disponible para cambio"
+                },
+                body = buildString {
+                    append(mode.member.displayName)
+                    append(
+                        if (responseStatus == com.reguerta.user.domain.shifts.ShiftSwapResponseStatus.AVAILABLE) {
+                            " puede cubrir "
+                        } else {
+                            " no puede cubrir "
+                        },
+                    )
+                    append(requestedShift.dateMillis.toShiftNotificationDateTime())
+                    candidateShift?.let {
+                        append(" desde su turno del ")
+                        append(it.dateMillis.toShiftNotificationDateTime())
+                    }
+                },
+                type = if (responseStatus == com.reguerta.user.domain.shifts.ShiftSwapResponseStatus.AVAILABLE) {
+                    "shift_swap_available"
+                } else {
+                    "shift_swap_unavailable"
+                },
+                targetUserIds = listOf(request.requesterUserId),
+                createdBy = mode.member.id,
+            )
+            val allRequests = shiftSwapRequestRepository.getAllShiftSwapRequests()
+            _uiState.update {
+                it.copy(
+                    shiftSwapRequests = allRequests.visibleTo(mode.member.id),
+                    isUpdatingShiftSwapRequest = false,
+                )
+            }
+        }
+    }
+
+    private suspend fun sendShiftSwapNotification(
+        title: String,
+        body: String,
+        type: String,
+        targetUserIds: List<String>,
+        createdBy: String,
+    ) {
+        notificationRepository.sendNotification(
+            NotificationEvent(
+                id = "",
+                title = title,
+                body = body,
+                type = type,
+                target = "users",
+                userIds = targetUserIds,
+                segmentType = null,
+                targetRole = null,
+                createdBy = createdBy,
+                sentAtMillis = nowMillisProvider(),
+                weekKey = null,
+            ),
+        )
+    }
+
     fun signIn() {
         val currentState = _uiState.value
         val email = currentState.emailInput.trim()
@@ -677,6 +1003,7 @@ class SessionViewModel(
                                     isAuthenticating = false,
                                     mode = SessionMode.Authorized(
                                         principal = authResult.principal,
+                                        authenticatedMember = result.member,
                                         member = result.member,
                                         members = members,
                                     ),
@@ -793,6 +1120,7 @@ class SessionViewModel(
                                     registerRepeatPasswordInput = "",
                                     mode = SessionMode.Authorized(
                                         principal = authResult.principal,
+                                        authenticatedMember = result.member,
                                         member = result.member,
                                         members = members,
                                     ),
@@ -1126,12 +1454,18 @@ class SessionViewModel(
             } else {
                 mode.member
             }
+            val refreshedAuthenticatedMember = if (mode.authenticatedMember.id == updatedMember.id) {
+                updatedMember
+            } else {
+                mode.authenticatedMember
+            }
 
             _uiState.update {
                 onSuccessState(
                     it.copy(
                         mode = SessionMode.Authorized(
                             principal = mode.principal,
+                            authenticatedMember = refreshedAuthenticatedMember,
                             member = refreshedCurrentMember,
                             members = allMembers,
                         ),
@@ -1162,6 +1496,7 @@ class SessionViewModel(
                     it.copy(
                         mode = SessionMode.Authorized(
                             principal = principal,
+                            authenticatedMember = result.member,
                             member = result.member,
                             members = members,
                         ),
@@ -1377,6 +1712,128 @@ private fun List<ShiftAssignment>.nextAssignedShift(
     asSequence()
         .filter { shift -> shift.type == type && shift.dateMillis >= nowMillis && shift.isAssignedTo(memberId) }
         .minByOrNull { shift -> shift.dateMillis }
+
+private fun List<ShiftSwapRequest>.visibleTo(memberId: String): List<ShiftSwapRequest> =
+    filter { request ->
+        request.requesterUserId == memberId || request.candidates.any { candidate -> candidate.userId == memberId }
+    }
+        .sortedByDescending { it.requestedAtMillis }
+
+private fun ShiftAssignment.swapCandidates(
+    allShifts: List<ShiftAssignment>,
+    requesterUserId: String,
+    nowMillis: Long,
+): List<com.reguerta.user.domain.shifts.ShiftSwapCandidate> {
+    val thresholdDate = java.time.Instant.ofEpochMilli(nowMillis)
+        .atZone(java.time.ZoneId.systemDefault())
+        .toLocalDate()
+        .plusWeeks(if (type == ShiftType.DELIVERY) 2 else 0)
+        .atStartOfDay(java.time.ZoneId.systemDefault())
+        .toInstant()
+        .toEpochMilli()
+
+    val candidates = allShifts.asSequence()
+        .filter { shift ->
+            shift.id != id &&
+                shift.type == type &&
+                shift.dateMillis >= thresholdDate
+        }
+        .flatMap { shift ->
+            when (type) {
+                ShiftType.DELIVERY -> shift.assignedUserIds.asSequence()
+                ShiftType.MARKET -> shift.assignedUserIds.asSequence()
+            }
+                .filter { userId -> userId != requesterUserId }
+                .map { userId -> com.reguerta.user.domain.shifts.ShiftSwapCandidate(userId = userId, shiftId = shift.id) }
+        }
+        .distinctBy { candidate -> "${candidate.userId}:${candidate.shiftId}" }
+        .toList()
+
+    return candidates
+}
+
+private fun ShiftAssignment.swapMemberWith(
+    other: ShiftAssignment,
+    requesterUserId: String,
+    responderUserId: String,
+    nowMillis: Long,
+): Pair<ShiftAssignment, ShiftAssignment> {
+    fun ShiftAssignment.replacing(oldUserId: String, newUserId: String): ShiftAssignment {
+        val updatedAssigned = assignedUserIds.map { assignedUserId ->
+            if (assignedUserId == oldUserId) newUserId else assignedUserId
+        }
+        val updatedHelper = when (helperUserId) {
+            oldUserId -> newUserId
+            else -> helperUserId
+        }
+        return copy(
+            assignedUserIds = updatedAssigned,
+            helperUserId = updatedHelper,
+            status = com.reguerta.user.domain.shifts.ShiftStatus.CONFIRMED,
+            source = "app",
+            updatedAtMillis = nowMillis,
+        )
+    }
+
+    return replacing(requesterUserId, responderUserId) to other.replacing(responderUserId, requesterUserId)
+}
+
+private fun List<ShiftAssignment>.applyConfirmedSwap(
+    updatedRequestedShift: ShiftAssignment,
+    updatedCandidateShift: ShiftAssignment,
+    nowMillis: Long,
+): List<ShiftAssignment> {
+    val replaced = map { shift ->
+        when (shift.id) {
+            updatedRequestedShift.id -> updatedRequestedShift
+            updatedCandidateShift.id -> updatedCandidateShift
+            else -> shift
+        }
+    }
+
+    val deliveries = replaced
+        .filter { it.type == ShiftType.DELIVERY }
+        .sortedBy { it.dateMillis }
+    val helperByDeliveryId = deliveries.mapIndexed { index, shift ->
+        shift.id to deliveries.getOrNull(index + 1)?.assignedUserIds?.firstOrNull()
+    }.toMap()
+
+    return replaced.map { shift ->
+        if (shift.type != ShiftType.DELIVERY) {
+            shift
+        } else {
+            val recomputedHelper = helperByDeliveryId[shift.id]
+            if (shift.helperUserId == recomputedHelper) {
+                shift
+            } else {
+                shift.copy(
+                    helperUserId = recomputedHelper,
+                    status = com.reguerta.user.domain.shifts.ShiftStatus.CONFIRMED,
+                    source = "app",
+                    updatedAtMillis = nowMillis,
+                )
+            }
+        }
+    }
+}
+
+private fun List<Member>.displayNameFor(memberId: String): String =
+    firstOrNull { it.id == memberId }?.displayName ?: memberId
+
+private fun ShiftSwapRequest.availableResponses(): List<com.reguerta.user.domain.shifts.ShiftSwapResponse> =
+    responses.filter { it.status == com.reguerta.user.domain.shifts.ShiftSwapResponseStatus.AVAILABLE }
+
+private fun ShiftSwapRequest.hasPendingCandidateFor(memberId: String): Boolean =
+    candidates.any { candidate ->
+        candidate.userId == memberId && responses.none { response ->
+            response.userId == candidate.userId && response.shiftId == candidate.shiftId
+        }
+    }
+
+private fun Long.toShiftNotificationDateTime(): String {
+    val formatter = java.text.SimpleDateFormat("d MMM yyyy", Locale.forLanguageTag("es-ES"))
+    return formatter.format(java.util.Date(this))
+}
 
 private val EmailPatternRegex = "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$".toRegex(setOf(RegexOption.IGNORE_CASE))
 private const val MY_ORDER_FRESHNESS_TIMEOUT_MILLIS = 2_500L

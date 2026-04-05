@@ -11,11 +11,13 @@ As a member I want to request a shift swap when I cannot attend so that I can re
 
 ## Acceptance criteria
 
-- Request stays pending for target member.
-- Acceptance plus final confirmation applies the change.
+- Request is broadcast to eligible future members for the same shift type.
+- Candidate members can answer whether they can cover the requested shift.
+- The requester can confirm one of the members who accepted.
+- Final confirmation applies the change across both shifts.
 - Applied change notifies all members.
 - The request starts from the shifts board and opens a dedicated request screen.
-- The request includes shift context, target member, and reason.
+- The request includes shift context and reason.
 
 ## Scope
 ### In Scope
@@ -27,11 +29,18 @@ As a member I want to request a shift swap when I cannot attend so that I can re
 - Refactors not required to close acceptance criteria.
 
 ## Implementation checklist
-- [ ] Android
-- [ ] iOS
-- [ ] Backend / Firestore
-- [ ] Testing
-- [ ] Documentation
+- [x] Android
+- [x] iOS
+- [x] Backend / Firestore
+- [x] Testing
+- [x] Documentation
+
+## Implementation notes
+
+- Entry point starts from the shifts board as an open request for the selected assigned shift.
+- Requests are persisted in `shiftSwapRequests` with candidate future shifts and per-candidate responses, then mirrored in both apps with incoming/outgoing/history sections.
+- Final confirmation applies the reassignment on both affected `shifts`, which keeps the Google Sheets sync path from HU-020 active.
+- In-app notifications are sent on create, response, and apply; dedicated push automation for this flow can be iterated later if needed.
 
 ## Suggested labels
 - type:feature

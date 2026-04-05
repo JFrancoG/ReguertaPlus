@@ -15,4 +15,8 @@ class ChainedShiftRepository(
             fallback.getAllShifts()
         }
     }
+
+    override suspend fun upsertShift(shift: ShiftAssignment): ShiftAssignment =
+        runCatching { primary.upsertShift(shift) }
+            .getOrElse { fallback.upsertShift(shift) }
 }

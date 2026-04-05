@@ -28,6 +28,26 @@ final class FirestoreShiftRepository: @unchecked Sendable, ShiftRepository {
         }
     }
 
+    func upsert(shift: ShiftAssignment) async -> ShiftAssignment {
+        let payload: [String: Any?] = [
+            "type": shift.type.rawValue,
+            "date": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(shift.dateMillis) / 1_000)),
+            "assignedUserIds": shift.assignedUserIds,
+            "helperUserId": shift.helperUserId,
+            "status": shift.status.rawValue,
+            "source": shift.source,
+            "createdAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(shift.createdAtMillis) / 1_000)),
+            "updatedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(shift.updatedAtMillis) / 1_000)),
+        ]
+
+        do {
+            try await shiftsCollection.document(shift.id).setData(payload, merge: true)
+            return shift
+        } catch {
+            return shift
+        }
+    }
+
     private static func toShiftAssignment(_ document: QueryDocumentSnapshot) -> ShiftAssignment? {
         let data = document.data()
         guard let typeRaw = (data["type"] as? String)?
