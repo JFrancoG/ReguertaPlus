@@ -92,6 +92,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -154,6 +155,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import coil3.compose.AsyncImage
 import java.text.DateFormat
+import java.time.Instant
+import java.time.LocalDate
+import java.time.Month
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.time.temporal.WeekFields
+import java.util.Locale
 
 private const val SplashAnimationDurationMillis = 1_500
 private const val StartupPolicyFetchTimeoutMillis = 2_500L
@@ -1657,6 +1666,14 @@ private fun ShiftsRoute(
     isLoading: Boolean,
     onRefresh: () -> Unit,
 ) {
+    var selectedSegment by rememberSaveable { mutableStateOf(ShiftBoardSegment.DELIVERY) }
+    val deliveryShifts = remember(shifts) {
+        shifts.filter { it.type == ShiftType.DELIVERY }.sortedBy { it.dateMillis }
+    }
+    val marketShifts = remember(shifts) {
+        shifts.filter { it.type == ShiftType.MARKET }.sortedBy { it.dateMillis }
+    }
+
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -1706,11 +1723,74 @@ private fun ShiftsRoute(
                 )
             }
         } else {
-            shifts.forEach { shift ->
-                ShiftCard(
-                    shift = shift,
-                    members = members,
-                    isAssignedToCurrentMember = currentMember?.let { shift.isAssignedTo(it.id) } == true,
+            ShiftBoardSegmentSelector(
+                selectedSegment = selectedSegment,
+                onSegmentSelected = { selectedSegment = it },
+            )
+
+            val boardShifts = when (selectedSegment) {
+                ShiftBoardSegment.DELIVERY -> deliveryShifts
+                ShiftBoardSegment.MARKET -> marketShifts
+            }
+
+            if (boardShifts.isEmpty()) {
+                Card {
+                    Text(
+                        text = stringResource(R.string.shifts_empty_state),
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
+            } else {
+                boardShifts.forEach { shift ->
+                    ShiftBoardCard(
+                        shift = shift,
+                        members = members,
+                        isAssignedToCurrentMember = currentMember?.let {
+                            shift.isAssignedTo(it.id)
+                        } == true,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShiftBoardSegmentSelector(
+    selectedSegment: ShiftBoardSegment,
+    onSegmentSelected: (ShiftBoardSegment) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        ShiftBoardSegment.entries.forEach { segment ->
+            val isSelected = selectedSegment == segment
+            TextButton(
+                onClick = { onSegmentSelected(segment) },
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(
+                        if (isSelected) {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+                        } else {
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0f)
+                        }
+                    ),
+            ) {
+                Text(
+                    text = stringResource(segment.labelRes),
+                    color = if (isSelected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                 )
             }
         }
@@ -1718,63 +1798,83 @@ private fun ShiftsRoute(
 }
 
 @Composable
-private fun ShiftCard(
+private fun ShiftBoardCard(
     shift: ShiftAssignment,
     members: List<Member>,
     isAssignedToCurrentMember: Boolean,
 ) {
+    val primaryNames = shift.primaryBoardNames(members)
+    val leftLines = shift.leftBoardLines()
+    val leftAlignment = if (shift.type == ShiftType.MARKET) Alignment.CenterHorizontally else Alignment.Start
     Card {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+            Column(
+                modifier = Modifier.weight(0.38f),
+                horizontalAlignment = leftAlignment,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text(
-                    text = stringResource(shift.type.labelRes()),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = stringResource(shift.status.labelRes()),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (isAssignedToCurrentMember) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                )
+                leftLines.forEach { line ->
+                    Text(
+                        text = line.text,
+                        style = line.style,
+                        fontWeight = line.fontWeight,
+                        color = line.color ?: MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = if (shift.type == ShiftType.MARKET) TextAlign.Center else TextAlign.Start,
+                    )
+                }
             }
-            Text(
-                text = shift.dateMillis.toLocalizedDateTime(),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                text = stringResource(
-                    R.string.shifts_assigned_members_format,
-                    shift.assignedUserIds.toMemberNames(members),
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            shift.helperUserId?.let { helperId ->
-                Text(
-                    text = stringResource(
-                        R.string.shifts_helper_format,
-                        members.displayNameFor(helperId),
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+
+            Column(
+                modifier = Modifier.weight(0.62f),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                primaryNames.forEachIndexed { index, name ->
+                    val marketStyle = MaterialTheme.typography.bodyMedium
+                    Text(
+                        text = name,
+                        style = if (shift.type == ShiftType.MARKET) {
+                            marketStyle
+                        } else if (index == 0) {
+                            MaterialTheme.typography.bodyLarge
+                        } else {
+                            MaterialTheme.typography.bodyMedium
+                        },
+                        fontWeight = if (shift.type == ShiftType.MARKET) FontWeight.Normal else if (index == 0) FontWeight.SemiBold else FontWeight.Normal,
+                        color = if (shift.type != ShiftType.MARKET && index == 0 && isAssignedToCurrentMember) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                    )
+                }
+                if (shift.status != ShiftStatus.PLANNED) {
+                    Text(
+                        text = stringResource(shift.status.labelRes()),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
 }
+
+private enum class ShiftBoardSegment(@StringRes val labelRes: Int) {
+    DELIVERY(R.string.shifts_type_delivery),
+    MARKET(R.string.shifts_type_market),
+}
+
+private data class ShiftBoardLine(
+    val text: String,
+    val style: androidx.compose.ui.text.TextStyle,
+    val fontWeight: FontWeight = FontWeight.Normal,
+    val color: androidx.compose.ui.graphics.Color? = null,
+)
 
 @Composable
 private fun LatestNewsCard(
@@ -2634,6 +2734,62 @@ private fun ShiftStatus.labelRes(): Int = when (this) {
 private fun ShiftAssignment.toSummaryLine(members: List<Member>): String =
     "${dateMillis.toLocalizedDateTime()} · ${assignedUserIds.toMemberNames(members)}"
 
+@Composable
+private fun ShiftAssignment.leftBoardLines(): List<ShiftBoardLine> = when (type) {
+    ShiftType.DELIVERY -> {
+        val localDate = dateMillis.toLocalDate()
+        listOf(
+            ShiftBoardLine(
+                text = dateMillis.toWeekKey(),
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            ),
+            ShiftBoardLine(
+                text = localDate.toSpanishBoardDate(),
+                style = MaterialTheme.typography.bodySmall,
+            ),
+        )
+    }
+    ShiftType.MARKET -> {
+        val localDate = dateMillis.toLocalDate()
+        listOf(
+            ShiftBoardLine(
+                text = localDate.toSpanishMonthLabel(),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            ),
+            ShiftBoardLine(
+                text = localDate.toSpanishWeekdayLabel(),
+                style = MaterialTheme.typography.labelMedium,
+            ),
+            ShiftBoardLine(
+                text = localDate.dayOfMonth.toString(),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            ),
+        )
+    }
+}
+
+private fun ShiftAssignment.primaryBoardNames(members: List<Member>): List<String> = when (type) {
+    ShiftType.DELIVERY -> buildList {
+        assignedUserIds.firstOrNull()?.let { add(members.displayNameFor(it)) }
+        add(helperUserId?.let { members.displayNameFor(it) } ?: "—")
+    }.ifEmpty { listOf("—", "—") }
+    ShiftType.MARKET -> assignedUserIds
+        .map { memberId -> members.displayNameFor(memberId) }
+        .let { names ->
+            if (names.isEmpty()) {
+                listOf("—", "—", "—")
+            } else {
+                (names + List(maxOf(0, 3 - names.size)) { "—" }).take(3)
+            }
+        }
+}
+
 private fun List<String>.toMemberNames(members: List<Member>): String =
     map { memberId -> members.displayNameFor(memberId) }
         .joinToString(separator = ", ")
@@ -2641,6 +2797,54 @@ private fun List<String>.toMemberNames(members: List<Member>): String =
 
 private fun List<Member>.displayNameFor(memberId: String): String =
     firstOrNull { member -> member.id == memberId }?.displayName ?: memberId
+
+private fun Long.toLocalDate(): LocalDate =
+    Instant.ofEpochMilli(this)
+        .atZone(ZoneId.systemDefault())
+        .toLocalDate()
+
+private fun Long.toWeekKey(): String {
+    val localDate = toLocalDate()
+    val weekFields = WeekFields.ISO
+    val week = localDate.get(weekFields.weekOfWeekBasedYear())
+    val year = localDate.get(weekFields.weekBasedYear())
+    return String.format(Locale.US, "%04d-W%02d", year, week)
+}
+
+private fun LocalDate.toSpanishBoardDate(): String {
+    val locale = Locale.forLanguageTag("es-ES")
+    val weekday = dayOfWeek.getDisplayName(TextStyle.SHORT, locale)
+        .replace(".", "")
+        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(locale) else it.toString() }
+    return "$weekday $dayOfMonth ${toSpanishShortMonthLabel()}"
+}
+
+private fun LocalDate.toSpanishShortMonthLabel(): String = when (month) {
+    Month.JANUARY -> "ene"
+    Month.FEBRUARY -> "feb"
+    Month.MARCH -> "mar"
+    Month.APRIL -> "abr"
+    Month.MAY -> "may"
+    Month.JUNE -> "jun"
+    Month.JULY -> "jul"
+    Month.AUGUST -> "ago"
+    Month.SEPTEMBER -> "sep"
+    Month.OCTOBER -> "oct"
+    Month.NOVEMBER -> "nov"
+    Month.DECEMBER -> "dic"
+}
+
+private fun LocalDate.toSpanishMonthLabel(): String =
+    month.getDisplayName(TextStyle.FULL, Locale.forLanguageTag("es-ES"))
+        .replaceFirstChar {
+            if (it.isLowerCase()) it.titlecase(Locale.forLanguageTag("es-ES")) else it.toString()
+        }
+
+private fun LocalDate.toSpanishWeekdayLabel(): String =
+    dayOfWeek.getDisplayName(TextStyle.FULL, Locale.forLanguageTag("es-ES"))
+        .replaceFirstChar {
+            if (it.isLowerCase()) it.titlecase(Locale.forLanguageTag("es-ES")) else it.toString()
+        }
 
 @Composable
 private fun SignInCard(

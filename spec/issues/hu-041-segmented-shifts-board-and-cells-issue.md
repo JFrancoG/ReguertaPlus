@@ -27,10 +27,10 @@ As a member I want the shifts board to be split into delivery and market tabs wi
 - Shift planning generation.
 
 ## Implementation checklist
-- [ ] Android
-- [ ] iOS
-- [ ] Testing
-- [ ] Documentation
+- [x] Android
+- [x] iOS
+- [x] Testing
+- [x] Documentation
 
 ## Suggested labels
 - type:feature
