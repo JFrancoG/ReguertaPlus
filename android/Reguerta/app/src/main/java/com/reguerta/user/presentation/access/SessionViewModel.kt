@@ -23,6 +23,9 @@ import com.reguerta.user.domain.devices.AuthorizedDeviceRegistrar
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessLocalRepository
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessResolution
 import com.reguerta.user.domain.freshness.ResolveCriticalDataFreshnessUseCase
+import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
+import com.reguerta.user.domain.calendar.DeliveryCalendarRepository
+import com.reguerta.user.domain.calendar.DeliveryWeekday
 import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.news.NewsRepository
 import com.reguerta.user.domain.notifications.NotificationAudience
@@ -46,6 +49,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
+import java.time.temporal.WeekFields
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.Locale
 
@@ -128,6 +136,8 @@ data class SessionUiState(
     val sharedProfiles: List<SharedProfile> = emptyList(),
     val sharedProfileDraft: SharedProfileDraft = SharedProfileDraft(),
     val shiftsFeed: List<ShiftAssignment> = emptyList(),
+    val deliveryCalendarOverrides: List<DeliveryCalendarOverride> = emptyList(),
+    val defaultDeliveryDayOfWeek: DeliveryWeekday? = null,
     val shiftSwapRequests: List<ShiftSwapRequest> = emptyList(),
     val dismissedShiftSwapRequestIds: Set<String> = emptySet(),
     val shiftSwapDraft: ShiftSwapDraft = ShiftSwapDraft(),
@@ -142,6 +152,8 @@ data class SessionUiState(
     val isSavingSharedProfile: Boolean = false,
     val isDeletingSharedProfile: Boolean = false,
     val isLoadingShifts: Boolean = false,
+    val isLoadingDeliveryCalendar: Boolean = false,
+    val isSavingDeliveryCalendar: Boolean = false,
     val isSavingShiftSwapRequest: Boolean = false,
     val isUpdatingShiftSwapRequest: Boolean = false,
 )
@@ -168,6 +180,7 @@ class SessionViewModel(
     private val notificationRepository: NotificationRepository,
     private val sharedProfileRepository: SharedProfileRepository,
     private val shiftRepository: ShiftRepository,
+    private val deliveryCalendarRepository: DeliveryCalendarRepository,
     private val shiftSwapRequestRepository: ShiftSwapRequestRepository = object : ShiftSwapRequestRepository {
         override suspend fun getAllShiftSwapRequests(): List<ShiftSwapRequest> = emptyList()
         override suspend fun upsertShiftSwapRequest(request: ShiftSwapRequest): ShiftSwapRequest = request
@@ -208,6 +221,7 @@ class SessionViewModel(
         refreshNotifications()
         refreshSharedProfiles()
         refreshShifts()
+        refreshDeliveryCalendar()
     }
 
     fun clearImpersonation() {
@@ -225,6 +239,7 @@ class SessionViewModel(
         refreshNotifications()
         refreshSharedProfiles()
         refreshShifts()
+        refreshDeliveryCalendar()
     }
 
     fun dismissShiftSwapActivity(requestId: String) {
@@ -492,6 +507,84 @@ class SessionViewModel(
                     )
                 }
             }
+        }
+    }
+
+    fun refreshDeliveryCalendar() {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        if (!mode.member.isAdmin) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingDeliveryCalendar = true) }
+            val defaultDay = deliveryCalendarRepository.getDefaultDeliveryDayOfWeek()
+            val overrides = deliveryCalendarRepository.getAllOverrides()
+            _uiState.update {
+                val currentMode = it.mode as? SessionMode.Authorized
+                if (currentMode?.principal?.uid != mode.principal.uid) {
+                    it
+                } else {
+                    it.copy(
+                        defaultDeliveryDayOfWeek = defaultDay,
+                        deliveryCalendarOverrides = overrides,
+                        isLoadingDeliveryCalendar = false,
+                    )
+                }
+            }
+        }
+    }
+
+    fun saveDeliveryCalendarOverride(
+        weekKey: String,
+        weekday: DeliveryWeekday,
+        updatedByUserId: String,
+        onSuccess: () -> Unit = {},
+    ) {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        if (!mode.member.isAdmin) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSavingDeliveryCalendar = true) }
+            val now = nowMillisProvider()
+            val override = buildDeliveryCalendarOverride(
+                weekKey = weekKey,
+                weekday = weekday,
+                updatedByUserId = updatedByUserId,
+                updatedAtMillis = now,
+            ) ?: run {
+                _uiState.update { it.copy(isSavingDeliveryCalendar = false) }
+                return@launch
+            }
+            deliveryCalendarRepository.upsertOverride(override)
+            val defaultDay = deliveryCalendarRepository.getDefaultDeliveryDayOfWeek()
+            val overrides = deliveryCalendarRepository.getAllOverrides()
+            _uiState.update {
+                it.copy(
+                    defaultDeliveryDayOfWeek = defaultDay,
+                    deliveryCalendarOverrides = overrides,
+                    isSavingDeliveryCalendar = false,
+                )
+            }
+            onSuccess()
+        }
+    }
+
+    fun deleteDeliveryCalendarOverride(
+        weekKey: String,
+        onSuccess: () -> Unit = {},
+    ) {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        if (!mode.member.isAdmin) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSavingDeliveryCalendar = true) }
+            deliveryCalendarRepository.deleteOverride(weekKey)
+            val defaultDay = deliveryCalendarRepository.getDefaultDeliveryDayOfWeek()
+            val overrides = deliveryCalendarRepository.getAllOverrides()
+            _uiState.update {
+                it.copy(
+                    defaultDeliveryDayOfWeek = defaultDay,
+                    deliveryCalendarOverrides = overrides,
+                    isSavingDeliveryCalendar = false,
+                )
+            }
+            onSuccess()
         }
     }
 
@@ -1842,6 +1935,48 @@ private fun ShiftSwapRequest.hasPendingCandidateFor(memberId: String): Boolean =
 private fun Long.toShiftNotificationDateTime(): String {
     val formatter = java.text.SimpleDateFormat("d MMM yyyy", Locale.forLanguageTag("es-ES"))
     return formatter.format(java.util.Date(this))
+}
+
+private fun buildDeliveryCalendarOverride(
+    weekKey: String,
+    weekday: DeliveryWeekday,
+    updatedByUserId: String,
+    updatedAtMillis: Long,
+): DeliveryCalendarOverride? {
+    val weekStart = weekKey.toIsoWeekStartDate() ?: return null
+    val deliveryDate = weekStart.plusDays(weekday.toDayOfWeek().value.toLong() - 1L)
+    val zone = ZoneId.systemDefault()
+    val deliveryMillis = deliveryDate.atStartOfDay(zone).toInstant().toEpochMilli()
+    val ordersBlockedMillis = deliveryDate.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+    val ordersOpenMillis = deliveryDate.plusDays(2).atTime(LocalTime.MIDNIGHT).atZone(zone).toInstant().toEpochMilli()
+    val ordersCloseMillis = weekStart.plusDays(6).atTime(23, 59, 59).atZone(zone).toInstant().toEpochMilli()
+    return DeliveryCalendarOverride(
+        weekKey = weekKey,
+        deliveryDateMillis = deliveryMillis,
+        ordersBlockedDateMillis = ordersBlockedMillis,
+        ordersOpenAtMillis = ordersOpenMillis,
+        ordersCloseAtMillis = ordersCloseMillis,
+        updatedBy = updatedByUserId,
+        updatedAtMillis = updatedAtMillis,
+    )
+}
+
+private fun String.toIsoWeekStartDate(): LocalDate? = runCatching {
+    val yearPart = substringBefore("-W").toInt()
+    val weekPart = substringAfter("-W").toInt()
+    LocalDate.of(yearPart, 1, 4)
+        .with(WeekFields.ISO.weekOfWeekBasedYear(), weekPart.toLong())
+        .with(DayOfWeek.MONDAY)
+}.getOrNull()
+
+private fun DeliveryWeekday.toDayOfWeek(): DayOfWeek = when (this) {
+    DeliveryWeekday.MONDAY -> DayOfWeek.MONDAY
+    DeliveryWeekday.TUESDAY -> DayOfWeek.TUESDAY
+    DeliveryWeekday.WEDNESDAY -> DayOfWeek.WEDNESDAY
+    DeliveryWeekday.THURSDAY -> DayOfWeek.THURSDAY
+    DeliveryWeekday.FRIDAY -> DayOfWeek.FRIDAY
+    DeliveryWeekday.SATURDAY -> DayOfWeek.SATURDAY
+    DeliveryWeekday.SUNDAY -> DayOfWeek.SUNDAY
 }
 
 private val EmailPatternRegex = "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$".toRegex(setOf(RegexOption.IGNORE_CASE))

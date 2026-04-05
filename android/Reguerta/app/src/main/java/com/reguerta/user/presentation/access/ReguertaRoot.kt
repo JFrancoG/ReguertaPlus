@@ -107,6 +107,9 @@ import com.reguerta.user.data.access.ChainedMemberRepository
 import com.reguerta.user.data.access.FirebaseAuthSessionProvider
 import com.reguerta.user.data.access.FirestoreMemberRepository
 import com.reguerta.user.data.access.InMemoryMemberRepository
+import com.reguerta.user.data.calendar.ChainedDeliveryCalendarRepository
+import com.reguerta.user.data.calendar.FirestoreDeliveryCalendarRepository
+import com.reguerta.user.data.calendar.InMemoryDeliveryCalendarRepository
 import com.reguerta.user.data.devices.FirebaseAuthorizedDeviceRegistrar
 import com.reguerta.user.data.devices.FirestoreDeviceRegistrationRepository
 import com.reguerta.user.data.freshness.DataStoreCriticalDataFreshnessLocalRepository
@@ -134,6 +137,8 @@ import com.reguerta.user.domain.access.ResolveAuthorizedSessionUseCase
 import com.reguerta.user.domain.access.SessionRefreshTrigger
 import com.reguerta.user.domain.access.UnauthorizedReason
 import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
+import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
+import com.reguerta.user.domain.calendar.DeliveryWeekday
 import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.notifications.NotificationAudience
 import com.reguerta.user.domain.notifications.NotificationEvent
@@ -204,6 +209,11 @@ fun rememberSessionViewModel(): SessionViewModel {
         val primary = FirestoreShiftRepository(firestore = FirebaseFirestore.getInstance())
         ChainedShiftRepository(primary = primary, fallback = fallback)
     }
+    val deliveryCalendarRepository = remember {
+        val fallback = InMemoryDeliveryCalendarRepository()
+        val primary = FirestoreDeliveryCalendarRepository(firestore = FirebaseFirestore.getInstance())
+        ChainedDeliveryCalendarRepository(primary = primary, fallback = fallback)
+    }
     val shiftSwapRequestRepository = remember {
         val fallback = InMemoryShiftSwapRequestRepository()
         val primary = FirestoreShiftSwapRequestRepository(firestore = FirebaseFirestore.getInstance())
@@ -228,6 +238,7 @@ fun rememberSessionViewModel(): SessionViewModel {
             notificationRepository = notificationRepository,
             sharedProfileRepository = sharedProfileRepository,
             shiftRepository = shiftRepository,
+            deliveryCalendarRepository = deliveryCalendarRepository,
             shiftSwapRequestRepository = shiftSwapRequestRepository,
             authSessionProvider = FirebaseAuthSessionProvider(auth = FirebaseAuth.getInstance()),
             resolveAuthorizedSession = ResolveAuthorizedSessionUseCase(memberRepository = repository),
@@ -407,6 +418,8 @@ fun ReguertaRoot(
                     sharedProfiles = state.sharedProfiles,
                     sharedProfileDraft = state.sharedProfileDraft,
                     shiftsFeed = state.shiftsFeed,
+                    deliveryCalendarOverrides = state.deliveryCalendarOverrides,
+                    defaultDeliveryDayOfWeek = state.defaultDeliveryDayOfWeek,
                     shiftSwapRequests = state.shiftSwapRequests,
                     dismissedShiftSwapRequestIds = state.dismissedShiftSwapRequestIds,
                     shiftSwapDraft = state.shiftSwapDraft,
@@ -421,6 +434,8 @@ fun ReguertaRoot(
                     isSavingSharedProfile = state.isSavingSharedProfile,
                     isDeletingSharedProfile = state.isDeletingSharedProfile,
                     isLoadingShifts = state.isLoadingShifts,
+                    isLoadingDeliveryCalendar = state.isLoadingDeliveryCalendar,
+                    isSavingDeliveryCalendar = state.isSavingDeliveryCalendar,
                     isSavingShiftSwapRequest = state.isSavingShiftSwapRequest,
                     isUpdatingShiftSwapRequest = state.isUpdatingShiftSwapRequest,
                     onDraftChanged = viewModel::onMemberDraftChanged,
@@ -441,6 +456,7 @@ fun ReguertaRoot(
                     onRefreshNotifications = viewModel::refreshNotifications,
                     onRefreshSharedProfiles = viewModel::refreshSharedProfiles,
                     onRefreshShifts = viewModel::refreshShifts,
+                    onRefreshDeliveryCalendar = viewModel::refreshDeliveryCalendar,
                     onClearNewsEditor = viewModel::clearNewsEditor,
                     onClearNotificationEditor = viewModel::clearNotificationEditor,
                     onStartCreatingShiftSwap = viewModel::startCreatingShiftSwap,
@@ -453,6 +469,8 @@ fun ReguertaRoot(
                     onDismissShiftSwapActivity = viewModel::dismissShiftSwapActivity,
                     onSaveSharedProfile = viewModel::saveSharedProfile,
                     onDeleteSharedProfile = viewModel::deleteSharedProfile,
+                    onSaveDeliveryCalendarOverride = viewModel::saveDeliveryCalendarOverride,
+                    onDeleteDeliveryCalendarOverride = viewModel::deleteDeliveryCalendarOverride,
                     onRetryMyOrderFreshness = viewModel::refreshMyOrderFreshness,
                     onOpenShifts = viewModel::refreshShifts,
                     onImpersonateMember = viewModel::impersonateMember,
@@ -1060,6 +1078,8 @@ private fun HomeRoute(
     sharedProfiles: List<SharedProfile>,
     sharedProfileDraft: SharedProfileDraft,
     shiftsFeed: List<ShiftAssignment>,
+    deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
+    defaultDeliveryDayOfWeek: DeliveryWeekday?,
     shiftSwapRequests: List<ShiftSwapRequest>,
     dismissedShiftSwapRequestIds: Set<String>,
     shiftSwapDraft: ShiftSwapDraft,
@@ -1074,6 +1094,8 @@ private fun HomeRoute(
     isSavingSharedProfile: Boolean,
     isDeletingSharedProfile: Boolean,
     isLoadingShifts: Boolean,
+    isLoadingDeliveryCalendar: Boolean,
+    isSavingDeliveryCalendar: Boolean,
     isSavingShiftSwapRequest: Boolean,
     isUpdatingShiftSwapRequest: Boolean,
     onDraftChanged: (MemberDraft) -> Unit,
@@ -1094,6 +1116,7 @@ private fun HomeRoute(
     onRefreshNotifications: () -> Unit,
     onRefreshSharedProfiles: () -> Unit,
     onRefreshShifts: () -> Unit,
+    onRefreshDeliveryCalendar: () -> Unit,
     onClearNewsEditor: () -> Unit,
     onClearNotificationEditor: () -> Unit,
     onStartCreatingShiftSwap: (String) -> Unit,
@@ -1106,6 +1129,8 @@ private fun HomeRoute(
     onDismissShiftSwapActivity: (String) -> Unit,
     onSaveSharedProfile: (onSuccess: () -> Unit) -> Unit,
     onDeleteSharedProfile: (onSuccess: () -> Unit) -> Unit,
+    onSaveDeliveryCalendarOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
+    onDeleteDeliveryCalendarOverride: (String, onSuccess: () -> Unit) -> Unit,
     onRetryMyOrderFreshness: () -> Unit,
     onOpenShifts: () -> Unit,
     onImpersonateMember: (String) -> Unit,
@@ -1156,6 +1181,8 @@ private fun HomeRoute(
                             onStartCreatingNews()
                         } else if (destination == HomeDestination.ADMIN_BROADCAST) {
                             onStartCreatingNotification()
+                        } else if (destination == HomeDestination.SETTINGS) {
+                            onRefreshDeliveryCalendar()
                         }
                         scope.launch { drawerState.close() }
                     },
@@ -1377,9 +1404,17 @@ private fun HomeRoute(
                     currentMember = member,
                     authenticatedMember = (mode as? SessionMode.Authorized)?.authenticatedMember,
                     members = (mode as? SessionMode.Authorized)?.members.orEmpty(),
+                    shifts = shiftsFeed,
+                    deliveryCalendarOverrides = deliveryCalendarOverrides,
+                    defaultDeliveryDayOfWeek = defaultDeliveryDayOfWeek,
+                    isLoadingDeliveryCalendar = isLoadingDeliveryCalendar,
+                    isSavingDeliveryCalendar = isSavingDeliveryCalendar,
                     isDevelopImpersonationEnabled = isDevelopImpersonationEnabled,
                     onImpersonateMember = onImpersonateMember,
                     onClearImpersonation = onClearImpersonation,
+                    onRefreshDeliveryCalendar = onRefreshDeliveryCalendar,
+                    onSaveDeliveryCalendarOverride = onSaveDeliveryCalendarOverride,
+                    onDeleteDeliveryCalendarOverride = onDeleteDeliveryCalendarOverride,
                 )
 
                 else -> HomePlaceholderRoute(
@@ -2942,9 +2977,17 @@ private fun SettingsRoute(
     currentMember: Member?,
     authenticatedMember: Member?,
     members: List<Member>,
+    shifts: List<ShiftAssignment>,
+    deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
+    defaultDeliveryDayOfWeek: DeliveryWeekday?,
+    isLoadingDeliveryCalendar: Boolean,
+    isSavingDeliveryCalendar: Boolean,
     isDevelopImpersonationEnabled: Boolean,
     onImpersonateMember: (String) -> Unit,
     onClearImpersonation: () -> Unit,
+    onRefreshDeliveryCalendar: () -> Unit,
+    onSaveDeliveryCalendarOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
+    onDeleteDeliveryCalendarOverride: (String, onSuccess: () -> Unit) -> Unit,
 ) {
     Card {
         Column(
@@ -3002,6 +3045,144 @@ private fun SettingsRoute(
                             enabled = !isSelected,
                         )
                     }
+            }
+            if (currentMember?.isAdmin == true) {
+                HorizontalDivider()
+                AdminDeliveryCalendarSection(
+                    currentMember = currentMember,
+                    shifts = shifts,
+                    overrides = deliveryCalendarOverrides,
+                    defaultDeliveryDayOfWeek = defaultDeliveryDayOfWeek,
+                    isLoading = isLoadingDeliveryCalendar,
+                    isSaving = isSavingDeliveryCalendar,
+                    onRefresh = onRefreshDeliveryCalendar,
+                    onSaveOverride = onSaveDeliveryCalendarOverride,
+                    onDeleteOverride = onDeleteDeliveryCalendarOverride,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdminDeliveryCalendarSection(
+    currentMember: Member,
+    shifts: List<ShiftAssignment>,
+    overrides: List<DeliveryCalendarOverride>,
+    defaultDeliveryDayOfWeek: DeliveryWeekday?,
+    isLoading: Boolean,
+    isSaving: Boolean,
+    onRefresh: () -> Unit,
+    onSaveOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
+    onDeleteOverride: (String, onSuccess: () -> Unit) -> Unit,
+) {
+    val futureWeeks = remember(shifts) {
+        shifts.filter { it.type == ShiftType.DELIVERY && it.dateMillis > System.currentTimeMillis() }
+            .sortedBy { it.dateMillis }
+            .distinctBy { it.dateMillis.toWeekKey() }
+    }
+    Text(
+        text = "Calendario de reparto",
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.SemiBold,
+    )
+    Text(
+        text = "Gestiona excepciones por semana. Si quitas una excepcion, esa semana vuelve al dia por defecto del calendario.",
+        style = MaterialTheme.typography.bodyMedium,
+    )
+    Text(
+        text = "Dia por defecto: ${defaultDeliveryDayOfWeek?.toSpanishLabel() ?: "sin configurar"}",
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.Medium,
+    )
+    Button(onClick = onRefresh) {
+        Text("Recargar calendario")
+    }
+    if (isLoading) {
+        Text(
+            text = "Cargando calendario...",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    } else if (futureWeeks.isEmpty()) {
+        Text(
+            text = "No hay semanas de reparto futuras en los turnos cargados.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    } else {
+        futureWeeks.forEach { shift ->
+            val weekKey = shift.dateMillis.toWeekKey()
+            val override = overrides.firstOrNull { it.weekKey == weekKey }
+            val initialWeekday = override?.deliveryDateMillis?.toDeliveryWeekday()
+                ?: defaultDeliveryDayOfWeek
+                ?: DeliveryWeekday.WEDNESDAY
+            var selectedWeekday by rememberSaveable(weekKey, override?.deliveryDateMillis) {
+                mutableStateOf(initialWeekday)
+            }
+            Card {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = weekKey,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = "Turno cargado: ${shift.dateMillis.toLocalizedDateOnly()}",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Text(
+                        text = if (override != null) {
+                            "Excepcion activa: ${override.deliveryDateMillis.toLocalizedDateOnly()}"
+                        } else {
+                            "Sin excepcion. Aplica el dia por defecto."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ReguertaFlatButton(
+                            label = "Anterior",
+                            onClick = {
+                                selectedWeekday = selectedWeekday.previous()
+                            },
+                            enabled = !isSaving,
+                        )
+                        Text(
+                            text = selectedWeekday.toSpanishLabel(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.align(Alignment.CenterVertically),
+                        )
+                        ReguertaFlatButton(
+                            label = "Siguiente",
+                            onClick = {
+                                selectedWeekday = selectedWeekday.next()
+                            },
+                            enabled = !isSaving,
+                        )
+                    }
+                    ReguertaButton(
+                        label = "Guardar excepcion",
+                        onClick = {
+                            onSaveOverride(weekKey, selectedWeekday, currentMember.id) {}
+                        },
+                        enabled = !isSaving,
+                        loading = isSaving,
+                        fullWidth = true,
+                    )
+                    if (override != null) {
+                        ReguertaFlatButton(
+                            label = "Quitar excepcion",
+                            onClick = { onDeleteOverride(weekKey) {} },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isSaving,
+                        )
+                    }
+                }
             }
         }
     }
@@ -4114,6 +4295,33 @@ private fun Long.toLocalizedDateOnly(): String =
 private fun ShiftAssignment.toShiftSwapDisplayLabel(memberId: String?): String {
     return dateMillis.toLocalizedDateOnly()
 }
+
+private fun Long.toDeliveryWeekday(): DeliveryWeekday =
+    when (toLocalDate().dayOfWeek) {
+        java.time.DayOfWeek.MONDAY -> DeliveryWeekday.MONDAY
+        java.time.DayOfWeek.TUESDAY -> DeliveryWeekday.TUESDAY
+        java.time.DayOfWeek.WEDNESDAY -> DeliveryWeekday.WEDNESDAY
+        java.time.DayOfWeek.THURSDAY -> DeliveryWeekday.THURSDAY
+        java.time.DayOfWeek.FRIDAY -> DeliveryWeekday.FRIDAY
+        java.time.DayOfWeek.SATURDAY -> DeliveryWeekday.SATURDAY
+        java.time.DayOfWeek.SUNDAY -> DeliveryWeekday.SUNDAY
+    }
+
+private fun DeliveryWeekday.toSpanishLabel(): String = when (this) {
+    DeliveryWeekday.MONDAY -> "Lunes"
+    DeliveryWeekday.TUESDAY -> "Martes"
+    DeliveryWeekday.WEDNESDAY -> "Miercoles"
+    DeliveryWeekday.THURSDAY -> "Jueves"
+    DeliveryWeekday.FRIDAY -> "Viernes"
+    DeliveryWeekday.SATURDAY -> "Sabado"
+    DeliveryWeekday.SUNDAY -> "Domingo"
+}
+
+private fun DeliveryWeekday.previous(): DeliveryWeekday =
+    DeliveryWeekday.entries[(ordinal + DeliveryWeekday.entries.size - 1) % DeliveryWeekday.entries.size]
+
+private fun DeliveryWeekday.next(): DeliveryWeekday =
+    DeliveryWeekday.entries[(ordinal + 1) % DeliveryWeekday.entries.size]
 
 private sealed interface StartupGateUiState {
     data object Checking : StartupGateUiState

@@ -2051,6 +2051,9 @@ struct ContentView: View {
             if destination == .shifts {
                 viewModel.refreshShifts()
             }
+            if destination == .settings {
+                viewModel.refreshDeliveryCalendar()
+            }
             homeDestination = destination
             closeHomeDrawer()
         }
@@ -2105,6 +2108,63 @@ struct ContentView: View {
                         .disabled(member.id == session.member.id)
                     }
                 }
+
+                if let session = currentHomeSession, session.member.isAdmin {
+                    Divider()
+                        .overlay(tokens.colors.borderSubtle)
+                    adminDeliveryCalendarSection(session: session)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func adminDeliveryCalendarSection(session: AuthorizedSession) -> some View {
+        let futureWeeks = viewModel.shiftsFeed
+            .filter { $0.type == .delivery && $0.dateMillis > Int64(Date().timeIntervalSince1970 * 1000) }
+            .sorted { $0.dateMillis < $1.dateMillis }
+            .uniqued { $0.weekKey }
+
+        Text("Calendario de reparto")
+            .font(tokens.typography.titleCard)
+            .foregroundStyle(tokens.colors.textPrimary)
+        Text("Gestiona excepciones por semana. Si quitas una excepcion, la semana vuelve al dia por defecto.")
+            .font(tokens.typography.bodySecondary)
+            .foregroundStyle(tokens.colors.textSecondary)
+        Text("Dia por defecto: \(viewModel.defaultDeliveryDayOfWeek?.spanishLabel ?? "sin configurar")")
+            .font(tokens.typography.body.weight(.semibold))
+            .foregroundStyle(tokens.colors.textPrimary)
+        ReguertaButton("Recargar calendario", variant: .text, fullWidth: false) {
+            viewModel.refreshDeliveryCalendar()
+        }
+
+        if viewModel.isLoadingDeliveryCalendar {
+            Text("Cargando calendario…")
+                .font(tokens.typography.bodySecondary)
+                .foregroundStyle(tokens.colors.textSecondary)
+        } else if futureWeeks.isEmpty {
+            Text("No hay semanas de reparto futuras en los turnos cargados.")
+                .font(tokens.typography.bodySecondary)
+                .foregroundStyle(tokens.colors.textSecondary)
+        } else {
+            ForEach(futureWeeks, id: \.id) { shift in
+                let existingOverride = viewModel.deliveryCalendarOverrides.first(where: { $0.weekKey == shift.weekKey })
+                DeliveryCalendarWeekCard(
+                    shift: shift,
+                    overrideEntry: existingOverride,
+                    defaultDay: viewModel.defaultDeliveryDayOfWeek ?? .wednesday,
+                    isSaving: viewModel.isSavingDeliveryCalendar,
+                    onSave: { weekKey, weekday in
+                        viewModel.saveDeliveryCalendarOverride(
+                            weekKey: weekKey,
+                            weekday: weekday,
+                            updatedByUserId: session.member.id
+                        )
+                    },
+                    onDelete: { weekKey in
+                        viewModel.deleteDeliveryCalendarOverride(weekKey: weekKey)
+                    }
+                )
             }
         }
     }
@@ -2136,6 +2196,78 @@ struct ContentView: View {
                     .stroke(tokens.colors.borderSubtle, lineWidth: 1)
             )
             .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
+    }
+
+    private struct DeliveryCalendarWeekCard: View {
+        @Environment(\.reguertaTokens) private var tokens
+        let shift: ShiftAssignment
+        let overrideEntry: DeliveryCalendarOverride?
+        let defaultDay: DeliveryWeekday
+        let isSaving: Bool
+        let onSave: (String, DeliveryWeekday) -> Void
+        let onDelete: (String) -> Void
+        @State private var selectedWeekday: DeliveryWeekday
+
+        init(
+            shift: ShiftAssignment,
+            overrideEntry: DeliveryCalendarOverride?,
+            defaultDay: DeliveryWeekday,
+            isSaving: Bool,
+            onSave: @escaping (String, DeliveryWeekday) -> Void,
+            onDelete: @escaping (String) -> Void
+        ) {
+            self.shift = shift
+            self.overrideEntry = overrideEntry
+            self.defaultDay = defaultDay
+            self.isSaving = isSaving
+            self.onSave = onSave
+            self.onDelete = onDelete
+            _selectedWeekday = State(initialValue: overrideEntry?.deliveryDateMillis.deliveryWeekday ?? defaultDay)
+        }
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                Text(shift.weekKey)
+                    .font(tokens.typography.body.weight(.semibold))
+                Text("Turno cargado: \(localizedDateOnly(shift.dateMillis))")
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.textSecondary)
+                Text(
+                    overrideEntry.map { "Excepcion activa: \(localizedDateOnly($0.deliveryDateMillis))" } ??
+                    "Sin excepcion. Aplica el dia por defecto."
+                )
+                .font(tokens.typography.label)
+                .foregroundStyle(tokens.colors.textSecondary)
+                HStack(spacing: tokens.spacing.sm) {
+                    ReguertaButton("Anterior", variant: .text, fullWidth: false) {
+                        selectedWeekday = selectedWeekday.previous
+                    }
+                    Text(selectedWeekday.spanishLabel)
+                        .font(tokens.typography.bodySecondary.weight(.semibold))
+                    ReguertaButton("Siguiente", variant: .text, fullWidth: false) {
+                        selectedWeekday = selectedWeekday.next
+                    }
+                }
+                ReguertaButton("Guardar excepcion", isEnabled: !isSaving, isLoading: isSaving) {
+                    onSave(shift.weekKey, selectedWeekday)
+                }
+                if overrideEntry != nil {
+                    ReguertaButton("Quitar excepcion", variant: .text, isEnabled: !isSaving, fullWidth: false) {
+                        onDelete(shift.weekKey)
+                    }
+                }
+            }
+            .padding(tokens.spacing.md)
+            .background(tokens.colors.surfaceSecondary)
+            .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
+        }
+
+        private func localizedDateOnly(_ millis: Int64) -> String {
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "es_ES")
+            formatter.dateFormat = "d MMM yyyy"
+            return formatter.string(from: Date(timeIntervalSince1970: TimeInterval(millis) / 1_000))
+        }
     }
 
     private func binding(_ keyPath: ReferenceWritableKeyPath<SessionViewModel, String>) -> Binding<String> {
@@ -2881,7 +3013,7 @@ private extension ShiftAssignment {
         }
     }
 
-    private var weekKey: String {
+    var weekKey: String {
         let calendar = Calendar(identifier: .iso8601)
         let week = calendar.component(.weekOfYear, from: localDate)
         let year = calendar.component(.yearForWeekOfYear, from: localDate)
@@ -2932,6 +3064,52 @@ private extension ShiftAssignment {
 private extension ShiftSwapRequest {
     var availableResponses: [ShiftSwapResponse] {
         responses.filter { $0.status == .available }
+    }
+}
+
+private extension DeliveryWeekday {
+    var spanishLabel: String {
+        switch self {
+        case .monday: "Lunes"
+        case .tuesday: "Martes"
+        case .wednesday: "Miercoles"
+        case .thursday: "Jueves"
+        case .friday: "Viernes"
+        case .saturday: "Sabado"
+        case .sunday: "Domingo"
+        }
+    }
+
+    var previous: DeliveryWeekday {
+        let all = DeliveryWeekday.allCases
+        return all[(all.firstIndex(of: self)! + all.count - 1) % all.count]
+    }
+
+    var next: DeliveryWeekday {
+        let all = DeliveryWeekday.allCases
+        return all[(all.firstIndex(of: self)! + 1) % all.count]
+    }
+}
+
+private extension Int64 {
+    var deliveryWeekday: DeliveryWeekday {
+        let weekday = Calendar.current.component(.weekday, from: Date(timeIntervalSince1970: TimeInterval(self) / 1_000))
+        switch weekday {
+        case 2: return .monday
+        case 3: return .tuesday
+        case 4: return .wednesday
+        case 5: return .thursday
+        case 6: return .friday
+        case 7: return .saturday
+        default: return .sunday
+        }
+    }
+}
+
+private extension Array {
+    func uniqued<Key: Hashable>(by keyPath: (Element) -> Key) -> [Element] {
+        var seen = Set<Key>()
+        return filter { seen.insert(keyPath($0)).inserted }
     }
 }
 
