@@ -1460,6 +1460,7 @@ private fun HomeShellTopBar(
     onOpenMenu: () -> Unit,
     onOpenNotifications: () -> Unit,
 ) {
+    var isImpersonationExpanded by rememberSaveable { mutableStateOf(false) }
     Card {
         Row(
             modifier = Modifier
@@ -1717,6 +1718,7 @@ private fun NextShiftsCard(
     members: List<Member>,
     onViewAll: () -> Unit,
 ) {
+    var isImpersonationExpanded by rememberSaveable { mutableStateOf(false) }
     Card {
         Column(
             modifier = Modifier
@@ -2990,6 +2992,7 @@ private fun SettingsRoute(
     onSaveDeliveryCalendarOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
     onDeleteDeliveryCalendarOverride: (String, onSuccess: () -> Unit) -> Unit,
 ) {
+    var isImpersonationExpanded by rememberSaveable { mutableStateOf(false) }
     Card {
         Column(
             modifier = Modifier
@@ -3034,18 +3037,32 @@ private fun SettingsRoute(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                 )
-                members
-                    .filter { it.isActive }
-                    .sortedBy { it.displayName.lowercase(Locale.getDefault()) }
-                    .forEach { member ->
-                        val isSelected = member.id == currentMember.id
-                        ReguertaFlatButton(
-                            label = member.displayName,
-                            onClick = { onImpersonateMember(member.id) },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !isSelected,
-                        )
-                    }
+                ReguertaFlatButton(
+                    label = if (isImpersonationExpanded) {
+                        "Ocultar socios"
+                    } else {
+                        "Elegir socio"
+                    },
+                    onClick = { isImpersonationExpanded = !isImpersonationExpanded },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (isImpersonationExpanded) {
+                    members
+                        .filter { it.isActive }
+                        .sortedBy { it.displayName.lowercase(Locale.getDefault()) }
+                        .forEach { member ->
+                            val isSelected = member.id == currentMember.id
+                            ReguertaFlatButton(
+                                label = member.displayName,
+                                onClick = {
+                                    onImpersonateMember(member.id)
+                                    isImpersonationExpanded = false
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !isSelected,
+                            )
+                        }
+                }
             }
             if (currentMember?.isAdmin == true) {
                 HorizontalDivider()
@@ -3082,7 +3099,8 @@ private fun AdminDeliveryCalendarSection(
             .sortedBy { it.dateMillis }
             .distinctBy { it.dateMillis.toWeekKey() }
     }
-    var isEditorVisible by rememberSaveable { mutableStateOf(false) }
+    var isPickerVisible by rememberSaveable { mutableStateOf(false) }
+    var selectedWeekKey by rememberSaveable { mutableStateOf<String?>(null) }
     Text(
         text = "Calendario de reparto",
         style = MaterialTheme.typography.titleSmall,
@@ -3109,7 +3127,7 @@ private fun AdminDeliveryCalendarSection(
         )
     } else {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { isEditorVisible = true }) {
+            Button(onClick = { isPickerVisible = true }) {
                 Text("Cambiar dia de reparto")
             }
             TextButton(onClick = onRefresh) {
@@ -3117,41 +3135,90 @@ private fun AdminDeliveryCalendarSection(
             }
         }
         Text(
-            text = "Se usa poco, asi que queda recogido aqui, pero el cambio se hace sobre una sola semana elegida.",
+            text = "Primero eliges la semana a cambiar y despues editas solo esa excepcion.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        if (isEditorVisible) {
-            DeliveryCalendarOverrideDialog(
-                currentMember = currentMember,
+        if (isPickerVisible) {
+            DeliveryCalendarWeekPickerDialog(
                 futureWeeks = futureWeeks,
-                overrides = overrides,
-                defaultDeliveryDayOfWeek = defaultDeliveryDayOfWeek ?: DeliveryWeekday.WEDNESDAY,
-                isSaving = isSaving,
-                onDismiss = { isEditorVisible = false },
-                onSaveOverride = onSaveOverride,
-                onDeleteOverride = onDeleteOverride,
+                onDismiss = { isPickerVisible = false },
+                onSelectWeek = { weekKey ->
+                    selectedWeekKey = weekKey
+                    isPickerVisible = false
+                },
             )
+        }
+        selectedWeekKey?.let { weekKey ->
+            val selectedShift = futureWeeks.firstOrNull { it.dateMillis.toWeekKey() == weekKey }
+            if (selectedShift != null) {
+                DeliveryCalendarOverrideDialog(
+                    currentMember = currentMember,
+                    selectedShift = selectedShift,
+                    override = overrides.firstOrNull { it.weekKey == weekKey },
+                    defaultDeliveryDayOfWeek = defaultDeliveryDayOfWeek ?: DeliveryWeekday.WEDNESDAY,
+                    isSaving = isSaving,
+                    onDismiss = { selectedWeekKey = null },
+                    onSaveOverride = onSaveOverride,
+                    onDeleteOverride = onDeleteOverride,
+                )
+            } else {
+                selectedWeekKey = null
+            }
         }
     }
 }
 
 @Composable
+private fun DeliveryCalendarWeekPickerDialog(
+    futureWeeks: List<ShiftAssignment>,
+    onDismiss: () -> Unit,
+    onSelectWeek: (String) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Elegir semana",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "Selecciona un dia de reparto futuro con encargado.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                futureWeeks.forEach { shift ->
+                    ReguertaFlatButton(
+                        label = "${shift.dateMillis.toWeekKey()} · ${shift.dateMillis.toLocalizedDateOnly()}",
+                        onClick = { onSelectWeek(shift.dateMillis.toWeekKey()) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cerrar")
+            }
+        },
+    )
+}
+
+@Composable
 private fun DeliveryCalendarOverrideDialog(
     currentMember: Member,
-    futureWeeks: List<ShiftAssignment>,
-    overrides: List<DeliveryCalendarOverride>,
+    selectedShift: ShiftAssignment,
+    override: DeliveryCalendarOverride?,
     defaultDeliveryDayOfWeek: DeliveryWeekday,
     isSaving: Boolean,
     onDismiss: () -> Unit,
     onSaveOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
     onDeleteOverride: (String, onSuccess: () -> Unit) -> Unit,
 ) {
-    var selectedIndex by rememberSaveable { mutableStateOf(0) }
-    val safeIndex = selectedIndex.coerceIn(0, futureWeeks.lastIndex)
-    val selectedShift = futureWeeks[safeIndex]
     val weekKey = selectedShift.dateMillis.toWeekKey()
-    val override = overrides.firstOrNull { it.weekKey == weekKey }
     var selectedWeekday by rememberSaveable(weekKey, override?.deliveryDateMillis) {
         mutableStateOf(override?.deliveryDateMillis?.toDeliveryWeekday() ?: defaultDeliveryDayOfWeek)
     }
@@ -3168,37 +3235,15 @@ private fun DeliveryCalendarOverrideDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    text = "Selecciona una semana futura y gestiona solo esa excepcion.",
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = weekKey,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    ReguertaFlatButton(
-                        label = "Anterior",
-                        onClick = { selectedIndex = (safeIndex - 1).coerceAtLeast(0) },
-                        enabled = safeIndex > 0 && !isSaving,
-                    )
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = weekKey,
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = selectedShift.dateMillis.toLocalizedDateOnly(),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    ReguertaFlatButton(
-                        label = "Siguiente",
-                        onClick = { selectedIndex = (safeIndex + 1).coerceAtMost(futureWeeks.lastIndex) },
-                        enabled = safeIndex < futureWeeks.lastIndex && !isSaving,
-                    )
-                }
+                Text(
+                    text = selectedShift.dateMillis.toLocalizedDateOnly(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 Card {
                     Column(
                         modifier = Modifier
