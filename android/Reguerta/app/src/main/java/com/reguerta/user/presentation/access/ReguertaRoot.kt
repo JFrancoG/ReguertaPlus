@@ -123,6 +123,9 @@ import com.reguerta.user.data.profiles.InMemorySharedProfileRepository
 import com.reguerta.user.data.shifts.ChainedShiftRepository
 import com.reguerta.user.data.shifts.FirestoreShiftRepository
 import com.reguerta.user.data.shifts.InMemoryShiftRepository
+import com.reguerta.user.data.shiftswap.ChainedShiftSwapRequestRepository
+import com.reguerta.user.data.shiftswap.FirestoreShiftSwapRequestRepository
+import com.reguerta.user.data.shiftswap.InMemoryShiftSwapRequestRepository
 import com.reguerta.user.data.startup.FirestoreStartupVersionPolicyRepository
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
@@ -137,6 +140,8 @@ import com.reguerta.user.domain.notifications.NotificationEvent
 import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.shifts.ShiftAssignment
 import com.reguerta.user.domain.shifts.ShiftStatus
+import com.reguerta.user.domain.shifts.ShiftSwapRequest
+import com.reguerta.user.domain.shifts.ShiftSwapRequestStatus
 import com.reguerta.user.domain.shifts.ShiftType
 import com.reguerta.user.domain.startup.ResolveStartupVersionGateUseCase
 import com.reguerta.user.domain.startup.StartupPlatform
@@ -199,6 +204,11 @@ fun rememberSessionViewModel(): SessionViewModel {
         val primary = FirestoreShiftRepository(firestore = FirebaseFirestore.getInstance())
         ChainedShiftRepository(primary = primary, fallback = fallback)
     }
+    val shiftSwapRequestRepository = remember {
+        val fallback = InMemoryShiftSwapRequestRepository()
+        val primary = FirestoreShiftSwapRequestRepository(firestore = FirebaseFirestore.getInstance())
+        ChainedShiftSwapRequestRepository(primary = primary, fallback = fallback)
+    }
     val freshnessLocalRepository = remember(context) {
         DataStoreCriticalDataFreshnessLocalRepository(context.applicationContext)
     }
@@ -218,6 +228,7 @@ fun rememberSessionViewModel(): SessionViewModel {
             notificationRepository = notificationRepository,
             sharedProfileRepository = sharedProfileRepository,
             shiftRepository = shiftRepository,
+            shiftSwapRequestRepository = shiftSwapRequestRepository,
             authSessionProvider = FirebaseAuthSessionProvider(auth = FirebaseAuth.getInstance()),
             resolveAuthorizedSession = ResolveAuthorizedSessionUseCase(memberRepository = repository),
             upsertMemberByAdmin = UpsertMemberByAdminUseCase(memberRepository = repository),
@@ -229,6 +240,7 @@ fun rememberSessionViewModel(): SessionViewModel {
                 localRepository = freshnessLocalRepository,
             ),
             criticalDataFreshnessLocalRepository = freshnessLocalRepository,
+            developImpersonationEnabled = true,
         )
     }
 }
@@ -395,6 +407,9 @@ fun ReguertaRoot(
                     sharedProfiles = state.sharedProfiles,
                     sharedProfileDraft = state.sharedProfileDraft,
                     shiftsFeed = state.shiftsFeed,
+                    shiftSwapRequests = state.shiftSwapRequests,
+                    dismissedShiftSwapRequestIds = state.dismissedShiftSwapRequestIds,
+                    shiftSwapDraft = state.shiftSwapDraft,
                     nextDeliveryShift = state.nextDeliveryShift,
                     nextMarketShift = state.nextMarketShift,
                     editingNewsId = state.editingNewsId,
@@ -406,10 +421,13 @@ fun ReguertaRoot(
                     isSavingSharedProfile = state.isSavingSharedProfile,
                     isDeletingSharedProfile = state.isDeletingSharedProfile,
                     isLoadingShifts = state.isLoadingShifts,
+                    isSavingShiftSwapRequest = state.isSavingShiftSwapRequest,
+                    isUpdatingShiftSwapRequest = state.isUpdatingShiftSwapRequest,
                     onDraftChanged = viewModel::onMemberDraftChanged,
                     onNewsDraftChanged = viewModel::onNewsDraftChanged,
                     onNotificationDraftChanged = viewModel::onNotificationDraftChanged,
                     onSharedProfileDraftChanged = viewModel::onSharedProfileDraftChanged,
+                    onShiftSwapDraftChanged = viewModel::onShiftSwapDraftChanged,
                     onToggleAdmin = viewModel::toggleAdmin,
                     onToggleActive = viewModel::toggleActive,
                     onCreateMember = viewModel::createAuthorizedMember,
@@ -425,10 +443,21 @@ fun ReguertaRoot(
                     onRefreshShifts = viewModel::refreshShifts,
                     onClearNewsEditor = viewModel::clearNewsEditor,
                     onClearNotificationEditor = viewModel::clearNotificationEditor,
+                    onStartCreatingShiftSwap = viewModel::startCreatingShiftSwap,
+                    onClearShiftSwapDraft = viewModel::clearShiftSwapDraft,
+                    onSaveShiftSwapRequest = viewModel::saveShiftSwapRequest,
+                    onAcceptShiftSwapRequest = viewModel::acceptShiftSwapRequest,
+                    onRejectShiftSwapRequest = viewModel::rejectShiftSwapRequest,
+                    onCancelShiftSwapRequest = viewModel::cancelShiftSwapRequest,
+                    onConfirmShiftSwapRequest = viewModel::confirmShiftSwapRequest,
+                    onDismissShiftSwapActivity = viewModel::dismissShiftSwapActivity,
                     onSaveSharedProfile = viewModel::saveSharedProfile,
                     onDeleteSharedProfile = viewModel::deleteSharedProfile,
                     onRetryMyOrderFreshness = viewModel::refreshMyOrderFreshness,
                     onOpenShifts = viewModel::refreshShifts,
+                    onImpersonateMember = viewModel::impersonateMember,
+                    onClearImpersonation = viewModel::clearImpersonation,
+                    isDevelopImpersonationEnabled = viewModel.isDevelopImpersonationEnabled,
                     onSignOut = signOutAndRoute,
                     installedVersion = installedVersion,
                 )
@@ -1005,6 +1034,7 @@ private enum class HomeDestination {
     MY_ORDER,
     MY_ORDERS,
     SHIFTS,
+    SHIFT_SWAP_REQUEST,
     NEWS,
     NOTIFICATIONS,
     PROFILE,
@@ -1030,6 +1060,9 @@ private fun HomeRoute(
     sharedProfiles: List<SharedProfile>,
     sharedProfileDraft: SharedProfileDraft,
     shiftsFeed: List<ShiftAssignment>,
+    shiftSwapRequests: List<ShiftSwapRequest>,
+    dismissedShiftSwapRequestIds: Set<String>,
+    shiftSwapDraft: ShiftSwapDraft,
     nextDeliveryShift: ShiftAssignment?,
     nextMarketShift: ShiftAssignment?,
     editingNewsId: String?,
@@ -1041,10 +1074,13 @@ private fun HomeRoute(
     isSavingSharedProfile: Boolean,
     isDeletingSharedProfile: Boolean,
     isLoadingShifts: Boolean,
+    isSavingShiftSwapRequest: Boolean,
+    isUpdatingShiftSwapRequest: Boolean,
     onDraftChanged: (MemberDraft) -> Unit,
     onNewsDraftChanged: (NewsDraft) -> Unit,
     onNotificationDraftChanged: (NotificationDraft) -> Unit,
     onSharedProfileDraftChanged: (SharedProfileDraft) -> Unit,
+    onShiftSwapDraftChanged: (ShiftSwapDraft) -> Unit,
     onToggleAdmin: (String) -> Unit,
     onToggleActive: (String) -> Unit,
     onCreateMember: () -> Unit,
@@ -1060,10 +1096,21 @@ private fun HomeRoute(
     onRefreshShifts: () -> Unit,
     onClearNewsEditor: () -> Unit,
     onClearNotificationEditor: () -> Unit,
+    onStartCreatingShiftSwap: (String) -> Unit,
+    onClearShiftSwapDraft: () -> Unit,
+    onSaveShiftSwapRequest: (onSuccess: () -> Unit) -> Unit,
+    onAcceptShiftSwapRequest: (String, String) -> Unit,
+    onRejectShiftSwapRequest: (String, String) -> Unit,
+    onCancelShiftSwapRequest: (String) -> Unit,
+    onConfirmShiftSwapRequest: (String, String) -> Unit,
+    onDismissShiftSwapActivity: (String) -> Unit,
     onSaveSharedProfile: (onSuccess: () -> Unit) -> Unit,
     onDeleteSharedProfile: (onSuccess: () -> Unit) -> Unit,
     onRetryMyOrderFreshness: () -> Unit,
     onOpenShifts: () -> Unit,
+    onImpersonateMember: (String) -> Unit,
+    onClearImpersonation: () -> Unit,
+    isDevelopImpersonationEnabled: Boolean,
     onSignOut: () -> Unit,
     installedVersion: String,
 ) {
@@ -1103,6 +1150,8 @@ private fun HomeRoute(
                             onRefreshSharedProfiles()
                         } else if (destination == HomeDestination.SHIFTS) {
                             onRefreshShifts()
+                        } else if (destination == HomeDestination.SHIFT_SWAP_REQUEST) {
+                            onRefreshShifts()
                         } else if (destination == HomeDestination.PUBLISH_NEWS) {
                             onStartCreatingNews()
                         } else if (destination == HomeDestination.ADMIN_BROADCAST) {
@@ -1140,10 +1189,13 @@ private fun HomeRoute(
                         onClearNewsEditor()
                     } else if (currentDestination == HomeDestination.ADMIN_BROADCAST) {
                         onClearNotificationEditor()
+                    } else if (currentDestination == HomeDestination.SHIFT_SWAP_REQUEST) {
+                        onClearShiftSwapDraft()
                     }
                     currentDestination = when (currentDestination) {
                         HomeDestination.PUBLISH_NEWS -> HomeDestination.NEWS
                         HomeDestination.ADMIN_BROADCAST -> HomeDestination.NOTIFICATIONS
+                        HomeDestination.SHIFT_SWAP_REQUEST -> HomeDestination.SHIFTS
                         else -> HomeDestination.DASHBOARD
                     }
                 },
@@ -1284,12 +1336,50 @@ private fun HomeRoute(
 
                 HomeDestination.SHIFTS -> ShiftsRoute(
                     shifts = shiftsFeed,
+                    shiftSwapRequests = shiftSwapRequests,
+                    dismissedShiftSwapRequestIds = dismissedShiftSwapRequestIds,
                     nextDeliveryShift = nextDeliveryShift,
                     nextMarketShift = nextMarketShift,
                     currentMember = member,
                     members = (mode as? SessionMode.Authorized)?.members.orEmpty(),
                     isLoading = isLoadingShifts,
+                    isUpdatingShiftSwapRequest = isUpdatingShiftSwapRequest,
                     onRefresh = onRefreshShifts,
+                    onRequestShiftSwap = { shiftId ->
+                        onStartCreatingShiftSwap(shiftId)
+                        currentDestination = HomeDestination.SHIFT_SWAP_REQUEST
+                    },
+                    onAcceptShiftSwapRequest = onAcceptShiftSwapRequest,
+                    onRejectShiftSwapRequest = onRejectShiftSwapRequest,
+                    onCancelShiftSwapRequest = onCancelShiftSwapRequest,
+                    onConfirmShiftSwapRequest = onConfirmShiftSwapRequest,
+                    onDismissShiftSwapActivity = onDismissShiftSwapActivity,
+                )
+
+                HomeDestination.SHIFT_SWAP_REQUEST -> ShiftSwapRequestRoute(
+                    draft = shiftSwapDraft,
+                    shifts = shiftsFeed,
+                    members = (mode as? SessionMode.Authorized)?.members.orEmpty(),
+                    isSaving = isSavingShiftSwapRequest,
+                    onDraftChanged = onShiftSwapDraftChanged,
+                    onCancel = {
+                        onClearShiftSwapDraft()
+                        currentDestination = HomeDestination.SHIFTS
+                    },
+                    onSave = {
+                        onSaveShiftSwapRequest {
+                            currentDestination = HomeDestination.SHIFTS
+                        }
+                    },
+                )
+
+                HomeDestination.SETTINGS -> SettingsRoute(
+                    currentMember = member,
+                    authenticatedMember = (mode as? SessionMode.Authorized)?.authenticatedMember,
+                    members = (mode as? SessionMode.Authorized)?.members.orEmpty(),
+                    isDevelopImpersonationEnabled = isDevelopImpersonationEnabled,
+                    onImpersonateMember = onImpersonateMember,
+                    onClearImpersonation = onClearImpersonation,
                 )
 
                 else -> HomePlaceholderRoute(
@@ -1659,12 +1749,21 @@ private fun ShiftSummaryRow(
 @Composable
 private fun ShiftsRoute(
     shifts: List<ShiftAssignment>,
+    shiftSwapRequests: List<ShiftSwapRequest>,
+    dismissedShiftSwapRequestIds: Set<String>,
     nextDeliveryShift: ShiftAssignment?,
     nextMarketShift: ShiftAssignment?,
     currentMember: Member?,
     members: List<Member>,
     isLoading: Boolean,
+    isUpdatingShiftSwapRequest: Boolean,
     onRefresh: () -> Unit,
+    onRequestShiftSwap: (String) -> Unit,
+    onAcceptShiftSwapRequest: (String, String) -> Unit,
+    onRejectShiftSwapRequest: (String, String) -> Unit,
+    onCancelShiftSwapRequest: (String) -> Unit,
+    onConfirmShiftSwapRequest: (String, String) -> Unit,
+    onDismissShiftSwapActivity: (String) -> Unit,
 ) {
     var selectedSegment by rememberSaveable { mutableStateOf(ShiftBoardSegment.DELIVERY) }
     val deliveryShifts = remember(shifts) {
@@ -1708,6 +1807,21 @@ private fun ShiftsRoute(
             onViewAll = onRefresh,
         )
 
+        ShiftSwapRequestsCard(
+            requests = shiftSwapRequests,
+            dismissedRequestIds = dismissedShiftSwapRequestIds,
+            shifts = shifts,
+            members = members,
+            currentMemberId = currentMember?.id,
+            selectedSegment = selectedSegment,
+            isUpdating = isUpdatingShiftSwapRequest,
+            onAccept = onAcceptShiftSwapRequest,
+            onReject = onRejectShiftSwapRequest,
+            onCancel = onCancelShiftSwapRequest,
+            onConfirm = onConfirmShiftSwapRequest,
+            onDismissRequest = onDismissShiftSwapActivity,
+        )
+
         if (isLoading) {
             Card {
                 Text(
@@ -1745,9 +1859,8 @@ private fun ShiftsRoute(
                     ShiftBoardCard(
                         shift = shift,
                         members = members,
-                        isAssignedToCurrentMember = currentMember?.let {
-                            shift.isAssignedTo(it.id)
-                        } == true,
+                        currentMemberId = currentMember?.id,
+                        onRequestShiftSwap = onRequestShiftSwap,
                     )
                 }
             }
@@ -1801,64 +1914,84 @@ private fun ShiftBoardSegmentSelector(
 private fun ShiftBoardCard(
     shift: ShiftAssignment,
     members: List<Member>,
-    isAssignedToCurrentMember: Boolean,
+    currentMemberId: String?,
+    onRequestShiftSwap: (String) -> Unit,
 ) {
     val primaryNames = shift.primaryBoardNames(members)
     val leftLines = shift.leftBoardLines()
     val leftAlignment = if (shift.type == ShiftType.MARKET) Alignment.CenterHorizontally else Alignment.Start
+    val canRequestShiftSwap = remember(shift, currentMemberId) {
+        currentMemberId != null && shift.canBeRequestedBy(currentMemberId)
+    }
+    val highlightedIndex = remember(shift, currentMemberId) {
+        currentMemberId?.let { shift.highlightedBoardNameIndex(it) }
+    }
     Card {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Column(
-                modifier = Modifier.weight(0.38f),
-                horizontalAlignment = leftAlignment,
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                leftLines.forEach { line ->
-                    Text(
-                        text = line.text,
-                        style = line.style,
-                        fontWeight = line.fontWeight,
-                        color = line.color ?: MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = if (shift.type == ShiftType.MARKET) TextAlign.Center else TextAlign.Start,
-                    )
+                Column(
+                    modifier = Modifier.weight(0.38f),
+                    horizontalAlignment = leftAlignment,
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    leftLines.forEach { line ->
+                        Text(
+                            text = line.text,
+                            style = line.style,
+                            fontWeight = line.fontWeight,
+                            color = line.color ?: MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = if (shift.type == ShiftType.MARKET) TextAlign.Center else TextAlign.Start,
+                        )
+                    }
+                }
+
+                Column(
+                    modifier = Modifier.weight(0.62f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    primaryNames.forEachIndexed { index, name ->
+                        val marketStyle = MaterialTheme.typography.bodyMedium
+                        Text(
+                            text = name,
+                            style = if (shift.type == ShiftType.MARKET) {
+                                marketStyle
+                            } else if (index == 0) {
+                                MaterialTheme.typography.bodyLarge
+                            } else {
+                                MaterialTheme.typography.bodyMedium
+                            },
+                            fontWeight = if (shift.type == ShiftType.MARKET) FontWeight.Normal else if (index == 0) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (shift.type != ShiftType.MARKET && highlightedIndex == index) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                        )
+                    }
+                    if (shift.status != ShiftStatus.PLANNED) {
+                        Text(
+                            text = stringResource(shift.status.labelRes()),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
-
-            Column(
-                modifier = Modifier.weight(0.62f),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                primaryNames.forEachIndexed { index, name ->
-                    val marketStyle = MaterialTheme.typography.bodyMedium
-                    Text(
-                        text = name,
-                        style = if (shift.type == ShiftType.MARKET) {
-                            marketStyle
-                        } else if (index == 0) {
-                            MaterialTheme.typography.bodyLarge
-                        } else {
-                            MaterialTheme.typography.bodyMedium
-                        },
-                        fontWeight = if (shift.type == ShiftType.MARKET) FontWeight.Normal else if (index == 0) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (shift.type != ShiftType.MARKET && index == 0 && isAssignedToCurrentMember) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
-                    )
-                }
-                if (shift.status != ShiftStatus.PLANNED) {
-                    Text(
-                        text = stringResource(shift.status.labelRes()),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+            if (highlightedIndex != null && canRequestShiftSwap) {
+                ReguertaButton(
+                    label = stringResource(R.string.shift_swap_request_button_label),
+                    variant = ReguertaButtonVariant.SECONDARY,
+                    fullWidth = false,
+                    onClick = { onRequestShiftSwap(shift.id) },
+                )
             }
         }
     }
@@ -1875,6 +2008,475 @@ private data class ShiftBoardLine(
     val fontWeight: FontWeight = FontWeight.Normal,
     val color: androidx.compose.ui.graphics.Color? = null,
 )
+
+@Composable
+private fun ShiftSwapRequestsCard(
+    requests: List<ShiftSwapRequest>,
+    dismissedRequestIds: Set<String>,
+    shifts: List<ShiftAssignment>,
+    members: List<Member>,
+    currentMemberId: String?,
+    selectedSegment: ShiftBoardSegment,
+    isUpdating: Boolean,
+    onAccept: (String, String) -> Unit,
+    onReject: (String, String) -> Unit,
+    onCancel: (String) -> Unit,
+    onConfirm: (String, String) -> Unit,
+    onDismissRequest: (String) -> Unit,
+) {
+    val relevantRequests = remember(requests, shifts, selectedSegment) {
+        requests.filter { request ->
+            shifts.firstOrNull { it.id == request.requestedShiftId }?.type == selectedSegment.toShiftType()
+        }
+    }
+
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.shift_swap_requests_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = stringResource(R.string.shift_swap_requests_subtitle),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            if (relevantRequests.isEmpty() || currentMemberId == null) {
+                Text(
+                    text = stringResource(R.string.shift_swap_requests_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                return@Column
+            }
+
+            val incoming = relevantRequests.flatMap { request ->
+                request.candidates
+                    .filter { it.userId == currentMemberId }
+                    .filter { candidate ->
+                        request.status == ShiftSwapRequestStatus.OPEN &&
+                            request.responses.none { response ->
+                                response.userId == candidate.userId && response.shiftId == candidate.shiftId
+                            }
+                    }
+                    .map { candidate -> request to candidate }
+            }
+            val requesterOpen = relevantRequests.filter { it.requesterUserId == currentMemberId && it.status == ShiftSwapRequestStatus.OPEN }
+            val availableResponses = requesterOpen.flatMap { request ->
+                request.availableResponses().mapNotNull { response ->
+                    val candidate = request.candidates.firstOrNull { it.userId == response.userId && it.shiftId == response.shiftId }
+                    candidate?.let { Triple(request, it, response) }
+                }
+            }
+            val waiting = requesterOpen.filter { request -> request.availableResponses().isEmpty() }
+            val history = relevantRequests.filter { request ->
+                request.status != ShiftSwapRequestStatus.OPEN &&
+                    request.id !in dismissedRequestIds
+            }
+
+            if (incoming.isNotEmpty()) {
+                IncomingShiftSwapSection(
+                    title = stringResource(R.string.shift_swap_requests_incoming),
+                    pendingCandidates = incoming,
+                    shifts = shifts,
+                    members = members,
+                    isUpdating = isUpdating,
+                    onAccept = onAccept,
+                    onReject = onReject,
+                )
+            }
+
+            if (availableResponses.isNotEmpty()) {
+                RequesterResponsesSection(
+                    title = stringResource(R.string.shift_swap_requests_responses),
+                    responseOptions = availableResponses,
+                    shifts = shifts,
+                    members = members,
+                    isUpdating = isUpdating,
+                    onConfirm = onConfirm,
+                )
+            }
+
+            if (waiting.isNotEmpty()) {
+                WaitingShiftSwapSection(
+                    title = stringResource(R.string.shift_swap_requests_outgoing),
+                    requests = waiting,
+                    shifts = shifts,
+                    members = members,
+                    onCancel = onCancel,
+                )
+            }
+
+            if (history.isNotEmpty()) {
+                HistoryShiftSwapSection(
+                    title = stringResource(R.string.shift_swap_requests_history),
+                    requests = history,
+                    shifts = shifts,
+                    members = members,
+                    onDismissRequest = onDismissRequest,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun IncomingShiftSwapSection(
+    title: String,
+    pendingCandidates: List<Pair<ShiftSwapRequest, com.reguerta.user.domain.shifts.ShiftSwapCandidate>>,
+    shifts: List<ShiftAssignment>,
+    members: List<Member>,
+    isUpdating: Boolean,
+    onAccept: (String, String) -> Unit,
+    onReject: (String, String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold,
+        )
+        pendingCandidates.sortedByDescending { it.first.requestedAtMillis }.forEach { (request, candidate) ->
+            val requestedShift = shifts.firstOrNull { it.id == request.requestedShiftId }
+            val candidateShift = shifts.firstOrNull { it.id == candidate.shiftId }
+            Card {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = stringResource(
+                            R.string.shift_swap_request_requested_by_format,
+                            members.displayNameFor(request.requesterUserId),
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.shift_swap_request_shift_format,
+                            requestedShift?.toShiftSwapDisplayLabel(request.requesterUserId).orEmpty().ifBlank { request.requestedShiftId },
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.shift_swap_request_offer_shift_format,
+                            candidateShift?.toShiftSwapDisplayLabel(candidate.userId).orEmpty().ifBlank { candidate.shiftId },
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    if (request.reason.isNotBlank()) {
+                        Text(
+                            text = stringResource(R.string.shift_swap_request_reason_format, request.reason),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ReguertaButton(
+                            label = stringResource(R.string.shift_swap_request_accept_short),
+                            variant = ReguertaButtonVariant.PRIMARY,
+                            fullWidth = false,
+                            enabled = !isUpdating,
+                            onClick = { onAccept(request.id, candidate.shiftId) },
+                        )
+                        ReguertaButton(
+                            label = stringResource(R.string.shift_swap_request_reject_short),
+                            variant = ReguertaButtonVariant.SECONDARY,
+                            fullWidth = false,
+                            enabled = !isUpdating,
+                            onClick = { onReject(request.id, candidate.shiftId) },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RequesterResponsesSection(
+    title: String,
+    responseOptions: List<Triple<ShiftSwapRequest, com.reguerta.user.domain.shifts.ShiftSwapCandidate, com.reguerta.user.domain.shifts.ShiftSwapResponse>>,
+    shifts: List<ShiftAssignment>,
+    members: List<Member>,
+    isUpdating: Boolean,
+    onConfirm: (String, String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold,
+        )
+        responseOptions.sortedByDescending { it.first.requestedAtMillis }.forEach { (request, candidate, _) ->
+            val requestedShift = shifts.firstOrNull { it.id == request.requestedShiftId }
+            val candidateShift = shifts.firstOrNull { it.id == candidate.shiftId }
+            Card {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = members.displayNameFor(candidate.userId),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.shift_swap_request_confirm_before_after_format,
+                            requestedShift?.toShiftSwapDisplayLabel(request.requesterUserId).orEmpty().ifBlank { request.requestedShiftId },
+                            candidateShift?.toShiftSwapDisplayLabel(candidate.userId).orEmpty().ifBlank { candidate.shiftId },
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    ReguertaButton(
+                        label = stringResource(R.string.shift_swap_request_confirm),
+                        variant = ReguertaButtonVariant.PRIMARY,
+                        fullWidth = false,
+                        enabled = !isUpdating,
+                        onClick = { onConfirm(request.id, candidate.shiftId) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WaitingShiftSwapSection(
+    title: String,
+    requests: List<ShiftSwapRequest>,
+    shifts: List<ShiftAssignment>,
+    members: List<Member>,
+    onCancel: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold,
+        )
+        requests.sortedByDescending { it.requestedAtMillis }.forEach { request ->
+            val requestedShift = shifts.firstOrNull { it.id == request.requestedShiftId }
+            Card {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = requestedShift?.toShiftSwapDisplayLabel(request.requesterUserId) ?: request.requestedShiftId,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = stringResource(R.string.shift_swap_request_waiting_multiple_format, request.candidates.map { members.displayNameFor(it.userId) }.distinct().size),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    ReguertaButton(
+                        label = stringResource(R.string.shift_swap_request_cancel),
+                        variant = ReguertaButtonVariant.SECONDARY,
+                        fullWidth = false,
+                        onClick = { onCancel(request.id) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HistoryShiftSwapSection(
+    title: String,
+    requests: List<ShiftSwapRequest>,
+    shifts: List<ShiftAssignment>,
+    members: List<Member>,
+    onDismissRequest: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold,
+        )
+        requests.sortedByDescending { it.requestedAtMillis }.forEach { request ->
+            ShiftSwapRequestHistoryItem(
+                request = request,
+                shift = shifts.firstOrNull { it.id == request.requestedShiftId },
+                members = members,
+                onDismiss = onDismissRequest,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ShiftSwapRequestHistoryItem(
+    request: ShiftSwapRequest,
+    shift: ShiftAssignment?,
+    members: List<Member>,
+    onDismiss: (String) -> Unit,
+) {
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = shift?.toShiftSwapDisplayLabel(request.requesterUserId) ?: request.requestedShiftId,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = stringResource(
+                    R.string.shift_swap_request_requested_by_format,
+                    members.displayNameFor(request.requesterUserId),
+                ),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+                text = stringResource(
+                    R.string.shift_swap_request_reason_format,
+                    request.reason.ifBlank { stringResource(R.string.shift_swap_request_reason_empty) },
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = stringResource(request.status.labelRes()),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            request.selectedCandidateUserId?.let { selectedUserId ->
+                Text(
+                    text = stringResource(
+                        R.string.shift_swap_request_selected_candidate_format,
+                        members.displayNameFor(selectedUserId),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (request.status == ShiftSwapRequestStatus.APPLIED) {
+                ReguertaFlatButton(
+                    label = stringResource(R.string.shift_swap_request_acknowledge),
+                    onClick = { onDismiss(request.id) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShiftSwapRequestRoute(
+    draft: ShiftSwapDraft,
+    shifts: List<ShiftAssignment>,
+    members: List<Member>,
+    isSaving: Boolean,
+    onDraftChanged: (ShiftSwapDraft) -> Unit,
+    onCancel: () -> Unit,
+    onSave: () -> Unit,
+) {
+    val focusManager = LocalFocusManager.current
+    val shift = shifts.firstOrNull { it.id == draft.shiftId }
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.shift_swap_request_screen_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = stringResource(R.string.shift_swap_request_screen_subtitle),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = stringResource(
+                    R.string.shift_swap_request_shift_format,
+                    shift?.toShiftSwapDisplayLabel(
+                        shift.assignedUserIds.firstOrNull() ?: shift.helperUserId,
+                    ).orEmpty().ifBlank { draft.shiftId },
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                text = stringResource(
+                    R.string.shift_swap_request_broadcast_scope_format,
+                    when (shift?.type) {
+                        ShiftType.MARKET -> stringResource(R.string.shifts_type_market)
+                        else -> stringResource(R.string.shifts_type_delivery)
+                    },
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedTextField(
+                value = draft.reason,
+                onValueChange = { onDraftChanged(draft.copy(reason = it)) },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.shift_swap_request_reason_label)) },
+                placeholder = { Text(stringResource(R.string.shift_swap_request_reason_placeholder)) },
+                minLines = 4,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ReguertaButton(
+                    label = stringResource(
+                        if (isSaving) {
+                            R.string.shift_swap_request_saving
+                        } else {
+                            R.string.shift_swap_request_save
+                        },
+                    ),
+                    variant = ReguertaButtonVariant.PRIMARY,
+                    fullWidth = false,
+                    loading = isSaving,
+                    enabled = !isSaving && draft.shiftId.isNotBlank(),
+                    onClick = {
+                        focusManager.clearFocus(force = true)
+                        onSave()
+                    },
+                )
+                ReguertaButton(
+                    label = stringResource(R.string.common_action_back),
+                    variant = ReguertaButtonVariant.SECONDARY,
+                    fullWidth = false,
+                    enabled = !isSaving,
+                    onClick = {
+                        focusManager.clearFocus(force = true)
+                        onCancel()
+                    },
+                )
+            }
+        }
+    }
+}
 
 @Composable
 private fun LatestNewsCard(
@@ -2336,6 +2938,76 @@ private fun HomePlaceholderRoute(
 }
 
 @Composable
+private fun SettingsRoute(
+    currentMember: Member?,
+    authenticatedMember: Member?,
+    members: List<Member>,
+    isDevelopImpersonationEnabled: Boolean,
+    onImpersonateMember: (String) -> Unit,
+    onClearImpersonation: () -> Unit,
+) {
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "Ajustes",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "La impersonacion solo aparece en develop para probar flujos con otros socios sin salir de tu sesion real.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            if (isDevelopImpersonationEnabled && currentMember != null && authenticatedMember != null) {
+                val isImpersonating = currentMember.id != authenticatedMember.id
+                Text(
+                    text = "Cuenta real: ${authenticatedMember.displayName}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                )
+                Text(
+                    text = if (isImpersonating) {
+                        "Viendo la app como: ${currentMember.displayName}"
+                    } else {
+                        "Ahora mismo estas usando tu propio perfil."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                if (isImpersonating) {
+                    ReguertaFlatButton(
+                        label = "Volver a mi perfil real",
+                        onClick = onClearImpersonation,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                HorizontalDivider()
+                Text(
+                    text = "Impersonacion develop",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                members
+                    .filter { it.isActive }
+                    .sortedBy { it.displayName.lowercase(Locale.getDefault()) }
+                    .forEach { member ->
+                        val isSelected = member.id == currentMember.id
+                        ReguertaFlatButton(
+                            label = member.displayName,
+                            onClick = { onImpersonateMember(member.id) },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isSelected,
+                        )
+                    }
+            }
+        }
+    }
+}
+
+@Composable
 private fun SharedProfileRoute(
     currentMember: Member?,
     members: List<Member>,
@@ -2691,6 +3363,7 @@ private fun HomeDestination.titleRes(): Int = when (this) {
     HomeDestination.MY_ORDER -> R.string.module_my_order
     HomeDestination.MY_ORDERS -> R.string.module_my_orders
     HomeDestination.SHIFTS -> R.string.module_shifts
+    HomeDestination.SHIFT_SWAP_REQUEST -> R.string.shift_swap_request_screen_title
     HomeDestination.NEWS -> R.string.home_shell_news_title
     HomeDestination.NOTIFICATIONS -> R.string.home_shell_notifications
     HomeDestination.PROFILE -> R.string.home_shell_action_profile
@@ -2707,6 +3380,7 @@ private fun HomeDestination.subtitleRes(): Int = when (this) {
     HomeDestination.MY_ORDER -> R.string.home_placeholder_my_order
     HomeDestination.MY_ORDERS -> R.string.home_placeholder_my_orders
     HomeDestination.SHIFTS -> R.string.home_placeholder_shifts
+    HomeDestination.SHIFT_SWAP_REQUEST -> R.string.shift_swap_request_screen_subtitle
     HomeDestination.NEWS -> R.string.news_list_subtitle
     HomeDestination.NOTIFICATIONS -> R.string.notifications_list_subtitle
     HomeDestination.PROFILE -> R.string.home_placeholder_profile
@@ -2790,6 +3464,22 @@ private fun ShiftAssignment.primaryBoardNames(members: List<Member>): List<Strin
         }
 }
 
+private fun ShiftAssignment.canBeRequestedBy(currentMemberId: String): Boolean = when (type) {
+    ShiftType.DELIVERY -> dateMillis > System.currentTimeMillis() &&
+        assignedUserIds.firstOrNull() == currentMemberId
+    ShiftType.MARKET -> dateMillis > System.currentTimeMillis() &&
+        assignedUserIds.contains(currentMemberId)
+}
+
+private fun ShiftAssignment.highlightedBoardNameIndex(currentMemberId: String): Int? = when (type) {
+    ShiftType.DELIVERY -> when {
+        assignedUserIds.firstOrNull() == currentMemberId -> 0
+        helperUserId == currentMemberId -> 1
+        else -> null
+    }
+    ShiftType.MARKET -> assignedUserIds.indexOf(currentMemberId).takeIf { it >= 0 }
+}
+
 private fun List<String>.toMemberNames(members: List<Member>): String =
     map { memberId -> members.displayNameFor(memberId) }
         .joinToString(separator = ", ")
@@ -2797,6 +3487,21 @@ private fun List<String>.toMemberNames(members: List<Member>): String =
 
 private fun List<Member>.displayNameFor(memberId: String): String =
     firstOrNull { member -> member.id == memberId }?.displayName ?: memberId
+
+private fun ShiftSwapRequest.availableResponses(): List<com.reguerta.user.domain.shifts.ShiftSwapResponse> =
+    responses.filter { it.status == com.reguerta.user.domain.shifts.ShiftSwapResponseStatus.AVAILABLE }
+
+@StringRes
+private fun ShiftSwapRequestStatus.labelRes(): Int = when (this) {
+    ShiftSwapRequestStatus.OPEN -> R.string.shift_swap_request_status_open
+    ShiftSwapRequestStatus.CANCELLED -> R.string.shift_swap_request_status_cancelled
+    ShiftSwapRequestStatus.APPLIED -> R.string.shift_swap_request_status_applied
+}
+
+private fun ShiftBoardSegment.toShiftType(): ShiftType = when (this) {
+    ShiftBoardSegment.DELIVERY -> ShiftType.DELIVERY
+    ShiftBoardSegment.MARKET -> ShiftType.MARKET
+}
 
 private fun Long.toLocalDate(): LocalDate =
     Instant.ofEpochMilli(this)
@@ -3402,6 +4107,13 @@ private fun NotificationEvent.audienceLabelRes(): Int =
 
 private fun Long.toLocalizedDateTime(): String =
     DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(java.util.Date(this))
+
+private fun Long.toLocalizedDateOnly(): String =
+    java.text.SimpleDateFormat("d MMM yyyy", Locale.forLanguageTag("es-ES")).format(java.util.Date(this))
+
+private fun ShiftAssignment.toShiftSwapDisplayLabel(memberId: String?): String {
+    return dateMillis.toLocalizedDateOnly()
+}
 
 private sealed interface StartupGateUiState {
     data object Checking : StartupGateUiState

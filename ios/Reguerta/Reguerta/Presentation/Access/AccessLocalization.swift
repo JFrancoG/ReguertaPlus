@@ -171,6 +171,7 @@ enum AccessL10nKey {
     static let feedbackOnlyAdminManageMembers = "feedback.only_admin_manage_members"
     static let feedbackCannotRemoveLastAdmin = "feedback.cannot_remove_last_admin"
     static let feedbackUnableSaveChanges = "feedback.unable_save_changes"
+    static let feedbackShiftSwapNoCandidates = "feedback.shift_swap_no_candidates"
     static let feedbackOnlyAdminPublishNews = "feedback.only_admin_publish_news"
     static let feedbackOnlyAdminEditNews = "feedback.only_admin_edit_news"
     static let feedbackOnlyAdminDeleteNews = "feedback.only_admin_delete_news"

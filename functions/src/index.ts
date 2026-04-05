@@ -1104,16 +1104,13 @@ const toDeliveryHumanRow = (
   const responsible = shift.assignedUserIds
     .map((userId) => membersById.get(userId))
     .find((value): value is MemberSheetRef => Boolean(value));
-  const helper = shift.helperUserId ?
-    membersById.get(shift.helperUserId) || null :
-    null;
 
   return [
     formatHumanShortDate(shift.date),
     responsible?.displayName || existingRow[1] || "",
     responsible?.phone || existingRow[2] || "",
     existingRow[3] || "",
-    helper ? `LO HACE ${helper.displayName}` : "",
+    existingRow[4] || "",
     `${isoWeekNumber(shift.date)}`,
   ];
 };

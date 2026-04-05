@@ -10,6 +10,7 @@ enum class ReguertaFirestoreCollection(val pathComponent: String) {
     CONFIG("plus-collections/config"),
     SHARED_PROFILES("plus-collections/sharedProfiles"),
     SHIFTS("plus-collections/shifts"),
+    SHIFT_SWAP_REQUESTS("plus-collections/shiftSwapRequests"),
     NEWS("plus-collections/news"),
     NOTIFICATION_EVENTS("plus-collections/notificationEvents"),
 }

@@ -4,7 +4,7 @@
 - issue_id: #12
 - priority: P1
 - platform: both
-- status: ready
+- status: in_progress
 
 ## Context and problem
 
@@ -17,8 +17,16 @@ As a member I want to request a shift swap when I cannot attend so that I can re
 ## Scope
 
 ### In Scope
-- Implement capability defined by HU-016 within MVP boundaries.
-- Fulfill story-specific acceptance criteria for HU-016.
+- Start a swap request from the shifts board as an open request, not against a single predefined member.
+- Capture shift context and reason in a dedicated request screen.
+- Resolve future candidate members automatically:
+  - delivery: all future delivery leads from week + 2 onward, excluding the requester
+  - market: all members assigned to future market shifts, excluding the requester
+- Persist the request lifecycle in `shiftSwapRequests` with open, cancelled, and applied states, plus per-candidate responses.
+- Allow candidate members to answer `available` / `unavailable` from the same shifts screen.
+- Allow the requester to review available responders and confirm one concrete swap so the reassignment is applied.
+- Send in-app notifications when the request is created, when a member responds, and when the final swap is applied.
+- Keep Android/iOS parity for board entry points, request form, request inbox, and final confirmation flow.
 
 ### Out of Scope
 - Functionality marked as post-MVP in global requirements.
@@ -30,11 +38,13 @@ As a member I want to request a shift swap when I cannot attend so that I can re
 
 ## Acceptance criteria
 
-- Request stays pending for target member.
-- Acceptance plus final confirmation applies the change.
+- Request is broadcast to the eligible future members for the same shift type.
+- Candidate members can answer whether they can cover the requested shift.
+- The requester sees the members who accepted and can confirm one concrete exchange.
+- Final confirmation applies the change across both shifts.
 - Applied change notifies all members.
-- The request can be started from the shifts board against a specific assigned member or helper.
-- A dedicated request screen captures the target member, reason, and shift context before submission.
+- The request can be started from the shifts board for a shift already assigned to the current member.
+- A dedicated request screen captures reason and shift context before submission.
 
 ## Dependencies
 
@@ -51,11 +61,18 @@ As a member I want to request a shift swap when I cannot attend so that I can re
 - Secondary risk: regression in existing weekly workflows.
   - Mitigation: weekly-window regression tests by role.
 
+## Implementation notes
+
+- Source of truth lives in `plus-collections/shiftSwapRequests`.
+- Each request stores candidate future shifts and per-candidate responses, so the requester can choose the final exchange partner after collecting replies.
+- Final reassignment updates both affected documents in `plus-collections/shifts`, which keeps the Google Sheets outbound sync from HU-020 in play.
+- Dedicated push/backend orchestration for swap events is still deferred; this HU uses the existing in-app notification flow.
+
 ## Definition of Done (DoD)
 
-- [ ] Story acceptance criteria validated.
-- [ ] Implementation aligned with linked RFs.
-- [ ] Android/iOS parity reviewed or temporary gap documented.
-- [ ] Agreed tests executed.
-- [ ] Technical/functional documentation updated.
+- [x] Story acceptance criteria validated in code.
+- [x] Implementation aligned with linked RFs.
+- [x] Android/iOS parity reviewed or temporary gap documented.
+- [x] Agreed tests executed.
+- [x] Technical/functional documentation updated.
 - [ ] Issue and PR linked.

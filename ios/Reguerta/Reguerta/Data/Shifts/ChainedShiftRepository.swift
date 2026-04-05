@@ -8,4 +8,8 @@ struct ChainedShiftRepository: ShiftRepository {
         let primaryResult = await primary.allShifts()
         return primaryResult.isEmpty ? await fallback.allShifts() : primaryResult
     }
+
+    func upsert(shift: ShiftAssignment) async -> ShiftAssignment {
+        await primary.upsert(shift: shift)
+    }
 }
