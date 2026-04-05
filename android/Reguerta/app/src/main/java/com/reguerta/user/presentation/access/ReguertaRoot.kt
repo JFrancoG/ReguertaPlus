@@ -56,6 +56,7 @@ import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -3081,6 +3082,7 @@ private fun AdminDeliveryCalendarSection(
             .sortedBy { it.dateMillis }
             .distinctBy { it.dateMillis.toWeekKey() }
     }
+    var isEditorVisible by rememberSaveable { mutableStateOf(false) }
     Text(
         text = "Calendario de reparto",
         style = MaterialTheme.typography.titleSmall,
@@ -3095,9 +3097,6 @@ private fun AdminDeliveryCalendarSection(
         style = MaterialTheme.typography.bodyMedium,
         fontWeight = FontWeight.Medium,
     )
-    Button(onClick = onRefresh) {
-        Text("Recargar calendario")
-    }
     if (isLoading) {
         Text(
             text = "Cargando calendario...",
@@ -3109,83 +3108,158 @@ private fun AdminDeliveryCalendarSection(
             style = MaterialTheme.typography.bodyMedium,
         )
     } else {
-        futureWeeks.forEach { shift ->
-            val weekKey = shift.dateMillis.toWeekKey()
-            val override = overrides.firstOrNull { it.weekKey == weekKey }
-            val initialWeekday = override?.deliveryDateMillis?.toDeliveryWeekday()
-                ?: defaultDeliveryDayOfWeek
-                ?: DeliveryWeekday.WEDNESDAY
-            var selectedWeekday by rememberSaveable(weekKey, override?.deliveryDateMillis) {
-                mutableStateOf(initialWeekday)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { isEditorVisible = true }) {
+                Text("Cambiar dia de reparto")
             }
-            Card {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+            TextButton(onClick = onRefresh) {
+                Text("Recargar")
+            }
+        }
+        Text(
+            text = "Se usa poco, asi que queda recogido aqui, pero el cambio se hace sobre una sola semana elegida.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (isEditorVisible) {
+            DeliveryCalendarOverrideDialog(
+                currentMember = currentMember,
+                futureWeeks = futureWeeks,
+                overrides = overrides,
+                defaultDeliveryDayOfWeek = defaultDeliveryDayOfWeek ?: DeliveryWeekday.WEDNESDAY,
+                isSaving = isSaving,
+                onDismiss = { isEditorVisible = false },
+                onSaveOverride = onSaveOverride,
+                onDeleteOverride = onDeleteOverride,
+            )
+        }
+    }
+}
+
+@Composable
+private fun DeliveryCalendarOverrideDialog(
+    currentMember: Member,
+    futureWeeks: List<ShiftAssignment>,
+    overrides: List<DeliveryCalendarOverride>,
+    defaultDeliveryDayOfWeek: DeliveryWeekday,
+    isSaving: Boolean,
+    onDismiss: () -> Unit,
+    onSaveOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
+    onDeleteOverride: (String, onSuccess: () -> Unit) -> Unit,
+) {
+    var selectedIndex by rememberSaveable { mutableStateOf(0) }
+    val safeIndex = selectedIndex.coerceIn(0, futureWeeks.lastIndex)
+    val selectedShift = futureWeeks[safeIndex]
+    val weekKey = selectedShift.dateMillis.toWeekKey()
+    val override = overrides.firstOrNull { it.weekKey == weekKey }
+    var selectedWeekday by rememberSaveable(weekKey, override?.deliveryDateMillis) {
+        mutableStateOf(override?.deliveryDateMillis?.toDeliveryWeekday() ?: defaultDeliveryDayOfWeek)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Cambiar dia de reparto",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "Selecciona una semana futura y gestiona solo esa excepcion.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = weekKey,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
+                    ReguertaFlatButton(
+                        label = "Anterior",
+                        onClick = { selectedIndex = (safeIndex - 1).coerceAtLeast(0) },
+                        enabled = safeIndex > 0 && !isSaving,
                     )
-                    Text(
-                        text = "Turno cargado: ${shift.dateMillis.toLocalizedDateOnly()}",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    Text(
-                        text = if (override != null) {
-                            "Excepcion activa: ${override.deliveryDateMillis.toLocalizedDateOnly()}"
-                        } else {
-                            "Sin excepcion. Aplica el dia por defecto."
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ReguertaFlatButton(
-                            label = "Anterior",
-                            onClick = {
-                                selectedWeekday = selectedWeekday.previous()
-                            },
-                            enabled = !isSaving,
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = weekKey,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold,
                         )
                         Text(
-                            text = selectedWeekday.toSpanishLabel(),
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.align(Alignment.CenterVertically),
-                        )
-                        ReguertaFlatButton(
-                            label = "Siguiente",
-                            onClick = {
-                                selectedWeekday = selectedWeekday.next()
-                            },
-                            enabled = !isSaving,
+                            text = selectedShift.dateMillis.toLocalizedDateOnly(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    ReguertaButton(
-                        label = "Guardar excepcion",
-                        onClick = {
-                            onSaveOverride(weekKey, selectedWeekday, currentMember.id) {}
-                        },
-                        enabled = !isSaving,
-                        loading = isSaving,
-                        fullWidth = true,
+                    ReguertaFlatButton(
+                        label = "Siguiente",
+                        onClick = { selectedIndex = (safeIndex + 1).coerceAtMost(futureWeeks.lastIndex) },
+                        enabled = safeIndex < futureWeeks.lastIndex && !isSaving,
                     )
-                    if (override != null) {
-                        ReguertaFlatButton(
-                            label = "Quitar excepcion",
-                            onClick = { onDeleteOverride(weekKey) {} },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !isSaving,
+                }
+                Card {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = if (override != null) {
+                                "Excepcion activa: ${override.deliveryDateMillis.toLocalizedDateOnly()}"
+                            } else {
+                                "Sin excepcion. Aplica el dia por defecto."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            ReguertaFlatButton(
+                                label = "Anterior",
+                                onClick = { selectedWeekday = selectedWeekday.previous() },
+                                enabled = !isSaving,
+                            )
+                            Text(
+                                text = selectedWeekday.toSpanishLabel(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.align(Alignment.CenterVertically),
+                            )
+                            ReguertaFlatButton(
+                                label = "Siguiente",
+                                onClick = { selectedWeekday = selectedWeekday.next() },
+                                enabled = !isSaving,
+                            )
+                        }
+                        ReguertaButton(
+                            label = "Guardar excepcion",
+                            onClick = {
+                                onSaveOverride(weekKey, selectedWeekday, currentMember.id, onDismiss)
+                            },
+                            enabled = !isSaving,
+                            loading = isSaving,
+                            fullWidth = true,
+                        )
+                        if (override != null) {
+                            ReguertaFlatButton(
+                                label = "Quitar excepcion",
+                                onClick = { onDeleteOverride(weekKey, onDismiss) },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !isSaving,
+                            )
+                        }
                     }
                 }
             }
-        }
-    }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cerrar")
+            }
+        },
+    )
 }
 
 @Composable
