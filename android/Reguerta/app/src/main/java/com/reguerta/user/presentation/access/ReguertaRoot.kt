@@ -57,10 +57,16 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedTextField
@@ -3169,42 +3175,111 @@ private fun AdminDeliveryCalendarSection(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DeliveryCalendarWeekPickerDialog(
     futureWeeks: List<ShiftAssignment>,
     onDismiss: () -> Unit,
     onSelectWeek: (String) -> Unit,
 ) {
-    AlertDialog(
+    val initialSelection = futureWeeks.firstOrNull()?.dateMillis?.toWeekKey().orEmpty()
+    var selectedWeekKey by rememberSaveable(futureWeeks) { mutableStateOf(initialSelection) }
+    var isMenuExpanded by rememberSaveable { mutableStateOf(false) }
+    val selectedShift = futureWeeks.firstOrNull { it.dateMillis.toWeekKey() == selectedWeekKey }
+
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = {
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 12.dp)
+                .navigationBarsPadding()
+                .imePadding(),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
             Text(
                 text = "Elegir semana",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "Selecciona un dia de reparto futuro con encargado.",
-                    style = MaterialTheme.typography.bodyMedium,
+            Text(
+                text = "Selecciona un dia de reparto futuro con encargado.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            ExposedDropdownMenuBox(
+                expanded = isMenuExpanded,
+                onExpandedChange = { isMenuExpanded = !isMenuExpanded },
+            ) {
+                OutlinedTextField(
+                    value = selectedShift?.let {
+                        "${it.dateMillis.toWeekKey()} · ${it.dateMillis.toLocalizedDateOnly()}"
+                    }.orEmpty(),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Semana de reparto") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = isMenuExpanded)
+                    },
+                    modifier = Modifier
+                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                        .fillMaxWidth(),
                 )
-                futureWeeks.forEach { shift ->
-                    ReguertaFlatButton(
-                        label = "${shift.dateMillis.toWeekKey()} · ${shift.dateMillis.toLocalizedDateOnly()}",
-                        onClick = { onSelectWeek(shift.dateMillis.toWeekKey()) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                ExposedDropdownMenu(
+                    expanded = isMenuExpanded,
+                    onDismissRequest = { isMenuExpanded = false },
+                ) {
+                    futureWeeks.forEach { shift ->
+                        val weekKey = shift.dateMillis.toWeekKey()
+                        DropdownMenuItem(
+                            text = {
+                                Text("${weekKey} · ${shift.dateMillis.toLocalizedDateOnly()}")
+                            },
+                            onClick = {
+                                selectedWeekKey = weekKey
+                                isMenuExpanded = false
+                            },
+                        )
+                    }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cerrar")
+            selectedShift?.let { shift ->
+                Card {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            text = shift.dateMillis.toWeekKey(),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = shift.dateMillis.toLocalizedDateOnly(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
-        },
-    )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text("Cerrar")
+                }
+                Button(
+                    onClick = { onSelectWeek(selectedWeekKey) },
+                    enabled = selectedWeekKey.isNotBlank(),
+                ) {
+                    Text("Elegir")
+                }
+            }
+        }
+    }
 }
 
 @Composable

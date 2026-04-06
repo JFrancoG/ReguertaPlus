@@ -2235,29 +2235,67 @@ struct ContentView: View {
         @Environment(\.dismiss) private var dismiss
         let futureWeeks: [ShiftAssignment]
         let onSelectWeek: (String) -> Void
+        @State private var selectedWeekKey: String
+
+        init(
+            futureWeeks: [ShiftAssignment],
+            onSelectWeek: @escaping (String) -> Void
+        ) {
+            self.futureWeeks = futureWeeks
+            self.onSelectWeek = onSelectWeek
+            _selectedWeekKey = State(initialValue: futureWeeks.first?.weekKey ?? "")
+        }
 
         var body: some View {
             NavigationStack {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                        Text("Selecciona un dia de reparto futuro con encargado.")
-                            .font(tokens.typography.bodySecondary)
-                            .foregroundStyle(tokens.colors.textSecondary)
-                        ForEach(futureWeeks, id: \.id) { shift in
-                            ReguertaButton("\(shift.weekKey) · \(localizedDateOnly(shift.dateMillis))", variant: .text) {
-                                onSelectWeek(shift.weekKey)
-                            }
+                VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                    Text("Selecciona un dia de reparto futuro con encargado.")
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                    Picker("Semana", selection: $selectedWeekKey) {
+                        ForEach(futureWeeks, id: \.weekKey) { shift in
+                            Text("\(shift.weekKey) · \(localizedDateOnly(shift.dateMillis))")
+                                .tag(shift.weekKey)
                         }
                     }
-                    .padding(tokens.spacing.lg)
-                }
-                .navigationTitle("Elegir semana")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cerrar") { dismiss() }
+                    .pickerStyle(.wheel)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 180)
+                    .clipped()
+
+                    if let selectedShift = futureWeeks.first(where: { $0.weekKey == selectedWeekKey }) {
+                        VStack(spacing: 4) {
+                            Text(selectedShift.weekKey)
+                                .font(tokens.typography.body.weight(.semibold))
+                                .foregroundStyle(tokens.colors.textPrimary)
+                            Text(localizedDateOnly(selectedShift.dateMillis))
+                                .font(tokens.typography.label)
+                                .foregroundStyle(tokens.colors.textSecondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(tokens.spacing.md)
+                        .background(tokens.colors.surfacePrimary)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: tokens.radius.md)
+                                .stroke(tokens.colors.borderSubtle, lineWidth: 1)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
+                    }
+
+                    Spacer(minLength: 0)
+
+                    HStack(spacing: tokens.spacing.sm) {
+                        ReguertaButton("Cerrar", variant: .text, fullWidth: false) {
+                            dismiss()
+                        }
+                        ReguertaButton("Elegir", isEnabled: !selectedWeekKey.isEmpty, fullWidth: false) {
+                            onSelectWeek(selectedWeekKey)
+                        }
                     }
                 }
+                .padding(tokens.spacing.lg)
+                .navigationTitle("Elegir semana")
+                .navigationBarTitleDisplayMode(.inline)
             }
         }
 
