@@ -603,8 +603,33 @@ const isShiftType = (value: string): value is ShiftType =>
 const isShiftStatus = (value: string): value is ShiftStatus =>
   value === "planned" || value === "swap_pending" || value === "confirmed";
 
-const timestampToSheetDate = (timestamp: admin.firestore.Timestamp): string =>
-  timestamp.toDate().toISOString().slice(0, 10);
+const SHEET_TIME_ZONE = "Europe/Madrid";
+
+const timestampToZonedDateParts = (
+  timestamp: admin.firestore.Timestamp,
+  timeZone: string = SHEET_TIME_ZONE,
+): {year: number; month: number; day: number} => {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(timestamp.toDate());
+  const getPart = (type: "year" | "month" | "day") =>
+    Number(parts.find((part) => part.type === type)?.value || "0");
+  return {
+    year: getPart("year"),
+    month: getPart("month"),
+    day: getPart("day"),
+  };
+};
+
+const timestampToSheetDate = (timestamp: admin.firestore.Timestamp): string => {
+  const {year, month, day} = timestampToZonedDateParts(timestamp);
+  const paddedMonth = String(month).padStart(2, "0");
+  const paddedDay = String(day).padStart(2, "0");
+  return `${year}-${paddedMonth}-${paddedDay}`;
+};
 
 const buildShiftId = (
   type: ShiftType,
@@ -1085,9 +1110,8 @@ const toShiftRecord = (
 const formatHumanShortDate = (
   timestamp: admin.firestore.Timestamp,
 ): string => {
-  const date = timestamp.toDate();
-  return `${date.getUTCDate()}/${date.getUTCMonth() + 1}` +
-    `/${date.getUTCFullYear()}`;
+  const {year, month, day} = timestampToZonedDateParts(timestamp);
+  return `${day}/${month}/${year}`;
 };
 
 const formatHumanLongDate = (
@@ -1097,7 +1121,7 @@ const formatHumanLongDate = (
     day: "numeric",
     month: "long",
     year: "numeric",
-    timeZone: "UTC",
+    timeZone: SHEET_TIME_ZONE,
   });
   return formatter.format(timestamp.toDate()).toUpperCase();
 };
@@ -1108,7 +1132,7 @@ const formatHumanMonthHeading = (
   const formatter = new Intl.DateTimeFormat("es-ES", {
     month: "long",
     year: "numeric",
-    timeZone: "UTC",
+    timeZone: SHEET_TIME_ZONE,
   });
   return formatter.format(timestamp.toDate()).toUpperCase();
 };
@@ -1116,14 +1140,14 @@ const formatHumanMonthHeading = (
 const isoWeekNumber = (
   timestamp: admin.firestore.Timestamp,
 ): number => {
-  const date = timestamp.toDate();
+  const {year, month, day: localDay} = timestampToZonedDateParts(timestamp);
   const utcDate = new Date(Date.UTC(
-    date.getUTCFullYear(),
-    date.getUTCMonth(),
-    date.getUTCDate(),
+    year,
+    month - 1,
+    localDay,
   ));
-  const day = utcDate.getUTCDay() || 7;
-  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - day);
+  const isoDay = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - isoDay);
   const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
   return Math.ceil(
     (((utcDate.getTime() - yearStart.getTime()) / 86400000) + 1) / 7
@@ -1133,14 +1157,18 @@ const isoWeekNumber = (
 const timestampToIsoWeekKey = (
   timestamp: admin.firestore.Timestamp,
 ): string => {
-  const date = timestamp.toDate();
+  const {
+    year: localYear,
+    month,
+    day: localDay,
+  } = timestampToZonedDateParts(timestamp);
   const utcDate = new Date(Date.UTC(
-    date.getUTCFullYear(),
-    date.getUTCMonth(),
-    date.getUTCDate(),
+    localYear,
+    month - 1,
+    localDay,
   ));
-  const day = utcDate.getUTCDay() || 7;
-  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - day);
+  const isoDay = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - isoDay);
   const year = utcDate.getUTCFullYear();
   const yearStart = new Date(Date.UTC(year, 0, 1));
   const week = Math.ceil(
