@@ -2340,51 +2340,57 @@ struct ContentView: View {
 
         var body: some View {
             NavigationStack {
-                VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                    Text("Gestiona solo la excepcion de la semana elegida.")
-                        .font(tokens.typography.bodySecondary)
-                        .foregroundStyle(tokens.colors.textSecondary)
+                VStack(spacing: tokens.spacing.md) {
+                    Spacer(minLength: 0)
 
-                    VStack(spacing: 4) {
-                        Text(shift.weekKey)
-                            .font(tokens.typography.body.weight(.semibold))
-                        Text(localizedDateOnly(shift.dateMillis))
+                    VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                        Text("Gestiona solo la excepcion de la semana elegida.")
+                            .font(tokens.typography.bodySecondary)
+                            .foregroundStyle(tokens.colors.textSecondary)
+
+                        VStack(spacing: 4) {
+                            Text(shift.weekKey)
+                                .font(tokens.typography.body.weight(.semibold))
+                            Text(localizedDateOnly(shift.dateMillis))
+                                .font(tokens.typography.label)
+                                .foregroundStyle(tokens.colors.textSecondary)
+                        }
+                        .frame(maxWidth: .infinity)
+
+                        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                            Text(
+                                overrideEntry.map { "Excepcion activa: \(localizedDateOnly($0.deliveryDateMillis))" } ??
+                                "Sin excepcion. Aplica el dia por defecto."
+                            )
                             .font(tokens.typography.label)
                             .foregroundStyle(tokens.colors.textSecondary)
-                    }
 
-                    VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                        Text(
-                            overrideEntry.map { "Excepcion activa: \(localizedDateOnly($0.deliveryDateMillis))" } ??
-                            "Sin excepcion. Aplica el dia por defecto."
-                        )
-                        .font(tokens.typography.label)
-                        .foregroundStyle(tokens.colors.textSecondary)
-
-                        HStack(spacing: tokens.spacing.sm) {
-                            ReguertaButton("Anterior", variant: .text, fullWidth: false) {
-                                selectedWeekday = selectedWeekday.previous
+                            HStack(spacing: tokens.spacing.sm) {
+                                ReguertaButton("Anterior", variant: .text, fullWidth: false) {
+                                    selectedWeekday = selectedWeekday.previous
+                                }
+                                Text(selectedWeekday.spanishLabel)
+                                    .font(tokens.typography.bodySecondary.weight(.semibold))
+                                ReguertaButton("Siguiente", variant: .text, fullWidth: false) {
+                                    selectedWeekday = selectedWeekday.next
+                                }
                             }
-                            Text(selectedWeekday.spanishLabel)
-                                .font(tokens.typography.bodySecondary.weight(.semibold))
-                            ReguertaButton("Siguiente", variant: .text, fullWidth: false) {
-                                selectedWeekday = selectedWeekday.next
-                            }
-                        }
 
-                        ReguertaButton("Guardar excepcion", isEnabled: !isSaving, isLoading: isSaving) {
-                            onSave(shift.weekKey, selectedWeekday)
-                            dismiss()
-                        }
-                        if overrideEntry != nil {
-                            ReguertaButton("Quitar excepcion", variant: .text, isEnabled: !isSaving, fullWidth: false) {
-                                onDelete(shift.weekKey)
+                            ReguertaButton("Guardar excepcion", isEnabled: !isSaving, isLoading: isSaving) {
+                                onSave(shift.weekKey, selectedWeekday)
                                 dismiss()
                             }
+                            if overrideEntry != nil {
+                                ReguertaButton("Quitar excepcion", variant: .text, isEnabled: !isSaving, fullWidth: false) {
+                                    onDelete(shift.weekKey)
+                                    dismiss()
+                                }
+                            }
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
-                    Spacer()
+                    Spacer(minLength: 0)
                 }
                 .padding(tokens.spacing.lg)
                 .navigationTitle("Cambiar dia de reparto")
