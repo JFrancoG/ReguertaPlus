@@ -11,6 +11,7 @@ enum class ReguertaFirestoreCollection(val pathComponent: String) {
     DELIVERY_CALENDAR("plus-collections/deliveryCalendar"),
     SHARED_PROFILES("plus-collections/sharedProfiles"),
     SHIFTS("plus-collections/shifts"),
+    SHIFT_PLANNING_REQUESTS("plus-collections/shiftPlanningRequests"),
     SHIFT_SWAP_REQUESTS("plus-collections/shiftSwapRequests"),
     NEWS("plus-collections/news"),
     NOTIFICATION_EVENTS("plus-collections/notificationEvents"),

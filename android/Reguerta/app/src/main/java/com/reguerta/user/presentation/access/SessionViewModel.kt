@@ -35,6 +35,10 @@ import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.profiles.SharedProfileRepository
 import com.reguerta.user.domain.shifts.ShiftAssignment
 import com.reguerta.user.domain.shifts.ShiftRepository
+import com.reguerta.user.domain.shifts.ShiftPlanningRequest
+import com.reguerta.user.domain.shifts.ShiftPlanningRequestRepository
+import com.reguerta.user.domain.shifts.ShiftPlanningRequestStatus
+import com.reguerta.user.domain.shifts.ShiftPlanningRequestType
 import com.reguerta.user.domain.shifts.ShiftSwapRequest
 import com.reguerta.user.domain.shifts.ShiftSwapRequestRepository
 import com.reguerta.user.domain.shifts.ShiftSwapResponse
@@ -154,6 +158,7 @@ data class SessionUiState(
     val isLoadingShifts: Boolean = false,
     val isLoadingDeliveryCalendar: Boolean = false,
     val isSavingDeliveryCalendar: Boolean = false,
+    val isSubmittingShiftPlanningRequest: Boolean = false,
     val isSavingShiftSwapRequest: Boolean = false,
     val isUpdatingShiftSwapRequest: Boolean = false,
 )
@@ -181,6 +186,9 @@ class SessionViewModel(
     private val sharedProfileRepository: SharedProfileRepository,
     private val shiftRepository: ShiftRepository,
     private val deliveryCalendarRepository: DeliveryCalendarRepository,
+    private val shiftPlanningRequestRepository: ShiftPlanningRequestRepository = object : ShiftPlanningRequestRepository {
+        override suspend fun submitShiftPlanningRequest(request: ShiftPlanningRequest): ShiftPlanningRequest = request
+    },
     private val shiftSwapRequestRepository: ShiftSwapRequestRepository = object : ShiftSwapRequestRepository {
         override suspend fun getAllShiftSwapRequests(): List<ShiftSwapRequest> = emptyList()
         override suspend fun upsertShiftSwapRequest(request: ShiftSwapRequest): ShiftSwapRequest = request
@@ -584,6 +592,28 @@ class SessionViewModel(
                     isSavingDeliveryCalendar = false,
                 )
             }
+            onSuccess()
+        }
+    }
+
+    fun submitShiftPlanningRequest(
+        type: ShiftPlanningRequestType,
+        onSuccess: () -> Unit = {},
+    ) {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        if (!mode.member.isAdmin) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSubmittingShiftPlanningRequest = true) }
+            shiftPlanningRequestRepository.submitShiftPlanningRequest(
+                ShiftPlanningRequest(
+                    id = "",
+                    type = type,
+                    requestedByUserId = mode.member.id,
+                    requestedAtMillis = nowMillisProvider(),
+                    status = ShiftPlanningRequestStatus.REQUESTED,
+                ),
+            )
+            _uiState.update { it.copy(isSubmittingShiftPlanningRequest = false) }
             onSuccess()
         }
     }

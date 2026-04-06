@@ -25,6 +25,7 @@ struct ContentView: View {
     @State private var isDeliveryCalendarWeekPickerPresented = false
     @State private var selectedDeliveryCalendarWeekKey: String?
     @State private var isImpersonationExpanded = false
+    @State private var pendingShiftPlanningType: ShiftPlanningRequestType?
 
     private let startupVersionGateUseCase = ResolveStartupVersionGateUseCase(
         repository: FirestoreStartupVersionPolicyRepository()
@@ -2122,6 +2123,9 @@ struct ContentView: View {
                     Divider()
                         .overlay(tokens.colors.borderSubtle)
                     adminDeliveryCalendarSection(session: session)
+                    Divider()
+                        .overlay(tokens.colors.borderSubtle)
+                    adminShiftPlanningSection(session: session)
                 }
             }
         }
@@ -2198,6 +2202,57 @@ struct ContentView: View {
                 )
                 .presentationDetents([.medium, .large])
             }
+        }
+    }
+
+    @ViewBuilder
+    private func adminShiftPlanningSection(session: AuthorizedSession) -> some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+            Text("Planificacion de turnos")
+                .font(tokens.typography.titleCard)
+                .foregroundStyle(tokens.colors.textPrimary)
+            Text("Genera una temporada nueva con socios activos, escribe la hoja nueva y avisa a los socios asignados.")
+                .font(tokens.typography.bodySecondary)
+                .foregroundStyle(tokens.colors.textSecondary)
+            HStack(spacing: tokens.spacing.sm) {
+                ReguertaButton("Generar reparto", fullWidth: false) {
+                    pendingShiftPlanningType = .delivery
+                }
+                ReguertaButton("Generar mercado", fullWidth: false) {
+                    pendingShiftPlanningType = .market
+                }
+            }
+            .disabled(viewModel.isSubmittingShiftPlanningRequest)
+            if viewModel.isSubmittingShiftPlanningRequest {
+                Text("Enviando solicitud de planificacion…")
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.textSecondary)
+            }
+        }
+        .alert(
+            pendingShiftPlanningType == nil
+                ? ""
+                : "Generar turnos de \(pendingShiftPlanningType == .delivery ? "reparto" : "mercado")",
+            isPresented: Binding(
+                get: { pendingShiftPlanningType != nil },
+                set: { presented in
+                    if !presented {
+                        pendingShiftPlanningType = nil
+                    }
+                }
+            ),
+            presenting: pendingShiftPlanningType
+        ) { type in
+            Button("Cancelar", role: .cancel) {
+                pendingShiftPlanningType = nil
+            }
+            Button("Confirmar") {
+                viewModel.submitShiftPlanningRequest(type: type) {
+                    pendingShiftPlanningType = nil
+                }
+            }
+        } message: { _ in
+            Text("Se creara una planificacion nueva con socios activos, se escribira en la sheet de la temporada siguiente y se notificara a los socios asignados. Si vuelves a lanzarlo, se regenerara esa temporada.")
         }
     }
 

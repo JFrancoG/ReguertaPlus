@@ -59,6 +59,31 @@ Reglas MVP:
   (`source != google_sheets` y `status == confirmed`) y además crea una
   `notificationEvents` de tipo `shift_updated`.
 
+## 🗓️ Planificación manual de turnos activos
+
+`HU-017` añade una vía prudente para que un admin lance desde la app la
+planificación de la siguiente temporada sin automatizar todavía el proceso
+por cron.
+
+Flujo:
+- Android/iOS escriben una petición en
+  `{env}/plus-collections/shiftPlanningRequests/{requestId}`
+- El trigger Firestore `onShiftPlanningRequestCreated` genera la temporada
+  siguiente usando solo socios activos
+- Reparto:
+  - rota socios activos en orden aleatorio
+  - mantiene socios nuevos/reactivados al final
+  - deriva `helperUserId` a partir del siguiente turno
+- Mercado:
+  - garantiza al menos 3 socios por mes
+  - redistribuye sobrantes si un bloque final queda incompleto
+- La función escribe:
+  - `plus-collections/shifts`
+  - nuevas pestañas de Google Sheets con formato humano:
+    - `turnos-reparto YYYY-YY`
+    - `turnos-mercado YYYY-YY`
+- Finalmente crea una `notificationEvents` dirigida a los socios afectados.
+
 ### Contrato de hoja esperado
 
 Cada pestaña usa esta cabecera:
