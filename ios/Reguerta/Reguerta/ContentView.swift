@@ -1168,13 +1168,13 @@ struct ContentView: View {
     private func shiftBoardCard(_ shift: ShiftAssignment, currentMemberId: String?) -> some View {
         let leftColumnWidth = shift.type == .market ? 88.resize : 104.resize
         let leftAlignment: HorizontalAlignment = shift.type == .market ? .center : .leading
-        let canRequestSwap = currentMemberId.map { shift.canBeRequested(by: $0) } ?? false
+        let canRequestSwap = currentMemberId.map { canRequestSwapForShift(shift, currentMemberId: $0) } ?? false
         let highlightedIndex = currentMemberId.flatMap { shift.highlightedBoardNameIndex(for: $0) }
         return cardContainer {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 HStack(alignment: .top, spacing: tokens.spacing.md) {
                     VStack(alignment: leftAlignment, spacing: tokens.spacing.xs) {
-                        ForEach(Array(shift.leftBoardLines(tokens: tokens).enumerated()), id: \.offset) { _, line in
+                        ForEach(Array(shiftLeftBoardLines(shift).enumerated()), id: \.offset) { _, line in
                             Text(line.text)
                                 .font(line.font)
                                 .fontWeight(line.weight)
@@ -2134,8 +2134,8 @@ struct ContentView: View {
     @ViewBuilder
     private func adminDeliveryCalendarSection(session: AuthorizedSession) -> some View {
         let futureWeeks = viewModel.shiftsFeed
-            .filter { $0.type == .delivery && $0.dateMillis > Int64(Date().timeIntervalSince1970 * 1000) }
-            .sorted { $0.dateMillis < $1.dateMillis }
+            .filter { $0.type == .delivery && effectiveDateMillis(for: $0) > Int64(Date().timeIntervalSince1970 * 1000) }
+            .sorted { effectiveDateMillis(for: $0) < effectiveDateMillis(for: $1) }
             .uniqued { $0.weekKey }
         VStack(alignment: .leading, spacing: tokens.spacing.sm) {
             Text("Calendario de reparto")
@@ -2170,6 +2170,7 @@ struct ContentView: View {
         .sheet(isPresented: $isDeliveryCalendarWeekPickerPresented) {
             DeliveryCalendarWeekPickerSheet(
                 futureWeeks: futureWeeks,
+                overrides: viewModel.deliveryCalendarOverrides,
                 onSelectWeek: { weekKey in
                     selectedDeliveryCalendarWeekKey = weekKey
                     isDeliveryCalendarWeekPickerPresented = false
@@ -2289,14 +2290,17 @@ struct ContentView: View {
         @Environment(\.reguertaTokens) private var tokens
         @Environment(\.dismiss) private var dismiss
         let futureWeeks: [ShiftAssignment]
+        let overrides: [DeliveryCalendarOverride]
         let onSelectWeek: (String) -> Void
         @State private var selectedWeekKey: String
 
         init(
             futureWeeks: [ShiftAssignment],
+            overrides: [DeliveryCalendarOverride],
             onSelectWeek: @escaping (String) -> Void
         ) {
             self.futureWeeks = futureWeeks
+            self.overrides = overrides
             self.onSelectWeek = onSelectWeek
             _selectedWeekKey = State(initialValue: futureWeeks.first?.weekKey ?? "")
         }
@@ -2309,7 +2313,7 @@ struct ContentView: View {
                         .foregroundStyle(tokens.colors.textSecondary)
                     Picker("Semana", selection: $selectedWeekKey) {
                         ForEach(futureWeeks, id: \.weekKey) { shift in
-                            Text("\(shift.weekKey) · \(localizedDateOnly(shift.dateMillis))")
+                            Text("\(shift.weekKey) · \(effectiveDateLabel(for: shift))")
                                 .tag(shift.weekKey)
                         }
                     }
@@ -2323,7 +2327,7 @@ struct ContentView: View {
                             Text(selectedShift.weekKey)
                                 .font(tokens.typography.body.weight(.semibold))
                                 .foregroundStyle(tokens.colors.textPrimary)
-                            Text(localizedDateOnly(selectedShift.dateMillis))
+                            Text(effectiveDateLabel(for: selectedShift))
                                 .font(tokens.typography.label)
                                 .foregroundStyle(tokens.colors.textSecondary)
                         }
@@ -2359,6 +2363,11 @@ struct ContentView: View {
             formatter.locale = Locale(identifier: "es_ES")
             formatter.dateFormat = "d MMM yyyy"
             return formatter.string(from: Date(timeIntervalSince1970: TimeInterval(millis) / 1_000))
+        }
+
+        private func effectiveDateLabel(for shift: ShiftAssignment) -> String {
+            let effectiveMillis = overrides.first(where: { $0.weekKey == shift.weekKey })?.deliveryDateMillis ?? shift.dateMillis
+            return localizedDateOnly(effectiveMillis)
         }
     }
 
@@ -2406,7 +2415,7 @@ struct ContentView: View {
                         VStack(spacing: 4) {
                             Text(shift.weekKey)
                                 .font(tokens.typography.body.weight(.semibold))
-                            Text(localizedDateOnly(shift.dateMillis))
+                            Text(localizedDateOnly(overrideEntry?.deliveryDateMillis ?? shift.dateMillis))
                                 .font(tokens.typography.label)
                                 .foregroundStyle(tokens.colors.textSecondary)
                         }
@@ -2592,6 +2601,87 @@ struct ContentView: View {
         session.members.first(where: { $0.id == userId })?.displayName ?? userId
     }
 
+    private func deliveryOverride(for shift: ShiftAssignment) -> DeliveryCalendarOverride? {
+        guard shift.type == .delivery else { return nil }
+        return viewModel.deliveryCalendarOverrides.first(where: { $0.weekKey == shift.weekKey })
+    }
+
+    private func effectiveDateMillis(for shift: ShiftAssignment) -> Int64 {
+        deliveryOverride(for: shift)?.deliveryDateMillis ?? shift.dateMillis
+    }
+
+    private func effectiveDate(for shift: ShiftAssignment) -> Date {
+        Date(timeIntervalSince1970: TimeInterval(effectiveDateMillis(for: shift)) / 1_000)
+    }
+
+    private func localizedEffectiveDateTime(_ shift: ShiftAssignment) -> String {
+        localizedDateTime(effectiveDateMillis(for: shift))
+    }
+
+    private func localizedEffectiveDateOnly(_ shift: ShiftAssignment) -> String {
+        localizedDateOnly(effectiveDateMillis(for: shift))
+    }
+
+    private func shiftLeftBoardLines(_ shift: ShiftAssignment) -> [ShiftBoardLine] {
+        switch shift.type {
+        case .delivery:
+            return [
+                ShiftBoardLine(
+                    text: effectiveDateMillis(for: shift).isoWeekKey,
+                    font: tokens.typography.label,
+                    weight: .semibold,
+                    color: tokens.colors.textPrimary
+                ),
+                ShiftBoardLine(
+                    text: effectiveDate(for: shift).boardDateLabel,
+                    font: tokens.typography.bodySecondary,
+                    weight: .regular,
+                    color: tokens.colors.textSecondary
+                ),
+            ]
+        case .market:
+            let date = effectiveDate(for: shift)
+            let monthFormatter = DateFormatter()
+            monthFormatter.locale = Locale(identifier: "es_ES")
+            monthFormatter.dateFormat = "LLLL"
+            let weekdayFormatter = DateFormatter()
+            weekdayFormatter.locale = Locale(identifier: "es_ES")
+            weekdayFormatter.dateFormat = "EEEE"
+            return [
+                ShiftBoardLine(
+                    text: monthFormatter.string(from: date).capitalized,
+                    font: tokens.typography.bodySecondary,
+                    weight: .semibold,
+                    color: tokens.colors.textPrimary
+                ),
+                ShiftBoardLine(
+                    text: weekdayFormatter.string(from: date).capitalized,
+                    font: tokens.typography.label,
+                    weight: .regular,
+                    color: tokens.colors.textSecondary
+                ),
+                ShiftBoardLine(
+                    text: date.dayNumberLabel,
+                    font: tokens.typography.titleCard,
+                    weight: .semibold,
+                    color: tokens.colors.textPrimary
+                ),
+            ]
+        }
+    }
+
+    private func canRequestSwapForShift(_ shift: ShiftAssignment, currentMemberId: String) -> Bool {
+        let effectiveMillis = effectiveDateMillis(for: shift)
+        switch shift.type {
+        case .delivery:
+            return effectiveMillis > Int64(Date().timeIntervalSince1970 * 1_000) &&
+                shift.assignedUserIds.first == currentMemberId
+        case .market:
+            return effectiveMillis > Int64(Date().timeIntervalSince1970 * 1_000) &&
+                shift.assignedUserIds.contains(currentMemberId)
+        }
+    }
+
     private func memberNames(for userIds: [String]) -> String {
         guard let session = currentHomeSession else {
             return userIds.joined(separator: ", ")
@@ -2601,11 +2691,11 @@ struct ContentView: View {
     }
 
     private func shiftSummary(_ shift: ShiftAssignment) -> String {
-        "\(localizedDateTime(shift.dateMillis)) · \(memberNames(for: shift.assignedUserIds))"
+        "\(localizedEffectiveDateTime(shift)) · \(memberNames(for: shift.assignedUserIds))"
     }
 
     private func shiftSwapDisplayLabel(_ shift: ShiftAssignment, memberId: String?) -> String {
-        localizedDateOnly(shift.dateMillis)
+        localizedEffectiveDateOnly(shift)
     }
 
     private func displayNameForSwap(_ userId: String) -> String {
@@ -3291,6 +3381,14 @@ private extension DeliveryWeekday {
 }
 
 private extension Int64 {
+    var isoWeekKey: String {
+        let calendar = Calendar(identifier: .iso8601)
+        let date = Date(timeIntervalSince1970: TimeInterval(self) / 1_000)
+        let week = calendar.component(.weekOfYear, from: date)
+        let year = calendar.component(.yearForWeekOfYear, from: date)
+        return String(format: "%04d-W%02d", year, week)
+    }
+
     var deliveryWeekday: DeliveryWeekday {
         let weekday = Calendar.current.component(.weekday, from: Date(timeIntervalSince1970: TimeInterval(self) / 1_000))
         switch weekday {
@@ -3302,6 +3400,44 @@ private extension Int64 {
         case 7: return .saturday
         default: return .sunday
         }
+    }
+}
+
+private extension Date {
+    var boardDateLabel: String {
+        let weekdayFormatter = DateFormatter()
+        weekdayFormatter.locale = Locale(identifier: "es_ES")
+        weekdayFormatter.dateFormat = "EEE"
+        let weekday = weekdayFormatter.string(from: self)
+            .replacingOccurrences(of: ".", with: "")
+            .capitalized
+        return "\(weekday) \(dayNumberLabel) \(shortMonthLabel)"
+    }
+
+    var shortMonthLabel: String {
+        let month = Calendar(identifier: .iso8601).component(.month, from: self)
+        switch month {
+        case 1: return "ene"
+        case 2: return "feb"
+        case 3: return "mar"
+        case 4: return "abr"
+        case 5: return "may"
+        case 6: return "jun"
+        case 7: return "jul"
+        case 8: return "ago"
+        case 9: return "sep"
+        case 10: return "oct"
+        case 11: return "nov"
+        case 12: return "dic"
+        default: return ""
+        }
+    }
+
+    var dayNumberLabel: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "es_ES")
+        formatter.dateFormat = "d"
+        return formatter.string(from: self)
     }
 }
 

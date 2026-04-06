@@ -82,6 +82,9 @@ const usersCollection = (env: string) =>
 const plusUsersCollection = (env: string) =>
   firestore.collection(`${env}/plus-collections/users`);
 
+const deliveryCalendarCollection = (env: string) =>
+  firestore.collection(`${env}/plus-collections/deliveryCalendar`);
+
 const globalConfigDocRefs = (env: string) => [
   firestore.collection(`${env}/collections/config`).doc("global"),
   firestore.collection(`${env}/plus-collections/config`).doc("global"),
@@ -144,6 +147,8 @@ type VersionPolicy = {
   forceUpdate: boolean;
   storeUrl: string;
 };
+
+type DeliveryCalendarOverrideMap = Map<string, admin.firestore.Timestamp>;
 
 const VERSION_STRING_REGEX = /^\d+(?:\.\d+)*$/;
 const DEFAULT_VERSION_POLICY_ENVS = ["local", "develop", "production"];
@@ -1125,9 +1130,53 @@ const isoWeekNumber = (
   );
 };
 
+const timestampToIsoWeekKey = (
+  timestamp: admin.firestore.Timestamp,
+): string => {
+  const date = timestamp.toDate();
+  const utcDate = new Date(Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate(),
+  ));
+  const day = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - day);
+  const year = utcDate.getUTCFullYear();
+  const yearStart = new Date(Date.UTC(year, 0, 1));
+  const week = Math.ceil(
+    (((utcDate.getTime() - yearStart.getTime()) / 86400000) + 1) / 7
+  );
+  return `${year}-W${String(week).padStart(2, "0")}`;
+};
+
+const resolveEffectiveDeliveryDate = (
+  shift: FirestoreShiftRecord,
+  overrides: DeliveryCalendarOverrideMap,
+): admin.firestore.Timestamp => {
+  if (shift.type !== "delivery") {
+    return shift.date;
+  }
+  return overrides.get(timestampToIsoWeekKey(shift.date)) || shift.date;
+};
+
+const readDeliveryCalendarOverrideMap = async (
+  env: string,
+): Promise<DeliveryCalendarOverrideMap> => {
+  const snapshot = await deliveryCalendarCollection(env).get();
+  const overrides = new Map<string, admin.firestore.Timestamp>();
+  snapshot.docs.forEach((doc) => {
+    const deliveryDate = doc.get("deliveryDate");
+    if (deliveryDate instanceof admin.firestore.Timestamp) {
+      overrides.set(doc.id, deliveryDate);
+    }
+  });
+  return overrides;
+};
+
 const toDeliveryHumanRow = (
   shift: FirestoreShiftRecord,
   membersById: Map<string, MemberSheetRef>,
+  effectiveDate: admin.firestore.Timestamp,
   existingRow: string[] = [],
 ): string[] => {
   const responsible = shift.assignedUserIds
@@ -1135,12 +1184,12 @@ const toDeliveryHumanRow = (
     .find((value): value is MemberSheetRef => Boolean(value));
 
   return [
-    formatHumanShortDate(shift.date),
+    formatHumanShortDate(effectiveDate),
     responsible?.displayName || existingRow[1] || "",
     responsible?.phone || existingRow[2] || "",
     existingRow[3] || "",
     existingRow[4] || "",
-    `${isoWeekNumber(shift.date)}`,
+    `${isoWeekNumber(effectiveDate)}`,
   ];
 };
 
@@ -1183,6 +1232,7 @@ const upsertShiftRowInSheet = async (
   range: string,
   shift: FirestoreShiftRecord,
   membersById: Map<string, MemberSheetRef>,
+  deliveryOverrides: DeliveryCalendarOverrideMap,
 ): Promise<"updated" | "appended"> => {
   const valuesResponse = await sheets.spreadsheets.values.get({
     spreadsheetId,
@@ -1190,14 +1240,16 @@ const upsertShiftRowInSheet = async (
   });
   const rows = valuesResponse.data.values || [];
   const normalizedRows = rows.map((row) => row.map((cell) => `${cell}`));
+  const effectiveDate = resolveEffectiveDeliveryDate(shift, deliveryOverrides);
 
   if (shift.type === "delivery") {
+    const targetWeekKey = timestampToIsoWeekKey(effectiveDate);
     for (let rowOffset = 0; rowOffset < normalizedRows.length; rowOffset += 1) {
       const row = normalizedRows[rowOffset];
       const rowDate = parseDateInput(row[0]);
       if (
         rowDate &&
-        timestampToSheetDate(rowDate) === timestampToSheetDate(shift.date)
+        timestampToIsoWeekKey(rowDate) === targetWeekKey
       ) {
         const rowNumber = rowOffset + 1;
         await sheets.spreadsheets.values.update({
@@ -1205,7 +1257,9 @@ const upsertShiftRowInSheet = async (
           range: `${parseSheetName(range)}!A${rowNumber}:F${rowNumber}`,
           valueInputOption: "RAW",
           requestBody: {
-            values: [toDeliveryHumanRow(shift, membersById, row)],
+            values: [
+              toDeliveryHumanRow(shift, membersById, effectiveDate, row),
+            ],
           },
         });
         return "updated";
@@ -1219,8 +1273,8 @@ const upsertShiftRowInSheet = async (
       insertDataOption: "INSERT_ROWS",
       requestBody: {
         values: [
-          [formatHumanMonthHeading(shift.date)],
-          toDeliveryHumanRow(shift, membersById),
+          [formatHumanMonthHeading(effectiveDate)],
+          toDeliveryHumanRow(shift, membersById, effectiveDate),
         ],
       },
     });
@@ -1705,16 +1759,21 @@ const buildDeliverySheetValues = (
   shifts: FirestoreShiftRecord[],
   seasonLabel: string,
   membersById: Map<string, MemberSheetRef>,
+  deliveryOverrides: DeliveryCalendarOverrideMap,
 ): string[][] => {
   const rows: string[][] = [[`TURNOS REPARTO ${seasonLabel}`], []];
   let currentMonthHeading = "";
   shifts.forEach((shift) => {
-    const monthHeading = formatHumanMonthHeading(shift.date);
+    const effectiveDate = resolveEffectiveDeliveryDate(
+      shift,
+      deliveryOverrides,
+    );
+    const monthHeading = formatHumanMonthHeading(effectiveDate);
     if (monthHeading !== currentMonthHeading) {
       rows.push([monthHeading]);
       currentMonthHeading = monthHeading;
     }
-    rows.push(toDeliveryHumanRow(shift, membersById));
+    rows.push(toDeliveryHumanRow(shift, membersById, effectiveDate));
   });
   return rows;
 };
@@ -1863,10 +1922,11 @@ const exportAllShiftsToGoogleSheets = async (
     );
   }
 
-  const [sheets, membersById, shifts] = await Promise.all([
+  const [sheets, membersById, shifts, deliveryOverrides] = await Promise.all([
     getSheetsClient(),
     loadMembersById(env),
     readAllShifts(env),
+    readDeliveryCalendarOverrideMap(env),
   ]);
   let deliveryCount = 0;
   let marketCount = 0;
@@ -1880,6 +1940,7 @@ const exportAllShiftsToGoogleSheets = async (
         sheetConfig.deliveryRange,
       shift,
       membersById,
+      deliveryOverrides,
     );
     if (shift.type === "market") {
       marketCount += 1;
@@ -2109,16 +2170,22 @@ const processShiftPlanningRequest = async (
     throw new Error("Missing sheets configuration for shift planning.");
   }
 
-  const [sheets, membersById] = await Promise.all([
+  const [sheets, membersById, deliveryOverrides] = await Promise.all([
     getSheetsClient(),
     loadMembersById(env),
+    readDeliveryCalendarOverrideMap(env),
   ]);
 
   const sheetName = request.type === "delivery" ?
     buildDeliverySheetName(seasonLabel) :
     buildMarketSheetName(seasonLabel);
   const sheetValues = request.type === "delivery" ?
-    buildDeliverySheetValues(plannedShifts, seasonLabel, membersById) :
+    buildDeliverySheetValues(
+      plannedShifts,
+      seasonLabel,
+      membersById,
+      deliveryOverrides,
+    ) :
     buildMarketSheetValues(plannedShifts, seasonLabel, membersById);
 
   await updateWholeSheet(
@@ -2251,9 +2318,10 @@ export const onShiftWritten = onDocumentWritten(
           sheetConfig.deliveryRange
       );
 
-    const [sheets, membersById] = await Promise.all([
+    const [sheets, membersById, deliveryOverrides] = await Promise.all([
       getSheetsClient(),
       loadMembersById(env),
+      readDeliveryCalendarOverrideMap(env),
     ]);
 
     const result = await upsertShiftRowInSheet(
@@ -2262,6 +2330,7 @@ export const onShiftWritten = onDocumentWritten(
       targetRange,
       after,
       membersById,
+      deliveryOverrides,
     );
 
     await afterSnapshot.ref.set({
@@ -2281,6 +2350,32 @@ export const onShiftWritten = onDocumentWritten(
       exportMode: result,
       targetRange,
     });
+  }
+);
+
+export const onDeliveryCalendarOverrideWritten = onDocumentWritten(
+  "{env}/plus-collections/deliveryCalendar/{weekKey}",
+  async (event) => {
+    const env = event.params.env;
+    const weekKey = event.params.weekKey;
+
+    try {
+      const summary = await exportAllShiftsToGoogleSheets(env);
+      logger.info("✅ Delivery calendar override reflected in Google Sheets", {
+        env,
+        weekKey,
+        ...summary,
+      });
+    } catch (error) {
+      logger.error(
+        "❌ Failed to reflect delivery calendar override in Google Sheets",
+        {
+          env,
+          weekKey,
+          error,
+        },
+      );
+    }
   }
 );
 

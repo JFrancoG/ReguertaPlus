@@ -1260,6 +1260,7 @@ private fun HomeRoute(
                     NextShiftsCard(
                         nextDeliveryShift = nextDeliveryShift,
                         nextMarketShift = nextMarketShift,
+                        deliveryCalendarOverrides = deliveryCalendarOverrides,
                         isLoading = isLoadingShifts,
                         members = (mode as? SessionMode.Authorized)?.members.orEmpty(),
                         onViewAll = {
@@ -1388,6 +1389,7 @@ private fun HomeRoute(
                     dismissedShiftSwapRequestIds = dismissedShiftSwapRequestIds,
                     nextDeliveryShift = nextDeliveryShift,
                     nextMarketShift = nextMarketShift,
+                    deliveryCalendarOverrides = deliveryCalendarOverrides,
                     currentMember = member,
                     members = (mode as? SessionMode.Authorized)?.members.orEmpty(),
                     isLoading = isLoadingShifts,
@@ -1407,6 +1409,7 @@ private fun HomeRoute(
                 HomeDestination.SHIFT_SWAP_REQUEST -> ShiftSwapRequestRoute(
                     draft = shiftSwapDraft,
                     shifts = shiftsFeed,
+                    deliveryCalendarOverrides = deliveryCalendarOverrides,
                     members = (mode as? SessionMode.Authorized)?.members.orEmpty(),
                     isSaving = isSavingShiftSwapRequest,
                     onDraftChanged = onShiftSwapDraftChanged,
@@ -1736,6 +1739,7 @@ private fun HomeDrawerItem(
 private fun NextShiftsCard(
     nextDeliveryShift: ShiftAssignment?,
     nextMarketShift: ShiftAssignment?,
+    deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
     isLoading: Boolean,
     members: List<Member>,
     onViewAll: () -> Unit,
@@ -1767,11 +1771,13 @@ private fun NextShiftsCard(
                 ShiftSummaryRow(
                     label = stringResource(R.string.shifts_next_delivery),
                     shift = nextDeliveryShift,
+                    overrides = deliveryCalendarOverrides,
                     members = members,
                 )
                 ShiftSummaryRow(
                     label = stringResource(R.string.shifts_next_market),
                     shift = nextMarketShift,
+                    overrides = deliveryCalendarOverrides,
                     members = members,
                 )
             }
@@ -1786,6 +1792,7 @@ private fun NextShiftsCard(
 private fun ShiftSummaryRow(
     label: String,
     shift: ShiftAssignment?,
+    overrides: List<DeliveryCalendarOverride>,
     members: List<Member>,
 ) {
     Column(
@@ -1798,7 +1805,7 @@ private fun ShiftSummaryRow(
             color = MaterialTheme.colorScheme.primary,
         )
         Text(
-            text = shift?.toSummaryLine(members).orEmpty().ifBlank {
+            text = shift?.toSummaryLine(members, overrides).orEmpty().ifBlank {
                 stringResource(R.string.shifts_next_pending)
             },
             style = MaterialTheme.typography.bodyMedium,
@@ -1813,6 +1820,7 @@ private fun ShiftsRoute(
     dismissedShiftSwapRequestIds: Set<String>,
     nextDeliveryShift: ShiftAssignment?,
     nextMarketShift: ShiftAssignment?,
+    deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
     currentMember: Member?,
     members: List<Member>,
     isLoading: Boolean,
@@ -1862,6 +1870,7 @@ private fun ShiftsRoute(
         NextShiftsCard(
             nextDeliveryShift = nextDeliveryShift,
             nextMarketShift = nextMarketShift,
+            deliveryCalendarOverrides = deliveryCalendarOverrides,
             isLoading = isLoading,
             members = members,
             onViewAll = onRefresh,
@@ -1871,6 +1880,7 @@ private fun ShiftsRoute(
             requests = shiftSwapRequests,
             dismissedRequestIds = dismissedShiftSwapRequestIds,
             shifts = shifts,
+            deliveryCalendarOverrides = deliveryCalendarOverrides,
             members = members,
             currentMemberId = currentMember?.id,
             selectedSegment = selectedSegment,
@@ -1918,6 +1928,7 @@ private fun ShiftsRoute(
                 boardShifts.forEach { shift ->
                     ShiftBoardCard(
                         shift = shift,
+                        deliveryCalendarOverrides = deliveryCalendarOverrides,
                         members = members,
                         currentMemberId = currentMember?.id,
                         onRequestShiftSwap = onRequestShiftSwap,
@@ -1973,15 +1984,16 @@ private fun ShiftBoardSegmentSelector(
 @Composable
 private fun ShiftBoardCard(
     shift: ShiftAssignment,
+    deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
     members: List<Member>,
     currentMemberId: String?,
     onRequestShiftSwap: (String) -> Unit,
 ) {
     val primaryNames = shift.primaryBoardNames(members)
-    val leftLines = shift.leftBoardLines()
+    val leftLines = shift.leftBoardLines(deliveryCalendarOverrides)
     val leftAlignment = if (shift.type == ShiftType.MARKET) Alignment.CenterHorizontally else Alignment.Start
-    val canRequestShiftSwap = remember(shift, currentMemberId) {
-        currentMemberId != null && shift.canBeRequestedBy(currentMemberId)
+    val canRequestShiftSwap = remember(shift, currentMemberId, deliveryCalendarOverrides) {
+        currentMemberId != null && shift.canBeRequestedBy(currentMemberId, deliveryCalendarOverrides)
     }
     val highlightedIndex = remember(shift, currentMemberId) {
         currentMemberId?.let { shift.highlightedBoardNameIndex(it) }
@@ -2074,6 +2086,7 @@ private fun ShiftSwapRequestsCard(
     requests: List<ShiftSwapRequest>,
     dismissedRequestIds: Set<String>,
     shifts: List<ShiftAssignment>,
+    deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
     members: List<Member>,
     currentMemberId: String?,
     selectedSegment: ShiftBoardSegment,
@@ -2145,6 +2158,7 @@ private fun ShiftSwapRequestsCard(
                     title = stringResource(R.string.shift_swap_requests_incoming),
                     pendingCandidates = incoming,
                     shifts = shifts,
+                    deliveryCalendarOverrides = deliveryCalendarOverrides,
                     members = members,
                     isUpdating = isUpdating,
                     onAccept = onAccept,
@@ -2157,6 +2171,7 @@ private fun ShiftSwapRequestsCard(
                     title = stringResource(R.string.shift_swap_requests_responses),
                     responseOptions = availableResponses,
                     shifts = shifts,
+                    deliveryCalendarOverrides = deliveryCalendarOverrides,
                     members = members,
                     isUpdating = isUpdating,
                     onConfirm = onConfirm,
@@ -2168,6 +2183,7 @@ private fun ShiftSwapRequestsCard(
                     title = stringResource(R.string.shift_swap_requests_outgoing),
                     requests = waiting,
                     shifts = shifts,
+                    deliveryCalendarOverrides = deliveryCalendarOverrides,
                     members = members,
                     onCancel = onCancel,
                 )
@@ -2178,6 +2194,7 @@ private fun ShiftSwapRequestsCard(
                     title = stringResource(R.string.shift_swap_requests_history),
                     requests = history,
                     shifts = shifts,
+                    deliveryCalendarOverrides = deliveryCalendarOverrides,
                     members = members,
                     onDismissRequest = onDismissRequest,
                 )
@@ -2191,6 +2208,7 @@ private fun IncomingShiftSwapSection(
     title: String,
     pendingCandidates: List<Pair<ShiftSwapRequest, com.reguerta.user.domain.shifts.ShiftSwapCandidate>>,
     shifts: List<ShiftAssignment>,
+    deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
     members: List<Member>,
     isUpdating: Boolean,
     onAccept: (String, String) -> Unit,
@@ -2224,14 +2242,14 @@ private fun IncomingShiftSwapSection(
                     Text(
                         text = stringResource(
                             R.string.shift_swap_request_shift_format,
-                            requestedShift?.toShiftSwapDisplayLabel(request.requesterUserId).orEmpty().ifBlank { request.requestedShiftId },
+                            requestedShift?.toShiftSwapDisplayLabel(request.requesterUserId, deliveryCalendarOverrides).orEmpty().ifBlank { request.requestedShiftId },
                         ),
                         style = MaterialTheme.typography.bodySmall,
                     )
                     Text(
                         text = stringResource(
                             R.string.shift_swap_request_offer_shift_format,
-                            candidateShift?.toShiftSwapDisplayLabel(candidate.userId).orEmpty().ifBlank { candidate.shiftId },
+                            candidateShift?.toShiftSwapDisplayLabel(candidate.userId, deliveryCalendarOverrides).orEmpty().ifBlank { candidate.shiftId },
                         ),
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -2269,6 +2287,7 @@ private fun RequesterResponsesSection(
     title: String,
     responseOptions: List<Triple<ShiftSwapRequest, com.reguerta.user.domain.shifts.ShiftSwapCandidate, com.reguerta.user.domain.shifts.ShiftSwapResponse>>,
     shifts: List<ShiftAssignment>,
+    deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
     members: List<Member>,
     isUpdating: Boolean,
     onConfirm: (String, String) -> Unit,
@@ -2298,8 +2317,8 @@ private fun RequesterResponsesSection(
                     Text(
                         text = stringResource(
                             R.string.shift_swap_request_confirm_before_after_format,
-                            requestedShift?.toShiftSwapDisplayLabel(request.requesterUserId).orEmpty().ifBlank { request.requestedShiftId },
-                            candidateShift?.toShiftSwapDisplayLabel(candidate.userId).orEmpty().ifBlank { candidate.shiftId },
+                            requestedShift?.toShiftSwapDisplayLabel(request.requesterUserId, deliveryCalendarOverrides).orEmpty().ifBlank { request.requestedShiftId },
+                            candidateShift?.toShiftSwapDisplayLabel(candidate.userId, deliveryCalendarOverrides).orEmpty().ifBlank { candidate.shiftId },
                         ),
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -2321,6 +2340,7 @@ private fun WaitingShiftSwapSection(
     title: String,
     requests: List<ShiftSwapRequest>,
     shifts: List<ShiftAssignment>,
+    deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
     members: List<Member>,
     onCancel: (String) -> Unit,
 ) {
@@ -2341,7 +2361,7 @@ private fun WaitingShiftSwapSection(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(
-                        text = requestedShift?.toShiftSwapDisplayLabel(request.requesterUserId) ?: request.requestedShiftId,
+                        text = requestedShift?.toShiftSwapDisplayLabel(request.requesterUserId, deliveryCalendarOverrides) ?: request.requestedShiftId,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -2367,6 +2387,7 @@ private fun HistoryShiftSwapSection(
     title: String,
     requests: List<ShiftSwapRequest>,
     shifts: List<ShiftAssignment>,
+    deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
     members: List<Member>,
     onDismissRequest: (String) -> Unit,
 ) {
@@ -2381,6 +2402,7 @@ private fun HistoryShiftSwapSection(
             ShiftSwapRequestHistoryItem(
                 request = request,
                 shift = shifts.firstOrNull { it.id == request.requestedShiftId },
+                deliveryCalendarOverrides = deliveryCalendarOverrides,
                 members = members,
                 onDismiss = onDismissRequest,
             )
@@ -2392,6 +2414,7 @@ private fun HistoryShiftSwapSection(
 private fun ShiftSwapRequestHistoryItem(
     request: ShiftSwapRequest,
     shift: ShiftAssignment?,
+    deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
     members: List<Member>,
     onDismiss: (String) -> Unit,
 ) {
@@ -2403,7 +2426,7 @@ private fun ShiftSwapRequestHistoryItem(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                text = shift?.toShiftSwapDisplayLabel(request.requesterUserId) ?: request.requestedShiftId,
+                text = shift?.toShiftSwapDisplayLabel(request.requesterUserId, deliveryCalendarOverrides) ?: request.requestedShiftId,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -2452,6 +2475,7 @@ private fun ShiftSwapRequestHistoryItem(
 private fun ShiftSwapRequestRoute(
     draft: ShiftSwapDraft,
     shifts: List<ShiftAssignment>,
+    deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
     members: List<Member>,
     isSaving: Boolean,
     onDraftChanged: (ShiftSwapDraft) -> Unit,
@@ -2480,9 +2504,12 @@ private fun ShiftSwapRequestRoute(
             Text(
                 text = stringResource(
                     R.string.shift_swap_request_shift_format,
-                    shift?.toShiftSwapDisplayLabel(
-                        shift.assignedUserIds.firstOrNull() ?: shift.helperUserId,
-                    ).orEmpty().ifBlank { draft.shiftId },
+                    shift?.let {
+                        it.toShiftSwapDisplayLabel(
+                            it.assignedUserIds.firstOrNull() ?: it.helperUserId,
+                            deliveryCalendarOverrides,
+                        )
+                    }.orEmpty().ifBlank { draft.shiftId },
                 ),
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -3123,9 +3150,9 @@ private fun AdminDeliveryCalendarSection(
     onSaveOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
     onDeleteOverride: (String, onSuccess: () -> Unit) -> Unit,
 ) {
-    val futureWeeks = remember(shifts) {
-        shifts.filter { it.type == ShiftType.DELIVERY && it.dateMillis > System.currentTimeMillis() }
-            .sortedBy { it.dateMillis }
+    val futureWeeks = remember(shifts, overrides) {
+        shifts.filter { it.type == ShiftType.DELIVERY && it.effectiveDateMillis(overrides) > System.currentTimeMillis() }
+            .sortedBy { it.effectiveDateMillis(overrides) }
             .distinctBy { it.dateMillis.toWeekKey() }
     }
     var isPickerVisible by rememberSaveable { mutableStateOf(false) }
@@ -3171,6 +3198,7 @@ private fun AdminDeliveryCalendarSection(
         if (isPickerVisible) {
             DeliveryCalendarWeekPickerDialog(
                 futureWeeks = futureWeeks,
+                overrides = overrides,
                 onDismiss = { isPickerVisible = false },
                 onSelectWeek = { weekKey ->
                     selectedWeekKey = weekKey
@@ -3267,6 +3295,7 @@ private fun AdminShiftPlanningSection(
 @Composable
 private fun DeliveryCalendarWeekPickerDialog(
     futureWeeks: List<ShiftAssignment>,
+    overrides: List<DeliveryCalendarOverride>,
     onDismiss: () -> Unit,
     onSelectWeek: (String) -> Unit,
 ) {
@@ -3301,7 +3330,7 @@ private fun DeliveryCalendarWeekPickerDialog(
             ) {
                 OutlinedTextField(
                     value = selectedShift?.let {
-                        "${it.dateMillis.toWeekKey()} · ${it.dateMillis.toLocalizedDateOnly()}"
+                        "${it.dateMillis.toWeekKey()} · ${it.effectiveDateMillis(overrides).toLocalizedDateOnly()}"
                     }.orEmpty(),
                     onValueChange = {},
                     readOnly = true,
@@ -3321,7 +3350,7 @@ private fun DeliveryCalendarWeekPickerDialog(
                         val weekKey = shift.dateMillis.toWeekKey()
                         DropdownMenuItem(
                             text = {
-                                Text("${weekKey} · ${shift.dateMillis.toLocalizedDateOnly()}")
+                                Text("${weekKey} · ${shift.effectiveDateMillis(overrides).toLocalizedDateOnly()}")
                             },
                             onClick = {
                                 selectedWeekKey = weekKey
@@ -3345,7 +3374,7 @@ private fun DeliveryCalendarWeekPickerDialog(
                             fontWeight = FontWeight.SemiBold,
                         )
                         Text(
-                            text = shift.dateMillis.toLocalizedDateOnly(),
+                            text = shift.effectiveDateMillis(overrides).toLocalizedDateOnly(),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -3403,7 +3432,7 @@ private fun DeliveryCalendarOverrideDialog(
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = selectedShift.dateMillis.toLocalizedDateOnly(),
+                    text = (override?.deliveryDateMillis ?: selectedShift.dateMillis).toLocalizedDateOnly(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -3868,16 +3897,25 @@ private fun ShiftStatus.labelRes(): Int = when (this) {
     ShiftStatus.CONFIRMED -> R.string.shifts_status_confirmed
 }
 
-private fun ShiftAssignment.toSummaryLine(members: List<Member>): String =
-    "${dateMillis.toLocalizedDateTime()} · ${assignedUserIds.toMemberNames(members)}"
+private fun ShiftAssignment.effectiveDateMillis(overrides: List<DeliveryCalendarOverride>): Long =
+    if (type == ShiftType.DELIVERY) {
+        overrides.firstOrNull { it.weekKey == dateMillis.toWeekKey() }?.deliveryDateMillis ?: dateMillis
+    } else {
+        dateMillis
+    }
+
+private fun ShiftAssignment.toSummaryLine(
+    members: List<Member>,
+    overrides: List<DeliveryCalendarOverride>,
+): String = "${effectiveDateMillis(overrides).toLocalizedDateTime()} · ${assignedUserIds.toMemberNames(members)}"
 
 @Composable
-private fun ShiftAssignment.leftBoardLines(): List<ShiftBoardLine> = when (type) {
+private fun ShiftAssignment.leftBoardLines(overrides: List<DeliveryCalendarOverride>): List<ShiftBoardLine> = when (type) {
     ShiftType.DELIVERY -> {
-        val localDate = dateMillis.toLocalDate()
+        val localDate = effectiveDateMillis(overrides).toLocalDate()
         listOf(
             ShiftBoardLine(
-                text = dateMillis.toWeekKey(),
+                text = effectiveDateMillis(overrides).toWeekKey(),
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -3889,7 +3927,7 @@ private fun ShiftAssignment.leftBoardLines(): List<ShiftBoardLine> = when (type)
         )
     }
     ShiftType.MARKET -> {
-        val localDate = dateMillis.toLocalDate()
+        val localDate = effectiveDateMillis(overrides).toLocalDate()
         listOf(
             ShiftBoardLine(
                 text = localDate.toSpanishMonthLabel(),
@@ -3927,10 +3965,13 @@ private fun ShiftAssignment.primaryBoardNames(members: List<Member>): List<Strin
         }
 }
 
-private fun ShiftAssignment.canBeRequestedBy(currentMemberId: String): Boolean = when (type) {
-    ShiftType.DELIVERY -> dateMillis > System.currentTimeMillis() &&
+private fun ShiftAssignment.canBeRequestedBy(
+    currentMemberId: String,
+    overrides: List<DeliveryCalendarOverride>,
+): Boolean = when (type) {
+    ShiftType.DELIVERY -> effectiveDateMillis(overrides) > System.currentTimeMillis() &&
         assignedUserIds.firstOrNull() == currentMemberId
-    ShiftType.MARKET -> dateMillis > System.currentTimeMillis() &&
+    ShiftType.MARKET -> effectiveDateMillis(overrides) > System.currentTimeMillis() &&
         assignedUserIds.contains(currentMemberId)
 }
 
@@ -4574,9 +4615,10 @@ private fun Long.toLocalizedDateTime(): String =
 private fun Long.toLocalizedDateOnly(): String =
     java.text.SimpleDateFormat("d MMM yyyy", Locale.forLanguageTag("es-ES")).format(java.util.Date(this))
 
-private fun ShiftAssignment.toShiftSwapDisplayLabel(memberId: String?): String {
-    return dateMillis.toLocalizedDateOnly()
-}
+private fun ShiftAssignment.toShiftSwapDisplayLabel(
+    memberId: String?,
+    overrides: List<DeliveryCalendarOverride>,
+): String = effectiveDateMillis(overrides).toLocalizedDateOnly()
 
 private fun Long.toDeliveryWeekday(): DeliveryWeekday =
     when (toLocalDate().dayOfWeek) {
