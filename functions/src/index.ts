@@ -429,6 +429,30 @@ type FirestoreShiftRecord = {
   helperUserId: string | null;
   status: ShiftStatus;
   source: string;
+  syncSheetName: string | null;
+};
+
+type ShiftPlanningRequestType = "delivery" | "market";
+
+type ShiftPlanningRequestStatus =
+  "requested" |
+  "processing" |
+  "completed" |
+  "failed";
+
+type ShiftPlanningRequestRecord = {
+  id: string;
+  type: ShiftPlanningRequestType;
+  requestedByUserId: string;
+  requestedAt: admin.firestore.Timestamp;
+  status: ShiftPlanningRequestStatus;
+};
+
+type PlanningMemberRef = MemberSheetRef & {
+  roles: string[];
+  producerCatalogEnabled: boolean;
+  createdAtMillis: number;
+  updatedAtMillis: number;
 };
 
 const SHIFT_NOTIFICATION_TYPE = "shift_updated";
@@ -610,11 +634,15 @@ const parseDateInput = (value: unknown): admin.firestore.Timestamp | null => {
     .trim()
     .toLowerCase()
     .replace(/\s+/g, " ");
+  const normalizedHumanDate = normalizedText.replace(/\s+de\s+/g, " ");
   const dayMonthNameYear = normalizedText.match(
     /^(\d{1,2})\s+([a-záéíóúñ]+)\s+(\d{4})$/i
   );
-  if (dayMonthNameYear) {
-    const [, day, monthName, year] = dayMonthNameYear;
+  const humanDateMatch = dayMonthNameYear || normalizedHumanDate.match(
+    /^(\d{1,2})\s+([a-záéíóúñ]+)\s+(\d{4})$/i
+  );
+  if (humanDateMatch) {
+    const [, day, monthName, year] = humanDateMatch;
     const monthIndex = MONTH_INDEX_BY_NAME[monthName];
     if (monthIndex !== undefined) {
       const millis = Date.UTC(Number(year), monthIndex, Number(day));
@@ -1045,6 +1073,7 @@ const toShiftRecord = (
     helperUserId: parseString(snapshot.get("helperUserId")),
     status,
     source: parseString(snapshot.get("source")) || "app",
+    syncSheetName: parseString(snapshot.get("syncMeta.sheetName")),
   };
 };
 
@@ -1115,24 +1144,38 @@ const toDeliveryHumanRow = (
   ];
 };
 
-const toMarketHumanParticipantRows = (
+const toMarketHumanLeadRow = (
+  shift: FirestoreShiftRecord,
+  membersById: Map<string, MemberSheetRef>,
+  existingRow: string[] = [],
+): string[] => {
+  const leadMember = shift.assignedUserIds[0] ?
+    membersById.get(shift.assignedUserIds[0]) :
+    null;
+
+  return [
+    leadMember?.displayName || existingRow[0] || "",
+    existingRow[1] || "",
+    existingRow[2] || "",
+  ];
+};
+
+const toMarketHumanSupportRows = (
   shift: FirestoreShiftRecord,
   membersById: Map<string, MemberSheetRef>,
   existingRows: string[][] = [],
 ): string[][] =>
-  Array.from({length: Math.max(3, shift.assignedUserIds.length)}).map(
-    (_, index) => {
-      const member = shift.assignedUserIds[index] ?
-        membersById.get(shift.assignedUserIds[index]) :
-        null;
-      const existingRow = existingRows[index] || [];
-      return [
-        member?.displayName || existingRow[0] || "",
-        member?.phone || existingRow[1] || "",
-        existingRow[2] || "",
-      ];
-    }
-  );
+  Array.from({length: 4}).map((_, index) => {
+    const member = shift.assignedUserIds[index + 1] ?
+      membersById.get(shift.assignedUserIds[index + 1]) :
+      null;
+    const existingRow = existingRows[index] || [];
+    return [
+      member?.displayName || existingRow[0] || "",
+      member?.phone || existingRow[1] || "",
+      existingRow[2] || "",
+    ];
+  });
 
 const upsertShiftRowInSheet = async (
   sheets: Awaited<ReturnType<typeof getSheetsClient>>,
@@ -1178,7 +1221,6 @@ const upsertShiftRowInSheet = async (
         values: [
           [formatHumanMonthHeading(shift.date)],
           toDeliveryHumanRow(shift, membersById),
-          [""],
         ],
       },
     });
@@ -1193,24 +1235,34 @@ const upsertShiftRowInSheet = async (
       timestampToSheetDate(rowDate) === timestampToSheetDate(shift.date)
     ) {
       const dateRowNumber = rowOffset + 1;
-      const existingParticipantRows = normalizedRows.slice(
-        rowOffset + 1,
-        rowOffset + 4,
+      const existingLeadRow = normalizedRows[rowOffset + 1] || [];
+      const existingSupportRows = normalizedRows.slice(
+        rowOffset + 2,
+        rowOffset + 6,
       );
-      const participantRows = toMarketHumanParticipantRows(
+      const leadRow = toMarketHumanLeadRow(
         shift,
         membersById,
-        existingParticipantRows,
+        existingLeadRow,
+      );
+      const supportRows = toMarketHumanSupportRows(
+        shift,
+        membersById,
+        existingSupportRows,
       );
 
       await sheets.spreadsheets.values.update({
         spreadsheetId,
         range:
           `${parseSheetName(range)}!A${dateRowNumber}:` +
-          `C${dateRowNumber + participantRows.length}`,
+          `C${dateRowNumber + 5}`,
         valueInputOption: "RAW",
         requestBody: {
-          values: [[formatHumanLongDate(shift.date)], ...participantRows],
+          values: [
+            [formatHumanLongDate(shift.date)],
+            leadRow,
+            ...supportRows,
+          ],
         },
       });
       return "updated";
@@ -1225,8 +1277,8 @@ const upsertShiftRowInSheet = async (
     requestBody: {
       values: [
         [formatHumanLongDate(shift.date)],
-        ...toMarketHumanParticipantRows(shift, membersById),
-        [""],
+        toMarketHumanLeadRow(shift, membersById),
+        ...toMarketHumanSupportRows(shift, membersById),
       ],
     },
   });
@@ -1242,6 +1294,509 @@ const loadMembersById = async (
     membersById.set(value.id, value);
   });
   return membersById;
+};
+
+const isShiftPlanningRequestType = (
+  value: string,
+): value is ShiftPlanningRequestType =>
+  value === "delivery" || value === "market";
+
+const parseShiftPlanningRequest = (
+  snapshot: admin.firestore.DocumentSnapshot,
+): ShiftPlanningRequestRecord | null => {
+  if (!snapshot.exists) {
+    return null;
+  }
+
+  const type = parseString(snapshot.get("type"))?.toLowerCase();
+  const requestedByUserId = parseString(snapshot.get("requestedByUserId"));
+  const requestedAt = snapshot.get("requestedAt");
+  const status = parseString(snapshot.get("status"))?.toLowerCase() as
+    ShiftPlanningRequestStatus | undefined;
+
+  if (
+    !type ||
+    !isShiftPlanningRequestType(type) ||
+    !requestedByUserId ||
+    !(requestedAt instanceof admin.firestore.Timestamp) ||
+    !status
+  ) {
+    return null;
+  }
+
+  return {
+    id: snapshot.id,
+    type,
+    requestedByUserId,
+    requestedAt,
+    status,
+  };
+};
+
+const targetSeasonStartYearFromNow = (): number => {
+  const now = new Date();
+  const utcYear = now.getUTCFullYear();
+  const utcMonth = now.getUTCMonth() + 1;
+  return utcMonth >= 9 ? utcYear + 1 : utcYear;
+};
+
+const buildSeasonLabel = (seasonStartYear: number): string =>
+  `${seasonStartYear}-${`${(seasonStartYear + 1) % 100}`.padStart(2, "0")}`;
+
+const buildDeliverySheetName = (seasonLabel: string): string =>
+  `turnos-reparto ${seasonLabel}`;
+
+const buildMarketSheetName = (seasonLabel: string): string =>
+  `turnos-mercado ${seasonLabel}`;
+
+const shiftTypeLabelEs = (type: ShiftPlanningRequestType): string =>
+  type === "delivery" ? "reparto" : "mercadillo";
+
+const normalizeWeekdayWireValue = (value: string | null): string =>
+  (value || "WED").trim().toUpperCase();
+
+const weekdayWireValueToUtcDay = (value: string | null): number => {
+  switch (normalizeWeekdayWireValue(value)) {
+  case "MON":
+    return 1;
+  case "TUE":
+    return 2;
+  case "WED":
+    return 3;
+  case "THU":
+    return 4;
+  case "FRI":
+    return 5;
+  case "SAT":
+    return 6;
+  case "SUN":
+    return 0;
+  default:
+    return 3;
+  }
+};
+
+const addUtcDays = (date: Date, days: number): Date => {
+  const result = new Date(date.getTime());
+  result.setUTCDate(result.getUTCDate() + days);
+  return result;
+};
+
+const timestampFromUtcDate = (date: Date): admin.firestore.Timestamp =>
+  admin.firestore.Timestamp.fromDate(new Date(Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate(),
+  )));
+
+const getDefaultDeliveryDayWireValue = async (
+  env: string,
+): Promise<string> => {
+  for (const ref of globalConfigDocRefs(env)) {
+    const snapshot = await ref.get();
+    if (!snapshot.exists) {
+      continue;
+    }
+    const topLevel = parseString(snapshot.get("deliveryDayOfWeek"));
+    if (topLevel) {
+      return normalizeWeekdayWireValue(topLevel);
+    }
+    const deliveryCalendar = parseBody(snapshot.get("deliveryCalendar"));
+    const nested = parseString(deliveryCalendar.deliveryDayOfWeek);
+    if (nested) {
+      return normalizeWeekdayWireValue(nested);
+    }
+  }
+  return "WED";
+};
+
+const listActivePlanningMembers = async (
+  env: string,
+): Promise<PlanningMemberRef[]> => {
+  const snapshot = await plusUsersCollection(env)
+    .where("isActive", "==", true)
+    .get();
+
+  return snapshot.docs
+    .map((doc) => {
+      const createdAt = doc.get("createdAt");
+      const updatedAt = doc.get("updatedAt");
+      return {
+        id: doc.id,
+        displayName: parseString(doc.get("displayName")) || doc.id,
+        normalizedEmail:
+          parseString(doc.get("normalizedEmail")) ||
+          parseString(doc.get("emailNormalized")) ||
+          "",
+        phone: parseString(doc.get("phone")),
+        roles: parseRoles(doc.get("roles")),
+        producerCatalogEnabled:
+          doc.get("producerCatalogEnabled") !== false,
+        createdAtMillis: createdAt instanceof admin.firestore.Timestamp ?
+          createdAt.toMillis() :
+          0,
+        updatedAtMillis: updatedAt instanceof admin.firestore.Timestamp ?
+          updatedAt.toMillis() :
+          0,
+      };
+    })
+    .filter((member) =>
+      !(member.roles.includes("producer") && member.producerCatalogEnabled)
+    );
+};
+
+const shuffleArray = <T>(values: T[]): T[] => {
+  const copy = [...values];
+  for (let index = copy.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
+  }
+  return copy;
+};
+
+const buildPlanningRoster = (
+  activeMembers: PlanningMemberRef[],
+  existingRotationUserIds: string[],
+): PlanningMemberRef[] => {
+  const activeById = new Map(
+    activeMembers.map((member) => [member.id, member]),
+  );
+  const knownMembers = existingRotationUserIds
+    .map((userId) => activeById.get(userId))
+    .filter((member): member is PlanningMemberRef => Boolean(member));
+  const knownIds = new Set(knownMembers.map((member) => member.id));
+  const appendedMembers = activeMembers
+    .filter((member) => !knownIds.has(member.id))
+    .sort((left, right) =>
+      left.displayName.localeCompare(right.displayName, "es", {
+        sensitivity: "base",
+      })
+    );
+
+  if (knownMembers.length === 0) {
+    return shuffleArray(activeMembers);
+  }
+
+  const shuffledKnown = shuffleArray(knownMembers);
+  const roster = [...shuffledKnown, ...appendedMembers];
+  return roster;
+};
+
+const existingRotationUserIdsForType = (
+  shifts: FirestoreShiftRecord[],
+  type: ShiftPlanningRequestType,
+): string[] => {
+  const orderedIds = shifts
+    .filter((shift) => shift.type === type)
+    .sort((left, right) => left.date.toMillis() - right.date.toMillis())
+    .flatMap((shift) => shift.assignedUserIds);
+  return Array.from(new Set(orderedIds));
+};
+
+const buildDeliverySeasonDates = (
+  seasonStartYear: number,
+  deliveryWeekdayWireValue: string,
+): admin.firestore.Timestamp[] => {
+  const start = new Date(Date.UTC(seasonStartYear, 8, 1));
+  const end = new Date(Date.UTC(seasonStartYear + 1, 5, 30));
+  const targetDay = weekdayWireValueToUtcDay(deliveryWeekdayWireValue);
+  const offset = (targetDay - start.getUTCDay() + 7) % 7;
+  const firstDate = addUtcDays(start, offset);
+  const results: admin.firestore.Timestamp[] = [];
+
+  for (
+    let current = firstDate;
+    current.getTime() <= end.getTime();
+    current = addUtcDays(current, 7)
+  ) {
+    results.push(timestampFromUtcDate(current));
+  }
+
+  return results;
+};
+
+const thirdSaturdayOfMonth = (
+  year: number,
+  monthIndex: number,
+): admin.firestore.Timestamp => {
+  const firstDay = new Date(Date.UTC(year, monthIndex, 1));
+  const firstSaturdayOffset = (6 - firstDay.getUTCDay() + 7) % 7;
+  const thirdSaturday = addUtcDays(firstDay, firstSaturdayOffset + 14);
+  return timestampFromUtcDate(thirdSaturday);
+};
+
+const buildMarketSeasonDates = (
+  seasonStartYear: number,
+): admin.firestore.Timestamp[] => {
+  const months = [8, 9, 10, 11, 0, 1, 2, 3, 4, 5];
+  return months.map((monthIndex) => {
+    const year = monthIndex >= 8 ? seasonStartYear : seasonStartYear + 1;
+    return thirdSaturdayOfMonth(year, monthIndex);
+  });
+};
+
+const ensureMinimumGroupSize = (
+  groups: string[][],
+  minimum: number,
+): string[][] => {
+  const normalized = groups.map((group) => [...group]);
+  while (
+    normalized.length > 1 &&
+    normalized[normalized.length - 1].length > 0 &&
+    normalized[normalized.length - 1].length < minimum
+  ) {
+    const leftovers = normalized.pop() || [];
+    leftovers.forEach((userId) => {
+      const index = Math.floor(Math.random() * normalized.length);
+      normalized[index].push(userId);
+    });
+  }
+  return normalized;
+};
+
+const buildMarketGroups = (
+  activeMembers: PlanningMemberRef[],
+  monthsCount: number,
+): string[][] => {
+  if (activeMembers.length === 0) {
+    return [];
+  }
+
+  const roster = buildPlanningRoster(activeMembers, []);
+  let groups: string[][] = [];
+  for (let index = 0; index < roster.length; index += 3) {
+    groups.push(roster.slice(index, index + 3).map((member) => member.id));
+  }
+  groups = ensureMinimumGroupSize(groups, 3);
+
+  if (groups.length > monthsCount) {
+    const kept = groups.slice(0, monthsCount);
+    const overflowMembers = groups.slice(monthsCount).flat();
+    overflowMembers.forEach((userId) => {
+      const index = Math.floor(Math.random() * kept.length);
+      kept[index].push(userId);
+    });
+    groups = kept;
+  }
+
+  let cursor = 0;
+  while (groups.length < monthsCount) {
+    const group: string[] = [];
+    while (group.length < 3) {
+      group.push(roster[cursor % roster.length].id);
+      cursor += 1;
+    }
+    groups.push(group);
+  }
+
+  return groups;
+};
+
+const buildDeliveryPlannedShifts = (
+  seasonStartYear: number,
+  activeMembers: PlanningMemberRef[],
+  existingShifts: FirestoreShiftRecord[],
+  deliveryWeekdayWireValue: string,
+): FirestoreShiftRecord[] => {
+  const dates = buildDeliverySeasonDates(
+    seasonStartYear,
+    deliveryWeekdayWireValue,
+  );
+  if (dates.length === 0 || activeMembers.length === 0) {
+    return [];
+  }
+
+  const existingRotationUserIds = existingRotationUserIdsForType(
+    existingShifts,
+    "delivery",
+  );
+  const rounds: PlanningMemberRef[] = [];
+  while (rounds.length < dates.length) {
+    rounds.push(...buildPlanningRoster(activeMembers, existingRotationUserIds));
+  }
+
+  return dates.map((date, index) => ({
+    id: buildShiftId("delivery", date),
+    type: "delivery" as const,
+    date,
+    assignedUserIds: [rounds[index].id],
+    helperUserId: rounds[index + 1]?.id || null,
+    status: "planned" as const,
+    source: "planner",
+    syncSheetName: buildDeliverySheetName(buildSeasonLabel(seasonStartYear)),
+  }));
+};
+
+const buildMarketPlannedShifts = (
+  seasonStartYear: number,
+  activeMembers: PlanningMemberRef[],
+): FirestoreShiftRecord[] => {
+  const dates = buildMarketSeasonDates(seasonStartYear);
+  const groups = buildMarketGroups(activeMembers, dates.length);
+  return dates.map((date, index) => ({
+    id: buildShiftId("market", date),
+    type: "market" as const,
+    date,
+    assignedUserIds: groups[index] || [],
+    helperUserId: null,
+    status: "planned" as const,
+    source: "planner",
+    syncSheetName: buildMarketSheetName(buildSeasonLabel(seasonStartYear)),
+  }));
+};
+
+const ensureSheetExists = async (
+  sheets: Awaited<ReturnType<typeof getSheetsClient>>,
+  spreadsheetId: string,
+  sheetName: string,
+): Promise<void> => {
+  const spreadsheet = await sheets.spreadsheets.get({
+    spreadsheetId,
+    fields: "sheets.properties.title",
+  });
+  const exists = spreadsheet.data.sheets?.some(
+    (sheet) => sheet.properties?.title === sheetName,
+  );
+  if (exists) {
+    return;
+  }
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [
+        {
+          addSheet: {
+            properties: {
+              title: sheetName,
+            },
+          },
+        },
+      ],
+    },
+  });
+};
+
+const updateWholeSheet = async (
+  sheets: Awaited<ReturnType<typeof getSheetsClient>>,
+  spreadsheetId: string,
+  sheetName: string,
+  values: string[][],
+): Promise<void> => {
+  await ensureSheetExists(sheets, spreadsheetId, sheetName);
+  await sheets.spreadsheets.values.clear({
+    spreadsheetId,
+    range: `${sheetName}!A:Z`,
+  });
+  if (values.length === 0) {
+    return;
+  }
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `${sheetName}!A1`,
+    valueInputOption: "RAW",
+    requestBody: {
+      values,
+    },
+  });
+};
+
+const buildDeliverySheetValues = (
+  shifts: FirestoreShiftRecord[],
+  seasonLabel: string,
+  membersById: Map<string, MemberSheetRef>,
+): string[][] => {
+  const rows: string[][] = [[`TURNOS REPARTO ${seasonLabel}`], []];
+  let currentMonthHeading = "";
+  shifts.forEach((shift) => {
+    const monthHeading = formatHumanMonthHeading(shift.date);
+    if (monthHeading !== currentMonthHeading) {
+      rows.push([monthHeading]);
+      currentMonthHeading = monthHeading;
+    }
+    rows.push(toDeliveryHumanRow(shift, membersById));
+  });
+  return rows;
+};
+
+const buildMarketSheetValues = (
+  shifts: FirestoreShiftRecord[],
+  seasonLabel: string,
+  membersById: Map<string, MemberSheetRef>,
+): string[][] => {
+  const rows: string[][] = [[`TURNOS MERCADO ${seasonLabel}`], []];
+  shifts.forEach((shift) => {
+    rows.push([formatHumanLongDate(shift.date)]);
+    rows.push(toMarketHumanLeadRow(shift, membersById));
+    rows.push(...toMarketHumanSupportRows(shift, membersById));
+  });
+  return rows;
+};
+
+const persistPlannedShifts = async (
+  env: string,
+  requestId: string,
+  shifts: FirestoreShiftRecord[],
+): Promise<number> => {
+  const collection = shiftsCollection(env);
+  let writes = 0;
+
+  for (const shift of shifts) {
+    const ref = collection.doc(shift.id);
+    const existing = await ref.get();
+    const existingCreatedAt = existing.get("createdAt");
+    await ref.set({
+      type: shift.type,
+      date: shift.date,
+      assignedUserIds: shift.assignedUserIds,
+      helperUserId: shift.helperUserId,
+      status: shift.status,
+      source: shift.source,
+      createdAt: existingCreatedAt instanceof admin.firestore.Timestamp ?
+        existingCreatedAt :
+        admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      planningMeta: {
+        requestId,
+        seasonLabel:
+          shift.syncSheetName?.replace(/^turnos-(reparto|mercado)\s+/i, "") ||
+          null,
+      },
+      syncMeta: {
+        origin: "planner",
+        sheetName: shift.syncSheetName,
+      },
+    }, {merge: true});
+    writes += 1;
+  }
+
+  return writes;
+};
+
+const createShiftPlanningNotification = async (
+  env: string,
+  type: ShiftPlanningRequestType,
+  seasonLabel: string,
+  requestedByUserId: string,
+  userIds: string[],
+): Promise<void> => {
+  const uniqueUserIds = Array.from(new Set(userIds));
+  if (uniqueUserIds.length === 0) {
+    return;
+  }
+  await firestore.collection(`${env}/plus-collections/notificationEvents`).add({
+    title: `Nuevos turnos de ${shiftTypeLabelEs(type)}`,
+    body:
+      `Ya tienes disponibles los turnos de ${shiftTypeLabelEs(type)} ` +
+      `para la temporada ${seasonLabel}.`,
+    type: "shift_planning_generated",
+    target: "users",
+    targetPayload: {
+      userIds: uniqueUserIds,
+    },
+    createdBy: requestedByUserId,
+    sentAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
 };
 
 const dispatchShiftUpdatedNotification = async (
@@ -1517,6 +2072,133 @@ export const exportShiftsToGoogleSheets = onRequest(async (req, res) => {
   }
 });
 
+const processShiftPlanningRequest = async (
+  env: string,
+  request: ShiftPlanningRequestRecord,
+): Promise<{
+  seasonLabel: string;
+  sheetName: string;
+  generatedCount: number;
+}> => {
+  const seasonStartYear = targetSeasonStartYearFromNow();
+  const seasonLabel = buildSeasonLabel(seasonStartYear);
+  const existingShifts = await readAllShifts(env);
+  const activeMembers = await listActivePlanningMembers(env);
+
+  if (activeMembers.length === 0) {
+    throw new Error("No active members available for planning.");
+  }
+
+  const plannedShifts = request.type === "delivery" ?
+    buildDeliveryPlannedShifts(
+      seasonStartYear,
+      activeMembers,
+      existingShifts,
+      await getDefaultDeliveryDayWireValue(env),
+    ) :
+    buildMarketPlannedShifts(seasonStartYear, activeMembers);
+
+  if (plannedShifts.length === 0) {
+    throw new Error(
+      "No shifts were generated for the requested planning type.",
+    );
+  }
+
+  const sheetConfig = getSheetConfig(env);
+  if (!sheetConfig) {
+    throw new Error("Missing sheets configuration for shift planning.");
+  }
+
+  const [sheets, membersById] = await Promise.all([
+    getSheetsClient(),
+    loadMembersById(env),
+  ]);
+
+  const sheetName = request.type === "delivery" ?
+    buildDeliverySheetName(seasonLabel) :
+    buildMarketSheetName(seasonLabel);
+  const sheetValues = request.type === "delivery" ?
+    buildDeliverySheetValues(plannedShifts, seasonLabel, membersById) :
+    buildMarketSheetValues(plannedShifts, seasonLabel, membersById);
+
+  await updateWholeSheet(
+    sheets,
+    sheetConfig.spreadsheetId,
+    sheetName,
+    sheetValues,
+  );
+
+  await persistPlannedShifts(env, request.id, plannedShifts);
+  await createShiftPlanningNotification(
+    env,
+    request.type,
+    seasonLabel,
+    request.requestedByUserId,
+    plannedShifts.flatMap((shift) => shift.assignedUserIds),
+  );
+
+  return {
+    seasonLabel,
+    sheetName,
+    generatedCount: plannedShifts.length,
+  };
+};
+
+export const onShiftPlanningRequestCreated = onDocumentCreated(
+  "{env}/plus-collections/shiftPlanningRequests/{requestId}",
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) {
+      return;
+    }
+
+    const env = event.params.env;
+    const request = parseShiftPlanningRequest(snapshot);
+    if (!request || request.status !== "requested") {
+      logger.warn("Skipping malformed shift planning request", {
+        env,
+        requestId: event.params.requestId,
+      });
+      return;
+    }
+
+    await snapshot.ref.set({
+      status: "processing",
+      processingStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+
+    try {
+      const summary = await processShiftPlanningRequest(env, request);
+      await snapshot.ref.set({
+        status: "completed",
+        completedAt: admin.firestore.FieldValue.serverTimestamp(),
+        seasonLabel: summary.seasonLabel,
+        sheetName: summary.sheetName,
+        generatedCount: summary.generatedCount,
+      }, {merge: true});
+      logger.info("✅ Shift planning completed", {
+        env,
+        requestId: request.id,
+        type: request.type,
+        ...summary,
+      });
+    } catch (error) {
+      await snapshot.ref.set({
+        status: "failed",
+        failedAt: admin.firestore.FieldValue.serverTimestamp(),
+        errorMessage:
+          error instanceof Error ? error.message : "Unknown planning error",
+      }, {merge: true});
+      logger.error("❌ Shift planning failed", {
+        env,
+        requestId: request.id,
+        type: request.type,
+        error,
+      });
+    }
+  }
+);
+
 export const onShiftWritten = onDocumentWritten(
   "{env}/plus-collections/shifts/{shiftId}",
   async (event) => {
@@ -1561,9 +2243,13 @@ export const onShiftWritten = onDocumentWritten(
       return;
     }
 
-    const targetRange = after.type === "market" ?
-      sheetConfig.marketRange :
-      sheetConfig.deliveryRange;
+    const targetRange = after.syncSheetName ?
+      `${after.syncSheetName}!${after.type === "market" ? "A:C" : "A:F"}` :
+      (
+        after.type === "market" ?
+          sheetConfig.marketRange :
+          sheetConfig.deliveryRange
+      );
 
     const [sheets, membersById] = await Promise.all([
       getSheetsClient(),

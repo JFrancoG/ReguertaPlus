@@ -130,6 +130,9 @@ import com.reguerta.user.data.notifications.InMemoryNotificationRepository
 import com.reguerta.user.data.profiles.ChainedSharedProfileRepository
 import com.reguerta.user.data.profiles.FirestoreSharedProfileRepository
 import com.reguerta.user.data.profiles.InMemorySharedProfileRepository
+import com.reguerta.user.data.shiftplanning.ChainedShiftPlanningRequestRepository
+import com.reguerta.user.data.shiftplanning.FirestoreShiftPlanningRequestRepository
+import com.reguerta.user.data.shiftplanning.InMemoryShiftPlanningRequestRepository
 import com.reguerta.user.data.shifts.ChainedShiftRepository
 import com.reguerta.user.data.shifts.FirestoreShiftRepository
 import com.reguerta.user.data.shifts.InMemoryShiftRepository
@@ -151,6 +154,7 @@ import com.reguerta.user.domain.notifications.NotificationAudience
 import com.reguerta.user.domain.notifications.NotificationEvent
 import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.shifts.ShiftAssignment
+import com.reguerta.user.domain.shifts.ShiftPlanningRequestType
 import com.reguerta.user.domain.shifts.ShiftStatus
 import com.reguerta.user.domain.shifts.ShiftSwapRequest
 import com.reguerta.user.domain.shifts.ShiftSwapRequestStatus
@@ -221,6 +225,11 @@ fun rememberSessionViewModel(): SessionViewModel {
         val primary = FirestoreDeliveryCalendarRepository(firestore = FirebaseFirestore.getInstance())
         ChainedDeliveryCalendarRepository(primary = primary, fallback = fallback)
     }
+    val shiftPlanningRequestRepository = remember {
+        val fallback = InMemoryShiftPlanningRequestRepository()
+        val primary = FirestoreShiftPlanningRequestRepository(firestore = FirebaseFirestore.getInstance())
+        ChainedShiftPlanningRequestRepository(primary = primary, fallback = fallback)
+    }
     val shiftSwapRequestRepository = remember {
         val fallback = InMemoryShiftSwapRequestRepository()
         val primary = FirestoreShiftSwapRequestRepository(firestore = FirebaseFirestore.getInstance())
@@ -246,6 +255,7 @@ fun rememberSessionViewModel(): SessionViewModel {
             sharedProfileRepository = sharedProfileRepository,
             shiftRepository = shiftRepository,
             deliveryCalendarRepository = deliveryCalendarRepository,
+            shiftPlanningRequestRepository = shiftPlanningRequestRepository,
             shiftSwapRequestRepository = shiftSwapRequestRepository,
             authSessionProvider = FirebaseAuthSessionProvider(auth = FirebaseAuth.getInstance()),
             resolveAuthorizedSession = ResolveAuthorizedSessionUseCase(memberRepository = repository),
@@ -443,6 +453,7 @@ fun ReguertaRoot(
                     isLoadingShifts = state.isLoadingShifts,
                     isLoadingDeliveryCalendar = state.isLoadingDeliveryCalendar,
                     isSavingDeliveryCalendar = state.isSavingDeliveryCalendar,
+                    isSubmittingShiftPlanningRequest = state.isSubmittingShiftPlanningRequest,
                     isSavingShiftSwapRequest = state.isSavingShiftSwapRequest,
                     isUpdatingShiftSwapRequest = state.isUpdatingShiftSwapRequest,
                     onDraftChanged = viewModel::onMemberDraftChanged,
@@ -478,6 +489,7 @@ fun ReguertaRoot(
                     onDeleteSharedProfile = viewModel::deleteSharedProfile,
                     onSaveDeliveryCalendarOverride = viewModel::saveDeliveryCalendarOverride,
                     onDeleteDeliveryCalendarOverride = viewModel::deleteDeliveryCalendarOverride,
+                    onSubmitShiftPlanningRequest = viewModel::submitShiftPlanningRequest,
                     onRetryMyOrderFreshness = viewModel::refreshMyOrderFreshness,
                     onOpenShifts = viewModel::refreshShifts,
                     onImpersonateMember = viewModel::impersonateMember,
@@ -1103,6 +1115,7 @@ private fun HomeRoute(
     isLoadingShifts: Boolean,
     isLoadingDeliveryCalendar: Boolean,
     isSavingDeliveryCalendar: Boolean,
+    isSubmittingShiftPlanningRequest: Boolean,
     isSavingShiftSwapRequest: Boolean,
     isUpdatingShiftSwapRequest: Boolean,
     onDraftChanged: (MemberDraft) -> Unit,
@@ -1138,6 +1151,7 @@ private fun HomeRoute(
     onDeleteSharedProfile: (onSuccess: () -> Unit) -> Unit,
     onSaveDeliveryCalendarOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
     onDeleteDeliveryCalendarOverride: (String, onSuccess: () -> Unit) -> Unit,
+    onSubmitShiftPlanningRequest: (ShiftPlanningRequestType, onSuccess: () -> Unit) -> Unit,
     onRetryMyOrderFreshness: () -> Unit,
     onOpenShifts: () -> Unit,
     onImpersonateMember: (String) -> Unit,
@@ -1416,12 +1430,14 @@ private fun HomeRoute(
                     defaultDeliveryDayOfWeek = defaultDeliveryDayOfWeek,
                     isLoadingDeliveryCalendar = isLoadingDeliveryCalendar,
                     isSavingDeliveryCalendar = isSavingDeliveryCalendar,
+                    isSubmittingShiftPlanningRequest = isSubmittingShiftPlanningRequest,
                     isDevelopImpersonationEnabled = isDevelopImpersonationEnabled,
                     onImpersonateMember = onImpersonateMember,
                     onClearImpersonation = onClearImpersonation,
                     onRefreshDeliveryCalendar = onRefreshDeliveryCalendar,
                     onSaveDeliveryCalendarOverride = onSaveDeliveryCalendarOverride,
                     onDeleteDeliveryCalendarOverride = onDeleteDeliveryCalendarOverride,
+                    onSubmitShiftPlanningRequest = onSubmitShiftPlanningRequest,
                 )
 
                 else -> HomePlaceholderRoute(
@@ -2991,12 +3007,14 @@ private fun SettingsRoute(
     defaultDeliveryDayOfWeek: DeliveryWeekday?,
     isLoadingDeliveryCalendar: Boolean,
     isSavingDeliveryCalendar: Boolean,
+    isSubmittingShiftPlanningRequest: Boolean,
     isDevelopImpersonationEnabled: Boolean,
     onImpersonateMember: (String) -> Unit,
     onClearImpersonation: () -> Unit,
     onRefreshDeliveryCalendar: () -> Unit,
     onSaveDeliveryCalendarOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
     onDeleteDeliveryCalendarOverride: (String, onSuccess: () -> Unit) -> Unit,
+    onSubmitShiftPlanningRequest: (ShiftPlanningRequestType, onSuccess: () -> Unit) -> Unit,
 ) {
     var isImpersonationExpanded by rememberSaveable { mutableStateOf(false) }
     Card {
@@ -3082,6 +3100,11 @@ private fun SettingsRoute(
                     onRefresh = onRefreshDeliveryCalendar,
                     onSaveOverride = onSaveDeliveryCalendarOverride,
                     onDeleteOverride = onDeleteDeliveryCalendarOverride,
+                )
+                HorizontalDivider()
+                AdminShiftPlanningSection(
+                    isSubmitting = isSubmittingShiftPlanningRequest,
+                    onSubmit = onSubmitShiftPlanningRequest,
                 )
             }
         }
@@ -3172,6 +3195,71 @@ private fun AdminDeliveryCalendarSection(
                 selectedWeekKey = null
             }
         }
+    }
+}
+
+@Composable
+private fun AdminShiftPlanningSection(
+    isSubmitting: Boolean,
+    onSubmit: (ShiftPlanningRequestType, onSuccess: () -> Unit) -> Unit,
+) {
+    var pendingType by rememberSaveable { mutableStateOf<ShiftPlanningRequestType?>(null) }
+
+    Text(
+        text = "Planificacion de turnos",
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.SemiBold,
+    )
+    Text(
+        text = "Genera una temporada nueva con socios activos, escribe la hoja nueva y manda una notificacion a los socios asignados.",
+        style = MaterialTheme.typography.bodyMedium,
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(
+            onClick = { pendingType = ShiftPlanningRequestType.DELIVERY },
+            enabled = !isSubmitting,
+        ) {
+            Text("Generar reparto")
+        }
+        Button(
+            onClick = { pendingType = ShiftPlanningRequestType.MARKET },
+            enabled = !isSubmitting,
+        ) {
+            Text("Generar mercado")
+        }
+    }
+    if (isSubmitting) {
+        Text(
+            text = "Enviando solicitud de planificacion...",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+
+    pendingType?.let { type ->
+        val readableType = if (type == ShiftPlanningRequestType.DELIVERY) {
+            "reparto"
+        } else {
+            "mercado"
+        }
+        ReguertaDialog(
+            type = ReguertaDialogType.INFO,
+            title = "Generar turnos de $readableType",
+            message = "Se creara una planificacion nueva con socios activos, se escribira en la sheet de la temporada siguiente y se notificara a los socios asignados. Si vuelves a lanzarlo, se regenerara esa temporada.",
+            primaryAction = ReguertaDialogAction(
+                label = "Confirmar",
+                onClick = {
+                    onSubmit(type) {
+                        pendingType = null
+                    }
+                },
+            ),
+            secondaryAction = ReguertaDialogAction(
+                label = "Cancelar",
+                onClick = { pendingType = null },
+            ),
+            onDismissRequest = { pendingType = null },
+        )
     }
 }
 

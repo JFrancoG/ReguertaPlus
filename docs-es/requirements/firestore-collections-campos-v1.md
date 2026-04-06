@@ -332,6 +332,19 @@ Estrategia canonica de calendario:
 | `createdAt` | timestamp | si | no | |
 | `updatedAt` | timestamp | si | sistema | |
 
+## 4.8.b `shiftPlanningRequests/{requestId}`
+
+| Campo | Tipo | Req | Editable | Notas |
+|---|---|---|---|---|
+| `type` | string | si | admin/sistema | `delivery` o `market` |
+| `requestedByUserId` | string | si | no | Admin que lanza la planificacion |
+| `requestedAt` | timestamp | si | no | Fecha de peticion |
+| `status` | string | si | sistema | `requested` / `processing` / `completed` / `failed` |
+| `seasonLabel` | string\|null | no | sistema | Resumen de la temporada generada |
+| `sheetName` | string\|null | no | sistema | Pestana Google Sheets generada |
+| `generatedCount` | number\|null | no | sistema | Numero de turnos creados |
+| `errorMessage` | string\|null | no | sistema | Solo si el backend falla |
+
 ## 4.9 `shiftSwapRequests/{requestId}`
 
 | Campo | Tipo | Req | Editable | Notas |

@@ -14,6 +14,9 @@ As an admin or planning system I want to generate shifts using only active membe
 - Members with `isActive = false` are excluded from planning.
 - New/reactivated members are appended at the end.
 - Market ensures minimum three members with fallback from next in rotation.
+- Admin can trigger delivery and market planning explicitly from app settings.
+- Planning writes the next season to Firestore and dedicated Google Sheets tabs.
+- Planning emits notifications to affected members.
 
 ## Scope
 ### In Scope
@@ -25,11 +28,11 @@ As an admin or planning system I want to generate shifts using only active membe
 - Refactors not required to close acceptance criteria.
 
 ## Implementation checklist
-- [ ] Android
-- [ ] iOS
-- [ ] Backend / Firestore
-- [ ] Testing
-- [ ] Documentation
+- [x] Android
+- [x] iOS
+- [x] Backend / Firestore
+- [x] Testing
+- [x] Documentation
 
 ## Suggested labels
 - type:feature

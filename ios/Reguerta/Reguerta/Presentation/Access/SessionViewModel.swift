@@ -152,6 +152,7 @@ final class SessionViewModel {
     var isLoadingShifts = false
     var isLoadingDeliveryCalendar = false
     var isSavingDeliveryCalendar = false
+    var isSubmittingShiftPlanningRequest = false
     var isSavingShiftSwapRequest = false
     var isUpdatingShiftSwapRequest = false
 
@@ -161,6 +162,7 @@ final class SessionViewModel {
     private let sharedProfileRepository: any SharedProfileRepository
     private let shiftRepository: any ShiftRepository
     private let deliveryCalendarRepository: any DeliveryCalendarRepository
+    private let shiftPlanningRequestRepository: any ShiftPlanningRequestRepository
     private let shiftSwapRequestRepository: any ShiftSwapRequestRepository
     private let authSessionProvider: any AuthSessionProvider
     private let resolveAuthorizedSession: ResolveAuthorizedSessionUseCase
@@ -210,6 +212,7 @@ final class SessionViewModel {
         repository: (any MemberRepository)? = nil,
         sharedProfileRepository: (any SharedProfileRepository)? = nil,
         deliveryCalendarRepository: (any DeliveryCalendarRepository)? = nil,
+        shiftPlanningRequestRepository: (any ShiftPlanningRequestRepository)? = nil,
         shiftSwapRequestRepository: (any ShiftSwapRequestRepository)? = nil,
         authSessionProvider: (any AuthSessionProvider)? = nil,
         resolveAuthorizedSession: ResolveAuthorizedSessionUseCase? = nil,
@@ -243,6 +246,10 @@ final class SessionViewModel {
             primary: FirestoreDeliveryCalendarRepository(),
             fallback: InMemoryDeliveryCalendarRepository()
         )
+        let selectedShiftPlanningRequestRepository = shiftPlanningRequestRepository ?? ChainedShiftPlanningRequestRepository(
+            primary: FirestoreShiftPlanningRequestRepository(),
+            fallback: InMemoryShiftPlanningRequestRepository()
+        )
         let selectedShiftSwapRequestRepository = shiftSwapRequestRepository ?? ChainedShiftSwapRequestRepository(
             primary: FirestoreShiftSwapRequestRepository(),
             fallback: InMemoryShiftSwapRequestRepository()
@@ -273,6 +280,7 @@ final class SessionViewModel {
         self.sharedProfileRepository = selectedSharedProfileRepository
         self.shiftRepository = selectedShiftRepository
         self.deliveryCalendarRepository = selectedDeliveryCalendarRepository
+        self.shiftPlanningRequestRepository = selectedShiftPlanningRequestRepository
         self.shiftSwapRequestRepository = selectedShiftSwapRequestRepository
         self.authSessionProvider = selectedAuthProvider
         self.resolveAuthorizedSession = resolveAuthorizedSession ?? ResolveAuthorizedSessionUseCase(repository: selectedRepository)
@@ -618,6 +626,29 @@ final class SessionViewModel {
             defaultDeliveryDayOfWeek = await deliveryCalendarRepository.defaultDeliveryDayOfWeek()
             deliveryCalendarOverrides = await deliveryCalendarRepository.allOverrides()
             isSavingDeliveryCalendar = false
+            onSuccess()
+        }
+    }
+
+    func submitShiftPlanningRequest(
+        type: ShiftPlanningRequestType,
+        onSuccess: @escaping @MainActor () -> Void = {}
+    ) {
+        guard case .authorized(let session) = mode else { return }
+        guard session.member.isAdmin else { return }
+
+        isSubmittingShiftPlanningRequest = true
+        Task { @MainActor in
+            _ = await shiftPlanningRequestRepository.submit(
+                request: ShiftPlanningRequest(
+                    id: "",
+                    type: type,
+                    requestedByUserId: session.member.id,
+                    requestedAtMillis: nowMillisProvider(),
+                    status: .requested
+                )
+            )
+            isSubmittingShiftPlanningRequest = false
             onSuccess()
         }
     }

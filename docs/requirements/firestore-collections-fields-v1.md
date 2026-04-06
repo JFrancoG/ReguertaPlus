@@ -226,6 +226,17 @@ Delivery calendar strategy (canonical):
 - `createdAt`: timestamp (required)
 - `updatedAt`: timestamp (required)
 
+### 4.8.b `shiftPlanningRequests/{requestId}`
+
+- `type`: string (`delivery`|`market`) (required)
+- `requestedByUserId`: string (required)
+- `requestedAt`: timestamp (required)
+- `status`: string (`requested`|`processing`|`completed`|`failed`) (required)
+- `seasonLabel`: string|null (optional, backend completion summary)
+- `sheetName`: string|null (optional, backend completion summary)
+- `generatedCount`: number|null (optional, backend completion summary)
+- `errorMessage`: string|null (optional, only when failed)
+
 ### 4.9 `shiftSwapRequests/{requestId}`
 
 - `shiftId`: string (required)
