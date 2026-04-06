@@ -27,11 +27,22 @@ As an admin I want to move upcoming delivery days so that operations adapt to ho
 - Refactors not required to close acceptance criteria.
 
 ## Implementation checklist
-- [ ] Android
-- [ ] iOS
-- [ ] Backend / Firestore
-- [ ] Testing
-- [ ] Documentation
+- [x] Android
+- [x] iOS
+- [x] Backend / Firestore
+- [x] Testing
+- [x] Documentation
+
+## Implementation notes
+
+- Admin-only management lives inside `Ajustes` / `Settings` to keep the MVP flow lightweight.
+- Overrides are stored in `deliveryCalendar/{weekKey}` and missing weeks fall back to `config/global.deliveryDayOfWeek`.
+- The UI exposes only upcoming delivery weeks already present in `shifts`, so admins manage real future weeks without opening extra routing.
+- Calculated fields written per override:
+  - `deliveryDate`
+  - `ordersBlockedDate`
+  - `ordersOpenAt`
+  - `ordersCloseAt`
 
 ## Suggested labels
 - type:feature

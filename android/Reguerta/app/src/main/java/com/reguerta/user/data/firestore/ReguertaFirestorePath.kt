@@ -8,6 +8,7 @@ enum class ReguertaFirestoreEnvironment(val wireValue: String) {
 enum class ReguertaFirestoreCollection(val pathComponent: String) {
     USERS("plus-collections/users"),
     CONFIG("plus-collections/config"),
+    DELIVERY_CALENDAR("plus-collections/deliveryCalendar"),
     SHARED_PROFILES("plus-collections/sharedProfiles"),
     SHIFTS("plus-collections/shifts"),
     SHIFT_SWAP_REQUESTS("plus-collections/shiftSwapRequests"),

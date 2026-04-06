@@ -9,6 +9,7 @@ enum ReguertaFirestoreEnvironment: String, Sendable {
 enum ReguertaFirestoreCollection: String, Sendable {
     case users
     case config
+    case deliveryCalendar
     case sharedProfiles
     case shifts
     case shiftSwapRequests

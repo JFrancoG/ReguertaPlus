@@ -134,6 +134,8 @@ final class SessionViewModel {
     var sharedProfiles: [SharedProfile] = []
     var sharedProfileDraft = SharedProfileDraft()
     var shiftsFeed: [ShiftAssignment] = []
+    var deliveryCalendarOverrides: [DeliveryCalendarOverride] = []
+    var defaultDeliveryDayOfWeek: DeliveryWeekday?
     var shiftSwapRequests: [ShiftSwapRequest] = []
     var dismissedShiftSwapRequestIds = Set<String>()
     var shiftSwapDraft = ShiftSwapDraft()
@@ -148,6 +150,8 @@ final class SessionViewModel {
     var isSavingSharedProfile = false
     var isDeletingSharedProfile = false
     var isLoadingShifts = false
+    var isLoadingDeliveryCalendar = false
+    var isSavingDeliveryCalendar = false
     var isSavingShiftSwapRequest = false
     var isUpdatingShiftSwapRequest = false
 
@@ -156,6 +160,7 @@ final class SessionViewModel {
     private let notificationRepository: any NotificationRepository
     private let sharedProfileRepository: any SharedProfileRepository
     private let shiftRepository: any ShiftRepository
+    private let deliveryCalendarRepository: any DeliveryCalendarRepository
     private let shiftSwapRequestRepository: any ShiftSwapRequestRepository
     private let authSessionProvider: any AuthSessionProvider
     private let resolveAuthorizedSession: ResolveAuthorizedSessionUseCase
@@ -204,6 +209,7 @@ final class SessionViewModel {
     init(
         repository: (any MemberRepository)? = nil,
         sharedProfileRepository: (any SharedProfileRepository)? = nil,
+        deliveryCalendarRepository: (any DeliveryCalendarRepository)? = nil,
         shiftSwapRequestRepository: (any ShiftSwapRequestRepository)? = nil,
         authSessionProvider: (any AuthSessionProvider)? = nil,
         resolveAuthorizedSession: ResolveAuthorizedSessionUseCase? = nil,
@@ -232,6 +238,10 @@ final class SessionViewModel {
         let selectedShiftRepository: any ShiftRepository = ChainedShiftRepository(
             primary: FirestoreShiftRepository(),
             fallback: InMemoryShiftRepository()
+        )
+        let selectedDeliveryCalendarRepository = deliveryCalendarRepository ?? ChainedDeliveryCalendarRepository(
+            primary: FirestoreDeliveryCalendarRepository(),
+            fallback: InMemoryDeliveryCalendarRepository()
         )
         let selectedShiftSwapRequestRepository = shiftSwapRequestRepository ?? ChainedShiftSwapRequestRepository(
             primary: FirestoreShiftSwapRequestRepository(),
@@ -262,6 +272,7 @@ final class SessionViewModel {
         self.notificationRepository = selectedNotificationRepository
         self.sharedProfileRepository = selectedSharedProfileRepository
         self.shiftRepository = selectedShiftRepository
+        self.deliveryCalendarRepository = selectedDeliveryCalendarRepository
         self.shiftSwapRequestRepository = selectedShiftSwapRequestRepository
         self.authSessionProvider = selectedAuthProvider
         self.resolveAuthorizedSession = resolveAuthorizedSession ?? ResolveAuthorizedSessionUseCase(repository: selectedRepository)
@@ -492,6 +503,17 @@ final class SessionViewModel {
         }
     }
 
+    func refreshDeliveryCalendar() {
+        guard case .authorized(let session) = mode else { return }
+        guard session.member.isAdmin else { return }
+        isLoadingDeliveryCalendar = true
+        Task { @MainActor in
+            defaultDeliveryDayOfWeek = await deliveryCalendarRepository.defaultDeliveryDayOfWeek()
+            deliveryCalendarOverrides = await deliveryCalendarRepository.allOverrides()
+            isLoadingDeliveryCalendar = false
+        }
+    }
+
     func updateShiftSwapDraft(_ update: (inout ShiftSwapDraft) -> Void) {
         var draft = shiftSwapDraft
         update(&draft)
@@ -529,6 +551,7 @@ final class SessionViewModel {
         refreshNotifications()
         refreshSharedProfiles()
         refreshShifts()
+        refreshDeliveryCalendar()
     }
 
     func clearImpersonation() {
@@ -550,10 +573,53 @@ final class SessionViewModel {
         refreshNotifications()
         refreshSharedProfiles()
         refreshShifts()
+        refreshDeliveryCalendar()
     }
 
     func dismissShiftSwapActivity(requestId: String) {
         dismissedShiftSwapRequestIds.insert(requestId)
+    }
+
+    func saveDeliveryCalendarOverride(
+        weekKey: String,
+        weekday: DeliveryWeekday,
+        updatedByUserId: String,
+        onSuccess: @escaping @MainActor () -> Void = {}
+    ) {
+        guard case .authorized(let session) = mode else { return }
+        guard session.member.isAdmin else { return }
+        guard let override = buildDeliveryCalendarOverride(
+            weekKey: weekKey,
+            weekday: weekday,
+            updatedByUserId: updatedByUserId,
+            updatedAtMillis: nowMillisProvider()
+        ) else { return }
+
+        isSavingDeliveryCalendar = true
+        Task { @MainActor in
+            _ = await deliveryCalendarRepository.upsertOverride(override)
+            defaultDeliveryDayOfWeek = await deliveryCalendarRepository.defaultDeliveryDayOfWeek()
+            deliveryCalendarOverrides = await deliveryCalendarRepository.allOverrides()
+            isSavingDeliveryCalendar = false
+            onSuccess()
+        }
+    }
+
+    func deleteDeliveryCalendarOverride(
+        weekKey: String,
+        onSuccess: @escaping @MainActor () -> Void = {}
+    ) {
+        guard case .authorized(let session) = mode else { return }
+        guard session.member.isAdmin else { return }
+
+        isSavingDeliveryCalendar = true
+        Task { @MainActor in
+            await deliveryCalendarRepository.deleteOverride(weekKey: weekKey)
+            defaultDeliveryDayOfWeek = await deliveryCalendarRepository.defaultDeliveryDayOfWeek()
+            deliveryCalendarOverrides = await deliveryCalendarRepository.allOverrides()
+            isSavingDeliveryCalendar = false
+            onSuccess()
+        }
     }
 
     func saveSharedProfile(onSuccess: @escaping @MainActor () -> Void = {}) {
@@ -1616,8 +1682,71 @@ private func displayName(for memberId: String, in session: AuthorizedSession) ->
     session.members.first(where: { $0.id == memberId })?.displayName ?? memberId
 }
 
+private func buildDeliveryCalendarOverride(
+    weekKey: String,
+    weekday: DeliveryWeekday,
+    updatedByUserId: String,
+    updatedAtMillis: Int64
+) -> DeliveryCalendarOverride? {
+    guard let weekStart = isoWeekStartDate(from: weekKey) else {
+        return nil
+    }
+    let deliveryDate = Calendar.current.date(byAdding: .day, value: weekday.dayOffset, to: weekStart) ?? weekStart
+    let blockedDate = Calendar.current.date(byAdding: .day, value: 1, to: deliveryDate) ?? deliveryDate
+    let openDate = Calendar.current.date(byAdding: .day, value: 2, to: deliveryDate) ?? deliveryDate
+    let closeBase = Calendar.current.date(byAdding: .day, value: 6, to: weekStart) ?? weekStart
+    let openStartOfDay = Calendar.current.startOfDay(for: openDate)
+    let closeDate = Calendar.current.date(
+        bySettingHour: 23,
+        minute: 59,
+        second: 59,
+        of: closeBase
+    ) ?? closeBase
+
+    return DeliveryCalendarOverride(
+        weekKey: weekKey,
+        deliveryDateMillis: Int64(deliveryDate.timeIntervalSince1970 * 1000),
+        ordersBlockedDateMillis: Int64(Calendar.current.startOfDay(for: blockedDate).timeIntervalSince1970 * 1000),
+        ordersOpenAtMillis: Int64(openStartOfDay.timeIntervalSince1970 * 1000),
+        ordersCloseAtMillis: Int64(closeDate.timeIntervalSince1970 * 1000),
+        updatedBy: updatedByUserId,
+        updatedAtMillis: updatedAtMillis
+    )
+}
+
+private func isoWeekStartDate(from weekKey: String) -> Date? {
+    let parts = weekKey.components(separatedBy: "-W")
+    guard parts.count == 2,
+          let year = Int(parts[0]),
+          let week = Int(parts[1])
+    else {
+        return nil
+    }
+    var calendar = Calendar(identifier: .iso8601)
+    calendar.timeZone = .current
+    var dateComponents = DateComponents()
+    dateComponents.weekOfYear = week
+    dateComponents.yearForWeekOfYear = year
+    dateComponents.weekday = 2
+    return calendar.date(from: dateComponents).map { calendar.startOfDay(for: $0) }
+}
+
 private struct NoOpAuthorizedDeviceRegistrar: AuthorizedDeviceRegistrar {
     func register(member: Member) async {}
+}
+
+private extension DeliveryWeekday {
+    var dayOffset: Int {
+        switch self {
+        case .monday: return 0
+        case .tuesday: return 1
+        case .wednesday: return 2
+        case .thursday: return 3
+        case .friday: return 4
+        case .saturday: return 5
+        case .sunday: return 6
+        }
+    }
 }
 
 private extension String {

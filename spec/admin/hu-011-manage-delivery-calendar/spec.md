@@ -4,7 +4,7 @@
 - issue_id: #2
 - priority: P1
 - platform: both
-- status: ready
+- status: implemented
 
 ## Context and problem
 
@@ -52,9 +52,9 @@ As an admin I want to move upcoming delivery days so that operations adapt to ho
 
 ## Definition of Done (DoD)
 
-- [ ] Story acceptance criteria validated.
-- [ ] Implementation aligned with linked RFs.
-- [ ] Android/iOS parity reviewed or temporary gap documented.
-- [ ] Agreed tests executed.
-- [ ] Technical/functional documentation updated.
+- [x] Story acceptance criteria validated.
+- [x] Implementation aligned with linked RFs.
+- [x] Android/iOS parity reviewed or temporary gap documented.
+- [x] Agreed tests executed.
+- [x] Technical/functional documentation updated.
 - [ ] Issue and PR linked.

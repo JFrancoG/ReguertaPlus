@@ -56,10 +56,17 @@ import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedTextField
@@ -107,6 +114,9 @@ import com.reguerta.user.data.access.ChainedMemberRepository
 import com.reguerta.user.data.access.FirebaseAuthSessionProvider
 import com.reguerta.user.data.access.FirestoreMemberRepository
 import com.reguerta.user.data.access.InMemoryMemberRepository
+import com.reguerta.user.data.calendar.ChainedDeliveryCalendarRepository
+import com.reguerta.user.data.calendar.FirestoreDeliveryCalendarRepository
+import com.reguerta.user.data.calendar.InMemoryDeliveryCalendarRepository
 import com.reguerta.user.data.devices.FirebaseAuthorizedDeviceRegistrar
 import com.reguerta.user.data.devices.FirestoreDeviceRegistrationRepository
 import com.reguerta.user.data.freshness.DataStoreCriticalDataFreshnessLocalRepository
@@ -134,6 +144,8 @@ import com.reguerta.user.domain.access.ResolveAuthorizedSessionUseCase
 import com.reguerta.user.domain.access.SessionRefreshTrigger
 import com.reguerta.user.domain.access.UnauthorizedReason
 import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
+import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
+import com.reguerta.user.domain.calendar.DeliveryWeekday
 import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.notifications.NotificationAudience
 import com.reguerta.user.domain.notifications.NotificationEvent
@@ -204,6 +216,11 @@ fun rememberSessionViewModel(): SessionViewModel {
         val primary = FirestoreShiftRepository(firestore = FirebaseFirestore.getInstance())
         ChainedShiftRepository(primary = primary, fallback = fallback)
     }
+    val deliveryCalendarRepository = remember {
+        val fallback = InMemoryDeliveryCalendarRepository()
+        val primary = FirestoreDeliveryCalendarRepository(firestore = FirebaseFirestore.getInstance())
+        ChainedDeliveryCalendarRepository(primary = primary, fallback = fallback)
+    }
     val shiftSwapRequestRepository = remember {
         val fallback = InMemoryShiftSwapRequestRepository()
         val primary = FirestoreShiftSwapRequestRepository(firestore = FirebaseFirestore.getInstance())
@@ -228,6 +245,7 @@ fun rememberSessionViewModel(): SessionViewModel {
             notificationRepository = notificationRepository,
             sharedProfileRepository = sharedProfileRepository,
             shiftRepository = shiftRepository,
+            deliveryCalendarRepository = deliveryCalendarRepository,
             shiftSwapRequestRepository = shiftSwapRequestRepository,
             authSessionProvider = FirebaseAuthSessionProvider(auth = FirebaseAuth.getInstance()),
             resolveAuthorizedSession = ResolveAuthorizedSessionUseCase(memberRepository = repository),
@@ -407,6 +425,8 @@ fun ReguertaRoot(
                     sharedProfiles = state.sharedProfiles,
                     sharedProfileDraft = state.sharedProfileDraft,
                     shiftsFeed = state.shiftsFeed,
+                    deliveryCalendarOverrides = state.deliveryCalendarOverrides,
+                    defaultDeliveryDayOfWeek = state.defaultDeliveryDayOfWeek,
                     shiftSwapRequests = state.shiftSwapRequests,
                     dismissedShiftSwapRequestIds = state.dismissedShiftSwapRequestIds,
                     shiftSwapDraft = state.shiftSwapDraft,
@@ -421,6 +441,8 @@ fun ReguertaRoot(
                     isSavingSharedProfile = state.isSavingSharedProfile,
                     isDeletingSharedProfile = state.isDeletingSharedProfile,
                     isLoadingShifts = state.isLoadingShifts,
+                    isLoadingDeliveryCalendar = state.isLoadingDeliveryCalendar,
+                    isSavingDeliveryCalendar = state.isSavingDeliveryCalendar,
                     isSavingShiftSwapRequest = state.isSavingShiftSwapRequest,
                     isUpdatingShiftSwapRequest = state.isUpdatingShiftSwapRequest,
                     onDraftChanged = viewModel::onMemberDraftChanged,
@@ -441,6 +463,7 @@ fun ReguertaRoot(
                     onRefreshNotifications = viewModel::refreshNotifications,
                     onRefreshSharedProfiles = viewModel::refreshSharedProfiles,
                     onRefreshShifts = viewModel::refreshShifts,
+                    onRefreshDeliveryCalendar = viewModel::refreshDeliveryCalendar,
                     onClearNewsEditor = viewModel::clearNewsEditor,
                     onClearNotificationEditor = viewModel::clearNotificationEditor,
                     onStartCreatingShiftSwap = viewModel::startCreatingShiftSwap,
@@ -453,6 +476,8 @@ fun ReguertaRoot(
                     onDismissShiftSwapActivity = viewModel::dismissShiftSwapActivity,
                     onSaveSharedProfile = viewModel::saveSharedProfile,
                     onDeleteSharedProfile = viewModel::deleteSharedProfile,
+                    onSaveDeliveryCalendarOverride = viewModel::saveDeliveryCalendarOverride,
+                    onDeleteDeliveryCalendarOverride = viewModel::deleteDeliveryCalendarOverride,
                     onRetryMyOrderFreshness = viewModel::refreshMyOrderFreshness,
                     onOpenShifts = viewModel::refreshShifts,
                     onImpersonateMember = viewModel::impersonateMember,
@@ -1060,6 +1085,8 @@ private fun HomeRoute(
     sharedProfiles: List<SharedProfile>,
     sharedProfileDraft: SharedProfileDraft,
     shiftsFeed: List<ShiftAssignment>,
+    deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
+    defaultDeliveryDayOfWeek: DeliveryWeekday?,
     shiftSwapRequests: List<ShiftSwapRequest>,
     dismissedShiftSwapRequestIds: Set<String>,
     shiftSwapDraft: ShiftSwapDraft,
@@ -1074,6 +1101,8 @@ private fun HomeRoute(
     isSavingSharedProfile: Boolean,
     isDeletingSharedProfile: Boolean,
     isLoadingShifts: Boolean,
+    isLoadingDeliveryCalendar: Boolean,
+    isSavingDeliveryCalendar: Boolean,
     isSavingShiftSwapRequest: Boolean,
     isUpdatingShiftSwapRequest: Boolean,
     onDraftChanged: (MemberDraft) -> Unit,
@@ -1094,6 +1123,7 @@ private fun HomeRoute(
     onRefreshNotifications: () -> Unit,
     onRefreshSharedProfiles: () -> Unit,
     onRefreshShifts: () -> Unit,
+    onRefreshDeliveryCalendar: () -> Unit,
     onClearNewsEditor: () -> Unit,
     onClearNotificationEditor: () -> Unit,
     onStartCreatingShiftSwap: (String) -> Unit,
@@ -1106,6 +1136,8 @@ private fun HomeRoute(
     onDismissShiftSwapActivity: (String) -> Unit,
     onSaveSharedProfile: (onSuccess: () -> Unit) -> Unit,
     onDeleteSharedProfile: (onSuccess: () -> Unit) -> Unit,
+    onSaveDeliveryCalendarOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
+    onDeleteDeliveryCalendarOverride: (String, onSuccess: () -> Unit) -> Unit,
     onRetryMyOrderFreshness: () -> Unit,
     onOpenShifts: () -> Unit,
     onImpersonateMember: (String) -> Unit,
@@ -1156,6 +1188,8 @@ private fun HomeRoute(
                             onStartCreatingNews()
                         } else if (destination == HomeDestination.ADMIN_BROADCAST) {
                             onStartCreatingNotification()
+                        } else if (destination == HomeDestination.SETTINGS) {
+                            onRefreshDeliveryCalendar()
                         }
                         scope.launch { drawerState.close() }
                     },
@@ -1377,9 +1411,17 @@ private fun HomeRoute(
                     currentMember = member,
                     authenticatedMember = (mode as? SessionMode.Authorized)?.authenticatedMember,
                     members = (mode as? SessionMode.Authorized)?.members.orEmpty(),
+                    shifts = shiftsFeed,
+                    deliveryCalendarOverrides = deliveryCalendarOverrides,
+                    defaultDeliveryDayOfWeek = defaultDeliveryDayOfWeek,
+                    isLoadingDeliveryCalendar = isLoadingDeliveryCalendar,
+                    isSavingDeliveryCalendar = isSavingDeliveryCalendar,
                     isDevelopImpersonationEnabled = isDevelopImpersonationEnabled,
                     onImpersonateMember = onImpersonateMember,
                     onClearImpersonation = onClearImpersonation,
+                    onRefreshDeliveryCalendar = onRefreshDeliveryCalendar,
+                    onSaveDeliveryCalendarOverride = onSaveDeliveryCalendarOverride,
+                    onDeleteDeliveryCalendarOverride = onDeleteDeliveryCalendarOverride,
                 )
 
                 else -> HomePlaceholderRoute(
@@ -1424,6 +1466,7 @@ private fun HomeShellTopBar(
     onOpenMenu: () -> Unit,
     onOpenNotifications: () -> Unit,
 ) {
+    var isImpersonationExpanded by rememberSaveable { mutableStateOf(false) }
     Card {
         Row(
             modifier = Modifier
@@ -1681,6 +1724,7 @@ private fun NextShiftsCard(
     members: List<Member>,
     onViewAll: () -> Unit,
 ) {
+    var isImpersonationExpanded by rememberSaveable { mutableStateOf(false) }
     Card {
         Column(
             modifier = Modifier
@@ -2942,10 +2986,19 @@ private fun SettingsRoute(
     currentMember: Member?,
     authenticatedMember: Member?,
     members: List<Member>,
+    shifts: List<ShiftAssignment>,
+    deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
+    defaultDeliveryDayOfWeek: DeliveryWeekday?,
+    isLoadingDeliveryCalendar: Boolean,
+    isSavingDeliveryCalendar: Boolean,
     isDevelopImpersonationEnabled: Boolean,
     onImpersonateMember: (String) -> Unit,
     onClearImpersonation: () -> Unit,
+    onRefreshDeliveryCalendar: () -> Unit,
+    onSaveDeliveryCalendarOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
+    onDeleteDeliveryCalendarOverride: (String, onSuccess: () -> Unit) -> Unit,
 ) {
+    var isImpersonationExpanded by rememberSaveable { mutableStateOf(false) }
     Card {
         Column(
             modifier = Modifier
@@ -2990,21 +3043,343 @@ private fun SettingsRoute(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                 )
-                members
-                    .filter { it.isActive }
-                    .sortedBy { it.displayName.lowercase(Locale.getDefault()) }
-                    .forEach { member ->
-                        val isSelected = member.id == currentMember.id
-                        ReguertaFlatButton(
-                            label = member.displayName,
-                            onClick = { onImpersonateMember(member.id) },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !isSelected,
-                        )
-                    }
+                ReguertaFlatButton(
+                    label = if (isImpersonationExpanded) {
+                        "Ocultar socios"
+                    } else {
+                        "Elegir socio"
+                    },
+                    onClick = { isImpersonationExpanded = !isImpersonationExpanded },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (isImpersonationExpanded) {
+                    members
+                        .filter { it.isActive }
+                        .sortedBy { it.displayName.lowercase(Locale.getDefault()) }
+                        .forEach { member ->
+                            val isSelected = member.id == currentMember.id
+                            ReguertaFlatButton(
+                                label = member.displayName,
+                                onClick = {
+                                    onImpersonateMember(member.id)
+                                    isImpersonationExpanded = false
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !isSelected,
+                            )
+                        }
+                }
+            }
+            if (currentMember?.isAdmin == true) {
+                HorizontalDivider()
+                AdminDeliveryCalendarSection(
+                    currentMember = currentMember,
+                    shifts = shifts,
+                    overrides = deliveryCalendarOverrides,
+                    defaultDeliveryDayOfWeek = defaultDeliveryDayOfWeek,
+                    isLoading = isLoadingDeliveryCalendar,
+                    isSaving = isSavingDeliveryCalendar,
+                    onRefresh = onRefreshDeliveryCalendar,
+                    onSaveOverride = onSaveDeliveryCalendarOverride,
+                    onDeleteOverride = onDeleteDeliveryCalendarOverride,
+                )
             }
         }
     }
+}
+
+@Composable
+private fun AdminDeliveryCalendarSection(
+    currentMember: Member,
+    shifts: List<ShiftAssignment>,
+    overrides: List<DeliveryCalendarOverride>,
+    defaultDeliveryDayOfWeek: DeliveryWeekday?,
+    isLoading: Boolean,
+    isSaving: Boolean,
+    onRefresh: () -> Unit,
+    onSaveOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
+    onDeleteOverride: (String, onSuccess: () -> Unit) -> Unit,
+) {
+    val futureWeeks = remember(shifts) {
+        shifts.filter { it.type == ShiftType.DELIVERY && it.dateMillis > System.currentTimeMillis() }
+            .sortedBy { it.dateMillis }
+            .distinctBy { it.dateMillis.toWeekKey() }
+    }
+    var isPickerVisible by rememberSaveable { mutableStateOf(false) }
+    var selectedWeekKey by rememberSaveable { mutableStateOf<String?>(null) }
+    Text(
+        text = "Calendario de reparto",
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.SemiBold,
+    )
+    Text(
+        text = "Gestiona excepciones por semana. Si quitas una excepcion, esa semana vuelve al dia por defecto del calendario.",
+        style = MaterialTheme.typography.bodyMedium,
+    )
+    Text(
+        text = "Dia por defecto: ${defaultDeliveryDayOfWeek?.toSpanishLabel() ?: "sin configurar"}",
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.Medium,
+    )
+    if (isLoading) {
+        Text(
+            text = "Cargando calendario...",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    } else if (futureWeeks.isEmpty()) {
+        Text(
+            text = "No hay semanas de reparto futuras en los turnos cargados.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    } else {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { isPickerVisible = true }) {
+                Text("Cambiar dia de reparto")
+            }
+            TextButton(onClick = onRefresh) {
+                Text("Recargar")
+            }
+        }
+        Text(
+            text = "Primero eliges la semana a cambiar y despues editas solo esa excepcion.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (isPickerVisible) {
+            DeliveryCalendarWeekPickerDialog(
+                futureWeeks = futureWeeks,
+                onDismiss = { isPickerVisible = false },
+                onSelectWeek = { weekKey ->
+                    selectedWeekKey = weekKey
+                    isPickerVisible = false
+                },
+            )
+        }
+        selectedWeekKey?.let { weekKey ->
+            val selectedShift = futureWeeks.firstOrNull { it.dateMillis.toWeekKey() == weekKey }
+            if (selectedShift != null) {
+                DeliveryCalendarOverrideDialog(
+                    currentMember = currentMember,
+                    selectedShift = selectedShift,
+                    override = overrides.firstOrNull { it.weekKey == weekKey },
+                    defaultDeliveryDayOfWeek = defaultDeliveryDayOfWeek ?: DeliveryWeekday.WEDNESDAY,
+                    isSaving = isSaving,
+                    onDismiss = { selectedWeekKey = null },
+                    onSaveOverride = onSaveOverride,
+                    onDeleteOverride = onDeleteOverride,
+                )
+            } else {
+                selectedWeekKey = null
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DeliveryCalendarWeekPickerDialog(
+    futureWeeks: List<ShiftAssignment>,
+    onDismiss: () -> Unit,
+    onSelectWeek: (String) -> Unit,
+) {
+    val initialSelection = futureWeeks.firstOrNull()?.dateMillis?.toWeekKey().orEmpty()
+    var selectedWeekKey by rememberSaveable(futureWeeks) { mutableStateOf(initialSelection) }
+    var isMenuExpanded by rememberSaveable { mutableStateOf(false) }
+    val selectedShift = futureWeeks.firstOrNull { it.dateMillis.toWeekKey() == selectedWeekKey }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 12.dp)
+                .navigationBarsPadding()
+                .imePadding(),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(
+                text = "Elegir semana",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "Selecciona un dia de reparto futuro con encargado.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            ExposedDropdownMenuBox(
+                expanded = isMenuExpanded,
+                onExpandedChange = { isMenuExpanded = !isMenuExpanded },
+            ) {
+                OutlinedTextField(
+                    value = selectedShift?.let {
+                        "${it.dateMillis.toWeekKey()} · ${it.dateMillis.toLocalizedDateOnly()}"
+                    }.orEmpty(),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Semana de reparto") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = isMenuExpanded)
+                    },
+                    modifier = Modifier
+                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                        .fillMaxWidth(),
+                )
+                ExposedDropdownMenu(
+                    expanded = isMenuExpanded,
+                    onDismissRequest = { isMenuExpanded = false },
+                ) {
+                    futureWeeks.forEach { shift ->
+                        val weekKey = shift.dateMillis.toWeekKey()
+                        DropdownMenuItem(
+                            text = {
+                                Text("${weekKey} · ${shift.dateMillis.toLocalizedDateOnly()}")
+                            },
+                            onClick = {
+                                selectedWeekKey = weekKey
+                                isMenuExpanded = false
+                            },
+                        )
+                    }
+                }
+            }
+            selectedShift?.let { shift ->
+                Card {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            text = shift.dateMillis.toWeekKey(),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = shift.dateMillis.toLocalizedDateOnly(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text("Cerrar")
+                }
+                Button(
+                    onClick = { onSelectWeek(selectedWeekKey) },
+                    enabled = selectedWeekKey.isNotBlank(),
+                ) {
+                    Text("Elegir")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeliveryCalendarOverrideDialog(
+    currentMember: Member,
+    selectedShift: ShiftAssignment,
+    override: DeliveryCalendarOverride?,
+    defaultDeliveryDayOfWeek: DeliveryWeekday,
+    isSaving: Boolean,
+    onDismiss: () -> Unit,
+    onSaveOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
+    onDeleteOverride: (String, onSuccess: () -> Unit) -> Unit,
+) {
+    val weekKey = selectedShift.dateMillis.toWeekKey()
+    var selectedWeekday by rememberSaveable(weekKey, override?.deliveryDateMillis) {
+        mutableStateOf(override?.deliveryDateMillis?.toDeliveryWeekday() ?: defaultDeliveryDayOfWeek)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Cambiar dia de reparto",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = weekKey,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = selectedShift.dateMillis.toLocalizedDateOnly(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Card {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = if (override != null) {
+                                "Excepcion activa: ${override.deliveryDateMillis.toLocalizedDateOnly()}"
+                            } else {
+                                "Sin excepcion. Aplica el dia por defecto."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            ReguertaFlatButton(
+                                label = "Anterior",
+                                onClick = { selectedWeekday = selectedWeekday.previous() },
+                                enabled = !isSaving,
+                            )
+                            Text(
+                                text = selectedWeekday.toSpanishLabel(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.align(Alignment.CenterVertically),
+                            )
+                            ReguertaFlatButton(
+                                label = "Siguiente",
+                                onClick = { selectedWeekday = selectedWeekday.next() },
+                                enabled = !isSaving,
+                            )
+                        }
+                        ReguertaButton(
+                            label = "Guardar excepcion",
+                            onClick = {
+                                onSaveOverride(weekKey, selectedWeekday, currentMember.id, onDismiss)
+                            },
+                            enabled = !isSaving,
+                            loading = isSaving,
+                            fullWidth = true,
+                        )
+                        if (override != null) {
+                            ReguertaFlatButton(
+                                label = "Quitar excepcion",
+                                onClick = { onDeleteOverride(weekKey, onDismiss) },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !isSaving,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cerrar")
+            }
+        },
+    )
 }
 
 @Composable
@@ -4114,6 +4489,33 @@ private fun Long.toLocalizedDateOnly(): String =
 private fun ShiftAssignment.toShiftSwapDisplayLabel(memberId: String?): String {
     return dateMillis.toLocalizedDateOnly()
 }
+
+private fun Long.toDeliveryWeekday(): DeliveryWeekday =
+    when (toLocalDate().dayOfWeek) {
+        java.time.DayOfWeek.MONDAY -> DeliveryWeekday.MONDAY
+        java.time.DayOfWeek.TUESDAY -> DeliveryWeekday.TUESDAY
+        java.time.DayOfWeek.WEDNESDAY -> DeliveryWeekday.WEDNESDAY
+        java.time.DayOfWeek.THURSDAY -> DeliveryWeekday.THURSDAY
+        java.time.DayOfWeek.FRIDAY -> DeliveryWeekday.FRIDAY
+        java.time.DayOfWeek.SATURDAY -> DeliveryWeekday.SATURDAY
+        java.time.DayOfWeek.SUNDAY -> DeliveryWeekday.SUNDAY
+    }
+
+private fun DeliveryWeekday.toSpanishLabel(): String = when (this) {
+    DeliveryWeekday.MONDAY -> "Lunes"
+    DeliveryWeekday.TUESDAY -> "Martes"
+    DeliveryWeekday.WEDNESDAY -> "Miercoles"
+    DeliveryWeekday.THURSDAY -> "Jueves"
+    DeliveryWeekday.FRIDAY -> "Viernes"
+    DeliveryWeekday.SATURDAY -> "Sabado"
+    DeliveryWeekday.SUNDAY -> "Domingo"
+}
+
+private fun DeliveryWeekday.previous(): DeliveryWeekday =
+    DeliveryWeekday.entries[(ordinal + DeliveryWeekday.entries.size - 1) % DeliveryWeekday.entries.size]
+
+private fun DeliveryWeekday.next(): DeliveryWeekday =
+    DeliveryWeekday.entries[(ordinal + 1) % DeliveryWeekday.entries.size]
 
 private sealed interface StartupGateUiState {
     data object Checking : StartupGateUiState
