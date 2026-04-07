@@ -62,7 +62,8 @@ final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
                 authUid: authUid,
                 roles: [.member],
                 isActive: true,
-                producerCatalogEnabled: true
+                producerCatalogEnabled: true,
+                isCommonPurchaseManager: false
             )
         }
     }
@@ -90,6 +91,7 @@ final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
             "roles": member.roles.map(\.rawValue),
             "isActive": member.isActive,
             "producerCatalogEnabled": member.producerCatalogEnabled,
+            "isCommonPurchaseManager": member.isCommonPurchaseManager,
         ]
 
         do {
@@ -126,6 +128,7 @@ final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
         let authUid = normalizedOptionalString(data["authUid"])
         let isActive = (data["isActive"] as? Bool) ?? true
         let producerCatalogEnabled = (data["producerCatalogEnabled"] as? Bool) ?? true
+        let isCommonPurchaseManager = (data["isCommonPurchaseManager"] as? Bool) ?? false
         let rawRoles = (data["roles"] as? [String]) ?? ["member"]
         let parsedRoles = Set(rawRoles.compactMap(MemberRole.init(rawValue:)))
         let roles = parsedRoles.isEmpty ? Set([MemberRole.member]) : parsedRoles
@@ -137,7 +140,8 @@ final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
             authUid: authUid,
             roles: roles,
             isActive: isActive,
-            producerCatalogEnabled: producerCatalogEnabled
+            producerCatalogEnabled: producerCatalogEnabled,
+            isCommonPurchaseManager: isCommonPurchaseManager
         )
     }
 

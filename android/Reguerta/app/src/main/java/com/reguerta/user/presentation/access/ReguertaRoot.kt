@@ -42,10 +42,13 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
@@ -130,6 +133,9 @@ import com.reguerta.user.data.notifications.InMemoryNotificationRepository
 import com.reguerta.user.data.profiles.ChainedSharedProfileRepository
 import com.reguerta.user.data.profiles.FirestoreSharedProfileRepository
 import com.reguerta.user.data.profiles.InMemorySharedProfileRepository
+import com.reguerta.user.data.products.ChainedProductRepository
+import com.reguerta.user.data.products.FirestoreProductRepository
+import com.reguerta.user.data.products.InMemoryProductRepository
 import com.reguerta.user.data.shiftplanning.ChainedShiftPlanningRequestRepository
 import com.reguerta.user.data.shiftplanning.FirestoreShiftPlanningRequestRepository
 import com.reguerta.user.data.shiftplanning.InMemoryShiftPlanningRequestRepository
@@ -153,6 +159,9 @@ import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.notifications.NotificationAudience
 import com.reguerta.user.domain.notifications.NotificationEvent
 import com.reguerta.user.domain.profiles.SharedProfile
+import com.reguerta.user.domain.products.CommonPurchaseType
+import com.reguerta.user.domain.products.Product
+import com.reguerta.user.domain.products.ProductStockMode
 import com.reguerta.user.domain.shifts.ShiftAssignment
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestType
 import com.reguerta.user.domain.shifts.ShiftStatus
@@ -215,6 +224,11 @@ fun rememberSessionViewModel(): SessionViewModel {
         val primary = FirestoreSharedProfileRepository(firestore = FirebaseFirestore.getInstance())
         ChainedSharedProfileRepository(primary = primary, fallback = fallback)
     }
+    val productRepository = remember {
+        val fallback = InMemoryProductRepository()
+        val primary = FirestoreProductRepository(firestore = FirebaseFirestore.getInstance())
+        ChainedProductRepository(primary = primary, fallback = fallback)
+    }
     val shiftRepository = remember {
         val fallback = InMemoryShiftRepository()
         val primary = FirestoreShiftRepository(firestore = FirebaseFirestore.getInstance())
@@ -252,6 +266,7 @@ fun rememberSessionViewModel(): SessionViewModel {
             repository = repository,
             newsRepository = newsRepository,
             notificationRepository = notificationRepository,
+            productRepository = productRepository,
             sharedProfileRepository = sharedProfileRepository,
             shiftRepository = shiftRepository,
             deliveryCalendarRepository = deliveryCalendarRepository,
@@ -432,6 +447,8 @@ fun ReguertaRoot(
                     newsDraft = state.newsDraft,
                     notificationsFeed = state.notificationsFeed,
                     notificationDraft = state.notificationDraft,
+                    productsFeed = state.productsFeed,
+                    productDraft = state.productDraft,
                     sharedProfiles = state.sharedProfiles,
                     sharedProfileDraft = state.sharedProfileDraft,
                     shiftsFeed = state.shiftsFeed,
@@ -442,11 +459,14 @@ fun ReguertaRoot(
                     shiftSwapDraft = state.shiftSwapDraft,
                     nextDeliveryShift = state.nextDeliveryShift,
                     nextMarketShift = state.nextMarketShift,
+                    editingProductId = state.editingProductId,
                     editingNewsId = state.editingNewsId,
                     isLoadingNews = state.isLoadingNews,
                     isSavingNews = state.isSavingNews,
                     isLoadingNotifications = state.isLoadingNotifications,
                     isSendingNotification = state.isSendingNotification,
+                    isLoadingProducts = state.isLoadingProducts,
+                    isSavingProduct = state.isSavingProduct,
                     isLoadingSharedProfiles = state.isLoadingSharedProfiles,
                     isSavingSharedProfile = state.isSavingSharedProfile,
                     isDeletingSharedProfile = state.isDeletingSharedProfile,
@@ -459,6 +479,7 @@ fun ReguertaRoot(
                     onDraftChanged = viewModel::onMemberDraftChanged,
                     onNewsDraftChanged = viewModel::onNewsDraftChanged,
                     onNotificationDraftChanged = viewModel::onNotificationDraftChanged,
+                    onProductDraftChanged = viewModel::onProductDraftChanged,
                     onSharedProfileDraftChanged = viewModel::onSharedProfileDraftChanged,
                     onShiftSwapDraftChanged = viewModel::onShiftSwapDraftChanged,
                     onToggleAdmin = viewModel::toggleAdmin,
@@ -466,17 +487,23 @@ fun ReguertaRoot(
                     onCreateMember = viewModel::createAuthorizedMember,
                     onStartCreatingNews = viewModel::startCreatingNews,
                     onStartCreatingNotification = viewModel::startCreatingNotification,
+                    onStartCreatingProduct = viewModel::startCreatingProduct,
                     onStartEditingNews = viewModel::startEditingNews,
+                    onStartEditingProduct = viewModel::startEditingProduct,
                     onSaveNews = viewModel::saveNews,
+                    onSaveProduct = viewModel::saveProduct,
                     onSendNotification = viewModel::sendNotification,
                     onDeleteNews = viewModel::deleteNews,
+                    onArchiveProduct = viewModel::archiveProduct,
                     onRefreshNews = viewModel::refreshNews,
                     onRefreshNotifications = viewModel::refreshNotifications,
+                    onRefreshProducts = viewModel::refreshProducts,
                     onRefreshSharedProfiles = viewModel::refreshSharedProfiles,
                     onRefreshShifts = viewModel::refreshShifts,
                     onRefreshDeliveryCalendar = viewModel::refreshDeliveryCalendar,
                     onClearNewsEditor = viewModel::clearNewsEditor,
                     onClearNotificationEditor = viewModel::clearNotificationEditor,
+                    onClearProductEditor = viewModel::clearProductEditor,
                     onStartCreatingShiftSwap = viewModel::startCreatingShiftSwap,
                     onClearShiftSwapDraft = viewModel::clearShiftSwapDraft,
                     onSaveShiftSwapRequest = viewModel::saveShiftSwapRequest,
@@ -491,6 +518,7 @@ fun ReguertaRoot(
                     onDeleteDeliveryCalendarOverride = viewModel::deleteDeliveryCalendarOverride,
                     onSubmitShiftPlanningRequest = viewModel::submitShiftPlanningRequest,
                     onRetryMyOrderFreshness = viewModel::refreshMyOrderFreshness,
+                    onOpenProducts = viewModel::refreshProducts,
                     onOpenShifts = viewModel::refreshShifts,
                     onImpersonateMember = viewModel::impersonateMember,
                     onClearImpersonation = viewModel::clearImpersonation,
@@ -1094,6 +1122,8 @@ private fun HomeRoute(
     newsDraft: NewsDraft,
     notificationsFeed: List<NotificationEvent>,
     notificationDraft: NotificationDraft,
+    productsFeed: List<Product>,
+    productDraft: ProductDraft,
     sharedProfiles: List<SharedProfile>,
     sharedProfileDraft: SharedProfileDraft,
     shiftsFeed: List<ShiftAssignment>,
@@ -1104,11 +1134,14 @@ private fun HomeRoute(
     shiftSwapDraft: ShiftSwapDraft,
     nextDeliveryShift: ShiftAssignment?,
     nextMarketShift: ShiftAssignment?,
+    editingProductId: String?,
     editingNewsId: String?,
     isLoadingNews: Boolean,
     isSavingNews: Boolean,
     isLoadingNotifications: Boolean,
     isSendingNotification: Boolean,
+    isLoadingProducts: Boolean,
+    isSavingProduct: Boolean,
     isLoadingSharedProfiles: Boolean,
     isSavingSharedProfile: Boolean,
     isDeletingSharedProfile: Boolean,
@@ -1121,6 +1154,7 @@ private fun HomeRoute(
     onDraftChanged: (MemberDraft) -> Unit,
     onNewsDraftChanged: (NewsDraft) -> Unit,
     onNotificationDraftChanged: (NotificationDraft) -> Unit,
+    onProductDraftChanged: (ProductDraft) -> Unit,
     onSharedProfileDraftChanged: (SharedProfileDraft) -> Unit,
     onShiftSwapDraftChanged: (ShiftSwapDraft) -> Unit,
     onToggleAdmin: (String) -> Unit,
@@ -1128,17 +1162,23 @@ private fun HomeRoute(
     onCreateMember: () -> Unit,
     onStartCreatingNews: () -> Unit,
     onStartCreatingNotification: () -> Unit,
+    onStartCreatingProduct: () -> Unit,
     onStartEditingNews: (String) -> Unit,
+    onStartEditingProduct: (String) -> Unit,
     onSaveNews: (onSuccess: () -> Unit) -> Unit,
+    onSaveProduct: (onSuccess: () -> Unit) -> Unit,
     onSendNotification: (onSuccess: () -> Unit) -> Unit,
     onDeleteNews: (String, () -> Unit) -> Unit,
+    onArchiveProduct: (String, onSuccess: () -> Unit) -> Unit,
     onRefreshNews: () -> Unit,
     onRefreshNotifications: () -> Unit,
+    onRefreshProducts: () -> Unit,
     onRefreshSharedProfiles: () -> Unit,
     onRefreshShifts: () -> Unit,
     onRefreshDeliveryCalendar: () -> Unit,
     onClearNewsEditor: () -> Unit,
     onClearNotificationEditor: () -> Unit,
+    onClearProductEditor: () -> Unit,
     onStartCreatingShiftSwap: (String) -> Unit,
     onClearShiftSwapDraft: () -> Unit,
     onSaveShiftSwapRequest: (onSuccess: () -> Unit) -> Unit,
@@ -1153,6 +1193,7 @@ private fun HomeRoute(
     onDeleteDeliveryCalendarOverride: (String, onSuccess: () -> Unit) -> Unit,
     onSubmitShiftPlanningRequest: (ShiftPlanningRequestType, onSuccess: () -> Unit) -> Unit,
     onRetryMyOrderFreshness: () -> Unit,
+    onOpenProducts: () -> Unit,
     onOpenShifts: () -> Unit,
     onImpersonateMember: (String) -> Unit,
     onClearImpersonation: () -> Unit,
@@ -1192,6 +1233,8 @@ private fun HomeRoute(
                             onRefreshNews()
                         } else if (destination == HomeDestination.NOTIFICATIONS) {
                             onRefreshNotifications()
+                        } else if (destination == HomeDestination.PRODUCTS) {
+                            onRefreshProducts()
                         } else if (destination == HomeDestination.PROFILE) {
                             onRefreshSharedProfiles()
                         } else if (destination == HomeDestination.SHIFTS) {
@@ -1237,6 +1280,8 @@ private fun HomeRoute(
                         onClearNewsEditor()
                     } else if (currentDestination == HomeDestination.ADMIN_BROADCAST) {
                         onClearNotificationEditor()
+                    } else if (currentDestination == HomeDestination.PRODUCTS) {
+                        onClearProductEditor()
                     } else if (currentDestination == HomeDestination.SHIFT_SWAP_REQUEST) {
                         onClearShiftSwapDraft()
                     }
@@ -1280,6 +1325,10 @@ private fun HomeRoute(
                                 onToggleActive = onToggleActive,
                                 onCreateMember = onCreateMember,
                                 onRetryMyOrderFreshness = onRetryMyOrderFreshness,
+                                onOpenProducts = {
+                                    currentDestination = HomeDestination.PRODUCTS
+                                    onRefreshProducts()
+                                },
                                 onOpenShifts = {
                                     currentDestination = HomeDestination.SHIFTS
                                     onRefreshShifts()
@@ -1363,6 +1412,22 @@ private fun HomeRoute(
                             currentDestination = HomeDestination.NOTIFICATIONS
                         }
                     },
+                )
+
+                HomeDestination.PRODUCTS -> ProductsRoute(
+                    currentMember = member,
+                    products = productsFeed,
+                    draft = productDraft,
+                    editingProductId = editingProductId,
+                    isLoading = isLoadingProducts,
+                    isSaving = isSavingProduct,
+                    onRefresh = onRefreshProducts,
+                    onDraftChanged = onProductDraftChanged,
+                    onCreateProduct = onStartCreatingProduct,
+                    onEditProduct = onStartEditingProduct,
+                    onCancelEditor = onClearProductEditor,
+                    onSaveProduct = { onSaveProduct { } },
+                    onArchiveProduct = onArchiveProduct,
                 )
 
                 HomeDestination.PROFILE -> SharedProfileRoute(
@@ -1637,14 +1702,18 @@ private fun HomeDrawerContent(
                 onClick = { onNavigate(HomeDestination.SETTINGS) },
             )
 
-            if (member?.isProducer == true) {
+            if (member?.canManageProductCatalog == true || member?.isProducer == true) {
                 HomeDrawerSection(title = stringResource(R.string.home_shell_section_producer))
+            }
+            if (member?.canManageProductCatalog == true) {
                 HomeDrawerItem(
                     icon = Icons.Filled.Storefront,
                     label = stringResource(R.string.home_shell_action_products),
                     selected = currentDestination == HomeDestination.PRODUCTS,
                     onClick = { onNavigate(HomeDestination.PRODUCTS) },
                 )
+            }
+            if (member?.isProducer == true) {
                 HomeDrawerItem(
                     icon = Icons.Filled.Inbox,
                     label = stringResource(R.string.home_shell_action_received_orders),
@@ -2560,6 +2629,488 @@ private fun ShiftSwapRequestRoute(
                         onCancel()
                     },
                 )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ProductsRoute(
+    currentMember: Member?,
+    products: List<Product>,
+    draft: ProductDraft,
+    editingProductId: String?,
+    isLoading: Boolean,
+    isSaving: Boolean,
+    onRefresh: () -> Unit,
+    onDraftChanged: (ProductDraft) -> Unit,
+    onCreateProduct: () -> Unit,
+    onEditProduct: (String) -> Unit,
+    onCancelEditor: () -> Unit,
+    onSaveProduct: () -> Unit,
+    onArchiveProduct: (String, onSuccess: () -> Unit) -> Unit,
+) {
+    val focusManager = LocalFocusManager.current
+    val activeProducts = remember(products) { products.filterNot { it.archived } }
+    val archivedProducts = remember(products) { products.filter { it.archived } }
+    val isEditing = editingProductId != null
+    val canManageEcoBasket = currentMember?.isProducer == true
+    val canManageCommonPurchase = currentMember?.isCommonPurchaseManager == true && currentMember?.isProducer != true
+    var commonPurchaseExpanded by rememberSaveable { mutableStateOf(false) }
+
+    if (isEditing) {
+        Card {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = stringResource(
+                        if (editingProductId.isNullOrBlank()) {
+                            R.string.products_editor_title_create
+                        } else {
+                            R.string.products_editor_title_edit
+                        },
+                    ),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Box(
+                    modifier = Modifier
+                        .size(112.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Image,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(40.dp),
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.products_editor_subtitle),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = draft.name,
+                    onValueChange = { onDraftChanged(draft.copy(name = it)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.products_field_name)) },
+                )
+                OutlinedTextField(
+                    value = draft.description,
+                    onValueChange = { onDraftChanged(draft.copy(description = it)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.products_field_description)) },
+                    minLines = 3,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = draft.unitQty,
+                        onValueChange = { onDraftChanged(draft.copy(unitQty = it)) },
+                        modifier = Modifier.weight(1f),
+                        label = { Text(stringResource(R.string.products_field_unit_qty)) },
+                    )
+                    OutlinedTextField(
+                        value = draft.packContainerQty,
+                        onValueChange = { onDraftChanged(draft.copy(packContainerQty = it)) },
+                        modifier = Modifier.weight(1f),
+                        label = { Text(stringResource(R.string.products_field_pack_qty)) },
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = draft.packContainerName,
+                        onValueChange = { onDraftChanged(draft.copy(packContainerName = it)) },
+                        modifier = Modifier.weight(1f),
+                        label = { Text(stringResource(R.string.products_field_pack_name)) },
+                    )
+                    OutlinedTextField(
+                        value = draft.unitName,
+                        onValueChange = { onDraftChanged(draft.copy(unitName = it)) },
+                        modifier = Modifier.weight(1f),
+                        label = { Text(stringResource(R.string.products_field_unit_name)) },
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = draft.packContainerPlural,
+                        onValueChange = { onDraftChanged(draft.copy(packContainerPlural = it)) },
+                        modifier = Modifier.weight(1f),
+                        label = { Text(stringResource(R.string.products_field_pack_plural)) },
+                    )
+                    OutlinedTextField(
+                        value = draft.unitPlural,
+                        onValueChange = { onDraftChanged(draft.copy(unitPlural = it)) },
+                        modifier = Modifier.weight(1f),
+                        label = { Text(stringResource(R.string.products_field_unit_plural)) },
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = draft.price,
+                        onValueChange = { onDraftChanged(draft.copy(price = it)) },
+                        modifier = Modifier.weight(1f),
+                        label = { Text(stringResource(R.string.products_field_price)) },
+                    )
+                    OutlinedTextField(
+                        value = draft.stockQty,
+                        onValueChange = { onDraftChanged(draft.copy(stockQty = it)) },
+                        modifier = Modifier.weight(1f),
+                        label = { Text(stringResource(R.string.products_field_stock_qty)) },
+                        enabled = draft.stockMode == ProductStockMode.FINITE,
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.products_field_available),
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(
+                        checked = draft.isAvailable,
+                        onCheckedChange = { onDraftChanged(draft.copy(isAvailable = it)) },
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.products_field_infinite_stock),
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(
+                        checked = draft.stockMode == ProductStockMode.INFINITE,
+                        onCheckedChange = {
+                            onDraftChanged(
+                                draft.copy(
+                                    stockMode = if (it) ProductStockMode.INFINITE else ProductStockMode.FINITE,
+                                    stockQty = if (it) "" else draft.stockQty,
+                                ),
+                            )
+                        },
+                    )
+                }
+                if (canManageEcoBasket) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.products_field_eco_basket),
+                            modifier = Modifier.weight(1f),
+                        )
+                        Switch(
+                            checked = draft.isEcoBasket,
+                            onCheckedChange = { onDraftChanged(draft.copy(isEcoBasket = it)) },
+                        )
+                    }
+                }
+                if (canManageCommonPurchase) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.products_field_common_purchase),
+                            modifier = Modifier.weight(1f),
+                        )
+                        Switch(
+                            checked = draft.isCommonPurchase,
+                            onCheckedChange = {
+                                onDraftChanged(
+                                    draft.copy(
+                                        isCommonPurchase = it,
+                                        commonPurchaseType = if (it) {
+                                            draft.commonPurchaseType ?: CommonPurchaseType.SPOT
+                                        } else {
+                                            null
+                                        },
+                                    ),
+                                )
+                            },
+                        )
+                    }
+                    if (draft.isCommonPurchase) {
+                        ExposedDropdownMenuBox(
+                            expanded = commonPurchaseExpanded,
+                            onExpandedChange = { commonPurchaseExpanded = !commonPurchaseExpanded },
+                        ) {
+                            OutlinedTextField(
+                                value = stringResource(
+                                    when (draft.commonPurchaseType ?: CommonPurchaseType.SPOT) {
+                                        CommonPurchaseType.SEASONAL -> R.string.products_common_purchase_type_seasonal
+                                        CommonPurchaseType.SPOT -> R.string.products_common_purchase_type_spot
+                                    },
+                                ),
+                                onValueChange = {},
+                                modifier = Modifier
+                                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                    .fillMaxWidth(),
+                                label = { Text(stringResource(R.string.products_field_common_purchase_type)) },
+                                readOnly = true,
+                                trailingIcon = {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = commonPurchaseExpanded)
+                                },
+                            )
+                            ExposedDropdownMenu(
+                                expanded = commonPurchaseExpanded,
+                                onDismissRequest = { commonPurchaseExpanded = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.products_common_purchase_type_spot)) },
+                                    onClick = {
+                                        onDraftChanged(draft.copy(commonPurchaseType = CommonPurchaseType.SPOT))
+                                        commonPurchaseExpanded = false
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.products_common_purchase_type_seasonal)) },
+                                    onClick = {
+                                        onDraftChanged(draft.copy(commonPurchaseType = CommonPurchaseType.SEASONAL))
+                                        commonPurchaseExpanded = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ReguertaButton(
+                        label = stringResource(
+                            if (isSaving) R.string.products_save_action_saving else R.string.products_save_action
+                        ),
+                        variant = ReguertaButtonVariant.PRIMARY,
+                        fullWidth = false,
+                        loading = isSaving,
+                        enabled = !isSaving,
+                        onClick = {
+                            focusManager.clearFocus(force = true)
+                            onSaveProduct()
+                        },
+                    )
+                    ReguertaButton(
+                        label = stringResource(R.string.common_action_back),
+                        variant = ReguertaButtonVariant.SECONDARY,
+                        fullWidth = false,
+                        enabled = !isSaving,
+                        onClick = {
+                            focusManager.clearFocus(force = true)
+                            onCancelEditor()
+                        },
+                    )
+                }
+            }
+        }
+        return
+    }
+
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Card {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.products_catalog_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = stringResource(R.string.products_catalog_subtitle),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.products_catalog_owner_format,
+                            currentMember?.displayName.orEmpty().ifBlank { "—" },
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    ReguertaButton(
+                        label = stringResource(R.string.products_refresh_action),
+                        variant = ReguertaButtonVariant.SECONDARY,
+                        fullWidth = false,
+                        onClick = onRefresh,
+                    )
+                }
+            }
+
+            if (isLoading) {
+                Card {
+                    Text(
+                        text = stringResource(R.string.products_loading),
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
+            } else {
+                if (activeProducts.isEmpty()) {
+                    Card {
+                        Text(
+                            text = stringResource(R.string.products_empty_state),
+                            modifier = Modifier.padding(16.dp),
+                        )
+                    }
+                } else {
+                    activeProducts.forEach { product ->
+                        ProductListItem(
+                            product = product,
+                            onEdit = { onEditProduct(product.id) },
+                            onArchive = { onArchiveProduct(product.id) { } },
+                        )
+                    }
+                }
+
+                if (archivedProducts.isNotEmpty()) {
+                    Text(
+                        text = stringResource(R.string.products_archived_section_title),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    archivedProducts.forEach { product ->
+                        ProductListItem(
+                            product = product,
+                            onEdit = { onEditProduct(product.id) },
+                            onArchive = {},
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(96.dp))
+        }
+
+        ReguertaButton(
+            label = stringResource(R.string.products_create_action),
+            variant = ReguertaButtonVariant.PRIMARY,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .navigationBarsPadding(),
+            onClick = onCreateProduct,
+        )
+    }
+}
+
+@Composable
+private fun ProductListItem(
+    product: Product,
+    onEdit: () -> Unit,
+    onArchive: () -> Unit,
+) {
+    Card {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(96.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Image,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(32.dp),
+                )
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            text = product.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = product.description.ifBlank { "Sin descripcion." },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Row {
+                        IconButton(onClick = onEdit) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = stringResource(R.string.products_edit_action),
+                            )
+                        }
+                        if (!product.archived) {
+                            IconButton(onClick = onArchive) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = stringResource(R.string.products_archive_action),
+                                )
+                            }
+                        }
+                    }
+                }
+                Text(
+                    text = "${product.price.toUiDecimal()} €",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = when {
+                        product.archived -> stringResource(R.string.products_status_archived)
+                        product.stockMode == ProductStockMode.INFINITE -> stringResource(R.string.products_status_infinite_stock)
+                        else -> stringResource(
+                            R.string.products_status_finite_stock_format,
+                            product.stockQty?.toUiDecimal().orEmpty().ifBlank { "0" },
+                        )
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "${product.unitQty.toUiDecimal()} ${product.unitAbbreviation ?: product.unitName}",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                if (product.packContainerName != null) {
+                    Text(
+                        text = product.packContainerName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
@@ -4306,12 +4857,15 @@ private fun AuthorizedHome(
     onToggleActive: (String) -> Unit,
     onCreateMember: () -> Unit,
     onRetryMyOrderFreshness: () -> Unit,
+    onOpenProducts: () -> Unit,
     onOpenShifts: () -> Unit,
 ) {
     OperationalModules(
         modulesEnabled = true,
+        canOpenProducts = mode.member.canManageProductCatalog,
         myOrderFreshnessState = myOrderFreshnessState,
         onRetryMyOrderFreshness = onRetryMyOrderFreshness,
+        onOpenProducts = onOpenProducts,
         onOpenShifts = onOpenShifts,
     )
 
@@ -4427,8 +4981,10 @@ private fun AdminToolsCard(
 @Composable
 private fun OperationalModules(
     modulesEnabled: Boolean,
+    canOpenProducts: Boolean,
     myOrderFreshnessState: MyOrderFreshnessUiState,
     onRetryMyOrderFreshness: () -> Unit,
+    onOpenProducts: () -> Unit,
     onOpenShifts: () -> Unit,
     disabledMessage: String? = null,
 ) {
@@ -4447,7 +5003,7 @@ private fun OperationalModules(
             ) {
                 Text(stringResource(R.string.module_my_order))
             }
-            Button(onClick = {}, enabled = modulesEnabled, modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = onOpenProducts, enabled = modulesEnabled && canOpenProducts, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.module_catalog))
             }
             Button(onClick = onOpenShifts, enabled = modulesEnabled, modifier = Modifier.fillMaxWidth()) {
@@ -4577,6 +5133,16 @@ private fun Set<MemberRole>.toPrettyRoles(context: Context): String =
 
 private val Member.isProducer: Boolean
     get() = roles.contains(MemberRole.PRODUCER)
+
+private val Member.canManageProductCatalog: Boolean
+    get() = isProducer || isCommonPurchaseManager
+
+private fun Double.toUiDecimal(): String =
+    if (this % 1.0 == 0.0) {
+        toLong().toString()
+    } else {
+        toString()
+    }
 
 private fun UnauthorizedReason.toMessageResId(): Int =
     when (this) {

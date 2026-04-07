@@ -8,6 +8,7 @@ data class Member(
     val roles: Set<MemberRole>,
     val isActive: Boolean,
     val producerCatalogEnabled: Boolean,
+    val isCommonPurchaseManager: Boolean = false,
 ) {
     val isAdmin: Boolean
         get() = roles.contains(MemberRole.ADMIN)
