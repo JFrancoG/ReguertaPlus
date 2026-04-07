@@ -1897,6 +1897,52 @@ const dispatchShiftUpdatedNotification = async (
   });
 };
 
+const formatNotificationDate = (
+  timestamp: admin.firestore.Timestamp,
+): string => {
+  const formatter = new Intl.DateTimeFormat("es-ES", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: SHEET_TIME_ZONE,
+  });
+  return formatter.format(timestamp.toDate());
+};
+
+const createDeliveryCalendarNotification = async (
+  env: string,
+  weekKey: string,
+  updatedByUserId: string | null,
+  nextDate: admin.firestore.Timestamp | null,
+  previousDate: admin.firestore.Timestamp | null,
+): Promise<void> => {
+  if (!nextDate && !previousDate) {
+    return;
+  }
+
+  const title = "Cambio en el dia de reparto";
+  const body = nextDate ?
+    (
+      previousDate ?
+        `El reparto de la semana ${weekKey} pasa del ` +
+          `${formatNotificationDate(previousDate)} al ` +
+          `${formatNotificationDate(nextDate)}.` :
+        `El reparto de la semana ${weekKey} pasa al ` +
+          `${formatNotificationDate(nextDate)}.`
+    ) :
+    `El reparto de la semana ${weekKey} vuelve a su dia por defecto.`;
+
+  await firestore.collection(`${env}/plus-collections/notificationEvents`).add({
+    title,
+    body,
+    type: "delivery_calendar_updated",
+    target: "all",
+    targetPayload: {},
+    createdBy: updatedByUserId || "system",
+    sentAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+};
+
 const hasRelevantShiftChange = (
   before: FirestoreShiftRecord | null,
   after: FirestoreShiftRecord,
@@ -2381,6 +2427,19 @@ export const onDeliveryCalendarOverrideWritten = onDocumentWritten(
   async (event) => {
     const env = event.params.env;
     const weekKey = event.params.weekKey;
+    const beforeSnapshot = event.data?.before;
+    const afterSnapshot = event.data?.after;
+    const previousDate = beforeSnapshot?.exists &&
+      beforeSnapshot.get("deliveryDate") instanceof admin.firestore.Timestamp ?
+      beforeSnapshot.get("deliveryDate") as admin.firestore.Timestamp :
+      null;
+    const nextDate = afterSnapshot?.exists &&
+      afterSnapshot.get("deliveryDate") instanceof admin.firestore.Timestamp ?
+      afterSnapshot.get("deliveryDate") as admin.firestore.Timestamp :
+      null;
+    const updatedByUserId = parseString(
+      afterSnapshot?.get("updatedBy") ?? beforeSnapshot?.get("updatedBy"),
+    );
 
     try {
       const sheetConfig = getSheetConfig(env);
@@ -2426,6 +2485,16 @@ export const onDeliveryCalendarOverrideWritten = onDocumentWritten(
         weekKey,
         updatedCount,
       });
+
+      if (updatedCount > 0) {
+        await createDeliveryCalendarNotification(
+          env,
+          weekKey,
+          updatedByUserId,
+          nextDate,
+          previousDate,
+        );
+      }
     } catch (error) {
       logger.error(
         "❌ Failed to reflect delivery calendar override in Google Sheets",
