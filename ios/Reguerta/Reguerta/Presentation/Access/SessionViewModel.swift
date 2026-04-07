@@ -41,6 +41,50 @@ struct SharedProfileDraft: Equatable, Sendable {
     }
 }
 
+struct ProductDraft: Equatable, Sendable {
+    var name = ""
+    var description = ""
+    var productImageUrl = ""
+    var price = ""
+    var unitName = ""
+    var unitAbbreviation = ""
+    var unitPlural = ""
+    var unitQty = "1"
+    var packContainerName = ""
+    var packContainerAbbreviation = ""
+    var packContainerPlural = ""
+    var packContainerQty = ""
+    var isAvailable = true
+    var stockMode: ProductStockMode = .infinite
+    var stockQty = ""
+    var isEcoBasket = false
+    var isCommonPurchase = false
+    var commonPurchaseType: CommonPurchaseType?
+
+    var normalized: ProductDraft {
+        ProductDraft(
+            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+            description: description.trimmingCharacters(in: .whitespacesAndNewlines),
+            productImageUrl: productImageUrl.trimmingCharacters(in: .whitespacesAndNewlines),
+            price: price.trimmingCharacters(in: .whitespacesAndNewlines),
+            unitName: unitName.trimmingCharacters(in: .whitespacesAndNewlines),
+            unitAbbreviation: unitAbbreviation.trimmingCharacters(in: .whitespacesAndNewlines),
+            unitPlural: unitPlural.trimmingCharacters(in: .whitespacesAndNewlines),
+            unitQty: unitQty.trimmingCharacters(in: .whitespacesAndNewlines),
+            packContainerName: packContainerName.trimmingCharacters(in: .whitespacesAndNewlines),
+            packContainerAbbreviation: packContainerAbbreviation.trimmingCharacters(in: .whitespacesAndNewlines),
+            packContainerPlural: packContainerPlural.trimmingCharacters(in: .whitespacesAndNewlines),
+            packContainerQty: packContainerQty.trimmingCharacters(in: .whitespacesAndNewlines),
+            isAvailable: isAvailable,
+            stockMode: stockMode,
+            stockQty: stockQty.trimmingCharacters(in: .whitespacesAndNewlines),
+            isEcoBasket: isEcoBasket,
+            isCommonPurchase: isCommonPurchase,
+            commonPurchaseType: commonPurchaseType
+        )
+    }
+}
+
 struct ShiftSwapDraft: Equatable, Sendable {
     var shiftId = ""
     var reason = ""
@@ -131,6 +175,8 @@ final class SessionViewModel {
     var newsDraft = NewsDraft()
     var notificationsFeed: [NotificationEvent] = []
     var notificationDraft = NotificationDraft()
+    var productsFeed: [Product] = []
+    var productDraft = ProductDraft()
     var sharedProfiles: [SharedProfile] = []
     var sharedProfileDraft = SharedProfileDraft()
     var shiftsFeed: [ShiftAssignment] = []
@@ -141,11 +187,14 @@ final class SessionViewModel {
     var shiftSwapDraft = ShiftSwapDraft()
     var nextDeliveryShift: ShiftAssignment?
     var nextMarketShift: ShiftAssignment?
+    var editingProductId: String?
     var editingNewsId: String?
     var isLoadingNews = false
     var isSavingNews = false
     var isLoadingNotifications = false
     var isSendingNotification = false
+    var isLoadingProducts = false
+    var isSavingProduct = false
     var isLoadingSharedProfiles = false
     var isSavingSharedProfile = false
     var isDeletingSharedProfile = false
@@ -159,6 +208,7 @@ final class SessionViewModel {
     private let repository: any MemberRepository
     private let newsRepository: any NewsRepository
     private let notificationRepository: any NotificationRepository
+    private let productRepository: any ProductRepository
     private let sharedProfileRepository: any SharedProfileRepository
     private let shiftRepository: any ShiftRepository
     private let deliveryCalendarRepository: any DeliveryCalendarRepository
@@ -234,6 +284,10 @@ final class SessionViewModel {
             primary: FirestoreNotificationRepository(),
             fallback: InMemoryNotificationRepository()
         )
+        let selectedProductRepository: any ProductRepository = ChainedProductRepository(
+            primary: FirestoreProductRepository(),
+            fallback: InMemoryProductRepository()
+        )
         let selectedSharedProfileRepository = sharedProfileRepository ?? ChainedSharedProfileRepository(
             primary: FirestoreSharedProfileRepository(),
             fallback: InMemorySharedProfileRepository()
@@ -277,6 +331,7 @@ final class SessionViewModel {
         self.repository = selectedRepository
         self.newsRepository = selectedNewsRepository
         self.notificationRepository = selectedNotificationRepository
+        self.productRepository = selectedProductRepository
         self.sharedProfileRepository = selectedSharedProfileRepository
         self.shiftRepository = selectedShiftRepository
         self.deliveryCalendarRepository = selectedDeliveryCalendarRepository
@@ -385,6 +440,8 @@ final class SessionViewModel {
         newsDraft = NewsDraft()
         notificationsFeed = []
         notificationDraft = NotificationDraft()
+        productsFeed = []
+        productDraft = ProductDraft()
         sharedProfiles = []
         sharedProfileDraft = SharedProfileDraft()
         shiftsFeed = []
@@ -392,11 +449,14 @@ final class SessionViewModel {
         shiftSwapDraft = ShiftSwapDraft()
         nextDeliveryShift = nil
         nextMarketShift = nil
+        editingProductId = nil
         editingNewsId = nil
         isLoadingNews = false
         isSavingNews = false
         isLoadingNotifications = false
         isSendingNotification = false
+        isLoadingProducts = false
+        isSavingProduct = false
         isLoadingSharedProfiles = false
         isSavingSharedProfile = false
         isDeletingSharedProfile = false
@@ -426,6 +486,12 @@ final class SessionViewModel {
         var draft = notificationDraft
         update(&draft)
         notificationDraft = draft
+    }
+
+    func updateProductDraft(_ update: (inout ProductDraft) -> Void) {
+        var draft = productDraft
+        update(&draft)
+        productDraft = draft
     }
 
     func startCreatingNews() {
@@ -476,6 +542,164 @@ final class SessionViewModel {
     func clearNotificationEditor() {
         notificationDraft = NotificationDraft()
         isSendingNotification = false
+    }
+
+    func refreshProducts() {
+        guard case .authorized(let session) = mode else { return }
+        guard session.member.canManageProductCatalog else { return }
+        isLoadingProducts = true
+        Task { @MainActor in
+            productsFeed = await productRepository.products(vendorId: session.member.id)
+            isLoadingProducts = false
+        }
+    }
+
+    func startCreatingProduct() {
+        guard case .authorized(let session) = mode else { return }
+        guard session.member.canManageProductCatalog else {
+            feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
+            return
+        }
+        productDraft = ProductDraft()
+        editingProductId = ""
+    }
+
+    func startEditingProduct(productId: String) {
+        guard case .authorized(let session) = mode else { return }
+        guard session.member.canManageProductCatalog else {
+            feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
+            return
+        }
+        guard let product = productsFeed.first(where: { $0.id == productId }) else { return }
+        productDraft = product.toDraft()
+        editingProductId = product.id
+    }
+
+    func clearProductEditor() {
+        productDraft = ProductDraft()
+        editingProductId = nil
+        isSavingProduct = false
+    }
+
+    func saveProduct(onSuccess: @escaping @MainActor () -> Void = {}) {
+        guard case .authorized(let session) = mode else { return }
+        guard session.member.canManageProductCatalog else {
+            feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
+            return
+        }
+        let draft = productDraft.normalized
+        let nowMillis = nowMillisProvider()
+        let existing = productsFeed.first(where: { $0.id == editingProductId })
+        guard let price = draft.price.toPositiveDouble,
+              let unitQty = draft.unitQty.toPositiveDouble,
+              !draft.name.isEmpty,
+              !draft.unitName.isEmpty,
+              !draft.unitPlural.isEmpty else {
+            feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
+            return
+        }
+        let stockQty = draft.stockMode == .finite ? draft.stockQty.toNonNegativeDouble : nil
+        if draft.stockMode == .finite && stockQty == nil {
+            feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
+            return
+        }
+        let packContainerQty = draft.packContainerName.isEmpty ? nil : draft.packContainerQty.toPositiveDouble
+        if !draft.packContainerName.isEmpty && packContainerQty == nil {
+            feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
+            return
+        }
+
+        isSavingProduct = true
+        Task { @MainActor in
+            let canManageEcoBasket = session.member.isProducer
+            let canManageCommonPurchase = session.member.isCommonPurchaseManager && !session.member.isProducer
+            let allProducts = await productRepository.allProducts()
+            let activeEcoBasketPrice = allProducts.first(where: { $0.isEcoBasket && !$0.archived && $0.id != existing?.id })?.price
+            if canManageEcoBasket, draft.isEcoBasket, let activeEcoBasketPrice, activeEcoBasketPrice != price {
+                isSavingProduct = false
+                feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
+                return
+            }
+            let saved = await productRepository.upsert(
+                product: Product(
+                    id: existing?.id ?? "",
+                    vendorId: existing?.vendorId ?? session.member.id,
+                    companyName: existing?.companyName ?? session.member.displayName,
+                    name: draft.name,
+                    description: draft.description,
+                    productImageUrl: draft.productImageUrl.isEmpty ? nil : draft.productImageUrl,
+                    price: price,
+                    pricingMode: .fixed,
+                    unitName: draft.unitName,
+                    unitAbbreviation: draft.unitAbbreviation.isEmpty ? nil : draft.unitAbbreviation,
+                    unitPlural: draft.unitPlural,
+                    unitQty: unitQty,
+                    packContainerName: draft.packContainerName.isEmpty ? nil : draft.packContainerName,
+                    packContainerAbbreviation: draft.packContainerAbbreviation.isEmpty ? nil : draft.packContainerAbbreviation,
+                    packContainerPlural: draft.packContainerPlural.isEmpty ? nil : draft.packContainerPlural,
+                    packContainerQty: packContainerQty,
+                    isAvailable: draft.isAvailable,
+                    stockMode: draft.stockMode,
+                    stockQty: stockQty,
+                    isEcoBasket: canManageEcoBasket ? draft.isEcoBasket : false,
+                    isCommonPurchase: canManageCommonPurchase ? draft.isCommonPurchase : false,
+                    commonPurchaseType: (canManageCommonPurchase && draft.isCommonPurchase) ? draft.commonPurchaseType : nil,
+                    archived: existing?.archived ?? false,
+                    createdAtMillis: existing?.createdAtMillis ?? nowMillis,
+                    updatedAtMillis: nowMillis
+                )
+            )
+            productsFeed = await productRepository.products(vendorId: session.member.id)
+            productDraft = saved.toDraft()
+            editingProductId = saved.id
+            isSavingProduct = false
+            onSuccess()
+        }
+    }
+
+    func archiveProduct(productId: String, onSuccess: @escaping @MainActor () -> Void = {}) {
+        guard case .authorized(let session) = mode else { return }
+        guard session.member.canManageProductCatalog else { return }
+        guard let product = productsFeed.first(where: { $0.id == productId }) else { return }
+        isSavingProduct = true
+        Task { @MainActor in
+            _ = await productRepository.upsert(
+                product: Product(
+                    id: product.id,
+                    vendorId: product.vendorId,
+                    companyName: product.companyName,
+                    name: product.name,
+                    description: product.description,
+                    productImageUrl: product.productImageUrl,
+                    price: product.price,
+                    pricingMode: product.pricingMode,
+                    unitName: product.unitName,
+                    unitAbbreviation: product.unitAbbreviation,
+                    unitPlural: product.unitPlural,
+                    unitQty: product.unitQty,
+                    packContainerName: product.packContainerName,
+                    packContainerAbbreviation: product.packContainerAbbreviation,
+                    packContainerPlural: product.packContainerPlural,
+                    packContainerQty: product.packContainerQty,
+                    isAvailable: product.isAvailable,
+                    stockMode: product.stockMode,
+                    stockQty: product.stockQty,
+                    isEcoBasket: product.isEcoBasket,
+                    isCommonPurchase: product.isCommonPurchase,
+                    commonPurchaseType: product.commonPurchaseType,
+                    archived: true,
+                    createdAtMillis: product.createdAtMillis,
+                    updatedAtMillis: nowMillisProvider()
+                )
+            )
+            productsFeed = await productRepository.products(vendorId: session.member.id)
+            if editingProductId == productId {
+                productDraft = ProductDraft()
+                editingProductId = nil
+            }
+            isSavingProduct = false
+            onSuccess()
+        }
     }
 
     func refreshSharedProfiles() {
@@ -557,6 +781,7 @@ final class SessionViewModel {
         shiftSwapDraft = ShiftSwapDraft()
         refreshNews()
         refreshNotifications()
+        refreshProducts()
         refreshSharedProfiles()
         refreshShifts()
         refreshDeliveryCalendar()
@@ -579,6 +804,7 @@ final class SessionViewModel {
         shiftSwapDraft = ShiftSwapDraft()
         refreshNews()
         refreshNotifications()
+        refreshProducts()
         refreshSharedProfiles()
         refreshShifts()
         refreshDeliveryCalendar()
@@ -1086,7 +1312,8 @@ final class SessionViewModel {
             authUid: nil,
             roles: roles,
             isActive: memberDraft.isActive,
-            producerCatalogEnabled: true
+            producerCatalogEnabled: true,
+            isCommonPurchaseManager: false
         )
 
         Task { @MainActor in
@@ -1124,7 +1351,8 @@ final class SessionViewModel {
             authUid: target.authUid,
             roles: roles,
             isActive: target.isActive,
-            producerCatalogEnabled: target.producerCatalogEnabled
+            producerCatalogEnabled: target.producerCatalogEnabled,
+            isCommonPurchaseManager: target.isCommonPurchaseManager
         )
 
         Task { @MainActor in
@@ -1151,7 +1379,8 @@ final class SessionViewModel {
             authUid: target.authUid,
             roles: target.roles,
             isActive: !target.isActive,
-            producerCatalogEnabled: target.producerCatalogEnabled
+            producerCatalogEnabled: target.producerCatalogEnabled,
+            isCommonPurchaseManager: target.isCommonPurchaseManager
         )
 
         Task { @MainActor in
@@ -1390,8 +1619,10 @@ final class SessionViewModel {
             }
             isLoadingNews = true
             isLoadingNotifications = true
+            isLoadingProducts = member.canManageProductCatalog
             isLoadingSharedProfiles = true
             isLoadingShifts = true
+            let products = await productRepository.products(vendorId: member.id)
             let allNotifications = await notificationRepository.allNotifications()
             let profiles = await sharedProfileRepository.allSharedProfiles()
             let shifts = await shiftRepository.allShifts()
@@ -1400,6 +1631,8 @@ final class SessionViewModel {
             latestNews = allNews.filter(\.active).prefix(3).map { $0 }
             newsFeed = member.isAdmin ? allNews : allNews.filter(\.active)
             notificationsFeed = allNotifications.filter { $0.isVisible(to: member) }
+            productsFeed = products
+            productDraft = ProductDraft()
             sharedProfiles = profiles.filter(\.hasVisibleContent)
             sharedProfileDraft = profiles.first(where: { $0.userId == member.id })?.toDraft() ?? SharedProfileDraft()
             shiftsFeed = shifts
@@ -1415,8 +1648,10 @@ final class SessionViewModel {
                 type: .market,
                 nowMillis: nowMillisProvider()
             )
+            editingProductId = nil
             isLoadingNews = false
             isLoadingNotifications = false
+            isLoadingProducts = false
             isLoadingSharedProfiles = false
             isLoadingShifts = false
             await authorizedDeviceRegistrar.register(member: member)
@@ -1434,6 +1669,8 @@ final class SessionViewModel {
             newsDraft = NewsDraft()
             notificationsFeed = []
             notificationDraft = NotificationDraft()
+            productsFeed = []
+            productDraft = ProductDraft()
             sharedProfiles = []
             sharedProfileDraft = SharedProfileDraft()
             shiftsFeed = []
@@ -1441,11 +1678,14 @@ final class SessionViewModel {
             shiftSwapDraft = ShiftSwapDraft()
             nextDeliveryShift = nil
             nextMarketShift = nil
+            editingProductId = nil
             editingNewsId = nil
             isLoadingNews = false
             isSavingNews = false
             isLoadingNotifications = false
             isSendingNotification = false
+            isLoadingProducts = false
+            isSavingProduct = false
             isLoadingSharedProfiles = false
             isSavingSharedProfile = false
             isDeletingSharedProfile = false
@@ -1504,6 +1744,8 @@ final class SessionViewModel {
         newsDraft = NewsDraft()
         notificationsFeed = []
         notificationDraft = NotificationDraft()
+        productsFeed = []
+        productDraft = ProductDraft()
         sharedProfiles = []
         sharedProfileDraft = SharedProfileDraft()
         shiftsFeed = []
@@ -1511,11 +1753,14 @@ final class SessionViewModel {
         shiftSwapDraft = ShiftSwapDraft()
         nextDeliveryShift = nil
         nextMarketShift = nil
+        editingProductId = nil
         editingNewsId = nil
         isLoadingNews = false
         isSavingNews = false
         isLoadingNotifications = false
         isSendingNotification = false
+        isLoadingProducts = false
+        isSavingProduct = false
         isLoadingSharedProfiles = false
         isSavingSharedProfile = false
         isDeletingSharedProfile = false
@@ -1790,6 +2035,69 @@ private extension String {
 
     var isValidPassword: Bool {
         (6...16).contains(count)
+    }
+
+    var toPositiveDouble: Double? {
+        replacingOccurrences(of: ",", with: ".")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nilIfEmpty
+            .flatMap(Double.init)
+            .flatMap { $0 > 0 ? $0 : nil }
+    }
+
+    var toNonNegativeDouble: Double? {
+        replacingOccurrences(of: ",", with: ".")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nilIfEmpty
+            .flatMap(Double.init)
+            .flatMap { $0 >= 0 ? $0 : nil }
+    }
+
+    var nilIfEmpty: String? {
+        isEmpty ? nil : self
+    }
+}
+
+private extension Product {
+    func toDraft() -> ProductDraft {
+        ProductDraft(
+            name: name,
+            description: description,
+            productImageUrl: productImageUrl ?? "",
+            price: price.uiDecimal,
+            unitName: unitName,
+            unitAbbreviation: unitAbbreviation ?? "",
+            unitPlural: unitPlural,
+            unitQty: unitQty.uiDecimal,
+            packContainerName: packContainerName ?? "",
+            packContainerAbbreviation: packContainerAbbreviation ?? "",
+            packContainerPlural: packContainerPlural ?? "",
+            packContainerQty: packContainerQty?.uiDecimal ?? "",
+            isAvailable: isAvailable,
+            stockMode: stockMode,
+            stockQty: stockQty?.uiDecimal ?? "",
+            isEcoBasket: isEcoBasket,
+            isCommonPurchase: isCommonPurchase,
+            commonPurchaseType: commonPurchaseType
+        )
+    }
+}
+
+private extension Member {
+    var isProducer: Bool {
+        roles.contains(.producer)
+    }
+
+    var canManageProductCatalog: Bool {
+        isProducer || isCommonPurchaseManager
+    }
+}
+
+private extension Double {
+    var uiDecimal: String {
+        truncatingRemainder(dividingBy: 1) == 0
+            ? String(Int(self))
+            : String(self)
     }
 }
 

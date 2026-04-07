@@ -64,6 +64,7 @@ class FirestoreMemberRepository(
             roles = setOf(MemberRole.MEMBER),
             isActive = true,
             producerCatalogEnabled = true,
+            isCommonPurchaseManager = false,
         )
 
         runCatching {
@@ -93,6 +94,7 @@ class FirestoreMemberRepository(
             "roles" to member.roles.map { role -> role.toWireValue() },
             "isActive" to member.isActive,
             "producerCatalogEnabled" to member.producerCatalogEnabled,
+            "isCommonPurchaseManager" to member.isCommonPurchaseManager,
         )
 
         runCatching {
@@ -116,6 +118,7 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toMember(): Member? {
     val authUid = getString("authUid")?.trim()?.takeIf { it.isNotEmpty() }
     val isActive = getBoolean("isActive") ?: true
     val producerCatalogEnabled = getBoolean("producerCatalogEnabled") ?: true
+    val isCommonPurchaseManager = getBoolean("isCommonPurchaseManager") ?: false
 
     val rawRoles = get("roles") as? List<*>
     val parsedRoles = rawRoles
@@ -139,6 +142,7 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toMember(): Member? {
         roles = roles,
         isActive = isActive,
         producerCatalogEnabled = producerCatalogEnabled,
+        isCommonPurchaseManager = isCommonPurchaseManager,
     )
 }
 

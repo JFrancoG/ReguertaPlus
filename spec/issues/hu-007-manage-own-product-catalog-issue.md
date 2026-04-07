@@ -28,11 +28,19 @@ As a producer I want to create, update, and archive my products so that I keep m
 - Refactors not required to close acceptance criteria.
 
 ## Implementation checklist
-- [ ] Android
-- [ ] iOS
-- [ ] Backend / Firestore
-- [ ] Testing
-- [ ] Documentation
+- [x] Android
+- [x] iOS
+- [x] Backend / Firestore access path
+- [x] Testing
+- [x] Documentation
+
+## Implementation notes
+
+- Producer can manage only own catalog from app shell.
+- `vendorId` is preserved on edit and assigned from current producer on create.
+- Image remains manual URL input in this story; picker/upload is deferred to HU-025.
+- This slice supports fixed-price products; weighted flow is deferred to HU-026.
+- `companyName` is currently derived from producer display name.
 
 ## Suggested labels
 - type:feature

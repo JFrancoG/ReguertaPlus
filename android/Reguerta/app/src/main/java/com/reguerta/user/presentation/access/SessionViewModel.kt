@@ -33,6 +33,11 @@ import com.reguerta.user.domain.notifications.NotificationEvent
 import com.reguerta.user.domain.notifications.NotificationRepository
 import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.profiles.SharedProfileRepository
+import com.reguerta.user.domain.products.CommonPurchaseType
+import com.reguerta.user.domain.products.Product
+import com.reguerta.user.domain.products.ProductPricingMode
+import com.reguerta.user.domain.products.ProductRepository
+import com.reguerta.user.domain.products.ProductStockMode
 import com.reguerta.user.domain.shifts.ShiftAssignment
 import com.reguerta.user.domain.shifts.ShiftRepository
 import com.reguerta.user.domain.shifts.ShiftPlanningRequest
@@ -89,6 +94,27 @@ data class SharedProfileDraft(
     val about: String = "",
 )
 
+data class ProductDraft(
+    val name: String = "",
+    val description: String = "",
+    val productImageUrl: String = "",
+    val price: String = "",
+    val unitName: String = "",
+    val unitAbbreviation: String = "",
+    val unitPlural: String = "",
+    val unitQty: String = "1",
+    val packContainerName: String = "",
+    val packContainerAbbreviation: String = "",
+    val packContainerPlural: String = "",
+    val packContainerQty: String = "",
+    val isAvailable: Boolean = true,
+    val stockMode: ProductStockMode = ProductStockMode.INFINITE,
+    val stockQty: String = "",
+    val isEcoBasket: Boolean = false,
+    val isCommonPurchase: Boolean = false,
+    val commonPurchaseType: CommonPurchaseType? = null,
+)
+
 data class ShiftSwapDraft(
     val shiftId: String = "",
     val reason: String = "",
@@ -137,6 +163,8 @@ data class SessionUiState(
     val newsDraft: NewsDraft = NewsDraft(),
     val notificationsFeed: List<NotificationEvent> = emptyList(),
     val notificationDraft: NotificationDraft = NotificationDraft(),
+    val productsFeed: List<Product> = emptyList(),
+    val productDraft: ProductDraft = ProductDraft(),
     val sharedProfiles: List<SharedProfile> = emptyList(),
     val sharedProfileDraft: SharedProfileDraft = SharedProfileDraft(),
     val shiftsFeed: List<ShiftAssignment> = emptyList(),
@@ -147,11 +175,14 @@ data class SessionUiState(
     val shiftSwapDraft: ShiftSwapDraft = ShiftSwapDraft(),
     val nextDeliveryShift: ShiftAssignment? = null,
     val nextMarketShift: ShiftAssignment? = null,
+    val editingProductId: String? = null,
     val editingNewsId: String? = null,
     val isLoadingNews: Boolean = false,
     val isSavingNews: Boolean = false,
     val isLoadingNotifications: Boolean = false,
     val isSendingNotification: Boolean = false,
+    val isLoadingProducts: Boolean = false,
+    val isSavingProduct: Boolean = false,
     val isLoadingSharedProfiles: Boolean = false,
     val isSavingSharedProfile: Boolean = false,
     val isDeletingSharedProfile: Boolean = false,
@@ -183,6 +214,7 @@ class SessionViewModel(
     private val repository: MemberRepository,
     private val newsRepository: NewsRepository,
     private val notificationRepository: NotificationRepository,
+    private val productRepository: ProductRepository,
     private val sharedProfileRepository: SharedProfileRepository,
     private val shiftRepository: ShiftRepository,
     private val deliveryCalendarRepository: DeliveryCalendarRepository,
@@ -227,6 +259,7 @@ class SessionViewModel(
         }
         refreshNews()
         refreshNotifications()
+        refreshProducts()
         refreshSharedProfiles()
         refreshShifts()
         refreshDeliveryCalendar()
@@ -245,6 +278,7 @@ class SessionViewModel(
         }
         refreshNews()
         refreshNotifications()
+        refreshProducts()
         refreshSharedProfiles()
         refreshShifts()
         refreshDeliveryCalendar()
@@ -370,6 +404,10 @@ class SessionViewModel(
         _uiState.update { it.copy(notificationDraft = newDraft) }
     }
 
+    fun onProductDraftChanged(newDraft: ProductDraft) {
+        _uiState.update { it.copy(productDraft = newDraft) }
+    }
+
     fun startCreatingNews() {
         val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
         if (!mode.member.isAdmin) {
@@ -436,6 +474,177 @@ class SessionViewModel(
                 notificationDraft = NotificationDraft(),
                 isSendingNotification = false,
             )
+        }
+    }
+
+    fun refreshProducts() {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        if (!mode.member.canManageProductCatalog) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingProducts = true) }
+            val products = productRepository.getProductsForVendor(mode.member.id)
+            _uiState.update {
+                val currentMode = it.mode as? SessionMode.Authorized
+                if (currentMode?.principal?.uid != mode.principal.uid) {
+                    it
+                } else {
+                    it.copy(
+                        productsFeed = products,
+                        isLoadingProducts = false,
+                    )
+                }
+            }
+        }
+    }
+
+    fun startCreatingProduct() {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        if (!mode.member.canManageProductCatalog) {
+            emitMessage(R.string.feedback_only_producer_manage_products)
+            return
+        }
+        _uiState.update {
+            it.copy(
+                productDraft = ProductDraft(),
+                editingProductId = "",
+            )
+        }
+    }
+
+    fun startEditingProduct(productId: String) {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        if (!mode.member.canManageProductCatalog) {
+            emitMessage(R.string.feedback_only_producer_manage_products)
+            return
+        }
+        val product = _uiState.value.productsFeed.firstOrNull { it.id == productId } ?: return
+        _uiState.update {
+            it.copy(
+                productDraft = product.toDraft(),
+                editingProductId = product.id,
+            )
+        }
+    }
+
+    fun clearProductEditor() {
+        _uiState.update {
+            it.copy(
+                productDraft = ProductDraft(),
+                editingProductId = null,
+                isSavingProduct = false,
+            )
+        }
+    }
+
+    fun saveProduct(onSuccess: () -> Unit = {}) {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        if (!mode.member.canManageProductCatalog) {
+            emitMessage(R.string.feedback_only_producer_manage_products)
+            return
+        }
+        val draft = _uiState.value.productDraft.normalized()
+        val nowMillis = nowMillisProvider()
+        val existing = _uiState.value.productsFeed.firstOrNull { it.id == _uiState.value.editingProductId }
+        val price = draft.price.toPositiveDoubleOrNull()
+        val unitQty = draft.unitQty.toPositiveDoubleOrNull()
+        val stockQty = if (draft.stockMode == ProductStockMode.FINITE) draft.stockQty.toNonNegativeDoubleOrNull() else null
+        val packContainerQty = if (draft.packContainerName.isNotBlank()) draft.packContainerQty.toPositiveDoubleOrNull() else null
+        if (draft.name.isBlank() || price == null || draft.unitName.isBlank() || draft.unitPlural.isBlank() || unitQty == null) {
+            emitMessage(R.string.feedback_product_required_fields)
+            return
+        }
+        if (draft.stockMode == ProductStockMode.FINITE && stockQty == null) {
+            emitMessage(R.string.feedback_product_stock_required)
+            return
+        }
+        if (draft.packContainerName.isNotBlank() && packContainerQty == null) {
+            emitMessage(R.string.feedback_product_pack_qty_required)
+            return
+        }
+        viewModelScope.launch {
+            val canManageEcoBasket = mode.member.isProducer
+            val canManageCommonPurchase = mode.member.isCommonPurchaseManager && !mode.member.isProducer
+            val allProducts = productRepository.getAllProducts()
+            val activeEcoBasketPrice = allProducts.firstOrNull { product ->
+                product.isEcoBasket && !product.archived && product.id != existing?.id
+            }?.price
+            if (canManageEcoBasket && draft.isEcoBasket && activeEcoBasketPrice != null && activeEcoBasketPrice != price) {
+                emitMessage(R.string.feedback_product_eco_basket_price_mismatch)
+                return@launch
+            }
+            _uiState.update { it.copy(isSavingProduct = true) }
+            val saved = productRepository.upsertProduct(
+                Product(
+                    id = existing?.id.orEmpty(),
+                    vendorId = existing?.vendorId ?: mode.member.id,
+                    companyName = existing?.companyName ?: mode.member.displayName,
+                    name = draft.name,
+                    description = draft.description,
+                    productImageUrl = draft.productImageUrl.ifBlank { null },
+                    price = price,
+                    pricingMode = ProductPricingMode.FIXED,
+                    unitName = draft.unitName,
+                    unitAbbreviation = draft.unitAbbreviation.ifBlank { null },
+                    unitPlural = draft.unitPlural,
+                    unitQty = unitQty,
+                    packContainerName = draft.packContainerName.ifBlank { null },
+                    packContainerAbbreviation = draft.packContainerAbbreviation.ifBlank { null },
+                    packContainerPlural = draft.packContainerPlural.ifBlank { null },
+                    packContainerQty = packContainerQty,
+                    isAvailable = draft.isAvailable,
+                    stockMode = draft.stockMode,
+                    stockQty = stockQty,
+                    isEcoBasket = if (canManageEcoBasket) draft.isEcoBasket else false,
+                    isCommonPurchase = if (canManageCommonPurchase) draft.isCommonPurchase else false,
+                    commonPurchaseType = if (canManageCommonPurchase && draft.isCommonPurchase) draft.commonPurchaseType else null,
+                    archived = existing?.archived ?: false,
+                    createdAtMillis = existing?.createdAtMillis ?: nowMillis,
+                    updatedAtMillis = nowMillis,
+                ),
+            )
+            val products = productRepository.getProductsForVendor(mode.member.id)
+            _uiState.update {
+                it.copy(
+                    productsFeed = products,
+                    productDraft = saved.toDraft(),
+                    editingProductId = saved.id,
+                    isSavingProduct = false,
+                )
+            }
+            emitMessage(if (existing == null) R.string.feedback_product_created else R.string.feedback_product_updated)
+            onSuccess()
+        }
+    }
+
+    fun archiveProduct(
+        productId: String,
+        onSuccess: () -> Unit = {},
+    ) {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        if (!mode.member.canManageProductCatalog) {
+            emitMessage(R.string.feedback_only_producer_manage_products)
+            return
+        }
+        val product = _uiState.value.productsFeed.firstOrNull { it.id == productId } ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSavingProduct = true) }
+            productRepository.upsertProduct(
+                product.copy(
+                    archived = true,
+                    updatedAtMillis = nowMillisProvider(),
+                ),
+            )
+            val products = productRepository.getProductsForVendor(mode.member.id)
+            _uiState.update {
+                it.copy(
+                    productsFeed = products,
+                    productDraft = if (it.editingProductId == productId) ProductDraft() else it.productDraft,
+                    editingProductId = if (it.editingProductId == productId) null else it.editingProductId,
+                    isSavingProduct = false,
+                )
+            }
+            emitMessage(R.string.feedback_product_archived)
+            onSuccess()
         }
     }
 
@@ -1393,6 +1602,8 @@ class SessionViewModel(
                 newsDraft = NewsDraft(),
                 notificationsFeed = emptyList(),
                 notificationDraft = NotificationDraft(),
+                productsFeed = emptyList(),
+                productDraft = ProductDraft(),
                 sharedProfiles = emptyList(),
                 sharedProfileDraft = SharedProfileDraft(),
                 shiftsFeed = emptyList(),
@@ -1403,6 +1614,8 @@ class SessionViewModel(
                 isSavingNews = false,
                 isLoadingNotifications = false,
                 isSendingNotification = false,
+                isLoadingProducts = false,
+                isSavingProduct = false,
                 isLoadingSharedProfiles = false,
                 isSavingSharedProfile = false,
                 isDeletingSharedProfile = false,
@@ -1519,6 +1732,7 @@ class SessionViewModel(
             roles = roles,
             isActive = draft.isActive,
             producerCatalogEnabled = true,
+            isCommonPurchaseManager = false,
         )
 
         updateMember(mode, member) {
@@ -1621,6 +1835,7 @@ class SessionViewModel(
             is AccessResolutionResult.Authorized -> {
                 val members = repository.getAllMembers()
                 val allNotifications = notificationRepository.getAllNotifications()
+                val products = productRepository.getProductsForVendor(result.member.id)
                 val sharedProfiles = sharedProfileRepository.getAllSharedProfiles()
                 val allShifts = shiftRepository.getAllShifts()
                 val ownSharedProfile = sharedProfiles.firstOrNull { it.userId == result.member.id }
@@ -1641,6 +1856,7 @@ class SessionViewModel(
                         },
                         isLoadingNews = true,
                         isLoadingNotifications = true,
+                        isLoadingProducts = result.member.canManageProductCatalog,
                         isLoadingSharedProfiles = true,
                         isLoadingShifts = true,
                     )
@@ -1659,6 +1875,8 @@ class SessionViewModel(
                                 allNews.filter { article -> article.active }
                             },
                             notificationsFeed = allNotifications.filter { event -> event.isVisibleTo(result.member) },
+                            productsFeed = products,
+                            productDraft = ProductDraft(),
                             sharedProfiles = sharedProfiles.filter { profile -> profile.hasVisibleContent },
                             sharedProfileDraft = ownSharedProfile?.toDraft() ?: SharedProfileDraft(),
                             shiftsFeed = allShifts,
@@ -1674,6 +1892,7 @@ class SessionViewModel(
                             ),
                             isLoadingNews = false,
                             isLoadingNotifications = false,
+                            isLoadingProducts = false,
                             isLoadingSharedProfiles = false,
                             isLoadingShifts = false,
                         )
@@ -1704,6 +1923,8 @@ class SessionViewModel(
                         newsDraft = NewsDraft(),
                         notificationsFeed = emptyList(),
                         notificationDraft = NotificationDraft(),
+                        productsFeed = emptyList(),
+                        productDraft = ProductDraft(),
                         sharedProfiles = emptyList(),
                         sharedProfileDraft = SharedProfileDraft(),
                         shiftsFeed = emptyList(),
@@ -1714,6 +1935,8 @@ class SessionViewModel(
                         isSavingNews = false,
                         isLoadingNotifications = false,
                         isSendingNotification = false,
+                        isLoadingProducts = false,
+                        isSavingProduct = false,
                         isLoadingSharedProfiles = false,
                         isSavingSharedProfile = false,
                         isDeletingSharedProfile = false,
@@ -1774,6 +1997,8 @@ class SessionViewModel(
                 newsDraft = NewsDraft(),
                 notificationsFeed = emptyList(),
                 notificationDraft = NotificationDraft(),
+                productsFeed = emptyList(),
+                productDraft = ProductDraft(),
                 sharedProfiles = emptyList(),
                 sharedProfileDraft = SharedProfileDraft(),
                 shiftsFeed = emptyList(),
@@ -1784,6 +2009,8 @@ class SessionViewModel(
                 isSavingNews = false,
                 isLoadingNotifications = false,
                 isSendingNotification = false,
+                isLoadingProducts = false,
+                isSavingProduct = false,
                 isLoadingSharedProfiles = false,
                 isSavingSharedProfile = false,
                 isDeletingSharedProfile = false,
@@ -1825,6 +2052,64 @@ private fun SharedProfile.toDraft(): SharedProfileDraft =
         photoUrl = photoUrl.orEmpty(),
         about = about,
     )
+
+private fun Product.toDraft(): ProductDraft =
+    ProductDraft(
+        name = name,
+        description = description,
+        productImageUrl = productImageUrl.orEmpty(),
+        price = price.toUiDecimal(),
+        unitName = unitName,
+        unitAbbreviation = unitAbbreviation.orEmpty(),
+        unitPlural = unitPlural,
+        unitQty = unitQty.toUiDecimal(),
+        packContainerName = packContainerName.orEmpty(),
+        packContainerAbbreviation = packContainerAbbreviation.orEmpty(),
+        packContainerPlural = packContainerPlural.orEmpty(),
+        packContainerQty = packContainerQty?.toUiDecimal().orEmpty(),
+        isAvailable = isAvailable,
+        stockMode = stockMode,
+        stockQty = stockQty?.toUiDecimal().orEmpty(),
+        isEcoBasket = isEcoBasket,
+        isCommonPurchase = isCommonPurchase,
+        commonPurchaseType = commonPurchaseType,
+    )
+
+private fun ProductDraft.normalized(): ProductDraft =
+    copy(
+        name = name.trim(),
+        description = description.trim(),
+        productImageUrl = productImageUrl.trim(),
+        price = price.trim(),
+        unitName = unitName.trim(),
+        unitAbbreviation = unitAbbreviation.trim(),
+        unitPlural = unitPlural.trim(),
+        unitQty = unitQty.trim(),
+        packContainerName = packContainerName.trim(),
+        packContainerAbbreviation = packContainerAbbreviation.trim(),
+        packContainerPlural = packContainerPlural.trim(),
+        packContainerQty = packContainerQty.trim(),
+        stockQty = stockQty.trim(),
+    )
+
+private fun String.toPositiveDoubleOrNull(): Double? =
+    replace(",", ".").toDoubleOrNull()?.takeIf { it > 0.0 }
+
+private fun String.toNonNegativeDoubleOrNull(): Double? =
+    replace(",", ".").toDoubleOrNull()?.takeIf { it >= 0.0 }
+
+private val Member.isProducer: Boolean
+    get() = roles.contains(MemberRole.PRODUCER)
+
+private val Member.canManageProductCatalog: Boolean
+    get() = isProducer || isCommonPurchaseManager
+
+private fun Double.toUiDecimal(): String =
+    if (this % 1.0 == 0.0) {
+        toLong().toString()
+    } else {
+        toString()
+    }
 
 private fun SharedProfileDraft.normalized(): SharedProfileDraft =
     copy(

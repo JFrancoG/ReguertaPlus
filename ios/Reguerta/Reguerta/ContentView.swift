@@ -468,6 +468,8 @@ struct ContentView: View {
             newsListRoute
         case .notifications:
             notificationsListRoute
+        case .products:
+            productsRoute
         case .profile:
             sharedProfileRoute
         case .settings:
@@ -726,6 +728,7 @@ struct ContentView: View {
     private func authorizedHome(session: AuthorizedSession) -> some View {
         operationalModules(
             modulesEnabled: true,
+            canOpenProducts: session.member.canManageProductCatalog,
             myOrderFreshnessState: viewModel.myOrderFreshnessState
         )
 
@@ -799,6 +802,7 @@ struct ContentView: View {
     @ViewBuilder
     private func operationalModules(
         modulesEnabled: Bool,
+        canOpenProducts: Bool,
         myOrderFreshnessState: MyOrderFreshnessState,
         disabledMessageKey: String? = nil
     ) -> some View {
@@ -812,10 +816,12 @@ struct ContentView: View {
                 }
                 .disabled(!modulesEnabled || myOrderFreshnessState != .ready)
                 Button {
+                    homeDestination = .products
+                    viewModel.refreshProducts()
                 } label: {
                     Text(localizedKey(AccessL10nKey.catalog))
                 }
-                .disabled(!modulesEnabled)
+                .disabled(!modulesEnabled || !canOpenProducts)
                 Button {
                     homeDestination = .shifts
                     viewModel.refreshShifts()
@@ -1382,6 +1388,275 @@ struct ContentView: View {
                 }
 
                 Spacer(minLength: tokens.spacing.sm)
+            }
+        }
+    }
+
+    private var productsRoute: some View {
+        let activeProducts = viewModel.productsFeed.filter { !$0.archived }
+        let archivedProducts = viewModel.productsFeed.filter(\.archived)
+        let isEditing = viewModel.editingProductId != nil
+        let canManageEcoBasket = currentHomeMember?.isProducer == true
+        let canManageCommonPurchase = currentHomeMember?.isCommonPurchaseManager == true && currentHomeMember?.isProducer != true
+
+        if isEditing {
+            return AnyView(
+                cardContainer {
+                    VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                        Text(viewModel.editingProductId?.isEmpty == false ? "Editar producto" : "Nuevo producto")
+                            .font(tokens.typography.titleCard)
+                        RoundedRectangle(cornerRadius: 24.resize)
+                            .fill(tokens.colors.surfaceSecondary)
+                            .frame(width: 112.resize, height: 112.resize)
+                            .overlay {
+                                Image(systemName: "photo")
+                                    .font(.system(size: 34.resize))
+                                    .foregroundStyle(tokens.colors.textSecondary)
+                            }
+                        Text("La imagen se quedará como placeholder hasta HU-025. Aquí dejamos afinados nombre, stock, unidades y precio.")
+                            .font(tokens.typography.bodySecondary)
+                            .foregroundStyle(tokens.colors.textSecondary)
+
+                        TextField("Nombre del producto", text: Binding(
+                            get: { viewModel.productDraft.name },
+                            set: { value in viewModel.updateProductDraft { $0.name = value } }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+
+                        TextField("Descripción del producto", text: Binding(
+                            get: { viewModel.productDraft.description },
+                            set: { value in viewModel.updateProductDraft { $0.description = value } }
+                        ), axis: .vertical)
+                        .textFieldStyle(.roundedBorder)
+
+                        HStack(spacing: tokens.spacing.sm) {
+                            TextField("Cantidad envase", text: Binding(
+                                get: { viewModel.productDraft.packContainerQty },
+                                set: { value in viewModel.updateProductDraft { $0.packContainerQty = value } }
+                            ))
+                            .textFieldStyle(.roundedBorder)
+                            TextField("Envase", text: Binding(
+                                get: { viewModel.productDraft.packContainerName },
+                                set: { value in viewModel.updateProductDraft { $0.packContainerName = value } }
+                            ))
+                            .textFieldStyle(.roundedBorder)
+                        }
+
+                        HStack(spacing: tokens.spacing.sm) {
+                            TextField("Cantidad unidad", text: Binding(
+                                get: { viewModel.productDraft.unitQty },
+                                set: { value in viewModel.updateProductDraft { $0.unitQty = value } }
+                            ))
+                            .textFieldStyle(.roundedBorder)
+                            TextField("Unidad", text: Binding(
+                                get: { viewModel.productDraft.unitName },
+                                set: { value in viewModel.updateProductDraft { $0.unitName = value } }
+                            ))
+                            .textFieldStyle(.roundedBorder)
+                        }
+
+                        HStack(spacing: tokens.spacing.sm) {
+                            TextField("Plural envase", text: Binding(
+                                get: { viewModel.productDraft.packContainerPlural },
+                                set: { value in viewModel.updateProductDraft { $0.packContainerPlural = value } }
+                            ))
+                            .textFieldStyle(.roundedBorder)
+                            TextField("Plural unidad", text: Binding(
+                                get: { viewModel.productDraft.unitPlural },
+                                set: { value in viewModel.updateProductDraft { $0.unitPlural = value } }
+                            ))
+                            .textFieldStyle(.roundedBorder)
+                        }
+
+                        HStack(spacing: tokens.spacing.sm) {
+                            TextField("Precio en euros", text: Binding(
+                                get: { viewModel.productDraft.price },
+                                set: { value in viewModel.updateProductDraft { $0.price = value } }
+                            ))
+                            .textFieldStyle(.roundedBorder)
+
+                            TextField("Stock", text: Binding(
+                                get: { viewModel.productDraft.stockQty },
+                                set: { value in viewModel.updateProductDraft { $0.stockQty = value } }
+                            ))
+                            .textFieldStyle(.roundedBorder)
+                            .disabled(viewModel.productDraft.stockMode == .infinite)
+                        }
+
+                        Toggle("Disponible", isOn: Binding(
+                            get: { viewModel.productDraft.isAvailable },
+                            set: { value in viewModel.updateProductDraft { $0.isAvailable = value } }
+                        ))
+
+                        Toggle("Stock sin limite", isOn: Binding(
+                            get: { viewModel.productDraft.stockMode == .infinite },
+                            set: { value in
+                                viewModel.updateProductDraft {
+                                    $0.stockMode = value ? .infinite : .finite
+                                    if value { $0.stockQty = "" }
+                                }
+                            }
+                        ))
+
+                        if canManageEcoBasket {
+                            Toggle("Ecocesta", isOn: Binding(
+                                get: { viewModel.productDraft.isEcoBasket },
+                                set: { value in viewModel.updateProductDraft { $0.isEcoBasket = value } }
+                            ))
+                        }
+
+                        if canManageCommonPurchase {
+                            Toggle("Compra común", isOn: Binding(
+                                get: { viewModel.productDraft.isCommonPurchase },
+                                set: { value in
+                                    viewModel.updateProductDraft {
+                                        $0.isCommonPurchase = value
+                                        if value, $0.commonPurchaseType == nil {
+                                            $0.commonPurchaseType = .spot
+                                        }
+                                        if !value {
+                                            $0.commonPurchaseType = nil
+                                        }
+                                    }
+                                }
+                            ))
+
+                            if viewModel.productDraft.isCommonPurchase {
+                                Picker(
+                                    "Tipo compra común",
+                                    selection: Binding(
+                                        get: { viewModel.productDraft.commonPurchaseType ?? .spot },
+                                        set: { value in viewModel.updateProductDraft { $0.commonPurchaseType = value } }
+                                    )
+                                ) {
+                                    Text("Puntual").tag(CommonPurchaseType.spot)
+                                    Text("Estacional").tag(CommonPurchaseType.seasonal)
+                                }
+                                .pickerStyle(.segmented)
+                            }
+                        }
+
+                        HStack(spacing: tokens.spacing.sm) {
+                            ReguertaButton(
+                                LocalizedStringKey(viewModel.isSavingProduct ? "Guardando…" : "Guardar producto"),
+                                isEnabled: !viewModel.isSavingProduct,
+                                isLoading: viewModel.isSavingProduct
+                            ) {
+                                viewModel.saveProduct()
+                            }
+                            ReguertaButton("Volver", variant: .text, fullWidth: false) {
+                                viewModel.clearProductEditor()
+                            }
+                        }
+                    }
+                }
+            )
+        }
+
+        return AnyView(
+            VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                cardContainer {
+                    VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                        Text("Compras Regüerta")
+                            .font(tokens.typography.titleCard)
+                        Text("Gestiona tus productos y su disponibilidad semanal.")
+                            .font(tokens.typography.bodySecondary)
+                            .foregroundStyle(tokens.colors.textSecondary)
+                        Text((currentHomeMember?.isProducer == true) ? "Productor: \(currentHomeMember?.displayName ?? "—")" : "Encargado: \(currentHomeMember?.displayName ?? "—")")
+                            .font(tokens.typography.label)
+                            .foregroundStyle(tokens.colors.textSecondary)
+                        ReguertaButton("Recargar", variant: .text, fullWidth: false) {
+                            viewModel.refreshProducts()
+                        }
+                    }
+                }
+
+                if viewModel.isLoadingProducts {
+                    cardContainer {
+                        Text("Cargando productos…")
+                            .font(tokens.typography.bodySecondary)
+                    }
+                } else {
+                    if activeProducts.isEmpty {
+                        cardContainer {
+                            Text("Todavía no has creado ningún producto.")
+                                .font(tokens.typography.bodySecondary)
+                                .foregroundStyle(tokens.colors.textSecondary)
+                        }
+                    } else {
+                        ForEach(activeProducts) { product in
+                            productCard(product, archived: false)
+                        }
+                    }
+
+                    if !archivedProducts.isEmpty {
+                        Text("Archivados")
+                            .font(tokens.typography.label.weight(.semibold))
+                            .foregroundStyle(tokens.colors.actionPrimary)
+                        ForEach(archivedProducts) { product in
+                            productCard(product, archived: true)
+                        }
+                    }
+                }
+
+                ReguertaButton("Añadir nuevo producto") {
+                    viewModel.startCreatingProduct()
+                }
+            }
+        )
+    }
+
+    private func productCard(_ product: Product, archived: Bool) -> some View {
+        cardContainer {
+            VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                HStack(alignment: .top, spacing: tokens.spacing.md) {
+                    RoundedRectangle(cornerRadius: 20.resize)
+                        .fill(tokens.colors.surfaceSecondary)
+                        .frame(width: 96.resize, height: 96.resize)
+                        .overlay {
+                            Image(systemName: "photo")
+                                .font(.system(size: 28.resize))
+                                .foregroundStyle(tokens.colors.textSecondary)
+                        }
+                    VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                        HStack(alignment: .top) {
+                            VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+                                Text(product.name)
+                                    .font(tokens.typography.titleCard)
+                                Text(product.description.isEmpty ? "Sin descripción." : product.description)
+                                    .font(tokens.typography.bodySecondary)
+                                    .foregroundStyle(tokens.colors.textSecondary)
+                            }
+                            Spacer(minLength: tokens.spacing.sm)
+                            HStack(spacing: tokens.spacing.xs) {
+                                Button {
+                                    viewModel.startEditingProduct(productId: product.id)
+                                } label: {
+                                    Image(systemName: "pencil")
+                                }
+                                .buttonStyle(.plain)
+
+                                if !archived {
+                                    Button {
+                                        viewModel.archiveProduct(productId: product.id)
+                                    } label: {
+                                        Image(systemName: "trash")
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                        Text("\(product.price.uiDecimal) €")
+                            .font(tokens.typography.titleCard)
+                        Text(
+                            archived
+                            ? "Archivado"
+                            : (product.stockMode == .infinite ? "Stock sin límite" : "Stock: \((product.stockQty ?? 0).uiDecimal)")
+                        )
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                    }
+                }
             }
         }
     }
@@ -1974,9 +2249,13 @@ struct ContentView: View {
         homeDrawerItem("person.3.fill", titleKey: AccessL10nKey.homeShellActionProfile, destination: .profile)
         homeDrawerItem("gearshape.fill", titleKey: AccessL10nKey.homeShellActionSettings, destination: .settings)
 
-        if currentHomeMember?.isProducer == true {
+        if currentHomeMember?.canManageProductCatalog == true || currentHomeMember?.isProducer == true {
             drawerSection(titleKey: AccessL10nKey.homeShellSectionProducer)
+        }
+        if currentHomeMember?.canManageProductCatalog == true {
             homeDrawerItem("shippingbox.fill", titleKey: AccessL10nKey.homeShellActionProducts, destination: .products)
+        }
+        if currentHomeMember?.isProducer == true {
             homeDrawerItem("tray.full.fill", titleKey: AccessL10nKey.homeShellActionReceivedOrders, destination: .receivedOrders)
         }
 
@@ -2049,6 +2328,9 @@ struct ContentView: View {
             }
             if destination == .notifications {
                 viewModel.refreshNotifications()
+            }
+            if destination == .products {
+                viewModel.refreshProducts()
             }
             if destination == .profile {
                 viewModel.refreshSharedProfiles()
@@ -3026,6 +3308,18 @@ private extension Set<MemberRole> {
 private extension Member {
     var isProducer: Bool {
         roles.contains(.producer)
+    }
+
+    var canManageProductCatalog: Bool {
+        isProducer || isCommonPurchaseManager
+    }
+}
+
+private extension Double {
+    var uiDecimal: String {
+        truncatingRemainder(dividingBy: 1) == 0
+            ? String(Int(self))
+            : String(self)
     }
 }
 
