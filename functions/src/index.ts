@@ -2383,11 +2383,48 @@ export const onDeliveryCalendarOverrideWritten = onDocumentWritten(
     const weekKey = event.params.weekKey;
 
     try {
-      const summary = await exportAllShiftsToGoogleSheets(env);
+      const sheetConfig = getSheetConfig(env);
+      if (!sheetConfig) {
+        throw new Error(
+          `Missing sheets configuration for env=${env}. ` +
+          "Expected sheets.spreadsheet_id and ranges."
+        );
+      }
+
+      const [
+        sheets,
+        membersById,
+        shifts,
+        deliveryOverrides,
+      ] = await Promise.all([
+        getSheetsClient(),
+        loadMembersById(env),
+        readAllShifts(env),
+        readDeliveryCalendarOverrideMap(env),
+      ]);
+
+      const matchingDeliveryShifts = shifts.filter((shift) =>
+        shift.type === "delivery" &&
+        timestampToIsoWeekKey(shift.date) === weekKey
+      );
+
+      let updatedCount = 0;
+      for (const shift of matchingDeliveryShifts) {
+        await upsertShiftRowInSheet(
+          sheets,
+          sheetConfig.spreadsheetId,
+          sheetConfig.deliveryRange,
+          shift,
+          membersById,
+          deliveryOverrides,
+        );
+        updatedCount += 1;
+      }
+
       logger.info("✅ Delivery calendar override reflected in Google Sheets", {
         env,
         weekKey,
-        ...summary,
+        updatedCount,
       });
     } catch (error) {
       logger.error(
