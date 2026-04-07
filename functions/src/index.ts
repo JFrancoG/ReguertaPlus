@@ -82,6 +82,9 @@ const usersCollection = (env: string) =>
 const plusUsersCollection = (env: string) =>
   firestore.collection(`${env}/plus-collections/users`);
 
+const deliveryCalendarCollection = (env: string) =>
+  firestore.collection(`${env}/plus-collections/deliveryCalendar`);
+
 const globalConfigDocRefs = (env: string) => [
   firestore.collection(`${env}/collections/config`).doc("global"),
   firestore.collection(`${env}/plus-collections/config`).doc("global"),
@@ -144,6 +147,8 @@ type VersionPolicy = {
   forceUpdate: boolean;
   storeUrl: string;
 };
+
+type DeliveryCalendarOverrideMap = Map<string, admin.firestore.Timestamp>;
 
 const VERSION_STRING_REGEX = /^\d+(?:\.\d+)*$/;
 const DEFAULT_VERSION_POLICY_ENVS = ["local", "develop", "production"];
@@ -598,8 +603,33 @@ const isShiftType = (value: string): value is ShiftType =>
 const isShiftStatus = (value: string): value is ShiftStatus =>
   value === "planned" || value === "swap_pending" || value === "confirmed";
 
-const timestampToSheetDate = (timestamp: admin.firestore.Timestamp): string =>
-  timestamp.toDate().toISOString().slice(0, 10);
+const SHEET_TIME_ZONE = "Europe/Madrid";
+
+const timestampToZonedDateParts = (
+  timestamp: admin.firestore.Timestamp,
+  timeZone: string = SHEET_TIME_ZONE,
+): {year: number; month: number; day: number} => {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(timestamp.toDate());
+  const getPart = (type: "year" | "month" | "day") =>
+    Number(parts.find((part) => part.type === type)?.value || "0");
+  return {
+    year: getPart("year"),
+    month: getPart("month"),
+    day: getPart("day"),
+  };
+};
+
+const timestampToSheetDate = (timestamp: admin.firestore.Timestamp): string => {
+  const {year, month, day} = timestampToZonedDateParts(timestamp);
+  const paddedMonth = String(month).padStart(2, "0");
+  const paddedDay = String(day).padStart(2, "0");
+  return `${year}-${paddedMonth}-${paddedDay}`;
+};
 
 const buildShiftId = (
   type: ShiftType,
@@ -623,11 +653,6 @@ const parseDateInput = (value: unknown): admin.firestore.Timestamp | null => {
     const [, day, month, year] = dayMonthYear;
     const millis = Date.UTC(Number(year), Number(month) - 1, Number(day));
     return admin.firestore.Timestamp.fromMillis(millis);
-  }
-
-  const isoMillis = Date.parse(text);
-  if (!Number.isNaN(isoMillis)) {
-    return admin.firestore.Timestamp.fromMillis(isoMillis);
   }
 
   const normalizedText = text
@@ -1080,9 +1105,8 @@ const toShiftRecord = (
 const formatHumanShortDate = (
   timestamp: admin.firestore.Timestamp,
 ): string => {
-  const date = timestamp.toDate();
-  return `${date.getUTCDate()}/${date.getUTCMonth() + 1}` +
-    `/${date.getUTCFullYear()}`;
+  const {year, month, day} = timestampToZonedDateParts(timestamp);
+  return `${day}/${month}/${year}`;
 };
 
 const formatHumanLongDate = (
@@ -1092,7 +1116,7 @@ const formatHumanLongDate = (
     day: "numeric",
     month: "long",
     year: "numeric",
-    timeZone: "UTC",
+    timeZone: SHEET_TIME_ZONE,
   });
   return formatter.format(timestamp.toDate()).toUpperCase();
 };
@@ -1103,7 +1127,7 @@ const formatHumanMonthHeading = (
   const formatter = new Intl.DateTimeFormat("es-ES", {
     month: "long",
     year: "numeric",
-    timeZone: "UTC",
+    timeZone: SHEET_TIME_ZONE,
   });
   return formatter.format(timestamp.toDate()).toUpperCase();
 };
@@ -1111,23 +1135,71 @@ const formatHumanMonthHeading = (
 const isoWeekNumber = (
   timestamp: admin.firestore.Timestamp,
 ): number => {
-  const date = timestamp.toDate();
+  const {year, month, day: localDay} = timestampToZonedDateParts(timestamp);
   const utcDate = new Date(Date.UTC(
-    date.getUTCFullYear(),
-    date.getUTCMonth(),
-    date.getUTCDate(),
+    year,
+    month - 1,
+    localDay,
   ));
-  const day = utcDate.getUTCDay() || 7;
-  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - day);
+  const isoDay = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - isoDay);
   const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
   return Math.ceil(
     (((utcDate.getTime() - yearStart.getTime()) / 86400000) + 1) / 7
   );
 };
 
+const timestampToIsoWeekKey = (
+  timestamp: admin.firestore.Timestamp,
+): string => {
+  const {
+    year: localYear,
+    month,
+    day: localDay,
+  } = timestampToZonedDateParts(timestamp);
+  const utcDate = new Date(Date.UTC(
+    localYear,
+    month - 1,
+    localDay,
+  ));
+  const isoDay = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - isoDay);
+  const year = utcDate.getUTCFullYear();
+  const yearStart = new Date(Date.UTC(year, 0, 1));
+  const week = Math.ceil(
+    (((utcDate.getTime() - yearStart.getTime()) / 86400000) + 1) / 7
+  );
+  return `${year}-W${String(week).padStart(2, "0")}`;
+};
+
+const resolveEffectiveDeliveryDate = (
+  shift: FirestoreShiftRecord,
+  overrides: DeliveryCalendarOverrideMap,
+): admin.firestore.Timestamp => {
+  if (shift.type !== "delivery") {
+    return shift.date;
+  }
+  return overrides.get(timestampToIsoWeekKey(shift.date)) || shift.date;
+};
+
+const readDeliveryCalendarOverrideMap = async (
+  env: string,
+): Promise<DeliveryCalendarOverrideMap> => {
+  const snapshot = await deliveryCalendarCollection(env).get();
+  const overrides = new Map<string, admin.firestore.Timestamp>();
+  snapshot.docs.forEach((doc) => {
+    const deliveryDate = doc.get("deliveryDate");
+    if (deliveryDate instanceof admin.firestore.Timestamp) {
+      overrides.set(doc.id, deliveryDate);
+    }
+  });
+  return overrides;
+};
+
 const toDeliveryHumanRow = (
   shift: FirestoreShiftRecord,
   membersById: Map<string, MemberSheetRef>,
+  effectiveDate: admin.firestore.Timestamp,
   existingRow: string[] = [],
 ): string[] => {
   const responsible = shift.assignedUserIds
@@ -1135,12 +1207,12 @@ const toDeliveryHumanRow = (
     .find((value): value is MemberSheetRef => Boolean(value));
 
   return [
-    formatHumanShortDate(shift.date),
+    formatHumanShortDate(effectiveDate),
     responsible?.displayName || existingRow[1] || "",
     responsible?.phone || existingRow[2] || "",
     existingRow[3] || "",
     existingRow[4] || "",
-    `${isoWeekNumber(shift.date)}`,
+    `${isoWeekNumber(effectiveDate)}`,
   ];
 };
 
@@ -1183,6 +1255,7 @@ const upsertShiftRowInSheet = async (
   range: string,
   shift: FirestoreShiftRecord,
   membersById: Map<string, MemberSheetRef>,
+  deliveryOverrides: DeliveryCalendarOverrideMap,
 ): Promise<"updated" | "appended"> => {
   const valuesResponse = await sheets.spreadsheets.values.get({
     spreadsheetId,
@@ -1190,14 +1263,16 @@ const upsertShiftRowInSheet = async (
   });
   const rows = valuesResponse.data.values || [];
   const normalizedRows = rows.map((row) => row.map((cell) => `${cell}`));
+  const effectiveDate = resolveEffectiveDeliveryDate(shift, deliveryOverrides);
 
   if (shift.type === "delivery") {
+    const targetWeekKey = timestampToIsoWeekKey(effectiveDate);
     for (let rowOffset = 0; rowOffset < normalizedRows.length; rowOffset += 1) {
       const row = normalizedRows[rowOffset];
       const rowDate = parseDateInput(row[0]);
       if (
         rowDate &&
-        timestampToSheetDate(rowDate) === timestampToSheetDate(shift.date)
+        timestampToIsoWeekKey(rowDate) === targetWeekKey
       ) {
         const rowNumber = rowOffset + 1;
         await sheets.spreadsheets.values.update({
@@ -1205,7 +1280,9 @@ const upsertShiftRowInSheet = async (
           range: `${parseSheetName(range)}!A${rowNumber}:F${rowNumber}`,
           valueInputOption: "RAW",
           requestBody: {
-            values: [toDeliveryHumanRow(shift, membersById, row)],
+            values: [
+              toDeliveryHumanRow(shift, membersById, effectiveDate, row),
+            ],
           },
         });
         return "updated";
@@ -1219,8 +1296,8 @@ const upsertShiftRowInSheet = async (
       insertDataOption: "INSERT_ROWS",
       requestBody: {
         values: [
-          [formatHumanMonthHeading(shift.date)],
-          toDeliveryHumanRow(shift, membersById),
+          [formatHumanMonthHeading(effectiveDate)],
+          toDeliveryHumanRow(shift, membersById, effectiveDate),
         ],
       },
     });
@@ -1705,16 +1782,21 @@ const buildDeliverySheetValues = (
   shifts: FirestoreShiftRecord[],
   seasonLabel: string,
   membersById: Map<string, MemberSheetRef>,
+  deliveryOverrides: DeliveryCalendarOverrideMap,
 ): string[][] => {
   const rows: string[][] = [[`TURNOS REPARTO ${seasonLabel}`], []];
   let currentMonthHeading = "";
   shifts.forEach((shift) => {
-    const monthHeading = formatHumanMonthHeading(shift.date);
+    const effectiveDate = resolveEffectiveDeliveryDate(
+      shift,
+      deliveryOverrides,
+    );
+    const monthHeading = formatHumanMonthHeading(effectiveDate);
     if (monthHeading !== currentMonthHeading) {
       rows.push([monthHeading]);
       currentMonthHeading = monthHeading;
     }
-    rows.push(toDeliveryHumanRow(shift, membersById));
+    rows.push(toDeliveryHumanRow(shift, membersById, effectiveDate));
   });
   return rows;
 };
@@ -1815,6 +1897,52 @@ const dispatchShiftUpdatedNotification = async (
   });
 };
 
+const formatNotificationDate = (
+  timestamp: admin.firestore.Timestamp,
+): string => {
+  const formatter = new Intl.DateTimeFormat("es-ES", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: SHEET_TIME_ZONE,
+  });
+  return formatter.format(timestamp.toDate());
+};
+
+const createDeliveryCalendarNotification = async (
+  env: string,
+  weekKey: string,
+  updatedByUserId: string | null,
+  nextDate: admin.firestore.Timestamp | null,
+  previousDate: admin.firestore.Timestamp | null,
+): Promise<void> => {
+  if (!nextDate && !previousDate) {
+    return;
+  }
+
+  const title = "Cambio en el dia de reparto";
+  const body = nextDate ?
+    (
+      previousDate ?
+        `El reparto de la semana ${weekKey} pasa del ` +
+          `${formatNotificationDate(previousDate)} al ` +
+          `${formatNotificationDate(nextDate)}.` :
+        `El reparto de la semana ${weekKey} pasa al ` +
+          `${formatNotificationDate(nextDate)}.`
+    ) :
+    `El reparto de la semana ${weekKey} vuelve a su dia por defecto.`;
+
+  await firestore.collection(`${env}/plus-collections/notificationEvents`).add({
+    title,
+    body,
+    type: "delivery_calendar_updated",
+    target: "all",
+    targetPayload: {},
+    createdBy: updatedByUserId || "system",
+    sentAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+};
+
 const hasRelevantShiftChange = (
   before: FirestoreShiftRecord | null,
   after: FirestoreShiftRecord,
@@ -1863,10 +1991,11 @@ const exportAllShiftsToGoogleSheets = async (
     );
   }
 
-  const [sheets, membersById, shifts] = await Promise.all([
+  const [sheets, membersById, shifts, deliveryOverrides] = await Promise.all([
     getSheetsClient(),
     loadMembersById(env),
     readAllShifts(env),
+    readDeliveryCalendarOverrideMap(env),
   ]);
   let deliveryCount = 0;
   let marketCount = 0;
@@ -1880,6 +2009,7 @@ const exportAllShiftsToGoogleSheets = async (
         sheetConfig.deliveryRange,
       shift,
       membersById,
+      deliveryOverrides,
     );
     if (shift.type === "market") {
       marketCount += 1;
@@ -2109,16 +2239,22 @@ const processShiftPlanningRequest = async (
     throw new Error("Missing sheets configuration for shift planning.");
   }
 
-  const [sheets, membersById] = await Promise.all([
+  const [sheets, membersById, deliveryOverrides] = await Promise.all([
     getSheetsClient(),
     loadMembersById(env),
+    readDeliveryCalendarOverrideMap(env),
   ]);
 
   const sheetName = request.type === "delivery" ?
     buildDeliverySheetName(seasonLabel) :
     buildMarketSheetName(seasonLabel);
   const sheetValues = request.type === "delivery" ?
-    buildDeliverySheetValues(plannedShifts, seasonLabel, membersById) :
+    buildDeliverySheetValues(
+      plannedShifts,
+      seasonLabel,
+      membersById,
+      deliveryOverrides,
+    ) :
     buildMarketSheetValues(plannedShifts, seasonLabel, membersById);
 
   await updateWholeSheet(
@@ -2251,9 +2387,10 @@ export const onShiftWritten = onDocumentWritten(
           sheetConfig.deliveryRange
       );
 
-    const [sheets, membersById] = await Promise.all([
+    const [sheets, membersById, deliveryOverrides] = await Promise.all([
       getSheetsClient(),
       loadMembersById(env),
+      readDeliveryCalendarOverrideMap(env),
     ]);
 
     const result = await upsertShiftRowInSheet(
@@ -2262,6 +2399,7 @@ export const onShiftWritten = onDocumentWritten(
       targetRange,
       after,
       membersById,
+      deliveryOverrides,
     );
 
     await afterSnapshot.ref.set({
@@ -2281,6 +2419,92 @@ export const onShiftWritten = onDocumentWritten(
       exportMode: result,
       targetRange,
     });
+  }
+);
+
+export const onDeliveryCalendarOverrideWritten = onDocumentWritten(
+  "{env}/plus-collections/deliveryCalendar/{weekKey}",
+  async (event) => {
+    const env = event.params.env;
+    const weekKey = event.params.weekKey;
+    const beforeSnapshot = event.data?.before;
+    const afterSnapshot = event.data?.after;
+    const previousDate = beforeSnapshot?.exists &&
+      beforeSnapshot.get("deliveryDate") instanceof admin.firestore.Timestamp ?
+      beforeSnapshot.get("deliveryDate") as admin.firestore.Timestamp :
+      null;
+    const nextDate = afterSnapshot?.exists &&
+      afterSnapshot.get("deliveryDate") instanceof admin.firestore.Timestamp ?
+      afterSnapshot.get("deliveryDate") as admin.firestore.Timestamp :
+      null;
+    const updatedByUserId = parseString(
+      afterSnapshot?.get("updatedBy") ?? beforeSnapshot?.get("updatedBy"),
+    );
+
+    try {
+      const sheetConfig = getSheetConfig(env);
+      if (!sheetConfig) {
+        throw new Error(
+          `Missing sheets configuration for env=${env}. ` +
+          "Expected sheets.spreadsheet_id and ranges."
+        );
+      }
+
+      const [
+        sheets,
+        membersById,
+        shifts,
+        deliveryOverrides,
+      ] = await Promise.all([
+        getSheetsClient(),
+        loadMembersById(env),
+        readAllShifts(env),
+        readDeliveryCalendarOverrideMap(env),
+      ]);
+
+      const matchingDeliveryShifts = shifts.filter((shift) =>
+        shift.type === "delivery" &&
+        timestampToIsoWeekKey(shift.date) === weekKey
+      );
+
+      let updatedCount = 0;
+      for (const shift of matchingDeliveryShifts) {
+        await upsertShiftRowInSheet(
+          sheets,
+          sheetConfig.spreadsheetId,
+          sheetConfig.deliveryRange,
+          shift,
+          membersById,
+          deliveryOverrides,
+        );
+        updatedCount += 1;
+      }
+
+      logger.info("✅ Delivery calendar override reflected in Google Sheets", {
+        env,
+        weekKey,
+        updatedCount,
+      });
+
+      if (updatedCount > 0) {
+        await createDeliveryCalendarNotification(
+          env,
+          weekKey,
+          updatedByUserId,
+          nextDate,
+          previousDate,
+        );
+      }
+    } catch (error) {
+      logger.error(
+        "❌ Failed to reflect delivery calendar override in Google Sheets",
+        {
+          env,
+          weekKey,
+          error,
+        },
+      );
+    }
   }
 );
 
