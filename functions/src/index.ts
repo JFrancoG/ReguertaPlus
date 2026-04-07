@@ -655,11 +655,6 @@ const parseDateInput = (value: unknown): admin.firestore.Timestamp | null => {
     return admin.firestore.Timestamp.fromMillis(millis);
   }
 
-  const isoMillis = Date.parse(text);
-  if (!Number.isNaN(isoMillis)) {
-    return admin.firestore.Timestamp.fromMillis(isoMillis);
-  }
-
   const normalizedText = text
     .trim()
     .toLowerCase()
