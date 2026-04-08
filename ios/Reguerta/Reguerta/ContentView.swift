@@ -768,349 +768,80 @@ struct ContentView: View {
 
     @ViewBuilder
     private var shiftsRoute: some View {
-        let currentMemberId = currentHomeMember?.id
-        let deliveryShifts = viewModel.shiftsFeed
-            .filter { $0.type == .delivery }
-            .sorted { $0.dateMillis < $1.dateMillis }
-        let marketShifts = viewModel.shiftsFeed
-            .filter { $0.type == .market }
-            .sorted { $0.dateMillis < $1.dateMillis }
-        let visibleShifts = selectedShiftSegment == .delivery ? deliveryShifts : marketShifts
-
-        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-            cardContainer {
-                VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                    Text(localizedKey(AccessL10nKey.shifts))
-                        .font(tokens.typography.titleCard)
-                    Text(localizedKey(AccessL10nKey.shiftsListSubtitle))
-                        .font(tokens.typography.bodySecondary)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                    ReguertaButton(localizedKey(AccessL10nKey.shiftsRefreshAction), variant: .text) {
-                        viewModel.refreshShifts()
-                    }
-                }
-            }
-
-            nextShiftsCard
-
-            shiftSwapRequestsCard
-
-            if viewModel.isLoadingShifts {
-                cardContainer {
-                    Text(localizedKey(AccessL10nKey.shiftsLoading))
-                        .font(tokens.typography.bodySecondary)
-                }
-            } else if viewModel.shiftsFeed.isEmpty {
-                cardContainer {
-                    Text(localizedKey(AccessL10nKey.shiftsEmptyState))
-                        .font(tokens.typography.bodySecondary)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                }
-            } else {
-                Picker("", selection: $selectedShiftSegment) {
-                    ForEach(ShiftBoardSegment.allCases, id: \.self) { segment in
-                        Text(localizedKey(segment.titleKey)).tag(segment)
-                    }
-                }
-                .pickerStyle(.segmented)
-
-                if visibleShifts.isEmpty {
-                    cardContainer {
-                        Text(localizedKey(AccessL10nKey.shiftsEmptyState))
-                            .font(tokens.typography.bodySecondary)
-                            .foregroundStyle(tokens.colors.textSecondary)
-                    }
-                } else {
-                    ForEach(visibleShifts) { shift in
-                        shiftBoardCard(shift, currentMemberId: currentMemberId)
-                    }
-                }
-            }
-        }
+        ShiftsRouteView(
+            tokens: tokens,
+            selectedShiftSegment: $selectedShiftSegment,
+            isLoadingShifts: viewModel.isLoadingShifts,
+            shiftsFeed: viewModel.shiftsFeed,
+            shiftSwapRequests: viewModel.shiftSwapRequests,
+            dismissedShiftSwapRequestIds: viewModel.dismissedShiftSwapRequestIds,
+            currentMemberId: currentHomeMember?.id,
+            currentSession: currentHomeSession,
+            shiftSwapCopy: shiftSwapCopy,
+            nextShiftsIsLoading: viewModel.isLoadingShifts,
+            nextDeliverySummary: viewModel.nextDeliveryShift.map(shiftSummary) ?? l10n(AccessL10nKey.shiftsNextPending),
+            nextMarketSummary: viewModel.nextMarketShift.map(shiftSummary) ?? l10n(AccessL10nKey.shiftsNextPending),
+            onRefreshShifts: viewModel.refreshShifts,
+            onRefreshFromNextShifts: {
+                homeDestination = .shifts
+                viewModel.refreshShifts()
+            },
+            onStartSwapRequestForShift: { shiftId in
+                viewModel.startCreatingShiftSwap(shiftId: shiftId)
+                homeDestination = .shiftSwapRequest
+            },
+            onAcceptIncomingCandidate: { requestId, candidateShiftId in
+                viewModel.acceptShiftSwapRequest(requestId: requestId, candidateShiftId: candidateShiftId)
+            },
+            onRejectIncomingCandidate: { requestId, candidateShiftId in
+                viewModel.rejectShiftSwapRequest(requestId: requestId, candidateShiftId: candidateShiftId)
+            },
+            onConfirmResponse: { requestId, candidateShiftId in
+                viewModel.confirmShiftSwapRequest(requestId: requestId, candidateShiftId: candidateShiftId)
+            },
+            onCancelOwnRequest: { requestId in
+                viewModel.cancelShiftSwapRequest(requestId: requestId)
+            },
+            onDismissAppliedRequest: { requestId in
+                viewModel.dismissShiftSwapActivity(requestId: requestId)
+            },
+            shiftBoardLines: shiftLeftBoardLines,
+            shiftSwapDisplayLabel: shiftSwapDisplayLabel,
+            displayNameForSwap: displayNameForSwap,
+            shiftSwapStatusLabel: shiftSwapStatusLabel,
+            canRequestSwapForShift: canRequestSwapForShift
+        )
     }
 
     private var shiftSwapRequestRoute: some View {
         let shift = viewModel.shiftsFeed.first(where: { $0.id == viewModel.shiftSwapDraft.shiftId })
-        return cardContainer {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text(shiftSwapCopy.title)
-                    .font(tokens.typography.titleCard)
-                Text(shiftSwapCopy.subtitle)
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                Text(
-                    shiftSwapCopy.shift(
-                        shift.map { shiftSwapDisplayLabel($0, memberId: $0.assignedUserIds.first ?? $0.helperUserId) } ?? viewModel.shiftSwapDraft.shiftId
-                    )
-                )
-                    .font(tokens.typography.bodySecondary)
-                Text(shiftSwapCopy.broadcastScope(shift?.type == .market ? shiftSwapCopy.marketLabel : shiftSwapCopy.deliveryLabel))
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                Text(shiftSwapCopy.reasonLabel)
-                    .font(tokens.typography.label)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                TextEditor(
-                    text: Binding(
-                        get: { viewModel.shiftSwapDraft.reason },
-                        set: { newValue in
-                            viewModel.updateShiftSwapDraft { $0.reason = newValue }
-                        }
-                    )
-                )
-                .frame(minHeight: 160.resize)
-                .padding(tokens.spacing.sm)
-                .background(tokens.colors.surfaceSecondary)
-                .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
+        let shiftDisplayLabel = shift.map {
+            shiftSwapDisplayLabel($0, memberId: $0.assignedUserIds.first ?? $0.helperUserId)
+        } ?? viewModel.shiftSwapDraft.shiftId
 
-                ReguertaButton(
-                    LocalizedStringKey(viewModel.isSavingShiftSwapRequest ? shiftSwapCopy.sending : shiftSwapCopy.send),
-                    isEnabled: !viewModel.isSavingShiftSwapRequest &&
-                        !viewModel.shiftSwapDraft.shiftId.isEmpty,
-                    isLoading: viewModel.isSavingShiftSwapRequest
-                ) {
-                    viewModel.saveShiftSwapRequest {
-                        homeDestination = .shifts
-                    }
+        return ShiftSwapRequestRouteView(
+            tokens: tokens,
+            shift: shift,
+            shiftSwapDraftShiftId: viewModel.shiftSwapDraft.shiftId,
+            shiftSwapReason: Binding(
+                get: { viewModel.shiftSwapDraft.reason },
+                set: { newValue in
+                    viewModel.updateShiftSwapDraft { $0.reason = newValue }
                 }
-                ReguertaButton(LocalizedStringKey(shiftSwapCopy.back), variant: .text) {
-                    viewModel.clearShiftSwapDraft()
+            ),
+            isSavingShiftSwapRequest: viewModel.isSavingShiftSwapRequest,
+            shiftSwapCopy: shiftSwapCopy,
+            shiftDisplayLabel: shiftDisplayLabel,
+            onSave: {
+                viewModel.saveShiftSwapRequest {
                     homeDestination = .shifts
                 }
+            },
+            onBack: {
+                viewModel.clearShiftSwapDraft()
+                homeDestination = .shifts
             }
-        }
-    }
-
-    private var shiftSwapRequestsCard: some View {
-        let currentMemberId = currentHomeMember?.id
-        let relevantRequests = viewModel.shiftSwapRequests.filter { request in
-            guard let shift = viewModel.shiftsFeed.first(where: { $0.id == request.requestedShiftId }) else { return false }
-            return shift.type == (selectedShiftSegment == .delivery ? .delivery : .market)
-        }
-        let incoming = relevantRequests.flatMap { request in
-            request.candidates
-                .filter { $0.userId == currentMemberId }
-                .filter { candidate in
-                    request.status == .open &&
-                        !request.responses.contains(where: { $0.userId == candidate.userId && $0.shiftId == candidate.shiftId })
-                }
-                .map { (request, $0) }
-        }
-        let requesterOpen = relevantRequests.filter { $0.requesterUserId == currentMemberId && $0.status == .open }
-        let availableResponses = requesterOpen.flatMap { request in
-            request.availableResponses.compactMap { response in
-                request.candidates.first(where: { $0.userId == response.userId && $0.shiftId == response.shiftId }).map {
-                    (request, $0, response)
-                }
-            }
-        }
-        let outgoing = requesterOpen.filter { $0.availableResponses.isEmpty }
-        let history = relevantRequests.filter {
-            $0.status != .open && !viewModel.dismissedShiftSwapRequestIds.contains($0.id)
-        }
-
-        return cardContainer {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text(shiftSwapCopy.requestsTitle)
-                    .font(tokens.typography.titleCard)
-                Text(shiftSwapCopy.requestsSubtitle)
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-
-                if relevantRequests.isEmpty {
-                    Text(shiftSwapCopy.empty)
-                        .font(tokens.typography.bodySecondary)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                } else {
-                    if !incoming.isEmpty {
-                        incomingShiftSwapSection(title: shiftSwapCopy.incoming, pendingCandidates: incoming)
-                    }
-                    if !availableResponses.isEmpty {
-                        requesterResponsesSection(title: shiftSwapCopy.responses, responseOptions: availableResponses)
-                    }
-                    if !outgoing.isEmpty {
-                        waitingShiftSwapSection(title: shiftSwapCopy.outgoing, requests: outgoing)
-                    }
-                    if !history.isEmpty {
-                        historyShiftSwapSection(title: shiftSwapCopy.history, requests: history)
-                    }
-                }
-            }
-        }
-    }
-
-    private func incomingShiftSwapSection(title: String, pendingCandidates: [(ShiftSwapRequest, ShiftSwapCandidate)]) -> some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-            Text(title)
-                .font(tokens.typography.label.weight(.semibold))
-                .foregroundStyle(tokens.colors.actionPrimary)
-            ForEach(Array(pendingCandidates.enumerated()), id: \.offset) { _, item in
-                incomingShiftSwapRow(item.0, candidate: item.1)
-            }
-        }
-    }
-
-    private func incomingShiftSwapRow(_ request: ShiftSwapRequest, candidate: ShiftSwapCandidate) -> some View {
-        let requestedShift = viewModel.shiftsFeed.first(where: { $0.id == request.requestedShiftId })
-        let candidateShift = viewModel.shiftsFeed.first(where: { $0.id == candidate.shiftId })
-        return VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-            Text(shiftSwapCopy.requestedBy(displayNameForSwap(request.requesterUserId)))
-                .font(tokens.typography.body.weight(.semibold))
-            Text(shiftSwapCopy.shift(requestedShift.map { shiftSwapDisplayLabel($0, memberId: request.requesterUserId) } ?? request.requestedShiftId))
-                .font(tokens.typography.label)
-            Text(shiftSwapCopy.offerShift(candidateShift.map { shiftSwapDisplayLabel($0, memberId: candidate.userId) } ?? candidate.shiftId))
-                .font(tokens.typography.label)
-            Text(shiftSwapCopy.reason(request.reason.isEmpty ? shiftSwapCopy.noReason : request.reason))
-                .font(tokens.typography.label)
-                .foregroundStyle(tokens.colors.textSecondary)
-            HStack(spacing: tokens.spacing.sm) {
-                ReguertaButton(LocalizedStringKey(shiftSwapCopy.acceptShort), fullWidth: false) {
-                    viewModel.acceptShiftSwapRequest(requestId: request.id, candidateShiftId: candidate.shiftId)
-                }
-                ReguertaButton(LocalizedStringKey(shiftSwapCopy.rejectShort), variant: .text, fullWidth: false) {
-                    viewModel.rejectShiftSwapRequest(requestId: request.id, candidateShiftId: candidate.shiftId)
-                }
-            }
-        }
-        .padding(tokens.spacing.sm)
-        .background(tokens.colors.surfaceSecondary)
-        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
-    }
-
-    private func requesterResponsesSection(title: String, responseOptions: [(ShiftSwapRequest, ShiftSwapCandidate, ShiftSwapResponse)]) -> some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-            Text(title)
-                .font(tokens.typography.label.weight(.semibold))
-                .foregroundStyle(tokens.colors.actionPrimary)
-            ForEach(Array(responseOptions.enumerated()), id: \.offset) { _, item in
-                let request = item.0
-                let candidate = item.1
-                let requestedShift = viewModel.shiftsFeed.first(where: { $0.id == request.requestedShiftId })
-                let candidateShift = viewModel.shiftsFeed.first(where: { $0.id == candidate.shiftId })
-                VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                    Text(displayNameForSwap(candidate.userId))
-                        .font(tokens.typography.body.weight(.semibold))
-                    Text(shiftSwapCopy.confirmBeforeAfter(
-                        requestedShift.map { shiftSwapDisplayLabel($0, memberId: request.requesterUserId) } ?? request.requestedShiftId,
-                        candidateShift.map { shiftSwapDisplayLabel($0, memberId: candidate.userId) } ?? candidate.shiftId
-                    ))
-                    .font(tokens.typography.label)
-                    ReguertaButton(LocalizedStringKey(shiftSwapCopy.confirm), fullWidth: false) {
-                        viewModel.confirmShiftSwapRequest(requestId: request.id, candidateShiftId: candidate.shiftId)
-                    }
-                }
-                .padding(tokens.spacing.sm)
-                .background(tokens.colors.surfaceSecondary)
-                .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
-            }
-        }
-    }
-
-    private func waitingShiftSwapSection(title: String, requests: [ShiftSwapRequest]) -> some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-            Text(title)
-                .font(tokens.typography.label.weight(.semibold))
-                .foregroundStyle(tokens.colors.actionPrimary)
-            ForEach(requests) { request in
-                let shift = viewModel.shiftsFeed.first(where: { $0.id == request.requestedShiftId })
-                VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                    Text(shift.map { shiftSwapDisplayLabel($0, memberId: request.requesterUserId) } ?? request.requestedShiftId)
-                        .font(tokens.typography.body.weight(.semibold))
-                    Text(shiftSwapCopy.waitingMany(Set(request.candidates.map(\.userId)).count))
-                        .font(tokens.typography.label)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                    ReguertaButton(LocalizedStringKey(shiftSwapCopy.cancel), variant: .text, fullWidth: false) {
-                        viewModel.cancelShiftSwapRequest(requestId: request.id)
-                    }
-                }
-                .padding(tokens.spacing.sm)
-                .background(tokens.colors.surfaceSecondary)
-                .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
-            }
-        }
-    }
-
-    private func historyShiftSwapSection(title: String, requests: [ShiftSwapRequest]) -> some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-            Text(title)
-                .font(tokens.typography.label.weight(.semibold))
-                .foregroundStyle(tokens.colors.actionPrimary)
-            ForEach(requests) { request in
-                let shift = viewModel.shiftsFeed.first(where: { $0.id == request.requestedShiftId })
-                VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                    Text(shift.map { shiftSwapDisplayLabel($0, memberId: request.requesterUserId) } ?? request.requestedShiftId)
-                        .font(tokens.typography.body.weight(.semibold))
-                    Text(shiftSwapCopy.requestedBy(displayNameForSwap(request.requesterUserId)))
-                        .font(tokens.typography.label)
-                    Text(shiftSwapCopy.reason(request.reason.isEmpty ? shiftSwapCopy.noReason : request.reason))
-                        .font(tokens.typography.label)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                    Text(shiftSwapStatusLabel(request.status))
-                        .font(tokens.typography.label)
-                        .foregroundStyle(tokens.colors.actionPrimary)
-                    if let selectedUserId = request.selectedCandidateUserId {
-                        Text(shiftSwapCopy.selected(displayNameForSwap(selectedUserId)))
-                            .font(tokens.typography.label)
-                            .foregroundStyle(tokens.colors.textSecondary)
-                    }
-                    if request.status == .applied {
-                        ReguertaButton(LocalizedStringKey(shiftSwapCopy.acknowledge), variant: .text, fullWidth: false) {
-                            viewModel.dismissShiftSwapActivity(requestId: request.id)
-                        }
-                    }
-                }
-                .padding(tokens.spacing.sm)
-                .background(tokens.colors.surfaceSecondary)
-                .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
-            }
-        }
-    }
-
-    private func shiftBoardCard(_ shift: ShiftAssignment, currentMemberId: String?) -> some View {
-        let leftColumnWidth = shift.type == .market ? 88.resize : 104.resize
-        let leftAlignment: HorizontalAlignment = shift.type == .market ? .center : .leading
-        let canRequestSwap = currentMemberId.map { canRequestSwapForShift(shift, currentMemberId: $0) } ?? false
-        let highlightedIndex = currentMemberId.flatMap { shift.highlightedBoardNameIndex(for: $0) }
-        return cardContainer {
-            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                HStack(alignment: .top, spacing: tokens.spacing.md) {
-                    VStack(alignment: leftAlignment, spacing: tokens.spacing.xs) {
-                        ForEach(Array(shiftLeftBoardLines(shift).enumerated()), id: \.offset) { _, line in
-                            Text(line.text)
-                                .font(line.font)
-                                .fontWeight(line.weight)
-                                .foregroundStyle(line.color)
-                                .multilineTextAlignment(shift.type == .market ? .center : .leading)
-                        }
-                    }
-                    .frame(width: leftColumnWidth, alignment: shift.type == .market ? .center : .leading)
-
-                    VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                        ForEach(Array(shift.boardNames(session: currentHomeSession).enumerated()), id: \.offset) { index, name in
-                            Text(name)
-                                .font(shift.type == .market ? tokens.typography.bodySecondary : (index == 0 ? tokens.typography.body : tokens.typography.bodySecondary))
-                                .fontWeight(shift.type == .market ? .regular : (index == 0 ? .semibold : .regular))
-                                .foregroundStyle(
-                                    highlightedIndex == index ?
-                                        tokens.colors.actionPrimary :
-                                        tokens.colors.textPrimary
-                                )
-                        }
-                        if shift.status != .planned {
-                            Text(localizedKey(shift.status.titleKey))
-                                .font(tokens.typography.label)
-                                .foregroundStyle(tokens.colors.textSecondary)
-                        }
-                    }
-                }
-                if highlightedIndex != nil && canRequestSwap {
-                    ReguertaButton(LocalizedStringKey(shiftSwapCopy.ask), variant: .text, fullWidth: false) {
-                        viewModel.startCreatingShiftSwap(shiftId: shift.id)
-                        homeDestination = .shiftSwapRequest
-                    }
-                }
-            }
-        }
+        )
     }
 
     private func newsRow(_ key: String) -> some View {
@@ -2354,7 +2085,7 @@ private extension ShiftType {
     }
 }
 
-private enum ShiftBoardSegment: CaseIterable {
+enum ShiftBoardSegment: CaseIterable {
     case delivery
     case market
 
@@ -2368,14 +2099,14 @@ private enum ShiftBoardSegment: CaseIterable {
     }
 }
 
-private struct ShiftBoardLine {
+struct ShiftBoardLine {
     let text: String
     let font: Font
     let weight: Font.Weight
     let color: Color
 }
 
-private struct ShiftSwapCopy {
+struct ShiftSwapCopy {
     let title: String
     let subtitle: String
     let requestsTitle: String
@@ -2630,7 +2361,7 @@ extension ShiftAssignment {
     }
 }
 
-private extension ShiftSwapRequest {
+extension ShiftSwapRequest {
     var availableResponses: [ShiftSwapResponse] {
         responses.filter { $0.status == .available }
     }
@@ -2728,7 +2459,7 @@ private extension Array {
     }
 }
 
-private extension ShiftStatus {
+extension ShiftStatus {
     var titleKey: String {
         switch self {
         case .planned:
