@@ -114,39 +114,15 @@ extension ShiftAssignment {
     }
 
     private var boardDateLabel: String {
-        let weekdayFormatter = DateFormatter()
-        weekdayFormatter.locale = Locale(identifier: "es_ES")
-        weekdayFormatter.dateFormat = "EEE"
-        let weekday = weekdayFormatter.string(from: localDate)
-            .replacingOccurrences(of: ".", with: "")
-            .capitalized
-        return "\(weekday) \(dayNumberLabel) \(shortMonthLabel)"
+        localDate.boardDateLabel
     }
 
     private var shortMonthLabel: String {
-        let month = Calendar(identifier: .iso8601).component(.month, from: localDate)
-        switch month {
-        case 1: return "ene"
-        case 2: return "feb"
-        case 3: return "mar"
-        case 4: return "abr"
-        case 5: return "may"
-        case 6: return "jun"
-        case 7: return "jul"
-        case 8: return "ago"
-        case 9: return "sep"
-        case 10: return "oct"
-        case 11: return "nov"
-        case 12: return "dic"
-        default: return ""
-        }
+        localDate.shortMonthLabel
     }
 
     private var dayNumberLabel: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "es_ES")
-        formatter.dateFormat = "d"
-        return formatter.string(from: localDate)
+        localDate.dayNumberLabel
     }
 
     private func displayName(for memberId: String, session: AuthorizedSession?) -> String {
@@ -210,7 +186,7 @@ extension Int64 {
 extension Date {
     var boardDateLabel: String {
         let weekdayFormatter = DateFormatter()
-        weekdayFormatter.locale = Locale(identifier: "es_ES")
+        weekdayFormatter.locale = Locale.current
         weekdayFormatter.dateFormat = "EEE"
         let weekday = weekdayFormatter.string(from: self)
             .replacingOccurrences(of: ".", with: "")
@@ -219,27 +195,15 @@ extension Date {
     }
 
     var shortMonthLabel: String {
-        let month = Calendar(identifier: .iso8601).component(.month, from: self)
-        switch month {
-        case 1: return "ene"
-        case 2: return "feb"
-        case 3: return "mar"
-        case 4: return "abr"
-        case 5: return "may"
-        case 6: return "jun"
-        case 7: return "jul"
-        case 8: return "ago"
-        case 9: return "sep"
-        case 10: return "oct"
-        case 11: return "nov"
-        case 12: return "dic"
-        default: return ""
-        }
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.dateFormat = "MMM"
+        return formatter.string(from: self).replacingOccurrences(of: ".", with: "")
     }
 
     var dayNumberLabel: String {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "es_ES")
+        formatter.locale = Locale.current
         formatter.dateFormat = "d"
         return formatter.string(from: self)
     }

@@ -42,10 +42,10 @@ extension ContentView {
         case .market:
             let date = effectiveDate(for: shift)
             let monthFormatter = DateFormatter()
-            monthFormatter.locale = Locale(identifier: "es_ES")
+            monthFormatter.locale = Locale.current
             monthFormatter.dateFormat = "LLLL"
             let weekdayFormatter = DateFormatter()
-            weekdayFormatter.locale = Locale(identifier: "es_ES")
+            weekdayFormatter.locale = Locale.current
             weekdayFormatter.dateFormat = "EEEE"
             return [
                 ShiftBoardLine(
@@ -126,8 +126,8 @@ extension ContentView {
 
     func localizedDateOnly(_ millis: Int64) -> String {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "es_ES")
-        formatter.dateFormat = "d MMM yyyy"
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
         return formatter.string(from: Date(timeIntervalSince1970: TimeInterval(millis) / 1_000))
     }
 }
