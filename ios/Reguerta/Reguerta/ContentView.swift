@@ -20,6 +20,7 @@ struct ContentView: View {
     @State private var isAdminToolsExpanded = false
     @State private var homeDestination: HomeDestination = .dashboard
     @State private var pendingNewsDeletionId: String?
+    @State private var pendingProducerCatalogVisibility: Bool?
     @State private var selectedShiftSegment: ShiftBoardSegment = .delivery
     @State private var isDeliveryCalendarEditorPresented = false
     @State private var isDeliveryCalendarWeekPickerPresented = false
@@ -1399,8 +1400,8 @@ struct ContentView: View {
         let canManageEcoBasket = currentHomeMember?.isProducer == true
         let canManageCommonPurchase = currentHomeMember?.isCommonPurchaseManager == true && currentHomeMember?.isProducer != true
 
-        if isEditing {
-            return AnyView(
+        return Group {
+            if isEditing {
                 cardContainer {
                     VStack(alignment: .leading, spacing: tokens.spacing.md) {
                         Text(viewModel.editingProductId?.isEmpty == false ? "Editar producto" : "Nuevo producto")
@@ -1550,60 +1551,114 @@ struct ContentView: View {
                         }
                     }
                 }
-            )
-        }
-
-        return AnyView(
-            VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-                cardContainer {
-                    VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                        Text("Compras Regüerta")
-                            .font(tokens.typography.titleCard)
-                        Text("Gestiona tus productos y su disponibilidad semanal.")
-                            .font(tokens.typography.bodySecondary)
-                            .foregroundStyle(tokens.colors.textSecondary)
-                        Text((currentHomeMember?.isProducer == true) ? "Productor: \(currentHomeMember?.displayName ?? "—")" : "Encargado: \(currentHomeMember?.displayName ?? "—")")
-                            .font(tokens.typography.label)
-                            .foregroundStyle(tokens.colors.textSecondary)
-                        ReguertaButton("Recargar", variant: .text, fullWidth: false) {
-                            viewModel.refreshProducts()
+            } else {
+                VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                    cardContainer {
+                        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                            HStack(alignment: .top, spacing: tokens.spacing.md) {
+                                Text("Mis productos")
+                                    .font(tokens.typography.titleCard)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                if currentHomeMember?.isProducer == true {
+                                    Button {
+                                        pendingProducerCatalogVisibility = !(currentHomeMember?.producerCatalogEnabled ?? true)
+                                    } label: {
+                                        Group {
+                                            if viewModel.isUpdatingProducerCatalogVisibility {
+                                                ProgressView()
+                                                    .tint(tokens.colors.actionOnPrimary)
+                                            } else {
+                                                Text(currentHomeMember?.producerCatalogEnabled == true ? "Todos NO\ndisponibles" : "Todos\ndisponibles")
+                                                    .font(tokens.typography.label)
+                                                    .multilineTextAlignment(.center)
+                                                    .lineSpacing(2)
+                                            }
+                                        }
+                                        .foregroundStyle(tokens.colors.actionOnPrimary)
+                                        .padding(.horizontal, tokens.spacing.md)
+                                        .padding(.vertical, tokens.spacing.sm)
+                                        .background(
+                                            currentHomeMember?.producerCatalogEnabled == true
+                                            ? tokens.colors.feedbackWarning
+                                            : tokens.colors.actionPrimary
+                                        )
+                                        .clipShape(Capsule())
+                                        .overlay(
+                                            Capsule()
+                                                .stroke(tokens.colors.surfacePrimary.opacity(0.85), lineWidth: 2)
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                    .disabled(viewModel.isUpdatingProducerCatalogVisibility)
+                                }
+                            }
+                            ReguertaButton("Recargar", variant: .text, fullWidth: false) {
+                                viewModel.refreshProducts()
+                            }
                         }
                     }
-                }
 
-                if viewModel.isLoadingProducts {
-                    cardContainer {
-                        Text("Cargando productos…")
-                            .font(tokens.typography.bodySecondary)
-                    }
-                } else {
-                    if activeProducts.isEmpty {
+                    if viewModel.isLoadingProducts {
                         cardContainer {
-                            Text("Todavía no has creado ningún producto.")
+                            Text("Cargando productos…")
                                 .font(tokens.typography.bodySecondary)
-                                .foregroundStyle(tokens.colors.textSecondary)
                         }
                     } else {
-                        ForEach(activeProducts) { product in
-                            productCard(product, archived: false)
+                        if activeProducts.isEmpty {
+                            cardContainer {
+                                Text("Todavía no has creado ningún producto.")
+                                    .font(tokens.typography.bodySecondary)
+                                    .foregroundStyle(tokens.colors.textSecondary)
+                            }
+                        } else {
+                            ForEach(activeProducts) { product in
+                                productCard(product, archived: false)
+                            }
+                        }
+
+                        if !archivedProducts.isEmpty {
+                            Text("Archivados")
+                                .font(tokens.typography.label.weight(.semibold))
+                                .foregroundStyle(tokens.colors.actionPrimary)
+                            ForEach(archivedProducts) { product in
+                                productCard(product, archived: true)
+                            }
                         }
                     }
 
-                    if !archivedProducts.isEmpty {
-                        Text("Archivados")
-                            .font(tokens.typography.label.weight(.semibold))
-                            .foregroundStyle(tokens.colors.actionPrimary)
-                        ForEach(archivedProducts) { product in
-                            productCard(product, archived: true)
-                        }
+                    ReguertaButton("Añadir nuevo producto") {
+                        viewModel.startCreatingProduct()
                     }
-                }
-
-                ReguertaButton("Añadir nuevo producto") {
-                    viewModel.startCreatingProduct()
                 }
             }
-        )
+        }
+        .alert(
+            pendingProducerCatalogVisibility == true ? "¿Reactivar tu catálogo?" : "¿Pausar tu catálogo?",
+            isPresented: Binding(
+                get: { pendingProducerCatalogVisibility != nil },
+                set: { presented in
+                    if !presented {
+                        pendingProducerCatalogVisibility = nil
+                    }
+                }
+            ),
+            presenting: pendingProducerCatalogVisibility
+        ) { isEnabled in
+            Button("Cancelar", role: .cancel) {
+                pendingProducerCatalogVisibility = nil
+            }
+            Button("Confirmar") {
+                viewModel.setOwnProducerCatalogVisibility(isEnabled: isEnabled) {
+                    pendingProducerCatalogVisibility = nil
+                }
+            }
+        } message: { isEnabled in
+            Text(
+                isEnabled
+                ? "Tu nombre de productor y tus productos volverán a aparecer en los listados de pedido. La disponibilidad individual de cada producto se mantendrá."
+                : "Tu nombre de productor y tus productos dejarán de aparecer en los listados de pedido. La disponibilidad individual de cada producto se conservará."
+            )
+        }
     }
 
     private func productCard(_ product: Product, archived: Bool) -> some View {

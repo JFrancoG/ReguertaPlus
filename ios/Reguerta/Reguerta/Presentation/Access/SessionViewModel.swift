@@ -195,6 +195,7 @@ final class SessionViewModel {
     var isSendingNotification = false
     var isLoadingProducts = false
     var isSavingProduct = false
+    var isUpdatingProducerCatalogVisibility = false
     var isLoadingSharedProfiles = false
     var isSavingSharedProfile = false
     var isDeletingSharedProfile = false
@@ -698,6 +699,43 @@ final class SessionViewModel {
                 editingProductId = nil
             }
             isSavingProduct = false
+            onSuccess()
+        }
+    }
+
+    func setOwnProducerCatalogVisibility(isEnabled: Bool, onSuccess: @escaping @MainActor () -> Void = {}) {
+        guard case .authorized(let session) = mode else { return }
+        guard session.member.isProducer else { return }
+        guard session.member.producerCatalogEnabled != isEnabled else {
+            onSuccess()
+            return
+        }
+
+        isUpdatingProducerCatalogVisibility = true
+        Task { @MainActor in
+            let updatedMember = await repository.upsert(
+                member: Member(
+                    id: session.member.id,
+                    displayName: session.member.displayName,
+                    normalizedEmail: session.member.normalizedEmail,
+                    authUid: session.member.authUid,
+                    roles: session.member.roles,
+                    isActive: session.member.isActive,
+                    producerCatalogEnabled: isEnabled,
+                    isCommonPurchaseManager: session.member.isCommonPurchaseManager
+                )
+            )
+            let members = await repository.allMembers()
+            productsFeed = await productRepository.products(vendorId: updatedMember.id)
+            mode = .authorized(
+                AuthorizedSession(
+                    principal: session.principal,
+                    authenticatedMember: session.authenticatedMember.id == updatedMember.id ? updatedMember : session.authenticatedMember,
+                    member: updatedMember,
+                    members: members
+                )
+            )
+            isUpdatingProducerCatalogVisibility = false
             onSuccess()
         }
     }
@@ -1761,6 +1799,7 @@ final class SessionViewModel {
         isSendingNotification = false
         isLoadingProducts = false
         isSavingProduct = false
+        isUpdatingProducerCatalogVisibility = false
         isLoadingSharedProfiles = false
         isSavingSharedProfile = false
         isDeletingSharedProfile = false

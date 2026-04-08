@@ -183,6 +183,7 @@ data class SessionUiState(
     val isSendingNotification: Boolean = false,
     val isLoadingProducts: Boolean = false,
     val isSavingProduct: Boolean = false,
+    val isUpdatingProducerCatalogVisibility: Boolean = false,
     val isLoadingSharedProfiles: Boolean = false,
     val isSavingSharedProfile: Boolean = false,
     val isDeletingSharedProfile: Boolean = false,
@@ -645,6 +646,57 @@ class SessionViewModel(
             }
             emitMessage(R.string.feedback_product_archived)
             onSuccess()
+        }
+    }
+
+    fun setOwnProducerCatalogVisibility(
+        isEnabled: Boolean,
+        onSuccess: () -> Unit = {},
+    ) {
+        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
+        if (!mode.member.isProducer) {
+            emitMessage(R.string.feedback_only_producer_toggle_catalog_visibility)
+            return
+        }
+        if (mode.member.producerCatalogEnabled == isEnabled) {
+            onSuccess()
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isUpdatingProducerCatalogVisibility = true) }
+            try {
+                val updatedMember = repository.upsertMember(
+                    mode.member.copy(
+                        producerCatalogEnabled = isEnabled,
+                    ),
+                )
+                val allMembers = repository.getAllMembers()
+                val products = productRepository.getProductsForVendor(updatedMember.id)
+                _uiState.update {
+                    it.copy(
+                        mode = SessionMode.Authorized(
+                            principal = mode.principal,
+                            authenticatedMember = if (mode.authenticatedMember.id == updatedMember.id) updatedMember else mode.authenticatedMember,
+                            member = updatedMember,
+                            members = allMembers,
+                        ),
+                        productsFeed = products,
+                        isUpdatingProducerCatalogVisibility = false,
+                    )
+                }
+                emitMessage(
+                    if (isEnabled) {
+                        R.string.feedback_producer_catalog_enabled
+                    } else {
+                        R.string.feedback_producer_catalog_disabled
+                    },
+                )
+                onSuccess()
+            } catch (_: Exception) {
+                _uiState.update { it.copy(isUpdatingProducerCatalogVisibility = false) }
+                emitMessage(R.string.feedback_unable_save_changes)
+            }
         }
     }
 
@@ -1616,6 +1668,7 @@ class SessionViewModel(
                 isSendingNotification = false,
                 isLoadingProducts = false,
                 isSavingProduct = false,
+                isUpdatingProducerCatalogVisibility = false,
                 isLoadingSharedProfiles = false,
                 isSavingSharedProfile = false,
                 isDeletingSharedProfile = false,
@@ -1857,6 +1910,7 @@ class SessionViewModel(
                         isLoadingNews = true,
                         isLoadingNotifications = true,
                         isLoadingProducts = result.member.canManageProductCatalog,
+                        isUpdatingProducerCatalogVisibility = false,
                         isLoadingSharedProfiles = true,
                         isLoadingShifts = true,
                     )

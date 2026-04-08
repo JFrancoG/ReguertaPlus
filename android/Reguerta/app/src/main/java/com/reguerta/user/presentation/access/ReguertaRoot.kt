@@ -60,6 +60,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -94,6 +95,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -467,6 +469,7 @@ fun ReguertaRoot(
                     isSendingNotification = state.isSendingNotification,
                     isLoadingProducts = state.isLoadingProducts,
                     isSavingProduct = state.isSavingProduct,
+                    isUpdatingProducerCatalogVisibility = state.isUpdatingProducerCatalogVisibility,
                     isLoadingSharedProfiles = state.isLoadingSharedProfiles,
                     isSavingSharedProfile = state.isSavingSharedProfile,
                     isDeletingSharedProfile = state.isDeletingSharedProfile,
@@ -492,6 +495,7 @@ fun ReguertaRoot(
                     onStartEditingProduct = viewModel::startEditingProduct,
                     onSaveNews = viewModel::saveNews,
                     onSaveProduct = viewModel::saveProduct,
+                    onSetProducerCatalogVisibility = viewModel::setOwnProducerCatalogVisibility,
                     onSendNotification = viewModel::sendNotification,
                     onDeleteNews = viewModel::deleteNews,
                     onArchiveProduct = viewModel::archiveProduct,
@@ -1142,6 +1146,7 @@ private fun HomeRoute(
     isSendingNotification: Boolean,
     isLoadingProducts: Boolean,
     isSavingProduct: Boolean,
+    isUpdatingProducerCatalogVisibility: Boolean,
     isLoadingSharedProfiles: Boolean,
     isSavingSharedProfile: Boolean,
     isDeletingSharedProfile: Boolean,
@@ -1167,6 +1172,7 @@ private fun HomeRoute(
     onStartEditingProduct: (String) -> Unit,
     onSaveNews: (onSuccess: () -> Unit) -> Unit,
     onSaveProduct: (onSuccess: () -> Unit) -> Unit,
+    onSetProducerCatalogVisibility: (Boolean, onSuccess: () -> Unit) -> Unit,
     onSendNotification: (onSuccess: () -> Unit) -> Unit,
     onDeleteNews: (String, () -> Unit) -> Unit,
     onArchiveProduct: (String, onSuccess: () -> Unit) -> Unit,
@@ -1421,6 +1427,7 @@ private fun HomeRoute(
                     editingProductId = editingProductId,
                     isLoading = isLoadingProducts,
                     isSaving = isSavingProduct,
+                    isUpdatingProducerCatalogVisibility = isUpdatingProducerCatalogVisibility,
                     onRefresh = onRefreshProducts,
                     onDraftChanged = onProductDraftChanged,
                     onCreateProduct = onStartCreatingProduct,
@@ -1428,6 +1435,7 @@ private fun HomeRoute(
                     onCancelEditor = onClearProductEditor,
                     onSaveProduct = { onSaveProduct { } },
                     onArchiveProduct = onArchiveProduct,
+                    onSetProducerCatalogVisibility = onSetProducerCatalogVisibility,
                 )
 
                 HomeDestination.PROFILE -> SharedProfileRoute(
@@ -2643,6 +2651,7 @@ private fun ProductsRoute(
     editingProductId: String?,
     isLoading: Boolean,
     isSaving: Boolean,
+    isUpdatingProducerCatalogVisibility: Boolean,
     onRefresh: () -> Unit,
     onDraftChanged: (ProductDraft) -> Unit,
     onCreateProduct: () -> Unit,
@@ -2650,6 +2659,7 @@ private fun ProductsRoute(
     onCancelEditor: () -> Unit,
     onSaveProduct: () -> Unit,
     onArchiveProduct: (String, onSuccess: () -> Unit) -> Unit,
+    onSetProducerCatalogVisibility: (Boolean, onSuccess: () -> Unit) -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
     val activeProducts = remember(products) { products.filterNot { it.archived } }
@@ -2658,6 +2668,7 @@ private fun ProductsRoute(
     val canManageEcoBasket = currentMember?.isProducer == true
     val canManageCommonPurchase = currentMember?.isCommonPurchaseManager == true && currentMember?.isProducer != true
     var commonPurchaseExpanded by rememberSaveable { mutableStateOf(false) }
+    var pendingCatalogVisibility by rememberSaveable { mutableStateOf<Boolean?>(null) }
 
     if (isEditing) {
         Card {
@@ -2931,26 +2942,57 @@ private fun ProductsRoute(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Text(
-                        text = stringResource(R.string.products_catalog_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        text = stringResource(R.string.products_catalog_subtitle),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = stringResource(
-                            R.string.products_catalog_owner_format,
-                            currentMember?.displayName.orEmpty().ifBlank { "—" },
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.products_catalog_title),
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        if (currentMember?.isProducer == true) {
+                            Button(
+                                onClick = {
+                                    pendingCatalogVisibility = !currentMember.producerCatalogEnabled
+                                },
+                                enabled = !isUpdatingProducerCatalogVisibility,
+                                shape = RoundedCornerShape(18.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (currentMember.producerCatalogEnabled) {
+                                        Color(0xFFF08D43)
+                                    } else {
+                                        MaterialTheme.colorScheme.primary
+                                    },
+                                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                ),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                    horizontal = 14.dp,
+                                    vertical = 8.dp,
+                                ),
+                            ) {
+                                Text(
+                                    text = stringResource(
+                                        if (currentMember.producerCatalogEnabled) {
+                                            R.string.products_visibility_disable_compact_action
+                                        } else {
+                                            R.string.products_visibility_enable_compact_action
+                                        },
+                                    ),
+                                    textAlign = TextAlign.Center,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    lineHeight = 16.sp,
+                                )
+                            }
+                        }
+                    }
                     ReguertaButton(
                         label = stringResource(R.string.products_refresh_action),
-                        variant = ReguertaButtonVariant.SECONDARY,
+                        variant = ReguertaButtonVariant.TEXT,
                         fullWidth = false,
                         onClick = onRefresh,
                     )
@@ -3010,6 +3052,54 @@ private fun ProductsRoute(
                 .fillMaxWidth()
                 .navigationBarsPadding(),
             onClick = onCreateProduct,
+        )
+    }
+
+    pendingCatalogVisibility?.let { targetEnabled ->
+        AlertDialog(
+            onDismissRequest = { pendingCatalogVisibility = null },
+            title = {
+                Text(
+                    text = stringResource(
+                        if (targetEnabled) {
+                            R.string.products_visibility_enable_dialog_title
+                        } else {
+                            R.string.products_visibility_disable_dialog_title
+                        },
+                    ),
+                )
+            },
+            text = {
+                Text(
+                    text = stringResource(
+                        if (targetEnabled) {
+                            R.string.products_visibility_enable_dialog_body
+                        } else {
+                            R.string.products_visibility_disable_dialog_body
+                        },
+                    ),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onSetProducerCatalogVisibility(targetEnabled) {
+                            pendingCatalogVisibility = null
+                        }
+                    },
+                    enabled = !isUpdatingProducerCatalogVisibility,
+                ) {
+                    Text(stringResource(R.string.common_action_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { pendingCatalogVisibility = null },
+                    enabled = !isUpdatingProducerCatalogVisibility,
+                ) {
+                    Text(stringResource(R.string.common_action_cancel))
+                }
+            },
         )
     }
 }
