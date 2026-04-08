@@ -104,7 +104,7 @@ extension ContentView {
     }
 
     var shiftSwapCopy: ShiftSwapCopy {
-        Locale.preferredLanguages.first?.hasPrefix("es") == true ? .spanish : .english
+        .localized
     }
 
     func shiftSwapStatusLabel(_ status: ShiftSwapRequestStatus) -> String {

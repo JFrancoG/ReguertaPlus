@@ -161,15 +161,15 @@ extension ShiftSwapRequest {
 }
 
 extension DeliveryWeekday {
-    var spanishLabel: String {
+    var titleKey: String {
         switch self {
-        case .monday: "Lunes"
-        case .tuesday: "Martes"
-        case .wednesday: "Miercoles"
-        case .thursday: "Jueves"
-        case .friday: "Viernes"
-        case .saturday: "Sabado"
-        case .sunday: "Domingo"
+        case .monday: AccessL10nKey.weekdayMonday
+        case .tuesday: AccessL10nKey.weekdayTuesday
+        case .wednesday: AccessL10nKey.weekdayWednesday
+        case .thursday: AccessL10nKey.weekdayThursday
+        case .friday: AccessL10nKey.weekdayFriday
+        case .saturday: AccessL10nKey.weekdaySaturday
+        case .sunday: AccessL10nKey.weekdaySunday
         }
     }
 

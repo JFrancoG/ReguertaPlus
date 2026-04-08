@@ -180,10 +180,10 @@ struct SettingsRouteView: View {
     var body: some View {
         ReguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text("Ajustes")
+                Text(localizedKey(AccessL10nKey.settingsTitle))
                     .font(tokens.typography.titleSection)
                     .foregroundStyle(tokens.colors.textPrimary)
-                Text("La impersonacion solo aparece en develop para probar flujos con otros socios sin salir de tu sesion real.")
+                Text(localizedKey(AccessL10nKey.settingsSubtitleDevelopImpersonation))
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
 
@@ -207,28 +207,35 @@ struct SettingsRouteView: View {
     private func impersonationSection(session: AuthorizedSession) -> some View {
         let isImpersonating = session.member.id != session.authenticatedMember.id
 
-        Text("Cuenta real: \(session.authenticatedMember.displayName)")
+        Text(l10n(AccessL10nKey.settingsImpersonationAccountReal, session.authenticatedMember.displayName))
             .font(tokens.typography.body.weight(.semibold))
             .foregroundStyle(tokens.colors.textPrimary)
         Text(
             isImpersonating
-                ? "Viendo la app como: \(session.member.displayName)"
-                : "Ahora mismo estas usando tu propio perfil."
+                ? l10n(AccessL10nKey.settingsImpersonationViewingAs, session.member.displayName)
+                : l10n(AccessL10nKey.settingsImpersonationUsingOwnProfile)
         )
         .font(tokens.typography.bodySecondary)
         .foregroundStyle(tokens.colors.textSecondary)
 
         if isImpersonating {
-            ReguertaButton("Volver a mi perfil real", action: onClearImpersonation)
+            ReguertaButton(localizedKey(AccessL10nKey.settingsImpersonationActionBackToRealProfile), action: onClearImpersonation)
         }
 
         Divider()
             .overlay(tokens.colors.borderSubtle)
 
-        Text("Impersonacion develop")
+        Text(localizedKey(AccessL10nKey.settingsImpersonationSectionTitle))
             .font(tokens.typography.titleCard)
             .foregroundStyle(tokens.colors.textPrimary)
-        ReguertaButton(isImpersonationExpanded ? "Ocultar socios" : "Elegir socio", variant: .text) {
+        ReguertaButton(
+            localizedKey(
+                isImpersonationExpanded
+                    ? AccessL10nKey.settingsImpersonationActionHideMembers
+                    : AccessL10nKey.settingsImpersonationActionSelectMember
+            ),
+            variant: .text
+        ) {
             isImpersonationExpanded.toggle()
         }
 
@@ -266,30 +273,32 @@ struct SettingsRouteView: View {
     }
 
     private var adminDeliveryCalendarContent: some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-            Text("Calendario de reparto")
+        let defaultDayLabel = defaultDeliveryDayOfWeek.map { l10n($0.titleKey) } ?? l10n(AccessL10nKey.settingsDeliveryCalendarDefaultDayUnset)
+
+        return VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+            Text(localizedKey(AccessL10nKey.settingsDeliveryCalendarTitle))
                 .font(tokens.typography.titleCard)
                 .foregroundStyle(tokens.colors.textPrimary)
-            Text("Dia por defecto: \(defaultDeliveryDayOfWeek?.spanishLabel ?? "sin configurar")")
+            Text(l10n(AccessL10nKey.settingsDeliveryCalendarDefaultDay, defaultDayLabel))
                 .font(tokens.typography.body.weight(.semibold))
                 .foregroundStyle(tokens.colors.textPrimary)
 
             if isLoadingDeliveryCalendar {
-                Text("Cargando calendario...")
+                Text(localizedKey(AccessL10nKey.settingsDeliveryCalendarLoading))
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
             } else if futureDeliveryWeeks.isEmpty {
-                Text("No hay semanas de reparto futuras en los turnos cargados.")
+                Text(localizedKey(AccessL10nKey.settingsDeliveryCalendarEmpty))
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
             } else {
                 HStack(spacing: tokens.spacing.sm) {
-                    ReguertaButton("Cambiar dia de reparto", fullWidth: false) {
+                    ReguertaButton(localizedKey(AccessL10nKey.settingsDeliveryCalendarActionChangeDay), fullWidth: false) {
                         isDeliveryCalendarWeekPickerPresented = true
                     }
-                    ReguertaButton("Recargar", variant: .text, fullWidth: false, action: onRefreshDeliveryCalendar)
+                    ReguertaButton(localizedKey(AccessL10nKey.commonActionReload), variant: .text, fullWidth: false, action: onRefreshDeliveryCalendar)
                 }
-                Text("Primero eliges la semana a cambiar y despues editas solo esa excepcion.")
+                Text(localizedKey(AccessL10nKey.settingsDeliveryCalendarHelp))
                     .font(tokens.typography.label)
                     .foregroundStyle(tokens.colors.textSecondary)
             }
@@ -317,31 +326,35 @@ struct SettingsRouteView: View {
 
     private var adminShiftPlanningSection: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-            Text("Planificacion de turnos")
+            Text(localizedKey(AccessL10nKey.settingsShiftPlanningTitle))
                 .font(tokens.typography.titleCard)
                 .foregroundStyle(tokens.colors.textPrimary)
-            Text("Genera una temporada nueva con socios activos, escribe la hoja nueva y avisa a los socios asignados.")
+            Text(localizedKey(AccessL10nKey.settingsShiftPlanningSubtitle))
                 .font(tokens.typography.bodySecondary)
                 .foregroundStyle(tokens.colors.textSecondary)
             HStack(spacing: tokens.spacing.sm) {
-                ReguertaButton("Generar reparto", fullWidth: false) {
+                ReguertaButton(localizedKey(AccessL10nKey.settingsShiftPlanningActionGenerateDelivery), fullWidth: false) {
                     pendingShiftPlanningType = .delivery
                 }
-                ReguertaButton("Generar mercado", fullWidth: false) {
+                ReguertaButton(localizedKey(AccessL10nKey.settingsShiftPlanningActionGenerateMarket), fullWidth: false) {
                     pendingShiftPlanningType = .market
                 }
             }
             .disabled(isSubmittingShiftPlanningRequest)
             if isSubmittingShiftPlanningRequest {
-                Text("Enviando solicitud de planificacion...")
+                Text(localizedKey(AccessL10nKey.settingsShiftPlanningSubmitting))
                     .font(tokens.typography.label)
                     .foregroundStyle(tokens.colors.textSecondary)
             }
         }
         .alert(
             pendingShiftPlanningType == nil
-                ? ""
-                : "Generar turnos de \(pendingShiftPlanningType == .delivery ? "reparto" : "mercado")",
+                ? localizedKey("")
+                : localizedKey(
+                    pendingShiftPlanningType == .delivery
+                        ? AccessL10nKey.settingsShiftPlanningAlertTitleDelivery
+                        : AccessL10nKey.settingsShiftPlanningAlertTitleMarket
+                ),
             isPresented: Binding(
                 get: { pendingShiftPlanningType != nil },
                 set: { presented in
@@ -352,19 +365,16 @@ struct SettingsRouteView: View {
             ),
             presenting: pendingShiftPlanningType
         ) { type in
-            Button("Cancelar", role: .cancel) {
+            Button(localizedKey(AccessL10nKey.commonActionCancel), role: .cancel) {
                 pendingShiftPlanningType = nil
             }
-            Button("Confirmar") {
+            Button(localizedKey(AccessL10nKey.commonActionConfirm)) {
                 onSubmitShiftPlanningRequest(type) {
                     pendingShiftPlanningType = nil
                 }
             }
         } message: { _ in
-            Text(
-                "Se creara una planificacion nueva con socios activos, se escribira en la sheet de la temporada siguiente " +
-                    "y se notificara a los socios asignados. Si vuelves a lanzarlo, se regenerara esa temporada."
-            )
+            Text(localizedKey(AccessL10nKey.settingsShiftPlanningAlertMessage))
         }
     }
 
@@ -378,5 +388,9 @@ struct SettingsRouteView: View {
 
     private func effectiveDateMillis(for shift: ShiftAssignment) -> Int64 {
         deliveryCalendarOverrides.first(where: { $0.weekKey == shift.weekKey })?.deliveryDateMillis ?? shift.dateMillis
+    }
+
+    private func localizedKey(_ key: String) -> LocalizedStringKey {
+        LocalizedStringKey(key)
     }
 }
