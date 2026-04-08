@@ -87,3 +87,26 @@ internal fun SessionUiState.toUnauthorizedSessionState(
     isDeletingSharedProfile = false,
     isLoadingShifts = false,
 )
+
+internal fun SessionUiState.toUnauthorizedAfterAuthAttemptState(
+    email: String,
+    reason: UnauthorizedReason,
+    showUnauthorizedDialog: Boolean,
+    clearRegisterInputs: Boolean,
+): SessionUiState = copy(
+    isAuthenticating = false,
+    isRegistering = false,
+    registerEmailInput = if (clearRegisterInputs) "" else registerEmailInput,
+    registerPasswordInput = if (clearRegisterInputs) "" else registerPasswordInput,
+    registerRepeatPasswordInput = if (clearRegisterInputs) "" else registerRepeatPasswordInput,
+    mode = SessionMode.Unauthorized(
+        email = email,
+        reason = reason,
+    ),
+    showUnauthorizedDialog = showUnauthorizedDialog,
+    myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
+    notificationsFeed = emptyList(),
+    notificationDraft = NotificationDraft(),
+    isLoadingNotifications = false,
+    isSendingNotification = false,
+)

@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -28,7 +27,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -471,50 +469,15 @@ fun ProductsRoute(
     }
 
     pendingCatalogVisibility?.let { targetEnabled ->
-        AlertDialog(
-            onDismissRequest = { pendingCatalogVisibility = null },
-            title = {
-                Text(
-                    text = stringResource(
-                        if (targetEnabled) {
-                            R.string.products_visibility_enable_dialog_title
-                        } else {
-                            R.string.products_visibility_disable_dialog_title
-                        },
-                    ),
-                )
-            },
-            text = {
-                Text(
-                    text = stringResource(
-                        if (targetEnabled) {
-                            R.string.products_visibility_enable_dialog_body
-                        } else {
-                            R.string.products_visibility_disable_dialog_body
-                        },
-                    ),
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onSetProducerCatalogVisibility(targetEnabled) {
-                            pendingCatalogVisibility = null
-                        }
-                    },
-                    enabled = !isUpdatingProducerCatalogVisibility,
-                ) {
-                    Text(stringResource(R.string.common_action_confirm))
+        ProducerCatalogVisibilityDialog(
+            targetEnabled = targetEnabled,
+            isUpdating = isUpdatingProducerCatalogVisibility,
+            onConfirm = {
+                onSetProducerCatalogVisibility(targetEnabled) {
+                    pendingCatalogVisibility = null
                 }
             },
-            dismissButton = {
-                TextButton(
-                    onClick = { pendingCatalogVisibility = null },
-                    enabled = !isUpdatingProducerCatalogVisibility,
-                ) {
-                    Text(stringResource(R.string.common_action_cancel))
-                }
-            },
+            onDismiss = { pendingCatalogVisibility = null },
         )
     }
 }
