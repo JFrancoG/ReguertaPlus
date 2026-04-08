@@ -508,55 +508,31 @@ struct ContentView: View {
     }
 
     private var homeShellTopBar: some View {
-        cardContainer {
-            HStack {
-                Button {
-                    if homeDestination == .dashboard {
-                        openHomeDrawer()
-                    } else {
-                        if homeDestination == .publishNews {
-                            viewModel.clearNewsEditor()
-                            homeDestination = .news
-                        } else if homeDestination == .adminBroadcast {
-                            viewModel.clearNotificationEditor()
-                            homeDestination = .notifications
-                        } else if homeDestination == .shiftSwapRequest {
-                            viewModel.clearShiftSwapDraft()
-                            homeDestination = .shifts
-                        } else {
-                            homeDestination = .dashboard
-                        }
-                    }
-                } label: {
-                    Image(systemName: homeDestination == .dashboard ? "line.3.horizontal" : "chevron.left")
-                        .font(.system(size: 22.resize, weight: .semibold))
-                        .foregroundStyle(tokens.colors.textPrimary)
-                        .frame(width: 44.resize, height: 44.resize)
-                }
-                .buttonStyle(.plain)
-                .contentShape(Rectangle())
-
-                Spacer()
-
-                Text(localizedKey(homeDestination.titleKey))
-                    .font(tokens.typography.titleCard)
-                    .foregroundStyle(tokens.colors.textPrimary)
-
-                Spacer()
-
-                Button {
+        HomeShellTopBarView(
+            tokens: tokens,
+            titleKey: homeDestination.titleKey,
+            showsBack: homeDestination != .dashboard,
+            onPrimaryAction: {
+                if homeDestination == .dashboard {
+                    openHomeDrawer()
+                } else if homeDestination == .publishNews {
+                    viewModel.clearNewsEditor()
+                    homeDestination = .news
+                } else if homeDestination == .adminBroadcast {
+                    viewModel.clearNotificationEditor()
                     homeDestination = .notifications
-                    viewModel.refreshNotifications()
-                } label: {
-                    Image(systemName: "bell")
-                        .font(.system(size: 20.resize, weight: .semibold))
-                        .foregroundStyle(tokens.colors.textPrimary)
-                        .frame(width: 44.resize, height: 44.resize)
+                } else if homeDestination == .shiftSwapRequest {
+                    viewModel.clearShiftSwapDraft()
+                    homeDestination = .shifts
+                } else {
+                    homeDestination = .dashboard
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(localizedKey(AccessL10nKey.homeShellNotifications))
+            },
+            onNotificationsAction: {
+                homeDestination = .notifications
+                viewModel.refreshNotifications()
             }
-        }
+        )
     }
 
     private var signInCard: some View {
@@ -739,65 +715,27 @@ struct ContentView: View {
     }
 
     private var nextShiftsCard: some View {
-        cardContainer {
-            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                Text(localizedKey(AccessL10nKey.shiftsNextTitle))
-                    .font(tokens.typography.titleCard)
-                Text(localizedKey(AccessL10nKey.shiftsNextSubtitle))
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                if viewModel.isLoadingShifts {
-                    Text(localizedKey(AccessL10nKey.shiftsLoading))
-                        .font(tokens.typography.bodySecondary)
-                } else {
-                    shiftSummaryRow(
-                        titleKey: AccessL10nKey.shiftsNextDelivery,
-                        shift: viewModel.nextDeliveryShift
-                    )
-                    shiftSummaryRow(
-                        titleKey: AccessL10nKey.shiftsNextMarket,
-                        shift: viewModel.nextMarketShift
-                    )
-                }
-                ReguertaButton(localizedKey(AccessL10nKey.shiftsViewAll), variant: .text) {
-                    homeDestination = .shifts
-                    viewModel.refreshShifts()
-                }
+        NextShiftsCardView(
+            tokens: tokens,
+            isLoading: viewModel.isLoadingShifts,
+            nextDeliverySummary: viewModel.nextDeliveryShift.map(shiftSummary) ?? l10n(AccessL10nKey.shiftsNextPending),
+            nextMarketSummary: viewModel.nextMarketShift.map(shiftSummary) ?? l10n(AccessL10nKey.shiftsNextPending),
+            onViewAll: {
+                homeDestination = .shifts
+                viewModel.refreshShifts()
             }
-        }
+        )
     }
 
     private var latestNewsCard: some View {
-        cardContainer {
-            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                Text(localizedKey(AccessL10nKey.homeShellNewsTitle))
-                    .font(tokens.typography.titleCard)
-                if viewModel.latestNews.isEmpty {
-                    Text(localizedKey(AccessL10nKey.newsEmptyState))
-                        .font(tokens.typography.bodySecondary)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                } else {
-                    ForEach(viewModel.latestNews) { article in
-                        VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                            Text(article.title)
-                                .font(tokens.typography.body.weight(.semibold))
-                                .foregroundStyle(tokens.colors.textPrimary)
-                            Text(article.body)
-                                .font(tokens.typography.bodySecondary)
-                                .foregroundStyle(tokens.colors.textSecondary)
-                                .lineLimit(3)
-                        }
-                    }
-                }
-                ReguertaButton(
-                    localizedKey(AccessL10nKey.newsViewAll),
-                    variant: .text
-                ) {
-                    homeDestination = .news
-                    viewModel.refreshNews()
-                }
+        LatestNewsCardView(
+            tokens: tokens,
+            latestNews: viewModel.latestNews,
+            onViewAll: {
+                homeDestination = .news
+                viewModel.refreshNews()
             }
-        }
+        )
     }
 
     @ViewBuilder
@@ -807,69 +745,25 @@ struct ContentView: View {
         myOrderFreshnessState: MyOrderFreshnessState,
         disabledMessageKey: String? = nil
     ) -> some View {
-        cardContainer {
-            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                Text(localizedKey(AccessL10nKey.operationalModulesTitle))
-                    .font(tokens.typography.titleCard)
-                Button {
-                } label: {
-                    Text(localizedKey(AccessL10nKey.myOrder))
-                }
-                .disabled(!modulesEnabled || myOrderFreshnessState != .ready)
-                Button {
-                    homeDestination = .products
-                    viewModel.refreshProducts()
-                } label: {
-                    Text(localizedKey(AccessL10nKey.catalog))
-                }
-                .disabled(!modulesEnabled || !canOpenProducts)
-                Button {
-                    homeDestination = .shifts
-                    viewModel.refreshShifts()
-                } label: {
-                    Text(localizedKey(AccessL10nKey.shifts))
-                }
-                .disabled(!modulesEnabled)
-
-                if !modulesEnabled, let disabledMessageKey {
-                    Text(localizedKey(disabledMessageKey))
-                        .font(tokens.typography.label)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                }
-
-                switch myOrderFreshnessState {
-                case .checking:
-                    Text(localizedKey(AccessL10nKey.myOrderFreshnessChecking))
-                        .font(tokens.typography.label)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                case .timedOut, .unavailable:
-                    Text(localizedKey(AccessL10nKey.myOrderFreshnessErrorTitle))
-                        .font(tokens.typography.bodySecondary.weight(.semibold))
-                    Text(localizedKey(AccessL10nKey.myOrderFreshnessErrorMessage))
-                        .font(tokens.typography.label)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                    Button {
-                        viewModel.refreshMyOrderFreshness()
-                    } label: {
-                        Text(localizedKey(AccessL10nKey.myOrderFreshnessRetry))
-                    }
-                case .idle, .ready:
-                    EmptyView()
-                }
+        OperationalModulesCardView(
+            tokens: tokens,
+            modulesEnabled: modulesEnabled,
+            canOpenProducts: canOpenProducts,
+            myOrderFreshnessState: myOrderFreshnessState,
+            disabledMessageKey: disabledMessageKey,
+            onOpenMyOrder: {},
+            onOpenProducts: {
+                homeDestination = .products
+                viewModel.refreshProducts()
+            },
+            onOpenShifts: {
+                homeDestination = .shifts
+                viewModel.refreshShifts()
+            },
+            onRetryFreshness: {
+                viewModel.refreshMyOrderFreshness()
             }
-        }
-    }
-
-    private func shiftSummaryRow(titleKey: String, shift: ShiftAssignment?) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(localizedKey(titleKey))
-                .font(tokens.typography.bodySecondary)
-                .foregroundStyle(tokens.colors.textPrimary)
-            Spacer(minLength: tokens.spacing.md)
-            Text(shift.map { shiftSummary($0) } ?? l10n(AccessL10nKey.shiftsNextPending))
-                .font(tokens.typography.label)
-                .foregroundStyle(tokens.colors.textSecondary)
-        }
+        )
     }
 
     @ViewBuilder
@@ -1801,260 +1695,6 @@ struct ContentView: View {
         }
     }
 
-    private struct SharedProfileHubRoute: View {
-        let session: AuthorizedSession
-        let profiles: [SharedProfile]
-        @Binding var draft: SharedProfileDraft
-        let isLoading: Bool
-        let isSaving: Bool
-        let isDeleting: Bool
-        let onRefresh: () -> Void
-        let onSave: (@escaping @MainActor () -> Void) -> Void
-        let onDelete: (@escaping @MainActor () -> Void) -> Void
-        let displayName: (String) -> String
-
-        @Environment(\.reguertaTokens) private var tokens
-        @State private var selectedProfileUserId: String?
-        @State private var isEditingOwnProfile = false
-
-        private var ownProfileExists: Bool {
-            profiles.contains { $0.userId == session.member.id }
-        }
-
-        private var sortedProfiles: [SharedProfile] {
-            profiles.sorted { displayName($0.userId) < displayName($1.userId) }
-        }
-
-        private var selectedProfile: SharedProfile? {
-            sortedProfiles.first { $0.userId == selectedProfileUserId }
-        }
-
-        private func localizedKey(_ key: String) -> LocalizedStringKey {
-            LocalizedStringKey(key)
-        }
-
-        var body: some View {
-            if isEditingOwnProfile {
-                editorView
-            } else if let selectedProfile {
-                detailView(for: selectedProfile)
-            } else {
-                listView
-            }
-        }
-
-        private var listView: some View {
-            VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-                ReguertaCard {
-                    VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                        Text(localizedKey(AccessL10nKey.profileSharedHubTitle))
-                            .font(tokens.typography.titleCard)
-                        Text(localizedKey(AccessL10nKey.profileSharedHubSubtitle))
-                            .font(tokens.typography.bodySecondary)
-                            .foregroundStyle(tokens.colors.textSecondary)
-
-                        ReguertaButton(
-                            localizedKey(
-                                ownProfileExists
-                                ? AccessL10nKey.profileSharedActionViewMyProfile
-                                : AccessL10nKey.profileSharedActionCreate
-                            )
-                        ) {
-                            if ownProfileExists {
-                                selectedProfileUserId = session.member.id
-                            } else {
-                                isEditingOwnProfile = true
-                            }
-                        }
-                    }
-                }
-
-                ReguertaCard {
-                    VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                        Text(localizedKey(AccessL10nKey.profileSharedCommunityTitle))
-                            .font(tokens.typography.titleCard)
-                        Text(localizedKey(AccessL10nKey.profileSharedCommunitySubtitle))
-                            .font(tokens.typography.bodySecondary)
-                            .foregroundStyle(tokens.colors.textSecondary)
-                        ReguertaButton(localizedKey(AccessL10nKey.notificationsRefreshAction), variant: .text, fullWidth: false) {
-                            onRefresh()
-                        }
-
-                        if isLoading {
-                            Text(localizedKey(AccessL10nKey.profileSharedLoading))
-                                .font(tokens.typography.bodySecondary)
-                        } else if sortedProfiles.isEmpty {
-                            Text(localizedKey(AccessL10nKey.profileSharedEmpty))
-                                .font(tokens.typography.bodySecondary)
-                        } else {
-                            ForEach(sortedProfiles) { profile in
-                                Button {
-                                    selectedProfileUserId = profile.userId
-                                } label: {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                                            Text(displayName(profile.userId))
-                                                .font(tokens.typography.bodySecondary.weight(.semibold))
-                                            if !profile.familyNames.isEmpty {
-                                                Text(profile.familyNames)
-                                                    .font(tokens.typography.label)
-                                            }
-                                        }
-                                        Spacer()
-                                        Image(systemName: "chevron.right")
-                                            .foregroundStyle(tokens.colors.textSecondary)
-                                    }
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        private func detailView(for profile: SharedProfile) -> some View {
-            ReguertaCard {
-                VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                    sharedProfileCard(profile)
-
-                    if profile.userId == session.member.id {
-                        ReguertaButton(localizedKey(AccessL10nKey.profileSharedActionEdit)) {
-                            isEditingOwnProfile = true
-                        }
-                        ReguertaButton(
-                            localizedKey(
-                                isDeleting
-                                ? AccessL10nKey.profileSharedActionDeleting
-                                : AccessL10nKey.profileSharedActionDelete
-                            ),
-                            variant: .text,
-                            isEnabled: !isDeleting
-                        ) {
-                            onDelete {
-                                selectedProfileUserId = nil
-                            }
-                        }
-                    }
-
-                    ReguertaButton(localizedKey(AccessL10nKey.commonBack), variant: .text) {
-                        selectedProfileUserId = nil
-                    }
-                }
-            }
-        }
-
-        private var editorView: some View {
-            ReguertaCard {
-                VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                    Text(
-                        localizedKey(
-                            ownProfileExists
-                            ? AccessL10nKey.profileSharedEditorTitleEdit
-                            : AccessL10nKey.profileSharedEditorTitleCreate
-                        )
-                    )
-                    .font(tokens.typography.titleCard)
-                    Text(localizedKey(AccessL10nKey.profileSharedEditorSubtitle))
-                        .font(tokens.typography.bodySecondary)
-                        .foregroundStyle(tokens.colors.textSecondary)
-
-                    TextField("", text: $draft.familyNames, prompt: Text(localizedKey(AccessL10nKey.profileSharedFamilyNamesLabel)))
-                        .textFieldStyle(.roundedBorder)
-                    TextField("", text: $draft.photoUrl, prompt: Text(localizedKey(AccessL10nKey.profileSharedPhotoURLLabel)))
-                        .textFieldStyle(.roundedBorder)
-                    Text(localizedKey(AccessL10nKey.profileSharedAboutLabel))
-                        .font(tokens.typography.label)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                    TextEditor(text: $draft.about)
-                        .frame(minHeight: 160.resize)
-                        .padding(tokens.spacing.sm)
-                        .background(tokens.colors.surfaceSecondary)
-                        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
-
-                    ReguertaButton(
-                        localizedKey(
-                            isSaving
-                            ? AccessL10nKey.profileSharedActionSaving
-                            : (ownProfileExists
-                                ? AccessL10nKey.profileSharedActionSave
-                                : AccessL10nKey.profileSharedActionCreate)
-                        ),
-                        isEnabled: !isSaving,
-                        isLoading: isSaving
-                    ) {
-                        onSave {
-                            isEditingOwnProfile = false
-                            selectedProfileUserId = nil
-                        }
-                    }
-                    ReguertaButton(localizedKey(AccessL10nKey.commonBack), variant: .text) {
-                        isEditingOwnProfile = false
-                    }
-                }
-            }
-        }
-
-        private func sharedProfileCard(_ profile: SharedProfile) -> some View {
-            HStack(alignment: .top, spacing: tokens.spacing.md) {
-                profileAvatar(profile)
-
-                VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                    Text(displayName(profile.userId))
-                        .font(tokens.typography.bodySecondary.weight(.semibold))
-                    if !profile.familyNames.isEmpty {
-                        Text(profile.familyNames)
-                            .font(tokens.typography.label)
-                    }
-                    if !profile.about.isEmpty {
-                        Text(profile.about)
-                            .font(tokens.typography.bodySecondary)
-                            .foregroundStyle(tokens.colors.textPrimary)
-                    }
-                }
-
-                Spacer(minLength: 0)
-            }
-            .padding(tokens.spacing.sm + 2)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(tokens.colors.surfaceSecondary)
-            .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
-        }
-
-        @ViewBuilder
-        private func profileAvatar(_ profile: SharedProfile) -> some View {
-            if let rawURL = profile.photoUrl, let url = URL(string: rawURL), !rawURL.isEmpty {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .empty:
-                        avatarPlaceholder
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                            .frame(width: 72.resize, height: 72.resize)
-                            .clipShape(Circle())
-                    case .failure:
-                        avatarPlaceholder
-                    @unknown default:
-                        avatarPlaceholder
-                    }
-                }
-            } else {
-                avatarPlaceholder
-            }
-        }
-
-        private var avatarPlaceholder: some View {
-            Circle()
-                .fill(tokens.colors.actionPrimary.opacity(0.14))
-                .frame(width: 72.resize, height: 72.resize)
-                .overlay {
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 28.resize, weight: .semibold))
-                        .foregroundStyle(tokens.colors.actionPrimary)
-            }
-        }
-    }
-
     private var notificationEditorRoute: some View {
         cardContainer {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
@@ -2197,21 +1837,47 @@ struct ContentView: View {
         let drawerOffset = resolvedHomeDrawerOffset(drawerWidth: drawerWidth)
 
         return HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                homeDrawerHeader
-
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                        homeDrawerProfile
-                        homeDrawerNavigationSections
+            HomeDrawerContentView(
+                tokens: tokens,
+                currentMember: currentHomeMember,
+                currentDestination: homeDestination,
+                installedVersion: installedVersion,
+                onNavigate: { destination in
+                    if destination == .publishNews {
+                        viewModel.startCreatingNews()
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    if destination == .adminBroadcast {
+                        viewModel.startCreatingNotification()
+                    }
+                    if destination == .news {
+                        viewModel.refreshNews()
+                    }
+                    if destination == .notifications {
+                        viewModel.refreshNotifications()
+                    }
+                    if destination == .products {
+                        viewModel.refreshProducts()
+                    }
+                    if destination == .profile {
+                        viewModel.refreshSharedProfiles()
+                    }
+                    if destination == .shifts {
+                        viewModel.refreshShifts()
+                    }
+                    if destination == .settings {
+                        viewModel.refreshDeliveryCalendar()
+                    }
+                    homeDestination = destination
+                    closeHomeDrawer()
+                },
+                onCloseDrawer: closeHomeDrawer,
+                onSignOut: {
+                    closeHomeDrawer()
+                    homeDestination = .dashboard
+                    viewModel.signOut()
+                    dispatchShell(.signedOut)
                 }
-
-                Divider()
-
-                homeDrawerFooter
-            }
+            )
             .padding(tokens.spacing.lg)
             .frame(width: drawerWidth)
             .frame(maxHeight: .infinity, alignment: .topLeading)
@@ -2247,158 +1913,6 @@ struct ContentView: View {
         .allowsHitTesting(isHomeDrawerOpen)
         .animation(.spring(response: 0.28, dampingFraction: 0.82), value: isHomeDrawerOpen)
         .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.84), value: homeDrawerDragOffset)
-    }
-
-    private var homeDrawerHeader: some View {
-        HStack {
-            Button {
-                closeHomeDrawer()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 20.resize, weight: .semibold))
-                    .foregroundStyle(tokens.colors.textPrimary)
-                    .frame(width: 36.resize, height: 36.resize)
-            }
-            .buttonStyle(.plain)
-            .contentShape(Rectangle())
-            Spacer()
-        }
-    }
-
-    @ViewBuilder
-    private var homeDrawerProfile: some View {
-        VStack(spacing: tokens.spacing.md) {
-            Circle()
-                .fill(tokens.colors.actionPrimary.opacity(0.14))
-                .frame(width: 76.resize, height: 76.resize)
-                .overlay {
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 30.resize, weight: .semibold))
-                        .foregroundStyle(tokens.colors.actionPrimary)
-                }
-
-            if let member = currentHomeMember {
-                Text(member.displayName)
-                    .font(tokens.typography.titleCard)
-                    .foregroundStyle(tokens.colors.textPrimary)
-                    .multilineTextAlignment(.center)
-                Text(member.normalizedEmail)
-                    .font(tokens.typography.label)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                    .multilineTextAlignment(.center)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.bottom, tokens.spacing.sm)
-    }
-
-    @ViewBuilder
-    private var homeDrawerNavigationSections: some View {
-        drawerSection(titleKey: AccessL10nKey.homeShellSectionCommon)
-        homeDrawerItem("house.fill", titleKey: AccessL10nKey.homeTitle, destination: .dashboard)
-        homeDrawerItem("cart.fill", titleKey: AccessL10nKey.myOrder, destination: .myOrder)
-        homeDrawerItem("doc.text.fill", titleKey: AccessL10nKey.myOrders, destination: .myOrders)
-        homeDrawerItem("calendar", titleKey: AccessL10nKey.shifts, destination: .shifts)
-        homeDrawerItem("newspaper.fill", titleKey: AccessL10nKey.homeShellNewsTitle, destination: .news)
-        homeDrawerItem("bell", titleKey: AccessL10nKey.homeShellNotifications, destination: .notifications)
-        homeDrawerItem("person.3.fill", titleKey: AccessL10nKey.homeShellActionProfile, destination: .profile)
-        homeDrawerItem("gearshape.fill", titleKey: AccessL10nKey.homeShellActionSettings, destination: .settings)
-
-        if currentHomeMember?.canManageProductCatalog == true || currentHomeMember?.isProducer == true {
-            drawerSection(titleKey: AccessL10nKey.homeShellSectionProducer)
-        }
-        if currentHomeMember?.canManageProductCatalog == true {
-            homeDrawerItem("shippingbox.fill", titleKey: AccessL10nKey.homeShellActionProducts, destination: .products)
-        }
-        if currentHomeMember?.isProducer == true {
-            homeDrawerItem("tray.full.fill", titleKey: AccessL10nKey.homeShellActionReceivedOrders, destination: .receivedOrders)
-        }
-
-        if currentHomeMember?.isAdmin == true {
-            drawerSection(titleKey: AccessL10nKey.homeShellSectionAdmin)
-            homeDrawerItem("person.3.fill", titleKey: AccessL10nKey.homeShellActionUsers, destination: .users)
-            homeDrawerItem("plus.square.fill", titleKey: AccessL10nKey.homeShellActionPublishNews, destination: .publishNews)
-            homeDrawerItem("megaphone.fill", titleKey: AccessL10nKey.homeShellActionAdminBroadcast, destination: .adminBroadcast)
-        }
-    }
-
-    private var homeDrawerFooter: some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-            ReguertaButton(localizedKey(AccessL10nKey.signOut)) {
-                closeHomeDrawer()
-                homeDestination = .dashboard
-                viewModel.signOut()
-                dispatchShell(.signedOut)
-            }
-            .padding(.top, tokens.spacing.xs)
-
-            Text(l10n(AccessL10nKey.homeShellVersion, installedVersion))
-                .font(tokens.typography.label)
-                .foregroundStyle(tokens.colors.textSecondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private func drawerSection(titleKey: String) -> some View {
-        Text(localizedKey(titleKey))
-            .font(tokens.typography.label)
-            .foregroundStyle(tokens.colors.actionPrimary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, tokens.spacing.xs)
-    }
-
-    private func homeDrawerItem(
-        _ systemImage: String,
-        titleKey: String,
-        destination: HomeDestination
-    ) -> some View {
-        HStack(spacing: tokens.spacing.md) {
-            Image(systemName: systemImage)
-                .font(.system(size: 18.resize, weight: .semibold))
-                .foregroundStyle(tokens.colors.actionPrimary)
-                .frame(width: 24.resize)
-            Text(localizedKey(titleKey))
-                .font(tokens.typography.bodySecondary)
-                .foregroundStyle(tokens.colors.textPrimary)
-            Spacer(minLength: tokens.spacing.sm)
-        }
-        .padding(.vertical, tokens.spacing.xs + 2)
-        .padding(.horizontal, tokens.spacing.sm)
-        .background(
-            homeDestination == destination
-            ? tokens.colors.actionPrimary.opacity(0.10)
-            : Color.clear
-        )
-        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
-        .contentShape(Rectangle())
-        .onTapGesture {
-            if destination == .publishNews {
-                viewModel.startCreatingNews()
-            }
-            if destination == .adminBroadcast {
-                viewModel.startCreatingNotification()
-            }
-            if destination == .news {
-                viewModel.refreshNews()
-            }
-            if destination == .notifications {
-                viewModel.refreshNotifications()
-            }
-            if destination == .products {
-                viewModel.refreshProducts()
-            }
-            if destination == .profile {
-                viewModel.refreshSharedProfiles()
-            }
-            if destination == .shifts {
-                viewModel.refreshShifts()
-            }
-            if destination == .settings {
-                viewModel.refreshDeliveryCalendar()
-            }
-            homeDestination = destination
-            closeHomeDrawer()
-        }
     }
 
     @ViewBuilder
@@ -2621,198 +2135,6 @@ struct ContentView: View {
                     .stroke(tokens.colors.borderSubtle, lineWidth: 1)
             )
             .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
-    }
-
-    private struct DeliveryCalendarWeekPickerSheet: View {
-        @Environment(\.reguertaTokens) private var tokens
-        @Environment(\.dismiss) private var dismiss
-        let futureWeeks: [ShiftAssignment]
-        let overrides: [DeliveryCalendarOverride]
-        let onSelectWeek: (String) -> Void
-        @State private var selectedWeekKey: String
-
-        init(
-            futureWeeks: [ShiftAssignment],
-            overrides: [DeliveryCalendarOverride],
-            onSelectWeek: @escaping (String) -> Void
-        ) {
-            self.futureWeeks = futureWeeks
-            self.overrides = overrides
-            self.onSelectWeek = onSelectWeek
-            _selectedWeekKey = State(initialValue: futureWeeks.first?.weekKey ?? "")
-        }
-
-        var body: some View {
-            NavigationStack {
-                VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-                    Text("Selecciona un dia de reparto futuro con encargado.")
-                        .font(tokens.typography.bodySecondary)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                    Picker("Semana", selection: $selectedWeekKey) {
-                        ForEach(futureWeeks, id: \.weekKey) { shift in
-                            Text("\(shift.weekKey) · \(effectiveDateLabel(for: shift))")
-                                .tag(shift.weekKey)
-                        }
-                    }
-                    .pickerStyle(.wheel)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 180)
-                    .clipped()
-
-                    if let selectedShift = futureWeeks.first(where: { $0.weekKey == selectedWeekKey }) {
-                        VStack(spacing: 4) {
-                            Text(selectedShift.weekKey)
-                                .font(tokens.typography.body.weight(.semibold))
-                                .foregroundStyle(tokens.colors.textPrimary)
-                            Text(effectiveDateLabel(for: selectedShift))
-                                .font(tokens.typography.label)
-                                .foregroundStyle(tokens.colors.textSecondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(tokens.spacing.md)
-                        .background(tokens.colors.surfacePrimary)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: tokens.radius.md)
-                                .stroke(tokens.colors.borderSubtle, lineWidth: 1)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
-                    }
-
-                    Spacer(minLength: 0)
-
-                    HStack(spacing: tokens.spacing.sm) {
-                        ReguertaButton("Cerrar", variant: .text, fullWidth: false) {
-                            dismiss()
-                        }
-                        ReguertaButton("Elegir", isEnabled: !selectedWeekKey.isEmpty, fullWidth: false) {
-                            onSelectWeek(selectedWeekKey)
-                        }
-                    }
-                }
-                .padding(tokens.spacing.lg)
-                .navigationTitle("Elegir semana")
-                .navigationBarTitleDisplayMode(.inline)
-            }
-        }
-
-        private func localizedDateOnly(_ millis: Int64) -> String {
-            let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "es_ES")
-            formatter.dateFormat = "d MMM yyyy"
-            return formatter.string(from: Date(timeIntervalSince1970: TimeInterval(millis) / 1_000))
-        }
-
-        private func effectiveDateLabel(for shift: ShiftAssignment) -> String {
-            let effectiveMillis = overrides.first(where: { $0.weekKey == shift.weekKey })?.deliveryDateMillis ?? shift.dateMillis
-            return localizedDateOnly(effectiveMillis)
-        }
-    }
-
-    private struct DeliveryCalendarEditorSheet: View {
-        @Environment(\.reguertaTokens) private var tokens
-        @Environment(\.dismiss) private var dismiss
-        let shift: ShiftAssignment
-        let overrideEntry: DeliveryCalendarOverride?
-        let defaultDay: DeliveryWeekday
-        let isSaving: Bool
-        let onRefresh: () -> Void
-        let onSave: (String, DeliveryWeekday) -> Void
-        let onDelete: (String) -> Void
-        @State private var selectedWeekday: DeliveryWeekday
-
-        init(
-            shift: ShiftAssignment,
-            overrideEntry: DeliveryCalendarOverride?,
-            defaultDay: DeliveryWeekday,
-            isSaving: Bool,
-            onRefresh: @escaping () -> Void,
-            onSave: @escaping (String, DeliveryWeekday) -> Void,
-            onDelete: @escaping (String) -> Void
-        ) {
-            self.shift = shift
-            self.overrideEntry = overrideEntry
-            self.defaultDay = defaultDay
-            self.isSaving = isSaving
-            self.onRefresh = onRefresh
-            self.onSave = onSave
-            self.onDelete = onDelete
-            _selectedWeekday = State(initialValue: overrideEntry?.deliveryDateMillis.deliveryWeekday ?? defaultDay)
-        }
-
-        var body: some View {
-            NavigationStack {
-                VStack(spacing: tokens.spacing.md) {
-                    Spacer(minLength: 0)
-
-                    VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                        Text("Gestiona solo la excepcion de la semana elegida.")
-                            .font(tokens.typography.bodySecondary)
-                            .foregroundStyle(tokens.colors.textSecondary)
-
-                        VStack(spacing: 4) {
-                            Text(shift.weekKey)
-                                .font(tokens.typography.body.weight(.semibold))
-                            Text(localizedDateOnly(overrideEntry?.deliveryDateMillis ?? shift.dateMillis))
-                                .font(tokens.typography.label)
-                                .foregroundStyle(tokens.colors.textSecondary)
-                        }
-                        .frame(maxWidth: .infinity)
-
-                        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                            Text(
-                                overrideEntry.map { "Excepcion activa: \(localizedDateOnly($0.deliveryDateMillis))" } ??
-                                "Sin excepcion. Aplica el dia por defecto."
-                            )
-                            .font(tokens.typography.label)
-                            .foregroundStyle(tokens.colors.textSecondary)
-
-                            HStack(spacing: tokens.spacing.sm) {
-                                ReguertaButton("Anterior", variant: .text, fullWidth: false) {
-                                    selectedWeekday = selectedWeekday.previous
-                                }
-                                Text(selectedWeekday.spanishLabel)
-                                    .font(tokens.typography.bodySecondary.weight(.semibold))
-                                ReguertaButton("Siguiente", variant: .text, fullWidth: false) {
-                                    selectedWeekday = selectedWeekday.next
-                                }
-                            }
-
-                            ReguertaButton("Guardar excepcion", isEnabled: !isSaving, isLoading: isSaving) {
-                                onSave(shift.weekKey, selectedWeekday)
-                                dismiss()
-                            }
-                            if overrideEntry != nil {
-                                ReguertaButton("Quitar excepcion", variant: .text, isEnabled: !isSaving, fullWidth: false) {
-                                    onDelete(shift.weekKey)
-                                    dismiss()
-                                }
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    Spacer(minLength: 0)
-                }
-                .padding(tokens.spacing.lg)
-                .navigationTitle("Cambiar dia de reparto")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cerrar") { dismiss() }
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button("Recargar") { onRefresh() }
-                    }
-                }
-            }
-        }
-
-        private func localizedDateOnly(_ millis: Int64) -> String {
-            let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "es_ES")
-            formatter.dateFormat = "d MMM yyyy"
-            return formatter.string(from: Date(timeIntervalSince1970: TimeInterval(millis) / 1_000))
-        }
     }
 
     private func binding(_ keyPath: ReferenceWritableKeyPath<SessionViewModel, String>) -> Binding<String> {
@@ -3283,75 +2605,6 @@ struct ContentView: View {
     }
 }
 
-private enum HomeDestination: String, Sendable {
-    case dashboard
-    case myOrder
-    case myOrders
-    case shifts
-    case shiftSwapRequest
-    case news
-    case notifications
-    case profile
-    case settings
-    case products
-    case receivedOrders
-    case users
-    case publishNews
-    case adminBroadcast
-}
-
-private extension HomeDestination {
-    var titleKey: String {
-        switch self {
-        case .dashboard: AccessL10nKey.homeTitle
-        case .myOrder: AccessL10nKey.myOrder
-        case .myOrders: AccessL10nKey.myOrders
-        case .shifts: AccessL10nKey.shifts
-        case .shiftSwapRequest: AccessL10nKey.shifts
-        case .news: AccessL10nKey.homeShellNewsTitle
-        case .notifications: AccessL10nKey.homeShellNotifications
-        case .profile: AccessL10nKey.homeShellActionProfile
-        case .settings: AccessL10nKey.homeShellActionSettings
-        case .products: AccessL10nKey.homeShellActionProducts
-        case .receivedOrders: AccessL10nKey.homeShellActionReceivedOrders
-        case .users: AccessL10nKey.homeShellActionUsers
-        case .publishNews: AccessL10nKey.homeShellActionPublishNews
-        case .adminBroadcast: AccessL10nKey.homeShellActionAdminBroadcast
-        }
-    }
-
-    var subtitleKey: String {
-        switch self {
-        case .dashboard: AccessL10nKey.homePlaceholderSubtitle
-        case .myOrder: AccessL10nKey.homePlaceholderMyOrder
-        case .myOrders: AccessL10nKey.homePlaceholderMyOrders
-        case .shifts: AccessL10nKey.homePlaceholderShifts
-        case .shiftSwapRequest: AccessL10nKey.homePlaceholderShifts
-        case .news: AccessL10nKey.newsListSubtitle
-        case .notifications: AccessL10nKey.notificationsListSubtitle
-        case .profile: AccessL10nKey.homePlaceholderProfile
-        case .settings: AccessL10nKey.homePlaceholderSettings
-        case .products: AccessL10nKey.homePlaceholderProducts
-        case .receivedOrders: AccessL10nKey.homePlaceholderReceivedOrders
-        case .users: AccessL10nKey.homePlaceholderUsers
-        case .publishNews: AccessL10nKey.newsEditorSubtitle
-        case .adminBroadcast: AccessL10nKey.notificationsEditorSubtitle
-        }
-    }
-}
-
-private enum StartupGateUIState: Equatable {
-    case checking
-    case ready
-    case optionalUpdate(storeURL: String)
-    case forcedUpdate(storeURL: String)
-    case optionalDismissed
-
-    var allowsContinuation: Bool {
-        self == .ready || self == .optionalDismissed
-    }
-}
-
 private extension Set<MemberRole> {
     var prettyListLocalized: String {
         sorted { lhs, rhs in lhs.rawValue < rhs.rawValue }
@@ -3552,12 +2805,12 @@ private struct ShiftSwapCopy {
     )
 }
 
-private extension ShiftAssignment {
-    var localDate: Date {
+extension ShiftAssignment {
+    private var localDate: Date {
         Date(timeIntervalSince1970: TimeInterval(dateMillis) / 1_000)
     }
 
-    func leftBoardLines(tokens: ReguertaDesignTokens) -> [ShiftBoardLine] {
+    fileprivate func leftBoardLines(tokens: ReguertaDesignTokens) -> [ShiftBoardLine] {
         switch type {
         case .delivery:
             return [
@@ -3604,7 +2857,7 @@ private extension ShiftAssignment {
         }
     }
 
-    func boardNames(session: AuthorizedSession?) -> [String] {
+    fileprivate func boardNames(session: AuthorizedSession?) -> [String] {
         switch type {
         case .delivery:
             var names: [String] = []
@@ -3624,7 +2877,7 @@ private extension ShiftAssignment {
         }
     }
 
-    func canBeRequested(by currentMemberId: String) -> Bool {
+    fileprivate func canBeRequested(by currentMemberId: String) -> Bool {
         switch type {
         case .delivery:
             return dateMillis > Int64(Date().timeIntervalSince1970 * 1_000) &&
@@ -3635,7 +2888,7 @@ private extension ShiftAssignment {
         }
     }
 
-    func highlightedBoardNameIndex(for currentMemberId: String) -> Int? {
+    fileprivate func highlightedBoardNameIndex(for currentMemberId: String) -> Int? {
         switch type {
         case .delivery:
             if assignedUserIds.first == currentMemberId {
@@ -3705,7 +2958,7 @@ private extension ShiftSwapRequest {
     }
 }
 
-private extension DeliveryWeekday {
+extension DeliveryWeekday {
     var spanishLabel: String {
         switch self {
         case .monday: "Lunes"
@@ -3729,7 +2982,7 @@ private extension DeliveryWeekday {
     }
 }
 
-private extension Int64 {
+extension Int64 {
     var isoWeekKey: String {
         let calendar = Calendar(identifier: .iso8601)
         let date = Date(timeIntervalSince1970: TimeInterval(self) / 1_000)
