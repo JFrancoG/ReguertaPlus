@@ -971,83 +971,19 @@ struct ContentView: View {
 
     @ViewBuilder
     private func adminToolsCard(session: AuthorizedSession) -> some View {
-        cardContainer {
-            DisclosureGroup(isExpanded: $isAdminToolsExpanded) {
-                VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                    ForEach(session.members) { member in
-                        memberRow(member: member)
-                    }
-
-                    Divider()
-
-                    Text(localizedKey(AccessL10nKey.adminCreatePreAuthorizedTitle))
-                        .font(tokens.typography.titleCard)
-                    TextField(localizedKey(AccessL10nKey.displayNameLabel), text: draftBinding(\.displayName))
-                        .textFieldStyle(.roundedBorder)
-                    TextField(localizedKey(AccessL10nKey.emailLabel), text: draftBinding(\.email))
-                        .textInputAutocapitalization(.never)
-                        .textFieldStyle(.roundedBorder)
-
-                    Toggle(localizedKey(AccessL10nKey.roleMember), isOn: draftBinding(\.isMember))
-                    Toggle(localizedKey(AccessL10nKey.roleProducer), isOn: draftBinding(\.isProducer))
-                    Toggle(localizedKey(AccessL10nKey.roleAdmin), isOn: draftBinding(\.isAdmin))
-                    Toggle(localizedKey(AccessL10nKey.roleActive), isOn: draftBinding(\.isActive))
-
-                    Button {
-                        viewModel.createAuthorizedMember()
-                    } label: {
-                        Text(localizedKey(AccessL10nKey.createMember))
-                    }
-                }
-                .padding(.top, tokens.spacing.sm)
-            } label: {
-                VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                    Text(localizedKey(AccessL10nKey.adminManageMembersTitle))
-                        .font(tokens.typography.titleCard)
-                    Text(localizedKey(AccessL10nKey.adminManageMembersSubtitle))
-                        .font(tokens.typography.bodySecondary)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                }
+        AdminToolsCardView(
+            tokens: tokens,
+            session: session,
+            isExpanded: $isAdminToolsExpanded,
+            memberDraft: memberDraftBinding,
+            onCreateMember: viewModel.createAuthorizedMember,
+            onToggleAdmin: { memberId in
+                viewModel.toggleAdmin(memberId: memberId)
+            },
+            onToggleActive: { memberId in
+                viewModel.toggleActive(memberId: memberId)
             }
-        }
-    }
-
-    @ViewBuilder
-    private func memberRow(member: Member) -> some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.xs + 2) {
-            Text(member.displayName)
-                .font(tokens.typography.bodySecondary.weight(.semibold))
-            Text(member.normalizedEmail)
-                .font(tokens.typography.bodySecondary)
-            Text(l10n(AccessL10nKey.roles, member.roles.prettyListLocalized))
-                .font(tokens.typography.label)
-            Text(l10n(AccessL10nKey.authLinked, l10n(member.authUid == nil ? AccessL10nKey.no : AccessL10nKey.yes)))
-                .font(tokens.typography.label)
-            Text(
-                l10n(
-                    AccessL10nKey.status,
-                    l10n(member.isActive ? AccessL10nKey.statusActive : AccessL10nKey.statusInactive)
-                )
-            )
-            .font(tokens.typography.label)
-
-            HStack {
-                Button {
-                    viewModel.toggleAdmin(memberId: member.id)
-                } label: {
-                    Text(localizedKey(member.isAdmin ? AccessL10nKey.revokeAdmin : AccessL10nKey.grantAdmin))
-                }
-                Button {
-                    viewModel.toggleActive(memberId: member.id)
-                } label: {
-                    Text(localizedKey(member.isActive ? AccessL10nKey.deactivate : AccessL10nKey.activate))
-                }
-            }
-        }
-        .padding(tokens.spacing.sm + 2)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(tokens.colors.surfaceSecondary)
-        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
+        )
     }
 
     private func homeDrawerPanel(drawerWidth: CGFloat) -> some View {
@@ -1134,195 +1070,40 @@ struct ContentView: View {
 
     @ViewBuilder
     private var settingsRoute: some View {
-        cardContainer {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text("Ajustes")
-                    .font(tokens.typography.titleSection)
-                    .foregroundStyle(tokens.colors.textPrimary)
-                Text("La impersonacion solo aparece en develop para probar flujos con otros socios sin salir de tu sesion real.")
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-
-                if viewModel.isDevelopImpersonationEnabled, let session = currentHomeSession {
-                    let isImpersonating = session.member.id != session.authenticatedMember.id
-                    Text("Cuenta real: \(session.authenticatedMember.displayName)")
-                        .font(tokens.typography.body.weight(.semibold))
-                        .foregroundStyle(tokens.colors.textPrimary)
-                    Text(
-                        isImpersonating
-                        ? "Viendo la app como: \(session.member.displayName)"
-                        : "Ahora mismo estas usando tu propio perfil."
-                    )
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-
-                    if isImpersonating {
-                        ReguertaButton("Volver a mi perfil real") {
-                            viewModel.clearImpersonation()
-                        }
-                    }
-
-                    Divider()
-                        .overlay(tokens.colors.borderSubtle)
-
-                    Text("Impersonacion develop")
-                        .font(tokens.typography.titleCard)
-                        .foregroundStyle(tokens.colors.textPrimary)
-                    ReguertaButton(isImpersonationExpanded ? "Ocultar socios" : "Elegir socio", variant: .text) {
-                        isImpersonationExpanded.toggle()
-                    }
-                    if isImpersonationExpanded {
-                        ForEach(
-                            session.members
-                                .filter(\.isActive)
-                                .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending },
-                            id: \.id
-                        ) { member in
-                            ReguertaButton(LocalizedStringKey(member.displayName), variant: .text) {
-                                viewModel.impersonate(memberId: member.id)
-                                isImpersonationExpanded = false
-                            }
-                            .disabled(member.id == session.member.id)
-                        }
-                    }
-                }
-
-                if let session = currentHomeSession, session.member.isAdmin {
-                    Divider()
-                        .overlay(tokens.colors.borderSubtle)
-                    adminDeliveryCalendarSection(session: session)
-                    Divider()
-                        .overlay(tokens.colors.borderSubtle)
-                    adminShiftPlanningSection(session: session)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func adminDeliveryCalendarSection(session: AuthorizedSession) -> some View {
-        let futureWeeks = viewModel.shiftsFeed
-            .filter { $0.type == .delivery && effectiveDateMillis(for: $0) > Int64(Date().timeIntervalSince1970 * 1000) }
-            .sorted { effectiveDateMillis(for: $0) < effectiveDateMillis(for: $1) }
-            .uniqued { $0.weekKey }
-        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-            Text("Calendario de reparto")
-                .font(tokens.typography.titleCard)
-                .foregroundStyle(tokens.colors.textPrimary)
-            Text("Dia por defecto: \(viewModel.defaultDeliveryDayOfWeek?.spanishLabel ?? "sin configurar")")
-                .font(tokens.typography.body.weight(.semibold))
-                .foregroundStyle(tokens.colors.textPrimary)
-
-            if viewModel.isLoadingDeliveryCalendar {
-                Text("Cargando calendario…")
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-            } else if futureWeeks.isEmpty {
-                Text("No hay semanas de reparto futuras en los turnos cargados.")
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-            } else {
-                HStack(spacing: tokens.spacing.sm) {
-                    ReguertaButton("Cambiar dia de reparto", fullWidth: false) {
-                        isDeliveryCalendarWeekPickerPresented = true
-                    }
-                    ReguertaButton("Recargar", variant: .text, fullWidth: false) {
-                        viewModel.refreshDeliveryCalendar()
-                    }
-                }
-                Text("Primero eliges la semana a cambiar y despues editas solo esa excepcion.")
-                    .font(tokens.typography.label)
-                    .foregroundStyle(tokens.colors.textSecondary)
-            }
-        }
-        .sheet(isPresented: $isDeliveryCalendarWeekPickerPresented) {
-            DeliveryCalendarWeekPickerSheet(
-                futureWeeks: futureWeeks,
-                overrides: viewModel.deliveryCalendarOverrides,
-                onSelectWeek: { weekKey in
-                    selectedDeliveryCalendarWeekKey = weekKey
-                    isDeliveryCalendarWeekPickerPresented = false
-                    isDeliveryCalendarEditorPresented = true
-                }
-            )
-            .presentationDetents([.medium, .large])
-        }
-        .sheet(isPresented: $isDeliveryCalendarEditorPresented, onDismiss: {
-            selectedDeliveryCalendarWeekKey = nil
-        }) {
-            if let weekKey = selectedDeliveryCalendarWeekKey,
-               let shift = futureWeeks.first(where: { $0.weekKey == weekKey }) {
-                DeliveryCalendarEditorSheet(
-                    shift: shift,
-                    overrideEntry: viewModel.deliveryCalendarOverrides.first(where: { $0.weekKey == weekKey }),
-                    defaultDay: viewModel.defaultDeliveryDayOfWeek ?? .wednesday,
-                    isSaving: viewModel.isSavingDeliveryCalendar,
-                    onRefresh: { viewModel.refreshDeliveryCalendar() },
-                    onSave: { selectedWeekKey, weekday in
-                        viewModel.saveDeliveryCalendarOverride(
-                            weekKey: selectedWeekKey,
-                            weekday: weekday,
-                            updatedByUserId: session.member.id
-                        )
-                    },
-                    onDelete: { selectedWeekKey in
-                        viewModel.deleteDeliveryCalendarOverride(weekKey: selectedWeekKey)
-                    }
+        SettingsRouteView(
+            tokens: tokens,
+            session: currentHomeSession,
+            isDevelopImpersonationEnabled: viewModel.isDevelopImpersonationEnabled,
+            isImpersonationExpanded: $isImpersonationExpanded,
+            isLoadingDeliveryCalendar: viewModel.isLoadingDeliveryCalendar,
+            defaultDeliveryDayOfWeek: viewModel.defaultDeliveryDayOfWeek,
+            shiftsFeed: viewModel.shiftsFeed,
+            deliveryCalendarOverrides: viewModel.deliveryCalendarOverrides,
+            isDeliveryCalendarEditorPresented: $isDeliveryCalendarEditorPresented,
+            isDeliveryCalendarWeekPickerPresented: $isDeliveryCalendarWeekPickerPresented,
+            selectedDeliveryCalendarWeekKey: $selectedDeliveryCalendarWeekKey,
+            isSavingDeliveryCalendar: viewModel.isSavingDeliveryCalendar,
+            isSubmittingShiftPlanningRequest: viewModel.isSubmittingShiftPlanningRequest,
+            pendingShiftPlanningType: $pendingShiftPlanningType,
+            onClearImpersonation: viewModel.clearImpersonation,
+            onImpersonate: { memberId in
+                viewModel.impersonate(memberId: memberId)
+            },
+            onRefreshDeliveryCalendar: viewModel.refreshDeliveryCalendar,
+            onSaveDeliveryCalendarOverride: { weekKey, weekday, updatedByUserId in
+                viewModel.saveDeliveryCalendarOverride(
+                    weekKey: weekKey,
+                    weekday: weekday,
+                    updatedByUserId: updatedByUserId
                 )
-                .presentationDetents([.medium, .large])
+            },
+            onDeleteDeliveryCalendarOverride: { weekKey in
+                viewModel.deleteDeliveryCalendarOverride(weekKey: weekKey)
+            },
+            onSubmitShiftPlanningRequest: { type, completion in
+                viewModel.submitShiftPlanningRequest(type: type, onSuccess: completion)
             }
-        }
-    }
-
-    @ViewBuilder
-    private func adminShiftPlanningSection(session: AuthorizedSession) -> some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-            Text("Planificacion de turnos")
-                .font(tokens.typography.titleCard)
-                .foregroundStyle(tokens.colors.textPrimary)
-            Text("Genera una temporada nueva con socios activos, escribe la hoja nueva y avisa a los socios asignados.")
-                .font(tokens.typography.bodySecondary)
-                .foregroundStyle(tokens.colors.textSecondary)
-            HStack(spacing: tokens.spacing.sm) {
-                ReguertaButton("Generar reparto", fullWidth: false) {
-                    pendingShiftPlanningType = .delivery
-                }
-                ReguertaButton("Generar mercado", fullWidth: false) {
-                    pendingShiftPlanningType = .market
-                }
-            }
-            .disabled(viewModel.isSubmittingShiftPlanningRequest)
-            if viewModel.isSubmittingShiftPlanningRequest {
-                Text("Enviando solicitud de planificacion…")
-                    .font(tokens.typography.label)
-                    .foregroundStyle(tokens.colors.textSecondary)
-            }
-        }
-        .alert(
-            pendingShiftPlanningType == nil
-                ? ""
-                : "Generar turnos de \(pendingShiftPlanningType == .delivery ? "reparto" : "mercado")",
-            isPresented: Binding(
-                get: { pendingShiftPlanningType != nil },
-                set: { presented in
-                    if !presented {
-                        pendingShiftPlanningType = nil
-                    }
-                }
-            ),
-            presenting: pendingShiftPlanningType
-        ) { type in
-            Button("Cancelar", role: .cancel) {
-                pendingShiftPlanningType = nil
-            }
-            Button("Confirmar") {
-                viewModel.submitShiftPlanningRequest(type: type) {
-                    pendingShiftPlanningType = nil
-                }
-            }
-        } message: { _ in
-            Text("Se creara una planificacion nueva con socios activos, se escribira en la sheet de la temporada siguiente y se notificara a los socios asignados. Si vuelves a lanzarlo, se regenerara esa temporada.")
-        }
+        )
     }
 
     @ViewBuilder
@@ -1361,14 +1142,10 @@ struct ContentView: View {
         )
     }
 
-    private func draftBinding(_ keyPath: WritableKeyPath<MemberDraft, String>) -> Binding<String> {
+    private var memberDraftBinding: Binding<MemberDraft> {
         Binding(
-            get: { viewModel.memberDraft[keyPath: keyPath] },
-            set: {
-                var updated = viewModel.memberDraft
-                updated[keyPath: keyPath] = $0
-                viewModel.memberDraft = updated
-            }
+            get: { viewModel.memberDraft },
+            set: { viewModel.memberDraft = $0 }
         )
     }
 
@@ -1431,17 +1208,6 @@ struct ContentView: View {
             get: { viewModel.notificationDraft.audience },
             set: { value in
                 viewModel.updateNotificationDraft { $0.audience = value }
-            }
-        )
-    }
-
-    private func draftBinding(_ keyPath: WritableKeyPath<MemberDraft, Bool>) -> Binding<Bool> {
-        Binding(
-            get: { viewModel.memberDraft[keyPath: keyPath] },
-            set: {
-                var updated = viewModel.memberDraft
-                updated[keyPath: keyPath] = $0
-                viewModel.memberDraft = updated
             }
         )
     }
@@ -1819,14 +1585,6 @@ struct ContentView: View {
         formatter.locale = Locale(identifier: "es_ES")
         formatter.dateFormat = "d MMM yyyy"
         return formatter.string(from: Date(timeIntervalSince1970: TimeInterval(millis) / 1_000))
-    }
-}
-
-private extension Set<MemberRole> {
-    var prettyListLocalized: String {
-        sorted { lhs, rhs in lhs.rawValue < rhs.rawValue }
-            .map(localizedRoleValue(_:))
-            .joined(separator: ", ")
     }
 }
 
@@ -2249,13 +2007,6 @@ private extension Date {
         formatter.locale = Locale(identifier: "es_ES")
         formatter.dateFormat = "d"
         return formatter.string(from: self)
-    }
-}
-
-private extension Array {
-    func uniqued<Key: Hashable>(by keyPath: (Element) -> Key) -> [Element] {
-        var seen = Set<Key>()
-        return filter { seen.insert(keyPath($0)).inserted }
     }
 }
 
