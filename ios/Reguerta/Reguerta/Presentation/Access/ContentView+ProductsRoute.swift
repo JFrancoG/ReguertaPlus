@@ -23,6 +23,11 @@ struct ProductsRouteView: View {
     private var canManageCommonPurchase: Bool {
         currentHomeMember?.isCommonPurchaseManager == true && !isProducer
     }
+
+    private func localizedKey(_ key: String) -> LocalizedStringKey {
+        LocalizedStringKey(key)
+    }
+
     var body: some View {
         Group {
             if isEditing {
@@ -44,7 +49,11 @@ struct ProductsRouteView: View {
             }
         }
         .alert(
-            pendingProducerCatalogVisibility == true ? "¿Reactivar tu catálogo?" : "¿Pausar tu catálogo?",
+            localizedKey(
+                pendingProducerCatalogVisibility == true
+                    ? AccessL10nKey.productsCatalogVisibilityAlertTitleReactivate
+                    : AccessL10nKey.productsCatalogVisibilityAlertTitlePause
+            ),
             isPresented: Binding(
                 get: { pendingProducerCatalogVisibility != nil },
                 set: { presented in
@@ -55,10 +64,10 @@ struct ProductsRouteView: View {
             ),
             presenting: pendingProducerCatalogVisibility
         ) { isEnabled in
-            Button("Cancelar", role: .cancel) {
+            Button(localizedKey(AccessL10nKey.commonActionCancel), role: .cancel) {
                 pendingProducerCatalogVisibility = nil
             }
-            Button("Confirmar") {
+            Button(localizedKey(AccessL10nKey.commonActionConfirm)) {
                 viewModel.setOwnProducerCatalogVisibility(isEnabled: isEnabled) {
                     pendingProducerCatalogVisibility = nil
                 }
@@ -66,10 +75,8 @@ struct ProductsRouteView: View {
         } message: { isEnabled in
             Text(
                 isEnabled
-                ? "Tu nombre de productor y tus productos volverán a aparecer en los listados de pedido. " +
-                    "La disponibilidad individual de cada producto se mantendrá."
-                : "Tu nombre de productor y tus productos dejarán de aparecer en los listados de pedido. " +
-                    "La disponibilidad individual de cada producto se conservará."
+                ? localizedKey(AccessL10nKey.productsCatalogVisibilityAlertMessageReactivate)
+                : localizedKey(AccessL10nKey.productsCatalogVisibilityAlertMessagePause)
             )
         }
     }
@@ -84,7 +91,11 @@ private struct ProductEditorCardView: View {
     var body: some View {
         ReguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text(viewModel.editingProductId?.isEmpty == false ? "Editar producto" : "Nuevo producto")
+                Text(
+                    viewModel.editingProductId?.isEmpty == false
+                        ? localizedKey(AccessL10nKey.productsEditorTitleEdit)
+                        : localizedKey(AccessL10nKey.productsEditorTitleNew)
+                )
                     .font(tokens.typography.titleCard)
                 RoundedRectangle(cornerRadius: 24.resize)
                     .fill(tokens.colors.surfaceSecondary)
@@ -94,49 +105,49 @@ private struct ProductEditorCardView: View {
                             .font(.system(size: 34.resize))
                             .foregroundStyle(tokens.colors.textSecondary)
                     }
-                Text("La imagen se quedará como placeholder hasta HU-025. Aquí dejamos afinados nombre, stock, unidades y precio.")
+                Text(localizedKey(AccessL10nKey.productsEditorPlaceholderNotice))
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
 
-                TextField("Nombre del producto", text: draftStringBinding(\.name))
+                TextField(localizedKey(AccessL10nKey.productsEditorFieldName), text: draftStringBinding(\.name))
                     .textFieldStyle(.roundedBorder)
 
-                TextField("Descripción del producto", text: draftStringBinding(\.description), axis: .vertical)
+                TextField(localizedKey(AccessL10nKey.productsEditorFieldDescription), text: draftStringBinding(\.description), axis: .vertical)
                     .textFieldStyle(.roundedBorder)
 
                 HStack(spacing: tokens.spacing.sm) {
-                    TextField("Cantidad envase", text: draftStringBinding(\.packContainerQty))
+                    TextField(localizedKey(AccessL10nKey.productsEditorFieldPackContainerQty), text: draftStringBinding(\.packContainerQty))
                         .textFieldStyle(.roundedBorder)
-                    TextField("Envase", text: draftStringBinding(\.packContainerName))
-                        .textFieldStyle(.roundedBorder)
-                }
-
-                HStack(spacing: tokens.spacing.sm) {
-                    TextField("Cantidad unidad", text: draftStringBinding(\.unitQty))
-                        .textFieldStyle(.roundedBorder)
-                    TextField("Unidad", text: draftStringBinding(\.unitName))
+                    TextField(localizedKey(AccessL10nKey.productsEditorFieldPackContainerName), text: draftStringBinding(\.packContainerName))
                         .textFieldStyle(.roundedBorder)
                 }
 
                 HStack(spacing: tokens.spacing.sm) {
-                    TextField("Plural envase", text: draftStringBinding(\.packContainerPlural))
+                    TextField(localizedKey(AccessL10nKey.productsEditorFieldUnitQty), text: draftStringBinding(\.unitQty))
                         .textFieldStyle(.roundedBorder)
-                    TextField("Plural unidad", text: draftStringBinding(\.unitPlural))
+                    TextField(localizedKey(AccessL10nKey.productsEditorFieldUnitName), text: draftStringBinding(\.unitName))
                         .textFieldStyle(.roundedBorder)
                 }
 
                 HStack(spacing: tokens.spacing.sm) {
-                    TextField("Precio en euros", text: draftStringBinding(\.price))
+                    TextField(localizedKey(AccessL10nKey.productsEditorFieldPackContainerPlural), text: draftStringBinding(\.packContainerPlural))
+                        .textFieldStyle(.roundedBorder)
+                    TextField(localizedKey(AccessL10nKey.productsEditorFieldUnitPlural), text: draftStringBinding(\.unitPlural))
+                        .textFieldStyle(.roundedBorder)
+                }
+
+                HStack(spacing: tokens.spacing.sm) {
+                    TextField(localizedKey(AccessL10nKey.productsEditorFieldPriceEur), text: draftStringBinding(\.price))
                         .textFieldStyle(.roundedBorder)
 
-                    TextField("Stock", text: draftStringBinding(\.stockQty))
+                    TextField(localizedKey(AccessL10nKey.productsEditorFieldStock), text: draftStringBinding(\.stockQty))
                         .textFieldStyle(.roundedBorder)
                         .disabled(viewModel.productDraft.stockMode == .infinite)
                 }
 
-                Toggle("Disponible", isOn: draftBoolBinding(\.isAvailable))
+                Toggle(localizedKey(AccessL10nKey.productsEditorToggleAvailable), isOn: draftBoolBinding(\.isAvailable))
 
-                Toggle("Stock sin limite", isOn: Binding(
+                Toggle(localizedKey(AccessL10nKey.productsEditorToggleUnlimitedStock), isOn: Binding(
                     get: { viewModel.productDraft.stockMode == .infinite },
                     set: { value in
                         viewModel.updateProductDraft {
@@ -149,11 +160,11 @@ private struct ProductEditorCardView: View {
                 ))
 
                 if canManageEcoBasket {
-                    Toggle("Ecocesta", isOn: draftBoolBinding(\.isEcoBasket))
+                    Toggle(localizedKey(AccessL10nKey.productsEditorToggleEcobasket), isOn: draftBoolBinding(\.isEcoBasket))
                 }
 
                 if canManageCommonPurchase {
-                    Toggle("Compra común", isOn: Binding(
+                    Toggle(localizedKey(AccessL10nKey.productsEditorToggleCommonPurchase), isOn: Binding(
                         get: { viewModel.productDraft.isCommonPurchase },
                         set: { value in
                             viewModel.updateProductDraft {
@@ -170,7 +181,7 @@ private struct ProductEditorCardView: View {
 
                     if viewModel.productDraft.isCommonPurchase {
                         Picker(
-                            "Tipo compra común",
+                            localizedKey(AccessL10nKey.productsEditorPickerCommonPurchaseType),
                             selection: Binding(
                                 get: { viewModel.productDraft.commonPurchaseType ?? .spot },
                                 set: { value in
@@ -178,8 +189,8 @@ private struct ProductEditorCardView: View {
                                 }
                             )
                         ) {
-                            Text("Puntual").tag(CommonPurchaseType.spot)
-                            Text("Estacional").tag(CommonPurchaseType.seasonal)
+                            Text(localizedKey(AccessL10nKey.productsEditorPickerCommonPurchaseTypeSpot)).tag(CommonPurchaseType.spot)
+                            Text(localizedKey(AccessL10nKey.productsEditorPickerCommonPurchaseTypeSeasonal)).tag(CommonPurchaseType.seasonal)
                         }
                         .pickerStyle(.segmented)
                     }
@@ -187,13 +198,17 @@ private struct ProductEditorCardView: View {
 
                 HStack(spacing: tokens.spacing.sm) {
                     ReguertaButton(
-                        LocalizedStringKey(viewModel.isSavingProduct ? "Guardando…" : "Guardar producto"),
+                        LocalizedStringKey(
+                            viewModel.isSavingProduct
+                                ? AccessL10nKey.productsEditorActionSaving
+                                : AccessL10nKey.productsEditorActionSave
+                        ),
                         isEnabled: !viewModel.isSavingProduct,
                         isLoading: viewModel.isSavingProduct
                     ) {
                         viewModel.saveProduct()
                     }
-                    ReguertaButton("Volver", variant: .text, fullWidth: false) {
+                    ReguertaButton(localizedKey(AccessL10nKey.productsEditorActionBack), variant: .text, fullWidth: false) {
                         viewModel.clearProductEditor()
                     }
                 }
@@ -218,6 +233,10 @@ private struct ProductEditorCardView: View {
             }
         )
     }
+
+    private func localizedKey(_ key: String) -> LocalizedStringKey {
+        LocalizedStringKey(key)
+    }
 }
 
 private struct ProductsListRouteView: View {
@@ -232,12 +251,16 @@ private struct ProductsListRouteView: View {
         currentHomeMember?.roles.contains(.producer) == true
     }
 
+    private func localizedKey(_ key: String) -> LocalizedStringKey {
+        LocalizedStringKey(key)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
             ReguertaCard {
                 VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                     HStack(alignment: .top, spacing: tokens.spacing.md) {
-                        Text("Mis productos")
+                        Text(localizedKey(AccessL10nKey.productsListTitle))
                             .font(tokens.typography.titleCard)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         if isProducer {
@@ -251,8 +274,8 @@ private struct ProductsListRouteView: View {
                                     } else {
                                         Text(
                                             currentHomeMember?.producerCatalogEnabled == true
-                                            ? "Todos NO\ndisponibles"
-                                            : "Todos\ndisponibles"
+                                            ? localizedKey(AccessL10nKey.productsListBulkToggleDisableAll)
+                                            : localizedKey(AccessL10nKey.productsListBulkToggleEnableAll)
                                         )
                                             .font(tokens.typography.label)
                                             .multilineTextAlignment(.center)
@@ -277,7 +300,7 @@ private struct ProductsListRouteView: View {
                             .disabled(viewModel.isUpdatingProducerCatalogVisibility)
                         }
                     }
-                    ReguertaButton("Recargar", variant: .text, fullWidth: false) {
+                    ReguertaButton(localizedKey(AccessL10nKey.productsListActionReload), variant: .text, fullWidth: false) {
                         viewModel.refreshProducts()
                     }
                 }
@@ -285,13 +308,13 @@ private struct ProductsListRouteView: View {
 
             if viewModel.isLoadingProducts {
                 ReguertaCard {
-                    Text("Cargando productos…")
+                    Text(localizedKey(AccessL10nKey.productsListLoading))
                         .font(tokens.typography.bodySecondary)
                 }
             } else {
                 if activeProducts.isEmpty {
                     ReguertaCard {
-                        Text("Todavía no has creado ningún producto.")
+                        Text(localizedKey(AccessL10nKey.productsListEmpty))
                             .font(tokens.typography.bodySecondary)
                             .foregroundStyle(tokens.colors.textSecondary)
                     }
@@ -308,7 +331,7 @@ private struct ProductsListRouteView: View {
                 }
 
                 if !archivedProducts.isEmpty {
-                    Text("Archivados")
+                    Text(localizedKey(AccessL10nKey.productsListArchivedTitle))
                         .font(tokens.typography.label.weight(.semibold))
                         .foregroundStyle(tokens.colors.actionPrimary)
                     ForEach(archivedProducts) { product in
@@ -323,7 +346,7 @@ private struct ProductsListRouteView: View {
                 }
             }
 
-            ReguertaButton("Añadir nuevo producto") {
+            ReguertaButton(localizedKey(AccessL10nKey.productsListActionAdd)) {
                 viewModel.startCreatingProduct()
             }
         }
@@ -360,7 +383,7 @@ private struct ProductCardRowView: View {
                             VStack(alignment: .leading, spacing: tokens.spacing.xs) {
                                 Text(product.name)
                                     .font(tokens.typography.titleCard)
-                                Text(product.description.isEmpty ? "Sin descripción." : product.description)
+                                Text(product.description.isEmpty ? l10n(AccessL10nKey.productsCardDescriptionEmpty) : product.description)
                                     .font(tokens.typography.bodySecondary)
                                     .foregroundStyle(tokens.colors.textSecondary)
                             }
@@ -383,11 +406,11 @@ private struct ProductCardRowView: View {
                             .font(tokens.typography.titleCard)
                         Text(
                             archived
-                            ? "Archivado"
+                            ? l10n(AccessL10nKey.productsCardStatusArchived)
                             : (
                                 product.stockMode == .infinite
-                                ? "Stock sin límite"
-                                : "Stock: \(decimalText(product.stockQty ?? 0))"
+                                ? l10n(AccessL10nKey.productsCardStatusStockUnlimited)
+                                : l10n(AccessL10nKey.productsCardStatusStockValue, decimalText(product.stockQty ?? 0))
                             )
                         )
                         .font(tokens.typography.bodySecondary)
