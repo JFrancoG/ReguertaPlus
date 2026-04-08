@@ -1987,7 +1987,6 @@ private extension Array where Element == ShiftAssignment {
 
 private func localizedShiftNotificationDateTime(_ millis: Int64) -> String {
     let formatter = DateFormatter()
-    formatter.locale = Locale(identifier: "es_ES")
     formatter.dateStyle = .medium
     formatter.timeStyle = .none
     return formatter.string(from: Date(timeIntervalSince1970: TimeInterval(millis) / 1_000))

@@ -74,8 +74,8 @@ struct DeliveryCalendarWeekPickerSheet: View {
 
     private func localizedDateOnly(_ millis: Int64) -> String {
         let formatter = DateFormatter()
-        formatter.locale = Locale.current
-        formatter.dateFormat = "d MMM yyyy"
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
         return formatter.string(from: Date(timeIntervalSince1970: TimeInterval(millis) / 1_000))
     }
 
@@ -190,8 +190,8 @@ struct DeliveryCalendarEditorSheet: View {
 
     private func localizedDateOnly(_ millis: Int64) -> String {
         let formatter = DateFormatter()
-        formatter.locale = Locale.current
-        formatter.dateFormat = "d MMM yyyy"
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
         return formatter.string(from: Date(timeIntervalSince1970: TimeInterval(millis) / 1_000))
     }
 
