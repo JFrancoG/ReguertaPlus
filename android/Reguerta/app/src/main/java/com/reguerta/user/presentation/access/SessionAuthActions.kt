@@ -321,54 +321,7 @@ internal class SessionAuthActions(
         scope.launch {
             criticalDataFreshnessLocalRepository.clear()
         }
-        uiState.update {
-            it.copy(
-                mode = SessionMode.SignedOut,
-                passwordInput = "",
-                emailErrorRes = null,
-                passwordErrorRes = null,
-                isAuthenticating = false,
-                registerEmailInput = "",
-                registerPasswordInput = "",
-                registerRepeatPasswordInput = "",
-                registerEmailErrorRes = null,
-                registerPasswordErrorRes = null,
-                registerRepeatPasswordErrorRes = null,
-                isRegistering = false,
-                recoverEmailInput = "",
-                recoverEmailErrorRes = null,
-                isRecoveringPassword = false,
-                showRecoverSuccessDialog = false,
-                showSessionExpiredDialog = false,
-                showUnauthorizedDialog = false,
-                memberDraft = MemberDraft(),
-                myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
-                latestNews = emptyList(),
-                newsFeed = emptyList(),
-                newsDraft = NewsDraft(),
-                notificationsFeed = emptyList(),
-                notificationDraft = NotificationDraft(),
-                productsFeed = emptyList(),
-                productDraft = ProductDraft(),
-                sharedProfiles = emptyList(),
-                sharedProfileDraft = SharedProfileDraft(),
-                shiftsFeed = emptyList(),
-                nextDeliveryShift = null,
-                nextMarketShift = null,
-                editingNewsId = null,
-                isLoadingNews = false,
-                isSavingNews = false,
-                isLoadingNotifications = false,
-                isSendingNotification = false,
-                isLoadingProducts = false,
-                isSavingProduct = false,
-                isUpdatingProducerCatalogVisibility = false,
-                isLoadingSharedProfiles = false,
-                isSavingSharedProfile = false,
-                isDeletingSharedProfile = false,
-                isLoadingShifts = false,
-            )
-        }
+        uiState.update { state -> state.toSignedOutSessionState(showSessionExpiredDialog = false) }
     }
 
     fun refreshSession(trigger: SessionRefreshTrigger) {
@@ -523,38 +476,11 @@ internal class SessionAuthActions(
                     email = principal.email,
                     reason = result.reason,
                 )
-                uiState.update {
-                    it.copy(
-                        mode = SessionMode.Unauthorized(
-                            email = principal.email,
-                            reason = result.reason,
-                        ),
-                        showSessionExpiredDialog = false,
+                uiState.update { state ->
+                    state.toUnauthorizedSessionState(
+                        email = principal.email,
+                        reason = result.reason,
                         showUnauthorizedDialog = showUnauthorizedDialog,
-                        myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
-                        latestNews = emptyList(),
-                        newsFeed = emptyList(),
-                        newsDraft = NewsDraft(),
-                        notificationsFeed = emptyList(),
-                        notificationDraft = NotificationDraft(),
-                        productsFeed = emptyList(),
-                        productDraft = ProductDraft(),
-                        sharedProfiles = emptyList(),
-                        sharedProfileDraft = SharedProfileDraft(),
-                        shiftsFeed = emptyList(),
-                        nextDeliveryShift = null,
-                        nextMarketShift = null,
-                        editingNewsId = null,
-                        isLoadingNews = false,
-                        isSavingNews = false,
-                        isLoadingNotifications = false,
-                        isSendingNotification = false,
-                        isLoadingProducts = false,
-                        isSavingProduct = false,
-                        isLoadingSharedProfiles = false,
-                        isSavingSharedProfile = false,
-                        isDeletingSharedProfile = false,
-                        isLoadingShifts = false,
                     )
                 }
             }
@@ -584,53 +510,7 @@ internal class SessionAuthActions(
     private suspend fun handleExpiredSession() {
         clearSessionRefreshTracking()
         criticalDataFreshnessLocalRepository.clear()
-        uiState.update {
-            it.copy(
-                mode = SessionMode.SignedOut,
-                passwordInput = "",
-                emailErrorRes = null,
-                passwordErrorRes = null,
-                isAuthenticating = false,
-                registerEmailInput = "",
-                registerPasswordInput = "",
-                registerRepeatPasswordInput = "",
-                registerEmailErrorRes = null,
-                registerPasswordErrorRes = null,
-                registerRepeatPasswordErrorRes = null,
-                isRegistering = false,
-                recoverEmailInput = "",
-                recoverEmailErrorRes = null,
-                isRecoveringPassword = false,
-                showRecoverSuccessDialog = false,
-                showSessionExpiredDialog = true,
-                showUnauthorizedDialog = false,
-                memberDraft = MemberDraft(),
-                myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
-                latestNews = emptyList(),
-                newsFeed = emptyList(),
-                newsDraft = NewsDraft(),
-                notificationsFeed = emptyList(),
-                notificationDraft = NotificationDraft(),
-                productsFeed = emptyList(),
-                productDraft = ProductDraft(),
-                sharedProfiles = emptyList(),
-                sharedProfileDraft = SharedProfileDraft(),
-                shiftsFeed = emptyList(),
-                nextDeliveryShift = null,
-                nextMarketShift = null,
-                editingNewsId = null,
-                isLoadingNews = false,
-                isSavingNews = false,
-                isLoadingNotifications = false,
-                isSendingNotification = false,
-                isLoadingProducts = false,
-                isSavingProduct = false,
-                isLoadingSharedProfiles = false,
-                isSavingSharedProfile = false,
-                isDeletingSharedProfile = false,
-                isLoadingShifts = false,
-            )
-        }
+        uiState.update { state -> state.toSignedOutSessionState(showSessionExpiredDialog = true) }
     }
 
     private fun clearSessionRefreshTracking() {

@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -26,7 +24,6 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -59,13 +56,6 @@ import com.reguerta.user.ui.components.auth.ReguertaButtonVariant
 
 private val Member.isProducerInProducts: Boolean
     get() = roles.contains(MemberRole.PRODUCER)
-
-private fun Double.toUiDecimal(): String =
-    if (this % 1.0 == 0.0) {
-        toInt().toString()
-    } else {
-        String.format(java.util.Locale.getDefault(), "%.2f", this)
-    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -526,107 +516,5 @@ fun ProductsRoute(
                 }
             },
         )
-    }
-}
-
-@Composable
-private fun ProductListItem(
-    product: Product,
-    onEdit: () -> Unit,
-    onArchive: () -> Unit,
-) {
-    Card {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.Top,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(96.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Image,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(32.dp),
-                )
-            }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top,
-                ) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        Text(
-                            text = product.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = product.description.ifBlank { "Sin descripcion." },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Row {
-                        IconButton(onClick = onEdit) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = stringResource(R.string.products_edit_action),
-                            )
-                        }
-                        if (!product.archived) {
-                            IconButton(onClick = onArchive) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = stringResource(R.string.products_archive_action),
-                                )
-                            }
-                        }
-                    }
-                }
-                Text(
-                    text = "${product.price.toUiDecimal()} €",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = when {
-                        product.archived -> stringResource(R.string.products_status_archived)
-                        product.stockMode == ProductStockMode.INFINITE -> stringResource(R.string.products_status_infinite_stock)
-                        else -> stringResource(
-                            R.string.products_status_finite_stock_format,
-                            product.stockQty?.toUiDecimal().orEmpty().ifBlank { "0" },
-                        )
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = "${product.unitQty.toUiDecimal()} ${product.unitAbbreviation ?: product.unitName}",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                if (product.packContainerName != null) {
-                    Text(
-                        text = product.packContainerName,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
     }
 }
