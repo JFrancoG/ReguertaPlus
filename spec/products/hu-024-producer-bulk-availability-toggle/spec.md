@@ -4,7 +4,7 @@
 - issue_id: #24
 - priority: P2
 - platform: both
-- status: ready
+- status: implemented
 
 ## Context and problem
 
@@ -50,8 +50,8 @@ As a producer I want to toggle my catalog visibility in one action so weekly pau
 
 ## Definition of Done (DoD)
 
-- [ ] Story acceptance criteria validated.
-- [ ] Android/iOS parity reviewed or temporary gap documented.
-- [ ] Tests executed.
-- [ ] Documentation updated.
+- [x] Story acceptance criteria validated.
+- [x] Android/iOS parity reviewed or temporary gap documented.
+- [x] Tests executed.
+- [x] Documentation updated.
 - [ ] Issue and PR linked.
