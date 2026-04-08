@@ -11,14 +11,12 @@ import com.reguerta.user.domain.shifts.ShiftAssignment
 import com.reguerta.user.domain.shifts.ShiftSwapCandidate
 import com.reguerta.user.domain.shifts.ShiftSwapRequest
 import com.reguerta.user.domain.shifts.ShiftType
-import java.text.SimpleDateFormat
+import java.text.DateFormat
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.temporal.WeekFields
-import java.util.Date
-import java.util.Locale
 
 internal fun SharedProfile.toDraft(): SharedProfileDraft =
     SharedProfileDraft(
@@ -221,8 +219,8 @@ internal fun ShiftSwapRequest.hasPendingCandidateFor(memberId: String): Boolean 
     }
 
 internal fun Long.toShiftNotificationDateTime(): String {
-    val formatter = SimpleDateFormat("d MMM yyyy", Locale.forLanguageTag("es-ES"))
-    return formatter.format(Date(this))
+    val formatter = DateFormat.getDateInstance(DateFormat.MEDIUM)
+    return formatter.format(java.util.Date(this))
 }
 
 internal fun buildDeliveryCalendarOverride(
