@@ -18,10 +18,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -36,6 +39,62 @@ private fun Double.toUiDecimal(): String =
     } else {
         String.format(Locale.getDefault(), "%.2f", this)
     }
+
+@Composable
+internal fun ProducerCatalogVisibilityDialog(
+    targetEnabled: Boolean,
+    isUpdating: Boolean,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(
+                    if (targetEnabled) {
+                        R.string.products_visibility_enable_dialog_title
+                    } else {
+                        R.string.products_visibility_disable_dialog_title
+                    },
+                ),
+            )
+        },
+        text = {
+            Text(
+                text = stringResource(
+                    if (targetEnabled) {
+                        R.string.products_visibility_enable_dialog_body
+                    } else {
+                        R.string.products_visibility_disable_dialog_body
+                    },
+                ),
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                enabled = !isUpdating,
+            ) {
+                Text(
+                    text = stringResource(R.string.common_action_confirm),
+                    textAlign = TextAlign.Center,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isUpdating,
+            ) {
+                Text(
+                    text = stringResource(R.string.common_action_cancel),
+                    textAlign = TextAlign.Center,
+                )
+            }
+        },
+    )
+}
 
 @Composable
 internal fun ProductListItem(

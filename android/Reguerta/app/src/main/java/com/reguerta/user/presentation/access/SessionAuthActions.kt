@@ -12,7 +12,6 @@ import com.reguerta.user.domain.access.MemberRepository
 import com.reguerta.user.domain.access.ResolveAuthorizedSessionUseCase
 import com.reguerta.user.domain.access.SessionRefreshPolicy
 import com.reguerta.user.domain.access.SessionRefreshTrigger
-import com.reguerta.user.domain.access.UnauthorizedReason
 import com.reguerta.user.domain.devices.AuthorizedDeviceRegistrar
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessLocalRepository
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessResolution
@@ -104,22 +103,16 @@ internal class SessionAuthActions(
 
                         is AccessResolutionResult.Unauthorized -> {
                             val showUnauthorizedDialog = shouldShowUnauthorizedDialog(
+                                currentMode = uiState.value.mode,
                                 email = authResult.principal.email,
                                 reason = result.reason,
                             )
-                            uiState.update {
-                                it.copy(
-                                    isAuthenticating = false,
-                                    mode = SessionMode.Unauthorized(
-                                        email = authResult.principal.email,
-                                        reason = result.reason,
-                                    ),
+                            uiState.update { state ->
+                                state.toUnauthorizedAfterAuthAttemptState(
+                                    email = authResult.principal.email,
+                                    reason = result.reason,
                                     showUnauthorizedDialog = showUnauthorizedDialog,
-                                    myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
-                                    notificationsFeed = emptyList(),
-                                    notificationDraft = NotificationDraft(),
-                                    isLoadingNotifications = false,
-                                    isSendingNotification = false,
+                                    clearRegisterInputs = false,
                                 )
                             }
                         }
@@ -221,25 +214,16 @@ internal class SessionAuthActions(
 
                         is AccessResolutionResult.Unauthorized -> {
                             val showUnauthorizedDialog = shouldShowUnauthorizedDialog(
+                                currentMode = uiState.value.mode,
                                 email = authResult.principal.email,
                                 reason = result.reason,
                             )
-                            uiState.update {
-                                it.copy(
-                                    isRegistering = false,
-                                    registerEmailInput = "",
-                                    registerPasswordInput = "",
-                                    registerRepeatPasswordInput = "",
-                                    mode = SessionMode.Unauthorized(
-                                        email = authResult.principal.email,
-                                        reason = result.reason,
-                                    ),
+                            uiState.update { state ->
+                                state.toUnauthorizedAfterAuthAttemptState(
+                                    email = authResult.principal.email,
+                                    reason = result.reason,
                                     showUnauthorizedDialog = showUnauthorizedDialog,
-                                    myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
-                                    notificationsFeed = emptyList(),
-                                    notificationDraft = NotificationDraft(),
-                                    isLoadingNotifications = false,
-                                    isSendingNotification = false,
+                                    clearRegisterInputs = true,
                                 )
                             }
                         }
@@ -350,7 +334,10 @@ internal class SessionAuthActions(
                     }
 
                     is AuthSessionRefreshResult.Active -> {
-                        val shouldRefreshCriticalData = !hadAuthenticatedSession || shouldRefreshCriticalDataFor(result.principal)
+                        val shouldRefreshCriticalData = !hadAuthenticatedSession || shouldRefreshCriticalDataFor(
+                            currentMode = uiState.value.mode,
+                            principal = result.principal,
+                        )
                         applyAuthorizedSession(
                             principal = result.principal,
                             shouldRefreshCriticalData = shouldRefreshCriticalData,
@@ -473,6 +460,7 @@ internal class SessionAuthActions(
 
             is AccessResolutionResult.Unauthorized -> {
                 val showUnauthorizedDialog = shouldShowUnauthorizedDialog(
+                    currentMode = uiState.value.mode,
                     email = principal.email,
                     reason = result.reason,
                 )
@@ -485,26 +473,6 @@ internal class SessionAuthActions(
                 }
             }
         }
-    }
-
-    private fun shouldRefreshCriticalDataFor(principal: AuthPrincipal): Boolean {
-        val currentMode = uiState.value.mode
-        return when (currentMode) {
-            SessionMode.SignedOut -> true
-            is SessionMode.Unauthorized -> currentMode.email != principal.email
-            is SessionMode.Authorized -> currentMode.principal.uid != principal.uid
-        }
-    }
-
-    private fun shouldShowUnauthorizedDialog(
-        email: String,
-        reason: UnauthorizedReason,
-    ): Boolean {
-        if (reason != UnauthorizedReason.USER_NOT_FOUND_IN_AUTHORIZED_USERS) {
-            return false
-        }
-        val currentMode = uiState.value.mode
-        return currentMode !is SessionMode.Unauthorized || currentMode.email != email
     }
 
     private suspend fun handleExpiredSession() {
