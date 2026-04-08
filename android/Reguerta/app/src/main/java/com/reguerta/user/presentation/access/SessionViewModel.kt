@@ -3,52 +3,27 @@ package com.reguerta.user.presentation.access
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.reguerta.user.R
-import com.reguerta.user.domain.access.AccessResolutionResult
-import com.reguerta.user.domain.access.AuthPasswordResetResult
-import com.reguerta.user.domain.access.AuthPrincipal
-import com.reguerta.user.domain.access.AuthSessionRefreshResult
 import com.reguerta.user.domain.access.AuthSessionProvider
-import com.reguerta.user.domain.access.AuthSignInResult
-import com.reguerta.user.domain.access.Member
-import com.reguerta.user.domain.access.MemberManagementException
 import com.reguerta.user.domain.access.MemberRepository
-import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.ResolveAuthorizedSessionUseCase
 import com.reguerta.user.domain.access.SessionRefreshPolicy
 import com.reguerta.user.domain.access.SessionRefreshTrigger
-import com.reguerta.user.domain.access.UnauthorizedReason
 import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
-import com.reguerta.user.domain.devices.AuthorizedDeviceRegistrar
-import com.reguerta.user.domain.freshness.CriticalDataFreshnessLocalRepository
-import com.reguerta.user.domain.freshness.CriticalDataFreshnessResolution
-import com.reguerta.user.domain.freshness.ResolveCriticalDataFreshnessUseCase
-import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
 import com.reguerta.user.domain.calendar.DeliveryCalendarRepository
 import com.reguerta.user.domain.calendar.DeliveryWeekday
-import com.reguerta.user.domain.news.NewsArticle
+import com.reguerta.user.domain.devices.AuthorizedDeviceRegistrar
+import com.reguerta.user.domain.freshness.CriticalDataFreshnessLocalRepository
+import com.reguerta.user.domain.freshness.ResolveCriticalDataFreshnessUseCase
 import com.reguerta.user.domain.news.NewsRepository
-import com.reguerta.user.domain.notifications.NotificationAudience
-import com.reguerta.user.domain.notifications.NotificationEvent
 import com.reguerta.user.domain.notifications.NotificationRepository
-import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.profiles.SharedProfileRepository
-import com.reguerta.user.domain.products.CommonPurchaseType
-import com.reguerta.user.domain.products.Product
-import com.reguerta.user.domain.products.ProductPricingMode
 import com.reguerta.user.domain.products.ProductRepository
-import com.reguerta.user.domain.products.ProductStockMode
-import com.reguerta.user.domain.shifts.ShiftAssignment
-import com.reguerta.user.domain.shifts.ShiftRepository
 import com.reguerta.user.domain.shifts.ShiftPlanningRequest
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestRepository
-import com.reguerta.user.domain.shifts.ShiftPlanningRequestStatus
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestType
+import com.reguerta.user.domain.shifts.ShiftRepository
 import com.reguerta.user.domain.shifts.ShiftSwapRequest
 import com.reguerta.user.domain.shifts.ShiftSwapRequestRepository
-import com.reguerta.user.domain.shifts.ShiftSwapResponse
-import com.reguerta.user.domain.shifts.ShiftSwapRequestStatus
-import com.reguerta.user.domain.shifts.ShiftType
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -57,159 +32,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
-import java.text.DateFormat
-import java.time.DayOfWeek
-import java.time.LocalDate
-import java.time.LocalTime
-import java.time.ZoneId
-import java.time.temporal.WeekFields
 import java.util.concurrent.atomic.AtomicBoolean
-
-data class MemberDraft(
-    val displayName: String = "",
-    val email: String = "",
-    val isMember: Boolean = true,
-    val isProducer: Boolean = false,
-    val isAdmin: Boolean = false,
-    val isActive: Boolean = true,
-)
-
-data class NewsDraft(
-    val title: String = "",
-    val body: String = "",
-    val urlImage: String = "",
-    val active: Boolean = true,
-)
-
-data class NotificationDraft(
-    val title: String = "",
-    val body: String = "",
-    val audience: NotificationAudience = NotificationAudience.ALL,
-)
-
-data class SharedProfileDraft(
-    val familyNames: String = "",
-    val photoUrl: String = "",
-    val about: String = "",
-)
-
-data class ProductDraft(
-    val name: String = "",
-    val description: String = "",
-    val productImageUrl: String = "",
-    val price: String = "",
-    val unitName: String = "",
-    val unitAbbreviation: String = "",
-    val unitPlural: String = "",
-    val unitQty: String = "1",
-    val packContainerName: String = "",
-    val packContainerAbbreviation: String = "",
-    val packContainerPlural: String = "",
-    val packContainerQty: String = "",
-    val isAvailable: Boolean = true,
-    val stockMode: ProductStockMode = ProductStockMode.INFINITE,
-    val stockQty: String = "",
-    val isEcoBasket: Boolean = false,
-    val isCommonPurchase: Boolean = false,
-    val commonPurchaseType: CommonPurchaseType? = null,
-)
-
-data class ShiftSwapDraft(
-    val shiftId: String = "",
-    val reason: String = "",
-)
-
-sealed interface SessionMode {
-    data object SignedOut : SessionMode
-
-    data class Authorized(
-        val principal: AuthPrincipal,
-        val authenticatedMember: Member,
-        val member: Member,
-        val members: List<Member>,
-    ) : SessionMode
-
-    data class Unauthorized(
-        val email: String,
-        val reason: UnauthorizedReason,
-    ) : SessionMode
-}
-
-data class SessionUiState(
-    val emailInput: String = "",
-    val passwordInput: String = "",
-    @param:StringRes val emailErrorRes: Int? = null,
-    @param:StringRes val passwordErrorRes: Int? = null,
-    val isAuthenticating: Boolean = false,
-    val registerEmailInput: String = "",
-    val registerPasswordInput: String = "",
-    val registerRepeatPasswordInput: String = "",
-    @param:StringRes val registerEmailErrorRes: Int? = null,
-    @param:StringRes val registerPasswordErrorRes: Int? = null,
-    @param:StringRes val registerRepeatPasswordErrorRes: Int? = null,
-    val isRegistering: Boolean = false,
-    val recoverEmailInput: String = "",
-    @param:StringRes val recoverEmailErrorRes: Int? = null,
-    val isRecoveringPassword: Boolean = false,
-    val showRecoverSuccessDialog: Boolean = false,
-    val showSessionExpiredDialog: Boolean = false,
-    val showUnauthorizedDialog: Boolean = false,
-    val mode: SessionMode = SessionMode.SignedOut,
-    val memberDraft: MemberDraft = MemberDraft(),
-    val myOrderFreshnessState: MyOrderFreshnessUiState = MyOrderFreshnessUiState.Idle,
-    val latestNews: List<NewsArticle> = emptyList(),
-    val newsFeed: List<NewsArticle> = emptyList(),
-    val newsDraft: NewsDraft = NewsDraft(),
-    val notificationsFeed: List<NotificationEvent> = emptyList(),
-    val notificationDraft: NotificationDraft = NotificationDraft(),
-    val productsFeed: List<Product> = emptyList(),
-    val productDraft: ProductDraft = ProductDraft(),
-    val sharedProfiles: List<SharedProfile> = emptyList(),
-    val sharedProfileDraft: SharedProfileDraft = SharedProfileDraft(),
-    val shiftsFeed: List<ShiftAssignment> = emptyList(),
-    val deliveryCalendarOverrides: List<DeliveryCalendarOverride> = emptyList(),
-    val defaultDeliveryDayOfWeek: DeliveryWeekday? = null,
-    val shiftSwapRequests: List<ShiftSwapRequest> = emptyList(),
-    val dismissedShiftSwapRequestIds: Set<String> = emptySet(),
-    val shiftSwapDraft: ShiftSwapDraft = ShiftSwapDraft(),
-    val nextDeliveryShift: ShiftAssignment? = null,
-    val nextMarketShift: ShiftAssignment? = null,
-    val editingProductId: String? = null,
-    val editingNewsId: String? = null,
-    val isLoadingNews: Boolean = false,
-    val isSavingNews: Boolean = false,
-    val isLoadingNotifications: Boolean = false,
-    val isSendingNotification: Boolean = false,
-    val isLoadingProducts: Boolean = false,
-    val isSavingProduct: Boolean = false,
-    val isUpdatingProducerCatalogVisibility: Boolean = false,
-    val isLoadingSharedProfiles: Boolean = false,
-    val isSavingSharedProfile: Boolean = false,
-    val isDeletingSharedProfile: Boolean = false,
-    val isLoadingShifts: Boolean = false,
-    val isLoadingDeliveryCalendar: Boolean = false,
-    val isSavingDeliveryCalendar: Boolean = false,
-    val isSubmittingShiftPlanningRequest: Boolean = false,
-    val isSavingShiftSwapRequest: Boolean = false,
-    val isUpdatingShiftSwapRequest: Boolean = false,
-)
-
-sealed interface SessionUiEvent {
-    data class ShowMessage(@param:StringRes val messageRes: Int) : SessionUiEvent
-}
-
-sealed interface MyOrderFreshnessUiState {
-    data object Idle : MyOrderFreshnessUiState
-
-    data object Checking : MyOrderFreshnessUiState
-
-    data object Ready : MyOrderFreshnessUiState
-
-    data object TimedOut : MyOrderFreshnessUiState
-
-    data object Unavailable : MyOrderFreshnessUiState
-}
 
 class SessionViewModel(
     private val repository: MemberRepository,
@@ -241,8 +64,86 @@ class SessionViewModel(
 
     private val _uiEvents = MutableSharedFlow<SessionUiEvent>(replay = 0)
     val uiEvents: SharedFlow<SessionUiEvent> = _uiEvents.asSharedFlow()
+
     private val isSessionRefreshInFlight = AtomicBoolean(false)
     private var lastSessionRefreshAtMillis: Long? = null
+
+    private val formActions by lazy {
+        SessionFormActions(
+            uiState = _uiState,
+            emitMessage = ::emitMessage,
+        )
+    }
+
+    private val productActions by lazy {
+        SessionProductActions(
+            uiState = _uiState,
+            scope = viewModelScope,
+            memberRepository = repository,
+            productRepository = productRepository,
+            nowMillisProvider = nowMillisProvider,
+            emitMessage = ::emitMessage,
+        )
+    }
+
+    private val communityActions by lazy {
+        SessionCommunityActions(
+            uiState = _uiState,
+            scope = viewModelScope,
+            newsRepository = newsRepository,
+            notificationRepository = notificationRepository,
+            sharedProfileRepository = sharedProfileRepository,
+            nowMillisProvider = nowMillisProvider,
+            emitMessage = ::emitMessage,
+        )
+    }
+
+    private val shiftActions by lazy {
+        SessionShiftActions(
+            uiState = _uiState,
+            scope = viewModelScope,
+            shiftRepository = shiftRepository,
+            deliveryCalendarRepository = deliveryCalendarRepository,
+            shiftPlanningRequestRepository = shiftPlanningRequestRepository,
+            shiftSwapRequestRepository = shiftSwapRequestRepository,
+            notificationRepository = notificationRepository,
+            nowMillisProvider = nowMillisProvider,
+            emitMessage = ::emitMessage,
+        )
+    }
+
+    private val authActions by lazy {
+        SessionAuthActions(
+            uiState = _uiState,
+            scope = viewModelScope,
+            memberRepository = repository,
+            newsRepository = newsRepository,
+            notificationRepository = notificationRepository,
+            productRepository = productRepository,
+            sharedProfileRepository = sharedProfileRepository,
+            shiftRepository = shiftRepository,
+            authSessionProvider = authSessionProvider,
+            resolveAuthorizedSession = resolveAuthorizedSession,
+            authorizedDeviceRegistrar = authorizedDeviceRegistrar,
+            resolveCriticalDataFreshness = resolveCriticalDataFreshness,
+            criticalDataFreshnessLocalRepository = criticalDataFreshnessLocalRepository,
+            sessionRefreshPolicy = sessionRefreshPolicy,
+            isSessionRefreshInFlight = isSessionRefreshInFlight,
+            getLastSessionRefreshAtMillis = { lastSessionRefreshAtMillis },
+            setLastSessionRefreshAtMillis = { lastSessionRefreshAtMillis = it },
+            nowMillisProvider = nowMillisProvider,
+        )
+    }
+
+    private val memberActions by lazy {
+        SessionMemberActions(
+            uiState = _uiState,
+            scope = viewModelScope,
+            memberRepository = repository,
+            upsertMemberByAdmin = upsertMemberByAdmin,
+            emitMessage = ::emitMessage,
+        )
+    }
 
     val isDevelopImpersonationEnabled: Boolean
         get() = developImpersonationEnabled
@@ -291,2095 +192,150 @@ class SessionViewModel(
         }
     }
 
-    fun onEmailChanged(value: String) {
-        _uiState.update {
-            it.copy(
-                emailInput = value,
-                emailErrorRes = null,
-                passwordErrorRes = null,
-            )
-        }
-    }
+    fun onEmailChanged(value: String) = formActions.onEmailChanged(value)
 
-    fun onPasswordChanged(value: String) {
-        _uiState.update {
-            it.copy(
-                passwordInput = value,
-                emailErrorRes = null,
-                passwordErrorRes = null,
-            )
-        }
-    }
+    fun onPasswordChanged(value: String) = formActions.onPasswordChanged(value)
 
-    fun onRegisterEmailChanged(value: String) {
-        _uiState.update {
-            it.copy(
-                registerEmailInput = value,
-                registerEmailErrorRes = null,
-                registerPasswordErrorRes = null,
-                registerRepeatPasswordErrorRes = null,
-            )
-        }
-    }
+    fun onRegisterEmailChanged(value: String) = formActions.onRegisterEmailChanged(value)
 
-    fun onRegisterPasswordChanged(value: String) {
-        _uiState.update {
-            it.copy(
-                registerPasswordInput = value,
-                registerEmailErrorRes = null,
-                registerPasswordErrorRes = null,
-                registerRepeatPasswordErrorRes = null,
-            )
-        }
-    }
+    fun onRegisterPasswordChanged(value: String) = formActions.onRegisterPasswordChanged(value)
 
-    fun onRegisterRepeatPasswordChanged(value: String) {
-        _uiState.update {
-            it.copy(
-                registerRepeatPasswordInput = value,
-                registerEmailErrorRes = null,
-                registerPasswordErrorRes = null,
-                registerRepeatPasswordErrorRes = null,
-            )
-        }
-    }
+    fun onRegisterRepeatPasswordChanged(value: String) = formActions.onRegisterRepeatPasswordChanged(value)
 
-    fun onRecoverEmailChanged(value: String) {
-        _uiState.update { it.copy(recoverEmailInput = value, recoverEmailErrorRes = null) }
-    }
+    fun onRecoverEmailChanged(value: String) = formActions.onRecoverEmailChanged(value)
 
-    fun clearLoginForm() {
-        _uiState.update {
-            it.copy(
-                emailInput = "",
-                passwordInput = "",
-                emailErrorRes = null,
-                passwordErrorRes = null,
-                isAuthenticating = false,
-            )
-        }
-    }
+    fun clearLoginForm() = formActions.clearLoginForm()
 
-    fun clearRegisterForm() {
-        _uiState.update {
-            it.copy(
-                registerEmailInput = "",
-                registerPasswordInput = "",
-                registerRepeatPasswordInput = "",
-                registerEmailErrorRes = null,
-                registerPasswordErrorRes = null,
-                registerRepeatPasswordErrorRes = null,
-                isRegistering = false,
-            )
-        }
-    }
+    fun clearRegisterForm() = formActions.clearRegisterForm()
 
-    fun clearRecoverForm() {
-        _uiState.update {
-            it.copy(
-                recoverEmailInput = "",
-                recoverEmailErrorRes = null,
-                isRecoveringPassword = false,
-                showRecoverSuccessDialog = false,
-            )
-        }
-    }
+    fun clearRecoverForm() = formActions.clearRecoverForm()
 
-    fun dismissRecoverSuccessDialog() {
-        _uiState.update { it.copy(showRecoverSuccessDialog = false) }
-    }
+    fun dismissRecoverSuccessDialog() = formActions.dismissRecoverSuccessDialog()
 
-    fun dismissSessionExpiredDialog() {
-        _uiState.update { it.copy(showSessionExpiredDialog = false) }
-    }
+    fun dismissSessionExpiredDialog() = formActions.dismissSessionExpiredDialog()
 
-    fun dismissUnauthorizedDialog() {
-        _uiState.update { it.copy(showUnauthorizedDialog = false) }
-    }
+    fun dismissUnauthorizedDialog() = formActions.dismissUnauthorizedDialog()
 
-    fun onNewsDraftChanged(newDraft: NewsDraft) {
-        _uiState.update { it.copy(newsDraft = newDraft) }
-    }
+    fun onNewsDraftChanged(newDraft: NewsDraft) = formActions.onNewsDraftChanged(newDraft)
 
-    fun onNotificationDraftChanged(newDraft: NotificationDraft) {
-        _uiState.update { it.copy(notificationDraft = newDraft) }
-    }
+    fun onNotificationDraftChanged(newDraft: NotificationDraft) = formActions.onNotificationDraftChanged(newDraft)
 
-    fun onProductDraftChanged(newDraft: ProductDraft) {
-        _uiState.update { it.copy(productDraft = newDraft) }
-    }
+    fun onProductDraftChanged(newDraft: ProductDraft) = formActions.onProductDraftChanged(newDraft)
 
-    fun startCreatingNews() {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.isAdmin) {
-            emitMessage(R.string.feedback_only_admin_publish_news)
-            return
-        }
+    fun startCreatingNews() = formActions.startCreatingNews()
 
-        _uiState.update {
-            it.copy(
-                newsDraft = NewsDraft(active = true),
-                editingNewsId = null,
-            )
-        }
-    }
+    fun startEditingNews(newsId: String) = formActions.startEditingNews(newsId)
 
-    fun startEditingNews(newsId: String) {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.isAdmin) {
-            emitMessage(R.string.feedback_only_admin_edit_news)
-            return
-        }
-        val article = _uiState.value.newsFeed.firstOrNull { it.id == newsId } ?: return
-        _uiState.update {
-            it.copy(
-                newsDraft = NewsDraft(
-                    title = article.title,
-                    body = article.body,
-                    urlImage = article.urlImage.orEmpty(),
-                    active = article.active,
-                ),
-                editingNewsId = article.id,
-            )
-        }
-    }
+    fun clearNewsEditor() = formActions.clearNewsEditor()
 
-    fun clearNewsEditor() {
-        _uiState.update {
-            it.copy(
-                newsDraft = NewsDraft(),
-                editingNewsId = null,
-                isSavingNews = false,
-            )
-        }
-    }
+    fun startCreatingNotification() = formActions.startCreatingNotification()
 
-    fun startCreatingNotification() {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.isAdmin) {
-            emitMessage(R.string.feedback_only_admin_send_notification)
-            return
-        }
+    fun clearNotificationEditor() = formActions.clearNotificationEditor()
 
-        _uiState.update {
-            it.copy(
-                notificationDraft = NotificationDraft(),
-                isSendingNotification = false,
-            )
-        }
-    }
+    fun refreshProducts() = productActions.refreshProducts()
 
-    fun clearNotificationEditor() {
-        _uiState.update {
-            it.copy(
-                notificationDraft = NotificationDraft(),
-                isSendingNotification = false,
-            )
-        }
-    }
+    fun startCreatingProduct() = formActions.startCreatingProduct()
 
-    fun refreshProducts() {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.canManageProductCatalog) return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingProducts = true) }
-            val products = productRepository.getProductsForVendor(mode.member.id)
-            _uiState.update {
-                val currentMode = it.mode as? SessionMode.Authorized
-                if (currentMode?.principal?.uid != mode.principal.uid) {
-                    it
-                } else {
-                    it.copy(
-                        productsFeed = products,
-                        isLoadingProducts = false,
-                    )
-                }
-            }
-        }
-    }
+    fun startEditingProduct(productId: String) = formActions.startEditingProduct(productId)
 
-    fun startCreatingProduct() {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.canManageProductCatalog) {
-            emitMessage(R.string.feedback_only_producer_manage_products)
-            return
-        }
-        _uiState.update {
-            it.copy(
-                productDraft = ProductDraft(),
-                editingProductId = "",
-            )
-        }
-    }
+    fun clearProductEditor() = formActions.clearProductEditor()
 
-    fun startEditingProduct(productId: String) {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.canManageProductCatalog) {
-            emitMessage(R.string.feedback_only_producer_manage_products)
-            return
-        }
-        val product = _uiState.value.productsFeed.firstOrNull { it.id == productId } ?: return
-        _uiState.update {
-            it.copy(
-                productDraft = product.toDraft(),
-                editingProductId = product.id,
-            )
-        }
-    }
-
-    fun clearProductEditor() {
-        _uiState.update {
-            it.copy(
-                productDraft = ProductDraft(),
-                editingProductId = null,
-                isSavingProduct = false,
-            )
-        }
-    }
-
-    fun saveProduct(onSuccess: () -> Unit = {}) {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.canManageProductCatalog) {
-            emitMessage(R.string.feedback_only_producer_manage_products)
-            return
-        }
-        val draft = _uiState.value.productDraft.normalized()
-        val nowMillis = nowMillisProvider()
-        val existing = _uiState.value.productsFeed.firstOrNull { it.id == _uiState.value.editingProductId }
-        val price = draft.price.toPositiveDoubleOrNull()
-        val unitQty = draft.unitQty.toPositiveDoubleOrNull()
-        val stockQty = if (draft.stockMode == ProductStockMode.FINITE) draft.stockQty.toNonNegativeDoubleOrNull() else null
-        val packContainerQty = if (draft.packContainerName.isNotBlank()) draft.packContainerQty.toPositiveDoubleOrNull() else null
-        if (draft.name.isBlank() || price == null || draft.unitName.isBlank() || draft.unitPlural.isBlank() || unitQty == null) {
-            emitMessage(R.string.feedback_product_required_fields)
-            return
-        }
-        if (draft.stockMode == ProductStockMode.FINITE && stockQty == null) {
-            emitMessage(R.string.feedback_product_stock_required)
-            return
-        }
-        if (draft.packContainerName.isNotBlank() && packContainerQty == null) {
-            emitMessage(R.string.feedback_product_pack_qty_required)
-            return
-        }
-        viewModelScope.launch {
-            val canManageEcoBasket = mode.member.isProducer
-            val canManageCommonPurchase = mode.member.isCommonPurchaseManager && !mode.member.isProducer
-            val allProducts = productRepository.getAllProducts()
-            val activeEcoBasketPrice = allProducts.firstOrNull { product ->
-                product.isEcoBasket && !product.archived && product.id != existing?.id
-            }?.price
-            if (canManageEcoBasket && draft.isEcoBasket && activeEcoBasketPrice != null && activeEcoBasketPrice != price) {
-                emitMessage(R.string.feedback_product_eco_basket_price_mismatch)
-                return@launch
-            }
-            _uiState.update { it.copy(isSavingProduct = true) }
-            val saved = productRepository.upsertProduct(
-                Product(
-                    id = existing?.id.orEmpty(),
-                    vendorId = existing?.vendorId ?: mode.member.id,
-                    companyName = existing?.companyName ?: mode.member.displayName,
-                    name = draft.name,
-                    description = draft.description,
-                    productImageUrl = draft.productImageUrl.ifBlank { null },
-                    price = price,
-                    pricingMode = ProductPricingMode.FIXED,
-                    unitName = draft.unitName,
-                    unitAbbreviation = draft.unitAbbreviation.ifBlank { null },
-                    unitPlural = draft.unitPlural,
-                    unitQty = unitQty,
-                    packContainerName = draft.packContainerName.ifBlank { null },
-                    packContainerAbbreviation = draft.packContainerAbbreviation.ifBlank { null },
-                    packContainerPlural = draft.packContainerPlural.ifBlank { null },
-                    packContainerQty = packContainerQty,
-                    isAvailable = draft.isAvailable,
-                    stockMode = draft.stockMode,
-                    stockQty = stockQty,
-                    isEcoBasket = if (canManageEcoBasket) draft.isEcoBasket else false,
-                    isCommonPurchase = if (canManageCommonPurchase) draft.isCommonPurchase else false,
-                    commonPurchaseType = if (canManageCommonPurchase && draft.isCommonPurchase) draft.commonPurchaseType else null,
-                    archived = existing?.archived ?: false,
-                    createdAtMillis = existing?.createdAtMillis ?: nowMillis,
-                    updatedAtMillis = nowMillis,
-                ),
-            )
-            val products = productRepository.getProductsForVendor(mode.member.id)
-            _uiState.update {
-                it.copy(
-                    productsFeed = products,
-                    productDraft = saved.toDraft(),
-                    editingProductId = saved.id,
-                    isSavingProduct = false,
-                )
-            }
-            emitMessage(if (existing == null) R.string.feedback_product_created else R.string.feedback_product_updated)
-            onSuccess()
-        }
-    }
+    fun saveProduct(onSuccess: () -> Unit = {}) = productActions.saveProduct(onSuccess)
 
     fun archiveProduct(
         productId: String,
         onSuccess: () -> Unit = {},
-    ) {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.canManageProductCatalog) {
-            emitMessage(R.string.feedback_only_producer_manage_products)
-            return
-        }
-        val product = _uiState.value.productsFeed.firstOrNull { it.id == productId } ?: return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isSavingProduct = true) }
-            productRepository.upsertProduct(
-                product.copy(
-                    archived = true,
-                    updatedAtMillis = nowMillisProvider(),
-                ),
-            )
-            val products = productRepository.getProductsForVendor(mode.member.id)
-            _uiState.update {
-                it.copy(
-                    productsFeed = products,
-                    productDraft = if (it.editingProductId == productId) ProductDraft() else it.productDraft,
-                    editingProductId = if (it.editingProductId == productId) null else it.editingProductId,
-                    isSavingProduct = false,
-                )
-            }
-            emitMessage(R.string.feedback_product_archived)
-            onSuccess()
-        }
-    }
+    ) = productActions.archiveProduct(productId, onSuccess)
 
     fun setOwnProducerCatalogVisibility(
         isEnabled: Boolean,
         onSuccess: () -> Unit = {},
-    ) {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.isProducer) {
-            emitMessage(R.string.feedback_only_producer_toggle_catalog_visibility)
-            return
-        }
-        if (mode.member.producerCatalogEnabled == isEnabled) {
-            onSuccess()
-            return
-        }
+    ) = productActions.setOwnProducerCatalogVisibility(isEnabled, onSuccess)
 
-        viewModelScope.launch {
-            _uiState.update { it.copy(isUpdatingProducerCatalogVisibility = true) }
-            try {
-                val updatedMember = repository.upsertMember(
-                    mode.member.copy(
-                        producerCatalogEnabled = isEnabled,
-                    ),
-                )
-                val allMembers = repository.getAllMembers()
-                val products = productRepository.getProductsForVendor(updatedMember.id)
-                _uiState.update {
-                    it.copy(
-                        mode = SessionMode.Authorized(
-                            principal = mode.principal,
-                            authenticatedMember = if (mode.authenticatedMember.id == updatedMember.id) updatedMember else mode.authenticatedMember,
-                            member = updatedMember,
-                            members = allMembers,
-                        ),
-                        productsFeed = products,
-                        isUpdatingProducerCatalogVisibility = false,
-                    )
-                }
-                emitMessage(
-                    if (isEnabled) {
-                        R.string.feedback_producer_catalog_enabled
-                    } else {
-                        R.string.feedback_producer_catalog_disabled
-                    },
-                )
-                onSuccess()
-            } catch (_: Exception) {
-                _uiState.update { it.copy(isUpdatingProducerCatalogVisibility = false) }
-                emitMessage(R.string.feedback_unable_save_changes)
-            }
-        }
-    }
+    fun onSharedProfileDraftChanged(draft: SharedProfileDraft) = formActions.onSharedProfileDraftChanged(draft)
 
-    fun onSharedProfileDraftChanged(draft: SharedProfileDraft) {
-        _uiState.update { it.copy(sharedProfileDraft = draft) }
-    }
+    fun onShiftSwapDraftChanged(draft: ShiftSwapDraft) = formActions.onShiftSwapDraftChanged(draft)
 
-    fun onShiftSwapDraftChanged(draft: ShiftSwapDraft) {
-        _uiState.update { it.copy(shiftSwapDraft = draft) }
-    }
+    fun startCreatingShiftSwap(shiftId: String) = formActions.startCreatingShiftSwap(shiftId)
 
-    fun startCreatingShiftSwap(shiftId: String) {
-        _uiState.update {
-            it.copy(
-                shiftSwapDraft = ShiftSwapDraft(
-                    shiftId = shiftId,
-                ),
-            )
-        }
-    }
+    fun clearShiftSwapDraft() = formActions.clearShiftSwapDraft()
 
-    fun clearShiftSwapDraft() {
-        _uiState.update {
-            it.copy(
-                shiftSwapDraft = ShiftSwapDraft(),
-                isSavingShiftSwapRequest = false,
-            )
-        }
-    }
+    fun refreshSharedProfiles() = communityActions.refreshSharedProfiles()
 
-    fun refreshSharedProfiles() {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingSharedProfiles = true) }
-            val profiles = sharedProfileRepository.getAllSharedProfiles()
-            val ownProfile = profiles.firstOrNull { it.userId == mode.member.id }
-            _uiState.update {
-                val currentMode = it.mode as? SessionMode.Authorized
-                if (currentMode?.principal?.uid != mode.principal.uid) {
-                    it
-                } else {
-                    it.copy(
-                        sharedProfiles = profiles.filter { profile -> profile.hasVisibleContent },
-                        sharedProfileDraft = ownProfile?.toDraft() ?: SharedProfileDraft(),
-                        isLoadingSharedProfiles = false,
-                    )
-                }
-            }
-        }
-    }
+    fun refreshShifts() = shiftActions.refreshShifts()
 
-    fun refreshShifts() {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingShifts = true) }
-            val shifts = shiftRepository.getAllShifts()
-            val requests = shiftSwapRequestRepository.getAllShiftSwapRequests()
-            _uiState.update {
-                val currentMode = it.mode as? SessionMode.Authorized
-                if (currentMode?.principal?.uid != mode.principal.uid) {
-                    it
-                } else {
-                    it.copy(
-                        shiftsFeed = shifts,
-                        shiftSwapRequests = requests.visibleTo(mode.member.id),
-                        nextDeliveryShift = shifts.nextAssignedShift(
-                            memberId = mode.member.id,
-                            type = ShiftType.DELIVERY,
-                            nowMillis = nowMillisProvider(),
-                        ),
-                        nextMarketShift = shifts.nextAssignedShift(
-                            memberId = mode.member.id,
-                            type = ShiftType.MARKET,
-                            nowMillis = nowMillisProvider(),
-                        ),
-                        isLoadingShifts = false,
-                    )
-                }
-            }
-        }
-    }
-
-    fun refreshDeliveryCalendar() {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.isAdmin) return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingDeliveryCalendar = true) }
-            val defaultDay = deliveryCalendarRepository.getDefaultDeliveryDayOfWeek()
-            val overrides = deliveryCalendarRepository.getAllOverrides()
-            _uiState.update {
-                val currentMode = it.mode as? SessionMode.Authorized
-                if (currentMode?.principal?.uid != mode.principal.uid) {
-                    it
-                } else {
-                    it.copy(
-                        defaultDeliveryDayOfWeek = defaultDay,
-                        deliveryCalendarOverrides = overrides,
-                        isLoadingDeliveryCalendar = false,
-                    )
-                }
-            }
-        }
-    }
+    fun refreshDeliveryCalendar() = shiftActions.refreshDeliveryCalendar()
 
     fun saveDeliveryCalendarOverride(
         weekKey: String,
         weekday: DeliveryWeekday,
         updatedByUserId: String,
         onSuccess: () -> Unit = {},
-    ) {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.isAdmin) return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isSavingDeliveryCalendar = true) }
-            val now = nowMillisProvider()
-            val override = buildDeliveryCalendarOverride(
-                weekKey = weekKey,
-                weekday = weekday,
-                updatedByUserId = updatedByUserId,
-                updatedAtMillis = now,
-            ) ?: run {
-                _uiState.update { it.copy(isSavingDeliveryCalendar = false) }
-                return@launch
-            }
-            deliveryCalendarRepository.upsertOverride(override)
-            val defaultDay = deliveryCalendarRepository.getDefaultDeliveryDayOfWeek()
-            val overrides = deliveryCalendarRepository.getAllOverrides()
-            _uiState.update {
-                it.copy(
-                    defaultDeliveryDayOfWeek = defaultDay,
-                    deliveryCalendarOverrides = overrides,
-                    isSavingDeliveryCalendar = false,
-                )
-            }
-            onSuccess()
-        }
-    }
+    ) = shiftActions.saveDeliveryCalendarOverride(weekKey, weekday, updatedByUserId, onSuccess)
 
     fun deleteDeliveryCalendarOverride(
         weekKey: String,
         onSuccess: () -> Unit = {},
-    ) {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.isAdmin) return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isSavingDeliveryCalendar = true) }
-            deliveryCalendarRepository.deleteOverride(weekKey)
-            val defaultDay = deliveryCalendarRepository.getDefaultDeliveryDayOfWeek()
-            val overrides = deliveryCalendarRepository.getAllOverrides()
-            _uiState.update {
-                it.copy(
-                    defaultDeliveryDayOfWeek = defaultDay,
-                    deliveryCalendarOverrides = overrides,
-                    isSavingDeliveryCalendar = false,
-                )
-            }
-            onSuccess()
-        }
-    }
+    ) = shiftActions.deleteDeliveryCalendarOverride(weekKey, onSuccess)
 
     fun submitShiftPlanningRequest(
         type: ShiftPlanningRequestType,
         onSuccess: () -> Unit = {},
-    ) {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.isAdmin) return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isSubmittingShiftPlanningRequest = true) }
-            shiftPlanningRequestRepository.submitShiftPlanningRequest(
-                ShiftPlanningRequest(
-                    id = "",
-                    type = type,
-                    requestedByUserId = mode.member.id,
-                    requestedAtMillis = nowMillisProvider(),
-                    status = ShiftPlanningRequestStatus.REQUESTED,
-                ),
-            )
-            _uiState.update { it.copy(isSubmittingShiftPlanningRequest = false) }
-            onSuccess()
-        }
-    }
+    ) = shiftActions.submitShiftPlanningRequest(type, onSuccess)
 
-    fun saveSharedProfile(onSuccess: () -> Unit = {}) {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        val draft = _uiState.value.sharedProfileDraft.normalized()
-        if (!draft.hasVisibleContent) {
-            emitMessage(R.string.feedback_shared_profile_content_required)
-            return
-        }
+    fun saveSharedProfile(onSuccess: () -> Unit = {}) = communityActions.saveSharedProfile(onSuccess)
 
-        viewModelScope.launch {
-            _uiState.update { it.copy(isSavingSharedProfile = true) }
-            val saved = sharedProfileRepository.upsertSharedProfile(
-                SharedProfile(
-                    userId = mode.member.id,
-                    familyNames = draft.familyNames,
-                    photoUrl = draft.photoUrl.ifBlank { null },
-                    about = draft.about,
-                    updatedAtMillis = nowMillisProvider(),
-                ),
-            )
-            val profiles = sharedProfileRepository.getAllSharedProfiles()
-            _uiState.update {
-                it.copy(
-                    sharedProfiles = profiles.filter { profile -> profile.hasVisibleContent },
-                    sharedProfileDraft = saved.toDraft(),
-                    isSavingSharedProfile = false,
-                )
-            }
-            emitMessage(R.string.feedback_shared_profile_saved)
-            onSuccess()
-        }
-    }
+    fun deleteSharedProfile(onSuccess: () -> Unit = {}) = communityActions.deleteSharedProfile(onSuccess)
 
-    fun deleteSharedProfile(onSuccess: () -> Unit = {}) {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isDeletingSharedProfile = true) }
-            val deleted = sharedProfileRepository.deleteSharedProfile(mode.member.id)
-            val profiles = sharedProfileRepository.getAllSharedProfiles()
-            _uiState.update {
-                it.copy(
-                    sharedProfiles = profiles.filter { profile -> profile.hasVisibleContent },
-                    sharedProfileDraft = SharedProfileDraft(),
-                    isDeletingSharedProfile = false,
-                )
-            }
-            emitMessage(
-                if (deleted) {
-                    R.string.feedback_shared_profile_deleted
-                } else {
-                    R.string.feedback_shared_profile_delete_failed
-                },
-            )
-            onSuccess()
-        }
-    }
+    fun refreshNews() = communityActions.refreshNews()
 
-    fun refreshNews() {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingNews = true) }
-            val allNews = newsRepository.getAllNews()
-            val visibleNews = if (mode.member.isAdmin) {
-                allNews
-            } else {
-                allNews.filter { article -> article.active }
-            }
-            val latestActiveNews = allNews.filter { it.active }.take(3)
-            _uiState.update {
-                val currentMode = it.mode as? SessionMode.Authorized
-                if (currentMode?.principal?.uid != mode.principal.uid) {
-                    it
-                } else {
-                    it.copy(
-                        latestNews = latestActiveNews,
-                        newsFeed = visibleNews,
-                        isLoadingNews = false,
-                    )
-                }
-            }
-        }
-    }
+    fun refreshNotifications() = communityActions.refreshNotifications()
 
-    fun refreshNotifications() {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingNotifications = true) }
-            val allNotifications = notificationRepository.getAllNotifications()
-            val visibleNotifications = allNotifications.filter { event -> event.isVisibleTo(mode.member) }
-            _uiState.update {
-                val currentMode = it.mode as? SessionMode.Authorized
-                if (currentMode?.principal?.uid != mode.principal.uid) {
-                    it
-                } else {
-                    it.copy(
-                        notificationsFeed = visibleNotifications,
-                        isLoadingNotifications = false,
-                    )
-                }
-            }
-        }
-    }
-
-    fun saveNews(onSuccess: () -> Unit = {}) {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.isAdmin) {
-            emitMessage(R.string.feedback_only_admin_publish_news)
-            return
-        }
-
-        val draft = _uiState.value.newsDraft
-        if (draft.title.trim().isBlank() || draft.body.trim().isBlank()) {
-            emitMessage(R.string.feedback_news_title_body_required)
-            return
-        }
-
-        viewModelScope.launch {
-            _uiState.update { it.copy(isSavingNews = true) }
-            val nowMillis = nowMillisProvider()
-            val existing = _uiState.value.newsFeed.firstOrNull { it.id == _uiState.value.editingNewsId }
-            val saved = newsRepository.upsertNews(
-                NewsArticle(
-                    id = _uiState.value.editingNewsId.orEmpty(),
-                    title = draft.title.trim(),
-                    body = draft.body.trim(),
-                    active = draft.active,
-                    publishedBy = existing?.publishedBy ?: mode.member.displayName,
-                    publishedAtMillis = existing?.publishedAtMillis ?: nowMillis,
-                    urlImage = draft.urlImage.trim().ifBlank { null },
-                ),
-            )
-            val allNews = newsRepository.getAllNews()
-            val visibleNews = allNews
-            val latestActiveNews = allNews.filter { it.active }.take(3)
-            _uiState.update {
-                it.copy(
-                    latestNews = latestActiveNews,
-                    newsFeed = visibleNews,
-                    newsDraft = NewsDraft(
-                        title = saved.title,
-                        body = saved.body,
-                        urlImage = saved.urlImage.orEmpty(),
-                        active = saved.active,
-                    ),
-                    editingNewsId = saved.id,
-                    isSavingNews = false,
-                )
-            }
-            emitMessage(
-                if (existing == null) {
-                    R.string.feedback_news_created
-                } else {
-                    R.string.feedback_news_updated
-                },
-            )
-            onSuccess()
-        }
-    }
+    fun saveNews(onSuccess: () -> Unit = {}) = communityActions.saveNews(onSuccess)
 
     fun deleteNews(
         newsId: String,
         onSuccess: () -> Unit = {},
-    ) {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.isAdmin) {
-            emitMessage(R.string.feedback_only_admin_delete_news)
-            return
-        }
+    ) = communityActions.deleteNews(newsId, onSuccess)
 
-        viewModelScope.launch {
-            val deleted = newsRepository.deleteNews(newsId)
-            if (!deleted) {
-                emitMessage(R.string.feedback_news_delete_failed)
-                return@launch
-            }
-            val allNews = newsRepository.getAllNews()
-            _uiState.update {
-                it.copy(
-                    latestNews = allNews.filter { article -> article.active }.take(3),
-                    newsFeed = allNews,
-                    newsDraft = if (it.editingNewsId == newsId) NewsDraft() else it.newsDraft,
-                    editingNewsId = if (it.editingNewsId == newsId) null else it.editingNewsId,
-                )
-            }
-            emitMessage(R.string.feedback_news_deleted)
-            onSuccess()
-        }
-    }
+    fun sendNotification(onSuccess: () -> Unit = {}) = communityActions.sendNotification(onSuccess)
 
-    fun sendNotification(onSuccess: () -> Unit = {}) {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.isAdmin) {
-            emitMessage(R.string.feedback_only_admin_send_notification)
-            return
-        }
+    fun saveShiftSwapRequest(onSuccess: () -> Unit = {}) = shiftActions.saveShiftSwapRequest(onSuccess)
 
-        val draft = _uiState.value.notificationDraft
-        if (draft.title.trim().isBlank() || draft.body.trim().isBlank()) {
-            emitMessage(R.string.feedback_notification_title_body_required)
-            return
-        }
+    fun acceptShiftSwapRequest(requestId: String, candidateShiftId: String) =
+        shiftActions.acceptShiftSwapRequest(requestId, candidateShiftId)
 
-        viewModelScope.launch {
-            _uiState.update { it.copy(isSendingNotification = true) }
-            notificationRepository.sendNotification(
-                NotificationEvent(
-                    id = "",
-                    title = draft.title.trim(),
-                    body = draft.body.trim(),
-                    type = "admin_broadcast",
-                    target = draft.audience.toTarget(),
-                    userIds = emptyList(),
-                    segmentType = draft.audience.toSegmentType(),
-                    targetRole = draft.audience.toTargetRole(),
-                    createdBy = mode.member.id,
-                    sentAtMillis = nowMillisProvider(),
-                    weekKey = null,
-                ),
-            )
-            val allNotifications = notificationRepository.getAllNotifications()
-            _uiState.update {
-                it.copy(
-                    notificationsFeed = allNotifications.filter { event -> event.isVisibleTo(mode.member) },
-                    notificationDraft = NotificationDraft(),
-                    isSendingNotification = false,
-                )
-            }
-            emitMessage(R.string.feedback_notification_sent)
-            onSuccess()
-        }
-    }
+    fun rejectShiftSwapRequest(requestId: String, candidateShiftId: String) =
+        shiftActions.rejectShiftSwapRequest(requestId, candidateShiftId)
 
-    fun saveShiftSwapRequest(onSuccess: () -> Unit = {}) {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        val draft = _uiState.value.shiftSwapDraft
-        if (draft.shiftId.isBlank()) {
-            return
-        }
-        val shift = _uiState.value.shiftsFeed.firstOrNull { it.id == draft.shiftId } ?: return
-        val candidates = shift.swapCandidates(
-            allShifts = _uiState.value.shiftsFeed,
-            requesterUserId = mode.member.id,
-            nowMillis = nowMillisProvider(),
-        )
-        if (candidates.isEmpty()) {
-            emitMessage(R.string.feedback_shift_swap_no_candidates)
-            return
-        }
+    fun cancelShiftSwapRequest(requestId: String) = shiftActions.cancelShiftSwapRequest(requestId)
 
-        viewModelScope.launch {
-            _uiState.update { it.copy(isSavingShiftSwapRequest = true) }
-            val persisted = shiftSwapRequestRepository.upsertShiftSwapRequest(
-                ShiftSwapRequest(
-                    id = "",
-                    requestedShiftId = shift.id,
-                    requesterUserId = mode.member.id,
-                    reason = draft.reason.trim(),
-                    status = ShiftSwapRequestStatus.OPEN,
-                    candidates = candidates,
-                    responses = emptyList(),
-                    selectedCandidateUserId = null,
-                    selectedCandidateShiftId = null,
-                    requestedAtMillis = nowMillisProvider(),
-                    confirmedAtMillis = null,
-                    appliedAtMillis = null,
-                ),
-            )
-            sendShiftSwapNotification(
-                title = "Solicitud de cambio de turno",
-                body = "${mode.member.displayName} solicita cambio para el turno del ${shift.dateMillis.toShiftNotificationDateTime()}",
-                type = "shift_swap_requested",
-                targetUserIds = persisted.candidates.map { it.userId }.distinct(),
-                createdBy = mode.member.id,
-            )
-            val allRequests = shiftSwapRequestRepository.getAllShiftSwapRequests()
-            _uiState.update {
-                it.copy(
-                    shiftSwapRequests = allRequests.visibleTo(mode.member.id),
-                    shiftSwapDraft = ShiftSwapDraft(),
-                    isSavingShiftSwapRequest = false,
-                )
-            }
-            onSuccess()
-        }
-    }
+    fun confirmShiftSwapRequest(requestId: String, candidateShiftId: String) =
+        shiftActions.confirmShiftSwapRequest(requestId, candidateShiftId)
 
-    fun acceptShiftSwapRequest(requestId: String, candidateShiftId: String) {
-        respondToShiftSwapRequest(
-            requestId = requestId,
-            candidateShiftId = candidateShiftId,
-            responseStatus = com.reguerta.user.domain.shifts.ShiftSwapResponseStatus.AVAILABLE,
-        )
-    }
+    fun signIn() = authActions.signIn()
 
-    fun rejectShiftSwapRequest(requestId: String, candidateShiftId: String) {
-        respondToShiftSwapRequest(
-            requestId = requestId,
-            candidateShiftId = candidateShiftId,
-            responseStatus = com.reguerta.user.domain.shifts.ShiftSwapResponseStatus.UNAVAILABLE,
-        )
-    }
+    fun signUp() = authActions.signUp()
 
-    fun cancelShiftSwapRequest(requestId: String) {
-        updateShiftSwapRequest(requestId) { request, _, _ ->
-            request.copy(
-                status = ShiftSwapRequestStatus.CANCELLED,
-            )
-        }
-    }
+    fun sendPasswordReset() = authActions.sendPasswordReset()
 
-    fun confirmShiftSwapRequest(requestId: String, candidateShiftId: String) {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        val request = _uiState.value.shiftSwapRequests.firstOrNull { it.id == requestId } ?: return
-        val requestedShift = _uiState.value.shiftsFeed.firstOrNull { it.id == request.requestedShiftId } ?: return
-        val candidate = request.candidates.firstOrNull { it.shiftId == candidateShiftId } ?: return
-        val candidateShift = _uiState.value.shiftsFeed.firstOrNull { it.id == candidate.shiftId } ?: return
+    fun signOut() = authActions.signOut()
 
-        viewModelScope.launch {
-            _uiState.update { it.copy(isUpdatingShiftSwapRequest = true) }
-            val now = nowMillisProvider()
-            val updatedRequest = request.copy(
-                status = ShiftSwapRequestStatus.APPLIED,
-                selectedCandidateUserId = candidate.userId,
-                selectedCandidateShiftId = candidate.shiftId,
-                confirmedAtMillis = now,
-                appliedAtMillis = now,
-            )
-            val (updatedRequestedShift, updatedCandidateShift) = requestedShift.swapMemberWith(
-                other = candidateShift,
-                requesterUserId = request.requesterUserId,
-                responderUserId = candidate.userId,
-                nowMillis = now,
-            )
-            shiftSwapRequestRepository.upsertShiftSwapRequest(updatedRequest)
-            val existingShifts = shiftRepository.getAllShifts()
-            val shiftsToPersist = existingShifts.applyConfirmedSwap(
-                updatedRequestedShift = updatedRequestedShift,
-                updatedCandidateShift = updatedCandidateShift,
-                nowMillis = now,
-            )
-            shiftsToPersist.forEach { shiftRepository.upsertShift(it) }
-            sendShiftSwapNotification(
-                title = "Cambio de turno aplicado",
-                body = "Se ha confirmado el cambio entre ${mode.member.displayName} y ${mode.members.displayNameFor(candidate.userId)} para ${requestedShift.dateMillis.toShiftNotificationDateTime()} y ${candidateShift.dateMillis.toShiftNotificationDateTime()}.",
-                type = "shift_swap_applied",
-                targetUserIds = mode.members.filter { it.isActive }.map { it.id }.distinct(),
-                createdBy = mode.member.id,
-            )
-            val allRequests = shiftSwapRequestRepository.getAllShiftSwapRequests()
-            val allShifts = shiftRepository.getAllShifts()
-            _uiState.update {
-                it.copy(
-                    shiftSwapRequests = allRequests.visibleTo(mode.member.id),
-                    shiftsFeed = allShifts,
-                    nextDeliveryShift = allShifts.nextAssignedShift(mode.member.id, ShiftType.DELIVERY, nowMillisProvider()),
-                    nextMarketShift = allShifts.nextAssignedShift(mode.member.id, ShiftType.MARKET, nowMillisProvider()),
-                    isUpdatingShiftSwapRequest = false,
-                )
-            }
-        }
-    }
+    fun refreshSession(trigger: SessionRefreshTrigger) = authActions.refreshSession(trigger)
 
-    private fun updateShiftSwapRequest(
-        requestId: String,
-        transform: (ShiftSwapRequest, SessionMode.Authorized, Long) -> ShiftSwapRequest,
-    ) {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        val request = _uiState.value.shiftSwapRequests.firstOrNull { it.id == requestId } ?: return
+    fun refreshMyOrderFreshness() = authActions.refreshMyOrderFreshness()
 
-        viewModelScope.launch {
-            _uiState.update { it.copy(isUpdatingShiftSwapRequest = true) }
-            val now = nowMillisProvider()
-            val updatedRequest = transform(request, mode, now)
-            shiftSwapRequestRepository.upsertShiftSwapRequest(updatedRequest)
-            val allRequests = shiftSwapRequestRepository.getAllShiftSwapRequests()
-            val allShifts = shiftRepository.getAllShifts()
-            _uiState.update {
-                it.copy(
-                    shiftSwapRequests = allRequests.visibleTo(mode.member.id),
-                    shiftsFeed = allShifts,
-                    nextDeliveryShift = allShifts.nextAssignedShift(mode.member.id, ShiftType.DELIVERY, nowMillisProvider()),
-                    nextMarketShift = allShifts.nextAssignedShift(mode.member.id, ShiftType.MARKET, nowMillisProvider()),
-                    isUpdatingShiftSwapRequest = false,
-                )
-            }
-        }
-    }
+    fun onMemberDraftChanged(newDraft: MemberDraft) = formActions.onMemberDraftChanged(newDraft)
 
-    private fun respondToShiftSwapRequest(
-        requestId: String,
-        candidateShiftId: String,
-        responseStatus: com.reguerta.user.domain.shifts.ShiftSwapResponseStatus,
-    ) {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        val request = _uiState.value.shiftSwapRequests.firstOrNull { it.id == requestId } ?: return
-        val candidate = request.candidates.firstOrNull { it.userId == mode.member.id && it.shiftId == candidateShiftId } ?: return
-        val requestedShift = _uiState.value.shiftsFeed.firstOrNull { it.id == request.requestedShiftId } ?: return
-        val candidateShift = _uiState.value.shiftsFeed.firstOrNull { it.id == candidate.shiftId }
+    fun createAuthorizedMember() = memberActions.createAuthorizedMember()
 
-        viewModelScope.launch {
-            _uiState.update { it.copy(isUpdatingShiftSwapRequest = true) }
-            val now = nowMillisProvider()
-            val updatedResponses = request.responses
-                .filterNot { it.userId == candidate.userId && it.shiftId == candidate.shiftId }
-                .plus(
-                    ShiftSwapResponse(
-                        userId = candidate.userId,
-                        shiftId = candidate.shiftId,
-                        status = responseStatus,
-                        respondedAtMillis = now,
-                    ),
-                )
-                .sortedByDescending { it.respondedAtMillis }
-            val updatedRequest = request.copy(responses = updatedResponses)
-            shiftSwapRequestRepository.upsertShiftSwapRequest(updatedRequest)
-            sendShiftSwapNotification(
-                title = if (responseStatus == com.reguerta.user.domain.shifts.ShiftSwapResponseStatus.AVAILABLE) {
-                    "Socio disponible para cambio"
-                } else {
-                    "Socio no disponible para cambio"
-                },
-                body = buildString {
-                    append(mode.member.displayName)
-                    append(
-                        if (responseStatus == com.reguerta.user.domain.shifts.ShiftSwapResponseStatus.AVAILABLE) {
-                            " puede cubrir "
-                        } else {
-                            " no puede cubrir "
-                        },
-                    )
-                    append(requestedShift.dateMillis.toShiftNotificationDateTime())
-                    candidateShift?.let {
-                        append(" desde su turno del ")
-                        append(it.dateMillis.toShiftNotificationDateTime())
-                    }
-                },
-                type = if (responseStatus == com.reguerta.user.domain.shifts.ShiftSwapResponseStatus.AVAILABLE) {
-                    "shift_swap_available"
-                } else {
-                    "shift_swap_unavailable"
-                },
-                targetUserIds = listOf(request.requesterUserId),
-                createdBy = mode.member.id,
-            )
-            val allRequests = shiftSwapRequestRepository.getAllShiftSwapRequests()
-            _uiState.update {
-                it.copy(
-                    shiftSwapRequests = allRequests.visibleTo(mode.member.id),
-                    isUpdatingShiftSwapRequest = false,
-                )
-            }
-        }
-    }
+    fun toggleAdmin(memberId: String) = memberActions.toggleAdmin(memberId)
 
-    private suspend fun sendShiftSwapNotification(
-        title: String,
-        body: String,
-        type: String,
-        targetUserIds: List<String>,
-        createdBy: String,
-    ) {
-        notificationRepository.sendNotification(
-            NotificationEvent(
-                id = "",
-                title = title,
-                body = body,
-                type = type,
-                target = "users",
-                userIds = targetUserIds,
-                segmentType = null,
-                targetRole = null,
-                createdBy = createdBy,
-                sentAtMillis = nowMillisProvider(),
-                weekKey = null,
-            ),
-        )
-    }
-
-    fun signIn() {
-        val currentState = _uiState.value
-        val email = currentState.emailInput.trim()
-        val password = currentState.passwordInput
-
-        val emailErrorRes = when {
-            email.isBlank() -> R.string.feedback_email_required
-            !email.matches(EmailPatternRegex) -> R.string.feedback_email_invalid
-            else -> null
-        }
-        val passwordErrorRes = when {
-            password.isBlank() -> R.string.feedback_password_required
-            !password.isValidPassword() -> R.string.feedback_password_invalid_length
-            else -> null
-        }
-
-        if (emailErrorRes != null || passwordErrorRes != null) {
-            _uiState.update {
-                it.copy(
-                    emailErrorRes = emailErrorRes,
-                    passwordErrorRes = passwordErrorRes,
-                )
-            }
-            return
-        }
-
-        viewModelScope.launch {
-            _uiState.update { it.copy(isAuthenticating = true, emailErrorRes = null, passwordErrorRes = null) }
-
-            when (val authResult = authSessionProvider.signIn(email = email, password = password)) {
-                is AuthSignInResult.Success -> {
-                    when (val result = resolveAuthorizedSession(authResult.principal)) {
-                        is AccessResolutionResult.Authorized -> {
-                            val members = repository.getAllMembers()
-                            val allNotifications = notificationRepository.getAllNotifications()
-                            _uiState.update {
-                                it.copy(
-                                    isAuthenticating = false,
-                                    mode = SessionMode.Authorized(
-                                        principal = authResult.principal,
-                                        authenticatedMember = result.member,
-                                        member = result.member,
-                                        members = members,
-                                    ),
-                                    myOrderFreshnessState = MyOrderFreshnessUiState.Checking,
-                                    notificationsFeed = allNotifications.filter { event -> event.isVisibleTo(result.member) },
-                                )
-                            }
-                            registerAuthorizedDevice(result.member)
-                            refreshMyOrderFreshness()
-                        }
-
-                        is AccessResolutionResult.Unauthorized -> {
-                            val showUnauthorizedDialog = shouldShowUnauthorizedDialog(
-                                email = authResult.principal.email,
-                                reason = result.reason,
-                            )
-                            _uiState.update {
-                                it.copy(
-                                    isAuthenticating = false,
-                                    mode = SessionMode.Unauthorized(
-                                        email = authResult.principal.email,
-                                        reason = result.reason,
-                                    ),
-                                    showUnauthorizedDialog = showUnauthorizedDialog,
-                                    myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
-                                    notificationsFeed = emptyList(),
-                                    notificationDraft = NotificationDraft(),
-                                    isLoadingNotifications = false,
-                                    isSendingNotification = false,
-                                )
-                            }
-                        }
-                    }
-                }
-
-                is AuthSignInResult.Failure -> {
-                    val mappedError = mapAuthFailure(
-                        reason = authResult.reason,
-                        flow = AuthErrorFlow.SIGN_IN,
-                    )
-                    val fallbackEmailErrorRes = when {
-                        mappedError.emailErrorRes != null -> null
-                        mappedError.passwordErrorRes != null -> null
-                        mappedError.globalMessageRes != null -> mappedError.globalMessageRes
-                        else -> R.string.auth_error_unknown
-                    }
-                    _uiState.update {
-                        it.copy(
-                            isAuthenticating = false,
-                            emailErrorRes = mappedError.emailErrorRes ?: fallbackEmailErrorRes,
-                            passwordErrorRes = mappedError.passwordErrorRes,
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    fun signUp() {
-        val currentState = _uiState.value
-        val email = currentState.registerEmailInput.trim()
-        val password = currentState.registerPasswordInput
-        val repeatedPassword = currentState.registerRepeatPasswordInput
-
-        val emailErrorRes = when {
-            email.isBlank() -> R.string.feedback_email_required
-            !email.matches(EmailPatternRegex) -> R.string.feedback_email_invalid
-            else -> null
-        }
-        val passwordErrorRes = when {
-            password.isBlank() -> R.string.feedback_password_required
-            !password.isValidPassword() -> R.string.feedback_password_invalid_length
-            else -> null
-        }
-        val repeatedPasswordErrorRes = when {
-            repeatedPassword.isBlank() -> R.string.feedback_password_repeat_required
-            !repeatedPassword.isValidPassword() -> R.string.feedback_password_invalid_length
-            repeatedPassword != password -> R.string.feedback_password_mismatch
-            else -> null
-        }
-
-        if (emailErrorRes != null || passwordErrorRes != null || repeatedPasswordErrorRes != null) {
-            _uiState.update {
-                it.copy(
-                    registerEmailErrorRes = emailErrorRes,
-                    registerPasswordErrorRes = passwordErrorRes,
-                    registerRepeatPasswordErrorRes = repeatedPasswordErrorRes,
-                )
-            }
-            return
-        }
-
-        viewModelScope.launch {
-            _uiState.update {
-                it.copy(
-                    isRegistering = true,
-                    registerEmailErrorRes = null,
-                    registerPasswordErrorRes = null,
-                    registerRepeatPasswordErrorRes = null,
-                )
-            }
-
-            when (val authResult = authSessionProvider.signUp(email = email, password = password)) {
-                is AuthSignInResult.Success -> {
-                    when (val result = resolveAuthorizedSession(authResult.principal)) {
-                        is AccessResolutionResult.Authorized -> {
-                            val members = repository.getAllMembers()
-                            val allNotifications = notificationRepository.getAllNotifications()
-                            _uiState.update {
-                                it.copy(
-                                    isRegistering = false,
-                                    registerEmailInput = "",
-                                    registerPasswordInput = "",
-                                    registerRepeatPasswordInput = "",
-                                    mode = SessionMode.Authorized(
-                                        principal = authResult.principal,
-                                        authenticatedMember = result.member,
-                                        member = result.member,
-                                        members = members,
-                                    ),
-                                    myOrderFreshnessState = MyOrderFreshnessUiState.Checking,
-                                    notificationsFeed = allNotifications.filter { event -> event.isVisibleTo(result.member) },
-                                )
-                            }
-                            registerAuthorizedDevice(result.member)
-                            refreshMyOrderFreshness()
-                        }
-
-                        is AccessResolutionResult.Unauthorized -> {
-                            val showUnauthorizedDialog = shouldShowUnauthorizedDialog(
-                                email = authResult.principal.email,
-                                reason = result.reason,
-                            )
-                            _uiState.update {
-                                it.copy(
-                                    isRegistering = false,
-                                    registerEmailInput = "",
-                                    registerPasswordInput = "",
-                                    registerRepeatPasswordInput = "",
-                                    mode = SessionMode.Unauthorized(
-                                        email = authResult.principal.email,
-                                        reason = result.reason,
-                                    ),
-                                    showUnauthorizedDialog = showUnauthorizedDialog,
-                                    myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
-                                    notificationsFeed = emptyList(),
-                                    notificationDraft = NotificationDraft(),
-                                    isLoadingNotifications = false,
-                                    isSendingNotification = false,
-                                )
-                            }
-                        }
-                    }
-                }
-
-                is AuthSignInResult.Failure -> {
-                    val mappedError = mapAuthFailure(
-                        reason = authResult.reason,
-                        flow = AuthErrorFlow.SIGN_UP,
-                    )
-                    val fallbackEmailErrorRes = when {
-                        mappedError.emailErrorRes != null -> null
-                        mappedError.passwordErrorRes != null -> null
-                        mappedError.globalMessageRes != null -> mappedError.globalMessageRes
-                        else -> R.string.auth_error_register_generic
-                    }
-                    _uiState.update {
-                        it.copy(
-                            isRegistering = false,
-                            registerEmailErrorRes = mappedError.emailErrorRes ?: fallbackEmailErrorRes,
-                            registerPasswordErrorRes = mappedError.passwordErrorRes,
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    fun sendPasswordReset() {
-        val currentState = _uiState.value
-        val email = currentState.recoverEmailInput.trim()
-        val emailErrorRes = when {
-            email.isBlank() -> R.string.feedback_email_required
-            !email.matches(EmailPatternRegex) -> R.string.feedback_email_invalid
-            else -> null
-        }
-
-        if (emailErrorRes != null) {
-            _uiState.update { it.copy(recoverEmailErrorRes = emailErrorRes) }
-            return
-        }
-
-        viewModelScope.launch {
-            _uiState.update { it.copy(isRecoveringPassword = true, recoverEmailErrorRes = null) }
-
-            when (val result = authSessionProvider.sendPasswordReset(email = email)) {
-                AuthPasswordResetResult.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            isRecoveringPassword = false,
-                            recoverEmailInput = "",
-                            recoverEmailErrorRes = null,
-                            showRecoverSuccessDialog = true,
-                        )
-                    }
-                }
-
-                is AuthPasswordResetResult.Failure -> {
-                    val mappedError = mapAuthFailure(
-                        reason = result.reason,
-                        flow = AuthErrorFlow.PASSWORD_RESET,
-                    )
-                    val fallbackEmailErrorRes = mappedError.globalMessageRes ?: R.string.auth_error_recover_generic
-                    _uiState.update {
-                        it.copy(
-                            isRecoveringPassword = false,
-                            recoverEmailErrorRes = mappedError.emailErrorRes ?: fallbackEmailErrorRes,
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    fun signOut() {
-        authSessionProvider.signOut()
-        clearSessionRefreshTracking()
-        viewModelScope.launch {
-            criticalDataFreshnessLocalRepository.clear()
-        }
-        _uiState.update {
-            it.copy(
-                mode = SessionMode.SignedOut,
-                passwordInput = "",
-                emailErrorRes = null,
-                passwordErrorRes = null,
-                isAuthenticating = false,
-                registerEmailInput = "",
-                registerPasswordInput = "",
-                registerRepeatPasswordInput = "",
-                registerEmailErrorRes = null,
-                registerPasswordErrorRes = null,
-                registerRepeatPasswordErrorRes = null,
-                isRegistering = false,
-                recoverEmailInput = "",
-                recoverEmailErrorRes = null,
-                isRecoveringPassword = false,
-                showRecoverSuccessDialog = false,
-                showSessionExpiredDialog = false,
-                showUnauthorizedDialog = false,
-                memberDraft = MemberDraft(),
-                myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
-                latestNews = emptyList(),
-                newsFeed = emptyList(),
-                newsDraft = NewsDraft(),
-                notificationsFeed = emptyList(),
-                notificationDraft = NotificationDraft(),
-                productsFeed = emptyList(),
-                productDraft = ProductDraft(),
-                sharedProfiles = emptyList(),
-                sharedProfileDraft = SharedProfileDraft(),
-                shiftsFeed = emptyList(),
-                nextDeliveryShift = null,
-                nextMarketShift = null,
-                editingNewsId = null,
-                isLoadingNews = false,
-                isSavingNews = false,
-                isLoadingNotifications = false,
-                isSendingNotification = false,
-                isLoadingProducts = false,
-                isSavingProduct = false,
-                isUpdatingProducerCatalogVisibility = false,
-                isLoadingSharedProfiles = false,
-                isSavingSharedProfile = false,
-                isDeletingSharedProfile = false,
-                isLoadingShifts = false,
-            )
-        }
-    }
-
-    fun refreshSession(trigger: SessionRefreshTrigger) {
-        val nowMillis = nowMillisProvider()
-        if (!sessionRefreshPolicy.shouldRefresh(
-                trigger = trigger,
-                lastRefreshAtMillis = lastSessionRefreshAtMillis,
-                nowMillis = nowMillis,
-                isRefreshInFlight = isSessionRefreshInFlight.get(),
-            )
-        ) {
-            return
-        }
-        if (!isSessionRefreshInFlight.compareAndSet(false, true)) {
-            return
-        }
-
-        viewModelScope.launch {
-            val hadAuthenticatedSession = _uiState.value.mode.isAuthenticatedSession()
-            try {
-                when (val result = authSessionProvider.refreshCurrentSession()) {
-                    AuthSessionRefreshResult.NoSession -> {
-                        if (hadAuthenticatedSession) {
-                            handleExpiredSession()
-                        }
-                    }
-
-                    is AuthSessionRefreshResult.Active -> {
-                        val shouldRefreshCriticalData = !hadAuthenticatedSession || shouldRefreshCriticalDataFor(result.principal)
-                        applyAuthorizedSession(
-                            principal = result.principal,
-                            shouldRefreshCriticalData = shouldRefreshCriticalData,
-                        )
-                    }
-
-                    AuthSessionRefreshResult.Expired -> {
-                        handleExpiredSession()
-                    }
-                }
-            } finally {
-                lastSessionRefreshAtMillis = nowMillisProvider()
-                isSessionRefreshInFlight.set(false)
-            }
-        }
-    }
-
-    fun refreshMyOrderFreshness() {
-        val currentMode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        _uiState.update { it.copy(myOrderFreshnessState = MyOrderFreshnessUiState.Checking) }
-
-        viewModelScope.launch {
-            val resolution = withTimeoutOrNull(MY_ORDER_FRESHNESS_TIMEOUT_MILLIS) {
-                resolveCriticalDataFreshness()
-            }
-
-            val nextState = when (resolution) {
-                null -> MyOrderFreshnessUiState.TimedOut
-                CriticalDataFreshnessResolution.Fresh -> MyOrderFreshnessUiState.Ready
-                CriticalDataFreshnessResolution.InvalidConfig -> MyOrderFreshnessUiState.Unavailable
-            }
-
-            _uiState.update { state ->
-                if (state.mode != currentMode) {
-                    state
-                } else {
-                    state.copy(myOrderFreshnessState = nextState)
-                }
-            }
-        }
-    }
-
-    fun onMemberDraftChanged(newDraft: MemberDraft) {
-        _uiState.update { it.copy(memberDraft = newDraft) }
-    }
-
-    fun createAuthorizedMember() {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.isAdmin) {
-            emitMessage(R.string.feedback_only_admin_create)
-            return
-        }
-
-        val draft = _uiState.value.memberDraft
-        if (draft.displayName.isBlank() || draft.email.isBlank()) {
-            emitMessage(R.string.feedback_display_name_email_required)
-            return
-        }
-
-        val normalizedEmail = draft.email.trim().lowercase()
-        val allMembers = mode.members
-        val memberId = buildMemberId(normalizedEmail)
-        if (allMembers.any { it.id == memberId || it.normalizedEmail == normalizedEmail }) {
-            emitMessage(R.string.feedback_member_exists)
-            return
-        }
-
-        val roles = buildRoles(draft)
-        if (roles.isEmpty()) {
-            emitMessage(R.string.feedback_select_role)
-            return
-        }
-
-        val member = Member(
-            id = memberId,
-            displayName = draft.displayName.trim(),
-            normalizedEmail = normalizedEmail,
-            authUid = null,
-            roles = roles,
-            isActive = draft.isActive,
-            producerCatalogEnabled = true,
-            isCommonPurchaseManager = false,
-        )
-
-        updateMember(mode, member) {
-            it.copy(memberDraft = MemberDraft())
-        }
-    }
-
-    fun toggleAdmin(memberId: String) {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.isAdmin) {
-            emitMessage(R.string.feedback_only_admin_edit_roles)
-            return
-        }
-
-        val target = mode.members.firstOrNull { it.id == memberId } ?: return
-        val updatedRoles = target.roles.toMutableSet().also { roles ->
-            if (roles.contains(MemberRole.ADMIN)) {
-                roles.remove(MemberRole.ADMIN)
-            } else {
-                roles.add(MemberRole.ADMIN)
-            }
-            if (roles.isEmpty()) {
-                roles.add(MemberRole.MEMBER)
-            }
-        }
-
-        val updated = target.copy(roles = updatedRoles)
-        updateMember(mode, updated)
-    }
-
-    fun toggleActive(memberId: String) {
-        val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.isAdmin) {
-            emitMessage(R.string.feedback_only_admin_toggle_active)
-            return
-        }
-
-        val target = mode.members.firstOrNull { it.id == memberId } ?: return
-        val updated = target.copy(isActive = !target.isActive)
-        updateMember(mode, updated)
-    }
-
-    private fun updateMember(
-        mode: SessionMode.Authorized,
-        target: Member,
-        onSuccessState: (SessionUiState) -> SessionUiState = { it },
-    ) {
-        viewModelScope.launch {
-            val updatedMember = try {
-                upsertMemberByAdmin(actorAuthUid = mode.principal.uid, target = target)
-            } catch (_: MemberManagementException.AccessDenied) {
-                emitMessage(R.string.feedback_only_admin_manage_members)
-                return@launch
-            } catch (_: MemberManagementException.LastAdminRemoval) {
-                emitMessage(R.string.feedback_cannot_remove_last_admin)
-                return@launch
-            } catch (_: Exception) {
-                emitMessage(R.string.feedback_unable_save_changes)
-                return@launch
-            }
-
-            val allMembers = repository.getAllMembers()
-            val refreshedCurrentMember = if (mode.member.id == updatedMember.id) {
-                updatedMember
-            } else {
-                mode.member
-            }
-            val refreshedAuthenticatedMember = if (mode.authenticatedMember.id == updatedMember.id) {
-                updatedMember
-            } else {
-                mode.authenticatedMember
-            }
-
-            _uiState.update {
-                onSuccessState(
-                    it.copy(
-                        mode = SessionMode.Authorized(
-                            principal = mode.principal,
-                            authenticatedMember = refreshedAuthenticatedMember,
-                            member = refreshedCurrentMember,
-                            members = allMembers,
-                        ),
-                    ),
-                )
-            }
-        }
-    }
+    fun toggleActive(memberId: String) = memberActions.toggleActive(memberId)
 
     private fun emitMessage(@StringRes messageRes: Int) {
         viewModelScope.launch {
             _uiEvents.emit(SessionUiEvent.ShowMessage(messageRes))
         }
     }
-
-    private suspend fun applyAuthorizedSession(
-        principal: AuthPrincipal,
-        shouldRefreshCriticalData: Boolean,
-    ) {
-        when (val result = resolveAuthorizedSession(principal)) {
-            is AccessResolutionResult.Authorized -> {
-                val members = repository.getAllMembers()
-                val allNotifications = notificationRepository.getAllNotifications()
-                val products = productRepository.getProductsForVendor(result.member.id)
-                val sharedProfiles = sharedProfileRepository.getAllSharedProfiles()
-                val allShifts = shiftRepository.getAllShifts()
-                val ownSharedProfile = sharedProfiles.firstOrNull { it.userId == result.member.id }
-                _uiState.update {
-                    it.copy(
-                        mode = SessionMode.Authorized(
-                            principal = principal,
-                            authenticatedMember = result.member,
-                            member = result.member,
-                            members = members,
-                        ),
-                        showSessionExpiredDialog = false,
-                        showUnauthorizedDialog = false,
-                        myOrderFreshnessState = if (shouldRefreshCriticalData) {
-                            MyOrderFreshnessUiState.Checking
-                        } else {
-                            it.myOrderFreshnessState
-                        },
-                        isLoadingNews = true,
-                        isLoadingNotifications = true,
-                        isLoadingProducts = result.member.canManageProductCatalog,
-                        isUpdatingProducerCatalogVisibility = false,
-                        isLoadingSharedProfiles = true,
-                        isLoadingShifts = true,
-                    )
-                }
-                val allNews = newsRepository.getAllNews()
-                _uiState.update {
-                    val currentMode = it.mode as? SessionMode.Authorized
-                    if (currentMode?.principal?.uid != principal.uid) {
-                        it
-                    } else {
-                        it.copy(
-                            latestNews = allNews.filter { article -> article.active }.take(3),
-                            newsFeed = if (result.member.isAdmin) {
-                                allNews
-                            } else {
-                                allNews.filter { article -> article.active }
-                            },
-                            notificationsFeed = allNotifications.filter { event -> event.isVisibleTo(result.member) },
-                            productsFeed = products,
-                            productDraft = ProductDraft(),
-                            sharedProfiles = sharedProfiles.filter { profile -> profile.hasVisibleContent },
-                            sharedProfileDraft = ownSharedProfile?.toDraft() ?: SharedProfileDraft(),
-                            shiftsFeed = allShifts,
-                            nextDeliveryShift = allShifts.nextAssignedShift(
-                                memberId = result.member.id,
-                                type = ShiftType.DELIVERY,
-                                nowMillis = nowMillisProvider(),
-                            ),
-                            nextMarketShift = allShifts.nextAssignedShift(
-                                memberId = result.member.id,
-                                type = ShiftType.MARKET,
-                                nowMillis = nowMillisProvider(),
-                            ),
-                            isLoadingNews = false,
-                            isLoadingNotifications = false,
-                            isLoadingProducts = false,
-                            isLoadingSharedProfiles = false,
-                            isLoadingShifts = false,
-                        )
-                    }
-                }
-                registerAuthorizedDevice(result.member)
-                if (shouldRefreshCriticalData) {
-                    refreshMyOrderFreshness()
-                }
-            }
-
-            is AccessResolutionResult.Unauthorized -> {
-                val showUnauthorizedDialog = shouldShowUnauthorizedDialog(
-                    email = principal.email,
-                    reason = result.reason,
-                )
-                _uiState.update {
-                    it.copy(
-                        mode = SessionMode.Unauthorized(
-                            email = principal.email,
-                            reason = result.reason,
-                        ),
-                        showSessionExpiredDialog = false,
-                        showUnauthorizedDialog = showUnauthorizedDialog,
-                        myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
-                        latestNews = emptyList(),
-                        newsFeed = emptyList(),
-                        newsDraft = NewsDraft(),
-                        notificationsFeed = emptyList(),
-                        notificationDraft = NotificationDraft(),
-                        productsFeed = emptyList(),
-                        productDraft = ProductDraft(),
-                        sharedProfiles = emptyList(),
-                        sharedProfileDraft = SharedProfileDraft(),
-                        shiftsFeed = emptyList(),
-                        nextDeliveryShift = null,
-                        nextMarketShift = null,
-                        editingNewsId = null,
-                        isLoadingNews = false,
-                        isSavingNews = false,
-                        isLoadingNotifications = false,
-                        isSendingNotification = false,
-                        isLoadingProducts = false,
-                        isSavingProduct = false,
-                        isLoadingSharedProfiles = false,
-                        isSavingSharedProfile = false,
-                        isDeletingSharedProfile = false,
-                        isLoadingShifts = false,
-                    )
-                }
-            }
-        }
-    }
-
-    private fun shouldRefreshCriticalDataFor(principal: AuthPrincipal): Boolean {
-        val currentMode = _uiState.value.mode
-        return when (currentMode) {
-            SessionMode.SignedOut -> true
-            is SessionMode.Unauthorized -> currentMode.email != principal.email
-            is SessionMode.Authorized -> currentMode.principal.uid != principal.uid
-        }
-    }
-
-    private fun shouldShowUnauthorizedDialog(
-        email: String,
-        reason: UnauthorizedReason,
-    ): Boolean {
-        if (reason != UnauthorizedReason.USER_NOT_FOUND_IN_AUTHORIZED_USERS) {
-            return false
-        }
-        val currentMode = _uiState.value.mode
-        return currentMode !is SessionMode.Unauthorized || currentMode.email != email
-    }
-
-    private suspend fun handleExpiredSession() {
-        clearSessionRefreshTracking()
-        criticalDataFreshnessLocalRepository.clear()
-        _uiState.update {
-            it.copy(
-                mode = SessionMode.SignedOut,
-                passwordInput = "",
-                emailErrorRes = null,
-                passwordErrorRes = null,
-                isAuthenticating = false,
-                registerEmailInput = "",
-                registerPasswordInput = "",
-                registerRepeatPasswordInput = "",
-                registerEmailErrorRes = null,
-                registerPasswordErrorRes = null,
-                registerRepeatPasswordErrorRes = null,
-                isRegistering = false,
-                recoverEmailInput = "",
-                recoverEmailErrorRes = null,
-                isRecoveringPassword = false,
-                showRecoverSuccessDialog = false,
-                showSessionExpiredDialog = true,
-                showUnauthorizedDialog = false,
-                memberDraft = MemberDraft(),
-                myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
-                latestNews = emptyList(),
-                newsFeed = emptyList(),
-                newsDraft = NewsDraft(),
-                notificationsFeed = emptyList(),
-                notificationDraft = NotificationDraft(),
-                productsFeed = emptyList(),
-                productDraft = ProductDraft(),
-                sharedProfiles = emptyList(),
-                sharedProfileDraft = SharedProfileDraft(),
-                shiftsFeed = emptyList(),
-                nextDeliveryShift = null,
-                nextMarketShift = null,
-                editingNewsId = null,
-                isLoadingNews = false,
-                isSavingNews = false,
-                isLoadingNotifications = false,
-                isSendingNotification = false,
-                isLoadingProducts = false,
-                isSavingProduct = false,
-                isLoadingSharedProfiles = false,
-                isSavingSharedProfile = false,
-                isDeletingSharedProfile = false,
-                isLoadingShifts = false,
-            )
-        }
-    }
-
-    private fun clearSessionRefreshTracking() {
-        lastSessionRefreshAtMillis = null
-        isSessionRefreshInFlight.set(false)
-    }
-
-    private fun registerAuthorizedDevice(member: Member) {
-        viewModelScope.launch {
-            runCatching {
-                authorizedDeviceRegistrar.register(member)
-            }
-        }
-    }
-
-    private fun buildRoles(draft: MemberDraft): Set<MemberRole> {
-        val roles = mutableSetOf<MemberRole>()
-        if (draft.isMember) roles.add(MemberRole.MEMBER)
-        if (draft.isProducer) roles.add(MemberRole.PRODUCER)
-        if (draft.isAdmin) roles.add(MemberRole.ADMIN)
-        return roles
-    }
-
-    private fun buildMemberId(normalizedEmail: String): String {
-        val suffix = normalizedEmail.replace("[^a-z0-9]+".toRegex(), "_").trim('_').ifBlank { "member" }
-        return "member_${suffix.take(40)}"
-    }
 }
-
-private fun SharedProfile.toDraft(): SharedProfileDraft =
-    SharedProfileDraft(
-        familyNames = familyNames,
-        photoUrl = photoUrl.orEmpty(),
-        about = about,
-    )
-
-private fun Product.toDraft(): ProductDraft =
-    ProductDraft(
-        name = name,
-        description = description,
-        productImageUrl = productImageUrl.orEmpty(),
-        price = price.toUiDecimal(),
-        unitName = unitName,
-        unitAbbreviation = unitAbbreviation.orEmpty(),
-        unitPlural = unitPlural,
-        unitQty = unitQty.toUiDecimal(),
-        packContainerName = packContainerName.orEmpty(),
-        packContainerAbbreviation = packContainerAbbreviation.orEmpty(),
-        packContainerPlural = packContainerPlural.orEmpty(),
-        packContainerQty = packContainerQty?.toUiDecimal().orEmpty(),
-        isAvailable = isAvailable,
-        stockMode = stockMode,
-        stockQty = stockQty?.toUiDecimal().orEmpty(),
-        isEcoBasket = isEcoBasket,
-        isCommonPurchase = isCommonPurchase,
-        commonPurchaseType = commonPurchaseType,
-    )
-
-private fun ProductDraft.normalized(): ProductDraft =
-    copy(
-        name = name.trim(),
-        description = description.trim(),
-        productImageUrl = productImageUrl.trim(),
-        price = price.trim(),
-        unitName = unitName.trim(),
-        unitAbbreviation = unitAbbreviation.trim(),
-        unitPlural = unitPlural.trim(),
-        unitQty = unitQty.trim(),
-        packContainerName = packContainerName.trim(),
-        packContainerAbbreviation = packContainerAbbreviation.trim(),
-        packContainerPlural = packContainerPlural.trim(),
-        packContainerQty = packContainerQty.trim(),
-        stockQty = stockQty.trim(),
-    )
-
-private fun String.toPositiveDoubleOrNull(): Double? =
-    replace(",", ".").toDoubleOrNull()?.takeIf { it > 0.0 }
-
-private fun String.toNonNegativeDoubleOrNull(): Double? =
-    replace(",", ".").toDoubleOrNull()?.takeIf { it >= 0.0 }
-
-private val Member.isProducer: Boolean
-    get() = roles.contains(MemberRole.PRODUCER)
-
-private val Member.canManageProductCatalog: Boolean
-    get() = isProducer || isCommonPurchaseManager
-
-private fun Double.toUiDecimal(): String =
-    if (this % 1.0 == 0.0) {
-        toLong().toString()
-    } else {
-        toString()
-    }
-
-private fun SharedProfileDraft.normalized(): SharedProfileDraft =
-    copy(
-        familyNames = familyNames.trim(),
-        photoUrl = photoUrl.trim(),
-        about = about.trim(),
-    )
-
-private val SharedProfileDraft.hasVisibleContent: Boolean
-    get() = familyNames.isNotBlank() || photoUrl.isNotBlank() || about.isNotBlank()
-
-private fun List<ShiftAssignment>.nextAssignedShift(
-    memberId: String,
-    type: ShiftType,
-    nowMillis: Long,
-): ShiftAssignment? =
-    asSequence()
-        .filter { shift -> shift.type == type && shift.dateMillis >= nowMillis && shift.isAssignedTo(memberId) }
-        .minByOrNull { shift -> shift.dateMillis }
-
-private fun List<ShiftSwapRequest>.visibleTo(memberId: String): List<ShiftSwapRequest> =
-    filter { request ->
-        request.requesterUserId == memberId || request.candidates.any { candidate -> candidate.userId == memberId }
-    }
-        .sortedByDescending { it.requestedAtMillis }
-
-private fun ShiftAssignment.swapCandidates(
-    allShifts: List<ShiftAssignment>,
-    requesterUserId: String,
-    nowMillis: Long,
-): List<com.reguerta.user.domain.shifts.ShiftSwapCandidate> {
-    val thresholdDate = java.time.Instant.ofEpochMilli(nowMillis)
-        .atZone(java.time.ZoneId.systemDefault())
-        .toLocalDate()
-        .plusWeeks(if (type == ShiftType.DELIVERY) 2 else 0)
-        .atStartOfDay(java.time.ZoneId.systemDefault())
-        .toInstant()
-        .toEpochMilli()
-
-    val candidates = allShifts.asSequence()
-        .filter { shift ->
-            shift.id != id &&
-                shift.type == type &&
-                shift.dateMillis >= thresholdDate
-        }
-        .flatMap { shift ->
-            when (type) {
-                ShiftType.DELIVERY -> shift.assignedUserIds.asSequence()
-                ShiftType.MARKET -> shift.assignedUserIds.asSequence()
-            }
-                .filter { userId -> userId != requesterUserId }
-                .map { userId -> com.reguerta.user.domain.shifts.ShiftSwapCandidate(userId = userId, shiftId = shift.id) }
-        }
-        .distinctBy { candidate -> "${candidate.userId}:${candidate.shiftId}" }
-        .toList()
-
-    return candidates
-}
-
-private fun ShiftAssignment.swapMemberWith(
-    other: ShiftAssignment,
-    requesterUserId: String,
-    responderUserId: String,
-    nowMillis: Long,
-): Pair<ShiftAssignment, ShiftAssignment> {
-    fun ShiftAssignment.replacing(oldUserId: String, newUserId: String): ShiftAssignment {
-        val updatedAssigned = assignedUserIds.map { assignedUserId ->
-            if (assignedUserId == oldUserId) newUserId else assignedUserId
-        }
-        val updatedHelper = when (helperUserId) {
-            oldUserId -> newUserId
-            else -> helperUserId
-        }
-        return copy(
-            assignedUserIds = updatedAssigned,
-            helperUserId = updatedHelper,
-            status = com.reguerta.user.domain.shifts.ShiftStatus.CONFIRMED,
-            source = "app",
-            updatedAtMillis = nowMillis,
-        )
-    }
-
-    return replacing(requesterUserId, responderUserId) to other.replacing(responderUserId, requesterUserId)
-}
-
-private fun List<ShiftAssignment>.applyConfirmedSwap(
-    updatedRequestedShift: ShiftAssignment,
-    updatedCandidateShift: ShiftAssignment,
-    nowMillis: Long,
-): List<ShiftAssignment> {
-    val replaced = map { shift ->
-        when (shift.id) {
-            updatedRequestedShift.id -> updatedRequestedShift
-            updatedCandidateShift.id -> updatedCandidateShift
-            else -> shift
-        }
-    }
-
-    val deliveries = replaced
-        .filter { it.type == ShiftType.DELIVERY }
-        .sortedBy { it.dateMillis }
-    val helperByDeliveryId = deliveries.mapIndexed { index, shift ->
-        shift.id to deliveries.getOrNull(index + 1)?.assignedUserIds?.firstOrNull()
-    }.toMap()
-
-    return replaced.map { shift ->
-        if (shift.type != ShiftType.DELIVERY) {
-            shift
-        } else {
-            val recomputedHelper = helperByDeliveryId[shift.id]
-            if (shift.helperUserId == recomputedHelper) {
-                shift
-            } else {
-                shift.copy(
-                    helperUserId = recomputedHelper,
-                    status = com.reguerta.user.domain.shifts.ShiftStatus.CONFIRMED,
-                    source = "app",
-                    updatedAtMillis = nowMillis,
-                )
-            }
-        }
-    }
-}
-
-private fun List<Member>.displayNameFor(memberId: String): String =
-    firstOrNull { it.id == memberId }?.displayName ?: memberId
-
-private fun ShiftSwapRequest.availableResponses(): List<com.reguerta.user.domain.shifts.ShiftSwapResponse> =
-    responses.filter { it.status == com.reguerta.user.domain.shifts.ShiftSwapResponseStatus.AVAILABLE }
-
-private fun ShiftSwapRequest.hasPendingCandidateFor(memberId: String): Boolean =
-    candidates.any { candidate ->
-        candidate.userId == memberId && responses.none { response ->
-            response.userId == candidate.userId && response.shiftId == candidate.shiftId
-        }
-    }
-
-private fun Long.toShiftNotificationDateTime(): String {
-    val formatter = DateFormat.getDateInstance(DateFormat.MEDIUM)
-    return formatter.format(java.util.Date(this))
-}
-
-private fun buildDeliveryCalendarOverride(
-    weekKey: String,
-    weekday: DeliveryWeekday,
-    updatedByUserId: String,
-    updatedAtMillis: Long,
-): DeliveryCalendarOverride? {
-    val weekStart = weekKey.toIsoWeekStartDate() ?: return null
-    val deliveryDate = weekStart.plusDays(weekday.toDayOfWeek().value.toLong() - 1L)
-    val zone = ZoneId.systemDefault()
-    val deliveryMillis = deliveryDate.atStartOfDay(zone).toInstant().toEpochMilli()
-    val ordersBlockedMillis = deliveryDate.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-    val ordersOpenMillis = deliveryDate.plusDays(2).atTime(LocalTime.MIDNIGHT).atZone(zone).toInstant().toEpochMilli()
-    val ordersCloseMillis = weekStart.plusDays(6).atTime(23, 59, 59).atZone(zone).toInstant().toEpochMilli()
-    return DeliveryCalendarOverride(
-        weekKey = weekKey,
-        deliveryDateMillis = deliveryMillis,
-        ordersBlockedDateMillis = ordersBlockedMillis,
-        ordersOpenAtMillis = ordersOpenMillis,
-        ordersCloseAtMillis = ordersCloseMillis,
-        updatedBy = updatedByUserId,
-        updatedAtMillis = updatedAtMillis,
-    )
-}
-
-private fun String.toIsoWeekStartDate(): LocalDate? = runCatching {
-    val yearPart = substringBefore("-W").toInt()
-    val weekPart = substringAfter("-W").toInt()
-    LocalDate.of(yearPart, 1, 4)
-        .with(WeekFields.ISO.weekOfWeekBasedYear(), weekPart.toLong())
-        .with(DayOfWeek.MONDAY)
-}.getOrNull()
-
-private fun DeliveryWeekday.toDayOfWeek(): DayOfWeek = when (this) {
-    DeliveryWeekday.MONDAY -> DayOfWeek.MONDAY
-    DeliveryWeekday.TUESDAY -> DayOfWeek.TUESDAY
-    DeliveryWeekday.WEDNESDAY -> DayOfWeek.WEDNESDAY
-    DeliveryWeekday.THURSDAY -> DayOfWeek.THURSDAY
-    DeliveryWeekday.FRIDAY -> DayOfWeek.FRIDAY
-    DeliveryWeekday.SATURDAY -> DayOfWeek.SATURDAY
-    DeliveryWeekday.SUNDAY -> DayOfWeek.SUNDAY
-}
-
-private val EmailPatternRegex = "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$".toRegex(setOf(RegexOption.IGNORE_CASE))
-private const val MY_ORDER_FRESHNESS_TIMEOUT_MILLIS = 2_500L
-private const val PasswordMinLength = 6
-private const val PasswordMaxLength = 16
-
-private fun String.isValidPassword(): Boolean = length in PasswordMinLength..PasswordMaxLength
-
-private fun SessionMode.isAuthenticatedSession(): Boolean =
-    this is SessionMode.Authorized || this is SessionMode.Unauthorized
-
-private fun NotificationAudience.toTarget(): String =
-    when (this) {
-        NotificationAudience.ALL -> "all"
-        NotificationAudience.MEMBERS,
-        NotificationAudience.PRODUCERS,
-        NotificationAudience.ADMINS,
-            -> "segment"
-    }
-
-private fun NotificationAudience.toSegmentType(): String? =
-    when (this) {
-        NotificationAudience.ALL -> null
-        NotificationAudience.MEMBERS,
-        NotificationAudience.PRODUCERS,
-        NotificationAudience.ADMINS,
-            -> "role"
-    }
-
-private fun NotificationAudience.toTargetRole(): MemberRole? =
-    when (this) {
-        NotificationAudience.ALL -> null
-        NotificationAudience.MEMBERS -> MemberRole.MEMBER
-        NotificationAudience.PRODUCERS -> MemberRole.PRODUCER
-        NotificationAudience.ADMINS -> MemberRole.ADMIN
-    }
