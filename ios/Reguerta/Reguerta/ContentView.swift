@@ -856,166 +856,48 @@ struct ContentView: View {
     }
 
     private var newsListRoute: some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-            newsListHeaderCard
-
-            if viewModel.isLoadingNews {
-                cardContainer {
-                    Text(localizedKey(AccessL10nKey.newsLoading))
-                        .font(tokens.typography.bodySecondary)
-                }
-            } else if viewModel.newsFeed.isEmpty {
-                cardContainer {
-                    Text(localizedKey(AccessL10nKey.newsEmptyState))
-                        .font(tokens.typography.bodySecondary)
-                }
-            } else {
-                ForEach(viewModel.newsFeed) { article in
-                    newsArticleCard(article)
-                }
+        NewsListRouteView(
+            tokens: tokens,
+            isLoadingNews: viewModel.isLoadingNews,
+            newsFeed: viewModel.newsFeed,
+            isAdmin: currentHomeMember?.isAdmin == true,
+            newsMetaText: { article in
+                l10n(AccessL10nKey.newsMetaFormat, article.publishedBy)
+            },
+            onCreateNews: {
+                viewModel.startCreatingNews()
+                homeDestination = .publishNews
+            },
+            onRefreshNews: viewModel.refreshNews,
+            onEditNews: { newsId in
+                viewModel.startEditingNews(newsId: newsId)
+                homeDestination = .publishNews
+            },
+            onDeleteNews: { newsId in
+                pendingNewsDeletionId = newsId
             }
-        }
-    }
-
-    private var newsListHeaderCard: some View {
-        cardContainer {
-            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                Text(localizedKey(AccessL10nKey.homeShellNewsTitle))
-                    .font(tokens.typography.titleCard)
-                Text(localizedKey(AccessL10nKey.newsListSubtitle))
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                if currentHomeMember?.isAdmin == true {
-                    ReguertaButton(localizedKey(AccessL10nKey.newsCreateAction)) {
-                        viewModel.startCreatingNews()
-                        homeDestination = .publishNews
-                    }
-                }
-                ReguertaButton(
-                    localizedKey(AccessL10nKey.newsRefreshAction),
-                    variant: .text
-                ) {
-                    viewModel.refreshNews()
-                }
-            }
-        }
-    }
-
-    private func newsArticleCard(_ article: NewsArticle) -> some View {
-        cardContainer {
-            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                Text(article.title)
-                    .font(tokens.typography.titleCard)
-                Text(l10n(AccessL10nKey.newsMetaFormat, article.publishedBy))
-                    .font(tokens.typography.label)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                if !article.active {
-                    Text(localizedKey(AccessL10nKey.newsInactiveBadge))
-                        .font(tokens.typography.label)
-                        .foregroundStyle(tokens.colors.actionPrimary)
-                }
-                Text(article.body)
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textPrimary)
-                if let urlImage = article.urlImage {
-                    Text(urlImage)
-                        .font(tokens.typography.label)
-                        .foregroundStyle(tokens.colors.actionPrimary)
-                }
-                if currentHomeMember?.isAdmin == true {
-                    HStack {
-                        ReguertaButton(
-                            localizedKey(AccessL10nKey.newsEditAction),
-                            variant: .text,
-                            fullWidth: false
-                        ) {
-                            viewModel.startEditingNews(newsId: article.id)
-                            homeDestination = .publishNews
-                        }
-                        ReguertaButton(
-                            localizedKey(AccessL10nKey.newsDeleteAction),
-                            variant: .text,
-                            fullWidth: false
-                        ) {
-                            pendingNewsDeletionId = article.id
-                        }
-                    }
-                }
-            }
-        }
+        )
     }
 
     private var newsEditorRoute: some View {
-        cardContainer {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text(
-                    localizedKey(
-                        viewModel.editingNewsId == nil
-                        ? AccessL10nKey.newsEditorTitleCreate
-                        : AccessL10nKey.newsEditorTitleEdit
-                    )
-                )
-                .font(tokens.typography.titleCard)
-
-                Text(localizedKey(AccessL10nKey.newsEditorSubtitle))
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-
-                TextField(
-                    "",
-                    text: newsTitleBinding,
-                    prompt: Text(localizedKey(AccessL10nKey.newsFieldTitle))
-                )
-                .textFieldStyle(.roundedBorder)
-
-                TextField(
-                    "",
-                    text: newsUrlImageBinding,
-                    prompt: Text(localizedKey(AccessL10nKey.newsFieldURLImage))
-                )
-                .textFieldStyle(.roundedBorder)
-
-                Text(localizedKey(AccessL10nKey.newsFieldBody))
-                    .font(tokens.typography.label)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                TextEditor(
-                    text: newsBodyBinding
-                )
-                .frame(minHeight: 180.resize)
-                .padding(tokens.spacing.sm)
-                .background(tokens.colors.surfaceSecondary)
-                .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
-
-                Toggle(
-                    localizedKey(AccessL10nKey.newsFieldActive),
-                    isOn: newsActiveBinding
-                )
-
-                ReguertaButton(
-                    localizedKey(
-                        viewModel.isSavingNews
-                        ? AccessL10nKey.newsSaveActionSaving
-                        : (viewModel.editingNewsId == nil ? AccessL10nKey.newsSaveActionCreate : AccessL10nKey.newsSaveActionUpdate)
-                    ),
-                    isEnabled: !viewModel.isSavingNews,
-                    isLoading: viewModel.isSavingNews
-                ) {
-                    viewModel.saveNews {
-                        homeDestination = .news
-                    }
-                }
-
-                ReguertaButton(
-                    localizedKey(AccessL10nKey.commonBack),
-                    variant: .text
-                ) {
-                    viewModel.clearNewsEditor()
+        NewsEditorRouteView(
+            tokens: tokens,
+            editingNewsId: viewModel.editingNewsId,
+            newsTitle: newsTitleBinding,
+            newsUrlImage: newsUrlImageBinding,
+            newsBody: newsBodyBinding,
+            newsActive: newsActiveBinding,
+            isSavingNews: viewModel.isSavingNews,
+            onSave: {
+                viewModel.saveNews {
                     homeDestination = .news
                 }
-
-                Spacer(minLength: tokens.spacing.sm)
+            },
+            onBack: {
+                viewModel.clearNewsEditor()
+                homeDestination = .news
             }
-        }
+        )
     }
 
     private var productsRoute: some View {
@@ -1028,67 +910,23 @@ struct ContentView: View {
     }
 
     private var notificationsListRoute: some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-            notificationsListHeaderCard
-
-            if viewModel.isLoadingNotifications {
-                cardContainer {
-                    Text(localizedKey(AccessL10nKey.notificationsLoading))
-                        .font(tokens.typography.bodySecondary)
-                }
-            } else if viewModel.notificationsFeed.isEmpty {
-                cardContainer {
-                    Text(localizedKey(AccessL10nKey.notificationsEmptyState))
-                        .font(tokens.typography.bodySecondary)
-                }
-            } else {
-                ForEach(viewModel.notificationsFeed) { notification in
-                    notificationCard(notification)
-                }
-            }
-        }
-    }
-
-    private var notificationsListHeaderCard: some View {
-        cardContainer {
-            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                Text(localizedKey(AccessL10nKey.homeShellNotifications))
-                    .font(tokens.typography.titleCard)
-                Text(localizedKey(AccessL10nKey.notificationsListSubtitle))
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                if currentHomeMember?.isAdmin == true {
-                    ReguertaButton(localizedKey(AccessL10nKey.notificationsCreateAction)) {
-                        viewModel.startCreatingNotification()
-                        homeDestination = .adminBroadcast
-                    }
-                }
-                ReguertaButton(
-                    localizedKey(AccessL10nKey.notificationsRefreshAction),
-                    variant: .text
-                ) {
-                    viewModel.refreshNotifications()
-                }
-            }
-        }
-    }
-
-    private func notificationCard(_ notification: NotificationEvent) -> some View {
-        cardContainer {
-            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                Text(notification.title)
-                    .font(tokens.typography.titleCard)
-                Text(l10n(AccessL10nKey.notificationsMetaFormat, localizedDateTime(notification.sentAtMillis)))
-                    .font(tokens.typography.label)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                Text(notification.body)
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textPrimary)
-                Text(localizedKey(notification.audienceTitleKey))
-                    .font(tokens.typography.label)
-                    .foregroundStyle(tokens.colors.actionPrimary)
-            }
-        }
+        NotificationsListRouteView(
+            tokens: tokens,
+            isLoadingNotifications: viewModel.isLoadingNotifications,
+            notificationsFeed: viewModel.notificationsFeed,
+            isAdmin: currentHomeMember?.isAdmin == true,
+            notificationMetaText: { notification in
+                l10n(
+                    AccessL10nKey.notificationsMetaFormat,
+                    localizedDateTime(notification.sentAtMillis)
+                )
+            },
+            onCreateNotification: {
+                viewModel.startCreatingNotification()
+                homeDestination = .adminBroadcast
+            },
+            onRefreshNotifications: viewModel.refreshNotifications
+        )
     }
 
     @ViewBuilder
@@ -1113,60 +951,22 @@ struct ContentView: View {
     }
 
     private var notificationEditorRoute: some View {
-        cardContainer {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text(localizedKey(AccessL10nKey.notificationsEditorTitle))
-                    .font(tokens.typography.titleCard)
-
-                Text(localizedKey(AccessL10nKey.notificationsEditorSubtitle))
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-
-                TextField(
-                    "",
-                    text: notificationTitleBinding,
-                    prompt: Text(localizedKey(AccessL10nKey.notificationsFieldTitle))
-                )
-                .textFieldStyle(.roundedBorder)
-
-                Text(localizedKey(AccessL10nKey.notificationsFieldBody))
-                    .font(tokens.typography.label)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                TextEditor(text: notificationBodyBinding)
-                    .frame(minHeight: 180.resize)
-                    .padding(tokens.spacing.sm)
-                    .background(tokens.colors.surfaceSecondary)
-                    .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
-
-                Picker(localizedKey(AccessL10nKey.notificationsFieldAudience), selection: notificationAudienceBinding) {
-                    ForEach(NotificationAudience.allCases, id: \.self) { audience in
-                        Text(localizedKey(audience.titleKey)).tag(audience)
-                    }
-                }
-
-                ReguertaButton(
-                    localizedKey(
-                        viewModel.isSendingNotification
-                        ? AccessL10nKey.notificationsSendActionSending
-                        : AccessL10nKey.notificationsSendActionSend
-                    ),
-                    isEnabled: !viewModel.isSendingNotification,
-                    isLoading: viewModel.isSendingNotification
-                ) {
-                    viewModel.sendNotification {
-                        homeDestination = .notifications
-                    }
-                }
-
-                ReguertaButton(
-                    localizedKey(AccessL10nKey.commonBack),
-                    variant: .text
-                ) {
-                    viewModel.clearNotificationEditor()
+        NotificationEditorRouteView(
+            tokens: tokens,
+            notificationTitle: notificationTitleBinding,
+            notificationBody: notificationBodyBinding,
+            notificationAudience: notificationAudienceBinding,
+            isSendingNotification: viewModel.isSendingNotification,
+            onSend: {
+                viewModel.sendNotification {
                     homeDestination = .notifications
                 }
+            },
+            onBack: {
+                viewModel.clearNotificationEditor()
+                homeDestination = .notifications
             }
-        }
+        )
     }
 
     @ViewBuilder
@@ -2040,7 +1840,7 @@ private extension Member {
     }
 }
 
-private extension NotificationAudience {
+extension NotificationAudience {
     var titleKey: String {
         switch self {
         case .all:
@@ -2055,7 +1855,7 @@ private extension NotificationAudience {
     }
 }
 
-private extension NotificationEvent {
+extension NotificationEvent {
     var audienceTitleKey: String {
         switch (target, segmentType, targetRole) {
         case ("all", _, _):
@@ -2266,7 +2066,7 @@ extension ShiftAssignment {
         }
     }
 
-    fileprivate func boardNames(session: AuthorizedSession?) -> [String] {
+    func boardNames(session: AuthorizedSession?) -> [String] {
         switch type {
         case .delivery:
             var names: [String] = []
@@ -2297,7 +2097,7 @@ extension ShiftAssignment {
         }
     }
 
-    fileprivate func highlightedBoardNameIndex(for currentMemberId: String) -> Int? {
+    func highlightedBoardNameIndex(for currentMemberId: String) -> Int? {
         switch type {
         case .delivery:
             if assignedUserIds.first == currentMemberId {
