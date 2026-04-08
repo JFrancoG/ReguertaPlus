@@ -189,9 +189,7 @@ import coil3.compose.AsyncImage
 import java.text.DateFormat
 import java.time.Instant
 import java.time.LocalDate
-import java.time.Month
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.time.temporal.WeekFields
 import java.util.Locale
@@ -2003,7 +2001,7 @@ internal fun ShiftAssignment.leftBoardLines(overrides: List<DeliveryCalendarOver
                 color = MaterialTheme.colorScheme.onSurface,
             ),
             ShiftBoardLine(
-                text = localDate.toSpanishBoardDate(),
+                text = localDate.toLocalizedBoardDate(),
                 style = MaterialTheme.typography.bodySmall,
             ),
         )
@@ -2012,13 +2010,13 @@ internal fun ShiftAssignment.leftBoardLines(overrides: List<DeliveryCalendarOver
         val localDate = effectiveDateMillis(overrides).toLocalDate()
         listOf(
             ShiftBoardLine(
-                text = localDate.toSpanishMonthLabel(),
+                text = localDate.toLocalizedMonthLabel(),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
             ),
             ShiftBoardLine(
-                text = localDate.toSpanishWeekdayLabel(),
+                text = localDate.toLocalizedWeekdayLabel(),
                 style = MaterialTheme.typography.labelMedium,
             ),
             ShiftBoardLine(
@@ -2102,40 +2100,25 @@ internal fun Long.toWeekKey(): String {
     return String.format(Locale.US, "%04d-W%02d", year, week)
 }
 
-private fun LocalDate.toSpanishBoardDate(): String {
-    val locale = Locale.forLanguageTag("es-ES")
-    val weekday = dayOfWeek.getDisplayName(TextStyle.SHORT, locale)
-        .replace(".", "")
-        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(locale) else it.toString() }
-    return "$weekday $dayOfMonth ${toSpanishShortMonthLabel()}"
+private fun LocalDate.toLocalizedBoardDate(): String {
+    val locale = Locale.getDefault()
+    val weekday = dayOfWeek.getDisplayName(TextStyle.SHORT, locale).trimEnd('.').toTitleCase(locale)
+    val month = month.getDisplayName(TextStyle.SHORT, locale).trimEnd('.')
+    return "$weekday $dayOfMonth $month"
 }
 
-private fun LocalDate.toSpanishShortMonthLabel(): String = when (month) {
-    Month.JANUARY -> "ene"
-    Month.FEBRUARY -> "feb"
-    Month.MARCH -> "mar"
-    Month.APRIL -> "abr"
-    Month.MAY -> "may"
-    Month.JUNE -> "jun"
-    Month.JULY -> "jul"
-    Month.AUGUST -> "ago"
-    Month.SEPTEMBER -> "sep"
-    Month.OCTOBER -> "oct"
-    Month.NOVEMBER -> "nov"
-    Month.DECEMBER -> "dic"
+private fun LocalDate.toLocalizedMonthLabel(): String {
+    val locale = Locale.getDefault()
+    return month.getDisplayName(TextStyle.FULL, locale).toTitleCase(locale)
 }
 
-private fun LocalDate.toSpanishMonthLabel(): String =
-    month.getDisplayName(TextStyle.FULL, Locale.forLanguageTag("es-ES"))
-        .replaceFirstChar {
-            if (it.isLowerCase()) it.titlecase(Locale.forLanguageTag("es-ES")) else it.toString()
-        }
+private fun LocalDate.toLocalizedWeekdayLabel(): String {
+    val locale = Locale.getDefault()
+    return dayOfWeek.getDisplayName(TextStyle.FULL, locale).toTitleCase(locale)
+}
 
-private fun LocalDate.toSpanishWeekdayLabel(): String =
-    dayOfWeek.getDisplayName(TextStyle.FULL, Locale.forLanguageTag("es-ES"))
-        .replaceFirstChar {
-            if (it.isLowerCase()) it.titlecase(Locale.forLanguageTag("es-ES")) else it.toString()
-        }
+private fun String.toTitleCase(locale: Locale): String =
+    replaceFirstChar { if (it.isLowerCase()) it.titlecase(locale) else it.toString() }
 
 @Composable
 private fun SignInCard(
@@ -2638,7 +2621,7 @@ fun Long.toLocalizedDateTime(): String =
     DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(java.util.Date(this))
 
 internal fun Long.toLocalizedDateOnly(): String =
-    java.text.SimpleDateFormat("d MMM yyyy", Locale.forLanguageTag("es-ES")).format(java.util.Date(this))
+    DateFormat.getDateInstance(DateFormat.MEDIUM).format(java.util.Date(this))
 
 internal fun ShiftAssignment.toShiftSwapDisplayLabel(
     memberId: String?,

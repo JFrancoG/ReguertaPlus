@@ -42,8 +42,10 @@ import com.reguerta.user.ui.components.auth.ReguertaDialog
 import com.reguerta.user.ui.components.auth.ReguertaDialogAction
 import com.reguerta.user.ui.components.auth.ReguertaDialogType
 import com.reguerta.user.ui.components.auth.ReguertaFlatButton
+import java.time.DayOfWeek
 import java.time.Instant
 import java.time.ZoneId
+import java.time.format.TextStyle
 import java.util.Locale
 
 @Composable
@@ -189,7 +191,7 @@ private fun AdminDeliveryCalendarSection(
         style = MaterialTheme.typography.bodyMedium,
     )
     Text(
-        text = "Dia por defecto: ${defaultDeliveryDayOfWeek?.toSpanishLabel() ?: "sin configurar"}",
+        text = "Dia por defecto: ${defaultDeliveryDayOfWeek?.toLocalizedLabel() ?: "sin configurar"}",
         style = MaterialTheme.typography.bodyMedium,
         fontWeight = FontWeight.Medium,
     )
@@ -481,7 +483,7 @@ private fun DeliveryCalendarOverrideDialog(
                                 enabled = !isSaving,
                             )
                             Text(
-                                text = selectedWeekday.toSpanishLabel(),
+                                text = selectedWeekday.toLocalizedLabel(),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium,
                                 modifier = Modifier.align(Alignment.CenterVertically),
@@ -532,15 +534,22 @@ private fun Long.toDeliveryWeekday(): DeliveryWeekday =
         java.time.DayOfWeek.SUNDAY -> DeliveryWeekday.SUNDAY
     }
 
-private fun DeliveryWeekday.toSpanishLabel(): String = when (this) {
-    DeliveryWeekday.MONDAY -> "Lunes"
-    DeliveryWeekday.TUESDAY -> "Martes"
-    DeliveryWeekday.WEDNESDAY -> "Miercoles"
-    DeliveryWeekday.THURSDAY -> "Jueves"
-    DeliveryWeekday.FRIDAY -> "Viernes"
-    DeliveryWeekday.SATURDAY -> "Sabado"
-    DeliveryWeekday.SUNDAY -> "Domingo"
+private fun DeliveryWeekday.toLocalizedLabel(): String {
+    val locale = Locale.getDefault()
+    val dayOfWeek = when (this) {
+        DeliveryWeekday.MONDAY -> DayOfWeek.MONDAY
+        DeliveryWeekday.TUESDAY -> DayOfWeek.TUESDAY
+        DeliveryWeekday.WEDNESDAY -> DayOfWeek.WEDNESDAY
+        DeliveryWeekday.THURSDAY -> DayOfWeek.THURSDAY
+        DeliveryWeekday.FRIDAY -> DayOfWeek.FRIDAY
+        DeliveryWeekday.SATURDAY -> DayOfWeek.SATURDAY
+        DeliveryWeekday.SUNDAY -> DayOfWeek.SUNDAY
+    }
+    return dayOfWeek.getDisplayName(TextStyle.FULL, locale).toTitleCase(locale)
 }
+
+private fun String.toTitleCase(locale: Locale): String =
+    replaceFirstChar { if (it.isLowerCase()) it.titlecase(locale) else it.toString() }
 
 private fun DeliveryWeekday.previous(): DeliveryWeekday =
     DeliveryWeekday.entries[(ordinal + DeliveryWeekday.entries.size - 1) % DeliveryWeekday.entries.size]

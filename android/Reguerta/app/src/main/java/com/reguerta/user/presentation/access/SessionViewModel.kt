@@ -58,13 +58,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import java.text.DateFormat
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.temporal.WeekFields
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.Locale
 
 data class MemberDraft(
     val displayName: String = "",
@@ -2302,7 +2302,7 @@ private fun ShiftSwapRequest.hasPendingCandidateFor(memberId: String): Boolean =
     }
 
 private fun Long.toShiftNotificationDateTime(): String {
-    val formatter = java.text.SimpleDateFormat("d MMM yyyy", Locale.forLanguageTag("es-ES"))
+    val formatter = DateFormat.getDateInstance(DateFormat.MEDIUM)
     return formatter.format(java.util.Date(this))
 }
 
