@@ -23,11 +23,22 @@ extension SessionViewModel {
         Task { @MainActor in
             let currentWeekParity = producerParityForISOWeek(nowMillis: nowMillisProvider())
             var seasonalCommitmentsById: [String: SeasonalCommitment] = [:]
-            for lookupKey in session.member.seasonalCommitmentLookupKeys {
-                let commitments = await seasonalCommitmentRepository.activeCommitments(userId: lookupKey)
-                for commitment in commitments {
-                    seasonalCommitmentsById[commitment.id] = commitment
+            let lookupKeys = session.member.seasonalCommitmentLookupKeys
+            let commitmentRepository = seasonalCommitmentRepository
+            let commitmentsByLookup = await withTaskGroup(of: [SeasonalCommitment].self) { group in
+                for lookupKey in lookupKeys {
+                    group.addTask {
+                        await commitmentRepository.activeCommitments(userId: lookupKey)
+                    }
                 }
+                var collected: [SeasonalCommitment] = []
+                for await commitments in group {
+                    collected.append(contentsOf: commitments)
+                }
+                return collected
+            }
+            for commitment in commitmentsByLookup {
+                seasonalCommitmentsById[commitment.id] = commitment
             }
             let visibleProducts = await productRepository.allProducts()
                 .filter { product in

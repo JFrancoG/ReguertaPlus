@@ -93,6 +93,10 @@ Legacy-rich `orderlines` fields are already present and should be preserved unti
   - rollout path: `<env>/plus-collections/config/global`
   - `<env>`: `develop` or `production`
 
+Seasonal commitments quantity field contract:
+- Canonical field: `fixedQty` (number).
+- Temporary legacy aliases accepted during migration: `fixedQtyPerOfferedWeek`, `fixedQtyPerWeek`.
+
 Shift/source semantics:
 - `shifts.source` uses `app` when managed from app/admin flows.
 - `shifts.source` uses `google_sheets` when coming from Sheets integration/sync.

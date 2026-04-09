@@ -11,17 +11,20 @@ import com.reguerta.user.domain.commitments.SeasonalCommitmentRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-private val SeasonalCommitmentUserFields = listOf(
+private val SeasonalCommitmentQueryUserFields = listOf(
     "userId",
     "memberId",
+)
+private val SeasonalCommitmentLegacyUserFields = listOf(
+    "uid",
     "user",
     "member",
     "userRef",
     "memberRef",
     "userID",
     "memberID",
-    "uid",
 )
+private val SeasonalCommitmentUserReadFields = SeasonalCommitmentQueryUserFields + SeasonalCommitmentLegacyUserFields
 private val SeasonalCommitmentProductFields = listOf(
     "productId",
     "product",
@@ -36,9 +39,9 @@ private val SeasonalCommitmentSeasonFields = listOf(
     "commitmentSeason",
 )
 private val SeasonalCommitmentQtyFields = listOf(
+    "fixedQty",
     "fixedQtyPerOfferedWeek",
     "fixedQtyPerWeek",
-    "fixedQty",
     "weeklyQty",
     "qty",
     "quantity",
@@ -58,42 +61,64 @@ class FirestoreSeasonalCommitmentRepository(
 
     override suspend fun getActiveCommitmentsForUser(userId: String): List<SeasonalCommitment> = withContext(Dispatchers.IO) {
         runCatching {
+            val normalizedLookup = userId.trim().ifBlank { return@runCatching emptyList() }
             val docsById = linkedMapOf<String, com.google.firebase.firestore.DocumentSnapshot>()
-            SeasonalCommitmentUserFields.forEach { field ->
-                listOf(
-                    userId as Any,
-                    firestore.document("$usersCollectionPath/$userId"),
-                ).forEach { target ->
-                    val snapshot = Tasks.await(
-                        firestore.collection(commitmentsCollectionPath)
-                            .whereEqualTo(field, target)
-                            .get(),
-                    )
-                    snapshot.documents.forEach { document ->
-                        docsById[document.id] = document
-                    }
-                }
-            }
-            val activeSnapshot = Tasks.await(
-                firestore.collection(commitmentsCollectionPath)
-                    .whereEqualTo("active", true)
-                    .get(),
+
+            queryByFields(
+                fields = SeasonalCommitmentQueryUserFields,
+                lookupValue = normalizedLookup,
+                includeReferenceTarget = !normalizedLookup.contains('@'),
+                output = docsById,
             )
-            activeSnapshot.documents.forEach { document ->
-                docsById[document.id] = document
+
+            if (docsById.isEmpty()) {
+                queryByFields(
+                    fields = SeasonalCommitmentLegacyUserFields,
+                    lookupValue = normalizedLookup,
+                    includeReferenceTarget = !normalizedLookup.contains('@'),
+                    output = docsById,
+                )
             }
+
             docsById.values
                 .mapNotNull { it.toSeasonalCommitment() }
-                .filter { commitment -> commitment.userId.matchesLookupUserId(userId) }
+                .filter { commitment -> commitment.userId.matchesLookupUserId(normalizedLookup) }
                 .filter(SeasonalCommitment::active)
                 .sortedWith(compareBy<SeasonalCommitment> { it.seasonKey }.thenBy { it.productId })
         }.getOrDefault(emptyList())
+    }
+
+    private fun queryByFields(
+        fields: List<String>,
+        lookupValue: String,
+        includeReferenceTarget: Boolean,
+        output: MutableMap<String, com.google.firebase.firestore.DocumentSnapshot>,
+    ) {
+        val referenceTarget = firestore.document("$usersCollectionPath/$lookupValue")
+        val targets = buildList<Any> {
+            add(lookupValue)
+            if (includeReferenceTarget) {
+                add(referenceTarget)
+            }
+        }
+        fields.forEach { field ->
+            targets.forEach { target ->
+                val snapshot = Tasks.await(
+                    firestore.collection(commitmentsCollectionPath)
+                        .whereEqualTo(field, target)
+                        .get(),
+                )
+                snapshot.documents.forEach { document ->
+                    output[document.id] = document
+                }
+            }
+        }
     }
 }
 
 private fun com.google.firebase.firestore.DocumentSnapshot.toSeasonalCommitment(): SeasonalCommitment? {
     if (!exists()) return null
-    val userId = firstNormalizedId(SeasonalCommitmentUserFields) ?: return null
+    val userId = firstNormalizedId(SeasonalCommitmentUserReadFields) ?: return null
     val productId = firstNormalizedId(SeasonalCommitmentProductFields) ?: return null
     val seasonKey = firstNormalizedId(SeasonalCommitmentSeasonFields) ?: return null
     val fixedQty = firstPositiveDouble(SeasonalCommitmentQtyFields) ?: return null

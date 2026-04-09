@@ -8,9 +8,11 @@ import com.reguerta.user.domain.products.ProductPricingMode
 import com.reguerta.user.domain.products.ProductRepository
 import com.reguerta.user.domain.products.ProductStockMode
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.awaitAll
 
 internal class SessionProductActions(
     private val uiState: MutableStateFlow<SessionUiState>,
@@ -48,11 +50,17 @@ internal class SessionProductActions(
             val membersById = mode.members.associateBy { it.id }
             val currentWeekParity = currentIsoWeekProducerParity(nowMillis = nowMillisProvider())
             val seasonalCommitments = linkedMapOf<String, com.reguerta.user.domain.commitments.SeasonalCommitment>()
-            mode.member.seasonalCommitmentLookupKeys().forEach { lookupKey ->
-                seasonalCommitmentRepository.getActiveCommitmentsForUser(lookupKey).forEach {
+            mode.member.seasonalCommitmentLookupKeys()
+                .map { lookupKey ->
+                    async {
+                        seasonalCommitmentRepository.getActiveCommitmentsForUser(lookupKey)
+                    }
+                }
+                .awaitAll()
+                .flatten()
+                .forEach {
                     seasonalCommitments[it.id] = it
                 }
-            }
             val visibleProducts = productRepository.getAllProducts()
                 .filter { product ->
                     product.isVisibleInOrdering &&

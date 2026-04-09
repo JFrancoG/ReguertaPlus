@@ -1,17 +1,20 @@
 import FirebaseFirestore
 import Foundation
 
-private let seasonalCommitmentUserFields = [
+private let seasonalCommitmentQueryUserFields = [
     "userId",
-    "memberId",
+    "memberId"
+]
+private let seasonalCommitmentLegacyUserFields = [
+    "uid",
     "user",
     "member",
     "userRef",
     "memberRef",
     "userID",
-    "memberID",
-    "uid"
+    "memberID"
 ]
+private let seasonalCommitmentUserReadFields = seasonalCommitmentQueryUserFields + seasonalCommitmentLegacyUserFields
 private let seasonalCommitmentProductFields = [
     "productId",
     "product",
@@ -26,9 +29,9 @@ private let seasonalCommitmentSeasonFields = [
     "commitmentSeason"
 ]
 private let seasonalCommitmentQtyFields = [
+    "fixedQty",
     "fixedQtyPerOfferedWeek",
     "fixedQtyPerWeek",
-    "fixedQty",
     "weeklyQty",
     "qty",
     "quantity"
@@ -55,38 +58,62 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
     }
 
     func activeCommitments(userId: String) async -> [SeasonalCommitment] {
-        var documentsById: [String: QueryDocumentSnapshot] = [:]
-        let userReference = usersCollection.document(userId)
-        for field in seasonalCommitmentUserFields {
-            do {
-                for target in [userId as Any, userReference as Any] {
-                    let snapshot = try await commitmentsCollection
-                        .whereField(field, isEqualTo: target)
-                        .getDocuments()
-                    for document in snapshot.documents {
-                        documentsById[document.documentID] = document
-                    }
-                }
-            } catch {
-                continue
-            }
+        let normalizedLookup = userId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedLookup.isEmpty else {
+            return []
         }
-        do {
-            let activeSnapshot = try await commitmentsCollection
-                .whereField("active", isEqualTo: true)
-                .getDocuments()
-            for document in activeSnapshot.documents {
-                documentsById[document.documentID] = document
-            }
-        } catch {
-            // Keep best effort from previous queries.
+
+        var documentsById: [String: QueryDocumentSnapshot] = [:]
+
+        await queryByFields(
+            seasonalCommitmentQueryUserFields,
+            lookupValue: normalizedLookup,
+            includeReferenceTarget: !normalizedLookup.contains("@"),
+            output: &documentsById
+        )
+
+        if documentsById.isEmpty {
+            await queryByFields(
+                seasonalCommitmentLegacyUserFields,
+                lookupValue: normalizedLookup,
+                includeReferenceTarget: !normalizedLookup.contains("@"),
+                output: &documentsById
+            )
         }
 
         return documentsById.values
             .compactMap(Self.toSeasonalCommitment)
-            .filter { $0.userId.matchesLookupUserId(userId) }
+            .filter { $0.userId.matchesLookupUserId(normalizedLookup) }
             .filter(\.active)
             .sorted(by: Self.sortCommitments)
+    }
+
+    private func queryByFields(
+        _ fields: [String],
+        lookupValue: String,
+        includeReferenceTarget: Bool,
+        output: inout [String: QueryDocumentSnapshot]
+    ) async {
+        let userReference = usersCollection.document(lookupValue)
+        var targets: [Any] = [lookupValue]
+        if includeReferenceTarget {
+            targets.append(userReference)
+        }
+
+        for field in fields {
+            for target in targets {
+                do {
+                    let snapshot = try await commitmentsCollection
+                        .whereField(field, isEqualTo: target)
+                        .getDocuments()
+                    for document in snapshot.documents {
+                        output[document.documentID] = document
+                    }
+                } catch {
+                    continue
+                }
+            }
+        }
     }
 
     private static func sortCommitments(_ lhs: SeasonalCommitment, _ rhs: SeasonalCommitment) -> Bool {
@@ -98,7 +125,7 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
 
     private static func toSeasonalCommitment(_ document: QueryDocumentSnapshot) -> SeasonalCommitment? {
         let data = document.data()
-        guard let userId = firstNormalizedID(in: data, fields: seasonalCommitmentUserFields),
+        guard let userId = firstNormalizedID(in: data, fields: seasonalCommitmentUserReadFields),
               let productId = firstNormalizedID(in: data, fields: seasonalCommitmentProductFields),
               let seasonKey = firstNormalizedID(in: data, fields: seasonalCommitmentSeasonFields),
               let fixedQtyPerOfferedWeek = firstPositiveDouble(in: data, fields: seasonalCommitmentQtyFields) else {
