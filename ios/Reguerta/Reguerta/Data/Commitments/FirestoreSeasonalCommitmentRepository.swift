@@ -18,17 +18,24 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
     }
 
     func activeCommitments(userId: String) async -> [SeasonalCommitment] {
-        do {
-            let snapshot = try await commitmentsCollection
-                .whereField("userId", isEqualTo: userId)
-                .whereField("active", isEqualTo: true)
-                .getDocuments()
-            return snapshot.documents
-                .compactMap(Self.toSeasonalCommitment)
-                .sorted(by: Self.sortCommitments)
-        } catch {
-            return []
+        var documentsById: [String: QueryDocumentSnapshot] = [:]
+        for field in ["userId", "memberId"] {
+            do {
+                let snapshot = try await commitmentsCollection
+                    .whereField(field, isEqualTo: userId)
+                    .getDocuments()
+                for document in snapshot.documents {
+                    documentsById[document.documentID] = document
+                }
+            } catch {
+                continue
+            }
         }
+
+        return documentsById.values
+            .compactMap(Self.toSeasonalCommitment)
+            .filter(\.active)
+            .sorted(by: Self.sortCommitments)
     }
 
     private static func sortCommitments(_ lhs: SeasonalCommitment, _ rhs: SeasonalCommitment) -> Bool {
@@ -40,10 +47,10 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
 
     private static func toSeasonalCommitment(_ document: QueryDocumentSnapshot) -> SeasonalCommitment? {
         let data = document.data()
-        guard let userId = normalizedString(data["userId"]),
+        guard let userId = normalizedString(data["userId"]) ?? normalizedString(data["memberId"]),
               let productId = normalizedString(data["productId"]),
               let seasonKey = normalizedString(data["seasonKey"]),
-              let fixedQtyPerOfferedWeek = data["fixedQtyPerOfferedWeek"] as? Double else {
+              let fixedQtyPerOfferedWeek = positiveDouble(data["fixedQtyPerOfferedWeek"]) else {
             return nil
         }
 
@@ -66,5 +73,21 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
         guard let string = value as? String else { return nil }
         let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private static func positiveDouble(_ value: Any?) -> Double? {
+        if let number = value as? NSNumber {
+            let double = number.doubleValue
+            return double > 0 ? double : nil
+        }
+        if let string = value as? String {
+            let normalized = string
+                .replacingOccurrences(of: ",", with: ".")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if let double = Double(normalized), double > 0 {
+                return double
+            }
+        }
+        return nil
     }
 }

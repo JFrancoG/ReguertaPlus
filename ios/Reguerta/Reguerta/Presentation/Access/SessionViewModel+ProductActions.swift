@@ -22,7 +22,19 @@ extension SessionViewModel {
         isLoadingMyOrderProducts = true
         Task { @MainActor in
             let currentWeekParity = producerParityForISOWeek(nowMillis: nowMillisProvider())
-            let seasonalCommitments = await seasonalCommitmentRepository.activeCommitments(userId: session.member.id)
+            var seasonalCommitmentsById = Dictionary(
+                uniqueKeysWithValues: await seasonalCommitmentRepository
+                    .activeCommitments(userId: session.member.id)
+                    .map { ($0.id, $0) }
+            )
+            if let authUID = session.member.authUid,
+               !authUID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+               authUID != session.member.id {
+                let authUIDCommitments = await seasonalCommitmentRepository.activeCommitments(userId: authUID)
+                for commitment in authUIDCommitments {
+                    seasonalCommitmentsById[commitment.id] = commitment
+                }
+            }
             let visibleProducts = await productRepository.allProducts()
                 .filter { product in
                     product.isVisibleInOrdering &&
@@ -43,7 +55,12 @@ extension SessionViewModel {
                 return
             }
             myOrderProductsFeed = visibleProducts
-            myOrderSeasonalCommitmentsFeed = seasonalCommitments
+            myOrderSeasonalCommitmentsFeed = seasonalCommitmentsById.values.sorted { lhs, rhs in
+                if lhs.seasonKey.localizedCaseInsensitiveCompare(rhs.seasonKey) != .orderedSame {
+                    return lhs.seasonKey.localizedCaseInsensitiveCompare(rhs.seasonKey) == .orderedAscending
+                }
+                return lhs.productId.localizedCaseInsensitiveCompare(rhs.productId) == .orderedAscending
+            }
             isLoadingMyOrderProducts = false
         }
     }

@@ -21,14 +21,20 @@ class FirestoreSeasonalCommitmentRepository(
 
     override suspend fun getActiveCommitmentsForUser(userId: String): List<SeasonalCommitment> = withContext(Dispatchers.IO) {
         runCatching {
-            val snapshot = Tasks.await(
-                firestore.collection(commitmentsCollectionPath)
-                    .whereEqualTo("userId", userId)
-                    .whereEqualTo("active", true)
-                    .get(),
-            )
-            snapshot.documents
+            val docsById = linkedMapOf<String, com.google.firebase.firestore.DocumentSnapshot>()
+            listOf("userId", "memberId").forEach { field ->
+                val snapshot = Tasks.await(
+                    firestore.collection(commitmentsCollectionPath)
+                        .whereEqualTo(field, userId)
+                        .get(),
+                )
+                snapshot.documents.forEach { document ->
+                    docsById[document.id] = document
+                }
+            }
+            docsById.values
                 .mapNotNull { it.toSeasonalCommitment() }
+                .filter(SeasonalCommitment::active)
                 .sortedWith(compareBy<SeasonalCommitment> { it.seasonKey }.thenBy { it.productId })
         }.getOrDefault(emptyList())
     }
@@ -36,10 +42,16 @@ class FirestoreSeasonalCommitmentRepository(
 
 private fun com.google.firebase.firestore.DocumentSnapshot.toSeasonalCommitment(): SeasonalCommitment? {
     if (!exists()) return null
-    val userId = getString("userId")?.trim()?.ifBlank { null } ?: return null
+    val userId = (
+        getString("userId")
+            ?: getString("memberId")
+        )
+        ?.trim()
+        ?.ifBlank { null }
+        ?: return null
     val productId = getString("productId")?.trim()?.ifBlank { null } ?: return null
     val seasonKey = getString("seasonKey")?.trim()?.ifBlank { null } ?: return null
-    val fixedQty = getDouble("fixedQtyPerOfferedWeek") ?: return null
+    val fixedQty = get("fixedQtyPerOfferedWeek").toPositiveDoubleOrNull() ?: return null
     return SeasonalCommitment(
         id = id,
         userId = userId,
@@ -51,3 +63,9 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toSeasonalCommitment(
         updatedAtMillis = getTimestamp("updatedAt")?.toDate()?.time ?: 0L,
     )
 }
+
+private fun Any?.toPositiveDoubleOrNull(): Double? = when (this) {
+    is Number -> this.toDouble()
+    is String -> this.replace(",", ".").trim().toDoubleOrNull()
+    else -> null
+}?.takeIf { it > 0.0 }
