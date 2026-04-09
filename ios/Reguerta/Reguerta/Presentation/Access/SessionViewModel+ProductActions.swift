@@ -22,18 +22,23 @@ extension SessionViewModel {
         isLoadingMyOrderProducts = true
         Task { @MainActor in
             let currentWeekParity = producerParityForISOWeek(nowMillis: nowMillisProvider())
-            var seasonalCommitmentsById = Dictionary(
-                uniqueKeysWithValues: await seasonalCommitmentRepository
-                    .activeCommitments(userId: session.member.id)
-                    .map { ($0.id, $0) }
-            )
-            if let authUID = session.member.authUid,
-               !authUID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-               authUID != session.member.id {
-                let authUIDCommitments = await seasonalCommitmentRepository.activeCommitments(userId: authUID)
-                for commitment in authUIDCommitments {
-                    seasonalCommitmentsById[commitment.id] = commitment
+            var seasonalCommitmentsById: [String: SeasonalCommitment] = [:]
+            let lookupKeys = session.member.seasonalCommitmentLookupKeys
+            let commitmentRepository = seasonalCommitmentRepository
+            let commitmentsByLookup = await withTaskGroup(of: [SeasonalCommitment].self) { group in
+                for lookupKey in lookupKeys {
+                    group.addTask {
+                        await commitmentRepository.activeCommitments(userId: lookupKey)
+                    }
                 }
+                var collected: [SeasonalCommitment] = []
+                for await commitments in group {
+                    collected.append(contentsOf: commitments)
+                }
+                return collected
+            }
+            for commitment in commitmentsByLookup {
+                seasonalCommitmentsById[commitment.id] = commitment
             }
             let visibleProducts = await productRepository.allProducts()
                 .filter { product in
@@ -261,6 +266,27 @@ private extension Member? {
     var isVisibleForOrdering: Bool {
         guard let self else { return true }
         return self.isActive && self.producerCatalogEnabled
+    }
+}
+
+extension Member {
+    var seasonalCommitmentLookupKeys: [String] {
+        var keys: [String] = [id]
+        if let authUid = authUid?.trimmingCharacters(in: .whitespacesAndNewlines), !authUid.isEmpty {
+            keys.append(authUid)
+        }
+        let emailKey = normalizedEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !emailKey.isEmpty {
+            keys.append(emailKey)
+        }
+        return keys
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .reduce(into: [String]()) { acc, key in
+                if !acc.contains(key) {
+                    acc.append(key)
+                }
+            }
     }
 }
 

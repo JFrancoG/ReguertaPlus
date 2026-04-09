@@ -8,9 +8,11 @@ import com.reguerta.user.domain.products.ProductPricingMode
 import com.reguerta.user.domain.products.ProductRepository
 import com.reguerta.user.domain.products.ProductStockMode
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.awaitAll
 
 internal class SessionProductActions(
     private val uiState: MutableStateFlow<SessionUiState>,
@@ -48,15 +50,16 @@ internal class SessionProductActions(
             val membersById = mode.members.associateBy { it.id }
             val currentWeekParity = currentIsoWeekProducerParity(nowMillis = nowMillisProvider())
             val seasonalCommitments = linkedMapOf<String, com.reguerta.user.domain.commitments.SeasonalCommitment>()
-            seasonalCommitmentRepository.getActiveCommitmentsForUser(mode.member.id).forEach {
-                seasonalCommitments[it.id] = it
-            }
-            mode.member.authUid
-                ?.takeIf { it.isNotBlank() && it != mode.member.id }
-                ?.let { authUid ->
-                    seasonalCommitmentRepository.getActiveCommitmentsForUser(authUid).forEach {
-                        seasonalCommitments[it.id] = it
+            mode.member.seasonalCommitmentLookupKeys()
+                .map { lookupKey ->
+                    async {
+                        seasonalCommitmentRepository.getActiveCommitmentsForUser(lookupKey)
                     }
+                }
+                .awaitAll()
+                .flatten()
+                .forEach {
+                    seasonalCommitments[it.id] = it
                 }
             val visibleProducts = productRepository.getAllProducts()
                 .filter { product ->
@@ -252,3 +255,19 @@ internal class SessionProductActions(
 
 private fun com.reguerta.user.domain.access.Member?.isVisibleForOrdering(): Boolean =
     this?.isActive != false && this?.producerCatalogEnabled != false
+
+internal fun com.reguerta.user.domain.access.Member.seasonalCommitmentLookupKeys(): List<String> =
+    buildList {
+        add(id)
+        authUid
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?.let(::add)
+        normalizedEmail
+            .trim()
+            .takeIf { it.isNotBlank() }
+            ?.let(::add)
+    }
+        .map(String::trim)
+        .filter(String::isNotBlank)
+        .distinct()

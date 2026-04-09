@@ -189,7 +189,9 @@ Campos:
 - `userId` (string)
 - `productId` (string)
 - `seasonKey` (string)
-- `fixedQtyPerOfferedWeek` (number)
+- `fixedQty` (number, canónico)
+- `fixedQtyPerOfferedWeek` (number, alias legacy temporal)
+- `fixedQtyPerWeek` (number, alias legacy temporal)
 - `active` (bool)
 - `createdAt`, `updatedAt`
 

@@ -1,0 +1,17 @@
+included:
+  - Reguerta
+  - ReguertaTests
+  - ReguertaUITests
+
+excluded:
+  - Reguerta.xcodeproj
+  - Reguerta.xcworkspace
+  - .build
+  - DerivedData
+  - Pods
+
+line_length:
+  warning: 160
+  error: 220
+
+reporter: "xcode"

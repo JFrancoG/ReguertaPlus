@@ -314,7 +314,9 @@ Estrategia canonica de calendario:
 | `userId` | string | si | admin | |
 | `productId` | string | si | admin | |
 | `seasonKey` | string | si | admin | Ej. `2026-mango` |
-| `fixedQtyPerOfferedWeek` | number | si | admin | Cantidad fija |
+| `fixedQty` | number | si | admin | Cantidad fija (campo canonico) |
+| `fixedQtyPerOfferedWeek` | number | no | admin | Alias legacy temporal |
+| `fixedQtyPerWeek` | number | no | admin | Alias legacy temporal |
 | `active` | bool | si | admin | |
 | `createdAt` | timestamp | si | sistema | |
 | `updatedAt` | timestamp | si | sistema | |
