@@ -274,6 +274,9 @@ extension ContentView {
 }
 
 private let myOrderCommonPurchasesGroupId = "__my_order_reguerta_common_purchases__"
+private let myOrderCartStoragePrefix = "reguerta_my_order_cart"
+private let myOrderCartQuantitiesSuffix = ".quantities"
+private let myOrderCartOptionsSuffix = ".eco_options"
 
 private struct MyOrderProducerGroup: Identifiable {
     let vendorId: String
@@ -310,6 +313,11 @@ private enum MyOrderCheckoutAlert: Identifiable {
     }
 }
 
+private struct MyOrderCartSnapshot {
+    let selectedQuantities: [String: Int]
+    let selectedEcoBasketOptions: [String: String]
+}
+
 private struct MyOrderRouteView: View {
     let tokens: ReguertaDesignTokens
     let products: [Product]
@@ -324,6 +332,7 @@ private struct MyOrderRouteView: View {
     @State private var selectedEcoBasketOptions: [String: String] = [:]
     @State private var isCartVisible = false
     @State private var checkoutAlert: MyOrderCheckoutAlert?
+    @State private var hasRestoredCartState = false
 
     private var normalizedQuery: String {
         searchQuery.searchNormalized
@@ -357,6 +366,14 @@ private struct MyOrderRouteView: View {
 
     private var committedProducerId: String? {
         currentMember?.committedEcoBasketProducerId(in: members)
+    }
+
+    private var currentWeekKey: String {
+        Int64(Date().timeIntervalSince1970 * 1_000).isoWeekKey
+    }
+
+    private var cartStorageKey: String {
+        "member_\(currentMember?.id ?? "")_week_\(currentWeekKey)"
     }
 
     private var groupedProducts: [MyOrderProducerGroup] {
@@ -440,6 +457,21 @@ private struct MyOrderRouteView: View {
 
                 cartOverlay(proxy: proxy)
             }
+            .onChange(of: cartStorageKey, initial: true) { _, newStorageKey in
+                let snapshot = readMyOrderCartSnapshot(storageKey: newStorageKey)
+                selectedQuantities = snapshot.selectedQuantities
+                selectedEcoBasketOptions = snapshot.selectedEcoBasketOptions
+                if snapshot.selectedQuantities.isEmpty {
+                    isCartVisible = false
+                }
+                hasRestoredCartState = true
+            }
+            .onChange(of: selectedQuantities) { _, _ in
+                persistCurrentCartSnapshotIfNeeded()
+            }
+            .onChange(of: selectedEcoBasketOptions) { _, _ in
+                persistCurrentCartSnapshotIfNeeded()
+            }
             .onChange(of: products) { _, newProducts in
                 let productsById = Dictionary(uniqueKeysWithValues: newProducts.map { ($0.id, $0) })
                 selectedQuantities = selectedQuantities.reduce(into: [:]) { partialResult, entry in
@@ -496,6 +528,15 @@ private struct MyOrderRouteView: View {
                 }
             }
         }
+    }
+
+    private func persistCurrentCartSnapshotIfNeeded() {
+        guard hasRestoredCartState else { return }
+        persistMyOrderCartSnapshot(
+            storageKey: cartStorageKey,
+            selectedQuantities: selectedQuantities,
+            selectedEcoBasketOptions: selectedEcoBasketOptions
+        )
     }
 
     private var headerRow: some View {
@@ -1033,6 +1074,62 @@ private func countNoPickupEcoBasketUnits(
             }
             return partial
         }
+}
+
+private func readMyOrderCartSnapshot(
+    userDefaults: UserDefaults = .standard,
+    storageKey: String
+) -> MyOrderCartSnapshot {
+    let quantitiesKey = "\(myOrderCartStoragePrefix).\(storageKey)\(myOrderCartQuantitiesSuffix)"
+    let optionsKey = "\(myOrderCartStoragePrefix).\(storageKey)\(myOrderCartOptionsSuffix)"
+
+    let restoredQuantities = (userDefaults.dictionary(forKey: quantitiesKey) ?? [:])
+        .reduce(into: [String: Int]()) { partialResult, entry in
+            let quantity = (entry.value as? Int) ?? (entry.value as? NSNumber)?.intValue ?? 0
+            if quantity > 0 {
+                partialResult[entry.key] = quantity
+            }
+        }
+
+    let restoredOptions = (userDefaults.dictionary(forKey: optionsKey) ?? [:])
+        .reduce(into: [String: String]()) { partialResult, entry in
+            guard let option = entry.value as? String else { return }
+            if option == ecoBasketOptionPickup || option == ecoBasketOptionNoPickup {
+                partialResult[entry.key] = option
+            }
+        }
+
+    return MyOrderCartSnapshot(
+        selectedQuantities: restoredQuantities,
+        selectedEcoBasketOptions: restoredOptions
+    )
+}
+
+private func persistMyOrderCartSnapshot(
+    userDefaults: UserDefaults = .standard,
+    storageKey: String,
+    selectedQuantities: [String: Int],
+    selectedEcoBasketOptions: [String: String]
+) {
+    let quantitiesKey = "\(myOrderCartStoragePrefix).\(storageKey)\(myOrderCartQuantitiesSuffix)"
+    let optionsKey = "\(myOrderCartStoragePrefix).\(storageKey)\(myOrderCartOptionsSuffix)"
+
+    let normalizedQuantities = selectedQuantities.filter { $0.value > 0 }
+    let normalizedOptions = selectedEcoBasketOptions
+        .filter { normalizedQuantities[$0.key, default: 0] > 0 }
+        .filter { $0.value == ecoBasketOptionPickup || $0.value == ecoBasketOptionNoPickup }
+
+    if normalizedQuantities.isEmpty {
+        userDefaults.removeObject(forKey: quantitiesKey)
+    } else {
+        userDefaults.set(normalizedQuantities, forKey: quantitiesKey)
+    }
+
+    if normalizedOptions.isEmpty {
+        userDefaults.removeObject(forKey: optionsKey)
+    } else {
+        userDefaults.set(normalizedOptions, forKey: optionsKey)
+    }
 }
 
 private extension Product {
