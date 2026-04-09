@@ -4,21 +4,37 @@ extension ContentView {
     var homeRoute: some View {
         GeometryReader { proxy in
             let drawerWidth = min(320.resize, proxy.size.width * 0.78)
+            let usesShellScroll = homeDestination != .myOrder
 
             ZStack(alignment: .leading) {
-                ScrollView(.vertical, showsIndicators: false) {
+                if usesShellScroll {
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                            homeShellTopBar
+                            homeRouteContent
+
+                            if viewModel.feedbackMessageKey != nil {
+                                feedbackMessageRoute
+                            }
+                        }
+                        .padding(.vertical, tokens.spacing.lg)
+                    }
+                    .scrollDismissesKeyboard(.interactively)
+                    .disabled(isHomeDrawerOpen)
+                } else {
                     VStack(alignment: .leading, spacing: tokens.spacing.lg) {
                         homeShellTopBar
                         homeRouteContent
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
                         if viewModel.feedbackMessageKey != nil {
                             feedbackMessageRoute
                         }
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .padding(.vertical, tokens.spacing.lg)
+                    .disabled(isHomeDrawerOpen)
                 }
-                .scrollDismissesKeyboard(.interactively)
-                .disabled(isHomeDrawerOpen)
 
                 if isHomeDrawerOpen {
                     Color.black.opacity(0.18)
@@ -148,6 +164,8 @@ extension ContentView {
             viewModel.refreshNotifications()
         case .products:
             viewModel.refreshProducts()
+        case .myOrder:
+            viewModel.refreshMyOrderProducts()
         case .profile:
             viewModel.refreshSharedProfiles()
         case .shifts:

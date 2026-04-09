@@ -410,6 +410,7 @@ internal class SessionAuthActions(
                         isLoadingNews = true,
                         isLoadingNotifications = true,
                         isLoadingProducts = result.member.canManageSessionProductCatalog,
+                        isLoadingMyOrderProducts = false,
                         isUpdatingProducerCatalogVisibility = false,
                         isLoadingSharedProfiles = true,
                         isLoadingShifts = true,
@@ -430,6 +431,7 @@ internal class SessionAuthActions(
                             },
                             notificationsFeed = allNotifications.filter { event -> event.isVisibleTo(result.member) },
                             productsFeed = products,
+                            myOrderProductsFeed = emptyList(),
                             productDraft = ProductDraft(),
                             sharedProfiles = sharedProfiles.filter { profile -> profile.hasVisibleContent },
                             sharedProfileDraft = ownSharedProfile?.toDraft() ?: SharedProfileDraft(),
@@ -447,6 +449,7 @@ internal class SessionAuthActions(
                             isLoadingNews = false,
                             isLoadingNotifications = false,
                             isLoadingProducts = false,
+                            isLoadingMyOrderProducts = false,
                             isLoadingSharedProfiles = false,
                             isLoadingShifts = false,
                         )

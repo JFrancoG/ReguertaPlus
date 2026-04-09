@@ -71,7 +71,10 @@ extension ContentView {
             canOpenProducts: canOpenProducts,
             myOrderFreshnessState: myOrderFreshnessState,
             disabledMessageKey: disabledMessageKey,
-            onOpenMyOrder: {},
+            onOpenMyOrder: {
+                homeDestination = .myOrder
+                viewModel.refreshMyOrderProducts()
+            },
             onOpenProducts: {
                 homeDestination = .products
                 viewModel.refreshProducts()

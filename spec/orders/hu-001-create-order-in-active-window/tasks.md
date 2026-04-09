@@ -1,19 +1,19 @@
 # Tasks - HU-001 (Create order in active window)
 
 ## 1. Preparation
-- [ ] Review linked RFs and acceptance criteria for this story.
-- [ ] Identify impacted components/layers in Android, iOS, and backend.
-- [ ] Define test scenarios (happy path and edge cases).
+- [x] Review linked RFs and acceptance criteria for this story.
+- [x] Identify impacted components/layers in Android, iOS, and backend.
+- [x] Define test scenarios (happy path and edge cases).
 
 ## 2. Android implementation
-- [ ] Implement UI/ViewModel/domain layer changes.
-- [ ] Integrate required read/write data flows.
-- [ ] Validate loading, error, and success states.
+- [x] Implement UI/ViewModel/domain layer changes.
+- [x] Integrate required read/write data flows.
+- [x] Validate loading, error, and success states.
 
 ## 3. iOS implementation
-- [ ] Implement equivalent SwiftUI/ViewModel/domain layer changes.
-- [ ] Integrate required read/write data flows.
-- [ ] Validate loading, error, and success states.
+- [x] Implement equivalent SwiftUI/ViewModel/domain layer changes.
+- [x] Integrate required read/write data flows.
+- [x] Validate loading, error, and success states.
 
 ## 4. Backend / Firestore
 - [ ] Adjust schema/queries/rules/functions where applicable.

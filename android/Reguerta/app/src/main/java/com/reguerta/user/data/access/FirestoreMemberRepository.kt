@@ -7,9 +7,11 @@ import com.google.firebase.firestore.QuerySnapshot
 import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
 import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
 import com.reguerta.user.data.firestore.ReguertaFirestorePath
+import com.reguerta.user.domain.access.EcoCommitmentMode
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRepository
 import com.reguerta.user.domain.access.MemberRole
+import com.reguerta.user.domain.access.ProducerParity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -65,6 +67,9 @@ class FirestoreMemberRepository(
             isActive = true,
             producerCatalogEnabled = true,
             isCommonPurchaseManager = false,
+            producerParity = null,
+            ecoCommitmentMode = EcoCommitmentMode.WEEKLY,
+            ecoCommitmentParity = null,
         )
 
         runCatching {
@@ -119,6 +124,10 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toMember(): Member? {
     val isActive = getBoolean("isActive") ?: true
     val producerCatalogEnabled = getBoolean("producerCatalogEnabled") ?: true
     val isCommonPurchaseManager = getBoolean("isCommonPurchaseManager") ?: false
+    val producerParity = getString("producerParity").toProducerParityOrNull()
+    val ecoCommitment = get("ecoCommitment") as? Map<*, *>
+    val ecoCommitmentMode = (ecoCommitment?.get("mode") as? String).toEcoCommitmentModeOrDefault()
+    val ecoCommitmentParity = (ecoCommitment?.get("parity") as? String).toProducerParityOrNull()
 
     val rawRoles = get("roles") as? List<*>
     val parsedRoles = rawRoles
@@ -143,6 +152,9 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toMember(): Member? {
         isActive = isActive,
         producerCatalogEnabled = producerCatalogEnabled,
         isCommonPurchaseManager = isCommonPurchaseManager,
+        producerParity = producerParity,
+        ecoCommitmentMode = ecoCommitmentMode,
+        ecoCommitmentParity = ecoCommitmentParity,
     )
 }
 
@@ -151,6 +163,17 @@ private fun String.toMemberRoleOrNull(): MemberRole? = when (this) {
     "producer" -> MemberRole.PRODUCER
     "admin" -> MemberRole.ADMIN
     else -> null
+}
+
+private fun String?.toProducerParityOrNull(): ProducerParity? = when (this?.trim()?.lowercase()) {
+    "even" -> ProducerParity.EVEN
+    "odd" -> ProducerParity.ODD
+    else -> null
+}
+
+private fun String?.toEcoCommitmentModeOrDefault(): EcoCommitmentMode = when (this?.trim()?.lowercase()) {
+    "biweekly" -> EcoCommitmentMode.BIWEEKLY
+    else -> EcoCommitmentMode.WEEKLY
 }
 
 private fun MemberRole.toWireValue(): String = when (this) {

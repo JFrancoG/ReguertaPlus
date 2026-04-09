@@ -18,7 +18,8 @@ actor InMemoryMemberRepository: MemberRepository {
             authUid: nil,
             roles: [.member, .producer],
             isActive: true,
-            producerCatalogEnabled: true
+            producerCatalogEnabled: true,
+            producerParity: .even
         ),
         "member_member_001": Member(
             id: "member_member_001",
@@ -27,7 +28,9 @@ actor InMemoryMemberRepository: MemberRepository {
             authUid: nil,
             roles: [.member],
             isActive: true,
-            producerCatalogEnabled: true
+            producerCatalogEnabled: true,
+            ecoCommitmentMode: .biweekly,
+            ecoCommitmentParity: .even
         ),
     ]
 

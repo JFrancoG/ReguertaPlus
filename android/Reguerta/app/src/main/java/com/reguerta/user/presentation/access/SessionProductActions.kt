@@ -39,6 +39,34 @@ internal class SessionProductActions(
         }
     }
 
+    fun refreshMyOrderProducts() {
+        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
+        scope.launch {
+            uiState.update { it.copy(isLoadingMyOrderProducts = true) }
+            val membersById = mode.members.associateBy { it.id }
+            val visibleProducts = productRepository.getAllProducts()
+                .filter { product ->
+                    product.isVisibleInOrdering &&
+                        membersById[product.vendorId].isVisibleForOrdering()
+                }
+                .sortedWith(
+                    compareBy<Product> { it.companyName.lowercase() }
+                        .thenBy { it.name.lowercase() },
+                )
+            uiState.update {
+                val currentMode = it.mode as? SessionMode.Authorized
+                if (currentMode?.principal?.uid != mode.principal.uid) {
+                    it.copy(isLoadingMyOrderProducts = false)
+                } else {
+                    it.copy(
+                        myOrderProductsFeed = visibleProducts,
+                        isLoadingMyOrderProducts = false,
+                    )
+                }
+            }
+        }
+    }
+
     fun saveProduct(onSuccess: () -> Unit = {}) {
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
         if (!mode.member.canManageSessionProductCatalog) {
@@ -202,3 +230,6 @@ internal class SessionProductActions(
         }
     }
 }
+
+private fun com.reguerta.user.domain.access.Member?.isVisibleForOrdering(): Boolean =
+    this?.isActive != false && this?.producerCatalogEnabled != false

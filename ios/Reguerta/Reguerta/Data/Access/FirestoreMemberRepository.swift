@@ -129,6 +129,13 @@ final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
         let isActive = (data["isActive"] as? Bool) ?? true
         let producerCatalogEnabled = (data["producerCatalogEnabled"] as? Bool) ?? true
         let isCommonPurchaseManager = (data["isCommonPurchaseManager"] as? Bool) ?? false
+        let producerParity = normalizedOptionalString(data["producerParity"])
+            .flatMap(ProducerParity.init(rawValue:))
+        let ecoCommitment = data["ecoCommitment"] as? [String: Any]
+        let ecoCommitmentMode = normalizedOptionalString(ecoCommitment?["mode"])
+            .flatMap(EcoCommitmentMode.init(rawValue:)) ?? .weekly
+        let ecoCommitmentParity = normalizedOptionalString(ecoCommitment?["parity"])
+            .flatMap(ProducerParity.init(rawValue:))
         let rawRoles = (data["roles"] as? [String]) ?? ["member"]
         let parsedRoles = Set(rawRoles.compactMap(MemberRole.init(rawValue:)))
         let roles = parsedRoles.isEmpty ? Set([MemberRole.member]) : parsedRoles
@@ -141,7 +148,10 @@ final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
             roles: roles,
             isActive: isActive,
             producerCatalogEnabled: producerCatalogEnabled,
-            isCommonPurchaseManager: isCommonPurchaseManager
+            isCommonPurchaseManager: isCommonPurchaseManager,
+            producerParity: producerParity,
+            ecoCommitmentMode: ecoCommitmentMode,
+            ecoCommitmentParity: ecoCommitmentParity
         )
     }
 

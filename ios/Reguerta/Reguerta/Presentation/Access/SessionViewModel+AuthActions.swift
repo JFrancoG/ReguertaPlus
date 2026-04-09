@@ -91,6 +91,7 @@ extension SessionViewModel {
         notificationsFeed = []
         notificationDraft = NotificationDraft()
         productsFeed = []
+        myOrderProductsFeed = []
         productDraft = ProductDraft()
         sharedProfiles = []
         sharedProfileDraft = SharedProfileDraft()
@@ -106,6 +107,7 @@ extension SessionViewModel {
         isLoadingNotifications = false
         isSendingNotification = false
         isLoadingProducts = false
+        isLoadingMyOrderProducts = false
         isSavingProduct = false
         isLoadingSharedProfiles = false
         isSavingSharedProfile = false
@@ -144,6 +146,7 @@ extension SessionViewModel {
         refreshNews()
         refreshNotifications()
         refreshProducts()
+        refreshMyOrderProducts()
         refreshSharedProfiles()
         refreshShifts()
         refreshDeliveryCalendar()
@@ -167,6 +170,7 @@ extension SessionViewModel {
         refreshNews()
         refreshNotifications()
         refreshProducts()
+        refreshMyOrderProducts()
         refreshSharedProfiles()
         refreshShifts()
         refreshDeliveryCalendar()
@@ -411,6 +415,7 @@ extension SessionViewModel {
             isLoadingNews = true
             isLoadingNotifications = true
             isLoadingProducts = member.canManageProductCatalog
+            isLoadingMyOrderProducts = false
             isLoadingSharedProfiles = true
             isLoadingShifts = true
             let products = await productRepository.products(vendorId: member.id)
@@ -423,6 +428,7 @@ extension SessionViewModel {
             newsFeed = member.isAdmin ? allNews : allNews.filter(\.active)
             notificationsFeed = allNotifications.filter { $0.isVisible(to: member) }
             productsFeed = products
+            myOrderProductsFeed = []
             productDraft = ProductDraft()
             sharedProfiles = profiles.filter(\.hasVisibleContent)
             sharedProfileDraft = profiles.first(where: { $0.userId == member.id })?.toDraft() ?? SharedProfileDraft()
@@ -443,6 +449,7 @@ extension SessionViewModel {
             isLoadingNews = false
             isLoadingNotifications = false
             isLoadingProducts = false
+            isLoadingMyOrderProducts = false
             isLoadingSharedProfiles = false
             isLoadingShifts = false
             await authorizedDeviceRegistrar.register(member: member)
@@ -461,6 +468,7 @@ extension SessionViewModel {
             notificationsFeed = []
             notificationDraft = NotificationDraft()
             productsFeed = []
+            myOrderProductsFeed = []
             productDraft = ProductDraft()
             sharedProfiles = []
             sharedProfileDraft = SharedProfileDraft()
@@ -476,6 +484,7 @@ extension SessionViewModel {
             isLoadingNotifications = false
             isSendingNotification = false
             isLoadingProducts = false
+            isLoadingMyOrderProducts = false
             isSavingProduct = false
             isLoadingSharedProfiles = false
             isSavingSharedProfile = false
@@ -536,6 +545,7 @@ extension SessionViewModel {
         notificationsFeed = []
         notificationDraft = NotificationDraft()
         productsFeed = []
+        myOrderProductsFeed = []
         productDraft = ProductDraft()
         sharedProfiles = []
         sharedProfileDraft = SharedProfileDraft()
@@ -551,6 +561,7 @@ extension SessionViewModel {
         isLoadingNotifications = false
         isSendingNotification = false
         isLoadingProducts = false
+        isLoadingMyOrderProducts = false
         isSavingProduct = false
         isUpdatingProducerCatalogVisibility = false
         isLoadingSharedProfiles = false

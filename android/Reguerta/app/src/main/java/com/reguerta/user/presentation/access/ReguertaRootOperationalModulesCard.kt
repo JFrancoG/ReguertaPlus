@@ -21,6 +21,7 @@ internal fun OperationalModules(
     modulesEnabled: Boolean,
     canOpenProducts: Boolean,
     myOrderFreshnessState: MyOrderFreshnessUiState,
+    onOpenMyOrder: () -> Unit,
     onRetryMyOrderFreshness: () -> Unit,
     onOpenProducts: () -> Unit,
     onOpenShifts: () -> Unit,
@@ -35,7 +36,7 @@ internal fun OperationalModules(
         ) {
             Text(stringResource(R.string.operational_modules_title))
             Button(
-                onClick = {},
+                onClick = onOpenMyOrder,
                 enabled = modulesEnabled && myOrderFreshnessState == MyOrderFreshnessUiState.Ready,
                 modifier = Modifier.fillMaxWidth(),
             ) {
