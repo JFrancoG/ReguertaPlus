@@ -198,6 +198,7 @@ fun ReguertaRoot(
                     notificationDraft = state.notificationDraft,
                     productsFeed = state.productsFeed,
                     myOrderProductsFeed = state.myOrderProductsFeed,
+                    myOrderSeasonalCommitmentsFeed = state.myOrderSeasonalCommitmentsFeed,
                     productDraft = state.productDraft,
                     sharedProfiles = state.sharedProfiles,
                     sharedProfileDraft = state.sharedProfileDraft,

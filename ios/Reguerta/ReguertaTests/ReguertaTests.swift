@@ -604,11 +604,103 @@ struct ReguertaTests {
             members: [currentMember, producerEven, producerOdd],
             products: [ecoEven, ecoOdd],
             selectedQuantities: [ecoOdd.id: 1],
-            selectedEcoBasketOptions: [ecoOdd.id: ecoBasketOptionPickup]
+            selectedEcoBasketOptions: [ecoOdd.id: ecoBasketOptionPickup],
+            currentWeekParity: .even
         )
 
         #expect(result.isValid == false)
         #expect(result.missingCommitmentProductNames == ["Ecocesta par"])
+    }
+
+    @Test
+    func myOrderValidationDoesNotRequireBiweeklyCommitmentOnOppositeWeek() {
+        let currentMember = member(
+            id: "member_1",
+            ecoCommitmentMode: .biweekly,
+            ecoCommitmentParity: .even
+        )
+        let producerEven = producer(id: "producer_even", parity: .even)
+        let producerOdd = producer(id: "producer_odd", parity: .odd)
+        let ecoOdd = ecoBasketProduct(id: "eco_odd", vendorId: producerOdd.id, name: "Ecocesta impar")
+
+        let result = validateMyOrderCheckout(
+            currentMember: currentMember,
+            members: [currentMember, producerEven, producerOdd],
+            products: [ecoOdd],
+            selectedQuantities: [:],
+            selectedEcoBasketOptions: [:],
+            currentWeekParity: .odd
+        )
+
+        #expect(result.isValid == true)
+        #expect(result.missingCommitmentProductNames.isEmpty)
+    }
+
+    @Test
+    func myOrderValidationBlocksMissingSeasonalCommitmentProduct() {
+        let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
+        let producerEven = producer(id: "producer_even", parity: .even)
+        let avocados = regularProduct(id: "seasonal_avocado", vendorId: producerEven.id, name: "Aguacates")
+
+        let result = validateMyOrderCheckout(
+            currentMember: currentMember,
+            members: [currentMember, producerEven],
+            products: [avocados],
+            seasonalCommitments: [seasonalCommitment(productId: avocados.id, fixedQtyPerOfferedWeek: 1)],
+            selectedQuantities: [:],
+            selectedEcoBasketOptions: [:],
+            currentWeekParity: .even
+        )
+
+        #expect(result.isValid == false)
+        #expect(result.missingCommitmentProductNames == ["Aguacates"])
+    }
+
+    @Test
+    func myOrderValidationIgnoresSeasonalCommitmentWhenProductNotOffered() {
+        let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
+
+        let result = validateMyOrderCheckout(
+            currentMember: currentMember,
+            members: [currentMember],
+            products: [],
+            seasonalCommitments: [seasonalCommitment(productId: "seasonal_hidden", fixedQtyPerOfferedWeek: 1)],
+            selectedQuantities: [:],
+            selectedEcoBasketOptions: [:],
+            currentWeekParity: .even
+        )
+
+        #expect(result.isValid == true)
+        #expect(result.missingCommitmentProductNames.isEmpty)
+    }
+
+    @Test
+    func myOrderValidationBlocksMissingSeasonalCommitmentUsingSeasonKeyFallback() {
+        let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
+        let avocados = regularProduct(
+            id: "product_common_avocado",
+            vendorId: "compras_reguerta",
+            name: "Aguacates"
+        )
+
+        let result = validateMyOrderCheckout(
+            currentMember: currentMember,
+            members: [currentMember],
+            products: [avocados],
+            seasonalCommitments: [
+                seasonalCommitment(
+                    productId: "legacy_mango_commitment",
+                    seasonKey: "2026-aguacate",
+                    fixedQtyPerOfferedWeek: 1
+                )
+            ],
+            selectedQuantities: [:],
+            selectedEcoBasketOptions: [:],
+            currentWeekParity: .even
+        )
+
+        #expect(result.isValid == false)
+        #expect(result.missingCommitmentProductNames == ["Aguacates"])
     }
 
     @Test
@@ -691,6 +783,59 @@ struct ReguertaTests {
             isCommonPurchase: false,
             commonPurchaseType: nil,
             archived: false,
+            createdAtMillis: 1,
+            updatedAtMillis: 1
+        )
+    }
+
+    private func regularProduct(
+        id: String,
+        vendorId: String,
+        name: String
+    ) -> Product {
+        Product(
+            id: id,
+            vendorId: vendorId,
+            companyName: vendorId,
+            name: name,
+            description: "",
+            productImageUrl: nil,
+            price: 2.0,
+            pricingMode: .fixed,
+            unitName: "unit",
+            unitAbbreviation: "ud",
+            unitPlural: "units",
+            unitQty: 1.0,
+            packContainerName: nil,
+            packContainerAbbreviation: nil,
+            packContainerPlural: nil,
+            packContainerQty: nil,
+            isAvailable: true,
+            stockMode: .infinite,
+            stockQty: nil,
+            isEcoBasket: false,
+            isCommonPurchase: false,
+            commonPurchaseType: nil,
+            archived: false,
+            createdAtMillis: 1,
+            updatedAtMillis: 1
+        )
+    }
+
+    private func seasonalCommitment(
+        productId: String,
+        seasonKey: String = "2026",
+        productNameHint: String? = nil,
+        fixedQtyPerOfferedWeek: Double
+    ) -> SeasonalCommitment {
+        SeasonalCommitment(
+            id: "commitment_\(productId)",
+            userId: "member_1",
+            productId: productId,
+            productNameHint: productNameHint,
+            seasonKey: seasonKey,
+            fixedQtyPerOfferedWeek: fixedQtyPerOfferedWeek,
+            active: true,
             createdAtMillis: 1,
             updatedAtMillis: 1
         )

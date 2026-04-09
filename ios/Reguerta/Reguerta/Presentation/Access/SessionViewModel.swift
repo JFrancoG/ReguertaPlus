@@ -177,6 +177,7 @@ final class SessionViewModel {
     var notificationDraft = NotificationDraft()
     var productsFeed: [Product] = []
     var myOrderProductsFeed: [Product] = []
+    var myOrderSeasonalCommitmentsFeed: [SeasonalCommitment] = []
     var productDraft = ProductDraft()
     var sharedProfiles: [SharedProfile] = []
     var sharedProfileDraft = SharedProfileDraft()
@@ -212,6 +213,7 @@ final class SessionViewModel {
     let newsRepository: any NewsRepository
     let notificationRepository: any NotificationRepository
     let productRepository: any ProductRepository
+    let seasonalCommitmentRepository: any SeasonalCommitmentRepository
     let sharedProfileRepository: any SharedProfileRepository
     let shiftRepository: any ShiftRepository
     let deliveryCalendarRepository: any DeliveryCalendarRepository
@@ -294,6 +296,10 @@ final class SessionViewModel {
             primary: FirestoreProductRepository(),
             fallback: InMemoryProductRepository()
         )
+        let selectedSeasonalCommitmentRepository: any SeasonalCommitmentRepository = ChainedSeasonalCommitmentRepository(
+            primary: FirestoreSeasonalCommitmentRepository(),
+            fallback: InMemorySeasonalCommitmentRepository()
+        )
         let selectedSharedProfileRepository = sharedProfileRepository ?? ChainedSharedProfileRepository(
             primary: FirestoreSharedProfileRepository(),
             fallback: InMemorySharedProfileRepository()
@@ -338,6 +344,7 @@ final class SessionViewModel {
         self.newsRepository = selectedNewsRepository
         self.notificationRepository = selectedNotificationRepository
         self.productRepository = selectedProductRepository
+        self.seasonalCommitmentRepository = selectedSeasonalCommitmentRepository
         self.sharedProfileRepository = selectedSharedProfileRepository
         self.shiftRepository = selectedShiftRepository
         self.deliveryCalendarRepository = selectedDeliveryCalendarRepository

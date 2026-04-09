@@ -12,6 +12,9 @@ import com.reguerta.user.data.access.InMemoryMemberRepository
 import com.reguerta.user.data.calendar.ChainedDeliveryCalendarRepository
 import com.reguerta.user.data.calendar.FirestoreDeliveryCalendarRepository
 import com.reguerta.user.data.calendar.InMemoryDeliveryCalendarRepository
+import com.reguerta.user.data.commitments.ChainedSeasonalCommitmentRepository
+import com.reguerta.user.data.commitments.FirestoreSeasonalCommitmentRepository
+import com.reguerta.user.data.commitments.InMemorySeasonalCommitmentRepository
 import com.reguerta.user.data.devices.FirebaseAuthorizedDeviceRegistrar
 import com.reguerta.user.data.devices.FirestoreDeviceRegistrationRepository
 import com.reguerta.user.data.freshness.DataStoreCriticalDataFreshnessLocalRepository
@@ -69,6 +72,11 @@ fun rememberSessionViewModel(): SessionViewModel {
         val primary = FirestoreProductRepository(firestore = FirebaseFirestore.getInstance())
         ChainedProductRepository(primary = primary, fallback = fallback)
     }
+    val seasonalCommitmentRepository = remember {
+        val fallback = InMemorySeasonalCommitmentRepository()
+        val primary = FirestoreSeasonalCommitmentRepository(firestore = FirebaseFirestore.getInstance())
+        ChainedSeasonalCommitmentRepository(primary = primary, fallback = fallback)
+    }
     val shiftRepository = remember {
         val fallback = InMemoryShiftRepository()
         val primary = FirestoreShiftRepository(firestore = FirebaseFirestore.getInstance())
@@ -107,6 +115,7 @@ fun rememberSessionViewModel(): SessionViewModel {
             newsRepository = newsRepository,
             notificationRepository = notificationRepository,
             productRepository = productRepository,
+            seasonalCommitmentRepository = seasonalCommitmentRepository,
             sharedProfileRepository = sharedProfileRepository,
             shiftRepository = shiftRepository,
             deliveryCalendarRepository = deliveryCalendarRepository,

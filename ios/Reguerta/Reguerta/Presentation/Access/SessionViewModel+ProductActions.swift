@@ -21,9 +21,28 @@ extension SessionViewModel {
         guard case .authorized(let session) = mode else { return }
         isLoadingMyOrderProducts = true
         Task { @MainActor in
+            let currentWeekParity = producerParityForISOWeek(nowMillis: nowMillisProvider())
+            var seasonalCommitmentsById = Dictionary(
+                uniqueKeysWithValues: await seasonalCommitmentRepository
+                    .activeCommitments(userId: session.member.id)
+                    .map { ($0.id, $0) }
+            )
+            if let authUID = session.member.authUid,
+               !authUID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+               authUID != session.member.id {
+                let authUIDCommitments = await seasonalCommitmentRepository.activeCommitments(userId: authUID)
+                for commitment in authUIDCommitments {
+                    seasonalCommitmentsById[commitment.id] = commitment
+                }
+            }
             let visibleProducts = await productRepository.allProducts()
                 .filter { product in
-                    product.isVisibleInOrdering && session.membersById[product.vendorId].isVisibleForOrdering
+                    product.isVisibleInOrdering &&
+                        session.membersById[product.vendorId].isVisibleForOrdering &&
+                        product.matchesCurrentProducerWeek(
+                            membersById: session.membersById,
+                            currentWeekParity: currentWeekParity
+                        )
                 }
                 .sorted { lhs, rhs in
                     if lhs.companyName.localizedCaseInsensitiveCompare(rhs.companyName) != .orderedSame {
@@ -36,6 +55,12 @@ extension SessionViewModel {
                 return
             }
             myOrderProductsFeed = visibleProducts
+            myOrderSeasonalCommitmentsFeed = seasonalCommitmentsById.values.sorted { lhs, rhs in
+                if lhs.seasonKey.localizedCaseInsensitiveCompare(rhs.seasonKey) != .orderedSame {
+                    return lhs.seasonKey.localizedCaseInsensitiveCompare(rhs.seasonKey) == .orderedAscending
+                }
+                return lhs.productId.localizedCaseInsensitiveCompare(rhs.productId) == .orderedAscending
+            }
             isLoadingMyOrderProducts = false
         }
     }

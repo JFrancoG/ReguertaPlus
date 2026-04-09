@@ -63,6 +63,7 @@ import coil3.compose.AsyncImage
 import com.reguerta.user.R
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
+import com.reguerta.user.domain.commitments.SeasonalCommitment
 import com.reguerta.user.domain.products.Product
 import com.reguerta.user.domain.products.ProductStockMode
 import java.text.Normalizer
@@ -106,6 +107,7 @@ internal fun MyOrderRoute(
     currentMember: Member?,
     members: List<Member>,
     products: List<Product>,
+    seasonalCommitments: List<SeasonalCommitment>,
     isLoading: Boolean,
     onRefresh: () -> Unit,
 ) {
@@ -116,6 +118,7 @@ internal fun MyOrderRoute(
     var checkoutDialogState by remember { mutableStateOf<MyOrderCheckoutDialogState?>(null) }
 
     val normalizedQuery = remember(searchQuery) { searchQuery.searchNormalized() }
+    val currentWeekParity = remember { currentIsoWeekProducerParity() }
     val committedProducerId = remember(currentMember, members) {
         currentMember?.committedEcoBasketProducerId(members = members)
     }
@@ -412,8 +415,10 @@ internal fun MyOrderRoute(
                                     currentMember = currentMember,
                                     members = members,
                                     products = products,
+                                    seasonalCommitments = seasonalCommitments,
                                     selectedQuantities = selectedQuantities,
                                     selectedEcoBasketOptions = selectedEcoBasketOptions,
+                                    currentWeekParity = currentWeekParity,
                                 )
                                 checkoutDialogState = when {
                                     validationResult.hasEcoBasketPriceMismatch -> {

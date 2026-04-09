@@ -92,6 +92,7 @@ extension SessionViewModel {
         notificationDraft = NotificationDraft()
         productsFeed = []
         myOrderProductsFeed = []
+        myOrderSeasonalCommitmentsFeed = []
         productDraft = ProductDraft()
         sharedProfiles = []
         sharedProfileDraft = SharedProfileDraft()
@@ -429,6 +430,7 @@ extension SessionViewModel {
             notificationsFeed = allNotifications.filter { $0.isVisible(to: member) }
             productsFeed = products
             myOrderProductsFeed = []
+            myOrderSeasonalCommitmentsFeed = []
             productDraft = ProductDraft()
             sharedProfiles = profiles.filter(\.hasVisibleContent)
             sharedProfileDraft = profiles.first(where: { $0.userId == member.id })?.toDraft() ?? SharedProfileDraft()
@@ -469,6 +471,7 @@ extension SessionViewModel {
             notificationDraft = NotificationDraft()
             productsFeed = []
             myOrderProductsFeed = []
+            myOrderSeasonalCommitmentsFeed = []
             productDraft = ProductDraft()
             sharedProfiles = []
             sharedProfileDraft = SharedProfileDraft()
@@ -546,6 +549,7 @@ extension SessionViewModel {
         notificationDraft = NotificationDraft()
         productsFeed = []
         myOrderProductsFeed = []
+        myOrderSeasonalCommitmentsFeed = []
         productDraft = ProductDraft()
         sharedProfiles = []
         sharedProfileDraft = SharedProfileDraft()

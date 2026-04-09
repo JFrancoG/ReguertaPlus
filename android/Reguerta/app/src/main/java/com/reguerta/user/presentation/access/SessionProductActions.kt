@@ -2,6 +2,7 @@ package com.reguerta.user.presentation.access
 
 import com.reguerta.user.R
 import com.reguerta.user.domain.access.MemberRepository
+import com.reguerta.user.domain.commitments.SeasonalCommitmentRepository
 import com.reguerta.user.domain.products.Product
 import com.reguerta.user.domain.products.ProductPricingMode
 import com.reguerta.user.domain.products.ProductRepository
@@ -16,6 +17,7 @@ internal class SessionProductActions(
     private val scope: CoroutineScope,
     private val memberRepository: MemberRepository,
     private val productRepository: ProductRepository,
+    private val seasonalCommitmentRepository: SeasonalCommitmentRepository,
     private val nowMillisProvider: () -> Long,
     private val emitMessage: (Int) -> Unit,
 ) {
@@ -44,10 +46,26 @@ internal class SessionProductActions(
         scope.launch {
             uiState.update { it.copy(isLoadingMyOrderProducts = true) }
             val membersById = mode.members.associateBy { it.id }
+            val currentWeekParity = currentIsoWeekProducerParity(nowMillis = nowMillisProvider())
+            val seasonalCommitments = linkedMapOf<String, com.reguerta.user.domain.commitments.SeasonalCommitment>()
+            seasonalCommitmentRepository.getActiveCommitmentsForUser(mode.member.id).forEach {
+                seasonalCommitments[it.id] = it
+            }
+            mode.member.authUid
+                ?.takeIf { it.isNotBlank() && it != mode.member.id }
+                ?.let { authUid ->
+                    seasonalCommitmentRepository.getActiveCommitmentsForUser(authUid).forEach {
+                        seasonalCommitments[it.id] = it
+                    }
+                }
             val visibleProducts = productRepository.getAllProducts()
                 .filter { product ->
                     product.isVisibleInOrdering &&
-                        membersById[product.vendorId].isVisibleForOrdering()
+                        membersById[product.vendorId].isVisibleForOrdering() &&
+                        product.matchesCurrentProducerWeek(
+                            membersById = membersById,
+                            currentWeekParity = currentWeekParity,
+                        )
                 }
                 .sortedWith(
                     compareBy<Product> { it.companyName.lowercase() }
@@ -60,6 +78,7 @@ internal class SessionProductActions(
                 } else {
                     it.copy(
                         myOrderProductsFeed = visibleProducts,
+                        myOrderSeasonalCommitmentsFeed = seasonalCommitments.values.toList(),
                         isLoadingMyOrderProducts = false,
                     )
                 }
