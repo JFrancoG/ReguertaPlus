@@ -6,6 +6,7 @@ import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.UnauthorizedReason
 import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
 import com.reguerta.user.domain.calendar.DeliveryWeekday
+import com.reguerta.user.domain.commitments.SeasonalCommitment
 import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.notifications.NotificationAudience
 import com.reguerta.user.domain.notifications.NotificationEvent
@@ -115,6 +116,7 @@ data class SessionUiState(
     val notificationDraft: NotificationDraft = NotificationDraft(),
     val productsFeed: List<Product> = emptyList(),
     val myOrderProductsFeed: List<Product> = emptyList(),
+    val myOrderSeasonalCommitmentsFeed: List<SeasonalCommitment> = emptyList(),
     val productDraft: ProductDraft = ProductDraft(),
     val sharedProfiles: List<SharedProfile> = emptyList(),
     val sharedProfileDraft: SharedProfileDraft = SharedProfileDraft(),

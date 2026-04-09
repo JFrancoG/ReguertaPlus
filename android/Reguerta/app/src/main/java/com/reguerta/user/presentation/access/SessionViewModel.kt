@@ -11,6 +11,7 @@ import com.reguerta.user.domain.access.SessionRefreshTrigger
 import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
 import com.reguerta.user.domain.calendar.DeliveryCalendarRepository
 import com.reguerta.user.domain.calendar.DeliveryWeekday
+import com.reguerta.user.domain.commitments.SeasonalCommitmentRepository
 import com.reguerta.user.domain.devices.AuthorizedDeviceRegistrar
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessLocalRepository
 import com.reguerta.user.domain.freshness.ResolveCriticalDataFreshnessUseCase
@@ -39,6 +40,7 @@ class SessionViewModel(
     private val newsRepository: NewsRepository,
     private val notificationRepository: NotificationRepository,
     private val productRepository: ProductRepository,
+    private val seasonalCommitmentRepository: SeasonalCommitmentRepository,
     private val sharedProfileRepository: SharedProfileRepository,
     private val shiftRepository: ShiftRepository,
     private val deliveryCalendarRepository: DeliveryCalendarRepository,
@@ -81,6 +83,7 @@ class SessionViewModel(
             scope = viewModelScope,
             memberRepository = repository,
             productRepository = productRepository,
+            seasonalCommitmentRepository = seasonalCommitmentRepository,
             nowMillisProvider = nowMillisProvider,
             emitMessage = ::emitMessage,
         )

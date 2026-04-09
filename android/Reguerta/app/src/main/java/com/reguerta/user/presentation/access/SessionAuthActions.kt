@@ -432,6 +432,7 @@ internal class SessionAuthActions(
                             notificationsFeed = allNotifications.filter { event -> event.isVisibleTo(result.member) },
                             productsFeed = products,
                             myOrderProductsFeed = emptyList(),
+                            myOrderSeasonalCommitmentsFeed = emptyList(),
                             productDraft = ProductDraft(),
                             sharedProfiles = sharedProfiles.filter { profile -> profile.hasVisibleContent },
                             sharedProfileDraft = ownSharedProfile?.toDraft() ?: SharedProfileDraft(),

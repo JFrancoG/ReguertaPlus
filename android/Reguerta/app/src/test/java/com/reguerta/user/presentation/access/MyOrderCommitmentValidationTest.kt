@@ -4,6 +4,7 @@ import com.reguerta.user.domain.access.EcoCommitmentMode
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.ProducerParity
+import com.reguerta.user.domain.commitments.SeasonalCommitment
 import com.reguerta.user.domain.products.Product
 import com.reguerta.user.domain.products.ProductStockMode
 import org.junit.Assert.assertEquals
@@ -85,10 +86,81 @@ class MyOrderCommitmentValidationTest {
             products = listOf(ecoEven, ecoOdd),
             selectedQuantities = mapOf(ecoOdd.id to 1),
             selectedEcoBasketOptions = mapOf(ecoOdd.id to EcoBasketOptionPickup),
+            currentWeekParity = ProducerParity.EVEN,
         )
 
         assertFalse(result.isValid)
         assertEquals(listOf("Ecocesta par"), result.missingCommitmentProductNames)
+    }
+
+    @Test
+    fun `does not require biweekly eco commitment on opposite parity week`() {
+        val member = member(
+            id = "member_1",
+            ecoCommitmentMode = EcoCommitmentMode.BIWEEKLY,
+            ecoCommitmentParity = ProducerParity.EVEN,
+        )
+        val ecoOdd = ecoBasketProduct(id = "eco_odd", vendorId = "producer_odd", name = "Ecocesta impar")
+        val members = listOf(
+            member,
+            producer(id = "producer_even", parity = ProducerParity.EVEN),
+            producer(id = "producer_odd", parity = ProducerParity.ODD),
+        )
+
+        val result = validateMyOrderCheckout(
+            currentMember = member,
+            members = members,
+            products = listOf(ecoOdd),
+            selectedQuantities = emptyMap(),
+            selectedEcoBasketOptions = emptyMap(),
+            currentWeekParity = ProducerParity.ODD,
+        )
+
+        assertTrue(result.isValid)
+        assertTrue(result.missingCommitmentProductNames.isEmpty())
+    }
+
+    @Test
+    fun `blocks checkout when seasonal commitment product is missing`() {
+        val member = member(id = "member_1", ecoCommitmentMode = EcoCommitmentMode.WEEKLY)
+        val avocado = regularProduct(id = "seasonal_avocado", vendorId = "producer_even", name = "Aguacates")
+        val commitments = listOf(
+            seasonalCommitment(productId = avocado.id, fixedQtyPerOfferedWeek = 1.0),
+        )
+
+        val result = validateMyOrderCheckout(
+            currentMember = member,
+            members = listOf(member, producer(id = "producer_even", parity = ProducerParity.EVEN)),
+            products = listOf(avocado),
+            seasonalCommitments = commitments,
+            selectedQuantities = emptyMap(),
+            selectedEcoBasketOptions = emptyMap(),
+            currentWeekParity = ProducerParity.EVEN,
+        )
+
+        assertFalse(result.isValid)
+        assertEquals(listOf("Aguacates"), result.missingCommitmentProductNames)
+    }
+
+    @Test
+    fun `ignores seasonal commitments when product is not offered this week`() {
+        val member = member(id = "member_1", ecoCommitmentMode = EcoCommitmentMode.WEEKLY)
+        val commitments = listOf(
+            seasonalCommitment(productId = "seasonal_hidden", fixedQtyPerOfferedWeek = 1.0),
+        )
+
+        val result = validateMyOrderCheckout(
+            currentMember = member,
+            members = listOf(member),
+            products = emptyList(),
+            seasonalCommitments = commitments,
+            selectedQuantities = emptyMap(),
+            selectedEcoBasketOptions = emptyMap(),
+            currentWeekParity = ProducerParity.EVEN,
+        )
+
+        assertTrue(result.isValid)
+        assertTrue(result.missingCommitmentProductNames.isEmpty())
     }
 
     @Test
@@ -168,6 +240,51 @@ class MyOrderCommitmentValidationTest {
         isCommonPurchase = false,
         commonPurchaseType = null,
         archived = false,
+        createdAtMillis = 1L,
+        updatedAtMillis = 1L,
+    )
+
+    private fun regularProduct(
+        id: String,
+        vendorId: String,
+        name: String,
+    ): Product = Product(
+        id = id,
+        vendorId = vendorId,
+        companyName = vendorId,
+        name = name,
+        description = "",
+        productImageUrl = null,
+        price = 2.0,
+        unitName = "unit",
+        unitAbbreviation = "ud",
+        unitPlural = "units",
+        unitQty = 1.0,
+        packContainerName = null,
+        packContainerAbbreviation = null,
+        packContainerPlural = null,
+        packContainerQty = null,
+        isAvailable = true,
+        stockMode = ProductStockMode.INFINITE,
+        stockQty = null,
+        isEcoBasket = false,
+        isCommonPurchase = false,
+        commonPurchaseType = null,
+        archived = false,
+        createdAtMillis = 1L,
+        updatedAtMillis = 1L,
+    )
+
+    private fun seasonalCommitment(
+        productId: String,
+        fixedQtyPerOfferedWeek: Double,
+    ): SeasonalCommitment = SeasonalCommitment(
+        id = "commitment_$productId",
+        userId = "member_1",
+        productId = productId,
+        seasonKey = "2026",
+        fixedQtyPerOfferedWeek = fixedQtyPerOfferedWeek,
+        active = true,
         createdAtMillis = 1L,
         updatedAtMillis = 1L,
     )

@@ -2,6 +2,7 @@ package com.reguerta.user.presentation.access
 
 import com.reguerta.user.R
 import com.reguerta.user.domain.access.MemberRepository
+import com.reguerta.user.domain.commitments.SeasonalCommitmentRepository
 import com.reguerta.user.domain.products.Product
 import com.reguerta.user.domain.products.ProductPricingMode
 import com.reguerta.user.domain.products.ProductRepository
@@ -16,6 +17,7 @@ internal class SessionProductActions(
     private val scope: CoroutineScope,
     private val memberRepository: MemberRepository,
     private val productRepository: ProductRepository,
+    private val seasonalCommitmentRepository: SeasonalCommitmentRepository,
     private val nowMillisProvider: () -> Long,
     private val emitMessage: (Int) -> Unit,
 ) {
@@ -44,10 +46,16 @@ internal class SessionProductActions(
         scope.launch {
             uiState.update { it.copy(isLoadingMyOrderProducts = true) }
             val membersById = mode.members.associateBy { it.id }
+            val currentWeekParity = currentIsoWeekProducerParity(nowMillis = nowMillisProvider())
+            val seasonalCommitments = seasonalCommitmentRepository.getActiveCommitmentsForUser(mode.member.id)
             val visibleProducts = productRepository.getAllProducts()
                 .filter { product ->
                     product.isVisibleInOrdering &&
-                        membersById[product.vendorId].isVisibleForOrdering()
+                        membersById[product.vendorId].isVisibleForOrdering() &&
+                        product.matchesCurrentProducerWeek(
+                            membersById = membersById,
+                            currentWeekParity = currentWeekParity,
+                        )
                 }
                 .sortedWith(
                     compareBy<Product> { it.companyName.lowercase() }
@@ -60,6 +68,7 @@ internal class SessionProductActions(
                 } else {
                     it.copy(
                         myOrderProductsFeed = visibleProducts,
+                        myOrderSeasonalCommitmentsFeed = seasonalCommitments,
                         isLoadingMyOrderProducts = false,
                     )
                 }

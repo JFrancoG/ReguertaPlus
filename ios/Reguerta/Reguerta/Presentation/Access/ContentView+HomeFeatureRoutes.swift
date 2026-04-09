@@ -137,6 +137,7 @@ extension ContentView {
         MyOrderRouteView(
             tokens: tokens,
             products: viewModel.myOrderProductsFeed,
+            seasonalCommitments: viewModel.myOrderSeasonalCommitmentsFeed,
             isLoading: viewModel.isLoadingMyOrderProducts,
             currentMember: currentHomeMember,
             members: currentHomeSession?.members ?? [],
@@ -312,6 +313,7 @@ private enum MyOrderCheckoutAlert: Identifiable {
 private struct MyOrderRouteView: View {
     let tokens: ReguertaDesignTokens
     let products: [Product]
+    let seasonalCommitments: [SeasonalCommitment]
     let isLoading: Bool
     let currentMember: Member?
     let members: [Member]
@@ -325,6 +327,10 @@ private struct MyOrderRouteView: View {
 
     private var normalizedQuery: String {
         searchQuery.searchNormalized
+    }
+
+    private var currentWeekParity: ProducerParity {
+        currentISOWeekProducerParity()
     }
 
     private var selectedProducts: [Product] {
@@ -859,8 +865,10 @@ private struct MyOrderRouteView: View {
             currentMember: currentMember,
             members: members,
             products: products,
+            seasonalCommitments: seasonalCommitments,
             selectedQuantities: selectedQuantities,
-            selectedEcoBasketOptions: selectedEcoBasketOptions
+            selectedEcoBasketOptions: selectedEcoBasketOptions,
+            currentWeekParity: currentWeekParity
         )
 
         if validation.hasEcoBasketPriceMismatch {

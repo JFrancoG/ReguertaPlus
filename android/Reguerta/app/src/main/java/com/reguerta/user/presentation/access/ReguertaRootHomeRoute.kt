@@ -30,6 +30,7 @@ import com.reguerta.user.R
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
 import com.reguerta.user.domain.calendar.DeliveryWeekday
+import com.reguerta.user.domain.commitments.SeasonalCommitment
 import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.notifications.NotificationEvent
 import com.reguerta.user.domain.profiles.SharedProfile
@@ -55,6 +56,7 @@ internal fun HomeRoute(
     notificationDraft: NotificationDraft,
     productsFeed: List<Product>,
     myOrderProductsFeed: List<Product>,
+    myOrderSeasonalCommitmentsFeed: List<SeasonalCommitment>,
     productDraft: ProductDraft,
     sharedProfiles: List<SharedProfile>,
     sharedProfileDraft: SharedProfileDraft,
@@ -396,6 +398,7 @@ internal fun HomeRoute(
                     currentMember = member,
                     members = (mode as? SessionMode.Authorized)?.members.orEmpty(),
                     products = myOrderProductsFeed,
+                    seasonalCommitments = myOrderSeasonalCommitmentsFeed,
                     isLoading = isLoadingMyOrderProducts,
                     onRefresh = onRefreshMyOrderProducts,
                     )

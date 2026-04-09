@@ -21,9 +21,16 @@ extension SessionViewModel {
         guard case .authorized(let session) = mode else { return }
         isLoadingMyOrderProducts = true
         Task { @MainActor in
+            let currentWeekParity = producerParityForISOWeek(nowMillis: nowMillisProvider())
+            let seasonalCommitments = await seasonalCommitmentRepository.activeCommitments(userId: session.member.id)
             let visibleProducts = await productRepository.allProducts()
                 .filter { product in
-                    product.isVisibleInOrdering && session.membersById[product.vendorId].isVisibleForOrdering
+                    product.isVisibleInOrdering &&
+                        session.membersById[product.vendorId].isVisibleForOrdering &&
+                        product.matchesCurrentProducerWeek(
+                            membersById: session.membersById,
+                            currentWeekParity: currentWeekParity
+                        )
                 }
                 .sorted { lhs, rhs in
                     if lhs.companyName.localizedCaseInsensitiveCompare(rhs.companyName) != .orderedSame {
@@ -36,6 +43,7 @@ extension SessionViewModel {
                 return
             }
             myOrderProductsFeed = visibleProducts
+            myOrderSeasonalCommitmentsFeed = seasonalCommitments
             isLoadingMyOrderProducts = false
         }
     }
