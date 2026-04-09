@@ -48,9 +48,9 @@ As a member I want to resume an incomplete cart so that I do not lose my selecte
 
 ## Definition of Done (DoD)
 
-- [ ] Story acceptance criteria validated.
-- [ ] Implementation aligned with linked RFs.
-- [ ] Android/iOS parity reviewed or temporary gap documented.
-- [ ] Agreed tests executed.
-- [ ] Technical/functional documentation updated.
-- [ ] Issue and PR linked.
+- [x] Story acceptance criteria validated.
+- [x] Implementation aligned with linked RFs.
+- [x] Android/iOS parity reviewed or temporary gap documented.
+- [x] Agreed tests executed.
+- [x] Technical/functional documentation updated.
+- [x] Issue and PR linked.
