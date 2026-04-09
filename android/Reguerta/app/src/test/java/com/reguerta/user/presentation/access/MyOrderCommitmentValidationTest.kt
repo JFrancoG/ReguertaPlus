@@ -211,6 +211,39 @@ class MyOrderCommitmentValidationTest {
         assertTrue(result.hasEcoBasketPriceMismatch)
     }
 
+    @Test
+    fun `seasonal commitment lookup keys include member id auth uid and email`() {
+        val keys = member(
+            id = "member_1",
+            ecoCommitmentMode = EcoCommitmentMode.WEEKLY,
+        )
+            .copy(
+                authUid = "uid_member_1",
+                normalizedEmail = "member_1@reguerta.app",
+            )
+            .seasonalCommitmentLookupKeys()
+
+        assertEquals(
+            listOf("member_1", "uid_member_1", "member_1@reguerta.app"),
+            keys,
+        )
+    }
+
+    @Test
+    fun `seasonal commitment lookup keys remove duplicates and blanks`() {
+        val keys = member(
+            id = "member_1",
+            ecoCommitmentMode = EcoCommitmentMode.WEEKLY,
+        )
+            .copy(
+                authUid = " member_1 ",
+                normalizedEmail = "   ",
+            )
+            .seasonalCommitmentLookupKeys()
+
+        assertEquals(listOf("member_1"), keys)
+    }
+
     private fun member(
         id: String,
         ecoCommitmentMode: EcoCommitmentMode,

@@ -1,6 +1,39 @@
 import FirebaseFirestore
 import Foundation
 
+private let seasonalCommitmentUserFields = [
+    "userId",
+    "memberId",
+    "user",
+    "member",
+    "userRef",
+    "memberRef",
+    "userID",
+    "memberID",
+    "uid"
+]
+private let seasonalCommitmentProductFields = [
+    "productId",
+    "product",
+    "productRef",
+    "commonProductId",
+    "itemId"
+]
+private let seasonalCommitmentSeasonFields = [
+    "seasonKey",
+    "season",
+    "campaignKey",
+    "commitmentSeason"
+]
+private let seasonalCommitmentQtyFields = [
+    "fixedQtyPerOfferedWeek",
+    "fixedQtyPerWeek",
+    "fixedQty",
+    "weeklyQty",
+    "qty",
+    "quantity"
+]
+
 final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, SeasonalCommitmentRepository {
     private let db: Firestore
     private let environment: ReguertaFirestoreEnvironment
@@ -24,7 +57,7 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
     func activeCommitments(userId: String) async -> [SeasonalCommitment] {
         var documentsById: [String: QueryDocumentSnapshot] = [:]
         let userReference = usersCollection.document(userId)
-        for field in ["userId", "memberId"] {
+        for field in seasonalCommitmentUserFields {
             do {
                 for target in [userId as Any, userReference as Any] {
                     let snapshot = try await commitmentsCollection
@@ -51,7 +84,7 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
 
         return documentsById.values
             .compactMap(Self.toSeasonalCommitment)
-            .filter { $0.userId == userId }
+            .filter { $0.userId.matchesLookupUserId(userId) }
             .filter(\.active)
             .sorted(by: Self.sortCommitments)
     }
@@ -65,10 +98,10 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
 
     private static func toSeasonalCommitment(_ document: QueryDocumentSnapshot) -> SeasonalCommitment? {
         let data = document.data()
-        guard let userId = normalizedID(data["userId"]) ?? normalizedID(data["memberId"]),
-              let productId = normalizedID(data["productId"]),
-              let seasonKey = normalizedID(data["seasonKey"]),
-              let fixedQtyPerOfferedWeek = positiveDouble(data["fixedQtyPerOfferedWeek"]) else {
+        guard let userId = firstNormalizedID(in: data, fields: seasonalCommitmentUserFields),
+              let productId = firstNormalizedID(in: data, fields: seasonalCommitmentProductFields),
+              let seasonKey = firstNormalizedID(in: data, fields: seasonalCommitmentSeasonFields),
+              let fixedQtyPerOfferedWeek = firstPositiveDouble(in: data, fields: seasonalCommitmentQtyFields) else {
             return nil
         }
 
@@ -79,9 +112,9 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
             id: document.documentID,
             userId: userId,
             productId: productId,
-            productNameHint: normalizedString(data["productName"]) ??
-                normalizedString(data["productDisplayName"]) ??
-                normalizedString(data["name"]),
+            productNameHint: normalizedText(data["productName"]) ??
+                normalizedText(data["productDisplayName"]) ??
+                normalizedText(data["name"]),
             seasonKey: seasonKey,
             fixedQtyPerOfferedWeek: fixedQtyPerOfferedWeek,
             active: (data["active"] as? Bool) ?? true,
@@ -90,23 +123,53 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
         )
     }
 
+    private static func firstNormalizedID(in data: [String: Any], fields: [String]) -> String? {
+        fields.compactMap { field in normalizedID(data[field]) }.first
+    }
+
+    private static func firstPositiveDouble(in data: [String: Any], fields: [String]) -> Double? {
+        fields.compactMap { field in positiveDouble(data[field]) }.first
+    }
+
     private static func normalizedString(_ value: Any?) -> String? {
         guard let string = value as? String else { return nil }
         let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
     }
 
-    private static func normalizedID(_ value: Any?) -> String? {
+    private static func normalizedText(_ value: Any?) -> String? {
         if let string = normalizedString(value) {
             return string
+        }
+        if let dictionary = value as? [String: Any] {
+            return normalizedText(dictionary["name"]) ??
+                normalizedText(dictionary["displayName"]) ??
+                normalizedText(dictionary["title"])
+        }
+        return nil
+    }
+
+    private static func normalizedID(_ value: Any?) -> String? {
+        if let string = normalizedString(value) {
+            return normalizePathLikeIdentifier(string)
         }
         if let reference = value as? DocumentReference {
             return normalizedString(reference.documentID)
         }
         if let dictionary = value as? [String: Any] {
-            return normalizedString(dictionary["id"])
+            return normalizedID(dictionary["id"]) ??
+                normalizedID(dictionary["documentId"]) ??
+                normalizedID(dictionary["documentID"]) ??
+                normalizedID(dictionary["path"])
         }
         return nil
+    }
+
+    fileprivate static func normalizePathLikeIdentifier(_ value: String) -> String {
+        guard value.contains("/") else { return value }
+        let trailing = value.split(separator: "/").last.map(String.init)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return (trailing?.isEmpty == false) ? trailing! : value
     }
 
     private static func positiveDouble(_ value: Any?) -> Double? {
@@ -123,5 +186,17 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
             }
         }
         return nil
+    }
+}
+
+private extension String {
+    func matchesLookupUserId(_ lookup: String) -> Bool {
+        let current = FirestoreSeasonalCommitmentRepository.normalizePathLikeIdentifier(
+            trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+        let target = FirestoreSeasonalCommitmentRepository.normalizePathLikeIdentifier(
+            lookup.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+        return current == target || current.caseInsensitiveCompare(target) == .orderedSame
     }
 }

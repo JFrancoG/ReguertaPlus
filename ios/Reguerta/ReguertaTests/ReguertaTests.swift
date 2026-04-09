@@ -722,6 +722,36 @@ struct ReguertaTests {
         #expect(result.hasEcoBasketPriceMismatch == true)
     }
 
+    @Test
+    func seasonalCommitmentLookupKeysIncludeMemberIdAuthUIDAndEmail() {
+        let member = Member(
+            id: "member_1",
+            displayName: "Member",
+            normalizedEmail: "member_1@reguerta.app",
+            authUid: "uid_member_1",
+            roles: [.member],
+            isActive: true,
+            producerCatalogEnabled: true
+        )
+
+        #expect(member.seasonalCommitmentLookupKeys == ["member_1", "uid_member_1", "member_1@reguerta.app"])
+    }
+
+    @Test
+    func seasonalCommitmentLookupKeysRemoveDuplicatesAndBlanks() {
+        let member = Member(
+            id: "member_1",
+            displayName: "Member",
+            normalizedEmail: "   ",
+            authUid: " member_1 ",
+            roles: [.member],
+            isActive: true,
+            producerCatalogEnabled: true
+        )
+
+        #expect(member.seasonalCommitmentLookupKeys == ["member_1"])
+    }
+
     private func member(
         id: String,
         ecoCommitmentMode: EcoCommitmentMode,

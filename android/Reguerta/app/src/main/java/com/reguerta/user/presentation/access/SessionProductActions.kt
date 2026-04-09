@@ -48,16 +48,11 @@ internal class SessionProductActions(
             val membersById = mode.members.associateBy { it.id }
             val currentWeekParity = currentIsoWeekProducerParity(nowMillis = nowMillisProvider())
             val seasonalCommitments = linkedMapOf<String, com.reguerta.user.domain.commitments.SeasonalCommitment>()
-            seasonalCommitmentRepository.getActiveCommitmentsForUser(mode.member.id).forEach {
-                seasonalCommitments[it.id] = it
-            }
-            mode.member.authUid
-                ?.takeIf { it.isNotBlank() && it != mode.member.id }
-                ?.let { authUid ->
-                    seasonalCommitmentRepository.getActiveCommitmentsForUser(authUid).forEach {
-                        seasonalCommitments[it.id] = it
-                    }
+            mode.member.seasonalCommitmentLookupKeys().forEach { lookupKey ->
+                seasonalCommitmentRepository.getActiveCommitmentsForUser(lookupKey).forEach {
+                    seasonalCommitments[it.id] = it
                 }
+            }
             val visibleProducts = productRepository.getAllProducts()
                 .filter { product ->
                     product.isVisibleInOrdering &&
@@ -252,3 +247,19 @@ internal class SessionProductActions(
 
 private fun com.reguerta.user.domain.access.Member?.isVisibleForOrdering(): Boolean =
     this?.isActive != false && this?.producerCatalogEnabled != false
+
+internal fun com.reguerta.user.domain.access.Member.seasonalCommitmentLookupKeys(): List<String> =
+    buildList {
+        add(id)
+        authUid
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?.let(::add)
+        normalizedEmail
+            .trim()
+            .takeIf { it.isNotBlank() }
+            ?.let(::add)
+    }
+        .map(String::trim)
+        .filter(String::isNotBlank)
+        .distinct()
