@@ -176,6 +176,7 @@ final class SessionViewModel {
     var notificationsFeed: [NotificationEvent] = []
     var notificationDraft = NotificationDraft()
     var productsFeed: [Product] = []
+    var myOrderProductsFeed: [Product] = []
     var productDraft = ProductDraft()
     var sharedProfiles: [SharedProfile] = []
     var sharedProfileDraft = SharedProfileDraft()
@@ -194,6 +195,7 @@ final class SessionViewModel {
     var isLoadingNotifications = false
     var isSendingNotification = false
     var isLoadingProducts = false
+    var isLoadingMyOrderProducts = false
     var isSavingProduct = false
     var isUpdatingProducerCatalogVisibility = false
     var isLoadingSharedProfiles = false

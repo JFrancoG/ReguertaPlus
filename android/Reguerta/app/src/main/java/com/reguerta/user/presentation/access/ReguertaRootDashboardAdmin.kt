@@ -85,6 +85,7 @@ internal fun AuthorizedHome(
     onToggleActive: (String) -> Unit,
     onCreateMember: () -> Unit,
     onRetryMyOrderFreshness: () -> Unit,
+    onOpenMyOrder: () -> Unit,
     onOpenProducts: () -> Unit,
     onOpenShifts: () -> Unit,
 ) {
@@ -92,6 +93,7 @@ internal fun AuthorizedHome(
         modulesEnabled = true,
         canOpenProducts = mode.member.canManageProductCatalog,
         myOrderFreshnessState = myOrderFreshnessState,
+        onOpenMyOrder = onOpenMyOrder,
         onRetryMyOrderFreshness = onRetryMyOrderFreshness,
         onOpenProducts = onOpenProducts,
         onOpenShifts = onOpenShifts,

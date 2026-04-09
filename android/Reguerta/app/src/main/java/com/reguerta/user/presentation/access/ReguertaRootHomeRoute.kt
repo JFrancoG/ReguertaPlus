@@ -54,6 +54,7 @@ internal fun HomeRoute(
     notificationsFeed: List<NotificationEvent>,
     notificationDraft: NotificationDraft,
     productsFeed: List<Product>,
+    myOrderProductsFeed: List<Product>,
     productDraft: ProductDraft,
     sharedProfiles: List<SharedProfile>,
     sharedProfileDraft: SharedProfileDraft,
@@ -72,6 +73,7 @@ internal fun HomeRoute(
     isLoadingNotifications: Boolean,
     isSendingNotification: Boolean,
     isLoadingProducts: Boolean,
+    isLoadingMyOrderProducts: Boolean,
     isSavingProduct: Boolean,
     isUpdatingProducerCatalogVisibility: Boolean,
     isLoadingSharedProfiles: Boolean,
@@ -106,6 +108,7 @@ internal fun HomeRoute(
     onRefreshNews: () -> Unit,
     onRefreshNotifications: () -> Unit,
     onRefreshProducts: () -> Unit,
+    onRefreshMyOrderProducts: () -> Unit,
     onRefreshSharedProfiles: () -> Unit,
     onRefreshShifts: () -> Unit,
     onRefreshDeliveryCalendar: () -> Unit,
@@ -166,6 +169,8 @@ internal fun HomeRoute(
                             onRefreshNews()
                         } else if (destination == HomeDestination.NOTIFICATIONS) {
                             onRefreshNotifications()
+                        } else if (destination == HomeDestination.MY_ORDER) {
+                            onRefreshMyOrderProducts()
                         } else if (destination == HomeDestination.PRODUCTS) {
                             onRefreshProducts()
                         } else if (destination == HomeDestination.PROFILE) {
@@ -196,11 +201,11 @@ internal fun HomeRoute(
         modifier = modifier,
         gesturesEnabled = true,
     ) {
+        val usesRouteScroll = currentDestination != HomeDestination.MY_ORDER
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
                 .imePadding()
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -233,8 +238,25 @@ internal fun HomeRoute(
                     onRefreshNotifications()
                 },
             )
-            when (currentDestination) {
-                HomeDestination.DASHBOARD -> {
+            Column(
+                modifier = if (usesRouteScroll) {
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                } else {
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                },
+                verticalArrangement = if (usesRouteScroll) {
+                    Arrangement.spacedBy(16.dp)
+                } else {
+                    Arrangement.Top
+                },
+            ) {
+                when (currentDestination) {
+                    HomeDestination.DASHBOARD -> {
                     NextShiftsCard(
                         nextDeliveryShift = nextDeliveryShift,
                         nextMarketShift = nextMarketShift,
@@ -258,6 +280,10 @@ internal fun HomeRoute(
                                 onToggleActive = onToggleActive,
                                 onCreateMember = onCreateMember,
                                 onRetryMyOrderFreshness = onRetryMyOrderFreshness,
+                                onOpenMyOrder = {
+                                    currentDestination = HomeDestination.MY_ORDER
+                                    onRefreshMyOrderProducts()
+                                },
                                 onOpenProducts = {
                                     currentDestination = HomeDestination.PRODUCTS
                                     onRefreshProducts()
@@ -285,9 +311,9 @@ internal fun HomeRoute(
                             onRefreshNews()
                         },
                     )
-                }
+                    }
 
-                HomeDestination.NEWS -> NewsFeedRoute(
+                    HomeDestination.NEWS -> NewsFeedRoute(
                     articles = newsFeed,
                     isLoading = isLoadingNews,
                     isAdmin = member?.isAdmin == true,
@@ -303,9 +329,9 @@ internal fun HomeRoute(
                     onRequestDeleteNews = { newsId ->
                         newsPendingDeletionId = newsId
                     },
-                )
+                    )
 
-                HomeDestination.PUBLISH_NEWS -> NewsEditorRoute(
+                    HomeDestination.PUBLISH_NEWS -> NewsEditorRoute(
                     draft = newsDraft,
                     isSaving = isSavingNews,
                     isEditing = editingNewsId != null,
@@ -319,9 +345,9 @@ internal fun HomeRoute(
                             currentDestination = HomeDestination.NEWS
                         }
                     },
-                )
+                    )
 
-                HomeDestination.NOTIFICATIONS -> NotificationsFeedRoute(
+                    HomeDestination.NOTIFICATIONS -> NotificationsFeedRoute(
                     notifications = notificationsFeed,
                     isLoading = isLoadingNotifications,
                     isAdmin = member?.isAdmin == true,
@@ -330,9 +356,9 @@ internal fun HomeRoute(
                         onStartCreatingNotification()
                         currentDestination = HomeDestination.ADMIN_BROADCAST
                     },
-                )
+                    )
 
-                HomeDestination.ADMIN_BROADCAST -> NotificationEditorRoute(
+                    HomeDestination.ADMIN_BROADCAST -> NotificationEditorRoute(
                     draft = notificationDraft,
                     isSending = isSendingNotification,
                     onDraftChanged = onNotificationDraftChanged,
@@ -345,9 +371,9 @@ internal fun HomeRoute(
                             currentDestination = HomeDestination.NOTIFICATIONS
                         }
                     },
-                )
+                    )
 
-                HomeDestination.PRODUCTS -> ProductsRoute(
+                    HomeDestination.PRODUCTS -> ProductsRoute(
                     currentMember = member,
                     products = productsFeed,
                     draft = productDraft,
@@ -363,9 +389,18 @@ internal fun HomeRoute(
                     onSaveProduct = { onSaveProduct { } },
                     onArchiveProduct = onArchiveProduct,
                     onSetProducerCatalogVisibility = onSetProducerCatalogVisibility,
-                )
+                    )
 
-                HomeDestination.PROFILE -> SharedProfileRoute(
+                    HomeDestination.MY_ORDER -> MyOrderRoute(
+                    modifier = Modifier.fillMaxSize(),
+                    currentMember = member,
+                    members = (mode as? SessionMode.Authorized)?.members.orEmpty(),
+                    products = myOrderProductsFeed,
+                    isLoading = isLoadingMyOrderProducts,
+                    onRefresh = onRefreshMyOrderProducts,
+                    )
+
+                    HomeDestination.PROFILE -> SharedProfileRoute(
                     currentMember = member,
                     members = (mode as? SessionMode.Authorized)?.members.orEmpty(),
                     profiles = sharedProfiles,
@@ -381,9 +416,9 @@ internal fun HomeRoute(
                     onDelete = {
                         onDeleteSharedProfile { currentDestination = HomeDestination.PROFILE }
                     },
-                )
+                    )
 
-                HomeDestination.SHIFTS -> ShiftsRoute(
+                    HomeDestination.SHIFTS -> ShiftsRoute(
                     shifts = shiftsFeed,
                     shiftSwapRequests = shiftSwapRequests,
                     dismissedShiftSwapRequestIds = dismissedShiftSwapRequestIds,
@@ -404,9 +439,9 @@ internal fun HomeRoute(
                     onCancelShiftSwapRequest = onCancelShiftSwapRequest,
                     onConfirmShiftSwapRequest = onConfirmShiftSwapRequest,
                     onDismissShiftSwapActivity = onDismissShiftSwapActivity,
-                )
+                    )
 
-                HomeDestination.SHIFT_SWAP_REQUEST -> ShiftSwapRequestRoute(
+                    HomeDestination.SHIFT_SWAP_REQUEST -> ShiftSwapRequestRoute(
                     draft = shiftSwapDraft,
                     shifts = shiftsFeed,
                     deliveryCalendarOverrides = deliveryCalendarOverrides,
@@ -422,9 +457,9 @@ internal fun HomeRoute(
                             currentDestination = HomeDestination.SHIFTS
                         }
                     },
-                )
+                    )
 
-                HomeDestination.SETTINGS -> SettingsRoute(
+                    HomeDestination.SETTINGS -> SettingsRoute(
                     currentMember = member,
                     authenticatedMember = (mode as? SessionMode.Authorized)?.authenticatedMember,
                     members = (mode as? SessionMode.Authorized)?.members.orEmpty(),
@@ -441,15 +476,16 @@ internal fun HomeRoute(
                     onSaveDeliveryCalendarOverride = onSaveDeliveryCalendarOverride,
                     onDeleteDeliveryCalendarOverride = onDeleteDeliveryCalendarOverride,
                     onSubmitShiftPlanningRequest = onSubmitShiftPlanningRequest,
-                )
+                    )
 
-                else -> HomePlaceholderRoute(
+                    else -> HomePlaceholderRoute(
                     title = stringResource(currentDestination.titleRes()),
                     subtitle = stringResource(currentDestination.subtitleRes()),
                     onBackHome = {
                         currentDestination = HomeDestination.DASHBOARD
                     },
-                )
+                    )
+                }
             }
         }
     }

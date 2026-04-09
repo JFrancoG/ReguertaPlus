@@ -16,6 +16,8 @@ extension ContentView {
             notificationsListRoute
         case .products:
             productsRoute
+        case .myOrder:
+            myOrderRoute
         case .profile:
             sharedProfileRoute
         case .settings:

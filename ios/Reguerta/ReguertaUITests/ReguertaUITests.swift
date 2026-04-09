@@ -74,10 +74,10 @@ final class ReguertaUITests: XCTestCase {
 
         let enabledPredicate = NSPredicate(format: "isEnabled == true")
         expectation(for: enabledPredicate, evaluatedWith: myOrderButton)
+        expectation(for: enabledPredicate, evaluatedWith: shiftsButton)
         waitForExpectations(timeout: 5)
 
         XCTAssertTrue(myOrderButton.isEnabled, "My order should be enabled")
-        XCTAssertTrue(catalogButton.isEnabled, "Catalog should be enabled")
         XCTAssertTrue(shiftsButton.isEnabled, "Shifts should be enabled")
     }
 

@@ -26,6 +26,10 @@ struct Product: Identifiable, Equatable, Sendable {
     let archived: Bool
     let createdAtMillis: Int64
     let updatedAtMillis: Int64
+
+    var isVisibleInOrdering: Bool {
+        !archived && isAvailable
+    }
 }
 
 enum ProductPricingMode: String, Equatable, Sendable {

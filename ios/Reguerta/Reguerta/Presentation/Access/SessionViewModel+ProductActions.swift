@@ -17,6 +17,29 @@ extension SessionViewModel {
         }
     }
 
+    func refreshMyOrderProducts() {
+        guard case .authorized(let session) = mode else { return }
+        isLoadingMyOrderProducts = true
+        Task { @MainActor in
+            let visibleProducts = await productRepository.allProducts()
+                .filter { product in
+                    product.isVisibleInOrdering && session.membersById[product.vendorId].isVisibleForOrdering
+                }
+                .sorted { lhs, rhs in
+                    if lhs.companyName.localizedCaseInsensitiveCompare(rhs.companyName) != .orderedSame {
+                        return lhs.companyName.localizedCaseInsensitiveCompare(rhs.companyName) == .orderedAscending
+                    }
+                    return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+                }
+            guard case .authorized(let latestSession) = mode, latestSession.principal.uid == session.principal.uid else {
+                isLoadingMyOrderProducts = false
+                return
+            }
+            myOrderProductsFeed = visibleProducts
+            isLoadingMyOrderProducts = false
+        }
+    }
+
     func startCreatingProduct() {
         guard case .authorized(let session) = mode else { return }
         guard session.member.canManageProductCatalog else {
@@ -200,6 +223,19 @@ extension SessionViewModel {
             isUpdatingProducerCatalogVisibility = false
             onSuccess()
         }
+    }
+}
+
+private extension AuthorizedSession {
+    var membersById: [String: Member] {
+        Dictionary(uniqueKeysWithValues: members.map { ($0.id, $0) })
+    }
+}
+
+private extension Member? {
+    var isVisibleForOrdering: Bool {
+        guard let self else { return true }
+        return self.isActive && self.producerCatalogEnabled
     }
 }
 

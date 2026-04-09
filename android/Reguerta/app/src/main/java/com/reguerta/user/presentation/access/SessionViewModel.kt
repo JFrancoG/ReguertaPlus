@@ -162,6 +162,7 @@ class SessionViewModel(
         refreshNews()
         refreshNotifications()
         refreshProducts()
+        refreshMyOrderProducts()
         refreshSharedProfiles()
         refreshShifts()
         refreshDeliveryCalendar()
@@ -181,6 +182,7 @@ class SessionViewModel(
         refreshNews()
         refreshNotifications()
         refreshProducts()
+        refreshMyOrderProducts()
         refreshSharedProfiles()
         refreshShifts()
         refreshDeliveryCalendar()
@@ -233,6 +235,8 @@ class SessionViewModel(
     fun clearNotificationEditor() = formActions.clearNotificationEditor()
 
     fun refreshProducts() = productActions.refreshProducts()
+
+    fun refreshMyOrderProducts() = productActions.refreshMyOrderProducts()
 
     fun startCreatingProduct() = formActions.startCreatingProduct()
 

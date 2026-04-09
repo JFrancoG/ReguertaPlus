@@ -3,6 +3,8 @@ package com.reguerta.user.data.access
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRepository
 import com.reguerta.user.domain.access.MemberRole
+import com.reguerta.user.domain.access.EcoCommitmentMode
+import com.reguerta.user.domain.access.ProducerParity
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -26,6 +28,7 @@ class InMemoryMemberRepository : MemberRepository {
             roles = setOf(MemberRole.MEMBER, MemberRole.PRODUCER),
             isActive = true,
             producerCatalogEnabled = true,
+            producerParity = ProducerParity.EVEN,
         ),
         "member_member_001" to Member(
             id = "member_member_001",
@@ -35,6 +38,8 @@ class InMemoryMemberRepository : MemberRepository {
             roles = setOf(MemberRole.MEMBER),
             isActive = true,
             producerCatalogEnabled = true,
+            ecoCommitmentMode = EcoCommitmentMode.BIWEEKLY,
+            ecoCommitmentParity = ProducerParity.EVEN,
         ),
     )
 
