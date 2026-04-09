@@ -164,6 +164,32 @@ class MyOrderCommitmentValidationTest {
     }
 
     @Test
+    fun `blocks checkout when seasonal commitment id differs but season key matches product name`() {
+        val member = member(id = "member_1", ecoCommitmentMode = EcoCommitmentMode.WEEKLY)
+        val avocados = regularProduct(id = "product_common_avocado", vendorId = "compras_reguerta", name = "Aguacates")
+        val commitments = listOf(
+            seasonalCommitment(
+                productId = "legacy_mango_commitment",
+                seasonKey = "2026-aguacate",
+                fixedQtyPerOfferedWeek = 1.0,
+            ),
+        )
+
+        val result = validateMyOrderCheckout(
+            currentMember = member,
+            members = listOf(member),
+            products = listOf(avocados),
+            seasonalCommitments = commitments,
+            selectedQuantities = emptyMap(),
+            selectedEcoBasketOptions = emptyMap(),
+            currentWeekParity = ProducerParity.EVEN,
+        )
+
+        assertFalse(result.isValid)
+        assertEquals(listOf("Aguacates"), result.missingCommitmentProductNames)
+    }
+
+    @Test
     fun `flags eco basket price mismatch`() {
         val member = member(id = "member_1", ecoCommitmentMode = EcoCommitmentMode.WEEKLY)
         val ecoEven = ecoBasketProduct(id = "eco_even", vendorId = "producer_even", price = 2.0)
@@ -277,12 +303,15 @@ class MyOrderCommitmentValidationTest {
 
     private fun seasonalCommitment(
         productId: String,
+        seasonKey: String = "2026",
+        productNameHint: String? = null,
         fixedQtyPerOfferedWeek: Double,
     ): SeasonalCommitment = SeasonalCommitment(
         id = "commitment_$productId",
         userId = "member_1",
         productId = productId,
-        seasonKey = "2026",
+        productNameHint = productNameHint,
+        seasonKey = seasonKey,
         fixedQtyPerOfferedWeek = fixedQtyPerOfferedWeek,
         active = true,
         createdAtMillis = 1L,

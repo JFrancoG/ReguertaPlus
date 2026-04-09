@@ -122,19 +122,41 @@ private func requiredSeasonalCommitmentProducts(
         return []
     }
 
-    let visibleProductsById = Dictionary(uniqueKeysWithValues: products
+    let visibleProducts = products
         .filter(\.isVisibleInOrdering)
-        .map { ($0.id, $0) })
+        .sorted { lhs, rhs in
+            if lhs.companyName.localizedCaseInsensitiveCompare(rhs.companyName) != .orderedSame {
+                return lhs.companyName.localizedCaseInsensitiveCompare(rhs.companyName) == .orderedAscending
+            }
+            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+        }
+    let visibleProductsById = Dictionary(uniqueKeysWithValues: visibleProducts.map { ($0.id, $0) })
+    let visibleProductsByName = visibleProducts.reduce(into: [String: Product]()) { partialResult, product in
+        let key = product.name.commitmentNormalized()
+        if partialResult[key] == nil {
+            partialResult[key] = product
+        }
+    }
+    let visibleProductsWithNormalizedName = visibleProducts.map { ($0, $0.name.commitmentNormalized()) }
 
     var requiredUnitsByProductId: [String: Int] = [:]
 
     for commitment in seasonalCommitments where commitment.active {
-        guard visibleProductsById[commitment.productId] != nil else {
+        let matchedProductID = visibleProductsById[commitment.productId]?.id ??
+            commitment.productNameHint
+                .map { $0.commitmentNormalized() }
+                .flatMap { visibleProductsByName[$0]?.id } ??
+            commitment.commitmentSearchTerms().compactMap { term in
+                visibleProductsWithNormalizedName.first { _, normalizedName in
+                    normalizedName.contains(term) || term.contains(normalizedName)
+                }?.0.id
+            }.first
+        guard let matchedProductID else {
             continue
         }
         let requiredUnits = max(1, Int(ceil(commitment.fixedQtyPerOfferedWeek)))
-        let existingUnits = requiredUnitsByProductId[commitment.productId] ?? 0
-        requiredUnitsByProductId[commitment.productId] = max(existingUnits, requiredUnits)
+        let existingUnits = requiredUnitsByProductId[matchedProductID] ?? 0
+        requiredUnitsByProductId[matchedProductID] = max(existingUnits, requiredUnits)
     }
 
     return requiredUnitsByProductId
@@ -160,5 +182,31 @@ private func deduplicatePreservingOrder(_ values: [String]) -> [String] {
 private extension Product {
     var normalizedEcoBasketPriceKey: Int {
         Int((price * 10_000).rounded())
+    }
+}
+
+private extension String {
+    func commitmentNormalized() -> String {
+        folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    func commitmentTokens() -> [String] {
+        components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .map { $0.commitmentNormalized() }
+            .filter { token in
+                token.count >= 4 && token.contains(where: \.isLetter)
+            }
+    }
+}
+
+private extension SeasonalCommitment {
+    func commitmentSearchTerms() -> [String] {
+        var seen = Set<String>()
+        let rawValues: [String?] = [productNameHint, seasonKey, productId]
+        return rawValues
+            .compactMap { $0 }
+            .flatMap { value in value.commitmentTokens() }
+            .filter { seen.insert($0).inserted }
     }
 }

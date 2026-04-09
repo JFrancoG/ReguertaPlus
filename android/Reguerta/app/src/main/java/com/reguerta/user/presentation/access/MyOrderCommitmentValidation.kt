@@ -6,11 +6,14 @@ import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.ProducerParity
 import com.reguerta.user.domain.commitments.SeasonalCommitment
 import com.reguerta.user.domain.products.Product
+import java.text.Normalizer
 import java.util.Locale
 import kotlin.math.ceil
 
 internal const val EcoBasketOptionPickup = "pickup"
 internal const val EcoBasketOptionNoPickup = "no_pickup"
+private val CommitmentDiacriticMarksRegex = "\\p{Mn}+".toRegex()
+private val CommitmentTokenRegex = "[a-z0-9]+".toRegex()
 
 internal data class MyOrderCheckoutValidationResult(
     val missingCommitmentProductNames: List<String>,
@@ -130,20 +133,38 @@ private fun requiredSeasonalCommitmentProducts(
         return emptyList()
     }
 
-    val visibleProductsById = products
+    val visibleProducts = products
         .asSequence()
         .filter(Product::isVisibleInOrdering)
-        .associateBy(Product::id)
+        .sortedWith(compareBy<Product> { it.companyName.lowercase() }.thenBy { it.name.lowercase() })
+        .toList()
+    val visibleProductsById = visibleProducts.associateBy(Product::id)
+    val visibleProductsByName = linkedMapOf<String, Product>().apply {
+        visibleProducts.forEach { product ->
+            putIfAbsent(product.name.commitmentNormalized(), product)
+        }
+    }
+    val visibleProductsWithNormalizedName = visibleProducts.map { product ->
+        product to product.name.commitmentNormalized()
+    }
 
     val requiredUnitsByProductId = seasonalCommitments
         .asSequence()
         .filter(SeasonalCommitment::active)
         .mapNotNull { commitment ->
-            if (visibleProductsById[commitment.productId] == null) {
-                null
-            } else {
-                commitment.productId to commitment.fixedQtyPerOfferedWeek
-            }
+            val matchedProductId = visibleProductsById[commitment.productId]?.id
+                ?: commitment.productNameHint
+                    ?.commitmentNormalized()
+                    ?.let { visibleProductsByName[it]?.id }
+                ?: commitment.commitmentSearchTerms().asSequence()
+                    .mapNotNull { term ->
+                        visibleProductsWithNormalizedName.firstOrNull { (_, normalizedName) ->
+                            normalizedName.contains(term) || term.contains(normalizedName)
+                        }?.first?.id
+                    }
+                    .firstOrNull()
+                ?: return@mapNotNull null
+            matchedProductId to commitment.fixedQtyPerOfferedWeek
         }
         .groupBy(
             keySelector = { it.first },
@@ -164,6 +185,21 @@ private fun requiredSeasonalCommitmentProducts(
 
 private fun Double.normalizedEcoBasketPriceKey(): String =
     String.format(Locale.US, "%.4f", this)
+
+private fun String.commitmentNormalized(): String =
+    Normalizer.normalize(trim(), Normalizer.Form.NFD)
+        .replace(CommitmentDiacriticMarksRegex, "")
+        .lowercase(Locale.getDefault())
+
+private fun SeasonalCommitment.commitmentSearchTerms(): List<String> =
+    listOfNotNull(productNameHint, seasonKey, productId)
+        .flatMap { value ->
+            CommitmentTokenRegex.findAll(value.commitmentNormalized())
+                .map(MatchResult::value)
+                .filter { token -> token.length >= 4 && token.any(Char::isLetter) }
+                .toList()
+        }
+        .distinct()
 
 private val Int?.orZero: Int
     get() = this ?: 0

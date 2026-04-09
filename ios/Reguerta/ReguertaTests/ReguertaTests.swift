@@ -675,6 +675,35 @@ struct ReguertaTests {
     }
 
     @Test
+    func myOrderValidationBlocksMissingSeasonalCommitmentUsingSeasonKeyFallback() {
+        let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
+        let avocados = regularProduct(
+            id: "product_common_avocado",
+            vendorId: "compras_reguerta",
+            name: "Aguacates"
+        )
+
+        let result = validateMyOrderCheckout(
+            currentMember: currentMember,
+            members: [currentMember],
+            products: [avocados],
+            seasonalCommitments: [
+                seasonalCommitment(
+                    productId: "legacy_mango_commitment",
+                    seasonKey: "2026-aguacate",
+                    fixedQtyPerOfferedWeek: 1
+                )
+            ],
+            selectedQuantities: [:],
+            selectedEcoBasketOptions: [:],
+            currentWeekParity: .even
+        )
+
+        #expect(result.isValid == false)
+        #expect(result.missingCommitmentProductNames == ["Aguacates"])
+    }
+
+    @Test
     func myOrderValidationFlagsEcoBasketPriceMismatch() {
         let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
         let producerEven = producer(id: "producer_even", parity: .even)
@@ -795,13 +824,16 @@ struct ReguertaTests {
 
     private func seasonalCommitment(
         productId: String,
+        seasonKey: String = "2026",
+        productNameHint: String? = nil,
         fixedQtyPerOfferedWeek: Double
     ) -> SeasonalCommitment {
         SeasonalCommitment(
             id: "commitment_\(productId)",
             userId: "member_1",
             productId: productId,
-            seasonKey: "2026",
+            productNameHint: productNameHint,
+            seasonKey: seasonKey,
             fixedQtyPerOfferedWeek: fixedQtyPerOfferedWeek,
             active: true,
             createdAtMillis: 1,

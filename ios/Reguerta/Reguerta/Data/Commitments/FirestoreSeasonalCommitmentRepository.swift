@@ -17,23 +17,41 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
         db.reguertaCollection(.seasonalCommitments, environment: environment)
     }
 
+    private var usersCollection: CollectionReference {
+        db.reguertaCollection(.users, environment: environment)
+    }
+
     func activeCommitments(userId: String) async -> [SeasonalCommitment] {
         var documentsById: [String: QueryDocumentSnapshot] = [:]
+        let userReference = usersCollection.document(userId)
         for field in ["userId", "memberId"] {
             do {
-                let snapshot = try await commitmentsCollection
-                    .whereField(field, isEqualTo: userId)
-                    .getDocuments()
-                for document in snapshot.documents {
-                    documentsById[document.documentID] = document
+                for target in [userId as Any, userReference as Any] {
+                    let snapshot = try await commitmentsCollection
+                        .whereField(field, isEqualTo: target)
+                        .getDocuments()
+                    for document in snapshot.documents {
+                        documentsById[document.documentID] = document
+                    }
                 }
             } catch {
                 continue
             }
         }
+        do {
+            let activeSnapshot = try await commitmentsCollection
+                .whereField("active", isEqualTo: true)
+                .getDocuments()
+            for document in activeSnapshot.documents {
+                documentsById[document.documentID] = document
+            }
+        } catch {
+            // Keep best effort from previous queries.
+        }
 
         return documentsById.values
             .compactMap(Self.toSeasonalCommitment)
+            .filter { $0.userId == userId }
             .filter(\.active)
             .sorted(by: Self.sortCommitments)
     }
@@ -47,9 +65,9 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
 
     private static func toSeasonalCommitment(_ document: QueryDocumentSnapshot) -> SeasonalCommitment? {
         let data = document.data()
-        guard let userId = normalizedString(data["userId"]) ?? normalizedString(data["memberId"]),
-              let productId = normalizedString(data["productId"]),
-              let seasonKey = normalizedString(data["seasonKey"]),
+        guard let userId = normalizedID(data["userId"]) ?? normalizedID(data["memberId"]),
+              let productId = normalizedID(data["productId"]),
+              let seasonKey = normalizedID(data["seasonKey"]),
               let fixedQtyPerOfferedWeek = positiveDouble(data["fixedQtyPerOfferedWeek"]) else {
             return nil
         }
@@ -61,6 +79,9 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
             id: document.documentID,
             userId: userId,
             productId: productId,
+            productNameHint: normalizedString(data["productName"]) ??
+                normalizedString(data["productDisplayName"]) ??
+                normalizedString(data["name"]),
             seasonKey: seasonKey,
             fixedQtyPerOfferedWeek: fixedQtyPerOfferedWeek,
             active: (data["active"] as? Bool) ?? true,
@@ -73,6 +94,19 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
         guard let string = value as? String else { return nil }
         let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private static func normalizedID(_ value: Any?) -> String? {
+        if let string = normalizedString(value) {
+            return string
+        }
+        if let reference = value as? DocumentReference {
+            return normalizedString(reference.documentID)
+        }
+        if let dictionary = value as? [String: Any] {
+            return normalizedString(dictionary["id"])
+        }
+        return nil
     }
 
     private static func positiveDouble(_ value: Any?) -> Double? {
