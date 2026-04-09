@@ -24,11 +24,11 @@ As a member I want to modify a confirmed order before the cutoff so that I can a
 - Refactors not required to close acceptance criteria.
 
 ## Implementation checklist
-- [ ] Android
-- [ ] iOS
-- [ ] Backend / Firestore
-- [ ] Testing
-- [ ] Documentation
+- [x] Android
+- [x] iOS
+- [x] Backend / Firestore (no changes required)
+- [x] Testing
+- [x] Documentation
 
 ## Suggested labels
 - type:feature

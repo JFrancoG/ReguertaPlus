@@ -252,6 +252,7 @@
     <string name="my_order_total_format">Total: %1$s €</string>
     <string name="my_order_cart_empty">No products selected yet.</string>
     <string name="my_order_finalize_action">Finish purchase</string>
+    <string name="my_order_finalize_update_action">Save changes</string>
     <string name="my_order_checkout_error_title">Missing commitment products</string>
     <string name="my_order_checkout_error_message">You need to include at least one unit of: %1$s.</string>
     <string name="my_order_checkout_eco_price_error_title">Eco-basket price mismatch</string>

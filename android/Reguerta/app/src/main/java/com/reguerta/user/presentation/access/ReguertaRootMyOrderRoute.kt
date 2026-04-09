@@ -78,6 +78,8 @@ private const val CommonPurchasesGroupId = "__my_order_reguerta_common_purchases
 private const val MyOrderCartPrefsName = "reguerta_my_order_cart"
 private const val MyOrderCartQuantitiesSuffix = ".quantities"
 private const val MyOrderCartOptionsSuffix = ".eco_options"
+private const val MyOrderConfirmedQuantitiesSuffix = ".confirmed_quantities"
+private const val MyOrderConfirmedOptionsSuffix = ".confirmed_eco_options"
 private val DiacriticMarksRegex = "\\p{Mn}+".toRegex()
 
 private data class MyOrderProducerGroup(
@@ -126,6 +128,8 @@ internal fun MyOrderRoute(
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedQuantities by rememberSaveable { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var selectedEcoBasketOptions by rememberSaveable { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var confirmedQuantities by rememberSaveable { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    var confirmedEcoBasketOptions by rememberSaveable { mutableStateOf<Map<String, String>>(emptyMap()) }
     var isCartVisible by rememberSaveable { mutableStateOf(false) }
     var checkoutDialogState by remember { mutableStateOf<MyOrderCheckoutDialogState?>(null) }
     val currentWeekKey = remember { System.currentTimeMillis().toWeekKey() }
@@ -157,6 +161,27 @@ internal fun MyOrderRoute(
     val selectedUnits = remember(selectedQuantities) {
         selectedQuantities.values.sum()
     }
+    val hasConfirmedOrder = remember(confirmedQuantities) {
+        confirmedQuantities.isNotEmpty()
+    }
+    val hasPendingConfirmedEdits = remember(
+        hasConfirmedOrder,
+        selectedQuantities,
+        selectedEcoBasketOptions,
+        confirmedQuantities,
+        confirmedEcoBasketOptions,
+    ) {
+        hasConfirmedOrder && (
+            selectedQuantities != confirmedQuantities ||
+                selectedEcoBasketOptions != confirmedEcoBasketOptions
+            )
+    }
+    val finalizeActionLabel = if (hasConfirmedOrder && hasPendingConfirmedEdits) {
+        stringResource(R.string.my_order_finalize_update_action)
+    } else {
+        stringResource(R.string.my_order_finalize_action)
+    }
+    val canSubmitOrder = selectedUnits > 0 && (!hasConfirmedOrder || hasPendingConfirmedEdits)
     val cartTotal = remember(selectedProducts, selectedQuantities) {
         selectedProducts.sumOf { product ->
             selectedQuantities[product.id].orZero.toDouble() * product.price
@@ -170,13 +195,24 @@ internal fun MyOrderRoute(
         )
     }
     LaunchedEffect(cartStorageKey) {
-        val snapshot = readMyOrderCartSnapshot(
+        val cartSnapshot = readMyOrderCartSnapshot(
             context = context,
             storageKey = cartStorageKey,
         )
-        selectedQuantities = snapshot.selectedQuantities
-        selectedEcoBasketOptions = snapshot.selectedEcoBasketOptions
-        if (snapshot.selectedQuantities.isEmpty()) {
+        val confirmedSnapshot = readMyOrderConfirmedSnapshot(
+            context = context,
+            storageKey = cartStorageKey,
+        )
+        confirmedQuantities = confirmedSnapshot.selectedQuantities
+        confirmedEcoBasketOptions = confirmedSnapshot.selectedEcoBasketOptions
+        val initialSelectionSnapshot = if (cartSnapshot.selectedQuantities.isNotEmpty()) {
+            cartSnapshot
+        } else {
+            confirmedSnapshot
+        }
+        selectedQuantities = initialSelectionSnapshot.selectedQuantities
+        selectedEcoBasketOptions = initialSelectionSnapshot.selectedEcoBasketOptions
+        if (initialSelectionSnapshot.selectedQuantities.isEmpty()) {
             isCartVisible = false
         }
         hasRestoredCartState = true
@@ -475,6 +511,14 @@ internal fun MyOrderRoute(
                                     }
 
                                     else -> {
+                                        persistMyOrderConfirmedSnapshot(
+                                            context = context,
+                                            storageKey = cartStorageKey,
+                                            selectedQuantities = selectedQuantities,
+                                            selectedEcoBasketOptions = selectedEcoBasketOptions,
+                                        )
+                                        confirmedQuantities = selectedQuantities
+                                        confirmedEcoBasketOptions = selectedEcoBasketOptions
                                         MyOrderCheckoutDialogState.ReadyToSubmit(
                                             total = cartTotal,
                                             noPickupEcoBaskets = noPickupEcoBasketUnits,
@@ -482,14 +526,14 @@ internal fun MyOrderRoute(
                                     }
                                 }
                             },
-                            enabled = selectedUnits > 0,
+                            enabled = canSubmitOrder,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 12.dp),
                             shape = RoundedCornerShape(28.dp),
                         ) {
                             Text(
-                                text = stringResource(R.string.my_order_finalize_action),
+                                text = finalizeActionLabel,
                                 fontWeight = FontWeight.SemiBold,
                             )
                         }
@@ -1235,6 +1279,99 @@ private fun persistMyOrderCartSnapshot(
     val preferences = context.getSharedPreferences(MyOrderCartPrefsName, Context.MODE_PRIVATE)
     val quantitiesKey = "$storageKey$MyOrderCartQuantitiesSuffix"
     val optionsKey = "$storageKey$MyOrderCartOptionsSuffix"
+
+    val normalizedQuantities = selectedQuantities
+        .filterValues { quantity -> quantity > 0 }
+    val normalizedOptions = selectedEcoBasketOptions
+        .filterKeys { productId -> normalizedQuantities[productId].orZero > 0 }
+        .filterValues { option -> option == EcoBasketOptionPickup || option == EcoBasketOptionNoPickup }
+
+    preferences.edit().apply {
+        if (normalizedQuantities.isEmpty()) {
+            remove(quantitiesKey)
+        } else {
+            val quantitiesPayload = JSONObject().apply {
+                normalizedQuantities.forEach { (productId, quantity) ->
+                    put(productId, quantity)
+                }
+            }
+            putString(quantitiesKey, quantitiesPayload.toString())
+        }
+
+        if (normalizedOptions.isEmpty()) {
+            remove(optionsKey)
+        } else {
+            val optionsPayload = JSONObject().apply {
+                normalizedOptions.forEach { (productId, option) ->
+                    put(productId, option)
+                }
+            }
+            putString(optionsKey, optionsPayload.toString())
+        }
+    }.apply()
+}
+
+private fun readMyOrderConfirmedSnapshot(
+    context: Context,
+    storageKey: String,
+): MyOrderCartSnapshot {
+    val preferences = context.getSharedPreferences(MyOrderCartPrefsName, Context.MODE_PRIVATE)
+    val quantitiesKey = "$storageKey$MyOrderConfirmedQuantitiesSuffix"
+    val optionsKey = "$storageKey$MyOrderConfirmedOptionsSuffix"
+
+    val restoredQuantities = runCatching {
+        val raw = preferences.getString(quantitiesKey, null).orEmpty()
+        if (raw.isBlank()) {
+            emptyMap()
+        } else {
+            val objectPayload = JSONObject(raw)
+            objectPayload.keys().asSequence()
+                .mapNotNull { productId ->
+                    val quantity = objectPayload.optInt(productId, 0)
+                    if (quantity > 0) {
+                        productId to quantity
+                    } else {
+                        null
+                    }
+                }
+                .toMap()
+        }
+    }.getOrDefault(emptyMap())
+
+    val restoredOptions = runCatching {
+        val raw = preferences.getString(optionsKey, null).orEmpty()
+        if (raw.isBlank()) {
+            emptyMap()
+        } else {
+            val objectPayload = JSONObject(raw)
+            objectPayload.keys().asSequence()
+                .mapNotNull { productId ->
+                    val option = objectPayload.optString(productId, "")
+                    if (option == EcoBasketOptionPickup || option == EcoBasketOptionNoPickup) {
+                        productId to option
+                    } else {
+                        null
+                    }
+                }
+                .toMap()
+        }
+    }.getOrDefault(emptyMap())
+
+    return MyOrderCartSnapshot(
+        selectedQuantities = restoredQuantities,
+        selectedEcoBasketOptions = restoredOptions,
+    )
+}
+
+private fun persistMyOrderConfirmedSnapshot(
+    context: Context,
+    storageKey: String,
+    selectedQuantities: Map<String, Int>,
+    selectedEcoBasketOptions: Map<String, String>,
+) {
+    val preferences = context.getSharedPreferences(MyOrderCartPrefsName, Context.MODE_PRIVATE)
+    val quantitiesKey = "$storageKey$MyOrderConfirmedQuantitiesSuffix"
+    val optionsKey = "$storageKey$MyOrderConfirmedOptionsSuffix"
 
     val normalizedQuantities = selectedQuantities
         .filterValues { quantity -> quantity > 0 }

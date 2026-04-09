@@ -26,6 +26,7 @@ All notable changes to this project will be documented in this file.
 - 2026-04-09 | ✨ feat(order): implement HU-001 create-order flow
 - 2026-04-09 | ✨ feat(order): enforce HU-002 commitments on checkout
 - 2026-04-09 | ✨ feat(order): resume unconfirmed cart across re-entry (HU-003)
+- 2026-04-09 | ✨ feat(order): allow confirmed order edits before cutoff (HU-004)
 
 ### Fixed
 

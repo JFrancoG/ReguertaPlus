@@ -277,6 +277,8 @@ private let myOrderCommonPurchasesGroupId = "__my_order_reguerta_common_purchase
 private let myOrderCartStoragePrefix = "reguerta_my_order_cart"
 private let myOrderCartQuantitiesSuffix = ".quantities"
 private let myOrderCartOptionsSuffix = ".eco_options"
+private let myOrderConfirmedQuantitiesSuffix = ".confirmed_quantities"
+private let myOrderConfirmedOptionsSuffix = ".confirmed_eco_options"
 
 private struct MyOrderProducerGroup: Identifiable {
     let vendorId: String
@@ -330,6 +332,8 @@ private struct MyOrderRouteView: View {
     @State private var searchQuery = ""
     @State private var selectedQuantities: [String: Int] = [:]
     @State private var selectedEcoBasketOptions: [String: String] = [:]
+    @State private var confirmedQuantities: [String: Int] = [:]
+    @State private var confirmedEcoBasketOptions: [String: String] = [:]
     @State private var isCartVisible = false
     @State private var checkoutAlert: MyOrderCheckoutAlert?
     @State private var hasRestoredCartState = false
@@ -348,6 +352,25 @@ private struct MyOrderRouteView: View {
 
     private var selectedUnits: Int {
         selectedQuantities.values.reduce(0, +)
+    }
+
+    private var hasConfirmedOrder: Bool {
+        !confirmedQuantities.isEmpty
+    }
+
+    private var hasPendingConfirmedEdits: Bool {
+        hasConfirmedOrder && (
+            selectedQuantities != confirmedQuantities ||
+                selectedEcoBasketOptions != confirmedEcoBasketOptions
+        )
+    }
+
+    private var finalizeCheckoutTitle: String {
+        hasConfirmedOrder && hasPendingConfirmedEdits ? "Guardar cambios" : "Finalizar compra"
+    }
+
+    private var canSubmitCheckout: Bool {
+        selectedUnits > 0 && (!hasConfirmedOrder || hasPendingConfirmedEdits)
     }
 
     private var cartTotal: Double {
@@ -458,10 +481,16 @@ private struct MyOrderRouteView: View {
                 cartOverlay(proxy: proxy)
             }
             .onChange(of: cartStorageKey, initial: true) { _, newStorageKey in
-                let snapshot = readMyOrderCartSnapshot(storageKey: newStorageKey)
-                selectedQuantities = snapshot.selectedQuantities
-                selectedEcoBasketOptions = snapshot.selectedEcoBasketOptions
-                if snapshot.selectedQuantities.isEmpty {
+                let cartSnapshot = readMyOrderCartSnapshot(storageKey: newStorageKey)
+                let confirmedSnapshot = readMyOrderConfirmedSnapshot(storageKey: newStorageKey)
+                confirmedQuantities = confirmedSnapshot.selectedQuantities
+                confirmedEcoBasketOptions = confirmedSnapshot.selectedEcoBasketOptions
+                let initialSelectionSnapshot: MyOrderCartSnapshot = cartSnapshot.selectedQuantities.isEmpty
+                    ? confirmedSnapshot
+                    : cartSnapshot
+                selectedQuantities = initialSelectionSnapshot.selectedQuantities
+                selectedEcoBasketOptions = initialSelectionSnapshot.selectedEcoBasketOptions
+                if initialSelectionSnapshot.selectedQuantities.isEmpty {
                     isCartVisible = false
                 }
                 hasRestoredCartState = true
@@ -849,7 +878,7 @@ private struct MyOrderRouteView: View {
                     Button {
                         validateCheckout()
                     } label: {
-                        Text("Finalizar compra")
+                        Text(finalizeCheckoutTitle)
                             .font(tokens.typography.body.weight(.semibold))
                             .foregroundStyle(tokens.colors.actionOnPrimary)
                             .frame(maxWidth: .infinity)
@@ -858,8 +887,8 @@ private struct MyOrderRouteView: View {
                             .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
-                    .disabled(selectedUnits == 0)
-                    .opacity(selectedUnits == 0 ? 0.55 : 1)
+                    .disabled(!canSubmitCheckout)
+                    .opacity(canSubmitCheckout ? 1 : 0.55)
                 }
                 .padding(tokens.spacing.md)
                 .background(tokens.colors.surfacePrimary.opacity(0.95))
@@ -920,6 +949,13 @@ private struct MyOrderRouteView: View {
             checkoutAlert = .missingCommitments(validation.missingCommitmentProductNames)
             return
         }
+        persistMyOrderConfirmedSnapshot(
+            storageKey: cartStorageKey,
+            selectedQuantities: selectedQuantities,
+            selectedEcoBasketOptions: selectedEcoBasketOptions
+        )
+        confirmedQuantities = selectedQuantities
+        confirmedEcoBasketOptions = selectedEcoBasketOptions
         checkoutAlert = .readyToSubmit(
             total: cartTotal,
             noPickupEcoBaskets: noPickupEcoBasketUnits
@@ -1113,6 +1149,62 @@ private func persistMyOrderCartSnapshot(
 ) {
     let quantitiesKey = "\(myOrderCartStoragePrefix).\(storageKey)\(myOrderCartQuantitiesSuffix)"
     let optionsKey = "\(myOrderCartStoragePrefix).\(storageKey)\(myOrderCartOptionsSuffix)"
+
+    let normalizedQuantities = selectedQuantities.filter { $0.value > 0 }
+    let normalizedOptions = selectedEcoBasketOptions
+        .filter { normalizedQuantities[$0.key, default: 0] > 0 }
+        .filter { $0.value == ecoBasketOptionPickup || $0.value == ecoBasketOptionNoPickup }
+
+    if normalizedQuantities.isEmpty {
+        userDefaults.removeObject(forKey: quantitiesKey)
+    } else {
+        userDefaults.set(normalizedQuantities, forKey: quantitiesKey)
+    }
+
+    if normalizedOptions.isEmpty {
+        userDefaults.removeObject(forKey: optionsKey)
+    } else {
+        userDefaults.set(normalizedOptions, forKey: optionsKey)
+    }
+}
+
+private func readMyOrderConfirmedSnapshot(
+    userDefaults: UserDefaults = .standard,
+    storageKey: String
+) -> MyOrderCartSnapshot {
+    let quantitiesKey = "\(myOrderCartStoragePrefix).\(storageKey)\(myOrderConfirmedQuantitiesSuffix)"
+    let optionsKey = "\(myOrderCartStoragePrefix).\(storageKey)\(myOrderConfirmedOptionsSuffix)"
+
+    let restoredQuantities = (userDefaults.dictionary(forKey: quantitiesKey) ?? [:])
+        .reduce(into: [String: Int]()) { partialResult, entry in
+            let quantity = (entry.value as? Int) ?? (entry.value as? NSNumber)?.intValue ?? 0
+            if quantity > 0 {
+                partialResult[entry.key] = quantity
+            }
+        }
+
+    let restoredOptions = (userDefaults.dictionary(forKey: optionsKey) ?? [:])
+        .reduce(into: [String: String]()) { partialResult, entry in
+            guard let option = entry.value as? String else { return }
+            if option == ecoBasketOptionPickup || option == ecoBasketOptionNoPickup {
+                partialResult[entry.key] = option
+            }
+        }
+
+    return MyOrderCartSnapshot(
+        selectedQuantities: restoredQuantities,
+        selectedEcoBasketOptions: restoredOptions
+    )
+}
+
+private func persistMyOrderConfirmedSnapshot(
+    userDefaults: UserDefaults = .standard,
+    storageKey: String,
+    selectedQuantities: [String: Int],
+    selectedEcoBasketOptions: [String: String]
+) {
+    let quantitiesKey = "\(myOrderCartStoragePrefix).\(storageKey)\(myOrderConfirmedQuantitiesSuffix)"
+    let optionsKey = "\(myOrderCartStoragePrefix).\(storageKey)\(myOrderConfirmedOptionsSuffix)"
 
     let normalizedQuantities = selectedQuantities.filter { $0.value > 0 }
     let normalizedOptions = selectedEcoBasketOptions
