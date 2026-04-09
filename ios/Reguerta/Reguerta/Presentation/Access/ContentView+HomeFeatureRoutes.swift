@@ -294,14 +294,17 @@ private struct MyOrderProducerGroup: Identifiable {
 
 private enum MyOrderCheckoutAlert: Identifiable {
     case missingCommitments([String])
-    case readyToSubmit(total: Double)
+    case ecoBasketPriceMismatch
+    case readyToSubmit(total: Double, noPickupEcoBaskets: Int)
 
     var id: String {
         switch self {
         case .missingCommitments(let names):
             return "missing:\(names.joined(separator: ","))"
-        case .readyToSubmit(let total):
-            return "ready:\(total)"
+        case .ecoBasketPriceMismatch:
+            return "ecoBasketPriceMismatch"
+        case .readyToSubmit(let total, let noPickupEcoBaskets):
+            return "ready:\(total):\(noPickupEcoBaskets)"
         }
     }
 }
@@ -316,6 +319,7 @@ private struct MyOrderRouteView: View {
 
     @State private var searchQuery = ""
     @State private var selectedQuantities: [String: Int] = [:]
+    @State private var selectedEcoBasketOptions: [String: String] = [:]
     @State private var isCartVisible = false
     @State private var checkoutAlert: MyOrderCheckoutAlert?
 
@@ -337,15 +341,16 @@ private struct MyOrderRouteView: View {
         }
     }
 
-    private var committedProducerId: String? {
-        currentMember?.committedEcoBasketProducerId(in: members)
+    private var noPickupEcoBasketUnits: Int {
+        countNoPickupEcoBasketUnits(
+            products: products,
+            selectedQuantities: selectedQuantities,
+            selectedEcoBasketOptions: selectedEcoBasketOptions
+        )
     }
 
-    private var committedProducts: [Product] {
-        guard let committedProducerId else { return [] }
-        return products.filter { product in
-            product.vendorId == committedProducerId && product.isEcoBasket
-        }
+    private var committedProducerId: String? {
+        currentMember?.committedEcoBasketProducerId(in: members)
     }
 
     private var groupedProducts: [MyOrderProducerGroup] {
@@ -430,9 +435,29 @@ private struct MyOrderRouteView: View {
                 cartOverlay(proxy: proxy)
             }
             .onChange(of: products) { _, newProducts in
-                let availableIds = Set(newProducts.map(\.id))
-                selectedQuantities = selectedQuantities.filter { entry in
-                    availableIds.contains(entry.key) && entry.value > 0
+                let productsById = Dictionary(uniqueKeysWithValues: newProducts.map { ($0.id, $0) })
+                selectedQuantities = selectedQuantities.reduce(into: [:]) { partialResult, entry in
+                    guard let product = productsById[entry.key] else { return }
+                    guard entry.value > 0 else { return }
+                    let allowedQuantity: Int
+                    if let finiteLimit = finiteStockLimit(for: product) {
+                        allowedQuantity = min(entry.value, finiteLimit)
+                    } else {
+                        allowedQuantity = entry.value
+                    }
+                    if allowedQuantity > 0 {
+                        partialResult[entry.key] = allowedQuantity
+                    }
+                }
+                selectedEcoBasketOptions = selectedQuantities.reduce(into: [:]) { partialResult, entry in
+                    guard entry.value > 0 else { return }
+                    guard let product = productsById[entry.key], product.isEcoBasket else { return }
+                    let option = selectedEcoBasketOptions[entry.key]
+                    if option == ecoBasketOptionPickup || option == ecoBasketOptionNoPickup {
+                        partialResult[entry.key] = option
+                    } else {
+                        partialResult[entry.key] = ecoBasketOptionPickup
+                    }
                 }
                 if selectedQuantities.isEmpty {
                     isCartVisible = false
@@ -446,10 +471,20 @@ private struct MyOrderRouteView: View {
                         message: Text("Necesitas incluir al menos una unidad de: \(names.joined(separator: ", "))."),
                         dismissButton: .default(Text("Aceptar"))
                     )
-                case .readyToSubmit(let total):
+                case .ecoBasketPriceMismatch:
+                    return Alert(
+                        title: Text("Precio de ecocesta inconsistente"),
+                        message: Text("Todas las ecocestas activas deben mantener el mismo precio para continuar."),
+                        dismissButton: .default(Text("Aceptar"))
+                    )
+                case .readyToSubmit(let total, let noPickupEcoBaskets):
                     return Alert(
                         title: Text("Pedido listo"),
-                        message: Text("Todo correcto. Total: \(total.myOrderUiDecimal) €. En el siguiente paso conectamos el envío del pedido."),
+                        message: Text(
+                            noPickupEcoBaskets > 0
+                                ? "Todo correcto. Total: \(total.myOrderUiDecimal) €. Ecocestas marcadas como no_pickup: \(noPickupEcoBaskets). En el siguiente paso conectamos el envío del pedido."
+                                : "Todo correcto. Total: \(total.myOrderUiDecimal) €. En el siguiente paso conectamos el envío del pedido."
+                        ),
                         dismissButton: .default(Text("Aceptar"))
                     )
                 }
@@ -791,6 +826,7 @@ private struct MyOrderRouteView: View {
     @ViewBuilder
     private func selectedProductCard(_ product: Product) -> some View {
         let quantity = selectedQuantities[product.id, default: 0]
+        let selectedOption = selectedEcoBasketOptions[product.id] ?? ecoBasketOptionPickup
 
         ReguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
@@ -806,20 +842,39 @@ private struct MyOrderRouteView: View {
                     Spacer(minLength: 0)
                 }
                 quantityControls(product: product, quantity: quantity)
+                if product.isEcoBasket, quantity > 0 {
+                    ecoBasketOptionSelector(
+                        selectedOption: selectedOption,
+                        onOptionSelected: { option in
+                            selectedEcoBasketOptions[product.id] = option
+                        }
+                    )
+                }
             }
         }
     }
 
     private func validateCheckout() {
-        let missingCommitments = committedProducts
-            .filter { selectedQuantities[$0.id, default: 0] == 0 }
-            .map(\.name)
+        let validation = validateMyOrderCheckout(
+            currentMember: currentMember,
+            members: members,
+            products: products,
+            selectedQuantities: selectedQuantities,
+            selectedEcoBasketOptions: selectedEcoBasketOptions
+        )
 
-        if !missingCommitments.isEmpty {
-            checkoutAlert = .missingCommitments(missingCommitments)
+        if validation.hasEcoBasketPriceMismatch {
+            checkoutAlert = .ecoBasketPriceMismatch
             return
         }
-        checkoutAlert = .readyToSubmit(total: cartTotal)
+        if !validation.missingCommitmentProductNames.isEmpty {
+            checkoutAlert = .missingCommitments(validation.missingCommitmentProductNames)
+            return
+        }
+        checkoutAlert = .readyToSubmit(
+            total: cartTotal,
+            noPickupEcoBaskets: noPickupEcoBasketUnits
+        )
     }
 
     private func packContainerLine(for product: Product) -> String {
@@ -857,6 +912,9 @@ private struct MyOrderRouteView: View {
         let currentQuantity = selectedQuantities[product.id, default: 0]
         guard canIncrease(product: product, currentQuantity: currentQuantity) else { return }
         selectedQuantities[product.id] = currentQuantity + 1
+        if product.isEcoBasket, selectedEcoBasketOptions[product.id] == nil {
+            selectedEcoBasketOptions[product.id] = ecoBasketOptionPickup
+        }
     }
 
     private func decrease(_ product: Product) {
@@ -864,12 +922,73 @@ private struct MyOrderRouteView: View {
         guard currentQuantity > 0 else { return }
         if currentQuantity == 1 {
             selectedQuantities.removeValue(forKey: product.id)
+            if product.isEcoBasket {
+                selectedEcoBasketOptions.removeValue(forKey: product.id)
+            }
         } else {
             selectedQuantities[product.id] = currentQuantity - 1
         }
         if selectedQuantities.isEmpty {
             isCartVisible = false
         }
+    }
+
+    @ViewBuilder
+    private func ecoBasketOptionSelector(
+        selectedOption: String,
+        onOptionSelected: @escaping (String) -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+            Text("Opción ecocesta")
+                .font(tokens.typography.label.weight(.semibold))
+                .foregroundStyle(tokens.colors.textPrimary)
+
+            HStack(spacing: tokens.spacing.sm) {
+                ecoBasketOptionButton(
+                    title: "Recoger",
+                    isSelected: selectedOption == ecoBasketOptionPickup,
+                    onTap: { onOptionSelected(ecoBasketOptionPickup) }
+                )
+                ecoBasketOptionButton(
+                    title: "No recoger",
+                    isSelected: selectedOption == ecoBasketOptionNoPickup,
+                    onTap: { onOptionSelected(ecoBasketOptionNoPickup) }
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func ecoBasketOptionButton(
+        title: String,
+        isSelected: Bool,
+        onTap: @escaping () -> Void
+    ) -> some View {
+        Button(action: onTap) {
+            Text(title)
+                .font(tokens.typography.bodySecondary.weight(.semibold))
+                .foregroundStyle(isSelected ? tokens.colors.actionPrimary : tokens.colors.textSecondary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, tokens.spacing.xs)
+                .background(
+                    RoundedRectangle(cornerRadius: tokens.radius.sm)
+                        .fill(
+                            isSelected
+                                ? tokens.colors.actionPrimary.opacity(0.14)
+                                : tokens.colors.surfacePrimary
+                        )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: tokens.radius.sm)
+                        .stroke(
+                            isSelected
+                                ? tokens.colors.actionPrimary
+                                : tokens.colors.borderSubtle,
+                            lineWidth: 1
+                        )
+                )
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -891,6 +1010,21 @@ private extension Double {
         }
         return String(format: "%.2f", self)
     }
+}
+
+private func countNoPickupEcoBasketUnits(
+    products: [Product],
+    selectedQuantities: [String: Int],
+    selectedEcoBasketOptions: [String: String]
+) -> Int {
+    products
+        .filter(\.isEcoBasket)
+        .reduce(0) { partial, product in
+            if selectedEcoBasketOptions[product.id] == ecoBasketOptionNoPickup {
+                return partial + selectedQuantities[product.id, default: 0]
+            }
+            return partial
+        }
 }
 
 private extension Product {
