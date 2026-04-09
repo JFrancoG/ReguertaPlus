@@ -6,10 +6,10 @@ extension ContentView {
         if showsRecoverSuccessDialog {
             ReguertaDialog(
                 type: .info,
-                title: "Restablecer contraseña",
-                message: "Se ha enviado el correo de restablecimiento de la contraseña con éxito. Revisa tu correo.",
+                title: l10n(AccessL10nKey.recoverSuccessDialogTitle),
+                message: l10n(AccessL10nKey.recoverSuccessDialogMessage),
                 primaryAction: ReguertaDialogAction(
-                    title: "Aceptar",
+                    title: l10n(AccessL10nKey.commonAccept),
                     action: handleRecoverSuccessDialogDismiss
                 ),
                 onDismiss: handleRecoverSuccessDialogDismiss

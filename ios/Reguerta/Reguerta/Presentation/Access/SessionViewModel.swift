@@ -1123,8 +1123,12 @@ final class SessionViewModel {
                 )
             )
             await sendShiftSwapNotification(
-                title: "Solicitud de cambio de turno",
-                body: "\(session.member.displayName) solicita cambio para el turno del \(localizedShiftNotificationDateTime(shift.dateMillis))",
+                title: l10n(AccessL10nKey.shiftSwapNotificationRequestedTitle),
+                body: l10n(
+                    AccessL10nKey.shiftSwapNotificationRequestedBody,
+                    session.member.displayName,
+                    localizedShiftNotificationDateTime(shift.dateMillis)
+                ),
                 type: "shift_swap_requested",
                 targetUserIds: Array(Set(saved.candidates.map(\.userId))),
                 createdBy: session.member.id
@@ -1200,8 +1204,14 @@ final class SessionViewModel {
                 _ = await shiftRepository.upsert(shift: shift)
             }
             await sendShiftSwapNotification(
-                title: "Cambio de turno aplicado",
-                body: "Se ha confirmado el cambio entre \(session.member.displayName) y \(displayName(for: candidate.userId, in: session)) para \(localizedShiftNotificationDateTime(requestedShift.dateMillis)) y \(localizedShiftNotificationDateTime(candidateShift.dateMillis)).",
+                title: l10n(AccessL10nKey.shiftSwapNotificationAppliedTitle),
+                body: l10n(
+                    AccessL10nKey.shiftSwapNotificationAppliedBody,
+                    session.member.displayName,
+                    displayName(for: candidate.userId, in: session),
+                    localizedShiftNotificationDateTime(requestedShift.dateMillis),
+                    localizedShiftNotificationDateTime(candidateShift.dateMillis)
+                ),
                 type: "shift_swap_applied",
                 targetUserIds: Array(Set(session.members.filter(\.isActive).map(\.id))),
                 createdBy: session.member.id
@@ -1597,8 +1607,13 @@ final class SessionViewModel {
             )
             _ = await shiftSwapRequestRepository.upsert(request: updatedRequest)
             await sendShiftSwapNotification(
-                title: responseStatus == .available ? "Socio disponible para cambio" : "Socio no disponible para cambio",
-                body: "\(session.member.displayName)\(responseStatus == .available ? " puede cubrir " : " no puede cubrir ")\(localizedShiftNotificationDateTime(requestedShift.dateMillis))\(candidateShift.map { " desde su turno del \(localizedShiftNotificationDateTime($0.dateMillis))" } ?? "")",
+                title: shiftSwapResponseNotificationTitle(for: responseStatus),
+                body: shiftSwapResponseNotificationBody(
+                    for: responseStatus,
+                    memberDisplayName: session.member.displayName,
+                    requestedShiftDate: localizedShiftNotificationDateTime(requestedShift.dateMillis),
+                    candidateShiftDate: candidateShift.map { localizedShiftNotificationDateTime($0.dateMillis) }
+                ),
                 type: responseStatus == .available ? "shift_swap_available" : "shift_swap_unavailable",
                 targetUserIds: [request.requesterUserId],
                 createdBy: session.member.id
@@ -1631,6 +1646,51 @@ final class SessionViewModel {
                 weekKey: nil
             )
         )
+    }
+
+    private func shiftSwapResponseNotificationTitle(for status: ShiftSwapResponseStatus) -> String {
+        switch status {
+        case .available:
+            return l10n(AccessL10nKey.shiftSwapNotificationResponseAvailableTitle)
+        case .unavailable:
+            return l10n(AccessL10nKey.shiftSwapNotificationResponseUnavailableTitle)
+        }
+    }
+
+    private func shiftSwapResponseNotificationBody(
+        for status: ShiftSwapResponseStatus,
+        memberDisplayName: String,
+        requestedShiftDate: String,
+        candidateShiftDate: String?
+    ) -> String {
+        switch (status, candidateShiftDate) {
+        case (.available, .some(let sourceDate)):
+            return l10n(
+                AccessL10nKey.shiftSwapNotificationResponseAvailableBodyWithSource,
+                memberDisplayName,
+                requestedShiftDate,
+                sourceDate
+            )
+        case (.available, .none):
+            return l10n(
+                AccessL10nKey.shiftSwapNotificationResponseAvailableBody,
+                memberDisplayName,
+                requestedShiftDate
+            )
+        case (.unavailable, .some(let sourceDate)):
+            return l10n(
+                AccessL10nKey.shiftSwapNotificationResponseUnavailableBodyWithSource,
+                memberDisplayName,
+                requestedShiftDate,
+                sourceDate
+            )
+        case (.unavailable, .none):
+            return l10n(
+                AccessL10nKey.shiftSwapNotificationResponseUnavailableBody,
+                memberDisplayName,
+                requestedShiftDate
+            )
+        }
     }
 
     private func applyAuthorizedSession(
