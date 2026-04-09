@@ -252,6 +252,7 @@
     <string name="my_order_total_format">Total: %1$s €</string>
     <string name="my_order_cart_empty">No has seleccionado productos todavía.</string>
     <string name="my_order_finalize_action">Finalizar compra</string>
+    <string name="my_order_finalize_update_action">Guardar cambios</string>
     <string name="my_order_checkout_error_title">Faltan productos de compromiso</string>
     <string name="my_order_checkout_error_message">Necesitas incluir al menos una unidad de: %1$s.</string>
     <string name="my_order_checkout_eco_price_error_title">Precio de ecocesta inconsistente</string>
