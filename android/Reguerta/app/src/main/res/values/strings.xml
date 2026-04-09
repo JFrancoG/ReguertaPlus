@@ -242,6 +242,9 @@
     <string name="my_order_quantity_plural_format">%1$d units</string>
     <string name="my_order_decrease_action">Remove one unit</string>
     <string name="my_order_increase_action">Add one unit</string>
+    <string name="my_order_eco_basket_option_label">Eco-basket option</string>
+    <string name="my_order_eco_basket_option_pickup">Pickup</string>
+    <string name="my_order_eco_basket_option_no_pickup">No pickup</string>
     <string name="my_order_price_per_unit_format">%1$s € / unit</string>
     <string name="my_order_stock_remaining_format">Remaining: %1$s units</string>
     <string name="my_order_continue_shopping_action">Continue shopping</string>
@@ -251,8 +254,11 @@
     <string name="my_order_finalize_action">Finish purchase</string>
     <string name="my_order_checkout_error_title">Missing commitment products</string>
     <string name="my_order_checkout_error_message">You need to include at least one unit of: %1$s.</string>
+    <string name="my_order_checkout_eco_price_error_title">Eco-basket price mismatch</string>
+    <string name="my_order_checkout_eco_price_error_message">Eco-basket products should keep the same shared price before checkout can continue.</string>
     <string name="my_order_checkout_success_title">Order ready</string>
     <string name="my_order_checkout_success_message">Everything looks good. Total: %1$s €. We will connect order submission in the next step.</string>
+    <string name="my_order_checkout_success_message_with_no_pickup">Everything looks good. Total: %1$s €. %2$d eco-basket unit(s) marked as no pickup. We will connect order submission in the next step.</string>
 
     <string name="admin_manage_members_title">Admin | Manage members</string>
     <string name="admin_manage_members_subtitle">Create / edit / deactivate members and roles</string>

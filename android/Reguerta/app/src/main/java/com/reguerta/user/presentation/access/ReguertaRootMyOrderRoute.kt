@@ -91,7 +91,12 @@ private data class MyOrderProducerGroup(
 private sealed interface MyOrderCheckoutDialogState {
     data class MissingCommitments(val productNames: List<String>) : MyOrderCheckoutDialogState
 
-    data class ReadyToSubmit(val total: Double) : MyOrderCheckoutDialogState
+    data object EcoBasketPriceMismatch : MyOrderCheckoutDialogState
+
+    data class ReadyToSubmit(
+        val total: Double,
+        val noPickupEcoBaskets: Int,
+    ) : MyOrderCheckoutDialogState
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -106,6 +111,7 @@ internal fun MyOrderRoute(
 ) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedQuantities by rememberSaveable { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    var selectedEcoBasketOptions by rememberSaveable { mutableStateOf<Map<String, String>>(emptyMap()) }
     var isCartVisible by rememberSaveable { mutableStateOf(false) }
     var checkoutDialogState by remember { mutableStateOf<MyOrderCheckoutDialogState?>(null) }
 
@@ -136,14 +142,13 @@ internal fun MyOrderRoute(
             selectedQuantities[product.id].orZero.toDouble() * product.price
         }
     }
-    val committedProducts = remember(products, committedProducerId) {
-        if (committedProducerId == null) {
-            emptyList()
-        } else {
-            products.filter { product -> product.vendorId == committedProducerId && product.isEcoBasket }
-        }
+    val noPickupEcoBasketUnits = remember(products, selectedQuantities, selectedEcoBasketOptions) {
+        countNoPickupEcoBasketUnits(
+            products = products,
+            selectedQuantities = selectedQuantities,
+            selectedEcoBasketOptions = selectedEcoBasketOptions,
+        )
     }
-
     LaunchedEffect(products) {
         val productsById = products.associateBy(Product::id)
         val sanitizedQuantities = selectedQuantities.mapNotNull { (productId, qty) ->
@@ -160,6 +165,20 @@ internal fun MyOrderRoute(
         if (sanitizedQuantities != selectedQuantities) {
             selectedQuantities = sanitizedQuantities
         }
+        val sanitizedOptions = sanitizedQuantities.mapNotNull { (productId, qty) ->
+            if (qty <= 0) return@mapNotNull null
+            val product = productsById[productId] ?: return@mapNotNull null
+            if (!product.isEcoBasket) return@mapNotNull null
+            val option = selectedEcoBasketOptions[productId]
+                ?.takeIf { value ->
+                    value == EcoBasketOptionPickup || value == EcoBasketOptionNoPickup
+                }
+                ?: EcoBasketOptionPickup
+            productId to option
+        }.toMap()
+        if (sanitizedOptions != selectedEcoBasketOptions) {
+            selectedEcoBasketOptions = sanitizedOptions
+        }
         if (sanitizedQuantities.isEmpty()) {
             isCartVisible = false
         }
@@ -168,14 +187,18 @@ internal fun MyOrderRoute(
     val decreaseProduct: (Product) -> Unit = { product ->
         val currentQty = selectedQuantities[product.id].orZero
         if (currentQty > 0) {
-            selectedQuantities = if (currentQty == 1) {
+            val updatedQuantities = if (currentQty == 1) {
                 selectedQuantities - product.id
             } else {
                 selectedQuantities + (product.id to (currentQty - 1))
             }
-        }
-        if (selectedQuantities.isEmpty()) {
-            isCartVisible = false
+            selectedQuantities = updatedQuantities
+            if (product.isEcoBasket && updatedQuantities[product.id].orZero == 0) {
+                selectedEcoBasketOptions = selectedEcoBasketOptions - product.id
+            }
+            if (updatedQuantities.isEmpty()) {
+                isCartVisible = false
+            }
         }
     }
 
@@ -183,6 +206,9 @@ internal fun MyOrderRoute(
         val currentQty = selectedQuantities[product.id].orZero
         if (canIncrease(product = product, currentQuantity = currentQty)) {
             selectedQuantities = selectedQuantities + (product.id to (currentQty + 1))
+            if (product.isEcoBasket && selectedEcoBasketOptions[product.id] == null) {
+                selectedEcoBasketOptions = selectedEcoBasketOptions + (product.id to EcoBasketOptionPickup)
+            }
         }
     }
 
@@ -362,8 +388,12 @@ internal fun MyOrderRoute(
                                     SelectedProductCard(
                                         product = product,
                                         quantity = selectedQuantities[product.id].orZero,
+                                        ecoBasketOption = selectedEcoBasketOptions[product.id],
                                         onIncrease = { increaseProduct(product) },
                                         onDecrease = { decreaseProduct(product) },
+                                        onEcoBasketOptionChange = { selectedOption ->
+                                            selectedEcoBasketOptions = selectedEcoBasketOptions + (product.id to selectedOption)
+                                        },
                                     )
                                 }
                             }
@@ -378,14 +408,30 @@ internal fun MyOrderRoute(
                     ) {
                         Button(
                             onClick = {
-                                val missingCommitments = committedProducts
-                                    .filter { product -> selectedQuantities[product.id].orZero == 0 }
-                                    .map(Product::name)
+                                val validationResult = validateMyOrderCheckout(
+                                    currentMember = currentMember,
+                                    members = members,
+                                    products = products,
+                                    selectedQuantities = selectedQuantities,
+                                    selectedEcoBasketOptions = selectedEcoBasketOptions,
+                                )
+                                checkoutDialogState = when {
+                                    validationResult.hasEcoBasketPriceMismatch -> {
+                                        MyOrderCheckoutDialogState.EcoBasketPriceMismatch
+                                    }
 
-                                checkoutDialogState = if (missingCommitments.isNotEmpty()) {
-                                    MyOrderCheckoutDialogState.MissingCommitments(missingCommitments)
-                                } else {
-                                    MyOrderCheckoutDialogState.ReadyToSubmit(total = cartTotal)
+                                    validationResult.missingCommitmentProductNames.isNotEmpty() -> {
+                                        MyOrderCheckoutDialogState.MissingCommitments(
+                                            validationResult.missingCommitmentProductNames,
+                                        )
+                                    }
+
+                                    else -> {
+                                        MyOrderCheckoutDialogState.ReadyToSubmit(
+                                            total = cartTotal,
+                                            noPickupEcoBaskets = noPickupEcoBasketUnits,
+                                        )
+                                    }
                                 }
                             },
                             enabled = selectedUnits > 0,
@@ -433,12 +479,33 @@ internal fun MyOrderRoute(
                     title = { Text(text = stringResource(R.string.my_order_checkout_success_title)) },
                     text = {
                         Text(
-                            text = stringResource(
-                                R.string.my_order_checkout_success_message,
-                                dialogState.total.toUiDecimal(),
-                            ),
+                            text = if (dialogState.noPickupEcoBaskets > 0) {
+                                stringResource(
+                                    R.string.my_order_checkout_success_message_with_no_pickup,
+                                    dialogState.total.toUiDecimal(),
+                                    dialogState.noPickupEcoBaskets,
+                                )
+                            } else {
+                                stringResource(
+                                    R.string.my_order_checkout_success_message,
+                                    dialogState.total.toUiDecimal(),
+                                )
+                            },
                         )
                     },
+                    confirmButton = {
+                        TextButton(onClick = { checkoutDialogState = null }) {
+                            Text(text = stringResource(R.string.common_action_accept))
+                        }
+                    },
+                )
+            }
+
+            is MyOrderCheckoutDialogState.EcoBasketPriceMismatch -> {
+                AlertDialog(
+                    onDismissRequest = { checkoutDialogState = null },
+                    title = { Text(text = stringResource(R.string.my_order_checkout_eco_price_error_title)) },
+                    text = { Text(text = stringResource(R.string.my_order_checkout_eco_price_error_message)) },
                     confirmButton = {
                         TextButton(onClick = { checkoutDialogState = null }) {
                             Text(text = stringResource(R.string.common_action_accept))
@@ -748,8 +815,10 @@ private fun QuantityActionButton(
 private fun SelectedProductCard(
     product: Product,
     quantity: Int,
+    ecoBasketOption: String?,
     onIncrease: () -> Unit,
     onDecrease: () -> Unit,
+    onEcoBasketOptionChange: (String) -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -792,7 +861,79 @@ private fun SelectedProductCard(
                 onIncrease = onIncrease,
                 onDecrease = onDecrease,
             )
+            if (product.isEcoBasket && quantity > 0) {
+                EcoBasketOptionSelector(
+                    selectedOption = ecoBasketOption ?: EcoBasketOptionPickup,
+                    onOptionSelected = onEcoBasketOptionChange,
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun EcoBasketOptionSelector(
+    selectedOption: String,
+    onOptionSelected: (String) -> Unit,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.my_order_eco_basket_option_label),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            EcoBasketOptionButton(
+                title = stringResource(R.string.my_order_eco_basket_option_pickup),
+                isSelected = selectedOption == EcoBasketOptionPickup,
+                onClick = { onOptionSelected(EcoBasketOptionPickup) },
+                modifier = Modifier.weight(1f),
+            )
+            EcoBasketOptionButton(
+                title = stringResource(R.string.my_order_eco_basket_option_no_pickup),
+                isSelected = selectedOption == EcoBasketOptionNoPickup,
+                onClick = { onOptionSelected(EcoBasketOptionNoPickup) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun EcoBasketOptionButton(
+    title: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(9.dp),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = if (isSelected) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+            } else {
+                Color.Transparent
+            },
+            contentColor = if (isSelected) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        ),
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -957,6 +1098,21 @@ private fun Double.toUiDecimal(): String =
         toLong().toString()
     } else {
         String.format(Locale.getDefault(), "%.2f", this)
+    }
+
+private fun countNoPickupEcoBasketUnits(
+    products: List<Product>,
+    selectedQuantities: Map<String, Int>,
+    selectedEcoBasketOptions: Map<String, String>,
+): Int = products
+    .asSequence()
+    .filter(Product::isEcoBasket)
+    .sumOf { product ->
+        if (selectedEcoBasketOptions[product.id] == EcoBasketOptionNoPickup) {
+            selectedQuantities[product.id].orZero
+        } else {
+            0
+        }
     }
 
 private fun Member.committedEcoBasketProducerId(members: List<Member>): String? {

@@ -549,6 +549,152 @@ struct ReguertaTests {
         #expect(viewModel.mode == .signedOut)
         #expect(viewModel.showSessionExpiredDialog)
     }
+
+    @Test
+    func myOrderValidationBlocksMissingWeeklyCommitment() {
+        let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
+        let producerEven = producer(id: "producer_even", parity: .even)
+        let ecoBasket = ecoBasketProduct(id: "eco_even", vendorId: producerEven.id)
+
+        let result = validateMyOrderCheckout(
+            currentMember: currentMember,
+            members: [currentMember, producerEven],
+            products: [ecoBasket],
+            selectedQuantities: [:],
+            selectedEcoBasketOptions: [:]
+        )
+
+        #expect(result.isValid == false)
+        #expect(result.missingCommitmentProductNames == ["Ecocesta"])
+        #expect(result.hasEcoBasketPriceMismatch == false)
+    }
+
+    @Test
+    func myOrderValidationAcceptsNoPickupAsPaidCommitment() {
+        let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
+        let producerEven = producer(id: "producer_even", parity: .even)
+        let ecoBasket = ecoBasketProduct(id: "eco_even", vendorId: producerEven.id)
+
+        let result = validateMyOrderCheckout(
+            currentMember: currentMember,
+            members: [currentMember, producerEven],
+            products: [ecoBasket],
+            selectedQuantities: [ecoBasket.id: 1],
+            selectedEcoBasketOptions: [ecoBasket.id: ecoBasketOptionNoPickup]
+        )
+
+        #expect(result.isValid == true)
+        #expect(result.missingCommitmentProductNames.isEmpty)
+    }
+
+    @Test
+    func myOrderValidationRequiresParityProducerInBiweeklyMode() {
+        let currentMember = member(
+            id: "member_1",
+            ecoCommitmentMode: .biweekly,
+            ecoCommitmentParity: .even
+        )
+        let producerEven = producer(id: "producer_even", parity: .even)
+        let producerOdd = producer(id: "producer_odd", parity: .odd)
+        let ecoEven = ecoBasketProduct(id: "eco_even", vendorId: producerEven.id, name: "Ecocesta par")
+        let ecoOdd = ecoBasketProduct(id: "eco_odd", vendorId: producerOdd.id, name: "Ecocesta impar")
+
+        let result = validateMyOrderCheckout(
+            currentMember: currentMember,
+            members: [currentMember, producerEven, producerOdd],
+            products: [ecoEven, ecoOdd],
+            selectedQuantities: [ecoOdd.id: 1],
+            selectedEcoBasketOptions: [ecoOdd.id: ecoBasketOptionPickup]
+        )
+
+        #expect(result.isValid == false)
+        #expect(result.missingCommitmentProductNames == ["Ecocesta par"])
+    }
+
+    @Test
+    func myOrderValidationFlagsEcoBasketPriceMismatch() {
+        let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
+        let producerEven = producer(id: "producer_even", parity: .even)
+        let producerOdd = producer(id: "producer_odd", parity: .odd)
+        let ecoEven = ecoBasketProduct(id: "eco_even", vendorId: producerEven.id, price: 2.0)
+        let ecoOdd = ecoBasketProduct(id: "eco_odd", vendorId: producerOdd.id, price: 2.5)
+
+        let result = validateMyOrderCheckout(
+            currentMember: currentMember,
+            members: [currentMember, producerEven, producerOdd],
+            products: [ecoEven, ecoOdd],
+            selectedQuantities: [ecoEven.id: 1],
+            selectedEcoBasketOptions: [ecoEven.id: ecoBasketOptionPickup]
+        )
+
+        #expect(result.hasEcoBasketPriceMismatch == true)
+    }
+
+    private func member(
+        id: String,
+        ecoCommitmentMode: EcoCommitmentMode,
+        ecoCommitmentParity: ProducerParity? = nil
+    ) -> Member {
+        Member(
+            id: id,
+            displayName: "Member",
+            normalizedEmail: "\(id)@reguerta.app",
+            authUid: "auth_\(id)",
+            roles: [.member],
+            isActive: true,
+            producerCatalogEnabled: true,
+            ecoCommitmentMode: ecoCommitmentMode,
+            ecoCommitmentParity: ecoCommitmentParity
+        )
+    }
+
+    private func producer(id: String, parity: ProducerParity) -> Member {
+        Member(
+            id: id,
+            displayName: id,
+            normalizedEmail: "\(id)@reguerta.app",
+            authUid: nil,
+            roles: [.producer],
+            isActive: true,
+            producerCatalogEnabled: true,
+            producerParity: parity
+        )
+    }
+
+    private func ecoBasketProduct(
+        id: String,
+        vendorId: String,
+        name: String = "Ecocesta",
+        price: Double = 2.0
+    ) -> Product {
+        Product(
+            id: id,
+            vendorId: vendorId,
+            companyName: vendorId,
+            name: name,
+            description: "",
+            productImageUrl: nil,
+            price: price,
+            pricingMode: .fixed,
+            unitName: "unit",
+            unitAbbreviation: "ud",
+            unitPlural: "units",
+            unitQty: 1.0,
+            packContainerName: nil,
+            packContainerAbbreviation: nil,
+            packContainerPlural: nil,
+            packContainerQty: nil,
+            isAvailable: true,
+            stockMode: .infinite,
+            stockQty: nil,
+            isEcoBasket: true,
+            isCommonPurchase: false,
+            commonPurchaseType: nil,
+            archived: false,
+            createdAtMillis: 1,
+            updatedAtMillis: 1
+        )
+    }
 }
 
 private struct FixedStartupVersionPolicyRepository: StartupVersionPolicyRepository {
