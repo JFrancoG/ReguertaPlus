@@ -1,6 +1,7 @@
 package com.reguerta.user.presentation.access
 
 import android.content.Context
+import androidx.annotation.VisibleForTesting
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -28,11 +30,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -49,6 +51,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -62,16 +65,35 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.google.android.gms.tasks.Tasks
+import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
+import com.google.firebase.firestore.Source
 import com.reguerta.user.R
+import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
+import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
+import com.reguerta.user.data.firestore.ReguertaFirestorePath
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.commitments.SeasonalCommitment
 import com.reguerta.user.domain.products.Product
+import com.reguerta.user.domain.products.ProductPricingMode
 import com.reguerta.user.domain.products.ProductStockMode
+import com.reguerta.user.ui.components.auth.ReguertaDialog
+import com.reguerta.user.ui.components.auth.ReguertaDialogAction
+import com.reguerta.user.ui.components.auth.ReguertaDialogType
 import java.text.Normalizer
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.WeekFields
+import java.util.Date
 import java.util.Locale
 import kotlin.math.floor
 import kotlin.math.max
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 private const val CommonPurchasesGroupId = "__my_order_reguerta_common_purchases__"
@@ -100,7 +122,13 @@ private data class MyOrderProducerGroup(
 private sealed interface MyOrderCheckoutDialogState {
     data class MissingCommitments(val productNames: List<String>) : MyOrderCheckoutDialogState
 
+    data class ExceededCommitments(val productNames: List<String>) : MyOrderCheckoutDialogState
+
+    data class IncompatibleCommitments(val productNames: List<String>) : MyOrderCheckoutDialogState
+
     data object EcoBasketPriceMismatch : MyOrderCheckoutDialogState
+
+    data object SubmitFailed : MyOrderCheckoutDialogState
 
     data class ReadyToSubmit(
         val total: Double,
@@ -113,6 +141,20 @@ private data class MyOrderCartSnapshot(
     val selectedEcoBasketOptions: Map<String, String>,
 )
 
+private data class MyOrderConfirmedLine(
+    val product: Product,
+    val unitsSelected: Int,
+    val quantityAtOrder: Double,
+    val subtotal: Double,
+)
+
+private data class MyOrderConfirmedGroup(
+    val vendorId: String,
+    val companyName: String,
+    val lines: List<MyOrderConfirmedLine>,
+    val subtotal: Double,
+)
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun MyOrderRoute(
@@ -123,15 +165,19 @@ internal fun MyOrderRoute(
     seasonalCommitments: List<SeasonalCommitment>,
     isLoading: Boolean,
     onRefresh: () -> Unit,
+    onCheckoutSuccessAcknowledge: () -> Unit,
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedQuantities by rememberSaveable { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var selectedEcoBasketOptions by rememberSaveable { mutableStateOf<Map<String, String>>(emptyMap()) }
     var confirmedQuantities by rememberSaveable { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var confirmedEcoBasketOptions by rememberSaveable { mutableStateOf<Map<String, String>>(emptyMap()) }
     var isCartVisible by rememberSaveable { mutableStateOf(false) }
+    var isSubmittingCheckout by remember { mutableStateOf(false) }
     var checkoutDialogState by remember { mutableStateOf<MyOrderCheckoutDialogState?>(null) }
+    var isViewingConfirmedOrder by rememberSaveable { mutableStateOf(false) }
     val currentWeekKey = remember { System.currentTimeMillis().toWeekKey() }
     val cartStorageKey = remember(currentMember?.id, currentWeekKey) {
         "member_${currentMember?.id.orEmpty()}_week_$currentWeekKey"
@@ -155,8 +201,20 @@ internal fun MyOrderRoute(
             commonPurchasesGroupName = commonPurchasesGroupName,
         )
     }
+    val seasonalCommitmentLimitsByProductId = remember(products, seasonalCommitments) {
+        seasonalCommitmentUnitLimitsByProductId(
+            products = products,
+            seasonalCommitments = seasonalCommitments,
+        )
+    }
     val selectedProducts = remember(products, selectedQuantities) {
         products.filter { product -> selectedQuantities[product.id].orZero > 0 }
+    }
+    val confirmedOrderGroups = remember(selectedProducts, selectedQuantities) {
+        buildMyOrderConfirmedGroups(
+            selectedProducts = selectedProducts,
+            selectedQuantities = selectedQuantities,
+        )
     }
     val selectedUnits = remember(selectedQuantities) {
         selectedQuantities.values.sum()
@@ -176,12 +234,22 @@ internal fun MyOrderRoute(
                 selectedEcoBasketOptions != confirmedEcoBasketOptions
             )
     }
+    val isReadOnlyConfirmedView = remember(
+        hasConfirmedOrder,
+        hasPendingConfirmedEdits,
+        isViewingConfirmedOrder,
+    ) {
+        hasConfirmedOrder && !hasPendingConfirmedEdits && isViewingConfirmedOrder
+    }
     val finalizeActionLabel = if (hasConfirmedOrder && hasPendingConfirmedEdits) {
         stringResource(R.string.my_order_finalize_update_action)
     } else {
         stringResource(R.string.my_order_finalize_action)
     }
-    val canSubmitOrder = selectedUnits > 0 && (!hasConfirmedOrder || hasPendingConfirmedEdits)
+    val canSubmitOrder = !isSubmittingCheckout &&
+        !isReadOnlyConfirmedView &&
+        selectedUnits > 0 &&
+        (!hasConfirmedOrder || hasPendingConfirmedEdits)
     val cartTotal = remember(selectedProducts, selectedQuantities) {
         selectedProducts.sumOf { product ->
             selectedQuantities[product.id].orZero.toDouble() * product.price
@@ -210,9 +278,15 @@ internal fun MyOrderRoute(
         } else {
             confirmedSnapshot
         }
+        val isSelectionEqualToConfirmed =
+            initialSelectionSnapshot.selectedQuantities == confirmedSnapshot.selectedQuantities &&
+                initialSelectionSnapshot.selectedEcoBasketOptions == confirmedSnapshot.selectedEcoBasketOptions
+        isViewingConfirmedOrder = confirmedSnapshot.selectedQuantities.isNotEmpty() && isSelectionEqualToConfirmed
         selectedQuantities = initialSelectionSnapshot.selectedQuantities
         selectedEcoBasketOptions = initialSelectionSnapshot.selectedEcoBasketOptions
         if (initialSelectionSnapshot.selectedQuantities.isEmpty()) {
+            isCartVisible = false
+        } else if (isViewingConfirmedOrder) {
             isCartVisible = false
         }
         hasRestoredCartState = true
@@ -231,12 +305,14 @@ internal fun MyOrderRoute(
             selectedEcoBasketOptions = selectedEcoBasketOptions,
         )
     }
-    LaunchedEffect(products) {
+    LaunchedEffect(products, seasonalCommitmentLimitsByProductId) {
         val productsById = products.associateBy(Product::id)
         val sanitizedQuantities = selectedQuantities.mapNotNull { (productId, qty) ->
             val product = productsById[productId] ?: return@mapNotNull null
             val finiteLimit = finiteStockLimit(product)
-            val allowedQty = finiteLimit?.let { qty.coerceAtMost(it) } ?: qty
+            val commitmentLimit = seasonalCommitmentLimitsByProductId[productId]
+            val allowedByCommitment = commitmentLimit?.let { qty.coerceAtMost(it) } ?: qty
+            val allowedQty = finiteLimit?.let { allowedByCommitment.coerceAtMost(it) } ?: allowedByCommitment
             if (allowedQty > 0) {
                 productId to allowedQty
             } else {
@@ -267,29 +343,39 @@ internal fun MyOrderRoute(
     }
 
     val decreaseProduct: (Product) -> Unit = { product ->
-        val currentQty = selectedQuantities[product.id].orZero
-        if (currentQty > 0) {
-            val updatedQuantities = if (currentQty == 1) {
-                selectedQuantities - product.id
-            } else {
-                selectedQuantities + (product.id to (currentQty - 1))
-            }
-            selectedQuantities = updatedQuantities
-            if (product.isEcoBasket && updatedQuantities[product.id].orZero == 0) {
-                selectedEcoBasketOptions = selectedEcoBasketOptions - product.id
-            }
-            if (updatedQuantities.isEmpty()) {
-                isCartVisible = false
+        if (!isReadOnlyConfirmedView) {
+            val currentQty = selectedQuantities[product.id].orZero
+            if (currentQty > 0) {
+                val updatedQuantities = if (currentQty == 1) {
+                    selectedQuantities - product.id
+                } else {
+                    selectedQuantities + (product.id to (currentQty - 1))
+                }
+                selectedQuantities = updatedQuantities
+                if (product.isEcoBasket && updatedQuantities[product.id].orZero == 0) {
+                    selectedEcoBasketOptions = selectedEcoBasketOptions - product.id
+                }
+                if (updatedQuantities.isEmpty()) {
+                    isCartVisible = false
+                }
             }
         }
     }
 
     val increaseProduct: (Product) -> Unit = { product ->
-        val currentQty = selectedQuantities[product.id].orZero
-        if (canIncrease(product = product, currentQuantity = currentQty)) {
-            selectedQuantities = selectedQuantities + (product.id to (currentQty + 1))
-            if (product.isEcoBasket && selectedEcoBasketOptions[product.id] == null) {
-                selectedEcoBasketOptions = selectedEcoBasketOptions + (product.id to EcoBasketOptionPickup)
+        if (!isReadOnlyConfirmedView) {
+            val currentQty = selectedQuantities[product.id].orZero
+            if (
+                canIncrease(
+                    product = product,
+                    currentQuantity = currentQty,
+                    commitmentLimit = seasonalCommitmentLimitsByProductId[product.id],
+                )
+            ) {
+                selectedQuantities = selectedQuantities + (product.id to (currentQty + 1))
+                if (product.isEcoBasket && selectedEcoBasketOptions[product.id] == null) {
+                    selectedEcoBasketOptions = selectedEcoBasketOptions + (product.id to EcoBasketOptionPickup)
+                }
             }
         }
     }
@@ -303,10 +389,17 @@ internal fun MyOrderRoute(
         )
 
         Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
+            if (isReadOnlyConfirmedView) {
+                MyOrderConfirmedSummary(
+                    groups = confirmedOrderGroups,
+                    total = cartTotal,
+                    onEdit = { isViewingConfirmedOrder = false },
+                )
+            } else {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
                 MyOrderHeader(
                     selectedUnits = selectedUnits,
                     onOpenCart = { isCartVisible = true },
@@ -371,20 +464,22 @@ internal fun MyOrderRoute(
                                     items = group.products,
                                     key = Product::id,
                                 ) { product ->
-                                    MyOrderProductCard(
-                                        product = product,
-                                        quantity = selectedQuantities[product.id].orZero,
-                                        onIncrease = { increaseProduct(product) },
-                                        onDecrease = { decreaseProduct(product) },
-                                    )
-                                }
+                                MyOrderProductCard(
+                                    product = product,
+                                    quantity = selectedQuantities[product.id].orZero,
+                                    commitmentLimit = seasonalCommitmentLimitsByProductId[product.id],
+                                    isEditable = !isReadOnlyConfirmedView,
+                                    onIncrease = { increaseProduct(product) },
+                                    onDecrease = { decreaseProduct(product) },
+                                )
+                            }
                             }
                         }
                     }
                 }
-            }
+                }
 
-            if (!isCartVisible) {
+                if (!isCartVisible) {
                 SearchBarOverlay(
                     searchQuery = searchQuery,
                     onSearchQueryChange = { searchQuery = it },
@@ -392,18 +487,18 @@ internal fun MyOrderRoute(
                         .align(Alignment.BottomCenter)
                         .padding(horizontal = 8.dp, vertical = 12.dp),
                 )
-            }
+                }
 
-            if (isCartVisible) {
+                if (isCartVisible) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(Color.Black.copy(alpha = 0.24f))
                         .clickable { isCartVisible = false },
                 )
-            }
+                }
 
-            Surface(
+                Surface(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
                     .fillMaxHeight()
@@ -419,15 +514,28 @@ internal fun MyOrderRoute(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         OutlinedButton(
-                            onClick = { isCartVisible = false },
+                            onClick = {
+                                if (isReadOnlyConfirmedView) {
+                                    isViewingConfirmedOrder = false
+                                    isCartVisible = false
+                                } else {
+                                    isCartVisible = false
+                                }
+                            },
                             shape = RoundedCornerShape(12.dp),
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ShoppingCart,
+                                imageVector = if (isReadOnlyConfirmedView) Icons.Default.Edit else Icons.Default.ShoppingCart,
                                 contentDescription = null,
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = stringResource(R.string.my_order_continue_shopping_action))
+                            Text(
+                                text = if (isReadOnlyConfirmedView) {
+                                    stringResource(R.string.my_order_edit_confirmed_action)
+                                } else {
+                                    stringResource(R.string.my_order_continue_shopping_action)
+                                },
+                            )
                         }
 
                         Row(
@@ -470,11 +578,15 @@ internal fun MyOrderRoute(
                                     SelectedProductCard(
                                         product = product,
                                         quantity = selectedQuantities[product.id].orZero,
+                                        commitmentLimit = seasonalCommitmentLimitsByProductId[product.id],
                                         ecoBasketOption = selectedEcoBasketOptions[product.id],
+                                        isEditable = !isReadOnlyConfirmedView,
                                         onIncrease = { increaseProduct(product) },
                                         onDecrease = { decreaseProduct(product) },
                                         onEcoBasketOptionChange = { selectedOption ->
-                                            selectedEcoBasketOptions = selectedEcoBasketOptions + (product.id to selectedOption)
+                                            if (!isReadOnlyConfirmedView) {
+                                                selectedEcoBasketOptions = selectedEcoBasketOptions + (product.id to selectedOption)
+                                            }
                                         },
                                     )
                                 }
@@ -482,35 +594,70 @@ internal fun MyOrderRoute(
                         }
                     }
 
-                    Surface(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth(),
-                        tonalElevation = 4.dp,
-                    ) {
-                        Button(
-                            onClick = {
-                                val validationResult = validateMyOrderCheckout(
-                                    currentMember = currentMember,
-                                    members = members,
-                                    products = products,
-                                    seasonalCommitments = seasonalCommitments,
-                                    selectedQuantities = selectedQuantities,
-                                    selectedEcoBasketOptions = selectedEcoBasketOptions,
-                                    currentWeekParity = currentWeekParity,
-                                )
-                                checkoutDialogState = when {
-                                    validationResult.hasEcoBasketPriceMismatch -> {
-                                        MyOrderCheckoutDialogState.EcoBasketPriceMismatch
+                    if (!isReadOnlyConfirmedView) {
+                        Surface(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth(),
+                            tonalElevation = 4.dp,
+                        ) {
+                            Button(
+                                onClick = {
+                                    val validationResult = validateMyOrderCheckout(
+                                        currentMember = currentMember,
+                                        members = members,
+                                        products = products,
+                                        seasonalCommitments = seasonalCommitments,
+                                        selectedQuantities = selectedQuantities,
+                                        selectedEcoBasketOptions = selectedEcoBasketOptions,
+                                        currentWeekParity = currentWeekParity,
+                                    )
+                                    checkoutDialogState = when {
+                                        validationResult.hasEcoBasketPriceMismatch -> {
+                                            MyOrderCheckoutDialogState.EcoBasketPriceMismatch
+                                        }
+
+                                        validationResult.incompatibleCommitmentProductNames.isNotEmpty() -> {
+                                            MyOrderCheckoutDialogState.IncompatibleCommitments(
+                                                validationResult.incompatibleCommitmentProductNames,
+                                            )
+                                        }
+
+                                        validationResult.missingCommitmentProductNames.isNotEmpty() -> {
+                                            MyOrderCheckoutDialogState.MissingCommitments(
+                                                validationResult.missingCommitmentProductNames,
+                                            )
+                                        }
+
+                                        validationResult.exceededCommitmentProductNames.isNotEmpty() -> {
+                                            MyOrderCheckoutDialogState.ExceededCommitments(
+                                                validationResult.exceededCommitmentProductNames,
+                                            )
+                                        }
+
+                                        else -> {
+                                            null
+                                        }
+                                    }
+                                    if (checkoutDialogState != null) {
+                                        return@Button
                                     }
 
-                                    validationResult.missingCommitmentProductNames.isNotEmpty() -> {
-                                        MyOrderCheckoutDialogState.MissingCommitments(
-                                            validationResult.missingCommitmentProductNames,
+                                    coroutineScope.launch {
+                                        isSubmittingCheckout = true
+                                        val didPersist = submitCheckoutOrderToFirestore(
+                                            currentMember = currentMember,
+                                            weekKey = currentWeekKey,
+                                            products = products,
+                                            selectedQuantities = selectedQuantities,
+                                            selectedEcoBasketOptions = selectedEcoBasketOptions,
                                         )
-                                    }
+                                        isSubmittingCheckout = false
+                                        if (!didPersist) {
+                                            checkoutDialogState = MyOrderCheckoutDialogState.SubmitFailed
+                                            return@launch
+                                        }
 
-                                    else -> {
                                         persistMyOrderConfirmedSnapshot(
                                             context = context,
                                             storageKey = cartStorageKey,
@@ -519,23 +666,24 @@ internal fun MyOrderRoute(
                                         )
                                         confirmedQuantities = selectedQuantities
                                         confirmedEcoBasketOptions = selectedEcoBasketOptions
-                                        MyOrderCheckoutDialogState.ReadyToSubmit(
+                                        isViewingConfirmedOrder = true
+                                        checkoutDialogState = MyOrderCheckoutDialogState.ReadyToSubmit(
                                             total = cartTotal,
                                             noPickupEcoBaskets = noPickupEcoBasketUnits,
                                         )
                                     }
-                                }
-                            },
-                            enabled = canSubmitOrder,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            shape = RoundedCornerShape(28.dp),
-                        ) {
-                            Text(
-                                text = finalizeActionLabel,
-                                fontWeight = FontWeight.SemiBold,
-                            )
+                                },
+                                enabled = canSubmitOrder,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                shape = RoundedCornerShape(28.dp),
+                            ) {
+                                Text(
+                                    text = finalizeActionLabel,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
                         }
                     }
                 }
@@ -546,68 +694,111 @@ internal fun MyOrderRoute(
     checkoutDialogState?.let { dialogState ->
         when (dialogState) {
             is MyOrderCheckoutDialogState.MissingCommitments -> {
-                AlertDialog(
+                ReguertaDialog(
+                    type = ReguertaDialogType.ERROR,
+                    title = stringResource(R.string.my_order_checkout_error_title),
+                    message = stringResource(
+                        R.string.my_order_checkout_error_message,
+                        dialogState.productNames.joinToString(separator = ", "),
+                    ),
+                    primaryAction = ReguertaDialogAction(
+                        label = stringResource(R.string.common_action_accept),
+                        onClick = { checkoutDialogState = null },
+                    ),
                     onDismissRequest = { checkoutDialogState = null },
-                    title = { Text(text = stringResource(R.string.my_order_checkout_error_title)) },
-                    text = {
-                        Text(
-                            text = stringResource(
-                                R.string.my_order_checkout_error_message,
-                                dialogState.productNames.joinToString(separator = ", "),
-                            ),
-                        )
-                    },
-                    confirmButton = {
-                        TextButton(onClick = { checkoutDialogState = null }) {
-                            Text(text = stringResource(R.string.common_action_accept))
-                        }
-                    },
+                )
+            }
+
+            is MyOrderCheckoutDialogState.ExceededCommitments -> {
+                ReguertaDialog(
+                    type = ReguertaDialogType.ERROR,
+                    title = stringResource(R.string.my_order_checkout_exceeded_title),
+                    message = stringResource(
+                        R.string.my_order_checkout_exceeded_message,
+                        dialogState.productNames.joinToString(separator = ", "),
+                    ),
+                    primaryAction = ReguertaDialogAction(
+                        label = stringResource(R.string.common_action_accept),
+                        onClick = { checkoutDialogState = null },
+                    ),
+                    onDismissRequest = { checkoutDialogState = null },
+                )
+            }
+
+            is MyOrderCheckoutDialogState.IncompatibleCommitments -> {
+                ReguertaDialog(
+                    type = ReguertaDialogType.ERROR,
+                    title = stringResource(R.string.my_order_checkout_incompatible_title),
+                    message = stringResource(
+                        R.string.my_order_checkout_incompatible_message,
+                        dialogState.productNames.joinToString(separator = ", "),
+                    ),
+                    primaryAction = ReguertaDialogAction(
+                        label = stringResource(R.string.common_action_accept),
+                        onClick = { checkoutDialogState = null },
+                    ),
+                    onDismissRequest = { checkoutDialogState = null },
                 )
             }
 
             is MyOrderCheckoutDialogState.ReadyToSubmit -> {
-                AlertDialog(
-                    onDismissRequest = { checkoutDialogState = null },
-                    title = { Text(text = stringResource(R.string.my_order_checkout_success_title)) },
-                    text = {
-                        Text(
-                            text = if (dialogState.noPickupEcoBaskets > 0) {
-                                stringResource(
-                                    R.string.my_order_checkout_success_message_with_no_pickup,
-                                    dialogState.total.toUiDecimal(),
-                                    dialogState.noPickupEcoBaskets,
-                                )
-                            } else {
-                                stringResource(
-                                    R.string.my_order_checkout_success_message,
-                                    dialogState.total.toUiDecimal(),
-                                )
-                            },
+                ReguertaDialog(
+                    type = ReguertaDialogType.INFO,
+                    title = stringResource(R.string.my_order_checkout_success_title),
+                    message = if (dialogState.noPickupEcoBaskets > 0) {
+                        stringResource(
+                            R.string.my_order_checkout_success_message_with_no_pickup,
+                            dialogState.total.toUiDecimal(),
+                            dialogState.noPickupEcoBaskets,
+                        )
+                    } else {
+                        stringResource(
+                            R.string.my_order_checkout_success_message,
+                            dialogState.total.toUiDecimal(),
                         )
                     },
-                    confirmButton = {
-                        TextButton(onClick = { checkoutDialogState = null }) {
-                            Text(text = stringResource(R.string.common_action_accept))
-                        }
-                    },
+                    primaryAction = ReguertaDialogAction(
+                        label = stringResource(R.string.common_action_accept),
+                        onClick = {
+                            checkoutDialogState = null
+                            isCartVisible = false
+                            onCheckoutSuccessAcknowledge()
+                        },
+                    ),
+                    dismissible = false,
+                )
+            }
+
+            is MyOrderCheckoutDialogState.SubmitFailed -> {
+                ReguertaDialog(
+                    type = ReguertaDialogType.ERROR,
+                    title = stringResource(R.string.my_order_checkout_submit_error_title),
+                    message = stringResource(R.string.my_order_checkout_submit_error_message),
+                    primaryAction = ReguertaDialogAction(
+                        label = stringResource(R.string.common_action_accept),
+                        onClick = { checkoutDialogState = null },
+                    ),
+                    onDismissRequest = { checkoutDialogState = null },
                 )
             }
 
             is MyOrderCheckoutDialogState.EcoBasketPriceMismatch -> {
-                AlertDialog(
+                ReguertaDialog(
+                    type = ReguertaDialogType.ERROR,
+                    title = stringResource(R.string.my_order_checkout_eco_price_error_title),
+                    message = stringResource(R.string.my_order_checkout_eco_price_error_message),
+                    primaryAction = ReguertaDialogAction(
+                        label = stringResource(R.string.common_action_accept),
+                        onClick = { checkoutDialogState = null },
+                    ),
                     onDismissRequest = { checkoutDialogState = null },
-                    title = { Text(text = stringResource(R.string.my_order_checkout_eco_price_error_title)) },
-                    text = { Text(text = stringResource(R.string.my_order_checkout_eco_price_error_message)) },
-                    confirmButton = {
-                        TextButton(onClick = { checkoutDialogState = null }) {
-                            Text(text = stringResource(R.string.common_action_accept))
-                        }
-                    },
                 )
             }
         }
     }
 }
+}
+
 
 @Composable
 private fun MyOrderHeader(
@@ -662,6 +853,164 @@ private fun MyOrderHeader(
 }
 
 @Composable
+private fun MyOrderConfirmedSummary(
+    groups: List<MyOrderConfirmedGroup>,
+    total: Double,
+    onEdit: () -> Unit,
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.module_my_order),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                OutlinedButton(
+                    onClick = onEdit,
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.my_order_edit_confirmed_action),
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+
+            if (groups.isEmpty()) {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = stringResource(R.string.my_order_cart_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 84.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(
+                        items = groups,
+                        key = MyOrderConfirmedGroup::vendorId,
+                    ) { group ->
+                        MyOrderConfirmedProducerCard(group = group)
+                    }
+                }
+            }
+        }
+
+        Surface(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            shape = RoundedCornerShape(14.dp),
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
+        ) {
+            Text(
+                text = stringResource(
+                    R.string.my_order_confirmed_total_sum_format,
+                    total.toUiDecimal(),
+                ),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun MyOrderConfirmedProducerCard(group: MyOrderConfirmedGroup) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = group.companyName,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+            )
+
+            group.lines.forEachIndexed { index, line ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Text(
+                            text = line.product.name,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = line.product.packagingLine(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(
+                        text = confirmedLineQuantityLabel(line = line),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = "${line.subtotal.toUiDecimal()} €",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                if (index != group.lines.lastIndex) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 6.dp)
+                            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.24f))
+                            .height(1.dp),
+                    )
+                }
+            }
+
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = stringResource(
+                        R.string.my_order_producer_subtotal_format,
+                        group.subtotal.toUiDecimal(),
+                    ),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun ProducerGroupHeader(group: MyOrderProducerGroup) {
     Row(
         modifier = Modifier
@@ -709,10 +1058,16 @@ private fun BadgeChip(title: String) {
 private fun MyOrderProductCard(
     product: Product,
     quantity: Int,
+    commitmentLimit: Int?,
+    isEditable: Boolean,
     onIncrease: () -> Unit,
     onDecrease: () -> Unit,
 ) {
-    val canIncrease = canIncrease(product = product, currentQuantity = quantity)
+    val canIncrease = canIncrease(
+        product = product,
+        currentQuantity = quantity,
+        commitmentLimit = commitmentLimit,
+    )
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -734,9 +1089,10 @@ private fun MyOrderProductCard(
                 ) {
                     QuantityControls(
                         quantity = quantity,
-                        canIncrease = canIncrease,
+                        canIncrease = isEditable && canIncrease,
                         onIncrease = onIncrease,
                         onDecrease = onDecrease,
+                        isEditable = isEditable,
                     )
                     Text(
                         text = product.name,
@@ -821,7 +1177,23 @@ private fun QuantityControls(
     canIncrease: Boolean,
     onIncrease: () -> Unit,
     onDecrease: () -> Unit,
+    isEditable: Boolean,
 ) {
+    if (!isEditable) {
+        if (quantity > 0) {
+            val quantityText = if (quantity == 1) {
+                stringResource(R.string.my_order_quantity_single)
+            } else {
+                stringResource(R.string.my_order_quantity_plural_format, quantity)
+            }
+            Text(
+                text = quantityText,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        return
+    }
     if (quantity == 0) {
         Button(
             onClick = onIncrease,
@@ -907,7 +1279,9 @@ private fun QuantityActionButton(
 private fun SelectedProductCard(
     product: Product,
     quantity: Int,
+    commitmentLimit: Int?,
     ecoBasketOption: String?,
+    isEditable: Boolean,
     onIncrease: () -> Unit,
     onDecrease: () -> Unit,
     onEcoBasketOptionChange: (String) -> Unit,
@@ -949,11 +1323,16 @@ private fun SelectedProductCard(
 
             QuantityControls(
                 quantity = quantity,
-                canIncrease = canIncrease(product = product, currentQuantity = quantity),
+                canIncrease = isEditable && canIncrease(
+                    product = product,
+                    currentQuantity = quantity,
+                    commitmentLimit = commitmentLimit,
+                ),
                 onIncrease = onIncrease,
                 onDecrease = onDecrease,
+                isEditable = isEditable,
             )
-            if (product.isEcoBasket && quantity > 0) {
+            if (product.isEcoBasket && quantity > 0 && isEditable) {
                 EcoBasketOptionSelector(
                     selectedOption = ecoBasketOption ?: EcoBasketOptionPickup,
                     onOptionSelected = onEcoBasketOptionChange,
@@ -1130,6 +1509,45 @@ private fun buildMyOrderProducerGroups(
     )
 }
 
+private fun buildMyOrderConfirmedGroups(
+    selectedProducts: List<Product>,
+    selectedQuantities: Map<String, Int>,
+): List<MyOrderConfirmedGroup> {
+    val lines = selectedProducts.mapNotNull { product ->
+        val unitsSelected = selectedQuantities[product.id].orZero
+        if (unitsSelected <= 0) {
+            null
+        } else {
+            val quantityAtOrder = if (product.pricingMode == ProductPricingMode.WEIGHT) {
+                unitsSelected.toDouble() * product.unitQty
+            } else {
+                unitsSelected.toDouble()
+            }
+            MyOrderConfirmedLine(
+                product = product,
+                unitsSelected = unitsSelected,
+                quantityAtOrder = quantityAtOrder,
+                subtotal = quantityAtOrder * product.price,
+            )
+        }
+    }
+
+    return lines
+        .groupBy { line -> line.product.vendorId to line.product.companyName }
+        .map { (groupKey, groupedLines) ->
+            val sortedLines = groupedLines.sortedBy { line ->
+                line.product.name.lowercase(Locale.getDefault())
+            }
+            MyOrderConfirmedGroup(
+                vendorId = groupKey.first,
+                companyName = groupKey.second,
+                lines = sortedLines,
+                subtotal = sortedLines.sumOf(MyOrderConfirmedLine::subtotal),
+            )
+        }
+        .sortedBy { group -> group.companyName.lowercase(Locale.getDefault()) }
+}
+
 private fun Product.matchesOrderSearchQuery(normalizedQuery: String): Boolean {
     if (normalizedQuery.isBlank()) {
         return true
@@ -1160,7 +1578,14 @@ private fun finiteStockLimit(product: Product): Int? {
     return floor(stock).toInt()
 }
 
-private fun canIncrease(product: Product, currentQuantity: Int): Boolean {
+private fun canIncrease(
+    product: Product,
+    currentQuantity: Int,
+    commitmentLimit: Int? = null,
+): Boolean {
+    if (commitmentLimit != null && currentQuantity >= commitmentLimit) {
+        return false
+    }
     val finiteLimit = finiteStockLimit(product) ?: return true
     return currentQuantity < finiteLimit
 }
@@ -1179,6 +1604,20 @@ private fun lowStockLabel(product: Product): String? {
         stock.toUiDecimal(),
     )
 }
+
+@Composable
+private fun confirmedLineQuantityLabel(line: MyOrderConfirmedLine): String =
+    if (line.product.pricingMode == ProductPricingMode.WEIGHT) {
+        stringResource(
+            R.string.my_order_quantity_weight_format,
+            line.quantityAtOrder.toUiDecimal(),
+            line.product.unitAbbreviation ?: line.product.unitName,
+        )
+    } else if (line.unitsSelected == 1) {
+        stringResource(R.string.my_order_quantity_single)
+    } else {
+        stringResource(R.string.my_order_quantity_plural_format, line.unitsSelected)
+    }
 
 private fun String.searchNormalized(): String =
     Normalizer.normalize(trim(), Normalizer.Form.NFD)
@@ -1403,6 +1842,166 @@ private fun persistMyOrderConfirmedSnapshot(
         }
     }.apply()
 }
+
+private data class MyOrderCheckoutLineSnapshot(
+    val product: Product,
+    val unitsSelected: Int,
+    val quantityAtOrder: Double,
+    val subtotal: Double,
+    val ecoBasketOption: String?,
+)
+
+@VisibleForTesting
+internal suspend fun submitCheckoutOrderToFirestore(
+    currentMember: Member?,
+    weekKey: String,
+    products: List<Product>,
+    selectedQuantities: Map<String, Int>,
+    selectedEcoBasketOptions: Map<String, String>,
+    firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
+    environment: ReguertaFirestoreEnvironment = ReguertaFirestoreEnvironment.DEVELOP,
+    nowMillis: Long = System.currentTimeMillis(),
+): Boolean = withContext(Dispatchers.IO) {
+    runCatching {
+        val member = currentMember ?: return@runCatching false
+        val lineSnapshots = products
+            .asSequence()
+            .mapNotNull { product ->
+                val selectedUnits = selectedQuantities[product.id].orZero
+                if (selectedUnits <= 0) {
+                    return@mapNotNull null
+                }
+                val quantityAtOrder = if (product.pricingMode == ProductPricingMode.WEIGHT) {
+                    selectedUnits.toDouble() * product.unitQty
+                } else {
+                    selectedUnits.toDouble()
+                }
+                val subtotal = quantityAtOrder * product.price
+                MyOrderCheckoutLineSnapshot(
+                    product = product,
+                    unitsSelected = selectedUnits,
+                    quantityAtOrder = quantityAtOrder,
+                    subtotal = subtotal,
+                    ecoBasketOption = selectedEcoBasketOptions[product.id]
+                        ?.takeIf { option -> option == EcoBasketOptionPickup || option == EcoBasketOptionNoPickup },
+                )
+            }
+            .toList()
+        if (lineSnapshots.isEmpty()) {
+            return@runCatching false
+        }
+
+        val path = ReguertaFirestorePath(environment = environment)
+        val writeTargets = listOf(
+            path.collectionPath(ReguertaFirestoreCollection.ORDERS) to
+                path.collectionPath(ReguertaFirestoreCollection.ORDER_LINES),
+            "${environment.wireValue}/collections/orders" to
+                "${environment.wireValue}/collections/orderLines",
+            "${environment.wireValue}/collections/orders" to
+                "${environment.wireValue}/collections/orderlines",
+        ).distinct()
+        val orderId = "${member.id}_$weekKey"
+        val nowTimestamp = Timestamp(Date(nowMillis))
+        val weekNumber = weekKey.substringAfter("-W", missingDelimiterValue = "")
+            .toIntOrNull()
+            ?: LocalDate.now(ZoneId.systemDefault()).get(WeekFields.ISO.weekOfWeekBasedYear())
+
+        val total = lineSnapshots.sumOf { line -> line.subtotal }
+        val totalsByVendor = lineSnapshots
+            .groupBy { line -> line.product.vendorId }
+            .mapValues { (_, lines) -> lines.sumOf(MyOrderCheckoutLineSnapshot::subtotal) }
+
+        writeTargets.any { (ordersPath, orderLinesPath) ->
+            runCatching {
+                val orderReference = firestore.document("$ordersPath/$orderId")
+                val currentOrder = runCatching { Tasks.await(orderReference.get()) }.getOrNull()
+                val createdAtTimestamp = currentOrder?.getTimestamp("createdAt") ?: nowTimestamp
+                val producerStatus = currentOrder?.getString("producerStatus")
+                    ?.trim()
+                    ?.ifBlank { null }
+                    ?: "unread"
+                val deliveryDateTimestamp = currentOrder?.getTimestamp("deliveryDate") ?: nowTimestamp
+
+                val batch = firestore.batch()
+                batch.set(
+                    orderReference,
+                    mapOf(
+                        "userId" to member.id,
+                        "consumerDisplayName" to member.displayName,
+                        "week" to weekNumber,
+                        "weekKey" to weekKey,
+                        "deliveryDate" to deliveryDateTimestamp,
+                        "consumerStatus" to "confirmado",
+                        "producerStatus" to producerStatus,
+                        "total" to total,
+                        "totalsByVendor" to totalsByVendor,
+                        "isAutoGenerated" to false,
+                        "createdAt" to createdAtTimestamp,
+                        "updatedAt" to nowTimestamp,
+                        "confirmedAt" to nowTimestamp,
+                    ),
+                    SetOptions.merge(),
+                )
+
+                val existingLinesSnapshot = runCatching {
+                    Tasks.await(
+                        firestore.collection(orderLinesPath)
+                            .whereEqualTo("orderId", orderId)
+                            .get(),
+                    )
+                }.getOrNull()
+                existingLinesSnapshot?.documents?.forEach { lineDocument ->
+                    batch.delete(lineDocument.reference)
+                }
+
+                lineSnapshots.forEach { line ->
+                    val documentId = "${orderId}_${line.product.id}"
+                    val orderLineReference = firestore.document("$orderLinesPath/$documentId")
+                    batch.set(
+                        orderLineReference,
+                        mapOf(
+                            "orderId" to orderId,
+                            "userId" to member.id,
+                            "productId" to line.product.id,
+                            "vendorId" to line.product.vendorId,
+                            "consumerDisplayName" to member.displayName,
+                            "companyName" to line.product.companyName,
+                            "productName" to line.product.name,
+                            "productImageUrl" to line.product.productImageUrl,
+                            "quantity" to line.quantityAtOrder,
+                            "priceAtOrder" to line.product.price,
+                            "subtotal" to line.subtotal,
+                            "pricingModeAtOrder" to line.product.pricingMode.wireValue(),
+                            "unitName" to line.product.unitName,
+                            "unitAbbreviation" to line.product.unitAbbreviation,
+                            "unitPlural" to line.product.unitPlural,
+                            "unitQty" to line.product.unitQty,
+                            "packContainerName" to line.product.packContainerName,
+                            "packContainerAbbreviation" to line.product.packContainerAbbreviation,
+                            "packContainerPlural" to line.product.packContainerPlural,
+                            "packContainerQty" to line.product.packContainerQty,
+                            "ecoBasketOptionAtOrder" to line.ecoBasketOption,
+                            "week" to weekNumber,
+                            "weekKey" to weekKey,
+                            "createdAt" to nowTimestamp,
+                            "updatedAt" to nowTimestamp,
+                        ),
+                        SetOptions.merge(),
+                    )
+                }
+
+                Tasks.await(batch.commit())
+                Tasks.await(orderReference.get(Source.SERVER)).exists()
+            }.getOrDefault(false)
+        }
+    }.getOrDefault(false)
+}
+
+private fun ProductPricingMode.wireValue(): String =
+    when (this) {
+        ProductPricingMode.WEIGHT -> "weight"
+        ProductPricingMode.FIXED -> "fixed"
+    }
 
 private val Int?.orZero: Int
     get() = this ?: 0

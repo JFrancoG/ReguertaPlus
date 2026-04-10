@@ -1,3 +1,4 @@
+import FirebaseFirestore
 import SwiftUI
 
 extension ContentView {
@@ -141,7 +142,10 @@ extension ContentView {
             isLoading: viewModel.isLoadingMyOrderProducts,
             currentMember: currentHomeMember,
             members: currentHomeSession?.members ?? [],
-            onRefresh: viewModel.refreshMyOrderProducts
+            onRefresh: viewModel.refreshMyOrderProducts,
+            onCheckoutSuccessAcknowledge: {
+                homeDestination = .dashboard
+            }
         )
     }
 
@@ -300,15 +304,24 @@ private struct MyOrderProducerGroup: Identifiable {
 
 private enum MyOrderCheckoutAlert: Identifiable {
     case missingCommitments([String])
+    case exceededCommitments([String])
+    case incompatibleCommitments([String])
     case ecoBasketPriceMismatch
+    case submitFailed
     case readyToSubmit(total: Double, noPickupEcoBaskets: Int)
 
     var id: String {
         switch self {
         case .missingCommitments(let names):
             return "missing:\(names.joined(separator: ","))"
+        case .exceededCommitments(let names):
+            return "exceeded:\(names.joined(separator: ","))"
+        case .incompatibleCommitments(let names):
+            return "incompatible:\(names.joined(separator: ","))"
         case .ecoBasketPriceMismatch:
             return "ecoBasketPriceMismatch"
+        case .submitFailed:
+            return "submitFailed"
         case .readyToSubmit(let total, let noPickupEcoBaskets):
             return "ready:\(total):\(noPickupEcoBaskets)"
         }
@@ -320,6 +333,24 @@ private struct MyOrderCartSnapshot {
     let selectedEcoBasketOptions: [String: String]
 }
 
+private struct MyOrderConfirmedLine: Identifiable {
+    let product: Product
+    let unitsSelected: Int
+    let quantityAtOrder: Double
+    let subtotal: Double
+
+    var id: String { product.id }
+}
+
+private struct MyOrderConfirmedGroup: Identifiable {
+    let vendorId: String
+    let companyName: String
+    let lines: [MyOrderConfirmedLine]
+    let subtotal: Double
+
+    var id: String { vendorId }
+}
+
 private struct MyOrderRouteView: View {
     let tokens: ReguertaDesignTokens
     let products: [Product]
@@ -328,6 +359,7 @@ private struct MyOrderRouteView: View {
     let currentMember: Member?
     let members: [Member]
     let onRefresh: () -> Void
+    let onCheckoutSuccessAcknowledge: () -> Void
 
     @State private var searchQuery = ""
     @State private var selectedQuantities: [String: Int] = [:]
@@ -335,8 +367,10 @@ private struct MyOrderRouteView: View {
     @State private var confirmedQuantities: [String: Int] = [:]
     @State private var confirmedEcoBasketOptions: [String: String] = [:]
     @State private var isCartVisible = false
+    @State private var isSubmittingCheckout = false
     @State private var checkoutAlert: MyOrderCheckoutAlert?
     @State private var hasRestoredCartState = false
+    @State private var isViewingConfirmedOrder = false
 
     private var normalizedQuery: String {
         searchQuery.searchNormalized
@@ -365,12 +399,19 @@ private struct MyOrderRouteView: View {
         )
     }
 
+    private var isReadOnlyConfirmedView: Bool {
+        hasConfirmedOrder && !hasPendingConfirmedEdits && isViewingConfirmedOrder
+    }
+
     private var finalizeCheckoutTitle: String {
         hasConfirmedOrder && hasPendingConfirmedEdits ? "Guardar cambios" : "Finalizar compra"
     }
 
     private var canSubmitCheckout: Bool {
-        selectedUnits > 0 && (!hasConfirmedOrder || hasPendingConfirmedEdits)
+        !isSubmittingCheckout &&
+            !isReadOnlyConfirmedView &&
+            selectedUnits > 0 &&
+            (!hasConfirmedOrder || hasPendingConfirmedEdits)
     }
 
     private var cartTotal: Double {
@@ -449,26 +490,74 @@ private struct MyOrderRouteView: View {
         }
     }
 
+    private var confirmedOrderGroups: [MyOrderConfirmedGroup] {
+        let lines = selectedProducts.compactMap { product -> MyOrderConfirmedLine? in
+            let unitsSelected = selectedQuantities[product.id, default: 0]
+            guard unitsSelected > 0 else { return nil }
+            let quantityAtOrder: Double
+            if product.pricingMode == .weight {
+                quantityAtOrder = Double(unitsSelected) * product.unitQty
+            } else {
+                quantityAtOrder = Double(unitsSelected)
+            }
+            return MyOrderConfirmedLine(
+                product: product,
+                unitsSelected: unitsSelected,
+                quantityAtOrder: quantityAtOrder,
+                subtotal: quantityAtOrder * product.price
+            )
+        }
+
+        return Dictionary(grouping: lines, by: { $0.product.vendorId })
+            .compactMap { vendorId, groupedLines in
+                guard let first = groupedLines.first else { return nil }
+                let sortedLines = groupedLines.sorted {
+                    $0.product.name.localizedCaseInsensitiveCompare($1.product.name) == .orderedAscending
+                }
+                return MyOrderConfirmedGroup(
+                    vendorId: vendorId,
+                    companyName: first.product.companyName,
+                    lines: sortedLines,
+                    subtotal: sortedLines.reduce(0) { $0 + $1.subtotal }
+                )
+            }
+            .sorted {
+                $0.companyName.localizedCaseInsensitiveCompare($1.companyName) == .orderedAscending
+            }
+    }
+
+    private var seasonalCommitmentUnitLimitsByProductId: [String: Int] {
+        seasonalCommitmentUnitLimitsByProductID(
+            products: products,
+            seasonalCommitments: seasonalCommitments
+        )
+    }
+
     var body: some View {
         GeometryReader { proxy in
             ZStack(alignment: .bottom) {
-                VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                    headerRow
-                    if isLoading {
-                        loadingState
-                    } else if groupedProducts.isEmpty {
-                        emptyState
-                    } else {
-                        productsList
+                if isReadOnlyConfirmedView {
+                    confirmedOrderView
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                } else {
+                    VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                        headerRow
+                        if isLoading {
+                            loadingState
+                        } else if groupedProducts.isEmpty {
+                            emptyState
+                        } else {
+                            productsList
+                        }
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
-                if !isCartVisible {
+                if !isReadOnlyConfirmedView && !isCartVisible {
                     searchOverlay
                 }
 
-                if isCartVisible {
+                if !isReadOnlyConfirmedView && isCartVisible {
                     Color.black.opacity(0.22)
                         .ignoresSafeArea()
                         .onTapGesture {
@@ -478,7 +567,9 @@ private struct MyOrderRouteView: View {
                         }
                 }
 
-                cartOverlay(proxy: proxy)
+                if !isReadOnlyConfirmedView {
+                    cartOverlay(proxy: proxy)
+                }
             }
             .onChange(of: cartStorageKey, initial: true) { _, newStorageKey in
                 let cartSnapshot = readMyOrderCartSnapshot(storageKey: newStorageKey)
@@ -488,9 +579,14 @@ private struct MyOrderRouteView: View {
                 let initialSelectionSnapshot: MyOrderCartSnapshot = cartSnapshot.selectedQuantities.isEmpty
                     ? confirmedSnapshot
                     : cartSnapshot
+                let isSelectionEqualToConfirmed = initialSelectionSnapshot.selectedQuantities == confirmedSnapshot.selectedQuantities &&
+                    initialSelectionSnapshot.selectedEcoBasketOptions == confirmedSnapshot.selectedEcoBasketOptions
+                isViewingConfirmedOrder = !confirmedSnapshot.selectedQuantities.isEmpty && isSelectionEqualToConfirmed
                 selectedQuantities = initialSelectionSnapshot.selectedQuantities
                 selectedEcoBasketOptions = initialSelectionSnapshot.selectedEcoBasketOptions
                 if initialSelectionSnapshot.selectedQuantities.isEmpty {
+                    isCartVisible = false
+                } else if isViewingConfirmedOrder {
                     isCartVisible = false
                 }
                 hasRestoredCartState = true
@@ -501,59 +597,15 @@ private struct MyOrderRouteView: View {
             .onChange(of: selectedEcoBasketOptions) { _, _ in
                 persistCurrentCartSnapshotIfNeeded()
             }
-            .onChange(of: products) { _, newProducts in
-                let productsById = Dictionary(uniqueKeysWithValues: newProducts.map { ($0.id, $0) })
-                selectedQuantities = selectedQuantities.reduce(into: [:]) { partialResult, entry in
-                    guard let product = productsById[entry.key] else { return }
-                    guard entry.value > 0 else { return }
-                    let allowedQuantity: Int
-                    if let finiteLimit = finiteStockLimit(for: product) {
-                        allowedQuantity = min(entry.value, finiteLimit)
-                    } else {
-                        allowedQuantity = entry.value
-                    }
-                    if allowedQuantity > 0 {
-                        partialResult[entry.key] = allowedQuantity
-                    }
-                }
-                selectedEcoBasketOptions = selectedQuantities.reduce(into: [:]) { partialResult, entry in
-                    guard entry.value > 0 else { return }
-                    guard let product = productsById[entry.key], product.isEcoBasket else { return }
-                    let option = selectedEcoBasketOptions[entry.key]
-                    if option == ecoBasketOptionPickup || option == ecoBasketOptionNoPickup {
-                        partialResult[entry.key] = option
-                    } else {
-                        partialResult[entry.key] = ecoBasketOptionPickup
-                    }
-                }
-                if selectedQuantities.isEmpty {
-                    isCartVisible = false
-                }
+            .onChange(of: products) { _, _ in
+                sanitizeSelectedStateForCurrentProducts()
             }
-            .alert(item: $checkoutAlert) { alert in
-                switch alert {
-                case .missingCommitments(let names):
-                    return Alert(
-                        title: Text("Faltan productos de compromiso"),
-                        message: Text("Necesitas incluir al menos una unidad de: \(names.joined(separator: ", "))."),
-                        dismissButton: .default(Text("Aceptar"))
-                    )
-                case .ecoBasketPriceMismatch:
-                    return Alert(
-                        title: Text("Precio de ecocesta inconsistente"),
-                        message: Text("Todas las ecocestas activas deben mantener el mismo precio para continuar."),
-                        dismissButton: .default(Text("Aceptar"))
-                    )
-                case .readyToSubmit(let total, let noPickupEcoBaskets):
-                    return Alert(
-                        title: Text("Pedido listo"),
-                        message: Text(
-                            noPickupEcoBaskets > 0
-                                ? "Todo correcto. Total: \(total.myOrderUiDecimal) €. Ecocestas marcadas como no_pickup: \(noPickupEcoBaskets). En el siguiente paso conectamos el envío del pedido."
-                                : "Todo correcto. Total: \(total.myOrderUiDecimal) €. En el siguiente paso conectamos el envío del pedido."
-                        ),
-                        dismissButton: .default(Text("Aceptar"))
-                    )
+            .onChange(of: seasonalCommitments) { _, _ in
+                sanitizeSelectedStateForCurrentProducts()
+            }
+            .overlay {
+                if let checkoutAlert {
+                    checkoutDialog(checkoutAlert)
                 }
             }
         }
@@ -566,6 +618,39 @@ private struct MyOrderRouteView: View {
             selectedQuantities: selectedQuantities,
             selectedEcoBasketOptions: selectedEcoBasketOptions
         )
+    }
+
+    private func sanitizeSelectedStateForCurrentProducts() {
+        let productsById = Dictionary(uniqueKeysWithValues: products.map { ($0.id, $0) })
+        selectedQuantities = selectedQuantities.reduce(into: [:]) { partialResult, entry in
+            guard let product = productsById[entry.key] else { return }
+            guard entry.value > 0 else { return }
+            var allowedQuantity: Int
+            if let finiteLimit = finiteStockLimit(for: product) {
+                allowedQuantity = min(entry.value, finiteLimit)
+            } else {
+                allowedQuantity = entry.value
+            }
+            if let commitmentLimit = seasonalCommitmentUnitLimitsByProductId[entry.key] {
+                allowedQuantity = min(allowedQuantity, commitmentLimit)
+            }
+            if allowedQuantity > 0 {
+                partialResult[entry.key] = allowedQuantity
+            }
+        }
+        selectedEcoBasketOptions = selectedQuantities.reduce(into: [:]) { partialResult, entry in
+            guard entry.value > 0 else { return }
+            guard let product = productsById[entry.key], product.isEcoBasket else { return }
+            let option = selectedEcoBasketOptions[entry.key]
+            if option == ecoBasketOptionPickup || option == ecoBasketOptionNoPickup {
+                partialResult[entry.key] = option
+            } else {
+                partialResult[entry.key] = ecoBasketOptionPickup
+            }
+        }
+        if selectedQuantities.isEmpty {
+            isCartVisible = false
+        }
     }
 
     private var headerRow: some View {
@@ -608,6 +693,108 @@ private struct MyOrderRouteView: View {
             .buttonStyle(.plain)
             .disabled(selectedUnits == 0)
         }
+    }
+
+    private var confirmedOrderView: some View {
+        ZStack(alignment: .bottom) {
+            VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                HStack(spacing: tokens.spacing.sm) {
+                    Text("Mi pedido")
+                        .font(tokens.typography.titleCard.weight(.semibold))
+                        .foregroundStyle(tokens.colors.textPrimary)
+                    Spacer()
+                    Button {
+                        isViewingConfirmedOrder = false
+                    } label: {
+                        HStack(spacing: tokens.spacing.xs) {
+                            Image(systemName: "pencil")
+                            Text("Editar pedido")
+                                .font(tokens.typography.body.weight(.semibold))
+                        }
+                        .foregroundStyle(tokens.colors.actionPrimary)
+                        .padding(.horizontal, tokens.spacing.md)
+                        .padding(.vertical, tokens.spacing.sm)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: tokens.radius.md)
+                                .stroke(tokens.colors.actionPrimary, lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: tokens.spacing.md) {
+                        ForEach(confirmedOrderGroups) { group in
+                            confirmedProducerCard(group)
+                        }
+                    }
+                    .padding(.bottom, 96.resize)
+                }
+            }
+
+            HStack {
+                Text("Suma total pedido: \(cartTotal.myOrderUiDecimal) €")
+                    .font(tokens.typography.body.weight(.semibold))
+                    .foregroundStyle(tokens.colors.textPrimary)
+                    .frame(maxWidth: .infinity)
+            }
+            .padding(.horizontal, tokens.spacing.md)
+            .padding(.vertical, tokens.spacing.sm)
+            .background(tokens.colors.actionPrimary.opacity(0.3))
+            .clipShape(Capsule())
+            .padding(.horizontal, tokens.spacing.sm)
+            .padding(.bottom, tokens.spacing.sm)
+        }
+    }
+
+    @ViewBuilder
+    private func confirmedProducerCard(_ group: MyOrderConfirmedGroup) -> some View {
+        ReguertaCard {
+            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                Text(group.companyName)
+                    .font(tokens.typography.titleCard.weight(.semibold))
+                    .foregroundStyle(tokens.colors.actionPrimary)
+
+                ForEach(group.lines) { line in
+                    VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+                        HStack(alignment: .firstTextBaseline, spacing: tokens.spacing.sm) {
+                            VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+                                Text(line.product.name)
+                                    .font(tokens.typography.body.weight(.semibold))
+                                    .foregroundStyle(tokens.colors.textPrimary)
+                                Text(packContainerLine(for: line.product))
+                                    .font(tokens.typography.bodySecondary)
+                                    .foregroundStyle(tokens.colors.textSecondary)
+                            }
+                            Spacer()
+                            Text(confirmedQuantityLabel(for: line))
+                                .font(tokens.typography.body.weight(.semibold))
+                                .foregroundStyle(tokens.colors.textPrimary)
+                            Text("\(line.subtotal.myOrderUiDecimal) €")
+                                .font(tokens.typography.body.weight(.semibold))
+                                .foregroundStyle(tokens.colors.textPrimary)
+                        }
+                        Divider()
+                            .overlay(tokens.colors.borderSubtle)
+                    }
+                }
+
+                HStack {
+                    Spacer()
+                    Text("Total: \(group.subtotal.myOrderUiDecimal) €")
+                        .font(tokens.typography.body.weight(.semibold))
+                        .foregroundStyle(Color(red: 0.78, green: 0.38, blue: 0.36))
+                }
+            }
+        }
+    }
+
+    private func confirmedQuantityLabel(for line: MyOrderConfirmedLine) -> String {
+        if line.product.pricingMode == .weight {
+            let unitLabel = line.product.unitAbbreviation ?? line.product.unitName
+            return "\(line.quantityAtOrder.myOrderUiDecimal) \(unitLabel)"
+        }
+        return "\(line.unitsSelected) \(line.unitsSelected == 1 ? "ud." : "uds.")"
     }
 
     private var loadingState: some View {
@@ -677,7 +864,11 @@ private struct MyOrderRouteView: View {
                     productImage(product)
 
                     VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                        quantityControls(product: product, quantity: quantity)
+                        quantityControls(
+                            product: product,
+                            quantity: quantity,
+                            isEditable: !isReadOnlyConfirmedView
+                        )
                         Text(product.name)
                             .font(tokens.typography.body.weight(.semibold))
                             .foregroundStyle(tokens.colors.textPrimary)
@@ -737,8 +928,18 @@ private struct MyOrderRouteView: View {
     }
 
     @ViewBuilder
-    private func quantityControls(product: Product, quantity: Int) -> some View {
-        if quantity == 0 {
+    private func quantityControls(
+        product: Product,
+        quantity: Int,
+        isEditable: Bool
+    ) -> some View {
+        if !isEditable {
+            if quantity > 0 {
+                Text("\(quantity) \(quantity == 1 ? "ud." : "uds.")")
+                    .font(tokens.typography.body.weight(.semibold))
+                    .foregroundStyle(tokens.colors.textPrimary)
+            }
+        } else if quantity == 0 {
             Button {
                 increase(product)
             } label: {
@@ -830,13 +1031,20 @@ private struct MyOrderRouteView: View {
             Spacer(minLength: 0)
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.22)) {
-                        isCartVisible = false
+                    if isReadOnlyConfirmedView {
+                        isViewingConfirmedOrder = false
+                        withAnimation(.easeInOut(duration: 0.22)) {
+                            isCartVisible = false
+                        }
+                    } else {
+                        withAnimation(.easeInOut(duration: 0.22)) {
+                            isCartVisible = false
+                        }
                     }
                 } label: {
                     HStack(spacing: tokens.spacing.xs) {
-                        Image(systemName: "basket")
-                        Text("Seguir comprando")
+                        Image(systemName: isReadOnlyConfirmedView ? "pencil" : "basket")
+                        Text(isReadOnlyConfirmedView ? "Editar pedido" : "Seguir comprando")
                             .font(tokens.typography.body.weight(.semibold))
                     }
                     .foregroundStyle(tokens.colors.actionPrimary)
@@ -874,24 +1082,26 @@ private struct MyOrderRouteView: View {
             .frame(maxHeight: .infinity, alignment: .top)
             .background(tokens.colors.surfacePrimary)
             .overlay(alignment: .bottom) {
-                HStack {
-                    Button {
-                        validateCheckout()
-                    } label: {
-                        Text(finalizeCheckoutTitle)
-                            .font(tokens.typography.body.weight(.semibold))
-                            .foregroundStyle(tokens.colors.actionOnPrimary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, tokens.spacing.sm)
-                            .background(tokens.colors.actionPrimary)
-                            .clipShape(Capsule())
+                if !isReadOnlyConfirmedView {
+                    HStack {
+                        Button {
+                            validateCheckout()
+                        } label: {
+                            Text(finalizeCheckoutTitle)
+                                .font(tokens.typography.body.weight(.semibold))
+                                .foregroundStyle(tokens.colors.actionOnPrimary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, tokens.spacing.sm)
+                                .background(tokens.colors.actionPrimary)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!canSubmitCheckout)
+                        .opacity(canSubmitCheckout ? 1 : 0.55)
                     }
-                    .buttonStyle(.plain)
-                    .disabled(!canSubmitCheckout)
-                    .opacity(canSubmitCheckout ? 1 : 0.55)
+                    .padding(tokens.spacing.md)
+                    .background(tokens.colors.surfacePrimary.opacity(0.95))
                 }
-                .padding(tokens.spacing.md)
-                .background(tokens.colors.surfacePrimary.opacity(0.95))
             }
             .offset(x: isCartVisible ? 0 : panelWidth + 24.resize)
             .animation(.easeInOut(duration: 0.22), value: isCartVisible)
@@ -917,8 +1127,12 @@ private struct MyOrderRouteView: View {
                     }
                     Spacer(minLength: 0)
                 }
-                quantityControls(product: product, quantity: quantity)
-                if product.isEcoBasket, quantity > 0 {
+                quantityControls(
+                    product: product,
+                    quantity: quantity,
+                    isEditable: !isReadOnlyConfirmedView
+                )
+                if product.isEcoBasket, quantity > 0, !isReadOnlyConfirmedView {
                     ecoBasketOptionSelector(
                         selectedOption: selectedOption,
                         onOptionSelected: { option in
@@ -945,21 +1159,111 @@ private struct MyOrderRouteView: View {
             checkoutAlert = .ecoBasketPriceMismatch
             return
         }
+        if !validation.incompatibleCommitmentProductNames.isEmpty {
+            checkoutAlert = .incompatibleCommitments(validation.incompatibleCommitmentProductNames)
+            return
+        }
         if !validation.missingCommitmentProductNames.isEmpty {
             checkoutAlert = .missingCommitments(validation.missingCommitmentProductNames)
             return
         }
-        persistMyOrderConfirmedSnapshot(
-            storageKey: cartStorageKey,
-            selectedQuantities: selectedQuantities,
-            selectedEcoBasketOptions: selectedEcoBasketOptions
+        if !validation.exceededCommitmentProductNames.isEmpty {
+            checkoutAlert = .exceededCommitments(validation.exceededCommitmentProductNames)
+            return
+        }
+
+        isSubmittingCheckout = true
+        Task { @MainActor in
+            let didPersist = await submitCheckoutOrderToFirestore(
+                currentMember: currentMember,
+                weekKey: currentWeekKey,
+                products: products,
+                selectedQuantities: selectedQuantities,
+                selectedEcoBasketOptions: selectedEcoBasketOptions
+            )
+            isSubmittingCheckout = false
+
+            guard didPersist else {
+                checkoutAlert = .submitFailed
+                return
+            }
+
+            persistMyOrderConfirmedSnapshot(
+                storageKey: cartStorageKey,
+                selectedQuantities: selectedQuantities,
+                selectedEcoBasketOptions: selectedEcoBasketOptions
+            )
+            confirmedQuantities = selectedQuantities
+            confirmedEcoBasketOptions = selectedEcoBasketOptions
+            isViewingConfirmedOrder = true
+            checkoutAlert = .readyToSubmit(
+                total: cartTotal,
+                noPickupEcoBaskets: noPickupEcoBasketUnits
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func checkoutDialog(_ alert: MyOrderCheckoutAlert) -> some View {
+        switch alert {
+        case .missingCommitments(let names):
+            checkoutErrorDialog(
+                title: "Faltan productos de compromiso",
+                message: "Necesitas incluir al menos una unidad de: \(names.joined(separator: ", "))."
+            )
+        case .exceededCommitments(let names):
+            checkoutErrorDialog(
+                title: "Has superado el compromiso",
+                message: "No puedes añadir más cantidad de la comprometida en: \(names.joined(separator: ", "))."
+            )
+        case .incompatibleCommitments(let names):
+            checkoutErrorDialog(
+                title: "Compromiso no representable",
+                message: "La cantidad comprometida de \(names.joined(separator: ", ")) no encaja con el paso de compra actual. Contacta con administración."
+            )
+        case .ecoBasketPriceMismatch:
+            checkoutErrorDialog(
+                title: "Precio de ecocesta inconsistente",
+                message: "Todas las ecocestas activas deben mantener el mismo precio para continuar."
+            )
+        case .submitFailed:
+            checkoutErrorDialog(
+                title: "No se pudo guardar el pedido",
+                message: "Ha ocurrido un problema al guardar tu pedido. Inténtalo de nuevo."
+            )
+        case .readyToSubmit(let total, let noPickupEcoBaskets):
+            ReguertaDialog(
+                type: .info,
+                title: "Pedido realizado con éxito",
+                message: noPickupEcoBaskets > 0
+                    ? "Todo correcto. Total: \(total.myOrderUiDecimal) €. Ecocestas marcadas como no_pickup: \(noPickupEcoBaskets). Tu pedido se ha guardado."
+                    : "Todo correcto. Total: \(total.myOrderUiDecimal) €. Tu pedido se ha guardado.",
+                primaryAction: ReguertaDialogAction(
+                    title: "Aceptar",
+                    action: handleCheckoutSuccessAcknowledged
+                ),
+                dismissible: false
+            )
+        }
+    }
+
+    private func checkoutErrorDialog(title: String, message: String) -> some View {
+        ReguertaDialog(
+            type: .error,
+            title: title,
+            message: message,
+            primaryAction: ReguertaDialogAction(
+                title: "Aceptar",
+                action: { checkoutAlert = nil }
+            ),
+            onDismiss: { checkoutAlert = nil }
         )
-        confirmedQuantities = selectedQuantities
-        confirmedEcoBasketOptions = selectedEcoBasketOptions
-        checkoutAlert = .readyToSubmit(
-            total: cartTotal,
-            noPickupEcoBaskets: noPickupEcoBasketUnits
-        )
+    }
+
+    private func handleCheckoutSuccessAcknowledged() {
+        checkoutAlert = nil
+        isCartVisible = false
+        onCheckoutSuccessAcknowledge()
     }
 
     private func packContainerLine(for product: Product) -> String {
@@ -982,6 +1286,10 @@ private struct MyOrderRouteView: View {
     }
 
     private func canIncrease(product: Product, currentQuantity: Int) -> Bool {
+        if let commitmentLimit = seasonalCommitmentUnitLimitsByProductId[product.id],
+           currentQuantity >= commitmentLimit {
+            return false
+        }
         guard let finiteLimit = finiteStockLimit(for: product) else { return true }
         return currentQuantity < finiteLimit
     }
@@ -994,6 +1302,7 @@ private struct MyOrderRouteView: View {
     }
 
     private func increase(_ product: Product) {
+        guard !isReadOnlyConfirmedView else { return }
         let currentQuantity = selectedQuantities[product.id, default: 0]
         guard canIncrease(product: product, currentQuantity: currentQuantity) else { return }
         selectedQuantities[product.id] = currentQuantity + 1
@@ -1003,6 +1312,7 @@ private struct MyOrderRouteView: View {
     }
 
     private func decrease(_ product: Product) {
+        guard !isReadOnlyConfirmedView else { return }
         let currentQuantity = selectedQuantities[product.id, default: 0]
         guard currentQuantity > 0 else { return }
         if currentQuantity == 1 {
@@ -1110,6 +1420,160 @@ private func countNoPickupEcoBasketUnits(
             }
             return partial
         }
+}
+
+private struct MyOrderCheckoutLineSnapshot {
+    let product: Product
+    let quantityAtOrder: Double
+    let subtotal: Double
+    let ecoBasketOption: String?
+}
+
+private func submitCheckoutOrderToFirestore(
+    currentMember: Member?,
+    weekKey: String,
+    products: [Product],
+    selectedQuantities: [String: Int],
+    selectedEcoBasketOptions: [String: String],
+    db: Firestore = Firestore.firestore(),
+    environment: ReguertaFirestoreEnvironment = .develop,
+    nowMillis: Int64 = Int64(Date().timeIntervalSince1970 * 1_000)
+) async -> Bool {
+    guard let member = currentMember else {
+        return false
+    }
+
+    let lineSnapshots = products.compactMap { product -> MyOrderCheckoutLineSnapshot? in
+        let selectedUnits = selectedQuantities[product.id, default: 0]
+        guard selectedUnits > 0 else { return nil }
+        let quantityAtOrder: Double
+        if product.pricingMode == .weight {
+            quantityAtOrder = Double(selectedUnits) * product.unitQty
+        } else {
+            quantityAtOrder = Double(selectedUnits)
+        }
+        let subtotal = quantityAtOrder * product.price
+        let selectedOption = selectedEcoBasketOptions[product.id]
+        let ecoBasketOption = (selectedOption == ecoBasketOptionPickup || selectedOption == ecoBasketOptionNoPickup)
+            ? selectedOption
+            : nil
+        return MyOrderCheckoutLineSnapshot(
+            product: product,
+            quantityAtOrder: quantityAtOrder,
+            subtotal: subtotal,
+            ecoBasketOption: ecoBasketOption
+        )
+    }
+    guard !lineSnapshots.isEmpty else {
+        return false
+    }
+
+    let firestorePath = ReguertaFirestorePath(environment: environment)
+    let writeTargets = [
+        (
+            orders: firestorePath.collectionPath(.orders),
+            orderlines: firestorePath.collectionPath(.orderlines)
+        ),
+        (
+            orders: "\(environment.rawValue)/collections/orders",
+            orderlines: "\(environment.rawValue)/collections/orderLines"
+        ),
+        (
+            orders: "\(environment.rawValue)/collections/orders",
+            orderlines: "\(environment.rawValue)/collections/orderlines"
+        )
+    ]
+    let orderId = "\(member.id)_\(weekKey)"
+    let nowDate = Date(timeIntervalSince1970: TimeInterval(nowMillis) / 1_000)
+    let nowTimestamp = Timestamp(date: nowDate)
+    let parsedWeek = weekKey.split(separator: "W").last.flatMap { Int($0) }
+    let weekNumber = parsedWeek ?? Calendar(identifier: .iso8601).component(.weekOfYear, from: nowDate)
+
+    let total = lineSnapshots.reduce(0) { $0 + $1.subtotal }
+    let totalsByVendor = Dictionary(grouping: lineSnapshots, by: { $0.product.vendorId })
+        .mapValues { snapshots in
+            snapshots.reduce(0) { $0 + $1.subtotal }
+        }
+
+    for target in writeTargets {
+        do {
+            let orderRef = db.document("\(target.orders)/\(orderId)")
+
+            let existingData = try? await orderRef.getDocument().data()
+            let createdAt = (existingData?["createdAt"] as? Timestamp) ?? nowTimestamp
+            let producerStatusCandidate = (existingData?["producerStatus"] as? String)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let producerStatus = (producerStatusCandidate?.isEmpty == false) ? producerStatusCandidate! : "unread"
+            let deliveryDate = (existingData?["deliveryDate"] as? Timestamp) ?? nowTimestamp
+
+            let existingLinesSnapshot = try? await db.collection(target.orderlines)
+                .whereField("orderId", isEqualTo: orderId)
+                .getDocuments()
+
+            let batch = db.batch()
+            batch.setData([
+                "userId": member.id,
+                "consumerDisplayName": member.displayName,
+                "week": weekNumber,
+                "weekKey": weekKey,
+                "deliveryDate": deliveryDate,
+                "consumerStatus": "confirmado",
+                "producerStatus": producerStatus,
+                "total": total,
+                "totalsByVendor": totalsByVendor,
+                "isAutoGenerated": false,
+                "createdAt": createdAt,
+                "updatedAt": nowTimestamp,
+                "confirmedAt": nowTimestamp
+            ], forDocument: orderRef, merge: true)
+
+            for document in existingLinesSnapshot?.documents ?? [] {
+                batch.deleteDocument(document.reference)
+            }
+
+            for line in lineSnapshots {
+                let lineRef = db.document("\(target.orderlines)/\(orderId)_\(line.product.id)")
+                batch.setData([
+                    "orderId": orderId,
+                    "userId": member.id,
+                    "productId": line.product.id,
+                    "vendorId": line.product.vendorId,
+                    "consumerDisplayName": member.displayName,
+                    "companyName": line.product.companyName,
+                    "productName": line.product.name,
+                    "productImageUrl": line.product.productImageUrl as Any,
+                    "quantity": line.quantityAtOrder,
+                    "priceAtOrder": line.product.price,
+                    "subtotal": line.subtotal,
+                    "pricingModeAtOrder": line.product.pricingMode.orderWireValue,
+                    "unitName": line.product.unitName,
+                    "unitAbbreviation": line.product.unitAbbreviation as Any,
+                    "unitPlural": line.product.unitPlural,
+                    "unitQty": line.product.unitQty,
+                    "packContainerName": line.product.packContainerName as Any,
+                    "packContainerAbbreviation": line.product.packContainerAbbreviation as Any,
+                    "packContainerPlural": line.product.packContainerPlural as Any,
+                    "packContainerQty": line.product.packContainerQty as Any,
+                    "ecoBasketOptionAtOrder": line.ecoBasketOption as Any,
+                    "week": weekNumber,
+                    "weekKey": weekKey,
+                    "createdAt": nowTimestamp,
+                    "updatedAt": nowTimestamp
+                ], forDocument: lineRef, merge: true)
+            }
+
+            try await batch.commit()
+
+            let serverOrderSnapshot = try await orderRef.getDocument(source: .server)
+            if serverOrderSnapshot.exists {
+                return true
+            }
+        } catch {
+            continue
+        }
+    }
+
+    return false
 }
 
 private func readMyOrderCartSnapshot(
@@ -1221,6 +1685,17 @@ private func persistMyOrderConfirmedSnapshot(
         userDefaults.removeObject(forKey: optionsKey)
     } else {
         userDefaults.set(normalizedOptions, forKey: optionsKey)
+    }
+}
+
+private extension ProductPricingMode {
+    var orderWireValue: String {
+        switch self {
+        case .fixed:
+            return "fixed"
+        case .weight:
+            return "weight"
+        }
     }
 }
 

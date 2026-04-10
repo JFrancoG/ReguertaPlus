@@ -9,6 +9,8 @@ enum ReguertaFirestoreEnvironment: String, Sendable {
 enum ReguertaFirestoreCollection: String, Sendable {
     case users
     case products
+    case orders
+    case orderlines
     case seasonalCommitments
     case config
     case deliveryCalendar

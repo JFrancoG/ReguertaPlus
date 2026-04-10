@@ -6,9 +6,11 @@ import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.ProducerParity
 import com.reguerta.user.domain.commitments.SeasonalCommitment
 import com.reguerta.user.domain.products.Product
+import com.reguerta.user.domain.products.ProductPricingMode
 import java.text.Normalizer
 import java.util.Locale
-import kotlin.math.ceil
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 internal const val EcoBasketOptionPickup = "pickup"
 internal const val EcoBasketOptionNoPickup = "no_pickup"
@@ -17,10 +19,15 @@ private val CommitmentTokenRegex = "[a-z0-9]+".toRegex()
 
 internal data class MyOrderCheckoutValidationResult(
     val missingCommitmentProductNames: List<String>,
+    val exceededCommitmentProductNames: List<String>,
+    val incompatibleCommitmentProductNames: List<String>,
     val hasEcoBasketPriceMismatch: Boolean,
 ) {
     val isValid: Boolean
-        get() = missingCommitmentProductNames.isEmpty() && !hasEcoBasketPriceMismatch
+        get() = missingCommitmentProductNames.isEmpty() &&
+            exceededCommitmentProductNames.isEmpty() &&
+            incompatibleCommitmentProductNames.isEmpty() &&
+            !hasEcoBasketPriceMismatch
 }
 
 internal fun validateMyOrderCheckout(
@@ -57,11 +64,29 @@ internal fun validateMyOrderCheckout(
         requiredEcoBasketProducts.map(Product::name)
     }
 
-    val missingSeasonalNames = requiredSeasonalProducts
-        .filter { requirement -> selectedQuantities[requirement.product.id].orZero < requirement.requiredUnits }
-        .map { requirement -> requirement.product.name }
+    val missingSeasonalNames = mutableListOf<String>()
+    val exceededSeasonalNames = mutableListOf<String>()
+    val incompatibleSeasonalNames = mutableListOf<String>()
+    requiredSeasonalProducts.forEach { requirement ->
+        if (!requirement.isRepresentableBySelectionStep) {
+            incompatibleSeasonalNames.add(requirement.product.name)
+            return@forEach
+        }
+
+        val selectedUnits = selectedQuantities[requirement.product.id].orZero
+        val selectedQuantity = selectedUnits.toDouble() * requirement.selectionStep
+        if (selectedQuantity + SeasonalCommitmentTolerance < requirement.requiredQuantity) {
+            missingSeasonalNames.add(requirement.product.name)
+            return@forEach
+        }
+        if (selectedQuantity - SeasonalCommitmentTolerance > requirement.requiredQuantity) {
+            exceededSeasonalNames.add(requirement.product.name)
+        }
+    }
 
     val missingNames = (missingEcoNames + missingSeasonalNames).distinct()
+    val exceededNames = exceededSeasonalNames.distinct()
+    val incompatibleNames = incompatibleSeasonalNames.distinct()
 
     val distinctEcoBasketPrices = products
         .asSequence()
@@ -73,9 +98,30 @@ internal fun validateMyOrderCheckout(
 
     return MyOrderCheckoutValidationResult(
         missingCommitmentProductNames = missingNames,
+        exceededCommitmentProductNames = exceededNames,
+        incompatibleCommitmentProductNames = incompatibleNames,
         hasEcoBasketPriceMismatch = hasPriceMismatch,
     )
 }
+
+internal fun seasonalCommitmentUnitLimitsByProductId(
+    products: List<Product>,
+    seasonalCommitments: List<SeasonalCommitment>,
+): Map<String, Int> = requiredSeasonalCommitmentProducts(
+    products = products,
+    seasonalCommitments = seasonalCommitments,
+).mapNotNull { requirement ->
+    if (!requirement.isRepresentableBySelectionStep) {
+        return@mapNotNull null
+    }
+    val expectedUnits = requirement.requiredQuantity / requirement.selectionStep
+    val requiredUnits = expectedUnits.roundToInt()
+    if (requiredUnits > 0) {
+        requirement.product.id to requiredUnits
+    } else {
+        null
+    }
+}.toMap()
 
 private fun requiredEcoBasketCommitmentProducts(
     currentMember: Member?,
@@ -122,7 +168,9 @@ private fun requiredEcoBasketCommitmentProducts(
 
 private data class SeasonalProductRequirement(
     val product: Product,
-    val requiredUnits: Int,
+    val requiredQuantity: Double,
+    val selectionStep: Double,
+    val isRepresentableBySelectionStep: Boolean,
 )
 
 private fun requiredSeasonalCommitmentProducts(
@@ -148,7 +196,7 @@ private fun requiredSeasonalCommitmentProducts(
         product to product.name.commitmentNormalized()
     }
 
-    val requiredUnitsByProductId = seasonalCommitments
+    val requiredQuantityByProductId = seasonalCommitments
         .asSequence()
         .filter(SeasonalCommitment::active)
         .mapNotNull { commitment ->
@@ -171,17 +219,35 @@ private fun requiredSeasonalCommitmentProducts(
             valueTransform = { it.second },
         )
         .mapValues { (_, quantities) ->
-            val maxQuantity = quantities.maxOrNull() ?: 0.0
-            ceil(maxQuantity).toInt().coerceAtLeast(1)
+            quantities.maxOrNull() ?: 0.0
         }
 
-    return requiredUnitsByProductId
-        .mapNotNull { (productId, requiredUnits) ->
+    return requiredQuantityByProductId
+        .mapNotNull { (productId, requiredQuantity) ->
+            if (requiredQuantity <= 0.0) {
+                return@mapNotNull null
+            }
             val product = visibleProductsById[productId] ?: return@mapNotNull null
-            SeasonalProductRequirement(product = product, requiredUnits = requiredUnits)
+            val selectionStep = product.commitmentSelectionStep()
+            val expectedUnits = requiredQuantity / selectionStep
+            val isRepresentableBySelectionStep =
+                abs(expectedUnits - expectedUnits.roundToInt().toDouble()) <= SeasonalCommitmentTolerance
+            SeasonalProductRequirement(
+                product = product,
+                requiredQuantity = requiredQuantity,
+                selectionStep = selectionStep,
+                isRepresentableBySelectionStep = isRepresentableBySelectionStep,
+            )
         }
         .sortedWith(compareBy<SeasonalProductRequirement> { it.product.companyName.lowercase() }.thenBy { it.product.name.lowercase() })
 }
+
+private fun Product.commitmentSelectionStep(): Double =
+    if (pricingMode == ProductPricingMode.WEIGHT) {
+        unitQty.takeIf { it > 0.0 } ?: 1.0
+    } else {
+        1.0
+    }
 
 private fun Double.normalizedEcoBasketPriceKey(): String =
     String.format(Locale.US, "%.4f", this)
@@ -199,7 +265,28 @@ private fun SeasonalCommitment.commitmentSearchTerms(): List<String> =
                 .filter { token -> token.length >= 4 && token.any(Char::isLetter) }
                 .toList()
         }
+        .plus(seasonKey.commitmentSeasonAliasTerms())
         .distinct()
+
+private fun String.commitmentSeasonAliasTerms(): List<String> {
+    val firstToken = CommitmentTokenRegex.findAll(commitmentNormalized())
+        .map(MatchResult::value)
+        .firstOrNull()
+        ?: return emptyList()
+
+    return when (firstToken) {
+        "avo", "avocado", "avocados", "aguacate", "aguacates" -> listOf(
+            "aguacate",
+            "aguacates",
+            "avocado",
+            "avocados",
+        )
+        "man", "mango", "mangos" -> listOf("mango", "mangos")
+        else -> emptyList()
+    }
+}
+
+private const val SeasonalCommitmentTolerance = 0.0001
 
 private val Int?.orZero: Int
     get() = this ?: 0

@@ -657,6 +657,73 @@ struct ReguertaTests {
     }
 
     @Test
+    func myOrderValidationBlocksExceededSeasonalCommitmentQuantity() {
+        let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
+        let producerEven = producer(id: "producer_even", parity: .even)
+        let avocados = regularProduct(id: "seasonal_avocado", vendorId: producerEven.id, name: "Aguacates")
+
+        let result = validateMyOrderCheckout(
+            currentMember: currentMember,
+            members: [currentMember, producerEven],
+            products: [avocados],
+            seasonalCommitments: [seasonalCommitment(productId: avocados.id, fixedQtyPerOfferedWeek: 2)],
+            selectedQuantities: [avocados.id: 3],
+            selectedEcoBasketOptions: [:],
+            currentWeekParity: .even
+        )
+
+        #expect(result.isValid == false)
+        #expect(result.exceededCommitmentProductNames == ["Aguacates"])
+    }
+
+    @Test
+    func myOrderValidationFlagsIncompatibleSeasonalCommitmentStep() {
+        let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
+        let producerEven = producer(id: "producer_even", parity: .even)
+        var avocados = regularProduct(id: "seasonal_avocado", vendorId: producerEven.id, name: "Aguacates")
+        avocados = Product(
+            id: avocados.id,
+            vendorId: avocados.vendorId,
+            companyName: avocados.companyName,
+            name: avocados.name,
+            description: avocados.description,
+            productImageUrl: avocados.productImageUrl,
+            price: avocados.price,
+            pricingMode: .weight,
+            unitName: "kg",
+            unitAbbreviation: "kg",
+            unitPlural: "kg",
+            unitQty: 1.0,
+            packContainerName: avocados.packContainerName,
+            packContainerAbbreviation: avocados.packContainerAbbreviation,
+            packContainerPlural: avocados.packContainerPlural,
+            packContainerQty: avocados.packContainerQty,
+            isAvailable: avocados.isAvailable,
+            stockMode: avocados.stockMode,
+            stockQty: avocados.stockQty,
+            isEcoBasket: avocados.isEcoBasket,
+            isCommonPurchase: avocados.isCommonPurchase,
+            commonPurchaseType: avocados.commonPurchaseType,
+            archived: avocados.archived,
+            createdAtMillis: avocados.createdAtMillis,
+            updatedAtMillis: avocados.updatedAtMillis
+        )
+
+        let result = validateMyOrderCheckout(
+            currentMember: currentMember,
+            members: [currentMember, producerEven],
+            products: [avocados],
+            seasonalCommitments: [seasonalCommitment(productId: avocados.id, fixedQtyPerOfferedWeek: 3.5)],
+            selectedQuantities: [avocados.id: 3],
+            selectedEcoBasketOptions: [:],
+            currentWeekParity: .even
+        )
+
+        #expect(result.isValid == false)
+        #expect(result.incompatibleCommitmentProductNames == ["Aguacates"])
+    }
+
+    @Test
     func myOrderValidationIgnoresSeasonalCommitmentWhenProductNotOffered() {
         let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
 
@@ -701,6 +768,64 @@ struct ReguertaTests {
 
         #expect(result.isValid == false)
         #expect(result.missingCommitmentProductNames == ["Aguacates"])
+    }
+
+    @Test
+    func myOrderValidationBlocksMissingSeasonalCommitmentUsingSeasonCodeFallback() {
+        let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
+        let avocados = regularProduct(
+            id: "product_common_avocado",
+            vendorId: "compras_reguerta",
+            name: "Aguacates"
+        )
+
+        let result = validateMyOrderCheckout(
+            currentMember: currentMember,
+            members: [currentMember],
+            products: [avocados],
+            seasonalCommitments: [
+                seasonalCommitment(
+                    productId: "legacy_code_commitment",
+                    seasonKey: "AVO-2025-26",
+                    fixedQtyPerOfferedWeek: 1
+                )
+            ],
+            selectedQuantities: [:],
+            selectedEcoBasketOptions: [:],
+            currentWeekParity: .even
+        )
+
+        #expect(result.isValid == false)
+        #expect(result.missingCommitmentProductNames == ["Aguacates"])
+    }
+
+    @Test
+    func myOrderValidationBlocksExceededSeasonalCommitmentUsingSeasonCodeFallback() {
+        let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
+        let avocados = regularProduct(
+            id: "product_common_avocado",
+            vendorId: "compras_reguerta",
+            name: "Aguacates"
+        )
+
+        let result = validateMyOrderCheckout(
+            currentMember: currentMember,
+            members: [currentMember],
+            products: [avocados],
+            seasonalCommitments: [
+                seasonalCommitment(
+                    productId: "legacy_code_commitment",
+                    seasonKey: "AVO-2025-26",
+                    fixedQtyPerOfferedWeek: 2
+                )
+            ],
+            selectedQuantities: [avocados.id: 3],
+            selectedEcoBasketOptions: [:],
+            currentWeekParity: .even
+        )
+
+        #expect(result.isValid == false)
+        #expect(result.exceededCommitmentProductNames == ["Aguacates"])
     }
 
     @Test
