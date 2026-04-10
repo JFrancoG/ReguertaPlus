@@ -1812,7 +1812,7 @@ private func resolveMyOrderConsultaWindow(
     defaultDeliveryDayOfWeek: DeliveryWeekday?,
     deliveryCalendarOverrides: [DeliveryCalendarOverride],
     now: Date = Date(),
-    timeZone: TimeZone = .current
+    timeZone: TimeZone = TimeZone(identifier: "Europe/Madrid") ?? .current
 ) -> MyOrderConsultaWindow {
     var calendar = Calendar(identifier: .iso8601)
     calendar.timeZone = timeZone
@@ -1822,6 +1822,7 @@ private func resolveMyOrderConsultaWindow(
     let weekStart = isoWeekStartDate(from: currentWeekKey) ?? calendar.startOfDay(for: now)
     let weekStartDay = calendar.startOfDay(for: weekStart)
     let today = calendar.startOfDay(for: now)
+    let weekOverride = deliveryCalendarOverrides.first(where: { $0.weekKey == currentWeekKey })
 
     let effectiveDeliveryDate: Date
     if let override = deliveryCalendarOverrides.first(where: { $0.weekKey == currentWeekKey }) {
@@ -1835,7 +1836,15 @@ private func resolveMyOrderConsultaWindow(
 
     let previousWeekDate = calendar.date(byAdding: .day, value: -7, to: weekStartDay) ?? weekStartDay
     let previousWeekKey = Int64(previousWeekDate.timeIntervalSince1970 * 1_000).isoWeekKey
-    let isConsultaPhase = today >= weekStartDay && today <= effectiveDeliveryDate
+    let isConsultaPhase: Bool
+    if let weekOverride {
+        let blockedDate = calendar.startOfDay(
+            for: Date(timeIntervalSince1970: TimeInterval(weekOverride.ordersBlockedDateMillis) / 1_000)
+        )
+        isConsultaPhase = today >= weekStartDay && today < blockedDate
+    } else {
+        isConsultaPhase = today >= weekStartDay && today <= effectiveDeliveryDate
+    }
 
     return MyOrderConsultaWindow(
         isConsultaPhase: isConsultaPhase,

@@ -1950,11 +1950,12 @@ private fun resolveMyOrderConsultaWindow(
     defaultDeliveryDayOfWeek: DeliveryWeekday?,
     deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
     now: Instant = Instant.now(),
-    zoneId: ZoneId = ZoneId.systemDefault(),
+    zoneId: ZoneId = ZoneId.of("Europe/Madrid"),
 ): MyOrderConsultaWindow {
     val today = now.atZone(zoneId).toLocalDate()
     val currentWeekKey = today.toIsoWeekKey()
     val weekStart = currentWeekKey.toIsoWeekStartDate() ?: today.with(DayOfWeek.MONDAY)
+    val weekOverride = deliveryCalendarOverrides.firstOrNull { it.weekKey == currentWeekKey }
     val effectiveDeliveryDate = resolveEffectiveDeliveryDate(
         currentWeekKey = currentWeekKey,
         defaultDeliveryDayOfWeek = defaultDeliveryDayOfWeek,
@@ -1962,8 +1963,14 @@ private fun resolveMyOrderConsultaWindow(
         fallbackWeekStart = weekStart,
         zoneId = zoneId,
     )
+    val isConsultaPhase = if (weekOverride != null) {
+        val blockedDate = Instant.ofEpochMilli(weekOverride.ordersBlockedDateMillis).atZone(zoneId).toLocalDate()
+        !today.isBefore(weekStart) && today.isBefore(blockedDate)
+    } else {
+        !today.isBefore(weekStart) && !today.isAfter(effectiveDeliveryDate)
+    }
     return MyOrderConsultaWindow(
-        isConsultaPhase = !today.isBefore(weekStart) && !today.isAfter(effectiveDeliveryDate),
+        isConsultaPhase = isConsultaPhase,
         previousWeekKey = weekStart.minusWeeks(1).toIsoWeekKey(),
     )
 }
