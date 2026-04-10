@@ -5,10 +5,15 @@ let ecoBasketOptionNoPickup = "no_pickup"
 
 struct MyOrderCheckoutValidationResult: Equatable {
     let missingCommitmentProductNames: [String]
+    let exceededCommitmentProductNames: [String]
+    let incompatibleCommitmentProductNames: [String]
     let hasEcoBasketPriceMismatch: Bool
 
     var isValid: Bool {
-        missingCommitmentProductNames.isEmpty && !hasEcoBasketPriceMismatch
+        missingCommitmentProductNames.isEmpty &&
+            exceededCommitmentProductNames.isEmpty &&
+            incompatibleCommitmentProductNames.isEmpty &&
+            !hasEcoBasketPriceMismatch
     }
 }
 
@@ -40,12 +45,29 @@ func validateMyOrderCheckout(
     }
 
     let missingEcoNames = hasRequiredEcoBasket ? [] : requiredEcoBasketProducts.map(\.name)
-    let missingSeasonalNames = requiredSeasonalProducts.compactMap { requirement -> String? in
-        selectedQuantities[requirement.product.id, default: 0] < requirement.requiredUnits
-            ? requirement.product.name
-            : nil
+    var missingSeasonalNames: [String] = []
+    var exceededSeasonalNames: [String] = []
+    var incompatibleSeasonalNames: [String] = []
+
+    for requirement in requiredSeasonalProducts {
+        guard requirement.isRepresentableBySelectionStep else {
+            incompatibleSeasonalNames.append(requirement.product.name)
+            continue
+        }
+
+        let selectedUnits = selectedQuantities[requirement.product.id, default: 0]
+        let selectedQuantity = Double(selectedUnits) * requirement.selectionStep
+        if selectedQuantity + seasonalCommitmentTolerance < requirement.requiredQuantity {
+            missingSeasonalNames.append(requirement.product.name)
+            continue
+        }
+        if selectedQuantity - seasonalCommitmentTolerance > requirement.requiredQuantity {
+            exceededSeasonalNames.append(requirement.product.name)
+        }
     }
     let missingNames = deduplicatePreservingOrder(missingEcoNames + missingSeasonalNames)
+    let exceededNames = deduplicatePreservingOrder(exceededSeasonalNames)
+    let incompatibleNames = deduplicatePreservingOrder(incompatibleSeasonalNames)
 
     let distinctEcoBasketPrices = Set(
         products
@@ -56,8 +78,25 @@ func validateMyOrderCheckout(
 
     return MyOrderCheckoutValidationResult(
         missingCommitmentProductNames: missingNames,
+        exceededCommitmentProductNames: exceededNames,
+        incompatibleCommitmentProductNames: incompatibleNames,
         hasEcoBasketPriceMismatch: distinctEcoBasketPrices.count > 1
     )
+}
+
+func seasonalCommitmentUnitLimitsByProductID(
+    products: [Product],
+    seasonalCommitments: [SeasonalCommitment]
+) -> [String: Int] {
+    requiredSeasonalCommitmentProducts(products: products, seasonalCommitments: seasonalCommitments)
+        .reduce(into: [String: Int]()) { partialResult, requirement in
+            guard requirement.isRepresentableBySelectionStep else { return }
+            let expectedUnits = requirement.requiredQuantity / requirement.selectionStep
+            let requiredUnits = Int(expectedUnits.rounded())
+            if requiredUnits > 0 {
+                partialResult[requirement.product.id] = requiredUnits
+            }
+        }
 }
 
 private func requiredEcoBasketCommitmentProducts(
@@ -111,7 +150,9 @@ private func requiredEcoBasketCommitmentProducts(
 
 private struct SeasonalProductRequirement {
     let product: Product
-    let requiredUnits: Int
+    let requiredQuantity: Double
+    let selectionStep: Double
+    let isRepresentableBySelectionStep: Bool
 }
 
 private func requiredSeasonalCommitmentProducts(
@@ -139,7 +180,7 @@ private func requiredSeasonalCommitmentProducts(
     }
     let visibleProductsWithNormalizedName = visibleProducts.map { ($0, $0.name.commitmentNormalized()) }
 
-    var requiredUnitsByProductId: [String: Int] = [:]
+    var requiredQuantityByProductId: [String: Double] = [:]
 
     for commitment in seasonalCommitments where commitment.active {
         let matchedProductID = visibleProductsById[commitment.productId]?.id ??
@@ -154,17 +195,27 @@ private func requiredSeasonalCommitmentProducts(
         guard let matchedProductID else {
             continue
         }
-        let requiredUnits = max(1, Int(ceil(commitment.fixedQtyPerOfferedWeek)))
-        let existingUnits = requiredUnitsByProductId[matchedProductID] ?? 0
-        requiredUnitsByProductId[matchedProductID] = max(existingUnits, requiredUnits)
+        let requiredQuantity = commitment.fixedQtyPerOfferedWeek
+        let existingQuantity = requiredQuantityByProductId[matchedProductID] ?? 0
+        requiredQuantityByProductId[matchedProductID] = max(existingQuantity, requiredQuantity)
     }
 
-    return requiredUnitsByProductId
-        .compactMap { productId, requiredUnits in
+    return requiredQuantityByProductId
+        .compactMap { productId, requiredQuantity in
+            guard requiredQuantity > 0 else { return nil }
             guard let product = visibleProductsById[productId] else {
                 return nil
             }
-            return SeasonalProductRequirement(product: product, requiredUnits: requiredUnits)
+            let step = product.commitmentSelectionStep
+            let expectedUnits = requiredQuantity / step
+            let roundedUnits = expectedUnits.rounded()
+            let isRepresentable = abs(expectedUnits - roundedUnits) <= seasonalCommitmentTolerance
+            return SeasonalProductRequirement(
+                product: product,
+                requiredQuantity: requiredQuantity,
+                selectionStep: step,
+                isRepresentableBySelectionStep: isRepresentable
+            )
         }
         .sorted { lhs, rhs in
             if lhs.product.companyName.localizedCaseInsensitiveCompare(rhs.product.companyName) != .orderedSame {
@@ -182,6 +233,13 @@ private func deduplicatePreservingOrder(_ values: [String]) -> [String] {
 private extension Product {
     var normalizedEcoBasketPriceKey: Int {
         Int((price * 10_000).rounded())
+    }
+
+    var commitmentSelectionStep: Double {
+        if pricingMode == .weight {
+            return unitQty > 0 ? unitQty : 1
+        }
+        return 1
     }
 }
 
@@ -204,9 +262,29 @@ private extension SeasonalCommitment {
     func commitmentSearchTerms() -> [String] {
         var seen = Set<String>()
         let rawValues: [String?] = [productNameHint, seasonKey, productId]
-        return rawValues
+        let rawTerms = rawValues
             .compactMap { $0 }
             .flatMap { value in value.commitmentTokens() }
-            .filter { seen.insert($0).inserted }
+        let seasonAliasTerms = seasonKey.commitmentSeasonAliasTerms()
+        return (rawTerms + seasonAliasTerms).filter { seen.insert($0).inserted }
     }
 }
+
+private extension String {
+    func commitmentSeasonAliasTerms() -> [String] {
+        let firstToken = components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .map { $0.commitmentNormalized() }
+            .first { !$0.isEmpty }
+
+        switch firstToken {
+        case "avo", "avocado", "avocados", "aguacate", "aguacates":
+            return ["aguacate", "aguacates", "avocado", "avocados"]
+        case "man", "mango", "mangos":
+            return ["mango", "mangos"]
+        default:
+            return []
+        }
+    }
+}
+
+private let seasonalCommitmentTolerance = 0.0001

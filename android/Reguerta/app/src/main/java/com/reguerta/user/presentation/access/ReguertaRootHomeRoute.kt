@@ -401,6 +401,9 @@ internal fun HomeRoute(
                     seasonalCommitments = myOrderSeasonalCommitmentsFeed,
                     isLoading = isLoadingMyOrderProducts,
                     onRefresh = onRefreshMyOrderProducts,
+                    onCheckoutSuccessAcknowledge = {
+                        currentDestination = HomeDestination.DASHBOARD
+                    },
                     )
 
                     HomeDestination.PROFILE -> SharedProfileRoute(

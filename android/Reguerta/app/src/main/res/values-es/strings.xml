@@ -240,6 +240,7 @@
     <string name="my_order_add_action">Añadir</string>
     <string name="my_order_quantity_single">1 ud.</string>
     <string name="my_order_quantity_plural_format">%1$d uds.</string>
+    <string name="my_order_quantity_weight_format">%1$s %2$s</string>
     <string name="my_order_decrease_action">Quitar una unidad</string>
     <string name="my_order_increase_action">Añadir una unidad</string>
     <string name="my_order_eco_basket_option_label">Opción de ecocesta</string>
@@ -248,18 +249,27 @@
     <string name="my_order_price_per_unit_format">%1$s € / ud.</string>
     <string name="my_order_stock_remaining_format">Quedan: %1$s uds.</string>
     <string name="my_order_continue_shopping_action">Seguir comprando</string>
+    <string name="my_order_edit_confirmed_action">Editar pedido</string>
     <string name="my_order_cart_title">Mi carrito</string>
     <string name="my_order_total_format">Total: %1$s €</string>
+    <string name="my_order_confirmed_total_sum_format">Suma total pedido: %1$s €</string>
+    <string name="my_order_producer_subtotal_format">Total: %1$s €</string>
     <string name="my_order_cart_empty">No has seleccionado productos todavía.</string>
     <string name="my_order_finalize_action">Finalizar compra</string>
     <string name="my_order_finalize_update_action">Guardar cambios</string>
     <string name="my_order_checkout_error_title">Faltan productos de compromiso</string>
     <string name="my_order_checkout_error_message">Necesitas incluir al menos una unidad de: %1$s.</string>
+    <string name="my_order_checkout_exceeded_title">Has superado el compromiso</string>
+    <string name="my_order_checkout_exceeded_message">No puedes añadir más cantidad de la comprometida en: %1$s.</string>
+    <string name="my_order_checkout_incompatible_title">Compromiso no representable</string>
+    <string name="my_order_checkout_incompatible_message">La cantidad comprometida de %1$s no encaja con el paso de compra actual. Contacta con administración.</string>
     <string name="my_order_checkout_eco_price_error_title">Precio de ecocesta inconsistente</string>
     <string name="my_order_checkout_eco_price_error_message">Las ecocestas activas deben mantener un precio compartido para continuar.</string>
     <string name="my_order_checkout_success_title">Pedido listo</string>
-    <string name="my_order_checkout_success_message">Todo correcto. Total: %1$s €. En el siguiente paso conectamos el envío del pedido.</string>
-    <string name="my_order_checkout_success_message_with_no_pickup">Todo correcto. Total: %1$s €. %2$d ud(s). de ecocesta marcadas como no recoger. En el siguiente paso conectamos el envío del pedido.</string>
+    <string name="my_order_checkout_success_message">Todo correcto. Total: %1$s €. Tu pedido se ha guardado.</string>
+    <string name="my_order_checkout_success_message_with_no_pickup">Todo correcto. Total: %1$s €. %2$d ud(s). de ecocesta marcadas como no recoger. Tu pedido se ha guardado.</string>
+    <string name="my_order_checkout_submit_error_title">No se pudo guardar el pedido</string>
+    <string name="my_order_checkout_submit_error_message">Ha ocurrido un problema al guardar tu pedido. Inténtalo de nuevo.</string>
 
     <string name="admin_manage_members_title">Admin | Gestión de miembros</string>
     <string name="admin_manage_members_subtitle">Crear / editar / desactivar miembros y roles</string>

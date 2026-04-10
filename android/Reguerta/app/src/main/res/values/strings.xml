@@ -240,6 +240,7 @@
     <string name="my_order_add_action">Add</string>
     <string name="my_order_quantity_single">1 unit</string>
     <string name="my_order_quantity_plural_format">%1$d units</string>
+    <string name="my_order_quantity_weight_format">%1$s %2$s</string>
     <string name="my_order_decrease_action">Remove one unit</string>
     <string name="my_order_increase_action">Add one unit</string>
     <string name="my_order_eco_basket_option_label">Eco-basket option</string>
@@ -248,18 +249,27 @@
     <string name="my_order_price_per_unit_format">%1$s € / unit</string>
     <string name="my_order_stock_remaining_format">Remaining: %1$s units</string>
     <string name="my_order_continue_shopping_action">Continue shopping</string>
+    <string name="my_order_edit_confirmed_action">Edit order</string>
     <string name="my_order_cart_title">My cart</string>
     <string name="my_order_total_format">Total: %1$s €</string>
+    <string name="my_order_confirmed_total_sum_format">Order total: %1$s €</string>
+    <string name="my_order_producer_subtotal_format">Total: %1$s €</string>
     <string name="my_order_cart_empty">No products selected yet.</string>
     <string name="my_order_finalize_action">Finish purchase</string>
     <string name="my_order_finalize_update_action">Save changes</string>
     <string name="my_order_checkout_error_title">Missing commitment products</string>
     <string name="my_order_checkout_error_message">You need to include at least one unit of: %1$s.</string>
+    <string name="my_order_checkout_exceeded_title">Commitment quantity exceeded</string>
+    <string name="my_order_checkout_exceeded_message">You cannot exceed the committed quantity for: %1$s.</string>
+    <string name="my_order_checkout_incompatible_title">Commitment quantity not representable</string>
+    <string name="my_order_checkout_incompatible_message">The committed amount for %1$s does not match the current purchase step. Please contact administration.</string>
     <string name="my_order_checkout_eco_price_error_title">Eco-basket price mismatch</string>
     <string name="my_order_checkout_eco_price_error_message">Eco-basket products should keep the same shared price before checkout can continue.</string>
     <string name="my_order_checkout_success_title">Order ready</string>
-    <string name="my_order_checkout_success_message">Everything looks good. Total: %1$s €. We will connect order submission in the next step.</string>
-    <string name="my_order_checkout_success_message_with_no_pickup">Everything looks good. Total: %1$s €. %2$d eco-basket unit(s) marked as no pickup. We will connect order submission in the next step.</string>
+    <string name="my_order_checkout_success_message">Everything looks good. Total: %1$s €. Your order has been saved.</string>
+    <string name="my_order_checkout_success_message_with_no_pickup">Everything looks good. Total: %1$s €. %2$d eco-basket unit(s) marked as no pickup. Your order has been saved.</string>
+    <string name="my_order_checkout_submit_error_title">Order could not be saved</string>
+    <string name="my_order_checkout_submit_error_message">There was a problem while saving your order. Please try again.</string>
 
     <string name="admin_manage_members_title">Admin | Manage members</string>
     <string name="admin_manage_members_subtitle">Create / edit / deactivate members and roles</string>

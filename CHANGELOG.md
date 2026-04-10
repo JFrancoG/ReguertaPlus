@@ -36,6 +36,7 @@ All notable changes to this project will be documented in this file.
 - 2026-04-07 | 🐛 fix(functions): correct delivery-sheet exception matching
 - 2026-04-09 | 🐛 fix(order): enforce avocado commitments with legacy mapping (HU-043)
 - 2026-04-09 | 🐛 fix(order): harden seasonal commitment lookup for avocado warnings
+- 2026-04-10 | 🐛 fix(order): finalize confirmed order flow
 
 ### Documentation
 

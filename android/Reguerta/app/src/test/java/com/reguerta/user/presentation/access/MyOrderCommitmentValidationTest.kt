@@ -6,6 +6,7 @@ import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.ProducerParity
 import com.reguerta.user.domain.commitments.SeasonalCommitment
 import com.reguerta.user.domain.products.Product
+import com.reguerta.user.domain.products.ProductPricingMode
 import com.reguerta.user.domain.products.ProductStockMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -143,6 +144,57 @@ class MyOrderCommitmentValidationTest {
     }
 
     @Test
+    fun `blocks checkout when seasonal commitment quantity exceeds required amount`() {
+        val member = member(id = "member_1", ecoCommitmentMode = EcoCommitmentMode.WEEKLY)
+        val avocado = regularProduct(id = "seasonal_avocado", vendorId = "producer_even", name = "Aguacates")
+        val commitments = listOf(
+            seasonalCommitment(productId = avocado.id, fixedQtyPerOfferedWeek = 2.0),
+        )
+
+        val result = validateMyOrderCheckout(
+            currentMember = member,
+            members = listOf(member, producer(id = "producer_even", parity = ProducerParity.EVEN)),
+            products = listOf(avocado),
+            seasonalCommitments = commitments,
+            selectedQuantities = mapOf(avocado.id to 3),
+            selectedEcoBasketOptions = emptyMap(),
+            currentWeekParity = ProducerParity.EVEN,
+        )
+
+        assertFalse(result.isValid)
+        assertEquals(listOf("Aguacates"), result.exceededCommitmentProductNames)
+    }
+
+    @Test
+    fun `blocks checkout when seasonal commitment quantity is not representable by product step`() {
+        val member = member(id = "member_1", ecoCommitmentMode = EcoCommitmentMode.WEEKLY)
+        val avocado = regularProduct(id = "seasonal_avocado", vendorId = "producer_even", name = "Aguacates")
+            .copy(
+                pricingMode = ProductPricingMode.WEIGHT,
+                unitName = "kg",
+                unitAbbreviation = "kg",
+                unitPlural = "kg",
+                unitQty = 1.0,
+            )
+        val commitments = listOf(
+            seasonalCommitment(productId = avocado.id, fixedQtyPerOfferedWeek = 3.5),
+        )
+
+        val result = validateMyOrderCheckout(
+            currentMember = member,
+            members = listOf(member, producer(id = "producer_even", parity = ProducerParity.EVEN)),
+            products = listOf(avocado),
+            seasonalCommitments = commitments,
+            selectedQuantities = mapOf(avocado.id to 3),
+            selectedEcoBasketOptions = emptyMap(),
+            currentWeekParity = ProducerParity.EVEN,
+        )
+
+        assertFalse(result.isValid)
+        assertEquals(listOf("Aguacates"), result.incompatibleCommitmentProductNames)
+    }
+
+    @Test
     fun `ignores seasonal commitments when product is not offered this week`() {
         val member = member(id = "member_1", ecoCommitmentMode = EcoCommitmentMode.WEEKLY)
         val commitments = listOf(
@@ -187,6 +239,58 @@ class MyOrderCommitmentValidationTest {
 
         assertFalse(result.isValid)
         assertEquals(listOf("Aguacates"), result.missingCommitmentProductNames)
+    }
+
+    @Test
+    fun `blocks checkout when seasonal commitment season code maps to avocado product`() {
+        val member = member(id = "member_1", ecoCommitmentMode = EcoCommitmentMode.WEEKLY)
+        val avocados = regularProduct(id = "product_common_avocado", vendorId = "compras_reguerta", name = "Aguacates")
+        val commitments = listOf(
+            seasonalCommitment(
+                productId = "legacy_code_commitment",
+                seasonKey = "AVO-2025-26",
+                fixedQtyPerOfferedWeek = 1.0,
+            ),
+        )
+
+        val result = validateMyOrderCheckout(
+            currentMember = member,
+            members = listOf(member),
+            products = listOf(avocados),
+            seasonalCommitments = commitments,
+            selectedQuantities = emptyMap(),
+            selectedEcoBasketOptions = emptyMap(),
+            currentWeekParity = ProducerParity.EVEN,
+        )
+
+        assertFalse(result.isValid)
+        assertEquals(listOf("Aguacates"), result.missingCommitmentProductNames)
+    }
+
+    @Test
+    fun `blocks checkout when seasonal commitment season code exceeds fixed quantity`() {
+        val member = member(id = "member_1", ecoCommitmentMode = EcoCommitmentMode.WEEKLY)
+        val avocados = regularProduct(id = "product_common_avocado", vendorId = "compras_reguerta", name = "Aguacates")
+        val commitments = listOf(
+            seasonalCommitment(
+                productId = "legacy_code_commitment",
+                seasonKey = "AVO-2025-26",
+                fixedQtyPerOfferedWeek = 2.0,
+            ),
+        )
+
+        val result = validateMyOrderCheckout(
+            currentMember = member,
+            members = listOf(member),
+            products = listOf(avocados),
+            seasonalCommitments = commitments,
+            selectedQuantities = mapOf(avocados.id to 3),
+            selectedEcoBasketOptions = emptyMap(),
+            currentWeekParity = ProducerParity.EVEN,
+        )
+
+        assertFalse(result.isValid)
+        assertEquals(listOf("Aguacates"), result.exceededCommitmentProductNames)
     }
 
     @Test
