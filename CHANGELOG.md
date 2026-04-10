@@ -27,6 +27,7 @@ All notable changes to this project will be documented in this file.
 - 2026-04-09 | ✨ feat(order): enforce HU-002 commitments on checkout
 - 2026-04-09 | ✨ feat(order): resume unconfirmed cart across re-entry (HU-003)
 - 2026-04-09 | ✨ feat(order): allow confirmed order edits before cutoff (HU-004)
+- 2026-04-10 | ✨ feat(order): show previous-week order in consultation window (HU-005)
 
 ### Fixed
 
@@ -55,3 +56,4 @@ All notable changes to this project will be documented in this file.
 - 2026-04-08 | ♻️ refactor(android): split access routes and slim root files
 - 2026-04-08 | ♻️ refactor(ios): split ContentView routes and action files
 - 2026-04-08 | ♻️ refactor(l10n): remove hardcoded locale date formatting
+- 2026-04-10 | ♻️ refactor(ios): organize Presentation/Access into feature folders

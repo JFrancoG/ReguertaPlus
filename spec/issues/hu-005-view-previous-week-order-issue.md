@@ -23,11 +23,11 @@ As a member I want to view my previous week order outside active window so that 
 - Refactors not required to close acceptance criteria.
 
 ## Implementation checklist
-- [ ] Android
-- [ ] iOS
-- [ ] Backend / Firestore
-- [ ] Testing
-- [ ] Documentation
+- [x] Android
+- [x] iOS
+- [x] Backend / Firestore
+- [x] Testing
+- [x] Documentation
 
 ## Suggested labels
 - type:feature

@@ -139,6 +139,8 @@ extension ContentView {
             tokens: tokens,
             products: viewModel.myOrderProductsFeed,
             seasonalCommitments: viewModel.myOrderSeasonalCommitmentsFeed,
+            defaultDeliveryDayOfWeek: viewModel.defaultDeliveryDayOfWeek,
+            deliveryCalendarOverrides: viewModel.deliveryCalendarOverrides,
             isLoading: viewModel.isLoadingMyOrderProducts,
             currentMember: currentHomeMember,
             members: currentHomeSession?.members ?? [],
@@ -351,10 +353,55 @@ private struct MyOrderConfirmedGroup: Identifiable {
     var id: String { vendorId }
 }
 
+private struct MyOrderPreviousOrderLine: Identifiable {
+    let vendorId: String
+    let companyName: String
+    let productName: String
+    let packagingLine: String
+    let quantityLabel: String
+    let subtotal: Double
+
+    var id: String { "\(vendorId)_\(productName)" }
+}
+
+private struct MyOrderPreviousOrderGroup: Identifiable {
+    let vendorId: String
+    let companyName: String
+    let lines: [MyOrderPreviousOrderLine]
+    let subtotal: Double
+
+    var id: String { vendorId }
+}
+
+private struct MyOrderPreviousGroupKey: Hashable {
+    let vendorId: String
+    let companyName: String
+}
+
+private struct MyOrderPreviousOrderSnapshot {
+    let weekKey: String
+    let groups: [MyOrderPreviousOrderGroup]
+    let total: Double
+}
+
+private enum MyOrderPreviousOrderState {
+    case loading
+    case loaded(MyOrderPreviousOrderSnapshot)
+    case empty
+    case error
+}
+
+private struct MyOrderConsultaWindow {
+    let isConsultaPhase: Bool
+    let previousWeekKey: String
+}
+
 private struct MyOrderRouteView: View {
     let tokens: ReguertaDesignTokens
     let products: [Product]
     let seasonalCommitments: [SeasonalCommitment]
+    let defaultDeliveryDayOfWeek: DeliveryWeekday?
+    let deliveryCalendarOverrides: [DeliveryCalendarOverride]
     let isLoading: Bool
     let currentMember: Member?
     let members: [Member]
@@ -371,6 +418,7 @@ private struct MyOrderRouteView: View {
     @State private var checkoutAlert: MyOrderCheckoutAlert?
     @State private var hasRestoredCartState = false
     @State private var isViewingConfirmedOrder = false
+    @State private var previousOrderState: MyOrderPreviousOrderState = .loading
 
     private var normalizedQuery: String {
         searchQuery.searchNormalized
@@ -403,13 +451,33 @@ private struct MyOrderRouteView: View {
         hasConfirmedOrder && !hasPendingConfirmedEdits && isViewingConfirmedOrder
     }
 
+    private var consultaWindow: MyOrderConsultaWindow {
+        resolveMyOrderConsultaWindow(
+            defaultDeliveryDayOfWeek: defaultDeliveryDayOfWeek,
+            deliveryCalendarOverrides: deliveryCalendarOverrides
+        )
+    }
+
+    private var isConsultaPhase: Bool {
+        consultaWindow.isConsultaPhase
+    }
+
+    private var isReadOnlyMode: Bool {
+        isReadOnlyConfirmedView || isConsultaPhase
+    }
+
+    private var consultaTaskID: String {
+        let memberId = currentMember?.id ?? ""
+        return "\(isConsultaPhase)-\(consultaWindow.previousWeekKey)-\(memberId)"
+    }
+
     private var finalizeCheckoutTitle: String {
         hasConfirmedOrder && hasPendingConfirmedEdits ? "Guardar cambios" : "Finalizar compra"
     }
 
     private var canSubmitCheckout: Bool {
         !isSubmittingCheckout &&
-            !isReadOnlyConfirmedView &&
+            !isReadOnlyMode &&
             selectedUnits > 0 &&
             (!hasConfirmedOrder || hasPendingConfirmedEdits)
     }
@@ -533,11 +601,20 @@ private struct MyOrderRouteView: View {
         )
     }
 
+    @ViewBuilder
+    private var readOnlyOrderContent: some View {
+        if isConsultaPhase {
+            previousOrderView
+        } else {
+            confirmedOrderView
+        }
+    }
+
     var body: some View {
         GeometryReader { proxy in
             ZStack(alignment: .bottom) {
-                if isReadOnlyConfirmedView {
-                    confirmedOrderView
+                if isReadOnlyMode {
+                    readOnlyOrderContent
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 } else {
                     VStack(alignment: .leading, spacing: tokens.spacing.sm) {
@@ -553,11 +630,11 @@ private struct MyOrderRouteView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
 
-                if !isReadOnlyConfirmedView && !isCartVisible {
+                if !isReadOnlyMode && !isCartVisible {
                     searchOverlay
                 }
 
-                if !isReadOnlyConfirmedView && isCartVisible {
+                if !isReadOnlyMode && isCartVisible {
                     Color.black.opacity(0.22)
                         .ignoresSafeArea()
                         .onTapGesture {
@@ -567,7 +644,7 @@ private struct MyOrderRouteView: View {
                         }
                 }
 
-                if !isReadOnlyConfirmedView {
+                if !isReadOnlyMode {
                     cartOverlay(proxy: proxy)
                 }
             }
@@ -579,8 +656,10 @@ private struct MyOrderRouteView: View {
                 let initialSelectionSnapshot: MyOrderCartSnapshot = cartSnapshot.selectedQuantities.isEmpty
                     ? confirmedSnapshot
                     : cartSnapshot
-                let isSelectionEqualToConfirmed = initialSelectionSnapshot.selectedQuantities == confirmedSnapshot.selectedQuantities &&
-                    initialSelectionSnapshot.selectedEcoBasketOptions == confirmedSnapshot.selectedEcoBasketOptions
+                let isSelectionEqualToConfirmed = myOrderSnapshotsMatch(
+                    initialSelectionSnapshot,
+                    confirmedSnapshot
+                )
                 isViewingConfirmedOrder = !confirmedSnapshot.selectedQuantities.isEmpty && isSelectionEqualToConfirmed
                 selectedQuantities = initialSelectionSnapshot.selectedQuantities
                 selectedEcoBasketOptions = initialSelectionSnapshot.selectedEcoBasketOptions
@@ -603,6 +682,10 @@ private struct MyOrderRouteView: View {
             .onChange(of: seasonalCommitments) { _, _ in
                 sanitizeSelectedStateForCurrentProducts()
             }
+            .task(id: consultaTaskID) {
+                guard isConsultaPhase else { return }
+                await loadPreviousWeekOrderState(previousWeekKey: consultaWindow.previousWeekKey)
+            }
             .overlay {
                 if let checkoutAlert {
                     checkoutDialog(checkoutAlert)
@@ -618,6 +701,24 @@ private struct MyOrderRouteView: View {
             selectedQuantities: selectedQuantities,
             selectedEcoBasketOptions: selectedEcoBasketOptions
         )
+    }
+
+    @MainActor
+    private func loadPreviousWeekOrderState(previousWeekKey: String) async {
+        previousOrderState = .loading
+        do {
+            let snapshot = try await fetchPreviousWeekOrderSnapshot(
+                currentMember: currentMember,
+                previousWeekKey: previousWeekKey
+            )
+            if let snapshot, !snapshot.groups.isEmpty {
+                previousOrderState = .loaded(snapshot)
+            } else {
+                previousOrderState = .empty
+            }
+        } catch {
+            previousOrderState = .error
+        }
     }
 
     private func sanitizeSelectedStateForCurrentProducts() {
@@ -748,6 +849,87 @@ private struct MyOrderRouteView: View {
     }
 
     @ViewBuilder
+    private var previousOrderView: some View {
+        ZStack(alignment: .bottom) {
+            VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                Text("Pedido anterior")
+                    .font(tokens.typography.titleCard.weight(.semibold))
+                    .foregroundStyle(tokens.colors.textPrimary)
+
+                switch previousOrderState {
+                case .loading:
+                    ReguertaCard {
+                        HStack(spacing: tokens.spacing.sm) {
+                            ProgressView()
+                                .tint(tokens.colors.actionPrimary)
+                            Text("Cargando pedido de la semana anterior…")
+                                .font(tokens.typography.bodySecondary)
+                                .foregroundStyle(tokens.colors.textSecondary)
+                        }
+                    }
+
+                case .empty:
+                    ReguertaCard {
+                        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                            Text("No hemos encontrado pedido para la semana anterior.")
+                                .font(tokens.typography.bodySecondary)
+                                .foregroundStyle(tokens.colors.textSecondary)
+                            ReguertaButton("Actualizar", variant: .text, fullWidth: false) {
+                                Task {
+                                    await loadPreviousWeekOrderState(previousWeekKey: consultaWindow.previousWeekKey)
+                                }
+                            }
+                        }
+                    }
+
+                case .error:
+                    ReguertaCard {
+                        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                            Text("No hemos podido cargar tu pedido anterior.")
+                                .font(tokens.typography.bodySecondary)
+                                .foregroundStyle(tokens.colors.textSecondary)
+                            ReguertaButton("Reintentar", variant: .text, fullWidth: false) {
+                                Task {
+                                    await loadPreviousWeekOrderState(previousWeekKey: consultaWindow.previousWeekKey)
+                                }
+                            }
+                        }
+                    }
+
+                case .loaded(let snapshot):
+                    Text("Semana \(snapshot.weekKey)")
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
+
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(spacing: tokens.spacing.md) {
+                            ForEach(snapshot.groups) { group in
+                                previousProducerCard(group)
+                            }
+                        }
+                        .padding(.bottom, 96.resize)
+                    }
+                }
+            }
+
+            if case .loaded(let snapshot) = previousOrderState {
+                HStack {
+                    Text("Suma total pedido: \(snapshot.total.myOrderUiDecimal) €")
+                        .font(tokens.typography.body.weight(.semibold))
+                        .foregroundStyle(tokens.colors.textPrimary)
+                        .frame(maxWidth: .infinity)
+                }
+                .padding(.horizontal, tokens.spacing.md)
+                .padding(.vertical, tokens.spacing.sm)
+                .background(tokens.colors.actionPrimary.opacity(0.3))
+                .clipShape(Capsule())
+                .padding(.horizontal, tokens.spacing.sm)
+                .padding(.bottom, tokens.spacing.sm)
+            }
+        }
+    }
+
+    @ViewBuilder
     private func confirmedProducerCard(_ group: MyOrderConfirmedGroup) -> some View {
         ReguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
@@ -768,6 +950,48 @@ private struct MyOrderRouteView: View {
                             }
                             Spacer()
                             Text(confirmedQuantityLabel(for: line))
+                                .font(tokens.typography.body.weight(.semibold))
+                                .foregroundStyle(tokens.colors.textPrimary)
+                            Text("\(line.subtotal.myOrderUiDecimal) €")
+                                .font(tokens.typography.body.weight(.semibold))
+                                .foregroundStyle(tokens.colors.textPrimary)
+                        }
+                        Divider()
+                            .overlay(tokens.colors.borderSubtle)
+                    }
+                }
+
+                HStack {
+                    Spacer()
+                    Text("Total: \(group.subtotal.myOrderUiDecimal) €")
+                        .font(tokens.typography.body.weight(.semibold))
+                        .foregroundStyle(Color(red: 0.78, green: 0.38, blue: 0.36))
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func previousProducerCard(_ group: MyOrderPreviousOrderGroup) -> some View {
+        ReguertaCard {
+            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                Text(group.companyName)
+                    .font(tokens.typography.titleCard.weight(.semibold))
+                    .foregroundStyle(tokens.colors.actionPrimary)
+
+                ForEach(group.lines) { line in
+                    VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+                        HStack(alignment: .firstTextBaseline, spacing: tokens.spacing.sm) {
+                            VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+                                Text(line.productName)
+                                    .font(tokens.typography.body.weight(.semibold))
+                                    .foregroundStyle(tokens.colors.textPrimary)
+                                Text(line.packagingLine)
+                                    .font(tokens.typography.bodySecondary)
+                                    .foregroundStyle(tokens.colors.textSecondary)
+                            }
+                            Spacer()
+                            Text(line.quantityLabel)
                                 .font(tokens.typography.body.weight(.semibold))
                                 .foregroundStyle(tokens.colors.textPrimary)
                             Text("\(line.subtotal.myOrderUiDecimal) €")
@@ -867,7 +1091,7 @@ private struct MyOrderRouteView: View {
                         quantityControls(
                             product: product,
                             quantity: quantity,
-                            isEditable: !isReadOnlyConfirmedView
+                            isEditable: !isReadOnlyMode
                         )
                         Text(product.name)
                             .font(tokens.typography.body.weight(.semibold))
@@ -1130,9 +1354,9 @@ private struct MyOrderRouteView: View {
                 quantityControls(
                     product: product,
                     quantity: quantity,
-                    isEditable: !isReadOnlyConfirmedView
+                    isEditable: !isReadOnlyMode
                 )
-                if product.isEcoBasket, quantity > 0, !isReadOnlyConfirmedView {
+                if product.isEcoBasket, quantity > 0, !isReadOnlyMode {
                     ecoBasketOptionSelector(
                         selectedOption: selectedOption,
                         onOptionSelected: { option in
@@ -1302,7 +1526,7 @@ private struct MyOrderRouteView: View {
     }
 
     private func increase(_ product: Product) {
-        guard !isReadOnlyConfirmedView else { return }
+        guard !isReadOnlyMode else { return }
         let currentQuantity = selectedQuantities[product.id, default: 0]
         guard canIncrease(product: product, currentQuantity: currentQuantity) else { return }
         selectedQuantities[product.id] = currentQuantity + 1
@@ -1312,7 +1536,7 @@ private struct MyOrderRouteView: View {
     }
 
     private func decrease(_ product: Product) {
-        guard !isReadOnlyConfirmedView else { return }
+        guard !isReadOnlyMode else { return }
         let currentQuantity = selectedQuantities[product.id, default: 0]
         guard currentQuantity > 0 else { return }
         if currentQuantity == 1 {
@@ -1576,6 +1800,225 @@ private func submitCheckoutOrderToFirestore(
     return false
 }
 
+private func myOrderSnapshotsMatch(
+    _ lhs: MyOrderCartSnapshot,
+    _ rhs: MyOrderCartSnapshot
+) -> Bool {
+    lhs.selectedQuantities == rhs.selectedQuantities &&
+        lhs.selectedEcoBasketOptions == rhs.selectedEcoBasketOptions
+}
+
+private func resolveMyOrderConsultaWindow(
+    defaultDeliveryDayOfWeek: DeliveryWeekday?,
+    deliveryCalendarOverrides: [DeliveryCalendarOverride],
+    now: Date = Date(),
+    timeZone: TimeZone = .current
+) -> MyOrderConsultaWindow {
+    var calendar = Calendar(identifier: .iso8601)
+    calendar.timeZone = timeZone
+
+    let nowMillis = Int64(now.timeIntervalSince1970 * 1_000)
+    let currentWeekKey = nowMillis.isoWeekKey
+    let weekStart = isoWeekStartDate(from: currentWeekKey) ?? calendar.startOfDay(for: now)
+    let weekStartDay = calendar.startOfDay(for: weekStart)
+    let today = calendar.startOfDay(for: now)
+
+    let effectiveDeliveryDate: Date
+    if let override = deliveryCalendarOverrides.first(where: { $0.weekKey == currentWeekKey }) {
+        effectiveDeliveryDate = calendar.startOfDay(
+            for: Date(timeIntervalSince1970: TimeInterval(override.deliveryDateMillis) / 1_000)
+        )
+    } else {
+        let dayOffset = (defaultDeliveryDayOfWeek ?? .wednesday).myOrderDayOffset
+        effectiveDeliveryDate = calendar.date(byAdding: .day, value: dayOffset, to: weekStartDay) ?? weekStartDay
+    }
+
+    let previousWeekDate = calendar.date(byAdding: .day, value: -7, to: weekStartDay) ?? weekStartDay
+    let previousWeekKey = Int64(previousWeekDate.timeIntervalSince1970 * 1_000).isoWeekKey
+    let isConsultaPhase = today >= weekStartDay && today <= effectiveDeliveryDate
+
+    return MyOrderConsultaWindow(
+        isConsultaPhase: isConsultaPhase,
+        previousWeekKey: previousWeekKey
+    )
+}
+
+private func fetchPreviousWeekOrderSnapshot(
+    currentMember: Member?,
+    previousWeekKey: String,
+    db: Firestore = Firestore.firestore(),
+    environment: ReguertaFirestoreEnvironment = .develop
+) async throws -> MyOrderPreviousOrderSnapshot? {
+    guard let member = currentMember else {
+        return nil
+    }
+
+    let firestorePath = ReguertaFirestorePath(environment: environment)
+    let readTargets = [
+        (
+            orders: firestorePath.collectionPath(.orders),
+            orderlines: firestorePath.collectionPath(.orderlines)
+        ),
+        (
+            orders: "\(environment.rawValue)/collections/orders",
+            orderlines: "\(environment.rawValue)/collections/orderLines"
+        ),
+        (
+            orders: "\(environment.rawValue)/collections/orders",
+            orderlines: "\(environment.rawValue)/collections/orderlines"
+        )
+    ]
+    let orderId = "\(member.id)_\(previousWeekKey)"
+    var lastError: Error?
+    var hasSuccessfulRead = false
+
+    for target in readTargets {
+        do {
+            let orderRef = db.document("\(target.orders)/\(orderId)")
+            let orderSnapshot = try await orderRef.getDocument()
+            let linesSnapshot = try await db.collection(target.orderlines)
+                .whereField("orderId", isEqualTo: orderId)
+                .getDocuments()
+            hasSuccessfulRead = true
+
+            let lines = linesSnapshot.documents.map { document in
+                myOrderPreviousLine(from: document.data())
+            }
+
+            let groups = buildMyOrderPreviousGroups(from: lines)
+
+            if !orderSnapshot.exists && groups.isEmpty {
+                continue
+            }
+
+            let total = (orderSnapshot.data()?["total"] as? NSNumber)?.doubleValue ??
+                groups.reduce(0) { $0 + $1.subtotal }
+
+            return MyOrderPreviousOrderSnapshot(
+                weekKey: previousWeekKey,
+                groups: groups,
+                total: total
+            )
+        } catch {
+            lastError = error
+            continue
+        }
+    }
+
+    if !hasSuccessfulRead, let lastError {
+        throw lastError
+    }
+    return nil
+}
+
+private func buildMyOrderPreviousGroups(from lines: [MyOrderPreviousOrderLine]) -> [MyOrderPreviousOrderGroup] {
+    let grouped = Dictionary(grouping: lines) { line in
+        MyOrderPreviousGroupKey(
+            vendorId: line.vendorId,
+            companyName: line.companyName
+        )
+    }
+    let groups = grouped.map { key, groupedLines -> MyOrderPreviousOrderGroup in
+        let sortedLines = groupedLines.sorted {
+            $0.productName.localizedCaseInsensitiveCompare($1.productName) == .orderedAscending
+        }
+        let subtotal = sortedLines.reduce(0.0) { partial, line in
+            partial + line.subtotal
+        }
+        return MyOrderPreviousOrderGroup(
+            vendorId: key.vendorId,
+            companyName: key.companyName,
+            lines: sortedLines,
+            subtotal: subtotal
+        )
+    }
+    return groups.sorted {
+        $0.companyName.localizedCaseInsensitiveCompare($1.companyName) == .orderedAscending
+    }
+}
+
+private func myOrderPreviousLine(from data: [String: Any]) -> MyOrderPreviousOrderLine {
+    let vendorId = ((data["vendorId"] as? String)?
+        .trimmingCharacters(in: .whitespacesAndNewlines))
+        .flatMap { $0.isEmpty ? nil : $0 } ?? "__vendor_unknown__"
+    let companyName = ((data["companyName"] as? String)?
+        .trimmingCharacters(in: .whitespacesAndNewlines))
+        .flatMap { $0.isEmpty ? nil : $0 } ?? vendorId
+    let productName = ((data["productName"] as? String)?
+        .trimmingCharacters(in: .whitespacesAndNewlines))
+        .flatMap { $0.isEmpty ? nil : $0 } ?? "Producto"
+    let quantity = (data["quantity"] as? NSNumber)?.doubleValue ?? 0
+    let subtotal = (data["subtotal"] as? NSNumber)?.doubleValue
+        ?? quantity * ((data["priceAtOrder"] as? NSNumber)?.doubleValue ?? 0)
+    let unitName = ((data["unitName"] as? String)?
+        .trimmingCharacters(in: .whitespacesAndNewlines))
+        .flatMap { $0.isEmpty ? nil : $0 } ?? "ud."
+
+    return MyOrderPreviousOrderLine(
+        vendorId: vendorId,
+        companyName: companyName,
+        productName: productName,
+        packagingLine: myOrderPackagingLine(from: data),
+        quantityLabel: myOrderQuantityLabel(
+            quantity: quantity,
+            pricingMode: (data["pricingModeAtOrder"] as? String)?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+            unitName: unitName,
+            unitAbbreviation: (data["unitAbbreviation"] as? String)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        ),
+        subtotal: subtotal
+    )
+}
+
+private func myOrderPackagingLine(from data: [String: Any]) -> String {
+    let containerName = ((data["packContainerName"] as? String)?
+        .trimmingCharacters(in: .whitespacesAndNewlines))
+        .flatMap { $0.isEmpty ? nil : $0 } ??
+        (((data["unitName"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines))
+            .flatMap { $0.isEmpty ? nil : $0 } ?? "")
+    let quantity = ((data["packContainerQty"] as? NSNumber)?.doubleValue
+        ?? (data["unitQty"] as? NSNumber)?.doubleValue
+        ?? 1).myOrderUiDecimal
+    let unitName = ((data["unitName"] as? String)?
+        .trimmingCharacters(in: .whitespacesAndNewlines))
+        .flatMap { $0.isEmpty ? nil : $0 } ?? ""
+    let unitPlural = ((data["unitPlural"] as? String)?
+        .trimmingCharacters(in: .whitespacesAndNewlines))
+        .flatMap { $0.isEmpty ? nil : $0 } ?? ""
+    let unit = ((data["packContainerAbbreviation"] as? String)?
+        .trimmingCharacters(in: .whitespacesAndNewlines))
+        .flatMap { $0.isEmpty ? nil : $0 } ??
+        ((data["packContainerPlural"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines))
+        .flatMap { $0.isEmpty ? nil : $0 } ??
+        ((data["unitAbbreviation"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines))
+        .flatMap { $0.isEmpty ? nil : $0 } ??
+        ((((data["packContainerQty"] as? NSNumber)?.doubleValue ?? 1) == 1) ? unitName : unitPlural)
+
+    return [containerName, quantity, unit]
+        .filter { !$0.isEmpty }
+        .joined(separator: " ")
+}
+
+private func myOrderQuantityLabel(
+    quantity: Double,
+    pricingMode: String?,
+    unitName: String,
+    unitAbbreviation: String?
+) -> String {
+    if pricingMode?.lowercased() == "weight" {
+        let unit = unitAbbreviation?.isEmpty == false ? unitAbbreviation! : unitName
+        return "\(quantity.myOrderUiDecimal) \(unit)"
+    }
+    if quantity == 1 {
+        return "1 ud."
+    }
+    return "\(quantity.myOrderUiDecimal) uds."
+}
+
 private func readMyOrderCartSnapshot(
     userDefaults: UserDefaults = .standard,
     storageKey: String
@@ -1731,5 +2174,19 @@ private extension Member {
                 producer.producerCatalogEnabled &&
                 producer.producerParity == parity
         }?.id
+    }
+}
+
+private extension DeliveryWeekday {
+    var myOrderDayOffset: Int {
+        switch self {
+        case .monday: return 0
+        case .tuesday: return 1
+        case .wednesday: return 2
+        case .thursday: return 3
+        case .friday: return 4
+        case .saturday: return 5
+        case .sunday: return 6
+        }
     }
 }

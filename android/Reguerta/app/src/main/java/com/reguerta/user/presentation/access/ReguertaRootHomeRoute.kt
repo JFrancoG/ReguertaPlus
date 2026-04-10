@@ -399,6 +399,8 @@ internal fun HomeRoute(
                     members = (mode as? SessionMode.Authorized)?.members.orEmpty(),
                     products = myOrderProductsFeed,
                     seasonalCommitments = myOrderSeasonalCommitmentsFeed,
+                    defaultDeliveryDayOfWeek = defaultDeliveryDayOfWeek,
+                    deliveryCalendarOverrides = deliveryCalendarOverrides,
                     isLoading = isLoadingMyOrderProducts,
                     onRefresh = onRefreshMyOrderProducts,
                     onCheckoutSuccessAcknowledge = {

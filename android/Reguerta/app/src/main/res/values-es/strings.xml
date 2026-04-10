@@ -254,6 +254,12 @@
     <string name="my_order_total_format">Total: %1$s €</string>
     <string name="my_order_confirmed_total_sum_format">Suma total pedido: %1$s €</string>
     <string name="my_order_producer_subtotal_format">Total: %1$s €</string>
+    <string name="my_order_previous_title">Pedido anterior</string>
+    <string name="my_order_previous_week_format">Semana %1$s</string>
+    <string name="my_order_previous_loading">Cargando pedido de la semana anterior…</string>
+    <string name="my_order_previous_empty">No se ha encontrado pedido de la semana anterior.</string>
+    <string name="my_order_previous_error">No se pudo cargar tu pedido de la semana anterior.</string>
+    <string name="my_order_previous_retry">Reintentar</string>
     <string name="my_order_cart_empty">No has seleccionado productos todavía.</string>
     <string name="my_order_finalize_action">Finalizar compra</string>
     <string name="my_order_finalize_update_action">Guardar cambios</string>
