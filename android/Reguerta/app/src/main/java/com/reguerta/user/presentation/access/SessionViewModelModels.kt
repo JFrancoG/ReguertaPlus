@@ -147,6 +147,7 @@ data class SessionUiState(
     val isSubmittingShiftPlanningRequest: Boolean = false,
     val isSavingShiftSwapRequest: Boolean = false,
     val isUpdatingShiftSwapRequest: Boolean = false,
+    val nowOverrideMillis: Long? = null,
 )
 
 sealed interface SessionUiEvent {

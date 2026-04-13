@@ -30,44 +30,55 @@ class FirestoreDeliveryCalendarRepository(
         )
 
     override suspend fun getDefaultDeliveryDayOfWeek(): DeliveryWeekday? = withContext(Dispatchers.IO) {
-        runCatching {
-            val snapshot = Tasks.await(
-                firestore.document(globalConfigDocumentPath).get(),
-            )
-            val topLevel = DeliveryWeekday.fromWireValue(snapshot.getString("deliveryDayOfWeek"))
-            if (topLevel != null) {
-                topLevel
-            } else {
-                val otherConfig = snapshot.get("otherConfig") as? Map<*, *>
-                DeliveryWeekday.fromWireValue(otherConfig?.get("deliveryDayOfWeek") as? String)
-            }
-        }.getOrNull()
+        val candidatePaths = listOf(
+            globalConfigDocumentPath,
+            "${environment.wireValue}/collections/config/${ReguertaFirestoreDocument.GLOBAL.wireValue}",
+            "${environment.wireValue}/config/${ReguertaFirestoreDocument.GLOBAL.wireValue}",
+            "config/${ReguertaFirestoreDocument.GLOBAL.wireValue}",
+        ).distinct()
+
+        candidatePaths.asSequence().mapNotNull { path ->
+            runCatching {
+                val snapshot = Tasks.await(firestore.document(path).get())
+                resolveDeliveryWeekday(snapshot.getData() ?: emptyMap())
+            }.getOrNull()
+        }.firstOrNull()
     }
 
     override suspend fun getAllOverrides(): List<DeliveryCalendarOverride> = withContext(Dispatchers.IO) {
-        runCatching {
-            val snapshot = Tasks.await(
-                firestore.collection(calendarCollectionPath).get(),
-            )
-            snapshot.documents.mapNotNull { document ->
-                val weekKey = document.getString("weekKey")?.trim()?.ifBlank { document.id } ?: document.id
-                val deliveryDate = document.getTimestamp("deliveryDate")?.toDate()?.time ?: return@mapNotNull null
-                val ordersBlockedDate = document.getTimestamp("ordersBlockedDate")?.toDate()?.time ?: return@mapNotNull null
-                val ordersOpenAt = document.getTimestamp("ordersOpenAt")?.toDate()?.time ?: return@mapNotNull null
-                val ordersCloseAt = document.getTimestamp("ordersCloseAt")?.toDate()?.time ?: return@mapNotNull null
-                val updatedBy = document.getString("updatedBy")?.trim().orEmpty()
-                val updatedAt = document.getTimestamp("updatedAt")?.toDate()?.time ?: 0L
-                DeliveryCalendarOverride(
-                    weekKey = weekKey,
-                    deliveryDateMillis = deliveryDate,
-                    ordersBlockedDateMillis = ordersBlockedDate,
-                    ordersOpenAtMillis = ordersOpenAt,
-                    ordersCloseAtMillis = ordersCloseAt,
-                    updatedBy = updatedBy,
-                    updatedAtMillis = updatedAt,
-                )
-            }.sortedBy { it.weekKey }
-        }.getOrDefault(emptyList())
+        val candidatePaths = listOf(
+            calendarCollectionPath,
+            "${environment.wireValue}/collections/deliveryCalendar",
+            "${environment.wireValue}/deliveryCalendar",
+            "deliveryCalendar",
+        ).distinct()
+
+        candidatePaths.asSequence().mapNotNull { path ->
+            runCatching {
+                val snapshot = Tasks.await(firestore.collection(path).get())
+                snapshot.documents.mapNotNull { document ->
+                    val weekKey = document.getString("weekKey")?.trim()?.ifBlank { document.id } ?: document.id
+                    val deliveryDate = document.getTimestamp("deliveryDate")?.toDate()?.time ?: return@mapNotNull null
+                    val ordersBlockedDate = document.getTimestamp("ordersBlockedDate")?.toDate()?.time
+                        ?: (deliveryDate + 24L * 60L * 60L * 1_000L)
+                    val ordersOpenAt = document.getTimestamp("ordersOpenAt")?.toDate()?.time
+                        ?: ordersBlockedDate
+                    val ordersCloseAt = document.getTimestamp("ordersCloseAt")?.toDate()?.time
+                        ?: (ordersBlockedDate + 24L * 60L * 60L * 1_000L)
+                    val updatedBy = document.getString("updatedBy")?.trim().orEmpty()
+                    val updatedAt = document.getTimestamp("updatedAt")?.toDate()?.time ?: 0L
+                    DeliveryCalendarOverride(
+                        weekKey = weekKey,
+                        deliveryDateMillis = deliveryDate,
+                        ordersBlockedDateMillis = ordersBlockedDate,
+                        ordersOpenAtMillis = ordersOpenAt,
+                        ordersCloseAtMillis = ordersCloseAt,
+                        updatedBy = updatedBy,
+                        updatedAtMillis = updatedAt,
+                    )
+                }.sortedBy { it.weekKey }
+            }.getOrNull()?.takeIf { it.isNotEmpty() }
+        }.firstOrNull() ?: emptyList()
     }
 
     override suspend fun upsertOverride(override: DeliveryCalendarOverride): DeliveryCalendarOverride = withContext(Dispatchers.IO) {
@@ -93,4 +104,13 @@ class FirestoreDeliveryCalendarRepository(
             )
         }
     }
+}
+
+private fun resolveDeliveryWeekday(data: Map<String, Any>): DeliveryWeekday? {
+    val topLevel = DeliveryWeekday.fromWireValue(data["deliveryDayOfWeek"] as? String)
+        ?: DeliveryWeekday.fromWireValue(data["deliveryDateOfWeek"] as? String)
+    if (topLevel != null) return topLevel
+    val otherConfig = data["otherConfig"] as? Map<*, *> ?: return null
+    return DeliveryWeekday.fromWireValue(otherConfig["deliveryDayOfWeek"] as? String)
+        ?: DeliveryWeekday.fromWireValue(otherConfig["deliveryDateOfWeek"] as? String)
 }

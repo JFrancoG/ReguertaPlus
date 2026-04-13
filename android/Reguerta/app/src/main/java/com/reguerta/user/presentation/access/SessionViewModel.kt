@@ -60,8 +60,11 @@ class SessionViewModel(
     private val sessionRefreshPolicy: SessionRefreshPolicy = SessionRefreshPolicy(),
     private val nowMillisProvider: () -> Long = { System.currentTimeMillis() },
     private val developImpersonationEnabled: Boolean = false,
+    initialNowOverrideMillis: Long? = null,
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(SessionUiState())
+    private val _uiState = MutableStateFlow(
+        SessionUiState(nowOverrideMillis = initialNowOverrideMillis),
+    )
     val uiState: StateFlow<SessionUiState> = _uiState.asStateFlow()
 
     private val _uiEvents = MutableSharedFlow<SessionUiEvent>(replay = 0)
@@ -189,6 +192,21 @@ class SessionViewModel(
         refreshSharedProfiles()
         refreshShifts()
         refreshDeliveryCalendar()
+    }
+
+    fun setNowOverrideMillis(nowMillis: Long?) {
+        DevelopmentTimeMachine.setOverrideNowMillis(nowMillis)
+        _uiState.update { it.copy(nowOverrideMillis = nowMillis) }
+        refreshProducts()
+        refreshMyOrderProducts()
+        refreshShifts()
+        refreshDeliveryCalendar()
+    }
+
+    fun shiftNowByDays(days: Int) {
+        val baseMillis = _uiState.value.nowOverrideMillis ?: System.currentTimeMillis()
+        val shiftedMillis = baseMillis + (days * 24L * 60L * 60L * 1_000L)
+        setNowOverrideMillis(shiftedMillis)
     }
 
     fun dismissShiftSwapActivity(requestId: String) {

@@ -42,7 +42,9 @@ struct ContentView: View {
         _viewModel = State(
             initialValue: SessionViewModel(
                 authorizedDeviceRegistrar: FirebaseAuthorizedDeviceRegistrar(repository: deviceRepository),
-                developImpersonationEnabled: developImpersonationEnabled
+                developImpersonationEnabled: developImpersonationEnabled,
+                nowMillisProvider: { DevelopmentTimeMachine.shared.nowMillis() },
+                initialNowOverrideMillis: DevelopmentTimeMachine.shared.overrideNowMillis
             )
         )
     }

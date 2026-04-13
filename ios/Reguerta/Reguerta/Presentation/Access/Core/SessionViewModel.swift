@@ -208,6 +208,7 @@ final class SessionViewModel {
     var isSubmittingShiftPlanningRequest = false
     var isSavingShiftSwapRequest = false
     var isUpdatingShiftSwapRequest = false
+    var nowOverrideMillis: Int64?
 
     let repository: any MemberRepository
     let newsRepository: any NewsRepository
@@ -278,7 +279,8 @@ final class SessionViewModel {
         authorizedDeviceRegistrar: (any AuthorizedDeviceRegistrar)? = nil,
         developImpersonationEnabled: Bool = false,
         sessionRefreshPolicy: SessionRefreshPolicy = SessionRefreshPolicy(),
-        nowMillisProvider: @escaping @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1_000) }
+        nowMillisProvider: @escaping @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1_000) },
+        initialNowOverrideMillis: Int64? = nil
     ) {
         let selectedRepository = repository ?? ChainedMemberRepository(
             primary: FirestoreMemberRepository(),
@@ -362,6 +364,22 @@ final class SessionViewModel {
         self.sessionRefreshPolicy = sessionRefreshPolicy
         self.nowMillisProvider = nowMillisProvider
         self.developImpersonationEnabled = developImpersonationEnabled
+        self.nowOverrideMillis = initialNowOverrideMillis
+    }
+
+    func setNowOverrideMillis(_ nowMillis: Int64?) {
+        DevelopmentTimeMachine.shared.setOverrideNowMillis(nowMillis)
+        nowOverrideMillis = nowMillis
+        refreshProducts()
+        refreshMyOrderProducts()
+        refreshShifts()
+        refreshDeliveryCalendar()
+    }
+
+    func shiftNowByDays(_ days: Int) {
+        let baseMillis = nowOverrideMillis ?? Int64(Date().timeIntervalSince1970 * 1_000)
+        let shiftedMillis = baseMillis + Int64(days) * 24 * 60 * 60 * 1_000
+        setNowOverrideMillis(shiftedMillis)
     }
 }
 

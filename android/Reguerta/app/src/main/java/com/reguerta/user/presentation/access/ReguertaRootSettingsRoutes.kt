@@ -45,8 +45,11 @@ fun SettingsRoute(
     isSavingDeliveryCalendar: Boolean,
     isSubmittingShiftPlanningRequest: Boolean,
     isDevelopImpersonationEnabled: Boolean,
+    nowOverrideMillis: Long?,
     onImpersonateMember: (String) -> Unit,
     onClearImpersonation: () -> Unit,
+    onSetNowOverrideMillis: (Long?) -> Unit,
+    onShiftNowByDays: (Int) -> Unit,
     onRefreshDeliveryCalendar: () -> Unit,
     onSaveDeliveryCalendarOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
     onDeleteDeliveryCalendarOverride: (String, onSuccess: () -> Unit) -> Unit,
@@ -123,6 +126,41 @@ fun SettingsRoute(
                             )
                         }
                 }
+                HorizontalDivider()
+                Text(
+                    text = "Reloj de pruebas (develop)",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = nowOverrideMillis?.let { "Fecha simulada: ${it.toLocalizedDateTime()}" }
+                        ?: "Fecha simulada: desactivada (usando fecha real)",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ReguertaFlatButton(
+                        label = "-1 dia",
+                        onClick = { onShiftNowByDays(-1) },
+                        modifier = Modifier.weight(1f),
+                    )
+                    ReguertaFlatButton(
+                        label = "+1 dia",
+                        onClick = { onShiftNowByDays(1) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ReguertaFlatButton(
+                        label = "Ahora",
+                        onClick = { onSetNowOverrideMillis(System.currentTimeMillis()) },
+                        modifier = Modifier.weight(1f),
+                    )
+                    ReguertaFlatButton(
+                        label = "Reset",
+                        onClick = { onSetNowOverrideMillis(null) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
             if (currentMember?.isAdmin == true) {
                 HorizontalDivider()
@@ -131,6 +169,7 @@ fun SettingsRoute(
                     shifts = shifts,
                     overrides = deliveryCalendarOverrides,
                     defaultDeliveryDayOfWeek = defaultDeliveryDayOfWeek,
+                    nowMillis = nowOverrideMillis ?: System.currentTimeMillis(),
                     isLoading = isLoadingDeliveryCalendar,
                     isSaving = isSavingDeliveryCalendar,
                     onRefresh = onRefreshDeliveryCalendar,
@@ -153,14 +192,15 @@ private fun AdminDeliveryCalendarSection(
     shifts: List<ShiftAssignment>,
     overrides: List<DeliveryCalendarOverride>,
     defaultDeliveryDayOfWeek: DeliveryWeekday?,
+    nowMillis: Long,
     isLoading: Boolean,
     isSaving: Boolean,
     onRefresh: () -> Unit,
     onSaveOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
     onDeleteOverride: (String, onSuccess: () -> Unit) -> Unit,
 ) {
-    val futureWeeks = remember(shifts, overrides) {
-        shifts.filter { it.type == ShiftType.DELIVERY && it.effectiveDateMillis(overrides) > System.currentTimeMillis() }
+    val futureWeeks = remember(shifts, overrides, nowMillis) {
+        shifts.filter { it.type == ShiftType.DELIVERY && it.effectiveDateMillis(overrides) > nowMillis }
             .sortedBy { it.effectiveDateMillis(overrides) }
             .distinctBy { it.dateMillis.toWeekKey() }
     }

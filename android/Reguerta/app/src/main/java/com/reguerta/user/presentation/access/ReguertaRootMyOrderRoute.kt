@@ -82,6 +82,8 @@ import com.reguerta.user.domain.commitments.SeasonalCommitment
 import com.reguerta.user.domain.products.Product
 import com.reguerta.user.domain.products.ProductPricingMode
 import com.reguerta.user.domain.products.ProductStockMode
+import com.reguerta.user.domain.shifts.ShiftAssignment
+import com.reguerta.user.domain.shifts.ShiftType
 import com.reguerta.user.ui.components.auth.ReguertaDialog
 import com.reguerta.user.ui.components.auth.ReguertaDialogAction
 import com.reguerta.user.ui.components.auth.ReguertaDialogType
@@ -204,8 +206,10 @@ internal fun MyOrderRoute(
     members: List<Member>,
     products: List<Product>,
     seasonalCommitments: List<SeasonalCommitment>,
+    shifts: List<ShiftAssignment>,
     defaultDeliveryDayOfWeek: DeliveryWeekday?,
     deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
+    nowOverrideMillis: Long?,
     isLoading: Boolean,
     onRefresh: () -> Unit,
     onCheckoutSuccessAcknowledge: () -> Unit,
@@ -222,11 +226,14 @@ internal fun MyOrderRoute(
     var checkoutDialogState by remember { mutableStateOf<MyOrderCheckoutDialogState?>(null) }
     var isViewingConfirmedOrder by rememberSaveable { mutableStateOf(false) }
     var previousOrderState by remember { mutableStateOf<MyOrderPreviousOrderState>(MyOrderPreviousOrderState.Loading) }
-    val currentWeekKey = remember { System.currentTimeMillis().toWeekKey() }
-    val consultaWindow = remember(defaultDeliveryDayOfWeek, deliveryCalendarOverrides) {
+    val effectiveNowMillis = remember(nowOverrideMillis) { nowOverrideMillis ?: System.currentTimeMillis() }
+    val currentWeekKey = remember(effectiveNowMillis) { effectiveNowMillis.toWeekKey() }
+    val consultaWindow = remember(defaultDeliveryDayOfWeek, deliveryCalendarOverrides, shifts, effectiveNowMillis) {
         resolveMyOrderConsultaWindow(
             defaultDeliveryDayOfWeek = defaultDeliveryDayOfWeek,
             deliveryCalendarOverrides = deliveryCalendarOverrides,
+            shifts = shifts,
+            now = Instant.ofEpochMilli(effectiveNowMillis),
         )
     }
     val isConsultaPhase = consultaWindow.isConsultaPhase
@@ -236,7 +243,7 @@ internal fun MyOrderRoute(
     var hasRestoredCartState by remember(cartStorageKey) { mutableStateOf(false) }
 
     val normalizedQuery = remember(searchQuery) { searchQuery.searchNormalized() }
-    val currentWeekParity = remember { currentIsoWeekProducerParity() }
+    val currentWeekParity = remember(effectiveNowMillis) { currentIsoWeekProducerParity(nowMillis = effectiveNowMillis) }
     val committedProducerId = remember(currentMember, members) {
         currentMember?.committedEcoBasketProducerId(members = members)
     }
@@ -1949,26 +1956,22 @@ private suspend fun loadMyOrderPreviousOrderState(
 private fun resolveMyOrderConsultaWindow(
     defaultDeliveryDayOfWeek: DeliveryWeekday?,
     deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
+    shifts: List<ShiftAssignment>,
     now: Instant = Instant.now(),
     zoneId: ZoneId = ZoneId.of("Europe/Madrid"),
 ): MyOrderConsultaWindow {
     val today = now.atZone(zoneId).toLocalDate()
     val currentWeekKey = today.toIsoWeekKey()
     val weekStart = currentWeekKey.toIsoWeekStartDate() ?: today.with(DayOfWeek.MONDAY)
-    val weekOverride = deliveryCalendarOverrides.firstOrNull { it.weekKey == currentWeekKey }
     val effectiveDeliveryDate = resolveEffectiveDeliveryDate(
         currentWeekKey = currentWeekKey,
         defaultDeliveryDayOfWeek = defaultDeliveryDayOfWeek,
         deliveryCalendarOverrides = deliveryCalendarOverrides,
+        shifts = shifts,
         fallbackWeekStart = weekStart,
         zoneId = zoneId,
     )
-    val isConsultaPhase = if (weekOverride != null) {
-        val blockedDate = Instant.ofEpochMilli(weekOverride.ordersBlockedDateMillis).atZone(zoneId).toLocalDate()
-        !today.isBefore(weekStart) && today.isBefore(blockedDate)
-    } else {
-        !today.isBefore(weekStart) && !today.isAfter(effectiveDeliveryDate)
-    }
+    val isConsultaPhase = !today.isBefore(weekStart) && !today.isAfter(effectiveDeliveryDate)
     return MyOrderConsultaWindow(
         isConsultaPhase = isConsultaPhase,
         previousWeekKey = weekStart.minusWeeks(1).toIsoWeekKey(),
@@ -1979,6 +1982,7 @@ private fun resolveEffectiveDeliveryDate(
     currentWeekKey: String,
     defaultDeliveryDayOfWeek: DeliveryWeekday?,
     deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
+    shifts: List<ShiftAssignment>,
     fallbackWeekStart: LocalDate,
     zoneId: ZoneId,
 ): LocalDate {
@@ -1987,6 +1991,17 @@ private fun resolveEffectiveDeliveryDate(
         return Instant.ofEpochMilli(override.deliveryDateMillis).atZone(zoneId).toLocalDate()
     }
     val weekStart = currentWeekKey.toIsoWeekStartDate() ?: fallbackWeekStart
+    val weekEnd = weekStart.plusDays(6)
+    val shiftDeliveryDate = shifts
+        .asSequence()
+        .filter { shift -> shift.type == ShiftType.DELIVERY }
+        .map { shift -> Instant.ofEpochMilli(shift.dateMillis).atZone(zoneId).toLocalDate() }
+        .filter { shiftDate -> !shiftDate.isBefore(weekStart) && !shiftDate.isAfter(weekEnd) }
+        .sorted()
+        .firstOrNull()
+    if (shiftDeliveryDate != null) {
+        return shiftDeliveryDate
+    }
     val deliveryDay = defaultDeliveryDayOfWeek?.toDayOfWeek() ?: DayOfWeek.WEDNESDAY
     return weekStart.plusDays((deliveryDay.value - DayOfWeek.MONDAY.value).toLong())
 }

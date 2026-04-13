@@ -160,15 +160,18 @@ struct SettingsRouteView: View {
     let isSavingDeliveryCalendar: Bool
     let isSubmittingShiftPlanningRequest: Bool
     @Binding var pendingShiftPlanningType: ShiftPlanningRequestType?
+    let nowOverrideMillis: Int64?
     let onClearImpersonation: () -> Void
     let onImpersonate: (String) -> Void
+    let onSetNowOverrideMillis: (Int64?) -> Void
+    let onShiftNowByDays: (Int) -> Void
     let onRefreshDeliveryCalendar: () -> Void
     let onSaveDeliveryCalendarOverride: (String, DeliveryWeekday, String) -> Void
     let onDeleteDeliveryCalendarOverride: (String) -> Void
     let onSubmitShiftPlanningRequest: (ShiftPlanningRequestType, @escaping @MainActor @Sendable () -> Void) -> Void
 
     private var futureDeliveryWeeks: [ShiftAssignment] {
-        let nowMillis = Int64(Date().timeIntervalSince1970 * 1_000)
+        let nowMillis = nowOverrideMillis ?? Int64(Date().timeIntervalSince1970 * 1_000)
         let sortedWeeks = shiftsFeed
             .filter { $0.type == .delivery && effectiveDateMillis(for: $0) > nowMillis }
             .sorted { effectiveDateMillis(for: $0) < effectiveDateMillis(for: $1) }
@@ -189,6 +192,9 @@ struct SettingsRouteView: View {
 
                 if isDevelopImpersonationEnabled, let session {
                     impersonationSection(session: session)
+                    Divider()
+                        .overlay(tokens.colors.borderSubtle)
+                    developmentTimeSection
                 }
 
                 if let session, session.member.isAdmin {
@@ -201,6 +207,46 @@ struct SettingsRouteView: View {
                 }
             }
         }
+    }
+
+    private var developmentTimeSection: some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+            Text("Reloj de pruebas (develop)")
+                .font(tokens.typography.titleCard)
+                .foregroundStyle(tokens.colors.textPrimary)
+            Text(
+                nowOverrideMillis.map { "Fecha simulada: \(localizedDateTime($0))" }
+                    ?? "Fecha simulada: desactivada (usando fecha real)"
+            )
+            .font(tokens.typography.bodySecondary)
+            .foregroundStyle(tokens.colors.textSecondary)
+
+            HStack(spacing: tokens.spacing.sm) {
+                ReguertaButton("-1 día", variant: .text) {
+                    onShiftNowByDays(-1)
+                }
+                ReguertaButton("+1 día", variant: .text) {
+                    onShiftNowByDays(1)
+                }
+            }
+
+            HStack(spacing: tokens.spacing.sm) {
+                ReguertaButton("Ahora", variant: .text) {
+                    onSetNowOverrideMillis(Int64(Date().timeIntervalSince1970 * 1_000))
+                }
+                ReguertaButton("Reset", variant: .text) {
+                    onSetNowOverrideMillis(nil)
+                }
+            }
+        }
+    }
+
+    private func localizedDateTime(_ millis: Int64) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = .current
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: Date(timeIntervalSince1970: TimeInterval(millis) / 1_000))
     }
 
     @ViewBuilder

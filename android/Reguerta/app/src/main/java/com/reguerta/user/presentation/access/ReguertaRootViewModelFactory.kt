@@ -47,6 +47,7 @@ import com.reguerta.user.domain.freshness.ResolveCriticalDataFreshnessUseCase
 @Composable
 fun rememberSessionViewModel(): SessionViewModel {
     val context = LocalContext.current
+    DevelopmentTimeMachine.initialize(context.applicationContext)
     val repository = remember {
         val fallback = InMemoryMemberRepository()
         val primary = FirestoreMemberRepository(firestore = FirebaseFirestore.getInstance())
@@ -132,7 +133,9 @@ fun rememberSessionViewModel(): SessionViewModel {
                 localRepository = freshnessLocalRepository,
             ),
             criticalDataFreshnessLocalRepository = freshnessLocalRepository,
+            nowMillisProvider = DevelopmentTimeMachine::nowMillis,
             developImpersonationEnabled = true,
+            initialNowOverrideMillis = DevelopmentTimeMachine.overrideNowMillis(),
         )
     }
 }
