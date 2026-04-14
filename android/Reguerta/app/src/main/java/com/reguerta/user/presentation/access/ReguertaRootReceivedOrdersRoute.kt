@@ -1,6 +1,8 @@
 package com.reguerta.user.presentation.access
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -29,11 +32,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -41,7 +46,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.google.android.gms.tasks.Tasks
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FieldPath
 import com.reguerta.user.R
 import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
 import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
@@ -59,12 +66,29 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.WeekFields
+import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
+import kotlinx.coroutines.launch
 
 private enum class ReceivedOrdersTab {
     BY_PRODUCT,
     BY_MEMBER,
+}
+
+private enum class ReceivedOrderProducerStatus(val wireValue: String) {
+    UNREAD("unread"),
+    READ("read"),
+    PREPARED("prepared"),
+    DELIVERED("delivered"),
+    ;
+
+    companion object {
+        fun fromWireValue(rawValue: String?): ReceivedOrderProducerStatus {
+            val normalized = rawValue?.trim()?.lowercase(Locale.ROOT)
+            return entries.firstOrNull { status -> status.wireValue == normalized } ?: UNREAD
+        }
+    }
 }
 
 private sealed interface ReceivedOrdersUiState {
@@ -126,7 +150,9 @@ private data class ReceivedOrdersMemberLine(
 
 private data class ReceivedOrdersMemberGroup(
     val id: String,
+    val orderId: String,
     val consumerDisplayName: String,
+    val producerStatus: ReceivedOrderProducerStatus,
     val lines: List<ReceivedOrdersMemberLine>,
     val total: Double,
 )
@@ -135,6 +161,11 @@ private data class ReceivedOrdersSnapshot(
     val byProductRows: List<ReceivedOrdersProductRow>,
     val byMemberGroups: List<ReceivedOrdersMemberGroup>,
     val generalTotal: Double,
+)
+
+private data class ReceivedOrdersStatusPalette(
+    val containerColor: Color,
+    val borderColor: Color,
 )
 
 @Composable
@@ -160,6 +191,8 @@ internal fun ReceivedOrdersRoute(
     var selectedTab by rememberSaveable { mutableStateOf(ReceivedOrdersTab.BY_PRODUCT) }
     var uiState by remember { mutableStateOf<ReceivedOrdersUiState>(ReceivedOrdersUiState.Idle) }
     var retryToken by rememberSaveable { mutableStateOf(0) }
+    var updatingStatusOrderId by rememberSaveable { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(isProducer, window.isEnabled, window.targetWeekKey, currentMember?.id, retryToken) {
         if (!isProducer || !window.isEnabled) {
@@ -176,7 +209,11 @@ internal fun ReceivedOrdersRoute(
             if (lines.isEmpty()) {
                 ReceivedOrdersUiState.Empty
             } else {
-                ReceivedOrdersUiState.Loaded(buildReceivedOrdersSnapshot(lines))
+                val statusesByOrderId = loadReceivedOrderStatusesByOrderId(
+                    orderIds = lines.map(ReceivedOrderLinePayload::orderId).distinct(),
+                    producerId = producerId,
+                )
+                ReceivedOrdersUiState.Loaded(buildReceivedOrdersSnapshot(lines, statusesByOrderId))
             }
         }.getOrElse {
             ReceivedOrdersUiState.Error
@@ -282,7 +319,39 @@ internal fun ReceivedOrdersRoute(
                                     items = loadedSnapshot.byMemberGroups,
                                     key = ReceivedOrdersMemberGroup::id,
                                 ) { group ->
-                                    ReceivedOrdersMemberCard(group = group)
+                                    ReceivedOrdersMemberCard(
+                                        group = group,
+                                        isUpdatingStatus = updatingStatusOrderId == group.orderId,
+                                        onSelectStatus = { selectedStatus ->
+                                            if (updatingStatusOrderId != null || group.producerStatus == selectedStatus) {
+                                                return@ReceivedOrdersMemberCard
+                                            }
+                                            val producerId = currentMember.id
+                                            if (producerId.isBlank()) return@ReceivedOrdersMemberCard
+                                            scope.launch {
+                                                updatingStatusOrderId = group.orderId
+                                                val updateApplied = runCatching {
+                                                    updateReceivedOrderProducerStatus(
+                                                        orderId = group.orderId,
+                                                        producerId = producerId,
+                                                        status = selectedStatus,
+                                                    )
+                                                }.getOrDefault(false)
+                                                if (updateApplied) {
+                                                    val currentSnapshot = (uiState as? ReceivedOrdersUiState.Loaded)?.snapshot
+                                                    if (currentSnapshot != null) {
+                                                        uiState = ReceivedOrdersUiState.Loaded(
+                                                            currentSnapshot.withProducerStatus(
+                                                                orderId = group.orderId,
+                                                                status = selectedStatus,
+                                                            ),
+                                                        )
+                                                    }
+                                                }
+                                                updatingStatusOrderId = null
+                                            }
+                                        },
+                                    )
                                 }
                             }
                         }
@@ -443,8 +512,17 @@ private fun ReceivedOrdersProductCard(row: ReceivedOrdersProductRow) {
 }
 
 @Composable
-private fun ReceivedOrdersMemberCard(group: ReceivedOrdersMemberGroup) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+private fun ReceivedOrdersMemberCard(
+    group: ReceivedOrdersMemberGroup,
+    isUpdatingStatus: Boolean,
+    onSelectStatus: (ReceivedOrderProducerStatus) -> Unit,
+) {
+    val palette = group.producerStatus.statusPalette()
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = palette.containerColor),
+        border = BorderStroke(width = 1.dp, color = palette.borderColor),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -458,6 +536,12 @@ private fun ReceivedOrdersMemberCard(group: ReceivedOrdersMemberGroup) {
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center,
+            )
+
+            ReceivedOrdersStatusSelector(
+                selectedStatus = group.producerStatus,
+                isUpdatingStatus = isUpdatingStatus,
+                onSelectStatus = onSelectStatus,
             )
 
             group.lines.forEachIndexed { index, line ->
@@ -511,6 +595,69 @@ private fun ReceivedOrdersMemberCard(group: ReceivedOrdersMemberGroup) {
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.End,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReceivedOrdersStatusSelector(
+    selectedStatus: ReceivedOrderProducerStatus,
+    isUpdatingStatus: Boolean,
+    onSelectStatus: (ReceivedOrderProducerStatus) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = stringResource(R.string.received_orders_status_title),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            ReceivedOrderProducerStatus.entries.forEach { status ->
+                val selected = status == selectedStatus
+                TextButton(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .border(
+                            width = 1.dp,
+                            color = if (selected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.outline.copy(alpha = 0.36f)
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                        )
+                        .background(
+                            if (selected) {
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                            } else {
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0f)
+                            },
+                        ),
+                    onClick = { onSelectStatus(status) },
+                    enabled = !isUpdatingStatus,
+                ) {
+                    Text(
+                        text = status.statusLabel(),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        }
+        if (isUpdatingStatus) {
+            Text(
+                text = stringResource(R.string.received_orders_status_updating),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -645,7 +792,85 @@ private suspend fun loadReceivedOrderLinesForProducer(
     )
 }
 
-private fun buildReceivedOrdersSnapshot(lines: List<ReceivedOrderLinePayload>): ReceivedOrdersSnapshot {
+private suspend fun loadReceivedOrderStatusesByOrderId(
+    orderIds: List<String>,
+    producerId: String,
+    firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
+    environment: ReguertaFirestoreEnvironment = ReguertaFirestoreEnvironment.DEVELOP,
+): Map<String, ReceivedOrderProducerStatus> = withContext(Dispatchers.IO) {
+    if (orderIds.isEmpty()) return@withContext emptyMap()
+
+    val path = ReguertaFirestorePath(environment = environment)
+    val readTargets = listOf(
+        path.collectionPath(ReguertaFirestoreCollection.ORDERS),
+        "${environment.wireValue}/collections/orders",
+    ).distinct()
+    val statusesByOrderId = mutableMapOf<String, ReceivedOrderProducerStatus>()
+    var hasSuccessfulRead = false
+    var lastFailure: Throwable? = null
+
+    readTargets.forEach { ordersPath ->
+        orderIds.distinct().chunked(10).forEach { chunk ->
+            runCatching {
+                Tasks.await(
+                    firestore.collection(ordersPath)
+                        .whereIn(FieldPath.documentId(), chunk)
+                        .get(),
+                )
+            }.onSuccess { snapshot ->
+                hasSuccessfulRead = true
+                snapshot.documents.forEach { document ->
+                    val payload = document.data.orEmpty()
+                    statusesByOrderId[document.id] = payload.readProducerStatusForVendor(producerId)
+                }
+            }.onFailure { failure ->
+                lastFailure = failure
+            }
+        }
+    }
+
+    if (!hasSuccessfulRead && lastFailure != null) {
+        throw lastFailure
+    }
+    statusesByOrderId
+}
+
+private suspend fun updateReceivedOrderProducerStatus(
+    orderId: String,
+    producerId: String,
+    status: ReceivedOrderProducerStatus,
+    firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
+    environment: ReguertaFirestoreEnvironment = ReguertaFirestoreEnvironment.DEVELOP,
+    nowMillis: Long = System.currentTimeMillis(),
+): Boolean = withContext(Dispatchers.IO) {
+    val path = ReguertaFirestorePath(environment = environment)
+    val writeTargets = listOf(
+        path.collectionPath(ReguertaFirestoreCollection.ORDERS),
+        "${environment.wireValue}/collections/orders",
+    ).distinct()
+    val nowTimestamp = Timestamp(Date(nowMillis))
+
+    writeTargets.any { ordersPath ->
+        runCatching {
+            val orderReference = firestore.document("$ordersPath/$orderId")
+            Tasks.await(
+                orderReference.update(
+                    mapOf(
+                        "producerStatus" to status.wireValue,
+                        "producerStatusesByVendor.$producerId" to status.wireValue,
+                        "updatedAt" to nowTimestamp,
+                    ),
+                ),
+            )
+            true
+        }.getOrDefault(false)
+    }
+}
+
+private fun buildReceivedOrdersSnapshot(
+    lines: List<ReceivedOrderLinePayload>,
+    statusesByOrderId: Map<String, ReceivedOrderProducerStatus>,
+): ReceivedOrdersSnapshot {
     val byProductRows = lines.groupBy { it.productId }
         .mapNotNull { (productId, grouped) ->
             val first = grouped.firstOrNull() ?: return@mapNotNull null
@@ -678,7 +903,9 @@ private fun buildReceivedOrdersSnapshot(lines: List<ReceivedOrderLinePayload>): 
         }.sortedBy { it.productName.lowercase(Locale.ROOT) }
         ReceivedOrdersMemberGroup(
             id = key,
+            orderId = first.orderId,
             consumerDisplayName = first.consumerDisplayName,
+            producerStatus = statusesByOrderId[first.orderId] ?: ReceivedOrderProducerStatus.UNREAD,
             lines = memberLines,
             total = memberLines.sumOf { it.subtotal },
         )
@@ -689,6 +916,15 @@ private fun buildReceivedOrdersSnapshot(lines: List<ReceivedOrderLinePayload>): 
         byMemberGroups = byMemberGroups,
         generalTotal = lines.sumOf { it.subtotal },
     )
+}
+
+private fun Map<String, Any>.readProducerStatusForVendor(producerId: String): ReceivedOrderProducerStatus {
+    val statusesByVendor = this["producerStatusesByVendor"] as? Map<*, *>
+    val vendorValue = statusesByVendor?.get(producerId) as? String
+    if (!vendorValue.isNullOrBlank()) {
+        return ReceivedOrderProducerStatus.fromWireValue(vendorValue)
+    }
+    return ReceivedOrderProducerStatus.fromWireValue(this["producerStatus"] as? String)
 }
 
 private fun toReceivedOrderLinePayload(
@@ -751,6 +987,55 @@ private fun receivedOrdersPackagingLineFromPayload(payload: Map<String, Any>): S
     return listOf(containerName, quantity, unitLabel)
         .filter { value -> value.isNotBlank() }
         .joinToString(separator = " ")
+}
+
+private fun ReceivedOrdersSnapshot.withProducerStatus(
+    orderId: String,
+    status: ReceivedOrderProducerStatus,
+): ReceivedOrdersSnapshot {
+    val updatedGroups = byMemberGroups.map { group ->
+        if (group.orderId == orderId) {
+            group.copy(producerStatus = status)
+        } else {
+            group
+        }
+    }
+    return copy(byMemberGroups = updatedGroups)
+}
+
+@Composable
+private fun ReceivedOrderProducerStatus.statusLabel(): String =
+    when (this) {
+        ReceivedOrderProducerStatus.UNREAD -> stringResource(R.string.received_orders_status_unread)
+        ReceivedOrderProducerStatus.READ -> stringResource(R.string.received_orders_status_read)
+        ReceivedOrderProducerStatus.PREPARED -> stringResource(R.string.received_orders_status_prepared)
+        ReceivedOrderProducerStatus.DELIVERED -> stringResource(R.string.received_orders_status_delivered)
+    }
+
+@Composable
+private fun ReceivedOrderProducerStatus.statusPalette(): ReceivedOrdersStatusPalette {
+    val colors = MaterialTheme.colorScheme
+    return when (this) {
+        ReceivedOrderProducerStatus.UNREAD -> ReceivedOrdersStatusPalette(
+            containerColor = colors.surfaceVariant.copy(alpha = 0.38f),
+            borderColor = colors.outline.copy(alpha = 0.34f),
+        )
+
+        ReceivedOrderProducerStatus.READ -> ReceivedOrdersStatusPalette(
+            containerColor = colors.primary.copy(alpha = 0.10f),
+            borderColor = colors.primary.copy(alpha = 0.30f),
+        )
+
+        ReceivedOrderProducerStatus.PREPARED -> ReceivedOrdersStatusPalette(
+            containerColor = Color(0xFFFFF2D7),
+            borderColor = Color(0xFFDCA74E),
+        )
+
+        ReceivedOrderProducerStatus.DELIVERED -> ReceivedOrdersStatusPalette(
+            containerColor = Color(0xFFE6F6E7),
+            borderColor = Color(0xFF74A56F),
+        )
+    }
 }
 
 private fun LocalDate.toReceivedIsoWeekKey(): String {

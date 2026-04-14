@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -110,6 +111,21 @@ private const val MyOrderConfirmedQuantitiesSuffix = ".confirmed_quantities"
 private const val MyOrderConfirmedOptionsSuffix = ".confirmed_eco_options"
 private val DiacriticMarksRegex = "\\p{Mn}+".toRegex()
 
+private enum class MyOrderProducerStatus(val wireValue: String) {
+    UNREAD("unread"),
+    READ("read"),
+    PREPARED("prepared"),
+    DELIVERED("delivered"),
+    ;
+
+    companion object {
+        fun fromWireValue(rawValue: String?): MyOrderProducerStatus {
+            val normalized = rawValue?.trim()?.lowercase(Locale.ROOT)
+            return entries.firstOrNull { status -> status.wireValue == normalized } ?: UNREAD
+        }
+    }
+}
+
 private data class MyOrderProducerGroup(
     val vendorId: String,
     val companyName: String,
@@ -157,8 +173,14 @@ private data class MyOrderConfirmedLine(
 private data class MyOrderConfirmedGroup(
     val vendorId: String,
     val companyName: String,
+    val producerStatus: MyOrderProducerStatus,
     val lines: List<MyOrderConfirmedLine>,
     val subtotal: Double,
+)
+
+private data class MyOrderProducerStatusSnapshot(
+    val byVendor: Map<String, MyOrderProducerStatus>,
+    val legacyStatus: MyOrderProducerStatus,
 )
 
 private data class MyOrderPreviousOrderLine(
@@ -226,8 +248,15 @@ internal fun MyOrderRoute(
     var checkoutDialogState by remember { mutableStateOf<MyOrderCheckoutDialogState?>(null) }
     var isViewingConfirmedOrder by rememberSaveable { mutableStateOf(false) }
     var previousOrderState by remember { mutableStateOf<MyOrderPreviousOrderState>(MyOrderPreviousOrderState.Loading) }
+    var confirmedProducerStatusesByVendor by remember { mutableStateOf<Map<String, MyOrderProducerStatus>>(emptyMap()) }
+    var confirmedLegacyProducerStatus by remember { mutableStateOf(MyOrderProducerStatus.UNREAD) }
     val effectiveNowMillis = remember(nowOverrideMillis) { nowOverrideMillis ?: System.currentTimeMillis() }
     val currentWeekKey = remember(effectiveNowMillis) { effectiveNowMillis.toWeekKey() }
+    val currentOrderId = remember(currentMember?.id, currentWeekKey) {
+        currentMember?.id
+            ?.takeIf(String::isNotBlank)
+            ?.let { memberId -> "${memberId}_$currentWeekKey" }
+    }
     val consultaWindow = remember(defaultDeliveryDayOfWeek, deliveryCalendarOverrides, shifts, effectiveNowMillis) {
         resolveMyOrderConsultaWindow(
             defaultDeliveryDayOfWeek = defaultDeliveryDayOfWeek,
@@ -268,10 +297,17 @@ internal fun MyOrderRoute(
     val selectedProducts = remember(products, selectedQuantities) {
         products.filter { product -> selectedQuantities[product.id].orZero > 0 }
     }
-    val confirmedOrderGroups = remember(selectedProducts, selectedQuantities) {
+    val confirmedOrderGroups = remember(
+        selectedProducts,
+        selectedQuantities,
+        confirmedProducerStatusesByVendor,
+        confirmedLegacyProducerStatus,
+    ) {
         buildMyOrderConfirmedGroups(
             selectedProducts = selectedProducts,
             selectedQuantities = selectedQuantities,
+            producerStatusesByVendor = confirmedProducerStatusesByVendor,
+            fallbackStatus = confirmedLegacyProducerStatus,
         )
     }
     val selectedUnits = remember(selectedQuantities) {
@@ -348,7 +384,23 @@ internal fun MyOrderRoute(
         } else if (isViewingConfirmedOrder) {
             isCartVisible = false
         }
+        if (confirmedSnapshot.selectedQuantities.isEmpty()) {
+            confirmedProducerStatusesByVendor = emptyMap()
+            confirmedLegacyProducerStatus = MyOrderProducerStatus.UNREAD
+        }
         hasRestoredCartState = true
+    }
+    LaunchedEffect(currentOrderId, hasConfirmedOrder, isConsultaPhase) {
+        if (isConsultaPhase || !hasConfirmedOrder || currentOrderId.isNullOrBlank()) {
+            confirmedProducerStatusesByVendor = emptyMap()
+            confirmedLegacyProducerStatus = MyOrderProducerStatus.UNREAD
+            return@LaunchedEffect
+        }
+        val statusSnapshot = loadMyOrderProducerStatuses(
+            orderId = currentOrderId,
+        )
+        confirmedProducerStatusesByVendor = statusSnapshot.byVendor
+        confirmedLegacyProducerStatus = statusSnapshot.legacyStatus
     }
     LaunchedEffect(
         cartStorageKey,
@@ -1017,19 +1069,36 @@ private fun MyOrderConfirmedSummary(
 
 @Composable
 private fun MyOrderConfirmedProducerCard(group: MyOrderConfirmedGroup) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    val palette = group.producerStatus.statusPalette()
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = palette.containerColor),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
-                text = group.companyName,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = group.companyName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = group.producerStatus.statusLabel(),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
 
             group.lines.forEachIndexed { index, line ->
                 Row(
@@ -1789,6 +1858,8 @@ private fun buildMyOrderProducerGroups(
 private fun buildMyOrderConfirmedGroups(
     selectedProducts: List<Product>,
     selectedQuantities: Map<String, Int>,
+    producerStatusesByVendor: Map<String, MyOrderProducerStatus>,
+    fallbackStatus: MyOrderProducerStatus,
 ): List<MyOrderConfirmedGroup> {
     val lines = selectedProducts.mapNotNull { product ->
         val unitsSelected = selectedQuantities[product.id].orZero
@@ -1818,6 +1889,7 @@ private fun buildMyOrderConfirmedGroups(
             MyOrderConfirmedGroup(
                 vendorId = groupKey.first,
                 companyName = groupKey.second,
+                producerStatus = producerStatusesByVendor[groupKey.first] ?: fallbackStatus,
                 lines = sortedLines,
                 subtotal = sortedLines.sumOf(MyOrderConfirmedLine::subtotal),
             )
@@ -1896,6 +1968,41 @@ private fun confirmedLineQuantityLabel(line: MyOrderConfirmedLine): String =
         stringResource(R.string.my_order_quantity_plural_format, line.unitsSelected)
     }
 
+private data class MyOrderStatusPalette(
+    val containerColor: Color,
+)
+
+@Composable
+private fun MyOrderProducerStatus.statusLabel(): String =
+    when (this) {
+        MyOrderProducerStatus.UNREAD -> stringResource(R.string.received_orders_status_unread)
+        MyOrderProducerStatus.READ -> stringResource(R.string.received_orders_status_read)
+        MyOrderProducerStatus.PREPARED -> stringResource(R.string.received_orders_status_prepared)
+        MyOrderProducerStatus.DELIVERED -> stringResource(R.string.received_orders_status_delivered)
+    }
+
+@Composable
+private fun MyOrderProducerStatus.statusPalette(): MyOrderStatusPalette {
+    val colors = MaterialTheme.colorScheme
+    return when (this) {
+        MyOrderProducerStatus.UNREAD -> MyOrderStatusPalette(
+            containerColor = colors.surfaceVariant.copy(alpha = 0.36f),
+        )
+
+        MyOrderProducerStatus.READ -> MyOrderStatusPalette(
+            containerColor = colors.primary.copy(alpha = 0.10f),
+        )
+
+        MyOrderProducerStatus.PREPARED -> MyOrderStatusPalette(
+            containerColor = Color(0xFFFFF2D7),
+        )
+
+        MyOrderProducerStatus.DELIVERED -> MyOrderStatusPalette(
+            containerColor = Color(0xFFE6F6E7),
+        )
+    }
+}
+
 private fun String.searchNormalized(): String =
     Normalizer.normalize(trim(), Normalizer.Form.NFD)
         .replace(DiacriticMarksRegex, "")
@@ -1952,6 +2059,49 @@ private suspend fun loadMyOrderPreviousOrderState(
     },
     onFailure = { MyOrderPreviousOrderState.Error },
 )
+
+private suspend fun loadMyOrderProducerStatuses(
+    orderId: String,
+    firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
+    environment: ReguertaFirestoreEnvironment = ReguertaFirestoreEnvironment.DEVELOP,
+): MyOrderProducerStatusSnapshot = withContext(Dispatchers.IO) {
+    val path = ReguertaFirestorePath(environment = environment)
+    val readTargets = listOf(
+        path.collectionPath(ReguertaFirestoreCollection.ORDERS),
+        "${environment.wireValue}/collections/orders",
+    ).distinct()
+    var hadSuccessfulRead = false
+    var lastFailure: Throwable? = null
+
+    readTargets.forEach { ordersPath ->
+        runCatching {
+            Tasks.await(
+                firestore.document("$ordersPath/$orderId").get(),
+            )
+        }.onSuccess { snapshot ->
+            hadSuccessfulRead = true
+            if (snapshot.exists()) {
+                val payload = snapshot.data.orEmpty()
+                val legacyStatus = MyOrderProducerStatus.fromWireValue(snapshot.getString("producerStatus"))
+                val statusesByVendor = payload.readProducerStatusesByVendor()
+                return@withContext MyOrderProducerStatusSnapshot(
+                    byVendor = statusesByVendor,
+                    legacyStatus = legacyStatus,
+                )
+            }
+        }.onFailure { error ->
+            lastFailure = error
+        }
+    }
+
+    if (!hadSuccessfulRead && lastFailure != null) {
+        throw lastFailure
+    }
+    MyOrderProducerStatusSnapshot(
+        byVendor = emptyMap(),
+        legacyStatus = MyOrderProducerStatus.UNREAD,
+    )
+}
 
 private fun resolveMyOrderConsultaWindow(
     defaultDeliveryDayOfWeek: DeliveryWeekday?,
@@ -2077,7 +2227,7 @@ private suspend fun fetchPreviousWeekOrderSnapshot(
     }
 
     if (!hadSuccessfulRead && lastFailure != null) {
-        throw lastFailure as Throwable
+        throw lastFailure
     }
 
     null
@@ -2108,6 +2258,18 @@ private fun Map<String, Any>.toMyOrderPreviousLine(): MyOrderPreviousOrderLine {
         ),
         subtotal = subtotal,
     )
+}
+
+private fun Map<String, Any>.readProducerStatusesByVendor(): Map<String, MyOrderProducerStatus> {
+    val rawMap = this["producerStatusesByVendor"] as? Map<*, *> ?: return emptyMap()
+    return rawMap.entries.mapNotNull { (key, value) ->
+        val vendorId = (key as? String)?.trim().orEmpty()
+        if (vendorId.isBlank()) {
+            null
+        } else {
+            vendorId to MyOrderProducerStatus.fromWireValue(value as? String)
+        }
+    }.toMap()
 }
 
 private fun packagingLineFromOrderLinePayload(payload: Map<String, Any>): String {
@@ -2417,10 +2579,14 @@ internal suspend fun submitCheckoutOrderToFirestore(
                 val orderReference = firestore.document("$ordersPath/$orderId")
                 val currentOrder = runCatching { Tasks.await(orderReference.get()) }.getOrNull()
                 val createdAtTimestamp = currentOrder?.getTimestamp("createdAt") ?: nowTimestamp
-                val producerStatus = currentOrder?.getString("producerStatus")
-                    ?.trim()
-                    ?.ifBlank { null }
-                    ?: "unread"
+                val existingStatusesByVendor = currentOrder?.get("producerStatusesByVendor") as? Map<*, *>
+                val legacyProducerStatus = MyOrderProducerStatus.fromWireValue(currentOrder?.getString("producerStatus"))
+                val producerStatusesByVendor = totalsByVendor.keys.associateWith { vendorId ->
+                    MyOrderProducerStatus.fromWireValue(
+                        rawValue = (existingStatusesByVendor?.get(vendorId) as? String)
+                            ?: legacyProducerStatus.wireValue,
+                    ).wireValue
+                }
                 val deliveryDateTimestamp = currentOrder?.getTimestamp("deliveryDate") ?: nowTimestamp
 
                 val batch = firestore.batch()
@@ -2433,7 +2599,8 @@ internal suspend fun submitCheckoutOrderToFirestore(
                         "weekKey" to weekKey,
                         "deliveryDate" to deliveryDateTimestamp,
                         "consumerStatus" to "confirmado",
-                        "producerStatus" to producerStatus,
+                        "producerStatus" to legacyProducerStatus.wireValue,
+                        "producerStatusesByVendor" to producerStatusesByVendor,
                         "total" to total,
                         "totalsByVendor" to totalsByVendor,
                         "isAutoGenerated" to false,
