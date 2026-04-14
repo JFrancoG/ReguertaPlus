@@ -290,6 +290,15 @@
     <string name="received_orders_error_title">No se pudieron cargar los pedidos</string>
     <string name="received_orders_error_body">Revisa la conexión y vuelve a intentarlo.</string>
     <string name="received_orders_retry">Reintentar</string>
+    <string name="received_orders_status_title">Estado productor</string>
+    <string name="received_orders_status_updating">Guardando estado…</string>
+    <string name="received_orders_status_pending">Pendiente</string>
+    <string name="received_orders_status_unread">Sin leer</string>
+    <string name="received_orders_status_read">Leído</string>
+    <string name="received_orders_status_prepared">Preparado</string>
+    <string name="received_orders_status_delivered">Entregado</string>
+    <string name="received_orders_mark_prepared">Marcar preparado</string>
+    <string name="received_orders_mark_pending">Marcar pendiente</string>
     <string name="received_orders_member_total_format">Total: %1$s €</string>
     <string name="received_orders_general_total_format">Suma total general: %1$s €</string>
 

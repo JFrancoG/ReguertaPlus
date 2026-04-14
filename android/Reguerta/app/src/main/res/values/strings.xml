@@ -290,6 +290,15 @@
     <string name="received_orders_error_title">Could not load received orders</string>
     <string name="received_orders_error_body">Check your connection and try again.</string>
     <string name="received_orders_retry">Retry</string>
+    <string name="received_orders_status_title">Producer status</string>
+    <string name="received_orders_status_updating">Saving status…</string>
+    <string name="received_orders_status_pending">Pending</string>
+    <string name="received_orders_status_unread">Unread</string>
+    <string name="received_orders_status_read">Read</string>
+    <string name="received_orders_status_prepared">Prepared</string>
+    <string name="received_orders_status_delivered">Delivered</string>
+    <string name="received_orders_mark_prepared">Mark prepared</string>
+    <string name="received_orders_mark_pending">Mark pending</string>
     <string name="received_orders_member_total_format">Total: %1$s €</string>
     <string name="received_orders_general_total_format">General total: %1$s €</string>
 

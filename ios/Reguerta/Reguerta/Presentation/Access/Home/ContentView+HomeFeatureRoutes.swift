@@ -311,6 +311,32 @@ private enum ReceivedOrdersTab: String, CaseIterable, Identifiable {
     }
 }
 
+private enum ProducerOrderStatus: String, CaseIterable {
+    case unread
+    case read
+    case prepared
+    case delivered
+
+    static func from(_ rawValue: String?) -> ProducerOrderStatus {
+        guard let rawValue else { return .unread }
+        return ProducerOrderStatus(rawValue: rawValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()) ?? .unread
+    }
+
+    var title: String {
+        switch self {
+        case .unread: return "Pendiente"
+        case .read: return "Pendiente"
+        case .prepared: return "Preparado"
+        case .delivered: return "Entregado"
+        }
+    }
+}
+
+private struct ProducerStatusVisualStyle {
+    let container: Color
+    let border: Color
+}
+
 private enum ReceivedOrdersLoadState {
     case idle
     case loading
@@ -377,7 +403,9 @@ private struct ReceivedOrdersMemberLine: Identifiable {
 
 private struct ReceivedOrdersMemberGroup: Identifiable {
     let id: String
+    let orderId: String
     let consumerDisplayName: String
+    let producerStatus: ProducerOrderStatus
     let lines: [ReceivedOrdersMemberLine]
     let total: Double
 }
@@ -398,6 +426,7 @@ private struct ReceivedOrdersRouteView: View {
 
     @State private var selectedTab: ReceivedOrdersTab = .byProduct
     @State private var loadState: ReceivedOrdersLoadState = .idle
+    @State private var updatingStatusOrderId: String?
 
     private var isProducer: Bool {
         currentMember?.roles.contains(.producer) == true
@@ -514,7 +543,29 @@ private struct ReceivedOrdersRouteView: View {
                     }
                 } else {
                     ForEach(snapshot.byMemberGroups) { group in
-                        memberCard(group)
+                        memberCard(
+                            group,
+                            isUpdatingStatus: updatingStatusOrderId == group.orderId,
+                            onSelectStatus: { status in
+                                guard updatingStatusOrderId == nil else { return }
+                                guard group.producerStatus != status else { return }
+                                guard let producerId = currentMember?.id, !producerId.isEmpty else { return }
+                                Task { @MainActor in
+                                    updatingStatusOrderId = group.orderId
+                                    let updated = await updateReceivedOrderProducerStatus(
+                                        orderId: group.orderId,
+                                        producerId: producerId,
+                                        status: status
+                                    )
+                                    if updated, case .loaded(let currentSnapshot) = loadState {
+                                        loadState = .loaded(
+                                            currentSnapshot.withProducerStatus(orderId: group.orderId, status: status)
+                                        )
+                                    }
+                                    updatingStatusOrderId = nil
+                                }
+                            }
+                        )
                     }
                 }
             }
@@ -556,14 +607,30 @@ private struct ReceivedOrdersRouteView: View {
     }
 
     @ViewBuilder
-    private func memberCard(_ group: ReceivedOrdersMemberGroup) -> some View {
-        ReguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+    private func memberCard(
+        _ group: ReceivedOrdersMemberGroup,
+        isUpdatingStatus: Bool,
+        onSelectStatus: @escaping (ProducerOrderStatus) -> Void
+    ) -> some View {
+        let style = group.producerStatus.visualStyle
+        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+            HStack(spacing: tokens.spacing.sm) {
                 Text(group.consumerDisplayName)
                     .font(tokens.typography.titleCard.weight(.semibold))
                     .foregroundStyle(tokens.colors.actionPrimary)
                     .frame(maxWidth: .infinity, alignment: .center)
+                Text(group.producerStatus.title)
+                    .font(tokens.typography.label.weight(.semibold))
+                    .foregroundStyle(tokens.colors.textSecondary)
+            }
 
+            producerStatusSelector(
+                selectedStatus: group.producerStatus,
+                isUpdatingStatus: isUpdatingStatus,
+                onSelectStatus: onSelectStatus
+            )
+
+            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 ForEach(group.lines) { line in
                     VStack(alignment: .leading, spacing: tokens.spacing.xs) {
                         HStack(alignment: .top, spacing: tokens.spacing.md) {
@@ -603,6 +670,56 @@ private struct ReceivedOrdersRouteView: View {
                     .font(tokens.typography.titleCard.weight(.semibold))
                     .foregroundStyle(tokens.colors.feedbackError)
                     .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+        .padding(tokens.spacing.lg)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(style.container)
+        .overlay(
+            RoundedRectangle(cornerRadius: tokens.radius.md)
+                .stroke(style.border, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
+    }
+
+    @ViewBuilder
+    private func producerStatusSelector(
+        selectedStatus: ProducerOrderStatus,
+        isUpdatingStatus: Bool,
+        onSelectStatus: @escaping (ProducerOrderStatus) -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+            Text("Estado productor")
+                .font(tokens.typography.bodySecondary.weight(.semibold))
+                .foregroundStyle(tokens.colors.textSecondary)
+            Text(selectedStatus.title)
+                .font(tokens.typography.body.weight(.semibold))
+                .foregroundStyle(tokens.colors.textPrimary)
+            if selectedStatus != .delivered {
+                let isPrepared = selectedStatus == .prepared
+                let targetStatus: ProducerOrderStatus = isPrepared ? .read : .prepared
+                Button {
+                    onSelectStatus(targetStatus)
+                } label: {
+                    Text(isPrepared ? "Marcar pendiente" : "Marcar preparado")
+                        .font(tokens.typography.bodySecondary.weight(.semibold))
+                        .foregroundStyle(tokens.colors.textPrimary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, tokens.spacing.xs)
+                        .background(tokens.colors.actionPrimary.opacity(0.14))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: tokens.radius.sm)
+                                .stroke(tokens.colors.actionPrimary, lineWidth: 1)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
+                }
+                .buttonStyle(.plain)
+                .disabled(isUpdatingStatus)
+            }
+            if isUpdatingStatus {
+                Text("Guardando estado…")
+                    .font(tokens.typography.bodySecondary)
+                    .foregroundStyle(tokens.colors.textSecondary)
             }
         }
     }
@@ -759,10 +876,132 @@ private func fetchReceivedOrdersSnapshotForProducer(
         return lhs.productName.localizedCaseInsensitiveCompare(rhs.productName) == .orderedAscending
     }
     guard !lines.isEmpty else { return nil }
-    return buildReceivedOrdersSnapshot(from: lines)
+    var statusesByOrderId = try await fetchReceivedOrderStatusesByOrderId(
+        orderIds: lines.map(\.orderId),
+        producerId: producerId,
+        db: db,
+        environment: environment
+    )
+    let unreadOrderIds = statusesByOrderId
+        .filter { $0.value == .unread }
+        .map(\.key)
+    if !unreadOrderIds.isEmpty {
+        let markedAsRead = await markReceivedOrdersAsRead(
+            orderIds: unreadOrderIds,
+            producerId: producerId,
+            db: db,
+            environment: environment
+        )
+        if !markedAsRead.isEmpty {
+            for orderId in markedAsRead {
+                statusesByOrderId[orderId] = .read
+            }
+        }
+    }
+    return buildReceivedOrdersSnapshot(from: lines, statusesByOrderId: statusesByOrderId)
 }
 
-private func buildReceivedOrdersSnapshot(from lines: [ReceivedOrderLineRecord]) -> ReceivedOrdersSnapshot {
+private func fetchReceivedOrderStatusesByOrderId(
+    orderIds: [String],
+    producerId: String,
+    db: Firestore = Firestore.firestore(),
+    environment: ReguertaFirestoreEnvironment = .develop
+) async throws -> [String: ProducerOrderStatus] {
+    let dedupedOrderIds = Array(Set(orderIds)).filter(\.isNotEmpty)
+    guard !dedupedOrderIds.isEmpty else { return [:] }
+
+    let firestorePath = ReguertaFirestorePath(environment: environment)
+    let readTargets = Array(Set([
+        firestorePath.collectionPath(.orders),
+        "\(environment.rawValue)/collections/orders"
+    ]))
+    var statusesByOrderId: [String: ProducerOrderStatus] = [:]
+    var hasSuccessfulRead = false
+    var lastError: Error?
+
+    for ordersPath in readTargets {
+        for chunk in dedupedOrderIds.chunked(into: 10) {
+            do {
+                let snapshot = try await db.collection(ordersPath)
+                    .whereField(FieldPath.documentID(), in: chunk)
+                    .getDocuments()
+                hasSuccessfulRead = true
+                for document in snapshot.documents {
+                    statusesByOrderId[document.documentID] = receivedOrderStatus(
+                        from: document.data(),
+                        producerId: producerId
+                    )
+                }
+            } catch {
+                lastError = error
+            }
+        }
+    }
+
+    if !hasSuccessfulRead, let lastError {
+        throw lastError
+    }
+    return statusesByOrderId
+}
+
+private func updateReceivedOrderProducerStatus(
+    orderId: String,
+    producerId: String,
+    status: ProducerOrderStatus,
+    db: Firestore = Firestore.firestore(),
+    environment: ReguertaFirestoreEnvironment = .develop,
+    nowMillis: Int64 = Int64(Date().timeIntervalSince1970 * 1_000)
+) async -> Bool {
+    let firestorePath = ReguertaFirestorePath(environment: environment)
+    let writeTargets = Array(Set([
+        firestorePath.collectionPath(.orders),
+        "\(environment.rawValue)/collections/orders"
+    ]))
+    let nowTimestamp = Timestamp(date: Date(timeIntervalSince1970: TimeInterval(nowMillis) / 1_000))
+
+    for ordersPath in writeTargets {
+        do {
+            let orderRef = db.document("\(ordersPath)/\(orderId)")
+            try await orderRef.updateData([
+                "producerStatus": status.rawValue,
+                "producerStatusesByVendor.\(producerId)": status.rawValue,
+                "updatedAt": nowTimestamp
+            ])
+            return true
+        } catch {
+            continue
+        }
+    }
+
+    return false
+}
+
+private func markReceivedOrdersAsRead(
+    orderIds: [String],
+    producerId: String,
+    db: Firestore = Firestore.firestore(),
+    environment: ReguertaFirestoreEnvironment = .develop
+) async -> Set<String> {
+    var updatedOrderIds = Set<String>()
+    for orderId in Array(Set(orderIds)).filter(\.isNotEmpty) {
+        let updated = await updateReceivedOrderProducerStatus(
+            orderId: orderId,
+            producerId: producerId,
+            status: .read,
+            db: db,
+            environment: environment
+        )
+        if updated {
+            updatedOrderIds.insert(orderId)
+        }
+    }
+    return updatedOrderIds
+}
+
+private func buildReceivedOrdersSnapshot(
+    from lines: [ReceivedOrderLineRecord],
+    statusesByOrderId: [String: ProducerOrderStatus]
+) -> ReceivedOrdersSnapshot {
     let byProductRows = Dictionary(grouping: lines, by: \.productId)
         .compactMap { productId, grouped -> ReceivedOrdersProductRow? in
             guard let first = grouped.first else { return nil }
@@ -803,7 +1042,9 @@ private func buildReceivedOrdersSnapshot(from lines: [ReceivedOrderLineRecord]) 
             let total = memberLines.reduce(0) { partial, line in partial + line.subtotal }
             return ReceivedOrdersMemberGroup(
                 id: key,
+                orderId: first.orderId,
                 consumerDisplayName: first.consumerDisplayName,
+                producerStatus: statusesByOrderId[first.orderId] ?? .unread,
                 lines: memberLines,
                 total: total
             )
@@ -817,6 +1058,66 @@ private func buildReceivedOrdersSnapshot(from lines: [ReceivedOrderLineRecord]) 
         byMemberGroups: byMemberGroups,
         generalTotal: lines.reduce(0) { partial, line in partial + line.subtotal }
     )
+}
+
+private func receivedOrderStatus(
+    from data: [String: Any],
+    producerId: String
+) -> ProducerOrderStatus {
+    if let statusesByVendor = data["producerStatusesByVendor"] as? [String: Any],
+       let statusValue = statusesByVendor[producerId] as? String {
+        return ProducerOrderStatus.from(statusValue)
+    }
+    return ProducerOrderStatus.from(data["producerStatus"] as? String)
+}
+
+private extension ReceivedOrdersSnapshot {
+    func withProducerStatus(orderId: String, status: ProducerOrderStatus) -> ReceivedOrdersSnapshot {
+        ReceivedOrdersSnapshot(
+            byProductRows: byProductRows,
+            byMemberGroups: byMemberGroups.map { group in
+                if group.orderId == orderId {
+                    return ReceivedOrdersMemberGroup(
+                        id: group.id,
+                        orderId: group.orderId,
+                        consumerDisplayName: group.consumerDisplayName,
+                        producerStatus: status,
+                        lines: group.lines,
+                        total: group.total
+                    )
+                }
+                return group
+            },
+            generalTotal: generalTotal
+        )
+    }
+}
+
+private extension ProducerOrderStatus {
+    var visualStyle: ProducerStatusVisualStyle {
+        switch self {
+        case .unread:
+            return ProducerStatusVisualStyle(
+                container: Color(.systemGray6).opacity(0.82),
+                border: Color(.systemGray4)
+            )
+        case .read:
+            return ProducerStatusVisualStyle(
+                container: Color(.systemGray6).opacity(0.82),
+                border: Color(.systemGray4)
+            )
+        case .prepared:
+            return ProducerStatusVisualStyle(
+                container: Color(red: 1.0, green: 0.95, blue: 0.84),
+                border: Color(red: 0.84, green: 0.66, blue: 0.31)
+            )
+        case .delivered:
+            return ProducerStatusVisualStyle(
+                container: Color(red: 0.90, green: 0.97, blue: 0.90),
+                border: Color(red: 0.46, green: 0.64, blue: 0.44)
+            )
+        }
+    }
 }
 
 private func receivedOrderLineRecord(
@@ -965,10 +1266,16 @@ private struct MyOrderConfirmedLine: Identifiable {
 private struct MyOrderConfirmedGroup: Identifiable {
     let vendorId: String
     let companyName: String
+    let producerStatus: ProducerOrderStatus
     let lines: [MyOrderConfirmedLine]
     let subtotal: Double
 
     var id: String { vendorId }
+}
+
+private struct MyOrderProducerStatusSnapshot {
+    let byVendor: [String: ProducerOrderStatus]
+    let legacyStatus: ProducerOrderStatus
 }
 
 private struct MyOrderPreviousOrderLine: Identifiable {
@@ -1039,6 +1346,8 @@ private struct MyOrderRouteView: View {
     @State private var hasRestoredCartState = false
     @State private var isViewingConfirmedOrder = false
     @State private var previousOrderState: MyOrderPreviousOrderState = .loading
+    @State private var confirmedProducerStatusesByVendor: [String: ProducerOrderStatus] = [:]
+    @State private var confirmedLegacyProducerStatus: ProducerOrderStatus = .unread
 
     private var normalizedQuery: String {
         searchQuery.searchNormalized
@@ -1130,6 +1439,11 @@ private struct MyOrderRouteView: View {
         "member_\(currentMember?.id ?? "")_week_\(currentWeekKey)"
     }
 
+    private var currentOrderId: String? {
+        guard let memberId = currentMember?.id, memberId.isNotEmpty else { return nil }
+        return "\(memberId)_\(currentWeekKey)"
+    }
+
     private var groupedProducts: [MyOrderProducerGroup] {
         let filteredProducts = products.filter { product in
             guard normalizedQuery.isNotEmpty else { return true }
@@ -1207,6 +1521,7 @@ private struct MyOrderRouteView: View {
                 return MyOrderConfirmedGroup(
                     vendorId: vendorId,
                     companyName: first.product.companyName,
+                    producerStatus: confirmedProducerStatusesByVendor[vendorId] ?? confirmedLegacyProducerStatus,
                     lines: sortedLines,
                     subtotal: sortedLines.reduce(0) { $0 + $1.subtotal }
                 )
@@ -1290,6 +1605,10 @@ private struct MyOrderRouteView: View {
                 } else if isViewingConfirmedOrder {
                     isCartVisible = false
                 }
+                if confirmedSnapshot.selectedQuantities.isEmpty {
+                    confirmedProducerStatusesByVendor = [:]
+                    confirmedLegacyProducerStatus = .unread
+                }
                 hasRestoredCartState = true
             }
             .onChange(of: selectedQuantities) { _, _ in
@@ -1307,6 +1626,16 @@ private struct MyOrderRouteView: View {
             .task(id: consultaTaskID) {
                 guard isConsultaPhase else { return }
                 await loadPreviousWeekOrderState(previousWeekKey: consultaWindow.previousWeekKey)
+            }
+            .task(id: "\(currentOrderId ?? "none")-\(hasConfirmedOrder)-\(isConsultaPhase)") {
+                guard !isConsultaPhase, hasConfirmedOrder, let orderId = currentOrderId else {
+                    confirmedProducerStatusesByVendor = [:]
+                    confirmedLegacyProducerStatus = .unread
+                    return
+                }
+                let statusSnapshot = await loadMyOrderProducerStatuses(orderId: orderId)
+                confirmedProducerStatusesByVendor = statusSnapshot.byVendor
+                confirmedLegacyProducerStatus = statusSnapshot.legacyStatus
             }
             .overlay {
                 if let checkoutAlert {
@@ -1553,12 +1882,19 @@ private struct MyOrderRouteView: View {
 
     @ViewBuilder
     private func confirmedProducerCard(_ group: MyOrderConfirmedGroup) -> some View {
-        ReguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+        let style = group.producerStatus.visualStyle
+        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+            HStack(spacing: tokens.spacing.sm) {
                 Text(group.companyName)
                     .font(tokens.typography.titleCard.weight(.semibold))
                     .foregroundStyle(tokens.colors.actionPrimary)
+                Spacer(minLength: 0)
+                Text(group.producerStatus.title)
+                    .font(tokens.typography.label.weight(.semibold))
+                    .foregroundStyle(tokens.colors.textSecondary)
+            }
 
+            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 ForEach(group.lines) { line in
                     VStack(alignment: .leading, spacing: tokens.spacing.xs) {
                         HStack(alignment: .firstTextBaseline, spacing: tokens.spacing.sm) {
@@ -1591,6 +1927,14 @@ private struct MyOrderRouteView: View {
                 }
             }
         }
+        .padding(tokens.spacing.lg)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(style.container)
+        .overlay(
+            RoundedRectangle(cornerRadius: tokens.radius.md)
+                .stroke(style.border, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
     }
 
     @ViewBuilder
@@ -2349,7 +2693,13 @@ private func submitCheckoutOrderToFirestore(
             let createdAt = (existingData?["createdAt"] as? Timestamp) ?? nowTimestamp
             let producerStatusCandidate = (existingData?["producerStatus"] as? String)?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            let producerStatus = (producerStatusCandidate?.isEmpty == false) ? producerStatusCandidate! : "unread"
+            let producerStatus = ProducerOrderStatus.from(producerStatusCandidate).rawValue
+            let existingStatusesByVendor = existingData?["producerStatusesByVendor"] as? [String: Any]
+            let producerStatusesByVendor = totalsByVendor.keys.reduce(into: [String: String]()) { partialResult, vendorId in
+                let existingValue = existingStatusesByVendor?[vendorId] as? String
+                let resolved = ProducerOrderStatus.from(existingValue ?? producerStatus).rawValue
+                partialResult[vendorId] = resolved
+            }
             let deliveryDate = (existingData?["deliveryDate"] as? Timestamp) ?? nowTimestamp
 
             let existingLinesSnapshot = try? await db.collection(target.orderlines)
@@ -2365,6 +2715,7 @@ private func submitCheckoutOrderToFirestore(
                 "deliveryDate": deliveryDate,
                 "consumerStatus": "confirmado",
                 "producerStatus": producerStatus,
+                "producerStatusesByVendor": producerStatusesByVendor,
                 "total": total,
                 "totalsByVendor": totalsByVendor,
                 "isAutoGenerated": false,
@@ -2480,6 +2831,36 @@ private func resolveMyOrderConsultaWindow(
         isConsultaPhase: isConsultaPhase,
         previousWeekKey: previousWeekKey
     )
+}
+
+private func loadMyOrderProducerStatuses(
+    orderId: String,
+    db: Firestore = Firestore.firestore(),
+    environment: ReguertaFirestoreEnvironment = .develop
+) async -> MyOrderProducerStatusSnapshot {
+    let firestorePath = ReguertaFirestorePath(environment: environment)
+    let readTargets = Array(Set([
+        firestorePath.collectionPath(.orders),
+        "\(environment.rawValue)/collections/orders"
+    ]))
+
+    for ordersPath in readTargets {
+        do {
+            let orderSnapshot = try await db.document("\(ordersPath)/\(orderId)").getDocument()
+            guard orderSnapshot.exists else { continue }
+            let payload = orderSnapshot.data() ?? [:]
+            let legacyStatus = ProducerOrderStatus.from(payload["producerStatus"] as? String)
+            let byVendor = myOrderProducerStatusesByVendor(from: payload)
+            return MyOrderProducerStatusSnapshot(
+                byVendor: byVendor,
+                legacyStatus: legacyStatus
+            )
+        } catch {
+            continue
+        }
+    }
+
+    return MyOrderProducerStatusSnapshot(byVendor: [:], legacyStatus: .unread)
 }
 
 private func fetchPreviousWeekOrderSnapshot(
@@ -2608,6 +2989,17 @@ private func myOrderPreviousLine(from data: [String: Any]) -> MyOrderPreviousOrd
         ),
         subtotal: subtotal
     )
+}
+
+private func myOrderProducerStatusesByVendor(from data: [String: Any]) -> [String: ProducerOrderStatus] {
+    guard let rawMap = data["producerStatusesByVendor"] as? [String: Any] else {
+        return [:]
+    }
+    return rawMap.reduce(into: [:]) { partialResult, entry in
+        let vendorId = entry.key.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard vendorId.isNotEmpty else { return }
+        partialResult[vendorId] = ProducerOrderStatus.from(entry.value as? String)
+    }
 }
 
 private func myOrderPackagingLine(from data: [String: Any]) -> String {
@@ -2827,5 +3219,20 @@ private extension DeliveryWeekday {
         case .saturday: return 5
         case .sunday: return 6
         }
+    }
+}
+
+private extension Array {
+    func chunked(into size: Int) -> [[Element]] {
+        guard !isEmpty else { return [] }
+        guard size > 0 else { return [self] }
+        var result: [[Element]] = []
+        var index = startIndex
+        while index < endIndex {
+            let nextIndex = self.index(index, offsetBy: size, limitedBy: endIndex) ?? endIndex
+            result.append(Array(self[index..<nextIndex]))
+            index = nextIndex
+        }
+        return result
     }
 }
