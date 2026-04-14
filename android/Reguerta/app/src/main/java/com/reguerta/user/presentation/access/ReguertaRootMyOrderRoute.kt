@@ -1975,8 +1975,8 @@ private data class MyOrderStatusPalette(
 @Composable
 private fun MyOrderProducerStatus.statusLabel(): String =
     when (this) {
-        MyOrderProducerStatus.UNREAD -> stringResource(R.string.received_orders_status_unread)
-        MyOrderProducerStatus.READ -> stringResource(R.string.received_orders_status_read)
+        MyOrderProducerStatus.UNREAD -> stringResource(R.string.received_orders_status_pending)
+        MyOrderProducerStatus.READ -> stringResource(R.string.received_orders_status_pending)
         MyOrderProducerStatus.PREPARED -> stringResource(R.string.received_orders_status_prepared)
         MyOrderProducerStatus.DELIVERED -> stringResource(R.string.received_orders_status_delivered)
     }
@@ -1990,7 +1990,7 @@ private fun MyOrderProducerStatus.statusPalette(): MyOrderStatusPalette {
         )
 
         MyOrderProducerStatus.READ -> MyOrderStatusPalette(
-            containerColor = colors.primary.copy(alpha = 0.10f),
+            containerColor = colors.surfaceVariant.copy(alpha = 0.36f),
         )
 
         MyOrderProducerStatus.PREPARED -> MyOrderStatusPalette(

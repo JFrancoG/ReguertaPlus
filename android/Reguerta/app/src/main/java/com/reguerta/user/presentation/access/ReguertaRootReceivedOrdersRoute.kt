@@ -209,10 +209,27 @@ internal fun ReceivedOrdersRoute(
             if (lines.isEmpty()) {
                 ReceivedOrdersUiState.Empty
             } else {
-                val statusesByOrderId = loadReceivedOrderStatusesByOrderId(
+                var statusesByOrderId = loadReceivedOrderStatusesByOrderId(
                     orderIds = lines.map(ReceivedOrderLinePayload::orderId).distinct(),
                     producerId = producerId,
                 )
+                val unreadOrderIds = statusesByOrderId
+                    .filterValues { status -> status == ReceivedOrderProducerStatus.UNREAD }
+                    .keys
+                    .toList()
+                if (unreadOrderIds.isNotEmpty()) {
+                    val markedAsRead = markReceivedOrdersAsRead(
+                        orderIds = unreadOrderIds,
+                        producerId = producerId,
+                    )
+                    if (markedAsRead.isNotEmpty()) {
+                        statusesByOrderId = statusesByOrderId.toMutableMap().apply {
+                            markedAsRead.forEach { orderId ->
+                                this[orderId] = ReceivedOrderProducerStatus.READ
+                            }
+                        }
+                    }
+                }
                 ReceivedOrdersUiState.Loaded(buildReceivedOrdersSnapshot(lines, statusesByOrderId))
             }
         }.getOrElse {
@@ -538,10 +555,10 @@ private fun ReceivedOrdersMemberCard(
                 textAlign = TextAlign.Center,
             )
 
-            ReceivedOrdersStatusSelector(
+            ReceivedOrdersPreparedAction(
                 selectedStatus = group.producerStatus,
                 isUpdatingStatus = isUpdatingStatus,
-                onSelectStatus = onSelectStatus,
+                onUpdateStatus = onSelectStatus,
             )
 
             group.lines.forEachIndexed { index, line ->
@@ -601,10 +618,10 @@ private fun ReceivedOrdersMemberCard(
 }
 
 @Composable
-private fun ReceivedOrdersStatusSelector(
+private fun ReceivedOrdersPreparedAction(
     selectedStatus: ReceivedOrderProducerStatus,
     isUpdatingStatus: Boolean,
-    onSelectStatus: (ReceivedOrderProducerStatus) -> Unit,
+    onUpdateStatus: (ReceivedOrderProducerStatus) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
@@ -613,44 +630,46 @@ private fun ReceivedOrdersStatusSelector(
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            ReceivedOrderProducerStatus.entries.forEach { status ->
-                val selected = status == selectedStatus
-                TextButton(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(10.dp))
-                        .border(
-                            width = 1.dp,
-                            color = if (selected) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.outline.copy(alpha = 0.36f)
-                            },
-                            shape = RoundedCornerShape(10.dp),
-                        )
-                        .background(
-                            if (selected) {
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-                            } else {
-                                MaterialTheme.colorScheme.surface.copy(alpha = 0f)
-                            },
-                        ),
-                    onClick = { onSelectStatus(status) },
-                    enabled = !isUpdatingStatus,
-                ) {
-                    Text(
-                        text = status.statusLabel(),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth(),
+        Text(
+            text = selectedStatus.statusLabel(),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+
+        if (selectedStatus != ReceivedOrderProducerStatus.DELIVERED) {
+            val isPrepared = selectedStatus == ReceivedOrderProducerStatus.PREPARED
+            val targetStatus = if (isPrepared) {
+                ReceivedOrderProducerStatus.READ
+            } else {
+                ReceivedOrderProducerStatus.PREPARED
+            }
+            TextButton(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.primary,
+                        shape = RoundedCornerShape(10.dp),
                     )
-                }
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
+                onClick = { onUpdateStatus(targetStatus) },
+                enabled = !isUpdatingStatus,
+            ) {
+                Text(
+                    text = stringResource(
+                        if (isPrepared) {
+                            R.string.received_orders_mark_pending
+                        } else {
+                            R.string.received_orders_mark_prepared
+                        },
+                    ),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
         if (isUpdatingStatus) {
@@ -867,6 +886,24 @@ private suspend fun updateReceivedOrderProducerStatus(
     }
 }
 
+private suspend fun markReceivedOrdersAsRead(
+    orderIds: List<String>,
+    producerId: String,
+): Set<String> {
+    val updatedOrderIds = linkedSetOf<String>()
+    orderIds.distinct().forEach { orderId ->
+        val updated = updateReceivedOrderProducerStatus(
+            orderId = orderId,
+            producerId = producerId,
+            status = ReceivedOrderProducerStatus.READ,
+        )
+        if (updated) {
+            updatedOrderIds += orderId
+        }
+    }
+    return updatedOrderIds
+}
+
 private fun buildReceivedOrdersSnapshot(
     lines: List<ReceivedOrderLinePayload>,
     statusesByOrderId: Map<String, ReceivedOrderProducerStatus>,
@@ -1006,8 +1043,8 @@ private fun ReceivedOrdersSnapshot.withProducerStatus(
 @Composable
 private fun ReceivedOrderProducerStatus.statusLabel(): String =
     when (this) {
-        ReceivedOrderProducerStatus.UNREAD -> stringResource(R.string.received_orders_status_unread)
-        ReceivedOrderProducerStatus.READ -> stringResource(R.string.received_orders_status_read)
+        ReceivedOrderProducerStatus.UNREAD -> stringResource(R.string.received_orders_status_pending)
+        ReceivedOrderProducerStatus.READ -> stringResource(R.string.received_orders_status_pending)
         ReceivedOrderProducerStatus.PREPARED -> stringResource(R.string.received_orders_status_prepared)
         ReceivedOrderProducerStatus.DELIVERED -> stringResource(R.string.received_orders_status_delivered)
     }
@@ -1022,8 +1059,8 @@ private fun ReceivedOrderProducerStatus.statusPalette(): ReceivedOrdersStatusPal
         )
 
         ReceivedOrderProducerStatus.READ -> ReceivedOrdersStatusPalette(
-            containerColor = colors.primary.copy(alpha = 0.10f),
-            borderColor = colors.primary.copy(alpha = 0.30f),
+            containerColor = colors.surfaceVariant.copy(alpha = 0.38f),
+            borderColor = colors.outline.copy(alpha = 0.34f),
         )
 
         ReceivedOrderProducerStatus.PREPARED -> ReceivedOrdersStatusPalette(

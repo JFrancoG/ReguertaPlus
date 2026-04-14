@@ -324,8 +324,8 @@ private enum ProducerOrderStatus: String, CaseIterable {
 
     var title: String {
         switch self {
-        case .unread: return "Sin leer"
-        case .read: return "Leído"
+        case .unread: return "Pendiente"
+        case .read: return "Pendiente"
         case .prepared: return "Preparado"
         case .delivered: return "Entregado"
         }
@@ -692,34 +692,29 @@ private struct ReceivedOrdersRouteView: View {
             Text("Estado productor")
                 .font(tokens.typography.bodySecondary.weight(.semibold))
                 .foregroundStyle(tokens.colors.textSecondary)
-            HStack(spacing: tokens.spacing.xs) {
-                ForEach(ProducerOrderStatus.allCases, id: \.rawValue) { status in
-                    let isSelected = status == selectedStatus
-                    Button {
-                        onSelectStatus(status)
-                    } label: {
-                        Text(status.title)
-                            .font(tokens.typography.bodySecondary.weight(.semibold))
-                            .foregroundStyle(tokens.colors.textPrimary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, tokens.spacing.xs)
-                            .background(
-                                isSelected ? tokens.colors.actionPrimary.opacity(0.14) : Color.clear
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: tokens.radius.sm)
-                                    .stroke(
-                                        isSelected ? tokens.colors.actionPrimary : tokens.colors.borderSubtle,
-                                        lineWidth: 1
-                                    )
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(isUpdatingStatus)
+            Text(selectedStatus.title)
+                .font(tokens.typography.body.weight(.semibold))
+                .foregroundStyle(tokens.colors.textPrimary)
+            if selectedStatus != .delivered {
+                let isPrepared = selectedStatus == .prepared
+                let targetStatus: ProducerOrderStatus = isPrepared ? .read : .prepared
+                Button {
+                    onSelectStatus(targetStatus)
+                } label: {
+                    Text(isPrepared ? "Marcar pendiente" : "Marcar preparado")
+                        .font(tokens.typography.bodySecondary.weight(.semibold))
+                        .foregroundStyle(tokens.colors.textPrimary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, tokens.spacing.xs)
+                        .background(tokens.colors.actionPrimary.opacity(0.14))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: tokens.radius.sm)
+                                .stroke(tokens.colors.actionPrimary, lineWidth: 1)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
                 }
+                .buttonStyle(.plain)
+                .disabled(isUpdatingStatus)
             }
             if isUpdatingStatus {
                 Text("Guardando estado…")
@@ -881,12 +876,28 @@ private func fetchReceivedOrdersSnapshotForProducer(
         return lhs.productName.localizedCaseInsensitiveCompare(rhs.productName) == .orderedAscending
     }
     guard !lines.isEmpty else { return nil }
-    let statusesByOrderId = try await fetchReceivedOrderStatusesByOrderId(
+    var statusesByOrderId = try await fetchReceivedOrderStatusesByOrderId(
         orderIds: lines.map(\.orderId),
         producerId: producerId,
         db: db,
         environment: environment
     )
+    let unreadOrderIds = statusesByOrderId
+        .filter { $0.value == .unread }
+        .map(\.key)
+    if !unreadOrderIds.isEmpty {
+        let markedAsRead = await markReceivedOrdersAsRead(
+            orderIds: unreadOrderIds,
+            producerId: producerId,
+            db: db,
+            environment: environment
+        )
+        if !markedAsRead.isEmpty {
+            for orderId in markedAsRead {
+                statusesByOrderId[orderId] = .read
+            }
+        }
+    }
     return buildReceivedOrdersSnapshot(from: lines, statusesByOrderId: statusesByOrderId)
 }
 
@@ -963,6 +974,28 @@ private func updateReceivedOrderProducerStatus(
     }
 
     return false
+}
+
+private func markReceivedOrdersAsRead(
+    orderIds: [String],
+    producerId: String,
+    db: Firestore = Firestore.firestore(),
+    environment: ReguertaFirestoreEnvironment = .develop
+) async -> Set<String> {
+    var updatedOrderIds = Set<String>()
+    for orderId in Array(Set(orderIds)).filter(\.isNotEmpty) {
+        let updated = await updateReceivedOrderProducerStatus(
+            orderId: orderId,
+            producerId: producerId,
+            status: .read,
+            db: db,
+            environment: environment
+        )
+        if updated {
+            updatedOrderIds.insert(orderId)
+        }
+    }
+    return updatedOrderIds
 }
 
 private func buildReceivedOrdersSnapshot(
@@ -1070,8 +1103,8 @@ private extension ProducerOrderStatus {
             )
         case .read:
             return ProducerStatusVisualStyle(
-                container: Color.blue.opacity(0.09),
-                border: Color.blue.opacity(0.32)
+                container: Color(.systemGray6).opacity(0.82),
+                border: Color(.systemGray4)
             )
         case .prepared:
             return ProducerStatusVisualStyle(
