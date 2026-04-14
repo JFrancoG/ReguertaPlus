@@ -4,7 +4,7 @@
 - issue_id: #9
 - priority: P1
 - platform: both
-- status: ready
+- status: in_review
 
 ## Context and problem
 
@@ -50,9 +50,9 @@ As a producer I want to review received orders by product and by member so that 
 
 ## Definition of Done (DoD)
 
-- [ ] Story acceptance criteria validated.
-- [ ] Implementation aligned with linked RFs.
-- [ ] Android/iOS parity reviewed or temporary gap documented.
-- [ ] Agreed tests executed.
-- [ ] Technical/functional documentation updated.
-- [ ] Issue and PR linked.
+- [x] Story acceptance criteria validated.
+- [x] Implementation aligned with linked RFs.
+- [x] Android/iOS parity reviewed or temporary gap documented.
+- [x] Agreed tests executed.
+- [x] Technical/functional documentation updated.
+- [x] Issue and PR linked.

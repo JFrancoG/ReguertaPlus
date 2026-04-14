@@ -153,6 +153,17 @@ extension ContentView {
         )
     }
 
+    var receivedOrdersRoute: some View {
+        ReceivedOrdersRouteView(
+            tokens: tokens,
+            currentMember: currentHomeMember,
+            shifts: viewModel.shiftsFeed,
+            defaultDeliveryDayOfWeek: viewModel.defaultDeliveryDayOfWeek,
+            deliveryCalendarOverrides: viewModel.deliveryCalendarOverrides,
+            nowMillis: viewModel.nowOverrideMillis ?? Int64(Date().timeIntervalSince1970 * 1_000)
+        )
+    }
+
     var notificationsListRoute: some View {
         NotificationsListRouteView(
             tokens: tokens,
@@ -282,6 +293,608 @@ extension ContentView {
             )
             .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
     }
+}
+
+private enum ReceivedOrdersTab: String, CaseIterable, Identifiable {
+    case byProduct
+    case byMember
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .byProduct:
+            return "Por producto"
+        case .byMember:
+            return "Por regüertense"
+        }
+    }
+}
+
+private enum ReceivedOrdersLoadState {
+    case idle
+    case loading
+    case loaded(ReceivedOrdersSnapshot)
+    case empty
+    case error
+}
+
+private struct ReceivedOrdersWindow {
+    let isEnabled: Bool
+    let targetWeekKey: String
+}
+
+private struct ReceivedOrderLineRecord: Identifiable {
+    let id: String
+    let orderId: String
+    let consumerId: String
+    let consumerDisplayName: String
+    let productId: String
+    let productName: String
+    let productImageUrl: String?
+    let companyName: String
+    let packagingLine: String
+    let quantity: Double
+    let quantityUnitSingular: String
+    let quantityUnitPlural: String
+    let subtotal: Double
+
+    var dedupKey: String {
+        "\(orderId)|\(consumerId)|\(productId)"
+    }
+}
+
+private struct ReceivedOrdersProductRow: Identifiable {
+    let productId: String
+    let productName: String
+    let productImageUrl: String?
+    let companyName: String
+    let packagingLine: String
+    let totalQuantity: Double
+    let quantityUnitSingular: String
+    let quantityUnitPlural: String
+
+    var id: String { productId }
+
+    func quantityUnitLabel() -> String {
+        receivedOrdersIsApproximatelyOne(totalQuantity) ? quantityUnitSingular : quantityUnitPlural
+    }
+}
+
+private struct ReceivedOrdersMemberLine: Identifiable {
+    let id: String
+    let productName: String
+    let packagingLine: String
+    let quantity: Double
+    let quantityUnitSingular: String
+    let quantityUnitPlural: String
+    let subtotal: Double
+
+    func quantityUnitLabel() -> String {
+        receivedOrdersIsApproximatelyOne(quantity) ? quantityUnitSingular : quantityUnitPlural
+    }
+}
+
+private struct ReceivedOrdersMemberGroup: Identifiable {
+    let id: String
+    let consumerDisplayName: String
+    let lines: [ReceivedOrdersMemberLine]
+    let total: Double
+}
+
+private struct ReceivedOrdersSnapshot {
+    let byProductRows: [ReceivedOrdersProductRow]
+    let byMemberGroups: [ReceivedOrdersMemberGroup]
+    let generalTotal: Double
+}
+
+private struct ReceivedOrdersRouteView: View {
+    let tokens: ReguertaDesignTokens
+    let currentMember: Member?
+    let shifts: [ShiftAssignment]
+    let defaultDeliveryDayOfWeek: DeliveryWeekday?
+    let deliveryCalendarOverrides: [DeliveryCalendarOverride]
+    let nowMillis: Int64
+
+    @State private var selectedTab: ReceivedOrdersTab = .byProduct
+    @State private var loadState: ReceivedOrdersLoadState = .idle
+
+    private var isProducer: Bool {
+        currentMember?.roles.contains(.producer) == true
+    }
+
+    private var window: ReceivedOrdersWindow {
+        resolveReceivedOrdersWindow(
+            nowMillis: nowMillis,
+            defaultDeliveryDayOfWeek: defaultDeliveryDayOfWeek,
+            deliveryCalendarOverrides: deliveryCalendarOverrides,
+            shifts: shifts
+        )
+    }
+
+    private var loadTaskID: String {
+        "\(isProducer)-\(window.isEnabled)-\(window.targetWeekKey)-\(currentMember?.id ?? "")"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.md) {
+            Text("Pedidos a preparar")
+                .font(tokens.typography.titleSection)
+                .foregroundStyle(tokens.colors.textPrimary)
+
+            tabSelector
+
+            routeContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .task(id: loadTaskID) {
+            await loadIfNeeded()
+        }
+    }
+
+    @ViewBuilder
+    private var tabSelector: some View {
+        HStack(spacing: tokens.spacing.xs) {
+            ForEach(ReceivedOrdersTab.allCases) { tab in
+                Button {
+                    selectedTab = tab
+                } label: {
+                    Text(tab.title)
+                        .font(tokens.typography.bodySecondary.weight(.semibold))
+                        .foregroundStyle(tokens.colors.textPrimary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, tokens.spacing.sm)
+                        .background(
+                            selectedTab == tab ?
+                            tokens.colors.surfacePrimary :
+                                Color.clear
+                        )
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(tokens.spacing.xs)
+        .background(tokens.colors.surfaceSecondary.opacity(0.72))
+        .clipShape(Capsule())
+    }
+
+    @ViewBuilder
+    private var routeContent: some View {
+        if !isProducer {
+            infoCard(
+                title: "Solo para productores",
+                body: "Esta sección aparece cuando accedes con un perfil productor."
+            )
+        } else if !window.isEnabled {
+            infoCard(
+                title: "Pedidos fuera de ventana",
+                body: "La pantalla de preparación se habilita entre lunes y día de reparto."
+            )
+        } else {
+            switch loadState {
+            case .idle, .loading:
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            case .empty:
+                infoCard(
+                    title: "Sin pedidos recibidos",
+                    body: "No hay líneas de pedido para preparar en la semana \(window.targetWeekKey)."
+                )
+            case .error:
+                ReguertaCard {
+                    VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                        Text("No se pudieron cargar los pedidos")
+                            .font(tokens.typography.titleCard.weight(.semibold))
+                            .foregroundStyle(tokens.colors.feedbackError)
+                        Text("Revisa la conexión y vuelve a intentarlo.")
+                            .font(tokens.typography.bodySecondary)
+                            .foregroundStyle(tokens.colors.textSecondary)
+                        ReguertaButton("Reintentar") {
+                            Task {
+                                await loadIfNeeded(force: true)
+                            }
+                        }
+                    }
+                }
+            case .loaded(let snapshot):
+                loadedContent(snapshot)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func loadedContent(_ snapshot: ReceivedOrdersSnapshot) -> some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            LazyVStack(alignment: .leading, spacing: tokens.spacing.md) {
+                if selectedTab == .byProduct {
+                    ForEach(snapshot.byProductRows) { row in
+                        productCard(row)
+                    }
+                } else {
+                    ForEach(snapshot.byMemberGroups) { group in
+                        memberCard(group)
+                    }
+                }
+            }
+            .padding(.bottom, 106.resize)
+        }
+        .safeAreaInset(edge: .bottom, spacing: tokens.spacing.xs) {
+            totalBar(total: snapshot.generalTotal)
+        }
+    }
+
+    @ViewBuilder
+    private func productCard(_ row: ReceivedOrdersProductRow) -> some View {
+        ReguertaCard {
+            HStack(alignment: .center, spacing: tokens.spacing.md) {
+                receivedOrdersProductImage(urlString: row.productImageUrl)
+
+                VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+                    Text(row.productName)
+                        .font(tokens.typography.titleCard.weight(.semibold))
+                        .foregroundStyle(tokens.colors.actionPrimary)
+                    Text(row.packagingLine)
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                        .lineLimit(2)
+                }
+
+                Spacer(minLength: 0)
+
+                VStack(alignment: .trailing, spacing: tokens.spacing.xs) {
+                    Text(row.totalQuantity.myOrderUiDecimal)
+                        .font(tokens.typography.titleCard.weight(.bold))
+                        .foregroundStyle(tokens.colors.textPrimary)
+                    Text(row.quantityUnitLabel())
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func memberCard(_ group: ReceivedOrdersMemberGroup) -> some View {
+        ReguertaCard {
+            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                Text(group.consumerDisplayName)
+                    .font(tokens.typography.titleCard.weight(.semibold))
+                    .foregroundStyle(tokens.colors.actionPrimary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+
+                ForEach(group.lines) { line in
+                    VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+                        HStack(alignment: .top, spacing: tokens.spacing.md) {
+                            VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+                                Text(line.productName)
+                                    .font(tokens.typography.body.weight(.semibold))
+                                    .foregroundStyle(tokens.colors.textPrimary)
+                                Text(line.packagingLine)
+                                    .font(tokens.typography.bodySecondary)
+                                    .foregroundStyle(tokens.colors.textSecondary)
+                            }
+                            Spacer(minLength: 0)
+                            VStack(alignment: .trailing, spacing: tokens.spacing.xs) {
+                                Text(line.quantity.myOrderUiDecimal)
+                                    .font(tokens.typography.body.weight(.semibold))
+                                    .foregroundStyle(tokens.colors.textPrimary)
+                                Text(line.quantityUnitLabel())
+                                    .font(tokens.typography.bodySecondary)
+                                    .foregroundStyle(tokens.colors.textSecondary)
+                                Text("\(line.subtotal.myOrderUiDecimal) €")
+                                    .font(tokens.typography.body.weight(.semibold))
+                                    .foregroundStyle(tokens.colors.textPrimary)
+                            }
+                        }
+                    }
+
+                    if line.id != group.lines.last?.id {
+                        Divider()
+                            .overlay(tokens.colors.borderSubtle.opacity(0.6))
+                    }
+                }
+
+                Divider()
+                    .overlay(tokens.colors.borderSubtle.opacity(0.8))
+
+                Text("Total: \(group.total.myOrderUiDecimal) €")
+                    .font(tokens.typography.titleCard.weight(.semibold))
+                    .foregroundStyle(tokens.colors.feedbackError)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func totalBar(total: Double) -> some View {
+        HStack {
+            Text("Suma total general: \(total.myOrderUiDecimal) €")
+                .font(tokens.typography.titleCard.weight(.semibold))
+                .foregroundStyle(tokens.colors.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .center)
+        }
+        .padding(.vertical, tokens.spacing.md)
+        .padding(.horizontal, tokens.spacing.lg)
+        .background(tokens.colors.actionPrimary.opacity(0.34))
+        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
+    }
+
+    @ViewBuilder
+    private func infoCard(title: String, body: String) -> some View {
+        ReguertaCard {
+            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                Text(title)
+                    .font(tokens.typography.titleCard.weight(.semibold))
+                    .foregroundStyle(tokens.colors.textPrimary)
+                Text(body)
+                    .font(tokens.typography.bodySecondary)
+                    .foregroundStyle(tokens.colors.textSecondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func receivedOrdersProductImage(urlString: String?) -> some View {
+        let imageSize = CGFloat(64.resize)
+        if let urlString, let url = URL(string: urlString), urlString.isNotEmpty {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFill()
+                default:
+                    Image("product_no_available")
+                        .resizable()
+                        .scaledToFill()
+                }
+            }
+            .frame(width: imageSize, height: imageSize)
+            .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
+        } else {
+            Image("product_no_available")
+                .resizable()
+                .scaledToFill()
+                .frame(width: imageSize, height: imageSize)
+                .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
+        }
+    }
+
+    @MainActor
+    private func loadIfNeeded(force: Bool = false) async {
+        guard isProducer else {
+            loadState = .idle
+            return
+        }
+        guard window.isEnabled else {
+            loadState = .idle
+            return
+        }
+        if !force, case .loading = loadState {
+            return
+        }
+        guard let producerId = currentMember?.id else {
+            loadState = .error
+            return
+        }
+        loadState = .loading
+        do {
+            if let snapshot = try await fetchReceivedOrdersSnapshotForProducer(
+                producerId: producerId,
+                targetWeekKey: window.targetWeekKey
+            ) {
+                loadState = .loaded(snapshot)
+            } else {
+                loadState = .empty
+            }
+        } catch {
+            loadState = .error
+        }
+    }
+}
+
+private func resolveReceivedOrdersWindow(
+    nowMillis: Int64,
+    defaultDeliveryDayOfWeek: DeliveryWeekday?,
+    deliveryCalendarOverrides: [DeliveryCalendarOverride],
+    shifts: [ShiftAssignment]
+) -> ReceivedOrdersWindow {
+    let consultaWindow = resolveMyOrderConsultaWindow(
+        defaultDeliveryDayOfWeek: defaultDeliveryDayOfWeek,
+        deliveryCalendarOverrides: deliveryCalendarOverrides,
+        shifts: shifts,
+        now: Date(timeIntervalSince1970: TimeInterval(nowMillis) / 1_000)
+    )
+    let currentWeekKey = nowMillis.isoWeekKey
+    return ReceivedOrdersWindow(
+        isEnabled: consultaWindow.isConsultaPhase,
+        targetWeekKey: consultaWindow.isConsultaPhase ? consultaWindow.previousWeekKey : currentWeekKey
+    )
+}
+
+private func fetchReceivedOrdersSnapshotForProducer(
+    producerId: String,
+    targetWeekKey: String,
+    db: Firestore = Firestore.firestore(),
+    environment: ReguertaFirestoreEnvironment = .develop
+) async throws -> ReceivedOrdersSnapshot? {
+    let firestorePath = ReguertaFirestorePath(environment: environment)
+    let readTargets = Array(Set([
+        firestorePath.collectionPath(.orderlines),
+        "\(environment.rawValue)/collections/orderLines",
+        "\(environment.rawValue)/collections/orderlines"
+    ]))
+    var dedupedLinesByKey: [String: ReceivedOrderLineRecord] = [:]
+    var hasSuccessfulRead = false
+    var lastError: Error?
+
+    for orderlinesPath in readTargets {
+        do {
+            let snapshot = try await db.collection(orderlinesPath)
+                .whereField("vendorId", isEqualTo: producerId)
+                .whereField("weekKey", isEqualTo: targetWeekKey)
+                .getDocuments()
+            hasSuccessfulRead = true
+            for document in snapshot.documents {
+                if let line = receivedOrderLineRecord(
+                    from: document.data(),
+                    fallbackDocumentID: document.documentID
+                ) {
+                    dedupedLinesByKey[line.dedupKey] = line
+                }
+            }
+        } catch {
+            lastError = error
+        }
+    }
+
+    if !hasSuccessfulRead, let lastError {
+        throw lastError
+    }
+
+    let lines = dedupedLinesByKey.values.sorted { lhs, rhs in
+        if lhs.consumerDisplayName != rhs.consumerDisplayName {
+            return lhs.consumerDisplayName.localizedCaseInsensitiveCompare(rhs.consumerDisplayName) == .orderedAscending
+        }
+        return lhs.productName.localizedCaseInsensitiveCompare(rhs.productName) == .orderedAscending
+    }
+    guard !lines.isEmpty else { return nil }
+    return buildReceivedOrdersSnapshot(from: lines)
+}
+
+private func buildReceivedOrdersSnapshot(from lines: [ReceivedOrderLineRecord]) -> ReceivedOrdersSnapshot {
+    let byProductRows = Dictionary(grouping: lines, by: \.productId)
+        .compactMap { productId, grouped -> ReceivedOrdersProductRow? in
+            guard let first = grouped.first else { return nil }
+            let totalQuantity = grouped.reduce(0) { partial, line in partial + line.quantity }
+            return ReceivedOrdersProductRow(
+                productId: productId,
+                productName: first.productName,
+                productImageUrl: first.productImageUrl,
+                companyName: first.companyName,
+                packagingLine: first.packagingLine,
+                totalQuantity: totalQuantity,
+                quantityUnitSingular: first.quantityUnitSingular,
+                quantityUnitPlural: first.quantityUnitPlural
+            )
+        }
+        .sorted { lhs, rhs in
+            lhs.productName.localizedCaseInsensitiveCompare(rhs.productName) == .orderedAscending
+        }
+
+    let byMemberGroups = Dictionary(grouping: lines, by: { line in
+        "\(line.consumerId)|\(line.consumerDisplayName)"
+    })
+        .compactMap { key, grouped -> ReceivedOrdersMemberGroup? in
+            guard let first = grouped.first else { return nil }
+            let memberLines = grouped.map { line in
+                ReceivedOrdersMemberLine(
+                    id: "\(line.orderId)|\(line.productId)",
+                    productName: line.productName,
+                    packagingLine: line.packagingLine,
+                    quantity: line.quantity,
+                    quantityUnitSingular: line.quantityUnitSingular,
+                    quantityUnitPlural: line.quantityUnitPlural,
+                    subtotal: line.subtotal
+                )
+            }.sorted { lhs, rhs in
+                lhs.productName.localizedCaseInsensitiveCompare(rhs.productName) == .orderedAscending
+            }
+            let total = memberLines.reduce(0) { partial, line in partial + line.subtotal }
+            return ReceivedOrdersMemberGroup(
+                id: key,
+                consumerDisplayName: first.consumerDisplayName,
+                lines: memberLines,
+                total: total
+            )
+        }
+        .sorted { lhs, rhs in
+            lhs.consumerDisplayName.localizedCaseInsensitiveCompare(rhs.consumerDisplayName) == .orderedAscending
+        }
+
+    return ReceivedOrdersSnapshot(
+        byProductRows: byProductRows,
+        byMemberGroups: byMemberGroups,
+        generalTotal: lines.reduce(0) { partial, line in partial + line.subtotal }
+    )
+}
+
+private func receivedOrderLineRecord(
+    from data: [String: Any],
+    fallbackDocumentID: String
+) -> ReceivedOrderLineRecord? {
+    let orderId = receivedOrderString(from: data["orderId"]) ?? fallbackDocumentID
+    let consumerId = receivedOrderString(from: data["userId"]) ?? "__consumer_unknown__"
+    let consumerDisplayName = receivedOrderString(from: data["consumerDisplayName"]) ?? consumerId
+    let productId = receivedOrderString(from: data["productId"]) ?? fallbackDocumentID
+    let productName = receivedOrderString(from: data["productName"]) ?? "Producto"
+    let companyName = receivedOrderString(from: data["companyName"]) ?? "Productor"
+    let productImageUrl = receivedOrderString(from: data["productImageUrl"])
+    let quantity = receivedOrderDouble(from: data["quantity"]) ?? 0
+    guard quantity > 0 else { return nil }
+    let subtotal = receivedOrderDouble(from: data["subtotal"])
+        ?? quantity * (receivedOrderDouble(from: data["priceAtOrder"]) ?? 0)
+    let quantityUnitSingular = receivedOrderString(from: data["packContainerName"])
+        ?? receivedOrderString(from: data["unitName"])
+        ?? "ud."
+    let quantityUnitPlural = receivedOrderString(from: data["packContainerPlural"])
+        ?? receivedOrderString(from: data["unitPlural"])
+        ?? quantityUnitSingular
+
+    return ReceivedOrderLineRecord(
+        id: "\(orderId)_\(productId)_\(consumerId)",
+        orderId: orderId,
+        consumerId: consumerId,
+        consumerDisplayName: consumerDisplayName,
+        productId: productId,
+        productName: productName,
+        productImageUrl: productImageUrl,
+        companyName: companyName,
+        packagingLine: receivedOrderPackagingLine(from: data),
+        quantity: quantity,
+        quantityUnitSingular: quantityUnitSingular,
+        quantityUnitPlural: quantityUnitPlural,
+        subtotal: subtotal
+    )
+}
+
+private func receivedOrderPackagingLine(from data: [String: Any]) -> String {
+    let containerName = receivedOrderString(from: data["packContainerName"])
+        ?? receivedOrderString(from: data["unitName"])
+        ?? ""
+    let quantity = (receivedOrderDouble(from: data["packContainerQty"])
+        ?? receivedOrderDouble(from: data["unitQty"])
+        ?? 1).myOrderUiDecimal
+    let unitLabel = receivedOrderString(from: data["packContainerAbbreviation"])
+        ?? receivedOrderString(from: data["packContainerPlural"])
+        ?? receivedOrderString(from: data["unitAbbreviation"])
+        ?? receivedOrderString(from: data["unitPlural"])
+        ?? receivedOrderString(from: data["unitName"])
+        ?? ""
+
+    return [containerName, quantity, unitLabel]
+        .filter(\.isNotEmpty)
+        .joined(separator: " ")
+}
+
+private func receivedOrderString(from value: Any?) -> String? {
+    guard let raw = value as? String else { return nil }
+    let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.isEmpty ? nil : trimmed
+}
+
+private func receivedOrderDouble(from value: Any?) -> Double? {
+    if let number = value as? NSNumber {
+        return number.doubleValue
+    }
+    if let raw = value as? String {
+        return Double(raw.replacingOccurrences(of: ",", with: "."))
+    }
+    return nil
+}
+
+private func receivedOrdersIsApproximatelyOne(_ value: Double) -> Bool {
+    abs(value - 1) < 0.000_1
 }
 
 private let myOrderCommonPurchasesGroupId = "__my_order_reguerta_common_purchases__"

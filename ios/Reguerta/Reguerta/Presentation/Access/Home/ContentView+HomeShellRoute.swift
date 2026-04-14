@@ -4,7 +4,7 @@ extension ContentView {
     var homeRoute: some View {
         GeometryReader { proxy in
             let drawerWidth = min(320.resize, proxy.size.width * 0.78)
-            let usesShellScroll = homeDestination != .myOrder
+            let usesShellScroll = homeDestination != .myOrder && homeDestination != .receivedOrders
 
             ZStack(alignment: .leading) {
                 if usesShellScroll {
