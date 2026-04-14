@@ -276,6 +276,22 @@
     <string name="my_order_checkout_success_message_with_no_pickup">Everything looks good. Total: %1$s €. %2$d eco-basket unit(s) marked as no pickup. Your order has been saved.</string>
     <string name="my_order_checkout_submit_error_title">Order could not be saved</string>
     <string name="my_order_checkout_submit_error_message">There was a problem while saving your order. Please try again.</string>
+    <string name="received_orders_title">Orders to prepare</string>
+    <string name="received_orders_tab_by_product">By product</string>
+    <string name="received_orders_tab_by_member">By member</string>
+    <string name="received_orders_producer_only_title">Producer access only</string>
+    <string name="received_orders_producer_only_body">This section is available when you sign in with a producer profile.</string>
+    <string name="received_orders_window_closed_title">Outside preparation window</string>
+    <string name="received_orders_window_closed_body">The preparation view is enabled between Monday and delivery day.</string>
+    <string name="received_orders_loading_title">Loading received orders…</string>
+    <string name="received_orders_loading_body">Collecting producer order lines for this week.</string>
+    <string name="received_orders_empty_title">No received orders</string>
+    <string name="received_orders_empty_body_format">There are no received order lines for week %1$s.</string>
+    <string name="received_orders_error_title">Could not load received orders</string>
+    <string name="received_orders_error_body">Check your connection and try again.</string>
+    <string name="received_orders_retry">Retry</string>
+    <string name="received_orders_member_total_format">Total: %1$s €</string>
+    <string name="received_orders_general_total_format">General total: %1$s €</string>
 
     <string name="admin_manage_members_title">Admin | Manage members</string>
     <string name="admin_manage_members_subtitle">Create / edit / deactivate members and roles</string>

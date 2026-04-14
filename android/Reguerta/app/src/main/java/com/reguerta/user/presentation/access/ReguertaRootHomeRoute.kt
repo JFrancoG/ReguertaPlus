@@ -206,7 +206,9 @@ internal fun HomeRoute(
         modifier = modifier,
         gesturesEnabled = true,
     ) {
-        val usesRouteScroll = currentDestination != HomeDestination.MY_ORDER
+        val usesRouteScroll =
+            currentDestination != HomeDestination.MY_ORDER &&
+                currentDestination != HomeDestination.RECEIVED_ORDERS
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -411,6 +413,15 @@ internal fun HomeRoute(
                     onCheckoutSuccessAcknowledge = {
                         currentDestination = HomeDestination.DASHBOARD
                     },
+                    )
+
+                    HomeDestination.RECEIVED_ORDERS -> ReceivedOrdersRoute(
+                    modifier = Modifier.fillMaxSize(),
+                    currentMember = member,
+                    shifts = shiftsFeed,
+                    defaultDeliveryDayOfWeek = defaultDeliveryDayOfWeek,
+                    deliveryCalendarOverrides = deliveryCalendarOverrides,
+                    nowOverrideMillis = nowOverrideMillis,
                     )
 
                     HomeDestination.PROFILE -> SharedProfileRoute(

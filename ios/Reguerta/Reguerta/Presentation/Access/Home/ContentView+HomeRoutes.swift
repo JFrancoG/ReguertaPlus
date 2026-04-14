@@ -18,6 +18,8 @@ extension ContentView {
             productsRoute
         case .myOrder:
             myOrderRoute
+        case .receivedOrders:
+            receivedOrdersRoute
         case .profile:
             sharedProfileRoute
         case .settings:

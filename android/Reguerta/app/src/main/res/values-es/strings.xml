@@ -276,6 +276,22 @@
     <string name="my_order_checkout_success_message_with_no_pickup">Todo correcto. Total: %1$s €. %2$d ud(s). de ecocesta marcadas como no recoger. Tu pedido se ha guardado.</string>
     <string name="my_order_checkout_submit_error_title">No se pudo guardar el pedido</string>
     <string name="my_order_checkout_submit_error_message">Ha ocurrido un problema al guardar tu pedido. Inténtalo de nuevo.</string>
+    <string name="received_orders_title">Pedidos a preparar</string>
+    <string name="received_orders_tab_by_product">Por producto</string>
+    <string name="received_orders_tab_by_member">Por regüertense</string>
+    <string name="received_orders_producer_only_title">Solo para productores</string>
+    <string name="received_orders_producer_only_body">Esta sección aparece cuando accedes con un perfil productor.</string>
+    <string name="received_orders_window_closed_title">Pedidos fuera de ventana</string>
+    <string name="received_orders_window_closed_body">La pantalla de preparación se habilita entre lunes y día de reparto.</string>
+    <string name="received_orders_loading_title">Cargando pedidos recibidos…</string>
+    <string name="received_orders_loading_body">Recopilando líneas de pedido del productor para esta semana.</string>
+    <string name="received_orders_empty_title">Sin pedidos recibidos</string>
+    <string name="received_orders_empty_body_format">No hay líneas de pedido para preparar en la semana %1$s.</string>
+    <string name="received_orders_error_title">No se pudieron cargar los pedidos</string>
+    <string name="received_orders_error_body">Revisa la conexión y vuelve a intentarlo.</string>
+    <string name="received_orders_retry">Reintentar</string>
+    <string name="received_orders_member_total_format">Total: %1$s €</string>
+    <string name="received_orders_general_total_format">Suma total general: %1$s €</string>
 
     <string name="admin_manage_members_title">Admin | Gestión de miembros</string>
     <string name="admin_manage_members_subtitle">Crear / editar / desactivar miembros y roles</string>
