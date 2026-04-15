@@ -65,3 +65,4 @@ All notable changes to this project will be documented in this file.
 - 2026-04-08 | ♻️ refactor(ios): split ContentView routes and action files
 - 2026-04-08 | ♻️ refactor(l10n): remove hardcoded locale date formatting
 - 2026-04-10 | ♻️ refactor(ios): organize Presentation/Access into feature folders
+- 2026-04-15 | ♻️ refactor(ios): split order routes and tighten SwiftLint gate
