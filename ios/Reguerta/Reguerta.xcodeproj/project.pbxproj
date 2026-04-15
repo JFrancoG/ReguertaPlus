@@ -131,6 +131,7 @@
 			buildPhases = (
 				E03FA03E2F353C1A0038B8EB /* Sources */,
 				E03FA03F2F353C1A0038B8EB /* Frameworks */,
+				E0A1F0012FC0AA110038B8EB /* SwiftLint */,
 				E03FA0402F353C1A0038B8EB /* Resources */,
 			);
 			buildRules = (
@@ -271,6 +272,29 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		E0A1F0012FC0AA110038B8EB /* SwiftLint */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/.swiftlint",
+			);
+			name = SwiftLint;
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if command -v swiftlint >/dev/null 2>&1; then\n  cd \"${SRCROOT}\" || exit 1\n  swiftlint lint --config \"${SRCROOT}/.swiftlint\" --reporter xcode || true\nelse\n  echo \"warning: SwiftLint not installed. Install via Homebrew: brew install swiftlint\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		E03FA03E2F353C1A0038B8EB /* Sources */ = {

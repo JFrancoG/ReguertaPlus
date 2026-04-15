@@ -57,6 +57,7 @@ All notable changes to this project will be documented in this file.
 - 2026-03-03 | 📦 build(android): update Gradle and Android deps
 - 2026-03-13 | 🔧 chore(ios): sync localizable string catalog
 - 2026-03-16 | 🔧 chore(repo): checkpoint pending app updates
+- 2026-04-15 | 📦 build(ios): add env schemes and SwiftLint phase
 
 ### Changed
 
