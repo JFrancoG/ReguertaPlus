@@ -49,7 +49,7 @@ private val SeasonalCommitmentQtyFields = listOf(
 
 class FirestoreSeasonalCommitmentRepository(
     private val firestore: FirebaseFirestore,
-    private val environment: ReguertaFirestoreEnvironment = ReguertaFirestoreEnvironment.DEVELOP,
+    private val environment: ReguertaFirestoreEnvironment? = null,
 ) : SeasonalCommitmentRepository {
     private val firestorePath = ReguertaFirestorePath(environment = environment)
 

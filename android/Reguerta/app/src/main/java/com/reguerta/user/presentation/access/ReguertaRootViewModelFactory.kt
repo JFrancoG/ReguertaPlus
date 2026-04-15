@@ -5,6 +5,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.reguerta.user.BuildConfig
 import com.reguerta.user.data.access.ChainedMemberRepository
 import com.reguerta.user.data.access.FirebaseAuthSessionProvider
 import com.reguerta.user.data.access.FirestoreMemberRepository
@@ -19,6 +20,7 @@ import com.reguerta.user.data.devices.FirebaseAuthorizedDeviceRegistrar
 import com.reguerta.user.data.devices.FirestoreDeviceRegistrationRepository
 import com.reguerta.user.data.freshness.DataStoreCriticalDataFreshnessLocalRepository
 import com.reguerta.user.data.freshness.FirestoreCriticalDataFreshnessRemoteRepository
+import com.reguerta.user.data.firestore.FirestoreReviewerEnvironmentRouter
 import com.reguerta.user.data.news.ChainedNewsRepository
 import com.reguerta.user.data.news.FirestoreNewsRepository
 import com.reguerta.user.data.news.InMemoryNewsRepository
@@ -48,67 +50,71 @@ import com.reguerta.user.domain.freshness.ResolveCriticalDataFreshnessUseCase
 fun rememberSessionViewModel(): SessionViewModel {
     val context = LocalContext.current
     DevelopmentTimeMachine.initialize(context.applicationContext)
+    val firestore = remember { FirebaseFirestore.getInstance() }
     val repository = remember {
         val fallback = InMemoryMemberRepository()
-        val primary = FirestoreMemberRepository(firestore = FirebaseFirestore.getInstance())
+        val primary = FirestoreMemberRepository(firestore = firestore)
         ChainedMemberRepository(primary = primary, fallback = fallback)
     }
     val newsRepository = remember {
         val fallback = InMemoryNewsRepository()
-        val primary = FirestoreNewsRepository(firestore = FirebaseFirestore.getInstance())
+        val primary = FirestoreNewsRepository(firestore = firestore)
         ChainedNewsRepository(primary = primary, fallback = fallback)
     }
     val notificationRepository = remember {
         val fallback = InMemoryNotificationRepository()
-        val primary = FirestoreNotificationRepository(firestore = FirebaseFirestore.getInstance())
+        val primary = FirestoreNotificationRepository(firestore = firestore)
         ChainedNotificationRepository(primary = primary, fallback = fallback)
     }
     val sharedProfileRepository = remember {
         val fallback = InMemorySharedProfileRepository()
-        val primary = FirestoreSharedProfileRepository(firestore = FirebaseFirestore.getInstance())
+        val primary = FirestoreSharedProfileRepository(firestore = firestore)
         ChainedSharedProfileRepository(primary = primary, fallback = fallback)
     }
     val productRepository = remember {
         val fallback = InMemoryProductRepository()
-        val primary = FirestoreProductRepository(firestore = FirebaseFirestore.getInstance())
+        val primary = FirestoreProductRepository(firestore = firestore)
         ChainedProductRepository(primary = primary, fallback = fallback)
     }
     val seasonalCommitmentRepository = remember {
         val fallback = InMemorySeasonalCommitmentRepository()
-        val primary = FirestoreSeasonalCommitmentRepository(firestore = FirebaseFirestore.getInstance())
+        val primary = FirestoreSeasonalCommitmentRepository(firestore = firestore)
         ChainedSeasonalCommitmentRepository(primary = primary, fallback = fallback)
     }
     val shiftRepository = remember {
         val fallback = InMemoryShiftRepository()
-        val primary = FirestoreShiftRepository(firestore = FirebaseFirestore.getInstance())
+        val primary = FirestoreShiftRepository(firestore = firestore)
         ChainedShiftRepository(primary = primary, fallback = fallback)
     }
     val deliveryCalendarRepository = remember {
         val fallback = InMemoryDeliveryCalendarRepository()
-        val primary = FirestoreDeliveryCalendarRepository(firestore = FirebaseFirestore.getInstance())
+        val primary = FirestoreDeliveryCalendarRepository(firestore = firestore)
         ChainedDeliveryCalendarRepository(primary = primary, fallback = fallback)
     }
     val shiftPlanningRequestRepository = remember {
         val fallback = InMemoryShiftPlanningRequestRepository()
-        val primary = FirestoreShiftPlanningRequestRepository(firestore = FirebaseFirestore.getInstance())
+        val primary = FirestoreShiftPlanningRequestRepository(firestore = firestore)
         ChainedShiftPlanningRequestRepository(primary = primary, fallback = fallback)
     }
     val shiftSwapRequestRepository = remember {
         val fallback = InMemoryShiftSwapRequestRepository()
-        val primary = FirestoreShiftSwapRequestRepository(firestore = FirebaseFirestore.getInstance())
+        val primary = FirestoreShiftSwapRequestRepository(firestore = firestore)
         ChainedShiftSwapRequestRepository(primary = primary, fallback = fallback)
     }
     val freshnessLocalRepository = remember(context) {
         DataStoreCriticalDataFreshnessLocalRepository(context.applicationContext)
     }
     val deviceRegistrationRepository = remember {
-        FirestoreDeviceRegistrationRepository(firestore = FirebaseFirestore.getInstance())
+        FirestoreDeviceRegistrationRepository(firestore = firestore)
     }
     val authorizedDeviceRegistrar = remember(context.applicationContext) {
         FirebaseAuthorizedDeviceRegistrar(
             context = context.applicationContext,
             repository = deviceRegistrationRepository,
         )
+    }
+    val reviewerEnvironmentRouter = remember(firestore) {
+        FirestoreReviewerEnvironmentRouter(firestore = firestore)
     }
     return remember {
         SessionViewModel(
@@ -128,13 +134,14 @@ fun rememberSessionViewModel(): SessionViewModel {
             authorizedDeviceRegistrar = authorizedDeviceRegistrar,
             resolveCriticalDataFreshness = ResolveCriticalDataFreshnessUseCase(
                 remoteRepository = FirestoreCriticalDataFreshnessRemoteRepository(
-                    firestore = FirebaseFirestore.getInstance(),
+                    firestore = firestore,
                 ),
                 localRepository = freshnessLocalRepository,
             ),
             criticalDataFreshnessLocalRepository = freshnessLocalRepository,
+            reviewerEnvironmentRouter = reviewerEnvironmentRouter,
             nowMillisProvider = DevelopmentTimeMachine::nowMillis,
-            developImpersonationEnabled = true,
+            developImpersonationEnabled = BuildConfig.DEBUG,
             initialNowOverrideMillis = DevelopmentTimeMachine.overrideNowMillis(),
         )
     }

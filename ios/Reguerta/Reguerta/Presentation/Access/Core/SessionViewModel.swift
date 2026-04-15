@@ -97,6 +97,16 @@ struct AuthorizedSession: Equatable, Sendable {
     var members: [Member]
 }
 
+protocol ReviewerEnvironmentRouter: Sendable {
+    func applyRouting(for principal: AuthPrincipal) async
+    func resetToBaseEnvironment()
+}
+
+struct NoOpReviewerEnvironmentRouter: ReviewerEnvironmentRouter {
+    func applyRouting(for principal: AuthPrincipal) async {}
+    func resetToBaseEnvironment() {}
+}
+
 enum SessionMode: Equatable, Sendable {
     case signedOut
     case unauthorized(email: String, reason: UnauthorizedReason)
@@ -226,6 +236,7 @@ final class SessionViewModel {
     let authorizedDeviceRegistrar: any AuthorizedDeviceRegistrar
     let resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase
     let criticalDataFreshnessLocalRepository: any CriticalDataFreshnessLocalRepository
+    let reviewerEnvironmentRouter: any ReviewerEnvironmentRouter
     let sessionRefreshPolicy: SessionRefreshPolicy
     let nowMillisProvider: @Sendable () -> Int64
     let developImpersonationEnabled: Bool
@@ -277,6 +288,7 @@ final class SessionViewModel {
         resolveAuthorizedSession: ResolveAuthorizedSessionUseCase? = nil,
         upsertMemberByAdmin: UpsertMemberByAdminUseCase? = nil,
         authorizedDeviceRegistrar: (any AuthorizedDeviceRegistrar)? = nil,
+        reviewerEnvironmentRouter: (any ReviewerEnvironmentRouter)? = nil,
         developImpersonationEnabled: Bool = false,
         sessionRefreshPolicy: SessionRefreshPolicy = SessionRefreshPolicy(),
         nowMillisProvider: @escaping @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1_000) },
@@ -361,6 +373,7 @@ final class SessionViewModel {
             localRepository: freshnessLocalRepository
         )
         self.criticalDataFreshnessLocalRepository = freshnessLocalRepository
+        self.reviewerEnvironmentRouter = reviewerEnvironmentRouter ?? NoOpReviewerEnvironmentRouter()
         self.sessionRefreshPolicy = sessionRefreshPolicy
         self.nowMillisProvider = nowMillisProvider
         self.developImpersonationEnabled = developImpersonationEnabled

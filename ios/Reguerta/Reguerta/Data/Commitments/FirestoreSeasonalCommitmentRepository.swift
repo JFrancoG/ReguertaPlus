@@ -39,11 +39,11 @@ private let seasonalCommitmentQtyFields = [
 
 final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, SeasonalCommitmentRepository {
     private let db: Firestore
-    private let environment: ReguertaFirestoreEnvironment
+    private let environment: ReguertaFirestoreEnvironment?
 
     init(
         db: Firestore = Firestore.firestore(),
-        environment: ReguertaFirestoreEnvironment = .develop
+        environment: ReguertaFirestoreEnvironment? = nil
     ) {
         self.db = db
         self.environment = environment

@@ -16,7 +16,7 @@ import kotlinx.coroutines.withContext
 
 class FirestoreShiftPlanningRequestRepository(
     private val firestore: FirebaseFirestore,
-    private val environment: ReguertaFirestoreEnvironment = ReguertaFirestoreEnvironment.DEVELOP,
+    private val environment: ReguertaFirestoreEnvironment? = null,
 ) : ShiftPlanningRequestRepository {
     private val firestorePath = ReguertaFirestorePath(environment = environment)
 

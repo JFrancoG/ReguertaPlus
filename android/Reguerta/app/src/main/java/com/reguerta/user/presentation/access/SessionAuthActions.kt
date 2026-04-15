@@ -43,6 +43,7 @@ internal class SessionAuthActions(
     private val authorizedDeviceRegistrar: AuthorizedDeviceRegistrar,
     private val resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase,
     private val criticalDataFreshnessLocalRepository: CriticalDataFreshnessLocalRepository,
+    private val reviewerEnvironmentRouter: ReviewerEnvironmentRouter,
     private val sessionRefreshPolicy: SessionRefreshPolicy,
     private val isSessionRefreshInFlight: AtomicBoolean,
     private val getLastSessionRefreshAtMillis: () -> Long?,
@@ -302,6 +303,7 @@ internal class SessionAuthActions(
     fun signOut() {
         authSessionProvider.signOut()
         clearSessionRefreshTracking()
+        reviewerEnvironmentRouter.resetToBaseEnvironment()
         scope.launch {
             criticalDataFreshnessLocalRepository.clear()
         }
@@ -384,6 +386,7 @@ internal class SessionAuthActions(
         principal: AuthPrincipal,
         shouldRefreshCriticalData: Boolean,
     ) {
+        reviewerEnvironmentRouter.applyRoutingFor(principal)
         when (val result = resolveAuthorizedSession(principal)) {
             is AccessResolutionResult.Authorized -> {
                 val members = memberRepository.getAllMembers()
@@ -481,6 +484,7 @@ internal class SessionAuthActions(
 
     private suspend fun handleExpiredSession() {
         clearSessionRefreshTracking()
+        reviewerEnvironmentRouter.resetToBaseEnvironment()
         criticalDataFreshnessLocalRepository.clear()
         uiState.update { state -> state.toSignedOutSessionState(showSessionExpiredDialog = true) }
     }

@@ -15,7 +15,7 @@ import kotlinx.coroutines.withContext
 
 class FirestoreCriticalDataFreshnessRemoteRepository(
     private val firestore: FirebaseFirestore,
-    private val environment: ReguertaFirestoreEnvironment = ReguertaFirestoreEnvironment.DEVELOP,
+    private val environment: ReguertaFirestoreEnvironment? = null,
 ) : CriticalDataFreshnessRemoteRepository {
     private val firestorePath = ReguertaFirestorePath(environment = environment)
 

@@ -17,7 +17,7 @@ import kotlinx.coroutines.withContext
 
 class FirestoreProductRepository(
     private val firestore: FirebaseFirestore,
-    private val environment: ReguertaFirestoreEnvironment = ReguertaFirestoreEnvironment.DEVELOP,
+    private val environment: ReguertaFirestoreEnvironment? = null,
 ) : ProductRepository {
     private val firestorePath = ReguertaFirestorePath(environment = environment)
 

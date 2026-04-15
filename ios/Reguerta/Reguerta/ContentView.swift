@@ -1,3 +1,4 @@
+import FirebaseFirestore
 import SwiftUI
 
 struct ContentView: View {
@@ -33,7 +34,9 @@ struct ContentView: View {
     )
 
     init() {
-        let deviceRepository = FirestoreDeviceRegistrationRepository()
+        let db = Firestore.firestore()
+        let deviceRepository = FirestoreDeviceRegistrationRepository(db: db)
+        let reviewerEnvironmentRouter = FirestoreReviewerEnvironmentRouter(db: db)
         #if DEBUG
         let developImpersonationEnabled = true
         #else
@@ -42,6 +45,7 @@ struct ContentView: View {
         _viewModel = State(
             initialValue: SessionViewModel(
                 authorizedDeviceRegistrar: FirebaseAuthorizedDeviceRegistrar(repository: deviceRepository),
+                reviewerEnvironmentRouter: reviewerEnvironmentRouter,
                 developImpersonationEnabled: developImpersonationEnabled,
                 nowMillisProvider: { DevelopmentTimeMachine.shared.nowMillis() },
                 initialNowOverrideMillis: DevelopmentTimeMachine.shared.overrideNowMillis

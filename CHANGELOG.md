@@ -29,6 +29,9 @@ All notable changes to this project will be documented in this file.
 - 2026-04-09 | ✨ feat(order): allow confirmed order edits before cutoff (HU-004)
 - 2026-04-10 | ✨ feat(order): show previous-week order in consultation window (HU-005)
 - 2026-04-13 | ✨ feat(app): add develop time machine for date-dependent QA
+- 2026-04-14 | ✨ feat(producers): implement received orders board (HU-008)
+- 2026-04-14 | ✨ feat(producers): add producer status visual feedback (HU-009)
+- 2026-04-15 | ✨ feat(access): route production reviewer to develop (HU-018)
 
 ### Fixed
 
@@ -46,6 +49,7 @@ All notable changes to this project will be documented in this file.
 - 2026-03-19 | 📝 docs(orders): define consumer name snapshots
 - 2026-04-09 | 📝 docs(firestore): set seasonalCommitments qty field to fixedQty
 - 2026-04-13 | 📝 docs(testing): document develop date override and weekly order test flow
+- 2026-04-15 | 📝 docs(agents): require conventional-commits skill before commits
 
 ### Maintenance
 

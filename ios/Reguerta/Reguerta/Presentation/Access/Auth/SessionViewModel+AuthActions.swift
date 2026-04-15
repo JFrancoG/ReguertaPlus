@@ -61,6 +61,7 @@ extension SessionViewModel {
     func signOut() {
         authSessionProvider.signOut()
         clearSessionRefreshTracking()
+        reviewerEnvironmentRouter.resetToBaseEnvironment()
         Task {
             await KeyManager.shared.remove(.authorizedMemberId)
         }
@@ -395,6 +396,7 @@ extension SessionViewModel {
         principal: AuthPrincipal,
         shouldRefreshCriticalData: Bool = true
     ) async {
+        await reviewerEnvironmentRouter.applyRouting(for: principal)
         let result = await resolveAuthorizedSession.execute(authPrincipal: principal)
         switch result {
         case .authorized(let member):
@@ -521,6 +523,7 @@ extension SessionViewModel {
 
     private func handleExpiredSession() async {
         clearSessionRefreshTracking()
+        reviewerEnvironmentRouter.resetToBaseEnvironment()
         emailInput = ""
         passwordInput = ""
         registerEmailInput = ""

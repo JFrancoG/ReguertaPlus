@@ -15,7 +15,7 @@ import kotlinx.coroutines.withContext
 
 class FirestoreDeviceRegistrationRepository(
     private val firestore: FirebaseFirestore,
-    private val environment: ReguertaFirestoreEnvironment = ReguertaFirestoreEnvironment.DEVELOP,
+    private val environment: ReguertaFirestoreEnvironment? = null,
 ) : DeviceRegistrationRepository {
     private companion object {
         const val TAG = "ReguertaPush"

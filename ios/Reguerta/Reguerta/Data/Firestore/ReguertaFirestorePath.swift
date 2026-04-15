@@ -6,6 +6,39 @@ enum ReguertaFirestoreEnvironment: String, Sendable {
     case production
 }
 
+enum ReguertaRuntimeEnvironment {
+    private static var sessionOverride: ReguertaFirestoreEnvironment?
+    private static var testingBaseEnvironment: ReguertaFirestoreEnvironment?
+
+    static var baseFirestoreEnvironment: ReguertaFirestoreEnvironment {
+        if let testingBaseEnvironment {
+            return testingBaseEnvironment
+        }
+        #if DEBUG
+        return .develop
+        #else
+        return .production
+        #endif
+    }
+
+    static var currentFirestoreEnvironment: ReguertaFirestoreEnvironment {
+        sessionOverride ?? baseFirestoreEnvironment
+    }
+
+    static func applySessionEnvironment(_ environment: ReguertaFirestoreEnvironment) {
+        sessionOverride = environment == baseFirestoreEnvironment ? nil : environment
+    }
+
+    static func resetToBaseEnvironment() {
+        sessionOverride = nil
+    }
+
+    static func setBaseEnvironmentForTesting(_ environment: ReguertaFirestoreEnvironment?) {
+        testingBaseEnvironment = environment
+        resetToBaseEnvironment()
+    }
+}
+
 enum ReguertaFirestoreCollection: String, Sendable {
     case users
     case products
@@ -31,14 +64,18 @@ enum ReguertaFirestoreDocument: String, Sendable {
 }
 
 struct ReguertaFirestorePath: Sendable {
-    let environment: ReguertaFirestoreEnvironment
+    let environment: ReguertaFirestoreEnvironment?
 
-    init(environment: ReguertaFirestoreEnvironment = .develop) {
+    init(environment: ReguertaFirestoreEnvironment? = nil) {
         self.environment = environment
     }
 
+    var resolvedEnvironment: ReguertaFirestoreEnvironment {
+        environment ?? ReguertaRuntimeEnvironment.currentFirestoreEnvironment
+    }
+
     func collectionPath(_ collection: ReguertaFirestoreCollection) -> String {
-        "\(environment.rawValue)/\(collection.pathComponent)"
+        "\(resolvedEnvironment.rawValue)/\(collection.pathComponent)"
     }
 
     func documentPath(
@@ -52,7 +89,7 @@ struct ReguertaFirestorePath: Sendable {
 extension Firestore {
     func reguertaCollection(
         _ firestoreCollection: ReguertaFirestoreCollection,
-        environment: ReguertaFirestoreEnvironment = .develop
+        environment: ReguertaFirestoreEnvironment? = nil
     ) -> CollectionReference {
         self.collection(
             ReguertaFirestorePath(environment: environment).collectionPath(firestoreCollection)
@@ -62,7 +99,7 @@ extension Firestore {
     func reguertaDocument(
         _ firestoreDocument: ReguertaFirestoreDocument,
         in firestoreCollection: ReguertaFirestoreCollection,
-        environment: ReguertaFirestoreEnvironment = .develop
+        environment: ReguertaFirestoreEnvironment? = nil
     ) -> DocumentReference {
         self.document(
             ReguertaFirestorePath(environment: environment)

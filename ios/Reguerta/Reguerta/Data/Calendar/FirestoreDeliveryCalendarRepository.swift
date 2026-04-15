@@ -3,11 +3,11 @@ import Foundation
 
 final class FirestoreDeliveryCalendarRepository: @unchecked Sendable, DeliveryCalendarRepository {
     private let db: Firestore
-    private let environment: ReguertaFirestoreEnvironment
+    private let environment: ReguertaFirestoreEnvironment?
 
     init(
         db: Firestore = Firestore.firestore(),
-        environment: ReguertaFirestoreEnvironment = .develop
+        environment: ReguertaFirestoreEnvironment? = nil
     ) {
         self.db = db
         self.environment = environment
@@ -15,10 +15,11 @@ final class FirestoreDeliveryCalendarRepository: @unchecked Sendable, DeliveryCa
 
     func defaultDeliveryDayOfWeek() async -> DeliveryWeekday? {
         let path = ReguertaFirestorePath(environment: environment)
+        let prefix = path.resolvedEnvironment.rawValue
         let candidatePaths = [
             path.documentPath(in: .config, documentId: ReguertaFirestoreDocument.global.rawValue),
-            "\(environment.rawValue)/collections/config/\(ReguertaFirestoreDocument.global.rawValue)",
-            "\(environment.rawValue)/config/\(ReguertaFirestoreDocument.global.rawValue)",
+            "\(prefix)/collections/config/\(ReguertaFirestoreDocument.global.rawValue)",
+            "\(prefix)/config/\(ReguertaFirestoreDocument.global.rawValue)",
             "config/\(ReguertaFirestoreDocument.global.rawValue)",
         ]
 
@@ -38,10 +39,11 @@ final class FirestoreDeliveryCalendarRepository: @unchecked Sendable, DeliveryCa
 
     func allOverrides() async -> [DeliveryCalendarOverride] {
         let path = ReguertaFirestorePath(environment: environment)
+        let prefix = path.resolvedEnvironment.rawValue
         let candidatePaths = [
             path.collectionPath(.deliveryCalendar),
-            "\(environment.rawValue)/collections/deliveryCalendar",
-            "\(environment.rawValue)/deliveryCalendar",
+            "\(prefix)/collections/deliveryCalendar",
+            "\(prefix)/deliveryCalendar",
             "deliveryCalendar",
         ]
 

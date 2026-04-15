@@ -833,7 +833,7 @@ private func fetchReceivedOrdersSnapshotForProducer(
     producerId: String,
     targetWeekKey: String,
     db: Firestore = Firestore.firestore(),
-    environment: ReguertaFirestoreEnvironment = .develop
+    environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment
 ) async throws -> ReceivedOrdersSnapshot? {
     let firestorePath = ReguertaFirestorePath(environment: environment)
     let readTargets = Array(Set([
@@ -905,7 +905,7 @@ private func fetchReceivedOrderStatusesByOrderId(
     orderIds: [String],
     producerId: String,
     db: Firestore = Firestore.firestore(),
-    environment: ReguertaFirestoreEnvironment = .develop
+    environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment
 ) async throws -> [String: ProducerOrderStatus] {
     let dedupedOrderIds = Array(Set(orderIds)).filter(\.isNotEmpty)
     guard !dedupedOrderIds.isEmpty else { return [:] }
@@ -949,7 +949,7 @@ private func updateReceivedOrderProducerStatus(
     producerId: String,
     status: ProducerOrderStatus,
     db: Firestore = Firestore.firestore(),
-    environment: ReguertaFirestoreEnvironment = .develop,
+    environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment,
     nowMillis: Int64 = Int64(Date().timeIntervalSince1970 * 1_000)
 ) async -> Bool {
     let firestorePath = ReguertaFirestorePath(environment: environment)
@@ -980,7 +980,7 @@ private func markReceivedOrdersAsRead(
     orderIds: [String],
     producerId: String,
     db: Firestore = Firestore.firestore(),
-    environment: ReguertaFirestoreEnvironment = .develop
+    environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment
 ) async -> Set<String> {
     var updatedOrderIds = Set<String>()
     for orderId in Array(Set(orderIds)).filter(\.isNotEmpty) {
@@ -2626,7 +2626,7 @@ private func submitCheckoutOrderToFirestore(
     selectedQuantities: [String: Int],
     selectedEcoBasketOptions: [String: String],
     db: Firestore = Firestore.firestore(),
-    environment: ReguertaFirestoreEnvironment = .develop,
+    environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment,
     nowMillis: Int64 = Int64(Date().timeIntervalSince1970 * 1_000)
 ) async -> Bool {
     guard let member = currentMember else {
@@ -2836,7 +2836,7 @@ private func resolveMyOrderConsultaWindow(
 private func loadMyOrderProducerStatuses(
     orderId: String,
     db: Firestore = Firestore.firestore(),
-    environment: ReguertaFirestoreEnvironment = .develop
+    environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment
 ) async -> MyOrderProducerStatusSnapshot {
     let firestorePath = ReguertaFirestorePath(environment: environment)
     let readTargets = Array(Set([
@@ -2867,7 +2867,7 @@ private func fetchPreviousWeekOrderSnapshot(
     currentMember: Member?,
     previousWeekKey: String,
     db: Firestore = Firestore.firestore(),
-    environment: ReguertaFirestoreEnvironment = .develop
+    environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment
 ) async throws -> MyOrderPreviousOrderSnapshot? {
     guard let member = currentMember else {
         return nil

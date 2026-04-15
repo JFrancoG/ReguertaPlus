@@ -4,7 +4,7 @@
 - issue_id: #13
 - priority: P1
 - platform: both
-- status: ready
+- status: in_progress
 
 ## Context and problem
 
