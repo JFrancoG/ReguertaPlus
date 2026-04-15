@@ -3,11 +3,11 @@ import Foundation
 
 final class FirestoreNewsRepository: @unchecked Sendable, NewsRepository {
     private let db: Firestore
-    private let environment: ReguertaFirestoreEnvironment
+    private let environment: ReguertaFirestoreEnvironment?
 
     init(
         db: Firestore = Firestore.firestore(),
-        environment: ReguertaFirestoreEnvironment = .develop
+        environment: ReguertaFirestoreEnvironment? = nil
     ) {
         self.db = db
         self.environment = environment

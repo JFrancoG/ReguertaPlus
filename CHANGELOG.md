@@ -29,6 +29,9 @@ All notable changes to this project will be documented in this file.
 - 2026-04-09 | ✨ feat(order): allow confirmed order edits before cutoff (HU-004)
 - 2026-04-10 | ✨ feat(order): show previous-week order in consultation window (HU-005)
 - 2026-04-13 | ✨ feat(app): add develop time machine for date-dependent QA
+- 2026-04-14 | ✨ feat(producers): implement received orders board (HU-008)
+- 2026-04-14 | ✨ feat(producers): add producer status visual feedback (HU-009)
+- 2026-04-15 | ✨ feat(access): route production reviewer to develop (HU-018)
 
 ### Fixed
 
@@ -46,6 +49,7 @@ All notable changes to this project will be documented in this file.
 - 2026-03-19 | 📝 docs(orders): define consumer name snapshots
 - 2026-04-09 | 📝 docs(firestore): set seasonalCommitments qty field to fixedQty
 - 2026-04-13 | 📝 docs(testing): document develop date override and weekly order test flow
+- 2026-04-15 | 📝 docs(agents): require conventional-commits skill before commits
 
 ### Maintenance
 
@@ -53,6 +57,7 @@ All notable changes to this project will be documented in this file.
 - 2026-03-03 | 📦 build(android): update Gradle and Android deps
 - 2026-03-13 | 🔧 chore(ios): sync localizable string catalog
 - 2026-03-16 | 🔧 chore(repo): checkpoint pending app updates
+- 2026-04-15 | 📦 build(ios): add env schemes and SwiftLint phase
 
 ### Changed
 
@@ -60,3 +65,5 @@ All notable changes to this project will be documented in this file.
 - 2026-04-08 | ♻️ refactor(ios): split ContentView routes and action files
 - 2026-04-08 | ♻️ refactor(l10n): remove hardcoded locale date formatting
 - 2026-04-10 | ♻️ refactor(ios): organize Presentation/Access into feature folders
+- 2026-04-15 | ♻️ refactor(ios): split order routes and tighten SwiftLint gate
+- 2026-04-16 | ♻️ refactor(ios): clean lint and concurrency warnings

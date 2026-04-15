@@ -7,6 +7,7 @@ import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
 import com.reguerta.user.data.firestore.ReguertaFirestoreDocument
 import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
 import com.reguerta.user.data.firestore.ReguertaFirestorePath
+import com.reguerta.user.data.firestore.ReguertaRuntimeEnvironment
 import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
 import com.reguerta.user.domain.calendar.DeliveryCalendarRepository
 import com.reguerta.user.domain.calendar.DeliveryWeekday
@@ -16,7 +17,7 @@ import java.util.Date
 
 class FirestoreDeliveryCalendarRepository(
     private val firestore: FirebaseFirestore,
-    private val environment: ReguertaFirestoreEnvironment = ReguertaFirestoreEnvironment.DEVELOP,
+    private val environment: ReguertaFirestoreEnvironment? = null,
 ) : DeliveryCalendarRepository {
     private val firestorePath = ReguertaFirestorePath(environment = environment)
 
@@ -29,11 +30,14 @@ class FirestoreDeliveryCalendarRepository(
             documentId = ReguertaFirestoreDocument.GLOBAL.wireValue,
         )
 
+    private val legacyEnvironmentPrefix: String
+        get() = (environment ?: ReguertaRuntimeEnvironment.currentFirestoreEnvironment()).wireValue
+
     override suspend fun getDefaultDeliveryDayOfWeek(): DeliveryWeekday? = withContext(Dispatchers.IO) {
         val candidatePaths = listOf(
             globalConfigDocumentPath,
-            "${environment.wireValue}/collections/config/${ReguertaFirestoreDocument.GLOBAL.wireValue}",
-            "${environment.wireValue}/config/${ReguertaFirestoreDocument.GLOBAL.wireValue}",
+            "$legacyEnvironmentPrefix/collections/config/${ReguertaFirestoreDocument.GLOBAL.wireValue}",
+            "$legacyEnvironmentPrefix/config/${ReguertaFirestoreDocument.GLOBAL.wireValue}",
             "config/${ReguertaFirestoreDocument.GLOBAL.wireValue}",
         ).distinct()
 
@@ -48,8 +52,8 @@ class FirestoreDeliveryCalendarRepository(
     override suspend fun getAllOverrides(): List<DeliveryCalendarOverride> = withContext(Dispatchers.IO) {
         val candidatePaths = listOf(
             calendarCollectionPath,
-            "${environment.wireValue}/collections/deliveryCalendar",
-            "${environment.wireValue}/deliveryCalendar",
+            "$legacyEnvironmentPrefix/collections/deliveryCalendar",
+            "$legacyEnvironmentPrefix/deliveryCalendar",
             "deliveryCalendar",
         ).distinct()
 

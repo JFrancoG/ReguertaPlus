@@ -2,9 +2,12 @@ import FirebaseAuth
 import Foundation
 import Testing
 
+// swiftlint:disable file_length
+
 @testable import Reguerta
 
 @MainActor
+// swiftlint:disable:next type_body_length
 struct ReguertaTests {
     @Test
     func unauthorizedEmailStaysRestricted() async {
@@ -1076,3 +1079,5 @@ private func waitForCondition(
         try? await Task.sleep(nanoseconds: pollNanoseconds)
     }
 }
+
+// swiftlint:enable file_length

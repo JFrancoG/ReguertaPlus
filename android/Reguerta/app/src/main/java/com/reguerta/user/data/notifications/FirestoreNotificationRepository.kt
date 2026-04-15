@@ -15,7 +15,7 @@ import kotlinx.coroutines.withContext
 
 class FirestoreNotificationRepository(
     private val firestore: FirebaseFirestore,
-    private val environment: ReguertaFirestoreEnvironment = ReguertaFirestoreEnvironment.DEVELOP,
+    private val environment: ReguertaFirestoreEnvironment? = null,
 ) : NotificationRepository {
     private val firestorePath = ReguertaFirestorePath(environment = environment)
 

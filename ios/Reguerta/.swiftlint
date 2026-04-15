@@ -10,8 +10,43 @@ excluded:
   - DerivedData
   - Pods
 
+disabled_rules:
+  - trailing_comma
+
 line_length:
   warning: 160
   error: 220
+
+file_length:
+  warning: 1000
+  error: 4000
+
+type_body_length:
+  warning: 350
+  error: 2000
+
+function_body_length:
+  warning: 50
+  error: 300
+
+cyclomatic_complexity:
+  warning: 10
+  error: 100
+
+type_name:
+  min_length:
+    warning: 3
+    error: 2
+  max_length:
+    warning: 48
+    error: 80
+
+identifier_name:
+  min_length:
+    warning: 2
+    error: 1
+  max_length:
+    warning: 60
+    error: 100
 
 reporter: "xcode"

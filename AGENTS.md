@@ -53,6 +53,7 @@ Agents may modify any part of this monorepo when needed:
 ## Branching and Commits
 
 - Agent-created branches must use the `codex/` prefix.
+- Before creating any commit, use the `conventional-commits` skill.
 - Use Conventional Commits for every commit.
 - Keep commit scope focused and messages explicit about platform and layer when relevant.
 

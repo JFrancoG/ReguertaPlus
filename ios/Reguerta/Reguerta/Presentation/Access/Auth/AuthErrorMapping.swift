@@ -24,64 +24,49 @@ struct AuthErrorPresentation: Sendable {
 
 func mapAuthFailure(_ reason: AuthSignInFailureReason, flow: AuthErrorFlow) -> AuthErrorPresentation {
     switch flow {
-    case .signIn:
-        switch reason {
-        case .invalidEmail:
-            AuthErrorPresentation(emailErrorKey: AccessL10nKey.feedbackEmailInvalid)
-        case .invalidCredentials:
-            AuthErrorPresentation(passwordErrorKey: AccessL10nKey.authErrorInvalidCredentials)
-        case .emailAlreadyInUse:
-            AuthErrorPresentation(emailErrorKey: AccessL10nKey.authErrorEmailAlreadyInUse)
-        case .weakPassword:
-            AuthErrorPresentation(passwordErrorKey: AccessL10nKey.authErrorWeakPassword)
-        case .userNotFound:
-            AuthErrorPresentation(emailErrorKey: AccessL10nKey.authErrorUserNotFound)
-        case .userDisabled:
-            AuthErrorPresentation(emailErrorKey: AccessL10nKey.authErrorUserDisabled)
-        case .tooManyRequests:
-            AuthErrorPresentation(globalMessageKey: AccessL10nKey.authErrorTooManyRequests)
-        case .network:
-            AuthErrorPresentation(globalMessageKey: AccessL10nKey.authErrorNetwork)
-        case .unknown:
-            AuthErrorPresentation(globalMessageKey: AccessL10nKey.authErrorUnknown)
-        }
-
-    case .signUp:
-        switch reason {
-        case .invalidEmail:
-            AuthErrorPresentation(emailErrorKey: AccessL10nKey.feedbackEmailInvalid)
-        case .invalidCredentials:
-            AuthErrorPresentation(passwordErrorKey: AccessL10nKey.authErrorInvalidCredentials)
-        case .emailAlreadyInUse:
-            AuthErrorPresentation(emailErrorKey: AccessL10nKey.authErrorEmailAlreadyInUse)
-        case .weakPassword:
-            AuthErrorPresentation(passwordErrorKey: AccessL10nKey.authErrorWeakPassword)
-        case .userNotFound:
-            AuthErrorPresentation(emailErrorKey: AccessL10nKey.authErrorUserNotFound)
-        case .userDisabled:
-            AuthErrorPresentation(emailErrorKey: AccessL10nKey.authErrorUserDisabled)
-        case .tooManyRequests:
-            AuthErrorPresentation(globalMessageKey: AccessL10nKey.authErrorTooManyRequests)
-        case .network:
-            AuthErrorPresentation(globalMessageKey: AccessL10nKey.authErrorNetwork)
-        case .unknown:
-            AuthErrorPresentation(globalMessageKey: AccessL10nKey.authErrorUnknown)
-        }
-
+    case .signIn, .signUp:
+        return mapDefaultAuthFailure(reason)
     case .passwordReset:
-        switch reason {
-        case .invalidEmail:
-            AuthErrorPresentation(emailErrorKey: AccessL10nKey.feedbackEmailInvalid)
-        case .userNotFound:
-            AuthErrorPresentation(emailErrorKey: AccessL10nKey.authErrorUserNotFound)
-        case .userDisabled:
-            AuthErrorPresentation(emailErrorKey: AccessL10nKey.authErrorUserDisabled)
-        case .tooManyRequests:
-            AuthErrorPresentation(globalMessageKey: AccessL10nKey.authErrorTooManyRequests)
-        case .network:
-            AuthErrorPresentation(globalMessageKey: AccessL10nKey.authErrorNetwork)
-        case .unknown, .invalidCredentials, .emailAlreadyInUse, .weakPassword:
-            AuthErrorPresentation(globalMessageKey: AccessL10nKey.authErrorUnknown)
-        }
+        return mapPasswordResetAuthFailure(reason)
+    }
+}
+
+private func mapDefaultAuthFailure(_ reason: AuthSignInFailureReason) -> AuthErrorPresentation {
+    switch reason {
+    case .invalidEmail:
+        return AuthErrorPresentation(emailErrorKey: AccessL10nKey.feedbackEmailInvalid)
+    case .invalidCredentials:
+        return AuthErrorPresentation(passwordErrorKey: AccessL10nKey.authErrorInvalidCredentials)
+    case .emailAlreadyInUse:
+        return AuthErrorPresentation(emailErrorKey: AccessL10nKey.authErrorEmailAlreadyInUse)
+    case .weakPassword:
+        return AuthErrorPresentation(passwordErrorKey: AccessL10nKey.authErrorWeakPassword)
+    case .userNotFound:
+        return AuthErrorPresentation(emailErrorKey: AccessL10nKey.authErrorUserNotFound)
+    case .userDisabled:
+        return AuthErrorPresentation(emailErrorKey: AccessL10nKey.authErrorUserDisabled)
+    case .tooManyRequests:
+        return AuthErrorPresentation(globalMessageKey: AccessL10nKey.authErrorTooManyRequests)
+    case .network:
+        return AuthErrorPresentation(globalMessageKey: AccessL10nKey.authErrorNetwork)
+    case .unknown:
+        return AuthErrorPresentation(globalMessageKey: AccessL10nKey.authErrorUnknown)
+    }
+}
+
+private func mapPasswordResetAuthFailure(_ reason: AuthSignInFailureReason) -> AuthErrorPresentation {
+    switch reason {
+    case .invalidEmail:
+        return AuthErrorPresentation(emailErrorKey: AccessL10nKey.feedbackEmailInvalid)
+    case .userNotFound:
+        return AuthErrorPresentation(emailErrorKey: AccessL10nKey.authErrorUserNotFound)
+    case .userDisabled:
+        return AuthErrorPresentation(emailErrorKey: AccessL10nKey.authErrorUserDisabled)
+    case .tooManyRequests:
+        return AuthErrorPresentation(globalMessageKey: AccessL10nKey.authErrorTooManyRequests)
+    case .network:
+        return AuthErrorPresentation(globalMessageKey: AccessL10nKey.authErrorNetwork)
+    case .unknown, .invalidCredentials, .emailAlreadyInUse, .weakPassword:
+        return AuthErrorPresentation(globalMessageKey: AccessL10nKey.authErrorUnknown)
     }
 }

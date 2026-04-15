@@ -1,6 +1,15 @@
 import Foundation
 
 extension SessionViewModel {
+    private struct AuthorizedSessionBootstrapData {
+        let products: [Product]
+        let allNotifications: [NotificationEvent]
+        let profiles: [SharedProfile]
+        let shifts: [ShiftAssignment]
+        let requests: [ShiftSwapRequest]
+        let allNews: [NewsArticle]
+    }
+
     func signIn() {
         let email = normalizeEmail(emailInput)
         let password = passwordInput
@@ -61,61 +70,21 @@ extension SessionViewModel {
     func signOut() {
         authSessionProvider.signOut()
         clearSessionRefreshTracking()
+        reviewerEnvironmentRouter.resetToBaseEnvironment()
         Task {
             await KeyManager.shared.remove(.authorizedMemberId)
         }
-        emailInput = ""
-        passwordInput = ""
-        registerEmailInput = ""
-        registerPasswordInput = ""
-        registerRepeatPasswordInput = ""
-        recoverEmailInput = ""
-        emailErrorKey = nil
-        passwordErrorKey = nil
-        registerEmailErrorKey = nil
-        registerPasswordErrorKey = nil
-        registerRepeatPasswordErrorKey = nil
-        recoverEmailErrorKey = nil
+        resetAccessCredentialsAndErrors()
         isAuthenticating = false
         isRegistering = false
         isRecoveringPassword = false
-        showSessionExpiredDialog = false
-        showUnauthorizedDialog = false
         feedbackMessageKey = nil
         mode = .signedOut
         memberDraft = MemberDraft()
         myOrderFreshnessState = .idle
-        latestNews = []
-        newsFeed = []
-        newsDraft = NewsDraft()
-        notificationsFeed = []
-        notificationDraft = NotificationDraft()
-        productsFeed = []
-        myOrderProductsFeed = []
-        myOrderSeasonalCommitmentsFeed = []
-        productDraft = ProductDraft()
-        sharedProfiles = []
-        sharedProfileDraft = SharedProfileDraft()
-        shiftsFeed = []
-        shiftSwapRequests = []
-        shiftSwapDraft = ShiftSwapDraft()
-        nextDeliveryShift = nil
-        nextMarketShift = nil
-        editingProductId = nil
-        editingNewsId = nil
-        isLoadingNews = false
-        isSavingNews = false
-        isLoadingNotifications = false
-        isSendingNotification = false
-        isLoadingProducts = false
-        isLoadingMyOrderProducts = false
-        isSavingProduct = false
-        isLoadingSharedProfiles = false
-        isSavingSharedProfile = false
-        isDeletingSharedProfile = false
-        isLoadingShifts = false
-        isSavingShiftSwapRequest = false
-        isUpdatingShiftSwapRequest = false
+        showSessionExpiredDialog = false
+        showUnauthorizedDialog = false
+        resetSessionContentState()
         Task {
             await criticalDataFreshnessLocalRepository.clear()
         }
@@ -395,107 +364,116 @@ extension SessionViewModel {
         principal: AuthPrincipal,
         shouldRefreshCriticalData: Bool = true
     ) async {
+        await reviewerEnvironmentRouter.applyRouting(for: principal)
         let result = await resolveAuthorizedSession.execute(authPrincipal: principal)
         switch result {
         case .authorized(let member):
-            let members = await repository.allMembers()
-            mode = .authorized(
-                AuthorizedSession(
-                    principal: principal,
-                    authenticatedMember: member,
-                    member: member,
-                    members: members
-                )
+            await applyAuthorizedSession(
+                principal: principal,
+                member: member,
+                shouldRefreshCriticalData: shouldRefreshCriticalData
             )
-            showSessionExpiredDialog = false
-            showUnauthorizedDialog = false
-            if shouldRefreshCriticalData {
-                myOrderFreshnessState = .checking
-                refreshMyOrderFreshness()
-            }
-            isLoadingNews = true
-            isLoadingNotifications = true
-            isLoadingProducts = member.canManageProductCatalog
-            isLoadingMyOrderProducts = false
-            isLoadingSharedProfiles = true
-            isLoadingShifts = true
-            let products = await productRepository.products(vendorId: member.id)
-            let allNotifications = await notificationRepository.allNotifications()
-            let profiles = await sharedProfileRepository.allSharedProfiles()
-            let shifts = await shiftRepository.allShifts()
-            let requests = await shiftSwapRequestRepository.allShiftSwapRequests()
-            let allNews = await newsRepository.allNews()
-            latestNews = allNews.filter(\.active).prefix(3).map { $0 }
-            newsFeed = member.isAdmin ? allNews : allNews.filter(\.active)
-            notificationsFeed = allNotifications.filter { $0.isVisible(to: member) }
-            productsFeed = products
-            myOrderProductsFeed = []
-            myOrderSeasonalCommitmentsFeed = []
-            productDraft = ProductDraft()
-            sharedProfiles = profiles.filter(\.hasVisibleContent)
-            sharedProfileDraft = profiles.first(where: { $0.userId == member.id })?.toDraft() ?? SharedProfileDraft()
-            shiftsFeed = shifts
-            shiftSwapRequests = requests.visible(to: member.id)
-            shiftSwapDraft = ShiftSwapDraft()
-            nextDeliveryShift = shifts.nextAssignedShift(
-                memberId: member.id,
-                type: .delivery,
-                nowMillis: nowMillisProvider()
-            )
-            nextMarketShift = shifts.nextAssignedShift(
-                memberId: member.id,
-                type: .market,
-                nowMillis: nowMillisProvider()
-            )
-            editingProductId = nil
-            isLoadingNews = false
-            isLoadingNotifications = false
-            isLoadingProducts = false
-            isLoadingMyOrderProducts = false
-            isLoadingSharedProfiles = false
-            isLoadingShifts = false
-            await authorizedDeviceRegistrar.register(member: member)
         case .unauthorized(let reason):
-            let shouldShowUnauthorizedDialog = shouldShowUnauthorizedDialog(
-                for: principal.email,
-                reason: reason
-            )
-            mode = .unauthorized(email: principal.email, reason: reason)
-            showSessionExpiredDialog = false
-            showUnauthorizedDialog = shouldShowUnauthorizedDialog
-            myOrderFreshnessState = .idle
-            latestNews = []
-            newsFeed = []
-            newsDraft = NewsDraft()
-            notificationsFeed = []
-            notificationDraft = NotificationDraft()
-            productsFeed = []
-            myOrderProductsFeed = []
-            myOrderSeasonalCommitmentsFeed = []
-            productDraft = ProductDraft()
-            sharedProfiles = []
-            sharedProfileDraft = SharedProfileDraft()
-            shiftsFeed = []
-            shiftSwapRequests = []
-            shiftSwapDraft = ShiftSwapDraft()
-            nextDeliveryShift = nil
-            nextMarketShift = nil
-            editingProductId = nil
-            editingNewsId = nil
-            isLoadingNews = false
-            isSavingNews = false
-            isLoadingNotifications = false
-            isSendingNotification = false
-            isLoadingProducts = false
-            isLoadingMyOrderProducts = false
-            isSavingProduct = false
-            isLoadingSharedProfiles = false
-            isSavingSharedProfile = false
-            isDeletingSharedProfile = false
-            isLoadingShifts = false
-            isSavingShiftSwapRequest = false
-            isUpdatingShiftSwapRequest = false
+            applyUnauthorizedSession(principalEmail: principal.email, reason: reason)
         }
+    }
+
+    private func applyAuthorizedSession(
+        principal: AuthPrincipal,
+        member: Member,
+        shouldRefreshCriticalData: Bool
+    ) async {
+        let members = await repository.allMembers()
+        mode = .authorized(
+            AuthorizedSession(
+                principal: principal,
+                authenticatedMember: member,
+                member: member,
+                members: members
+            )
+        )
+        showSessionExpiredDialog = false
+        showUnauthorizedDialog = false
+        if shouldRefreshCriticalData {
+            myOrderFreshnessState = .checking
+            refreshMyOrderFreshness()
+        }
+
+        setAuthorizedLoadingState(member: member)
+        let bootstrapData = await loadAuthorizedSessionBootstrapData(member: member)
+        applyAuthorizedSessionBootstrapData(bootstrapData, member: member)
+        await authorizedDeviceRegistrar.register(member: member)
+    }
+
+    private func applyUnauthorizedSession(principalEmail: String, reason: UnauthorizedReason) {
+        let shouldShowDialog = shouldShowUnauthorizedDialog(
+            for: principalEmail,
+            reason: reason
+        )
+        mode = .unauthorized(email: principalEmail, reason: reason)
+        showSessionExpiredDialog = false
+        showUnauthorizedDialog = shouldShowDialog
+        myOrderFreshnessState = .idle
+        resetSessionContentState()
+    }
+
+    private func setAuthorizedLoadingState(member: Member) {
+        isLoadingNews = true
+        isLoadingNotifications = true
+        isLoadingProducts = member.canManageProductCatalog
+        isLoadingMyOrderProducts = false
+        isLoadingSharedProfiles = true
+        isLoadingShifts = true
+    }
+
+    private func loadAuthorizedSessionBootstrapData(member: Member) async -> AuthorizedSessionBootstrapData {
+        async let products = productRepository.products(vendorId: member.id)
+        async let allNotifications = notificationRepository.allNotifications()
+        async let profiles = sharedProfileRepository.allSharedProfiles()
+        async let shifts = shiftRepository.allShifts()
+        async let requests = shiftSwapRequestRepository.allShiftSwapRequests()
+        async let allNews = newsRepository.allNews()
+
+        return await AuthorizedSessionBootstrapData(
+            products: products,
+            allNotifications: allNotifications,
+            profiles: profiles,
+            shifts: shifts,
+            requests: requests,
+            allNews: allNews
+        )
+    }
+
+    private func applyAuthorizedSessionBootstrapData(_ data: AuthorizedSessionBootstrapData, member: Member) {
+        latestNews = data.allNews.filter(\.active).prefix(3).map { $0 }
+        newsFeed = member.isAdmin ? data.allNews : data.allNews.filter(\.active)
+        notificationsFeed = data.allNotifications.filter { $0.isVisible(to: member) }
+        productsFeed = data.products
+        myOrderProductsFeed = []
+        myOrderSeasonalCommitmentsFeed = []
+        productDraft = ProductDraft()
+        sharedProfiles = data.profiles.filter(\.hasVisibleContent)
+        sharedProfileDraft = data.profiles.first(where: { $0.userId == member.id })?.toDraft() ?? SharedProfileDraft()
+        shiftsFeed = data.shifts
+        shiftSwapRequests = data.requests.visible(to: member.id)
+        shiftSwapDraft = ShiftSwapDraft()
+        nextDeliveryShift = data.shifts.nextAssignedShift(
+            memberId: member.id,
+            type: .delivery,
+            nowMillis: nowMillisProvider()
+        )
+        nextMarketShift = data.shifts.nextAssignedShift(
+            memberId: member.id,
+            type: .market,
+            nowMillis: nowMillisProvider()
+        )
+        editingProductId = nil
+        isLoadingNews = false
+        isLoadingNotifications = false
+        isLoadingProducts = false
+        isLoadingMyOrderProducts = false
+        isLoadingSharedProfiles = false
+        isLoadingShifts = false
     }
 
     private func shouldRefreshCriticalData(for principal: AuthPrincipal) -> Bool {
@@ -521,6 +499,22 @@ extension SessionViewModel {
 
     private func handleExpiredSession() async {
         clearSessionRefreshTracking()
+        reviewerEnvironmentRouter.resetToBaseEnvironment()
+        resetAccessCredentialsAndErrors()
+        isAuthenticating = false
+        isRegistering = false
+        isRecoveringPassword = false
+        feedbackMessageKey = nil
+        mode = .signedOut
+        memberDraft = MemberDraft()
+        myOrderFreshnessState = .idle
+        showSessionExpiredDialog = true
+        showUnauthorizedDialog = false
+        resetSessionContentState()
+        await criticalDataFreshnessLocalRepository.clear()
+    }
+
+    private func resetAccessCredentialsAndErrors() {
         emailInput = ""
         passwordInput = ""
         registerEmailInput = ""
@@ -533,15 +527,9 @@ extension SessionViewModel {
         registerPasswordErrorKey = nil
         registerRepeatPasswordErrorKey = nil
         recoverEmailErrorKey = nil
-        isAuthenticating = false
-        isRegistering = false
-        isRecoveringPassword = false
-        feedbackMessageKey = nil
-        mode = .signedOut
-        memberDraft = MemberDraft()
-        myOrderFreshnessState = .idle
-        showSessionExpiredDialog = true
-        showUnauthorizedDialog = false
+    }
+
+    private func resetSessionContentState() {
         latestNews = []
         newsFeed = []
         newsDraft = NewsDraft()
@@ -574,7 +562,6 @@ extension SessionViewModel {
         isLoadingShifts = false
         isSavingShiftSwapRequest = false
         isUpdatingShiftSwapRequest = false
-        await criticalDataFreshnessLocalRepository.clear()
     }
 
     private func clearSessionRefreshTracking() {

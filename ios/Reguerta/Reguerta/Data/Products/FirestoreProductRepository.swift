@@ -3,11 +3,11 @@ import Foundation
 
 final class FirestoreProductRepository: @unchecked Sendable, ProductRepository {
     private let db: Firestore
-    private let environment: ReguertaFirestoreEnvironment
+    private let environment: ReguertaFirestoreEnvironment?
 
     init(
         db: Firestore = Firestore.firestore(),
-        environment: ReguertaFirestoreEnvironment = .develop
+        environment: ReguertaFirestoreEnvironment? = nil
     ) {
         self.db = db
         self.environment = environment
@@ -43,7 +43,21 @@ final class FirestoreProductRepository: @unchecked Sendable, ProductRepository {
 
     func upsert(product: Product) async -> Product {
         let documentId = product.id.isEmpty ? productsCollection.document().documentID : product.id
-        let persisted = Product(
+        let persisted = persistedProduct(from: product, with: documentId)
+
+        do {
+            try await productsCollection.document(documentId).setData(
+                upsertPayload(for: persisted),
+                merge: true
+            )
+            return persisted
+        } catch {
+            return persisted
+        }
+    }
+
+    private func persistedProduct(from product: Product, with documentId: String) -> Product {
+        Product(
             id: documentId,
             vendorId: product.vendorId,
             companyName: product.companyName,
@@ -70,38 +84,39 @@ final class FirestoreProductRepository: @unchecked Sendable, ProductRepository {
             createdAtMillis: product.createdAtMillis,
             updatedAtMillis: product.updatedAtMillis
         )
+    }
 
-        do {
-            try await productsCollection.document(documentId).setData([
-                "vendorId": persisted.vendorId,
-                "companyName": persisted.companyName,
-                "name": persisted.name,
-                "description": persisted.description,
-                "productImageUrl": persisted.productImageUrl as Any,
-                "price": persisted.price,
-                "pricingMode": persisted.pricingMode.rawValue,
-                "unitName": persisted.unitName,
-                "unitAbbreviation": persisted.unitAbbreviation as Any,
-                "unitPlural": persisted.unitPlural,
-                "unitQty": persisted.unitQty,
-                "packContainerName": persisted.packContainerName as Any,
-                "packContainerAbbreviation": persisted.packContainerAbbreviation as Any,
-                "packContainerPlural": persisted.packContainerPlural as Any,
-                "packContainerQty": persisted.packContainerQty as Any,
-                "isAvailable": persisted.isAvailable,
-                "stockMode": persisted.stockMode.rawValue,
-                "stockQty": persisted.stockQty as Any,
-                "isEcoBasket": persisted.isEcoBasket,
-                "isCommonPurchase": persisted.isCommonPurchase,
-                "commonPurchaseType": persisted.commonPurchaseType?.rawValue as Any,
-                "archived": persisted.archived,
-                "createdAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(persisted.createdAtMillis) / 1_000)),
-                "updatedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(persisted.updatedAtMillis) / 1_000)),
-            ], merge: true)
-            return persisted
-        } catch {
-            return persisted
-        }
+    private func upsertPayload(for product: Product) -> [String: Any] {
+        [
+            "vendorId": product.vendorId,
+            "companyName": product.companyName,
+            "name": product.name,
+            "description": product.description,
+            "productImageUrl": product.productImageUrl as Any,
+            "price": product.price,
+            "pricingMode": product.pricingMode.rawValue,
+            "unitName": product.unitName,
+            "unitAbbreviation": product.unitAbbreviation as Any,
+            "unitPlural": product.unitPlural,
+            "unitQty": product.unitQty,
+            "packContainerName": product.packContainerName as Any,
+            "packContainerAbbreviation": product.packContainerAbbreviation as Any,
+            "packContainerPlural": product.packContainerPlural as Any,
+            "packContainerQty": product.packContainerQty as Any,
+            "isAvailable": product.isAvailable,
+            "stockMode": product.stockMode.rawValue,
+            "stockQty": product.stockQty as Any,
+            "isEcoBasket": product.isEcoBasket,
+            "isCommonPurchase": product.isCommonPurchase,
+            "commonPurchaseType": product.commonPurchaseType?.rawValue as Any,
+            "archived": product.archived,
+            "createdAt": timestamp(for: product.createdAtMillis),
+            "updatedAt": timestamp(for: product.updatedAtMillis),
+        ]
+    }
+
+    private func timestamp(for millis: Int64) -> Timestamp {
+        Timestamp(date: Date(timeIntervalSince1970: TimeInterval(millis) / 1_000))
     }
 
     private static func sortProducts(_ lhs: Product, _ rhs: Product) -> Bool {

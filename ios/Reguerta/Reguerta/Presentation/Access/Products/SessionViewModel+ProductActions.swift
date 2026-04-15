@@ -1,5 +1,15 @@
 import Foundation
 
+private struct ProductSaveInput {
+    let draft: ProductDraft
+    let existing: Product?
+    let price: Double
+    let unitQty: Double
+    let stockQty: Double?
+    let packContainerQty: Double?
+    let nowMillis: Int64
+}
+
 extension SessionViewModel {
     func updateProductDraft(_ update: (inout ProductDraft) -> Void) {
         var draft = productDraft
@@ -103,73 +113,35 @@ extension SessionViewModel {
             feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
             return
         }
-        let draft = productDraft.normalized
-        let nowMillis = nowMillisProvider()
-        let existing = productsFeed.first(where: { $0.id == editingProductId })
-        guard let price = draft.price.toPositiveDouble,
-              let unitQty = draft.unitQty.toPositiveDouble,
-              !draft.name.isEmpty,
-              !draft.unitName.isEmpty,
-              !draft.unitPlural.isEmpty else {
-            feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
-            return
-        }
-        let stockQty = draft.stockMode == .finite ? draft.stockQty.toNonNegativeDouble : nil
-        if draft.stockMode == .finite && stockQty == nil {
-            feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
-            return
-        }
-        let packContainerQty = draft.packContainerName.isEmpty ? nil : draft.packContainerQty.toPositiveDouble
-        if !draft.packContainerName.isEmpty && packContainerQty == nil {
+        guard let saveInput = resolveProductSaveInput(
+            existingProductId: editingProductId,
+            nowMillis: nowMillisProvider()
+        ) else {
             feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
             return
         }
 
         isSavingProduct = true
         Task { @MainActor in
-            let canManageEcoBasket = session.member.isProducer
-            let canManageCommonPurchase = session.member.isCommonPurchaseManager && !session.member.isProducer
-            let allProducts = await productRepository.allProducts()
-            let activeEcoBasketPrice = allProducts.first(where: { $0.isEcoBasket && !$0.archived && $0.id != existing?.id })?.price
-            if canManageEcoBasket, draft.isEcoBasket, let activeEcoBasketPrice, activeEcoBasketPrice != price {
+            let canSaveEcoBasket = await canSaveEcoBasketProduct(
+                sessionMember: session.member,
+                draft: saveInput.draft,
+                price: saveInput.price,
+                existingProduct: saveInput.existing
+            )
+            if !canSaveEcoBasket {
                 isSavingProduct = false
                 feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
                 return
             }
             let saved = await productRepository.upsert(
-                product: Product(
-                    id: existing?.id ?? "",
-                    vendorId: existing?.vendorId ?? session.member.id,
-                    companyName: existing?.companyName ?? session.member.displayName,
-                    name: draft.name,
-                    description: draft.description,
-                    productImageUrl: draft.productImageUrl.isEmpty ? nil : draft.productImageUrl,
-                    price: price,
-                    pricingMode: .fixed,
-                    unitName: draft.unitName,
-                    unitAbbreviation: draft.unitAbbreviation.isEmpty ? nil : draft.unitAbbreviation,
-                    unitPlural: draft.unitPlural,
-                    unitQty: unitQty,
-                    packContainerName: draft.packContainerName.isEmpty ? nil : draft.packContainerName,
-                    packContainerAbbreviation: draft.packContainerAbbreviation.isEmpty ? nil : draft.packContainerAbbreviation,
-                    packContainerPlural: draft.packContainerPlural.isEmpty ? nil : draft.packContainerPlural,
-                    packContainerQty: packContainerQty,
-                    isAvailable: draft.isAvailable,
-                    stockMode: draft.stockMode,
-                    stockQty: stockQty,
-                    isEcoBasket: canManageEcoBasket ? draft.isEcoBasket : false,
-                    isCommonPurchase: canManageCommonPurchase ? draft.isCommonPurchase : false,
-                    commonPurchaseType: (canManageCommonPurchase && draft.isCommonPurchase) ? draft.commonPurchaseType : nil,
-                    archived: existing?.archived ?? false,
-                    createdAtMillis: existing?.createdAtMillis ?? nowMillis,
-                    updatedAtMillis: nowMillis
-                )
+                product: buildProductToSave(sessionMember: session.member, input: saveInput)
             )
-            productsFeed = await productRepository.products(vendorId: session.member.id)
-            productDraft = saved.toDraft()
-            editingProductId = saved.id
-            isSavingProduct = false
-            onSuccess()
+            await finalizeSavedProduct(
+                saved,
+                vendorId: session.member.id,
+                onSuccess: onSuccess
+            )
         }
     }
 
@@ -253,6 +225,98 @@ extension SessionViewModel {
             isUpdatingProducerCatalogVisibility = false
             onSuccess()
         }
+    }
+
+    private func resolveProductSaveInput(
+        existingProductId: String?,
+        nowMillis: Int64
+    ) -> ProductSaveInput? {
+        let draft = productDraft.normalized
+        let existing = productsFeed.first(where: { $0.id == existingProductId })
+        guard let price = draft.price.toPositiveDouble,
+              let unitQty = draft.unitQty.toPositiveDouble,
+              !draft.name.isEmpty,
+              !draft.unitName.isEmpty,
+              !draft.unitPlural.isEmpty else {
+            return nil
+        }
+        let stockQty = draft.stockMode == .finite ? draft.stockQty.toNonNegativeDouble : nil
+        guard draft.stockMode != .finite || stockQty != nil else {
+            return nil
+        }
+        let packContainerQty = draft.packContainerName.isEmpty ? nil : draft.packContainerQty.toPositiveDouble
+        guard draft.packContainerName.isEmpty || packContainerQty != nil else {
+            return nil
+        }
+
+        return ProductSaveInput(
+            draft: draft,
+            existing: existing,
+            price: price,
+            unitQty: unitQty,
+            stockQty: stockQty,
+            packContainerQty: packContainerQty,
+            nowMillis: nowMillis
+        )
+    }
+
+    private func canSaveEcoBasketProduct(
+        sessionMember: Member,
+        draft: ProductDraft,
+        price: Double,
+        existingProduct: Product?
+    ) async -> Bool {
+        guard sessionMember.isProducer, draft.isEcoBasket else {
+            return true
+        }
+        let allProducts = await productRepository.allProducts()
+        let activeEcoBasketPrice = allProducts
+            .first(where: { $0.isEcoBasket && !$0.archived && $0.id != existingProduct?.id })?
+            .price
+        return activeEcoBasketPrice == nil || activeEcoBasketPrice == price
+    }
+
+    private func buildProductToSave(sessionMember: Member, input: ProductSaveInput) -> Product {
+        let canManageCommonPurchase = sessionMember.isCommonPurchaseManager && !sessionMember.isProducer
+        return Product(
+            id: input.existing?.id ?? "",
+            vendorId: input.existing?.vendorId ?? sessionMember.id,
+            companyName: input.existing?.companyName ?? sessionMember.displayName,
+            name: input.draft.name,
+            description: input.draft.description,
+            productImageUrl: input.draft.productImageUrl.isEmpty ? nil : input.draft.productImageUrl,
+            price: input.price,
+            pricingMode: .fixed,
+            unitName: input.draft.unitName,
+            unitAbbreviation: input.draft.unitAbbreviation.isEmpty ? nil : input.draft.unitAbbreviation,
+            unitPlural: input.draft.unitPlural,
+            unitQty: input.unitQty,
+            packContainerName: input.draft.packContainerName.isEmpty ? nil : input.draft.packContainerName,
+            packContainerAbbreviation: input.draft.packContainerAbbreviation.isEmpty ? nil : input.draft.packContainerAbbreviation,
+            packContainerPlural: input.draft.packContainerPlural.isEmpty ? nil : input.draft.packContainerPlural,
+            packContainerQty: input.packContainerQty,
+            isAvailable: input.draft.isAvailable,
+            stockMode: input.draft.stockMode,
+            stockQty: input.stockQty,
+            isEcoBasket: sessionMember.isProducer ? input.draft.isEcoBasket : false,
+            isCommonPurchase: canManageCommonPurchase ? input.draft.isCommonPurchase : false,
+            commonPurchaseType: (canManageCommonPurchase && input.draft.isCommonPurchase) ? input.draft.commonPurchaseType : nil,
+            archived: input.existing?.archived ?? false,
+            createdAtMillis: input.existing?.createdAtMillis ?? input.nowMillis,
+            updatedAtMillis: input.nowMillis
+        )
+    }
+
+    private func finalizeSavedProduct(
+        _ saved: Product,
+        vendorId: String,
+        onSuccess: @escaping @MainActor () -> Void
+    ) async {
+        productsFeed = await productRepository.products(vendorId: vendorId)
+        productDraft = saved.toDraft()
+        editingProductId = saved.id
+        isSavingProduct = false
+        onSuccess()
     }
 }
 

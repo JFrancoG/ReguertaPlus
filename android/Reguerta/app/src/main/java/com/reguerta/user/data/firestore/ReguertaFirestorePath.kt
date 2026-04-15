@@ -1,5 +1,8 @@
 package com.reguerta.user.data.firestore
 
+import com.reguerta.user.BuildConfig
+import java.util.concurrent.atomic.AtomicReference
+
 enum class ReguertaFirestoreEnvironment(val wireValue: String) {
     DEVELOP("develop"),
     PRODUCTION("production"),
@@ -26,13 +29,45 @@ enum class ReguertaFirestoreDocument(val wireValue: String) {
 }
 
 data class ReguertaFirestorePath(
-    val environment: ReguertaFirestoreEnvironment = ReguertaFirestoreEnvironment.DEVELOP,
+    val environment: ReguertaFirestoreEnvironment? = null,
 ) {
+    private val resolvedEnvironment: ReguertaFirestoreEnvironment
+        get() = environment ?: ReguertaRuntimeEnvironment.currentFirestoreEnvironment()
+
     fun collectionPath(collection: ReguertaFirestoreCollection): String =
-        "${environment.wireValue}/${collection.pathComponent}"
+        "${resolvedEnvironment.wireValue}/${collection.pathComponent}"
 
     fun documentPath(
         collection: ReguertaFirestoreCollection,
         documentId: String,
     ): String = "${collectionPath(collection)}/$documentId"
+}
+
+object ReguertaRuntimeEnvironment {
+    private val sessionOverride = AtomicReference<ReguertaFirestoreEnvironment?>(null)
+    @Volatile
+    private var testingBaseEnvironment: ReguertaFirestoreEnvironment? = null
+
+    val baseFirestoreEnvironment: ReguertaFirestoreEnvironment
+        get() = testingBaseEnvironment ?: if (BuildConfig.DEBUG) {
+            ReguertaFirestoreEnvironment.DEVELOP
+        } else {
+            ReguertaFirestoreEnvironment.PRODUCTION
+        }
+
+    fun currentFirestoreEnvironment(): ReguertaFirestoreEnvironment =
+        sessionOverride.get() ?: baseFirestoreEnvironment
+
+    fun applySessionEnvironment(environment: ReguertaFirestoreEnvironment) {
+        sessionOverride.set(if (environment == baseFirestoreEnvironment) null else environment)
+    }
+
+    fun resetToBaseEnvironment() {
+        sessionOverride.set(null)
+    }
+
+    internal fun setBaseEnvironmentForTesting(environment: ReguertaFirestoreEnvironment?) {
+        testingBaseEnvironment = environment
+        resetToBaseEnvironment()
+    }
 }

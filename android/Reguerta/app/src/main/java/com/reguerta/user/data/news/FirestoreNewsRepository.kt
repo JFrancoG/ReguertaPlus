@@ -13,7 +13,7 @@ import kotlinx.coroutines.withContext
 
 class FirestoreNewsRepository(
     private val firestore: FirebaseFirestore,
-    private val environment: ReguertaFirestoreEnvironment = ReguertaFirestoreEnvironment.DEVELOP,
+    private val environment: ReguertaFirestoreEnvironment? = null,
 ) : NewsRepository {
     private val firestorePath = ReguertaFirestorePath(environment = environment)
 

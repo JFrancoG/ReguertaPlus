@@ -75,6 +75,7 @@ import com.reguerta.user.R
 import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
 import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
 import com.reguerta.user.data.firestore.ReguertaFirestorePath
+import com.reguerta.user.data.firestore.ReguertaRuntimeEnvironment
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
@@ -2063,7 +2064,7 @@ private suspend fun loadMyOrderPreviousOrderState(
 private suspend fun loadMyOrderProducerStatuses(
     orderId: String,
     firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
-    environment: ReguertaFirestoreEnvironment = ReguertaFirestoreEnvironment.DEVELOP,
+    environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment(),
 ): MyOrderProducerStatusSnapshot = withContext(Dispatchers.IO) {
     val path = ReguertaFirestorePath(environment = environment)
     val readTargets = listOf(
@@ -2160,7 +2161,7 @@ private suspend fun fetchPreviousWeekOrderSnapshot(
     currentMember: Member?,
     previousWeekKey: String,
     firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
-    environment: ReguertaFirestoreEnvironment = ReguertaFirestoreEnvironment.DEVELOP,
+    environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment(),
 ): MyOrderPreviousOrderSnapshot? = withContext(Dispatchers.IO) {
     val member = currentMember ?: return@withContext null
     val orderId = "${member.id}_$previousWeekKey"
@@ -2522,7 +2523,7 @@ internal suspend fun submitCheckoutOrderToFirestore(
     selectedQuantities: Map<String, Int>,
     selectedEcoBasketOptions: Map<String, String>,
     firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
-    environment: ReguertaFirestoreEnvironment = ReguertaFirestoreEnvironment.DEVELOP,
+    environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment(),
     nowMillis: Long = System.currentTimeMillis(),
 ): Boolean = withContext(Dispatchers.IO) {
     runCatching {

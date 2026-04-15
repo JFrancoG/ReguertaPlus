@@ -17,7 +17,7 @@ import kotlinx.coroutines.withContext
 
 class FirestoreShiftRepository(
     private val firestore: FirebaseFirestore,
-    private val environment: ReguertaFirestoreEnvironment = ReguertaFirestoreEnvironment.DEVELOP,
+    private val environment: ReguertaFirestoreEnvironment? = null,
 ) : ShiftRepository {
     private val firestorePath = ReguertaFirestorePath(environment = environment)
 

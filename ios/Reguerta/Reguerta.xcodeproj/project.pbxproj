@@ -131,6 +131,7 @@
 			buildPhases = (
 				E03FA03E2F353C1A0038B8EB /* Sources */,
 				E03FA03F2F353C1A0038B8EB /* Frameworks */,
+				E0A1F0012FC0AA110038B8EB /* SwiftLint */,
 				E03FA0402F353C1A0038B8EB /* Resources */,
 			);
 			buildRules = (
@@ -272,6 +273,32 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		E0A1F0012FC0AA110038B8EB /* SwiftLint */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/.swiftlint",
+				"$(SRCROOT)/Reguerta",
+				"$(SRCROOT)/ReguertaTests",
+				"$(SRCROOT)/ReguertaUITests",
+			);
+			name = SwiftLint;
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "SWIFTLINT_BIN=\"/opt/homebrew/bin/swiftlint\"\nif [ ! -x \"${SWIFTLINT_BIN}\" ]; then\n  SWIFTLINT_BIN=\"/usr/local/bin/swiftlint\"\nfi\n\nif [ -x \"${SWIFTLINT_BIN}\" ]; then\n  cd \"${SRCROOT}\" || exit 1\n  \"${SWIFTLINT_BIN}\" lint --config \"${SRCROOT}/.swiftlint\" --reporter xcode\nelse\n  echo \"warning: SwiftLint not installed. Install via Homebrew: brew install swiftlint\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		E03FA03E2F353C1A0038B8EB /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -348,7 +375,7 @@
 				DEVELOPMENT_TEAM = NWN8JUE438;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+					ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -410,7 +437,7 @@
 				DEVELOPMENT_TEAM = NWN8JUE438;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+					ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;

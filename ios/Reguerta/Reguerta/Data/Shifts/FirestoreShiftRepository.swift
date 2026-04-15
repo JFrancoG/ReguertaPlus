@@ -3,11 +3,11 @@ import Foundation
 
 final class FirestoreShiftRepository: @unchecked Sendable, ShiftRepository {
     private let db: Firestore
-    private let environment: ReguertaFirestoreEnvironment
+    private let environment: ReguertaFirestoreEnvironment?
 
     init(
         db: Firestore = Firestore.firestore(),
-        environment: ReguertaFirestoreEnvironment = .develop
+        environment: ReguertaFirestoreEnvironment? = nil
     ) {
         self.db = db
         self.environment = environment
@@ -29,11 +29,11 @@ final class FirestoreShiftRepository: @unchecked Sendable, ShiftRepository {
     }
 
     func upsert(shift: ShiftAssignment) async -> ShiftAssignment {
-        let payload: [String: Any?] = [
+        let payload: [String: Any] = [
             "type": shift.type.rawValue,
             "date": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(shift.dateMillis) / 1_000)),
             "assignedUserIds": shift.assignedUserIds,
-            "helperUserId": shift.helperUserId,
+            "helperUserId": shift.helperUserId as Any,
             "status": shift.status.rawValue,
             "source": shift.source,
             "createdAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(shift.createdAtMillis) / 1_000)),

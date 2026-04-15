@@ -163,7 +163,12 @@ struct DeliveryCalendarEditorSheet: View {
                             dismiss()
                         }
                         if overrideEntry != nil {
-                            ReguertaButton(localizedKey(AccessL10nKey.deliveryCalendarEditorActionRemoveException), variant: .text, isEnabled: !isSaving, fullWidth: false) {
+                            ReguertaButton(
+                                localizedKey(AccessL10nKey.deliveryCalendarEditorActionRemoveException),
+                                variant: .text,
+                                isEnabled: !isSaving,
+                                fullWidth: false
+                            ) {
                                 onDelete(shift.weekKey)
                                 dismiss()
                             }
