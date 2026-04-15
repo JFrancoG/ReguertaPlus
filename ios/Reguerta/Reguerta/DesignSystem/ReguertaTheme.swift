@@ -49,7 +49,7 @@ struct ReguertaDesignTokens {
     static var light: ReguertaDesignTokens {
         ReguertaDesignTokens(
             colors: Colors(
-                actionPrimary: Color.reguertaAsset("accent", fallback: Color(hex: 0x6DA539)),
+                actionPrimary: Color.reguertaAsset("actionPrimary", fallback: Color(hex: 0x6DA539)),
                 actionOnPrimary: Color.reguertaAsset("mainBack", fallback: .white),
                 surfacePrimary: Color.reguertaAsset("mainBack", fallback: Color(hex: 0xF2F8E1)),
                 surfaceSecondary: Color.reguertaAsset("secBack", fallback: Color(hex: 0xDDE5C0)),
@@ -69,7 +69,7 @@ struct ReguertaDesignTokens {
     static var dark: ReguertaDesignTokens {
         ReguertaDesignTokens(
             colors: Colors(
-                actionPrimary: Color.reguertaAsset("accent", fallback: Color(hex: 0x8BBF5A)),
+                actionPrimary: Color.reguertaAsset("actionPrimary", fallback: Color(hex: 0x8BBF5A)),
                 actionOnPrimary: Color.reguertaAsset("mainBack", fallback: .white),
                 surfacePrimary: Color.reguertaAsset("mainBack", fallback: Color(hex: 0x0F1D0D)),
                 surfaceSecondary: Color.reguertaAsset("secBack", fallback: Color(hex: 0x1A2B1B)),

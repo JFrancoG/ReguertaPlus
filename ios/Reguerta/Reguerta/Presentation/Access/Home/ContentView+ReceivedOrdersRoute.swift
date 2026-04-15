@@ -122,6 +122,7 @@ private struct ReceivedOrdersSnapshot {
     let generalTotal: Double
 }
 
+// swiftlint:disable:next type_body_length
 struct ReceivedOrdersRouteView: View {
     let tokens: ReguertaDesignTokens
     let currentMember: Member?
@@ -336,47 +337,7 @@ struct ReceivedOrdersRouteView: View {
                 onSelectStatus: onSelectStatus
             )
 
-            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                ForEach(group.lines) { line in
-                    VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                        HStack(alignment: .top, spacing: tokens.spacing.md) {
-                            VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                                Text(line.productName)
-                                    .font(tokens.typography.body.weight(.semibold))
-                                    .foregroundStyle(tokens.colors.textPrimary)
-                                Text(line.packagingLine)
-                                    .font(tokens.typography.bodySecondary)
-                                    .foregroundStyle(tokens.colors.textSecondary)
-                            }
-                            Spacer(minLength: 0)
-                            VStack(alignment: .trailing, spacing: tokens.spacing.xs) {
-                                Text(line.quantity.myOrderUiDecimal)
-                                    .font(tokens.typography.body.weight(.semibold))
-                                    .foregroundStyle(tokens.colors.textPrimary)
-                                Text(line.quantityUnitLabel())
-                                    .font(tokens.typography.bodySecondary)
-                                    .foregroundStyle(tokens.colors.textSecondary)
-                                Text("\(line.subtotal.myOrderUiDecimal) €")
-                                    .font(tokens.typography.body.weight(.semibold))
-                                    .foregroundStyle(tokens.colors.textPrimary)
-                            }
-                        }
-                    }
-
-                    if line.id != group.lines.last?.id {
-                        Divider()
-                            .overlay(tokens.colors.borderSubtle.opacity(0.6))
-                    }
-                }
-
-                Divider()
-                    .overlay(tokens.colors.borderSubtle.opacity(0.8))
-
-                Text("Total: \(group.total.myOrderUiDecimal) €")
-                    .font(tokens.typography.titleCard.weight(.semibold))
-                    .foregroundStyle(tokens.colors.feedbackError)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
+            memberLinesSection(group)
         }
         .padding(tokens.spacing.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -386,6 +347,56 @@ struct ReceivedOrdersRouteView: View {
                 .stroke(style.border, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
+    }
+
+    @ViewBuilder
+    private func memberLinesSection(_ group: ReceivedOrdersMemberGroup) -> some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+            ForEach(group.lines.indices, id: \.self) { index in
+                let line = group.lines[index]
+                memberLineRow(line)
+                if index < group.lines.count - 1 {
+                    Divider()
+                        .overlay(tokens.colors.borderSubtle.opacity(0.6))
+                }
+            }
+
+            Divider()
+                .overlay(tokens.colors.borderSubtle.opacity(0.8))
+
+            Text("Total: \(group.total.myOrderUiDecimal) €")
+                .font(tokens.typography.titleCard.weight(.semibold))
+                .foregroundStyle(tokens.colors.feedbackError)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+    }
+
+    @ViewBuilder
+    private func memberLineRow(_ line: ReceivedOrdersMemberLine) -> some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+            HStack(alignment: .top, spacing: tokens.spacing.md) {
+                VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+                    Text(line.productName)
+                        .font(tokens.typography.body.weight(.semibold))
+                        .foregroundStyle(tokens.colors.textPrimary)
+                    Text(line.packagingLine)
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                }
+                Spacer(minLength: 0)
+                VStack(alignment: .trailing, spacing: tokens.spacing.xs) {
+                    Text(line.quantity.myOrderUiDecimal)
+                        .font(tokens.typography.body.weight(.semibold))
+                        .foregroundStyle(tokens.colors.textPrimary)
+                    Text(line.quantityUnitLabel())
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                    Text("\(line.subtotal.myOrderUiDecimal) €")
+                        .font(tokens.typography.body.weight(.semibold))
+                        .foregroundStyle(tokens.colors.textPrimary)
+                }
+            }
+        }
     }
 
     @ViewBuilder
@@ -542,11 +553,50 @@ private func fetchReceivedOrdersSnapshotForProducer(
     environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment
 ) async throws -> ReceivedOrdersSnapshot? {
     let firestorePath = ReguertaFirestorePath(environment: environment)
-    let readTargets = Array(Set([
+    let readTargets = receivedOrderlineReadTargets(
+        firestorePath: firestorePath,
+        environment: environment
+    )
+    let lines = try await fetchReceivedOrderLines(
+        producerId: producerId,
+        targetWeekKey: targetWeekKey,
+        readTargets: readTargets,
+        db: db
+    )
+    guard !lines.isEmpty else { return nil }
+    let statusesByOrderId = try await fetchReceivedOrderStatusesByOrderId(
+        orderIds: lines.map(\.orderId),
+        producerId: producerId,
+        db: db,
+        environment: environment
+    )
+    let synchronizedStatuses = await synchronizeUnreadReceivedOrderStatuses(
+        statusesByOrderId: statusesByOrderId,
+        producerId: producerId,
+        db: db,
+        environment: environment
+    )
+
+    return buildReceivedOrdersSnapshot(from: lines, statusesByOrderId: synchronizedStatuses)
+}
+
+private func receivedOrderlineReadTargets(
+    firestorePath: ReguertaFirestorePath,
+    environment: ReguertaFirestoreEnvironment
+) -> [String] {
+    Array(Set([
         firestorePath.collectionPath(.orderlines),
         "\(environment.rawValue)/collections/orderLines",
         "\(environment.rawValue)/collections/orderlines"
     ]))
+}
+
+private func fetchReceivedOrderLines(
+    producerId: String,
+    targetWeekKey: String,
+    readTargets: [String],
+    db: Firestore
+) async throws -> [ReceivedOrderLineRecord] {
     var dedupedLinesByKey: [String: ReceivedOrderLineRecord] = [:]
     var hasSuccessfulRead = false
     var lastError: Error?
@@ -575,36 +625,108 @@ private func fetchReceivedOrdersSnapshotForProducer(
         throw lastError
     }
 
-    let lines = dedupedLinesByKey.values.sorted { lhs, rhs in
+    return dedupedLinesByKey.values.sorted { lhs, rhs in
         if lhs.consumerDisplayName != rhs.consumerDisplayName {
             return lhs.consumerDisplayName.localizedCaseInsensitiveCompare(rhs.consumerDisplayName) == .orderedAscending
         }
         return lhs.productName.localizedCaseInsensitiveCompare(rhs.productName) == .orderedAscending
     }
-    guard !lines.isEmpty else { return nil }
-    var statusesByOrderId = try await fetchReceivedOrderStatusesByOrderId(
-        orderIds: lines.map(\.orderId),
+}
+
+private func synchronizeUnreadReceivedOrderStatuses(
+    statusesByOrderId: [String: ProducerOrderStatus],
+    producerId: String,
+    db: Firestore,
+    environment: ReguertaFirestoreEnvironment
+) async -> [String: ProducerOrderStatus] {
+    let unreadOrderIds = statusesByOrderId
+        .filter { $0.value == .unread }
+        .map(\.key)
+    guard !unreadOrderIds.isEmpty else {
+        return statusesByOrderId
+    }
+
+    let markedAsRead = await markReceivedOrdersAsRead(
+        orderIds: unreadOrderIds,
         producerId: producerId,
         db: db,
         environment: environment
     )
-    let unreadOrderIds = statusesByOrderId
-        .filter { $0.value == .unread }
-        .map(\.key)
-    if !unreadOrderIds.isEmpty {
-        let markedAsRead = await markReceivedOrdersAsRead(
-            orderIds: unreadOrderIds,
-            producerId: producerId,
-            db: db,
-            environment: environment
-        )
-        if !markedAsRead.isEmpty {
-            for orderId in markedAsRead {
-                statusesByOrderId[orderId] = .read
-            }
-        }
+    guard !markedAsRead.isEmpty else {
+        return statusesByOrderId
     }
-    return buildReceivedOrdersSnapshot(from: lines, statusesByOrderId: statusesByOrderId)
+
+    var synchronizedStatuses = statusesByOrderId
+    for orderId in markedAsRead {
+        synchronizedStatuses[orderId] = .read
+    }
+    return synchronizedStatuses
+}
+
+private func buildReceivedOrdersProductRows(
+    from lines: [ReceivedOrderLineRecord]
+) -> [ReceivedOrdersProductRow] {
+    Dictionary(grouping: lines, by: \.productId)
+        .compactMap { productId, grouped -> ReceivedOrdersProductRow? in
+            guard let first = grouped.first else { return nil }
+            let totalQuantity = grouped.reduce(0) { partial, line in partial + line.quantity }
+            return ReceivedOrdersProductRow(
+                productId: productId,
+                productName: first.productName,
+                productImageUrl: first.productImageUrl,
+                companyName: first.companyName,
+                packagingLine: first.packagingLine,
+                totalQuantity: totalQuantity,
+                quantityUnitSingular: first.quantityUnitSingular,
+                quantityUnitPlural: first.quantityUnitPlural
+            )
+        }
+        .sorted { lhs, rhs in
+            lhs.productName.localizedCaseInsensitiveCompare(rhs.productName) == .orderedAscending
+        }
+}
+
+private func buildReceivedOrdersMemberGroups(
+    from lines: [ReceivedOrderLineRecord],
+    statusesByOrderId: [String: ProducerOrderStatus]
+) -> [ReceivedOrdersMemberGroup] {
+    Dictionary(grouping: lines, by: { line in
+        "\(line.consumerId)|\(line.consumerDisplayName)"
+    })
+    .compactMap { key, grouped -> ReceivedOrdersMemberGroup? in
+        guard let first = grouped.first else { return nil }
+        let memberLines = grouped.map { line in
+            ReceivedOrdersMemberLine(
+                id: "\(line.orderId)|\(line.productId)",
+                productName: line.productName,
+                packagingLine: line.packagingLine,
+                quantity: line.quantity,
+                quantityUnitSingular: line.quantityUnitSingular,
+                quantityUnitPlural: line.quantityUnitPlural,
+                subtotal: line.subtotal
+            )
+        }.sorted { lhs, rhs in
+            lhs.productName.localizedCaseInsensitiveCompare(rhs.productName) == .orderedAscending
+        }
+        let total = memberLines.reduce(0) { partial, line in partial + line.subtotal }
+        return ReceivedOrdersMemberGroup(
+            id: key,
+            orderId: first.orderId,
+            consumerDisplayName: first.consumerDisplayName,
+            producerStatus: statusesByOrderId[first.orderId] ?? .unread,
+            lines: memberLines,
+            total: total
+        )
+    }
+    .sorted { lhs, rhs in
+        lhs.consumerDisplayName.localizedCaseInsensitiveCompare(rhs.consumerDisplayName) == .orderedAscending
+    }
+}
+
+private func receivedOrdersGeneralTotal(from lines: [ReceivedOrderLineRecord]) -> Double {
+    lines.reduce(0) { partial, line in
+        partial + line.subtotal
+    }
 }
 
 private func fetchReceivedOrderStatusesByOrderId(
@@ -708,61 +830,16 @@ private func buildReceivedOrdersSnapshot(
     from lines: [ReceivedOrderLineRecord],
     statusesByOrderId: [String: ProducerOrderStatus]
 ) -> ReceivedOrdersSnapshot {
-    let byProductRows = Dictionary(grouping: lines, by: \.productId)
-        .compactMap { productId, grouped -> ReceivedOrdersProductRow? in
-            guard let first = grouped.first else { return nil }
-            let totalQuantity = grouped.reduce(0) { partial, line in partial + line.quantity }
-            return ReceivedOrdersProductRow(
-                productId: productId,
-                productName: first.productName,
-                productImageUrl: first.productImageUrl,
-                companyName: first.companyName,
-                packagingLine: first.packagingLine,
-                totalQuantity: totalQuantity,
-                quantityUnitSingular: first.quantityUnitSingular,
-                quantityUnitPlural: first.quantityUnitPlural
-            )
-        }
-        .sorted { lhs, rhs in
-            lhs.productName.localizedCaseInsensitiveCompare(rhs.productName) == .orderedAscending
-        }
-
-    let byMemberGroups = Dictionary(grouping: lines, by: { line in
-        "\(line.consumerId)|\(line.consumerDisplayName)"
-    })
-        .compactMap { key, grouped -> ReceivedOrdersMemberGroup? in
-            guard let first = grouped.first else { return nil }
-            let memberLines = grouped.map { line in
-                ReceivedOrdersMemberLine(
-                    id: "\(line.orderId)|\(line.productId)",
-                    productName: line.productName,
-                    packagingLine: line.packagingLine,
-                    quantity: line.quantity,
-                    quantityUnitSingular: line.quantityUnitSingular,
-                    quantityUnitPlural: line.quantityUnitPlural,
-                    subtotal: line.subtotal
-                )
-            }.sorted { lhs, rhs in
-                lhs.productName.localizedCaseInsensitiveCompare(rhs.productName) == .orderedAscending
-            }
-            let total = memberLines.reduce(0) { partial, line in partial + line.subtotal }
-            return ReceivedOrdersMemberGroup(
-                id: key,
-                orderId: first.orderId,
-                consumerDisplayName: first.consumerDisplayName,
-                producerStatus: statusesByOrderId[first.orderId] ?? .unread,
-                lines: memberLines,
-                total: total
-            )
-        }
-        .sorted { lhs, rhs in
-            lhs.consumerDisplayName.localizedCaseInsensitiveCompare(rhs.consumerDisplayName) == .orderedAscending
-        }
+    let byProductRows = buildReceivedOrdersProductRows(from: lines)
+    let byMemberGroups = buildReceivedOrdersMemberGroups(
+        from: lines,
+        statusesByOrderId: statusesByOrderId
+    )
 
     return ReceivedOrdersSnapshot(
         byProductRows: byProductRows,
         byMemberGroups: byMemberGroups,
-        generalTotal: lines.reduce(0) { partial, line in partial + line.subtotal }
+        generalTotal: receivedOrdersGeneralTotal(from: lines)
     )
 }
 

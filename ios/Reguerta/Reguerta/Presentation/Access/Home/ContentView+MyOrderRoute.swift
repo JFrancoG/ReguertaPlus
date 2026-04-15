@@ -1,6 +1,8 @@
 import FirebaseFirestore
 import SwiftUI
 
+// swiftlint:disable file_length
+
 private let myOrderCommonPurchasesGroupId = "__my_order_reguerta_common_purchases__"
 private let myOrderCartStoragePrefix = "reguerta_my_order_cart"
 private let myOrderCartQuantitiesSuffix = ".quantities"
@@ -124,6 +126,7 @@ struct MyOrderConsultaWindow {
     let previousWeekKey: String
 }
 
+// swiftlint:disable:next type_body_length
 struct MyOrderRouteView: View {
     let tokens: ReguertaDesignTokens
     let products: [Product]
@@ -697,38 +700,7 @@ struct MyOrderRouteView: View {
                     .foregroundStyle(tokens.colors.textSecondary)
             }
 
-            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                ForEach(group.lines) { line in
-                    VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                        HStack(alignment: .firstTextBaseline, spacing: tokens.spacing.sm) {
-                            VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                                Text(line.product.name)
-                                    .font(tokens.typography.body.weight(.semibold))
-                                    .foregroundStyle(tokens.colors.textPrimary)
-                                Text(packContainerLine(for: line.product))
-                                    .font(tokens.typography.bodySecondary)
-                                    .foregroundStyle(tokens.colors.textSecondary)
-                            }
-                            Spacer()
-                            Text(confirmedQuantityLabel(for: line))
-                                .font(tokens.typography.body.weight(.semibold))
-                                .foregroundStyle(tokens.colors.textPrimary)
-                            Text("\(line.subtotal.myOrderUiDecimal) €")
-                                .font(tokens.typography.body.weight(.semibold))
-                                .foregroundStyle(tokens.colors.textPrimary)
-                        }
-                        Divider()
-                            .overlay(tokens.colors.borderSubtle)
-                    }
-                }
-
-                HStack {
-                    Spacer()
-                    Text("Total: \(group.subtotal.myOrderUiDecimal) €")
-                        .font(tokens.typography.body.weight(.semibold))
-                        .foregroundStyle(Color(red: 0.78, green: 0.38, blue: 0.36))
-                }
-            }
+            confirmedProducerLinesSection(group)
         }
         .padding(tokens.spacing.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -738,6 +710,47 @@ struct MyOrderRouteView: View {
                 .stroke(style.border, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
+    }
+
+    @ViewBuilder
+    private func confirmedProducerLinesSection(_ group: MyOrderConfirmedGroup) -> some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+            ForEach(group.lines) { line in
+                confirmedProducerLineRow(line)
+            }
+
+            HStack {
+                Spacer()
+                Text("Total: \(group.subtotal.myOrderUiDecimal) €")
+                    .font(tokens.typography.body.weight(.semibold))
+                    .foregroundStyle(Color(red: 0.78, green: 0.38, blue: 0.36))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func confirmedProducerLineRow(_ line: MyOrderConfirmedLine) -> some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+            HStack(alignment: .firstTextBaseline, spacing: tokens.spacing.sm) {
+                VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+                    Text(line.product.name)
+                        .font(tokens.typography.body.weight(.semibold))
+                        .foregroundStyle(tokens.colors.textPrimary)
+                    Text(packContainerLine(for: line.product))
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                }
+                Spacer()
+                Text(confirmedQuantityLabel(for: line))
+                    .font(tokens.typography.body.weight(.semibold))
+                    .foregroundStyle(tokens.colors.textPrimary)
+                Text("\(line.subtotal.myOrderUiDecimal) €")
+                    .font(tokens.typography.body.weight(.semibold))
+                    .foregroundStyle(tokens.colors.textPrimary)
+            }
+            Divider()
+                .overlay(tokens.colors.borderSubtle)
+        }
     }
 
     @ViewBuilder
@@ -927,63 +940,82 @@ struct MyOrderRouteView: View {
         isEditable: Bool
     ) -> some View {
         if !isEditable {
-            if quantity > 0 {
-                Text("\(quantity) \(quantity == 1 ? "ud." : "uds.")")
-                    .font(tokens.typography.body.weight(.semibold))
-                    .foregroundStyle(tokens.colors.textPrimary)
-            }
+            readOnlyQuantityControls(quantity: quantity)
         } else if quantity == 0 {
+            addQuantityButton(product: product, quantity: quantity)
+        } else {
+            editableQuantityControls(product: product, quantity: quantity)
+        }
+    }
+
+    @ViewBuilder
+    private func readOnlyQuantityControls(quantity: Int) -> some View {
+        if quantity > 0 {
+            Text(quantityUnitText(quantity))
+                .font(tokens.typography.body.weight(.semibold))
+                .foregroundStyle(tokens.colors.textPrimary)
+        }
+    }
+
+    private func addQuantityButton(product: Product, quantity: Int) -> some View {
+        let canIncreaseQuantity = canIncrease(product: product, currentQuantity: quantity)
+        return Button {
+            increase(product)
+        } label: {
+            HStack(spacing: tokens.spacing.xs) {
+                Text("Añadir")
+                    .font(tokens.typography.body.weight(.semibold))
+                Image(systemName: "cart.badge.plus")
+                    .font(.system(size: 16.resize, weight: .semibold))
+            }
+            .foregroundStyle(tokens.colors.actionOnPrimary)
+            .padding(.horizontal, tokens.spacing.md)
+            .padding(.vertical, tokens.spacing.sm)
+            .background(tokens.colors.actionPrimary)
+            .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
+        }
+        .buttonStyle(.plain)
+        .disabled(!canIncreaseQuantity)
+        .opacity(canIncreaseQuantity ? 1 : 0.55)
+    }
+
+    private func editableQuantityControls(product: Product, quantity: Int) -> some View {
+        let canIncreaseQuantity = canIncrease(product: product, currentQuantity: quantity)
+        return HStack(spacing: tokens.spacing.sm) {
+            Text(quantityUnitText(quantity))
+                .font(tokens.typography.body.weight(.semibold))
+                .foregroundStyle(tokens.colors.textPrimary)
+
+            Button {
+                decrease(product)
+            } label: {
+                Image(systemName: quantity == 1 ? "trash" : "minus")
+                    .font(.system(size: 14.resize, weight: .bold))
+                    .foregroundStyle(tokens.colors.actionOnPrimary)
+                    .frame(width: 36.resize, height: 36.resize)
+                    .background(Color(red: 0.74, green: 0.36, blue: 0.35))
+                    .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
+            }
+            .buttonStyle(.plain)
+
             Button {
                 increase(product)
             } label: {
-                HStack(spacing: tokens.spacing.xs) {
-                    Text("Añadir")
-                        .font(tokens.typography.body.weight(.semibold))
-                    Image(systemName: "cart.badge.plus")
-                        .font(.system(size: 16.resize, weight: .semibold))
-                }
-                .foregroundStyle(tokens.colors.actionOnPrimary)
-                .padding(.horizontal, tokens.spacing.md)
-                .padding(.vertical, tokens.spacing.sm)
-                .background(tokens.colors.actionPrimary)
-                .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
+                Image(systemName: "plus")
+                    .font(.system(size: 15.resize, weight: .bold))
+                    .foregroundStyle(tokens.colors.actionOnPrimary)
+                    .frame(width: 36.resize, height: 36.resize)
+                    .background(tokens.colors.actionPrimary)
+                    .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
             }
             .buttonStyle(.plain)
-            .disabled(!canIncrease(product: product, currentQuantity: quantity))
-            .opacity(canIncrease(product: product, currentQuantity: quantity) ? 1 : 0.55)
-        } else {
-            HStack(spacing: tokens.spacing.sm) {
-                Text("\(quantity) \(quantity == 1 ? "ud." : "uds.")")
-                    .font(tokens.typography.body.weight(.semibold))
-                    .foregroundStyle(tokens.colors.textPrimary)
-
-                Button {
-                    decrease(product)
-                } label: {
-                    Image(systemName: quantity == 1 ? "trash" : "minus")
-                        .font(.system(size: 14.resize, weight: .bold))
-                        .foregroundStyle(tokens.colors.actionOnPrimary)
-                        .frame(width: 36.resize, height: 36.resize)
-                        .background(Color(red: 0.74, green: 0.36, blue: 0.35))
-                        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    increase(product)
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 15.resize, weight: .bold))
-                        .foregroundStyle(tokens.colors.actionOnPrimary)
-                        .frame(width: 36.resize, height: 36.resize)
-                        .background(tokens.colors.actionPrimary)
-                        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
-                }
-                .buttonStyle(.plain)
-                .disabled(!canIncrease(product: product, currentQuantity: quantity))
-                .opacity(canIncrease(product: product, currentQuantity: quantity) ? 1 : 0.55)
-            }
+            .disabled(!canIncreaseQuantity)
+            .opacity(canIncreaseQuantity ? 1 : 0.55)
         }
+    }
+
+    private func quantityUnitText(_ quantity: Int) -> String {
+        "\(quantity) \(quantity == 1 ? "ud." : "uds.")"
     }
 
     private var searchOverlay: some View {
@@ -1023,50 +1055,9 @@ struct MyOrderRouteView: View {
         HStack {
             Spacer(minLength: 0)
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Button {
-                    if isReadOnlyConfirmedView {
-                        isViewingConfirmedOrder = false
-                        withAnimation(.easeInOut(duration: 0.22)) {
-                            isCartVisible = false
-                        }
-                    } else {
-                        withAnimation(.easeInOut(duration: 0.22)) {
-                            isCartVisible = false
-                        }
-                    }
-                } label: {
-                    HStack(spacing: tokens.spacing.xs) {
-                        Image(systemName: isReadOnlyConfirmedView ? "pencil" : "basket")
-                        Text(isReadOnlyConfirmedView ? "Editar pedido" : "Seguir comprando")
-                            .font(tokens.typography.body.weight(.semibold))
-                    }
-                    .foregroundStyle(tokens.colors.actionPrimary)
-                    .padding(.horizontal, tokens.spacing.md)
-                    .padding(.vertical, tokens.spacing.sm)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: tokens.radius.md)
-                            .stroke(tokens.colors.actionPrimary, lineWidth: 1)
-                    )
-                }
-                .buttonStyle(.plain)
-
-                HStack {
-                    Text("Mi carrito")
-                        .font(tokens.typography.titleCard)
-                    Spacer()
-                    Text("Total: \(cartTotal.myOrderUiDecimal) €")
-                        .font(tokens.typography.titleCard.weight(.semibold))
-                        .foregroundStyle(tokens.colors.actionPrimary)
-                }
-
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: tokens.spacing.sm) {
-                        ForEach(selectedProducts) { product in
-                            selectedProductCard(product)
-                        }
-                    }
-                    .padding(.bottom, 116.resize)
-                }
+                cartOverlayCloseButton
+                cartOverlayHeader
+                cartOverlayProductsList
 
                 Spacer(minLength: 0)
             }
@@ -1075,31 +1066,87 @@ struct MyOrderRouteView: View {
             .frame(maxHeight: .infinity, alignment: .top)
             .background(tokens.colors.surfacePrimary)
             .overlay(alignment: .bottom) {
-                if !isReadOnlyConfirmedView {
-                    HStack {
-                        Button {
-                            validateCheckout()
-                        } label: {
-                            Text(finalizeCheckoutTitle)
-                                .font(tokens.typography.body.weight(.semibold))
-                                .foregroundStyle(tokens.colors.actionOnPrimary)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, tokens.spacing.sm)
-                                .background(tokens.colors.actionPrimary)
-                                .clipShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(!canSubmitCheckout)
-                        .opacity(canSubmitCheckout ? 1 : 0.55)
-                    }
-                    .padding(tokens.spacing.md)
-                    .background(tokens.colors.surfacePrimary.opacity(0.95))
-                }
+                cartOverlayCheckoutFooter
             }
             .offset(x: isCartVisible ? 0 : panelWidth + 24.resize)
             .animation(.easeInOut(duration: 0.22), value: isCartVisible)
         }
         .allowsHitTesting(isCartVisible)
+    }
+
+    private var cartOverlayCloseButton: some View {
+        Button {
+            closeCartOverlay()
+        } label: {
+            HStack(spacing: tokens.spacing.xs) {
+                Image(systemName: isReadOnlyConfirmedView ? "pencil" : "basket")
+                Text(isReadOnlyConfirmedView ? "Editar pedido" : "Seguir comprando")
+                    .font(tokens.typography.body.weight(.semibold))
+            }
+            .foregroundStyle(tokens.colors.actionPrimary)
+            .padding(.horizontal, tokens.spacing.md)
+            .padding(.vertical, tokens.spacing.sm)
+            .overlay(
+                RoundedRectangle(cornerRadius: tokens.radius.md)
+                    .stroke(tokens.colors.actionPrimary, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var cartOverlayHeader: some View {
+        HStack {
+            Text("Mi carrito")
+                .font(tokens.typography.titleCard)
+            Spacer()
+            Text("Total: \(cartTotal.myOrderUiDecimal) €")
+                .font(tokens.typography.titleCard.weight(.semibold))
+                .foregroundStyle(tokens.colors.actionPrimary)
+        }
+    }
+
+    private var cartOverlayProductsList: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(spacing: tokens.spacing.sm) {
+                ForEach(selectedProducts) { product in
+                    selectedProductCard(product)
+                }
+            }
+            .padding(.bottom, 116.resize)
+        }
+    }
+
+    @ViewBuilder
+    private var cartOverlayCheckoutFooter: some View {
+        if !isReadOnlyConfirmedView {
+            HStack {
+                Button {
+                    validateCheckout()
+                } label: {
+                    Text(finalizeCheckoutTitle)
+                        .font(tokens.typography.body.weight(.semibold))
+                        .foregroundStyle(tokens.colors.actionOnPrimary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, tokens.spacing.sm)
+                        .background(tokens.colors.actionPrimary)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(!canSubmitCheckout)
+                .opacity(canSubmitCheckout ? 1 : 0.55)
+            }
+            .padding(tokens.spacing.md)
+            .background(tokens.colors.surfacePrimary.opacity(0.95))
+        }
+    }
+
+    private func closeCartOverlay() {
+        if isReadOnlyConfirmedView {
+            isViewingConfirmedOrder = false
+        }
+        withAnimation(.easeInOut(duration: 0.22)) {
+            isCartVisible = false
+        }
     }
 
     @ViewBuilder
@@ -1147,24 +1194,32 @@ struct MyOrderRouteView: View {
             selectedEcoBasketOptions: selectedEcoBasketOptions,
             currentWeekParity: currentWeekParity
         )
-
-        if validation.hasEcoBasketPriceMismatch {
-            checkoutAlert = .ecoBasketPriceMismatch
+        if let alert = checkoutAlertForValidation(validation) {
+            checkoutAlert = alert
             return
+        }
+        submitValidatedCheckout()
+    }
+
+    private func checkoutAlertForValidation(
+        _ validation: MyOrderCheckoutValidationResult
+    ) -> MyOrderCheckoutAlert? {
+        if validation.hasEcoBasketPriceMismatch {
+            return .ecoBasketPriceMismatch
         }
         if !validation.incompatibleCommitmentProductNames.isEmpty {
-            checkoutAlert = .incompatibleCommitments(validation.incompatibleCommitmentProductNames)
-            return
+            return .incompatibleCommitments(validation.incompatibleCommitmentProductNames)
         }
         if !validation.missingCommitmentProductNames.isEmpty {
-            checkoutAlert = .missingCommitments(validation.missingCommitmentProductNames)
-            return
+            return .missingCommitments(validation.missingCommitmentProductNames)
         }
         if !validation.exceededCommitmentProductNames.isEmpty {
-            checkoutAlert = .exceededCommitments(validation.exceededCommitmentProductNames)
-            return
+            return .exceededCommitments(validation.exceededCommitmentProductNames)
         }
+        return nil
+    }
 
+    private func submitValidatedCheckout() {
         isSubmittingCheckout = true
         Task { @MainActor in
             let didPersist = await submitCheckoutOrderToFirestore(
@@ -1180,20 +1235,23 @@ struct MyOrderRouteView: View {
                 checkoutAlert = .submitFailed
                 return
             }
-
-            persistMyOrderConfirmedSnapshot(
-                storageKey: cartStorageKey,
-                selectedQuantities: selectedQuantities,
-                selectedEcoBasketOptions: selectedEcoBasketOptions
-            )
-            confirmedQuantities = selectedQuantities
-            confirmedEcoBasketOptions = selectedEcoBasketOptions
-            isViewingConfirmedOrder = true
-            checkoutAlert = .readyToSubmit(
-                total: cartTotal,
-                noPickupEcoBaskets: noPickupEcoBasketUnits
-            )
+            applySuccessfulCheckoutState()
         }
+    }
+
+    private func applySuccessfulCheckoutState() {
+        persistMyOrderConfirmedSnapshot(
+            storageKey: cartStorageKey,
+            selectedQuantities: selectedQuantities,
+            selectedEcoBasketOptions: selectedEcoBasketOptions
+        )
+        confirmedQuantities = selectedQuantities
+        confirmedEcoBasketOptions = selectedEcoBasketOptions
+        isViewingConfirmedOrder = true
+        checkoutAlert = .readyToSubmit(
+            total: cartTotal,
+            noPickupEcoBaskets: noPickupEcoBasketUnits
+        )
     }
 
     @ViewBuilder
@@ -1422,6 +1480,22 @@ private struct MyOrderCheckoutLineSnapshot {
     let ecoBasketOption: String?
 }
 
+private typealias MyOrderCheckoutWriteTarget = (orders: String, orderlines: String)
+
+private struct MyOrderCheckoutContext {
+    let orderId: String
+    let weekKey: String
+    let weekNumber: Int
+    let nowTimestamp: Timestamp
+    let total: Double
+    let totalsByVendor: [String: Double]
+}
+
+private struct MyOrderProducerStatusWireSnapshot {
+    let producerStatus: String
+    let producerStatusesByVendor: [String: String]
+}
+
 private func submitCheckoutOrderToFirestore(
     currentMember: Member?,
     weekKey: String,
@@ -1436,15 +1510,53 @@ private func submitCheckoutOrderToFirestore(
         return false
     }
 
-    let lineSnapshots = products.compactMap { product -> MyOrderCheckoutLineSnapshot? in
+    let lineSnapshots = buildMyOrderCheckoutLineSnapshots(
+        products: products,
+        selectedQuantities: selectedQuantities,
+        selectedEcoBasketOptions: selectedEcoBasketOptions
+    )
+    guard !lineSnapshots.isEmpty else {
+        return false
+    }
+
+    let firestorePath = ReguertaFirestorePath(environment: environment)
+    let writeTargets = resolveMyOrderCheckoutWriteTargets(
+        firestorePath: firestorePath,
+        environment: environment
+    )
+    let checkoutContext = buildMyOrderCheckoutContext(
+        member: member,
+        weekKey: weekKey,
+        nowMillis: nowMillis,
+        lineSnapshots: lineSnapshots
+    )
+
+    for target in writeTargets {
+        if let written = try? await submitMyOrderCheckout(
+            target: target,
+            context: checkoutContext,
+            member: member,
+            lineSnapshots: lineSnapshots,
+            db: db
+        ), written {
+            return true
+        }
+    }
+
+    return false
+}
+
+private func buildMyOrderCheckoutLineSnapshots(
+    products: [Product],
+    selectedQuantities: [String: Int],
+    selectedEcoBasketOptions: [String: String]
+) -> [MyOrderCheckoutLineSnapshot] {
+    products.compactMap { product in
         let selectedUnits = selectedQuantities[product.id, default: 0]
         guard selectedUnits > 0 else { return nil }
-        let quantityAtOrder: Double
-        if product.pricingMode == .weight {
-            quantityAtOrder = Double(selectedUnits) * product.unitQty
-        } else {
-            quantityAtOrder = Double(selectedUnits)
-        }
+        let quantityAtOrder = product.pricingMode == .weight
+            ? Double(selectedUnits) * product.unitQty
+            : Double(selectedUnits)
         let subtotal = quantityAtOrder * product.price
         let selectedOption = selectedEcoBasketOptions[product.id]
         let ecoBasketOption = (selectedOption == ecoBasketOptionPickup || selectedOption == ecoBasketOptionNoPickup)
@@ -1457,12 +1569,13 @@ private func submitCheckoutOrderToFirestore(
             ecoBasketOption: ecoBasketOption
         )
     }
-    guard !lineSnapshots.isEmpty else {
-        return false
-    }
+}
 
-    let firestorePath = ReguertaFirestorePath(environment: environment)
-    let writeTargets = [
+private func resolveMyOrderCheckoutWriteTargets(
+    firestorePath: ReguertaFirestorePath,
+    environment: ReguertaFirestoreEnvironment
+) -> [MyOrderCheckoutWriteTarget] {
+    [
         (
             orders: firestorePath.collectionPath(.orders),
             orderlines: firestorePath.collectionPath(.orderlines)
@@ -1476,104 +1589,153 @@ private func submitCheckoutOrderToFirestore(
             orderlines: "\(environment.rawValue)/collections/orderlines"
         )
     ]
+}
+
+private func buildMyOrderCheckoutContext(
+    member: Member,
+    weekKey: String,
+    nowMillis: Int64,
+    lineSnapshots: [MyOrderCheckoutLineSnapshot]
+) -> MyOrderCheckoutContext {
     let orderId = "\(member.id)_\(weekKey)"
     let nowDate = Date(timeIntervalSince1970: TimeInterval(nowMillis) / 1_000)
     let nowTimestamp = Timestamp(date: nowDate)
     let parsedWeek = weekKey.split(separator: "W").last.flatMap { Int($0) }
     let weekNumber = parsedWeek ?? Calendar(identifier: .iso8601).component(.weekOfYear, from: nowDate)
-
     let total = lineSnapshots.reduce(0) { $0 + $1.subtotal }
     let totalsByVendor = Dictionary(grouping: lineSnapshots, by: { $0.product.vendorId })
-        .mapValues { snapshots in
-            snapshots.reduce(0) { $0 + $1.subtotal }
-        }
+        .mapValues { snapshots in snapshots.reduce(0) { $0 + $1.subtotal } }
 
-    for target in writeTargets {
-        do {
-            let orderRef = db.document("\(target.orders)/\(orderId)")
+    return MyOrderCheckoutContext(
+        orderId: orderId,
+        weekKey: weekKey,
+        weekNumber: weekNumber,
+        nowTimestamp: nowTimestamp,
+        total: total,
+        totalsByVendor: totalsByVendor
+    )
+}
 
-            let existingData = try? await orderRef.getDocument().data()
-            let createdAt = (existingData?["createdAt"] as? Timestamp) ?? nowTimestamp
-            let producerStatusCandidate = (existingData?["producerStatus"] as? String)?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            let producerStatus = ProducerOrderStatus.from(producerStatusCandidate).rawValue
-            let existingStatusesByVendor = existingData?["producerStatusesByVendor"] as? [String: Any]
-            let producerStatusesByVendor = totalsByVendor.keys.reduce(into: [String: String]()) { partialResult, vendorId in
-                let existingValue = existingStatusesByVendor?[vendorId] as? String
-                let resolved = ProducerOrderStatus.from(existingValue ?? producerStatus).rawValue
-                partialResult[vendorId] = resolved
-            }
-            let deliveryDate = (existingData?["deliveryDate"] as? Timestamp) ?? nowTimestamp
+private func submitMyOrderCheckout(
+    target: MyOrderCheckoutWriteTarget,
+    context: MyOrderCheckoutContext,
+    member: Member,
+    lineSnapshots: [MyOrderCheckoutLineSnapshot],
+    db: Firestore
+) async throws -> Bool {
+    let orderRef = db.document("\(target.orders)/\(context.orderId)")
+    let existingData = try? await orderRef.getDocument().data()
+    let createdAt = (existingData?["createdAt"] as? Timestamp) ?? context.nowTimestamp
+    let deliveryDate = (existingData?["deliveryDate"] as? Timestamp) ?? context.nowTimestamp
+    let producerStatusSnapshot = resolveMyOrderProducerStatusSnapshot(
+        existingData: existingData ?? [:],
+        vendorIds: Array(context.totalsByVendor.keys)
+    )
+    let existingLinesSnapshot = try? await db.collection(target.orderlines)
+        .whereField("orderId", isEqualTo: context.orderId)
+        .getDocuments()
 
-            let existingLinesSnapshot = try? await db.collection(target.orderlines)
-                .whereField("orderId", isEqualTo: orderId)
-                .getDocuments()
+    let batch = db.batch()
+    batch.setData(
+        myOrderCheckoutOrderPayload(
+            member: member,
+            context: context,
+            createdAt: createdAt,
+            deliveryDate: deliveryDate,
+            producerStatusSnapshot: producerStatusSnapshot
+        ),
+        forDocument: orderRef,
+        merge: true
+    )
 
-            let batch = db.batch()
-            batch.setData([
-                "userId": member.id,
-                "consumerDisplayName": member.displayName,
-                "week": weekNumber,
-                "weekKey": weekKey,
-                "deliveryDate": deliveryDate,
-                "consumerStatus": "confirmado",
-                "producerStatus": producerStatus,
-                "producerStatusesByVendor": producerStatusesByVendor,
-                "total": total,
-                "totalsByVendor": totalsByVendor,
-                "isAutoGenerated": false,
-                "createdAt": createdAt,
-                "updatedAt": nowTimestamp,
-                "confirmedAt": nowTimestamp
-            ], forDocument: orderRef, merge: true)
-
-            for document in existingLinesSnapshot?.documents ?? [] {
-                batch.deleteDocument(document.reference)
-            }
-
-            for line in lineSnapshots {
-                let lineRef = db.document("\(target.orderlines)/\(orderId)_\(line.product.id)")
-                batch.setData([
-                    "orderId": orderId,
-                    "userId": member.id,
-                    "productId": line.product.id,
-                    "vendorId": line.product.vendorId,
-                    "consumerDisplayName": member.displayName,
-                    "companyName": line.product.companyName,
-                    "productName": line.product.name,
-                    "productImageUrl": line.product.productImageUrl as Any,
-                    "quantity": line.quantityAtOrder,
-                    "priceAtOrder": line.product.price,
-                    "subtotal": line.subtotal,
-                    "pricingModeAtOrder": line.product.pricingMode.orderWireValue,
-                    "unitName": line.product.unitName,
-                    "unitAbbreviation": line.product.unitAbbreviation as Any,
-                    "unitPlural": line.product.unitPlural,
-                    "unitQty": line.product.unitQty,
-                    "packContainerName": line.product.packContainerName as Any,
-                    "packContainerAbbreviation": line.product.packContainerAbbreviation as Any,
-                    "packContainerPlural": line.product.packContainerPlural as Any,
-                    "packContainerQty": line.product.packContainerQty as Any,
-                    "ecoBasketOptionAtOrder": line.ecoBasketOption as Any,
-                    "week": weekNumber,
-                    "weekKey": weekKey,
-                    "createdAt": nowTimestamp,
-                    "updatedAt": nowTimestamp
-                ], forDocument: lineRef, merge: true)
-            }
-
-            try await batch.commit()
-
-            let serverOrderSnapshot = try await orderRef.getDocument(source: .server)
-            if serverOrderSnapshot.exists {
-                return true
-            }
-        } catch {
-            continue
-        }
+    for document in existingLinesSnapshot?.documents ?? [] {
+        batch.deleteDocument(document.reference)
+    }
+    for line in lineSnapshots {
+        let lineRef = db.document("\(target.orderlines)/\(context.orderId)_\(line.product.id)")
+        batch.setData(myOrderCheckoutLinePayload(line: line, member: member, context: context), forDocument: lineRef, merge: true)
     }
 
-    return false
+    try await batch.commit()
+    let serverOrderSnapshot = try await orderRef.getDocument(source: .server)
+    return serverOrderSnapshot.exists
+}
+
+private func resolveMyOrderProducerStatusSnapshot(
+    existingData: [String: Any],
+    vendorIds: [String]
+) -> MyOrderProducerStatusWireSnapshot {
+    let producerStatusCandidate = (existingData["producerStatus"] as? String)?
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+    let producerStatus = ProducerOrderStatus.from(producerStatusCandidate).rawValue
+    let existingStatusesByVendor = existingData["producerStatusesByVendor"] as? [String: Any]
+    let producerStatusesByVendor = vendorIds.reduce(into: [String: String]()) { partialResult, vendorId in
+        let existingValue = existingStatusesByVendor?[vendorId] as? String
+        partialResult[vendorId] = ProducerOrderStatus.from(existingValue ?? producerStatus).rawValue
+    }
+    return MyOrderProducerStatusWireSnapshot(
+        producerStatus: producerStatus,
+        producerStatusesByVendor: producerStatusesByVendor
+    )
+}
+
+private func myOrderCheckoutOrderPayload(
+    member: Member,
+    context: MyOrderCheckoutContext,
+    createdAt: Timestamp,
+    deliveryDate: Timestamp,
+    producerStatusSnapshot: MyOrderProducerStatusWireSnapshot
+) -> [String: Any] {
+    [
+        "userId": member.id,
+        "consumerDisplayName": member.displayName,
+        "week": context.weekNumber,
+        "weekKey": context.weekKey,
+        "deliveryDate": deliveryDate,
+        "consumerStatus": "confirmado",
+        "producerStatus": producerStatusSnapshot.producerStatus,
+        "producerStatusesByVendor": producerStatusSnapshot.producerStatusesByVendor,
+        "total": context.total,
+        "totalsByVendor": context.totalsByVendor,
+        "isAutoGenerated": false,
+        "createdAt": createdAt,
+        "updatedAt": context.nowTimestamp,
+        "confirmedAt": context.nowTimestamp
+    ]
+}
+
+private func myOrderCheckoutLinePayload(
+    line: MyOrderCheckoutLineSnapshot,
+    member: Member,
+    context: MyOrderCheckoutContext
+) -> [String: Any] {
+    [
+        "orderId": context.orderId,
+        "userId": member.id,
+        "productId": line.product.id,
+        "vendorId": line.product.vendorId,
+        "consumerDisplayName": member.displayName,
+        "companyName": line.product.companyName,
+        "productName": line.product.name,
+        "productImageUrl": line.product.productImageUrl as Any,
+        "quantity": line.quantityAtOrder,
+        "priceAtOrder": line.product.price,
+        "subtotal": line.subtotal,
+        "pricingModeAtOrder": line.product.pricingMode.orderWireValue,
+        "unitName": line.product.unitName,
+        "unitAbbreviation": line.product.unitAbbreviation as Any,
+        "unitPlural": line.product.unitPlural,
+        "unitQty": line.product.unitQty,
+        "packContainerName": line.product.packContainerName as Any,
+        "packContainerAbbreviation": line.product.packContainerAbbreviation as Any,
+        "packContainerPlural": line.product.packContainerPlural as Any,
+        "packContainerQty": line.product.packContainerQty as Any,
+        "ecoBasketOptionAtOrder": line.ecoBasketOption as Any,
+        "week": context.weekNumber,
+        "weekKey": context.weekKey,
+        "createdAt": context.nowTimestamp,
+        "updatedAt": context.nowTimestamp
+    ]
 }
 
 private func myOrderSnapshotsMatch(
@@ -1677,7 +1839,43 @@ private func fetchPreviousWeekOrderSnapshot(
     }
 
     let firestorePath = ReguertaFirestorePath(environment: environment)
-    let readTargets = [
+    let readTargets = resolvePreviousOrderReadTargets(
+        firestorePath: firestorePath,
+        environment: environment
+    )
+    let orderId = "\(member.id)_\(previousWeekKey)"
+    var lastError: Error?
+    var hasSuccessfulRead = false
+
+    for target in readTargets {
+        do {
+            let snapshot = try await fetchPreviousWeekOrderSnapshot(
+                target: target,
+                orderId: orderId,
+                previousWeekKey: previousWeekKey,
+                db: db
+            )
+            hasSuccessfulRead = true
+            if let snapshot {
+                return snapshot
+            }
+        } catch {
+            lastError = error
+            continue
+        }
+    }
+
+    if !hasSuccessfulRead, let lastError {
+        throw lastError
+    }
+    return nil
+}
+
+private func resolvePreviousOrderReadTargets(
+    firestorePath: ReguertaFirestorePath,
+    environment: ReguertaFirestoreEnvironment
+) -> [MyOrderCheckoutWriteTarget] {
+    [
         (
             orders: firestorePath.collectionPath(.orders),
             orderlines: firestorePath.collectionPath(.orderlines)
@@ -1691,47 +1889,36 @@ private func fetchPreviousWeekOrderSnapshot(
             orderlines: "\(environment.rawValue)/collections/orderlines"
         )
     ]
-    let orderId = "\(member.id)_\(previousWeekKey)"
-    var lastError: Error?
-    var hasSuccessfulRead = false
+}
 
-    for target in readTargets {
-        do {
-            let orderRef = db.document("\(target.orders)/\(orderId)")
-            let orderSnapshot = try await orderRef.getDocument()
-            let linesSnapshot = try await db.collection(target.orderlines)
-                .whereField("orderId", isEqualTo: orderId)
-                .getDocuments()
-            hasSuccessfulRead = true
+private func fetchPreviousWeekOrderSnapshot(
+    target: MyOrderCheckoutWriteTarget,
+    orderId: String,
+    previousWeekKey: String,
+    db: Firestore
+) async throws -> MyOrderPreviousOrderSnapshot? {
+    let orderRef = db.document("\(target.orders)/\(orderId)")
+    let orderSnapshot = try await orderRef.getDocument()
+    let linesSnapshot = try await db.collection(target.orderlines)
+        .whereField("orderId", isEqualTo: orderId)
+        .getDocuments()
 
-            let lines = linesSnapshot.documents.map { document in
-                myOrderPreviousLine(from: document.data())
-            }
-
-            let groups = buildMyOrderPreviousGroups(from: lines)
-
-            if !orderSnapshot.exists && groups.isEmpty {
-                continue
-            }
-
-            let total = (orderSnapshot.data()?["total"] as? NSNumber)?.doubleValue ??
-                groups.reduce(0) { $0 + $1.subtotal }
-
-            return MyOrderPreviousOrderSnapshot(
-                weekKey: previousWeekKey,
-                groups: groups,
-                total: total
-            )
-        } catch {
-            lastError = error
-            continue
-        }
+    let lines = linesSnapshot.documents.map { document in
+        myOrderPreviousLine(from: document.data())
+    }
+    let groups = buildMyOrderPreviousGroups(from: lines)
+    guard orderSnapshot.exists || !groups.isEmpty else {
+        return nil
     }
 
-    if !hasSuccessfulRead, let lastError {
-        throw lastError
-    }
-    return nil
+    let total = (orderSnapshot.data()?["total"] as? NSNumber)?.doubleValue ??
+        groups.reduce(0) { $0 + $1.subtotal }
+
+    return MyOrderPreviousOrderSnapshot(
+        weekKey: previousWeekKey,
+        groups: groups,
+        total: total
+    )
 }
 
 private func buildMyOrderPreviousGroups(from lines: [MyOrderPreviousOrderLine]) -> [MyOrderPreviousOrderGroup] {

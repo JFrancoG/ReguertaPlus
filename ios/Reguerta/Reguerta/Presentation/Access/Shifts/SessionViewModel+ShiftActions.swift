@@ -200,30 +200,21 @@ extension SessionViewModel {
     }
 
     func confirmShiftSwapRequest(requestId: String, candidateShiftId: String) {
-        guard case .authorized(let session) = mode else { return }
-        guard let request = shiftSwapRequests.first(where: { $0.id == requestId }) else { return }
-        guard let requestedShift = shiftsFeed.first(where: { $0.id == request.requestedShiftId }) else { return }
-        guard let candidate = request.candidates.first(where: { $0.shiftId == candidateShiftId }) else { return }
-        guard let candidateShift = shiftsFeed.first(where: { $0.id == candidate.shiftId }) else { return }
+        guard let context = confirmShiftSwapContext(
+            requestId: requestId,
+            candidateShiftId: candidateShiftId
+        ) else { return }
 
         isUpdatingShiftSwapRequest = true
         Task { @MainActor in
             let now = nowMillisProvider()
-            let updatedRequest = ShiftSwapRequest(
-                id: request.id,
-                requestedShiftId: request.requestedShiftId,
-                requesterUserId: request.requesterUserId,
-                reason: request.reason,
-                status: .applied,
-                candidates: request.candidates,
-                responses: request.responses,
-                selectedCandidateUserId: candidate.userId,
-                selectedCandidateShiftId: candidate.shiftId,
-                requestedAtMillis: request.requestedAtMillis,
-                confirmedAtMillis: now,
-                appliedAtMillis: now
+            let updatedRequest = appliedShiftSwapRequest(from: context.request, candidate: context.candidate, now: now)
+            let swapped = context.requestedShift.swappingMember(
+                with: context.candidateShift,
+                requesterUserId: context.request.requesterUserId,
+                responderUserId: context.candidate.userId,
+                nowMillis: now
             )
-            let swapped = requestedShift.swappingMember(with: candidateShift, requesterUserId: request.requesterUserId, responderUserId: candidate.userId, nowMillis: now)
             _ = await shiftSwapRequestRepository.upsert(request: updatedRequest)
             let existingShifts = await shiftRepository.allShifts()
             let shiftsToPersist = existingShifts.applyingConfirmedSwap(
@@ -234,29 +225,11 @@ extension SessionViewModel {
             for shift in shiftsToPersist {
                 _ = await shiftRepository.upsert(shift: shift)
             }
-            await sendShiftSwapNotification(
-                title: l10n(AccessL10nKey.shiftSwapNotificationAppliedTitle),
-                body: l10n(
-                    AccessL10nKey.shiftSwapNotificationAppliedBody,
-                    session.member.displayName,
-                    displayName(for: candidate.userId, in: session),
-                    localizedShiftNotificationDateTime(requestedShift.dateMillis),
-                    localizedShiftNotificationDateTime(candidateShift.dateMillis)
-                ),
-                type: "shift_swap_applied",
-                targetUserIds: Array(Set(session.members.filter(\.isActive).map(\.id))),
-                createdBy: session.member.id
-            )
-            let allRequests = await shiftSwapRequestRepository.allShiftSwapRequests()
-            let allShifts = await shiftRepository.allShifts()
-            shiftSwapRequests = allRequests.visible(to: session.member.id)
-            shiftsFeed = allShifts
-            nextDeliveryShift = allShifts.nextAssignedShift(memberId: session.member.id, type: .delivery, nowMillis: nowMillisProvider())
-            nextMarketShift = allShifts.nextAssignedShift(memberId: session.member.id, type: .market, nowMillis: nowMillisProvider())
+            await sendShiftSwapAppliedNotification(context: context)
+            await refreshShiftSwapState(for: context.session)
             isUpdatingShiftSwapRequest = false
         }
     }
-
 
     private func updateShiftSwapRequest(
         requestId: String,
@@ -270,20 +243,7 @@ extension SessionViewModel {
             let now = nowMillisProvider()
             let updatedRequest = transform(request, session, now)
             _ = await shiftSwapRequestRepository.upsert(request: updatedRequest)
-            let allRequests = await shiftSwapRequestRepository.allShiftSwapRequests()
-            let allShifts = await shiftRepository.allShifts()
-            shiftSwapRequests = allRequests.visible(to: session.member.id)
-            shiftsFeed = allShifts
-            nextDeliveryShift = allShifts.nextAssignedShift(
-                memberId: session.member.id,
-                type: .delivery,
-                nowMillis: nowMillisProvider()
-            )
-            nextMarketShift = allShifts.nextAssignedShift(
-                memberId: session.member.id,
-                type: .market,
-                nowMillis: nowMillisProvider()
-            )
+            await refreshShiftSwapState(for: session)
             isUpdatingShiftSwapRequest = false
         }
     }
@@ -341,6 +301,79 @@ extension SessionViewModel {
             shiftSwapRequests = allRequests.visible(to: session.member.id)
             isUpdatingShiftSwapRequest = false
         }
+    }
+
+    private func confirmShiftSwapContext(
+        requestId: String,
+        candidateShiftId: String
+    ) -> ConfirmShiftSwapContext? {
+        guard case .authorized(let session) = mode else { return nil }
+        guard let request = shiftSwapRequests.first(where: { $0.id == requestId }) else { return nil }
+        guard let requestedShift = shiftsFeed.first(where: { $0.id == request.requestedShiftId }) else { return nil }
+        guard let candidate = request.candidates.first(where: { $0.shiftId == candidateShiftId }) else { return nil }
+        guard let candidateShift = shiftsFeed.first(where: { $0.id == candidate.shiftId }) else { return nil }
+
+        return ConfirmShiftSwapContext(
+            session: session,
+            request: request,
+            requestedShift: requestedShift,
+            candidate: candidate,
+            candidateShift: candidateShift
+        )
+    }
+
+    private func refreshShiftSwapState(for session: AuthorizedSession) async {
+        let allRequests = await shiftSwapRequestRepository.allShiftSwapRequests()
+        let allShifts = await shiftRepository.allShifts()
+        shiftSwapRequests = allRequests.visible(to: session.member.id)
+        shiftsFeed = allShifts
+        nextDeliveryShift = allShifts.nextAssignedShift(
+            memberId: session.member.id,
+            type: .delivery,
+            nowMillis: nowMillisProvider()
+        )
+        nextMarketShift = allShifts.nextAssignedShift(
+            memberId: session.member.id,
+            type: .market,
+            nowMillis: nowMillisProvider()
+        )
+    }
+
+    private func appliedShiftSwapRequest(
+        from request: ShiftSwapRequest,
+        candidate: ShiftSwapCandidate,
+        now: Int64
+    ) -> ShiftSwapRequest {
+        ShiftSwapRequest(
+            id: request.id,
+            requestedShiftId: request.requestedShiftId,
+            requesterUserId: request.requesterUserId,
+            reason: request.reason,
+            status: .applied,
+            candidates: request.candidates,
+            responses: request.responses,
+            selectedCandidateUserId: candidate.userId,
+            selectedCandidateShiftId: candidate.shiftId,
+            requestedAtMillis: request.requestedAtMillis,
+            confirmedAtMillis: now,
+            appliedAtMillis: now
+        )
+    }
+
+    private func sendShiftSwapAppliedNotification(context: ConfirmShiftSwapContext) async {
+        await sendShiftSwapNotification(
+            title: l10n(AccessL10nKey.shiftSwapNotificationAppliedTitle),
+            body: l10n(
+                AccessL10nKey.shiftSwapNotificationAppliedBody,
+                context.session.member.displayName,
+                displayName(for: context.candidate.userId, in: context.session),
+                localizedShiftNotificationDateTime(context.requestedShift.dateMillis),
+                localizedShiftNotificationDateTime(context.candidateShift.dateMillis)
+            ),
+            type: "shift_swap_applied",
+            targetUserIds: Array(Set(context.session.members.filter(\.isActive).map(\.id))),
+            createdBy: context.session.member.id
+        )
     }
 
     private func sendShiftSwapNotification(
@@ -413,6 +446,14 @@ extension SessionViewModel {
     }
 }
 
+private struct ConfirmShiftSwapContext {
+    let session: AuthorizedSession
+    let request: ShiftSwapRequest
+    let requestedShift: ShiftAssignment
+    let candidate: ShiftSwapCandidate
+    let candidateShift: ShiftAssignment
+}
+
 extension Array where Element == ShiftAssignment {
     func nextAssignedShift(
         memberId: String,
@@ -439,7 +480,8 @@ private extension ShiftAssignment {
         let calendar = Calendar(identifier: .iso8601)
         let thresholdDate: Date
         if type == .delivery {
-            thresholdDate = calendar.date(byAdding: .day, value: 14, to: Date(timeIntervalSince1970: TimeInterval(nowMillis) / 1_000)) ?? Date(timeIntervalSince1970: TimeInterval(nowMillis) / 1_000)
+            let nowDate = Date(timeIntervalSince1970: TimeInterval(nowMillis) / 1_000)
+            thresholdDate = calendar.date(byAdding: .day, value: 14, to: nowDate) ?? nowDate
         } else {
             thresholdDate = Date(timeIntervalSince1970: TimeInterval(nowMillis) / 1_000)
         }

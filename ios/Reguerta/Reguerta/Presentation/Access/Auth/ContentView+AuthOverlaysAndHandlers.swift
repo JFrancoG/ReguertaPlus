@@ -131,6 +131,7 @@ extension ContentView {
     }
 
     @ViewBuilder
+    // swiftlint:disable:next function_parameter_count
     func startupVersionGateCard(
         titleKey: String,
         messageKey: String,

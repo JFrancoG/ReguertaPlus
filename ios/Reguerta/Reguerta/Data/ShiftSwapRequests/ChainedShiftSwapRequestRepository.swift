@@ -13,4 +13,3 @@ struct ChainedShiftSwapRequestRepository: ShiftSwapRequestRepository {
         await primary.upsert(request: request)
     }
 }
-

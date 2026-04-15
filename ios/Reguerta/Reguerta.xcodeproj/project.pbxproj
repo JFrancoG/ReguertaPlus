@@ -295,7 +295,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if command -v swiftlint >/dev/null 2>&1; then\n  cd \"${SRCROOT}\" || exit 1\n  swiftlint lint --config \"${SRCROOT}/.swiftlint\" --reporter xcode\nelse\n  echo \"warning: SwiftLint not installed. Install via Homebrew: brew install swiftlint\"\nfi\n";
+			shellScript = "SWIFTLINT_BIN=\"/opt/homebrew/bin/swiftlint\"\nif [ ! -x \"${SWIFTLINT_BIN}\" ]; then\n  SWIFTLINT_BIN=\"/usr/local/bin/swiftlint\"\nfi\n\nif [ -x \"${SWIFTLINT_BIN}\" ]; then\n  cd \"${SRCROOT}\" || exit 1\n  \"${SWIFTLINT_BIN}\" lint --config \"${SRCROOT}/.swiftlint\" --reporter xcode\nelse\n  echo \"warning: SwiftLint not installed. Install via Homebrew: brew install swiftlint\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

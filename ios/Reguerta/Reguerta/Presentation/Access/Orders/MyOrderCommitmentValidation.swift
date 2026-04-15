@@ -155,6 +155,12 @@ private struct SeasonalProductRequirement {
     let isRepresentableBySelectionStep: Bool
 }
 
+private struct SeasonalVisibleProductsIndex {
+    let byID: [String: Product]
+    let byNormalizedName: [String: Product]
+    let withNormalizedName: [(product: Product, normalizedName: String)]
+}
+
 private func requiredSeasonalCommitmentProducts(
     products: [Product],
     seasonalCommitments: [SeasonalCommitment]
@@ -163,6 +169,18 @@ private func requiredSeasonalCommitmentProducts(
         return []
     }
 
+    let index = buildSeasonalVisibleProductsIndex(products: products)
+    let requiredQuantityByProductID = mergeRequiredSeasonalQuantities(
+        commitments: seasonalCommitments,
+        index: index
+    )
+    return buildSeasonalRequirements(
+        requiredQuantityByProductID: requiredQuantityByProductID,
+        productsByID: index.byID
+    )
+}
+
+private func buildSeasonalVisibleProductsIndex(products: [Product]) -> SeasonalVisibleProductsIndex {
     let visibleProducts = products
         .filter(\.isVisibleInOrdering)
         .sorted { lhs, rhs in
@@ -171,45 +189,73 @@ private func requiredSeasonalCommitmentProducts(
             }
             return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
         }
-    let visibleProductsById = Dictionary(uniqueKeysWithValues: visibleProducts.map { ($0.id, $0) })
-    let visibleProductsByName = visibleProducts.reduce(into: [String: Product]()) { partialResult, product in
+    let byID = Dictionary(uniqueKeysWithValues: visibleProducts.map { ($0.id, $0) })
+    let byNormalizedName = visibleProducts.reduce(into: [String: Product]()) { partialResult, product in
         let key = product.name.commitmentNormalized()
         if partialResult[key] == nil {
             partialResult[key] = product
         }
     }
-    let visibleProductsWithNormalizedName = visibleProducts.map { ($0, $0.name.commitmentNormalized()) }
+    let withNormalizedName = visibleProducts.map { ($0, $0.name.commitmentNormalized()) }
 
-    var requiredQuantityByProductId: [String: Double] = [:]
+    return SeasonalVisibleProductsIndex(
+        byID: byID,
+        byNormalizedName: byNormalizedName,
+        withNormalizedName: withNormalizedName
+    )
+}
 
-    for commitment in seasonalCommitments where commitment.active {
-        let matchedProductID = visibleProductsById[commitment.productId]?.id ??
-            commitment.productNameHint
-                .map { $0.commitmentNormalized() }
-                .flatMap { visibleProductsByName[$0]?.id } ??
-            commitment.commitmentSearchTerms().compactMap { term in
-                visibleProductsWithNormalizedName.first { _, normalizedName in
-                    normalizedName.contains(term) || term.contains(normalizedName)
-                }?.0.id
-            }.first
-        guard let matchedProductID else {
+private func mergeRequiredSeasonalQuantities(
+    commitments: [SeasonalCommitment],
+    index: SeasonalVisibleProductsIndex
+) -> [String: Double] {
+    var requiredQuantityByProductID: [String: Double] = [:]
+
+    for commitment in commitments where commitment.active {
+        guard let matchedProductID = resolveSeasonalMatchedProductID(
+            commitment: commitment,
+            index: index
+        ) else {
             continue
         }
+
         let requiredQuantity = commitment.fixedQtyPerOfferedWeek
-        let existingQuantity = requiredQuantityByProductId[matchedProductID] ?? 0
-        requiredQuantityByProductId[matchedProductID] = max(existingQuantity, requiredQuantity)
+        let existingQuantity = requiredQuantityByProductID[matchedProductID] ?? 0
+        requiredQuantityByProductID[matchedProductID] = max(existingQuantity, requiredQuantity)
     }
 
-    return requiredQuantityByProductId
-        .compactMap { productId, requiredQuantity in
+    return requiredQuantityByProductID
+}
+
+private func resolveSeasonalMatchedProductID(
+    commitment: SeasonalCommitment,
+    index: SeasonalVisibleProductsIndex
+) -> String? {
+    index.byID[commitment.productId]?.id ??
+        commitment.productNameHint
+        .map { $0.commitmentNormalized() }
+        .flatMap { index.byNormalizedName[$0]?.id } ??
+        commitment.commitmentSearchTerms().compactMap { term in
+            index.withNormalizedName.first { _, normalizedName in
+                normalizedName.contains(term) || term.contains(normalizedName)
+            }?.product.id
+        }.first
+}
+
+private func buildSeasonalRequirements(
+    requiredQuantityByProductID: [String: Double],
+    productsByID: [String: Product]
+) -> [SeasonalProductRequirement] {
+    requiredQuantityByProductID
+        .compactMap { productID, requiredQuantity in
             guard requiredQuantity > 0 else { return nil }
-            guard let product = visibleProductsById[productId] else {
-                return nil
-            }
+            guard let product = productsByID[productID] else { return nil }
+
             let step = product.commitmentSelectionStep
             let expectedUnits = requiredQuantity / step
             let roundedUnits = expectedUnits.rounded()
             let isRepresentable = abs(expectedUnits - roundedUnits) <= seasonalCommitmentTolerance
+
             return SeasonalProductRequirement(
                 product: product,
                 requiredQuantity: requiredQuantity,

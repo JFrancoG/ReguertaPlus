@@ -238,7 +238,7 @@ final class SessionViewModel {
     let criticalDataFreshnessLocalRepository: any CriticalDataFreshnessLocalRepository
     let reviewerEnvironmentRouter: any ReviewerEnvironmentRouter
     let sessionRefreshPolicy: SessionRefreshPolicy
-    let nowMillisProvider: @Sendable () -> Int64
+    let nowMillisProvider: @MainActor @Sendable () -> Int64
     let developImpersonationEnabled: Bool
     var lastSessionRefreshAtMillis: Int64?
     var isSessionRefreshInFlight = false
@@ -291,76 +291,24 @@ final class SessionViewModel {
         reviewerEnvironmentRouter: (any ReviewerEnvironmentRouter)? = nil,
         developImpersonationEnabled: Bool = false,
         sessionRefreshPolicy: SessionRefreshPolicy = SessionRefreshPolicy(),
-        nowMillisProvider: @escaping @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1_000) },
+        nowMillisProvider: @escaping @MainActor @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1_000) },
         initialNowOverrideMillis: Int64? = nil
     ) {
-        let selectedRepository = repository ?? ChainedMemberRepository(
-            primary: FirestoreMemberRepository(),
-            fallback: InMemoryMemberRepository()
-        )
-        let selectedNewsRepository: any NewsRepository = ChainedNewsRepository(
-            primary: FirestoreNewsRepository(),
-            fallback: InMemoryNewsRepository()
-        )
-        let selectedNotificationRepository: any NotificationRepository = ChainedNotificationRepository(
-            primary: FirestoreNotificationRepository(),
-            fallback: InMemoryNotificationRepository()
-        )
-        let selectedProductRepository: any ProductRepository = ChainedProductRepository(
-            primary: FirestoreProductRepository(),
-            fallback: InMemoryProductRepository()
-        )
-        let selectedSeasonalCommitmentRepository: any SeasonalCommitmentRepository = ChainedSeasonalCommitmentRepository(
-            primary: FirestoreSeasonalCommitmentRepository(),
-            fallback: InMemorySeasonalCommitmentRepository()
-        )
-        let selectedSharedProfileRepository = sharedProfileRepository ?? ChainedSharedProfileRepository(
-            primary: FirestoreSharedProfileRepository(),
-            fallback: InMemorySharedProfileRepository()
-        )
-        let selectedShiftRepository: any ShiftRepository = ChainedShiftRepository(
-            primary: FirestoreShiftRepository(),
-            fallback: InMemoryShiftRepository()
-        )
-        let selectedDeliveryCalendarRepository = deliveryCalendarRepository ?? ChainedDeliveryCalendarRepository(
-            primary: FirestoreDeliveryCalendarRepository(),
-            fallback: InMemoryDeliveryCalendarRepository()
-        )
-        let selectedShiftPlanningRequestRepository = shiftPlanningRequestRepository ?? ChainedShiftPlanningRequestRepository(
-            primary: FirestoreShiftPlanningRequestRepository(),
-            fallback: InMemoryShiftPlanningRequestRepository()
-        )
-        let selectedShiftSwapRequestRepository = shiftSwapRequestRepository ?? ChainedShiftSwapRequestRepository(
-            primary: FirestoreShiftSwapRequestRepository(),
-            fallback: InMemoryShiftSwapRequestRepository()
-        )
-        let selectedAuthProvider = authSessionProvider ?? {
-            if ProcessInfo.processInfo.arguments.contains("-useMockAuth") {
-                return MockAuthSessionProvider()
-            }
-            return FirebaseAuthSessionProvider()
-        }()
-        let freshnessLocalRepository = UserDefaultsCriticalDataFreshnessLocalRepository()
-        let freshnessRemoteRepository: any CriticalDataFreshnessRemoteRepository
-        if ProcessInfo.processInfo.arguments.contains("-useMockAuth") {
-            freshnessRemoteRepository = FixedCriticalDataFreshnessRemoteRepository(
-                config: CriticalDataFreshnessConfig(
-                    cacheExpirationMinutes: 15,
-                    remoteTimestampsMillis: Dictionary(
-                        uniqueKeysWithValues: CriticalCollection.allCases.map { ($0, 1_000) }
-                    )
-                )
-            )
-        } else {
-            freshnessRemoteRepository = FirestoreCriticalDataFreshnessRemoteRepository()
-        }
+        let defaults = Self.makeDefaultDependencies()
+        let selectedRepository = repository ?? defaults.repository
+        let selectedSharedProfileRepository = sharedProfileRepository ?? defaults.sharedProfileRepository
+        let selectedDeliveryCalendarRepository = deliveryCalendarRepository ?? defaults.deliveryCalendarRepository
+        let selectedShiftPlanningRequestRepository = shiftPlanningRequestRepository ?? defaults.shiftPlanningRequestRepository
+        let selectedShiftSwapRequestRepository = shiftSwapRequestRepository ?? defaults.shiftSwapRequestRepository
+        let selectedAuthProvider = authSessionProvider ?? defaults.authSessionProvider
+
         self.repository = selectedRepository
-        self.newsRepository = selectedNewsRepository
-        self.notificationRepository = selectedNotificationRepository
-        self.productRepository = selectedProductRepository
-        self.seasonalCommitmentRepository = selectedSeasonalCommitmentRepository
+        self.newsRepository = defaults.newsRepository
+        self.notificationRepository = defaults.notificationRepository
+        self.productRepository = defaults.productRepository
+        self.seasonalCommitmentRepository = defaults.seasonalCommitmentRepository
         self.sharedProfileRepository = selectedSharedProfileRepository
-        self.shiftRepository = selectedShiftRepository
+        self.shiftRepository = defaults.shiftRepository
         self.deliveryCalendarRepository = selectedDeliveryCalendarRepository
         self.shiftPlanningRequestRepository = selectedShiftPlanningRequestRepository
         self.shiftSwapRequestRepository = selectedShiftSwapRequestRepository
@@ -369,10 +317,10 @@ final class SessionViewModel {
         self.upsertMemberByAdmin = upsertMemberByAdmin ?? UpsertMemberByAdminUseCase(repository: selectedRepository)
         self.authorizedDeviceRegistrar = authorizedDeviceRegistrar ?? NoOpAuthorizedDeviceRegistrar()
         self.resolveCriticalDataFreshness = ResolveCriticalDataFreshnessUseCase(
-            remoteRepository: freshnessRemoteRepository,
-            localRepository: freshnessLocalRepository
+            remoteRepository: defaults.freshnessRemoteRepository,
+            localRepository: defaults.freshnessLocalRepository
         )
-        self.criticalDataFreshnessLocalRepository = freshnessLocalRepository
+        self.criticalDataFreshnessLocalRepository = defaults.freshnessLocalRepository
         self.reviewerEnvironmentRouter = reviewerEnvironmentRouter ?? NoOpReviewerEnvironmentRouter()
         self.sessionRefreshPolicy = sessionRefreshPolicy
         self.nowMillisProvider = nowMillisProvider
@@ -393,6 +341,93 @@ final class SessionViewModel {
         let baseMillis = nowOverrideMillis ?? Int64(Date().timeIntervalSince1970 * 1_000)
         let shiftedMillis = baseMillis + Int64(days) * 24 * 60 * 60 * 1_000
         setNowOverrideMillis(shiftedMillis)
+    }
+}
+
+private struct SessionViewModelDefaultDependencies {
+    let repository: any MemberRepository
+    let newsRepository: any NewsRepository
+    let notificationRepository: any NotificationRepository
+    let productRepository: any ProductRepository
+    let seasonalCommitmentRepository: any SeasonalCommitmentRepository
+    let sharedProfileRepository: any SharedProfileRepository
+    let shiftRepository: any ShiftRepository
+    let deliveryCalendarRepository: any DeliveryCalendarRepository
+    let shiftPlanningRequestRepository: any ShiftPlanningRequestRepository
+    let shiftSwapRequestRepository: any ShiftSwapRequestRepository
+    let authSessionProvider: any AuthSessionProvider
+    let freshnessLocalRepository: any CriticalDataFreshnessLocalRepository
+    let freshnessRemoteRepository: any CriticalDataFreshnessRemoteRepository
+}
+
+private extension SessionViewModel {
+    static func makeDefaultDependencies() -> SessionViewModelDefaultDependencies {
+        let useMockAuth = ProcessInfo.processInfo.arguments.contains("-useMockAuth")
+        let freshnessLocalRepository = UserDefaultsCriticalDataFreshnessLocalRepository()
+        let freshnessRemoteRepository = makeDefaultFreshnessRemoteRepository(useMockAuth: useMockAuth)
+
+        return SessionViewModelDefaultDependencies(
+            repository: ChainedMemberRepository(
+                primary: FirestoreMemberRepository(),
+                fallback: InMemoryMemberRepository()
+            ),
+            newsRepository: ChainedNewsRepository(
+                primary: FirestoreNewsRepository(),
+                fallback: InMemoryNewsRepository()
+            ),
+            notificationRepository: ChainedNotificationRepository(
+                primary: FirestoreNotificationRepository(),
+                fallback: InMemoryNotificationRepository()
+            ),
+            productRepository: ChainedProductRepository(
+                primary: FirestoreProductRepository(),
+                fallback: InMemoryProductRepository()
+            ),
+            seasonalCommitmentRepository: ChainedSeasonalCommitmentRepository(
+                primary: FirestoreSeasonalCommitmentRepository(),
+                fallback: InMemorySeasonalCommitmentRepository()
+            ),
+            sharedProfileRepository: ChainedSharedProfileRepository(
+                primary: FirestoreSharedProfileRepository(),
+                fallback: InMemorySharedProfileRepository()
+            ),
+            shiftRepository: ChainedShiftRepository(
+                primary: FirestoreShiftRepository(),
+                fallback: InMemoryShiftRepository()
+            ),
+            deliveryCalendarRepository: ChainedDeliveryCalendarRepository(
+                primary: FirestoreDeliveryCalendarRepository(),
+                fallback: InMemoryDeliveryCalendarRepository()
+            ),
+            shiftPlanningRequestRepository: ChainedShiftPlanningRequestRepository(
+                primary: FirestoreShiftPlanningRequestRepository(),
+                fallback: InMemoryShiftPlanningRequestRepository()
+            ),
+            shiftSwapRequestRepository: ChainedShiftSwapRequestRepository(
+                primary: FirestoreShiftSwapRequestRepository(),
+                fallback: InMemoryShiftSwapRequestRepository()
+            ),
+            authSessionProvider: useMockAuth ? MockAuthSessionProvider() : FirebaseAuthSessionProvider(),
+            freshnessLocalRepository: freshnessLocalRepository,
+            freshnessRemoteRepository: freshnessRemoteRepository
+        )
+    }
+
+    static func makeDefaultFreshnessRemoteRepository(
+        useMockAuth: Bool
+    ) -> any CriticalDataFreshnessRemoteRepository {
+        guard useMockAuth else {
+            return FirestoreCriticalDataFreshnessRemoteRepository()
+        }
+
+        return FixedCriticalDataFreshnessRemoteRepository(
+            config: CriticalDataFreshnessConfig(
+                cacheExpirationMinutes: 15,
+                remoteTimestampsMillis: Dictionary(
+                    uniqueKeysWithValues: CriticalCollection.allCases.map { ($0, 1_000) }
+                )
+            )
+        )
     }
 }
 
