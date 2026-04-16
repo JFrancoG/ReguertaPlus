@@ -4,7 +4,7 @@
 - issue_id: #13
 - priority: P1
 - platform: both
-- status: in_progress
+- status: implemented
 
 ## Context and problem
 
@@ -49,9 +49,9 @@ As a reviewer I want to run full test flows without impacting real production da
 
 ## Definition of Done (DoD)
 
-- [ ] Story acceptance criteria validated.
-- [ ] Implementation aligned with linked RFs.
-- [ ] Android/iOS parity reviewed or temporary gap documented.
-- [ ] Agreed tests executed.
-- [ ] Technical/functional documentation updated.
-- [ ] Issue and PR linked.
+- [x] Story acceptance criteria validated.
+- [x] Implementation aligned with linked RFs.
+- [x] Android/iOS parity reviewed or temporary gap documented.
+- [x] Agreed tests executed.
+- [x] Technical/functional documentation updated.
+- [x] Issue and PR linked.

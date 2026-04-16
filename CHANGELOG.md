@@ -51,6 +51,7 @@ All notable changes to this project will be documented in this file.
 - 2026-04-09 | 📝 docs(firestore): set seasonalCommitments qty field to fixedQty
 - 2026-04-13 | 📝 docs(testing): document develop date override and weekly order test flow
 - 2026-04-15 | 📝 docs(agents): require conventional-commits skill before commits
+- 2026-04-17 | 📝 docs(reviewer): finalize HU-018 closure checklists
 
 ### Maintenance
 
@@ -60,6 +61,7 @@ All notable changes to this project will be documented in this file.
 - 2026-03-16 | 🔧 chore(repo): checkpoint pending app updates
 - 2026-04-15 | 📦 build(ios): add env schemes and SwiftLint phase
 - 2026-04-16 | 🔧 chore(functions): remove HU-006 debug trigger
+- 2026-04-17 | 📦 build(mobile): update AGP and release QA signing
 
 ### Changed
 

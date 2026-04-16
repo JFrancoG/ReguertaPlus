@@ -26,7 +26,7 @@ As a reviewer I want to run full test flows without impacting real production da
 ## Implementation checklist
 - [x] Android
 - [x] iOS
-- [ ] Backend / Firestore
+- [x] Backend / Firestore
 - [x] Testing
 - [x] Documentation
 
@@ -41,6 +41,7 @@ As a reviewer I want to run full test flows without impacting real production da
     - `reviewerAllowlistUids`
     - nested `reviewerAllowlist.{emails,uids}`.
 - Converted Firestore repositories and order route helpers to dynamic runtime environment defaults (no longer hardcoded to `develop`), so reviewer writes are persisted in `develop` when override applies.
+- No additional Functions/Firestore-rules code change was required for this HU because the routing is enforced in app data layer before repository reads/writes; the effective Firestore environment is session-scoped and reset on logout/expiry.
 - Added session reset hooks on sign out / expired session to restore base environment.
 
 ## Validation evidence
