@@ -126,6 +126,19 @@ const parseStringArray = (value: unknown): string[] => {
   ));
 };
 
+const parseStringList = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return parseStringArray(value);
+  }
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+  }
+  return [];
+};
+
 const isAdminRecord = (data: Record<string, unknown>): boolean => {
   const isActive = data.isActive !== false;
   const roles = parseRoles(data.roles);
@@ -476,6 +489,8 @@ type PendingOrderReminderRunSummary = {
   weekNumber: number;
   referenceNowIso: string;
   dryRun: boolean;
+  forcedUserIds: string[];
+  eventIdSuffix: string | null;
   envs: string[];
   failedEnvs: string[];
   envSummaries: PendingOrderReminderEnvSummary[];
@@ -486,6 +501,8 @@ type PendingOrderReminderRunOptions = {
   weekKey?: string;
   envs?: string[];
   dryRun?: boolean;
+  forcedUserIds?: string[];
+  eventIdSuffix?: string;
   throwOnFailure?: boolean;
 };
 
@@ -683,11 +700,20 @@ const isAlreadyExistsError = (error: unknown): boolean => {
     maybeCode === "ALREADY_EXISTS";
 };
 
+const sanitizeEventIdSuffix = (value: string): string =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 48);
+
 const createOrderReminderEvent = async (
   env: string,
   weekKey: string,
   reminderHour: number,
   userIds: string[],
+  eventIdSuffix?: string,
 ): Promise<"created" | "skipped"> => {
   const deduplicatedUserIds = Array.from(new Set(userIds));
   if (deduplicatedUserIds.length === 0) {
@@ -695,7 +721,12 @@ const createOrderReminderEvent = async (
   }
 
   const slotLabel = String(reminderHour).padStart(2, "0");
-  const eventId = `order_reminder_${weekKey}_${slotLabel}`;
+  const sanitizedSuffix = eventIdSuffix ?
+    sanitizeEventIdSuffix(eventIdSuffix) :
+    "";
+  const eventId = sanitizedSuffix.length > 0 ?
+    `order_reminder_${weekKey}_${slotLabel}_${sanitizedSuffix}` :
+    `order_reminder_${weekKey}_${slotLabel}`;
   const eventRef = firestore
     .collection(`${env}/plus-collections/notificationEvents`)
     .doc(eventId);
@@ -750,6 +781,14 @@ const runPendingOrderReminderForHour = async (
   }
 
   const dryRun = options.dryRun === true;
+  const normalizedForcedUserIds = Array.from(new Set(
+    (options.forcedUserIds || [])
+      .map((userId) => normalizePathLikeIdentifier(userId.trim()))
+      .filter((userId) => userId.length > 0)
+  ));
+  const eventIdSuffix = options.eventIdSuffix ?
+    sanitizeEventIdSuffix(options.eventIdSuffix) :
+    "";
   const shouldThrowOnFailure = options.throwOnFailure !== false;
   const failedEnvs: string[] = [];
   const envSummaries: PendingOrderReminderEnvSummary[] = [];
@@ -758,29 +797,38 @@ const runPendingOrderReminderForHour = async (
     let committedUsersCount = 0;
     let confirmedUsersCount = 0;
     let pendingUsersCount = 0;
+    let pendingUserIds: string[] = [];
 
     try {
-      const committedUserIds = await listMembersWithCommitments(
-        env,
-        weekParity
-      );
-      committedUsersCount = committedUserIds.length;
-      const confirmedOrderUserIds = await listConfirmedOrderUserIds(
-        env,
-        weekKey,
-        weekNumber
-      );
-      confirmedUsersCount = confirmedOrderUserIds.size;
-      const pendingUserIds = committedUserIds
-        .filter((userId) => !confirmedOrderUserIds.has(userId));
-      pendingUsersCount = pendingUserIds.length;
+      if (normalizedForcedUserIds.length > 0) {
+        pendingUserIds = normalizedForcedUserIds;
+        committedUsersCount = pendingUserIds.length;
+        confirmedUsersCount = 0;
+        pendingUsersCount = pendingUserIds.length;
+      } else {
+        const committedUserIds = await listMembersWithCommitments(
+          env,
+          weekParity
+        );
+        committedUsersCount = committedUserIds.length;
+        const confirmedOrderUserIds = await listConfirmedOrderUserIds(
+          env,
+          weekKey,
+          weekNumber
+        );
+        confirmedUsersCount = confirmedOrderUserIds.size;
+        pendingUserIds = committedUserIds
+          .filter((userId) => !confirmedOrderUserIds.has(userId));
+        pendingUsersCount = pendingUserIds.length;
+      }
       const result = dryRun ?
         "dry_run" as const :
         await createOrderReminderEvent(
           env,
           weekKey,
           reminderHour,
-          pendingUserIds
+          pendingUserIds,
+          eventIdSuffix || undefined,
         );
       envSummaries.push({
         env,
@@ -798,6 +846,8 @@ const runPendingOrderReminderForHour = async (
         committedUsersCount,
         confirmedUsersCount,
         pendingUsersCount,
+        forcedUserIdsCount: normalizedForcedUserIds.length,
+        eventIdSuffix: eventIdSuffix || null,
         dryRun,
         eventStatus: result,
       });
@@ -836,6 +886,8 @@ const runPendingOrderReminderForHour = async (
     weekNumber,
     referenceNowIso: referenceNow.toDate().toISOString(),
     dryRun,
+    forcedUserIds: normalizedForcedUserIds,
+    eventIdSuffix: eventIdSuffix || null,
     envs: targetEnvs,
     failedEnvs,
     envSummaries,
@@ -2762,6 +2814,20 @@ export const debugRunPendingOrderReminder = onRequest(async (req, res) => {
     return;
   }
 
+  const forcedUserIds = Array.from(new Set(
+    [
+      ...parseStringList(body.forceUserIds),
+      ...parseStringList(req.query.forceUserIds),
+      parseString(body.forceUserId),
+      parseString(req.query.forceUserId),
+    ]
+      .filter((value): value is string => Boolean(value))
+      .map((value) => normalizePathLikeIdentifier(value))
+  ));
+  const eventIdSuffix = parseString(body.runKey) ||
+    parseString(req.query.runKey) ||
+    null;
+
   const referenceNow = parseReferenceTimestamp(
     body.simulatedNowIso ??
       body.simulateAt ??
@@ -2789,6 +2855,8 @@ export const debugRunPendingOrderReminder = onRequest(async (req, res) => {
         weekKey: weekKey || undefined,
         envs: normalizedTargetEnvs,
         dryRun,
+        forcedUserIds,
+        eventIdSuffix: eventIdSuffix || undefined,
         throwOnFailure: false,
       }
     );
@@ -2804,6 +2872,9 @@ export const debugRunPendingOrderReminder = onRequest(async (req, res) => {
           simulatedNowIso: "optional, example 2026-04-19T21:58:00+02:00",
           simulatedNowMillis: "optional epoch ms",
           dryRun: "optional bool",
+          forceUserId: "optional userId forced target",
+          forceUserIds: "optional csv or array of userIds",
+          runKey: "optional suffix to avoid idempotency collisions",
         },
       },
     });
