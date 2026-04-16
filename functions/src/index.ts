@@ -4,6 +4,7 @@ import {
   onDocumentCreated,
   onDocumentWritten,
 } from "firebase-functions/v2/firestore";
+import {onSchedule} from "firebase-functions/v2/scheduler";
 import {logger} from "firebase-functions";
 import * as admin from "firebase-admin";
 import {google} from "googleapis";
@@ -152,6 +153,7 @@ type DeliveryCalendarOverrideMap = Map<string, admin.firestore.Timestamp>;
 
 const VERSION_STRING_REGEX = /^\d+(?:\.\d+)*$/;
 const DEFAULT_VERSION_POLICY_ENVS = ["local", "develop", "production"];
+const DEFAULT_ORDER_REMINDER_ENVS = ["develop", "production"];
 const DEFAULT_CACHE_EXPIRATION_MINUTES = 15;
 const REQUIRED_FRESHNESS_COLLECTIONS = [
   "products",
@@ -187,6 +189,25 @@ const parseEnvList = (value: unknown): string[] => {
       .map((entry) => entry.trim().toLowerCase())
       .filter((entry) => entry.length > 0)
   ));
+};
+
+const parseOrderReminderEnvs = (): string[] => {
+  const configured = Array.from(new Set([
+    ...parseEnvList(process.env.ORDER_REMINDER_ENVS),
+    ...parseEnvList(appConfig.orderReminderEnvs),
+    ...parseEnvList(appConfig.order_reminder_envs),
+  ]));
+
+  if (configured.length > 0) {
+    return configured;
+  }
+
+  const normalizedEnv = ENV.trim().toLowerCase();
+  if (normalizedEnv && normalizedEnv !== "local") {
+    return [normalizedEnv];
+  }
+
+  return DEFAULT_ORDER_REMINDER_ENVS;
 };
 
 const parseVersionValue = (value: unknown, fallback: string): string => {
@@ -383,6 +404,403 @@ const resolveDeviceTokens = async (
   }
 
   return Array.from(uniqueTokens);
+};
+
+const ORDER_REMINDER_TYPE = "order_reminder";
+const ORDER_REMINDER_USER_FIELDS = [
+  "userId",
+  "memberId",
+  "uid",
+  "user",
+  "member",
+  "userRef",
+  "memberRef",
+  "userID",
+  "memberID",
+] as const;
+
+type CommitmentWeekParity = "even" | "odd";
+type OrderReminderEventStatus = "created" | "skipped" | "dry_run" | "failed";
+
+type PendingOrderReminderEnvSummary = {
+  env: string;
+  committedUsersCount: number;
+  confirmedUsersCount: number;
+  pendingUsersCount: number;
+  eventStatus: OrderReminderEventStatus;
+  errorMessage: string | null;
+};
+
+type PendingOrderReminderRunSummary = {
+  reminderHour: number;
+  weekKey: string;
+  weekNumber: number;
+  referenceNowIso: string;
+  dryRun: boolean;
+  envs: string[];
+  failedEnvs: string[];
+  envSummaries: PendingOrderReminderEnvSummary[];
+};
+
+type PendingOrderReminderRunOptions = {
+  referenceNow?: admin.firestore.Timestamp;
+  weekKey?: string;
+  envs?: string[];
+  dryRun?: boolean;
+  throwOnFailure?: boolean;
+};
+
+const normalizePathLikeIdentifier = (rawValue: string): string => {
+  if (!rawValue.includes("/")) {
+    return rawValue;
+  }
+  const trailing = rawValue.split("/").pop()?.trim() || "";
+  return trailing.length > 0 ? trailing : rawValue;
+};
+
+const parseUserIdCandidate = (value: unknown): string | null => {
+  if (typeof value === "string") {
+    const parsed = parseString(value);
+    return parsed ? normalizePathLikeIdentifier(parsed) : null;
+  }
+
+  if (value instanceof admin.firestore.DocumentReference) {
+    return parseString(value.id);
+  }
+
+  if (value !== null && typeof value === "object") {
+    const source = value as Record<string, unknown>;
+    return parseUserIdCandidate(
+      source.id ??
+        source.documentId ??
+        source.documentID ??
+        source.path
+    );
+  }
+
+  return null;
+};
+
+const parseSeasonalCommitmentUserId = (
+  data: Record<string, unknown>,
+): string | null => {
+  for (const field of ORDER_REMINDER_USER_FIELDS) {
+    const parsed = parseUserIdCandidate(data[field]);
+    if (parsed) {
+      return parsed;
+    }
+  }
+  return null;
+};
+
+const parseIsoWeekNumberFromWeekKey = (
+  weekKey: string,
+): number | null => {
+  const match = weekKey.match(/-W(\d{1,2})$/i);
+  if (!match) {
+    return null;
+  }
+  const parsedWeek = Number(match[1]);
+  if (!Number.isInteger(parsedWeek) || parsedWeek < 1 || parsedWeek > 53) {
+    return null;
+  }
+  return parsedWeek;
+};
+
+const weekParityFromIsoWeekNumber = (
+  weekNumber: number,
+): CommitmentWeekParity => weekNumber % 2 === 0 ? "even" : "odd";
+
+const hasEcoCommitmentForWeek = (
+  memberData: Record<string, unknown>,
+  weekParity: CommitmentWeekParity,
+): boolean => {
+  const ecoCommitment = parseBody(memberData.ecoCommitment);
+  const mode = parseString(ecoCommitment.mode)?.toLowerCase() || "weekly";
+  if (mode !== "biweekly") {
+    return true;
+  }
+
+  const parity = parseString(ecoCommitment.parity)?.toLowerCase();
+  if (parity !== "even" && parity !== "odd") {
+    return true;
+  }
+  return parity === weekParity;
+};
+
+const listMembersWithCommitments = async (
+  env: string,
+  weekParity: CommitmentWeekParity,
+): Promise<string[]> => {
+  const membersSnapshot = await plusUsersCollection(env)
+    .where("isActive", "==", true)
+    .get();
+
+  const seasonalCommitmentUserIds = new Set<string>();
+  const commitmentCollectionPaths = [
+    `${env}/plus-collections/seasonalCommitments`,
+    `${env}/collections/seasonalCommitments`,
+  ];
+
+  for (const collectionPath of commitmentCollectionPaths) {
+    const commitmentSnapshot = await firestore.collection(collectionPath).get();
+    commitmentSnapshot.docs.forEach((commitmentDoc) => {
+      const data = parseBody(commitmentDoc.data());
+      if (data.active === false) {
+        return;
+      }
+      const userId = parseSeasonalCommitmentUserId(data);
+      if (userId) {
+        seasonalCommitmentUserIds.add(userId);
+      }
+    });
+  }
+
+  return membersSnapshot.docs
+    .filter((memberDoc) => {
+      const memberData = parseBody(memberDoc.data());
+      const roles = parseRoles(memberData.roles);
+      if (!roles.includes("member")) {
+        return false;
+      }
+      return hasEcoCommitmentForWeek(memberData, weekParity) ||
+        seasonalCommitmentUserIds.has(memberDoc.id);
+    })
+    .map((memberDoc) => memberDoc.id);
+};
+
+const isConfirmedOrderRecord = (
+  data: Record<string, unknown>,
+): boolean => {
+  const consumerStatus = parseString(data.consumerStatus)?.toLowerCase();
+  if (consumerStatus === "confirmado") {
+    return true;
+  }
+  return data.confirmedAt instanceof admin.firestore.Timestamp;
+};
+
+const parseOrderUserId = (
+  docId: string,
+  data: Record<string, unknown>,
+  weekKey: string,
+): string | null => {
+  const fieldUserId = parseUserIdCandidate(data.userId);
+  if (fieldUserId) {
+    return fieldUserId;
+  }
+
+  const weekSuffix = `_${weekKey}`;
+  if (docId.endsWith(weekSuffix) && docId.length > weekSuffix.length) {
+    return docId.slice(0, -weekSuffix.length);
+  }
+
+  return null;
+};
+
+const listConfirmedOrderUserIds = async (
+  env: string,
+  weekKey: string,
+  weekNumber: number,
+): Promise<Set<string>> => {
+  const confirmedUserIds = new Set<string>();
+  const orderCollectionPaths = [
+    `${env}/plus-collections/orders`,
+    `${env}/collections/orders`,
+  ];
+
+  for (const collectionPath of orderCollectionPaths) {
+    const collection = firestore.collection(collectionPath);
+    const [byWeekKeySnapshot, byWeekNumberSnapshot] = await Promise.all([
+      collection.where("weekKey", "==", weekKey).get(),
+      collection.where("week", "==", weekNumber).get(),
+    ]);
+
+    const docsById = new Map<string, admin.firestore.QueryDocumentSnapshot>();
+    [...byWeekKeySnapshot.docs, ...byWeekNumberSnapshot.docs]
+      .forEach((doc) => docsById.set(doc.id, doc));
+
+    docsById.forEach((doc) => {
+      const data = parseBody(doc.data());
+      if (!isConfirmedOrderRecord(data)) {
+        return;
+      }
+      const userId = parseOrderUserId(doc.id, data, weekKey);
+      if (userId) {
+        confirmedUserIds.add(userId);
+      }
+    });
+  }
+
+  return confirmedUserIds;
+};
+
+const isAlreadyExistsError = (error: unknown): boolean => {
+  if (error === null || typeof error !== "object") {
+    return false;
+  }
+  const maybeCode = (error as {code?: unknown}).code;
+  return maybeCode === 6 ||
+    maybeCode === "already-exists" ||
+    maybeCode === "ALREADY_EXISTS";
+};
+
+const createOrderReminderEvent = async (
+  env: string,
+  weekKey: string,
+  reminderHour: number,
+  userIds: string[],
+): Promise<"created" | "skipped"> => {
+  const deduplicatedUserIds = Array.from(new Set(userIds));
+  if (deduplicatedUserIds.length === 0) {
+    return "skipped";
+  }
+
+  const slotLabel = String(reminderHour).padStart(2, "0");
+  const eventId = `order_reminder_${weekKey}_${slotLabel}`;
+  const eventRef = firestore
+    .collection(`${env}/plus-collections/notificationEvents`)
+    .doc(eventId);
+
+  try {
+    await eventRef.create({
+      title: "Recordatorio de pedido pendiente",
+      body: `Todavia no has confirmado tu pedido de la semana ${weekKey}.`,
+      type: ORDER_REMINDER_TYPE,
+      target: "users",
+      targetPayload: {
+        userIds: deduplicatedUserIds,
+        segmentType: "members_with_pending_order",
+        weekKey,
+      },
+      weekKey,
+      reminderSlotHour: reminderHour,
+      createdBy: "system",
+      sentAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return "created";
+  } catch (error) {
+    if (isAlreadyExistsError(error)) {
+      return "skipped";
+    }
+    throw error;
+  }
+};
+
+const runPendingOrderReminderForHour = async (
+  reminderHour: number,
+  options: PendingOrderReminderRunOptions = {},
+): Promise<PendingOrderReminderRunSummary> => {
+  const referenceNow = options.referenceNow || admin.firestore.Timestamp.now();
+  const weekKey = options.weekKey || timestampToIsoWeekKey(referenceNow);
+  const weekNumber = parseIsoWeekNumberFromWeekKey(weekKey);
+  if (!weekNumber) {
+    throw new Error(`Invalid week key for reminder: ${weekKey}`);
+  }
+
+  const weekParity = weekParityFromIsoWeekNumber(weekNumber);
+  const configuredEnvs = options.envs && options.envs.length > 0 ?
+    options.envs :
+    parseOrderReminderEnvs();
+  const targetEnvs = Array.from(new Set(
+    configuredEnvs
+      .map((env) => env.trim().toLowerCase())
+      .filter((env) => env.length > 0)
+  ));
+  if (targetEnvs.length === 0) {
+    throw new Error("No environments configured for pending order reminders.");
+  }
+
+  const dryRun = options.dryRun === true;
+  const shouldThrowOnFailure = options.throwOnFailure !== false;
+  const failedEnvs: string[] = [];
+  const envSummaries: PendingOrderReminderEnvSummary[] = [];
+
+  for (const env of targetEnvs) {
+    let committedUsersCount = 0;
+    let confirmedUsersCount = 0;
+    let pendingUsersCount = 0;
+
+    try {
+      const committedUserIds = await listMembersWithCommitments(
+        env,
+        weekParity
+      );
+      committedUsersCount = committedUserIds.length;
+      const confirmedOrderUserIds = await listConfirmedOrderUserIds(
+        env,
+        weekKey,
+        weekNumber
+      );
+      confirmedUsersCount = confirmedOrderUserIds.size;
+      const pendingUserIds = committedUserIds
+        .filter((userId) => !confirmedOrderUserIds.has(userId));
+      pendingUsersCount = pendingUserIds.length;
+      const result = dryRun ?
+        "dry_run" as const :
+        await createOrderReminderEvent(
+          env,
+          weekKey,
+          reminderHour,
+          pendingUserIds
+        );
+      envSummaries.push({
+        env,
+        committedUsersCount,
+        confirmedUsersCount,
+        pendingUsersCount,
+        eventStatus: result,
+        errorMessage: null,
+      });
+
+      logger.info("Pending order reminder run completed", {
+        env,
+        weekKey,
+        reminderHour,
+        committedUsersCount,
+        confirmedUsersCount,
+        pendingUsersCount,
+        dryRun,
+        eventStatus: result,
+      });
+    } catch (error) {
+      failedEnvs.push(env);
+      const errorMessage = error instanceof Error ?
+        error.message :
+        "Unknown error";
+      envSummaries.push({
+        env,
+        committedUsersCount,
+        confirmedUsersCount,
+        pendingUsersCount,
+        eventStatus: "failed",
+        errorMessage,
+      });
+      logger.error("Pending order reminder run failed", {
+        env,
+        weekKey,
+        reminderHour,
+        dryRun,
+        error,
+      });
+    }
+  }
+
+  if (shouldThrowOnFailure && failedEnvs.length > 0) {
+    throw new Error(
+      `Pending order reminder failed for envs: ${failedEnvs.join(", ")}`
+    );
+  }
+
+  return {
+    reminderHour,
+    weekKey,
+    weekNumber,
+    referenceNowIso: referenceNow.toDate().toISOString(),
+    dryRun,
+    envs: targetEnvs,
+    failedEnvs,
+    envSummaries,
+  };
 };
 
 type ShiftType = "delivery" | "market";
@@ -2062,6 +2480,36 @@ const syncShiftsFromGoogleSheetsInternal = async (
     marketCount: rows.filter((row) => row.type === "market").length,
   };
 };
+
+export const sendPendingOrderReminderSunday20 = onSchedule(
+  {
+    schedule: "0 20 * * 0",
+    timeZone: SHEET_TIME_ZONE,
+  },
+  async () => {
+    await runPendingOrderReminderForHour(20);
+  }
+);
+
+export const sendPendingOrderReminderSunday22 = onSchedule(
+  {
+    schedule: "0 22 * * 0",
+    timeZone: SHEET_TIME_ZONE,
+  },
+  async () => {
+    await runPendingOrderReminderForHour(22);
+  }
+);
+
+export const sendPendingOrderReminderSunday23 = onSchedule(
+  {
+    schedule: "0 23 * * 0",
+    timeZone: SHEET_TIME_ZONE,
+  },
+  async () => {
+    await runPendingOrderReminderForHour(23);
+  }
+);
 
 export const onNotificationEventCreated = onDocumentCreated(
   "{env}/plus-collections/notificationEvents/{eventId}",
