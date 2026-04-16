@@ -248,6 +248,45 @@ const parsePositiveInteger = (value: unknown, fallback: number): number => {
   return Math.floor(parsed);
 };
 
+const parseInteger = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isInteger(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isInteger(parsed) ? parsed : null;
+  }
+  return null;
+};
+
+const parseIntegerInRange = (
+  value: unknown,
+  minimum: number,
+  maximum: number,
+): number | null => {
+  const parsed = parseInteger(value);
+  if (parsed === null || parsed < minimum || parsed > maximum) {
+    return null;
+  }
+  return parsed;
+};
+
+const parseFlexibleBoolean = (value: unknown): boolean | null => {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["true", "1", "yes", "y"].includes(normalized)) {
+      return true;
+    }
+    if (["false", "0", "no", "n"].includes(normalized)) {
+      return false;
+    }
+  }
+  return null;
+};
+
 const sanitizeLastTimestamps = (
   value: unknown,
   fallback: admin.firestore.Timestamp,
@@ -420,6 +459,35 @@ const ORDER_REMINDER_USER_FIELDS = [
 ] as const;
 
 type CommitmentWeekParity = "even" | "odd";
+type OrderReminderEventStatus = "created" | "skipped" | "dry_run" | "failed";
+
+type PendingOrderReminderEnvSummary = {
+  env: string;
+  committedUsersCount: number;
+  confirmedUsersCount: number;
+  pendingUsersCount: number;
+  eventStatus: OrderReminderEventStatus;
+  errorMessage: string | null;
+};
+
+type PendingOrderReminderRunSummary = {
+  reminderHour: number;
+  weekKey: string;
+  weekNumber: number;
+  referenceNowIso: string;
+  dryRun: boolean;
+  envs: string[];
+  failedEnvs: string[];
+  envSummaries: PendingOrderReminderEnvSummary[];
+};
+
+type PendingOrderReminderRunOptions = {
+  referenceNow?: admin.firestore.Timestamp;
+  weekKey?: string;
+  envs?: string[];
+  dryRun?: boolean;
+  throwOnFailure?: boolean;
+};
 
 const normalizePathLikeIdentifier = (rawValue: string): string => {
   if (!rawValue.includes("/")) {
@@ -659,62 +727,119 @@ const createOrderReminderEvent = async (
 
 const runPendingOrderReminderForHour = async (
   reminderHour: number,
-): Promise<void> => {
-  const now = admin.firestore.Timestamp.now();
-  const weekKey = timestampToIsoWeekKey(now);
+  options: PendingOrderReminderRunOptions = {},
+): Promise<PendingOrderReminderRunSummary> => {
+  const referenceNow = options.referenceNow || admin.firestore.Timestamp.now();
+  const weekKey = options.weekKey || timestampToIsoWeekKey(referenceNow);
   const weekNumber = parseIsoWeekNumberFromWeekKey(weekKey);
   if (!weekNumber) {
     throw new Error(`Invalid week key for reminder: ${weekKey}`);
   }
+
   const weekParity = weekParityFromIsoWeekNumber(weekNumber);
-  const targetEnvs = parseOrderReminderEnvs();
+  const configuredEnvs = options.envs && options.envs.length > 0 ?
+    options.envs :
+    parseOrderReminderEnvs();
+  const targetEnvs = Array.from(new Set(
+    configuredEnvs
+      .map((env) => env.trim().toLowerCase())
+      .filter((env) => env.length > 0)
+  ));
+  if (targetEnvs.length === 0) {
+    throw new Error("No environments configured for pending order reminders.");
+  }
+
+  const dryRun = options.dryRun === true;
+  const shouldThrowOnFailure = options.throwOnFailure !== false;
   const failedEnvs: string[] = [];
+  const envSummaries: PendingOrderReminderEnvSummary[] = [];
 
   for (const env of targetEnvs) {
+    let committedUsersCount = 0;
+    let confirmedUsersCount = 0;
+    let pendingUsersCount = 0;
+
     try {
       const committedUserIds = await listMembersWithCommitments(
         env,
         weekParity
       );
+      committedUsersCount = committedUserIds.length;
       const confirmedOrderUserIds = await listConfirmedOrderUserIds(
         env,
         weekKey,
         weekNumber
       );
+      confirmedUsersCount = confirmedOrderUserIds.size;
       const pendingUserIds = committedUserIds
         .filter((userId) => !confirmedOrderUserIds.has(userId));
-      const result = await createOrderReminderEvent(
+      pendingUsersCount = pendingUserIds.length;
+      const result = dryRun ?
+        "dry_run" as const :
+        await createOrderReminderEvent(
+          env,
+          weekKey,
+          reminderHour,
+          pendingUserIds
+        );
+      envSummaries.push({
         env,
-        weekKey,
-        reminderHour,
-        pendingUserIds
-      );
+        committedUsersCount,
+        confirmedUsersCount,
+        pendingUsersCount,
+        eventStatus: result,
+        errorMessage: null,
+      });
 
       logger.info("Pending order reminder run completed", {
         env,
         weekKey,
         reminderHour,
-        committedUsersCount: committedUserIds.length,
-        confirmedUsersCount: confirmedOrderUserIds.size,
-        pendingUsersCount: pendingUserIds.length,
+        committedUsersCount,
+        confirmedUsersCount,
+        pendingUsersCount,
+        dryRun,
         eventStatus: result,
       });
     } catch (error) {
       failedEnvs.push(env);
+      const errorMessage = error instanceof Error ?
+        error.message :
+        "Unknown error";
+      envSummaries.push({
+        env,
+        committedUsersCount,
+        confirmedUsersCount,
+        pendingUsersCount,
+        eventStatus: "failed",
+        errorMessage,
+      });
       logger.error("Pending order reminder run failed", {
         env,
         weekKey,
         reminderHour,
+        dryRun,
         error,
       });
     }
   }
 
-  if (failedEnvs.length > 0) {
+  if (shouldThrowOnFailure && failedEnvs.length > 0) {
     throw new Error(
       `Pending order reminder failed for envs: ${failedEnvs.join(", ")}`
     );
   }
+
+  return {
+    reminderHour,
+    weekKey,
+    weekNumber,
+    referenceNowIso: referenceNow.toDate().toISOString(),
+    dryRun,
+    envs: targetEnvs,
+    failedEnvs,
+    envSummaries,
+  };
 };
 
 type ShiftType = "delivery" | "market";
@@ -2296,6 +2421,30 @@ const parseEnvParam = (
   fallback: string = ENV,
 ): string => parseString(value) || fallback;
 
+const parseReferenceTimestamp = (
+  isoValue: unknown,
+  millisValue: unknown,
+): admin.firestore.Timestamp | null | undefined => {
+  const isoString = parseString(isoValue);
+  if (isoString) {
+    const parsedDate = new Date(isoString);
+    if (Number.isNaN(parsedDate.getTime())) {
+      return null;
+    }
+    return admin.firestore.Timestamp.fromDate(parsedDate);
+  }
+
+  if (millisValue === undefined || millisValue === null) {
+    return undefined;
+  }
+
+  const parsedMillis = Number(millisValue);
+  if (!Number.isFinite(parsedMillis)) {
+    return null;
+  }
+  return admin.firestore.Timestamp.fromMillis(parsedMillis);
+};
+
 const readAllShifts = async (
   env: string,
 ): Promise<FirestoreShiftRecord[]> => {
@@ -2559,6 +2708,111 @@ export const exportShiftsToGoogleSheets = onRequest(async (req, res) => {
     res.status(500).json({
       ok: false,
       env,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+export const debugRunPendingOrderReminder = onRequest(async (req, res) => {
+  if (req.method !== "GET" && req.method !== "POST") {
+    res.status(405).json({error: "Method Not Allowed"});
+    return;
+  }
+
+  const runtimeEnv = ENV.trim().toLowerCase();
+  if (runtimeEnv !== "develop" && runtimeEnv !== "local") {
+    res.status(403).json({
+      error: "Debug reminder trigger is only enabled in develop runtime.",
+    });
+    return;
+  }
+
+  const body = parseBody(req.body);
+  const targetEnvs = parseEnvList(
+    body.envs ?? req.query.envs ?? body.env ?? req.query.env
+  );
+  const normalizedTargetEnvs = targetEnvs.length > 0 ?
+    targetEnvs :
+    ["develop"];
+
+  if (normalizedTargetEnvs.some((env) => env !== "develop")) {
+    res.status(400).json({
+      error: "debugRunPendingOrderReminder only allows env=develop.",
+    });
+    return;
+  }
+
+  const reminderHour = parseIntegerInRange(
+    body.reminderHour ?? req.query.reminderHour ?? body.hour ?? req.query.hour,
+    0,
+    23,
+  );
+  if (reminderHour === null) {
+    res.status(400).json({
+      error: "A valid reminderHour (0..23) is required.",
+    });
+    return;
+  }
+
+  const weekKey = parseString(body.weekKey) || parseString(req.query.weekKey);
+  if (weekKey && !parseIsoWeekNumberFromWeekKey(weekKey)) {
+    res.status(400).json({
+      error: "weekKey must match ISO format YYYY-WNN.",
+    });
+    return;
+  }
+
+  const referenceNow = parseReferenceTimestamp(
+    body.simulatedNowIso ??
+      body.simulateAt ??
+      req.query.simulatedNowIso ??
+      req.query.simulateAt,
+    body.simulatedNowMillis ?? req.query.simulatedNowMillis,
+  );
+  if (referenceNow === null) {
+    res.status(400).json({
+      error:
+        "Invalid simulated time. Use simulatedNowIso (ISO) or " +
+        "simulatedNowMillis (epoch ms).",
+    });
+    return;
+  }
+
+  const dryRun = parseFlexibleBoolean(body.dryRun ?? req.query.dryRun) ||
+    false;
+
+  try {
+    const summary = await runPendingOrderReminderForHour(
+      reminderHour,
+      {
+        referenceNow,
+        weekKey: weekKey || undefined,
+        envs: normalizedTargetEnvs,
+        dryRun,
+        throwOnFailure: false,
+      }
+    );
+    const ok = summary.failedEnvs.length === 0;
+    res.status(ok ? 200 : 500).json({
+      ok,
+      ...summary,
+      usage: {
+        method: "GET or POST",
+        params: {
+          reminderHour: "required (0..23)",
+          weekKey: "optional (YYYY-WNN)",
+          simulatedNowIso: "optional, example 2026-04-19T21:58:00+02:00",
+          simulatedNowMillis: "optional epoch ms",
+          dryRun: "optional bool",
+        },
+      },
+    });
+  } catch (error) {
+    logger.error("❌ Failed to run debug pending order reminder", {
+      error,
+    });
+    res.status(500).json({
+      ok: false,
       error: error instanceof Error ? error.message : "Unknown error",
     });
   }

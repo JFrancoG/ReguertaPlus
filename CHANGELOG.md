@@ -33,6 +33,7 @@ All notable changes to this project will be documented in this file.
 - 2026-04-14 | ✨ feat(producers): add producer status visual feedback (HU-009)
 - 2026-04-15 | ✨ feat(access): route production reviewer to develop (HU-018)
 - 2026-04-16 | ✨ feat(functions): add pending-order reminders (HU-006)
+- 2026-04-16 | ✨ feat(functions): add HU-006 debug reminder trigger
 
 ### Fixed
 
