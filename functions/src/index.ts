@@ -126,19 +126,6 @@ const parseStringArray = (value: unknown): string[] => {
   ));
 };
 
-const parseStringList = (value: unknown): string[] => {
-  if (Array.isArray(value)) {
-    return parseStringArray(value);
-  }
-  if (typeof value === "string") {
-    return value
-      .split(",")
-      .map((item) => item.trim())
-      .filter((item) => item.length > 0);
-  }
-  return [];
-};
-
 const isAdminRecord = (data: Record<string, unknown>): boolean => {
   const isActive = data.isActive !== false;
   const roles = parseRoles(data.roles);
@@ -259,45 +246,6 @@ const parsePositiveInteger = (value: unknown, fallback: number): number => {
     return fallback;
   }
   return Math.floor(parsed);
-};
-
-const parseInteger = (value: unknown): number | null => {
-  if (typeof value === "number" && Number.isInteger(value)) {
-    return value;
-  }
-  if (typeof value === "string" && value.trim().length > 0) {
-    const parsed = Number(value);
-    return Number.isInteger(parsed) ? parsed : null;
-  }
-  return null;
-};
-
-const parseIntegerInRange = (
-  value: unknown,
-  minimum: number,
-  maximum: number,
-): number | null => {
-  const parsed = parseInteger(value);
-  if (parsed === null || parsed < minimum || parsed > maximum) {
-    return null;
-  }
-  return parsed;
-};
-
-const parseFlexibleBoolean = (value: unknown): boolean | null => {
-  if (typeof value === "boolean") {
-    return value;
-  }
-  if (typeof value === "string") {
-    const normalized = value.trim().toLowerCase();
-    if (["true", "1", "yes", "y"].includes(normalized)) {
-      return true;
-    }
-    if (["false", "0", "no", "n"].includes(normalized)) {
-      return false;
-    }
-  }
-  return null;
 };
 
 const sanitizeLastTimestamps = (
@@ -489,8 +437,6 @@ type PendingOrderReminderRunSummary = {
   weekNumber: number;
   referenceNowIso: string;
   dryRun: boolean;
-  forcedUserIds: string[];
-  eventIdSuffix: string | null;
   envs: string[];
   failedEnvs: string[];
   envSummaries: PendingOrderReminderEnvSummary[];
@@ -501,8 +447,6 @@ type PendingOrderReminderRunOptions = {
   weekKey?: string;
   envs?: string[];
   dryRun?: boolean;
-  forcedUserIds?: string[];
-  eventIdSuffix?: string;
   throwOnFailure?: boolean;
 };
 
@@ -700,20 +644,11 @@ const isAlreadyExistsError = (error: unknown): boolean => {
     maybeCode === "ALREADY_EXISTS";
 };
 
-const sanitizeEventIdSuffix = (value: string): string =>
-  value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 48);
-
 const createOrderReminderEvent = async (
   env: string,
   weekKey: string,
   reminderHour: number,
   userIds: string[],
-  eventIdSuffix?: string,
 ): Promise<"created" | "skipped"> => {
   const deduplicatedUserIds = Array.from(new Set(userIds));
   if (deduplicatedUserIds.length === 0) {
@@ -721,12 +656,7 @@ const createOrderReminderEvent = async (
   }
 
   const slotLabel = String(reminderHour).padStart(2, "0");
-  const sanitizedSuffix = eventIdSuffix ?
-    sanitizeEventIdSuffix(eventIdSuffix) :
-    "";
-  const eventId = sanitizedSuffix.length > 0 ?
-    `order_reminder_${weekKey}_${slotLabel}_${sanitizedSuffix}` :
-    `order_reminder_${weekKey}_${slotLabel}`;
+  const eventId = `order_reminder_${weekKey}_${slotLabel}`;
   const eventRef = firestore
     .collection(`${env}/plus-collections/notificationEvents`)
     .doc(eventId);
@@ -781,14 +711,6 @@ const runPendingOrderReminderForHour = async (
   }
 
   const dryRun = options.dryRun === true;
-  const normalizedForcedUserIds = Array.from(new Set(
-    (options.forcedUserIds || [])
-      .map((userId) => normalizePathLikeIdentifier(userId.trim()))
-      .filter((userId) => userId.length > 0)
-  ));
-  const eventIdSuffix = options.eventIdSuffix ?
-    sanitizeEventIdSuffix(options.eventIdSuffix) :
-    "";
   const shouldThrowOnFailure = options.throwOnFailure !== false;
   const failedEnvs: string[] = [];
   const envSummaries: PendingOrderReminderEnvSummary[] = [];
@@ -797,38 +719,29 @@ const runPendingOrderReminderForHour = async (
     let committedUsersCount = 0;
     let confirmedUsersCount = 0;
     let pendingUsersCount = 0;
-    let pendingUserIds: string[] = [];
 
     try {
-      if (normalizedForcedUserIds.length > 0) {
-        pendingUserIds = normalizedForcedUserIds;
-        committedUsersCount = pendingUserIds.length;
-        confirmedUsersCount = 0;
-        pendingUsersCount = pendingUserIds.length;
-      } else {
-        const committedUserIds = await listMembersWithCommitments(
-          env,
-          weekParity
-        );
-        committedUsersCount = committedUserIds.length;
-        const confirmedOrderUserIds = await listConfirmedOrderUserIds(
-          env,
-          weekKey,
-          weekNumber
-        );
-        confirmedUsersCount = confirmedOrderUserIds.size;
-        pendingUserIds = committedUserIds
-          .filter((userId) => !confirmedOrderUserIds.has(userId));
-        pendingUsersCount = pendingUserIds.length;
-      }
+      const committedUserIds = await listMembersWithCommitments(
+        env,
+        weekParity
+      );
+      committedUsersCount = committedUserIds.length;
+      const confirmedOrderUserIds = await listConfirmedOrderUserIds(
+        env,
+        weekKey,
+        weekNumber
+      );
+      confirmedUsersCount = confirmedOrderUserIds.size;
+      const pendingUserIds = committedUserIds
+        .filter((userId) => !confirmedOrderUserIds.has(userId));
+      pendingUsersCount = pendingUserIds.length;
       const result = dryRun ?
         "dry_run" as const :
         await createOrderReminderEvent(
           env,
           weekKey,
           reminderHour,
-          pendingUserIds,
-          eventIdSuffix || undefined,
+          pendingUserIds
         );
       envSummaries.push({
         env,
@@ -846,8 +759,6 @@ const runPendingOrderReminderForHour = async (
         committedUsersCount,
         confirmedUsersCount,
         pendingUsersCount,
-        forcedUserIdsCount: normalizedForcedUserIds.length,
-        eventIdSuffix: eventIdSuffix || null,
         dryRun,
         eventStatus: result,
       });
@@ -886,8 +797,6 @@ const runPendingOrderReminderForHour = async (
     weekNumber,
     referenceNowIso: referenceNow.toDate().toISOString(),
     dryRun,
-    forcedUserIds: normalizedForcedUserIds,
-    eventIdSuffix: eventIdSuffix || null,
     envs: targetEnvs,
     failedEnvs,
     envSummaries,
@@ -2473,30 +2382,6 @@ const parseEnvParam = (
   fallback: string = ENV,
 ): string => parseString(value) || fallback;
 
-const parseReferenceTimestamp = (
-  isoValue: unknown,
-  millisValue: unknown,
-): admin.firestore.Timestamp | null | undefined => {
-  const isoString = parseString(isoValue);
-  if (isoString) {
-    const parsedDate = new Date(isoString);
-    if (Number.isNaN(parsedDate.getTime())) {
-      return null;
-    }
-    return admin.firestore.Timestamp.fromDate(parsedDate);
-  }
-
-  if (millisValue === undefined || millisValue === null) {
-    return undefined;
-  }
-
-  const parsedMillis = Number(millisValue);
-  if (!Number.isFinite(parsedMillis)) {
-    return null;
-  }
-  return admin.firestore.Timestamp.fromMillis(parsedMillis);
-};
-
 const readAllShifts = async (
   env: string,
 ): Promise<FirestoreShiftRecord[]> => {
@@ -2760,130 +2645,6 @@ export const exportShiftsToGoogleSheets = onRequest(async (req, res) => {
     res.status(500).json({
       ok: false,
       env,
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
-  }
-});
-
-export const debugRunPendingOrderReminder = onRequest(async (req, res) => {
-  if (req.method !== "GET" && req.method !== "POST") {
-    res.status(405).json({error: "Method Not Allowed"});
-    return;
-  }
-
-  const runtimeEnv = ENV.trim().toLowerCase();
-  if (runtimeEnv !== "develop" && runtimeEnv !== "local") {
-    res.status(403).json({
-      error: "Debug reminder trigger is only enabled in develop runtime.",
-    });
-    return;
-  }
-
-  const body = parseBody(req.body);
-  const targetEnvs = parseEnvList(
-    body.envs ?? req.query.envs ?? body.env ?? req.query.env
-  );
-  const normalizedTargetEnvs = targetEnvs.length > 0 ?
-    targetEnvs :
-    ["develop"];
-
-  if (normalizedTargetEnvs.some((env) => env !== "develop")) {
-    res.status(400).json({
-      error: "debugRunPendingOrderReminder only allows env=develop.",
-    });
-    return;
-  }
-
-  const reminderHour = parseIntegerInRange(
-    body.reminderHour ?? req.query.reminderHour ?? body.hour ?? req.query.hour,
-    0,
-    23,
-  );
-  if (reminderHour === null) {
-    res.status(400).json({
-      error: "A valid reminderHour (0..23) is required.",
-    });
-    return;
-  }
-
-  const weekKey = parseString(body.weekKey) || parseString(req.query.weekKey);
-  if (weekKey && !parseIsoWeekNumberFromWeekKey(weekKey)) {
-    res.status(400).json({
-      error: "weekKey must match ISO format YYYY-WNN.",
-    });
-    return;
-  }
-
-  const forcedUserIds = Array.from(new Set(
-    [
-      ...parseStringList(body.forceUserIds),
-      ...parseStringList(req.query.forceUserIds),
-      parseString(body.forceUserId),
-      parseString(req.query.forceUserId),
-    ]
-      .filter((value): value is string => Boolean(value))
-      .map((value) => normalizePathLikeIdentifier(value))
-  ));
-  const eventIdSuffix = parseString(body.runKey) ||
-    parseString(req.query.runKey) ||
-    null;
-
-  const referenceNow = parseReferenceTimestamp(
-    body.simulatedNowIso ??
-      body.simulateAt ??
-      req.query.simulatedNowIso ??
-      req.query.simulateAt,
-    body.simulatedNowMillis ?? req.query.simulatedNowMillis,
-  );
-  if (referenceNow === null) {
-    res.status(400).json({
-      error:
-        "Invalid simulated time. Use simulatedNowIso (ISO) or " +
-        "simulatedNowMillis (epoch ms).",
-    });
-    return;
-  }
-
-  const dryRun = parseFlexibleBoolean(body.dryRun ?? req.query.dryRun) ||
-    false;
-
-  try {
-    const summary = await runPendingOrderReminderForHour(
-      reminderHour,
-      {
-        referenceNow,
-        weekKey: weekKey || undefined,
-        envs: normalizedTargetEnvs,
-        dryRun,
-        forcedUserIds,
-        eventIdSuffix: eventIdSuffix || undefined,
-        throwOnFailure: false,
-      }
-    );
-    const ok = summary.failedEnvs.length === 0;
-    res.status(ok ? 200 : 500).json({
-      ok,
-      ...summary,
-      usage: {
-        method: "GET or POST",
-        params: {
-          reminderHour: "required (0..23)",
-          weekKey: "optional (YYYY-WNN)",
-          simulatedNowIso: "optional, example 2026-04-19T21:58:00+02:00",
-          simulatedNowMillis: "optional epoch ms",
-          dryRun: "optional bool",
-          forceUserId: "optional userId forced target",
-          forceUserIds: "optional csv or array of userIds",
-          runKey: "optional suffix to avoid idempotency collisions",
-        },
-      },
-    });
-  } catch (error) {
-    logger.error("❌ Failed to run debug pending order reminder", {
-      error,
-    });
-    res.status(500).json({
-      ok: false,
       error: error instanceof Error ? error.message : "Unknown error",
     });
   }
