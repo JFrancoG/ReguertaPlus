@@ -16,14 +16,14 @@
 - [x] Validate loading, error, and success states.
 
 ## 4. Backend / Firestore
-- [ ] Adjust schema/queries/rules/functions where applicable.
-- [ ] Verify compatibility with existing data and incremental strategy.
-- [ ] Confirm role-based access and security behavior.
+- [x] Adjust schema/queries/rules/functions where applicable.
+- [x] Verify compatibility with existing data and incremental strategy.
+- [x] Confirm role-based access and security behavior.
 
 ## 5. Testing
 - [x] Execute unit tests for impacted areas.
 - [x] Execute required integration tests.
-- [ ] Perform full manual acceptance validation.
+- [x] Perform full manual acceptance validation.
 
 ## 6. Documentation
 - [x] Update technical notes in the linked issue.
@@ -31,6 +31,6 @@
 - [x] Document Android/iOS parity status or temporary gap.
 
 ## 7. Closure
-- [ ] Create/update linked issue and connect PR.
-- [ ] Complete DoD checklist in spec.md.
-- [ ] Attach test evidence and functional validation output.
+- [x] Create/update linked issue and connect PR.
+- [x] Complete DoD checklist in spec.md.
+- [x] Attach test evidence and functional validation output.
