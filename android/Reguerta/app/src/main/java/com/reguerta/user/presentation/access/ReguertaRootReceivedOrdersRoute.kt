@@ -193,15 +193,18 @@ internal fun ReceivedOrdersRoute(
     var uiState by remember { mutableStateOf<ReceivedOrdersUiState>(ReceivedOrdersUiState.Idle) }
     var retryToken by rememberSaveable { mutableStateOf(0) }
     var updatingStatusOrderId by rememberSaveable { mutableStateOf<String?>(null) }
+    var statusWriteFeedback by rememberSaveable { mutableStateOf<ReceivedOrderStatusWriteResult?>(null) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(isProducer, window.isEnabled, window.targetWeekKey, currentMember?.id, retryToken) {
         if (!isProducer || !window.isEnabled) {
             uiState = ReceivedOrdersUiState.Idle
+            statusWriteFeedback = null
             return@LaunchedEffect
         }
         val producerId = currentMember.id
         uiState = ReceivedOrdersUiState.Loading
+        statusWriteFeedback = null
         uiState = runCatching {
             val lines = loadReceivedOrderLinesForProducer(
                 producerId = producerId,
@@ -256,6 +259,21 @@ internal fun ReceivedOrdersRoute(
                 selectedTab = selectedTab,
                 onSelect = { selectedTab = it },
             )
+
+            statusWriteFeedback?.let { feedback ->
+                val messageRes = when (feedback) {
+                    ReceivedOrderStatusWriteResult.PERMISSION_DENIED -> R.string.received_orders_status_update_permission_denied
+                    ReceivedOrderStatusWriteResult.FAILURE -> R.string.received_orders_status_update_failed
+                    ReceivedOrderStatusWriteResult.SUCCESS -> null
+                }
+                if (messageRes != null) {
+                    Text(
+                        text = stringResource(messageRes),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
 
             when {
                 !isProducer -> {
@@ -348,22 +366,31 @@ internal fun ReceivedOrdersRoute(
                                             if (producerId.isBlank()) return@ReceivedOrdersMemberCard
                                             scope.launch {
                                                 updatingStatusOrderId = group.orderId
-                                                val updateApplied = runCatching {
+                                                val updateResult = runCatching {
                                                     updateReceivedOrderProducerStatus(
                                                         orderId = group.orderId,
                                                         producerId = producerId,
                                                         status = selectedStatus,
                                                     )
-                                                }.getOrDefault(false)
-                                                if (updateApplied) {
-                                                    val currentSnapshot = (uiState as? ReceivedOrdersUiState.Loaded)?.snapshot
-                                                    if (currentSnapshot != null) {
-                                                        uiState = ReceivedOrdersUiState.Loaded(
-                                                            currentSnapshot.withProducerStatus(
-                                                                orderId = group.orderId,
-                                                                status = selectedStatus,
-                                                            ),
-                                                        )
+                                                }.getOrElse { throwable ->
+                                                    throwable.toReceivedOrderStatusWriteResult()
+                                                }
+                                                when (updateResult) {
+                                                    ReceivedOrderStatusWriteResult.SUCCESS -> {
+                                                        statusWriteFeedback = null
+                                                        val currentSnapshot = (uiState as? ReceivedOrdersUiState.Loaded)?.snapshot
+                                                        if (currentSnapshot != null) {
+                                                            uiState = ReceivedOrdersUiState.Loaded(
+                                                                currentSnapshot.withProducerStatus(
+                                                                    orderId = group.orderId,
+                                                                    status = selectedStatus,
+                                                                ),
+                                                            )
+                                                        }
+                                                    }
+                                                    ReceivedOrderStatusWriteResult.PERMISSION_DENIED,
+                                                    ReceivedOrderStatusWriteResult.FAILURE -> {
+                                                        statusWriteFeedback = updateResult
                                                     }
                                                 }
                                                 updatingStatusOrderId = null
@@ -862,29 +889,35 @@ private suspend fun updateReceivedOrderProducerStatus(
     firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
     environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment(),
     nowMillis: Long = System.currentTimeMillis(),
-): Boolean = withContext(Dispatchers.IO) {
+): ReceivedOrderStatusWriteResult = withContext(Dispatchers.IO) {
     val path = ReguertaFirestorePath(environment = environment)
     val writeTargets = listOf(
         path.collectionPath(ReguertaFirestoreCollection.ORDERS),
         "${environment.wireValue}/collections/orders",
     ).distinct()
     val nowTimestamp = Timestamp(Date(nowMillis))
+    var lastFailure = ReceivedOrderStatusWriteResult.FAILURE
 
-    writeTargets.any { ordersPath ->
-        runCatching {
+    for (ordersPath in writeTargets) {
+        try {
             val orderReference = firestore.document("$ordersPath/$orderId")
             Tasks.await(
                 orderReference.update(
                     mapOf(
                         "producerStatus" to status.wireValue,
                         "producerStatusesByVendor.$producerId" to status.wireValue,
+                        "producerStatusUpdatedBy" to producerId,
                         "updatedAt" to nowTimestamp,
                     ),
                 ),
             )
-            true
-        }.getOrDefault(false)
+            return@withContext ReceivedOrderStatusWriteResult.SUCCESS
+        } catch (throwable: Throwable) {
+            lastFailure = throwable.toReceivedOrderStatusWriteResult()
+        }
     }
+
+    lastFailure
 }
 
 private suspend fun markReceivedOrdersAsRead(
@@ -898,7 +931,7 @@ private suspend fun markReceivedOrdersAsRead(
             producerId = producerId,
             status = ReceivedOrderProducerStatus.READ,
         )
-        if (updated) {
+        if (updated == ReceivedOrderStatusWriteResult.SUCCESS) {
             updatedOrderIds += orderId
         }
     }

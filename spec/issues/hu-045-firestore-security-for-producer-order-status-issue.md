@@ -26,11 +26,18 @@ As an admin I want strict Firestore rules for producer status updates so only au
 - Non-status order editing workflows.
 
 ## Implementation checklist
-- [ ] Android
-- [ ] iOS
-- [ ] Backend / Firestore
-- [ ] Testing
-- [ ] Documentation
+- [x] Android
+- [x] iOS
+- [x] Backend / Firestore
+- [x] Testing
+- [x] Documentation
+
+## Implementation notes (2026-04-17)
+- Added `firestore.rules` with producer/admin producer-status mutation contract for both `develop` and `production` roots.
+- Added emulator security tests: `functions/test/firestore/producer-order-status.rules.test.cjs`.
+- Added explicit producer-status denied-write UX feedback in Android and iOS received-orders flows.
+- Producer status updates now write `producerStatusUpdatedBy`.
+- Consumer checkout payload no longer persists producer status fields directly.
 
 ## Suggested labels
 - type:feature

@@ -1,0 +1,162 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSupportedEnv(env) {
+      return env in ["develop", "production"];
+    }
+
+    function isSupportedDataset(dataset) {
+      return dataset in ["plus-collections", "collections"];
+    }
+
+    function isValidProducerStatus(status) {
+      return status in ["unread", "read", "prepared", "delivered"];
+    }
+
+    function userPath(env, dataset, userId) {
+      return /databases/$(database)/documents/$(env)/$(dataset)/users/$(userId);
+    }
+
+    function actorExists(env, dataset, actorId) {
+      return exists(userPath(env, dataset, actorId));
+    }
+
+    function actorData(env, dataset, actorId) {
+      return actorExists(env, dataset, actorId) ? get(userPath(env, dataset, actorId)).data : {};
+    }
+
+    function actorMatchesUid(env, dataset, actorId) {
+      return actorData(env, dataset, actorId).authUid == request.auth.uid;
+    }
+
+    function actorIsActive(env, dataset, actorId) {
+      return actorData(env, dataset, actorId).isActive != false;
+    }
+
+    function actorHasRole(env, dataset, actorId, role) {
+      let actor = actorData(env, dataset, actorId);
+      let roles = actor.roles is list ? actor.roles : [];
+      return roles.hasAny([role]) ||
+        (role == "producer" && actor.isProducer == true) ||
+        (role == "admin" && actor.isAdmin == true);
+    }
+
+    function producerStatusActorId() {
+      let actorId = request.resource.data.producerStatusUpdatedBy;
+      return actorId is string ? actorId : "";
+    }
+
+    function isProducerStatusMutation() {
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      return affected.hasAny([
+        "producerStatus",
+        "producerStatusesByVendor",
+        "producerStatusUpdatedBy",
+      ]);
+    }
+
+    function hasValidInitialProducerStatusPayload() {
+      let hasProducerStatus = request.resource.data.keys().hasAny(["producerStatus"]);
+      let hasByVendor = request.resource.data.keys().hasAny(["producerStatusesByVendor"]);
+      return (!hasProducerStatus && !hasByVendor) ||
+        (
+          request.resource.data.producerStatus is string &&
+          request.resource.data.producerStatus == "unread"
+        );
+    }
+
+    function isAllowedProducerTransition(previousStatus, nextStatus) {
+      return (previousStatus == "unread" && nextStatus in ["read", "prepared", "delivered"]) ||
+        (previousStatus == "read" && nextStatus in ["read", "prepared", "delivered"]) ||
+        (previousStatus == "prepared" && nextStatus in ["read", "prepared", "delivered"]) ||
+        (previousStatus == "delivered" && nextStatus == "delivered");
+    }
+
+    function producerCanUpdateOwnStatus(env, dataset, actorId) {
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      let beforeByVendor = resource.data.producerStatusesByVendor is map ? resource.data.producerStatusesByVendor : {};
+      let afterByVendor = request.resource.data.producerStatusesByVendor is map ? request.resource.data.producerStatusesByVendor : {};
+      let vendorDiff = afterByVendor.diff(beforeByVendor).affectedKeys();
+      let previousStatus = beforeByVendor[actorId] is string ?
+        beforeByVendor[actorId] :
+        (resource.data.producerStatus is string ? resource.data.producerStatus : "unread");
+      let nextStatus = afterByVendor[actorId];
+
+      return affected.hasOnly([
+        "producerStatus",
+        "producerStatusesByVendor",
+        "producerStatusUpdatedBy",
+        "updatedAt",
+      ]) &&
+        request.resource.data.producerStatusUpdatedBy == actorId &&
+        vendorDiff.hasOnly([actorId]) &&
+        actorMatchesUid(env, dataset, actorId) &&
+        actorIsActive(env, dataset, actorId) &&
+        actorHasRole(env, dataset, actorId, "producer") &&
+        resource.data.totalsByVendor is map &&
+        resource.data.totalsByVendor[actorId] is number &&
+        nextStatus is string &&
+        isValidProducerStatus(nextStatus) &&
+        request.resource.data.producerStatus is string &&
+        request.resource.data.producerStatus == nextStatus &&
+        isAllowedProducerTransition(previousStatus, nextStatus);
+    }
+
+    function adminCanApplyStatusCorrection(env, dataset, actorId) {
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      let nextStatus = request.resource.data.producerStatus;
+      return affected.hasOnly([
+        "producerStatus",
+        "producerStatusUpdatedBy",
+        "updatedAt",
+      ]) &&
+        request.resource.data.producerStatusUpdatedBy == actorId &&
+        actorMatchesUid(env, dataset, actorId) &&
+        actorIsActive(env, dataset, actorId) &&
+        actorHasRole(env, dataset, actorId, "admin") &&
+        nextStatus is string &&
+        isValidProducerStatus(nextStatus) &&
+        request.resource.data.producerStatusesByVendor == resource.data.producerStatusesByVendor;
+    }
+
+    function canUpdateProducerStatus(env, dataset) {
+      let actorId = producerStatusActorId();
+      return actorId.size() > 0 &&
+        (
+          producerCanUpdateOwnStatus(env, dataset, actorId) ||
+          adminCanApplyStatusCorrection(env, dataset, actorId)
+        );
+    }
+
+    match /{env}/{dataset}/orders/{orderId} {
+      allow read: if isSignedIn() && isSupportedEnv(env) && isSupportedDataset(dataset);
+
+      allow create: if isSignedIn() &&
+        isSupportedEnv(env) &&
+        isSupportedDataset(dataset) &&
+        hasValidInitialProducerStatusPayload();
+
+      allow update: if isSignedIn() &&
+        isSupportedEnv(env) &&
+        isSupportedDataset(dataset) &&
+        (
+          !isProducerStatusMutation() ||
+          canUpdateProducerStatus(env, dataset)
+        );
+
+      allow delete: if isSignedIn() && isSupportedEnv(env) && isSupportedDataset(dataset);
+    }
+
+    match /{env}/{dataset}/{collectionId}/{document=**} {
+      allow read, write: if isSignedIn() &&
+        isSupportedEnv(env) &&
+        isSupportedDataset(dataset) &&
+        collectionId != "orders";
+    }
+  }
+}

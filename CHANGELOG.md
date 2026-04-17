@@ -34,6 +34,7 @@ All notable changes to this project will be documented in this file.
 - 2026-04-15 | ✨ feat(access): route production reviewer to develop (HU-018)
 - 2026-04-16 | ✨ feat(functions): add pending-order reminders (HU-006)
 - 2026-04-17 | ✨ feat(access): add HU-044 role capability matrix
+- 2026-04-17 | ✨ feat(orders): harden producer status security contract (HU-045)
 
 ### Fixed
 
