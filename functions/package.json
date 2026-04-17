@@ -3,6 +3,7 @@
   "scripts": {
     "lint": "eslint --ext .js,.ts .",
     "build": "tsc",
+    "test:order-reminder:unit": "npm run build && node --test test/order-reminder-scheduler.test.cjs",
     "test:rules:unit": "node --test test/firestore/producer-order-status.rules.test.cjs",
     "test:rules": "firebase emulators:exec --config ../firebase.json --project demo-reguerta-hu045 --only firestore \"npm run test:rules:unit\"",
     "build:watch": "tsc --watch",

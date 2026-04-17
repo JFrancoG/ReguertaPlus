@@ -26,11 +26,29 @@ As a member with commitments I want reminder jobs to run reliably and only once 
 - Full campaign-management features.
 
 ## Implementation checklist
-- [ ] Android
-- [ ] iOS
-- [ ] Backend / Firestore
-- [ ] Testing
-- [ ] Documentation
+- [x] Android
+- [x] iOS
+- [x] Backend / Firestore
+- [x] Testing
+- [x] Documentation
+
+## Implementation notes (2026-04-17)
+- Added per-user idempotent dispatch markers at:
+  `{env}/plus-collections/orderReminderDispatchMarkers/{markerId}` with
+  `markerId = order_reminder_{weekKey}_{slotHH}_{userId}`.
+- Added bounded retry policy for transient FCM errors:
+  - max attempts (`ORDER_REMINDER_RETRY_MAX_ATTEMPTS`, default `3`)
+  - exponential backoff base delay
+    (`ORDER_REMINDER_RETRY_BASE_DELAY_MINUTES`, default `15`)
+  - retry batch cap (`ORDER_REMINDER_RETRY_BATCH_SIZE`, default `200`)
+- Added `retryPendingOrderReminderDispatches` scheduler (every 15 minutes,
+  `Europe/Madrid`) and retry run summaries at:
+  `{env}/plus-collections/orderReminderRetryRuns/{runId}`.
+- Extended `notificationEvents.dispatch` telemetry for order reminders with
+  user-level outcomes (`processed`, `sent`, `skipped`, `failed`, `retryQueued`)
+  and token counters.
+- Added unit tests for slot identity and retry helpers:
+  `functions/test/order-reminder-scheduler.test.cjs`.
 
 ## Suggested labels
 - type:feature
