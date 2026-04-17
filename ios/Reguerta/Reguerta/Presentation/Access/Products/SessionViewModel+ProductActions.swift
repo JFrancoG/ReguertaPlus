@@ -399,16 +399,6 @@ private extension Product {
     }
 }
 
-extension Member {
-    var isProducer: Bool {
-        roles.contains(.producer)
-    }
-
-    var canManageProductCatalog: Bool {
-        isProducer || isCommonPurchaseManager
-    }
-}
-
 private extension Double {
     var uiDecimal: String {
         truncatingRemainder(dividingBy: 1) == 0

@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.dp
 import androidx.activity.compose.BackHandler
 import com.reguerta.user.R
 import com.reguerta.user.domain.access.Member
+import com.reguerta.user.domain.access.canPublishNews
+import com.reguerta.user.domain.access.canSendAdminNotifications
 import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
 import com.reguerta.user.domain.calendar.DeliveryWeekday
 import com.reguerta.user.domain.commitments.SeasonalCommitment
@@ -323,7 +325,7 @@ internal fun HomeRoute(
                     HomeDestination.NEWS -> NewsFeedRoute(
                     articles = newsFeed,
                     isLoading = isLoadingNews,
-                    isAdmin = member?.isAdmin == true,
+                    isAdmin = member?.canPublishNews == true,
                     onRefresh = onRefreshNews,
                     onCreateNews = {
                         onStartCreatingNews()
@@ -357,7 +359,7 @@ internal fun HomeRoute(
                     HomeDestination.NOTIFICATIONS -> NotificationsFeedRoute(
                     notifications = notificationsFeed,
                     isLoading = isLoadingNotifications,
-                    isAdmin = member?.isAdmin == true,
+                    isAdmin = member?.canSendAdminNotifications == true,
                     onRefresh = onRefreshNotifications,
                     onCreateNotification = {
                         onStartCreatingNotification()

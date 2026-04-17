@@ -1,6 +1,8 @@
 package com.reguerta.user.presentation.access
 
 import com.reguerta.user.R
+import com.reguerta.user.domain.access.canPublishNews
+import com.reguerta.user.domain.access.canSendAdminNotifications
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 
@@ -128,7 +130,7 @@ internal class SessionFormActions(
 
     fun startCreatingNews() {
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.isAdmin) {
+        if (!mode.member.canPublishNews) {
             emitMessage(R.string.feedback_only_admin_publish_news)
             return
         }
@@ -143,7 +145,7 @@ internal class SessionFormActions(
 
     fun startEditingNews(newsId: String) {
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.isAdmin) {
+        if (!mode.member.canPublishNews) {
             emitMessage(R.string.feedback_only_admin_edit_news)
             return
         }
@@ -173,7 +175,7 @@ internal class SessionFormActions(
 
     fun startCreatingNotification() {
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.isAdmin) {
+        if (!mode.member.canSendAdminNotifications) {
             emitMessage(R.string.feedback_only_admin_send_notification)
             return
         }

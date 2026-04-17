@@ -85,7 +85,7 @@ extension ContentView {
             tokens: tokens,
             isLoadingNews: viewModel.isLoadingNews,
             newsFeed: viewModel.newsFeed,
-            isAdmin: currentHomeMember?.isAdmin == true,
+            isAdmin: currentHomeMember?.canPublishNews == true,
             newsMetaText: { article in
                 l10n(AccessL10nKey.newsMetaFormat, article.publishedBy)
             },
@@ -169,7 +169,7 @@ extension ContentView {
             tokens: tokens,
             isLoadingNotifications: viewModel.isLoadingNotifications,
             notificationsFeed: viewModel.notificationsFeed,
-            isAdmin: currentHomeMember?.isAdmin == true,
+            isAdmin: currentHomeMember?.canSendAdminNotifications == true,
             notificationMetaText: { notification in
                 l10n(
                     AccessL10nKey.notificationsMetaFormat,

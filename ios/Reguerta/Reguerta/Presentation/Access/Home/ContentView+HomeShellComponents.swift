@@ -197,11 +197,11 @@ struct HomeDrawerContentView: View {
 
     private var canManageProductCatalog: Bool {
         guard let currentMember else { return false }
-        return currentMember.roles.contains(.producer) || currentMember.isCommonPurchaseManager
+        return currentMember.canManageProductCatalog
     }
 
     private var isProducer: Bool {
-        currentMember?.roles.contains(.producer) == true
+        currentMember?.canAccessReceivedOrders == true
     }
 
     private func localizedKey(_ key: String) -> LocalizedStringKey {
@@ -293,11 +293,19 @@ struct HomeDrawerContentView: View {
             homeDrawerItem("tray.full.fill", titleKey: AccessL10nKey.homeShellActionReceivedOrders, destination: .receivedOrders)
         }
 
-        if currentMember?.isAdmin == true {
+        if currentMember?.canManageMembers == true ||
+            currentMember?.canPublishNews == true ||
+            currentMember?.canSendAdminNotifications == true {
             drawerSection(titleKey: AccessL10nKey.homeShellSectionAdmin)
-            homeDrawerItem("person.3.fill", titleKey: AccessL10nKey.homeShellActionUsers, destination: .users)
-            homeDrawerItem("plus.square.fill", titleKey: AccessL10nKey.homeShellActionPublishNews, destination: .publishNews)
-            homeDrawerItem("megaphone.fill", titleKey: AccessL10nKey.homeShellActionAdminBroadcast, destination: .adminBroadcast)
+            if currentMember?.canManageMembers == true {
+                homeDrawerItem("person.3.fill", titleKey: AccessL10nKey.homeShellActionUsers, destination: .users)
+            }
+            if currentMember?.canPublishNews == true {
+                homeDrawerItem("plus.square.fill", titleKey: AccessL10nKey.homeShellActionPublishNews, destination: .publishNews)
+            }
+            if currentMember?.canSendAdminNotifications == true {
+                homeDrawerItem("megaphone.fill", titleKey: AccessL10nKey.homeShellActionAdminBroadcast, destination: .adminBroadcast)
+            }
         }
     }
 

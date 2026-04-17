@@ -2,8 +2,9 @@ package com.reguerta.user.presentation.access
 
 import com.reguerta.user.domain.access.EcoCommitmentMode
 import com.reguerta.user.domain.access.Member
-import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.ProducerParity
+import com.reguerta.user.domain.access.isMember
+import com.reguerta.user.domain.access.isProducer
 import com.reguerta.user.domain.commitments.SeasonalCommitment
 import com.reguerta.user.domain.products.Product
 import com.reguerta.user.domain.products.ProductPricingMode
@@ -130,7 +131,7 @@ private fun requiredEcoBasketCommitmentProducts(
     currentWeekParity: ProducerParity,
 ): List<Product> {
     val member = currentMember ?: return emptyList()
-    if (!member.isActive || !member.roles.contains(MemberRole.MEMBER)) {
+    if (!member.isActive || !member.isMember) {
         return emptyList()
     }
 
@@ -151,7 +152,7 @@ private fun requiredEcoBasketCommitmentProducts(
             val eligibleProducerIds = members
                 .asSequence()
                 .filter { producer ->
-                    producer.roles.contains(MemberRole.PRODUCER) &&
+                    producer.isProducer &&
                         producer.isActive &&
                         producer.producerCatalogEnabled &&
                         producer.producerParity == parity

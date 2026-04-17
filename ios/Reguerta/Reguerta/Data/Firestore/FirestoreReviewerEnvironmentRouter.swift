@@ -16,7 +16,8 @@ final class FirestoreReviewerEnvironmentRouter: @unchecked Sendable, ReviewerEnv
         let policy = await loadReviewerPolicy()
         let normalizedEmail = principal.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let isAllowlisted = policy.emails.contains(normalizedEmail) || policy.uids.contains(principal.uid)
-        ReguertaRuntimeEnvironment.applySessionEnvironment(isAllowlisted ? .develop : .production)
+        let reviewerRoutingEnabled = MemberPermissionMatrix.reviewerCapabilities.contains(.routeProductionReviewerToDevelop)
+        ReguertaRuntimeEnvironment.applySessionEnvironment((isAllowlisted && reviewerRoutingEnabled) ? .develop : .production)
     }
 
     func resetToBaseEnvironment() {

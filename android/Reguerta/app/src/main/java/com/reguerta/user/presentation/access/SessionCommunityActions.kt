@@ -7,6 +7,8 @@ import com.reguerta.user.domain.notifications.NotificationEvent
 import com.reguerta.user.domain.notifications.NotificationRepository
 import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.profiles.SharedProfileRepository
+import com.reguerta.user.domain.access.canPublishNews
+import com.reguerta.user.domain.access.canSendAdminNotifications
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -103,7 +105,7 @@ internal class SessionCommunityActions(
         scope.launch {
             uiState.update { it.copy(isLoadingNews = true) }
             val allNews = newsRepository.getAllNews()
-            val visibleNews = if (mode.member.isAdmin) {
+            val visibleNews = if (mode.member.canPublishNews) {
                 allNews
             } else {
                 allNews.filter { article -> article.active }
@@ -146,7 +148,7 @@ internal class SessionCommunityActions(
 
     fun saveNews(onSuccess: () -> Unit = {}) {
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.isAdmin) {
+        if (!mode.member.canPublishNews) {
             emitMessage(R.string.feedback_only_admin_publish_news)
             return
         }
@@ -205,7 +207,7 @@ internal class SessionCommunityActions(
         onSuccess: () -> Unit = {},
     ) {
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.isAdmin) {
+        if (!mode.member.canPublishNews) {
             emitMessage(R.string.feedback_only_admin_delete_news)
             return
         }
@@ -232,7 +234,7 @@ internal class SessionCommunityActions(
 
     fun sendNotification(onSuccess: () -> Unit = {}) {
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.isAdmin) {
+        if (!mode.member.canSendAdminNotifications) {
             emitMessage(R.string.feedback_only_admin_send_notification)
             return
         }

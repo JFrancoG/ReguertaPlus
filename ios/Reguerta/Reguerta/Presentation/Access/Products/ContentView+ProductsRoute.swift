@@ -15,7 +15,7 @@ struct ProductsRouteView: View {
         viewModel.editingProductId != nil
     }
     private var isProducer: Bool {
-        currentHomeMember?.roles.contains(.producer) == true
+        currentHomeMember?.isProducer == true
     }
     private var canManageEcoBasket: Bool {
         isProducer
@@ -248,7 +248,7 @@ private struct ProductsListRouteView: View {
     @Binding var pendingProducerCatalogVisibility: Bool?
 
     private var isProducer: Bool {
-        currentHomeMember?.roles.contains(.producer) == true
+        currentHomeMember?.isProducer == true
     }
 
     private func localizedKey(_ key: String) -> LocalizedStringKey {

@@ -46,17 +46,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.reguerta.user.R
 import com.reguerta.user.domain.access.Member
-import com.reguerta.user.domain.access.MemberRole
+import com.reguerta.user.domain.access.canAccessReceivedOrders
+import com.reguerta.user.domain.access.canManageMembers
+import com.reguerta.user.domain.access.canManageProductCatalog
+import com.reguerta.user.domain.access.canPublishNews
+import com.reguerta.user.domain.access.canSendAdminNotifications
 import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
 import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.shifts.ShiftAssignment
 import com.reguerta.user.ui.components.auth.ReguertaFlatButton
-
-private val Member.isProducerInShell: Boolean
-    get() = roles.contains(MemberRole.PRODUCER)
-
-private val Member.canManageProductCatalogInShell: Boolean
-    get() = isProducerInShell || isCommonPurchaseManager
 
 @Composable
 fun HomeShellTopBar(
@@ -111,6 +109,10 @@ fun HomeDrawerContent(
     onSignOut: () -> Unit,
 ) {
     val drawerScrollState = rememberScrollState()
+    val canManageMembers = member?.canManageMembers == true
+    val canPublishNews = member?.canPublishNews == true
+    val canSendAdminNotifications = member?.canSendAdminNotifications == true
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -217,10 +219,10 @@ fun HomeDrawerContent(
                 onClick = { onNavigate(HomeDestination.SETTINGS) },
             )
 
-            if (member?.canManageProductCatalogInShell == true || member?.isProducerInShell == true) {
+            if (member?.canManageProductCatalog == true || member?.canAccessReceivedOrders == true) {
                 HomeDrawerSection(title = stringResource(R.string.home_shell_section_producer))
             }
-            if (member?.canManageProductCatalogInShell == true) {
+            if (member?.canManageProductCatalog == true) {
                 HomeDrawerItem(
                     icon = Icons.Filled.Storefront,
                     label = stringResource(R.string.home_shell_action_products),
@@ -228,7 +230,7 @@ fun HomeDrawerContent(
                     onClick = { onNavigate(HomeDestination.PRODUCTS) },
                 )
             }
-            if (member?.isProducerInShell == true) {
+            if (member?.canAccessReceivedOrders == true) {
                 HomeDrawerItem(
                     icon = Icons.Filled.Inbox,
                     label = stringResource(R.string.home_shell_action_received_orders),
@@ -237,26 +239,32 @@ fun HomeDrawerContent(
                 )
             }
 
-            if (member?.isAdmin == true) {
+            if (canManageMembers || canPublishNews || canSendAdminNotifications) {
                 HomeDrawerSection(title = stringResource(R.string.home_shell_section_admin))
-                HomeDrawerItem(
-                    icon = Icons.Filled.Group,
-                    label = stringResource(R.string.home_shell_action_users),
-                    selected = currentDestination == HomeDestination.USERS,
-                    onClick = { onNavigate(HomeDestination.USERS) },
-                )
-                HomeDrawerItem(
-                    icon = Icons.Filled.Add,
-                    label = stringResource(R.string.home_shell_action_publish_news),
-                    selected = currentDestination == HomeDestination.PUBLISH_NEWS,
-                    onClick = { onNavigate(HomeDestination.PUBLISH_NEWS) },
-                )
-                HomeDrawerItem(
-                    icon = Icons.Filled.Campaign,
-                    label = stringResource(R.string.home_shell_action_admin_broadcast),
-                    selected = currentDestination == HomeDestination.ADMIN_BROADCAST,
-                    onClick = { onNavigate(HomeDestination.ADMIN_BROADCAST) },
-                )
+                if (canManageMembers) {
+                    HomeDrawerItem(
+                        icon = Icons.Filled.Group,
+                        label = stringResource(R.string.home_shell_action_users),
+                        selected = currentDestination == HomeDestination.USERS,
+                        onClick = { onNavigate(HomeDestination.USERS) },
+                    )
+                }
+                if (canPublishNews) {
+                    HomeDrawerItem(
+                        icon = Icons.Filled.Add,
+                        label = stringResource(R.string.home_shell_action_publish_news),
+                        selected = currentDestination == HomeDestination.PUBLISH_NEWS,
+                        onClick = { onNavigate(HomeDestination.PUBLISH_NEWS) },
+                    )
+                }
+                if (canSendAdminNotifications) {
+                    HomeDrawerItem(
+                        icon = Icons.Filled.Campaign,
+                        label = stringResource(R.string.home_shell_action_admin_broadcast),
+                        selected = currentDestination == HomeDestination.ADMIN_BROADCAST,
+                        onClick = { onNavigate(HomeDestination.ADMIN_BROADCAST) },
+                    )
+                }
             }
         }
 

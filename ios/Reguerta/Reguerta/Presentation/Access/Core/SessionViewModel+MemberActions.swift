@@ -5,7 +5,7 @@ extension SessionViewModel {
         guard case .authorized(let session) = mode else {
             return
         }
-        guard session.member.isAdmin else {
+        guard session.member.canManageMembers else {
             feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminCreate
             return
         }
@@ -49,7 +49,7 @@ extension SessionViewModel {
         guard case .authorized(let session) = mode else {
             return
         }
-        guard session.member.isAdmin else {
+        guard session.member.canGrantAdminRole else {
             feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminEditRoles
             return
         }
@@ -87,7 +87,7 @@ extension SessionViewModel {
         guard case .authorized(let session) = mode else {
             return
         }
-        guard session.member.isAdmin else {
+        guard session.member.canManageMembers else {
             feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminToggleActive
             return
         }
