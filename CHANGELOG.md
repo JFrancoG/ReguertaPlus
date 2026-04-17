@@ -53,6 +53,7 @@ All notable changes to this project will be documented in this file.
 - 2026-04-15 | 📝 docs(agents): require conventional-commits skill before commits
 - 2026-04-17 | 📝 docs(reviewer): finalize HU-018 closure checklists
 - 2026-04-17 | 📝 docs(admin): finalize HU-010 closure checklists and links
+- 2026-04-17 | 📝 docs(spec): add HU-044..HU-049 specs and issue links
 
 ### Maintenance
 
