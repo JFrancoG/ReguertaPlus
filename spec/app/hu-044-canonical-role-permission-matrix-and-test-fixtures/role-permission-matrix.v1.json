@@ -1,0 +1,57 @@
+{
+  "version": "1.0.0",
+  "owner": "app-platform",
+  "updated_at": "2026-04-17",
+  "description": "Canonical role-permission matrix for MVP role gating and fixture alignment.",
+  "capabilities": {
+    "access_common_home_modules": "Access common authenticated modules (dashboard, my-order, shifts, news, notifications, profile, settings).",
+    "manage_product_catalog": "Create/update/archive products in own catalog.",
+    "access_received_orders": "Open producer received orders route.",
+    "manage_members": "Open members management CRUD tools.",
+    "grant_admin_role": "Grant or revoke admin role.",
+    "publish_news": "Create/update/archive news items from admin tools.",
+    "send_admin_notifications": "Send admin broadcast notifications.",
+    "route_production_reviewer_to_develop": "When allowlisted, route production reviewer sessions to develop backend."
+  },
+  "roles": {
+    "member": {
+      "capabilities": [
+        "access_common_home_modules"
+      ]
+    },
+    "producer": {
+      "inherits": [
+        "member"
+      ],
+      "capabilities": [
+        "manage_product_catalog",
+        "access_received_orders"
+      ]
+    },
+    "admin": {
+      "inherits": [
+        "member"
+      ],
+      "capabilities": [
+        "manage_members",
+        "grant_admin_role",
+        "publish_news",
+        "send_admin_notifications"
+      ]
+    },
+    "reviewer": {
+      "inherits": [
+        "member"
+      ],
+      "capabilities": [
+        "route_production_reviewer_to_develop"
+      ],
+      "notes": "Reviewer is a runtime persona (allowlist + environment routing), not a persisted users.roles value."
+    }
+  },
+  "flag_overrides": {
+    "is_common_purchase_manager_grants": [
+      "manage_product_catalog"
+    ]
+  }
+}

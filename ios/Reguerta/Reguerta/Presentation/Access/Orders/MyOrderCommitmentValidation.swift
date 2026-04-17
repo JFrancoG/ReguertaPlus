@@ -107,7 +107,7 @@ private func requiredEcoBasketCommitmentProducts(
 ) -> [Product] {
     guard let member = currentMember,
           member.isActive,
-          member.roles.contains(.member)
+          member.isMember
     else {
         return []
     }
@@ -134,7 +134,7 @@ private func requiredEcoBasketCommitmentProducts(
         let eligibleProducerIds = Set(
             members
                 .filter { producer in
-                    producer.roles.contains(.producer) &&
+                    producer.isProducer &&
                         producer.isActive &&
                         producer.producerCatalogEnabled &&
                         producer.producerParity == parity

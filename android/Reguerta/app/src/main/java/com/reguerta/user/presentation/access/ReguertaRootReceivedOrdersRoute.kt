@@ -55,7 +55,7 @@ import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
 import com.reguerta.user.data.firestore.ReguertaFirestorePath
 import com.reguerta.user.data.firestore.ReguertaRuntimeEnvironment
 import com.reguerta.user.domain.access.Member
-import com.reguerta.user.domain.access.MemberRole
+import com.reguerta.user.domain.access.canAccessReceivedOrders
 import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
 import com.reguerta.user.domain.calendar.DeliveryWeekday
 import com.reguerta.user.domain.shifts.ShiftAssignment
@@ -178,7 +178,7 @@ internal fun ReceivedOrdersRoute(
     deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
     nowOverrideMillis: Long?,
 ) {
-    val isProducer = currentMember?.roles?.contains(MemberRole.PRODUCER) == true
+    val isProducer = currentMember?.canAccessReceivedOrders == true
     val effectiveNowMillis = remember(nowOverrideMillis) { nowOverrideMillis ?: System.currentTimeMillis() }
     val window = remember(defaultDeliveryDayOfWeek, deliveryCalendarOverrides, shifts, effectiveNowMillis) {
         resolveReceivedOrdersWindow(

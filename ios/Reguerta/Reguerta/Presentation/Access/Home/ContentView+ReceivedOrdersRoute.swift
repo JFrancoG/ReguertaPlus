@@ -136,7 +136,7 @@ struct ReceivedOrdersRouteView: View {
     @State private var updatingStatusOrderId: String?
 
     private var isProducer: Bool {
-        currentMember?.roles.contains(.producer) == true
+        currentMember?.canAccessReceivedOrders == true
     }
 
     private var window: ReceivedOrdersWindow {

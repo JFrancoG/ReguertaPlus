@@ -77,7 +77,7 @@ import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
 import com.reguerta.user.data.firestore.ReguertaFirestorePath
 import com.reguerta.user.data.firestore.ReguertaRuntimeEnvironment
 import com.reguerta.user.domain.access.Member
-import com.reguerta.user.domain.access.MemberRole
+import com.reguerta.user.domain.access.isProducer
 import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
 import com.reguerta.user.domain.calendar.DeliveryWeekday
 import com.reguerta.user.domain.commitments.SeasonalCommitment
@@ -2035,7 +2035,7 @@ private fun Member.committedEcoBasketProducerId(members: List<Member>): String? 
     val parity = ecoCommitmentParity ?: return null
     return members.firstOrNull { producer ->
         producer.id != id &&
-            producer.roles.contains(MemberRole.PRODUCER) &&
+            producer.isProducer &&
             producer.isActive &&
             producer.producerCatalogEnabled &&
             producer.producerParity == parity

@@ -3,7 +3,9 @@ package com.reguerta.user.data.firestore
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import com.reguerta.user.domain.access.AccessCapability
 import com.reguerta.user.domain.access.AuthPrincipal
+import com.reguerta.user.domain.access.MemberPermissionMatrix
 import com.reguerta.user.presentation.access.ReviewerEnvironmentRouter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -20,7 +22,10 @@ class FirestoreReviewerEnvironmentRouter(
         val normalizedEmail = principal.email.trim().lowercase()
         val isAllowlisted = reviewerPolicy.emails.contains(normalizedEmail) ||
             reviewerPolicy.uids.contains(principal.uid)
-        val targetEnvironment = if (isAllowlisted) {
+        val reviewerRoutingEnabled = MemberPermissionMatrix.reviewerCapabilities.contains(
+            AccessCapability.ROUTE_PRODUCTION_REVIEWER_TO_DEVELOP,
+        )
+        val targetEnvironment = if (isAllowlisted && reviewerRoutingEnabled) {
             ReguertaFirestoreEnvironment.DEVELOP
         } else {
             ReguertaFirestoreEnvironment.PRODUCTION

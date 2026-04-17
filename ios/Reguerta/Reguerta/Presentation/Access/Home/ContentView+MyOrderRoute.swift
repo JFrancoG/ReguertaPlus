@@ -2190,7 +2190,7 @@ private extension Member {
         }
         return members.first { producer in
             producer.id != id &&
-                producer.roles.contains(.producer) &&
+                producer.isProducer &&
                 producer.isActive &&
                 producer.producerCatalogEnabled &&
                 producer.producerParity == parity

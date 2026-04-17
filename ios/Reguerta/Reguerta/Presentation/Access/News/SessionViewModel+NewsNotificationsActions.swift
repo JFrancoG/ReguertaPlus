@@ -15,7 +15,7 @@ extension SessionViewModel {
 
     func startCreatingNews() {
         guard case .authorized(let session) = mode else { return }
-        guard session.member.isAdmin else {
+        guard session.member.canPublishNews else {
             feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminPublishNews
             return
         }
@@ -26,7 +26,7 @@ extension SessionViewModel {
 
     func startEditingNews(newsId: String) {
         guard case .authorized(let session) = mode else { return }
-        guard session.member.isAdmin else {
+        guard session.member.canPublishNews else {
             feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminEditNews
             return
         }
@@ -49,7 +49,7 @@ extension SessionViewModel {
 
     func startCreatingNotification() {
         guard case .authorized(let session) = mode else { return }
-        guard session.member.isAdmin else {
+        guard session.member.canSendAdminNotifications else {
             feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminSendNotification
             return
         }
@@ -69,7 +69,7 @@ extension SessionViewModel {
         Task { @MainActor in
             let allNews = await newsRepository.allNews()
             latestNews = allNews.filter(\.active).prefix(3).map { $0 }
-            newsFeed = session.member.isAdmin ? allNews : allNews.filter(\.active)
+            newsFeed = session.member.canPublishNews ? allNews : allNews.filter(\.active)
             isLoadingNews = false
         }
     }
@@ -86,7 +86,7 @@ extension SessionViewModel {
 
     func saveNews(onSuccess: @escaping @MainActor () -> Void = {}) {
         guard case .authorized(let session) = mode else { return }
-        guard session.member.isAdmin else {
+        guard session.member.canPublishNews else {
             feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminPublishNews
             return
         }
@@ -131,7 +131,7 @@ extension SessionViewModel {
 
     func deleteNews(newsId: String, onSuccess: @escaping @MainActor () -> Void = {}) {
         guard case .authorized(let session) = mode else { return }
-        guard session.member.isAdmin else {
+        guard session.member.canPublishNews else {
             feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminDeleteNews
             return
         }
@@ -155,7 +155,7 @@ extension SessionViewModel {
 
     func sendNotification(onSuccess: @escaping @MainActor () -> Void = {}) {
         guard case .authorized(let session) = mode else { return }
-        guard session.member.isAdmin else {
+        guard session.member.canSendAdminNotifications else {
             feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminSendNotification
             return
         }

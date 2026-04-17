@@ -43,6 +43,7 @@ As a product and engineering team I want one canonical role-permission matrix an
 - Functional references: docs-es/requirements/historias-usuario-mvp-reguerta-v1.md.
 - Data references: docs-es/requirements/firestore-estructura-mvp-propuesta-v1.md.
 - Depends on HU-010 role model and HU-039 role-aware shell.
+- Canonical matrix artifact: spec/app/hu-044-canonical-role-permission-matrix-and-test-fixtures/role-permission-matrix.v1.json.
 
 ## Risks
 
@@ -51,11 +52,16 @@ As a product and engineering team I want one canonical role-permission matrix an
 - Risk: parity drift after future feature additions.
   - Mitigation: enforce matrix-based tests in both platforms.
 
+## Parity status
+
+- Android/iOS parity: aligned for role-gated core modules (`products`, `received-orders`, `members`, `news`, `admin notifications`).
+- Known exception: `reviewer` remains a runtime persona (allowlist + environment routing), not a persisted `users.roles` value.
+
 ## Definition of Done (DoD)
 
-- [ ] Story acceptance criteria validated.
-- [ ] Implementation aligned with linked RFs.
-- [ ] Android/iOS parity reviewed or temporary gap documented.
-- [ ] Agreed tests executed.
-- [ ] Technical/functional documentation updated.
+- [x] Story acceptance criteria validated.
+- [x] Implementation aligned with linked RFs.
+- [x] Android/iOS parity reviewed or temporary gap documented.
+- [x] Agreed tests executed.
+- [x] Technical/functional documentation updated.
 - [ ] Issue and PR linked.

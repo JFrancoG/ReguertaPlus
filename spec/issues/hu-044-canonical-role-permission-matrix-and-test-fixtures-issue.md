@@ -8,6 +8,7 @@ As a product and engineering team we want one canonical role-permission matrix a
 - Spec: spec/app/hu-044-canonical-role-permission-matrix-and-test-fixtures/spec.md
 - Plan: spec/app/hu-044-canonical-role-permission-matrix-and-test-fixtures/plan.md
 - Tasks: spec/app/hu-044-canonical-role-permission-matrix-and-test-fixtures/tasks.md
+- Matrix: spec/app/hu-044-canonical-role-permission-matrix-and-test-fixtures/role-permission-matrix.v1.json
 
 ## Acceptance criteria
 

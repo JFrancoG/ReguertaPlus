@@ -34,6 +34,8 @@ import com.reguerta.user.R
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.UnauthorizedReason
+import com.reguerta.user.domain.access.canManageProductCatalog
+
 @Composable
 internal fun UnauthorizedCard(
     mode: SessionMode.Unauthorized,
@@ -288,12 +290,6 @@ private fun Set<MemberRole>.toPrettyRoles(context: Context): String =
             MemberRole.ADMIN -> context.getString(R.string.role_value_admin)
         }
     }
-
-private val Member.isProducer: Boolean
-    get() = roles.contains(MemberRole.PRODUCER)
-
-private val Member.canManageProductCatalog: Boolean
-    get() = isProducer || isCommonPurchaseManager
 
 private fun UnauthorizedReason.toMessageResId(): Int =
     when (this) {

@@ -2,6 +2,8 @@ package com.reguerta.user.presentation.access
 
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
+import com.reguerta.user.domain.access.canManageProductCatalog
+import com.reguerta.user.domain.access.isProducer
 import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
 import com.reguerta.user.domain.calendar.DeliveryWeekday
 import com.reguerta.user.domain.notifications.NotificationAudience
@@ -71,10 +73,10 @@ internal fun String.toNonNegativeDoubleOrNull(): Double? =
     replace(",", ".").toDoubleOrNull()?.takeIf { it >= 0.0 }
 
 internal val Member.isSessionProducer: Boolean
-    get() = roles.contains(MemberRole.PRODUCER)
+    get() = isProducer
 
 internal val Member.canManageSessionProductCatalog: Boolean
-    get() = isSessionProducer || isCommonPurchaseManager
+    get() = canManageProductCatalog
 
 internal fun Double.toSessionUiDecimal(): String =
     if (this % 1.0 == 0.0) {

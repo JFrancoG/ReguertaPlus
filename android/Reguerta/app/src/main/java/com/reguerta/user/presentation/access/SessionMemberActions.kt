@@ -6,6 +6,8 @@ import com.reguerta.user.domain.access.MemberManagementException
 import com.reguerta.user.domain.access.MemberRepository
 import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
+import com.reguerta.user.domain.access.canGrantAdminRole
+import com.reguerta.user.domain.access.canManageMembers
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -20,7 +22,7 @@ internal class SessionMemberActions(
 ) {
     fun createAuthorizedMember() {
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.isAdmin) {
+        if (!mode.member.canManageMembers) {
             emitMessage(R.string.feedback_only_admin_create)
             return
         }
@@ -63,7 +65,7 @@ internal class SessionMemberActions(
 
     fun toggleAdmin(memberId: String) {
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.isAdmin) {
+        if (!mode.member.canGrantAdminRole) {
             emitMessage(R.string.feedback_only_admin_edit_roles)
             return
         }
@@ -86,7 +88,7 @@ internal class SessionMemberActions(
 
     fun toggleActive(memberId: String) {
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.isAdmin) {
+        if (!mode.member.canManageMembers) {
             emitMessage(R.string.feedback_only_admin_toggle_active)
             return
         }

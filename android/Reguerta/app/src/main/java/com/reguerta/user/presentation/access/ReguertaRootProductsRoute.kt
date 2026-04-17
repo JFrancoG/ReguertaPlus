@@ -45,15 +45,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.reguerta.user.R
 import com.reguerta.user.domain.access.Member
-import com.reguerta.user.domain.access.MemberRole
+import com.reguerta.user.domain.access.isProducer
 import com.reguerta.user.domain.products.CommonPurchaseType
 import com.reguerta.user.domain.products.Product
 import com.reguerta.user.domain.products.ProductStockMode
 import com.reguerta.user.ui.components.auth.ReguertaButton
 import com.reguerta.user.ui.components.auth.ReguertaButtonVariant
-
-private val Member.isProducerInProducts: Boolean
-    get() = roles.contains(MemberRole.PRODUCER)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,8 +75,10 @@ fun ProductsRoute(
     val activeProducts = remember(products) { products.filterNot { it.archived } }
     val archivedProducts = remember(products) { products.filter { it.archived } }
     val isEditing = editingProductId != null
-    val canManageEcoBasket = currentMember?.isProducerInProducts == true
-    val canManageCommonPurchase = currentMember?.isCommonPurchaseManager == true && !currentMember.isProducerInProducts
+    val canManageEcoBasket = currentMember?.isProducer == true
+    val canManageCommonPurchase = currentMember?.let { member ->
+        member.isCommonPurchaseManager && !member.isProducer
+    } == true
     var commonPurchaseExpanded by rememberSaveable { mutableStateOf(false) }
     var pendingCatalogVisibility by rememberSaveable { mutableStateOf<Boolean?>(null) }
 
@@ -366,7 +365,7 @@ fun ProductsRoute(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                         )
-                        if (currentMember?.isProducerInProducts == true) {
+                        if (currentMember?.isProducer == true) {
                             Button(
                                 onClick = {
                                     pendingCatalogVisibility = !currentMember.producerCatalogEnabled

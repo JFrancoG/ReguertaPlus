@@ -25,7 +25,7 @@ extension ContentView {
     func authorizedHome(session: AuthorizedSession) -> some View {
         operationalModules(
             modulesEnabled: true,
-            canOpenProducts: session.member.roles.contains(.producer) || session.member.isCommonPurchaseManager,
+            canOpenProducts: session.member.canManageProductCatalog,
             myOrderFreshnessState: viewModel.myOrderFreshnessState
         )
 
