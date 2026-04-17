@@ -4,7 +4,7 @@
 - issue_id: #1
 - priority: P1
 - platform: both
-- status: in_progress
+- status: implemented
 
 ## Context and problem
 
@@ -56,4 +56,9 @@ As an admin I want to manage member lifecycle, onboarding authorization, and pri
 - [x] Android/iOS parity reviewed or temporary gap documented.
 - [x] Agreed tests executed.
 - [x] Technical/functional documentation updated.
-- [ ] Issue and PR linked.
+- [x] Issue and PR linked.
+
+## Delivery links
+
+- Issue: #1
+- PR: #26

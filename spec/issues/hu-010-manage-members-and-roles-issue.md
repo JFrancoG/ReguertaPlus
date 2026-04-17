@@ -8,6 +8,8 @@ As an admin I want to manage member lifecycle, onboarding authorization, and pri
 - Spec: spec/admin/hu-010-manage-members-and-roles/spec.md
 - Plan: spec/admin/hu-010-manage-members-and-roles/plan.md
 - Tasks: spec/admin/hu-010-manage-members-and-roles/tasks.md
+- Issue: https://github.com/JFrancoG/ReguertaPlus/issues/1
+- PR: https://github.com/JFrancoG/ReguertaPlus/pull/26
 
 ## Acceptance criteria
 
@@ -26,11 +28,11 @@ As an admin I want to manage member lifecycle, onboarding authorization, and pri
 - Refactors not required to close acceptance criteria.
 
 ## Implementation checklist
-- [ ] Android
-- [ ] iOS
-- [ ] Backend / Firestore
-- [ ] Testing
-- [ ] Documentation
+- [x] Android
+- [x] iOS
+- [x] Backend / Firestore
+- [x] Testing
+- [x] Documentation
 
 ## Suggested labels
 - type:feature
