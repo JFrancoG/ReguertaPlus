@@ -28,7 +28,7 @@
 ## 5. Testing
 - [x] Execute unit tests for impacted areas.
 - [x] Execute required integration tests.
-- [ ] Perform full manual acceptance validation.
+- [x] Perform full manual acceptance validation.
 - [x] Validate scenario: pre-authorized email first login/register => home + enabled role-based access.
 
 ## 6. Documentation
@@ -37,6 +37,6 @@
 - [x] Document Android/iOS parity status or temporary gap.
 
 ## 7. Closure
-- [ ] Create/update linked issue and connect PR.
+- [x] Create/update linked issue and connect PR.
 - [x] Complete DoD checklist in spec.md.
 - [x] Attach test evidence and functional validation output.
