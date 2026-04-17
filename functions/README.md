@@ -22,6 +22,17 @@ El trigger:
 - usa `fcmToken` como destino de FCM
 - deja trazabilidad mínima en `notificationEvents.dispatch`
 
+Para eventos `order_reminder` (HU-046), además:
+- aplica idempotencia por `weekKey + reminderSlotHour + userId`
+  usando `{env}/plus-collections/orderReminderDispatchMarkers/{markerId}`
+- clasifica errores transitorios y programa reintentos acotados
+  (`retry_pending`) con backoff exponencial
+- ejecuta un scheduler de reintentos cada 15 minutos
+  (`retryPendingOrderReminderDispatches`, zona `Europe/Madrid`)
+- persiste trazas por ejecución en
+  `{env}/plus-collections/orderReminderRetryRuns/{runId}`
+  con métricas: `processed`, `sent`, `skipped`, `failed`, `retryQueued`
+
 ## 📅 Sincronización de turnos con Google Sheets
 
 `HU-020` deja `plus-collections/shifts` como fuente que consumen Android/iOS,

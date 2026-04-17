@@ -37,6 +37,34 @@ As a member with commitments I want reminder jobs to run reliably and only once 
 - Transient failures trigger bounded retries and are observable in logs/metrics.
 - Operators can inspect run-level outcomes (processed, sent, skipped, failed).
 
+## Implemented orchestration contract (2026-04-17)
+
+- Weekly reminder slots remain scheduler-based at Sunday `20:00`, `22:00`,
+  and `23:00` (`Europe/Madrid`) through:
+  - `sendPendingOrderReminderSunday20`
+  - `sendPendingOrderReminderSunday22`
+  - `sendPendingOrderReminderSunday23`
+- Event-level idempotency key:
+  - `notificationEvents/{eventId}` with
+    `eventId = order_reminder_{weekKey}_{slotHH}`.
+- User-level idempotency key:
+  - `{env}/plus-collections/orderReminderDispatchMarkers/{markerId}`
+  - `markerId = order_reminder_{weekKey}_{slotHH}_{userId}`.
+- Retry policy:
+  - transient FCM failures are marked as `retry_pending`,
+  - bounded attempts (`ORDER_REMINDER_RETRY_MAX_ATTEMPTS`, default `3`),
+  - exponential backoff base delay
+    (`ORDER_REMINDER_RETRY_BASE_DELAY_MINUTES`, default `15`),
+  - retry scheduler every 15 minutes:
+    `retryPendingOrderReminderDispatches`.
+- Operational observability:
+  - per-event dispatch metrics in `notificationEvents.dispatch`:
+    `processedUsersCount`, `sentUsersCount`, `skippedUsersCount`,
+    `failedUsersCount`, `retryQueuedUsersCount`, token-level counters,
+    and status.
+  - per-retry-run summaries in:
+    `{env}/plus-collections/orderReminderRetryRuns/{runId}`.
+
 ## Dependencies
 
 - Base references: docs-es/requirements/requisitos-mvp-reguerta-v1.md.
@@ -53,9 +81,9 @@ As a member with commitments I want reminder jobs to run reliably and only once 
 
 ## Definition of Done (DoD)
 
-- [ ] Story acceptance criteria validated.
-- [ ] Implementation aligned with linked RFs.
-- [ ] Android/iOS parity reviewed or temporary gap documented.
-- [ ] Agreed tests executed.
-- [ ] Technical/functional documentation updated.
+- [x] Story acceptance criteria validated.
+- [x] Implementation aligned with linked RFs.
+- [x] Android/iOS parity reviewed or temporary gap documented.
+- [x] Agreed tests executed.
+- [x] Technical/functional documentation updated.
 - [ ] Issue and PR linked.

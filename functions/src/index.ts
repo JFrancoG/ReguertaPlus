@@ -248,6 +248,14 @@ const parsePositiveInteger = (value: unknown, fallback: number): number => {
   return Math.floor(parsed);
 };
 
+const parseNonNegativeInteger = (value: unknown, fallback: number): number => {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return fallback;
+  }
+  return Math.floor(parsed);
+};
+
 const sanitizeLastTimestamps = (
   value: unknown,
   fallback: admin.firestore.Timestamp,
@@ -406,6 +414,26 @@ const resolveDeviceTokens = async (
   return Array.from(uniqueTokens);
 };
 
+const resolveDeviceTokensByUser = async (
+  env: string,
+  userId: string,
+): Promise<string[]> => {
+  const uniqueTokens = new Set<string>();
+  const devicesSnapshot = await plusUsersCollection(env)
+    .doc(userId)
+    .collection("devices")
+    .get();
+
+  for (const deviceDoc of devicesSnapshot.docs) {
+    const token = parseString(deviceDoc.get("fcmToken"));
+    if (token) {
+      uniqueTokens.add(token);
+    }
+  }
+
+  return Array.from(uniqueTokens);
+};
+
 const ORDER_REMINDER_TYPE = "order_reminder";
 const ORDER_REMINDER_USER_FIELDS = [
   "userId",
@@ -418,9 +446,49 @@ const ORDER_REMINDER_USER_FIELDS = [
   "userID",
   "memberID",
 ] as const;
+const ORDER_REMINDER_DISPATCH_MARKERS_COLLECTION =
+  "orderReminderDispatchMarkers";
+const ORDER_REMINDER_RETRY_RUNS_COLLECTION = "orderReminderRetryRuns";
+const DEFAULT_ORDER_REMINDER_RETRY_MAX_ATTEMPTS = 3;
+const DEFAULT_ORDER_REMINDER_RETRY_BASE_DELAY_MINUTES = 15;
+const DEFAULT_ORDER_REMINDER_RETRY_BATCH_SIZE = 200;
+const DEFAULT_ORDER_REMINDER_PROCESSING_LOCK_MINUTES = 30;
+const ORDER_REMINDER_TRANSIENT_ERROR_CODES = new Set([
+  "messaging/internal-error",
+  "messaging/server-unavailable",
+  "messaging/unknown-error",
+  "messaging/quota-exceeded",
+  "messaging/unavailable",
+  "app/network-error",
+]);
 
 type CommitmentWeekParity = "even" | "odd";
 type OrderReminderEventStatus = "created" | "skipped" | "dry_run" | "failed";
+type OrderReminderDispatchMarkerStatus =
+  | "processing"
+  | "sent"
+  | "retry_pending"
+  | "failed"
+  | "no_tokens";
+
+type OrderReminderDispatchOutcome = {
+  outcome: "sent" | "skipped" | "failed" | "retry_queued";
+  reason: string;
+  deliveredTokensCount: number;
+  failedTokensCount: number;
+  attemptNumber: number;
+  markerId: string;
+};
+
+type OrderReminderRunTelemetry = {
+  processedUsersCount: number;
+  sentUsersCount: number;
+  skippedUsersCount: number;
+  failedUsersCount: number;
+  retryQueuedUsersCount: number;
+  deliveredTokensCount: number;
+  failedTokensCount: number;
+};
 
 type PendingOrderReminderEnvSummary = {
   env: string;
@@ -448,6 +516,560 @@ type PendingOrderReminderRunOptions = {
   envs?: string[];
   dryRun?: boolean;
   throwOnFailure?: boolean;
+};
+
+type OrderReminderEventContext = {
+  weekKey: string;
+  reminderHour: number;
+};
+
+type OrderReminderDispatchClaimResult =
+  | {
+    action: "dispatch";
+    markerId: string;
+    markerRef: admin.firestore.DocumentReference;
+    attemptNumber: number;
+  }
+  | {
+    action: "skip";
+    markerId: string;
+    attemptNumber: number;
+    reason: string;
+  };
+
+const parseOrderReminderRetryMaxAttempts = (): number => parsePositiveInteger(
+  process.env.ORDER_REMINDER_RETRY_MAX_ATTEMPTS ??
+    appConfig.orderReminderRetryMaxAttempts ??
+    appConfig.order_reminder_retry_max_attempts,
+  DEFAULT_ORDER_REMINDER_RETRY_MAX_ATTEMPTS
+);
+
+const parseOrderReminderRetryBaseDelayMinutes = (): number =>
+  parsePositiveInteger(
+    process.env.ORDER_REMINDER_RETRY_BASE_DELAY_MINUTES ??
+      appConfig.orderReminderRetryBaseDelayMinutes ??
+      appConfig.order_reminder_retry_base_delay_minutes,
+    DEFAULT_ORDER_REMINDER_RETRY_BASE_DELAY_MINUTES
+  );
+
+const parseOrderReminderRetryBatchSize = (): number => parsePositiveInteger(
+  process.env.ORDER_REMINDER_RETRY_BATCH_SIZE ??
+    appConfig.orderReminderRetryBatchSize ??
+    appConfig.order_reminder_retry_batch_size,
+  DEFAULT_ORDER_REMINDER_RETRY_BATCH_SIZE
+);
+
+const parseOrderReminderProcessingLockMinutes = (): number =>
+  parsePositiveInteger(
+    process.env.ORDER_REMINDER_PROCESSING_LOCK_MINUTES ??
+      appConfig.orderReminderProcessingLockMinutes ??
+      appConfig.order_reminder_processing_lock_minutes,
+    DEFAULT_ORDER_REMINDER_PROCESSING_LOCK_MINUTES
+  );
+
+const buildOrderReminderSlotLabel = (reminderHour: number): string =>
+  String(reminderHour).padStart(2, "0");
+
+const buildOrderReminderEventId = (
+  weekKey: string,
+  reminderHour: number,
+): string =>
+  `order_reminder_${weekKey}_${buildOrderReminderSlotLabel(reminderHour)}`;
+
+const buildOrderReminderDispatchMarkerId = (
+  weekKey: string,
+  reminderHour: number,
+  userId: string,
+): string => `${buildOrderReminderEventId(weekKey, reminderHour)}_${userId}`;
+
+const buildOrderReminderNotificationTitle = (): string =>
+  "Recordatorio de pedido pendiente";
+
+const buildOrderReminderNotificationBody = (weekKey: string): string =>
+  `Todavia no has confirmado tu pedido de la semana ${weekKey}.`;
+
+const orderReminderDispatchMarkersCollection = (env: string) =>
+  firestore.collection(
+    `${env}/plus-collections/${ORDER_REMINDER_DISPATCH_MARKERS_COLLECTION}`
+  );
+
+const orderReminderRetryRunsCollection = (env: string) =>
+  firestore.collection(
+    `${env}/plus-collections/${ORDER_REMINDER_RETRY_RUNS_COLLECTION}`
+  );
+
+const parseReminderHour = (value: unknown): number | null => {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 23) {
+    return null;
+  }
+  return parsed;
+};
+
+const parseOrderReminderEventContext = (
+  eventId: string,
+  data: Record<string, unknown>,
+): OrderReminderEventContext | null => {
+  const targetPayload = parseBody(data.targetPayload);
+  const weekKey =
+    parseString(data.weekKey) || parseString(targetPayload.weekKey);
+  const reminderHour = parseReminderHour(data.reminderSlotHour);
+  if (weekKey && reminderHour !== null) {
+    return {weekKey, reminderHour};
+  }
+
+  const eventIdMatch = eventId.match(/^order_reminder_(.+)_(\d{2})$/);
+  if (!eventIdMatch) {
+    return null;
+  }
+
+  const fallbackWeekKey = parseString(eventIdMatch[1]);
+  const fallbackReminderHour = parseReminderHour(eventIdMatch[2]);
+  if (!fallbackWeekKey || fallbackReminderHour === null) {
+    return null;
+  }
+
+  return {
+    weekKey: weekKey || fallbackWeekKey,
+    reminderHour: reminderHour ?? fallbackReminderHour,
+  };
+};
+
+const parseOrderReminderDispatchMarkerStatus = (
+  value: unknown,
+): OrderReminderDispatchMarkerStatus | null => {
+  const parsed = parseString(value)?.toLowerCase();
+  switch (parsed) {
+  case "processing":
+  case "sent":
+  case "retry_pending":
+  case "failed":
+  case "no_tokens":
+    return parsed;
+  default:
+    return null;
+  }
+};
+
+const isTransientMessagingErrorCode = (code: string | null): boolean => {
+  if (!code) {
+    return false;
+  }
+  return ORDER_REMINDER_TRANSIENT_ERROR_CODES.has(code.toLowerCase());
+};
+
+const parseMessagingErrorCode = (error: unknown): string | null => {
+  if (error === null || typeof error !== "object") {
+    return null;
+  }
+  const code = (error as {code?: unknown}).code;
+  if (typeof code !== "string" || code.trim().length === 0) {
+    return null;
+  }
+  return code.trim().toLowerCase();
+};
+
+const parseMessagingErrorMessage = (error: unknown): string | null => {
+  if (error === null || typeof error !== "object") {
+    return null;
+  }
+  const message = (error as {message?: unknown}).message;
+  return typeof message === "string" && message.trim().length > 0 ?
+    message.trim() :
+    null;
+};
+
+const summarizeMessagingFailureResponses = (
+  responses: admin.messaging.SendResponse[],
+): {
+  hasTransientFailure: boolean;
+  failureCodes: string[];
+  firstFailureMessage: string | null;
+} => {
+  const failureCodes = new Set<string>();
+  let hasTransientFailure = false;
+  let firstFailureMessage: string | null = null;
+
+  for (const response of responses) {
+    if (response.success || !response.error) {
+      continue;
+    }
+    const code = parseMessagingErrorCode(response.error);
+    if (code) {
+      failureCodes.add(code);
+      if (isTransientMessagingErrorCode(code)) {
+        hasTransientFailure = true;
+      }
+    }
+
+    if (!firstFailureMessage) {
+      firstFailureMessage = parseMessagingErrorMessage(response.error);
+    }
+  }
+
+  return {
+    hasTransientFailure,
+    failureCodes: Array.from(failureCodes),
+    firstFailureMessage,
+  };
+};
+
+const computeOrderReminderNextRetryAt = (
+  attemptNumber: number,
+  referenceNow: admin.firestore.Timestamp = admin.firestore.Timestamp.now(),
+): admin.firestore.Timestamp => {
+  const baseDelayMinutes = parseOrderReminderRetryBaseDelayMinutes();
+  const backoffMultiplier = 2 ** Math.max(0, attemptNumber - 1);
+  const delayMs = baseDelayMinutes * backoffMultiplier * 60 * 1000;
+  return admin.firestore.Timestamp.fromMillis(
+    referenceNow.toMillis() + delayMs
+  );
+};
+
+const emptyOrderReminderRunTelemetry = (): OrderReminderRunTelemetry => ({
+  processedUsersCount: 0,
+  sentUsersCount: 0,
+  skippedUsersCount: 0,
+  failedUsersCount: 0,
+  retryQueuedUsersCount: 0,
+  deliveredTokensCount: 0,
+  failedTokensCount: 0,
+});
+
+const applyOrderReminderDispatchOutcome = (
+  telemetry: OrderReminderRunTelemetry,
+  outcome: OrderReminderDispatchOutcome,
+): void => {
+  telemetry.processedUsersCount += 1;
+  telemetry.deliveredTokensCount += outcome.deliveredTokensCount;
+  telemetry.failedTokensCount += outcome.failedTokensCount;
+
+  if (outcome.outcome === "sent") {
+    telemetry.sentUsersCount += 1;
+    return;
+  }
+  if (outcome.outcome === "retry_queued") {
+    telemetry.retryQueuedUsersCount += 1;
+    return;
+  }
+  if (outcome.outcome === "failed") {
+    telemetry.failedUsersCount += 1;
+    return;
+  }
+  telemetry.skippedUsersCount += 1;
+};
+
+const resolveOrderReminderRunStatus = (
+  telemetry: OrderReminderRunTelemetry,
+): "success" | "partial_success" | "failed" | "retry_pending" | "skipped" => {
+  if (telemetry.failedUsersCount > 0) {
+    const hasOtherOutcomes = telemetry.sentUsersCount > 0 ||
+      telemetry.skippedUsersCount > 0 ||
+      telemetry.retryQueuedUsersCount > 0;
+    return hasOtherOutcomes ? "partial_success" : "failed";
+  }
+
+  if (telemetry.retryQueuedUsersCount > 0) {
+    return telemetry.sentUsersCount > 0 || telemetry.skippedUsersCount > 0 ?
+      "partial_success" :
+      "retry_pending";
+  }
+
+  if (telemetry.sentUsersCount === 0 && telemetry.skippedUsersCount > 0) {
+    return "skipped";
+  }
+
+  return "success";
+};
+
+const claimOrderReminderDispatchAttempt = async (
+  env: string,
+  userId: string,
+  weekKey: string,
+  reminderHour: number,
+  eventId: string,
+  referenceNow: admin.firestore.Timestamp = admin.firestore.Timestamp.now(),
+): Promise<OrderReminderDispatchClaimResult> => {
+  const markerId = buildOrderReminderDispatchMarkerId(
+    weekKey,
+    reminderHour,
+    userId
+  );
+  const markerRef = orderReminderDispatchMarkersCollection(env).doc(markerId);
+  const maxAttempts = parseOrderReminderRetryMaxAttempts();
+  let claim: OrderReminderDispatchClaimResult = {
+    action: "skip",
+    markerId,
+    attemptNumber: 0,
+    reason: "claim_not_acquired",
+  };
+
+  await firestore.runTransaction(async (transaction) => {
+    const markerSnapshot = await transaction.get(markerRef);
+
+    if (markerSnapshot.exists) {
+      const markerData = parseBody(markerSnapshot.data());
+      const status = parseOrderReminderDispatchMarkerStatus(markerData.status);
+      const attempts = parseNonNegativeInteger(markerData.attempts, 0);
+      const nextRetryAt = markerData.nextRetryAt instanceof admin
+        .firestore.Timestamp ? markerData.nextRetryAt : null;
+      const lastAttemptAt = markerData.lastAttemptAt instanceof admin
+        .firestore.Timestamp ? markerData.lastAttemptAt : null;
+
+      if (status === "sent" || status === "failed" || status === "no_tokens") {
+        claim = {
+          action: "skip",
+          markerId,
+          attemptNumber: attempts,
+          reason: `already_${status}`,
+        };
+        return;
+      }
+
+      if (status === "processing" && lastAttemptAt) {
+        const lockDurationMs =
+          parseOrderReminderProcessingLockMinutes() * 60 * 1000;
+        const lockExpiresAt = lastAttemptAt.toMillis() + lockDurationMs;
+        if (lockExpiresAt > referenceNow.toMillis()) {
+          claim = {
+            action: "skip",
+            markerId,
+            attemptNumber: attempts,
+            reason: "already_processing",
+          };
+          return;
+        }
+      }
+
+      if (attempts >= maxAttempts) {
+        transaction.set(markerRef, {
+          status: "failed",
+          failureReason: "max_attempts_reached",
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, {merge: true});
+        claim = {
+          action: "skip",
+          markerId,
+          attemptNumber: attempts,
+          reason: "max_attempts_reached",
+        };
+        return;
+      }
+
+      if (status === "retry_pending" &&
+        nextRetryAt &&
+        nextRetryAt.toMillis() > referenceNow.toMillis()) {
+        claim = {
+          action: "skip",
+          markerId,
+          attemptNumber: attempts,
+          reason: "retry_not_due",
+        };
+        return;
+      }
+
+      const nextAttempt = attempts + 1;
+      transaction.set(markerRef, {
+        status: "processing",
+        attempts: nextAttempt,
+        maxAttempts,
+        lastEventId: eventId,
+        lastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
+        nextRetryAt: null,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, {merge: true});
+      claim = {
+        action: "dispatch",
+        markerId,
+        markerRef,
+        attemptNumber: nextAttempt,
+      };
+      return;
+    }
+
+    transaction.set(markerRef, {
+      userId,
+      weekKey,
+      reminderSlotHour: reminderHour,
+      status: "processing",
+      attempts: 1,
+      maxAttempts,
+      lastEventId: eventId,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
+      nextRetryAt: null,
+    }, {merge: true});
+    claim = {
+      action: "dispatch",
+      markerId,
+      markerRef,
+      attemptNumber: 1,
+    };
+  });
+
+  return claim;
+};
+
+const finalizeOrderReminderDispatchMarker = async (
+  markerRef: admin.firestore.DocumentReference,
+  patch: Record<string, unknown>,
+): Promise<void> => {
+  await markerRef.set({
+    ...patch,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, {merge: true});
+};
+
+const dispatchOrderReminderToUser = async (
+  env: string,
+  eventId: string,
+  payload: NotificationDispatchPayload,
+  context: OrderReminderEventContext,
+  userId: string,
+  triggerSource: "event" | "retry_scheduler",
+  referenceNow: admin.firestore.Timestamp = admin.firestore.Timestamp.now(),
+): Promise<OrderReminderDispatchOutcome> => {
+  const dispatchClaim = await claimOrderReminderDispatchAttempt(
+    env,
+    userId,
+    context.weekKey,
+    context.reminderHour,
+    eventId,
+    referenceNow
+  );
+
+  if (dispatchClaim.action === "skip") {
+    const exhaustedRetries = dispatchClaim.reason === "max_attempts_reached";
+    return {
+      outcome: exhaustedRetries ? "failed" : "skipped",
+      reason: dispatchClaim.reason,
+      deliveredTokensCount: 0,
+      failedTokensCount: 0,
+      attemptNumber: dispatchClaim.attemptNumber,
+      markerId: dispatchClaim.markerId,
+    };
+  }
+
+  const tokens = await resolveDeviceTokensByUser(env, userId);
+  if (tokens.length === 0) {
+    await finalizeOrderReminderDispatchMarker(dispatchClaim.markerRef, {
+      status: "no_tokens",
+      failureReason: "no_tokens",
+      sentAt: null,
+      nextRetryAt: null,
+      deliveredTokensCount: 0,
+      failedTokensCount: 0,
+      lastErrorCode: null,
+      lastErrorMessage: null,
+      triggerSource,
+    });
+    return {
+      outcome: "skipped",
+      reason: "no_tokens",
+      deliveredTokensCount: 0,
+      failedTokensCount: 0,
+      attemptNumber: dispatchClaim.attemptNumber,
+      markerId: dispatchClaim.markerId,
+    };
+  }
+
+  let deliveredTokensCount = 0;
+  let failedTokensCount = 0;
+  const tokenResponses: admin.messaging.SendResponse[] = [];
+  for (const tokenChunk of chunkArray(tokens, 500)) {
+    const response = await admin.messaging().sendEachForMulticast({
+      tokens: tokenChunk,
+      notification: {
+        title: payload.title,
+        body: payload.body,
+      },
+      data: {
+        eventId,
+        type: payload.type,
+        target: payload.target,
+        userId,
+        weekKey: context.weekKey,
+        reminderSlotHour: String(context.reminderHour),
+        triggerSource,
+      },
+    });
+    deliveredTokensCount += response.successCount;
+    failedTokensCount += response.failureCount;
+    tokenResponses.push(...response.responses);
+  }
+
+  const failureSummary = summarizeMessagingFailureResponses(tokenResponses);
+  if (deliveredTokensCount > 0) {
+    await finalizeOrderReminderDispatchMarker(dispatchClaim.markerRef, {
+      status: "sent",
+      sentAt: admin.firestore.FieldValue.serverTimestamp(),
+      nextRetryAt: null,
+      deliveredTokensCount,
+      failedTokensCount,
+      lastErrorCode: failureSummary.failureCodes[0] || null,
+      lastErrorMessage: failureSummary.firstFailureMessage,
+      triggerSource,
+    });
+    return {
+      outcome: "sent",
+      reason: failedTokensCount > 0 ? "partial_token_failures" : "success",
+      deliveredTokensCount,
+      failedTokensCount,
+      attemptNumber: dispatchClaim.attemptNumber,
+      markerId: dispatchClaim.markerId,
+    };
+  }
+
+  const maxAttempts = parseOrderReminderRetryMaxAttempts();
+  if (failureSummary.hasTransientFailure &&
+    dispatchClaim.attemptNumber < maxAttempts) {
+    const nextRetryAt = computeOrderReminderNextRetryAt(
+      dispatchClaim.attemptNumber,
+      referenceNow
+    );
+    await finalizeOrderReminderDispatchMarker(dispatchClaim.markerRef, {
+      status: "retry_pending",
+      nextRetryAt,
+      sentAt: null,
+      deliveredTokensCount,
+      failedTokensCount,
+      lastErrorCode: failureSummary.failureCodes[0] || null,
+      lastErrorMessage: failureSummary.firstFailureMessage,
+      triggerSource,
+    });
+    return {
+      outcome: "retry_queued",
+      reason: "transient_failure",
+      deliveredTokensCount,
+      failedTokensCount,
+      attemptNumber: dispatchClaim.attemptNumber,
+      markerId: dispatchClaim.markerId,
+    };
+  }
+
+  const failureReason = failureSummary.hasTransientFailure ?
+    "transient_failure_max_attempts_reached" :
+    "terminal_failure";
+  await finalizeOrderReminderDispatchMarker(dispatchClaim.markerRef, {
+    status: "failed",
+    failureReason,
+    nextRetryAt: null,
+    sentAt: null,
+    deliveredTokensCount,
+    failedTokensCount,
+    lastErrorCode: failureSummary.failureCodes[0] || null,
+    lastErrorMessage: failureSummary.firstFailureMessage,
+    triggerSource,
+  });
+  return {
+    outcome: "failed",
+    reason: failureReason,
+    deliveredTokensCount,
+    failedTokensCount,
+    attemptNumber: dispatchClaim.attemptNumber,
+    markerId: dispatchClaim.markerId,
+  };
 };
 
 const normalizePathLikeIdentifier = (rawValue: string): string => {
@@ -655,16 +1277,15 @@ const createOrderReminderEvent = async (
     return "skipped";
   }
 
-  const slotLabel = String(reminderHour).padStart(2, "0");
-  const eventId = `order_reminder_${weekKey}_${slotLabel}`;
+  const eventId = buildOrderReminderEventId(weekKey, reminderHour);
   const eventRef = firestore
     .collection(`${env}/plus-collections/notificationEvents`)
     .doc(eventId);
 
   try {
     await eventRef.create({
-      title: "Recordatorio de pedido pendiente",
-      body: `Todavia no has confirmado tu pedido de la semana ${weekKey}.`,
+      title: buildOrderReminderNotificationTitle(),
+      body: buildOrderReminderNotificationBody(weekKey),
       type: ORDER_REMINDER_TYPE,
       target: "users",
       targetPayload: {
@@ -801,6 +1422,296 @@ const runPendingOrderReminderForHour = async (
     failedEnvs,
     envSummaries,
   };
+};
+
+const dispatchNotificationEventGeneric = async (
+  env: string,
+  eventId: string,
+  payload: NotificationDispatchPayload,
+  eventRef: admin.firestore.DocumentReference,
+): Promise<void> => {
+  const targetUserIds = await resolveTargetUserIds(env, payload);
+  const tokens = await resolveDeviceTokens(env, targetUserIds);
+
+  if (tokens.length === 0) {
+    await eventRef.set({
+      dispatch: {
+        attemptedAt: admin.firestore.FieldValue.serverTimestamp(),
+        dispatchedAt: null,
+        resolvedUsersCount: targetUserIds.length,
+        deliveredTokensCount: 0,
+        failedTokensCount: 0,
+        status: "no_tokens",
+      },
+    }, {merge: true});
+    logger.warn(
+      "Notification dispatch skipped because no device tokens were found",
+      {
+        env,
+        eventId,
+        target: payload.target,
+        resolvedUsersCount: targetUserIds.length,
+      }
+    );
+    return;
+  }
+
+  let deliveredTokensCount = 0;
+  let failedTokensCount = 0;
+
+  for (const tokenChunk of chunkArray(tokens, 500)) {
+    const response = await admin.messaging().sendEachForMulticast({
+      tokens: tokenChunk,
+      notification: {
+        title: payload.title,
+        body: payload.body,
+      },
+      data: {
+        eventId,
+        type: payload.type,
+        target: payload.target,
+      },
+    });
+
+    deliveredTokensCount += response.successCount;
+    failedTokensCount += response.failureCount;
+  }
+
+  await eventRef.set({
+    dispatch: {
+      attemptedAt: admin.firestore.FieldValue.serverTimestamp(),
+      dispatchedAt: admin.firestore.FieldValue.serverTimestamp(),
+      resolvedUsersCount: targetUserIds.length,
+      deliveredTokensCount,
+      failedTokensCount,
+      status: failedTokensCount > 0 ? "partial_success" : "success",
+    },
+  }, {merge: true});
+
+  logger.info("Notification event dispatched", {
+    env,
+    eventId,
+    target: payload.target,
+    resolvedUsersCount: targetUserIds.length,
+    deliveredTokensCount,
+    failedTokensCount,
+  });
+};
+
+const dispatchOrderReminderEvent = async (
+  env: string,
+  eventId: string,
+  eventData: Record<string, unknown>,
+  payload: NotificationDispatchPayload,
+  eventRef: admin.firestore.DocumentReference,
+): Promise<boolean> => {
+  const reminderContext = parseOrderReminderEventContext(eventId, eventData);
+  if (!reminderContext) {
+    logger.warn("Order reminder event context is missing. Falling back.", {
+      env,
+      eventId,
+    });
+    return false;
+  }
+
+  const targetUserIds = await resolveTargetUserIds(env, payload);
+  const telemetry = emptyOrderReminderRunTelemetry();
+  for (const userId of targetUserIds) {
+    try {
+      const outcome = await dispatchOrderReminderToUser(
+        env,
+        eventId,
+        payload,
+        reminderContext,
+        userId,
+        "event"
+      );
+      applyOrderReminderDispatchOutcome(telemetry, outcome);
+    } catch (error) {
+      telemetry.processedUsersCount += 1;
+      telemetry.failedUsersCount += 1;
+      logger.error("Order reminder user dispatch failed", {
+        env,
+        eventId,
+        userId,
+        weekKey: reminderContext.weekKey,
+        reminderSlotHour: reminderContext.reminderHour,
+        error,
+      });
+    }
+  }
+
+  const dispatchStatus = resolveOrderReminderRunStatus(telemetry);
+  await eventRef.set({
+    dispatch: {
+      attemptedAt: admin.firestore.FieldValue.serverTimestamp(),
+      dispatchedAt: admin.firestore.FieldValue.serverTimestamp(),
+      resolvedUsersCount: targetUserIds.length,
+      processedUsersCount: telemetry.processedUsersCount,
+      sentUsersCount: telemetry.sentUsersCount,
+      skippedUsersCount: telemetry.skippedUsersCount,
+      failedUsersCount: telemetry.failedUsersCount,
+      retryQueuedUsersCount: telemetry.retryQueuedUsersCount,
+      deliveredTokensCount: telemetry.deliveredTokensCount,
+      failedTokensCount: telemetry.failedTokensCount,
+      status: dispatchStatus,
+      retryMaxAttempts: parseOrderReminderRetryMaxAttempts(),
+      retryBaseDelayMinutes: parseOrderReminderRetryBaseDelayMinutes(),
+      idempotencyScope: "weekKey+reminderSlotHour+userId",
+    },
+  }, {merge: true});
+
+  logger.info("Order reminder event dispatched", {
+    env,
+    eventId,
+    weekKey: reminderContext.weekKey,
+    reminderSlotHour: reminderContext.reminderHour,
+    ...telemetry,
+    status: dispatchStatus,
+  });
+  return true;
+};
+
+type OrderReminderRetryRunEnvSummary = {
+  env: string;
+  candidateMarkersCount: number;
+  telemetry: OrderReminderRunTelemetry;
+  status:
+    | "success"
+    | "partial_success"
+    | "failed"
+    | "retry_pending"
+    | "skipped";
+  errorsCount: number;
+};
+
+const runOrderReminderRetryCycle = async (): Promise<{
+  runId: string;
+  referenceNowIso: string;
+  envSummaries: OrderReminderRetryRunEnvSummary[];
+}> => {
+  const referenceNow = admin.firestore.Timestamp.now();
+  const runId = `order_reminder_retry_${referenceNow.toMillis()}`;
+  const envs = Array.from(new Set(
+    parseOrderReminderEnvs()
+      .map((env) => env.trim().toLowerCase())
+      .filter((env) => env.length > 0)
+  ));
+  const envSummaries: OrderReminderRetryRunEnvSummary[] = [];
+
+  for (const env of envs) {
+    const markerSnapshot = await orderReminderDispatchMarkersCollection(env)
+      .where("status", "==", "retry_pending")
+      .limit(parseOrderReminderRetryBatchSize())
+      .get();
+    const telemetry = emptyOrderReminderRunTelemetry();
+    let errorsCount = 0;
+
+    for (const markerDoc of markerSnapshot.docs) {
+      const markerData = parseBody(markerDoc.data());
+      const userId = parseString(markerData.userId);
+      const weekKey = parseString(markerData.weekKey);
+      const reminderHour = parseReminderHour(markerData.reminderSlotHour);
+      const nextRetryAt = markerData.nextRetryAt instanceof
+        admin.firestore.Timestamp ? markerData.nextRetryAt : null;
+
+      if (!userId || !weekKey || reminderHour === null) {
+        errorsCount += 1;
+        logger.error("Invalid order reminder retry marker payload", {
+          env,
+          markerId: markerDoc.id,
+          markerData,
+        });
+        continue;
+      }
+
+      if (nextRetryAt && nextRetryAt.toMillis() > referenceNow.toMillis()) {
+        continue;
+      }
+
+      const payload: NotificationDispatchPayload = {
+        title: buildOrderReminderNotificationTitle(),
+        body: buildOrderReminderNotificationBody(weekKey),
+        type: ORDER_REMINDER_TYPE,
+        target: "users",
+        userIds: [userId],
+        segmentType: "members_with_pending_order",
+        targetRole: null,
+      };
+      const context: OrderReminderEventContext = {
+        weekKey,
+        reminderHour,
+      };
+      const eventId = buildOrderReminderEventId(weekKey, reminderHour);
+
+      try {
+        const outcome = await dispatchOrderReminderToUser(
+          env,
+          eventId,
+          payload,
+          context,
+          userId,
+          "retry_scheduler",
+          referenceNow
+        );
+        applyOrderReminderDispatchOutcome(telemetry, outcome);
+      } catch (error) {
+        telemetry.processedUsersCount += 1;
+        telemetry.failedUsersCount += 1;
+        errorsCount += 1;
+        logger.error("Order reminder retry dispatch failed", {
+          env,
+          markerId: markerDoc.id,
+          userId,
+          weekKey,
+          reminderHour,
+          error,
+        });
+      }
+    }
+
+    const status = resolveOrderReminderRunStatus(telemetry);
+    const envSummary: OrderReminderRetryRunEnvSummary = {
+      env,
+      candidateMarkersCount: markerSnapshot.size,
+      telemetry,
+      status,
+      errorsCount,
+    };
+    envSummaries.push(envSummary);
+    await orderReminderRetryRunsCollection(env).doc(runId).set({
+      runId,
+      trigger: "order_reminder_retry_scheduler",
+      referenceNow: referenceNow,
+      candidateMarkersCount: markerSnapshot.size,
+      status,
+      errorsCount,
+      ...telemetry,
+      retryBatchSize: parseOrderReminderRetryBatchSize(),
+      retryMaxAttempts: parseOrderReminderRetryMaxAttempts(),
+      retryBaseDelayMinutes: parseOrderReminderRetryBaseDelayMinutes(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    logger.info("Order reminder retry run completed", {
+      runId,
+      ...envSummary,
+    });
+  }
+
+  return {
+    runId,
+    referenceNowIso: referenceNow.toDate().toISOString(),
+    envSummaries,
+  };
+};
+
+export const __testOnly = {
+  buildOrderReminderEventId,
+  buildOrderReminderDispatchMarkerId,
+  parseOrderReminderEventContext,
+  computeOrderReminderNextRetryAt,
+  resolveOrderReminderRunStatus,
 };
 
 type ShiftType = "delivery" | "market";
@@ -2511,6 +3422,16 @@ export const sendPendingOrderReminderSunday23 = onSchedule(
   }
 );
 
+export const retryPendingOrderReminderDispatches = onSchedule(
+  {
+    schedule: "*/15 * * * *",
+    timeZone: SHEET_TIME_ZONE,
+  },
+  async () => {
+    await runOrderReminderRetryCycle();
+  }
+);
+
 export const onNotificationEventCreated = onDocumentCreated(
   "{env}/plus-collections/notificationEvents/{eventId}",
   async (event) => {
@@ -2521,8 +3442,9 @@ export const onNotificationEventCreated = onDocumentCreated(
 
     const env = event.params.env;
     const eventId = event.params.eventId;
+    const eventData = parseBody(snapshot.data());
     const payload = parseNotificationDispatchPayload(
-      parseBody(snapshot.data())
+      eventData
     );
     if (!payload) {
       logger.warn(
@@ -2532,73 +3454,21 @@ export const onNotificationEventCreated = onDocumentCreated(
       return;
     }
 
-    const targetUserIds = await resolveTargetUserIds(env, payload);
-    const tokens = await resolveDeviceTokens(env, targetUserIds);
     const eventRef = snapshot.ref;
-
-    if (tokens.length === 0) {
-      await eventRef.set({
-        dispatch: {
-          attemptedAt: admin.firestore.FieldValue.serverTimestamp(),
-          dispatchedAt: null,
-          resolvedUsersCount: targetUserIds.length,
-          deliveredTokensCount: 0,
-          failedTokensCount: 0,
-          status: "no_tokens",
-        },
-      }, {merge: true});
-      logger.warn(
-        "Notification dispatch skipped because no device tokens were found",
-        {
-          env,
-          eventId,
-          target: payload.target,
-          resolvedUsersCount: targetUserIds.length,
-        }
+    if (payload.type === ORDER_REMINDER_TYPE) {
+      const handledAsOrderReminder = await dispatchOrderReminderEvent(
+        env,
+        eventId,
+        eventData,
+        payload,
+        eventRef
       );
-      return;
+      if (handledAsOrderReminder) {
+        return;
+      }
     }
 
-    let deliveredTokensCount = 0;
-    let failedTokensCount = 0;
-
-    for (const tokenChunk of chunkArray(tokens, 500)) {
-      const response = await admin.messaging().sendEachForMulticast({
-        tokens: tokenChunk,
-        notification: {
-          title: payload.title,
-          body: payload.body,
-        },
-        data: {
-          eventId,
-          type: payload.type,
-          target: payload.target,
-        },
-      });
-
-      deliveredTokensCount += response.successCount;
-      failedTokensCount += response.failureCount;
-    }
-
-    await eventRef.set({
-      dispatch: {
-        attemptedAt: admin.firestore.FieldValue.serverTimestamp(),
-        dispatchedAt: admin.firestore.FieldValue.serverTimestamp(),
-        resolvedUsersCount: targetUserIds.length,
-        deliveredTokensCount,
-        failedTokensCount,
-        status: failedTokensCount > 0 ? "partial_success" : "success",
-      },
-    }, {merge: true});
-
-    logger.info("Notification event dispatched", {
-      env,
-      eventId,
-      target: payload.target,
-      resolvedUsersCount: targetUserIds.length,
-      deliveredTokensCount,
-      failedTokensCount,
-    });
+    await dispatchNotificationEventGeneric(env, eventId, payload, eventRef);
   }
 );
 
