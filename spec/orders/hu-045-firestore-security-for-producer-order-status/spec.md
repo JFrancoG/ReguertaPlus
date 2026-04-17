@@ -38,6 +38,30 @@ As an admin I want strict Firestore rules for producer status updates so only au
 - Admin role can apply status corrections under explicit rule constraints.
 - Security tests cover allow/deny cases per role and environment and pass in CI.
 
+## Implemented rule contract
+
+- Rules file: `firestore.rules`.
+- Protected paths:
+  - `{env}/plus-collections/orders/{orderId}`
+  - `{env}/collections/orders/{orderId}`
+  - `env`: `develop` and `production`.
+- Producer status mutation contract:
+  - Producer writes must include `producerStatusUpdatedBy` and match the authenticated producer identity.
+  - Producer can only mutate `producerStatusesByVendor.{selfMemberId}` plus legacy mirror `producerStatus`.
+  - Producer mutation is only allowed when order contains `totalsByVendor.{selfMemberId}`.
+- Admin correction contract:
+  - Admin writes must include `producerStatusUpdatedBy` and match authenticated admin identity.
+  - Admin can correct legacy top-level `producerStatus` without mutating `producerStatusesByVendor`.
+- Transition policy for producer self-updates:
+  - `unread -> read|prepared|delivered`
+  - `read -> read|prepared|delivered`
+  - `prepared -> read|prepared|delivered`
+  - `delivered -> delivered`
+- App write alignment:
+  - Producer status writes now include `producerStatusUpdatedBy`.
+  - Consumer checkout payloads no longer persist producer status fields directly.
+  - Android/iOS show explicit feedback when write is denied by rules.
+
 ## Dependencies
 
 - Base references: docs-es/requirements/requisitos-mvp-reguerta-v1.md.
@@ -54,9 +78,9 @@ As an admin I want strict Firestore rules for producer status updates so only au
 
 ## Definition of Done (DoD)
 
-- [ ] Story acceptance criteria validated.
-- [ ] Implementation aligned with linked RFs.
-- [ ] Android/iOS parity reviewed or temporary gap documented.
-- [ ] Agreed tests executed.
-- [ ] Technical/functional documentation updated.
+- [x] Story acceptance criteria validated.
+- [x] Implementation aligned with linked RFs.
+- [x] Android/iOS parity reviewed or temporary gap documented.
+- [x] Agreed tests executed.
+- [x] Technical/functional documentation updated.
 - [ ] Issue and PR linked.

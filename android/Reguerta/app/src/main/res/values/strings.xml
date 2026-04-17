@@ -299,6 +299,8 @@
     <string name="received_orders_status_delivered">Delivered</string>
     <string name="received_orders_mark_prepared">Mark prepared</string>
     <string name="received_orders_mark_pending">Mark pending</string>
+    <string name="received_orders_status_update_permission_denied">You do not have permission to update this producer status.</string>
+    <string name="received_orders_status_update_failed">Could not save producer status. Try again.</string>
     <string name="received_orders_member_total_format">Total: %1$s €</string>
     <string name="received_orders_general_total_format">General total: %1$s €</string>
 

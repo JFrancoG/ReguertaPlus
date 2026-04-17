@@ -290,6 +290,23 @@ struct ReguertaTests {
     }
 
     @Test
+    func receivedOrderStatusWriteResultMapsPermissionDenied() {
+        let error = NSError(
+            domain: "FIRFirestoreErrorDomain",
+            code: 7
+        )
+
+        #expect(receivedOrderStatusWriteResult(from: error) == .permissionDenied)
+    }
+
+    @Test
+    func receivedOrderStatusWriteResultMapsUnknownAsFailure() {
+        let error = NSError(domain: "example", code: -99)
+
+        #expect(receivedOrderStatusWriteResult(from: error) == .failure)
+    }
+
+    @Test
     func authErrorPresentationMappingByFlow() {
         let signIn = mapAuthFailure(.invalidCredentials, flow: .signIn)
         #expect(signIn.passwordErrorKey == AccessL10nKey.authErrorInvalidCredentials)

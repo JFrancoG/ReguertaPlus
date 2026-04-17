@@ -134,6 +134,7 @@ struct ReceivedOrdersRouteView: View {
     @State private var selectedTab: ReceivedOrdersTab = .byProduct
     @State private var loadState: ReceivedOrdersLoadState = .idle
     @State private var updatingStatusOrderId: String?
+    @State private var statusWriteFeedback: ReceivedOrderStatusWriteResult?
 
     private var isProducer: Bool {
         currentMember?.canAccessReceivedOrders == true
@@ -159,6 +160,7 @@ struct ReceivedOrdersRouteView: View {
                 .foregroundStyle(tokens.colors.textPrimary)
 
             tabSelector
+            statusFeedbackView
 
             routeContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -166,6 +168,24 @@ struct ReceivedOrdersRouteView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .task(id: loadTaskID) {
             await loadIfNeeded()
+        }
+    }
+
+    @ViewBuilder
+    private var statusFeedbackView: some View {
+        switch statusWriteFeedback {
+        case .permissionDenied:
+            Text("No tienes permiso para actualizar este estado de productor.")
+                .font(tokens.typography.bodySecondary)
+                .foregroundStyle(tokens.colors.feedbackError)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        case .failure:
+            Text("No se pudo guardar el estado de productor. Inténtalo de nuevo.")
+                .font(tokens.typography.bodySecondary)
+                .foregroundStyle(tokens.colors.feedbackError)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        case .success, .none:
+            EmptyView()
         }
     }
 
@@ -259,15 +279,20 @@ struct ReceivedOrdersRouteView: View {
                                 guard let producerId = currentMember?.id, !producerId.isEmpty else { return }
                                 Task { @MainActor in
                                     updatingStatusOrderId = group.orderId
-                                    let updated = await updateReceivedOrderProducerStatus(
+                                    let updateResult = await updateReceivedOrderProducerStatus(
                                         orderId: group.orderId,
                                         producerId: producerId,
                                         status: status
                                     )
-                                    if updated, case .loaded(let currentSnapshot) = loadState {
-                                        loadState = .loaded(
-                                            currentSnapshot.withProducerStatus(orderId: group.orderId, status: status)
-                                        )
+                                    if updateResult == .success {
+                                        statusWriteFeedback = nil
+                                        if case .loaded(let currentSnapshot) = loadState {
+                                            loadState = .loaded(
+                                                currentSnapshot.withProducerStatus(orderId: group.orderId, status: status)
+                                            )
+                                        }
+                                    } else {
+                                        statusWriteFeedback = updateResult
                                     }
                                     updatingStatusOrderId = nil
                                 }
@@ -498,10 +523,12 @@ struct ReceivedOrdersRouteView: View {
     private func loadIfNeeded(force: Bool = false) async {
         guard isProducer else {
             loadState = .idle
+            statusWriteFeedback = nil
             return
         }
         guard window.isEnabled else {
             loadState = .idle
+            statusWriteFeedback = nil
             return
         }
         if !force, case .loading = loadState {
@@ -512,6 +539,7 @@ struct ReceivedOrdersRouteView: View {
             return
         }
         loadState = .loading
+        statusWriteFeedback = nil
         do {
             if let snapshot = try await fetchReceivedOrdersSnapshotForProducer(
                 producerId: producerId,
@@ -779,13 +807,14 @@ private func updateReceivedOrderProducerStatus(
     db: Firestore = Firestore.firestore(),
     environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment,
     nowMillis: Int64 = Int64(Date().timeIntervalSince1970 * 1_000)
-) async -> Bool {
+) async -> ReceivedOrderStatusWriteResult {
     let firestorePath = ReguertaFirestorePath(environment: environment)
     let writeTargets = Array(Set([
         firestorePath.collectionPath(.orders),
         "\(environment.rawValue)/collections/orders"
     ]))
     let nowTimestamp = Timestamp(date: Date(timeIntervalSince1970: TimeInterval(nowMillis) / 1_000))
+    var lastFailure: ReceivedOrderStatusWriteResult = .failure
 
     for ordersPath in writeTargets {
         do {
@@ -793,15 +822,16 @@ private func updateReceivedOrderProducerStatus(
             try await orderRef.updateData([
                 "producerStatus": status.rawValue,
                 "producerStatusesByVendor.\(producerId)": status.rawValue,
+                "producerStatusUpdatedBy": producerId,
                 "updatedAt": nowTimestamp
             ])
-            return true
+            return .success
         } catch {
-            continue
+            lastFailure = receivedOrderStatusWriteResult(from: error)
         }
     }
 
-    return false
+    return lastFailure
 }
 
 private func markReceivedOrdersAsRead(
@@ -812,14 +842,14 @@ private func markReceivedOrdersAsRead(
 ) async -> Set<String> {
     var updatedOrderIds = Set<String>()
     for orderId in Array(Set(orderIds)).filter(\.isNotEmpty) {
-        let updated = await updateReceivedOrderProducerStatus(
+        let updateResult = await updateReceivedOrderProducerStatus(
             orderId: orderId,
             producerId: producerId,
             status: .read,
             db: db,
             environment: environment
         )
-        if updated {
+        if updateResult == .success {
             updatedOrderIds.insert(orderId)
         }
     }

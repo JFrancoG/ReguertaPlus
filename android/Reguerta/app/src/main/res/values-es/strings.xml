@@ -299,6 +299,8 @@
     <string name="received_orders_status_delivered">Entregado</string>
     <string name="received_orders_mark_prepared">Marcar preparado</string>
     <string name="received_orders_mark_pending">Marcar pendiente</string>
+    <string name="received_orders_status_update_permission_denied">No tienes permiso para actualizar este estado de productor.</string>
+    <string name="received_orders_status_update_failed">No se pudo guardar el estado de productor. Inténtalo de nuevo.</string>
     <string name="received_orders_member_total_format">Total: %1$s €</string>
     <string name="received_orders_general_total_format">Suma total general: %1$s €</string>
 
