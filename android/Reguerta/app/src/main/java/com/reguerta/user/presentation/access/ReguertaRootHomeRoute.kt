@@ -1,5 +1,6 @@
 package com.reguerta.user.presentation.access
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -79,6 +80,7 @@ internal fun HomeRoute(
     isLoadingProducts: Boolean,
     isLoadingMyOrderProducts: Boolean,
     isSavingProduct: Boolean,
+    isUploadingProductImage: Boolean,
     isUpdatingProducerCatalogVisibility: Boolean,
     isLoadingSharedProfiles: Boolean,
     isSavingSharedProfile: Boolean,
@@ -105,6 +107,8 @@ internal fun HomeRoute(
     onStartCreatingProduct: () -> Unit,
     onStartEditingNews: (String) -> Unit,
     onStartEditingProduct: (String) -> Unit,
+    onUploadProductImageFromUri: (Uri) -> Unit,
+    onClearProductImage: () -> Unit,
     onSaveNews: (onSuccess: () -> Unit) -> Unit,
     onSaveProduct: (onSuccess: () -> Unit) -> Unit,
     onSetProducerCatalogVisibility: (Boolean, onSuccess: () -> Unit) -> Unit,
@@ -394,11 +398,14 @@ internal fun HomeRoute(
                     editingProductId = editingProductId,
                     isLoading = isLoadingProducts,
                     isSaving = isSavingProduct,
+                    isUploadingImage = isUploadingProductImage,
                     isUpdatingProducerCatalogVisibility = isUpdatingProducerCatalogVisibility,
                     onRefresh = onRefreshProducts,
                     onDraftChanged = onProductDraftChanged,
                     onCreateProduct = onStartCreatingProduct,
                     onEditProduct = onStartEditingProduct,
+                    onPickImage = onUploadProductImageFromUri,
+                    onClearImage = onClearProductImage,
                     onCancelEditor = onClearProductEditor,
                     onSaveProduct = { onSaveProduct { } },
                     onArchiveProduct = onArchiveProduct,

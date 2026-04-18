@@ -140,6 +140,7 @@ data class SessionUiState(
     val isLoadingProducts: Boolean = false,
     val isLoadingMyOrderProducts: Boolean = false,
     val isSavingProduct: Boolean = false,
+    val isUploadingProductImage: Boolean = false,
     val isUpdatingProducerCatalogVisibility: Boolean = false,
     val isLoadingSharedProfiles: Boolean = false,
     val isSavingSharedProfile: Boolean = false,

@@ -1,8 +1,10 @@
 package com.reguerta.user.presentation.access
 
+import android.net.Uri
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.reguerta.user.data.media.ImagePipelineManager
 import com.reguerta.user.domain.access.AuthSessionProvider
 import com.reguerta.user.domain.access.MemberRepository
 import com.reguerta.user.domain.access.ResolveAuthorizedSessionUseCase
@@ -41,6 +43,7 @@ class SessionViewModel(
     private val notificationRepository: NotificationRepository,
     private val productRepository: ProductRepository,
     private val seasonalCommitmentRepository: SeasonalCommitmentRepository,
+    private val imagePipelineManager: ImagePipelineManager,
     private val sharedProfileRepository: SharedProfileRepository,
     private val shiftRepository: ShiftRepository,
     private val deliveryCalendarRepository: DeliveryCalendarRepository,
@@ -88,6 +91,7 @@ class SessionViewModel(
             memberRepository = repository,
             productRepository = productRepository,
             seasonalCommitmentRepository = seasonalCommitmentRepository,
+            imagePipelineManager = imagePipelineManager,
             nowMillisProvider = nowMillisProvider,
             emitMessage = ::emitMessage,
         )
@@ -266,6 +270,10 @@ class SessionViewModel(
     fun startEditingProduct(productId: String) = formActions.startEditingProduct(productId)
 
     fun clearProductEditor() = formActions.clearProductEditor()
+
+    fun uploadProductImageFromUri(sourceUri: Uri) = productActions.uploadProductImageFromUri(sourceUri)
+
+    fun clearProductImage() = productActions.clearProductImage()
 
     fun saveProduct(onSuccess: () -> Unit = {}) = productActions.saveProduct(onSuccess)
 

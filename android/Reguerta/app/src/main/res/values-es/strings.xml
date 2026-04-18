@@ -199,6 +199,8 @@
     <string name="products_field_name">Nombre</string>
     <string name="products_field_description">Descripción</string>
     <string name="products_field_image_url">URL de imagen</string>
+    <string name="products_pick_image_action">Seleccionar imagen</string>
+    <string name="products_clear_image_action">Quitar imagen</string>
     <string name="products_field_price">Precio (€)</string>
     <string name="products_field_unit_qty">Cantidad unidad</string>
     <string name="products_field_unit_name">Nombre unidad</string>
@@ -234,6 +236,8 @@
     <string name="feedback_product_created">Producto creado.</string>
     <string name="feedback_product_updated">Producto actualizado.</string>
     <string name="feedback_product_archived">Producto archivado.</string>
+    <string name="feedback_product_image_uploaded">Imagen subida.</string>
+    <string name="feedback_product_image_upload_failed">No se pudo subir la imagen.</string>
     <string name="feedback_only_producer_toggle_catalog_visibility">Solo los productores pueden cambiar la visibilidad global del catálogo.</string>
     <string name="feedback_producer_catalog_enabled">Catálogo visible de nuevo.</string>
     <string name="feedback_producer_catalog_disabled">Catálogo pausado.</string>

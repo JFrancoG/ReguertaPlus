@@ -1,11 +1,16 @@
 package com.reguerta.user.presentation.access
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -25,6 +30,7 @@ import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,12 +43,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
 import com.reguerta.user.R
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.isProducer
@@ -61,11 +69,14 @@ fun ProductsRoute(
     editingProductId: String?,
     isLoading: Boolean,
     isSaving: Boolean,
+    isUploadingImage: Boolean,
     isUpdatingProducerCatalogVisibility: Boolean,
     onRefresh: () -> Unit,
     onDraftChanged: (ProductDraft) -> Unit,
     onCreateProduct: () -> Unit,
     onEditProduct: (String) -> Unit,
+    onPickImage: (Uri) -> Unit,
+    onClearImage: () -> Unit,
     onCancelEditor: () -> Unit,
     onSaveProduct: () -> Unit,
     onArchiveProduct: (String, onSuccess: () -> Unit) -> Unit,
@@ -81,6 +92,13 @@ fun ProductsRoute(
     } == true
     var commonPurchaseExpanded by rememberSaveable { mutableStateOf(false) }
     var pendingCatalogVisibility by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    val pickImageLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+    ) { selectedUri ->
+        if (selectedUri != null) {
+            onPickImage(selectedUri)
+        }
+    }
 
     if (isEditing) {
         Card {
@@ -108,18 +126,56 @@ fun ProductsRoute(
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Image,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(40.dp),
-                    )
+                    if (draft.productImageUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = draft.productImageUrl,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Image,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(40.dp),
+                        )
+                    }
                 }
                 Text(
                     text = stringResource(R.string.products_editor_subtitle),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ReguertaButton(
+                        label = stringResource(R.string.products_pick_image_action),
+                        variant = ReguertaButtonVariant.SECONDARY,
+                        fullWidth = false,
+                        enabled = !isUploadingImage,
+                        onClick = {
+                            pickImageLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                            )
+                        },
+                    )
+                    if (draft.productImageUrl.isNotBlank()) {
+                        ReguertaButton(
+                            label = stringResource(R.string.products_clear_image_action),
+                            variant = ReguertaButtonVariant.TEXT,
+                            fullWidth = false,
+                            enabled = !isUploadingImage,
+                            onClick = onClearImage,
+                        )
+                    }
+                    if (isUploadingImage) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    }
+                }
                 OutlinedTextField(
                     value = draft.name,
                     onValueChange = { onDraftChanged(draft.copy(name = it)) },
@@ -319,7 +375,7 @@ fun ProductsRoute(
                         variant = ReguertaButtonVariant.PRIMARY,
                         fullWidth = false,
                         loading = isSaving,
-                        enabled = !isSaving,
+                        enabled = !isSaving && !isUploadingImage,
                         onClick = {
                             focusManager.clearFocus(force = true)
                             onSaveProduct()

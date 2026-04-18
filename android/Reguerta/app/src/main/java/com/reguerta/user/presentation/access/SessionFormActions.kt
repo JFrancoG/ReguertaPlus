@@ -207,6 +207,7 @@ internal class SessionFormActions(
             it.copy(
                 productDraft = ProductDraft(),
                 editingProductId = "",
+                isUploadingProductImage = false,
             )
         }
     }
@@ -222,6 +223,7 @@ internal class SessionFormActions(
             it.copy(
                 productDraft = product.toDraft(),
                 editingProductId = product.id,
+                isUploadingProductImage = false,
             )
         }
     }
@@ -232,6 +234,7 @@ internal class SessionFormActions(
                 productDraft = ProductDraft(),
                 editingProductId = null,
                 isSavingProduct = false,
+                isUploadingProductImage = false,
             )
         }
     }
