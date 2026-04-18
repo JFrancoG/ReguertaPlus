@@ -16,6 +16,8 @@ extension ContentView {
             notificationsListRoute
         case .products:
             productsRoute
+        case .users:
+            usersRoute
         case .myOrder:
             myOrderRoute
         case .receivedOrders:

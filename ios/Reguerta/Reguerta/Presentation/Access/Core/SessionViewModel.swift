@@ -4,9 +4,12 @@ import Observation
 struct MemberDraft: Equatable, Sendable {
     var displayName = ""
     var email = ""
+    var companyName = ""
+    var phoneNumber = ""
     var isMember = true
     var isProducer = false
     var isAdmin = false
+    var isCommonPurchaseManager = false
     var isActive = true
 }
 

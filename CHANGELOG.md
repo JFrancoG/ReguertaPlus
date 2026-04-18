@@ -36,6 +36,7 @@ All notable changes to this project will be documented in this file.
 - 2026-04-17 | ✨ feat(access): add HU-044 role capability matrix
 - 2026-04-17 | ✨ feat(orders): harden producer status security contract (HU-045)
 - 2026-04-17 | ✨ feat(functions): add HU-046 reminder retries
+- 2026-04-18 | ✨ feat(access): implement admin users management
 
 ### Fixed
 

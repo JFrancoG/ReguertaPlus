@@ -134,6 +134,18 @@ extension ContentView {
         )
     }
 
+    @ViewBuilder
+    var usersRoute: some View {
+        if let session = currentHomeSession {
+            UsersRouteView(
+                tokens: tokens,
+                viewModel: viewModel,
+                session: session,
+                memberDraft: memberDraftBinding
+            )
+        }
+    }
+
     var myOrderRoute: some View {
         MyOrderRouteView(
             tokens: tokens,

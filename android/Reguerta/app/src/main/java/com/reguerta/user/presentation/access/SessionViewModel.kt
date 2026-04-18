@@ -356,6 +356,13 @@ class SessionViewModel(
 
     fun createAuthorizedMember() = memberActions.createAuthorizedMember()
 
+    fun saveMemberDraft(
+        editingMemberId: String?,
+        onSuccess: () -> Unit = {},
+    ) = memberActions.saveMemberDraft(editingMemberId, onSuccess)
+
+    fun refreshMembers() = memberActions.refreshMembers()
+
     fun toggleAdmin(memberId: String) = memberActions.toggleAdmin(memberId)
 
     fun toggleActive(memberId: String) = memberActions.toggleActive(memberId)

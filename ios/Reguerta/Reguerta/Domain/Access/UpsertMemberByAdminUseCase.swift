@@ -41,11 +41,17 @@ private extension Member {
         Member(
             id: id,
             displayName: displayName,
+            companyName: companyName,
+            phoneNumber: phoneNumber,
             normalizedEmail: normalizedEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
             authUid: authUid,
             roles: roles,
             isActive: isActive,
-            producerCatalogEnabled: producerCatalogEnabled
+            producerCatalogEnabled: producerCatalogEnabled,
+            isCommonPurchaseManager: isCommonPurchaseManager,
+            producerParity: producerParity,
+            ecoCommitmentMode: ecoCommitmentMode,
+            ecoCommitmentParity: ecoCommitmentParity
         )
     }
 }

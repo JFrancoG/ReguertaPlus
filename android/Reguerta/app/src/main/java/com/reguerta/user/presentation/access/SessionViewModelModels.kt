@@ -20,9 +20,12 @@ import com.reguerta.user.domain.shifts.ShiftSwapRequest
 data class MemberDraft(
     val displayName: String = "",
     val email: String = "",
+    val companyName: String = "",
+    val phoneNumber: String = "",
     val isMember: Boolean = true,
     val isProducer: Boolean = false,
     val isAdmin: Boolean = false,
+    val isCommonPurchaseManager: Boolean = false,
     val isActive: Boolean = true,
 )
 

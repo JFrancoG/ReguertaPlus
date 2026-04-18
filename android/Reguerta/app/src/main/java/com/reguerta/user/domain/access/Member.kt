@@ -3,6 +3,8 @@ package com.reguerta.user.domain.access
 data class Member(
     val id: String,
     val displayName: String,
+    val companyName: String? = null,
+    val phoneNumber: String? = null,
     val normalizedEmail: String,
     val authUid: String?,
     val roles: Set<MemberRole>,
