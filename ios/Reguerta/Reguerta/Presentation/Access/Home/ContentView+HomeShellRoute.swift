@@ -4,7 +4,10 @@ extension ContentView {
     var homeRoute: some View {
         GeometryReader { proxy in
             let drawerWidth = min(320.resize, proxy.size.width * 0.78)
-            let usesShellScroll = homeDestination != .myOrder && homeDestination != .receivedOrders
+            let usesShellScroll =
+                homeDestination != .myOrder &&
+                homeDestination != .receivedOrders &&
+                homeDestination != .users
 
             ZStack(alignment: .leading) {
                 if usesShellScroll {
@@ -168,6 +171,8 @@ extension ContentView {
             viewModel.refreshMyOrderProducts()
         case .profile:
             viewModel.refreshSharedProfiles()
+        case .users:
+            viewModel.refreshMembers()
         case .shifts:
             viewModel.refreshShifts()
         case .settings:

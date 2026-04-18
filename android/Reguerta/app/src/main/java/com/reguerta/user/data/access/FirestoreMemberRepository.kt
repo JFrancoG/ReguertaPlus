@@ -92,12 +92,17 @@ class FirestoreMemberRepository(
     override suspend fun upsertMember(member: Member): Member = withContext(Dispatchers.IO) {
         val payload = mapOf(
             "displayName" to member.displayName,
+            "companyName" to (member.companyName ?: FieldValue.delete()),
+            "phoneNumber" to (member.phoneNumber ?: FieldValue.delete()),
             "normalizedEmail" to member.normalizedEmail,
             "email" to FieldValue.delete(),
             "emailNormalized" to FieldValue.delete(),
             "authUid" to member.authUid,
             "roles" to member.roles.map { role -> role.toWireValue() },
+            "isProducer" to member.roles.contains(MemberRole.PRODUCER),
+            "isAdmin" to member.roles.contains(MemberRole.ADMIN),
             "isActive" to member.isActive,
+            "available" to member.isActive,
             "producerCatalogEnabled" to member.producerCatalogEnabled,
             "isCommonPurchaseManager" to member.isCommonPurchaseManager,
         )
@@ -115,13 +120,19 @@ class FirestoreMemberRepository(
 
 private fun com.google.firebase.firestore.DocumentSnapshot.toMember(): Member? {
     val id = id
-    val displayName = getString("displayName") ?: return null
-    val normalizedEmail = getString("normalizedEmail")
-        ?: getString("emailNormalized")
-        ?: getString("email")?.trim()?.lowercase()
+    val displayName = readFirstNonBlankString("displayName")
+        ?: listOf(
+            readFirstNonBlankString("name"),
+            readFirstNonBlankString("surname"),
+        ).filterNotNull().joinToString(" ").trim().takeIf { it.isNotEmpty() }
+        ?: return null
+    val companyName = readFirstNonBlankString("companyName", "company_name", "company")
+    val phoneNumber = readFirstNonBlankString("phoneNumber", "phone", "telephone", "telefono")
+    val normalizedEmail = readFirstNonBlankString("normalizedEmail", "emailNormalized", "email")
+        ?.lowercase()
         ?: return null
     val authUid = getString("authUid")?.trim()?.takeIf { it.isNotEmpty() }
-    val isActive = getBoolean("isActive") ?: true
+    val isActive = getBoolean("isActive") ?: getBoolean("available") ?: true
     val producerCatalogEnabled = getBoolean("producerCatalogEnabled") ?: true
     val isCommonPurchaseManager = getBoolean("isCommonPurchaseManager") ?: false
     val producerParity = getString("producerParity").toProducerParityOrNull()
@@ -135,17 +146,18 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toMember(): Member? {
             (value as? String)?.trim()?.lowercase()?.toMemberRoleOrNull()
         }
         ?.toSet()
-        ?: setOf(MemberRole.MEMBER)
+        ?: emptySet()
 
-    val roles = if (parsedRoles.isEmpty()) {
-        setOf(MemberRole.MEMBER)
-    } else {
-        parsedRoles
-    }
+    val roles = parsedRoles.withLegacyRoles(
+        isProducer = getBoolean("isProducer") ?: false,
+        isAdmin = getBoolean("isAdmin") ?: false,
+    )
 
     return Member(
         id = id,
         displayName = displayName,
+        companyName = companyName,
+        phoneNumber = phoneNumber,
         normalizedEmail = normalizedEmail,
         authUid = authUid,
         roles = roles,
@@ -160,9 +172,38 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toMember(): Member? {
 
 private fun String.toMemberRoleOrNull(): MemberRole? = when (this) {
     "member" -> MemberRole.MEMBER
+    "socio" -> MemberRole.MEMBER
     "producer" -> MemberRole.PRODUCER
+    "productor" -> MemberRole.PRODUCER
     "admin" -> MemberRole.ADMIN
+    "administrador" -> MemberRole.ADMIN
     else -> null
+}
+
+private fun Set<MemberRole>.withLegacyRoles(
+    isProducer: Boolean,
+    isAdmin: Boolean,
+): Set<MemberRole> {
+    if (isNotEmpty()) {
+        return this
+    }
+    val roles = mutableSetOf(MemberRole.MEMBER)
+    if (isProducer) roles.add(MemberRole.PRODUCER)
+    if (isAdmin) roles.add(MemberRole.ADMIN)
+    return roles
+}
+
+private fun com.google.firebase.firestore.DocumentSnapshot.readFirstNonBlankString(
+    vararg fieldNames: String,
+): String? {
+    fieldNames.forEach { key ->
+        val value = get(key) as? String
+        val normalized = value?.trim()?.takeIf { it.isNotEmpty() }
+        if (normalized != null) {
+            return normalized
+        }
+    }
+    return null
 }
 
 private fun String?.toProducerParityOrNull(): ProducerParity? = when (this?.trim()?.lowercase()) {

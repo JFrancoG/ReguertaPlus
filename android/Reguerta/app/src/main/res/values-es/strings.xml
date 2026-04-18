@@ -154,6 +154,25 @@
     <string name="home_placeholder_received_orders">Los pedidos recibidos y su histórico se conectarán aquí en una historia posterior.</string>
     <string name="home_placeholder_users">La gestión de usuarios se conectará aquí en su historia dedicada.</string>
     <string name="home_placeholder_admin_broadcast">Las notificaciones extraordinarias de admin se conectarán aquí en una historia posterior.</string>
+    <string name="users_list_title">Regüertenses autorizados</string>
+    <string name="users_list_action_reload">Recargar</string>
+    <string name="users_list_empty_state">Aún no hay usuarios autorizados.</string>
+    <string name="users_create_action">Autorizar nuevo usuario</string>
+    <string name="users_editor_title_create">Autorizar regüertense</string>
+    <string name="users_editor_title_edit">Actualizar regüertense</string>
+    <string name="users_editor_company_name_label">Nombre de la empresa</string>
+    <string name="users_editor_phone_label">Teléfono</string>
+    <string name="users_editor_common_purchase_manager_label">Socio encargado de compras comunes</string>
+    <string name="users_editor_save_action_create">Autorizar</string>
+    <string name="users_editor_save_action_update">Actualizar</string>
+    <string name="users_card_action_edit">Editar usuario</string>
+    <string name="users_card_producer_company_format">Productor. %1$s</string>
+    <string name="users_card_company_name_missing">-</string>
+    <string name="users_card_admin_label">Es administrador</string>
+    <string name="users_toggle_active_dialog_title_deactivate">Vas a desactivar regüertense</string>
+    <string name="users_toggle_active_dialog_message_deactivate">%1$s no podrá entrar en la app. Esta acción se puede revertir más adelante.</string>
+    <string name="users_toggle_active_dialog_title_activate">¿Reactivar este regüertense?</string>
+    <string name="users_toggle_active_dialog_message_activate">%1$s recuperará acceso a la app con sus roles actuales.</string>
 
     <string name="operational_modules_title">Módulos operativos</string>
     <string name="module_my_order">Mi pedido</string>
@@ -341,6 +360,7 @@
     <string name="feedback_password_mismatch">Las contraseñas no coinciden</string>
     <string name="feedback_only_admin_create">Solo los admins pueden crear miembros</string>
     <string name="feedback_display_name_email_required">Nombre visible y email son obligatorios</string>
+    <string name="feedback_producer_company_required">Un productor debe tener nombre de empresa</string>
     <string name="feedback_member_exists">El miembro ya existe</string>
     <string name="feedback_select_role">Selecciona al menos un rol</string>
     <string name="feedback_only_admin_edit_roles">Solo los admins pueden editar roles</string>

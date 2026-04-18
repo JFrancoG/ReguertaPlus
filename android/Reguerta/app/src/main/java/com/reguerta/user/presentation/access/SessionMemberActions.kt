@@ -21,6 +21,13 @@ internal class SessionMemberActions(
     private val emitMessage: (Int) -> Unit,
 ) {
     fun createAuthorizedMember() {
+        saveMemberDraft(editingMemberId = null)
+    }
+
+    fun saveMemberDraft(
+        editingMemberId: String?,
+        onSuccess: () -> Unit = {},
+    ) {
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
         if (!mode.member.canManageMembers) {
             emitMessage(R.string.feedback_only_admin_create)
@@ -34,9 +41,10 @@ internal class SessionMemberActions(
         }
 
         val normalizedEmail = draft.email.trim().lowercase()
-        val allMembers = mode.members
-        val memberId = buildMemberId(normalizedEmail)
-        if (allMembers.any { it.id == memberId || it.normalizedEmail == normalizedEmail }) {
+        val duplicateEmail = mode.members.any {
+            it.normalizedEmail == normalizedEmail && it.id != editingMemberId
+        }
+        if (duplicateEmail) {
             emitMessage(R.string.feedback_member_exists)
             return
         }
@@ -46,21 +54,50 @@ internal class SessionMemberActions(
             emitMessage(R.string.feedback_select_role)
             return
         }
-
-        val member = Member(
-            id = memberId,
-            displayName = draft.displayName.trim(),
-            normalizedEmail = normalizedEmail,
-            authUid = null,
-            roles = roles,
-            isActive = draft.isActive,
-            producerCatalogEnabled = true,
-            isCommonPurchaseManager = false,
-        )
-
-        updateMember(mode, member) {
-            it.copy(memberDraft = MemberDraft())
+        if (roles.contains(MemberRole.PRODUCER) && draft.companyName.isBlank()) {
+            emitMessage(R.string.feedback_producer_company_required)
+            return
         }
+
+        val member = if (editingMemberId == null) {
+            val memberId = buildMemberId(normalizedEmail)
+            if (mode.members.any { it.id == memberId }) {
+                emitMessage(R.string.feedback_member_exists)
+                return
+            }
+            Member(
+                id = memberId,
+                displayName = draft.displayName.trim(),
+                companyName = normalizeCompanyName(draft, roles),
+                phoneNumber = normalizePhoneNumber(draft),
+                normalizedEmail = normalizedEmail,
+                authUid = null,
+                roles = roles,
+                isActive = draft.isActive,
+                producerCatalogEnabled = true,
+                isCommonPurchaseManager = draft.isCommonPurchaseManager,
+            )
+        } else {
+            val existing = mode.members.firstOrNull { it.id == editingMemberId } ?: return
+            existing.copy(
+                displayName = draft.displayName.trim(),
+                companyName = normalizeCompanyName(draft, roles),
+                phoneNumber = normalizePhoneNumber(draft),
+                normalizedEmail = normalizedEmail,
+                roles = roles,
+                isActive = draft.isActive,
+                isCommonPurchaseManager = draft.isCommonPurchaseManager,
+            )
+        }
+
+        updateMember(
+            mode = mode,
+            target = member,
+            onSuccessState = {
+                it.copy(memberDraft = MemberDraft())
+            },
+            onSuccess = onSuccess,
+        )
     }
 
     fun toggleAdmin(memberId: String) {
@@ -98,10 +135,31 @@ internal class SessionMemberActions(
         updateMember(mode, updated)
     }
 
+    fun refreshMembers() {
+        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
+        scope.launch {
+            val allMembers = memberRepository.getAllMembers()
+            val refreshedCurrentMember = allMembers.firstOrNull { it.id == mode.member.id } ?: mode.member
+            val refreshedAuthenticatedMember = allMembers.firstOrNull { it.id == mode.authenticatedMember.id }
+                ?: mode.authenticatedMember
+            uiState.update {
+                it.copy(
+                    mode = SessionMode.Authorized(
+                        principal = mode.principal,
+                        authenticatedMember = refreshedAuthenticatedMember,
+                        member = refreshedCurrentMember,
+                        members = allMembers,
+                    ),
+                )
+            }
+        }
+    }
+
     private fun updateMember(
         mode: SessionMode.Authorized,
         target: Member,
         onSuccessState: (SessionUiState) -> SessionUiState = { it },
+        onSuccess: () -> Unit = {},
     ) {
         scope.launch {
             val updatedMember = try {
@@ -141,6 +199,7 @@ internal class SessionMemberActions(
                     ),
                 )
             }
+            onSuccess()
         }
     }
 
@@ -155,5 +214,19 @@ internal class SessionMemberActions(
     private fun buildMemberId(normalizedEmail: String): String {
         val suffix = normalizedEmail.replace("[^a-z0-9]+".toRegex(), "_").trim('_').ifBlank { "member" }
         return "member_${suffix.take(40)}"
+    }
+
+    private fun normalizeCompanyName(
+        draft: MemberDraft,
+        roles: Set<MemberRole>,
+    ): String? {
+        if (!roles.contains(MemberRole.PRODUCER)) {
+            return null
+        }
+        return draft.companyName.trim().ifBlank { null }
+    }
+
+    private fun normalizePhoneNumber(draft: MemberDraft): String? {
+        return draft.phoneNumber.trim().ifBlank { null }
     }
 }

@@ -84,12 +84,17 @@ final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
     func upsert(member: Member) async -> Member {
         let payload: [String: Any] = [
             "displayName": member.displayName,
+            "companyName": member.companyName ?? FieldValue.delete(),
+            "phoneNumber": member.phoneNumber ?? FieldValue.delete(),
             "normalizedEmail": member.normalizedEmail,
             "email": FieldValue.delete(),
             "emailNormalized": FieldValue.delete(),
             "authUid": member.authUid as Any,
             "roles": member.roles.map(\.rawValue),
+            "isProducer": member.roles.contains(.producer),
+            "isAdmin": member.roles.contains(.admin),
             "isActive": member.isActive,
+            "available": member.isActive,
             "producerCatalogEnabled": member.producerCatalogEnabled,
             "isCommonPurchaseManager": member.isCommonPurchaseManager,
         ]
@@ -115,34 +120,51 @@ final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
     }
 
     private static func mapMember(id: String, data: [String: Any]) -> Member? {
-        guard let displayName = data["displayName"] as? String else {
+        let displayName = normalizedOptionalString(
+            data,
+            keys: ["displayName"]
+        ) ?? combinedName(
+            firstName: normalizedOptionalString(data, keys: ["name"]),
+            lastName: normalizedOptionalString(data, keys: ["surname"])
+        )
+        guard let displayName else {
             return nil
         }
 
-        let normalizedEmail = (data["normalizedEmail"] as? String)
-            ?? (data["emailNormalized"] as? String)
-            ?? (data["email"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let normalizedEmail = normalizedOptionalString(
+            data,
+            keys: ["normalizedEmail", "emailNormalized", "email"]
+        )?.lowercased()
         guard let normalizedEmail else {
             return nil
         }
-        let authUid = normalizedOptionalString(data["authUid"])
-        let isActive = (data["isActive"] as? Bool) ?? true
+        let authUid = normalizedOptionalString(data, keys: ["authUid"])
+        let companyName = normalizedOptionalString(data, keys: ["companyName", "company_name", "company"])
+        let phoneNumber = normalizedOptionalString(data, keys: ["phoneNumber", "phone", "telephone", "telefono"])
+        let isActive = (data["isActive"] as? Bool) ?? (data["available"] as? Bool) ?? true
         let producerCatalogEnabled = (data["producerCatalogEnabled"] as? Bool) ?? true
         let isCommonPurchaseManager = (data["isCommonPurchaseManager"] as? Bool) ?? false
-        let producerParity = normalizedOptionalString(data["producerParity"])
+        let producerParity = normalizedOptionalString(data, keys: ["producerParity"])
             .flatMap(ProducerParity.init(rawValue:))
         let ecoCommitment = data["ecoCommitment"] as? [String: Any]
-        let ecoCommitmentMode = normalizedOptionalString(ecoCommitment?["mode"])
+        let ecoCommitmentMode = normalizedOptionalString(ecoCommitment, keys: ["mode"])
             .flatMap(EcoCommitmentMode.init(rawValue:)) ?? .weekly
-        let ecoCommitmentParity = normalizedOptionalString(ecoCommitment?["parity"])
+        let ecoCommitmentParity = normalizedOptionalString(ecoCommitment, keys: ["parity"])
             .flatMap(ProducerParity.init(rawValue:))
-        let rawRoles = (data["roles"] as? [String]) ?? ["member"]
-        let parsedRoles = Set(rawRoles.compactMap(MemberRole.init(rawValue:)))
-        let roles = parsedRoles.isEmpty ? Set([MemberRole.member]) : parsedRoles
+        let rawRoles = (data["roles"] as? [String]) ?? []
+        let parsedRoles = Set(rawRoles.compactMap(legacyCompatibleRole(from:)))
+        let roles = parsedRoles.isEmpty
+            ? legacyRoles(
+                isProducer: (data["isProducer"] as? Bool) ?? false,
+                isAdmin: (data["isAdmin"] as? Bool) ?? false
+            )
+            : parsedRoles
 
         return Member(
             id: id,
             displayName: displayName,
+            companyName: companyName,
+            phoneNumber: phoneNumber,
             normalizedEmail: normalizedEmail,
             authUid: authUid,
             roles: roles,
@@ -155,11 +177,51 @@ final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
         )
     }
 
-    private static func normalizedOptionalString(_ value: Any?) -> String? {
-        guard let string = value as? String else {
+    private static func normalizedOptionalString(_ data: [String: Any]?, keys: [String]) -> String? {
+        guard let data else { return nil }
+        for key in keys {
+            guard let string = data[key] as? String else {
+                continue
+            }
+            let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                return trimmed
+            }
+        }
+        return nil
+    }
+
+    private static func legacyCompatibleRole(from rawValue: String) -> MemberRole? {
+        let normalized = rawValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        switch normalized {
+        case "member", "socio":
+            return .member
+        case "producer", "productor":
+            return .producer
+        case "admin", "administrador":
+            return .admin
+        default:
             return nil
         }
-        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private static func legacyRoles(isProducer: Bool, isAdmin: Bool) -> Set<MemberRole> {
+        var roles: Set<MemberRole> = [.member]
+        if isProducer {
+            roles.insert(.producer)
+        }
+        if isAdmin {
+            roles.insert(.admin)
+        }
+        return roles
+    }
+
+    private static func combinedName(firstName: String?, lastName: String?) -> String? {
+        let nameParts: [String] = [firstName, lastName].compactMap { (part: String?) -> String? in
+            guard let part, !part.isEmpty else { return nil }
+            return part
+        }
+        let combined = nameParts.joined(separator: " ")
+        return combined.isEmpty ? nil : combined
     }
 }

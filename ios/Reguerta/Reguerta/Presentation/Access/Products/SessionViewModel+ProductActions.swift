@@ -204,12 +204,17 @@ extension SessionViewModel {
                 member: Member(
                     id: session.member.id,
                     displayName: session.member.displayName,
+                    companyName: session.member.companyName,
+                    phoneNumber: session.member.phoneNumber,
                     normalizedEmail: session.member.normalizedEmail,
                     authUid: session.member.authUid,
                     roles: session.member.roles,
                     isActive: session.member.isActive,
                     producerCatalogEnabled: isEnabled,
-                    isCommonPurchaseManager: session.member.isCommonPurchaseManager
+                    isCommonPurchaseManager: session.member.isCommonPurchaseManager,
+                    producerParity: session.member.producerParity,
+                    ecoCommitmentMode: session.member.ecoCommitmentMode,
+                    ecoCommitmentParity: session.member.ecoCommitmentParity
                 )
             )
             let members = await repository.allMembers()

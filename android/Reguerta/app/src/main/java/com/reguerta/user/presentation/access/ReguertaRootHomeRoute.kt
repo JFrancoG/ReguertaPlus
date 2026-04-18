@@ -99,6 +99,7 @@ internal fun HomeRoute(
     onToggleAdmin: (String) -> Unit,
     onToggleActive: (String) -> Unit,
     onCreateMember: () -> Unit,
+    onSaveMemberDraft: (String?, onSuccess: () -> Unit) -> Unit,
     onStartCreatingNews: () -> Unit,
     onStartCreatingNotification: () -> Unit,
     onStartCreatingProduct: () -> Unit,
@@ -115,6 +116,7 @@ internal fun HomeRoute(
     onRefreshProducts: () -> Unit,
     onRefreshMyOrderProducts: () -> Unit,
     onRefreshSharedProfiles: () -> Unit,
+    onRefreshMembers: () -> Unit,
     onRefreshShifts: () -> Unit,
     onRefreshDeliveryCalendar: () -> Unit,
     onClearNewsEditor: () -> Unit,
@@ -182,6 +184,8 @@ internal fun HomeRoute(
                             onRefreshProducts()
                         } else if (destination == HomeDestination.PROFILE) {
                             onRefreshSharedProfiles()
+                        } else if (destination == HomeDestination.USERS) {
+                            onRefreshMembers()
                         } else if (destination == HomeDestination.SHIFTS) {
                             onRefreshShifts()
                         } else if (destination == HomeDestination.SHIFT_SWAP_REQUEST) {
@@ -210,7 +214,8 @@ internal fun HomeRoute(
     ) {
         val usesRouteScroll =
             currentDestination != HomeDestination.MY_ORDER &&
-                currentDestination != HomeDestination.RECEIVED_ORDERS
+                currentDestination != HomeDestination.RECEIVED_ORDERS &&
+                currentDestination != HomeDestination.USERS
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -505,6 +510,16 @@ internal fun HomeRoute(
                     onSaveDeliveryCalendarOverride = onSaveDeliveryCalendarOverride,
                     onDeleteDeliveryCalendarOverride = onDeleteDeliveryCalendarOverride,
                     onSubmitShiftPlanningRequest = onSubmitShiftPlanningRequest,
+                    )
+
+                    HomeDestination.USERS -> UsersRoute(
+                    currentMember = member,
+                    members = (mode as? SessionMode.Authorized)?.members.orEmpty(),
+                    draft = draft,
+                    onDraftChanged = onDraftChanged,
+                    onSaveMemberDraft = onSaveMemberDraft,
+                    onRefreshMembers = onRefreshMembers,
+                    onToggleActive = onToggleActive,
                     )
 
                     else -> HomePlaceholderRoute(

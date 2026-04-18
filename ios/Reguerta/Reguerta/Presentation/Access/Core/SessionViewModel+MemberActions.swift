@@ -2,6 +2,13 @@ import Foundation
 
 extension SessionViewModel {
     func createAuthorizedMember() {
+        saveMemberDraft(editingMemberId: nil)
+    }
+
+    func saveMemberDraft(
+        editingMemberId: String?,
+        onSuccess: @escaping () -> Void = {}
+    ) {
         guard case .authorized(let session) = mode else {
             return
         }
@@ -22,26 +29,64 @@ extension SessionViewModel {
             feedbackMessageKey = AccessL10nKey.feedbackSelectRole
             return
         }
+        if roles.contains(.producer) && memberDraft.companyName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            feedbackMessageKey = AccessL10nKey.feedbackProducerCompanyRequired
+            return
+        }
 
-        if session.members.contains(where: { $0.normalizedEmail == normalizedEmail }) {
+        if session.members.contains(where: {
+            $0.normalizedEmail == normalizedEmail && $0.id != editingMemberId
+        }) {
             feedbackMessageKey = AccessL10nKey.feedbackMemberExists
             return
         }
 
-        let member = Member(
-            id: buildMemberId(from: normalizedEmail),
-            displayName: memberDraft.displayName.trimmingCharacters(in: .whitespacesAndNewlines),
-            normalizedEmail: normalizedEmail,
-            authUid: nil,
-            roles: roles,
-            isActive: memberDraft.isActive,
-            producerCatalogEnabled: true,
-            isCommonPurchaseManager: false
-        )
+        let member: Member
+        if let editingMemberId {
+            guard let existing = session.members.first(where: { $0.id == editingMemberId }) else {
+                return
+            }
+            member = Member(
+                id: existing.id,
+                displayName: memberDraft.displayName.trimmingCharacters(in: .whitespacesAndNewlines),
+                companyName: normalizedCompanyName(from: memberDraft, roles: roles),
+                phoneNumber: normalizedPhoneNumber(from: memberDraft),
+                normalizedEmail: normalizedEmail,
+                authUid: existing.authUid,
+                roles: roles,
+                isActive: memberDraft.isActive,
+                producerCatalogEnabled: existing.producerCatalogEnabled,
+                isCommonPurchaseManager: memberDraft.isCommonPurchaseManager,
+                producerParity: existing.producerParity,
+                ecoCommitmentMode: existing.ecoCommitmentMode,
+                ecoCommitmentParity: existing.ecoCommitmentParity
+            )
+        } else {
+            let newId = buildMemberId(from: normalizedEmail)
+            if session.members.contains(where: { $0.id == newId }) {
+                feedbackMessageKey = AccessL10nKey.feedbackMemberExists
+                return
+            }
+            member = Member(
+                id: newId,
+                displayName: memberDraft.displayName.trimmingCharacters(in: .whitespacesAndNewlines),
+                companyName: normalizedCompanyName(from: memberDraft, roles: roles),
+                phoneNumber: normalizedPhoneNumber(from: memberDraft),
+                normalizedEmail: normalizedEmail,
+                authUid: nil,
+                roles: roles,
+                isActive: memberDraft.isActive,
+                producerCatalogEnabled: true,
+                isCommonPurchaseManager: memberDraft.isCommonPurchaseManager
+            )
+        }
 
         Task { @MainActor in
-            await persistMember(target: member, session: session)
-            memberDraft = MemberDraft()
+            let saved = await persistMember(target: member, session: session)
+            if saved {
+                memberDraft = MemberDraft()
+                onSuccess()
+            }
         }
     }
 
@@ -70,12 +115,17 @@ extension SessionViewModel {
         let updated = Member(
             id: target.id,
             displayName: target.displayName,
+            companyName: target.companyName,
+            phoneNumber: target.phoneNumber,
             normalizedEmail: target.normalizedEmail,
             authUid: target.authUid,
             roles: roles,
             isActive: target.isActive,
             producerCatalogEnabled: target.producerCatalogEnabled,
-            isCommonPurchaseManager: target.isCommonPurchaseManager
+            isCommonPurchaseManager: target.isCommonPurchaseManager,
+            producerParity: target.producerParity,
+            ecoCommitmentMode: target.ecoCommitmentMode,
+            ecoCommitmentParity: target.ecoCommitmentParity
         )
 
         Task { @MainActor in
@@ -98,12 +148,17 @@ extension SessionViewModel {
         let updated = Member(
             id: target.id,
             displayName: target.displayName,
+            companyName: target.companyName,
+            phoneNumber: target.phoneNumber,
             normalizedEmail: target.normalizedEmail,
             authUid: target.authUid,
             roles: target.roles,
             isActive: !target.isActive,
             producerCatalogEnabled: target.producerCatalogEnabled,
-            isCommonPurchaseManager: target.isCommonPurchaseManager
+            isCommonPurchaseManager: target.isCommonPurchaseManager,
+            producerParity: target.producerParity,
+            ecoCommitmentMode: target.ecoCommitmentMode,
+            ecoCommitmentParity: target.ecoCommitmentParity
         )
 
         Task { @MainActor in
@@ -111,7 +166,28 @@ extension SessionViewModel {
         }
     }
 
-    private func persistMember(target: Member, session: AuthorizedSession) async {
+    func refreshMembers() {
+        guard case .authorized(let session) = mode else {
+            return
+        }
+
+        Task { @MainActor in
+            let members = await repository.allMembers()
+            let refreshedCurrent = members.first(where: { $0.id == session.member.id }) ?? session.member
+            let refreshedAuthenticated = members.first(where: { $0.id == session.authenticatedMember.id })
+                ?? session.authenticatedMember
+            mode = .authorized(
+                AuthorizedSession(
+                    principal: session.principal,
+                    authenticatedMember: refreshedAuthenticated,
+                    member: refreshedCurrent,
+                    members: members
+                )
+            )
+        }
+    }
+
+    private func persistMember(target: Member, session: AuthorizedSession) async -> Bool {
         do {
             let updated = try await upsertMemberByAdmin.execute(
                 actorAuthUid: session.principal.uid,
@@ -128,6 +204,7 @@ extension SessionViewModel {
                     members: members
                 )
             )
+            return true
         } catch MemberManagementError.accessDenied {
             feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminManageMembers
         } catch MemberManagementError.lastAdminRemoval {
@@ -135,6 +212,7 @@ extension SessionViewModel {
         } catch {
             feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
         }
+        return false
     }
 
     private func buildRoles(from draft: MemberDraft) -> Set<MemberRole> {
@@ -151,5 +229,18 @@ extension SessionViewModel {
             .trimmingCharacters(in: CharacterSet(charactersIn: "_"))
         let suffix = sanitized.isEmpty ? "member" : String(sanitized.prefix(40))
         return "member_\(suffix)"
+    }
+
+    private func normalizedCompanyName(from draft: MemberDraft, roles: Set<MemberRole>) -> String? {
+        guard roles.contains(.producer) else {
+            return nil
+        }
+        let trimmed = draft.companyName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private func normalizedPhoneNumber(from draft: MemberDraft) -> String? {
+        let trimmed = draft.phoneNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }

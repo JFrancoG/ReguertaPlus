@@ -14,6 +14,7 @@ actor InMemoryMemberRepository: MemberRepository {
         "member_producer_001": Member(
             id: "member_producer_001",
             displayName: "Pablo Productor",
+            companyName: "Riscos Altos",
             normalizedEmail: "pablo.producer@reguerta.app",
             authUid: nil,
             roles: [.member, .producer],
@@ -50,11 +51,17 @@ actor InMemoryMemberRepository: MemberRepository {
         let updated = Member(
             id: existing.id,
             displayName: existing.displayName,
+            companyName: existing.companyName,
+            phoneNumber: existing.phoneNumber,
             normalizedEmail: existing.normalizedEmail,
             authUid: authUid,
             roles: existing.roles,
             isActive: existing.isActive,
-            producerCatalogEnabled: existing.producerCatalogEnabled
+            producerCatalogEnabled: existing.producerCatalogEnabled,
+            isCommonPurchaseManager: existing.isCommonPurchaseManager,
+            producerParity: existing.producerParity,
+            ecoCommitmentMode: existing.ecoCommitmentMode,
+            ecoCommitmentParity: existing.ecoCommitmentParity
         )
         members[memberId] = updated
         return updated

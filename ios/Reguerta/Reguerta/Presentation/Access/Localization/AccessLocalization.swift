@@ -167,6 +167,7 @@ enum AccessL10nKey {
     static let feedbackPasswordMismatch = "feedback.password_mismatch"
     static let feedbackOnlyAdminCreate = "feedback.only_admin_create"
     static let feedbackDisplayNameEmailRequired = "feedback.display_name_email_required"
+    static let feedbackProducerCompanyRequired = "feedback.producer_company_required"
     static let feedbackMemberExists = "feedback.member_exists"
     static let feedbackSelectRole = "feedback.select_role"
     static let feedbackOnlyAdminEditRoles = "feedback.only_admin_edit_roles"

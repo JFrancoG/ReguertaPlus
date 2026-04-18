@@ -3,6 +3,8 @@ import Foundation
 struct Member: Identifiable, Equatable, Sendable {
     let id: String
     let displayName: String
+    let companyName: String?
+    let phoneNumber: String?
     let normalizedEmail: String
     let authUid: String?
     let roles: Set<MemberRole>
@@ -16,6 +18,8 @@ struct Member: Identifiable, Equatable, Sendable {
     nonisolated init(
         id: String,
         displayName: String,
+        companyName: String? = nil,
+        phoneNumber: String? = nil,
         normalizedEmail: String,
         authUid: String?,
         roles: Set<MemberRole>,
@@ -28,6 +32,8 @@ struct Member: Identifiable, Equatable, Sendable {
     ) {
         self.id = id
         self.displayName = displayName
+        self.companyName = companyName
+        self.phoneNumber = phoneNumber
         self.normalizedEmail = normalizedEmail
         self.authUid = authUid
         self.roles = roles
