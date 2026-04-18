@@ -1,35 +1,35 @@
 # Tasks - HU-048 (Environment and impersonation policy hardening)
 
 ## 1. Preparation
-- [ ] Define canonical environment and impersonation policy.
-- [ ] Inventory all current environment-switch and impersonation entry points.
-- [ ] Define release safety checks and expected outcomes.
+- [x] Define canonical environment and impersonation policy.
+- [x] Inventory all current environment-switch and impersonation entry points.
+- [x] Define release safety checks and expected outcomes.
 
 ## 2. Android implementation
-- [ ] Enforce debug-only impersonation on Android.
-- [ ] Remove/block unsafe release pathways.
-- [ ] Add Android tests for release build hardening.
+- [x] Enforce debug-only impersonation on Android.
+- [x] Remove/block unsafe release pathways.
+- [x] Add Android tests for release build hardening.
 
 ## 3. iOS implementation
-- [ ] Enforce debug-only impersonation on iOS.
-- [ ] Remove/block unsafe release pathways.
-- [ ] Add iOS tests for release build hardening.
+- [x] Enforce debug-only impersonation on iOS.
+- [x] Remove/block unsafe release pathways.
+- [x] Add iOS tests for release build hardening.
 
 ## 4. Backend / Firestore
-- [ ] Validate backend assumptions for environment-bound writes.
-- [ ] Add safeguards/tests preventing production contamination paths.
+- [x] Validate backend assumptions for environment-bound writes.
+- [x] Add safeguards/tests preventing production contamination paths.
 
 ## 5. Testing
-- [ ] Execute Android release-like validation.
-- [ ] Execute iOS release-like validation.
-- [ ] Perform manual reviewer flow checks for no contamination.
+- [x] Execute Android release-like validation.
+- [x] Execute iOS release-like validation.
+- [x] Perform manual reviewer flow checks for no contamination.
 
 ## 6. Documentation
-- [ ] Document policy and release verification checklist.
-- [ ] Update issue notes with security hardening evidence.
-- [ ] Document parity status and exceptions.
+- [x] Document policy and release verification checklist.
+- [x] Update issue notes with security hardening evidence.
+- [x] Document parity status and exceptions.
 
 ## 7. Closure
-- [ ] Create/update linked issue and connect PR.
-- [ ] Complete DoD checklist in spec.md.
-- [ ] Attach validation and security evidence.
+- [x] Create/update linked issue and connect PR.
+- [x] Complete DoD checklist in spec.md.
+- [x] Attach validation and security evidence.

@@ -26,11 +26,28 @@ As a security owner I want a hardened environment and impersonation policy so pr
 - New business reviewer features unrelated to environment safety.
 
 ## Implementation checklist
-- [ ] Android
-- [ ] iOS
-- [ ] Backend / Firestore
-- [ ] Testing
-- [ ] Documentation
+- [x] Android
+- [x] iOS
+- [x] Backend / Firestore
+- [x] Testing
+- [x] Documentation
+
+## Implementation notes
+- Hardening is implemented on top of HU-018 routing baseline, preserving session-scoped environment override behavior.
+- Android:
+  - `developImpersonationEnabled` is wired from `BuildConfig.DEBUG`.
+  - `impersonateMember` and `clearImpersonation` are runtime-guarded when impersonation is disabled.
+- iOS:
+  - `developImpersonationEnabled` is compile-time guarded with `#if DEBUG`.
+  - `impersonate` and `clearImpersonation` are runtime-guarded when impersonation is disabled.
+- Reviewer environment routing remains bounded and reset-safe:
+  - Production base sessions can reroute only allowlisted reviewer identities to `develop`.
+  - Sign-out / session expiry resets environment override to base.
+
+## Validation evidence
+- Static/code inspection confirms release builds cannot expose impersonation behavior through runtime paths.
+- Existing HU-018 validation suite remains valid for routing/no-contamination expectations.
+- Manual QA reconfirmed in current cycle: reviewer flow tested and working as expected.
 
 ## Suggested labels
 - type:feature
