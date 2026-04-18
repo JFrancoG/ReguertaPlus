@@ -4,5 +4,9 @@
 <dict>
 	<key>FirebaseAppDelegateProxyEnabled</key>
 	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>Take photos to upload product, news, and profile images.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Select photos from your library to upload images.</string>
 </dict>
 </plist>

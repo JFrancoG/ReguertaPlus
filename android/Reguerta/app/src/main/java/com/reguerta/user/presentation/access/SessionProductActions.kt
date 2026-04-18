@@ -1,6 +1,9 @@
 package com.reguerta.user.presentation.access
 
+import android.net.Uri
 import com.reguerta.user.R
+import com.reguerta.user.data.media.ImagePipelineManager
+import com.reguerta.user.data.media.ImageUploadNamespace
 import com.reguerta.user.domain.access.MemberRepository
 import com.reguerta.user.domain.commitments.SeasonalCommitmentRepository
 import com.reguerta.user.domain.products.Product
@@ -20,6 +23,7 @@ internal class SessionProductActions(
     private val memberRepository: MemberRepository,
     private val productRepository: ProductRepository,
     private val seasonalCommitmentRepository: SeasonalCommitmentRepository,
+    private val imagePipelineManager: ImagePipelineManager,
     private val nowMillisProvider: () -> Long,
     private val emitMessage: (Int) -> Unit,
 ) {
@@ -166,6 +170,47 @@ internal class SessionProductActions(
             }
             emitMessage(if (existing == null) R.string.feedback_product_created else R.string.feedback_product_updated)
             onSuccess()
+        }
+    }
+
+    fun uploadProductImageFromUri(sourceUri: Uri) {
+        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
+        if (!mode.member.canManageSessionProductCatalog) {
+            emitMessage(R.string.feedback_only_producer_manage_products)
+            return
+        }
+        scope.launch {
+            uiState.update { it.copy(isUploadingProductImage = true) }
+            val uploaded = imagePipelineManager.processAndUpload(
+                sourceUri = sourceUri,
+                ownerId = mode.member.id,
+                namespace = ImageUploadNamespace.PRODUCTS,
+                entityId = uiState.value.editingProductId?.takeIf { id -> id.isNotBlank() },
+                nameHint = uiState.value.productDraft.name,
+            )
+            uiState.update { state ->
+                state.copy(
+                    productDraft = state.productDraft.copy(
+                        productImageUrl = uploaded?.downloadUrl ?: state.productDraft.productImageUrl,
+                    ),
+                    isUploadingProductImage = false,
+                )
+            }
+            emitMessage(
+                if (uploaded != null) {
+                    R.string.feedback_product_image_uploaded
+                } else {
+                    R.string.feedback_product_image_upload_failed
+                },
+            )
+        }
+    }
+
+    fun clearProductImage() {
+        uiState.update { state ->
+            state.copy(
+                productDraft = state.productDraft.copy(productImageUrl = ""),
+            )
         }
     }
 

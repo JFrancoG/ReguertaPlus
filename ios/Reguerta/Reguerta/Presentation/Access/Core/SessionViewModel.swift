@@ -211,6 +211,7 @@ final class SessionViewModel {
     var isLoadingProducts = false
     var isLoadingMyOrderProducts = false
     var isSavingProduct = false
+    var isUploadingProductImage = false
     var isUpdatingProducerCatalogVisibility = false
     var isLoadingSharedProfiles = false
     var isSavingSharedProfile = false
@@ -227,6 +228,7 @@ final class SessionViewModel {
     let newsRepository: any NewsRepository
     let notificationRepository: any NotificationRepository
     let productRepository: any ProductRepository
+    let imagePipelineManager: any ImagePipelineManager
     let seasonalCommitmentRepository: any SeasonalCommitmentRepository
     let sharedProfileRepository: any SharedProfileRepository
     let shiftRepository: any ShiftRepository
@@ -287,6 +289,7 @@ final class SessionViewModel {
         deliveryCalendarRepository: (any DeliveryCalendarRepository)? = nil,
         shiftPlanningRequestRepository: (any ShiftPlanningRequestRepository)? = nil,
         shiftSwapRequestRepository: (any ShiftSwapRequestRepository)? = nil,
+        imagePipelineManager: (any ImagePipelineManager)? = nil,
         authSessionProvider: (any AuthSessionProvider)? = nil,
         resolveAuthorizedSession: ResolveAuthorizedSessionUseCase? = nil,
         upsertMemberByAdmin: UpsertMemberByAdminUseCase? = nil,
@@ -309,6 +312,7 @@ final class SessionViewModel {
         self.newsRepository = defaults.newsRepository
         self.notificationRepository = defaults.notificationRepository
         self.productRepository = defaults.productRepository
+        self.imagePipelineManager = imagePipelineManager ?? defaults.imagePipelineManager
         self.seasonalCommitmentRepository = defaults.seasonalCommitmentRepository
         self.sharedProfileRepository = selectedSharedProfileRepository
         self.shiftRepository = defaults.shiftRepository
@@ -352,6 +356,7 @@ private struct SessionViewModelDefaultDependencies {
     let newsRepository: any NewsRepository
     let notificationRepository: any NotificationRepository
     let productRepository: any ProductRepository
+    let imagePipelineManager: any ImagePipelineManager
     let seasonalCommitmentRepository: any SeasonalCommitmentRepository
     let sharedProfileRepository: any SharedProfileRepository
     let shiftRepository: any ShiftRepository
@@ -386,6 +391,7 @@ private extension SessionViewModel {
                 primary: FirestoreProductRepository(),
                 fallback: InMemoryProductRepository()
             ),
+            imagePipelineManager: FirebaseImagePipelineManager(),
             seasonalCommitmentRepository: ChainedSeasonalCommitmentRepository(
                 primary: FirestoreSeasonalCommitmentRepository(),
                 fallback: InMemorySeasonalCommitmentRepository()

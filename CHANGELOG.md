@@ -37,6 +37,7 @@ All notable changes to this project will be documented in this file.
 - 2026-04-17 | ✨ feat(orders): harden producer status security contract (HU-045)
 - 2026-04-17 | ✨ feat(functions): add HU-046 reminder retries
 - 2026-04-18 | ✨ feat(access): implement admin users management
+- 2026-04-18 | ✨ feat(media): add shared image pipeline and naming
 
 ### Fixed
 
@@ -59,6 +60,7 @@ All notable changes to this project will be documented in this file.
 - 2026-04-17 | 📝 docs(admin): finalize HU-010 closure checklists and links
 - 2026-04-17 | 📝 docs(spec): add HU-044..HU-049 specs and issue links
 - 2026-04-18 | 📝 docs(reviewer): close HU-048 hardening checklist
+- 2026-04-18 | 📝 docs(spec): align HU-019 planning artifacts
 
 ### Maintenance
 

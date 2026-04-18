@@ -15,6 +15,14 @@ As a producer I want to pick/crop/upload a product image from the product form s
 - Selected image is processed and uploaded to Storage.
 - Saved product keeps valid image URL.
 
+## Agreed technical constraints
+- Image processing must be deterministic and shared by Android/iOS:
+  - shortest side resized to `300 px`,
+  - aspect ratio preserved,
+  - centered crop on long side to final `300 x 300`,
+  - output compression/quality policy applied before upload.
+- Processing/upload flow must be exposed through a reusable manager (multi-screen ready), not as form-only logic.
+
 ## Scope
 ### In Scope
 - Implement story HU-025 within MVP scope.

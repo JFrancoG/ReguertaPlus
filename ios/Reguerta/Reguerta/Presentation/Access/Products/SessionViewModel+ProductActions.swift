@@ -88,6 +88,7 @@ extension SessionViewModel {
         }
         productDraft = ProductDraft()
         editingProductId = ""
+        isUploadingProductImage = false
     }
 
     func startEditingProduct(productId: String) {
@@ -99,12 +100,47 @@ extension SessionViewModel {
         guard let product = productsFeed.first(where: { $0.id == productId }) else { return }
         productDraft = product.toDraft()
         editingProductId = product.id
+        isUploadingProductImage = false
     }
 
     func clearProductEditor() {
         productDraft = ProductDraft()
         editingProductId = nil
         isSavingProduct = false
+        isUploadingProductImage = false
+    }
+
+    func uploadProductImage(_ imageData: Data) {
+        guard case .authorized(let session) = mode else { return }
+        guard session.member.canManageProductCatalog else {
+            feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
+            return
+        }
+        isUploadingProductImage = true
+        let entityId = editingProductId?.isEmpty == false ? editingProductId : nil
+        Task { @MainActor in
+            do {
+                let uploaded = try await imagePipelineManager.processAndUpload(
+                    imageData: imageData,
+                    request: ImageUploadRequest(
+                        ownerId: session.member.id,
+                        namespace: .products,
+                        entityId: entityId,
+                        nameHint: productDraft.name
+                    )
+                )
+                productDraft.productImageUrl = uploaded.downloadURL
+            } catch {
+                feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
+            }
+            isUploadingProductImage = false
+        }
+    }
+
+    func clearProductImage() {
+        updateProductDraft { draft in
+            draft.productImageUrl = ""
+        }
     }
 
     func saveProduct(onSuccess: @escaping @MainActor () -> Void = {}) {
@@ -113,6 +149,7 @@ extension SessionViewModel {
             feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
             return
         }
+        guard !isUploadingProductImage else { return }
         guard let saveInput = resolveProductSaveInput(
             existingProductId: editingProductId,
             nowMillis: nowMillisProvider()

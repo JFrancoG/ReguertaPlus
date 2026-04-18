@@ -5,6 +5,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 import com.reguerta.user.BuildConfig
 import com.reguerta.user.data.access.ChainedMemberRepository
 import com.reguerta.user.data.access.FirebaseAuthSessionProvider
@@ -21,6 +22,7 @@ import com.reguerta.user.data.devices.FirestoreDeviceRegistrationRepository
 import com.reguerta.user.data.freshness.DataStoreCriticalDataFreshnessLocalRepository
 import com.reguerta.user.data.freshness.FirestoreCriticalDataFreshnessRemoteRepository
 import com.reguerta.user.data.firestore.FirestoreReviewerEnvironmentRouter
+import com.reguerta.user.data.media.FirebaseImagePipelineManager
 import com.reguerta.user.data.news.ChainedNewsRepository
 import com.reguerta.user.data.news.FirestoreNewsRepository
 import com.reguerta.user.data.news.InMemoryNewsRepository
@@ -116,6 +118,12 @@ fun rememberSessionViewModel(): SessionViewModel {
     val reviewerEnvironmentRouter = remember(firestore) {
         FirestoreReviewerEnvironmentRouter(firestore = firestore)
     }
+    val imagePipelineManager = remember(context.applicationContext) {
+        FirebaseImagePipelineManager(
+            context = context.applicationContext,
+            storage = FirebaseStorage.getInstance(),
+        )
+    }
     return remember {
         SessionViewModel(
             repository = repository,
@@ -123,6 +131,7 @@ fun rememberSessionViewModel(): SessionViewModel {
             notificationRepository = notificationRepository,
             productRepository = productRepository,
             seasonalCommitmentRepository = seasonalCommitmentRepository,
+            imagePipelineManager = imagePipelineManager,
             sharedProfileRepository = sharedProfileRepository,
             shiftRepository = shiftRepository,
             deliveryCalendarRepository = deliveryCalendarRepository,

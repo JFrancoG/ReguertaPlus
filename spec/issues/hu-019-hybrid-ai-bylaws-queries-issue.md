@@ -14,6 +14,12 @@ As a member I want fast bylaws answers so that I can resolve questions quickly.
 - Regular questions are answered locally.
 - Complex questions can escalate to cloud mode.
 
+## Agreed implementation direction
+- Local-first routing is mandatory.
+- Escalation to cloud must follow explicit policy (confidence/coverage/complexity).
+- Cloud calls must be bounded by timeout and have safe fallback messaging.
+- Android and iOS must expose equivalent user-visible states (local answer, cloud answer, fallback).
+
 ## Scope
 ### In Scope
 - Implement story HU-019 within MVP scope.

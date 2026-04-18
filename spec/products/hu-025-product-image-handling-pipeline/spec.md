@@ -18,8 +18,9 @@ As a producer I want to pick/crop/upload a product image from the product form s
 
 ### In Scope
 - Image pick from device.
-- Crop/resize before upload.
+- Standardized crop/resize pipeline before upload.
 - Upload to Firebase Storage and persist URL in product.
+- Reusable image pipeline manager usable from multiple screens (not only product form).
 
 ### Out of Scope
 - Advanced image editing features.
@@ -32,6 +33,12 @@ As a producer I want to pick/crop/upload a product image from the product form s
 
 - Producer can select an image in product create/edit flow.
 - Selected image is processed and uploaded to Storage.
+- Image processing is deterministic and shared:
+  - Resize so the shortest side becomes exactly `300 px`.
+  - Keep aspect ratio for the long side.
+  - Perform centered crop on the long side to get final `300 x 300`.
+  - Apply output compression/quality policy before upload.
+- Processing/upload is orchestrated by a reusable manager interface used by more than one UI route.
 - Saved product keeps valid image URL.
 
 ## Dependencies
@@ -45,6 +52,8 @@ As a producer I want to pick/crop/upload a product image from the product form s
 
 - Risk: upload failures and broken image URLs.
   - Mitigation: upload error handling and rollback-safe save flow.
+- Risk: divergent image outputs between Android and iOS.
+  - Mitigation: common algorithm contract (same resize/crop/compression rules) and parity validation with shared fixtures.
 
 ## Definition of Done (DoD)
 
