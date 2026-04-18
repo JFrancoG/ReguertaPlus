@@ -32,6 +32,8 @@ As a member I want fast bylaws answers so that I can resolve questions quickly.
 
 - Regular questions are answered locally.
 - Complex questions can escalate to cloud mode.
+- Escalation decision follows explicit policy (confidence/coverage/intent complexity) and is observable.
+- If cloud mode fails or times out, user receives safe fallback response and guidance.
 
 ## Dependencies
 
@@ -46,6 +48,8 @@ As a member I want fast bylaws answers so that I can resolve questions quickly.
   - Mitigation: validate against linked RFs and acceptance tests.
 - Secondary risk: regression in existing weekly workflows.
   - Mitigation: weekly-window regression tests by role.
+- Additional risk: cloud-cost and latency spikes.
+  - Mitigation: local-first routing, bounded timeout, and usage telemetry.
 
 ## Definition of Done (DoD)
 
