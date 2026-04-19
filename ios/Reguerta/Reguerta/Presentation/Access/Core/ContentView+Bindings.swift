@@ -33,15 +33,6 @@ extension ContentView {
         )
     }
 
-    var newsUrlImageBinding: Binding<String> {
-        Binding(
-            get: { viewModel.newsDraft.urlImage },
-            set: { value in
-                viewModel.updateNewsDraft { $0.urlImage = value }
-            }
-        )
-    }
-
     var newsActiveBinding: Binding<Bool> {
         Binding(
             get: { viewModel.newsDraft.active },

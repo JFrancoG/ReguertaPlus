@@ -6,7 +6,13 @@ struct SharedProfileHubRoute: View {
     @Binding var draft: SharedProfileDraft
     let isLoading: Bool
     let isSaving: Bool
+    let isUploadingImage: Bool
     let isDeleting: Bool
+    let onPickImage: (Data) -> Void
+    let onClearImage: () -> Void
+    let onImageSelectionFailed: () -> Void
+    let onCameraPermissionDenied: () -> Void
+    let onCameraUnavailable: () -> Void
     let onRefresh: () -> Void
     let onSave: (@escaping @MainActor () -> Void) -> Void
     let onDelete: (@escaping @MainActor () -> Void) -> Void
@@ -160,8 +166,18 @@ struct SharedProfileHubRoute: View {
 
                 TextField("", text: $draft.familyNames, prompt: Text(localizedKey(AccessL10nKey.profileSharedFamilyNamesLabel)))
                     .textFieldStyle(.roundedBorder)
-                TextField("", text: $draft.photoUrl, prompt: Text(localizedKey(AccessL10nKey.profileSharedPhotoURLLabel)))
-                    .textFieldStyle(.roundedBorder)
+                ReguertaImagePickerField(
+                    tokens: tokens,
+                    imageURLString: draft.photoUrl,
+                    isUploading: isUploadingImage,
+                    placeholderSystemImage: "person.fill",
+                    subtitleKey: nil,
+                    onPickImageData: onPickImage,
+                    onClearImage: onClearImage,
+                    onImageSelectionFailed: onImageSelectionFailed,
+                    onCameraPermissionDenied: onCameraPermissionDenied,
+                    onCameraUnavailable: onCameraUnavailable
+                )
                 Text(localizedKey(AccessL10nKey.profileSharedAboutLabel))
                     .font(tokens.typography.label)
                     .foregroundStyle(tokens.colors.textSecondary)
@@ -179,7 +195,7 @@ struct SharedProfileHubRoute: View {
                             ? AccessL10nKey.profileSharedActionSave
                             : AccessL10nKey.profileSharedActionCreate)
                     ),
-                    isEnabled: !isSaving,
+                    isEnabled: !isSaving && !isUploadingImage,
                     isLoading: isSaving
                 ) {
                     onSave {

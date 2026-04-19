@@ -109,10 +109,22 @@ extension ContentView {
             tokens: tokens,
             editingNewsId: viewModel.editingNewsId,
             newsTitle: newsTitleBinding,
-            newsUrlImage: newsUrlImageBinding,
+            newsImageURL: viewModel.newsDraft.urlImage,
             newsBody: newsBodyBinding,
             newsActive: newsActiveBinding,
             isSavingNews: viewModel.isSavingNews,
+            isUploadingNewsImage: viewModel.isUploadingNewsImage,
+            onPickNewsImage: viewModel.uploadNewsImage,
+            onClearNewsImage: viewModel.clearNewsImage,
+            onImageSelectionFailed: {
+                viewModel.feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
+            },
+            onCameraPermissionDenied: {
+                viewModel.feedbackMessageKey = AccessL10nKey.feedbackCameraPermissionRequired
+            },
+            onCameraUnavailable: {
+                viewModel.feedbackMessageKey = AccessL10nKey.feedbackCameraUnavailable
+            },
             onSave: {
                 viewModel.saveNews {
                     homeDestination = .news
@@ -208,7 +220,19 @@ extension ContentView {
                 ),
                 isLoading: viewModel.isLoadingSharedProfiles,
                 isSaving: viewModel.isSavingSharedProfile,
+                isUploadingImage: viewModel.isUploadingSharedProfileImage,
                 isDeleting: viewModel.isDeletingSharedProfile,
+                onPickImage: viewModel.uploadSharedProfileImage,
+                onClearImage: viewModel.clearSharedProfileImage,
+                onImageSelectionFailed: {
+                    viewModel.feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
+                },
+                onCameraPermissionDenied: {
+                    viewModel.feedbackMessageKey = AccessL10nKey.feedbackCameraPermissionRequired
+                },
+                onCameraUnavailable: {
+                    viewModel.feedbackMessageKey = AccessL10nKey.feedbackCameraUnavailable
+                },
                 onRefresh: viewModel.refreshSharedProfiles,
                 onSave: viewModel.saveSharedProfile,
                 onDelete: viewModel.deleteSharedProfile,

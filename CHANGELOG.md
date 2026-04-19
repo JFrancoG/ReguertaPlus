@@ -38,6 +38,7 @@ All notable changes to this project will be documented in this file.
 - 2026-04-17 | ✨ feat(functions): add HU-046 reminder retries
 - 2026-04-18 | ✨ feat(access): implement admin users management
 - 2026-04-18 | ✨ feat(media): add shared image pipeline and naming
+- 2026-04-19 | ✨ feat(media): integrate image picker in news and profile
 
 ### Fixed
 

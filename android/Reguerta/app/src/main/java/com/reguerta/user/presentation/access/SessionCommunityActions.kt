@@ -1,6 +1,9 @@
 package com.reguerta.user.presentation.access
 
+import android.net.Uri
 import com.reguerta.user.R
+import com.reguerta.user.data.media.ImagePipelineManager
+import com.reguerta.user.data.media.ImageUploadNamespace
 import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.news.NewsRepository
 import com.reguerta.user.domain.notifications.NotificationEvent
@@ -20,6 +23,7 @@ internal class SessionCommunityActions(
     private val newsRepository: NewsRepository,
     private val notificationRepository: NotificationRepository,
     private val sharedProfileRepository: SharedProfileRepository,
+    private val imagePipelineManager: ImagePipelineManager,
     private val nowMillisProvider: () -> Long,
     private val emitMessage: (Int) -> Unit,
 ) {
@@ -38,6 +42,7 @@ internal class SessionCommunityActions(
                         sharedProfiles = profiles.filter { profile -> profile.hasVisibleContent },
                         sharedProfileDraft = ownProfile?.toDraft() ?: SharedProfileDraft(),
                         isLoadingSharedProfiles = false,
+                        isUploadingSharedProfileImage = false,
                     )
                 }
             }
@@ -47,6 +52,9 @@ internal class SessionCommunityActions(
     fun saveSharedProfile(onSuccess: () -> Unit = {}) {
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
         val draft = uiState.value.sharedProfileDraft.normalized()
+        if (uiState.value.isUploadingSharedProfileImage) {
+            return
+        }
         if (!draft.hasVisibleContent) {
             emitMessage(R.string.feedback_shared_profile_content_required)
             return
@@ -120,6 +128,7 @@ internal class SessionCommunityActions(
                         latestNews = latestActiveNews,
                         newsFeed = visibleNews,
                         isLoadingNews = false,
+                        isUploadingNewsImage = false,
                     )
                 }
             }
@@ -150,6 +159,9 @@ internal class SessionCommunityActions(
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
         if (!mode.member.canPublishNews) {
             emitMessage(R.string.feedback_only_admin_publish_news)
+            return
+        }
+        if (uiState.value.isUploadingNewsImage) {
             return
         }
 
@@ -199,6 +211,79 @@ internal class SessionCommunityActions(
                 },
             )
             onSuccess()
+        }
+    }
+
+    fun uploadNewsImageFromUri(sourceUri: Uri) {
+        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
+        if (!mode.member.canPublishNews) {
+            emitMessage(R.string.feedback_only_admin_publish_news)
+            return
+        }
+        scope.launch {
+            uiState.update { it.copy(isUploadingNewsImage = true) }
+            val currentState = uiState.value
+            val uploaded = imagePipelineManager.processAndUpload(
+                sourceUri = sourceUri,
+                ownerId = mode.member.id,
+                namespace = ImageUploadNamespace.NEWS,
+                entityId = currentState.editingNewsId,
+                nameHint = currentState.newsDraft.title,
+            )
+            if (uploaded == null) {
+                uiState.update { it.copy(isUploadingNewsImage = false) }
+                emitMessage(R.string.feedback_news_image_upload_failed)
+                return@launch
+            }
+            uiState.update {
+                it.copy(
+                    newsDraft = it.newsDraft.copy(urlImage = uploaded.downloadUrl),
+                    isUploadingNewsImage = false,
+                )
+            }
+            emitMessage(R.string.feedback_news_image_uploaded)
+        }
+    }
+
+    fun clearNewsImage() {
+        uiState.update {
+            it.copy(
+                newsDraft = it.newsDraft.copy(urlImage = ""),
+            )
+        }
+    }
+
+    fun uploadSharedProfileImageFromUri(sourceUri: Uri) {
+        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
+        scope.launch {
+            uiState.update { it.copy(isUploadingSharedProfileImage = true) }
+            val uploaded = imagePipelineManager.processAndUpload(
+                sourceUri = sourceUri,
+                ownerId = mode.member.id,
+                namespace = ImageUploadNamespace.SHARED_PROFILES,
+                entityId = mode.member.id,
+                nameHint = mode.member.displayName,
+            )
+            if (uploaded == null) {
+                uiState.update { it.copy(isUploadingSharedProfileImage = false) }
+                emitMessage(R.string.feedback_shared_profile_image_upload_failed)
+                return@launch
+            }
+            uiState.update {
+                it.copy(
+                    sharedProfileDraft = it.sharedProfileDraft.copy(photoUrl = uploaded.downloadUrl),
+                    isUploadingSharedProfileImage = false,
+                )
+            }
+            emitMessage(R.string.feedback_shared_profile_image_uploaded)
+        }
+    }
+
+    fun clearSharedProfileImage() {
+        uiState.update {
+            it.copy(
+                sharedProfileDraft = it.sharedProfileDraft.copy(photoUrl = ""),
+            )
         }
     }
 

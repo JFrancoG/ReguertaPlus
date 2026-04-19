@@ -22,6 +22,7 @@ extension SessionViewModel {
 
         newsDraft = NewsDraft()
         editingNewsId = nil
+        isUploadingNewsImage = false
     }
 
     func startEditingNews(newsId: String) {
@@ -39,12 +40,14 @@ extension SessionViewModel {
             active: article.active
         )
         editingNewsId = article.id
+        isUploadingNewsImage = false
     }
 
     func clearNewsEditor() {
         newsDraft = NewsDraft()
         editingNewsId = nil
         isSavingNews = false
+        isUploadingNewsImage = false
     }
 
     func startCreatingNotification() {
@@ -71,6 +74,7 @@ extension SessionViewModel {
             latestNews = allNews.filter(\.active).prefix(3).map { $0 }
             newsFeed = session.member.canPublishNews ? allNews : allNews.filter(\.active)
             isLoadingNews = false
+            isUploadingNewsImage = false
         }
     }
 
@@ -95,6 +99,7 @@ extension SessionViewModel {
             feedbackMessageKey = AccessL10nKey.feedbackNewsTitleBodyRequired
             return
         }
+        guard !isUploadingNewsImage else { return }
 
         isSavingNews = true
         Task { @MainActor in
@@ -188,6 +193,40 @@ extension SessionViewModel {
             isSendingNotification = false
             feedbackMessageKey = AccessL10nKey.feedbackNotificationSent
             onSuccess()
+        }
+    }
+
+    func uploadNewsImage(_ imageData: Data) {
+        guard case .authorized(let session) = mode else { return }
+        guard session.member.canPublishNews else {
+            feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminPublishNews
+            return
+        }
+
+        isUploadingNewsImage = true
+        let entityId = editingNewsId?.isEmpty == false ? editingNewsId : nil
+        Task { @MainActor in
+            do {
+                let uploaded = try await imagePipelineManager.processAndUpload(
+                    imageData: imageData,
+                    request: ImageUploadRequest(
+                        ownerId: session.member.id,
+                        namespace: .news,
+                        entityId: entityId,
+                        nameHint: newsDraft.title
+                    )
+                )
+                newsDraft.urlImage = uploaded.downloadURL
+            } catch {
+                feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
+            }
+            isUploadingNewsImage = false
+        }
+    }
+
+    func clearNewsImage() {
+        updateNewsDraft { draft in
+            draft.urlImage = ""
         }
     }
 }

@@ -139,6 +139,7 @@ internal class SessionFormActions(
             it.copy(
                 newsDraft = NewsDraft(active = true),
                 editingNewsId = null,
+                isUploadingNewsImage = false,
             )
         }
     }
@@ -159,6 +160,7 @@ internal class SessionFormActions(
                     active = article.active,
                 ),
                 editingNewsId = article.id,
+                isUploadingNewsImage = false,
             )
         }
     }
@@ -169,6 +171,7 @@ internal class SessionFormActions(
                 newsDraft = NewsDraft(),
                 editingNewsId = null,
                 isSavingNews = false,
+                isUploadingNewsImage = false,
             )
         }
     }

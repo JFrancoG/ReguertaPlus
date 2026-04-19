@@ -1,5 +1,6 @@
 package com.reguerta.user.presentation.access
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,6 +10,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -144,7 +147,10 @@ fun NewsFeedRoute(
 fun NewsEditorRoute(
     draft: NewsDraft,
     isSaving: Boolean,
+    isUploadingImage: Boolean,
     isEditing: Boolean,
+    onPickImage: (Uri) -> Unit,
+    onClearImage: () -> Unit,
     onDraftChanged: (NewsDraft) -> Unit,
     onCancel: () -> Unit,
     onSave: () -> Unit,
@@ -166,6 +172,13 @@ fun NewsEditorRoute(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
+            ReguertaImagePickerField(
+                imageUrl = draft.urlImage,
+                isUploading = isUploadingImage,
+                onPickImage = onPickImage,
+                onClearImage = onClearImage,
+                placeholderIcon = Icons.Default.Image,
+            )
             OutlinedTextField(
                 value = draft.title,
                 onValueChange = { onDraftChanged(draft.copy(title = it)) },
@@ -179,13 +192,6 @@ fun NewsEditorRoute(
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text(stringResource(R.string.news_field_body)) },
                 minLines = 6,
-                enabled = !isSaving,
-            )
-            OutlinedTextField(
-                value = draft.urlImage,
-                onValueChange = { onDraftChanged(draft.copy(urlImage = it)) },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.news_field_url_image)) },
                 enabled = !isSaving,
             )
             Row(
@@ -215,7 +221,7 @@ fun NewsEditorRoute(
                     onSave()
                 },
                 fullWidth = true,
-                enabled = !isSaving,
+                enabled = !isSaving && !isUploadingImage,
             )
             ReguertaFlatButton(
                 label = stringResource(R.string.common_action_back),
@@ -224,7 +230,7 @@ fun NewsEditorRoute(
                     onCancel()
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isSaving,
+                enabled = !isSaving && !isUploadingImage,
             )
             Spacer(modifier = Modifier.height(64.dp))
         }

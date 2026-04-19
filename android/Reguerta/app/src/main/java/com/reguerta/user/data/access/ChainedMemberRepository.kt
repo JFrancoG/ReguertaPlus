@@ -18,11 +18,15 @@ class ChainedMemberRepository(
     }
 
     override suspend fun linkAuthUid(memberId: String, authUid: String): Member {
-        val fallbackMember = fallback.linkAuthUid(memberId = memberId, authUid = authUid)
         val primaryMember = runCatching {
             primary.linkAuthUid(memberId = memberId, authUid = authUid)
         }.getOrNull()
-        return primaryMember ?: fallbackMember
+        val fallbackMember = runCatching {
+            fallback.linkAuthUid(memberId = memberId, authUid = authUid)
+        }.getOrNull()
+        return primaryMember
+            ?: fallbackMember
+            ?: error("Member $memberId could not be linked in primary or fallback repositories")
     }
 
     override suspend fun getAllMembers(): List<Member> {

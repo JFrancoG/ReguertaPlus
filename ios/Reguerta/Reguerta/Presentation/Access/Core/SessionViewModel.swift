@@ -206,6 +206,7 @@ final class SessionViewModel {
     var editingNewsId: String?
     var isLoadingNews = false
     var isSavingNews = false
+    var isUploadingNewsImage = false
     var isLoadingNotifications = false
     var isSendingNotification = false
     var isLoadingProducts = false
@@ -215,6 +216,7 @@ final class SessionViewModel {
     var isUpdatingProducerCatalogVisibility = false
     var isLoadingSharedProfiles = false
     var isSavingSharedProfile = false
+    var isUploadingSharedProfileImage = false
     var isDeletingSharedProfile = false
     var isLoadingShifts = false
     var isLoadingDeliveryCalendar = false
