@@ -67,6 +67,7 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
+- 2026-04-19 | 📦 build(ios): bump Firebase SDK minimum to 12.11
 - 2026-04-17 | 📦 build(mobile): add non-production debug app icons
 - 2026-04-17 | 📦 build(mobile): update AGP and release QA signing
 - 2026-04-16 | 🔧 chore(functions): remove HU-006 debug trigger
