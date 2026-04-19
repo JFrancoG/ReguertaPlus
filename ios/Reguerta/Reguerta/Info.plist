@@ -8,5 +8,7 @@
 	<string>Take photos to upload product, news, and profile images.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Select photos from your library to upload images.</string>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>Allow notifications to receive important Reguerta updates.</string>
 </dict>
 </plist>
