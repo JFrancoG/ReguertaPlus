@@ -1,4 +1,3 @@
-import PhotosUI
 import SwiftUI
 
 struct ProductsRouteView: View {
@@ -88,7 +87,6 @@ private struct ProductEditorCardView: View {
     let viewModel: SessionViewModel
     let canManageEcoBasket: Bool
     let canManageCommonPurchase: Bool
-    @State private var selectedPhotoItem: PhotosPickerItem?
 
     var body: some View {
         ReguertaCard {
@@ -99,65 +97,24 @@ private struct ProductEditorCardView: View {
                         : localizedKey(AccessL10nKey.productsEditorTitleNew)
                 )
                     .font(tokens.typography.titleCard)
-                RoundedRectangle(cornerRadius: 24.resize)
-                    .fill(tokens.colors.surfaceSecondary)
-                    .frame(width: 112.resize, height: 112.resize)
-                    .overlay {
-                        if let imageURL = URL(string: viewModel.productDraft.productImageUrl), !viewModel.productDraft.productImageUrl.isEmpty {
-                            AsyncImage(url: imageURL) { phase in
-                                if let image = phase.image {
-                                    image
-                                        .resizable()
-                                        .scaledToFill()
-                                } else {
-                                    Image(systemName: "photo")
-                                        .font(.system(size: 34.resize))
-                                        .foregroundStyle(tokens.colors.textSecondary)
-                                }
-                            }
-                            .frame(width: 112.resize, height: 112.resize)
-                            .clipShape(RoundedRectangle(cornerRadius: 24.resize))
-                        } else {
-                            Image(systemName: "photo")
-                                .font(.system(size: 34.resize))
-                                .foregroundStyle(tokens.colors.textSecondary)
-                        }
+                ReguertaImagePickerField(
+                    tokens: tokens,
+                    imageURLString: viewModel.productDraft.productImageUrl,
+                    isUploading: viewModel.isUploadingProductImage,
+                    placeholderSystemImage: "photo",
+                    subtitleKey: AccessL10nKey.productsEditorPlaceholderNotice,
+                    onPickImageData: viewModel.uploadProductImage,
+                    onClearImage: viewModel.clearProductImage,
+                    onImageSelectionFailed: {
+                        viewModel.feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
+                    },
+                    onCameraPermissionDenied: {
+                        viewModel.feedbackMessageKey = AccessL10nKey.feedbackCameraPermissionRequired
+                    },
+                    onCameraUnavailable: {
+                        viewModel.feedbackMessageKey = AccessL10nKey.feedbackCameraUnavailable
                     }
-                Text(localizedKey(AccessL10nKey.productsEditorPlaceholderNotice))
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                HStack(spacing: tokens.spacing.sm) {
-                    PhotosPicker(
-                        selection: $selectedPhotoItem,
-                        matching: .images
-                    ) {
-                        Label {
-                            Text(l10n(AccessL10nKey.commonActionSelect))
-                        } icon: {
-                            Image(systemName: "photo.on.rectangle")
-                        }
-                        .font(tokens.typography.label)
-                        .foregroundStyle(tokens.colors.textPrimary)
-                        .padding(.horizontal, tokens.spacing.md)
-                        .padding(.vertical, tokens.spacing.sm)
-                        .background(tokens.colors.surfaceSecondary)
-                        .clipShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(viewModel.isUploadingProductImage)
-
-                    if !viewModel.productDraft.productImageUrl.isEmpty {
-                        ReguertaButton(localizedKey(AccessL10nKey.commonActionCancel), variant: .text, fullWidth: false) {
-                            viewModel.clearProductImage()
-                        }
-                        .disabled(viewModel.isUploadingProductImage)
-                    }
-
-                    if viewModel.isUploadingProductImage {
-                        ProgressView()
-                            .tint(tokens.colors.actionPrimary)
-                    }
-                }
+                )
 
                 TextField(localizedKey(AccessL10nKey.productsEditorFieldName), text: draftStringBinding(\.name))
                     .textFieldStyle(.roundedBorder)
@@ -260,29 +217,6 @@ private struct ProductEditorCardView: View {
                     }
                     ReguertaButton(localizedKey(AccessL10nKey.productsEditorActionBack), variant: .text, fullWidth: false) {
                         viewModel.clearProductEditor()
-                    }
-                }
-            }
-            .onChange(of: selectedPhotoItem) { _, newValue in
-                guard let newValue else { return }
-                Task {
-                    do {
-                        guard let imageData = try await newValue.loadTransferable(type: Data.self) else {
-                            await MainActor.run {
-                                viewModel.feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
-                                selectedPhotoItem = nil
-                            }
-                            return
-                        }
-                        await MainActor.run {
-                            viewModel.uploadProductImage(imageData)
-                            selectedPhotoItem = nil
-                        }
-                    } catch {
-                        await MainActor.run {
-                            viewModel.feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
-                            selectedPhotoItem = nil
-                        }
                     }
                 }
             }

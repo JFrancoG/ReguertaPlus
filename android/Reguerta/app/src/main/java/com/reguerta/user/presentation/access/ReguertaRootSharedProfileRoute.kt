@@ -1,5 +1,6 @@
 package com.reguerta.user.presentation.access
 
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -48,8 +49,11 @@ internal fun SharedProfileRoute(
     draft: SharedProfileDraft,
     isLoading: Boolean,
     isSaving: Boolean,
+    isUploadingImage: Boolean,
     isDeleting: Boolean,
     onDraftChanged: (SharedProfileDraft) -> Unit,
+    onPickImage: (Uri) -> Unit,
+    onClearImage: () -> Unit,
     onRefresh: () -> Unit,
     onSave: (onSuccess: () -> Unit) -> Unit,
     onDelete: () -> Unit,
@@ -93,12 +97,12 @@ internal fun SharedProfileRoute(
                         label = { Text(stringResource(R.string.profile_shared_family_names_label)) },
                         singleLine = true,
                     )
-                    OutlinedTextField(
-                        value = draft.photoUrl,
-                        onValueChange = { onDraftChanged(draft.copy(photoUrl = it)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(stringResource(R.string.profile_shared_photo_url_label)) },
-                        singleLine = true,
+                    ReguertaImagePickerField(
+                        imageUrl = draft.photoUrl,
+                        isUploading = isUploadingImage,
+                        onPickImage = onPickImage,
+                        onClearImage = onClearImage,
+                        placeholderIcon = Icons.Default.Person,
                     )
                     OutlinedTextField(
                         value = draft.about,
@@ -124,7 +128,7 @@ internal fun SharedProfileRoute(
                                 selectedProfileUserId = null
                             }
                         },
-                        enabled = !isSaving,
+                        enabled = !isSaving && !isUploadingImage,
                         loading = isSaving,
                         fullWidth = true,
                     )
@@ -132,6 +136,7 @@ internal fun SharedProfileRoute(
                         label = stringResource(R.string.common_action_back),
                         onClick = { isEditingOwnProfile = false },
                         modifier = Modifier.fillMaxWidth(),
+                        enabled = !isUploadingImage,
                     )
                 }
             }

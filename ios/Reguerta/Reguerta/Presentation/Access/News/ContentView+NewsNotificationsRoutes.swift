@@ -129,10 +129,16 @@ struct NewsEditorRouteView: View {
     let tokens: ReguertaDesignTokens
     let editingNewsId: String?
     @Binding var newsTitle: String
-    @Binding var newsUrlImage: String
+    let newsImageURL: String
     @Binding var newsBody: String
     @Binding var newsActive: Bool
     let isSavingNews: Bool
+    let isUploadingNewsImage: Bool
+    let onPickNewsImage: (Data) -> Void
+    let onClearNewsImage: () -> Void
+    let onImageSelectionFailed: () -> Void
+    let onCameraPermissionDenied: () -> Void
+    let onCameraUnavailable: () -> Void
     let onSave: () -> Void
     let onBack: () -> Void
 
@@ -161,17 +167,23 @@ struct NewsEditorRouteView: View {
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
 
+                ReguertaImagePickerField(
+                    tokens: tokens,
+                    imageURLString: newsImageURL,
+                    isUploading: isUploadingNewsImage,
+                    placeholderSystemImage: "photo",
+                    subtitleKey: nil,
+                    onPickImageData: onPickNewsImage,
+                    onClearImage: onClearNewsImage,
+                    onImageSelectionFailed: onImageSelectionFailed,
+                    onCameraPermissionDenied: onCameraPermissionDenied,
+                    onCameraUnavailable: onCameraUnavailable
+                )
+
                 TextField(
                     "",
                     text: $newsTitle,
                     prompt: Text(LocalizedStringKey(AccessL10nKey.newsFieldTitle))
-                )
-                .textFieldStyle(.roundedBorder)
-
-                TextField(
-                    "",
-                    text: $newsUrlImage,
-                    prompt: Text(LocalizedStringKey(AccessL10nKey.newsFieldURLImage))
                 )
                 .textFieldStyle(.roundedBorder)
 
@@ -188,7 +200,7 @@ struct NewsEditorRouteView: View {
 
                 ReguertaButton(
                     LocalizedStringKey(saveActionKey),
-                    isEnabled: !isSavingNews,
+                    isEnabled: !isSavingNews && !isUploadingNewsImage,
                     isLoading: isSavingNews,
                     action: onSave
                 )

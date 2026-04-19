@@ -415,6 +415,9 @@ internal class SessionAuthActions(
                         isLoadingProducts = result.member.canManageSessionProductCatalog,
                         isLoadingMyOrderProducts = false,
                         isUpdatingProducerCatalogVisibility = false,
+                        isUploadingNewsImage = false,
+                        isUploadingProductImage = false,
+                        isUploadingSharedProfileImage = false,
                         isLoadingSharedProfiles = true,
                         isLoadingShifts = true,
                     )
@@ -456,6 +459,9 @@ internal class SessionAuthActions(
                             isLoadingMyOrderProducts = false,
                             isLoadingSharedProfiles = false,
                             isLoadingShifts = false,
+                            isUploadingNewsImage = false,
+                            isUploadingProductImage = false,
+                            isUploadingSharedProfileImage = false,
                         )
                     }
                 }

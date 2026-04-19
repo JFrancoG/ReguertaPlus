@@ -75,6 +75,7 @@ internal fun HomeRoute(
     editingNewsId: String?,
     isLoadingNews: Boolean,
     isSavingNews: Boolean,
+    isUploadingNewsImage: Boolean,
     isLoadingNotifications: Boolean,
     isSendingNotification: Boolean,
     isLoadingProducts: Boolean,
@@ -84,6 +85,7 @@ internal fun HomeRoute(
     isUpdatingProducerCatalogVisibility: Boolean,
     isLoadingSharedProfiles: Boolean,
     isSavingSharedProfile: Boolean,
+    isUploadingSharedProfileImage: Boolean,
     isDeletingSharedProfile: Boolean,
     isLoadingShifts: Boolean,
     isLoadingDeliveryCalendar: Boolean,
@@ -109,6 +111,10 @@ internal fun HomeRoute(
     onStartEditingProduct: (String) -> Unit,
     onUploadProductImageFromUri: (Uri) -> Unit,
     onClearProductImage: () -> Unit,
+    onUploadNewsImageFromUri: (Uri) -> Unit,
+    onClearNewsImage: () -> Unit,
+    onUploadSharedProfileImageFromUri: (Uri) -> Unit,
+    onClearSharedProfileImage: () -> Unit,
     onSaveNews: (onSuccess: () -> Unit) -> Unit,
     onSaveProduct: (onSuccess: () -> Unit) -> Unit,
     onSetProducerCatalogVisibility: (Boolean, onSuccess: () -> Unit) -> Unit,
@@ -352,7 +358,10 @@ internal fun HomeRoute(
                     HomeDestination.PUBLISH_NEWS -> NewsEditorRoute(
                     draft = newsDraft,
                     isSaving = isSavingNews,
+                    isUploadingImage = isUploadingNewsImage,
                     isEditing = editingNewsId != null,
+                    onPickImage = onUploadNewsImageFromUri,
+                    onClearImage = onClearNewsImage,
                     onDraftChanged = onNewsDraftChanged,
                     onCancel = {
                         onClearNewsEditor()
@@ -445,8 +454,11 @@ internal fun HomeRoute(
                     draft = sharedProfileDraft,
                     isLoading = isLoadingSharedProfiles,
                     isSaving = isSavingSharedProfile,
+                    isUploadingImage = isUploadingSharedProfileImage,
                     isDeleting = isDeletingSharedProfile,
                     onDraftChanged = onSharedProfileDraftChanged,
+                    onPickImage = onUploadSharedProfileImageFromUri,
+                    onClearImage = onClearSharedProfileImage,
                     onRefresh = onRefreshSharedProfiles,
                     onSave = {
                         onSaveSharedProfile { currentDestination = HomeDestination.PROFILE }

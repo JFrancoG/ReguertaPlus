@@ -201,6 +201,12 @@
     <string name="products_field_image_url">Image URL</string>
     <string name="products_pick_image_action">Select image</string>
     <string name="products_clear_image_action">Remove image</string>
+    <string name="image_source_dialog_title">Select image source</string>
+    <string name="image_source_dialog_message">Choose where to get the image.</string>
+    <string name="image_source_action_gallery">Gallery</string>
+    <string name="image_source_action_camera">Camera</string>
+    <string name="image_camera_permission_denied_title">Camera permission required</string>
+    <string name="image_camera_permission_denied_message">Allow camera access to take a photo.</string>
     <string name="products_field_price">Price (€)</string>
     <string name="products_field_unit_qty">Unit qty</string>
     <string name="products_field_unit_name">Unit name</string>
@@ -238,6 +244,10 @@
     <string name="feedback_product_archived">Product archived.</string>
     <string name="feedback_product_image_uploaded">Image uploaded.</string>
     <string name="feedback_product_image_upload_failed">Unable to upload image.</string>
+    <string name="feedback_news_image_uploaded">News image uploaded.</string>
+    <string name="feedback_news_image_upload_failed">Unable to upload the news image.</string>
+    <string name="feedback_shared_profile_image_uploaded">Profile image uploaded.</string>
+    <string name="feedback_shared_profile_image_upload_failed">Unable to upload the profile image.</string>
     <string name="feedback_only_producer_toggle_catalog_visibility">Only producers can change the global catalog visibility.</string>
     <string name="feedback_producer_catalog_enabled">Catalog visible again.</string>
     <string name="feedback_producer_catalog_disabled">Catalog paused.</string>

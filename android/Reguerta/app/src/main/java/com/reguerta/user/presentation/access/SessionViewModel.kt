@@ -104,6 +104,7 @@ class SessionViewModel(
             newsRepository = newsRepository,
             notificationRepository = notificationRepository,
             sharedProfileRepository = sharedProfileRepository,
+            imagePipelineManager = imagePipelineManager,
             nowMillisProvider = nowMillisProvider,
             emitMessage = ::emitMessage,
         )
@@ -321,6 +322,15 @@ class SessionViewModel(
     fun saveSharedProfile(onSuccess: () -> Unit = {}) = communityActions.saveSharedProfile(onSuccess)
 
     fun deleteSharedProfile(onSuccess: () -> Unit = {}) = communityActions.deleteSharedProfile(onSuccess)
+
+    fun uploadNewsImageFromUri(sourceUri: Uri) = communityActions.uploadNewsImageFromUri(sourceUri)
+
+    fun clearNewsImage() = communityActions.clearNewsImage()
+
+    fun uploadSharedProfileImageFromUri(sourceUri: Uri) =
+        communityActions.uploadSharedProfileImageFromUri(sourceUri)
+
+    fun clearSharedProfileImage() = communityActions.clearSharedProfileImage()
 
     fun refreshNews() = communityActions.refreshNews()
 

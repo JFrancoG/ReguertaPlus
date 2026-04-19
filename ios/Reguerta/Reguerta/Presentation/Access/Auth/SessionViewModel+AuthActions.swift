@@ -550,14 +550,17 @@ extension SessionViewModel {
         editingNewsId = nil
         isLoadingNews = false
         isSavingNews = false
+        isUploadingNewsImage = false
         isLoadingNotifications = false
         isSendingNotification = false
         isLoadingProducts = false
         isLoadingMyOrderProducts = false
         isSavingProduct = false
+        isUploadingProductImage = false
         isUpdatingProducerCatalogVisibility = false
         isLoadingSharedProfiles = false
         isSavingSharedProfile = false
+        isUploadingSharedProfileImage = false
         isDeletingSharedProfile = false
         isLoadingShifts = false
         isSavingShiftSwapRequest = false
