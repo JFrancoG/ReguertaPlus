@@ -49,6 +49,7 @@ All notable changes to this project will be documented in this file.
 - 2026-04-09 | 🐛 fix(order): harden seasonal commitment lookup for avocado warnings
 - 2026-04-10 | 🐛 fix(order): finalize confirmed order flow
 - 2026-04-13 | 🐛 fix(calendar): support legacy config keys and fallback paths for delivery calendar
+- 2026-04-19 | 🐛 fix(mobile): migrate permission strings to xcstrings
 
 ### Documentation
 
