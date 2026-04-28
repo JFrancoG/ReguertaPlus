@@ -69,6 +69,8 @@ internal fun HomeRoute(
     shiftSwapRequests: List<ShiftSwapRequest>,
     dismissedShiftSwapRequestIds: Set<String>,
     shiftSwapDraft: ShiftSwapDraft,
+    bylawsQueryInput: String,
+    bylawsAnswerResult: BylawsAnswerResult?,
     nextDeliveryShift: ShiftAssignment?,
     nextMarketShift: ShiftAssignment?,
     editingProductId: String?,
@@ -93,6 +95,7 @@ internal fun HomeRoute(
     isSubmittingShiftPlanningRequest: Boolean,
     isSavingShiftSwapRequest: Boolean,
     isUpdatingShiftSwapRequest: Boolean,
+    isAskingBylaws: Boolean,
     nowOverrideMillis: Long?,
     onDraftChanged: (MemberDraft) -> Unit,
     onNewsDraftChanged: (NewsDraft) -> Unit,
@@ -100,6 +103,7 @@ internal fun HomeRoute(
     onProductDraftChanged: (ProductDraft) -> Unit,
     onSharedProfileDraftChanged: (SharedProfileDraft) -> Unit,
     onShiftSwapDraftChanged: (ShiftSwapDraft) -> Unit,
+    onBylawsQueryChanged: (String) -> Unit,
     onToggleAdmin: (String) -> Unit,
     onToggleActive: (String) -> Unit,
     onCreateMember: () -> Unit,
@@ -139,6 +143,8 @@ internal fun HomeRoute(
     onRejectShiftSwapRequest: (String, String) -> Unit,
     onCancelShiftSwapRequest: (String) -> Unit,
     onConfirmShiftSwapRequest: (String, String) -> Unit,
+    onAskBylawsQuestion: () -> Unit,
+    onClearBylawsResult: () -> Unit,
     onDismissShiftSwapActivity: (String) -> Unit,
     onSaveSharedProfile: (onSuccess: () -> Unit) -> Unit,
     onDeleteSharedProfile: (onSuccess: () -> Unit) -> Unit,
@@ -198,6 +204,8 @@ internal fun HomeRoute(
                             onRefreshMembers()
                         } else if (destination == HomeDestination.SHIFTS) {
                             onRefreshShifts()
+                        } else if (destination == HomeDestination.BYLAWS) {
+                            Unit
                         } else if (destination == HomeDestination.SHIFT_SWAP_REQUEST) {
                             onRefreshShifts()
                         } else if (destination == HomeDestination.PUBLISH_NEWS) {
@@ -315,6 +323,9 @@ internal fun HomeRoute(
                                 onOpenShifts = {
                                     currentDestination = HomeDestination.SHIFTS
                                     onRefreshShifts()
+                                },
+                                onOpenBylaws = {
+                                    currentDestination = HomeDestination.BYLAWS
                                 },
                             )
                         }
@@ -539,6 +550,15 @@ internal fun HomeRoute(
                     onSaveMemberDraft = onSaveMemberDraft,
                     onRefreshMembers = onRefreshMembers,
                     onToggleActive = onToggleActive,
+                    )
+
+                    HomeDestination.BYLAWS -> BylawsRoute(
+                        queryInput = bylawsQueryInput,
+                        answerResult = bylawsAnswerResult,
+                        isLoading = isAskingBylaws,
+                        onQueryChanged = onBylawsQueryChanged,
+                        onAsk = onAskBylawsQuestion,
+                        onClear = onClearBylawsResult,
                     )
 
                     else -> HomePlaceholderRoute(

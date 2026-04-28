@@ -134,6 +134,7 @@ struct OperationalModulesCardView: View {
     let onOpenMyOrder: () -> Void
     let onOpenProducts: () -> Void
     let onOpenShifts: () -> Void
+    let onOpenBylaws: () -> Void
     let onRetryFreshness: () -> Void
 
     private func localizedKey(_ key: String) -> LocalizedStringKey {
@@ -148,14 +149,22 @@ struct OperationalModulesCardView: View {
                 Button(action: onOpenMyOrder) {
                     Text(localizedKey(AccessL10nKey.myOrder))
                 }
+                .accessibilityIdentifier("home.module.myOrder")
                 .disabled(!modulesEnabled || myOrderFreshnessState != .ready)
                 Button(action: onOpenProducts) {
                     Text(localizedKey(AccessL10nKey.catalog))
                 }
+                .accessibilityIdentifier("home.module.catalog")
                 .disabled(!modulesEnabled || !canOpenProducts)
                 Button(action: onOpenShifts) {
                     Text(localizedKey(AccessL10nKey.shifts))
                 }
+                .accessibilityIdentifier("home.module.shifts")
+                .disabled(!modulesEnabled)
+                Button(action: onOpenBylaws) {
+                    Text(localizedKey(AccessL10nKey.homeShellActionBylaws))
+                }
+                .accessibilityIdentifier("home.module.bylaws")
                 .disabled(!modulesEnabled)
 
                 if !modulesEnabled, let disabledMessageKey {
@@ -278,6 +287,7 @@ struct HomeDrawerContentView: View {
         homeDrawerItem("cart.fill", titleKey: AccessL10nKey.myOrder, destination: .myOrder)
         homeDrawerItem("doc.text.fill", titleKey: AccessL10nKey.myOrders, destination: .myOrders)
         homeDrawerItem("calendar", titleKey: AccessL10nKey.shifts, destination: .shifts)
+        homeDrawerItem("doc.text.magnifyingglass", titleKey: AccessL10nKey.homeShellActionBylaws, destination: .bylaws)
         homeDrawerItem("newspaper.fill", titleKey: AccessL10nKey.homeShellNewsTitle, destination: .news)
         homeDrawerItem("bell", titleKey: AccessL10nKey.homeShellNotifications, destination: .notifications)
         homeDrawerItem("person.3.fill", titleKey: AccessL10nKey.homeShellActionProfile, destination: .profile)
@@ -311,7 +321,11 @@ struct HomeDrawerContentView: View {
 
     private var homeDrawerFooter: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-            ReguertaButton(localizedKey(AccessL10nKey.signOut), action: onSignOut)
+            ReguertaButton(
+                localizedKey(AccessL10nKey.signOut),
+                accessibilityIdentifier: "home.drawer.signOutButton",
+                action: onSignOut
+            )
                 .padding(.top, tokens.spacing.xs)
 
             Text(l10n(AccessL10nKey.homeShellVersion, installedVersion))

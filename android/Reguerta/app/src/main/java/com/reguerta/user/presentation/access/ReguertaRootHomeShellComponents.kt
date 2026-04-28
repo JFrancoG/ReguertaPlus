@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Storefront
@@ -193,6 +194,12 @@ fun HomeDrawerContent(
                 label = stringResource(R.string.module_shifts),
                 selected = currentDestination == HomeDestination.SHIFTS,
                 onClick = { onNavigate(HomeDestination.SHIFTS) },
+            )
+            HomeDrawerItem(
+                icon = Icons.Filled.PictureAsPdf,
+                label = stringResource(R.string.home_shell_action_bylaws),
+                selected = currentDestination == HomeDestination.BYLAWS,
+                onClick = { onNavigate(HomeDestination.BYLAWS) },
             )
             HomeDrawerItem(
                 icon = Icons.AutoMirrored.Filled.Article,

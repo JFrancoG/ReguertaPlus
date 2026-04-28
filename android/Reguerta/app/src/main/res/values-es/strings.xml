@@ -73,6 +73,7 @@
     <string name="home_shell_action_users">Usuarios</string>
     <string name="home_shell_action_profile">Comunidad</string>
     <string name="home_shell_action_settings">Ajustes</string>
+    <string name="home_shell_action_bylaws">IA estatutos</string>
     <string name="home_shell_action_publish_news">Publicar noticia</string>
     <string name="home_shell_action_admin_broadcast">Mandar notificación</string>
     <string name="home_shell_badge_soon">Pronto</string>
@@ -150,6 +151,20 @@
     <string name="home_placeholder_notifications">Las notificaciones se conectarán aquí cuando se implemente esa funcionalidad.</string>
     <string name="home_placeholder_profile">El perfil se conectará aquí en una iteración posterior.</string>
     <string name="home_placeholder_settings">Los ajustes por rol se conectarán aquí en una iteración posterior.</string>
+    <string name="bylaws_title">Consultar estatutos</string>
+    <string name="bylaws_subtitle">Haz preguntas sobre los estatutos. Las preguntas habituales se responden en local y las complejas pueden escalar a nube.</string>
+    <string name="bylaws_input_label">Pregunta</string>
+    <string name="bylaws_input_placeholder">Ejemplo: deberes de las personas asociadas</string>
+    <string name="bylaws_ask_action">Consultar IA de estatutos</string>
+    <string name="bylaws_ask_loading">Revisando estatutos…</string>
+    <string name="bylaws_open_pdf_action">Abrir PDF completo</string>
+    <string name="bylaws_mode_local">Respuesta local</string>
+    <string name="bylaws_mode_cloud">Respuesta en nube</string>
+    <string name="bylaws_mode_fallback">Respuesta de seguridad</string>
+    <string name="bylaws_pages_format">Páginas: %1$s</string>
+    <string name="bylaws_trace_format">Trazabilidad: cobertura=%1$s · confianza=%2$s · motivos=%3$s</string>
+    <string name="bylaws_query_required">Escribe primero una pregunta sobre los estatutos.</string>
+    <string name="bylaws_pdf_viewer_unavailable">No se encontró una app para abrir PDF en este dispositivo.</string>
     <string name="home_placeholder_products">La gestión de productos se conectará aquí en su historia dedicada.</string>
     <string name="home_placeholder_received_orders">Los pedidos recibidos y su histórico se conectarán aquí en una historia posterior.</string>
     <string name="home_placeholder_users">La gestión de usuarios se conectará aquí en su historia dedicada.</string>

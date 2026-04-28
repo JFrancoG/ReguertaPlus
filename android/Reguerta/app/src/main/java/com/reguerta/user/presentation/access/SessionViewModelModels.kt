@@ -74,6 +74,26 @@ data class ShiftSwapDraft(
     val reason: String = "",
 )
 
+enum class BylawsAnswerMode {
+    LOCAL,
+    CLOUD,
+    FALLBACK,
+}
+
+data class BylawsDecisionTrace(
+    val shouldEscalate: Boolean,
+    val reasons: List<String>,
+    val localCoverage: Float,
+    val localConfidence: Float,
+)
+
+data class BylawsAnswerResult(
+    val mode: BylawsAnswerMode,
+    val answer: String,
+    val citedPages: List<Int>,
+    val trace: BylawsDecisionTrace,
+)
+
 sealed interface SessionMode {
     data object SignedOut : SessionMode
 
@@ -129,6 +149,8 @@ data class SessionUiState(
     val shiftSwapRequests: List<ShiftSwapRequest> = emptyList(),
     val dismissedShiftSwapRequestIds: Set<String> = emptySet(),
     val shiftSwapDraft: ShiftSwapDraft = ShiftSwapDraft(),
+    val bylawsQueryInput: String = "",
+    val bylawsAnswerResult: BylawsAnswerResult? = null,
     val nextDeliveryShift: ShiftAssignment? = null,
     val nextMarketShift: ShiftAssignment? = null,
     val editingProductId: String? = null,
@@ -153,6 +175,7 @@ data class SessionUiState(
     val isSubmittingShiftPlanningRequest: Boolean = false,
     val isSavingShiftSwapRequest: Boolean = false,
     val isUpdatingShiftSwapRequest: Boolean = false,
+    val isAskingBylaws: Boolean = false,
     val nowOverrideMillis: Long? = null,
 )
 

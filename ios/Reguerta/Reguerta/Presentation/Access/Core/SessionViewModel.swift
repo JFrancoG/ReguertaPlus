@@ -200,6 +200,8 @@ final class SessionViewModel {
     var shiftSwapRequests: [ShiftSwapRequest] = []
     var dismissedShiftSwapRequestIds = Set<String>()
     var shiftSwapDraft = ShiftSwapDraft()
+    var bylawsQueryInput = ""
+    var bylawsAnswerResult: BylawsAnswerResult?
     var nextDeliveryShift: ShiftAssignment?
     var nextMarketShift: ShiftAssignment?
     var editingProductId: String?
@@ -224,6 +226,7 @@ final class SessionViewModel {
     var isSubmittingShiftPlanningRequest = false
     var isSavingShiftSwapRequest = false
     var isUpdatingShiftSwapRequest = false
+    var isAskingBylaws = false
     var nowOverrideMillis: Int64?
 
     let repository: any MemberRepository

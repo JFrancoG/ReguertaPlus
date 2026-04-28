@@ -18,6 +18,7 @@ android {
         targetSdk = 36
         versionCode = 31
         versionName = "0.3.0.1"
+        buildConfigField("String", "BYLAWS_CLOUD_ENDPOINT", "\"\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

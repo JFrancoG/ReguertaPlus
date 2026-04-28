@@ -177,6 +177,8 @@ extension ContentView {
             viewModel.refreshShifts()
         case .settings:
             viewModel.refreshDeliveryCalendar()
+        case .bylaws:
+            break
         default:
             break
         }

@@ -4,6 +4,9 @@ import android.net.Uri
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.reguerta.user.data.bylaws.BylawsKnowledgeSource
+import com.reguerta.user.data.bylaws.BylawsCloudGateway
+import com.reguerta.user.data.bylaws.InMemoryBylawsKnowledgeSource
 import com.reguerta.user.data.media.ImagePipelineManager
 import com.reguerta.user.domain.access.AuthSessionProvider
 import com.reguerta.user.domain.access.MemberRepository
@@ -61,6 +64,8 @@ class SessionViewModel(
     private val resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase,
     private val criticalDataFreshnessLocalRepository: CriticalDataFreshnessLocalRepository,
     private val reviewerEnvironmentRouter: ReviewerEnvironmentRouter = NoOpReviewerEnvironmentRouter,
+    private val bylawsKnowledgeSource: BylawsKnowledgeSource = InMemoryBylawsKnowledgeSource(),
+    private val bylawsCloudGateway: BylawsCloudGateway = BylawsCloudGateway(endpointUrl = ""),
     private val sessionRefreshPolicy: SessionRefreshPolicy = SessionRefreshPolicy(),
     private val nowMillisProvider: () -> Long = { System.currentTimeMillis() },
     private val developImpersonationEnabled: Boolean = false,
@@ -154,6 +159,16 @@ class SessionViewModel(
             scope = viewModelScope,
             memberRepository = repository,
             upsertMemberByAdmin = upsertMemberByAdmin,
+            emitMessage = ::emitMessage,
+        )
+    }
+
+    private val bylawsActions by lazy {
+        SessionBylawsActions(
+            uiState = _uiState,
+            scope = viewModelScope,
+            knowledgeSource = bylawsKnowledgeSource,
+            cloudGateway = bylawsCloudGateway,
             emitMessage = ::emitMessage,
         )
     }
@@ -292,6 +307,10 @@ class SessionViewModel(
 
     fun onShiftSwapDraftChanged(draft: ShiftSwapDraft) = formActions.onShiftSwapDraftChanged(draft)
 
+    fun onBylawsQueryChanged(value: String) = bylawsActions.onBylawsQueryChanged(value)
+
+    fun clearBylawsResult() = bylawsActions.clearBylawsResult()
+
     fun startCreatingShiftSwap(shiftId: String) = formActions.startCreatingShiftSwap(shiftId)
 
     fun clearShiftSwapDraft() = formActions.clearShiftSwapDraft()
@@ -357,6 +376,8 @@ class SessionViewModel(
 
     fun confirmShiftSwapRequest(requestId: String, candidateShiftId: String) =
         shiftActions.confirmShiftSwapRequest(requestId, candidateShiftId)
+
+    fun askBylawsQuestion() = bylawsActions.askBylawsQuestion()
 
     fun signIn() = authActions.signIn()
 

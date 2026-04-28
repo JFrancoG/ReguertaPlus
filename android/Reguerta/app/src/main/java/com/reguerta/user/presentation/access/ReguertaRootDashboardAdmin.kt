@@ -90,6 +90,7 @@ internal fun AuthorizedHome(
     onOpenMyOrder: () -> Unit,
     onOpenProducts: () -> Unit,
     onOpenShifts: () -> Unit,
+    onOpenBylaws: () -> Unit,
 ) {
     OperationalModules(
         modulesEnabled = true,
@@ -99,6 +100,7 @@ internal fun AuthorizedHome(
         onRetryMyOrderFreshness = onRetryMyOrderFreshness,
         onOpenProducts = onOpenProducts,
         onOpenShifts = onOpenShifts,
+        onOpenBylaws = onOpenBylaws,
     )
 
     if (mode.member.isAdmin) {
