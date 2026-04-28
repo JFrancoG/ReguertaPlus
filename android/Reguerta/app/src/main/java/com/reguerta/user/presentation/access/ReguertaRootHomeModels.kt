@@ -7,6 +7,7 @@ enum class HomeDestination {
     MY_ORDER,
     MY_ORDERS,
     SHIFTS,
+    BYLAWS,
     SHIFT_SWAP_REQUEST,
     NEWS,
     NOTIFICATIONS,
@@ -24,6 +25,7 @@ internal fun HomeDestination.titleRes(): Int = when (this) {
     HomeDestination.MY_ORDER -> R.string.module_my_order
     HomeDestination.MY_ORDERS -> R.string.module_my_orders
     HomeDestination.SHIFTS -> R.string.module_shifts
+    HomeDestination.BYLAWS -> R.string.home_shell_action_bylaws
     HomeDestination.SHIFT_SWAP_REQUEST -> R.string.shift_swap_request_screen_title
     HomeDestination.NEWS -> R.string.home_shell_news_title
     HomeDestination.NOTIFICATIONS -> R.string.home_shell_notifications
@@ -41,6 +43,7 @@ internal fun HomeDestination.subtitleRes(): Int = when (this) {
     HomeDestination.MY_ORDER -> R.string.home_placeholder_my_order
     HomeDestination.MY_ORDERS -> R.string.home_placeholder_my_orders
     HomeDestination.SHIFTS -> R.string.home_placeholder_shifts
+    HomeDestination.BYLAWS -> R.string.bylaws_subtitle
     HomeDestination.SHIFT_SWAP_REQUEST -> R.string.shift_swap_request_screen_subtitle
     HomeDestination.NEWS -> R.string.news_list_subtitle
     HomeDestination.NOTIFICATIONS -> R.string.notifications_list_subtitle

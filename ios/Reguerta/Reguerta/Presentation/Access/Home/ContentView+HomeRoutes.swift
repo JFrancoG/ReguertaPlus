@@ -10,6 +10,8 @@ extension ContentView {
             shiftsRoute
         case .shiftSwapRequest:
             shiftSwapRequestRoute
+        case .bylaws:
+            bylawsRoute
         case .news:
             newsListRoute
         case .notifications:

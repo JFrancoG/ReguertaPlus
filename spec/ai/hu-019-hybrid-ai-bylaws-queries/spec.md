@@ -53,9 +53,17 @@ As a member I want fast bylaws answers so that I can resolve questions quickly.
 
 ## Definition of Done (DoD)
 
-- [ ] Story acceptance criteria validated.
-- [ ] Implementation aligned with linked RFs.
-- [ ] Android/iOS parity reviewed or temporary gap documented.
+- [x] Story acceptance criteria validated.
+- [x] Implementation aligned with linked RFs.
+- [x] Android/iOS parity reviewed or temporary gap documented.
 - [ ] Agreed tests executed.
-- [ ] Technical/functional documentation updated.
+- [x] Technical/functional documentation updated.
 - [ ] Issue and PR linked.
+
+## Validation notes
+
+- iOS scheme tests executed on simulator `iPhone 17 (iOS 26.4.1)` because `iPhone 16` was unavailable locally.
+- `ReguertaTests` passed and iOS `build` is green on `iPhone 17 (iOS 26.4.1)`.
+- Targeted `ReguertaUITests` execution is currently blocked in this environment by simulator runner startup (`IDELaunchParametersSnapshot`), so functional UI evidence is pending.
+- `connectedDebugAndroidTest` could not complete on connected device due install restriction (`INSTALL_FAILED_USER_RESTRICTED`).
+- Android and iOS now both provide embedded in-app PDF viewing for bylaws.

@@ -693,6 +693,244 @@
         }
       }
     },
+    "bylaws.ask.action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ask bylaws AI"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consultar IA de estatutos"
+          }
+        }
+      }
+    },
+    "bylaws.ask.loading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reviewing bylaws..."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revisando estatutos..."
+          }
+        }
+      }
+    },
+    "bylaws.input.label" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Question"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pregunta"
+          }
+        }
+      }
+    },
+    "bylaws.input.placeholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Example: Duties of members"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ejemplo: deberes de las personas asociadas"
+          }
+        }
+      }
+    },
+    "bylaws.mode.cloud" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cloud answer"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Respuesta en nube"
+          }
+        }
+      }
+    },
+    "bylaws.mode.fallback" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Safe fallback answer"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Respuesta de seguridad"
+          }
+        }
+      }
+    },
+    "bylaws.mode.local" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Local answer"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Respuesta local"
+          }
+        }
+      }
+    },
+    "bylaws.open_pdf.action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open full PDF"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir PDF completo"
+          }
+        }
+      }
+    },
+    "bylaws.pages.format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pages: %1$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Páginas: %1$@"
+          }
+        }
+      }
+    },
+    "bylaws.pdf.viewer.unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PDF file could not be opened on this device."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo abrir el PDF en este dispositivo."
+          }
+        }
+      }
+    },
+    "bylaws.query.required" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Write a question about the bylaws first."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escribe primero una pregunta sobre los estatutos."
+          }
+        }
+      }
+    },
+    "bylaws.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ask about the bylaws. Regular questions are answered locally, complex ones may escalate to cloud mode."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Haz preguntas sobre los estatutos. Las preguntas habituales se responden en local y las complejas pueden escalar a nube."
+          }
+        }
+      }
+    },
+    "bylaws.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consult bylaws"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consultar estatutos"
+          }
+        }
+      }
+    },
+    "bylaws.trace.format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trace: coverage=%1$@ · confidence=%2$@ · reasons=%3$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trazabilidad: cobertura=%1$@ · confianza=%2$@ · motivos=%3$@"
+          }
+        }
+      }
+    },
     "Buscar productos" : {
       "comment" : "A placeholder for a search bar.",
       "isCommentAutoGenerated" : true
@@ -2192,6 +2430,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mandar notificación"
+          }
+        }
+      }
+    },
+    "home.shell.action.bylaws" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bylaws AI"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IA estatutos"
           }
         }
       }

@@ -25,6 +25,7 @@ internal fun OperationalModules(
     onRetryMyOrderFreshness: () -> Unit,
     onOpenProducts: () -> Unit,
     onOpenShifts: () -> Unit,
+    onOpenBylaws: () -> Unit,
     disabledMessage: String? = null,
 ) {
     Card {
@@ -47,6 +48,9 @@ internal fun OperationalModules(
             }
             Button(onClick = onOpenShifts, enabled = modulesEnabled, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.module_shifts))
+            }
+            Button(onClick = onOpenBylaws, enabled = modulesEnabled, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.home_shell_action_bylaws))
             }
 
             if (!modulesEnabled && disabledMessage != null) {

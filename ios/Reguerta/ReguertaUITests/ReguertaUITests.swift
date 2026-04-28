@@ -8,6 +8,13 @@
 import XCTest
 
 final class ReguertaUITests: XCTestCase {
+    private let enterButtonId = "auth.welcome.enterButton"
+    private let emailFieldId = "auth.login.emailField"
+    private let passwordFieldId = "auth.login.passwordField"
+    private let signInButtonId = "auth.login.signInButton"
+    private let myOrderButtonId = "home.module.myOrder"
+    private let catalogButtonId = "home.module.catalog"
+    private let shiftsButtonId = "home.module.shifts"
 
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.
@@ -31,12 +38,12 @@ final class ReguertaUITests: XCTestCase {
         emailField.tap()
         emailField.typeText("unknown@reguerta.app")
 
-        let passwordField = app.secureTextFields["Password"]
+        let passwordField = app.secureTextFields[passwordFieldId]
         XCTAssertTrue(passwordField.waitForExistence(timeout: 5), "Password field not found")
         passwordField.tap()
         passwordField.typeText("test1234")
 
-        app.buttons["Sign in"].tap()
+        app.buttons[signInButtonId].tap()
 
         XCTAssertTrue(app.staticTexts["Unauthorized user email"].waitForExistence(timeout: 5))
         let signOutButton = app.buttons.matching(identifier: "Sign out").firstMatch
@@ -52,21 +59,21 @@ final class ReguertaUITests: XCTestCase {
         emailField.tap()
         emailField.typeText("ana.admin@reguerta.app")
 
-        let passwordField = app.secureTextFields["Password"]
+        let passwordField = app.secureTextFields[passwordFieldId]
         XCTAssertTrue(passwordField.waitForExistence(timeout: 5), "Password field not found")
         passwordField.tap()
         passwordField.typeText("test1234")
 
-        app.buttons["Sign in"].tap()
+        app.buttons[signInButtonId].tap()
 
         XCTAssertTrue(
             app.staticTexts["Home"].waitForExistence(timeout: 8),
             "Home should be visible for pre-authorized admin"
         )
 
-        let myOrderButton = app.buttons["My order"]
-        let catalogButton = app.buttons["Catalog"]
-        let shiftsButton = app.buttons["Shifts"]
+        let myOrderButton = app.buttons[myOrderButtonId]
+        let catalogButton = app.buttons[catalogButtonId]
+        let shiftsButton = app.buttons[shiftsButtonId]
 
         XCTAssertTrue(myOrderButton.waitForExistence(timeout: 3), "My order button not found")
         XCTAssertTrue(catalogButton.waitForExistence(timeout: 3), "Catalog button not found")
@@ -89,18 +96,18 @@ final class ReguertaUITests: XCTestCase {
         emailField.tap()
         emailField.typeText("ana.admin@reguerta.app")
 
-        let passwordField = app.secureTextFields["Password"]
+        let passwordField = app.secureTextFields[passwordFieldId]
         XCTAssertTrue(passwordField.waitForExistence(timeout: 5), "Password field not found")
         passwordField.tap()
         passwordField.typeText("wrong123")
 
-        app.buttons["Sign in"].tap()
+        app.buttons[signInButtonId].tap()
 
         XCTAssertTrue(
             app.staticTexts["Incorrect email or password"].waitForExistence(timeout: 5),
             "Invalid credentials inline error should be shown"
         )
-        XCTAssertTrue(app.buttons["Sign in"].exists, "App should remain alive on invalid credentials")
+        XCTAssertTrue(app.buttons[signInButtonId].exists, "App should remain alive on invalid credentials")
     }
 
     @MainActor
@@ -121,12 +128,12 @@ final class ReguertaUITests: XCTestCase {
     private func launchAndOpenLogin(_ app: XCUIApplication) -> XCUIElement {
         app.launch()
 
-        let enterButton = app.buttons["Enter the app"]
+        let enterButton = app.buttons[enterButtonId]
         if enterButton.waitForExistence(timeout: 8) {
             enterButton.tap()
         }
 
-        let emailField = app.textFields["Email"]
+        let emailField = app.textFields[emailFieldId]
         XCTAssertTrue(emailField.waitForExistence(timeout: 12), "Email field not found")
         return emailField
     }

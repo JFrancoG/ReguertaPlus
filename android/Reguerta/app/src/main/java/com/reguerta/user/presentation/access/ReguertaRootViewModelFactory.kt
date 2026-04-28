@@ -11,6 +11,8 @@ import com.reguerta.user.data.access.ChainedMemberRepository
 import com.reguerta.user.data.access.FirebaseAuthSessionProvider
 import com.reguerta.user.data.access.FirestoreMemberRepository
 import com.reguerta.user.data.access.InMemoryMemberRepository
+import com.reguerta.user.data.bylaws.AssetBylawsKnowledgeSource
+import com.reguerta.user.data.bylaws.BylawsCloudGateway
 import com.reguerta.user.data.calendar.ChainedDeliveryCalendarRepository
 import com.reguerta.user.data.calendar.FirestoreDeliveryCalendarRepository
 import com.reguerta.user.data.calendar.InMemoryDeliveryCalendarRepository
@@ -118,6 +120,12 @@ fun rememberSessionViewModel(): SessionViewModel {
     val reviewerEnvironmentRouter = remember(firestore) {
         FirestoreReviewerEnvironmentRouter(firestore = firestore)
     }
+    val bylawsKnowledgeSource = remember(context.applicationContext) {
+        AssetBylawsKnowledgeSource(appContext = context.applicationContext)
+    }
+    val bylawsCloudGateway = remember {
+        BylawsCloudGateway(endpointUrl = BuildConfig.BYLAWS_CLOUD_ENDPOINT)
+    }
     val imagePipelineManager = remember(context.applicationContext) {
         FirebaseImagePipelineManager(
             context = context.applicationContext,
@@ -149,6 +157,8 @@ fun rememberSessionViewModel(): SessionViewModel {
             ),
             criticalDataFreshnessLocalRepository = freshnessLocalRepository,
             reviewerEnvironmentRouter = reviewerEnvironmentRouter,
+            bylawsKnowledgeSource = bylawsKnowledgeSource,
+            bylawsCloudGateway = bylawsCloudGateway,
             nowMillisProvider = DevelopmentTimeMachine::nowMillis,
             developImpersonationEnabled = BuildConfig.DEBUG,
             initialNowOverrideMillis = DevelopmentTimeMachine.overrideNowMillis(),

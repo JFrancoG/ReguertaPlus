@@ -83,6 +83,9 @@ extension ContentView {
                 homeDestination = .shifts
                 viewModel.refreshShifts()
             },
+            onOpenBylaws: {
+                homeDestination = .bylaws
+            },
             onRetryFreshness: {
                 viewModel.refreshMyOrderFreshness()
             }

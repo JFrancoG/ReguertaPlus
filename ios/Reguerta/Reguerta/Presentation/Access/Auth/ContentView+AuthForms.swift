@@ -12,7 +12,8 @@ extension ContentView {
                 liveValidation: { isValidEmail($0) },
                 isEnabled: !viewModel.isAuthenticating,
                 showsClearAction: true,
-                keyboardType: .emailAddress
+                keyboardType: .emailAddress,
+                accessibilityIdentifier: "auth.login.emailField"
             )
 
             ReguertaInputField(
@@ -25,7 +26,8 @@ extension ContentView {
                 isEnabled: !viewModel.isAuthenticating,
                 isSecure: true,
                 showsPasswordToggle: true,
-                keyboardType: .default
+                keyboardType: .default,
+                accessibilityIdentifier: "auth.login.passwordField"
             )
 
             HStack {
@@ -46,7 +48,8 @@ extension ContentView {
             ReguertaButton(
                 localizedKey(viewModel.isAuthenticating ? AccessL10nKey.signingIn : AccessL10nKey.signIn),
                 isEnabled: viewModel.canSubmitSignIn,
-                isLoading: viewModel.isAuthenticating
+                isLoading: viewModel.isAuthenticating,
+                accessibilityIdentifier: "auth.login.signInButton"
             ) {
                 viewModel.signIn()
             }

@@ -43,7 +43,8 @@ extension ContentView {
 
             ReguertaButton(
                 localizedKey(AccessL10nKey.welcomeCtaEnter),
-                fullWidth: true
+                fullWidth: true,
+                accessibilityIdentifier: "auth.welcome.enterButton"
             ) {
                 dispatchShell(.continueFromWelcome)
             }

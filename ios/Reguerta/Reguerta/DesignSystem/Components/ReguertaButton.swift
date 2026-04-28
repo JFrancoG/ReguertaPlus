@@ -16,6 +16,7 @@ struct ReguertaButton: View {
     let isLoading: Bool
     let fullWidth: Bool
     let fixedWidth: CGFloat?
+    let accessibilityIdentifier: String?
     let action: () -> Void
 
     init(
@@ -25,6 +26,7 @@ struct ReguertaButton: View {
         isLoading: Bool = false,
         fullWidth: Bool = true,
         fixedWidth: CGFloat? = nil,
+        accessibilityIdentifier: String? = nil,
         action: @escaping () -> Void
     ) {
         self.title = title
@@ -33,6 +35,7 @@ struct ReguertaButton: View {
         self.isLoading = isLoading
         self.fullWidth = fullWidth
         self.fixedWidth = fixedWidth
+        self.accessibilityIdentifier = accessibilityIdentifier
         self.action = action
     }
 
@@ -82,6 +85,7 @@ struct ReguertaButton: View {
             .frame(width: fixedWidth)
             .contentShape(Rectangle())
         }
+        .reguertaAccessibilityIdentifier(accessibilityIdentifier)
         .disabled(!isEnabled || isLoading)
     }
 
@@ -128,6 +132,17 @@ struct ReguertaButton: View {
             tokens.button.secondaryFont
         case .text:
             tokens.button.textFont
+        }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func reguertaAccessibilityIdentifier(_ identifier: String?) -> some View {
+        if let identifier {
+            accessibilityIdentifier(identifier)
+        } else {
+            self
         }
     }
 }

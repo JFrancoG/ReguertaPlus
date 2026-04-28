@@ -29,6 +29,7 @@ struct ReguertaInputField: View {
     let keyboardType: UIKeyboardType
     let trailingIcon: Image?
     let onTrailingTap: (() -> Void)?
+    let accessibilityIdentifier: String?
 
     init(
         _ label: LocalizedStringKey,
@@ -46,7 +47,8 @@ struct ReguertaInputField: View {
         showsPasswordToggle: Bool = true,
         keyboardType: UIKeyboardType = .default,
         trailingIcon: Image? = nil,
-        onTrailingTap: (() -> Void)? = nil
+        onTrailingTap: (() -> Void)? = nil,
+        accessibilityIdentifier: String? = nil
     ) {
         self.label = label
         self._text = text
@@ -64,6 +66,7 @@ struct ReguertaInputField: View {
         self.keyboardType = keyboardType
         self.trailingIcon = trailingIcon
         self.onTrailingTap = onTrailingTap
+        self.accessibilityIdentifier = accessibilityIdentifier
     }
 
     private var effectiveErrorMessage: LocalizedStringKey? {
@@ -113,6 +116,7 @@ struct ReguertaInputField: View {
                             .textInputAutocapitalization(.never)
                             .keyboardType(keyboardType)
                             .accessibilityLabel(Text(label))
+                            .reguertaAccessibilityIdentifier(accessibilityIdentifier)
                     } else {
                         TextField("", text: $text)
                             .font(tokens.typography.body)
@@ -122,6 +126,7 @@ struct ReguertaInputField: View {
                             .textInputAutocapitalization(.never)
                             .keyboardType(keyboardType)
                             .accessibilityLabel(Text(label))
+                            .reguertaAccessibilityIdentifier(accessibilityIdentifier)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -217,6 +222,17 @@ struct ReguertaInputField: View {
             tokens.colors.feedbackError
         case .default, .disabled:
             tokens.colors.textSecondary
+        }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func reguertaAccessibilityIdentifier(_ identifier: String?) -> some View {
+        if let identifier {
+            accessibilityIdentifier(identifier)
+        } else {
+            self
         }
     }
 }
