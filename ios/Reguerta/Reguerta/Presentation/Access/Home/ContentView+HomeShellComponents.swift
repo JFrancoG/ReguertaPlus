@@ -14,55 +14,54 @@ struct HomeShellTopBarView: View {
     }
 
     var body: some View {
-        ReguertaCard {
-            HStack {
-                Button(action: onPrimaryAction) {
-                    Image(systemName: showsBack ? "chevron.left" : "line.3.horizontal")
-                        .font(.system(size: 22.resize, weight: .semibold))
+        HStack {
+            Button(action: onPrimaryAction) {
+                Image(systemName: showsBack ? "chevron.left" : "line.3.horizontal")
+                    .font(.system(size: 22.resize, weight: .semibold))
+                    .foregroundStyle(tokens.colors.textPrimary)
+                    .frame(width: 44.resize, height: 44.resize)
+            }
+            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+
+            Spacer()
+
+            if let titleOverride {
+                Text(titleOverride)
+                    .font(tokens.typography.titleCard)
+                    .foregroundStyle(tokens.colors.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+            } else {
+                Text(localizedKey(titleKey))
+                    .font(tokens.typography.titleCard)
+                    .foregroundStyle(tokens.colors.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+            }
+
+            Spacer()
+
+            ZStack(alignment: .topTrailing) {
+                Button(action: onNotificationsAction) {
+                    Image(systemName: "bell")
+                        .font(.system(size: 20.resize, weight: .semibold))
                         .foregroundStyle(tokens.colors.textPrimary)
                         .frame(width: 44.resize, height: 44.resize)
                 }
                 .buttonStyle(.plain)
-                .contentShape(Rectangle())
+                .accessibilityLabel(localizedKey(AccessL10nKey.homeShellNotifications))
 
-                Spacer()
-
-                if let titleOverride {
-                    Text(titleOverride)
-                        .font(tokens.typography.titleCard)
-                        .foregroundStyle(tokens.colors.textPrimary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.78)
-                } else {
-                    Text(localizedKey(titleKey))
-                        .font(tokens.typography.titleCard)
-                        .foregroundStyle(tokens.colors.textPrimary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.78)
-                }
-
-                Spacer()
-
-                ZStack(alignment: .topTrailing) {
-                    Button(action: onNotificationsAction) {
-                        Image(systemName: "bell")
-                            .font(.system(size: 20.resize, weight: .semibold))
-                            .foregroundStyle(tokens.colors.textPrimary)
-                            .frame(width: 44.resize, height: 44.resize)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(localizedKey(AccessL10nKey.homeShellNotifications))
-
-                    if hasNotificationIndicator {
-                        Circle()
-                            .fill(tokens.colors.feedbackError)
-                            .frame(width: 9.resize, height: 9.resize)
-                            .padding(.top, 9.resize)
-                            .padding(.trailing, 9.resize)
-                    }
+                if hasNotificationIndicator {
+                    Circle()
+                        .fill(tokens.colors.feedbackError)
+                        .frame(width: 9.resize, height: 9.resize)
+                        .padding(.top, 9.resize)
+                        .padding(.trailing, 9.resize)
                 }
             }
         }
+        .frame(maxWidth: .infinity, minHeight: 52.resize)
     }
 }
 
@@ -75,53 +74,50 @@ struct HomeWeeklySummaryCardView: View {
     }
 
     var body: some View {
-        ReguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                HStack(alignment: .center) {
-                    Text(display.weekRangeLabel)
-                        .font(tokens.typography.titleSection)
-                        .foregroundStyle(tokens.colors.textPrimary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.78)
-                    Spacer(minLength: tokens.spacing.sm)
-                    Text(display.weekBadgeLabel)
-                        .font(tokens.typography.label)
-                        .foregroundStyle(tokens.colors.actionPrimary)
-                        .padding(.horizontal, tokens.spacing.sm)
-                        .padding(.vertical, tokens.spacing.xs)
-                        .overlay(Capsule().stroke(tokens.colors.actionPrimary, lineWidth: 1))
-                }
+        VStack(alignment: .leading, spacing: tokens.spacing.md) {
+            HStack(alignment: .center) {
+                Text(display.weekRangeLabel)
+                    .font(tokens.typography.titleSection)
+                    .foregroundStyle(tokens.colors.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+                Spacer(minLength: tokens.spacing.sm)
+                Text(display.weekBadgeLabel)
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.actionPrimary)
+                    .padding(.horizontal, tokens.spacing.sm)
+                    .padding(.vertical, tokens.spacing.xs)
+                    .overlay(Capsule().stroke(tokens.colors.actionPrimary, lineWidth: 1))
+            }
 
-                HStack(spacing: tokens.spacing.sm) {
-                    summaryField(
-                        titleKey: AccessL10nKey.homeDashboardProducer,
-                        value: display.producerName
-                    )
-                    .frame(maxWidth: .infinity)
-                    summaryField(
-                        titleKey: AccessL10nKey.homeDashboardDelivery,
-                        value: display.deliveryLabel
-                    )
-                    .frame(maxWidth: .infinity)
-                    .layoutPriority(-1)
-                }
+            HStack(spacing: tokens.spacing.sm) {
+                summaryField(
+                    titleKey: AccessL10nKey.homeDashboardProducer,
+                    value: display.producerName
+                )
+                .frame(maxWidth: .infinity)
+                summaryField(
+                    titleKey: AccessL10nKey.homeDashboardDelivery,
+                    value: display.deliveryLabel
+                )
+                .frame(width: 104.resize)
+            }
 
-                HStack(spacing: tokens.spacing.sm) {
-                    summaryField(
-                        titleKey: AccessL10nKey.homeDashboardResponsible,
-                        value: display.responsibleName,
-                        secondary: String(
-                            format: NSLocalizedString(AccessL10nKey.homeDashboardHelperFormat, comment: ""),
-                            display.helperName
-                        )
+            HStack(spacing: tokens.spacing.sm) {
+                summaryField(
+                    titleKey: AccessL10nKey.homeDashboardResponsible,
+                    value: display.responsibleName,
+                    secondary: String(
+                        format: NSLocalizedString(AccessL10nKey.homeDashboardHelperFormat, comment: ""),
+                        display.helperName
                     )
-                    .frame(maxWidth: .infinity)
-                    orderStatePill(display.orderState)
-                        .frame(maxWidth: .infinity)
-                        .layoutPriority(-1)
-                }
+                )
+                .frame(maxWidth: .infinity)
+                orderStatePill(display.orderState)
+                    .frame(width: 104.resize)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func summaryField(titleKey: String, value: String, secondary: String? = nil) -> some View {

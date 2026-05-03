@@ -44,6 +44,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-05-03 | 🐛 fix(ios): hide drawer behind home content
 - 2026-04-19 | 🐛 fix(mobile): migrate permission strings to xcstrings
 - 2026-04-13 | 🐛 fix(calendar): support legacy config keys and fallback paths for delivery calendar
 - 2026-04-10 | 🐛 fix(order): finalize confirmed order flow

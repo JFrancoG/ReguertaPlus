@@ -41,6 +41,8 @@ extension ContentView {
                     }
                 }
                 .disabled(isHomeDrawerOpen)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .background(tokens.colors.surfacePrimary)
                 .offset(x: resolvedHomeLayerOffset(drawerWidth: drawerWidth))
                 .shadow(color: .black.opacity(isHomeDrawerOpen ? 0.22 : 0), radius: 14.resize, x: -4.resize, y: 0)
                 .animation(.spring(response: 0.28, dampingFraction: 0.82), value: isHomeDrawerOpen)
