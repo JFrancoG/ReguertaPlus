@@ -5,50 +5,76 @@ extension ContentView {
         GeometryReader { proxy in
             let drawerWidth = min(320.resize, proxy.size.width * 0.78)
             let usesShellScroll =
+                homeDestination != .dashboard &&
                 homeDestination != .myOrder &&
                 homeDestination != .receivedOrders &&
                 homeDestination != .users
 
             ZStack(alignment: .leading) {
-                if usesShellScroll {
-                    ScrollView(.vertical, showsIndicators: false) {
+                homeDrawerPanel(drawerWidth: drawerWidth)
+
+                Group {
+                    if usesShellScroll {
+                        ScrollView(.vertical, showsIndicators: false) {
+                            VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                                homeShellTopBar
+                                homeRouteContent
+
+                                if viewModel.feedbackMessageKey != nil {
+                                    feedbackMessageRoute
+                                }
+                            }
+                            .padding(.top, 0)
+                            .padding(.bottom, tokens.spacing.xxl)
+                        }
+                        .scrollDismissesKeyboard(.interactively)
+                    } else {
                         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
                             homeShellTopBar
                             homeRouteContent
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
                             if viewModel.feedbackMessageKey != nil {
                                 feedbackMessageRoute
                             }
                         }
-                        .padding(.vertical, tokens.spacing.lg)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .padding(.top, 0)
+                        .padding(.bottom, tokens.spacing.xxl)
                     }
-                    .scrollDismissesKeyboard(.interactively)
-                    .disabled(isHomeDrawerOpen)
-                } else {
-                    VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-                        homeShellTopBar
-                        homeRouteContent
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-
-                        if viewModel.feedbackMessageKey != nil {
-                            feedbackMessageRoute
-                        }
+                }
+                .disabled(isHomeDrawerOpen)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .background(tokens.colors.surfacePrimary)
+                .offset(x: resolvedHomeLayerOffset(drawerWidth: drawerWidth))
+                .shadow(color: .black.opacity(isHomeDrawerOpen ? 0.22 : 0), radius: 14.resize, x: -4.resize, y: 0)
+                .animation(.spring(response: 0.28, dampingFraction: 0.82), value: isHomeDrawerOpen)
+                .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.84), value: homeDrawerDragOffset)
+                .overlay {
+                    if isHomeDrawerOpen {
+                        Color.black.opacity(0.08)
+                            .contentShape(Rectangle())
+                            .onTapGesture { closeHomeDrawer() }
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .padding(.vertical, tokens.spacing.lg)
-                    .disabled(isHomeDrawerOpen)
                 }
-
-                if isHomeDrawerOpen {
-                    Color.black.opacity(0.18)
-                        .ignoresSafeArea()
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            closeHomeDrawer()
+                .gesture(
+                    DragGesture(minimumDistance: 12)
+                        .onChanged { gesture in
+                            if isHomeDrawerOpen {
+                                homeDrawerDragOffset = min(0, gesture.translation.width)
+                            }
                         }
-                }
-
-                homeDrawerPanel(drawerWidth: drawerWidth)
+                        .onEnded { gesture in
+                            guard isHomeDrawerOpen else { return }
+                            if gesture.translation.width < -56.resize {
+                                closeHomeDrawer()
+                            } else {
+                                withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                                    homeDrawerDragOffset = 0
+                                }
+                            }
+                        }
+                )
 
                 if !isHomeDrawerOpen {
                     Color.clear
@@ -76,7 +102,11 @@ extension ContentView {
         HomeShellTopBarView(
             tokens: tokens,
             titleKey: homeDestination.titleKey,
+            titleOverride: homeDestination == .dashboard
+                ? formatHomeTopBarDate(nowMillis: viewModel.nowOverrideMillis ?? Int64(Date().timeIntervalSince1970 * 1_000))
+                : nil,
             showsBack: homeDestination != .dashboard,
+            hasNotificationIndicator: !viewModel.notificationsFeed.isEmpty,
             onPrimaryAction: {
                 if homeDestination == .dashboard {
                     openHomeDrawer()
@@ -101,14 +131,14 @@ extension ContentView {
     }
 
     func homeDrawerPanel(drawerWidth: CGFloat) -> some View {
-        let drawerOffset = resolvedHomeDrawerOffset(drawerWidth: drawerWidth)
-
-        return HStack(spacing: 0) {
+        HStack(spacing: 0) {
             HomeDrawerContentView(
                 tokens: tokens,
                 currentMember: currentHomeMember,
+                sharedProfile: viewModel.sharedProfiles.first(where: { $0.userId == currentHomeMember?.id }),
                 currentDestination: homeDestination,
                 installedVersion: installedVersion,
+                isDevelopBuild: viewModel.isDevelopImpersonationEnabled,
                 onNavigate: handleHomeDrawerNavigation,
                 onCloseDrawer: closeHomeDrawer,
                 onSignOut: {
@@ -127,71 +157,47 @@ extension ContentView {
                     .fill(tokens.colors.borderSubtle.opacity(0.4))
                     .frame(width: 1)
             }
-            .offset(x: drawerOffset)
-            .gesture(
-                DragGesture(minimumDistance: 12)
-                    .onChanged { gesture in
-                        if isHomeDrawerOpen {
-                            homeDrawerDragOffset = min(0, gesture.translation.width)
-                        }
-                    }
-                    .onEnded { gesture in
-                        guard isHomeDrawerOpen else { return }
-                        if gesture.translation.width < -56.resize {
-                            closeHomeDrawer()
-                        } else {
-                            withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-                                homeDrawerDragOffset = 0
-                            }
-                        }
-                    }
-            )
 
             Spacer(minLength: 0)
         }
         .ignoresSafeArea()
-        .allowsHitTesting(isHomeDrawerOpen)
+        .allowsHitTesting(isHomeDrawerOpen || homeDrawerDragOffset > 0)
         .animation(.spring(response: 0.28, dampingFraction: 0.82), value: isHomeDrawerOpen)
         .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.84), value: homeDrawerDragOffset)
     }
 
     func handleHomeDrawerNavigation(_ destination: HomeDestination) {
-        switch destination {
-        case .publishNews:
-            viewModel.startCreatingNews()
-        case .adminBroadcast:
-            viewModel.startCreatingNotification()
-        case .news:
-            viewModel.refreshNews()
-        case .notifications:
-            viewModel.refreshNotifications()
-        case .products:
-            viewModel.refreshProducts()
-        case .myOrder:
-            viewModel.refreshMyOrderProducts()
-        case .profile:
-            viewModel.refreshSharedProfiles()
-        case .users:
-            viewModel.refreshMembers()
-        case .shifts:
-            viewModel.refreshShifts()
-        case .settings:
-            viewModel.refreshDeliveryCalendar()
-        case .bylaws:
-            break
-        default:
-            break
-        }
-
+        refreshBeforeOpeningHomeDestination(destination)
         homeDestination = destination
         closeHomeDrawer()
     }
 
+    func refreshBeforeOpeningHomeDestination(_ destination: HomeDestination) {
+        let refreshActions: [(HomeDestination, () -> Void)] = [
+            (.publishNews, { viewModel.startCreatingNews() }),
+            (.adminBroadcast, { viewModel.startCreatingNotification() }),
+            (.news, { viewModel.refreshNews() }),
+            (.notifications, { viewModel.refreshNotifications() }),
+            (.products, { viewModel.refreshProducts() }),
+            (.myOrder, { viewModel.refreshMyOrderProducts() }),
+            (.profile, { viewModel.refreshSharedProfiles() }),
+            (.users, { viewModel.refreshMembers() }),
+            (.shifts, { viewModel.refreshShifts() }),
+            (.settings, { viewModel.refreshDeliveryCalendar() })
+        ]
+
+        refreshActions.first { action in action.0 == destination }?.1()
+    }
+
     func resolvedHomeDrawerOffset(drawerWidth: CGFloat) -> CGFloat {
+        resolvedHomeLayerOffset(drawerWidth: drawerWidth) - drawerWidth
+    }
+
+    func resolvedHomeLayerOffset(drawerWidth: CGFloat) -> CGFloat {
         if isHomeDrawerOpen {
-            return min(0, homeDrawerDragOffset)
+            return max(0, drawerWidth + homeDrawerDragOffset)
         }
-        return -drawerWidth + max(0, homeDrawerDragOffset)
+        return max(0, min(drawerWidth, homeDrawerDragOffset))
     }
 
     func openHomeDrawer() {

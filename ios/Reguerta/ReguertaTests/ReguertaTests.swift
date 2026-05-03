@@ -1139,9 +1139,112 @@ struct ReguertaTests {
         )
     }
 
+    @Test
+    func homeWeeklySummaryUsesCurrentWeekBeforeDelivery() {
+        let display = resolveHomeWeeklySummaryDisplay(
+            nowMillis: testMillis(year: 2026, month: 5, day: 6),
+            defaultDeliveryDayOfWeek: .friday,
+            deliveryCalendarOverrides: [],
+            shifts: [testDeliveryShift(id: "delivery_w19", year: 2026, month: 5, day: 8)],
+            members: homeSummaryMembers
+        )
+
+        #expect(display.weekKey == "2026-W19")
+        #expect(display.weekRangeLabel == "4 may - 10 may")
+        #expect(display.responsibleName == "Carmen")
+        #expect(display.helperName == "Javier")
+    }
+
+    @Test
+    func homeWeeklySummaryMovesToNextWeekAfterDelivery() {
+        let display = resolveHomeWeeklySummaryDisplay(
+            nowMillis: testMillis(year: 2026, month: 5, day: 9),
+            defaultDeliveryDayOfWeek: .friday,
+            deliveryCalendarOverrides: [],
+            shifts: [
+                testDeliveryShift(id: "delivery_w19", year: 2026, month: 5, day: 8),
+                testDeliveryShift(id: "delivery_w20", year: 2026, month: 5, day: 15),
+            ],
+            members: homeSummaryMembers
+        )
+
+        #expect(display.weekKey == "2026-W20")
+        #expect(display.weekRangeLabel == "11 may - 17 may")
+    }
+
+    @Test
+    func homeOrderStateMappingUsesConfirmedBeforeDraft() {
+        let suiteName = "home-order-state-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+        let cartKey = "reguerta_my_order_cart.member_member_1_week_2026-W19.quantities"
+        let confirmedKey = "reguerta_my_order_cart.member_member_1_week_2026-W19.confirmed_quantities"
+
+        #expect(resolveHomeOrderState(userDefaults: defaults, memberId: "member_1", weekKey: "2026-W19") == .notStarted)
+        defaults.set(["product_1": 2], forKey: cartKey)
+        #expect(resolveHomeOrderState(userDefaults: defaults, memberId: "member_1", weekKey: "2026-W19") == .unconfirmed)
+        defaults.set(["product_1": 2], forKey: confirmedKey)
+        #expect(resolveHomeOrderState(userDefaults: defaults, memberId: "member_1", weekKey: "2026-W19") == .completed)
+    }
+
     private static let matrixRelativePath =
         "spec/app/hu-044-canonical-role-permission-matrix-and-test-fixtures/role-permission-matrix.v1.json"
 }
+
+private func testMillis(year: Int, month: Int, day: Int) -> Int64 {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(identifier: "Europe/Madrid")!
+    let date = calendar.date(from: DateComponents(year: year, month: month, day: day))!
+    return Int64(date.timeIntervalSince1970 * 1_000)
+}
+
+private func testDeliveryShift(id: String, year: Int, month: Int, day: Int) -> ShiftAssignment {
+    ShiftAssignment(
+        id: id,
+        type: .delivery,
+        dateMillis: testMillis(year: year, month: month, day: day),
+        assignedUserIds: ["member_1"],
+        helperUserId: "member_2",
+        status: .confirmed,
+        source: "test",
+        createdAtMillis: 0,
+        updatedAtMillis: 0
+    )
+}
+
+private let homeSummaryMembers = [
+    Member(
+        id: "member_1",
+        displayName: "Carmen",
+        normalizedEmail: "carmen@reguerta.test",
+        authUid: nil,
+        roles: [.member],
+        isActive: true,
+        producerCatalogEnabled: true
+    ),
+    Member(
+        id: "member_2",
+        displayName: "Javier",
+        normalizedEmail: "javier@reguerta.test",
+        authUid: nil,
+        roles: [.member],
+        isActive: true,
+        producerCatalogEnabled: true
+    ),
+    Member(
+        id: "producer_1",
+        displayName: "Huerta Norte",
+        companyName: "Huerta Norte",
+        normalizedEmail: "huerta@reguerta.test",
+        authUid: nil,
+        roles: [.producer],
+        isActive: true,
+        producerCatalogEnabled: true,
+        producerParity: .odd
+    ),
+]
 
 private struct FixedStartupVersionPolicyRepository: StartupVersionPolicyRepository {
     let policy: StartupVersionPolicy?

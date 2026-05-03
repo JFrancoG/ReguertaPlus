@@ -34,7 +34,7 @@ import com.reguerta.user.R
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.UnauthorizedReason
-import com.reguerta.user.domain.access.canManageProductCatalog
+import com.reguerta.user.domain.access.canAccessReceivedOrders
 
 @Composable
 internal fun UnauthorizedCard(
@@ -81,38 +81,20 @@ internal fun UnauthorizedCard(
 internal fun AuthorizedHome(
     mode: SessionMode.Authorized,
     myOrderFreshnessState: MyOrderFreshnessUiState,
-    draft: MemberDraft,
-    onDraftChanged: (MemberDraft) -> Unit,
-    onToggleAdmin: (String) -> Unit,
-    onToggleActive: (String) -> Unit,
-    onCreateMember: () -> Unit,
+    weeklySummaryDisplay: HomeWeeklySummaryDisplay,
     onRetryMyOrderFreshness: () -> Unit,
     onOpenMyOrder: () -> Unit,
-    onOpenProducts: () -> Unit,
-    onOpenShifts: () -> Unit,
-    onOpenBylaws: () -> Unit,
+    onOpenReceivedOrders: () -> Unit,
 ) {
-    OperationalModules(
-        modulesEnabled = true,
-        canOpenProducts = mode.member.canManageProductCatalog,
+    HomeWeeklySummaryCard(display = weeklySummaryDisplay)
+    HomeActionRow(
+        canOpenReceivedOrders = mode.member.canAccessReceivedOrders,
         myOrderFreshnessState = myOrderFreshnessState,
+        orderState = weeklySummaryDisplay.orderState,
         onOpenMyOrder = onOpenMyOrder,
-        onRetryMyOrderFreshness = onRetryMyOrderFreshness,
-        onOpenProducts = onOpenProducts,
-        onOpenShifts = onOpenShifts,
-        onOpenBylaws = onOpenBylaws,
+        onOpenReceivedOrders = onOpenReceivedOrders,
+        onRetryFreshness = onRetryMyOrderFreshness,
     )
-
-    if (mode.member.isAdmin) {
-        AdminToolsCard(
-            members = mode.members,
-            draft = draft,
-            onDraftChanged = onDraftChanged,
-            onToggleAdmin = onToggleAdmin,
-            onToggleActive = onToggleActive,
-            onCreateMember = onCreateMember,
-        )
-    }
 }
 
 @Composable
