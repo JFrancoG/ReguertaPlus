@@ -14,15 +14,23 @@ struct HomeShellTopBarView: View {
     }
 
     var body: some View {
-        HStack {
-            Button(action: onPrimaryAction) {
-                Image(systemName: showsBack ? "chevron.left" : "line.3.horizontal")
-                    .font(.system(size: 22.resize, weight: .semibold))
-                    .foregroundStyle(tokens.colors.textPrimary)
-                    .frame(width: 44.resize, height: 44.resize)
+        if #available(iOS 26.0, *) {
+            GlassEffectContainer(spacing: tokens.spacing.xl) {
+                topBarContent
             }
-            .buttonStyle(.plain)
-            .contentShape(Rectangle())
+        } else {
+            topBarContent
+        }
+    }
+
+    private var topBarContent: some View {
+        HStack {
+            HomeShellGlassIconButton(
+                tokens: tokens,
+                systemName: showsBack ? "chevron.left" : "line.3.horizontal",
+                fontSize: showsBack ? 21.resize : 23.resize,
+                action: onPrimaryAction
+            )
 
             Spacer()
 
@@ -43,25 +51,66 @@ struct HomeShellTopBarView: View {
             Spacer()
 
             ZStack(alignment: .topTrailing) {
-                Button(action: onNotificationsAction) {
-                    Image(systemName: "bell")
-                        .font(.system(size: 20.resize, weight: .semibold))
-                        .foregroundStyle(tokens.colors.textPrimary)
-                        .frame(width: 44.resize, height: 44.resize)
-                }
-                .buttonStyle(.plain)
+                HomeShellGlassIconButton(
+                    tokens: tokens,
+                    systemName: "bell",
+                    fontSize: 21.resize,
+                    action: onNotificationsAction
+                )
                 .accessibilityLabel(localizedKey(AccessL10nKey.homeShellNotifications))
 
                 if hasNotificationIndicator {
                     Circle()
                         .fill(tokens.colors.feedbackError)
                         .frame(width: 9.resize, height: 9.resize)
-                        .padding(.top, 9.resize)
-                        .padding(.trailing, 9.resize)
+                        .padding(.top, 12.resize)
+                        .padding(.trailing, 12.resize)
                 }
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 52.resize)
+        .frame(maxWidth: .infinity, minHeight: 62.resize)
+    }
+}
+
+private struct HomeShellGlassIconButton: View {
+    let tokens: ReguertaDesignTokens
+    let systemName: String
+    let fontSize: CGFloat
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: fontSize, weight: .semibold))
+                .foregroundStyle(tokens.colors.textPrimary)
+                .frame(width: 58.resize, height: 58.resize)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .homeShellGlassButton(tokens: tokens)
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func homeShellGlassButton(tokens: ReguertaDesignTokens) -> some View {
+        let shape = Circle()
+
+        if #available(iOS 26.0, *) {
+            self.glassEffect(
+                .regular
+                    .tint(tokens.colors.surfaceSecondary.opacity(0.18))
+                    .interactive(true),
+                in: shape
+            )
+        } else {
+            self
+                .background(.ultraThinMaterial, in: shape)
+                .overlay(
+                    shape.stroke(tokens.colors.borderSubtle.opacity(0.42), lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.18), radius: 10.resize, y: 4.resize)
+        }
     }
 }
 
