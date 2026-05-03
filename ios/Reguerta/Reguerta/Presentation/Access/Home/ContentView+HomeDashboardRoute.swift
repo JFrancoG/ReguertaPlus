@@ -40,20 +40,24 @@ struct HomeWeeklySummaryDisplay: Equatable {
 extension ContentView {
     @ViewBuilder
     var dashboardRoute: some View {
-        switch viewModel.mode {
-        case .signedOut:
-            cardContainer {
-                Text(localizedKey(AccessL10nKey.signedOutHint))
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
+        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+            switch viewModel.mode {
+            case .signedOut:
+                cardContainer {
+                    Text(localizedKey(AccessL10nKey.signedOutHint))
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                }
+            case .unauthorized:
+                EmptyView()
+            case .authorized(let session):
+                authorizedHome(session: session)
             }
-        case .unauthorized:
-            EmptyView()
-        case .authorized(let session):
-            authorizedHome(session: session)
-        }
 
-        latestNewsCard
+            latestNewsCard
+                .frame(maxHeight: .infinity, alignment: .top)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     @ViewBuilder
@@ -94,11 +98,7 @@ extension ContentView {
     var latestNewsCard: some View {
         LatestNewsCardView(
             tokens: tokens,
-            latestNews: viewModel.latestNews,
-            onViewAll: {
-                homeDestination = .news
-                viewModel.refreshNews()
-            }
+            latestNews: viewModel.latestNews
         )
     }
 

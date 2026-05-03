@@ -5,6 +5,7 @@ extension ContentView {
         GeometryReader { proxy in
             let drawerWidth = min(320.resize, proxy.size.width * 0.78)
             let usesShellScroll =
+                homeDestination != .dashboard &&
                 homeDestination != .myOrder &&
                 homeDestination != .receivedOrders &&
                 homeDestination != .users

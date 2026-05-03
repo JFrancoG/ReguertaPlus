@@ -316,7 +316,6 @@ struct NextShiftsCardView: View {
 struct LatestNewsCardView: View {
     let tokens: ReguertaDesignTokens
     let latestNews: [NewsArticle]
-    let onViewAll: () -> Void
 
     private func localizedKey(_ key: String) -> LocalizedStringKey {
         LocalizedStringKey(key)
@@ -325,27 +324,39 @@ struct LatestNewsCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.sm) {
             Text(localizedKey(AccessL10nKey.homeShellNewsTitle))
-                .font(tokens.typography.titleCard)
+                .font(tokens.typography.titleSection)
+                .frame(maxWidth: .infinity, alignment: .center)
             if latestNews.isEmpty {
                 Text(localizedKey(AccessL10nKey.newsEmptyState))
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
             } else {
-                ForEach(latestNews) { article in
-                    VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                        Text(article.title)
-                            .font(tokens.typography.body.weight(.semibold))
-                            .foregroundStyle(tokens.colors.textPrimary)
-                        Text(article.body)
-                            .font(tokens.typography.bodySecondary)
-                            .foregroundStyle(tokens.colors.textSecondary)
-                            .lineLimit(3)
+                ScrollView(.vertical, showsIndicators: false) {
+                    LazyVStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                        ForEach(latestNews.indices, id: \.self) { index in
+                            let article = latestNews[index]
+                            VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+                                Text(article.title)
+                                    .font(tokens.typography.body.weight(.semibold))
+                                    .foregroundStyle(tokens.colors.textPrimary)
+                                Text(article.body)
+                                    .font(tokens.typography.bodySecondary)
+                                    .foregroundStyle(tokens.colors.textSecondary)
+                                    .lineLimit(3)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                            if index < latestNews.count - 1 {
+                                Divider()
+                                    .background(tokens.colors.borderSubtle.opacity(0.65))
+                            }
+                        }
                     }
                 }
+                .scrollBounceBehavior(.basedOnSize)
             }
-            ReguertaButton(localizedKey(AccessL10nKey.newsViewAll), variant: .text, action: onViewAll)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 

@@ -44,6 +44,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-05-03 | 🐛 fix(ios): pin home dashboard layout
 - 2026-05-03 | 🐛 fix(ios): group home summary fields
 - 2026-05-03 | 🐛 fix(home): align summary week range
 - 2026-05-03 | 🐛 fix(home): refine HU-051 layout
