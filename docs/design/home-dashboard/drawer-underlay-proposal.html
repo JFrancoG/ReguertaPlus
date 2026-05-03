@@ -113,20 +113,20 @@
     }
 
     .drawer-top {
-      height: 42px;
+      height: 34px;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-start;
+      gap: 16px;
       font-family: system-ui, sans-serif;
       color: #fff;
-      font-size: 17px;
+      font-size: 15px;
       font-weight: 800;
-      padding-inline: 18px 0;
     }
 
     .back {
-      width: 42px;
-      height: 42px;
+      width: 32px;
+      height: 32px;
       display: grid;
       place-items: center;
       color: var(--text-primary);
@@ -134,10 +134,10 @@
 
     .back::before {
       content: "";
-      width: 22px;
-      height: 22px;
-      border-left: 4px solid currentColor;
-      border-bottom: 4px solid currentColor;
+      width: 16px;
+      height: 16px;
+      border-left: 3px solid currentColor;
+      border-bottom: 3px solid currentColor;
       transform: rotate(45deg);
       border-radius: 3px;
     }
@@ -197,14 +197,10 @@
       gap: 3px;
     }
 
-    .section-title {
-      color: var(--action-primary);
-      font-family: system-ui, sans-serif;
-      font-size: 9px;
-      font-weight: 900;
-      letter-spacing: 0;
-      text-transform: uppercase;
-      padding-left: 8px;
+    .section + .section {
+      margin-top: 4px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(55, 81, 59, 0.78);
     }
 
     .item {
@@ -419,12 +415,12 @@
 
     <section class="stage">
       <div>
-        <p class="caption">Estado abierto con usuario productor y admin. La imagen superior puede ser perfil/familia; si no hay imagen, se usa el logo de La Reguerta.</p>
+          <p class="caption">Estado abierto con usuario productor y admin. La imagen superior puede ser perfil/familia; si no hay imagen, se usa el logo de La Reguerta.</p>
         <div class="phone">
           <aside class="drawer">
             <div class="drawer-top">
-              <span>12:13</span>
               <span class="back" aria-hidden="true"></span>
+              <span>12:13</span>
             </div>
 
             <section class="identity">
@@ -437,7 +433,6 @@
 
             <nav class="menu-scroll">
               <section class="section">
-                <p class="section-title">Para todos</p>
                 <div class="item selected"><span class="icon">⌂</span><span>Home</span></div>
                 <div class="item"><span class="icon">✓</span><span>Mi pedido</span></div>
                 <div class="item"><span class="icon">≡</span><span>Mis pedidos</span></div>
@@ -449,13 +444,11 @@
               </section>
 
               <section class="section">
-                <p class="section-title">Productores</p>
                 <div class="item"><span class="icon">□</span><span>Productos</span></div>
                 <div class="item"><span class="icon">▤</span><span>Pedidos recibidos</span></div>
               </section>
 
               <section class="section">
-                <p class="section-title">Admin</p>
                 <div class="item"><span class="icon">U</span><span>Usuarios</span></div>
                 <div class="item"><span class="icon">＋</span><span>Publicar noticia</span></div>
                 <div class="item"><span class="icon">▲</span><span>Aviso general</span></div>
@@ -497,7 +490,7 @@
         </section>
         <section class="note">
           <h3>Secciones</h3>
-          <p>Primero funciones visibles para todos. Despues funciones de productores. Finalmente herramientas admin, solo si el usuario tiene permisos.</p>
+          <p>Primero funciones visibles para todos. Despues funciones de productores. Finalmente herramientas admin, separadas solo por divisores.</p>
         </section>
         <section class="note">
           <h3>Version</h3>

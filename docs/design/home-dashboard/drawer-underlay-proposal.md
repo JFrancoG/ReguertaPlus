@@ -22,11 +22,13 @@ Esto evita que el menu parezca un modal superpuesto y conserva la sensacion de p
 
 ## Secciones
 
-Orden recomendado:
+Orden recomendado, sin titulos visibles en la UI:
 
 1. `Para todos`
 2. `Productores`
 3. `Admin`
+
+Usar divisores sutiles entre grupos. Los nombres de grupo son criterio de organizacion y permisos, no necesariamente texto visible.
 
 ### Para todos
 
@@ -76,5 +78,6 @@ Puntos a cuidar:
 
 - No convertir el drawer en overlay modal.
 - La capa del Home debe ser la que se anima.
+- Mantener el boton de cierre pequeno y alineado a la izquierda.
 - Preservar cierre por boton atras, toque fuera o gesto horizontal si ya existe.
 - Mantener secciones ocultas cuando el usuario no tenga permisos.

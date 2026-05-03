@@ -55,6 +55,7 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-05-03 | 📝 docs(design): refine home drawer proposal
 - 2026-05-03 | 📝 docs(design): add home drawer proposal
 - 2026-05-03 | 📝 docs(design): add home dashboard proposal
 - 2026-04-19 | 📝 docs(changelog): reorder entries by recency
