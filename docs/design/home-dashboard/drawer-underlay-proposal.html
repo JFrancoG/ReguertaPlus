@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reguerta Home - drawer underlay</title>
+  <style>
+    @font-face {
+      font-family: "CabinSketch";
+      src: url("../../../ios/Reguerta/Reguerta/Resources/Fonts/cabin-sketch/CabinSketch-Regular.ttf") format("truetype");
+      font-weight: 400;
+    }
+
+    @font-face {
+      font-family: "CabinSketch";
+      src: url("../../../ios/Reguerta/Reguerta/Resources/Fonts/cabin-sketch/CabinSketch-Bold.ttf") format("truetype");
+      font-weight: 700;
+    }
+
+    :root {
+      --surface-primary: #0f1d0d;
+      --surface-secondary: #1a2b1b;
+      --surface-raised: #20341d;
+      --action-primary: #6da539;
+      --text-primary: #d1e1d1;
+      --text-secondary: #b5c5b3;
+      --border-subtle: #37513b;
+      --warning: #f08d43;
+      --error: #d86b6b;
+      --shadow: rgba(0, 0, 0, 0.36);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #101510;
+      color: var(--text-primary);
+      font-family: CabinSketch, system-ui, sans-serif;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+      letter-spacing: 0;
+    }
+
+    .board {
+      width: max-content;
+      padding: 32px;
+      display: grid;
+      gap: 24px;
+    }
+
+    .intro {
+      width: 820px;
+    }
+
+    h1 {
+      font-size: 34px;
+      line-height: 1.05;
+    }
+
+    .intro p,
+    .caption {
+      color: var(--text-secondary);
+      font-family: system-ui, sans-serif;
+      line-height: 1.25;
+    }
+
+    .intro p {
+      margin-top: 8px;
+      max-width: 760px;
+      font-size: 18px;
+    }
+
+    .stage {
+      display: grid;
+      grid-template-columns: 390px 390px;
+      gap: 44px;
+      align-items: start;
+    }
+
+    .caption {
+      max-width: 390px;
+      font-size: 15px;
+    }
+
+    .phone {
+      width: 390px;
+      height: 844px;
+      overflow: hidden;
+      border-radius: 40px;
+      background: var(--surface-primary);
+      box-shadow: 0 24px 60px var(--shadow), inset 0 0 0 1px rgba(209, 225, 209, 0.08);
+      position: relative;
+    }
+
+    .drawer {
+      position: absolute;
+      inset: 0;
+      width: 310px;
+      padding: 20px 18px 18px;
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      gap: 10px;
+      background: var(--surface-secondary);
+    }
+
+    .drawer-top {
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: system-ui, sans-serif;
+      color: #fff;
+      font-size: 17px;
+      font-weight: 800;
+      padding-inline: 18px 0;
+    }
+
+    .back {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      color: var(--text-primary);
+    }
+
+    .back::before {
+      content: "";
+      width: 22px;
+      height: 22px;
+      border-left: 4px solid currentColor;
+      border-bottom: 4px solid currentColor;
+      transform: rotate(45deg);
+      border-radius: 3px;
+    }
+
+    .identity {
+      display: grid;
+      justify-items: center;
+      gap: 6px;
+      padding: 0 8px 4px;
+    }
+
+    .avatar {
+      width: 78px;
+      height: 78px;
+      border-radius: 999px;
+      background: rgba(109, 165, 57, 0.14);
+      border: 2px solid rgba(109, 165, 57, 0.55);
+      padding: 5px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+    }
+
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+      object-fit: cover;
+      display: block;
+    }
+
+    .identity h2 {
+      font-size: 20px;
+      line-height: 1;
+      text-align: center;
+    }
+
+    .identity p {
+      max-width: 230px;
+      color: var(--text-secondary);
+      font-family: system-ui, sans-serif;
+      font-size: 10px;
+      line-height: 1.2;
+      text-align: center;
+      overflow-wrap: anywhere;
+    }
+
+    .menu-scroll {
+      min-height: 0;
+      overflow: hidden;
+      display: grid;
+      align-content: start;
+      gap: 8px;
+      padding-right: 4px;
+    }
+
+    .section {
+      display: grid;
+      gap: 3px;
+    }
+
+    .section-title {
+      color: var(--action-primary);
+      font-family: system-ui, sans-serif;
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: 0;
+      text-transform: uppercase;
+      padding-left: 8px;
+    }
+
+    .item {
+      min-height: 34px;
+      border-radius: 14px;
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      align-items: center;
+      gap: 9px;
+      padding: 4px 8px;
+      color: var(--text-primary);
+    }
+
+    .item.selected {
+      background: rgba(109, 165, 57, 0.14);
+      color: var(--action-primary);
+    }
+
+    .item.warn {
+      color: var(--warning);
+    }
+
+    .icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      background: var(--action-primary);
+      color: var(--surface-primary);
+      display: grid;
+      place-items: center;
+      font-family: system-ui, sans-serif;
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    .item.selected .icon {
+      box-shadow: inset 0 0 0 2px rgba(15, 29, 13, 0.18);
+    }
+
+    .item.warn .icon {
+      background: rgba(240, 141, 67, 0.18);
+      color: var(--warning);
+      border: 1px solid rgba(240, 141, 67, 0.45);
+    }
+
+    .item span:last-child {
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .footer {
+      display: grid;
+      gap: 8px;
+      padding-top: 7px;
+      border-top: 1px solid rgba(55, 81, 59, 0.75);
+    }
+
+    .sign-out {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      align-items: center;
+      gap: 9px;
+      color: var(--text-primary);
+      padding-inline: 8px;
+    }
+
+    .sign-out span:last-child {
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .version {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-secondary);
+      font-size: 14px;
+      line-height: 1;
+      padding-top: 4px;
+    }
+
+    .dev-pill {
+      border-radius: 999px;
+      padding: 3px 7px 2px;
+      color: var(--surface-primary);
+      background: var(--warning);
+      font-family: system-ui, sans-serif;
+      font-size: 10px;
+      font-weight: 900;
+    }
+
+    .home-layer {
+      position: absolute;
+      inset-block: 0;
+      left: 302px;
+      width: 390px;
+      border-radius: 38px 0 0 38px;
+      background: var(--surface-primary);
+      box-shadow: -14px 0 28px rgba(0, 0, 0, 0.32), inset 1px 0 0 rgba(209, 225, 209, 0.08);
+      overflow: hidden;
+    }
+
+    .home-peek {
+      width: 390px;
+      height: 844px;
+      padding: 18px;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 12px;
+      opacity: 0.92;
+    }
+
+    .status {
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-inline: 20px 10px;
+      color: white;
+      font-family: system-ui, sans-serif;
+      font-size: 17px;
+      font-weight: 800;
+    }
+
+    .hamburger {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      color: var(--text-primary);
+    }
+
+    .hamburger span,
+    .hamburger::before,
+    .hamburger::after {
+      content: "";
+      width: 27px;
+      height: 4px;
+      border-radius: 999px;
+      background: currentColor;
+      display: block;
+    }
+
+    .hamburger::before {
+      transform: translateY(-7px);
+    }
+
+    .hamburger::after {
+      transform: translateY(7px);
+    }
+
+    .home-card {
+      margin-top: 20px;
+      width: 340px;
+      height: 136px;
+      border-radius: 18px;
+      border: 1px solid var(--border-subtle);
+      background: var(--surface-secondary);
+    }
+
+    .home-card.small {
+      height: 84px;
+    }
+
+    .proposal-card {
+      width: 390px;
+      min-height: 844px;
+      border-radius: 40px;
+      background: var(--surface-primary);
+      padding: 24px;
+      display: grid;
+      gap: 16px;
+      align-content: start;
+      box-shadow: 0 24px 60px var(--shadow), inset 0 0 0 1px rgba(209, 225, 209, 0.08);
+    }
+
+    .proposal-card h2 {
+      font-size: 27px;
+      line-height: 1.05;
+    }
+
+    .note {
+      border-radius: 16px;
+      background: var(--surface-secondary);
+      border: 1px solid var(--border-subtle);
+      padding: 13px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .note h3 {
+      font-size: 20px;
+      line-height: 1;
+      color: var(--action-primary);
+    }
+
+    .note p {
+      color: var(--text-secondary);
+      font-family: system-ui, sans-serif;
+      font-size: 13px;
+      line-height: 1.25;
+    }
+  </style>
+</head>
+<body>
+  <main class="board">
+    <section class="intro">
+      <h1>Home Reguerta: menu lateral</h1>
+      <p>Propuesta para mantener el comportamiento actual: el Home se desplaza hacia la derecha y deja ver el menu que vive debajo. El drawer organiza funciones comunes, de productor y de administracion.</p>
+    </section>
+
+    <section class="stage">
+      <div>
+        <p class="caption">Estado abierto con usuario productor y admin. La imagen superior puede ser perfil/familia; si no hay imagen, se usa el logo de La Reguerta.</p>
+        <div class="phone">
+          <aside class="drawer">
+            <div class="drawer-top">
+              <span>12:13</span>
+              <span class="back" aria-hidden="true"></span>
+            </div>
+
+            <section class="identity">
+              <div class="avatar">
+                <img src="../../../android/Reguerta/app/src/main/res/drawable-nodpi/reguerta_logo.png" alt="">
+              </div>
+              <h2>Familia Garcia</h2>
+              <p>familia.garcia@reguerta.org</p>
+            </section>
+
+            <nav class="menu-scroll">
+              <section class="section">
+                <p class="section-title">Para todos</p>
+                <div class="item selected"><span class="icon">⌂</span><span>Home</span></div>
+                <div class="item"><span class="icon">✓</span><span>Mi pedido</span></div>
+                <div class="item"><span class="icon">≡</span><span>Mis pedidos</span></div>
+                <div class="item"><span class="icon">↔</span><span>Turnos</span></div>
+                <div class="item"><span class="icon">i</span><span>Estatutos</span></div>
+                <div class="item"><span class="icon">!</span><span>Noticias</span></div>
+                <div class="item"><span class="icon">•</span><span>Notificaciones</span></div>
+                <div class="item"><span class="icon">@</span><span>Perfil</span></div>
+              </section>
+
+              <section class="section">
+                <p class="section-title">Productores</p>
+                <div class="item"><span class="icon">□</span><span>Productos</span></div>
+                <div class="item"><span class="icon">▤</span><span>Pedidos recibidos</span></div>
+              </section>
+
+              <section class="section">
+                <p class="section-title">Admin</p>
+                <div class="item"><span class="icon">U</span><span>Usuarios</span></div>
+                <div class="item"><span class="icon">＋</span><span>Publicar noticia</span></div>
+                <div class="item"><span class="icon">▲</span><span>Aviso general</span></div>
+              </section>
+            </nav>
+
+            <footer class="footer">
+              <div class="sign-out"><span class="icon">↪</span><span>Cerrar sesion</span></div>
+              <div class="version"><span>iOS 0.21.8</span><span class="dev-pill">DEV</span></div>
+            </footer>
+          </aside>
+
+          <section class="home-layer" aria-hidden="true">
+            <div class="home-peek">
+              <div class="status">
+                <span></span>
+                <span>||| Wi-Fi 29</span>
+              </div>
+              <div class="hamburger"><span></span></div>
+              <div>
+                <div class="home-card"></div>
+                <div class="home-card small"></div>
+                <div class="home-card small"></div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <aside class="proposal-card">
+        <h2>Reglas de diseño</h2>
+        <section class="note">
+          <h3>Movimiento</h3>
+          <p>El menu no aparece encima del Home. El Home se traslada horizontalmente, conserva su contenido a la derecha y proyecta sombra sobre el drawer.</p>
+        </section>
+        <section class="note">
+          <h3>Identidad</h3>
+          <p>Mostrar foto de perfil o familia cuando exista. Si no hay imagen, usar el logo circular de La Reguerta como fallback.</p>
+        </section>
+        <section class="note">
+          <h3>Secciones</h3>
+          <p>Primero funciones visibles para todos. Despues funciones de productores. Finalmente herramientas admin, solo si el usuario tiene permisos.</p>
+        </section>
+        <section class="note">
+          <h3>Version</h3>
+          <p>La version siempre queda anclada abajo. En develop se añade una etiqueta DEV en color de aviso para distinguirla de produccion.</p>
+        </section>
+      </aside>
+    </section>
+  </main>
+</body>
+</html>
