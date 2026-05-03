@@ -44,6 +44,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-05-03 | 🐛 fix(home): align summary week range
 - 2026-05-03 | 🐛 fix(home): refine HU-051 layout
 - 2026-05-03 | 🐛 fix(ios): hide drawer behind home content
 - 2026-04-19 | 🐛 fix(mobile): migrate permission strings to xcstrings

@@ -79,10 +79,11 @@ internal fun resolveHomeWeeklySummaryDisplay(
             zoneId = zoneId,
         )
     val weekNumber = targetWeekStart.get(WeekFields.ISO.weekOfWeekBasedYear())
+    val targetWeekEnd = targetWeekStart.plusDays(6)
 
     return HomeWeeklySummaryDisplay(
         weekKey = targetWeekKey,
-        weekRangeLabel = "${targetWeekStart.toShortDayMonth(locale)} - ${targetDeliveryDate.toShortDayMonth(locale)}",
+        weekRangeLabel = "${targetWeekStart.toShortDayMonth(locale)} - ${targetWeekEnd.toShortDayMonth(locale)}",
         weekBadgeLabel = "Semana $weekNumber",
         producerName = resolveProducerName(targetWeekStart, members),
         deliveryLabel = targetDeliveryDate.toShortWeekdayDay(locale),

@@ -29,7 +29,7 @@ class HomeWeeklySummaryDisplayTest {
         )
 
         assertEquals("2026-W19", display.weekKey)
-        assertEquals("4 may - 8 may", display.weekRangeLabel)
+        assertEquals("4 may - 10 may", display.weekRangeLabel)
         assertEquals("Carmen", display.responsibleName)
         assertEquals("Javier", display.helperName)
     }
@@ -51,7 +51,7 @@ class HomeWeeklySummaryDisplayTest {
         )
 
         assertEquals("2026-W20", display.weekKey)
-        assertEquals("11 may - 15 may", display.weekRangeLabel)
+        assertEquals("11 may - 17 may", display.weekRangeLabel)
     }
 
     @Test

@@ -102,6 +102,7 @@ struct HomeWeeklySummaryCardView: View {
                 )
                 .frame(width: 104.resize)
             }
+            .frame(maxWidth: .infinity)
 
             HStack(spacing: tokens.spacing.sm) {
                 summaryField(
@@ -116,6 +117,7 @@ struct HomeWeeklySummaryCardView: View {
                 orderStatePill(display.orderState)
                     .frame(width: 104.resize)
             }
+            .frame(maxWidth: .infinity)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

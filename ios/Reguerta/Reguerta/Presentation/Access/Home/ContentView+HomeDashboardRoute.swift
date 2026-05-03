@@ -214,10 +214,11 @@ func resolveHomeWeeklySummaryDisplay(
         calendar: calendar
     )
     let weekNumber = calendar.component(.weekOfYear, from: targetWeekStart)
+    let targetWeekEnd = calendar.date(byAdding: .day, value: 6, to: targetWeekStart) ?? targetWeekStart
 
     return HomeWeeklySummaryDisplay(
         weekKey: targetWeekKey,
-        weekRangeLabel: "\(targetWeekStart.homeShortDayMonth(locale: locale)) - \(targetDeliveryDate.homeShortDayMonth(locale: locale))",
+        weekRangeLabel: "\(targetWeekStart.homeShortDayMonth(locale: locale)) - \(targetWeekEnd.homeShortDayMonth(locale: locale))",
         weekBadgeLabel: "Semana \(weekNumber)",
         producerName: resolveHomeProducerName(weekStart: targetWeekStart, members: members, calendar: calendar),
         deliveryLabel: targetDeliveryDate.homeShortWeekdayDay(locale: locale),

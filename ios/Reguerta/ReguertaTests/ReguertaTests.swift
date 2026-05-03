@@ -1150,7 +1150,7 @@ struct ReguertaTests {
         )
 
         #expect(display.weekKey == "2026-W19")
-        #expect(display.weekRangeLabel == "4 may - 8 may")
+        #expect(display.weekRangeLabel == "4 may - 10 may")
         #expect(display.responsibleName == "Carmen")
         #expect(display.helperName == "Javier")
     }
@@ -1169,7 +1169,7 @@ struct ReguertaTests {
         )
 
         #expect(display.weekKey == "2026-W20")
-        #expect(display.weekRangeLabel == "11 may - 15 may")
+        #expect(display.weekRangeLabel == "11 may - 17 may")
     }
 
     @Test

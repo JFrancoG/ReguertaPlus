@@ -23,7 +23,7 @@ extension ContentView {
                                     feedbackMessageRoute
                                 }
                             }
-                            .padding(.top, 0)
+                            .padding(.top, -tokens.spacing.xxl)
                             .padding(.bottom, tokens.spacing.lg)
                         }
                         .scrollDismissesKeyboard(.interactively)
@@ -38,7 +38,7 @@ extension ContentView {
                             }
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                        .padding(.top, 0)
+                        .padding(.top, -tokens.spacing.xxl)
                         .padding(.bottom, tokens.spacing.lg)
                     }
                 }
