@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reguerta Home - opcion 1 refinada</title>
+  <style>
+    @font-face {
+      font-family: "CabinSketch";
+      src: url("../../../ios/Reguerta/Reguerta/Resources/Fonts/cabin-sketch/CabinSketch-Regular.ttf") format("truetype");
+      font-weight: 400;
+    }
+
+    @font-face {
+      font-family: "CabinSketch";
+      src: url("../../../ios/Reguerta/Reguerta/Resources/Fonts/cabin-sketch/CabinSketch-Bold.ttf") format("truetype");
+      font-weight: 700;
+    }
+
+    :root {
+      --surface-primary: #0f1d0d;
+      --surface-secondary: #1a2b1b;
+      --surface-raised: #20341d;
+      --action-primary: #6da539;
+      --text-primary: #d1e1d1;
+      --text-secondary: #b5c5b3;
+      --border-subtle: #37513b;
+      --warning: #f08d43;
+      --error: #d86b6b;
+      --pending: #f08d43;
+      --complete: #6da539;
+      --shadow: rgba(0, 0, 0, 0.32);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #101510;
+      color: var(--text-primary);
+      font-family: CabinSketch, system-ui, sans-serif;
+    }
+
+    .board {
+      width: max-content;
+      padding: 32px;
+    }
+
+    .intro {
+      width: 880px;
+      margin-bottom: 24px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      font-size: 34px;
+      line-height: 1.05;
+    }
+
+    .intro p,
+    .caption p {
+      color: var(--text-secondary);
+      font-family: system-ui, sans-serif;
+      line-height: 1.25;
+    }
+
+    .intro p {
+      margin-top: 8px;
+      font-size: 18px;
+      max-width: 760px;
+    }
+
+    .phones {
+      display: grid;
+      grid-template-columns: repeat(2, 390px);
+      gap: 44px;
+    }
+
+    .option {
+      display: grid;
+      gap: 14px;
+    }
+
+    .caption {
+      min-height: 72px;
+    }
+
+    .caption h2 {
+      font-size: 25px;
+      line-height: 1.1;
+    }
+
+    .caption p {
+      margin-top: 6px;
+      font-size: 15px;
+    }
+
+    .phone {
+      width: 390px;
+      height: 844px;
+      overflow: hidden;
+      border-radius: 40px;
+      background: var(--surface-primary);
+      box-shadow: 0 24px 60px var(--shadow), inset 0 0 0 1px rgba(209, 225, 209, 0.08);
+      position: relative;
+    }
+
+    .screen {
+      height: 100%;
+      padding: 18px 18px 20px;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 12px;
+    }
+
+    .status {
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-inline: 20px 10px;
+      font-family: system-ui, sans-serif;
+      font-weight: 700;
+      font-size: 17px;
+      color: #fff;
+    }
+
+    .status-icons {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .battery {
+      min-width: 34px;
+      padding: 1px 7px;
+      border-radius: 9px;
+      background: rgba(255, 255, 255, 0.34);
+      color: white;
+      text-align: center;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 46px;
+    }
+
+    .topbar-title {
+      flex: 1;
+      text-align: center;
+      font-size: 20px;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+
+    .topbar-title small {
+      display: block;
+      margin-top: 3px;
+      color: var(--text-secondary);
+      font-family: system-ui, sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .icon-button {
+      width: 44px;
+      height: 44px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-primary);
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      position: relative;
+    }
+
+    .icon-button.filled {
+      background: var(--surface-secondary);
+      border-color: var(--border-subtle);
+    }
+
+    .hamburger,
+    .bell {
+      width: 25px;
+      height: 25px;
+      display: block;
+      position: relative;
+    }
+
+    .hamburger::before,
+    .hamburger::after,
+    .hamburger span {
+      content: "";
+      width: 25px;
+      height: 4px;
+      border-radius: 999px;
+      background: currentColor;
+      position: absolute;
+      left: 0;
+    }
+
+    .hamburger::before {
+      top: 3px;
+    }
+
+    .hamburger span {
+      top: 10px;
+    }
+
+    .hamburger::after {
+      top: 17px;
+    }
+
+    .bell::before {
+      content: "";
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      left: 4px;
+      top: 4px;
+      border: 3px solid currentColor;
+      border-bottom: 0;
+      border-radius: 12px 12px 4px 4px;
+    }
+
+    .bell::after {
+      content: "";
+      position: absolute;
+      left: 7px;
+      bottom: 3px;
+      width: 11px;
+      height: 3px;
+      border-radius: 999px;
+      background: currentColor;
+      box-shadow: 4px 5px 0 -2px currentColor;
+    }
+
+    .badge {
+      position: absolute;
+      right: 6px;
+      top: 5px;
+      min-width: 17px;
+      height: 17px;
+      padding: 0 4px;
+      border-radius: 999px;
+      background: var(--error);
+      color: #fff;
+      font-family: system-ui, sans-serif;
+      font-size: 10px;
+      font-weight: 800;
+      display: grid;
+      place-items: center;
+    }
+
+    .content {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 12px;
+    }
+
+    .card {
+      background: var(--surface-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .week-card {
+      display: grid;
+      gap: 10px;
+    }
+
+    .week-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .date-title {
+      font-size: 31px;
+      line-height: 1;
+      color: var(--text-primary);
+    }
+
+    .state-pill {
+      flex: 0 0 auto;
+      padding: 6px 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(109, 165, 57, 0.55);
+      color: var(--action-primary);
+      font-size: 13px;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .state-pill.warning {
+      border-color: rgba(240, 141, 67, 0.72);
+      color: var(--warning);
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.85fr);
+      gap: 8px;
+    }
+
+    .mini {
+      min-width: 0;
+      border-radius: 14px;
+      background: rgba(15, 29, 13, 0.55);
+      border: 1px solid rgba(55, 81, 59, 0.9);
+      padding: 10px;
+    }
+
+    .mini-label {
+      color: var(--text-secondary);
+      font-family: system-ui, sans-serif;
+      font-weight: 700;
+      font-size: 11px;
+      line-height: 1;
+    }
+
+    .mini-value {
+      margin-top: 5px;
+      color: var(--text-primary);
+      font-size: 18px;
+      line-height: 1.05;
+      overflow-wrap: anywhere;
+    }
+
+    .mini-subvalue {
+      margin-top: 2px;
+      color: var(--text-secondary);
+      font-family: system-ui, sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+
+    .mini.status-none {
+      border-color: rgba(216, 107, 107, 0.78);
+    }
+
+    .mini.status-none .mini-value {
+      color: var(--error);
+    }
+
+    .mini.status-pending {
+      border-color: rgba(240, 141, 67, 0.82);
+    }
+
+    .mini.status-pending .mini-value {
+      color: var(--pending);
+    }
+
+    .mini.status-complete {
+      border-color: rgba(109, 165, 57, 0.82);
+    }
+
+    .mini.status-complete .mini-value {
+      color: var(--complete);
+    }
+
+    .action-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .action {
+      min-height: 82px;
+      border: 1px solid rgba(109, 165, 57, 0.72);
+      border-radius: 18px;
+      background: var(--surface-raised);
+      color: var(--action-primary);
+      padding: 12px;
+      text-align: left;
+      display: grid;
+      align-content: center;
+      gap: 4px;
+    }
+
+    .action.primary {
+      background: var(--action-primary);
+      color: #0f1d0d;
+      border-color: var(--action-primary);
+    }
+
+    .action.muted {
+      color: var(--text-primary);
+      border-color: var(--border-subtle);
+      background: rgba(26, 43, 27, 0.78);
+    }
+
+    .action-title {
+      font-size: 22px;
+      line-height: 1;
+      font-weight: 700;
+    }
+
+    .action-subtitle {
+      font-size: 13px;
+      line-height: 1.05;
+      color: currentColor;
+      opacity: 0.78;
+      font-family: system-ui, sans-serif;
+    }
+
+    .news {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 9px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .section-header h3 {
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .link {
+      color: var(--action-primary);
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .news-list {
+      min-height: 0;
+      overflow: hidden;
+      display: grid;
+      gap: 8px;
+      align-content: start;
+      mask-image: linear-gradient(#000 84%, transparent);
+    }
+
+    .news-item {
+      border-radius: 14px;
+      background: rgba(26, 43, 27, 0.76);
+      border: 1px solid rgba(55, 81, 59, 0.9);
+      padding: 10px;
+    }
+
+    .news-title {
+      font-size: 18px;
+      line-height: 1.05;
+      color: var(--text-primary);
+    }
+
+    .news-meta {
+      margin-top: 3px;
+      color: var(--text-secondary);
+      font-size: 12px;
+      line-height: 1.2;
+      font-family: system-ui, sans-serif;
+    }
+
+    .after .week-card {
+      border-color: rgba(240, 141, 67, 0.56);
+    }
+
+  </style>
+</head>
+<body>
+  <main class="board">
+    <section class="intro">
+      <h1>Home Reguerta: opcion 1 refinada</h1>
+      <p>El rango de fechas pasa a ser el dato principal. Antes y durante el reparto se muestra la semana en curso hasta el dia de reparto incluido; desde el dia siguiente, la tarjeta mira a la semana siguiente.</p>
+    </section>
+
+    <section class="phones">
+      <article class="option before">
+        <div class="caption">
+          <h2>Antes del reparto</h2>
+          <p>Estado enfocado en preparar o revisar el pedido. Se muestran hoy, fecha de reparto, productora y responsable.</p>
+        </div>
+        <div class="phone">
+          <div class="screen">
+            <div class="status">
+              <span>19:06</span>
+              <span class="status-icons">||| Wi-Fi <span class="battery">19</span></span>
+            </div>
+            <div class="topbar">
+              <button class="icon-button" aria-label="Menu"><span class="hamburger"><span></span></span></button>
+              <div class="topbar-title">miércoles 6 mayo</div>
+              <button class="icon-button filled" aria-label="Notificaciones"><span class="bell"></span><span class="badge">3</span></button>
+            </div>
+            <div class="content">
+              <section class="card week-card">
+                <div class="week-header">
+                  <h3 class="date-title">4 may - 8 may</h3>
+                  <span class="state-pill">Semana 19</span>
+                </div>
+                <div class="mini-grid">
+                  <div class="mini">
+                    <p class="mini-label">Productora</p>
+                    <p class="mini-value">Huerta Norte</p>
+                  </div>
+                  <div class="mini">
+                    <p class="mini-label">Reparto</p>
+                    <p class="mini-value">Vie 8</p>
+                  </div>
+                  <div class="mini">
+                    <p class="mini-label">Responsable</p>
+                    <p class="mini-value">Carmen</p>
+                    <p class="mini-subvalue">Ayuda: Javier</p>
+                  </div>
+                  <div class="mini status-pending">
+                    <p class="mini-label">Estado</p>
+                    <p class="mini-value">Sin confirmar</p>
+                  </div>
+                </div>
+              </section>
+
+              <section class="action-grid">
+                <button class="action primary">
+                  <span class="action-title">Mi pedido</span>
+                  <span class="action-subtitle">Editar esta semana</span>
+                </button>
+                <button class="action">
+                  <span class="action-title">Pedidos</span>
+                  <span class="action-subtitle">Recibidos</span>
+                </button>
+              </section>
+
+              <section class="news card">
+                <div class="section-header">
+                  <h3>Noticias</h3>
+                  <span class="link">Ver todas</span>
+                </div>
+                <div class="news-list">
+                  <article class="news-item">
+                    <h4 class="news-title">Pedido abierto hasta el martes</h4>
+                    <p class="news-meta">Publicado hoy · Importante</p>
+                  </article>
+                  <article class="news-item">
+                    <h4 class="news-title">Nueva caja de temporada</h4>
+                    <p class="news-meta">Ayer · Productos</p>
+                  </article>
+                  <article class="news-item">
+                    <h4 class="news-title">Cambio puntual en el reparto</h4>
+                    <p class="news-meta">28 abr · Turnos</p>
+                  </article>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="option after">
+        <div class="caption">
+          <h2>Despues del reparto</h2>
+          <p>Desde el dia siguiente al reparto, el mismo bloque ya muestra la semana siguiente para orientar el proximo pedido.</p>
+        </div>
+        <div class="phone">
+          <div class="screen">
+            <div class="status">
+              <span>19:06</span>
+              <span class="status-icons">||| Wi-Fi <span class="battery">19</span></span>
+            </div>
+            <div class="topbar">
+              <button class="icon-button" aria-label="Menu"><span class="hamburger"><span></span></span></button>
+              <div class="topbar-title">sábado 9 mayo</div>
+              <button class="icon-button filled" aria-label="Notificaciones"><span class="bell"></span><span class="badge">1</span></button>
+            </div>
+            <div class="content">
+              <section class="card week-card">
+                <div class="week-header">
+                  <h3 class="date-title">11 may - 15 may</h3>
+                  <span class="state-pill warning">Semana 20</span>
+                </div>
+                <div class="mini-grid">
+                  <div class="mini">
+                    <p class="mini-label">Productora</p>
+                    <p class="mini-value">La Vega</p>
+                  </div>
+                  <div class="mini">
+                    <p class="mini-label">Reparto</p>
+                    <p class="mini-value">Vie 15</p>
+                  </div>
+                  <div class="mini">
+                    <p class="mini-label">Responsable</p>
+                    <p class="mini-value">Pablo</p>
+                    <p class="mini-subvalue">Ayuda: Marta</p>
+                  </div>
+                  <div class="mini status-none">
+                    <p class="mini-label">Estado</p>
+                    <p class="mini-value">Sin hacer</p>
+                  </div>
+                </div>
+              </section>
+
+              <section class="action-grid">
+                <button class="action primary">
+                  <span class="action-title">Mi pedido</span>
+                  <span class="action-subtitle">Editar esta semana</span>
+                </button>
+                <button class="action">
+                  <span class="action-title">Pedidos</span>
+                  <span class="action-subtitle">Recibidos</span>
+                </button>
+              </section>
+
+              <section class="news card">
+                <div class="section-header">
+                  <h3>Noticias</h3>
+                  <span class="link">Ver todas</span>
+                </div>
+                <div class="news-list">
+                  <article class="news-item">
+                    <h4 class="news-title">Pedido abierto hasta el martes</h4>
+                    <p class="news-meta">Publicado hoy · Importante</p>
+                  </article>
+                  <article class="news-item">
+                    <h4 class="news-title">Nueva caja de temporada</h4>
+                    <p class="news-meta">Ayer · Productos</p>
+                  </article>
+                  <article class="news-item">
+                    <h4 class="news-title">Cambio puntual en el reparto</h4>
+                    <p class="news-meta">28 abr · Turnos</p>
+                  </article>
+                  <article class="news-item">
+                    <h4 class="news-title">Recordatorio de envases</h4>
+                    <p class="news-meta">Ayer · Aviso</p>
+                  </article>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

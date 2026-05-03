@@ -55,6 +55,7 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-05-03 | 📝 docs(design): add home dashboard proposal
 - 2026-04-19 | 📝 docs(changelog): reorder entries by recency
 - 2026-04-18 | 📝 docs(spec): align HU-019 planning artifacts
 - 2026-04-18 | 📝 docs(reviewer): close HU-048 hardening checklist
