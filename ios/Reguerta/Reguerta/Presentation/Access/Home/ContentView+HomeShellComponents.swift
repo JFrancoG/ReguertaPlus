@@ -90,34 +90,39 @@ struct HomeWeeklySummaryCardView: View {
                     .overlay(Capsule().stroke(tokens.colors.actionPrimary, lineWidth: 1))
             }
 
-            HStack(spacing: tokens.spacing.sm) {
-                summaryField(
-                    titleKey: AccessL10nKey.homeDashboardProducer,
-                    value: display.producerName
-                )
-                .frame(maxWidth: .infinity)
-                summaryField(
-                    titleKey: AccessL10nKey.homeDashboardDelivery,
-                    value: display.deliveryLabel
-                )
-                .frame(width: 104.resize)
-            }
-            .frame(maxWidth: .infinity)
-
-            HStack(spacing: tokens.spacing.sm) {
-                summaryField(
-                    titleKey: AccessL10nKey.homeDashboardResponsible,
-                    value: display.responsibleName,
-                    secondary: String(
-                        format: NSLocalizedString(AccessL10nKey.homeDashboardHelperFormat, comment: ""),
-                        display.helperName
+            VStack(spacing: 0) {
+                HStack(spacing: 0) {
+                    summaryField(
+                        titleKey: AccessL10nKey.homeDashboardProducer,
+                        value: display.producerName
                     )
-                )
-                .frame(maxWidth: .infinity)
-                orderStatePill(display.orderState)
-                    .frame(width: 104.resize)
+                    .frame(maxWidth: .infinity)
+                    Divider()
+                    summaryField(
+                        titleKey: AccessL10nKey.homeDashboardDelivery,
+                        value: display.deliveryLabel
+                    )
+                    .frame(width: 112.resize)
+                }
+                Divider()
+                HStack(spacing: 0) {
+                    summaryField(
+                        titleKey: AccessL10nKey.homeDashboardResponsible,
+                        value: display.responsibleName,
+                        secondary: String(
+                            format: NSLocalizedString(AccessL10nKey.homeDashboardHelperFormat, comment: ""),
+                            display.helperName
+                        )
+                    )
+                    .frame(maxWidth: .infinity)
+                    Divider()
+                    orderStatePill(display.orderState)
+                        .frame(width: 112.resize)
+                }
             }
             .frame(maxWidth: .infinity)
+            .overlay(RoundedRectangle(cornerRadius: tokens.radius.md).stroke(tokens.colors.borderSubtle, lineWidth: 1))
+            .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -144,7 +149,6 @@ struct HomeWeeklySummaryCardView: View {
         .frame(minHeight: 66.resize, alignment: .center)
         .padding(.horizontal, tokens.spacing.md)
         .padding(.vertical, tokens.spacing.sm)
-        .overlay(RoundedRectangle(cornerRadius: tokens.radius.sm).stroke(tokens.colors.borderSubtle, lineWidth: 1))
     }
 
     private func orderStatePill(_ state: HomeOrderStateDisplay) -> some View {
@@ -162,7 +166,6 @@ struct HomeWeeklySummaryCardView: View {
         .frame(minHeight: 66.resize, alignment: .center)
         .padding(.horizontal, tokens.spacing.md)
         .padding(.vertical, tokens.spacing.sm)
-        .overlay(RoundedRectangle(cornerRadius: tokens.radius.sm).stroke(color, lineWidth: 1))
     }
 }
 
