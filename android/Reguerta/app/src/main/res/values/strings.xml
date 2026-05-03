@@ -87,11 +87,11 @@
     <string name="home_dashboard_producer">Producer</string>
     <string name="home_dashboard_delivery">Delivery</string>
     <string name="home_dashboard_responsible">Responsible</string>
-    <string name="home_dashboard_helper_format">Help: %1$s</string>
-    <string name="home_dashboard_state">Status</string>
+    <string name="home_dashboard_helper_format">%1$s</string>
+    <string name="home_dashboard_state">Order</string>
     <string name="home_dashboard_order_state_not_started">Not started</string>
     <string name="home_dashboard_order_state_unconfirmed">Unconfirmed</string>
-    <string name="home_dashboard_order_state_completed">Completed</string>
+    <string name="home_dashboard_order_state_completed">Done</string>
     <string name="home_dashboard_my_order_subtitle_edit">Edit this week</string>
     <string name="home_dashboard_my_order_subtitle_review">Review and confirm</string>
     <string name="home_dashboard_my_order_subtitle_completed">Confirmed order</string>

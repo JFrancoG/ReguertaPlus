@@ -2665,8 +2665,8 @@
     "home.dashboard.helper.format" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Help: %@" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Ayuda: %@" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%@" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "%@" } }
       }
     },
     "home.dashboard.my_order.subtitle.completed" : {
@@ -2693,8 +2693,8 @@
     "home.dashboard.order_state.completed" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Completed" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Completado" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Done" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Hecho" } }
       }
     },
     "home.dashboard.order_state.not_started" : {
@@ -2715,7 +2715,7 @@
       "extractionState" : "manual",
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Producer" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Productora" } }
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Productor" } }
       }
     },
     "home.dashboard.received_orders.subtitle" : {
@@ -2735,8 +2735,8 @@
     "home.dashboard.state" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Status" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Estado" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Order" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Pedido" } }
       }
     },
     "home.shell.dev_marker" : {

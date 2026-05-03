@@ -23,7 +23,8 @@ extension ContentView {
                                     feedbackMessageRoute
                                 }
                             }
-                            .padding(.vertical, tokens.spacing.lg)
+                            .padding(.top, 0)
+                            .padding(.bottom, tokens.spacing.lg)
                         }
                         .scrollDismissesKeyboard(.interactively)
                     } else {
@@ -37,7 +38,8 @@ extension ContentView {
                             }
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                        .padding(.vertical, tokens.spacing.lg)
+                        .padding(.top, 0)
+                        .padding(.bottom, tokens.spacing.lg)
                     }
                 }
                 .disabled(isHomeDrawerOpen)

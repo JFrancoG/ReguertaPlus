@@ -318,30 +318,29 @@ struct LatestNewsCardView: View {
     }
 
     var body: some View {
-        ReguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                Text(localizedKey(AccessL10nKey.homeShellNewsTitle))
-                    .font(tokens.typography.titleCard)
-                if latestNews.isEmpty {
-                    Text(localizedKey(AccessL10nKey.newsEmptyState))
-                        .font(tokens.typography.bodySecondary)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                } else {
-                    ForEach(latestNews) { article in
-                        VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                            Text(article.title)
-                                .font(tokens.typography.body.weight(.semibold))
-                                .foregroundStyle(tokens.colors.textPrimary)
-                            Text(article.body)
-                                .font(tokens.typography.bodySecondary)
-                                .foregroundStyle(tokens.colors.textSecondary)
-                                .lineLimit(3)
-                        }
+        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+            Text(localizedKey(AccessL10nKey.homeShellNewsTitle))
+                .font(tokens.typography.titleCard)
+            if latestNews.isEmpty {
+                Text(localizedKey(AccessL10nKey.newsEmptyState))
+                    .font(tokens.typography.bodySecondary)
+                    .foregroundStyle(tokens.colors.textSecondary)
+            } else {
+                ForEach(latestNews) { article in
+                    VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+                        Text(article.title)
+                            .font(tokens.typography.body.weight(.semibold))
+                            .foregroundStyle(tokens.colors.textPrimary)
+                        Text(article.body)
+                            .font(tokens.typography.bodySecondary)
+                            .foregroundStyle(tokens.colors.textSecondary)
+                            .lineLimit(3)
                     }
                 }
-                ReguertaButton(localizedKey(AccessL10nKey.newsViewAll), variant: .text, action: onViewAll)
             }
+            ReguertaButton(localizedKey(AccessL10nKey.newsViewAll), variant: .text, action: onViewAll)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
