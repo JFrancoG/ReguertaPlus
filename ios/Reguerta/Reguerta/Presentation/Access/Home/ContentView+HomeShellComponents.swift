@@ -3,7 +3,9 @@ import SwiftUI
 struct HomeShellTopBarView: View {
     let tokens: ReguertaDesignTokens
     let titleKey: String
+    let titleOverride: String?
     let showsBack: Bool
+    let hasNotificationIndicator: Bool
     let onPrimaryAction: () -> Void
     let onNotificationsAction: () -> Void
 
@@ -25,21 +27,243 @@ struct HomeShellTopBarView: View {
 
                 Spacer()
 
-                Text(localizedKey(titleKey))
-                    .font(tokens.typography.titleCard)
-                    .foregroundStyle(tokens.colors.textPrimary)
+                if let titleOverride {
+                    Text(titleOverride)
+                        .font(tokens.typography.titleCard)
+                        .foregroundStyle(tokens.colors.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+                } else {
+                    Text(localizedKey(titleKey))
+                        .font(tokens.typography.titleCard)
+                        .foregroundStyle(tokens.colors.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+                }
 
                 Spacer()
 
-                Button(action: onNotificationsAction) {
-                    Image(systemName: "bell")
-                        .font(.system(size: 20.resize, weight: .semibold))
-                        .foregroundStyle(tokens.colors.textPrimary)
-                        .frame(width: 44.resize, height: 44.resize)
+                ZStack(alignment: .topTrailing) {
+                    Button(action: onNotificationsAction) {
+                        Image(systemName: "bell")
+                            .font(.system(size: 20.resize, weight: .semibold))
+                            .foregroundStyle(tokens.colors.textPrimary)
+                            .frame(width: 44.resize, height: 44.resize)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(localizedKey(AccessL10nKey.homeShellNotifications))
+
+                    if hasNotificationIndicator {
+                        Circle()
+                            .fill(tokens.colors.feedbackError)
+                            .frame(width: 9.resize, height: 9.resize)
+                            .padding(.top, 9.resize)
+                            .padding(.trailing, 9.resize)
+                    }
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(localizedKey(AccessL10nKey.homeShellNotifications))
             }
+        }
+    }
+}
+
+struct HomeWeeklySummaryCardView: View {
+    let tokens: ReguertaDesignTokens
+    let display: HomeWeeklySummaryDisplay
+
+    private func localizedKey(_ key: String) -> LocalizedStringKey {
+        LocalizedStringKey(key)
+    }
+
+    var body: some View {
+        ReguertaCard {
+            VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                HStack(alignment: .center) {
+                    Text(display.weekRangeLabel)
+                        .font(tokens.typography.titleSection)
+                        .foregroundStyle(tokens.colors.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+                    Spacer(minLength: tokens.spacing.sm)
+                    Text(display.weekBadgeLabel)
+                        .font(tokens.typography.label)
+                        .foregroundStyle(tokens.colors.actionPrimary)
+                        .padding(.horizontal, tokens.spacing.sm)
+                        .padding(.vertical, tokens.spacing.xs)
+                        .overlay(Capsule().stroke(tokens.colors.actionPrimary, lineWidth: 1))
+                }
+
+                HStack(spacing: tokens.spacing.sm) {
+                    summaryField(
+                        titleKey: AccessL10nKey.homeDashboardProducer,
+                        value: display.producerName
+                    )
+                    .frame(maxWidth: .infinity)
+                    summaryField(
+                        titleKey: AccessL10nKey.homeDashboardDelivery,
+                        value: display.deliveryLabel
+                    )
+                    .frame(maxWidth: .infinity)
+                    .layoutPriority(-1)
+                }
+
+                HStack(spacing: tokens.spacing.sm) {
+                    summaryField(
+                        titleKey: AccessL10nKey.homeDashboardResponsible,
+                        value: display.responsibleName,
+                        secondary: String(
+                            format: NSLocalizedString(AccessL10nKey.homeDashboardHelperFormat, comment: ""),
+                            display.helperName
+                        )
+                    )
+                    .frame(maxWidth: .infinity)
+                    orderStatePill(display.orderState)
+                        .frame(maxWidth: .infinity)
+                        .layoutPriority(-1)
+                }
+            }
+        }
+    }
+
+    private func summaryField(titleKey: String, value: String, secondary: String? = nil) -> some View {
+        VStack(alignment: .leading, spacing: 2.resize) {
+            Text(localizedKey(titleKey))
+                .font(tokens.typography.label)
+                .foregroundStyle(tokens.colors.textSecondary)
+                .lineLimit(1)
+            Text(value)
+                .font(tokens.typography.body.weight(.semibold))
+                .foregroundStyle(tokens.colors.textPrimary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            if let secondary {
+                Text(secondary)
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.textSecondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+        }
+        .frame(minHeight: 66.resize, alignment: .center)
+        .padding(.horizontal, tokens.spacing.md)
+        .padding(.vertical, tokens.spacing.sm)
+        .overlay(RoundedRectangle(cornerRadius: tokens.radius.sm).stroke(tokens.colors.borderSubtle, lineWidth: 1))
+    }
+
+    private func orderStatePill(_ state: HomeOrderStateDisplay) -> some View {
+        let color = state.color(tokens: tokens)
+        return VStack(alignment: .leading, spacing: 2.resize) {
+            Text(localizedKey(AccessL10nKey.homeDashboardState))
+                .font(tokens.typography.label)
+                .foregroundStyle(tokens.colors.textSecondary)
+            Text(localizedKey(state.titleKey))
+                .font(tokens.typography.body.weight(.semibold))
+                .foregroundStyle(color)
+                .lineLimit(2)
+                .minimumScaleFactor(0.82)
+        }
+        .frame(minHeight: 66.resize, alignment: .center)
+        .padding(.horizontal, tokens.spacing.md)
+        .padding(.vertical, tokens.spacing.sm)
+        .overlay(RoundedRectangle(cornerRadius: tokens.radius.sm).stroke(color, lineWidth: 1))
+    }
+}
+
+struct HomeActionRowView: View {
+    let tokens: ReguertaDesignTokens
+    let myOrderFreshnessState: MyOrderFreshnessState
+    let canOpenReceivedOrders: Bool
+    let orderState: HomeOrderStateDisplay
+    let onOpenMyOrder: () -> Void
+    let onOpenReceivedOrders: () -> Void
+    let onRetryFreshness: () -> Void
+
+    private func localizedKey(_ key: String) -> LocalizedStringKey {
+        LocalizedStringKey(key)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+            HStack(spacing: tokens.spacing.sm) {
+                actionTile(
+                    titleKey: AccessL10nKey.myOrder,
+                    subtitleKey: orderState.myOrderSubtitleKey,
+                    primary: true,
+                    enabled: myOrderFreshnessState == .ready,
+                    action: onOpenMyOrder
+                )
+                if canOpenReceivedOrders {
+                    actionTile(
+                        titleKey: AccessL10nKey.homeShellActionReceivedOrders,
+                        subtitleKey: AccessL10nKey.homeDashboardReceivedOrdersSubtitle,
+                        primary: false,
+                        enabled: true,
+                        action: onOpenReceivedOrders
+                    )
+                }
+            }
+
+            switch myOrderFreshnessState {
+            case .checking:
+                Text(localizedKey(AccessL10nKey.myOrderFreshnessChecking))
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.textSecondary)
+            case .timedOut, .unavailable:
+                ReguertaButton(localizedKey(AccessL10nKey.myOrderFreshnessRetry), variant: .text, fullWidth: false) {
+                    onRetryFreshness()
+                }
+            case .idle, .ready:
+                EmptyView()
+            }
+        }
+    }
+
+    private func actionTile(
+        titleKey: String,
+        subtitleKey: String,
+        primary: Bool,
+        enabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        let accessibilityIdentifier = titleKey == AccessL10nKey.myOrder
+            ? "home.module.myOrder"
+            : "home.module.receivedOrders"
+
+        return Button(action: action) {
+            VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+                Text(localizedKey(titleKey))
+                    .font(tokens.typography.titleCard.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+                Text(localizedKey(subtitleKey))
+                    .font(tokens.typography.label)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, minHeight: 82.resize, alignment: .leading)
+            .padding(tokens.spacing.md)
+            .foregroundStyle(primary ? tokens.colors.actionOnPrimary : tokens.colors.actionPrimary)
+            .background(primary ? tokens.colors.actionPrimary : tokens.colors.surfacePrimary)
+            .overlay(
+                RoundedRectangle(cornerRadius: tokens.radius.md)
+                    .stroke(primary ? Color.clear : tokens.colors.actionPrimary, lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
+            .opacity(enabled ? 1 : 0.55)
+        }
+        .disabled(!enabled)
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+}
+
+private extension HomeOrderStateDisplay {
+    func color(tokens: ReguertaDesignTokens) -> Color {
+        switch self {
+        case .notStarted:
+            return tokens.colors.feedbackError
+        case .unconfirmed:
+            return tokens.colors.feedbackWarning
+        case .completed:
+            return tokens.colors.actionPrimary
         }
     }
 }
@@ -198,8 +422,10 @@ struct OperationalModulesCardView: View {
 struct HomeDrawerContentView: View {
     let tokens: ReguertaDesignTokens
     let currentMember: Member?
+    let sharedProfile: SharedProfile?
     let currentDestination: HomeDestination
     let installedVersion: String
+    let isDevelopBuild: Bool
     let onNavigate: (HomeDestination) -> Void
     let onCloseDrawer: () -> Void
     let onSignOut: () -> Void
@@ -256,24 +482,19 @@ struct HomeDrawerContentView: View {
     @ViewBuilder
     private var homeDrawerProfile: some View {
         VStack(spacing: tokens.spacing.md) {
-            Circle()
-                .fill(tokens.colors.actionPrimary.opacity(0.14))
-                .frame(width: 76.resize, height: 76.resize)
-                .overlay {
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 30.resize, weight: .semibold))
-                        .foregroundStyle(tokens.colors.actionPrimary)
-                }
+            homeDrawerAvatar
 
             if let currentMember {
-                Text(currentMember.displayName)
+                Text(sharedProfile?.familyNames.isEmpty == false ? sharedProfile!.familyNames : currentMember.displayName)
                     .font(tokens.typography.titleCard)
                     .foregroundStyle(tokens.colors.textPrimary)
                     .multilineTextAlignment(.center)
+                    .lineLimit(1)
                 Text(currentMember.normalizedEmail)
                     .font(tokens.typography.label)
                     .foregroundStyle(tokens.colors.textSecondary)
                     .multilineTextAlignment(.center)
+                    .lineLimit(1)
             }
         }
         .frame(maxWidth: .infinity)
@@ -281,8 +502,37 @@ struct HomeDrawerContentView: View {
     }
 
     @ViewBuilder
+    private var homeDrawerAvatar: some View {
+        if let rawUrl = sharedProfile?.photoUrl, let url = URL(string: rawUrl), rawUrl.isEmpty == false {
+            AsyncImage(url: url) { image in
+                image
+                    .resizable()
+                    .scaledToFill()
+            } placeholder: {
+                Image("brand_logo")
+                    .resizable()
+                    .scaledToFit()
+                    .padding(tokens.spacing.sm)
+            }
+            .frame(width: 76.resize, height: 76.resize)
+            .clipShape(Circle())
+            .overlay(Circle().stroke(tokens.colors.actionPrimary.opacity(0.36), lineWidth: 1))
+            .accessibilityLabel(localizedKey(AccessL10nKey.homeShellProfilePlaceholder))
+        } else {
+            Image("brand_logo")
+                .resizable()
+                .scaledToFit()
+                .padding(tokens.spacing.sm)
+                .frame(width: 76.resize, height: 76.resize)
+                .background(tokens.colors.actionPrimary.opacity(0.14))
+                .clipShape(Circle())
+                .overlay(Circle().stroke(tokens.colors.actionPrimary.opacity(0.36), lineWidth: 1))
+                .accessibilityLabel(localizedKey(AccessL10nKey.homeShellProfilePlaceholder))
+        }
+    }
+
+    @ViewBuilder
     private var homeDrawerNavigationSections: some View {
-        drawerSection(titleKey: AccessL10nKey.homeShellSectionCommon)
         homeDrawerItem("house.fill", titleKey: AccessL10nKey.homeTitle, destination: .dashboard)
         homeDrawerItem("cart.fill", titleKey: AccessL10nKey.myOrder, destination: .myOrder)
         homeDrawerItem("doc.text.fill", titleKey: AccessL10nKey.myOrders, destination: .myOrders)
@@ -294,7 +544,7 @@ struct HomeDrawerContentView: View {
         homeDrawerItem("gearshape.fill", titleKey: AccessL10nKey.homeShellActionSettings, destination: .settings)
 
         if canManageProductCatalog || isProducer {
-            drawerSection(titleKey: AccessL10nKey.homeShellSectionProducer)
+            drawerDivider
         }
         if canManageProductCatalog {
             homeDrawerItem("shippingbox.fill", titleKey: AccessL10nKey.homeShellActionProducts, destination: .products)
@@ -306,7 +556,7 @@ struct HomeDrawerContentView: View {
         if currentMember?.canManageMembers == true ||
             currentMember?.canPublishNews == true ||
             currentMember?.canSendAdminNotifications == true {
-            drawerSection(titleKey: AccessL10nKey.homeShellSectionAdmin)
+            drawerDivider
             if currentMember?.canManageMembers == true {
                 homeDrawerItem("person.3.fill", titleKey: AccessL10nKey.homeShellActionUsers, destination: .users)
             }
@@ -321,26 +571,45 @@ struct HomeDrawerContentView: View {
 
     private var homeDrawerFooter: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-            ReguertaButton(
-                localizedKey(AccessL10nKey.signOut),
-                accessibilityIdentifier: "home.drawer.signOutButton",
-                action: onSignOut
-            )
-                .padding(.top, tokens.spacing.xs)
+            Button(action: onSignOut) {
+                HStack(spacing: tokens.spacing.md) {
+                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                        .font(.system(size: 18.resize, weight: .semibold))
+                        .foregroundStyle(tokens.colors.actionPrimary)
+                        .frame(width: 24.resize)
+                    Text(localizedKey(AccessL10nKey.signOut))
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textPrimary)
+                    Spacer(minLength: tokens.spacing.sm)
+                }
+                .padding(.vertical, tokens.spacing.xs + 2)
+                .padding(.horizontal, tokens.spacing.sm)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("home.drawer.signOutButton")
 
-            Text(l10n(AccessL10nKey.homeShellVersion, installedVersion))
-                .font(tokens.typography.label)
-                .foregroundStyle(tokens.colors.textSecondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: tokens.spacing.sm) {
+                Text(l10n(AccessL10nKey.homeShellVersionIOS, installedVersion))
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.textSecondary)
+                if isDevelopBuild {
+                    Text(localizedKey(AccessL10nKey.homeShellDevMarker))
+                        .font(tokens.typography.label)
+                        .foregroundStyle(tokens.colors.actionOnPrimary)
+                        .padding(.horizontal, tokens.spacing.sm)
+                        .padding(.vertical, 2.resize)
+                        .background(tokens.colors.feedbackWarning)
+                        .clipShape(Capsule())
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
         }
     }
 
-    private func drawerSection(titleKey: String) -> some View {
-        Text(localizedKey(titleKey))
-            .font(tokens.typography.label)
-            .foregroundStyle(tokens.colors.actionPrimary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, tokens.spacing.xs)
+    private var drawerDivider: some View {
+        Divider()
+            .overlay(tokens.colors.borderSubtle.opacity(0.55))
+            .padding(.vertical, tokens.spacing.xs)
     }
 
     private func homeDrawerItem(
