@@ -26,6 +26,7 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -176,6 +177,8 @@ internal fun HomeRoute(
     var isDrawerOpen by rememberSaveable { mutableStateOf(false) }
     var currentDestination by rememberSaveable { mutableStateOf(HomeDestination.DASHBOARD) }
     var newsPendingDeletionId by rememberSaveable { mutableStateOf<String?>(null) }
+    var myOrderCartUnits by rememberSaveable { mutableIntStateOf(0) }
+    var myOrderCartOpenRequests by rememberSaveable { mutableIntStateOf(0) }
     val member = when (mode) {
         is SessionMode.Authorized -> mode.member
         SessionMode.SignedOut,
@@ -284,7 +287,10 @@ internal fun HomeRoute(
                     stringResource(currentDestination.titleRes())
                 },
                 canNavigateBack = currentDestination != HomeDestination.DASHBOARD,
+                showsNotificationsAction = currentDestination == HomeDestination.DASHBOARD,
                 hasNotificationIndicator = notificationsFeed.isNotEmpty(),
+                showsCartAction = currentDestination == HomeDestination.MY_ORDER,
+                cartUnits = myOrderCartUnits,
                 onBack = {
                     if (currentDestination == HomeDestination.PUBLISH_NEWS) {
                         onClearNewsEditor()
@@ -308,6 +314,9 @@ internal fun HomeRoute(
                 onOpenNotifications = {
                     currentDestination = HomeDestination.NOTIFICATIONS
                     onRefreshNotifications()
+                },
+                onOpenCart = {
+                    myOrderCartOpenRequests += 1
                 },
             )
             Column(
@@ -477,7 +486,9 @@ internal fun HomeRoute(
                     deliveryCalendarOverrides = deliveryCalendarOverrides,
                     nowOverrideMillis = nowOverrideMillis,
                     isLoading = isLoadingMyOrderProducts,
+                    cartOpenRequests = myOrderCartOpenRequests,
                     onRefresh = onRefreshMyOrderProducts,
+                    onCartUnitsChange = { units -> myOrderCartUnits = units },
                     onCheckoutSuccessAcknowledge = {
                         currentDestination = HomeDestination.DASHBOARD
                     },

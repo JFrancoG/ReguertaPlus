@@ -296,8 +296,10 @@
     <string name="my_order_products_empty">Ahora mismo no hay productos disponibles para pedir.</string>
     <string name="my_order_products_badge_common_purchase">Compra común</string>
     <string name="my_order_products_badge_committed_eco_producer">Productor de ecocesta comprometido</string>
+    <string name="my_order_shell_title">Pedido</string>
     <string name="my_order_list_title">Lista de productos</string>
     <string name="my_order_list_subtitle">Agrupados por productor</string>
+    <string name="my_order_confirmed_title">Pedido confirmado</string>
     <string name="my_order_view_cart_action">Ver</string>
     <string name="my_order_common_purchases_group_name">Compras Regüerta</string>
     <string name="my_order_add_action">Añadir</string>
@@ -311,6 +313,7 @@
     <string name="my_order_eco_basket_option_no_pickup">No recoger</string>
     <string name="my_order_price_per_unit_format">%1$s € / ud.</string>
     <string name="my_order_stock_remaining_format">Quedan: %1$s uds.</string>
+    <string name="my_order_stock_sold_out">Sin Stock</string>
     <string name="my_order_continue_shopping_action">Seguir comprando</string>
     <string name="my_order_edit_confirmed_action">Editar pedido</string>
     <string name="my_order_cart_title">Mi carrito</string>

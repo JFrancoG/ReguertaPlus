@@ -22,7 +22,7 @@ enum class HomeDestination {
 
 internal fun HomeDestination.titleRes(): Int = when (this) {
     HomeDestination.DASHBOARD -> R.string.home_title
-    HomeDestination.MY_ORDER -> R.string.module_my_order
+    HomeDestination.MY_ORDER -> R.string.my_order_shell_title
     HomeDestination.MY_ORDERS -> R.string.module_my_orders
     HomeDestination.SHIFTS -> R.string.module_shifts
     HomeDestination.BYLAWS -> R.string.home_shell_action_bylaws

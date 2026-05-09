@@ -44,6 +44,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-05-09 | 🐛 fix(ui): refine order screen chrome
 - 2026-05-09 | 🐛 fix(home): polish action tiles
 - 2026-05-03 | 🐛 fix(ios): add glass home controls
 - 2026-05-03 | 🐛 fix(ios): pin home dashboard layout

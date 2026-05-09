@@ -138,7 +138,9 @@ struct MyOrderRouteView: View {
     let isLoading: Bool
     let currentMember: Member?
     let members: [Member]
+    let cartOpenRequests: Int
     let onRefresh: () -> Void
+    let onCartUnitsChange: (Int) -> Void
     let onCheckoutSuccessAcknowledge: () -> Void
 
     @State private var searchQuery = ""
@@ -406,6 +408,7 @@ struct MyOrderRouteView: View {
                 isViewingConfirmedOrder = !confirmedSnapshot.selectedQuantities.isEmpty && isSelectionEqualToConfirmed
                 selectedQuantities = initialSelectionSnapshot.selectedQuantities
                 selectedEcoBasketOptions = initialSelectionSnapshot.selectedEcoBasketOptions
+                onCartUnitsChange(initialSelectionSnapshot.selectedQuantities.values.reduce(0, +))
                 if initialSelectionSnapshot.selectedQuantities.isEmpty {
                     isCartVisible = false
                 } else if isViewingConfirmedOrder {
@@ -418,7 +421,14 @@ struct MyOrderRouteView: View {
                 hasRestoredCartState = true
             }
             .onChange(of: selectedQuantities) { _, _ in
+                onCartUnitsChange(selectedUnits)
                 persistCurrentCartSnapshotIfNeeded()
+            }
+            .onChange(of: cartOpenRequests) { _, newValue in
+                guard newValue > 0, selectedUnits > 0, !isReadOnlyMode else { return }
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    isCartVisible = true
+                }
             }
             .onChange(of: selectedEcoBasketOptions) { _, _ in
                 persistCurrentCartSnapshotIfNeeded()
@@ -515,41 +525,9 @@ struct MyOrderRouteView: View {
         HStack(spacing: tokens.spacing.md) {
             VStack(alignment: .leading, spacing: tokens.spacing.xs) {
                 Text("Lista de productos")
-                    .font(tokens.typography.titleCard)
+                    .font(tokens.typography.titleSection)
                     .foregroundStyle(tokens.colors.textPrimary)
-                Text("Agrupados por productor")
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
             }
-
-            Spacer(minLength: tokens.spacing.sm)
-
-            Button {
-                withAnimation(.easeInOut(duration: 0.22)) {
-                    isCartVisible = true
-                }
-            } label: {
-                HStack(spacing: tokens.spacing.xs) {
-                    Text("Ver")
-                        .font(tokens.typography.body.weight(.semibold))
-                    Image(systemName: "cart")
-                        .font(.system(size: 16.resize, weight: .semibold))
-                }
-                .foregroundStyle(selectedUnits == 0 ? tokens.colors.textSecondary : tokens.colors.actionPrimary)
-                .padding(.horizontal, tokens.spacing.md)
-                .padding(.vertical, tokens.spacing.sm)
-                .background(tokens.colors.surfacePrimary)
-                .overlay(
-                    RoundedRectangle(cornerRadius: tokens.radius.md)
-                        .stroke(
-                            selectedUnits == 0 ? tokens.colors.borderSubtle : tokens.colors.actionPrimary,
-                            lineWidth: 1
-                        )
-                )
-                .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
-            }
-            .buttonStyle(.plain)
-            .disabled(selectedUnits == 0)
         }
     }
 
@@ -557,7 +535,7 @@ struct MyOrderRouteView: View {
         ZStack(alignment: .bottom) {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
                 HStack(spacing: tokens.spacing.sm) {
-                    Text("Mi pedido")
+                    Text("Pedido confirmado")
                         .font(tokens.typography.titleCard.weight(.semibold))
                         .foregroundStyle(tokens.colors.textPrimary)
                     Spacer()
@@ -835,7 +813,7 @@ struct MyOrderRouteView: View {
                 }
             }
             .padding(.top, tokens.spacing.xs)
-            .padding(.bottom, 120.resize)
+            .padding(.bottom, 152.resize)
         }
         .scrollDismissesKeyboard(.interactively)
     }
@@ -843,6 +821,7 @@ struct MyOrderRouteView: View {
     @ViewBuilder
     private func producerHeader(_ group: MyOrderProducerGroup) -> some View {
         HStack(spacing: tokens.spacing.sm) {
+            Spacer(minLength: 0)
             Text(group.companyName)
                 .font(tokens.typography.titleCard.weight(.semibold))
                 .foregroundStyle(tokens.colors.actionPrimary)
@@ -852,11 +831,11 @@ struct MyOrderRouteView: View {
             if group.isCommonPurchasesGroup {
                 badge("Compra común")
             }
-            Spacer()
+            Spacer(minLength: 0)
         }
-        .padding(.vertical, tokens.spacing.xs)
-        .padding(.horizontal, tokens.spacing.xs)
-        .background(tokens.colors.surfacePrimary.opacity(0.98))
+        .padding(.vertical, tokens.spacing.sm)
+        .padding(.horizontal, tokens.spacing.md)
+        .background(tokens.colors.surfaceSecondary.opacity(0.9))
     }
 
     @ViewBuilder
@@ -899,9 +878,9 @@ struct MyOrderRouteView: View {
                         .foregroundStyle(tokens.colors.textPrimary)
                     Spacer()
                     if let stockLabel {
-                        Text(stockLabel)
+                        Text(stockLabel.text)
                             .font(tokens.typography.bodySecondary.weight(.semibold))
-                            .foregroundStyle(tokens.colors.actionPrimary)
+                            .foregroundStyle(stockLabel.color)
                     }
                 }
             }
@@ -968,15 +947,14 @@ struct MyOrderRouteView: View {
                 Image(systemName: "cart.badge.plus")
                     .font(.system(size: 16.resize, weight: .semibold))
             }
-            .foregroundStyle(tokens.colors.actionOnPrimary)
+            .foregroundStyle(canIncreaseQuantity ? tokens.colors.actionOnPrimary : tokens.colors.textSecondary)
             .padding(.horizontal, tokens.spacing.md)
             .padding(.vertical, tokens.spacing.sm)
-            .background(tokens.colors.actionPrimary)
+            .background(canIncreaseQuantity ? tokens.colors.actionPrimary : Color(.systemGray5))
             .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
         }
         .buttonStyle(.plain)
         .disabled(!canIncreaseQuantity)
-        .opacity(canIncreaseQuantity ? 1 : 0.55)
     }
 
     private func editableQuantityControls(product: Product, quantity: Int) -> some View {
@@ -1044,7 +1022,6 @@ struct MyOrderRouteView: View {
                 .stroke(tokens.colors.borderSubtle, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
-        .padding(.horizontal, tokens.spacing.sm)
         .padding(.bottom, tokens.spacing.lg)
     }
 
@@ -1345,11 +1322,17 @@ struct MyOrderRouteView: View {
         return currentQuantity < finiteLimit
     }
 
-    private func stockLabel(for product: Product) -> String? {
+    private func stockLabel(for product: Product) -> (text: String, color: Color)? {
         guard product.stockMode == .finite else { return nil }
         let stock = max(0, product.stockQty ?? 0)
+        guard stock > 0 else {
+            return ("Sin Stock", tokens.colors.feedbackError)
+        }
         guard stock < 20 else { return nil }
-        return "Quedan: \(stock.myOrderUiDecimal) uds."
+        return (
+            "Quedan: \(stock.myOrderUiDecimal) uds.",
+            stock < 10 ? tokens.colors.feedbackWarning : tokens.colors.actionPrimary
+        )
     }
 
     private func increase(_ product: Product) {

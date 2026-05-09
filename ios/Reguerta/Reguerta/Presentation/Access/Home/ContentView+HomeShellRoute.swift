@@ -45,7 +45,8 @@ extension ContentView {
                 }
                 .disabled(isHomeDrawerOpen)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .background(tokens.colors.surfacePrimary)
+                .background(tokens.colors.surfacePrimary.ignoresSafeArea(.container, edges: .bottom))
+                .ignoresSafeArea(.container, edges: .bottom)
                 .offset(x: resolvedHomeLayerOffset(drawerWidth: drawerWidth))
                 .shadow(color: .black.opacity(isHomeDrawerOpen ? 0.22 : 0), radius: 14.resize, x: -4.resize, y: 0)
                 .animation(.spring(response: 0.28, dampingFraction: 0.82), value: isHomeDrawerOpen)
@@ -102,11 +103,12 @@ extension ContentView {
         HomeShellTopBarView(
             tokens: tokens,
             titleKey: homeDestination.titleKey,
-            titleOverride: homeDestination == .dashboard
-                ? formatHomeTopBarDate(nowMillis: viewModel.nowOverrideMillis ?? Int64(Date().timeIntervalSince1970 * 1_000))
-                : nil,
+            titleOverride: homeShellTitleOverride,
             showsBack: homeDestination != .dashboard,
+            showsNotificationsAction: homeDestination == .dashboard,
             hasNotificationIndicator: !viewModel.notificationsFeed.isEmpty,
+            showsCartAction: homeDestination == .myOrder,
+            cartUnits: myOrderCartUnits,
             onPrimaryAction: {
                 if homeDestination == .dashboard {
                     openHomeDrawer()
@@ -126,8 +128,21 @@ extension ContentView {
             onNotificationsAction: {
                 homeDestination = .notifications
                 viewModel.refreshNotifications()
+            },
+            onCartAction: {
+                myOrderCartOpenRequests += 1
             }
         )
+    }
+
+    var homeShellTitleOverride: String? {
+        if homeDestination == .dashboard {
+            return formatHomeTopBarDate(nowMillis: viewModel.nowOverrideMillis ?? Int64(Date().timeIntervalSince1970 * 1_000))
+        }
+        if homeDestination == .myOrder {
+            return "Pedido"
+        }
+        return nil
     }
 
     func homeDrawerPanel(drawerWidth: CGFloat) -> some View {
