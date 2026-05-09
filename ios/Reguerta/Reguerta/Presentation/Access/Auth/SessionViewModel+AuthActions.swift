@@ -185,10 +185,7 @@ extension SessionViewModel {
     }
 
     func refreshMyOrderFreshness() {
-        guard case .authorized(let session) = mode else {
-            return
-        }
-
+        guard case .authorized(let session) = mode else { return }
         myOrderFreshnessState = .checking
         Task { @MainActor in
             let resolution = await withTaskGroup(of: CriticalDataFreshnessResolution?.self) { group in
@@ -203,11 +200,7 @@ extension SessionViewModel {
                 group.cancelAll()
                 return first
             }
-
-            guard case .authorized(let latestSession) = mode, latestSession == session else {
-                return
-            }
-
+            guard case .authorized(let latestSession) = mode, latestSession == session else { return }
             switch resolution {
             case .fresh:
                 myOrderFreshnessState = .ready
@@ -398,7 +391,6 @@ extension SessionViewModel {
             myOrderFreshnessState = .checking
             refreshMyOrderFreshness()
         }
-
         setAuthorizedLoadingState(member: member)
         let bootstrapData = await loadAuthorizedSessionBootstrapData(member: member)
         applyAuthorizedSessionBootstrapData(bootstrapData, member: member)
@@ -488,9 +480,7 @@ extension SessionViewModel {
     }
 
     private func shouldShowUnauthorizedDialog(for email: String, reason: UnauthorizedReason) -> Bool {
-        guard reason == .userNotFoundInAuthorizedUsers else {
-            return false
-        }
+        guard reason == .userNotFoundInAuthorizedUsers else { return false }
         if case .unauthorized(let currentEmail, _) = mode {
             return currentEmail != email
         }

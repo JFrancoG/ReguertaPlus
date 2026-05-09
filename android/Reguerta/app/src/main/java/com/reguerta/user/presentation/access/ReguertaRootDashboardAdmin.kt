@@ -91,6 +91,7 @@ internal fun AuthorizedHome(
         canOpenReceivedOrders = mode.member.canAccessReceivedOrders,
         myOrderFreshnessState = myOrderFreshnessState,
         orderState = weeklySummaryDisplay.orderState,
+        isConsultaPhase = weeklySummaryDisplay.isConsultaPhase,
         onOpenMyOrder = onOpenMyOrder,
         onOpenReceivedOrders = onOpenReceivedOrders,
         onRetryFreshness = onRetryMyOrderFreshness,

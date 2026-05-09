@@ -14,15 +14,10 @@ final class FirebaseImagePipelineManager: @unchecked Sendable, ImagePipelineMana
         self.jpegCompressionQuality = jpegCompressionQuality
     }
 
-    func processAndUpload(
-        imageData: Data,
-        request: ImageUploadRequest
-    ) async throws -> ImageUploadResult {
-        guard let original = UIImage(data: imageData),
-              let originalCgImage = original.cgImage else {
+    func processAndUpload(imageData: Data, request: ImageUploadRequest) async throws -> ImageUploadResult {
+        guard let original = UIImage(data: imageData), let originalCgImage = original.cgImage else {
             throw ImagePipelineError.invalidInput
         }
-
         guard let scaledSize = ImagePipelineSizingContract.scaledDimensions(
             sourceWidth: originalCgImage.width,
             sourceHeight: originalCgImage.height,
@@ -30,15 +25,8 @@ final class FirebaseImagePipelineManager: @unchecked Sendable, ImagePipelineMana
         ) else {
             throw ImagePipelineError.processingFailed
         }
-
-        let resizedImage = resizeImage(
-            original,
-            targetSize: CGSize(width: scaledSize.width, height: scaledSize.height)
-        )
-        guard let resizedCgImage = resizedImage.cgImage else {
-            throw ImagePipelineError.processingFailed
-        }
-
+        let resizedImage = resizeImage(original, targetSize: CGSize(width: scaledSize.width, height: scaledSize.height))
+        guard let resizedCgImage = resizedImage.cgImage else { throw ImagePipelineError.processingFailed }
         guard let cropSquare = ImagePipelineSizingContract.centerCropSquare(
             sourceWidth: resizedCgImage.width,
             sourceHeight: resizedCgImage.height,
@@ -46,35 +34,24 @@ final class FirebaseImagePipelineManager: @unchecked Sendable, ImagePipelineMana
         ) else {
             throw ImagePipelineError.processingFailed
         }
-
         let cropRect = CGRect(
             x: cropSquare.left,
             y: cropSquare.top,
             width: cropSquare.size,
             height: cropSquare.size
         )
-        guard let croppedCgImage = resizedCgImage.cropping(to: cropRect) else {
-            throw ImagePipelineError.processingFailed
-        }
-
+        guard let croppedCgImage = resizedCgImage.cropping(to: cropRect) else { throw ImagePipelineError.processingFailed }
         let finalImage = UIImage(cgImage: croppedCgImage)
-        guard let outputData = finalImage.jpegData(compressionQuality: jpegCompressionQuality),
-              !outputData.isEmpty else {
+        guard let outputData = finalImage.jpegData(compressionQuality: jpegCompressionQuality), !outputData.isEmpty else {
             throw ImagePipelineError.processingFailed
         }
-
         let reference = storage.reference(withPath: buildStoragePath(request: request))
         let metadata = StorageMetadata()
         metadata.contentType = mimeTypeJpeg
-
         try await uploadData(outputData, metadata: metadata, to: reference)
         let downloadURL = try await fetchDownloadURL(from: reference).absoluteString
         let normalizedURL = downloadURL.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard !normalizedURL.isEmpty else {
-            throw ImagePipelineError.downloadURLMissing
-        }
-
+        guard !normalizedURL.isEmpty else { throw ImagePipelineError.downloadURLMissing }
         return ImageUploadResult(
             downloadURL: normalizedURL,
             widthPx: outputSidePx,

@@ -30,6 +30,8 @@ class HomeWeeklySummaryDisplayTest {
 
         assertEquals("2026-W19", display.weekKey)
         assertEquals("4 may - 10 may", display.weekRangeLabel)
+        assertEquals("Huerta Sur", display.producerName)
+        assertEquals(true, display.isConsultaPhase)
         assertEquals("Carmen", display.responsibleName)
         assertEquals("Javier", display.helperName)
     }
@@ -52,6 +54,8 @@ class HomeWeeklySummaryDisplayTest {
 
         assertEquals("2026-W20", display.weekKey)
         assertEquals("11 may - 17 may", display.weekRangeLabel)
+        assertEquals("Huerta Norte", display.producerName)
+        assertEquals(false, display.isConsultaPhase)
     }
 
     @Test
@@ -103,6 +107,17 @@ class HomeWeeklySummaryDisplayTest {
             isActive = true,
             producerCatalogEnabled = true,
             producerParity = ProducerParity.ODD,
+        ),
+        Member(
+            id = "producer_2",
+            displayName = "Huerta Sur",
+            companyName = "Huerta Sur",
+            normalizedEmail = "sur@reguerta.test",
+            authUid = null,
+            roles = setOf(MemberRole.PRODUCER),
+            isActive = true,
+            producerCatalogEnabled = true,
+            producerParity = ProducerParity.EVEN,
         ),
     )
 }

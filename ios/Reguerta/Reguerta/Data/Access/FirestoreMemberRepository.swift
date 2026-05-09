@@ -96,7 +96,7 @@ final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
             "isActive": member.isActive,
             "available": member.isActive,
             "producerCatalogEnabled": member.producerCatalogEnabled,
-            "isCommonPurchaseManager": member.isCommonPurchaseManager,
+            "isCommonPurchaseManager": member.isCommonPurchaseManager
         ]
 
         do {
@@ -127,17 +127,13 @@ final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
             firstName: normalizedOptionalString(data, keys: ["name"]),
             lastName: normalizedOptionalString(data, keys: ["surname"])
         )
-        guard let displayName else {
-            return nil
-        }
+        guard let displayName else { return nil }
 
         let normalizedEmail = normalizedOptionalString(
             data,
             keys: ["normalizedEmail", "emailNormalized", "email"]
         )?.lowercased()
-        guard let normalizedEmail else {
-            return nil
-        }
+        guard let normalizedEmail else { return nil }
         let authUid = normalizedOptionalString(data, keys: ["authUid"])
         let companyName = normalizedOptionalString(data, keys: ["companyName", "company_name", "company"])
         let phoneNumber = normalizedOptionalString(data, keys: ["phoneNumber", "phone", "telephone", "telefono"])
@@ -154,10 +150,7 @@ final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
         let rawRoles = (data["roles"] as? [String]) ?? []
         let parsedRoles = Set(rawRoles.compactMap(legacyCompatibleRole(from:)))
         let roles = parsedRoles.isEmpty
-            ? legacyRoles(
-                isProducer: (data["isProducer"] as? Bool) ?? false,
-                isAdmin: (data["isAdmin"] as? Bool) ?? false
-            )
+            ? legacyRoles(isProducer: (data["isProducer"] as? Bool) ?? false, isAdmin: (data["isAdmin"] as? Bool) ?? false)
             : parsedRoles
 
         return Member(

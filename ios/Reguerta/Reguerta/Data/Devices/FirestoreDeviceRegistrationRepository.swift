@@ -25,7 +25,7 @@ final class FirestoreDeviceRegistrationRepository: @unchecked Sendable, DeviceRe
             "platform": device.platform,
             "appVersion": device.appVersion,
             "osVersion": device.osVersion,
-            "lastSeenAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(device.lastSeenAtMillis) / 1_000)),
+            "lastSeenAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(device.lastSeenAtMillis) / 1_000))
         ]
         if let apiLevel = device.apiLevel {
             payload["apiLevel"] = apiLevel

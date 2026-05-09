@@ -37,6 +37,7 @@ internal data class HomeWeeklySummaryDisplay(
     val responsibleName: String,
     val helperName: String,
     val orderState: HomeOrderStateDisplay,
+    val isConsultaPhase: Boolean,
 )
 
 internal fun resolveHomeWeeklySummaryDisplay(
@@ -66,6 +67,7 @@ internal fun resolveHomeWeeklySummaryDisplay(
         currentWeekStart
     }
     val targetWeekKey = targetWeekStart.toIsoWeekKey()
+    val isConsultaPhase = !today.isBefore(currentWeekStart) && !today.isAfter(currentDeliveryDate)
     val targetShift = shifts
         .filter { it.type == ShiftType.DELIVERY }
         .firstOrNull { it.effectiveDateMillis(deliveryCalendarOverrides).toLocalDate(zoneId).toIsoWeekKey() == targetWeekKey }
@@ -90,6 +92,7 @@ internal fun resolveHomeWeeklySummaryDisplay(
         responsibleName = targetShift?.assignedUserIds?.firstOrNull()?.let { members.displayNameForHome(it) } ?: "Pendiente",
         helperName = targetShift?.helperUserId?.let { members.displayNameForHome(it) } ?: "Pendiente",
         orderState = orderState,
+        isConsultaPhase = isConsultaPhase,
     )
 }
 
@@ -143,16 +146,20 @@ private fun resolveDeliveryDate(
 }
 
 private fun resolveProducerName(weekStart: LocalDate, members: List<Member>): String {
-    val parity = if (weekStart.get(WeekFields.ISO.weekOfWeekBasedYear()) % 2 == 0) {
+    val orderWeekStart = weekStart.minusWeeks(1)
+    val orderWeekNumber = orderWeekStart.get(WeekFields.ISO.weekOfWeekBasedYear())
+    val parity = if (orderWeekNumber % 2 == 0) {
         ProducerParity.EVEN
     } else {
         ProducerParity.ODD
     }
-    return members
+    val producers = members
         .filter { it.isProducer && it.producerCatalogEnabled }
+        .sortedBy { it.companyName?.takeIf(String::isNotBlank) ?: it.displayName }
+    return producers
         .firstOrNull { it.producerParity == parity }
         ?.let { it.companyName?.takeIf(String::isNotBlank) ?: it.displayName }
-        ?: members.firstOrNull { it.isProducer && it.producerCatalogEnabled }
+        ?: producers.getOrNull(orderWeekNumber % producers.size.coerceAtLeast(1))
             ?.let { it.companyName?.takeIf(String::isNotBlank) ?: it.displayName }
         ?: "Pendiente"
 }

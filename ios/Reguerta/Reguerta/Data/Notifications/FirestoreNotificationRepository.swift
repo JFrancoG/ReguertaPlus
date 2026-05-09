@@ -65,7 +65,7 @@ final class FirestoreNotificationRepository: @unchecked Sendable, NotificationRe
                 "target": persisted.target,
                 "targetPayload": targetPayload,
                 "sentAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(persisted.sentAtMillis) / 1_000)),
-                "createdBy": persisted.createdBy,
+                "createdBy": persisted.createdBy
             ]
             if let weekKey = persisted.weekKey {
                 payload["weekKey"] = weekKey

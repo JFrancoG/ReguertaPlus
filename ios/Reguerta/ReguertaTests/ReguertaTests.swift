@@ -420,7 +420,7 @@ struct ReguertaTests {
                     .products: 1_000,
                     .orders: 1_000,
                     .containers: 1_000,
-                    .measures: 1_000,
+                    .measures: 1_000
                 ]
             ),
             metadata: nil,
@@ -1151,6 +1151,9 @@ struct ReguertaTests {
 
         #expect(display.weekKey == "2026-W19")
         #expect(display.weekRangeLabel == "4 may - 10 may")
+        #expect(display.producerName == "Huerta Sur")
+        #expect(display.isConsultaPhase)
+        #expect(display.myOrderSubtitleKey == AccessL10nKey.homeDashboardMyOrderSubtitleLastOrder)
         #expect(display.responsibleName == "Carmen")
         #expect(display.helperName == "Javier")
     }
@@ -1163,13 +1166,16 @@ struct ReguertaTests {
             deliveryCalendarOverrides: [],
             shifts: [
                 testDeliveryShift(id: "delivery_w19", year: 2026, month: 5, day: 8),
-                testDeliveryShift(id: "delivery_w20", year: 2026, month: 5, day: 15),
+                testDeliveryShift(id: "delivery_w20", year: 2026, month: 5, day: 15)
             ],
             members: homeSummaryMembers
         )
 
         #expect(display.weekKey == "2026-W20")
         #expect(display.weekRangeLabel == "11 may - 17 may")
+        #expect(display.producerName == "Huerta Norte")
+        #expect(!display.isConsultaPhase)
+        #expect(display.myOrderSubtitleKey == AccessL10nKey.homeDashboardMyOrderSubtitleEdit)
     }
 
     @Test
@@ -1244,6 +1250,17 @@ private let homeSummaryMembers = [
         producerCatalogEnabled: true,
         producerParity: .odd
     ),
+    Member(
+        id: "producer_2",
+        displayName: "Huerta Sur",
+        companyName: "Huerta Sur",
+        normalizedEmail: "sur@reguerta.test",
+        authUid: nil,
+        roles: [.producer],
+        isActive: true,
+        producerCatalogEnabled: true,
+        producerParity: .even
+    )
 ]
 
 private struct FixedStartupVersionPolicyRepository: StartupVersionPolicyRepository {

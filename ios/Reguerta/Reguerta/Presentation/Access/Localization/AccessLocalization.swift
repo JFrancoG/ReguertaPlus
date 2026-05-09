@@ -99,6 +99,7 @@ enum AccessL10nKey {
     static let homeDashboardMyOrderSubtitleEdit = "home.dashboard.my_order.subtitle.edit"
     static let homeDashboardMyOrderSubtitleReview = "home.dashboard.my_order.subtitle.review"
     static let homeDashboardMyOrderSubtitleCompleted = "home.dashboard.my_order.subtitle.completed"
+    static let homeDashboardMyOrderSubtitleLastOrder = "home.dashboard.my_order.subtitle.last_order"
     static let homeDashboardReceivedOrdersSubtitle = "home.dashboard.received_orders.subtitle"
     static let homeShellVersionIOS = "home.shell.version.ios"
     static let homeShellDevMarker = "home.shell.dev_marker"

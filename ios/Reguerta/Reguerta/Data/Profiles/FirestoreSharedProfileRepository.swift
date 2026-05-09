@@ -42,7 +42,7 @@ final class FirestoreSharedProfileRepository: @unchecked Sendable, SharedProfile
             "userId": profile.userId,
             "familyNames": profile.familyNames,
             "about": profile.about,
-            "updatedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(profile.updatedAtMillis) / 1_000)),
+            "updatedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(profile.updatedAtMillis) / 1_000))
         ]
         if let photoUrl = profile.photoUrl {
             payload["photoUrl"] = photoUrl

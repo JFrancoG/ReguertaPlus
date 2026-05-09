@@ -2672,22 +2672,29 @@
     "home.dashboard.my_order.subtitle.completed" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Confirmed order" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Pedido confirmado" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "View/edit order" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Ver/modificar pedido" } }
       }
     },
     "home.dashboard.my_order.subtitle.edit" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Edit this week" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Editar esta semana" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Make order" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Hacer pedido" } }
+      }
+    },
+    "home.dashboard.my_order.subtitle.last_order" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "View last order" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Ver último pedido" } }
       }
     },
     "home.dashboard.my_order.subtitle.review" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Review and confirm" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Revisar y confirmar" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Confirm order" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Confirmar pedido" } }
       }
     },
     "home.dashboard.order_state.completed" : {

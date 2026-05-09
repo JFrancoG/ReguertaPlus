@@ -21,6 +21,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.reguerta.user.R
@@ -183,6 +184,7 @@ internal fun HomeActionRow(
     myOrderFreshnessState: MyOrderFreshnessUiState,
     canOpenReceivedOrders: Boolean,
     orderState: HomeOrderStateDisplay,
+    isConsultaPhase: Boolean,
     onOpenMyOrder: () -> Unit,
     onOpenReceivedOrders: () -> Unit,
     onRetryFreshness: () -> Unit,
@@ -196,7 +198,7 @@ internal fun HomeActionRow(
         ) {
             HomeDashboardAction(
                 title = stringResource(R.string.module_my_order),
-                subtitle = stringResource(orderState.myOrderSubtitleRes()),
+                subtitle = stringResource(orderState.myOrderSubtitleRes(isConsultaPhase)),
                 primary = true,
                 enabled = myOrderFreshnessState == MyOrderFreshnessUiState.Ready,
                 onClick = onOpenMyOrder,
@@ -205,7 +207,7 @@ internal fun HomeActionRow(
             if (canOpenReceivedOrders) {
                 HomeDashboardAction(
                     title = stringResource(R.string.home_shell_action_received_orders),
-                    subtitle = stringResource(R.string.home_dashboard_received_orders_subtitle),
+                    subtitle = null,
                     primary = false,
                     enabled = true,
                     onClick = onOpenReceivedOrders,
@@ -235,7 +237,7 @@ internal fun HomeActionRow(
 @Composable
 private fun HomeDashboardAction(
     title: String,
-    subtitle: String,
+    subtitle: String?,
     primary: Boolean,
     enabled: Boolean,
     onClick: () -> Unit,
@@ -260,6 +262,7 @@ private fun HomeDashboardAction(
             )
             .clickable(enabled = enabled, onClick = onClick)
             .padding(spacing.md),
+        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
@@ -267,16 +270,20 @@ private fun HomeDashboardAction(
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
             color = if (enabled) content else disabledContent,
-            maxLines = 1,
+            textAlign = TextAlign.Center,
+            maxLines = if (subtitle == null) 2 else 1,
             overflow = TextOverflow.Ellipsis,
         )
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodySmall,
-            color = if (enabled) content.copy(alpha = 0.78f) else disabledContent,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        subtitle?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (enabled) content.copy(alpha = 0.78f) else disabledContent,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -286,10 +293,11 @@ private fun HomeOrderStateDisplay.labelRes(): Int = when (this) {
     HomeOrderStateDisplay.COMPLETED -> R.string.home_dashboard_order_state_completed
 }
 
-private fun HomeOrderStateDisplay.myOrderSubtitleRes(): Int = when (this) {
-    HomeOrderStateDisplay.NOT_STARTED -> R.string.home_dashboard_my_order_subtitle_edit
-    HomeOrderStateDisplay.UNCONFIRMED -> R.string.home_dashboard_my_order_subtitle_review
-    HomeOrderStateDisplay.COMPLETED -> R.string.home_dashboard_my_order_subtitle_completed
+private fun HomeOrderStateDisplay.myOrderSubtitleRes(isConsultaPhase: Boolean): Int = when {
+    isConsultaPhase -> R.string.home_dashboard_my_order_subtitle_last_order
+    this == HomeOrderStateDisplay.NOT_STARTED -> R.string.home_dashboard_my_order_subtitle_edit
+    this == HomeOrderStateDisplay.UNCONFIRMED -> R.string.home_dashboard_my_order_subtitle_review
+    else -> R.string.home_dashboard_my_order_subtitle_completed
 }
 
 @Composable

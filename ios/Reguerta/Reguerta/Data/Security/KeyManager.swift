@@ -26,7 +26,7 @@ actor KeyManager {
             kSecAttrService: Self.service,
             kSecAttrAccount: key.rawValue,
             kSecReturnData: true,
-            kSecMatchLimit: kSecMatchLimitOne,
+            kSecMatchLimit: kSecMatchLimitOne
         ]
 
         var item: CFTypeRef?
@@ -45,7 +45,7 @@ actor KeyManager {
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: Self.service,
-            kSecAttrAccount: key.rawValue,
+            kSecAttrAccount: key.rawValue
         ]
         SecItemDelete(query as CFDictionary)
     }
@@ -55,11 +55,11 @@ actor KeyManager {
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: Self.service,
-            kSecAttrAccount: key.rawValue,
+            kSecAttrAccount: key.rawValue
         ]
         let attributes: [CFString: Any] = [
             kSecValueData: data,
-            kSecAttrAccessible: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+            kSecAttrAccessible: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         ]
 
         let status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)

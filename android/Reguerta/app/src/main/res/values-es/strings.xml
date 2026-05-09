@@ -92,9 +92,10 @@
     <string name="home_dashboard_order_state_not_started">Sin hacer</string>
     <string name="home_dashboard_order_state_unconfirmed">Sin confirmar</string>
     <string name="home_dashboard_order_state_completed">Hecho</string>
-    <string name="home_dashboard_my_order_subtitle_edit">Editar esta semana</string>
-    <string name="home_dashboard_my_order_subtitle_review">Revisar y confirmar</string>
-    <string name="home_dashboard_my_order_subtitle_completed">Pedido confirmado</string>
+    <string name="home_dashboard_my_order_subtitle_edit">Hacer pedido</string>
+    <string name="home_dashboard_my_order_subtitle_review">Confirmar pedido</string>
+    <string name="home_dashboard_my_order_subtitle_completed">Ver/modificar pedido</string>
+    <string name="home_dashboard_my_order_subtitle_last_order">Ver último pedido</string>
     <string name="home_dashboard_received_orders_subtitle">Recibidos</string>
     <string name="home_shell_version_android_format">Android %1$s</string>
     <string name="home_shell_dev_marker">DEV</string>

@@ -53,7 +53,7 @@ final class FirestoreShiftSwapRequestRepository: @unchecked Sendable, ShiftSwapR
             "candidates": persisted.candidates.map { candidate in
                 [
                     "userId": candidate.userId,
-                    "shiftId": candidate.shiftId,
+                    "shiftId": candidate.shiftId
                 ]
             },
             "responses": persisted.responses.map { response in
@@ -61,12 +61,12 @@ final class FirestoreShiftSwapRequestRepository: @unchecked Sendable, ShiftSwapR
                     "userId": response.userId,
                     "shiftId": response.shiftId,
                     "status": response.status.rawValue,
-                    "respondedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(response.respondedAtMillis) / 1_000)),
+                    "respondedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(response.respondedAtMillis) / 1_000))
                 ]
             },
             "selectedCandidateUserId": persisted.selectedCandidateUserId as Any,
             "selectedCandidateShiftId": persisted.selectedCandidateShiftId as Any,
-            "requestedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(persisted.requestedAtMillis) / 1_000)),
+            "requestedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(persisted.requestedAtMillis) / 1_000))
         ]
         payload["confirmedAt"] = persisted.confirmedAtMillis.map { Timestamp(date: Date(timeIntervalSince1970: TimeInterval($0) / 1_000)) }
         payload["appliedAt"] = persisted.appliedAtMillis.map { Timestamp(date: Date(timeIntervalSince1970: TimeInterval($0) / 1_000)) }

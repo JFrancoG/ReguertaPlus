@@ -37,7 +37,7 @@ final class FirestoreShiftRepository: @unchecked Sendable, ShiftRepository {
             "status": shift.status.rawValue,
             "source": shift.source,
             "createdAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(shift.createdAtMillis) / 1_000)),
-            "updatedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(shift.updatedAtMillis) / 1_000)),
+            "updatedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(shift.updatedAtMillis) / 1_000))
         ]
 
         do {

@@ -12,74 +12,16 @@ extension SessionViewModel {
         guard case .authorized(let session) = mode else {
             return
         }
-        guard session.member.canManageMembers else {
-            feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminCreate
-            return
-        }
-
-        let normalizedEmail = normalizeEmail(memberDraft.email)
-        guard !memberDraft.displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              !normalizedEmail.isEmpty else {
-            feedbackMessageKey = AccessL10nKey.feedbackDisplayNameEmailRequired
-            return
-        }
-
-        let roles = buildRoles(from: memberDraft)
-        guard !roles.isEmpty else {
-            feedbackMessageKey = AccessL10nKey.feedbackSelectRole
-            return
-        }
-        if roles.contains(.producer) && memberDraft.companyName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            feedbackMessageKey = AccessL10nKey.feedbackProducerCompanyRequired
-            return
-        }
-
-        if session.members.contains(where: {
-            $0.normalizedEmail == normalizedEmail && $0.id != editingMemberId
-        }) {
-            feedbackMessageKey = AccessL10nKey.feedbackMemberExists
-            return
-        }
-
-        let member: Member
-        if let editingMemberId {
-            guard let existing = session.members.first(where: { $0.id == editingMemberId }) else {
-                return
-            }
-            member = Member(
-                id: existing.id,
-                displayName: memberDraft.displayName.trimmingCharacters(in: .whitespacesAndNewlines),
-                companyName: normalizedCompanyName(from: memberDraft, roles: roles),
-                phoneNumber: normalizedPhoneNumber(from: memberDraft),
-                normalizedEmail: normalizedEmail,
-                authUid: existing.authUid,
-                roles: roles,
-                isActive: memberDraft.isActive,
-                producerCatalogEnabled: existing.producerCatalogEnabled,
-                isCommonPurchaseManager: memberDraft.isCommonPurchaseManager,
-                producerParity: existing.producerParity,
-                ecoCommitmentMode: existing.ecoCommitmentMode,
-                ecoCommitmentParity: existing.ecoCommitmentParity
-            )
-        } else {
-            let newId = buildMemberId(from: normalizedEmail)
-            if session.members.contains(where: { $0.id == newId }) {
-                feedbackMessageKey = AccessL10nKey.feedbackMemberExists
-                return
-            }
-            member = Member(
-                id: newId,
-                displayName: memberDraft.displayName.trimmingCharacters(in: .whitespacesAndNewlines),
-                companyName: normalizedCompanyName(from: memberDraft, roles: roles),
-                phoneNumber: normalizedPhoneNumber(from: memberDraft),
-                normalizedEmail: normalizedEmail,
-                authUid: nil,
-                roles: roles,
-                isActive: memberDraft.isActive,
-                producerCatalogEnabled: true,
-                isCommonPurchaseManager: memberDraft.isCommonPurchaseManager
-            )
-        }
+        guard let validation = validateMemberDraft(
+            editingMemberId: editingMemberId,
+            session: session
+        ) else { return }
+        guard let member = buildMemberDraftTarget(
+            editingMemberId: editingMemberId,
+            normalizedEmail: validation.normalizedEmail,
+            roles: validation.roles,
+            session: session
+        ) else { return }
 
         Task { @MainActor in
             let saved = await persistMember(target: member, session: session)
@@ -88,6 +30,106 @@ extension SessionViewModel {
                 onSuccess()
             }
         }
+    }
+
+    private func validateMemberDraft(
+        editingMemberId: String?,
+        session: AuthorizedSession
+    ) -> (normalizedEmail: String, roles: Set<MemberRole>)? {
+        guard session.member.canManageMembers else {
+            feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminCreate
+            return nil
+        }
+
+        let normalizedEmail = normalizeEmail(memberDraft.email)
+        guard !memberDraft.displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !normalizedEmail.isEmpty else {
+            feedbackMessageKey = AccessL10nKey.feedbackDisplayNameEmailRequired
+            return nil
+        }
+
+        let roles = buildRoles(from: memberDraft)
+        guard validateMemberDraftRoles(roles) else { return nil }
+        guard !session.members.contains(where: {
+            $0.normalizedEmail == normalizedEmail && $0.id != editingMemberId
+        }) else {
+            feedbackMessageKey = AccessL10nKey.feedbackMemberExists
+            return nil
+        }
+        return (normalizedEmail, roles)
+    }
+
+    private func validateMemberDraftRoles(_ roles: Set<MemberRole>) -> Bool {
+        guard !roles.isEmpty else {
+            feedbackMessageKey = AccessL10nKey.feedbackSelectRole
+            return false
+        }
+        if roles.contains(.producer) && memberDraft.companyName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            feedbackMessageKey = AccessL10nKey.feedbackProducerCompanyRequired
+            return false
+        }
+        return true
+    }
+
+    private func buildMemberDraftTarget(
+        editingMemberId: String?,
+        normalizedEmail: String,
+        roles: Set<MemberRole>,
+        session: AuthorizedSession
+    ) -> Member? {
+        if let editingMemberId {
+            guard let existing = session.members.first(where: { $0.id == editingMemberId }) else {
+                return nil
+            }
+            return updatedMemberDraftTarget(from: existing, normalizedEmail: normalizedEmail, roles: roles)
+        }
+        let newId = buildMemberId(from: normalizedEmail)
+        guard !session.members.contains(where: { $0.id == newId }) else {
+            feedbackMessageKey = AccessL10nKey.feedbackMemberExists
+            return nil
+        }
+        return newMemberDraftTarget(id: newId, normalizedEmail: normalizedEmail, roles: roles)
+    }
+
+    private func updatedMemberDraftTarget(
+        from existing: Member,
+        normalizedEmail: String,
+        roles: Set<MemberRole>
+    ) -> Member {
+        Member(
+            id: existing.id,
+            displayName: memberDraft.displayName.trimmingCharacters(in: .whitespacesAndNewlines),
+            companyName: normalizedCompanyName(from: memberDraft, roles: roles),
+            phoneNumber: normalizedPhoneNumber(from: memberDraft),
+            normalizedEmail: normalizedEmail,
+            authUid: existing.authUid,
+            roles: roles,
+            isActive: memberDraft.isActive,
+            producerCatalogEnabled: existing.producerCatalogEnabled,
+            isCommonPurchaseManager: memberDraft.isCommonPurchaseManager,
+            producerParity: existing.producerParity,
+            ecoCommitmentMode: existing.ecoCommitmentMode,
+            ecoCommitmentParity: existing.ecoCommitmentParity
+        )
+    }
+
+    private func newMemberDraftTarget(
+        id: String,
+        normalizedEmail: String,
+        roles: Set<MemberRole>
+    ) -> Member {
+        Member(
+            id: id,
+            displayName: memberDraft.displayName.trimmingCharacters(in: .whitespacesAndNewlines),
+            companyName: normalizedCompanyName(from: memberDraft, roles: roles),
+            phoneNumber: normalizedPhoneNumber(from: memberDraft),
+            normalizedEmail: normalizedEmail,
+            authUid: nil,
+            roles: roles,
+            isActive: memberDraft.isActive,
+            producerCatalogEnabled: true,
+            isCommonPurchaseManager: memberDraft.isCommonPurchaseManager
+        )
     }
 
     func toggleAdmin(memberId: String) {

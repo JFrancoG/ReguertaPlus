@@ -28,7 +28,7 @@ final class FirestoreReviewerEnvironmentRouter: @unchecked Sendable, ReviewerEnv
         let candidates = [
             "production/plus-collections/config/global",
             "production/collections/config/global",
-            "production/config/global",
+            "production/config/global"
         ]
 
         for path in candidates {

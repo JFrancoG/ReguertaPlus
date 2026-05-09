@@ -111,7 +111,7 @@ final class FirestoreProductRepository: @unchecked Sendable, ProductRepository {
             "commonPurchaseType": product.commonPurchaseType?.rawValue as Any,
             "archived": product.archived,
             "createdAt": timestamp(for: product.createdAtMillis),
-            "updatedAt": timestamp(for: product.updatedAtMillis),
+            "updatedAt": timestamp(for: product.updatedAtMillis)
         ]
     }
 
