@@ -32,7 +32,7 @@ final class FirestoreShiftPlanningRequestRepository: @unchecked Sendable, ShiftP
                 "type": persisted.type.rawValue,
                 "requestedByUserId": persisted.requestedByUserId,
                 "requestedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(persisted.requestedAtMillis) / 1_000)),
-                "status": persisted.status.rawValue,
+                "status": persisted.status.rawValue
             ], merge: true)
             return persisted
         } catch {

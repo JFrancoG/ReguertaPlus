@@ -27,7 +27,7 @@ actor InMemoryNotificationRepository: NotificationRepository {
             createdBy: "system",
             sentAtMillis: 1_712_108_800_000,
             weekKey: nil
-        ),
+        )
     ]
 
     func allNotifications() async -> [NotificationEvent] {

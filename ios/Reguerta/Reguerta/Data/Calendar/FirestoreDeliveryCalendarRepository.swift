@@ -20,7 +20,7 @@ final class FirestoreDeliveryCalendarRepository: @unchecked Sendable, DeliveryCa
             path.documentPath(in: .config, documentId: ReguertaFirestoreDocument.global.rawValue),
             "\(prefix)/collections/config/\(ReguertaFirestoreDocument.global.rawValue)",
             "\(prefix)/config/\(ReguertaFirestoreDocument.global.rawValue)",
-            "config/\(ReguertaFirestoreDocument.global.rawValue)",
+            "config/\(ReguertaFirestoreDocument.global.rawValue)"
         ]
 
         for documentPath in candidatePaths {
@@ -44,7 +44,7 @@ final class FirestoreDeliveryCalendarRepository: @unchecked Sendable, DeliveryCa
             path.collectionPath(.deliveryCalendar),
             "\(prefix)/collections/deliveryCalendar",
             "\(prefix)/deliveryCalendar",
-            "deliveryCalendar",
+            "deliveryCalendar"
         ]
 
         for collectionPath in candidatePaths {
@@ -94,7 +94,7 @@ final class FirestoreDeliveryCalendarRepository: @unchecked Sendable, DeliveryCa
             "ordersOpenAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(override.ordersOpenAtMillis) / 1000)),
             "ordersCloseAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(override.ordersCloseAtMillis) / 1000)),
             "updatedBy": override.updatedBy,
-            "updatedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(override.updatedAtMillis) / 1000)),
+            "updatedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(override.updatedAtMillis) / 1000))
         ]
         try? await db
             .document(ReguertaFirestorePath(environment: environment).documentPath(in: .deliveryCalendar, documentId: override.weekKey))

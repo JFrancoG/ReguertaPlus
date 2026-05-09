@@ -4,7 +4,7 @@ import Foundation
 enum ReguertaFontRegistrar {
     private static let fontFiles = [
         "CabinSketch-Regular.ttf",
-        "CabinSketch-Bold.ttf",
+        "CabinSketch-Bold.ttf"
     ]
 
     static func registerDesignFonts() {

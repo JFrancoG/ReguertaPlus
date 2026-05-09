@@ -1,6 +1,8 @@
 package com.reguerta.user.presentation.access
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Article
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarToday
@@ -37,14 +40,19 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import com.reguerta.user.R
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.canAccessReceivedOrders
@@ -54,6 +62,7 @@ import com.reguerta.user.domain.access.canPublishNews
 import com.reguerta.user.domain.access.canSendAdminNotifications
 import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
 import com.reguerta.user.domain.news.NewsArticle
+import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.shifts.ShiftAssignment
 import com.reguerta.user.ui.components.auth.ReguertaFlatButton
 
@@ -61,6 +70,7 @@ import com.reguerta.user.ui.components.auth.ReguertaFlatButton
 fun HomeShellTopBar(
     title: String,
     canNavigateBack: Boolean,
+    hasNotificationIndicator: Boolean,
     onBack: () -> Unit,
     onOpenMenu: () -> Unit,
     onOpenNotifications: () -> Unit,
@@ -90,11 +100,22 @@ fun HomeShellTopBar(
                 fontWeight = FontWeight.SemiBold,
             )
 
-            IconButton(onClick = onOpenNotifications) {
+            Box(contentAlignment = Alignment.TopEnd) {
+                IconButton(onClick = onOpenNotifications) {
                 Icon(
                     imageVector = Icons.Filled.Notifications,
                     contentDescription = stringResource(R.string.home_shell_notifications),
                 )
+                }
+                if (hasNotificationIndicator) {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 9.dp, end = 9.dp)
+                            .size(9.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.error),
+                    )
+                }
             }
         }
     }
@@ -103,8 +124,10 @@ fun HomeShellTopBar(
 @Composable
 fun HomeDrawerContent(
     member: Member?,
+    sharedProfile: SharedProfile?,
     currentDestination: HomeDestination,
     installedVersion: String,
+    isDevelopBuild: Boolean,
     onNavigate: (HomeDestination) -> Unit,
     onCloseDrawer: () -> Unit,
     onSignOut: () -> Unit,
@@ -118,13 +141,16 @@ fun HomeDrawerContent(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp, vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Start,
         ) {
-            IconButton(onClick = onCloseDrawer) {
+            IconButton(
+                onClick = onCloseDrawer,
+                modifier = Modifier.size(36.dp),
+            ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = stringResource(R.string.common_action_back),
@@ -137,29 +163,20 @@ fun HomeDrawerContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(76.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.AccountCircle,
-                    contentDescription = stringResource(R.string.home_shell_profile_placeholder),
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(44.dp),
-                )
-            }
+            HomeDrawerAvatar(sharedProfile = sharedProfile)
             if (member != null) {
                 Text(
-                    text = member.displayName,
+                    text = sharedProfile?.familyNames?.takeIf(String::isNotBlank) ?: member.displayName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = member.normalizedEmail,
                     style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -168,9 +185,8 @@ fun HomeDrawerContent(
             modifier = Modifier
                 .weight(1f, fill = true)
                 .verticalScroll(drawerScrollState),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            HomeDrawerSection(title = stringResource(R.string.home_shell_section_common))
             HomeDrawerItem(
                 icon = Icons.Filled.Home,
                 label = stringResource(R.string.home_title),
@@ -227,7 +243,7 @@ fun HomeDrawerContent(
             )
 
             if (member?.canManageProductCatalog == true || member?.canAccessReceivedOrders == true) {
-                HomeDrawerSection(title = stringResource(R.string.home_shell_section_producer))
+                HomeDrawerDivider()
             }
             if (member?.canManageProductCatalog == true) {
                 HomeDrawerItem(
@@ -247,7 +263,7 @@ fun HomeDrawerContent(
             }
 
             if (canManageMembers || canPublishNews || canSendAdminNotifications) {
-                HomeDrawerSection(title = stringResource(R.string.home_shell_section_admin))
+                HomeDrawerDivider()
                 if (canManageMembers) {
                     HomeDrawerItem(
                         icon = Icons.Filled.Group,
@@ -276,30 +292,96 @@ fun HomeDrawerContent(
         }
 
         HorizontalDivider()
-        TextButton(
-            onClick = onSignOut,
-            modifier = Modifier.fillMaxWidth(),
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.medium)
+                .clickable(onClick = onSignOut)
+                .padding(horizontal = 10.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(stringResource(R.string.access_action_sign_out))
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Logout,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                text = stringResource(R.string.access_action_sign_out),
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f),
+            )
         }
-        Text(
-            text = stringResource(R.string.home_shell_version_format, installedVersion.ifBlank { "0.0.0" }),
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        HomeDrawerVersion(installedVersion = installedVersion, isDevelopBuild = isDevelopBuild)
     }
 }
 
 @Composable
-private fun HomeDrawerSection(
-    title: String,
-) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-        fontWeight = FontWeight.SemiBold,
+private fun HomeDrawerAvatar(sharedProfile: SharedProfile?) {
+    val photoUrl = sharedProfile?.photoUrl?.takeIf(String::isNotBlank)
+    Box(
+        modifier = Modifier
+            .size(76.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f))
+            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.36f), CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (photoUrl != null) {
+            AsyncImage(
+                model = photoUrl,
+                contentDescription = stringResource(R.string.home_shell_profile_placeholder),
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Image(
+                painter = painterResource(R.drawable.reguerta_logo),
+                contentDescription = stringResource(R.string.home_shell_profile_placeholder),
+                modifier = Modifier.size(58.dp),
+                contentScale = ContentScale.Fit,
+            )
+        }
+    }
+}
+
+@Composable
+private fun HomeDrawerDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(vertical = 4.dp),
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
     )
+}
+
+@Composable
+private fun HomeDrawerVersion(
+    installedVersion: String,
+    isDevelopBuild: Boolean,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(R.string.home_shell_version_android_format, installedVersion.ifBlank { "0.0.0" }),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (isDevelopBuild) {
+            Surface(
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                shape = CircleShape,
+            ) {
+                Text(
+                    text = stringResource(R.string.home_shell_dev_marker),
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                )
+            }
+        }
+    }
 }
 
 @Composable

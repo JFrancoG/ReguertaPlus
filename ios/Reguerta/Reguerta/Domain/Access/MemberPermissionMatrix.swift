@@ -23,7 +23,7 @@ enum MemberPermissionMatrix {
         .member: [.accessCommonHomeModules],
         .producer: [.accessCommonHomeModules, .manageProductCatalog, .accessReceivedOrders],
         .admin: [.accessCommonHomeModules, .manageMembers, .grantAdminRole, .publishNews, .sendAdminNotifications],
-        .reviewer: [.accessCommonHomeModules, .routeProductionReviewerToDevelop],
+        .reviewer: [.accessCommonHomeModules, .routeProductionReviewerToDevelop]
     ]
 
     static var reviewerCapabilities: Set<AccessCapability> {

@@ -13,8 +13,7 @@ final class ReguertaUITests: XCTestCase {
     private let passwordFieldId = "auth.login.passwordField"
     private let signInButtonId = "auth.login.signInButton"
     private let myOrderButtonId = "home.module.myOrder"
-    private let catalogButtonId = "home.module.catalog"
-    private let shiftsButtonId = "home.module.shifts"
+    private let receivedOrdersButtonId = "home.module.receivedOrders"
 
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.
@@ -53,11 +52,11 @@ final class ReguertaUITests: XCTestCase {
     }
 
     @MainActor
-    func testPreAuthorizedAdminEntersHomeWithModulesEnabled() throws {
+    func testPreAuthorizedProducerEntersHomeWithActionRowEnabled() throws {
         let app = configuredApp()
         let emailField = launchAndOpenLogin(app)
         emailField.tap()
-        emailField.typeText("ana.admin@reguerta.app")
+        emailField.typeText("pablo.producer@reguerta.app")
 
         let passwordField = app.secureTextFields[passwordFieldId]
         XCTAssertTrue(passwordField.waitForExistence(timeout: 5), "Password field not found")
@@ -66,26 +65,19 @@ final class ReguertaUITests: XCTestCase {
 
         app.buttons[signInButtonId].tap()
 
-        XCTAssertTrue(
-            app.staticTexts["Home"].waitForExistence(timeout: 8),
-            "Home should be visible for pre-authorized admin"
-        )
-
         let myOrderButton = app.buttons[myOrderButtonId]
-        let catalogButton = app.buttons[catalogButtonId]
-        let shiftsButton = app.buttons[shiftsButtonId]
+        let receivedOrdersButton = app.buttons[receivedOrdersButtonId]
 
-        XCTAssertTrue(myOrderButton.waitForExistence(timeout: 3), "My order button not found")
-        XCTAssertTrue(catalogButton.waitForExistence(timeout: 3), "Catalog button not found")
-        XCTAssertTrue(shiftsButton.waitForExistence(timeout: 3), "Shifts button not found")
+        XCTAssertTrue(myOrderButton.waitForExistence(timeout: 8), "My order button not found")
+        XCTAssertTrue(receivedOrdersButton.waitForExistence(timeout: 3), "Received orders button not found")
 
         let enabledPredicate = NSPredicate(format: "isEnabled == true")
         expectation(for: enabledPredicate, evaluatedWith: myOrderButton)
-        expectation(for: enabledPredicate, evaluatedWith: shiftsButton)
+        expectation(for: enabledPredicate, evaluatedWith: receivedOrdersButton)
         waitForExpectations(timeout: 5)
 
         XCTAssertTrue(myOrderButton.isEnabled, "My order should be enabled")
-        XCTAssertTrue(shiftsButton.isEnabled, "Shifts should be enabled")
+        XCTAssertTrue(receivedOrdersButton.isEnabled, "Received orders should be enabled")
     }
 
     @MainActor

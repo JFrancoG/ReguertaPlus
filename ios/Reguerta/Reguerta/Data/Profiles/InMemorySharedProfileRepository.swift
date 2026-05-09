@@ -15,7 +15,7 @@ actor InMemorySharedProfileRepository: SharedProfileRepository {
             photoUrl: nil,
             about: "Somos nuevas en la comunidad y nos apuntamos para aprender a comer mejor.",
             updatedAtMillis: 1_742_860_000_000
-        ),
+        )
     ]
 
     func allSharedProfiles() async -> [SharedProfile] {

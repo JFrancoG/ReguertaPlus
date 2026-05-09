@@ -32,7 +32,7 @@ actor InMemoryMemberRepository: MemberRepository {
             producerCatalogEnabled: true,
             ecoCommitmentMode: .biweekly,
             ecoCommitmentParity: .even
-        ),
+        )
     ]
 
     func findByEmailNormalized(_ emailNormalized: String) async -> Member? {

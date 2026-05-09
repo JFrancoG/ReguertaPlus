@@ -1,22 +1,29 @@
 package com.reguerta.user.presentation.access
 
 import android.net.Uri
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Card
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,9 +33,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.platform.LocalContext
 import androidx.activity.compose.BackHandler
 import com.reguerta.user.R
 import com.reguerta.user.domain.access.Member
+import com.reguerta.user.domain.access.canAccessReceivedOrders
 import com.reguerta.user.domain.access.canPublishNews
 import com.reguerta.user.domain.access.canSendAdminNotifications
 import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
@@ -162,8 +172,8 @@ internal fun HomeRoute(
     onSignOut: () -> Unit,
     installedVersion: String,
 ) {
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var isDrawerOpen by rememberSaveable { mutableStateOf(false) }
     var currentDestination by rememberSaveable { mutableStateOf(HomeDestination.DASHBOARD) }
     var newsPendingDeletionId by rememberSaveable { mutableStateOf<String?>(null) }
     val member = when (mode) {
@@ -172,64 +182,89 @@ internal fun HomeRoute(
         is SessionMode.Unauthorized,
             -> null
     }
+    val currentSharedProfile = sharedProfiles.firstOrNull { profile -> profile.userId == member?.id }
+    val effectiveNowMillis = nowOverrideMillis ?: System.currentTimeMillis()
 
-    BackHandler(enabled = drawerState.isOpen) {
-        scope.launch { drawerState.close() }
+    fun closeDrawer() {
+        isDrawerOpen = false
     }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            ModalDrawerSheet(
-                modifier = Modifier.widthIn(max = 320.dp),
-                windowInsets = WindowInsets(0.dp),
-            ) {
+    fun handleDrawerNavigation(destination: HomeDestination) {
+        currentDestination = destination
+        if (destination == HomeDestination.NEWS) {
+            onRefreshNews()
+        } else if (destination == HomeDestination.NOTIFICATIONS) {
+            onRefreshNotifications()
+        } else if (destination == HomeDestination.MY_ORDER) {
+            onRefreshMyOrderProducts()
+        } else if (destination == HomeDestination.PRODUCTS) {
+            onRefreshProducts()
+        } else if (destination == HomeDestination.PROFILE) {
+            onRefreshSharedProfiles()
+        } else if (destination == HomeDestination.USERS) {
+            onRefreshMembers()
+        } else if (destination == HomeDestination.SHIFTS) {
+            onRefreshShifts()
+        } else if (destination == HomeDestination.BYLAWS) {
+            Unit
+        } else if (destination == HomeDestination.SHIFT_SWAP_REQUEST) {
+            onRefreshShifts()
+        } else if (destination == HomeDestination.PUBLISH_NEWS) {
+            onStartCreatingNews()
+        } else if (destination == HomeDestination.ADMIN_BROADCAST) {
+            onStartCreatingNotification()
+        } else if (destination == HomeDestination.SETTINGS) {
+            onRefreshDeliveryCalendar()
+        }
+        closeDrawer()
+    }
+
+    BackHandler(enabled = isDrawerOpen) {
+        closeDrawer()
+    }
+
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val drawerWidth = maxWidth * 0.78f
+        val resolvedDrawerWidth = if (drawerWidth > 320.dp) 320.dp else drawerWidth
+        val homeOffset by animateDpAsState(
+            targetValue = if (isDrawerOpen) resolvedDrawerWidth else 0.dp,
+            label = "homeDrawerOffset",
+        )
+        val homeElevation by animateDpAsState(
+            targetValue = if (isDrawerOpen) 12.dp else 0.dp,
+            label = "homeDrawerElevation",
+        )
+
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .widthIn(max = resolvedDrawerWidth),
+            color = MaterialTheme.colorScheme.surface,
+        ) {
+            Box(modifier = Modifier.widthIn(max = resolvedDrawerWidth)) {
                 HomeDrawerContent(
                     member = member,
+                    sharedProfile = currentSharedProfile,
                     currentDestination = currentDestination,
                     installedVersion = installedVersion,
-                    onNavigate = { destination ->
-                        currentDestination = destination
-                        if (destination == HomeDestination.NEWS) {
-                            onRefreshNews()
-                        } else if (destination == HomeDestination.NOTIFICATIONS) {
-                            onRefreshNotifications()
-                        } else if (destination == HomeDestination.MY_ORDER) {
-                            onRefreshMyOrderProducts()
-                        } else if (destination == HomeDestination.PRODUCTS) {
-                            onRefreshProducts()
-                        } else if (destination == HomeDestination.PROFILE) {
-                            onRefreshSharedProfiles()
-                        } else if (destination == HomeDestination.USERS) {
-                            onRefreshMembers()
-                        } else if (destination == HomeDestination.SHIFTS) {
-                            onRefreshShifts()
-                        } else if (destination == HomeDestination.BYLAWS) {
-                            Unit
-                        } else if (destination == HomeDestination.SHIFT_SWAP_REQUEST) {
-                            onRefreshShifts()
-                        } else if (destination == HomeDestination.PUBLISH_NEWS) {
-                            onStartCreatingNews()
-                        } else if (destination == HomeDestination.ADMIN_BROADCAST) {
-                            onStartCreatingNotification()
-                        } else if (destination == HomeDestination.SETTINGS) {
-                            onRefreshDeliveryCalendar()
-                        }
-                        scope.launch { drawerState.close() }
-                    },
-                    onCloseDrawer = {
-                        scope.launch { drawerState.close() }
-                    },
+                    isDevelopBuild = isDevelopImpersonationEnabled,
+                    onNavigate = ::handleDrawerNavigation,
+                    onCloseDrawer = ::closeDrawer,
                     onSignOut = {
-                        scope.launch { drawerState.close() }
+                        closeDrawer()
                         onSignOut()
                     },
                 )
             }
-        },
-        modifier = modifier,
-        gesturesEnabled = true,
-    ) {
+        }
+
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .offset(x = homeOffset)
+                .shadow(homeElevation),
+            color = MaterialTheme.colorScheme.background,
+        ) {
         val usesRouteScroll =
             currentDestination != HomeDestination.MY_ORDER &&
                 currentDestination != HomeDestination.RECEIVED_ORDERS &&
@@ -243,8 +278,13 @@ internal fun HomeRoute(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             HomeShellTopBar(
-                title = stringResource(currentDestination.titleRes()),
+                title = if (currentDestination == HomeDestination.DASHBOARD) {
+                    formatHomeTopBarDate(effectiveNowMillis)
+                } else {
+                    stringResource(currentDestination.titleRes())
+                },
                 canNavigateBack = currentDestination != HomeDestination.DASHBOARD,
+                hasNotificationIndicator = notificationsFeed.isNotEmpty(),
                 onBack = {
                     if (currentDestination == HomeDestination.PUBLISH_NEWS) {
                         onClearNewsEditor()
@@ -263,7 +303,7 @@ internal fun HomeRoute(
                     }
                 },
                 onOpenMenu = {
-                    scope.launch { drawerState.open() }
+                    isDrawerOpen = true
                 },
                 onOpenNotifications = {
                     currentDestination = HomeDestination.NOTIFICATIONS
@@ -289,43 +329,37 @@ internal fun HomeRoute(
             ) {
                 when (currentDestination) {
                     HomeDestination.DASHBOARD -> {
-                    NextShiftsCard(
-                        nextDeliveryShift = nextDeliveryShift,
-                        nextMarketShift = nextMarketShift,
-                        deliveryCalendarOverrides = deliveryCalendarOverrides,
-                        isLoading = isLoadingShifts,
-                        members = (mode as? SessionMode.Authorized)?.members.orEmpty(),
-                        onViewAll = {
-                            currentDestination = HomeDestination.SHIFTS
-                            onRefreshShifts()
-                        },
-                    )
                     when (mode) {
                         is SessionMode.Unauthorized -> Unit
                         is SessionMode.Authorized -> {
+                            val members = mode.members
+                            val baselineSummary = resolveHomeWeeklySummaryDisplay(
+                                nowMillis = effectiveNowMillis,
+                                defaultDeliveryDayOfWeek = defaultDeliveryDayOfWeek,
+                                deliveryCalendarOverrides = deliveryCalendarOverrides,
+                                shifts = shiftsFeed,
+                                members = members,
+                                currentMemberId = mode.member.id,
+                                orderState = HomeOrderStateDisplay.NOT_STARTED,
+                            )
+                            val weeklySummary = baselineSummary.copy(
+                                orderState = resolveHomeOrderState(
+                                    context = context,
+                                    memberId = mode.member.id,
+                                    weekKey = baselineSummary.weekKey,
+                                ),
+                            )
                             AuthorizedHome(
                                 mode = mode,
                                 myOrderFreshnessState = myOrderFreshnessState,
-                                draft = draft,
-                                onDraftChanged = onDraftChanged,
-                                onToggleAdmin = onToggleAdmin,
-                                onToggleActive = onToggleActive,
-                                onCreateMember = onCreateMember,
+                                weeklySummaryDisplay = weeklySummary,
                                 onRetryMyOrderFreshness = onRetryMyOrderFreshness,
                                 onOpenMyOrder = {
                                     currentDestination = HomeDestination.MY_ORDER
                                     onRefreshMyOrderProducts()
                                 },
-                                onOpenProducts = {
-                                    currentDestination = HomeDestination.PRODUCTS
-                                    onRefreshProducts()
-                                },
-                                onOpenShifts = {
-                                    currentDestination = HomeDestination.SHIFTS
-                                    onRefreshShifts()
-                                },
-                                onOpenBylaws = {
-                                    currentDestination = HomeDestination.BYLAWS
+                                onOpenReceivedOrders = {
+                                    currentDestination = HomeDestination.RECEIVED_ORDERS
                                 },
                             )
                         }
@@ -570,7 +604,15 @@ internal fun HomeRoute(
                     )
                 }
             }
+            if (isDrawerOpen) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable(onClick = ::closeDrawer),
+                )
+            }
         }
+    }
     }
 
     newsPendingDeletionId?.let { pendingId ->

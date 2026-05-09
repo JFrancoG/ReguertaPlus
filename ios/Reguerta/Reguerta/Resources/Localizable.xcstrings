@@ -2655,6 +2655,104 @@
         }
       }
     },
+    "home.dashboard.delivery" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delivery" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Reparto" } }
+      }
+    },
+    "home.dashboard.helper.format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%@" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "%@" } }
+      }
+    },
+    "home.dashboard.my_order.subtitle.completed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "View/edit order" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Ver/modificar pedido" } }
+      }
+    },
+    "home.dashboard.my_order.subtitle.edit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Make order" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Hacer pedido" } }
+      }
+    },
+    "home.dashboard.my_order.subtitle.last_order" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "View last order" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Ver último pedido" } }
+      }
+    },
+    "home.dashboard.my_order.subtitle.review" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Confirm order" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Confirmar pedido" } }
+      }
+    },
+    "home.dashboard.order_state.completed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Done" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Hecho" } }
+      }
+    },
+    "home.dashboard.order_state.not_started" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Not started" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Sin hacer" } }
+      }
+    },
+    "home.dashboard.order_state.unconfirmed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Unconfirmed" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Sin confirmar" } }
+      }
+    },
+    "home.dashboard.producer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Producer" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Productor" } }
+      }
+    },
+    "home.dashboard.received_orders.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Received" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Recibidos" } }
+      }
+    },
+    "home.dashboard.responsible" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Responsible" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Responsable" } }
+      }
+    },
+    "home.dashboard.state" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Order" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Pedido" } }
+      }
+    },
+    "home.shell.dev_marker" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "DEV" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "DEV" } }
+      }
+    },
     "home.shell.news.title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2770,6 +2868,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Versión %@"
+          }
+        }
+      }
+    },
+    "home.shell.version.ios" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iOS %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iOS %@"
           }
         }
       }
