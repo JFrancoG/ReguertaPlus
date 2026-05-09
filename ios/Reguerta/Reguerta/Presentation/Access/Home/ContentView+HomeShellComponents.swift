@@ -5,9 +5,13 @@ struct HomeShellTopBarView: View {
     let titleKey: String
     let titleOverride: String?
     let showsBack: Bool
+    let showsNotificationsAction: Bool
     let hasNotificationIndicator: Bool
+    let showsCartAction: Bool
+    let cartUnits: Int
     let onPrimaryAction: () -> Void
     let onNotificationsAction: () -> Void
+    let onCartAction: () -> Void
 
     private func localizedKey(_ key: String) -> LocalizedStringKey {
         LocalizedStringKey(key)
@@ -50,25 +54,69 @@ struct HomeShellTopBarView: View {
 
             Spacer()
 
-            ZStack(alignment: .topTrailing) {
-                HomeShellGlassIconButton(
-                    tokens: tokens,
-                    systemName: "bell",
-                    fontSize: 21.resize,
-                    action: onNotificationsAction
-                )
-                .accessibilityLabel(localizedKey(AccessL10nKey.homeShellNotifications))
+            if showsNotificationsAction {
+                ZStack(alignment: .topTrailing) {
+                    HomeShellGlassIconButton(
+                        tokens: tokens,
+                        systemName: "bell",
+                        fontSize: 21.resize,
+                        action: onNotificationsAction
+                    )
+                    .accessibilityLabel(localizedKey(AccessL10nKey.homeShellNotifications))
 
-                if hasNotificationIndicator {
-                    Circle()
-                        .fill(tokens.colors.feedbackError)
-                        .frame(width: 9.resize, height: 9.resize)
-                        .padding(.top, 12.resize)
-                        .padding(.trailing, 12.resize)
+                    if hasNotificationIndicator {
+                        Circle()
+                            .fill(tokens.colors.feedbackError)
+                            .frame(width: 9.resize, height: 9.resize)
+                            .padding(.top, 12.resize)
+                            .padding(.trailing, 12.resize)
+                    }
                 }
+            } else if showsCartAction {
+                HomeShellCartButton(
+                    tokens: tokens,
+                    units: cartUnits,
+                    action: onCartAction
+                )
+            } else {
+                Color.clear
+                    .frame(width: 58.resize, height: 58.resize)
             }
         }
         .frame(maxWidth: .infinity, minHeight: 62.resize)
+    }
+}
+
+private struct HomeShellCartButton: View {
+    let tokens: ReguertaDesignTokens
+    let units: Int
+    let action: () -> Void
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Button(action: action) {
+                Image(systemName: "cart")
+                    .font(.system(size: 21.resize, weight: .semibold))
+                    .foregroundStyle(units > 0 ? tokens.colors.textPrimary : tokens.colors.textSecondary)
+                    .frame(width: 58.resize, height: 58.resize)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled(units == 0)
+            .homeShellGlassButton(tokens: tokens)
+            .opacity(units > 0 ? 1 : 0.72)
+            .accessibilityLabel("Ver carrito")
+
+            if units > 0 {
+                Text("\(min(units, 99))")
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.actionOnPrimary)
+                    .frame(width: 20.resize, height: 20.resize)
+                    .background(tokens.colors.feedbackError, in: Circle())
+                    .padding(.top, 7.resize)
+                    .padding(.trailing, 7.resize)
+            }
+        }
     }
 }
 

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -89,6 +90,7 @@ import com.reguerta.user.domain.shifts.ShiftType
 import com.reguerta.user.ui.components.auth.ReguertaDialog
 import com.reguerta.user.ui.components.auth.ReguertaDialogAction
 import com.reguerta.user.ui.components.auth.ReguertaDialogType
+import com.reguerta.user.ui.theme.ColorFeedbackWarningDefault
 import java.text.Normalizer
 import java.time.DayOfWeek
 import java.time.Instant
@@ -234,7 +236,9 @@ internal fun MyOrderRoute(
     deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
     nowOverrideMillis: Long?,
     isLoading: Boolean,
+    cartOpenRequests: Int,
     onRefresh: () -> Unit,
+    onCartUnitsChange: (Int) -> Unit,
     onCheckoutSuccessAcknowledge: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -314,6 +318,9 @@ internal fun MyOrderRoute(
     val selectedUnits = remember(selectedQuantities) {
         selectedQuantities.values.sum()
     }
+    LaunchedEffect(selectedUnits) {
+        onCartUnitsChange(selectedUnits)
+    }
     val hasConfirmedOrder = remember(confirmedQuantities) {
         confirmedQuantities.isNotEmpty()
     }
@@ -337,6 +344,11 @@ internal fun MyOrderRoute(
         hasConfirmedOrder && !hasPendingConfirmedEdits && isViewingConfirmedOrder
     }
     val isReadOnlyMode = isReadOnlyConfirmedView || isConsultaPhase
+    LaunchedEffect(cartOpenRequests) {
+        if (cartOpenRequests > 0 && selectedUnits > 0 && !isReadOnlyMode) {
+            isCartVisible = true
+        }
+    }
     val finalizeActionLabel = if (hasConfirmedOrder && hasPendingConfirmedEdits) {
         stringResource(R.string.my_order_finalize_update_action)
     } else {
@@ -533,10 +545,7 @@ internal fun MyOrderRoute(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                MyOrderHeader(
-                    selectedUnits = selectedUnits,
-                    onOpenCart = { isCartVisible = true },
-                )
+                MyOrderHeader()
 
                 when {
                     isLoading -> {
@@ -586,7 +595,7 @@ internal fun MyOrderRoute(
                     else -> {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(top = 4.dp, bottom = 112.dp),
+                            contentPadding = PaddingValues(top = 4.dp, bottom = 144.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
                             groupedProducts.forEach { group ->
@@ -618,7 +627,8 @@ internal fun MyOrderRoute(
                     onSearchQueryChange = { searchQuery = it },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(horizontal = 8.dp, vertical = 12.dp),
+                        .navigationBarsPadding()
+                        .padding(vertical = 12.dp),
                 )
                 }
 
@@ -935,8 +945,6 @@ internal fun MyOrderRoute(
 
 @Composable
 private fun MyOrderHeader(
-    selectedUnits: Int,
-    onOpenCart: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -947,39 +955,8 @@ private fun MyOrderHeader(
         ) {
             Text(
                 text = stringResource(R.string.my_order_list_title),
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = stringResource(R.string.my_order_list_subtitle),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        OutlinedButton(
-            onClick = onOpenCart,
-            enabled = selectedUnits > 0,
-            shape = RoundedCornerShape(12.dp),
-            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-            colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = if (selectedUnits > 0) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            ),
-        ) {
-            Text(
-                text = stringResource(R.string.my_order_view_cart_action),
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Icon(
-                imageVector = Icons.Default.ShoppingCart,
-                contentDescription = null,
             )
         }
     }
@@ -1001,7 +978,7 @@ private fun MyOrderConfirmedSummary(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = stringResource(R.string.module_my_order),
+                    text = stringResource(R.string.my_order_confirmed_title),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -1362,8 +1339,9 @@ private fun ProducerGroupHeader(group: MyOrderProducerGroup) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.98f))
-            .padding(vertical = 4.dp),
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -1476,12 +1454,12 @@ private fun MyOrderProductCard(
                     fontWeight = FontWeight.SemiBold,
                 )
                 Spacer(modifier = Modifier.weight(1f))
-                lowStockLabel(product)?.let { label ->
+                stockLabel(product)?.let { stockLabel ->
                     Text(
-                        text = label,
+                        text = stockLabel.text,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.tertiary,
+                        color = stockLabel.color,
                     )
                 }
             }
@@ -1550,8 +1528,8 @@ private fun QuantityControls(
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
-                disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
-                disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             ),
         ) {
             Text(
@@ -1940,18 +1918,36 @@ private fun canIncrease(
     return currentQuantity < finiteLimit
 }
 
+private data class MyOrderStockLabel(
+    val text: String,
+    val color: Color,
+)
+
 @Composable
-private fun lowStockLabel(product: Product): String? {
+private fun stockLabel(product: Product): MyOrderStockLabel? {
     if (product.stockMode != ProductStockMode.FINITE) {
         return null
     }
     val stock = max(0.0, product.stockQty ?: 0.0)
+    if (stock <= 0.0) {
+        return MyOrderStockLabel(
+            text = stringResource(R.string.my_order_stock_sold_out),
+            color = MaterialTheme.colorScheme.error,
+        )
+    }
     if (stock >= 20.0) {
         return null
     }
-    return stringResource(
-        R.string.my_order_stock_remaining_format,
-        stock.toUiDecimal(),
+    return MyOrderStockLabel(
+        text = stringResource(
+            R.string.my_order_stock_remaining_format,
+            stock.toUiDecimal(),
+        ),
+        color = if (stock < 10.0) {
+            ColorFeedbackWarningDefault
+        } else {
+            MaterialTheme.colorScheme.tertiary
+        },
     )
 }
 

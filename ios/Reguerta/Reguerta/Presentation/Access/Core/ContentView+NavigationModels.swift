@@ -20,7 +20,7 @@ extension HomeDestination {
     var titleKey: String {
         switch self {
         case .dashboard: AccessL10nKey.homeTitle
-        case .myOrder: AccessL10nKey.myOrder
+        case .myOrder: AccessL10nKey.myOrderListTitle
         case .myOrders: AccessL10nKey.myOrders
         case .shifts: AccessL10nKey.shifts
         case .bylaws: AccessL10nKey.homeShellActionBylaws

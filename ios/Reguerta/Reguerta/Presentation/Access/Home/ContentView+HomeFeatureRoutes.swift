@@ -170,7 +170,11 @@ extension ContentView {
             isLoading: viewModel.isLoadingMyOrderProducts,
             currentMember: currentHomeMember,
             members: currentHomeSession?.members ?? [],
+            cartOpenRequests: myOrderCartOpenRequests,
             onRefresh: viewModel.refreshMyOrderProducts,
+            onCartUnitsChange: { units in
+                myOrderCartUnits = units
+            },
             onCheckoutSuccessAcknowledge: {
                 homeDestination = .dashboard
             }

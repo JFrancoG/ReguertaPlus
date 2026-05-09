@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -70,10 +71,14 @@ import com.reguerta.user.ui.components.auth.ReguertaFlatButton
 fun HomeShellTopBar(
     title: String,
     canNavigateBack: Boolean,
+    showsNotificationsAction: Boolean,
     hasNotificationIndicator: Boolean,
+    showsCartAction: Boolean,
+    cartUnits: Int,
     onBack: () -> Unit,
     onOpenMenu: () -> Unit,
     onOpenNotifications: () -> Unit,
+    onOpenCart: () -> Unit,
 ) {
     Card {
         Row(
@@ -100,22 +105,55 @@ fun HomeShellTopBar(
                 fontWeight = FontWeight.SemiBold,
             )
 
-            Box(contentAlignment = Alignment.TopEnd) {
-                IconButton(onClick = onOpenNotifications) {
-                Icon(
-                    imageVector = Icons.Filled.Notifications,
-                    contentDescription = stringResource(R.string.home_shell_notifications),
-                )
+            if (showsNotificationsAction) {
+                Box(contentAlignment = Alignment.TopEnd) {
+                    IconButton(onClick = onOpenNotifications) {
+                        Icon(
+                            imageVector = Icons.Filled.Notifications,
+                            contentDescription = stringResource(R.string.home_shell_notifications),
+                        )
+                    }
+                    if (hasNotificationIndicator) {
+                        Box(
+                            modifier = Modifier
+                                .padding(top = 9.dp, end = 9.dp)
+                                .size(9.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.error),
+                        )
+                    }
                 }
-                if (hasNotificationIndicator) {
-                    Box(
-                        modifier = Modifier
-                            .padding(top = 9.dp, end = 9.dp)
-                            .size(9.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.error),
-                    )
+            } else if (showsCartAction) {
+                Box(contentAlignment = Alignment.TopEnd) {
+                    IconButton(
+                        onClick = onOpenCart,
+                        enabled = cartUnits > 0,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.ShoppingCart,
+                            contentDescription = stringResource(R.string.my_order_view_cart_action),
+                        )
+                    }
+                    if (cartUnits > 0) {
+                        Box(
+                            modifier = Modifier
+                                .padding(top = 8.dp, end = 8.dp)
+                                .size(18.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.error),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = cartUnits.coerceAtMost(99).toString(),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onError,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    }
                 }
+            } else {
+                Spacer(modifier = Modifier.size(48.dp))
             }
         }
     }

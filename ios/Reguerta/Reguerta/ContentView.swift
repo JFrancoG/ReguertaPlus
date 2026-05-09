@@ -20,6 +20,8 @@ struct ContentView: View {
     @State var homeDrawerDragOffset: CGFloat = 0
     @State var isAdminToolsExpanded = false
     @State var homeDestination: HomeDestination = .dashboard
+    @State var myOrderCartUnits = 0
+    @State var myOrderCartOpenRequests = 0
     @State var pendingNewsDeletionId: String?
     @State var pendingProducerCatalogVisibility: Bool?
     @State var selectedShiftSegment: ShiftBoardSegment = .delivery
@@ -90,6 +92,7 @@ struct ContentView: View {
             .padding(tokens.spacing.lg)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(tokens.colors.surfacePrimary.ignoresSafeArea())
+            .ignoresSafeArea(.container, edges: .bottom)
             .overlay {
                 DeviceScaleCaptureView()
             }
