@@ -9,6 +9,7 @@ struct HomeShellTopBarView: View {
     let hasNotificationIndicator: Bool
     let showsCartAction: Bool
     let cartUnits: Int
+    let showsCartBadge: Bool
     let onPrimaryAction: () -> Void
     let onNotificationsAction: () -> Void
     let onCartAction: () -> Void
@@ -76,6 +77,7 @@ struct HomeShellTopBarView: View {
                 HomeShellCartButton(
                     tokens: tokens,
                     units: cartUnits,
+                    showsBadge: showsCartBadge,
                     action: onCartAction
                 )
             } else {
@@ -90,6 +92,7 @@ struct HomeShellTopBarView: View {
 private struct HomeShellCartButton: View {
     let tokens: ReguertaDesignTokens
     let units: Int
+    let showsBadge: Bool
     let action: () -> Void
 
     var body: some View {
@@ -107,14 +110,16 @@ private struct HomeShellCartButton: View {
             .opacity(units > 0 ? 1 : 0.72)
             .accessibilityLabel("Ver carrito")
 
-            if units > 0 {
+            if showsBadge && units > 0 {
                 Text("\(min(units, 99))")
                     .font(tokens.typography.label)
                     .foregroundStyle(tokens.colors.actionOnPrimary)
-                    .frame(width: 20.resize, height: 20.resize)
+                    .frame(width: 18.resize, height: 18.resize)
                     .background(tokens.colors.feedbackError, in: Circle())
-                    .padding(.top, 7.resize)
-                    .padding(.trailing, 7.resize)
+                    .overlay(Circle().stroke(tokens.colors.surfacePrimary, lineWidth: 1.5.resize))
+                    .padding(.top, 5.resize)
+                    .padding(.trailing, 5.resize)
+                    .zIndex(1)
             }
         }
     }

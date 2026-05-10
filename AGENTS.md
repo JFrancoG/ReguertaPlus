@@ -36,6 +36,7 @@ Agents may modify any part of this monorepo when needed:
 ## Skills and Implementation Detail
 
 - Prefer using available skills for platform-specific and UI implementation guidance.
+- Android CLI is installed and available; prefer the `android-cli` skill/tooling for Android SDK, emulator, device, and Android Studio-oriented workflows when applicable.
 - Do not duplicate detailed UI design rules here; those are handled by skills and future design-system docs.
 - Canonical stack definitions live in:
   - `/docs/tech-stack/README.md`
@@ -70,7 +71,7 @@ Run the relevant checks for touched areas:
   - `./gradlew app:lintDebug`
   - `./gradlew app:connectedDebugAndroidTest` (when device/emulator is available or UI behavior changed)
 - iOS (`/ios/Reguerta`):
-  - `xcodebuild -project Reguerta.xcodeproj -scheme Reguerta -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16' test`
+  - `xcodebuild -project Reguerta.xcodeproj -scheme Reguerta -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17' test`
   - If simulator name is unavailable, use any valid local simulator and report which one was used.
 - Functions (`/functions`):
   - `npm run lint`

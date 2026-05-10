@@ -10,7 +10,6 @@ excluded:
   - DerivedData
   - Pods
 
-
 line_length:
   warning: 160
   error: 220

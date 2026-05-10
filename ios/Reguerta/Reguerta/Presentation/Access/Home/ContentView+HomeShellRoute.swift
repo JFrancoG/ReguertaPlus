@@ -18,6 +18,7 @@ extension ContentView {
                         ScrollView(.vertical, showsIndicators: false) {
                             VStack(alignment: .leading, spacing: tokens.spacing.lg) {
                                 homeShellTopBar
+                                    .zIndex(1)
                                 homeRouteContent
 
                                 if viewModel.feedbackMessageKey != nil {
@@ -31,6 +32,7 @@ extension ContentView {
                     } else {
                         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
                             homeShellTopBar
+                                .zIndex(1)
                             homeRouteContent
                                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
@@ -109,6 +111,7 @@ extension ContentView {
             hasNotificationIndicator: !viewModel.notificationsFeed.isEmpty,
             showsCartAction: homeDestination == .myOrder,
             cartUnits: myOrderCartUnits,
+            showsCartBadge: homeDestination != .myOrder,
             onPrimaryAction: {
                 if homeDestination == .dashboard {
                     openHomeDrawer()
