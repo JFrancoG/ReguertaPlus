@@ -29,7 +29,6 @@ private struct ReceivedOrdersWindow {
     let targetWeekKey: String
 }
 
-// swiftlint:disable:next type_body_length
 struct ReceivedOrdersRouteView: View {
     let tokens: ReguertaDesignTokens
     let currentMember: Member?

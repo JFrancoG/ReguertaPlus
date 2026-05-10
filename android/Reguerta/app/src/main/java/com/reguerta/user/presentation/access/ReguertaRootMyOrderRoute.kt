@@ -346,7 +346,7 @@ internal fun MyOrderRoute(
     val isReadOnlyMode = isReadOnlyConfirmedView || isConsultaPhase
     LaunchedEffect(cartOpenRequests) {
         if (cartOpenRequests > 0 && selectedUnits > 0 && !isReadOnlyMode) {
-            isCartVisible = true
+            isCartVisible = !isCartVisible
         }
     }
     val finalizeActionLabel = if (hasConfirmedOrder && hasPendingConfirmedEdits) {
@@ -512,7 +512,7 @@ internal fun MyOrderRoute(
     }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val cartPanelWidth = (maxWidth * 0.9f).coerceIn(300.dp, 420.dp)
+        val cartPanelWidth = maxWidth
         val cartPanelOffsetX by animateDpAsState(
             targetValue = if (isCartVisible) 0.dp else cartPanelWidth + 24.dp,
             animationSpec = tween(durationMillis = 220),
@@ -653,44 +653,21 @@ internal fun MyOrderRoute(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(16.dp),
+                            .padding(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        OutlinedButton(
-                            onClick = {
-                                if (isReadOnlyConfirmedView) {
-                                    isViewingConfirmedOrder = false
-                                    isCartVisible = false
-                                } else {
-                                    isCartVisible = false
-                                }
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                        ) {
-                            Icon(
-                                imageVector = if (isReadOnlyConfirmedView) Icons.Default.Edit else Icons.Default.ShoppingCart,
-                                contentDescription = null,
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = if (isReadOnlyConfirmedView) {
-                                    stringResource(R.string.my_order_edit_confirmed_action)
-                                } else {
-                                    stringResource(R.string.my_order_continue_shopping_action)
-                                },
-                            )
-                        }
-
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
                                 text = stringResource(R.string.my_order_cart_title),
-                                style = MaterialTheme.typography.titleLarge,
+                                style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
                             )
-                            Spacer(modifier = Modifier.weight(1f))
                             Text(
                                 text = stringResource(
                                     R.string.my_order_total_format,
@@ -699,6 +676,7 @@ internal fun MyOrderRoute(
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
                             )
                         }
 
@@ -743,6 +721,8 @@ internal fun MyOrderRoute(
                                 .align(Alignment.BottomCenter)
                                 .fillMaxWidth(),
                             tonalElevation = 4.dp,
+                            shadowElevation = 6.dp,
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.96f),
                         ) {
                             Button(
                                 onClick = {
