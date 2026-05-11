@@ -61,7 +61,7 @@ private struct HomeWeeklySummaryTarget {
     let shift: ShiftAssignment?
 }
 
-extension ContentView {
+extension AccessRootRoutingView {
     @ViewBuilder
     var dashboardRoute: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
@@ -166,7 +166,7 @@ extension ContentView {
         AdminToolsCardView(
             tokens: tokens,
             session: session,
-            isExpanded: $isAdminToolsExpanded,
+            isExpanded: rootBinding(\.isAdminToolsExpanded),
             memberDraft: memberDraftBinding,
             onCreateMember: viewModel.createAuthorizedMember,
             onToggleAdmin: { memberId in

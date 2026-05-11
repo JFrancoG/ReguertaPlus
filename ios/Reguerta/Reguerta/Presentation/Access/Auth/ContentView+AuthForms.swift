@@ -1,6 +1,6 @@
 import SwiftUI
 
-extension ContentView {
+extension AccessRootRoutingView {
     var signInCard: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
             ReguertaInputField(
@@ -79,7 +79,7 @@ extension ContentView {
                 liveValidation: { isValidPassword($0) },
                 isEnabled: !viewModel.isRegistering,
                 isSecure: true,
-                sharedPasswordVisibility: $areRegisterPasswordsVisible,
+                sharedPasswordVisibility: rootBinding(\.areRegisterPasswordsVisible),
                 showsPasswordToggle: true,
                 keyboardType: .default
             )
@@ -103,7 +103,7 @@ extension ContentView {
                 },
                 isEnabled: !viewModel.isRegistering,
                 isSecure: true,
-                sharedPasswordVisibility: $areRegisterPasswordsVisible,
+                sharedPasswordVisibility: rootBinding(\.areRegisterPasswordsVisible),
                 showsPasswordToggle: true,
                 keyboardType: .default
             )

@@ -1,6 +1,6 @@
 import SwiftUI
 
-extension ContentView {
+extension AccessRootRoutingView {
     func deliveryOverride(for shift: ShiftAssignment) -> DeliveryCalendarOverride? {
         guard shift.type == .delivery else { return nil }
         return viewModel.deliveryCalendarOverrides.first(where: { $0.weekKey == shift.weekKey })

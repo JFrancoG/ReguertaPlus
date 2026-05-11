@@ -1,6 +1,15 @@
 import SwiftUI
 
-extension ContentView {
+private struct StartupVersionGateCardContent {
+    let titleKey: String
+    let messageKey: String
+    let primaryActionTitleKey: String
+    let secondaryActionTitleKey: String?
+    let onPrimaryAction: () -> Void
+    let onSecondaryAction: (() -> Void)?
+}
+
+extension AccessRootRoutingView {
     @ViewBuilder
     var overlayDialogs: some View {
         if showsRecoverSuccessDialog {
@@ -102,28 +111,32 @@ extension ContentView {
         switch startupGateState {
         case .optionalUpdate(let storeURL):
             startupVersionGateCard(
-                titleKey: AccessL10nKey.startupUpdateOptionalTitle,
-                messageKey: AccessL10nKey.startupUpdateMessage,
-                primaryActionTitleKey: AccessL10nKey.startupUpdateActionUpdate,
-                secondaryActionTitleKey: AccessL10nKey.startupUpdateActionLater,
-                onPrimaryAction: {
-                    openStoreURL(storeURL)
-                    startupGateState = .optionalDismissed
-                },
-                onSecondaryAction: {
-                    startupGateState = .optionalDismissed
-                }
+                StartupVersionGateCardContent(
+                    titleKey: AccessL10nKey.startupUpdateOptionalTitle,
+                    messageKey: AccessL10nKey.startupUpdateMessage,
+                    primaryActionTitleKey: AccessL10nKey.startupUpdateActionUpdate,
+                    secondaryActionTitleKey: AccessL10nKey.startupUpdateActionLater,
+                    onPrimaryAction: {
+                        openStoreURL(storeURL)
+                        rootViewModel.dismissOptionalStartupUpdate()
+                    },
+                    onSecondaryAction: {
+                        rootViewModel.dismissOptionalStartupUpdate()
+                    }
+                )
             )
         case .forcedUpdate(let storeURL):
             startupVersionGateCard(
-                titleKey: AccessL10nKey.startupUpdateForcedTitle,
-                messageKey: AccessL10nKey.startupUpdateMessage,
-                primaryActionTitleKey: AccessL10nKey.startupUpdateActionUpdate,
-                secondaryActionTitleKey: nil,
-                onPrimaryAction: {
-                    openStoreURL(storeURL)
-                },
-                onSecondaryAction: nil
+                StartupVersionGateCardContent(
+                    titleKey: AccessL10nKey.startupUpdateForcedTitle,
+                    messageKey: AccessL10nKey.startupUpdateMessage,
+                    primaryActionTitleKey: AccessL10nKey.startupUpdateActionUpdate,
+                    secondaryActionTitleKey: nil,
+                    onPrimaryAction: {
+                        openStoreURL(storeURL)
+                    },
+                    onSecondaryAction: nil
+                )
             )
         case .checking, .ready, .optionalDismissed:
             EmptyView()
@@ -131,54 +144,41 @@ extension ContentView {
     }
 
     @ViewBuilder
-    func startupVersionGateCard(
-        titleKey: String,
-        messageKey: String,
-        primaryActionTitleKey: String,
-        secondaryActionTitleKey: String?,
-        onPrimaryAction: @escaping () -> Void,
-        onSecondaryAction: (() -> Void)?
-    ) -> some View {
+    private func startupVersionGateCard(_ content: StartupVersionGateCardContent) -> some View {
         ReguertaDialog(
-            type: onSecondaryAction == nil ? .error : .info,
-            title: l10n(titleKey),
-            message: l10n(messageKey),
+            type: content.onSecondaryAction == nil ? .error : .info,
+            title: l10n(content.titleKey),
+            message: l10n(content.messageKey),
             primaryAction: ReguertaDialogAction(
-                title: l10n(primaryActionTitleKey),
-                action: onPrimaryAction
+                title: l10n(content.primaryActionTitleKey),
+                action: content.onPrimaryAction
             ),
             secondaryAction: {
-                guard let secondaryActionTitleKey, let onSecondaryAction else { return nil }
+                guard let secondaryActionTitleKey = content.secondaryActionTitleKey,
+                      let onSecondaryAction = content.onSecondaryAction else { return nil }
                 return ReguertaDialogAction(
                     title: l10n(secondaryActionTitleKey),
                     action: onSecondaryAction
                 )
             }(),
-            onDismiss: onSecondaryAction
+            onDismiss: content.onSecondaryAction
         )
     }
 
     func handleSessionExpiredDialogAction() {
-        viewModel.dismissSessionExpiredDialog()
-        viewModel.resetSignInDraft()
-        dispatchShell(.reauthenticate)
+        rootViewModel.handleSessionExpiredDialogAction()
     }
 
     func handleUnauthorizedDialogSignOut() {
-        homeDestination = .dashboard
-        viewModel.signOut()
-        dispatchShell(.signedOut)
+        rootViewModel.handleUnauthorizedDialogSignOut()
     }
 
     func confirmPendingNewsDeletion() {
-        guard let pendingNewsDeletionId else { return }
-        viewModel.deleteNews(newsId: pendingNewsDeletionId) {
-            self.pendingNewsDeletionId = nil
-        }
+        rootViewModel.confirmPendingNewsDeletion()
     }
 
     func clearPendingNewsDeletion() {
-        pendingNewsDeletionId = nil
+        rootViewModel.clearPendingNewsDeletion()
     }
 
     func openStoreURL(_ rawURL: String) {
@@ -189,32 +189,10 @@ extension ContentView {
     }
 
     func handleAuthRouteExit(from previousRoute: AuthShellRoute, to newRoute: AuthShellRoute) {
-        guard previousRoute != newRoute else { return }
-        if previousRoute == .home || newRoute != .home {
-            isHomeDrawerOpen = false
-            homeDrawerDragOffset = 0
-        }
-
-        switch previousRoute {
-        case .login where newRoute != .login:
-            viewModel.resetSignInDraft()
-            viewModel.clearFeedbackMessage()
-        case .register where newRoute != .register:
-            viewModel.resetSignUpDraft()
-            viewModel.clearFeedbackMessage()
-            areRegisterPasswordsVisible = false
-        case .recoverPassword where newRoute != .recoverPassword:
-            viewModel.resetRecoverDraft()
-            viewModel.clearFeedbackMessage()
-            showsRecoverSuccessDialog = false
-        default:
-            break
-        }
+        rootViewModel.handleAuthRouteExit(from: previousRoute, to: newRoute)
     }
 
     func handleRecoverSuccessDialogDismiss() {
-        showsRecoverSuccessDialog = false
-        viewModel.resetRecoverDraft()
-        dispatchShell(.signedOut)
+        rootViewModel.handleRecoverSuccessDialogDismiss()
     }
 }

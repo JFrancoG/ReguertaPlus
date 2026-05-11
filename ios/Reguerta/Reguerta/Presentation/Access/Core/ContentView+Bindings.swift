@@ -1,6 +1,6 @@
 import SwiftUI
 
-extension ContentView {
+extension AccessRootRoutingView {
     func binding(_ keyPath: ReferenceWritableKeyPath<SessionViewModel, String>) -> Binding<String> {
         Binding(
             get: { viewModel[keyPath: keyPath] },

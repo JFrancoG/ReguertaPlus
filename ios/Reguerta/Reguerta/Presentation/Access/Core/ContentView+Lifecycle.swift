@@ -1,95 +1,32 @@
 import SwiftUI
 
-extension ContentView {
+extension AccessRootRoutingView {
     func dispatchShell(_ action: AuthShellAction) {
-        shellState = reduceAuthShell(state: shellState, action: action)
+        rootViewModel.dispatchShell(action)
     }
+
     func handleSplashIfNeeded() async {
-        guard shellState.currentRoute == .splash else { return }
-
-        if shouldSkipSplash {
-            splashDelayCompleted = true
-            startupGateState = .optionalDismissed
-            continueFromSplashIfAllowed()
-            return
-        }
-
-        try? await Task.sleep(nanoseconds: SplashAnimationContract.durationNanoseconds)
-        guard shellState.currentRoute == .splash else { return }
-        splashDelayCompleted = true
-        continueFromSplashIfAllowed()
+        await rootViewModel.handleSplashIfNeeded()
     }
 
     func evaluateStartupGateIfNeeded() async {
-        guard !didEvaluateStartupGate else { return }
-        didEvaluateStartupGate = true
-
-        if shouldSkipSplash {
-            startupGateState = .optionalDismissed
-            return
-        }
-
-        let installedVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
-        let decision = await resolveStartupGateDecision(installedVersion: installedVersion)
-
-        switch decision {
-        case .allow:
-            startupGateState = .ready
-        case .optionalUpdate(let storeURL):
-            startupGateState = .optionalUpdate(storeURL: storeURL)
-        case .forcedUpdate(let storeURL):
-            startupGateState = .forcedUpdate(storeURL: storeURL)
-        }
-
-        continueFromSplashIfAllowed()
+        await rootViewModel.evaluateStartupGateIfNeeded()
     }
 
     func resolveStartupGateDecision(installedVersion: String) async -> StartupVersionGateDecision {
-        await withTaskGroup(of: StartupVersionGateDecision.self) { group in
-            group.addTask {
-                await startupVersionGateUseCase.execute(
-                    platform: .ios,
-                    installedVersion: installedVersion
-                )
-            }
-            group.addTask {
-                try? await Task.sleep(nanoseconds: StartupGateContract.fetchTimeoutNanoseconds)
-                return .allow
-            }
-
-            let firstResult = await group.next() ?? .allow
-            group.cancelAll()
-            return firstResult
-        }
+        await rootViewModel.resolveStartupGateDecision(installedVersion: installedVersion)
     }
 
     func continueFromSplashIfAllowed() {
-        guard shellState.currentRoute == .splash else { return }
-        guard splashDelayCompleted else { return }
-        guard startupGateState.allowsContinuation else { return }
-        dispatchShell(.splashCompleted(isAuthenticated: viewModel.mode.isAuthenticatedSession))
+        rootViewModel.continueFromSplashIfAllowed()
     }
-    @MainActor
+
     func startSplashAnimationIfNeeded() {
-        guard shellState.currentRoute == .splash else { return }
-        guard !shouldSkipSplash else { return }
-        guard !didStartSplashAnimation else { return }
-        didStartSplashAnimation = true
-
-        withAnimation(.easeInOut(duration: SplashAnimationContract.durationSeconds)) {
-            splashScale = SplashAnimationContract.finalScale
-            splashRotation = SplashAnimationContract.finalRotation
-            splashOpacity = SplashAnimationContract.finalOpacity
-        }
+        rootViewModel.startSplashAnimationIfNeeded()
     }
 
-    @MainActor
     func resetSplashAnimationState() {
-        didStartSplashAnimation = false
-        splashDelayCompleted = false
-        splashScale = SplashAnimationContract.initialScale
-        splashRotation = SplashAnimationContract.initialRotation
-        splashOpacity = SplashAnimationContract.initialOpacity
+        rootViewModel.resetSplashAnimationState()
     }
 }
 

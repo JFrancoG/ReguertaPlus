@@ -288,7 +288,32 @@ final class SessionViewModel {
             recoverEmailErrorKey == nil
     }
 
-    init(
+    init(dependencies: SessionViewModelDependencies) {
+        self.repository = dependencies.repository
+        self.newsRepository = dependencies.newsRepository
+        self.notificationRepository = dependencies.notificationRepository
+        self.productRepository = dependencies.productRepository
+        self.imagePipelineManager = dependencies.imagePipelineManager
+        self.seasonalCommitmentRepository = dependencies.seasonalCommitmentRepository
+        self.sharedProfileRepository = dependencies.sharedProfileRepository
+        self.shiftRepository = dependencies.shiftRepository
+        self.deliveryCalendarRepository = dependencies.deliveryCalendarRepository
+        self.shiftPlanningRequestRepository = dependencies.shiftPlanningRequestRepository
+        self.shiftSwapRequestRepository = dependencies.shiftSwapRequestRepository
+        self.authSessionProvider = dependencies.authSessionProvider
+        self.resolveAuthorizedSession = dependencies.resolveAuthorizedSession
+        self.upsertMemberByAdmin = dependencies.upsertMemberByAdmin
+        self.authorizedDeviceRegistrar = dependencies.authorizedDeviceRegistrar
+        self.resolveCriticalDataFreshness = dependencies.resolveCriticalDataFreshness
+        self.criticalDataFreshnessLocalRepository = dependencies.criticalDataFreshnessLocalRepository
+        self.reviewerEnvironmentRouter = dependencies.reviewerEnvironmentRouter
+        self.sessionRefreshPolicy = dependencies.sessionRefreshPolicy
+        self.nowMillisProvider = dependencies.nowMillisProvider
+        self.developImpersonationEnabled = dependencies.developImpersonationEnabled
+        self.nowOverrideMillis = dependencies.initialNowOverrideMillis
+    }
+
+    convenience init(
         repository: (any MemberRepository)? = nil,
         sharedProfileRepository: (any SharedProfileRepository)? = nil,
         deliveryCalendarRepository: (any DeliveryCalendarRepository)? = nil,
@@ -305,39 +330,25 @@ final class SessionViewModel {
         nowMillisProvider: @escaping @MainActor @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1_000) },
         initialNowOverrideMillis: Int64? = nil
     ) {
-        let defaults = Self.makeDefaultDependencies()
-        let selectedRepository = repository ?? defaults.repository
-        let selectedSharedProfileRepository = sharedProfileRepository ?? defaults.sharedProfileRepository
-        let selectedDeliveryCalendarRepository = deliveryCalendarRepository ?? defaults.deliveryCalendarRepository
-        let selectedShiftPlanningRequestRepository = shiftPlanningRequestRepository ?? defaults.shiftPlanningRequestRepository
-        let selectedShiftSwapRequestRepository = shiftSwapRequestRepository ?? defaults.shiftSwapRequestRepository
-        let selectedAuthProvider = authSessionProvider ?? defaults.authSessionProvider
-
-        self.repository = selectedRepository
-        self.newsRepository = defaults.newsRepository
-        self.notificationRepository = defaults.notificationRepository
-        self.productRepository = defaults.productRepository
-        self.imagePipelineManager = imagePipelineManager ?? defaults.imagePipelineManager
-        self.seasonalCommitmentRepository = defaults.seasonalCommitmentRepository
-        self.sharedProfileRepository = selectedSharedProfileRepository
-        self.shiftRepository = defaults.shiftRepository
-        self.deliveryCalendarRepository = selectedDeliveryCalendarRepository
-        self.shiftPlanningRequestRepository = selectedShiftPlanningRequestRepository
-        self.shiftSwapRequestRepository = selectedShiftSwapRequestRepository
-        self.authSessionProvider = selectedAuthProvider
-        self.resolveAuthorizedSession = resolveAuthorizedSession ?? ResolveAuthorizedSessionUseCase(repository: selectedRepository)
-        self.upsertMemberByAdmin = upsertMemberByAdmin ?? UpsertMemberByAdminUseCase(repository: selectedRepository)
-        self.authorizedDeviceRegistrar = authorizedDeviceRegistrar ?? NoOpAuthorizedDeviceRegistrar()
-        self.resolveCriticalDataFreshness = ResolveCriticalDataFreshnessUseCase(
-            remoteRepository: defaults.freshnessRemoteRepository,
-            localRepository: defaults.freshnessLocalRepository
+        self.init(
+            dependencies: .live(
+                repository: repository,
+                sharedProfileRepository: sharedProfileRepository,
+                deliveryCalendarRepository: deliveryCalendarRepository,
+                shiftPlanningRequestRepository: shiftPlanningRequestRepository,
+                shiftSwapRequestRepository: shiftSwapRequestRepository,
+                imagePipelineManager: imagePipelineManager,
+                authSessionProvider: authSessionProvider,
+                resolveAuthorizedSession: resolveAuthorizedSession,
+                upsertMemberByAdmin: upsertMemberByAdmin,
+                authorizedDeviceRegistrar: authorizedDeviceRegistrar,
+                reviewerEnvironmentRouter: reviewerEnvironmentRouter,
+                developImpersonationEnabled: developImpersonationEnabled,
+                sessionRefreshPolicy: sessionRefreshPolicy,
+                nowMillisProvider: nowMillisProvider,
+                initialNowOverrideMillis: initialNowOverrideMillis
+            )
         )
-        self.criticalDataFreshnessLocalRepository = defaults.freshnessLocalRepository
-        self.reviewerEnvironmentRouter = reviewerEnvironmentRouter ?? NoOpReviewerEnvironmentRouter()
-        self.sessionRefreshPolicy = sessionRefreshPolicy
-        self.nowMillisProvider = nowMillisProvider
-        self.developImpersonationEnabled = developImpersonationEnabled
-        self.nowOverrideMillis = initialNowOverrideMillis
     }
 
     func setNowOverrideMillis(_ nowMillis: Int64?) {
@@ -353,106 +364,5 @@ final class SessionViewModel {
         let baseMillis = nowOverrideMillis ?? Int64(Date().timeIntervalSince1970 * 1_000)
         let shiftedMillis = baseMillis + Int64(days) * 24 * 60 * 60 * 1_000
         setNowOverrideMillis(shiftedMillis)
-    }
-}
-
-private struct SessionViewModelDefaultDependencies {
-    let repository: any MemberRepository
-    let newsRepository: any NewsRepository
-    let notificationRepository: any NotificationRepository
-    let productRepository: any ProductRepository
-    let imagePipelineManager: any ImagePipelineManager
-    let seasonalCommitmentRepository: any SeasonalCommitmentRepository
-    let sharedProfileRepository: any SharedProfileRepository
-    let shiftRepository: any ShiftRepository
-    let deliveryCalendarRepository: any DeliveryCalendarRepository
-    let shiftPlanningRequestRepository: any ShiftPlanningRequestRepository
-    let shiftSwapRequestRepository: any ShiftSwapRequestRepository
-    let authSessionProvider: any AuthSessionProvider
-    let freshnessLocalRepository: any CriticalDataFreshnessLocalRepository
-    let freshnessRemoteRepository: any CriticalDataFreshnessRemoteRepository
-}
-
-private extension SessionViewModel {
-    static func makeDefaultDependencies() -> SessionViewModelDefaultDependencies {
-        let useMockAuth = ProcessInfo.processInfo.arguments.contains("-useMockAuth")
-        let freshnessLocalRepository = UserDefaultsCriticalDataFreshnessLocalRepository()
-        let freshnessRemoteRepository = makeDefaultFreshnessRemoteRepository(useMockAuth: useMockAuth)
-
-        return SessionViewModelDefaultDependencies(
-            repository: ChainedMemberRepository(
-                primary: FirestoreMemberRepository(),
-                fallback: InMemoryMemberRepository()
-            ),
-            newsRepository: ChainedNewsRepository(
-                primary: FirestoreNewsRepository(),
-                fallback: InMemoryNewsRepository()
-            ),
-            notificationRepository: ChainedNotificationRepository(
-                primary: FirestoreNotificationRepository(),
-                fallback: InMemoryNotificationRepository()
-            ),
-            productRepository: ChainedProductRepository(
-                primary: FirestoreProductRepository(),
-                fallback: InMemoryProductRepository()
-            ),
-            imagePipelineManager: FirebaseImagePipelineManager(),
-            seasonalCommitmentRepository: ChainedSeasonalCommitmentRepository(
-                primary: FirestoreSeasonalCommitmentRepository(),
-                fallback: InMemorySeasonalCommitmentRepository()
-            ),
-            sharedProfileRepository: ChainedSharedProfileRepository(
-                primary: FirestoreSharedProfileRepository(),
-                fallback: InMemorySharedProfileRepository()
-            ),
-            shiftRepository: ChainedShiftRepository(
-                primary: FirestoreShiftRepository(),
-                fallback: InMemoryShiftRepository()
-            ),
-            deliveryCalendarRepository: ChainedDeliveryCalendarRepository(
-                primary: FirestoreDeliveryCalendarRepository(),
-                fallback: InMemoryDeliveryCalendarRepository()
-            ),
-            shiftPlanningRequestRepository: ChainedShiftPlanningRequestRepository(
-                primary: FirestoreShiftPlanningRequestRepository(),
-                fallback: InMemoryShiftPlanningRequestRepository()
-            ),
-            shiftSwapRequestRepository: ChainedShiftSwapRequestRepository(
-                primary: FirestoreShiftSwapRequestRepository(),
-                fallback: InMemoryShiftSwapRequestRepository()
-            ),
-            authSessionProvider: useMockAuth ? MockAuthSessionProvider() : FirebaseAuthSessionProvider(),
-            freshnessLocalRepository: freshnessLocalRepository,
-            freshnessRemoteRepository: freshnessRemoteRepository
-        )
-    }
-
-    static func makeDefaultFreshnessRemoteRepository(
-        useMockAuth: Bool
-    ) -> any CriticalDataFreshnessRemoteRepository {
-        guard useMockAuth else {
-            return FirestoreCriticalDataFreshnessRemoteRepository()
-        }
-
-        return FixedCriticalDataFreshnessRemoteRepository(
-            config: CriticalDataFreshnessConfig(
-                cacheExpirationMinutes: 15,
-                remoteTimestampsMillis: Dictionary(
-                    uniqueKeysWithValues: CriticalCollection.allCases.map { ($0, 1_000) }
-                )
-            )
-        )
-    }
-}
-
-private struct NoOpAuthorizedDeviceRegistrar: AuthorizedDeviceRegistrar {
-    func register(member: Member) async {}
-}
-
-private struct FixedCriticalDataFreshnessRemoteRepository: CriticalDataFreshnessRemoteRepository {
-    let config: CriticalDataFreshnessConfig?
-
-    func getConfig() async -> CriticalDataFreshnessConfig? {
-        config
     }
 }

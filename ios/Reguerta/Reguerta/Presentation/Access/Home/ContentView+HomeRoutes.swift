@@ -1,6 +1,6 @@
 import SwiftUI
 
-extension ContentView {
+extension AccessRootRoutingView {
     @ViewBuilder
     var homeRouteContent: some View {
         switch homeDestination {

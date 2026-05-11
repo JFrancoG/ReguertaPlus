@@ -1,7 +1,7 @@
 import PDFKit
 import SwiftUI
 
-extension ContentView {
+extension AccessRootRoutingView {
     var bylawsRoute: some View {
         BylawsRouteView(
             tokens: tokens,

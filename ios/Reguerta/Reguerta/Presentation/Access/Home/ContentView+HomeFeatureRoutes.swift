@@ -1,12 +1,12 @@
 import FirebaseFirestore
 import SwiftUI
 
-extension ContentView {
+extension AccessRootRoutingView {
     @ViewBuilder
     var shiftsRoute: some View {
         ShiftsRouteView(
             tokens: tokens,
-            selectedShiftSegment: $selectedShiftSegment,
+            selectedShiftSegment: rootBinding(\.selectedShiftSegment),
             isLoadingShifts: viewModel.isLoadingShifts,
             shiftsFeed: viewModel.shiftsFeed,
             shiftSwapRequests: viewModel.shiftSwapRequests,
@@ -142,7 +142,7 @@ extension ContentView {
             tokens: tokens,
             viewModel: viewModel,
             currentHomeMember: currentHomeMember,
-            pendingProducerCatalogVisibility: $pendingProducerCatalogVisibility
+            pendingProducerCatalogVisibility: rootBinding(\.pendingProducerCatalogVisibility)
         )
     }
 
@@ -270,17 +270,17 @@ extension ContentView {
             tokens: tokens,
             session: currentHomeSession,
             isDevelopImpersonationEnabled: viewModel.isDevelopImpersonationEnabled,
-            isImpersonationExpanded: $isImpersonationExpanded,
+            isImpersonationExpanded: rootBinding(\.isImpersonationExpanded),
             isLoadingDeliveryCalendar: viewModel.isLoadingDeliveryCalendar,
             defaultDeliveryDayOfWeek: viewModel.defaultDeliveryDayOfWeek,
             shiftsFeed: viewModel.shiftsFeed,
             deliveryCalendarOverrides: viewModel.deliveryCalendarOverrides,
-            isDeliveryCalendarEditorPresented: $isDeliveryCalendarEditorPresented,
-            isDeliveryCalendarWeekPickerPresented: $isDeliveryCalendarWeekPickerPresented,
-            selectedDeliveryCalendarWeekKey: $selectedDeliveryCalendarWeekKey,
+            isDeliveryCalendarEditorPresented: rootBinding(\.isDeliveryCalendarEditorPresented),
+            isDeliveryCalendarWeekPickerPresented: rootBinding(\.isDeliveryCalendarWeekPickerPresented),
+            selectedDeliveryCalendarWeekKey: rootBinding(\.selectedDeliveryCalendarWeekKey),
             isSavingDeliveryCalendar: viewModel.isSavingDeliveryCalendar,
             isSubmittingShiftPlanningRequest: viewModel.isSubmittingShiftPlanningRequest,
-            pendingShiftPlanningType: $pendingShiftPlanningType,
+            pendingShiftPlanningType: rootBinding(\.pendingShiftPlanningType),
             nowOverrideMillis: viewModel.nowOverrideMillis,
             onClearImpersonation: viewModel.clearImpersonation,
             onImpersonate: { memberId in

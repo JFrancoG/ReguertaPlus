@@ -1,153 +1,274 @@
-import FirebaseFirestore
 import SwiftUI
 
 struct ContentView: View {
-    @Environment(\.openURL) var openURL
-    @Environment(\.reguertaTokens) var tokens
-    @Environment(\.scenePhase) var scenePhase
-    @State var viewModel: SessionViewModel
-    @State var shellState = AuthShellState()
-    @State var splashScale: CGFloat = SplashAnimationContract.initialScale
-    @State var splashRotation: Double = SplashAnimationContract.initialRotation
-    @State var splashOpacity: Double = SplashAnimationContract.initialOpacity
-    @State var didStartSplashAnimation = false
-    @State var splashDelayCompleted = false
-    @State var startupGateState: StartupGateUIState = .checking
-    @State var didEvaluateStartupGate = false
-    @State var areRegisterPasswordsVisible = false
-    @State var showsRecoverSuccessDialog = false
-    @State var isHomeDrawerOpen = false
-    @State var homeDrawerDragOffset: CGFloat = 0
-    @State var isAdminToolsExpanded = false
-    @State var homeDestination: HomeDestination = .dashboard
-    @State var myOrderCartUnits = 0
-    @State var myOrderCartOpenRequests = 0
-    @State var pendingNewsDeletionId: String?
-    @State var pendingProducerCatalogVisibility: Bool?
-    @State var selectedShiftSegment: ShiftBoardSegment = .delivery
-    @State var isDeliveryCalendarEditorPresented = false
-    @State var isDeliveryCalendarWeekPickerPresented = false
-    @State var selectedDeliveryCalendarWeekKey: String?
-    @State var isImpersonationExpanded = false
-    @State var pendingShiftPlanningType: ShiftPlanningRequestType?
+    var body: some View {
+        AccessRootView()
+    }
+}
 
-    let startupVersionGateUseCase = ResolveStartupVersionGateUseCase(
-        repository: FirestoreStartupVersionPolicyRepository()
-    )
+protocol AccessRootRoutingView: View {
+    var appEnvironment: ReguertaAppEnvironment { get }
+    var tokens: ReguertaDesignTokens { get }
+    var openURL: OpenURLAction { get }
+}
 
-    init() {
-        let db = Firestore.firestore()
-        let deviceRepository = FirestoreDeviceRegistrationRepository(db: db)
-        let reviewerEnvironmentRouter = FirestoreReviewerEnvironmentRouter(db: db)
-        #if DEBUG
-        let developImpersonationEnabled = true
-        #else
-        let developImpersonationEnabled = false
-        #endif
-        _viewModel = State(
-            initialValue: SessionViewModel(
-                authorizedDeviceRegistrar: FirebaseAuthorizedDeviceRegistrar(repository: deviceRepository),
-                reviewerEnvironmentRouter: reviewerEnvironmentRouter,
-                developImpersonationEnabled: developImpersonationEnabled,
-                nowMillisProvider: { DevelopmentTimeMachine.shared.nowMillis() },
-                initialNowOverrideMillis: DevelopmentTimeMachine.shared.overrideNowMillis
-            )
+extension AccessRootRoutingView {
+    func rootBinding<Value>(_ keyPath: ReferenceWritableKeyPath<AccessRootViewModel, Value>) -> Binding<Value> {
+        Binding(
+            get: { rootViewModel[keyPath: keyPath] },
+            set: { rootViewModel[keyPath: keyPath] = $0 }
         )
     }
 
+    var rootViewModel: AccessRootViewModel {
+        appEnvironment.accessRootViewModel
+    }
+
+    var viewModel: SessionViewModel {
+        appEnvironment.sessionViewModel
+    }
+
+    var shellState: AuthShellState {
+        get { rootViewModel.shellState }
+        nonmutating set { rootViewModel.shellState = newValue }
+    }
+
+    var splashScale: CGFloat {
+        get { rootViewModel.splashScale }
+        nonmutating set { rootViewModel.splashScale = newValue }
+    }
+
+    var splashRotation: Double {
+        get { rootViewModel.splashRotation }
+        nonmutating set { rootViewModel.splashRotation = newValue }
+    }
+
+    var splashOpacity: Double {
+        get { rootViewModel.splashOpacity }
+        nonmutating set { rootViewModel.splashOpacity = newValue }
+    }
+
+    var didStartSplashAnimation: Bool {
+        get { rootViewModel.didStartSplashAnimation }
+        nonmutating set { rootViewModel.didStartSplashAnimation = newValue }
+    }
+
+    var splashDelayCompleted: Bool {
+        get { rootViewModel.splashDelayCompleted }
+        nonmutating set { rootViewModel.splashDelayCompleted = newValue }
+    }
+
+    var startupGateState: StartupGateUIState {
+        get { rootViewModel.startupGateState }
+        nonmutating set { rootViewModel.startupGateState = newValue }
+    }
+
+    var didEvaluateStartupGate: Bool {
+        get { rootViewModel.didEvaluateStartupGate }
+        nonmutating set { rootViewModel.didEvaluateStartupGate = newValue }
+    }
+
+    var areRegisterPasswordsVisible: Bool {
+        get { rootViewModel.areRegisterPasswordsVisible }
+        nonmutating set { rootViewModel.areRegisterPasswordsVisible = newValue }
+    }
+
+    var showsRecoverSuccessDialog: Bool {
+        get { rootViewModel.showsRecoverSuccessDialog }
+        nonmutating set { rootViewModel.showsRecoverSuccessDialog = newValue }
+    }
+
+    var isHomeDrawerOpen: Bool {
+        get { rootViewModel.isHomeDrawerOpen }
+        nonmutating set { rootViewModel.isHomeDrawerOpen = newValue }
+    }
+
+    var homeDrawerDragOffset: CGFloat {
+        get { rootViewModel.homeDrawerDragOffset }
+        nonmutating set { rootViewModel.homeDrawerDragOffset = newValue }
+    }
+
+    var isAdminToolsExpanded: Bool {
+        get { rootViewModel.isAdminToolsExpanded }
+        nonmutating set { rootViewModel.isAdminToolsExpanded = newValue }
+    }
+
+    var homeDestination: HomeDestination {
+        get { rootViewModel.homeDestination }
+        nonmutating set { rootViewModel.homeDestination = newValue }
+    }
+
+    var myOrderCartUnits: Int {
+        get { rootViewModel.myOrderCartUnits }
+        nonmutating set { rootViewModel.myOrderCartUnits = newValue }
+    }
+
+    var myOrderCartOpenRequests: Int {
+        get { rootViewModel.myOrderCartOpenRequests }
+        nonmutating set { rootViewModel.myOrderCartOpenRequests = newValue }
+    }
+
+    var pendingNewsDeletionId: String? {
+        get { rootViewModel.pendingNewsDeletionId }
+        nonmutating set { rootViewModel.pendingNewsDeletionId = newValue }
+    }
+
+    var pendingProducerCatalogVisibility: Bool? {
+        get { rootViewModel.pendingProducerCatalogVisibility }
+        nonmutating set { rootViewModel.pendingProducerCatalogVisibility = newValue }
+    }
+
+    var selectedShiftSegment: ShiftBoardSegment {
+        get { rootViewModel.selectedShiftSegment }
+        nonmutating set { rootViewModel.selectedShiftSegment = newValue }
+    }
+
+    var isDeliveryCalendarEditorPresented: Bool {
+        get { rootViewModel.isDeliveryCalendarEditorPresented }
+        nonmutating set { rootViewModel.isDeliveryCalendarEditorPresented = newValue }
+    }
+
+    var isDeliveryCalendarWeekPickerPresented: Bool {
+        get { rootViewModel.isDeliveryCalendarWeekPickerPresented }
+        nonmutating set { rootViewModel.isDeliveryCalendarWeekPickerPresented = newValue }
+    }
+
+    var selectedDeliveryCalendarWeekKey: String? {
+        get { rootViewModel.selectedDeliveryCalendarWeekKey }
+        nonmutating set { rootViewModel.selectedDeliveryCalendarWeekKey = newValue }
+    }
+
+    var isImpersonationExpanded: Bool {
+        get { rootViewModel.isImpersonationExpanded }
+        nonmutating set { rootViewModel.isImpersonationExpanded = newValue }
+    }
+
+    var pendingShiftPlanningType: ShiftPlanningRequestType? {
+        get { rootViewModel.pendingShiftPlanningType }
+        nonmutating set { rootViewModel.pendingShiftPlanningType = newValue }
+    }
+
     var shouldSkipSplash: Bool {
-        ProcessInfo.processInfo.arguments.contains("-skipSplash")
+        rootViewModel.shouldSkipSplash
     }
 
     var isHomeRoute: Bool {
-        shellState.currentRoute == .home
+        rootViewModel.isHomeRoute
     }
 
     var installedVersion: String {
-        resolveInstalledAppVersion()
+        rootViewModel.installedVersion
     }
+}
+
+struct AccessRootView: AccessRootRoutingView {
+    @Environment(\.reguertaAppEnvironment) var appEnvironment
+    @Environment(\.openURL) var openURL
+    @Environment(\.reguertaTokens) var tokens
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationStack {
-            Group {
-                if isHomeRoute {
-                    homeRoute
-                } else if shellState.currentRoute == .splash {
-                    splashRoute
-                } else {
-                    GeometryReader { proxy in
-                        ScrollView(.vertical, showsIndicators: false) {
-                            VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-                                currentAuthRoute
-                                feedbackMessageRoute
-                            }
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .frame(minHeight: proxy.size.height, alignment: .top)
-                            .padding(.bottom, tokens.spacing.md)
-                        }
-                        .scrollDismissesKeyboard(.interactively)
-                    }
+            RootRouteView()
+                .padding(tokens.spacing.lg)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .background(tokens.colors.surfacePrimary.ignoresSafeArea())
+                .ignoresSafeArea(.container, edges: .bottom)
+                .overlay {
+                    DeviceScaleCaptureView()
                 }
-            }
-            .padding(tokens.spacing.lg)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .background(tokens.colors.surfacePrimary.ignoresSafeArea())
-            .ignoresSafeArea(.container, edges: .bottom)
-            .overlay {
-                DeviceScaleCaptureView()
-            }
-            .toolbar(.hidden, for: .navigationBar)
+                .toolbar(.hidden, for: .navigationBar)
         }
         .overlay {
-            overlayDialogs
+            RootOverlayView()
         }
         .task(id: shellState.currentRoute) {
-            await handleSplashIfNeeded()
+            await rootViewModel.handleSplashIfNeeded()
         }
         .task {
-            viewModel.refreshSession(trigger: .startup)
-            await evaluateStartupGateIfNeeded()
+            await rootViewModel.refreshSessionAndEvaluateStartupGate()
         }
         .onChange(of: viewModel.mode) { _, mode in
-            if mode.isAuthenticatedSession, shellState.currentRoute != .splash {
-                dispatchShell(.sessionAuthenticated)
-            } else if shellState.currentRoute == .home {
-                switch mode {
-                case .signedOut:
-                    dispatchShell(.signedOut)
-                case .authorized, .unauthorized:
-                    break
-                }
-            }
+            rootViewModel.handleSessionModeChange(mode)
         }
         .onChange(of: scenePhase) { _, newPhase in
-            switch newPhase {
-            case .active:
-                viewModel.refreshSession(trigger: .foreground)
-            default:
-                break
-            }
+            rootViewModel.handleScenePhaseChange(newPhase)
         }
         .onChange(of: startupGateState) { _, _ in
-            continueFromSplashIfAllowed()
+            rootViewModel.continueFromSplashIfAllowed()
         }
         .onChange(of: splashDelayCompleted) { _, _ in
-            continueFromSplashIfAllowed()
+            rootViewModel.continueFromSplashIfAllowed()
         }
         .onChange(of: shellState.currentRoute) { previousRoute, route in
-            if route != .splash {
-                resetSplashAnimationState()
-            }
-            handleAuthRouteExit(from: previousRoute, to: route)
+            rootViewModel.handleShellRouteChange(from: previousRoute, to: route)
         }
         .onChange(of: viewModel.feedbackMessageKey) { _, feedbackKey in
-            guard feedbackKey == AccessL10nKey.authInfoPasswordResetSent else { return }
-            viewModel.clearFeedbackMessage()
-            showsRecoverSuccessDialog = true
+            rootViewModel.handleFeedbackMessageChange(feedbackKey)
         }
+    }
+}
+
+struct RootRouteView: AccessRootRoutingView {
+    @Environment(\.reguertaAppEnvironment) var appEnvironment
+    @Environment(\.openURL) var openURL
+    @Environment(\.reguertaTokens) var tokens
+
+    var body: some View {
+        if isHomeRoute {
+            HomeShellView()
+        } else {
+            AuthShellView()
+        }
+    }
+}
+
+struct AuthShellView: AccessRootRoutingView {
+    @Environment(\.reguertaAppEnvironment) var appEnvironment
+    @Environment(\.openURL) var openURL
+    @Environment(\.reguertaTokens) var tokens
+
+    var body: some View {
+        if shellState.currentRoute == .splash {
+            splashRoute
+        } else {
+            GeometryReader { proxy in
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                        currentAuthRoute
+                        feedbackMessageRoute
+                    }
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .frame(minHeight: proxy.size.height, alignment: .top)
+                    .padding(.bottom, tokens.spacing.md)
+                }
+                .scrollDismissesKeyboard(.interactively)
+            }
+        }
+    }
+}
+
+struct HomeShellView: AccessRootRoutingView {
+    @Environment(\.reguertaAppEnvironment) var appEnvironment
+    @Environment(\.openURL) var openURL
+    @Environment(\.reguertaTokens) var tokens
+
+    var body: some View {
+        homeRoute
+    }
+}
+
+struct RootOverlayView: AccessRootRoutingView {
+    @Environment(\.reguertaAppEnvironment) var appEnvironment
+    @Environment(\.openURL) var openURL
+    @Environment(\.reguertaTokens) var tokens
+
+    var body: some View {
+        overlayDialogs
     }
 }
 
 #Preview {
     ContentView()
+        .environment(\.reguertaAppEnvironment, .preview())
 }

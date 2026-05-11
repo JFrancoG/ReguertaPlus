@@ -1,6 +1,6 @@
 import SwiftUI
 
-extension ContentView {
+extension AccessRootRoutingView {
     var homeRoute: some View {
         GeometryReader { proxy in
             let drawerWidth = min(320.resize, proxy.size.width * 0.78)
@@ -9,9 +9,12 @@ extension ContentView {
                 homeDestination != .myOrder &&
                 homeDestination != .receivedOrders &&
                 homeDestination != .users
+            let isDrawerPresented = isHomeDrawerOpen || homeDrawerDragOffset > 0
 
             ZStack(alignment: .leading) {
-                homeDrawerPanel(drawerWidth: drawerWidth)
+                if isDrawerPresented {
+                    homeDrawerPanel(drawerWidth: drawerWidth)
+                }
 
                 Group {
                     if usesShellScroll {
@@ -180,6 +183,7 @@ extension ContentView {
         }
         .ignoresSafeArea()
         .allowsHitTesting(isHomeDrawerOpen || homeDrawerDragOffset > 0)
+        .accessibilityHidden(!isHomeDrawerOpen && homeDrawerDragOffset <= 0)
         .animation(.spring(response: 0.28, dampingFraction: 0.82), value: isHomeDrawerOpen)
         .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.84), value: homeDrawerDragOffset)
     }

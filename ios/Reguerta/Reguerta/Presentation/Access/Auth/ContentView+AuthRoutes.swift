@@ -1,6 +1,6 @@
 import SwiftUI
 
-extension ContentView {
+extension AccessRootRoutingView {
     @ViewBuilder
     var currentAuthRoute: some View {
         switch shellState.currentRoute {

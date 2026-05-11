@@ -45,6 +45,7 @@ final class ReguertaUITests: XCTestCase {
         app.buttons[signInButtonId].tap()
 
         XCTAssertTrue(app.staticTexts["Unauthorized user email"].waitForExistence(timeout: 5))
+        dismissPasswordSavePromptIfNeeded(in: app)
         let signOutButton = app.buttons.matching(identifier: "Sign out").firstMatch
         XCTAssertTrue(signOutButton.waitForExistence(timeout: 5))
         signOutButton.tap()
@@ -64,6 +65,7 @@ final class ReguertaUITests: XCTestCase {
         passwordField.typeText("test1234")
 
         app.buttons[signInButtonId].tap()
+        dismissPasswordSavePromptIfNeeded(in: app)
 
         let myOrderButton = app.buttons[myOrderButtonId]
         let receivedOrdersButton = app.buttons[receivedOrdersButtonId]
@@ -114,6 +116,26 @@ final class ReguertaUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-skipSplash", "-useMockAuth"]
         return app
+    }
+
+    @MainActor
+    private func dismissPasswordSavePromptIfNeeded(in app: XCUIApplication, timeout: TimeInterval = 2) {
+        for title in ["Not Now", "Ahora no"] {
+            let button = app.buttons[title]
+            if button.waitForExistence(timeout: timeout) {
+                button.tap()
+                return
+            }
+        }
+
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        for title in ["Not Now", "Ahora no"] {
+            let button = springboard.buttons[title]
+            if button.waitForExistence(timeout: timeout) {
+                button.tap()
+                return
+            }
+        }
     }
 
     @MainActor
