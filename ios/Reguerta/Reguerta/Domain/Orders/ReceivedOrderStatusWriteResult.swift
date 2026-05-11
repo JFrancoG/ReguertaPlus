@@ -1,7 +1,6 @@
-import FirebaseFirestore
 import Foundation
 
-enum ReceivedOrderStatusWriteResult: Equatable {
+enum ReceivedOrderStatusWriteResult: Equatable, Sendable {
     case success
     case permissionDenied
     case failure

@@ -1,4 +1,3 @@
-import FirebaseFirestore
 import SwiftUI
 
 extension AccessRootRoutingView {
@@ -161,17 +160,19 @@ extension AccessRootRoutingView {
     var myOrderRoute: some View {
         MyOrderRouteView(
             tokens: tokens,
-            products: viewModel.myOrderProductsFeed,
-            seasonalCommitments: viewModel.myOrderSeasonalCommitmentsFeed,
-            shifts: viewModel.shiftsFeed,
-            defaultDeliveryDayOfWeek: viewModel.defaultDeliveryDayOfWeek,
-            deliveryCalendarOverrides: viewModel.deliveryCalendarOverrides,
-            nowMillis: viewModel.nowOverrideMillis ?? Int64(Date().timeIntervalSince1970 * 1_000),
-            isLoading: viewModel.isLoadingMyOrderProducts,
-            currentMember: currentHomeMember,
-            members: currentHomeSession?.members ?? [],
+            viewModel: rootViewModel.myOrderViewModel,
+            context: MyOrderRouteContext(
+                products: viewModel.myOrderProductsFeed,
+                seasonalCommitments: viewModel.myOrderSeasonalCommitmentsFeed,
+                shifts: viewModel.shiftsFeed,
+                defaultDeliveryDayOfWeek: viewModel.defaultDeliveryDayOfWeek,
+                deliveryCalendarOverrides: viewModel.deliveryCalendarOverrides,
+                nowMillis: viewModel.nowOverrideMillis ?? Int64(Date().timeIntervalSince1970 * 1_000),
+                isLoading: viewModel.isLoadingMyOrderProducts,
+                currentMember: currentHomeMember,
+                members: currentHomeSession?.members ?? []
+            ),
             cartOpenRequests: myOrderCartOpenRequests,
-            onRefresh: viewModel.refreshMyOrderProducts,
             onCartUnitsChange: { units in
                 myOrderCartUnits = units
             },
@@ -184,11 +185,14 @@ extension AccessRootRoutingView {
     var receivedOrdersRoute: some View {
         ReceivedOrdersRouteView(
             tokens: tokens,
-            currentMember: currentHomeMember,
-            shifts: viewModel.shiftsFeed,
-            defaultDeliveryDayOfWeek: viewModel.defaultDeliveryDayOfWeek,
-            deliveryCalendarOverrides: viewModel.deliveryCalendarOverrides,
-            nowMillis: viewModel.nowOverrideMillis ?? Int64(Date().timeIntervalSince1970 * 1_000)
+            viewModel: rootViewModel.receivedOrdersViewModel,
+            context: ReceivedOrdersRouteContext(
+                currentMember: currentHomeMember,
+                shifts: viewModel.shiftsFeed,
+                defaultDeliveryDayOfWeek: viewModel.defaultDeliveryDayOfWeek,
+                deliveryCalendarOverrides: viewModel.deliveryCalendarOverrides,
+                nowMillis: viewModel.nowOverrideMillis ?? Int64(Date().timeIntervalSince1970 * 1_000)
+            )
         )
     }
 

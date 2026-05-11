@@ -33,13 +33,19 @@ extension MyOrderRouteView {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 23.resize, weight: .medium))
                 .foregroundStyle(tokens.colors.textSecondary)
-            TextField("Buscar productos", text: $searchQuery)
+            TextField(
+                "Buscar productos",
+                text: Binding(
+                    get: { viewModel.searchQuery },
+                    set: { viewModel.searchQuery = $0 }
+                )
+            )
                 .font(tokens.typography.titleCard)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
-            if searchQuery.isNotEmpty {
+            if viewModel.searchQuery.isNotEmpty {
                 Button {
-                    searchQuery = ""
+                    viewModel.clearSearch()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(tokens.colors.textSecondary)
@@ -75,10 +81,10 @@ extension MyOrderRouteView {
             }
             .frame(width: panelWidth)
             .frame(maxHeight: .infinity, alignment: .top)
-            .offset(x: isCartVisible ? 0 : panelWidth + 24.resize)
-            .animation(.easeInOut(duration: 0.22), value: isCartVisible)
+            .offset(x: viewModel.isCartVisible ? 0 : panelWidth + 24.resize)
+            .animation(.easeInOut(duration: 0.22), value: viewModel.isCartVisible)
         }
-        .allowsHitTesting(isCartVisible)
+        .allowsHitTesting(viewModel.isCartVisible)
     }
 
     var cartOverlayHeader: some View {
@@ -88,7 +94,7 @@ extension MyOrderRouteView {
                 .foregroundStyle(tokens.colors.textPrimary)
                 .lineLimit(1)
             Spacer()
-            Text("Total: \(cartTotal.myOrderUiDecimal) €")
+            Text("Total: \(viewModel.cartTotal.myOrderUiDecimal) €")
                 .font(tokens.typography.titleCard.weight(.semibold))
                 .foregroundStyle(tokens.colors.actionPrimary)
                 .lineLimit(1)
@@ -99,7 +105,7 @@ extension MyOrderRouteView {
     var cartOverlayProductsList: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: tokens.spacing.sm) {
-                ForEach(selectedProducts) { product in
+                ForEach(viewModel.selectedProducts) { product in
                     selectedProductCard(product)
                 }
             }
@@ -109,12 +115,14 @@ extension MyOrderRouteView {
 
     @ViewBuilder
     var cartOverlayCheckoutFooter: some View {
-        if !isReadOnlyConfirmedView {
+        if !viewModel.isReadOnlyConfirmedView {
             HStack {
                 Button {
-                    validateCheckout()
+                    Task {
+                        await viewModel.validateCheckout()
+                    }
                 } label: {
-                    Text(finalizeCheckoutTitle)
+                    Text(viewModel.finalizeCheckoutTitle)
                         .font(tokens.typography.body.weight(.semibold))
                         .foregroundStyle(tokens.colors.actionOnPrimary)
                         .frame(maxWidth: .infinity)
@@ -123,8 +131,8 @@ extension MyOrderRouteView {
                         .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                .disabled(!canSubmitCheckout)
-                .opacity(canSubmitCheckout ? 1 : 0.55)
+                .disabled(!viewModel.canSubmitCheckout)
+                .opacity(viewModel.canSubmitCheckout ? 1 : 0.55)
             }
             .padding(tokens.spacing.md)
             .frame(maxWidth: .infinity)
@@ -139,18 +147,15 @@ extension MyOrderRouteView {
     }
 
     func closeCartOverlay() {
-        if isReadOnlyConfirmedView {
-            isViewingConfirmedOrder = false
-        }
         withAnimation(.easeInOut(duration: 0.22)) {
-            isCartVisible = false
+            viewModel.closeCartOverlay()
         }
     }
 
     @ViewBuilder
     func selectedProductCard(_ product: Product) -> some View {
-        let quantity = selectedQuantities[product.id, default: 0]
-        let selectedOption = selectedEcoBasketOptions[product.id] ?? ecoBasketOptionPickup
+        let quantity = viewModel.quantity(for: product)
+        let selectedOption = viewModel.selectedEcoBasketOption(for: product)
 
         ReguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
@@ -168,88 +173,18 @@ extension MyOrderRouteView {
                 quantityControls(
                     product: product,
                     quantity: quantity,
-                    isEditable: !isReadOnlyMode
+                    isEditable: !viewModel.isReadOnlyMode
                 )
-                if product.isEcoBasket, quantity > 0, !isReadOnlyMode {
+                if product.isEcoBasket, quantity > 0, !viewModel.isReadOnlyMode {
                     ecoBasketOptionSelector(
                         selectedOption: selectedOption,
                         onOptionSelected: { option in
-                            selectedEcoBasketOptions[product.id] = option
+                            viewModel.selectEcoBasketOption(productId: product.id, option: option)
                         }
                     )
                 }
             }
         }
-    }
-
-    func validateCheckout() {
-        let validation = validateMyOrderCheckout(
-            currentMember: currentMember,
-            members: members,
-            products: products,
-            seasonalCommitments: seasonalCommitments,
-            selectedQuantities: selectedQuantities,
-            selectedEcoBasketOptions: selectedEcoBasketOptions,
-            currentWeekParity: currentWeekParity
-        )
-        if let alert = checkoutAlertForValidation(validation) {
-            checkoutAlert = alert
-            return
-        }
-        submitValidatedCheckout()
-    }
-
-    func checkoutAlertForValidation(
-        _ validation: MyOrderCheckoutValidationResult
-    ) -> MyOrderCheckoutAlert? {
-        if validation.hasEcoBasketPriceMismatch {
-            return .ecoBasketPriceMismatch
-        }
-        if !validation.incompatibleCommitmentProductNames.isEmpty {
-            return .incompatibleCommitments(validation.incompatibleCommitmentProductNames)
-        }
-        if !validation.missingCommitmentProductNames.isEmpty {
-            return .missingCommitments(validation.missingCommitmentProductNames)
-        }
-        if !validation.exceededCommitmentProductNames.isEmpty {
-            return .exceededCommitments(validation.exceededCommitmentProductNames)
-        }
-        return nil
-    }
-
-    func submitValidatedCheckout() {
-        isSubmittingCheckout = true
-        Task { @MainActor in
-            let didPersist = await submitCheckoutOrderToFirestore(
-                currentMember: currentMember,
-                weekKey: currentWeekKey,
-                products: products,
-                selectedQuantities: selectedQuantities,
-                selectedEcoBasketOptions: selectedEcoBasketOptions
-            )
-            isSubmittingCheckout = false
-
-            guard didPersist else {
-                checkoutAlert = .submitFailed
-                return
-            }
-            applySuccessfulCheckoutState()
-        }
-    }
-
-    func applySuccessfulCheckoutState() {
-        persistMyOrderConfirmedSnapshot(
-            storageKey: cartStorageKey,
-            selectedQuantities: selectedQuantities,
-            selectedEcoBasketOptions: selectedEcoBasketOptions
-        )
-        confirmedQuantities = selectedQuantities
-        confirmedEcoBasketOptions = selectedEcoBasketOptions
-        isViewingConfirmedOrder = true
-        checkoutAlert = .readyToSubmit(
-            total: cartTotal,
-            noPickupEcoBaskets: noPickupEcoBasketUnits
-        )
     }
 
     @ViewBuilder
@@ -303,44 +238,15 @@ extension MyOrderRouteView {
             message: message,
             primaryAction: ReguertaDialogAction(
                 title: "Aceptar",
-                action: { checkoutAlert = nil }
+                action: viewModel.dismissCheckoutAlert
             ),
-            onDismiss: { checkoutAlert = nil }
+            onDismiss: viewModel.dismissCheckoutAlert
         )
     }
 
     func handleCheckoutSuccessAcknowledged() {
-        checkoutAlert = nil
-        isCartVisible = false
+        viewModel.acknowledgeCheckoutSuccess()
         onCheckoutSuccessAcknowledge()
-    }
-
-    func packContainerLine(for product: Product) -> String {
-        if let packContainerName = product.packContainerName, packContainerName.isNotEmpty {
-            let quantity = (product.packContainerQty ?? product.unitQty).myOrderUiDecimal
-            let unit = product.packContainerAbbreviation ??
-                product.packContainerPlural ??
-                product.unitAbbreviation ??
-                product.unitName
-            return "\(packContainerName) \(quantity) \(unit)".trimmingCharacters(in: .whitespaces)
-        }
-        let fallbackUnit = product.unitQty == 1 ? product.unitName : product.unitPlural
-        return "\(fallbackUnit) \(product.unitQty.myOrderUiDecimal)".trimmingCharacters(in: .whitespaces)
-    }
-
-    func finiteStockLimit(for product: Product) -> Int? {
-        guard product.stockMode == .finite else { return nil }
-        let stock = max(0, product.stockQty ?? 0)
-        return Int(stock.rounded(.down))
-    }
-
-    func canIncrease(product: Product, currentQuantity: Int) -> Bool {
-        if let commitmentLimit = seasonalCommitmentUnitLimitsByProductId[product.id],
-           currentQuantity >= commitmentLimit {
-            return false
-        }
-        guard let finiteLimit = finiteStockLimit(for: product) else { return true }
-        return currentQuantity < finiteLimit
     }
 
     func stockLabel(for product: Product) -> (text: String, color: Color)? {
@@ -354,33 +260,6 @@ extension MyOrderRouteView {
             "Quedan: \(stock.myOrderUiDecimal) uds.",
             stock < 10 ? tokens.colors.feedbackWarning : tokens.colors.actionPrimary
         )
-    }
-
-    func increase(_ product: Product) {
-        guard !isReadOnlyMode else { return }
-        let currentQuantity = selectedQuantities[product.id, default: 0]
-        guard canIncrease(product: product, currentQuantity: currentQuantity) else { return }
-        selectedQuantities[product.id] = currentQuantity + 1
-        if product.isEcoBasket, selectedEcoBasketOptions[product.id] == nil {
-            selectedEcoBasketOptions[product.id] = ecoBasketOptionPickup
-        }
-    }
-
-    func decrease(_ product: Product) {
-        guard !isReadOnlyMode else { return }
-        let currentQuantity = selectedQuantities[product.id, default: 0]
-        guard currentQuantity > 0 else { return }
-        if currentQuantity == 1 {
-            selectedQuantities.removeValue(forKey: product.id)
-            if product.isEcoBasket {
-                selectedEcoBasketOptions.removeValue(forKey: product.id)
-            }
-        } else {
-            selectedQuantities[product.id] = currentQuantity - 1
-        }
-        if selectedQuantities.isEmpty {
-            isCartVisible = false
-        }
     }
 
     @ViewBuilder

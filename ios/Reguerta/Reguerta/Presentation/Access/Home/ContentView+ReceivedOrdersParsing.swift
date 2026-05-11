@@ -1,5 +1,10 @@
 import SwiftUI
 
+struct ProducerStatusVisualStyle {
+    let container: Color
+    let border: Color
+}
+
 extension ProducerOrderStatus {
     var visualStyle: ProducerStatusVisualStyle {
         switch self {
@@ -99,8 +104,4 @@ private func receivedOrderDouble(from value: Any?) -> Double? {
         return Double(raw.replacingOccurrences(of: ",", with: "."))
     }
     return nil
-}
-
-func receivedOrdersIsApproximatelyOne(_ value: Double) -> Bool {
-    abs(value - 1) < 0.000_1
 }

@@ -1,5 +1,11 @@
 import Foundation
 
+let myOrderCartStoragePrefix = "reguerta_my_order_cart"
+let myOrderCartQuantitiesSuffix = ".quantities"
+let myOrderCartOptionsSuffix = ".eco_options"
+let myOrderConfirmedQuantitiesSuffix = ".confirmed_quantities"
+let myOrderConfirmedOptionsSuffix = ".confirmed_eco_options"
+
 func readMyOrderCartSnapshot(
     userDefaults: UserDefaults = .standard,
     storageKey: String

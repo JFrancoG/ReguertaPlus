@@ -1,63 +1,9 @@
 import SwiftUI
 
-private enum ReceivedOrdersTab: String, CaseIterable, Identifiable {
-    case byProduct
-    case byMember
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .byProduct:
-            return "Por producto"
-        case .byMember:
-            return "Por regüertense"
-        }
-    }
-}
-
-private enum ReceivedOrdersLoadState {
-    case idle
-    case loading
-    case loaded(ReceivedOrdersSnapshot)
-    case empty
-    case error
-}
-
-private struct ReceivedOrdersWindow {
-    let isEnabled: Bool
-    let targetWeekKey: String
-}
-
 struct ReceivedOrdersRouteView: View {
     let tokens: ReguertaDesignTokens
-    let currentMember: Member?
-    let shifts: [ShiftAssignment]
-    let defaultDeliveryDayOfWeek: DeliveryWeekday?
-    let deliveryCalendarOverrides: [DeliveryCalendarOverride]
-    let nowMillis: Int64
-
-    @State private var selectedTab: ReceivedOrdersTab = .byProduct
-    @State private var loadState: ReceivedOrdersLoadState = .idle
-    @State private var updatingStatusOrderId: String?
-    @State private var statusWriteFeedback: ReceivedOrderStatusWriteResult?
-
-    private var isProducer: Bool {
-        currentMember?.canAccessReceivedOrders == true
-    }
-
-    private var window: ReceivedOrdersWindow {
-        resolveReceivedOrdersWindow(
-            nowMillis: nowMillis,
-            defaultDeliveryDayOfWeek: defaultDeliveryDayOfWeek,
-            deliveryCalendarOverrides: deliveryCalendarOverrides,
-            shifts: shifts
-        )
-    }
-
-    private var loadTaskID: String {
-        "\(isProducer)-\(window.isEnabled)-\(window.targetWeekKey)-\(currentMember?.id ?? "")"
-    }
+    let viewModel: ReceivedOrdersRouteViewModel
+    let context: ReceivedOrdersRouteContext
 
     var body: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.md) {
@@ -72,14 +18,14 @@ struct ReceivedOrdersRouteView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .task(id: loadTaskID) {
-            await loadIfNeeded()
+        .task(id: context.identity) {
+            await viewModel.appear(context: context)
         }
     }
 
     @ViewBuilder
     private var statusFeedbackView: some View {
-        switch statusWriteFeedback {
+        switch viewModel.statusWriteFeedback {
         case .permissionDenied:
             Text("No tienes permiso para actualizar este estado de productor.")
                 .font(tokens.typography.bodySecondary)
@@ -100,7 +46,7 @@ struct ReceivedOrdersRouteView: View {
         HStack(spacing: tokens.spacing.xs) {
             ForEach(ReceivedOrdersTab.allCases) { tab in
                 Button {
-                    selectedTab = tab
+                    viewModel.selectTab(tab)
                 } label: {
                     Text(tab.title)
                         .font(tokens.typography.bodySecondary.weight(.semibold))
@@ -108,7 +54,7 @@ struct ReceivedOrdersRouteView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, tokens.spacing.sm)
                         .background(
-                            selectedTab == tab ?
+                            viewModel.selectedTab == tab ?
                             tokens.colors.surfacePrimary :
                                 Color.clear
                         )
@@ -124,25 +70,25 @@ struct ReceivedOrdersRouteView: View {
 
     @ViewBuilder
     private var routeContent: some View {
-        if !isProducer {
+        if !viewModel.isProducer {
             infoCard(
                 title: "Solo para productores",
                 body: "Esta sección aparece cuando accedes con un perfil productor."
             )
-        } else if !window.isEnabled {
+        } else if !viewModel.window.isEnabled {
             infoCard(
                 title: "Pedidos fuera de ventana",
                 body: "La pantalla de preparación se habilita entre lunes y día de reparto."
             )
         } else {
-            switch loadState {
+            switch viewModel.loadState {
             case .idle, .loading:
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             case .empty:
                 infoCard(
                     title: "Sin pedidos recibidos",
-                    body: "No hay líneas de pedido para preparar en la semana \(window.targetWeekKey)."
+                    body: "No hay líneas de pedido para preparar en la semana \(viewModel.window.targetWeekKey)."
                 )
             case .error:
                 ReguertaCard {
@@ -155,7 +101,7 @@ struct ReceivedOrdersRouteView: View {
                             .foregroundStyle(tokens.colors.textSecondary)
                         ReguertaButton("Reintentar") {
                             Task {
-                                await loadIfNeeded(force: true)
+                                await viewModel.retry()
                             }
                         }
                     }
@@ -172,7 +118,7 @@ private extension ReceivedOrdersRouteView {
     func loadedContent(_ snapshot: ReceivedOrdersSnapshot) -> some View {
         ScrollView(.vertical, showsIndicators: false) {
             LazyVStack(alignment: .leading, spacing: tokens.spacing.md) {
-                if selectedTab == .byProduct {
+                if viewModel.selectedTab == .byProduct {
                     ForEach(snapshot.byProductRows) { row in
                         productCard(row)
                     }
@@ -180,29 +126,10 @@ private extension ReceivedOrdersRouteView {
                     ForEach(snapshot.byMemberGroups) { group in
                         memberCard(
                             group,
-                            isUpdatingStatus: updatingStatusOrderId == group.orderId,
+                            isUpdatingStatus: viewModel.updatingStatusOrderId == group.orderId,
                             onSelectStatus: { status in
-                                guard updatingStatusOrderId == nil else { return }
-                                guard group.producerStatus != status else { return }
-                                guard let producerId = currentMember?.id, !producerId.isEmpty else { return }
-                                Task { @MainActor in
-                                    updatingStatusOrderId = group.orderId
-                                    let updateResult = await updateReceivedOrderProducerStatus(
-                                        orderId: group.orderId,
-                                        producerId: producerId,
-                                        status: status
-                                    )
-                                    if updateResult == .success {
-                                        statusWriteFeedback = nil
-                                        if case .loaded(let currentSnapshot) = loadState {
-                                            loadState = .loaded(
-                                                currentSnapshot.withProducerStatus(orderId: group.orderId, status: status)
-                                            )
-                                        }
-                                    } else {
-                                        statusWriteFeedback = updateResult
-                                    }
-                                    updatingStatusOrderId = nil
+                                Task {
+                                    await viewModel.updateProducerStatus(orderId: group.orderId, status: status)
                                 }
                             }
                         )
@@ -426,58 +353,4 @@ private extension ReceivedOrdersRouteView {
                 .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
         }
     }
-
-    @MainActor
-    func loadIfNeeded(force: Bool = false) async {
-        guard isProducer else {
-            loadState = .idle
-            statusWriteFeedback = nil
-            return
-        }
-        guard window.isEnabled else {
-            loadState = .idle
-            statusWriteFeedback = nil
-            return
-        }
-        if !force, case .loading = loadState {
-            return
-        }
-        guard let producerId = currentMember?.id else {
-            loadState = .error
-            return
-        }
-        loadState = .loading
-        statusWriteFeedback = nil
-        do {
-            if let snapshot = try await fetchReceivedOrdersSnapshotForProducer(
-                producerId: producerId,
-                targetWeekKey: window.targetWeekKey
-            ) {
-                loadState = .loaded(snapshot)
-            } else {
-                loadState = .empty
-            }
-        } catch {
-            loadState = .error
-        }
-    }
-}
-
-private func resolveReceivedOrdersWindow(
-    nowMillis: Int64,
-    defaultDeliveryDayOfWeek: DeliveryWeekday?,
-    deliveryCalendarOverrides: [DeliveryCalendarOverride],
-    shifts: [ShiftAssignment]
-) -> ReceivedOrdersWindow {
-    let consultaWindow = resolveMyOrderConsultaWindow(
-        defaultDeliveryDayOfWeek: defaultDeliveryDayOfWeek,
-        deliveryCalendarOverrides: deliveryCalendarOverrides,
-        shifts: shifts,
-        now: Date(timeIntervalSince1970: TimeInterval(nowMillis) / 1_000)
-    )
-    let currentWeekKey = nowMillis.isoWeekKey
-    return ReceivedOrdersWindow(
-        isEnabled: consultaWindow.isConsultaPhase,
-        targetWeekKey: consultaWindow.isConsultaPhase ? consultaWindow.previousWeekKey : currentWeekKey
-    )
 }

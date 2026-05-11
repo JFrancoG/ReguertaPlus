@@ -53,3 +53,9 @@ view models y casos de uso dedicados.
 Firebase debe configurarse antes de crear servicios live basados en Firebase.
 Usar un helper de arranque idempotente evita depender del orden fragil de
 inicializacion entre el `App` de SwiftUI y el `AppDelegate`.
+
+Orders es el primer slice de feature migrado despues del arranque raiz. Sus
+rutas SwiftUI reciben view models propiedad del root, mientras que checkout,
+pedido anterior, pedidos recibidos, escrituras de estado de productor y
+persistencia de carrito se acceden mediante dependencias `OrdersRepository` y
+`MyOrderCartStore`.

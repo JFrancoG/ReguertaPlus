@@ -4,6 +4,8 @@ import SwiftUI
 @Observable
 final class AccessRootViewModel {
     @ObservationIgnored let sessionViewModel: SessionViewModel
+    @ObservationIgnored let myOrderViewModel: MyOrderRouteViewModel
+    @ObservationIgnored let receivedOrdersViewModel: ReceivedOrdersRouteViewModel
     @ObservationIgnored private let startupVersionGateUseCase: ResolveStartupVersionGateUseCase
     @ObservationIgnored private let shouldSkipSplashProvider: () -> Bool
     @ObservationIgnored private let installedVersionProvider: () -> String
@@ -47,6 +49,7 @@ final class AccessRootViewModel {
 
     init(
         sessionViewModel: SessionViewModel,
+        ordersFeatureDependencies: OrdersFeatureDependencies = .preview(),
         startupVersionGateUseCase: ResolveStartupVersionGateUseCase,
         shouldSkipSplashProvider: @escaping () -> Bool = {
             ProcessInfo.processInfo.arguments.contains("-skipSplash")
@@ -56,6 +59,17 @@ final class AccessRootViewModel {
         }
     ) {
         self.sessionViewModel = sessionViewModel
+        self.myOrderViewModel = MyOrderRouteViewModel(
+            sessionViewModel: sessionViewModel,
+            ordersRepository: ordersFeatureDependencies.ordersRepository,
+            cartStore: ordersFeatureDependencies.cartStore,
+            nowMillisProvider: ordersFeatureDependencies.nowMillisProvider
+        )
+        self.receivedOrdersViewModel = ReceivedOrdersRouteViewModel(
+            sessionViewModel: sessionViewModel,
+            ordersRepository: ordersFeatureDependencies.ordersRepository,
+            nowMillisProvider: ordersFeatureDependencies.nowMillisProvider
+        )
         self.startupVersionGateUseCase = startupVersionGateUseCase
         self.shouldSkipSplashProvider = shouldSkipSplashProvider
         self.installedVersionProvider = installedVersionProvider

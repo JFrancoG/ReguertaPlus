@@ -1,7 +1,7 @@
 import Foundation
 
-let ecoBasketOptionPickup = "pickup"
-let ecoBasketOptionNoPickup = "no_pickup"
+nonisolated let ecoBasketOptionPickup = "pickup"
+nonisolated let ecoBasketOptionNoPickup = "no_pickup"
 
 struct MyOrderCheckoutValidationResult: Equatable {
     let missingCommitmentProductNames: [String]

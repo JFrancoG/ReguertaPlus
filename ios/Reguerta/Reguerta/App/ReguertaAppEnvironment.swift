@@ -28,8 +28,13 @@ struct ReguertaAppEnvironment {
                 initialNowOverrideMillis: DevelopmentTimeMachine.shared.overrideNowMillis
             )
         )
+        let ordersFeatureDependencies = OrdersFeatureDependencies.live(
+            db: db,
+            nowMillisProvider: { DevelopmentTimeMachine.shared.nowMillis() }
+        )
         let accessRootViewModel = AccessRootViewModel(
             sessionViewModel: sessionViewModel,
+            ordersFeatureDependencies: ordersFeatureDependencies,
             startupVersionGateUseCase: ResolveStartupVersionGateUseCase(
                 repository: FirestoreStartupVersionPolicyRepository(db: db)
             )
@@ -45,6 +50,7 @@ struct ReguertaAppEnvironment {
         let sessionViewModel = SessionViewModel(dependencies: .preview())
         let accessRootViewModel = AccessRootViewModel(
             sessionViewModel: sessionViewModel,
+            ordersFeatureDependencies: .preview(),
             startupVersionGateUseCase: ResolveStartupVersionGateUseCase(
                 repository: PreviewStartupVersionPolicyRepository()
             ),

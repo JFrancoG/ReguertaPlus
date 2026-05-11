@@ -52,3 +52,8 @@ and use cases.
 Firebase must be configured before live Firebase-backed services are created.
 Use an idempotent bootstrap helper so the SwiftUI `App` and `AppDelegate` do not
 depend on fragile initialization ordering.
+
+Orders is the first feature slice migrated after the root bootstrap. Its
+SwiftUI routes receive root-owned view models, while checkout, previous orders,
+received orders, producer status writes, and cart persistence are accessed
+through `OrdersRepository` and `MyOrderCartStore` dependencies.

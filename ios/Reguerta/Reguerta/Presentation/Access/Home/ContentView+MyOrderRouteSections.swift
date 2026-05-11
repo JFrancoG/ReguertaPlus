@@ -20,7 +20,7 @@ extension MyOrderRouteView {
                         .foregroundStyle(tokens.colors.textPrimary)
                     Spacer()
                     Button {
-                        isViewingConfirmedOrder = false
+                        viewModel.editConfirmedOrder()
                     } label: {
                         HStack(spacing: tokens.spacing.xs) {
                             Image(systemName: "pencil")
@@ -40,7 +40,7 @@ extension MyOrderRouteView {
 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: tokens.spacing.md) {
-                        ForEach(confirmedOrderGroups) { group in
+                        ForEach(viewModel.confirmedOrderGroups) { group in
                             confirmedProducerCard(group)
                         }
                     }
@@ -49,7 +49,7 @@ extension MyOrderRouteView {
             }
 
             HStack {
-                Text("Suma total pedido: \(cartTotal.myOrderUiDecimal) €")
+                Text("Suma total pedido: \(viewModel.cartTotal.myOrderUiDecimal) €")
                     .font(tokens.typography.body.weight(.semibold))
                     .foregroundStyle(tokens.colors.textPrimary)
                     .frame(maxWidth: .infinity)
@@ -71,7 +71,7 @@ extension MyOrderRouteView {
                     .font(tokens.typography.titleCard.weight(.semibold))
                     .foregroundStyle(tokens.colors.textPrimary)
 
-                switch previousOrderState {
+                switch viewModel.previousOrderState {
                 case .loading:
                     ReguertaCard {
                         HStack(spacing: tokens.spacing.sm) {
@@ -91,7 +91,7 @@ extension MyOrderRouteView {
                                 .foregroundStyle(tokens.colors.textSecondary)
                             ReguertaButton("Actualizar", variant: .text, fullWidth: false) {
                                 Task {
-                                    await loadPreviousWeekOrderState(previousWeekKey: consultaWindow.previousWeekKey)
+                                    await viewModel.retryPreviousOrder()
                                 }
                             }
                         }
@@ -105,7 +105,7 @@ extension MyOrderRouteView {
                                 .foregroundStyle(tokens.colors.textSecondary)
                             ReguertaButton("Reintentar", variant: .text, fullWidth: false) {
                                 Task {
-                                    await loadPreviousWeekOrderState(previousWeekKey: consultaWindow.previousWeekKey)
+                                    await viewModel.retryPreviousOrder()
                                 }
                             }
                         }
@@ -127,7 +127,7 @@ extension MyOrderRouteView {
                 }
             }
 
-            if case .loaded(let snapshot) = previousOrderState {
+            if case .loaded(let snapshot) = viewModel.previousOrderState {
                 HStack {
                     Text("Suma total pedido: \(snapshot.total.myOrderUiDecimal) €")
                         .font(tokens.typography.body.weight(.semibold))
@@ -194,7 +194,7 @@ extension MyOrderRouteView {
                     Text(line.product.name)
                         .font(tokens.typography.body.weight(.semibold))
                         .foregroundStyle(tokens.colors.textPrimary)
-                    Text(packContainerLine(for: line.product))
+                    Text(viewModel.packContainerLine(for: line.product))
                         .font(tokens.typography.bodySecondary)
                         .foregroundStyle(tokens.colors.textSecondary)
                 }
@@ -280,7 +280,7 @@ extension MyOrderRouteView {
     var productsList: some View {
         ScrollView(.vertical, showsIndicators: false) {
             LazyVStack(alignment: .leading, spacing: tokens.spacing.md, pinnedViews: [.sectionHeaders]) {
-                ForEach(groupedProducts) { group in
+                ForEach(viewModel.groupedProducts) { group in
                     Section {
                         VStack(spacing: tokens.spacing.md) {
                             ForEach(group.products) { product in
@@ -320,7 +320,7 @@ extension MyOrderRouteView {
 
     @ViewBuilder
     func productCard(_ product: Product) -> some View {
-        let quantity = selectedQuantities[product.id, default: 0]
+        let quantity = viewModel.quantity(for: product)
         let stockLabel = stockLabel(for: product)
 
         ReguertaCard {
@@ -332,7 +332,7 @@ extension MyOrderRouteView {
                         quantityControls(
                             product: product,
                             quantity: quantity,
-                            isEditable: !isReadOnlyMode
+                            isEditable: !viewModel.isReadOnlyMode
                         )
                         Text(product.name)
                             .font(tokens.typography.body.weight(.semibold))
@@ -348,7 +348,7 @@ extension MyOrderRouteView {
                         .lineLimit(2)
                 }
 
-                Text(packContainerLine(for: product))
+                Text(viewModel.packContainerLine(for: product))
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
 
@@ -417,9 +417,9 @@ extension MyOrderRouteView {
     }
 
     func addQuantityButton(product: Product, quantity: Int) -> some View {
-        let canIncreaseQuantity = canIncrease(product: product, currentQuantity: quantity)
+        let canIncreaseQuantity = viewModel.canIncrease(product: product, currentQuantity: quantity)
         return Button {
-            increase(product)
+            viewModel.increase(product)
         } label: {
             HStack(spacing: tokens.spacing.xs) {
                 Text("Añadir")
@@ -438,14 +438,14 @@ extension MyOrderRouteView {
     }
 
     func editableQuantityControls(product: Product, quantity: Int) -> some View {
-        let canIncreaseQuantity = canIncrease(product: product, currentQuantity: quantity)
+        let canIncreaseQuantity = viewModel.canIncrease(product: product, currentQuantity: quantity)
         return HStack(spacing: tokens.spacing.sm) {
             Text(quantityUnitText(quantity))
                 .font(tokens.typography.body.weight(.semibold))
                 .foregroundStyle(tokens.colors.textPrimary)
 
             Button {
-                decrease(product)
+                viewModel.decrease(product)
             } label: {
                 Image(systemName: quantity == 1 ? "trash" : "minus")
                     .font(.system(size: 14.resize, weight: .bold))
@@ -457,7 +457,7 @@ extension MyOrderRouteView {
             .buttonStyle(.plain)
 
             Button {
-                increase(product)
+                viewModel.increase(product)
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 15.resize, weight: .bold))
