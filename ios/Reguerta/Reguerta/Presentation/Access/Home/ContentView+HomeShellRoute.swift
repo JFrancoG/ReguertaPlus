@@ -14,6 +14,7 @@ extension AccessRootRoutingView {
             ZStack(alignment: .leading) {
                 if isDrawerPresented {
                     homeDrawerPanel(drawerWidth: drawerWidth)
+                        .zIndex(2)
                 }
 
                 Group {
@@ -54,6 +55,7 @@ extension AccessRootRoutingView {
                 .ignoresSafeArea(.container, edges: .bottom)
                 .offset(x: resolvedHomeLayerOffset(drawerWidth: drawerWidth))
                 .shadow(color: .black.opacity(isHomeDrawerOpen ? 0.22 : 0), radius: 14.resize, x: -4.resize, y: 0)
+                .zIndex(1)
                 .animation(.spring(response: 0.28, dampingFraction: 0.82), value: isHomeDrawerOpen)
                 .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.84), value: homeDrawerDragOffset)
                 .overlay {

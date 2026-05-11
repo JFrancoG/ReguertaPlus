@@ -12,6 +12,9 @@ final class ReguertaUITests: XCTestCase {
     private let emailFieldId = "auth.login.emailField"
     private let passwordFieldId = "auth.login.passwordField"
     private let signInButtonId = "auth.login.signInButton"
+    private let menuButtonId = "home.topBar.menuButton"
+    private let topBarTitleId = "home.topBar.title"
+    private let newsDrawerItemId = "home.drawer.item.news"
     private let myOrderButtonId = "home.module.myOrder"
     private let receivedOrdersButtonId = "home.module.receivedOrders"
 
@@ -83,6 +86,37 @@ final class ReguertaUITests: XCTestCase {
     }
 
     @MainActor
+    func testDrawerNavigationOpensSelectedRoute() throws {
+        let app = configuredApp()
+        let emailField = launchAndOpenLogin(app)
+        emailField.tap()
+        emailField.typeText("pablo.producer@reguerta.app")
+
+        let passwordField = app.secureTextFields[passwordFieldId]
+        XCTAssertTrue(passwordField.waitForExistence(timeout: 5), "Password field not found")
+        passwordField.tap()
+        passwordField.typeText("test1234")
+
+        app.buttons[signInButtonId].tap()
+        dismissPasswordSavePromptIfNeeded(in: app)
+
+        let menuButton = app.buttons[menuButtonId]
+        XCTAssertTrue(menuButton.waitForExistence(timeout: 8), "Menu button not found")
+        dismissPasswordSavePromptIfNeeded(in: app, timeout: 1)
+        XCTAssertTrue(waitForHittable(menuButton, timeout: 5), "Menu button not hittable")
+        menuButton.tap()
+
+        let newsDrawerItem = app.buttons[newsDrawerItemId]
+        XCTAssertTrue(newsDrawerItem.waitForExistence(timeout: 5), "News drawer item not found")
+        XCTAssertTrue(waitForHittable(newsDrawerItem, timeout: 5), "News drawer item not hittable")
+        newsDrawerItem.tap()
+
+        let title = app.staticTexts[topBarTitleId]
+        XCTAssertTrue(title.waitForExistence(timeout: 3), "Top bar title not found")
+        XCTAssertEqual(title.label, "Latest news")
+    }
+
+    @MainActor
     func testInvalidCredentialsShowsInlineErrorWithoutCrash() throws {
         let app = configuredApp()
         let emailField = launchAndOpenLogin(app)
@@ -116,6 +150,13 @@ final class ReguertaUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-skipSplash", "-useMockAuth"]
         return app
+    }
+
+    @MainActor
+    private func waitForHittable(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+        let predicate = NSPredicate(format: "isHittable == true")
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 
     @MainActor

@@ -198,27 +198,30 @@ struct HomeDrawerContentView: View {
         titleKey: String,
         destination: HomeDestination
     ) -> some View {
-        HStack(spacing: tokens.spacing.md) {
-            Image(systemName: systemImage)
-                .font(.system(size: 18.resize, weight: .semibold))
-                .foregroundStyle(tokens.colors.actionPrimary)
-                .frame(width: 24.resize)
-            Text(localizedKey(titleKey))
-                .font(tokens.typography.bodySecondary)
-                .foregroundStyle(tokens.colors.textPrimary)
-            Spacer(minLength: tokens.spacing.sm)
-        }
-        .padding(.vertical, tokens.spacing.xs + 2)
-        .padding(.horizontal, tokens.spacing.sm)
-        .background(
-            currentDestination == destination
-            ? tokens.colors.actionPrimary.opacity(0.10)
-            : Color.clear
-        )
-        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
-        .contentShape(Rectangle())
-        .onTapGesture {
+        Button {
             onNavigate(destination)
+        } label: {
+            HStack(spacing: tokens.spacing.md) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 18.resize, weight: .semibold))
+                    .foregroundStyle(tokens.colors.actionPrimary)
+                    .frame(width: 24.resize)
+                Text(localizedKey(titleKey))
+                    .font(tokens.typography.bodySecondary)
+                    .foregroundStyle(tokens.colors.textPrimary)
+                Spacer(minLength: tokens.spacing.sm)
+            }
+            .padding(.vertical, tokens.spacing.xs + 2)
+            .padding(.horizontal, tokens.spacing.sm)
+            .background(
+                currentDestination == destination
+                ? tokens.colors.actionPrimary.opacity(0.10)
+                : Color.clear
+            )
+            .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("home.drawer.item.\(destination.rawValue)")
     }
 }

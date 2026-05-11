@@ -36,6 +36,7 @@ struct HomeShellTopBarView: View {
                 fontSize: showsBack ? 21.resize : 23.resize,
                 action: onPrimaryAction
             )
+            .accessibilityIdentifier(showsBack ? "home.topBar.backButton" : "home.topBar.menuButton")
 
             Spacer()
 
@@ -45,12 +46,14 @@ struct HomeShellTopBarView: View {
                     .foregroundStyle(tokens.colors.textPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.78)
+                    .accessibilityIdentifier("home.topBar.title")
             } else {
                 Text(localizedKey(titleKey))
                     .font(tokens.typography.titleCard)
                     .foregroundStyle(tokens.colors.textPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.78)
+                    .accessibilityIdentifier("home.topBar.title")
             }
 
             Spacer()
