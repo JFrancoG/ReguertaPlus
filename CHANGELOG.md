@@ -94,6 +94,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- 2026-05-11 | ♻️ refactor(ios): split feature files for lint
 - 2026-05-11 | ♻️ refactor(ios): inject root dependencies
 - 2026-04-16 | ♻️ refactor(ios): clean lint and concurrency warnings
 - 2026-04-15 | ♻️ refactor(ios): split order routes and tighten SwiftLint gate

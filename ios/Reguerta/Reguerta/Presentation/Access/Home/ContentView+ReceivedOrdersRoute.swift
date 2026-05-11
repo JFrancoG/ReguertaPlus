@@ -165,9 +165,11 @@ struct ReceivedOrdersRouteView: View {
             }
         }
     }
+}
 
+private extension ReceivedOrdersRouteView {
     @ViewBuilder
-    private func loadedContent(_ snapshot: ReceivedOrdersSnapshot) -> some View {
+    func loadedContent(_ snapshot: ReceivedOrdersSnapshot) -> some View {
         ScrollView(.vertical, showsIndicators: false) {
             LazyVStack(alignment: .leading, spacing: tokens.spacing.md) {
                 if selectedTab == .byProduct {
@@ -215,7 +217,7 @@ struct ReceivedOrdersRouteView: View {
     }
 
     @ViewBuilder
-    private func productCard(_ row: ReceivedOrdersProductRow) -> some View {
+    func productCard(_ row: ReceivedOrdersProductRow) -> some View {
         ReguertaCard {
             HStack(alignment: .center, spacing: tokens.spacing.md) {
                 receivedOrdersProductImage(urlString: row.productImageUrl)
@@ -245,7 +247,7 @@ struct ReceivedOrdersRouteView: View {
     }
 
     @ViewBuilder
-    private func memberCard(
+    func memberCard(
         _ group: ReceivedOrdersMemberGroup,
         isUpdatingStatus: Bool,
         onSelectStatus: @escaping (ProducerOrderStatus) -> Void
@@ -281,7 +283,7 @@ struct ReceivedOrdersRouteView: View {
     }
 
     @ViewBuilder
-    private func memberLinesSection(_ group: ReceivedOrdersMemberGroup) -> some View {
+    func memberLinesSection(_ group: ReceivedOrdersMemberGroup) -> some View {
         VStack(alignment: .leading, spacing: tokens.spacing.sm) {
             ForEach(group.lines.indices, id: \.self) { index in
                 let line = group.lines[index]
@@ -303,7 +305,7 @@ struct ReceivedOrdersRouteView: View {
     }
 
     @ViewBuilder
-    private func memberLineRow(_ line: ReceivedOrdersMemberLine) -> some View {
+    func memberLineRow(_ line: ReceivedOrdersMemberLine) -> some View {
         VStack(alignment: .leading, spacing: tokens.spacing.xs) {
             HStack(alignment: .top, spacing: tokens.spacing.md) {
                 VStack(alignment: .leading, spacing: tokens.spacing.xs) {
@@ -331,7 +333,7 @@ struct ReceivedOrdersRouteView: View {
     }
 
     @ViewBuilder
-    private func producerStatusSelector(
+    func producerStatusSelector(
         selectedStatus: ProducerOrderStatus,
         isUpdatingStatus: Bool,
         onSelectStatus: @escaping (ProducerOrderStatus) -> Void
@@ -373,7 +375,7 @@ struct ReceivedOrdersRouteView: View {
     }
 
     @ViewBuilder
-    private func totalBar(total: Double) -> some View {
+    func totalBar(total: Double) -> some View {
         HStack {
             Text("Suma total general: \(total.myOrderUiDecimal) €")
                 .font(tokens.typography.titleCard.weight(.semibold))
@@ -387,7 +389,7 @@ struct ReceivedOrdersRouteView: View {
     }
 
     @ViewBuilder
-    private func infoCard(title: String, body: String) -> some View {
+    func infoCard(title: String, body: String) -> some View {
         ReguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 Text(title)
@@ -401,7 +403,7 @@ struct ReceivedOrdersRouteView: View {
     }
 
     @ViewBuilder
-    private func receivedOrdersProductImage(urlString: String?) -> some View {
+    func receivedOrdersProductImage(urlString: String?) -> some View {
         let imageSize = CGFloat(64.resize)
         if let urlString, let url = URL(string: urlString), urlString.isNotEmpty {
             AsyncImage(url: url) { phase in
@@ -426,7 +428,7 @@ struct ReceivedOrdersRouteView: View {
     }
 
     @MainActor
-    private func loadIfNeeded(force: Bool = false) async {
+    func loadIfNeeded(force: Bool = false) async {
         guard isProducer else {
             loadState = .idle
             statusWriteFeedback = nil
