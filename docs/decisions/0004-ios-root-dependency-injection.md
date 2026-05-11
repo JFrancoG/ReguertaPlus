@@ -57,3 +57,10 @@ Orders is the first feature slice migrated after the root bootstrap. Its
 SwiftUI routes receive root-owned view models, while checkout, previous orders,
 received orders, producer status writes, and cart persistence are accessed
 through `OrdersRepository` and `MyOrderCartStore` dependencies.
+
+Products is the second migrated feature slice. `AccessRootViewModel` owns
+`ProductsRouteViewModel`, which receives product, member, seasonal commitment,
+image pipeline, and clock dependencies from `ProductsFeatureDependencies`.
+`SessionViewModel` remains the session source, but it no longer owns catalog
+state, product drafts, product image upload, catalog visibility changes, or the
+ordering product feed.

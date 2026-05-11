@@ -94,6 +94,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- 2026-05-12 | ♻️ refactor(ios-products): move products to root VM
 - 2026-05-11 | ♻️ refactor(ios-orders): move orders to root-owned view models
 - 2026-05-11 | ♻️ refactor(ios): split feature files for lint
 - 2026-05-11 | ♻️ refactor(ios): inject root dependencies

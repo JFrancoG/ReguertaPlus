@@ -113,11 +113,6 @@ extension AccessRootRoutingView {
         nonmutating set { rootViewModel.pendingNewsDeletionId = newValue }
     }
 
-    var pendingProducerCatalogVisibility: Bool? {
-        get { rootViewModel.pendingProducerCatalogVisibility }
-        nonmutating set { rootViewModel.pendingProducerCatalogVisibility = newValue }
-    }
-
     var selectedShiftSegment: ShiftBoardSegment {
         get { rootViewModel.selectedShiftSegment }
         nonmutating set { rootViewModel.selectedShiftSegment = newValue }
@@ -190,6 +185,9 @@ struct AccessRootView: AccessRootRoutingView {
         }
         .onChange(of: viewModel.mode) { _, mode in
             rootViewModel.handleSessionModeChange(mode)
+        }
+        .onChange(of: viewModel.nowOverrideMillis) { _, _ in
+            rootViewModel.handleNowOverrideChange()
         }
         .onChange(of: scenePhase) { _, newPhase in
             rootViewModel.handleScenePhaseChange(newPhase)

@@ -4,6 +4,7 @@ import SwiftUI
 @Observable
 final class AccessRootViewModel {
     @ObservationIgnored let sessionViewModel: SessionViewModel
+    @ObservationIgnored let productsViewModel: ProductsRouteViewModel
     @ObservationIgnored let myOrderViewModel: MyOrderRouteViewModel
     @ObservationIgnored let receivedOrdersViewModel: ReceivedOrdersRouteViewModel
     @ObservationIgnored private let startupVersionGateUseCase: ResolveStartupVersionGateUseCase
@@ -27,7 +28,6 @@ final class AccessRootViewModel {
     var myOrderCartUnits = 0
     var myOrderCartOpenRequests = 0
     var pendingNewsDeletionId: String?
-    var pendingProducerCatalogVisibility: Bool?
     var selectedShiftSegment: ShiftBoardSegment = .delivery
     var isDeliveryCalendarEditorPresented = false
     var isDeliveryCalendarWeekPickerPresented = false
@@ -49,6 +49,7 @@ final class AccessRootViewModel {
 
     init(
         sessionViewModel: SessionViewModel,
+        productsFeatureDependencies: ProductsFeatureDependencies = .preview(),
         ordersFeatureDependencies: OrdersFeatureDependencies = .preview(),
         startupVersionGateUseCase: ResolveStartupVersionGateUseCase,
         shouldSkipSplashProvider: @escaping () -> Bool = {
@@ -59,6 +60,14 @@ final class AccessRootViewModel {
         }
     ) {
         self.sessionViewModel = sessionViewModel
+        self.productsViewModel = ProductsRouteViewModel(
+            sessionViewModel: sessionViewModel,
+            productRepository: productsFeatureDependencies.productRepository,
+            memberRepository: productsFeatureDependencies.memberRepository,
+            seasonalCommitmentRepository: productsFeatureDependencies.seasonalCommitmentRepository,
+            imagePipelineManager: productsFeatureDependencies.imagePipelineManager,
+            nowMillisProvider: productsFeatureDependencies.nowMillisProvider
+        )
         self.myOrderViewModel = MyOrderRouteViewModel(
             sessionViewModel: sessionViewModel,
             ordersRepository: ordersFeatureDependencies.ordersRepository,
@@ -171,6 +180,7 @@ final class AccessRootViewModel {
     }
 
     func handleSessionModeChange(_ mode: SessionMode) {
+        productsViewModel.handleSessionModeChange(mode)
         guard shellState.currentRoute != .splash else { return }
 
         switch mode {
@@ -179,6 +189,10 @@ final class AccessRootViewModel {
         case .signedOut:
             dispatchShell(.signedOut)
         }
+    }
+
+    func handleNowOverrideChange() {
+        productsViewModel.handleNowOverrideChange()
     }
 
     func handleScenePhaseChange(_ newPhase: ScenePhase) {

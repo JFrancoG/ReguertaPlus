@@ -11,6 +11,7 @@ struct ReguertaAppEnvironment {
         let db = Firestore.firestore()
         let deviceRepository = FirestoreDeviceRegistrationRepository(db: db)
         let reviewerEnvironmentRouter = FirestoreReviewerEnvironmentRouter(db: db)
+        let imagePipelineManager = FirebaseImagePipelineManager()
 
         #if DEBUG
         let developImpersonationEnabled = true
@@ -21,6 +22,7 @@ struct ReguertaAppEnvironment {
         let sessionViewModel = SessionViewModel(
             dependencies: .live(
                 db: db,
+                imagePipelineManager: imagePipelineManager,
                 authorizedDeviceRegistrar: FirebaseAuthorizedDeviceRegistrar(repository: deviceRepository),
                 reviewerEnvironmentRouter: reviewerEnvironmentRouter,
                 developImpersonationEnabled: developImpersonationEnabled,
@@ -32,8 +34,14 @@ struct ReguertaAppEnvironment {
             db: db,
             nowMillisProvider: { DevelopmentTimeMachine.shared.nowMillis() }
         )
+        let productsFeatureDependencies = ProductsFeatureDependencies.live(
+            db: db,
+            imagePipelineManager: imagePipelineManager,
+            nowMillisProvider: { DevelopmentTimeMachine.shared.nowMillis() }
+        )
         let accessRootViewModel = AccessRootViewModel(
             sessionViewModel: sessionViewModel,
+            productsFeatureDependencies: productsFeatureDependencies,
             ordersFeatureDependencies: ordersFeatureDependencies,
             startupVersionGateUseCase: ResolveStartupVersionGateUseCase(
                 repository: FirestoreStartupVersionPolicyRepository(db: db)
@@ -50,6 +58,7 @@ struct ReguertaAppEnvironment {
         let sessionViewModel = SessionViewModel(dependencies: .preview())
         let accessRootViewModel = AccessRootViewModel(
             sessionViewModel: sessionViewModel,
+            productsFeatureDependencies: .preview(),
             ordersFeatureDependencies: .preview(),
             startupVersionGateUseCase: ResolveStartupVersionGateUseCase(
                 repository: PreviewStartupVersionPolicyRepository()

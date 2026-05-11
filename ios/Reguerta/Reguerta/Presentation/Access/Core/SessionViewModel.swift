@@ -44,50 +44,6 @@ struct SharedProfileDraft: Equatable, Sendable {
     }
 }
 
-struct ProductDraft: Equatable, Sendable {
-    var name = ""
-    var description = ""
-    var productImageUrl = ""
-    var price = ""
-    var unitName = ""
-    var unitAbbreviation = ""
-    var unitPlural = ""
-    var unitQty = "1"
-    var packContainerName = ""
-    var packContainerAbbreviation = ""
-    var packContainerPlural = ""
-    var packContainerQty = ""
-    var isAvailable = true
-    var stockMode: ProductStockMode = .infinite
-    var stockQty = ""
-    var isEcoBasket = false
-    var isCommonPurchase = false
-    var commonPurchaseType: CommonPurchaseType?
-
-    var normalized: ProductDraft {
-        ProductDraft(
-            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
-            description: description.trimmingCharacters(in: .whitespacesAndNewlines),
-            productImageUrl: productImageUrl.trimmingCharacters(in: .whitespacesAndNewlines),
-            price: price.trimmingCharacters(in: .whitespacesAndNewlines),
-            unitName: unitName.trimmingCharacters(in: .whitespacesAndNewlines),
-            unitAbbreviation: unitAbbreviation.trimmingCharacters(in: .whitespacesAndNewlines),
-            unitPlural: unitPlural.trimmingCharacters(in: .whitespacesAndNewlines),
-            unitQty: unitQty.trimmingCharacters(in: .whitespacesAndNewlines),
-            packContainerName: packContainerName.trimmingCharacters(in: .whitespacesAndNewlines),
-            packContainerAbbreviation: packContainerAbbreviation.trimmingCharacters(in: .whitespacesAndNewlines),
-            packContainerPlural: packContainerPlural.trimmingCharacters(in: .whitespacesAndNewlines),
-            packContainerQty: packContainerQty.trimmingCharacters(in: .whitespacesAndNewlines),
-            isAvailable: isAvailable,
-            stockMode: stockMode,
-            stockQty: stockQty.trimmingCharacters(in: .whitespacesAndNewlines),
-            isEcoBasket: isEcoBasket,
-            isCommonPurchase: isCommonPurchase,
-            commonPurchaseType: commonPurchaseType
-        )
-    }
-}
-
 struct ShiftSwapDraft: Equatable, Sendable {
     var shiftId = ""
     var reason = ""
@@ -188,10 +144,6 @@ final class SessionViewModel {
     var newsDraft = NewsDraft()
     var notificationsFeed: [NotificationEvent] = []
     var notificationDraft = NotificationDraft()
-    var productsFeed: [Product] = []
-    var myOrderProductsFeed: [Product] = []
-    var myOrderSeasonalCommitmentsFeed: [SeasonalCommitment] = []
-    var productDraft = ProductDraft()
     var sharedProfiles: [SharedProfile] = []
     var sharedProfileDraft = SharedProfileDraft()
     var shiftsFeed: [ShiftAssignment] = []
@@ -204,18 +156,12 @@ final class SessionViewModel {
     var bylawsAnswerResult: BylawsAnswerResult?
     var nextDeliveryShift: ShiftAssignment?
     var nextMarketShift: ShiftAssignment?
-    var editingProductId: String?
     var editingNewsId: String?
     var isLoadingNews = false
     var isSavingNews = false
     var isUploadingNewsImage = false
     var isLoadingNotifications = false
     var isSendingNotification = false
-    var isLoadingProducts = false
-    var isLoadingMyOrderProducts = false
-    var isSavingProduct = false
-    var isUploadingProductImage = false
-    var isUpdatingProducerCatalogVisibility = false
     var isLoadingSharedProfiles = false
     var isSavingSharedProfile = false
     var isUploadingSharedProfileImage = false
@@ -232,9 +178,7 @@ final class SessionViewModel {
     let repository: any MemberRepository
     let newsRepository: any NewsRepository
     let notificationRepository: any NotificationRepository
-    let productRepository: any ProductRepository
     let imagePipelineManager: any ImagePipelineManager
-    let seasonalCommitmentRepository: any SeasonalCommitmentRepository
     let sharedProfileRepository: any SharedProfileRepository
     let shiftRepository: any ShiftRepository
     let deliveryCalendarRepository: any DeliveryCalendarRepository
@@ -292,9 +236,7 @@ final class SessionViewModel {
         self.repository = dependencies.repository
         self.newsRepository = dependencies.newsRepository
         self.notificationRepository = dependencies.notificationRepository
-        self.productRepository = dependencies.productRepository
         self.imagePipelineManager = dependencies.imagePipelineManager
-        self.seasonalCommitmentRepository = dependencies.seasonalCommitmentRepository
         self.sharedProfileRepository = dependencies.sharedProfileRepository
         self.shiftRepository = dependencies.shiftRepository
         self.deliveryCalendarRepository = dependencies.deliveryCalendarRepository
@@ -354,8 +296,6 @@ final class SessionViewModel {
     func setNowOverrideMillis(_ nowMillis: Int64?) {
         DevelopmentTimeMachine.shared.setOverrideNowMillis(nowMillis)
         nowOverrideMillis = nowMillis
-        refreshProducts()
-        refreshMyOrderProducts()
         refreshShifts()
         refreshDeliveryCalendar()
     }

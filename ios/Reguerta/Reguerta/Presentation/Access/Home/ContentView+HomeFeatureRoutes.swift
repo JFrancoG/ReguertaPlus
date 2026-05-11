@@ -139,9 +139,7 @@ extension AccessRootRoutingView {
     var productsRoute: some View {
         ProductsRouteView(
             tokens: tokens,
-            viewModel: viewModel,
-            currentHomeMember: currentHomeMember,
-            pendingProducerCatalogVisibility: rootBinding(\.pendingProducerCatalogVisibility)
+            viewModel: rootViewModel.productsViewModel
         )
     }
 
@@ -162,13 +160,13 @@ extension AccessRootRoutingView {
             tokens: tokens,
             viewModel: rootViewModel.myOrderViewModel,
             context: MyOrderRouteContext(
-                products: viewModel.myOrderProductsFeed,
-                seasonalCommitments: viewModel.myOrderSeasonalCommitmentsFeed,
+                products: rootViewModel.productsViewModel.myOrderProducts,
+                seasonalCommitments: rootViewModel.productsViewModel.myOrderSeasonalCommitments,
                 shifts: viewModel.shiftsFeed,
                 defaultDeliveryDayOfWeek: viewModel.defaultDeliveryDayOfWeek,
                 deliveryCalendarOverrides: viewModel.deliveryCalendarOverrides,
                 nowMillis: viewModel.nowOverrideMillis ?? Int64(Date().timeIntervalSince1970 * 1_000),
-                isLoading: viewModel.isLoadingMyOrderProducts,
+                isLoading: rootViewModel.productsViewModel.isLoadingOrderingProducts,
                 currentMember: currentHomeMember,
                 members: currentHomeSession?.members ?? []
             ),

@@ -5,9 +5,7 @@ struct SessionViewModelDependencies {
     let repository: any MemberRepository
     let newsRepository: any NewsRepository
     let notificationRepository: any NotificationRepository
-    let productRepository: any ProductRepository
     let imagePipelineManager: any ImagePipelineManager
-    let seasonalCommitmentRepository: any SeasonalCommitmentRepository
     let sharedProfileRepository: any SharedProfileRepository
     let shiftRepository: any ShiftRepository
     let deliveryCalendarRepository: any DeliveryCalendarRepository
@@ -62,15 +60,7 @@ struct SessionViewModelDependencies {
                 primary: FirestoreNotificationRepository(db: db),
                 fallback: InMemoryNotificationRepository()
             ),
-            productRepository: ChainedProductRepository(
-                primary: FirestoreProductRepository(db: db),
-                fallback: InMemoryProductRepository()
-            ),
             imagePipelineManager: imagePipelineManager ?? FirebaseImagePipelineManager(),
-            seasonalCommitmentRepository: ChainedSeasonalCommitmentRepository(
-                primary: FirestoreSeasonalCommitmentRepository(db: db),
-                fallback: InMemorySeasonalCommitmentRepository()
-            ),
             sharedProfileRepository: selectedSharedProfileRepository,
             shiftRepository: ChainedShiftRepository(
                 primary: FirestoreShiftRepository(db: db),
@@ -104,9 +94,7 @@ struct SessionViewModelDependencies {
             repository: repository,
             newsRepository: InMemoryNewsRepository(),
             notificationRepository: InMemoryNotificationRepository(),
-            productRepository: InMemoryProductRepository(),
             imagePipelineManager: NoOpImagePipelineManager(),
-            seasonalCommitmentRepository: InMemorySeasonalCommitmentRepository(),
             sharedProfileRepository: InMemorySharedProfileRepository(),
             shiftRepository: InMemoryShiftRepository(),
             deliveryCalendarRepository: InMemoryDeliveryCalendarRepository(),

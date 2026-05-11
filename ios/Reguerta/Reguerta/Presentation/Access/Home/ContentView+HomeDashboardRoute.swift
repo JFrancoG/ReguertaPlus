@@ -96,7 +96,7 @@ extension AccessRootRoutingView {
             myOrderSubtitleKey: summary.myOrderSubtitleKey,
             onOpenMyOrder: {
                 homeDestination = .myOrder
-                viewModel.refreshMyOrderProducts()
+                Task { await rootViewModel.productsViewModel.refreshOrderingProducts() }
             },
             onOpenReceivedOrders: {
                 homeDestination = .receivedOrders
@@ -142,11 +142,11 @@ extension AccessRootRoutingView {
             disabledMessageKey: disabledMessageKey,
             onOpenMyOrder: {
                 homeDestination = .myOrder
-                viewModel.refreshMyOrderProducts()
+                Task { await rootViewModel.productsViewModel.refreshOrderingProducts() }
             },
             onOpenProducts: {
                 homeDestination = .products
-                viewModel.refreshProducts()
+                Task { await rootViewModel.productsViewModel.refreshCatalog() }
             },
             onOpenShifts: {
                 homeDestination = .shifts

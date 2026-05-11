@@ -59,3 +59,11 @@ rutas SwiftUI reciben view models propiedad del root, mientras que checkout,
 pedido anterior, pedidos recibidos, escrituras de estado de productor y
 persistencia de carrito se acceden mediante dependencias `OrdersRepository` y
 `MyOrderCartStore`.
+
+Products es el segundo slice de feature migrado. `AccessRootViewModel` posee
+`ProductsRouteViewModel`, que recibe dependencias de productos, miembros,
+compromisos de temporada, pipeline de imagenes y reloj desde
+`ProductsFeatureDependencies`. `SessionViewModel` sigue siendo la fuente de
+sesion, pero ya no posee estado de catalogo, borradores de producto, subida de
+imagenes de producto, cambios de visibilidad del catalogo ni el feed de
+productos para pedidos.

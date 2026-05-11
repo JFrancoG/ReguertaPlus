@@ -2,26 +2,14 @@ import SwiftUI
 
 struct ProductsRouteView: View {
     let tokens: ReguertaDesignTokens
-    let viewModel: SessionViewModel
-    let currentHomeMember: Member?
-    @Binding var pendingProducerCatalogVisibility: Bool?
+    let viewModel: ProductsRouteViewModel
+
     private var activeProducts: [Product] {
-        viewModel.productsFeed.filter { !$0.archived }
+        viewModel.activeProducts
     }
+
     private var archivedProducts: [Product] {
-        viewModel.productsFeed.filter(\.archived)
-    }
-    private var isEditing: Bool {
-        viewModel.editingProductId != nil
-    }
-    private var isProducer: Bool {
-        currentHomeMember?.isProducer == true
-    }
-    private var canManageEcoBasket: Bool {
-        isProducer
-    }
-    private var canManageCommonPurchase: Bool {
-        currentHomeMember?.isCommonPurchaseManager == true && !isProducer
+        viewModel.archivedProducts
     }
 
     private func localizedKey(_ key: String) -> LocalizedStringKey {
@@ -30,47 +18,43 @@ struct ProductsRouteView: View {
 
     var body: some View {
         Group {
-            if isEditing {
+            if viewModel.isEditing {
                 ProductEditorCardView(
                     tokens: tokens,
                     viewModel: viewModel,
-                    canManageEcoBasket: canManageEcoBasket,
-                    canManageCommonPurchase: canManageCommonPurchase
+                    canManageEcoBasket: viewModel.canManageEcoBasket,
+                    canManageCommonPurchase: viewModel.canManageCommonPurchase
                 )
             } else {
                 ProductsListRouteView(
                     tokens: tokens,
                     viewModel: viewModel,
-                    currentHomeMember: currentHomeMember,
                     activeProducts: activeProducts,
-                    archivedProducts: archivedProducts,
-                    pendingProducerCatalogVisibility: $pendingProducerCatalogVisibility
+                    archivedProducts: archivedProducts
                 )
             }
         }
         .alert(
             localizedKey(
-                pendingProducerCatalogVisibility == true
+                viewModel.pendingCatalogVisibility == true
                     ? AccessL10nKey.productsCatalogVisibilityAlertTitleReactivate
                     : AccessL10nKey.productsCatalogVisibilityAlertTitlePause
             ),
             isPresented: Binding(
-                get: { pendingProducerCatalogVisibility != nil },
+                get: { viewModel.pendingCatalogVisibility != nil },
                 set: { presented in
                     if !presented {
-                        pendingProducerCatalogVisibility = nil
+                        viewModel.dismissCatalogVisibilityChange()
                     }
                 }
             ),
-            presenting: pendingProducerCatalogVisibility
-        ) { isEnabled in
+            presenting: viewModel.pendingCatalogVisibility
+        ) { _ in
             Button(localizedKey(AccessL10nKey.commonActionCancel), role: .cancel) {
-                pendingProducerCatalogVisibility = nil
+                viewModel.dismissCatalogVisibilityChange()
             }
             Button(localizedKey(AccessL10nKey.commonActionConfirm)) {
-                viewModel.setOwnProducerCatalogVisibility(isEnabled: isEnabled) {
-                    pendingProducerCatalogVisibility = nil
-                }
+                Task { await viewModel.confirmCatalogVisibilityChange() }
             }
         } message: { isEnabled in
             Text(
@@ -84,7 +68,7 @@ struct ProductsRouteView: View {
 
 private struct ProductEditorCardView: View {
     let tokens: ReguertaDesignTokens
-    let viewModel: SessionViewModel
+    let viewModel: ProductsRouteViewModel
     let canManageEcoBasket: Bool
     let canManageCommonPurchase: Bool
 
@@ -99,20 +83,22 @@ private struct ProductEditorCardView: View {
                     .font(tokens.typography.titleCard)
                 ReguertaImagePickerField(
                     tokens: tokens,
-                    imageURLString: viewModel.productDraft.productImageUrl,
-                    isUploading: viewModel.isUploadingProductImage,
+                    imageURLString: viewModel.draft.productImageUrl,
+                    isUploading: viewModel.isUploadingImage,
                     placeholderSystemImage: "photo",
                     subtitleKey: AccessL10nKey.productsEditorPlaceholderNotice,
-                    onPickImageData: viewModel.uploadProductImage,
-                    onClearImage: viewModel.clearProductImage,
+                    onPickImageData: { imageData in
+                        Task { await viewModel.uploadImage(imageData) }
+                    },
+                    onClearImage: viewModel.clearImage,
                     onImageSelectionFailed: {
-                        viewModel.feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
+                        viewModel.showUnableSaveFeedback()
                     },
                     onCameraPermissionDenied: {
-                        viewModel.feedbackMessageKey = AccessL10nKey.feedbackCameraPermissionRequired
+                        viewModel.showCameraPermissionRequiredFeedback()
                     },
                     onCameraUnavailable: {
-                        viewModel.feedbackMessageKey = AccessL10nKey.feedbackCameraUnavailable
+                        viewModel.showCameraUnavailableFeedback()
                     }
                 )
 
@@ -149,15 +135,15 @@ private struct ProductEditorCardView: View {
 
                     TextField(localizedKey(AccessL10nKey.productsEditorFieldStock), text: draftStringBinding(\.stockQty))
                         .textFieldStyle(.roundedBorder)
-                        .disabled(viewModel.productDraft.stockMode == .infinite)
+                        .disabled(viewModel.draft.stockMode == .infinite)
                 }
 
                 Toggle(localizedKey(AccessL10nKey.productsEditorToggleAvailable), isOn: draftBoolBinding(\.isAvailable))
 
                 Toggle(localizedKey(AccessL10nKey.productsEditorToggleUnlimitedStock), isOn: Binding(
-                    get: { viewModel.productDraft.stockMode == .infinite },
+                    get: { viewModel.draft.stockMode == .infinite },
                     set: { value in
-                        viewModel.updateProductDraft {
+                        viewModel.updateDraft {
                             $0.stockMode = value ? .infinite : .finite
                             if value {
                                 $0.stockQty = ""
@@ -172,9 +158,9 @@ private struct ProductEditorCardView: View {
 
                 if canManageCommonPurchase {
                     Toggle(localizedKey(AccessL10nKey.productsEditorToggleCommonPurchase), isOn: Binding(
-                        get: { viewModel.productDraft.isCommonPurchase },
+                        get: { viewModel.draft.isCommonPurchase },
                         set: { value in
-                            viewModel.updateProductDraft {
+                            viewModel.updateDraft {
                                 $0.isCommonPurchase = value
                                 if value, $0.commonPurchaseType == nil {
                                     $0.commonPurchaseType = .spot
@@ -186,13 +172,13 @@ private struct ProductEditorCardView: View {
                         }
                     ))
 
-                    if viewModel.productDraft.isCommonPurchase {
+                    if viewModel.draft.isCommonPurchase {
                         Picker(
                             localizedKey(AccessL10nKey.productsEditorPickerCommonPurchaseType),
                             selection: Binding(
-                                get: { viewModel.productDraft.commonPurchaseType ?? .spot },
+                                get: { viewModel.draft.commonPurchaseType ?? .spot },
                                 set: { value in
-                                    viewModel.updateProductDraft { $0.commonPurchaseType = value }
+                                    viewModel.updateDraft { $0.commonPurchaseType = value }
                                 }
                             )
                         ) {
@@ -206,17 +192,17 @@ private struct ProductEditorCardView: View {
                 HStack(spacing: tokens.spacing.sm) {
                     ReguertaButton(
                         LocalizedStringKey(
-                            viewModel.isSavingProduct
+                            viewModel.isSaving
                                 ? AccessL10nKey.productsEditorActionSaving
                                 : AccessL10nKey.productsEditorActionSave
                         ),
-                        isEnabled: !viewModel.isSavingProduct && !viewModel.isUploadingProductImage,
-                        isLoading: viewModel.isSavingProduct
+                        isEnabled: !viewModel.isSaving && !viewModel.isUploadingImage,
+                        isLoading: viewModel.isSaving
                     ) {
-                        viewModel.saveProduct()
+                        Task { await viewModel.save() }
                     }
                     ReguertaButton(localizedKey(AccessL10nKey.productsEditorActionBack), variant: .text, fullWidth: false) {
-                        viewModel.clearProductEditor()
+                        viewModel.clearEditor()
                     }
                 }
             }
@@ -225,18 +211,18 @@ private struct ProductEditorCardView: View {
 
     private func draftStringBinding(_ keyPath: WritableKeyPath<ProductDraft, String>) -> Binding<String> {
         Binding(
-            get: { viewModel.productDraft[keyPath: keyPath] },
+            get: { viewModel.draft[keyPath: keyPath] },
             set: { value in
-                viewModel.updateProductDraft { $0[keyPath: keyPath] = value }
+                viewModel.updateDraft { $0[keyPath: keyPath] = value }
             }
         )
     }
 
     private func draftBoolBinding(_ keyPath: WritableKeyPath<ProductDraft, Bool>) -> Binding<Bool> {
         Binding(
-            get: { viewModel.productDraft[keyPath: keyPath] },
+            get: { viewModel.draft[keyPath: keyPath] },
             set: { value in
-                viewModel.updateProductDraft { $0[keyPath: keyPath] = value }
+                viewModel.updateDraft { $0[keyPath: keyPath] = value }
             }
         )
     }
@@ -248,14 +234,12 @@ private struct ProductEditorCardView: View {
 
 private struct ProductsListRouteView: View {
     let tokens: ReguertaDesignTokens
-    let viewModel: SessionViewModel
-    let currentHomeMember: Member?
+    let viewModel: ProductsRouteViewModel
     let activeProducts: [Product]
     let archivedProducts: [Product]
-    @Binding var pendingProducerCatalogVisibility: Bool?
 
     private var isProducer: Bool {
-        currentHomeMember?.isProducer == true
+        viewModel.currentMember?.isProducer == true
     }
 
     private func localizedKey(_ key: String) -> LocalizedStringKey {
@@ -272,15 +256,15 @@ private struct ProductsListRouteView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         if isProducer {
                             Button {
-                                pendingProducerCatalogVisibility = !(currentHomeMember?.producerCatalogEnabled ?? true)
+                                viewModel.requestCatalogVisibilityChange()
                             } label: {
                                 Group {
-                                    if viewModel.isUpdatingProducerCatalogVisibility {
+                                    if viewModel.isUpdatingCatalogVisibility {
                                         ProgressView()
                                             .tint(tokens.colors.actionOnPrimary)
                                     } else {
                                         Text(
-                                            currentHomeMember?.producerCatalogEnabled == true
+                                            viewModel.currentMember?.producerCatalogEnabled == true
                                             ? localizedKey(AccessL10nKey.productsListBulkToggleDisableAll)
                                             : localizedKey(AccessL10nKey.productsListBulkToggleEnableAll)
                                         )
@@ -293,7 +277,7 @@ private struct ProductsListRouteView: View {
                                 .padding(.horizontal, tokens.spacing.md)
                                 .padding(.vertical, tokens.spacing.sm)
                                 .background(
-                                    currentHomeMember?.producerCatalogEnabled == true
+                                    viewModel.currentMember?.producerCatalogEnabled == true
                                     ? tokens.colors.feedbackWarning
                                     : tokens.colors.actionPrimary
                                 )
@@ -304,16 +288,16 @@ private struct ProductsListRouteView: View {
                                 )
                             }
                             .buttonStyle(.plain)
-                            .disabled(viewModel.isUpdatingProducerCatalogVisibility)
+                            .disabled(viewModel.isUpdatingCatalogVisibility)
                         }
                     }
                     ReguertaButton(localizedKey(AccessL10nKey.productsListActionReload), variant: .text, fullWidth: false) {
-                        viewModel.refreshProducts()
+                        Task { await viewModel.refreshCatalog() }
                     }
                 }
             }
 
-            if viewModel.isLoadingProducts {
+            if viewModel.isLoadingCatalog {
                 ReguertaCard {
                     Text(localizedKey(AccessL10nKey.productsListLoading))
                         .font(tokens.typography.bodySecondary)
@@ -331,8 +315,8 @@ private struct ProductsListRouteView: View {
                             tokens: tokens,
                             product: product,
                             archived: false,
-                            onEdit: { viewModel.startEditingProduct(productId: product.id) },
-                            onArchive: { viewModel.archiveProduct(productId: product.id) }
+                            onEdit: { viewModel.startEditing(productId: product.id) },
+                            onArchive: { Task { await viewModel.archive(productId: product.id) } }
                         )
                     }
                 }
@@ -346,7 +330,7 @@ private struct ProductsListRouteView: View {
                             tokens: tokens,
                             product: product,
                             archived: true,
-                            onEdit: { viewModel.startEditingProduct(productId: product.id) },
+                            onEdit: { viewModel.startEditing(productId: product.id) },
                             onArchive: {}
                         )
                     }
@@ -354,7 +338,7 @@ private struct ProductsListRouteView: View {
             }
 
             ReguertaButton(localizedKey(AccessL10nKey.productsListActionAdd)) {
-                viewModel.startCreatingProduct()
+                viewModel.startCreating()
             }
         }
     }
@@ -368,9 +352,7 @@ private struct ProductCardRowView: View {
     let onArchive: () -> Void
 
     private func decimalText(_ value: Double) -> String {
-        value.truncatingRemainder(dividingBy: 1) == 0
-            ? String(Int(value))
-            : String(value)
+        value.productUIDecimal
     }
 
     var body: some View {

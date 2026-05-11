@@ -2,7 +2,6 @@ import Foundation
 
 extension SessionViewModel {
     private struct AuthorizedSessionBootstrapData {
-        let products: [Product]
         let allNotifications: [NotificationEvent]
         let profiles: [SharedProfile]
         let shifts: [ShiftAssignment]
@@ -152,10 +151,6 @@ extension SessionViewModel {
         newsDraft = NewsDraft()
         notificationsFeed = []
         notificationDraft = NotificationDraft()
-        productsFeed = []
-        myOrderProductsFeed = []
-        myOrderSeasonalCommitmentsFeed = []
-        productDraft = ProductDraft()
         sharedProfiles = []
         sharedProfileDraft = SharedProfileDraft()
         shiftsFeed = []
@@ -163,18 +158,12 @@ extension SessionViewModel {
         shiftSwapDraft = ShiftSwapDraft()
         nextDeliveryShift = nil
         nextMarketShift = nil
-        editingProductId = nil
         editingNewsId = nil
         isLoadingNews = false
         isSavingNews = false
         isUploadingNewsImage = false
         isLoadingNotifications = false
         isSendingNotification = false
-        isLoadingProducts = false
-        isLoadingMyOrderProducts = false
-        isSavingProduct = false
-        isUploadingProductImage = false
-        isUpdatingProducerCatalogVisibility = false
         isLoadingSharedProfiles = false
         isSavingSharedProfile = false
         isUploadingSharedProfileImage = false
@@ -227,17 +216,14 @@ extension SessionViewModel {
         resetSessionContentState()
     }
 
-    private func setAuthorizedLoadingState(member: Member) {
+    private func setAuthorizedLoadingState(member _: Member) {
         isLoadingNews = true
         isLoadingNotifications = true
-        isLoadingProducts = member.canManageProductCatalog
-        isLoadingMyOrderProducts = false
         isLoadingSharedProfiles = true
         isLoadingShifts = true
     }
 
-    private func loadAuthorizedSessionBootstrapData(member: Member) async -> AuthorizedSessionBootstrapData {
-        async let products = productRepository.products(vendorId: member.id)
+    private func loadAuthorizedSessionBootstrapData(member _: Member) async -> AuthorizedSessionBootstrapData {
         async let allNotifications = notificationRepository.allNotifications()
         async let profiles = sharedProfileRepository.allSharedProfiles()
         async let shifts = shiftRepository.allShifts()
@@ -245,7 +231,6 @@ extension SessionViewModel {
         async let allNews = newsRepository.allNews()
 
         return await AuthorizedSessionBootstrapData(
-            products: products,
             allNotifications: allNotifications,
             profiles: profiles,
             shifts: shifts,
@@ -258,10 +243,6 @@ extension SessionViewModel {
         latestNews = data.allNews.filter(\.active).prefix(3).map { $0 }
         newsFeed = member.isAdmin ? data.allNews : data.allNews.filter(\.active)
         notificationsFeed = data.allNotifications.filter { $0.isVisible(to: member) }
-        productsFeed = data.products
-        myOrderProductsFeed = []
-        myOrderSeasonalCommitmentsFeed = []
-        productDraft = ProductDraft()
         sharedProfiles = data.profiles.filter(\.hasVisibleContent)
         sharedProfileDraft = data.profiles.first(where: { $0.userId == member.id })?.toDraft() ?? SharedProfileDraft()
         shiftsFeed = data.shifts
@@ -277,13 +258,25 @@ extension SessionViewModel {
             type: .market,
             nowMillis: nowMillisProvider()
         )
-        editingProductId = nil
         isLoadingNews = false
         isLoadingNotifications = false
-        isLoadingProducts = false
-        isLoadingMyOrderProducts = false
         isLoadingSharedProfiles = false
         isLoadingShifts = false
+    }
+
+    func applyUpdatedAuthorizedMember(_ updatedMember: Member, members: [Member]) {
+        guard case .authorized(let session) = mode else { return }
+
+        mode = .authorized(
+            AuthorizedSession(
+                principal: session.principal,
+                authenticatedMember: session.authenticatedMember.id == updatedMember.id
+                    ? updatedMember
+                    : session.authenticatedMember,
+                member: session.member.id == updatedMember.id ? updatedMember : session.member,
+                members: members
+            )
+        )
     }
 
     private func shouldShowUnauthorizedDialog(for email: String, reason: UnauthorizedReason) -> Bool {
