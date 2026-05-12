@@ -35,7 +35,8 @@ func myOrderContext(
     products: [Product] = [],
     seasonalCommitments: [SeasonalCommitment] = [],
     nowMillis: Int64? = nil,
-    currentMember: Member? = nil
+    currentMember: Member? = nil,
+    isLoading: Bool = false
 ) -> MyOrderRouteContext {
     let resolvedNowMillis = nowMillis ?? testMillis(year: 2026, month: 5, day: 14)
     let resolvedMember = currentMember ?? member(id: "member_1", ecoCommitmentMode: .weekly)
@@ -44,9 +45,9 @@ func myOrderContext(
         seasonalCommitments: seasonalCommitments,
         shifts: [],
         defaultDeliveryDayOfWeek: .wednesday,
-            deliveryCalendarOverrides: [],
+        deliveryCalendarOverrides: [],
         nowMillis: resolvedNowMillis,
-        isLoading: false,
+        isLoading: isLoading,
         currentMember: resolvedMember,
         members: [resolvedMember, producer(id: "producer_even", parity: .even)]
     )

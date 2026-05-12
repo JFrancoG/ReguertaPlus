@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import Reguerta
@@ -28,6 +29,80 @@ struct ReguertaOrdersViewModelTests {
         #expect(viewModel.confirmedQuantities == [product.id: 2])
         #expect(viewModel.isReadOnlyConfirmedView)
         #expect(viewModel.selectedUnits == 2)
+    }
+
+    @Test
+    func myOrderViewModelKeepsRestoredDraftWhileProductsLoad() async {
+        let cartStore = InMemoryMyOrderCartStore()
+        let product = regularProduct(id: "tomato", vendorId: "producer_even", name: "Tomates")
+        let storageKey = "member_member_1_week_2026-W20"
+        let restoredDraft = MyOrderCartSnapshot(
+            selectedQuantities: [product.id: 2],
+            selectedEcoBasketOptions: [:]
+        )
+        await cartStore.seedCart(restoredDraft, storageKey: storageKey)
+        let viewModel = makeMyOrderViewModel(cartStore: cartStore)
+
+        await viewModel.appear(context: myOrderContext(products: [], isLoading: true))
+        let storedWhileLoading = await cartStore.readCart(storageKey: storageKey)
+
+        #expect(viewModel.selectedQuantities == [product.id: 2])
+        #expect(storedWhileLoading.selectedQuantities == [product.id: 2])
+
+        await viewModel.appear(context: myOrderContext(products: [product], isLoading: false))
+
+        #expect(viewModel.selectedQuantities == [product.id: 2])
+        #expect(viewModel.selectedUnits == 2)
+    }
+
+    @Test
+    func myOrderViewModelKeepsRestoredDraftBeforeProductRefreshStarts() async {
+        let cartStore = InMemoryMyOrderCartStore()
+        let product = regularProduct(id: "tomato", vendorId: "producer_even", name: "Tomates")
+        let storageKey = "member_member_1_week_2026-W20"
+        let restoredDraft = MyOrderCartSnapshot(
+            selectedQuantities: [product.id: 2],
+            selectedEcoBasketOptions: [:]
+        )
+        await cartStore.seedCart(restoredDraft, storageKey: storageKey)
+        let viewModel = makeMyOrderViewModel(cartStore: cartStore)
+
+        await viewModel.appear(context: myOrderContext(products: [], isLoading: false))
+        let storedBeforeRefresh = await cartStore.readCart(storageKey: storageKey)
+
+        #expect(viewModel.selectedQuantities == [product.id: 2])
+        #expect(storedBeforeRefresh.selectedQuantities == [product.id: 2])
+
+        await viewModel.appear(context: myOrderContext(products: [product], isLoading: false))
+
+        #expect(viewModel.selectedQuantities == [product.id: 2])
+        #expect(viewModel.selectedUnits == 2)
+    }
+
+    @Test
+    func myOrderViewModelPersistsDraftImmediatelyInUserDefaultsCartStore() async {
+        let suiteName = "ReguertaOrdersViewModelTests.\(UUID().uuidString)"
+        guard let userDefaults = UserDefaults(suiteName: suiteName) else {
+            Issue.record("Expected test UserDefaults suite")
+            return
+        }
+        defer {
+            userDefaults.removePersistentDomain(forName: suiteName)
+        }
+        let product = regularProduct(id: "tomato", vendorId: "producer_even", name: "Tomates")
+        let storageKey = "member_member_1_week_2026-W20"
+        let viewModel = MyOrderRouteViewModel(
+            sessionViewModel: SessionViewModel(dependencies: .preview()),
+            ordersRepository: InMemoryOrdersRepository(),
+            cartStore: UserDefaultsMyOrderCartStore(userDefaults: userDefaults),
+            nowMillisProvider: { testMillis(year: 2026, month: 5, day: 14) }
+        )
+
+        await viewModel.appear(context: myOrderContext(products: [product]))
+        viewModel.increase(product)
+        let restoredDraft = readMyOrderCartSnapshot(userDefaults: userDefaults, storageKey: storageKey)
+
+        #expect(restoredDraft.selectedQuantities == [product.id: 1])
     }
 
     @Test

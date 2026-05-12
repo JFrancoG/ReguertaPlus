@@ -413,6 +413,8 @@ extension AccessRootViewModel {
         switch newPhase {
         case .active:
             sessionViewModel.refreshSession(trigger: .foreground)
+        case .inactive, .background:
+            myOrderViewModel.persistCurrentCartSnapshotIfNeeded()
         default:
             break
         }

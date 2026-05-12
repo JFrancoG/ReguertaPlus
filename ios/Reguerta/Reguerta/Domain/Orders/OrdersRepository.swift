@@ -38,3 +38,7 @@ protocol MyOrderCartStore {
     func readConfirmed(storageKey: String) async -> MyOrderCartSnapshot
     func persistConfirmed(storageKey: String, snapshot: MyOrderCartSnapshot) async
 }
+
+protocol ImmediateMyOrderCartStore: MyOrderCartStore {
+    func persistCartImmediately(storageKey: String, snapshot: MyOrderCartSnapshot)
+}

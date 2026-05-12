@@ -138,33 +138,14 @@ extension MyOrderRouteViewModel {
     }
 
     func sanitizeSelectedStateForCurrentProducts() {
+        guard !context.isLoading else { return }
+        guard !products.isEmpty || selectedQuantities.isEmpty else { return }
         let productsById = Dictionary(uniqueKeysWithValues: products.map { ($0.id, $0) })
-        let sanitizedQuantities = selectedQuantities.reduce(into: [String: Int]()) { partialResult, entry in
-            guard let product = productsById[entry.key] else { return }
-            guard entry.value > 0 else { return }
-            var allowedQuantity: Int
-            if let finiteLimit = finiteStockLimit(for: product) {
-                allowedQuantity = min(entry.value, finiteLimit)
-            } else {
-                allowedQuantity = entry.value
-            }
-            if let commitmentLimit = seasonalCommitmentUnitLimitsByProductId[entry.key] {
-                allowedQuantity = min(allowedQuantity, commitmentLimit)
-            }
-            if allowedQuantity > 0 {
-                partialResult[entry.key] = allowedQuantity
-            }
-        }
-        let sanitizedOptions = sanitizedQuantities.reduce(into: [String: String]()) { partialResult, entry in
-            guard entry.value > 0 else { return }
-            guard let product = productsById[entry.key], product.isEcoBasket else { return }
-            let option = selectedEcoBasketOptions[entry.key]
-            if option == ecoBasketOptionPickup || option == ecoBasketOptionNoPickup {
-                partialResult[entry.key] = option
-            } else {
-                partialResult[entry.key] = ecoBasketOptionPickup
-            }
-        }
+        let sanitizedQuantities = sanitizedSelectedQuantities(productsById: productsById)
+        let sanitizedOptions = sanitizedEcoBasketOptions(
+            sanitizedQuantities: sanitizedQuantities,
+            productsById: productsById
+        )
         let didChange = sanitizedQuantities != selectedQuantities || sanitizedOptions != selectedEcoBasketOptions
         selectedQuantities = sanitizedQuantities
         selectedEcoBasketOptions = sanitizedOptions
@@ -173,6 +154,42 @@ extension MyOrderRouteViewModel {
         }
         if didChange {
             persistCurrentCartSnapshotSoon()
+        }
+    }
+
+    func sanitizedSelectedQuantities(productsById: [String: Product]) -> [String: Int] {
+        selectedQuantities.reduce(into: [String: Int]()) { partialResult, entry in
+            guard let product = productsById[entry.key] else { return }
+            guard entry.value > 0 else { return }
+            let stockLimitedQuantity: Int
+            if let finiteLimit = finiteStockLimit(for: product) {
+                stockLimitedQuantity = min(entry.value, finiteLimit)
+            } else {
+                stockLimitedQuantity = entry.value
+            }
+            let allowedQuantity = min(
+                stockLimitedQuantity,
+                seasonalCommitmentUnitLimitsByProductId[entry.key] ?? stockLimitedQuantity
+            )
+            if allowedQuantity > 0 {
+                partialResult[entry.key] = allowedQuantity
+            }
+        }
+    }
+
+    func sanitizedEcoBasketOptions(
+        sanitizedQuantities: [String: Int],
+        productsById: [String: Product]
+    ) -> [String: String] {
+        sanitizedQuantities.reduce(into: [String: String]()) { partialResult, entry in
+            guard entry.value > 0 else { return }
+            guard let product = productsById[entry.key], product.isEcoBasket else { return }
+            let option = selectedEcoBasketOptions[entry.key]
+            if option == ecoBasketOptionPickup || option == ecoBasketOptionNoPickup {
+                partialResult[entry.key] = option
+            } else {
+                partialResult[entry.key] = ecoBasketOptionPickup
+            }
         }
     }
 

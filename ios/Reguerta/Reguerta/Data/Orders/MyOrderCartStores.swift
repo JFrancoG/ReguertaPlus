@@ -1,6 +1,6 @@
 import Foundation
 
-struct UserDefaultsMyOrderCartStore: MyOrderCartStore {
+struct UserDefaultsMyOrderCartStore: ImmediateMyOrderCartStore {
     private let userDefaults: UserDefaults
 
     init(userDefaults: UserDefaults = .standard) {
@@ -12,12 +12,17 @@ struct UserDefaultsMyOrderCartStore: MyOrderCartStore {
     }
 
     func persistCart(storageKey: String, snapshot: MyOrderCartSnapshot) async {
+        persistCartImmediately(storageKey: storageKey, snapshot: snapshot)
+    }
+
+    func persistCartImmediately(storageKey: String, snapshot: MyOrderCartSnapshot) {
         persistMyOrderCartSnapshot(
             userDefaults: userDefaults,
             storageKey: storageKey,
             selectedQuantities: snapshot.selectedQuantities,
             selectedEcoBasketOptions: snapshot.selectedEcoBasketOptions
         )
+        _ = userDefaults.synchronize()
     }
 
     func readConfirmed(storageKey: String) async -> MyOrderCartSnapshot {
@@ -31,6 +36,7 @@ struct UserDefaultsMyOrderCartStore: MyOrderCartStore {
             selectedQuantities: snapshot.selectedQuantities,
             selectedEcoBasketOptions: snapshot.selectedEcoBasketOptions
         )
+        _ = userDefaults.synchronize()
     }
 }
 

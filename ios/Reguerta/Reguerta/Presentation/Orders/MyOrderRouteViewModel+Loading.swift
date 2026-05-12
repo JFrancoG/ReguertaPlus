@@ -107,17 +107,24 @@ extension MyOrderRouteViewModel {
     }
 
     func persistCurrentCartSnapshotSoon() {
-        Task { [weak self] in
-            await self?.persistCurrentCartSnapshotIfNeeded()
-        }
+        persistCurrentCartSnapshotIfNeeded()
     }
 
-    func persistCurrentCartSnapshotIfNeeded() async {
+    func persistCurrentCartSnapshotIfNeeded() {
         guard hasRestoredCartState else { return }
         let snapshot = MyOrderCartSnapshot(
             selectedQuantities: selectedQuantities,
             selectedEcoBasketOptions: selectedEcoBasketOptions
         )
-        await cartStore.persistCart(storageKey: cartStorageKey, snapshot: snapshot)
+        if let immediateCartStore = cartStore as? any ImmediateMyOrderCartStore {
+            immediateCartStore.persistCartImmediately(storageKey: cartStorageKey, snapshot: snapshot)
+            return
+        }
+
+        let storageKey = cartStorageKey
+        let cartStore = cartStore
+        Task {
+            await cartStore.persistCart(storageKey: storageKey, snapshot: snapshot)
+        }
     }
 }

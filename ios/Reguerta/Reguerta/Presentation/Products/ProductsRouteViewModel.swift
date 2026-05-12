@@ -21,6 +21,7 @@ final class ProductsRouteViewModel {
     var editingProductId: String?
     var isLoadingCatalog = false
     var isLoadingOrderingProducts = false
+    var hasLoadedOrderingProducts = false
     var isSaving = false
     var isUploadingImage = false
     var isUpdatingCatalogVisibility = false
@@ -73,6 +74,7 @@ extension ProductsRouteViewModel {
     func handleSessionModeChange(_ mode: SessionMode) {
         switch mode {
         case .authorized(let session):
+            resetOrderingProductsIfSessionChanged(to: session)
             currentSession = session
             currentMember = session.member
             clearEditor()
@@ -118,6 +120,7 @@ extension ProductsRouteViewModel {
             myOrderProducts = []
             myOrderSeasonalCommitments = []
             isLoadingOrderingProducts = false
+            hasLoadedOrderingProducts = false
             return
         }
 
@@ -140,6 +143,7 @@ extension ProductsRouteViewModel {
         }
         myOrderProducts = visibleProducts
         myOrderSeasonalCommitments = commitments
+        hasLoadedOrderingProducts = true
         isLoadingOrderingProducts = false
     }
 
@@ -331,6 +335,7 @@ private extension ProductsRouteViewModel {
         catalogProducts = []
         myOrderProducts = []
         myOrderSeasonalCommitments = []
+        hasLoadedOrderingProducts = false
         draft = ProductDraft()
         editingProductId = nil
         isLoadingCatalog = false
@@ -346,8 +351,21 @@ private extension ProductsRouteViewModel {
             reset()
             return
         }
+        resetOrderingProductsIfSessionChanged(to: session)
         currentSession = session
         currentMember = session.member
+    }
+
+    private func resetOrderingProductsIfSessionChanged(to session: AuthorizedSession) {
+        guard let currentSession else { return }
+        guard currentSession.principal.uid != session.principal.uid ||
+            currentSession.member.id != session.member.id else {
+            return
+        }
+        myOrderProducts = []
+        myOrderSeasonalCommitments = []
+        hasLoadedOrderingProducts = false
+        isLoadingOrderingProducts = false
     }
 
     private func isCurrentSession(_ session: AuthorizedSession) -> Bool {

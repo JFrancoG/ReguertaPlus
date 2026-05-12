@@ -99,7 +99,8 @@ extension AccessRootRoutingView {
                 defaultDeliveryDayOfWeek: rootViewModel.shiftsViewModel.defaultDeliveryDayOfWeek,
                 deliveryCalendarOverrides: rootViewModel.shiftsViewModel.deliveryCalendarOverrides,
                 nowMillis: rootViewModel.shiftsViewModel.currentNowMillis,
-                isLoading: rootViewModel.productsViewModel.isLoadingOrderingProducts,
+                isLoading: rootViewModel.productsViewModel.isLoadingOrderingProducts ||
+                    !rootViewModel.productsViewModel.hasLoadedOrderingProducts,
                 currentMember: currentHomeMember,
                 members: currentHomeSession?.members ?? []
             ),
