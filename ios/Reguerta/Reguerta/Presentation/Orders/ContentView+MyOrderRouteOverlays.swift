@@ -58,32 +58,24 @@ extension MyOrderRouteView {
         .contentShape(Capsule())
     }
 
-    @ViewBuilder
-    func cartOverlay(proxy: GeometryProxy) -> some View {
-        let panelWidth = proxy.size.width
+    var cartOverlay: some View {
+        ZStack(alignment: .bottom) {
+            tokens.colors.surfacePrimary
 
-        HStack {
-            Spacer(minLength: 0)
-            ZStack(alignment: .bottom) {
-                tokens.colors.surfacePrimary
+            VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                cartOverlayHeader
+                cartOverlayProductsList
 
-                VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                    cartOverlayHeader
-                    cartOverlayProductsList
-
-                    Spacer(minLength: 0)
-                }
-                .padding(.top, tokens.spacing.xs)
-                .padding(.bottom, tokens.spacing.md)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-
-                cartOverlayCheckoutFooter
+                Spacer(minLength: 0)
             }
-            .frame(width: panelWidth)
-            .frame(maxHeight: .infinity, alignment: .top)
-            .offset(x: viewModel.isCartVisible ? 0 : panelWidth + 24.resize)
-            .animation(.easeInOut(duration: 0.22), value: viewModel.isCartVisible)
+            .padding(.top, tokens.spacing.xs)
+            .padding(.bottom, tokens.spacing.md)
+            .padding(.horizontal, tokens.spacing.lg)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+
+            cartOverlayCheckoutFooter
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .allowsHitTesting(viewModel.isCartVisible)
     }
 
@@ -116,33 +108,48 @@ extension MyOrderRouteView {
     @ViewBuilder
     var cartOverlayCheckoutFooter: some View {
         if !viewModel.isReadOnlyConfirmedView {
-            HStack {
-                Button {
-                    Task {
-                        await viewModel.validateCheckout()
+            let footerHeight = 64.resize
+            let bottomExtension = Swift.max(CGFloat(-24).resizeBottomSize, 0)
+            let footerShape = UnevenRoundedRectangle(
+                cornerRadii: RectangleCornerRadii(
+                    topLeading: 24.resize,
+                    bottomLeading: 0,
+                    bottomTrailing: 0,
+                    topTrailing: 24.resize
+                ),
+                style: .continuous
+            )
+
+            ZStack(alignment: .top) {
+                footerShape
+                    .fill(tokens.colors.surfaceSecondary.opacity(0.96))
+                    .ignoresSafeArea(.container, edges: .bottom)
+
+                HStack {
+                    Button {
+                        Task {
+                            await viewModel.validateCheckout()
+                        }
+                    } label: {
+                        Text(viewModel.finalizeCheckoutTitle)
+                            .font(tokens.typography.body.weight(.semibold))
+                            .foregroundStyle(tokens.colors.actionOnPrimary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, tokens.spacing.sm)
+                            .background(tokens.colors.actionPrimary)
+                            .clipShape(Capsule())
                     }
-                } label: {
-                    Text(viewModel.finalizeCheckoutTitle)
-                        .font(tokens.typography.body.weight(.semibold))
-                        .foregroundStyle(tokens.colors.actionOnPrimary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, tokens.spacing.sm)
-                        .background(tokens.colors.actionPrimary)
-                        .clipShape(Capsule())
+                    .buttonStyle(.plain)
+                    .disabled(!viewModel.canSubmitCheckout)
+                    .opacity(viewModel.canSubmitCheckout ? 1 : 0.55)
                 }
-                .buttonStyle(.plain)
-                .disabled(!viewModel.canSubmitCheckout)
-                .opacity(viewModel.canSubmitCheckout ? 1 : 0.55)
+                .padding(.horizontal, tokens.spacing.lg + tokens.spacing.md)
+                .frame(height: footerHeight, alignment: .center)
             }
-            .padding(tokens.spacing.md)
             .frame(maxWidth: .infinity)
-            .background(tokens.colors.surfaceSecondary.opacity(0.96))
-            .overlay(alignment: .top) {
-                Rectangle()
-                    .fill(tokens.colors.borderSubtle.opacity(0.8))
-                    .frame(height: 1.resize)
-            }
-            .shadow(color: .black.opacity(0.12), radius: 10.resize, y: -3.resize)
+            .frame(height: footerHeight + bottomExtension, alignment: .top)
+            .containerRelativeFrame(.horizontal, alignment: .center)
+            .shadow(color: .black.opacity(0.18), radius: 5.resize, y: -2.resize)
         }
     }
 

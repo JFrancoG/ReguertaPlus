@@ -1,107 +1,108 @@
 import SwiftUI
 
 extension AccessRootRoutingView {
+    @ViewBuilder
     var homeRoute: some View {
-        GeometryReader { proxy in
-            let drawerWidth = min(320.resize, proxy.size.width * 0.78)
-            let usesShellScroll =
-                homeDestination != .dashboard &&
-                homeDestination != .myOrder &&
-                homeDestination != .receivedOrders &&
-                homeDestination != .users
-            let isDrawerPresented = isHomeDrawerOpen || homeDrawerDragOffset > 0
+        let drawerWidth = 304.resize
+        let usesShellScroll =
+            homeDestination != .dashboard &&
+            homeDestination != .myOrder &&
+            homeDestination != .receivedOrders &&
+            homeDestination != .users
+        let isDrawerPresented = isHomeDrawerOpen || homeDrawerDragOffset > 0
 
-            ZStack(alignment: .leading) {
-                if isDrawerPresented {
-                    homeDrawerPanel(drawerWidth: drawerWidth)
-                        .zIndex(2)
-                }
+        ZStack(alignment: .leading) {
+            if isDrawerPresented {
+                homeDrawerPanel(drawerWidth: drawerWidth)
+                    .zIndex(2)
+            }
 
-                Group {
-                    if usesShellScroll {
-                        ScrollView(.vertical, showsIndicators: false) {
-                            VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-                                homeShellTopBar
-                                    .zIndex(1)
-                                homeRouteContent
-
-                                if feedbackCenter.messageKey != nil {
-                                    feedbackMessageRoute
-                                }
-                            }
-                            .padding(.top, 0)
-                            .padding(.bottom, tokens.spacing.xxl)
-                        }
-                        .scrollDismissesKeyboard(.interactively)
-                    } else {
+            Group {
+                if usesShellScroll {
+                    ScrollView(.vertical, showsIndicators: false) {
                         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
                             homeShellTopBar
+                                .padding(.horizontal, homeShellTopBarHorizontalPadding)
                                 .zIndex(1)
                             homeRouteContent
-                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
                             if feedbackCenter.messageKey != nil {
                                 feedbackMessageRoute
                             }
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                         .padding(.top, 0)
                         .padding(.bottom, tokens.spacing.xxl)
                     }
-                }
-                .disabled(isHomeDrawerOpen)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .background(tokens.colors.surfacePrimary.ignoresSafeArea(.container, edges: .bottom))
-                .ignoresSafeArea(.container, edges: .bottom)
-                .offset(x: resolvedHomeLayerOffset(drawerWidth: drawerWidth))
-                .shadow(color: .black.opacity(isHomeDrawerOpen ? 0.22 : 0), radius: 14.resize, x: -4.resize, y: 0)
-                .zIndex(1)
-                .animation(.spring(response: 0.28, dampingFraction: 0.82), value: isHomeDrawerOpen)
-                .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.84), value: homeDrawerDragOffset)
-                .overlay {
-                    if isHomeDrawerOpen {
-                        Color.black.opacity(0.08)
-                            .contentShape(Rectangle())
-                            .onTapGesture { closeHomeDrawer() }
+                    .scrollDismissesKeyboard(.interactively)
+                } else {
+                    VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                        homeShellTopBar
+                            .padding(.horizontal, homeShellTopBarHorizontalPadding)
+                            .zIndex(1)
+                        homeRouteContent
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+
+                        if feedbackCenter.messageKey != nil {
+                            feedbackMessageRoute
+                        }
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding(.top, 0)
+                    .padding(.bottom, tokens.spacing.xxl)
                 }
-                .gesture(
-                    DragGesture(minimumDistance: 12)
-                        .onChanged { gesture in
-                            if isHomeDrawerOpen {
-                                homeDrawerDragOffset = min(0, gesture.translation.width)
+            }
+            .disabled(isHomeDrawerOpen)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(tokens.colors.surfacePrimary.ignoresSafeArea(.container, edges: .bottom))
+            .ignoresSafeArea(.container, edges: .bottom)
+            .offset(x: resolvedHomeLayerOffset(drawerWidth: drawerWidth))
+            .shadow(color: .black.opacity(isHomeDrawerOpen ? 0.22 : 0), radius: 14.resize, x: -4.resize, y: 0)
+            .zIndex(1)
+            .animation(.spring(response: 0.28, dampingFraction: 0.82), value: isHomeDrawerOpen)
+            .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.84), value: homeDrawerDragOffset)
+            .overlay {
+                if isHomeDrawerOpen {
+                    Color.black.opacity(0.08)
+                        .contentShape(Rectangle())
+                        .onTapGesture { closeHomeDrawer() }
+                }
+            }
+            .gesture(
+                DragGesture(minimumDistance: 12)
+                    .onChanged { gesture in
+                        if isHomeDrawerOpen {
+                            homeDrawerDragOffset = min(0, gesture.translation.width)
+                        }
+                    }
+                    .onEnded { gesture in
+                        guard isHomeDrawerOpen else { return }
+                        if gesture.translation.width < -56.resize {
+                            closeHomeDrawer()
+                        } else {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                                homeDrawerDragOffset = 0
                             }
                         }
-                        .onEnded { gesture in
-                            guard isHomeDrawerOpen else { return }
-                            if gesture.translation.width < -56.resize {
-                                closeHomeDrawer()
-                            } else {
-                                withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                    }
+            )
+
+            if !isHomeDrawerOpen {
+                Color.clear
+                    .frame(width: 22.resize)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 12)
+                            .onChanged { gesture in
+                                homeDrawerDragOffset = max(0, min(drawerWidth, gesture.translation.width))
+                            }
+                            .onEnded { gesture in
+                                if gesture.translation.width > 48.resize {
+                                    openHomeDrawer()
+                                } else {
                                     homeDrawerDragOffset = 0
                                 }
                             }
-                        }
-                )
-
-                if !isHomeDrawerOpen {
-                    Color.clear
-                        .frame(width: 22.resize)
-                        .contentShape(Rectangle())
-                        .gesture(
-                            DragGesture(minimumDistance: 12)
-                                .onChanged { gesture in
-                                    homeDrawerDragOffset = max(0, min(drawerWidth, gesture.translation.width))
-                                }
-                                .onEnded { gesture in
-                                    if gesture.translation.width > 48.resize {
-                                        openHomeDrawer()
-                                    } else {
-                                        homeDrawerDragOffset = 0
-                                    }
-                                }
-                        )
-                }
+                    )
             }
         }
     }
@@ -151,6 +152,10 @@ extension AccessRootRoutingView {
             return "Pedido"
         }
         return nil
+    }
+
+    var homeShellTopBarHorizontalPadding: CGFloat {
+        homeDestination == .myOrder ? tokens.spacing.lg : 0
     }
 
     func homeDrawerPanel(drawerWidth: CGFloat) -> some View {

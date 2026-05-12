@@ -209,18 +209,16 @@ struct AuthShellView: AccessRootRoutingView {
         if shellState.currentRoute == .splash {
             splashRoute
         } else {
-            GeometryReader { proxy in
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-                        currentAuthRoute
-                        feedbackMessageRoute
-                    }
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
-                    .frame(minHeight: proxy.size.height, alignment: .top)
-                    .padding(.bottom, tokens.spacing.md)
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                    currentAuthRoute
+                    feedbackMessageRoute
                 }
-                .scrollDismissesKeyboard(.interactively)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .containerRelativeFrame(.vertical, alignment: .top)
+                .padding(.bottom, tokens.spacing.md)
             }
+            .scrollDismissesKeyboard(.interactively)
         }
     }
 }
