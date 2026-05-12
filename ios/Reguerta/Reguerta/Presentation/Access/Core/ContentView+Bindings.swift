@@ -15,60 +15,6 @@ extension AccessRootRoutingView {
         )
     }
 
-    var newsTitleBinding: Binding<String> {
-        Binding(
-            get: { viewModel.newsDraft.title },
-            set: { value in
-                viewModel.updateNewsDraft { $0.title = value }
-            }
-        )
-    }
-
-    var newsBodyBinding: Binding<String> {
-        Binding(
-            get: { viewModel.newsDraft.body },
-            set: { value in
-                viewModel.updateNewsDraft { $0.body = value }
-            }
-        )
-    }
-
-    var newsActiveBinding: Binding<Bool> {
-        Binding(
-            get: { viewModel.newsDraft.active },
-            set: { value in
-                viewModel.updateNewsDraft { $0.active = value }
-            }
-        )
-    }
-
-    var notificationTitleBinding: Binding<String> {
-        Binding(
-            get: { viewModel.notificationDraft.title },
-            set: { value in
-                viewModel.updateNotificationDraft { $0.title = value }
-            }
-        )
-    }
-
-    var notificationBodyBinding: Binding<String> {
-        Binding(
-            get: { viewModel.notificationDraft.body },
-            set: { value in
-                viewModel.updateNotificationDraft { $0.body = value }
-            }
-        )
-    }
-
-    var notificationAudienceBinding: Binding<NotificationAudience> {
-        Binding(
-            get: { viewModel.notificationDraft.audience },
-            set: { value in
-                viewModel.updateNotificationDraft { $0.audience = value }
-            }
-        )
-    }
-
     func localizedKey(_ key: String) -> LocalizedStringKey {
         LocalizedStringKey(key)
     }
@@ -89,11 +35,6 @@ extension AccessRootRoutingView {
         case .signedOut, .unauthorized:
             return nil
         }
-    }
-
-    var pendingNewsDeletionArticle: NewsArticle? {
-        guard let pendingNewsDeletionId else { return nil }
-        return viewModel.newsFeed.first(where: { $0.id == pendingNewsDeletionId })
     }
 
     func displayName(for userId: String, session: AuthorizedSession) -> String {

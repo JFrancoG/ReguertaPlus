@@ -2,47 +2,63 @@ import SwiftUI
 
 struct NewsListRouteView: View {
     let tokens: ReguertaDesignTokens
-    let isLoadingNews: Bool
-    let newsFeed: [NewsArticle]
-    let isAdmin: Bool
+    let viewModel: NewsNotificationsFeatureViewModel
     let newsMetaText: (NewsArticle) -> String
     let onCreateNews: () -> Void
-    let onRefreshNews: () -> Void
-    let onEditNews: (String) -> Void
-    let onDeleteNews: (String) -> Void
+    let onEditNews: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
             NewsListHeaderCardView(
                 tokens: tokens,
-                isAdmin: isAdmin,
-                onCreateNews: onCreateNews,
-                onRefreshNews: onRefreshNews
+                isAdmin: viewModel.canPublishNews,
+                onCreateNews: createNews,
+                onRefreshNews: refreshNews
             )
 
-            if isLoadingNews {
+            if viewModel.isLoadingNews {
                 ReguertaCard {
                     Text(LocalizedStringKey(AccessL10nKey.newsLoading))
                         .font(tokens.typography.bodySecondary)
                 }
-            } else if newsFeed.isEmpty {
+            } else if viewModel.newsFeed.isEmpty {
                 ReguertaCard {
                     Text(LocalizedStringKey(AccessL10nKey.newsEmptyState))
                         .font(tokens.typography.bodySecondary)
                 }
             } else {
-                ForEach(newsFeed) { article in
+                ForEach(viewModel.newsFeed) { article in
                     NewsArticleCardView(
                         tokens: tokens,
                         article: article,
-                        isAdmin: isAdmin,
+                        isAdmin: viewModel.canPublishNews,
                         newsMetaText: newsMetaText,
-                        onEditNews: onEditNews,
-                        onDeleteNews: onDeleteNews
+                        onEditNews: editNews,
+                        onDeleteNews: requestNewsDeletion
                     )
                 }
             }
         }
+    }
+
+    private func createNews() {
+        if viewModel.startCreatingNews() {
+            onCreateNews()
+        }
+    }
+
+    private func refreshNews() {
+        Task { await viewModel.refreshNews() }
+    }
+
+    private func editNews(_ newsId: String) {
+        if viewModel.startEditingNews(newsId: newsId) {
+            onEditNews()
+        }
+    }
+
+    private func requestNewsDeletion(_ newsId: String) {
+        viewModel.requestNewsDeletion(newsId: newsId)
     }
 }
 
@@ -127,34 +143,56 @@ private struct NewsArticleCardView: View {
 
 struct NewsEditorRouteView: View {
     let tokens: ReguertaDesignTokens
-    let editingNewsId: String?
-    @Binding var newsTitle: String
-    let newsImageURL: String
-    @Binding var newsBody: String
-    @Binding var newsActive: Bool
-    let isSavingNews: Bool
-    let isUploadingNewsImage: Bool
-    let onPickNewsImage: (Data) -> Void
-    let onClearNewsImage: () -> Void
-    let onImageSelectionFailed: () -> Void
-    let onCameraPermissionDenied: () -> Void
-    let onCameraUnavailable: () -> Void
-    let onSave: () -> Void
+    let viewModel: NewsNotificationsFeatureViewModel
+    let onSaveSuccess: () -> Void
     let onBack: () -> Void
 
     private var editorTitleKey: String {
-        editingNewsId == nil
+        viewModel.editingNewsId == nil
             ? AccessL10nKey.newsEditorTitleCreate
             : AccessL10nKey.newsEditorTitleEdit
     }
 
     private var saveActionKey: String {
-        if isSavingNews {
+        if viewModel.isSavingNews {
             return AccessL10nKey.newsSaveActionSaving
         }
-        return editingNewsId == nil
+        return viewModel.editingNewsId == nil
             ? AccessL10nKey.newsSaveActionCreate
             : AccessL10nKey.newsSaveActionUpdate
+    }
+
+    private var newsTitle: Binding<String> {
+        Binding(
+            get: { viewModel.newsDraft.title },
+            set: { value in
+                viewModel.updateNewsDraft { draft in
+                    draft.title = value
+                }
+            }
+        )
+    }
+
+    private var newsBody: Binding<String> {
+        Binding(
+            get: { viewModel.newsDraft.body },
+            set: { value in
+                viewModel.updateNewsDraft { draft in
+                    draft.body = value
+                }
+            }
+        )
+    }
+
+    private var newsActive: Binding<Bool> {
+        Binding(
+            get: { viewModel.newsDraft.active },
+            set: { value in
+                viewModel.updateNewsDraft { draft in
+                    draft.active = value
+                }
+            }
+        )
     }
 
     var body: some View {
@@ -169,20 +207,20 @@ struct NewsEditorRouteView: View {
 
                 ReguertaImagePickerField(
                     tokens: tokens,
-                    imageURLString: newsImageURL,
-                    isUploading: isUploadingNewsImage,
+                    imageURLString: viewModel.newsDraft.urlImage,
+                    isUploading: viewModel.isUploadingNewsImage,
                     placeholderSystemImage: "photo",
                     subtitleKey: nil,
-                    onPickImageData: onPickNewsImage,
-                    onClearImage: onClearNewsImage,
-                    onImageSelectionFailed: onImageSelectionFailed,
-                    onCameraPermissionDenied: onCameraPermissionDenied,
-                    onCameraUnavailable: onCameraUnavailable
+                    onPickImageData: uploadNewsImage,
+                    onClearImage: viewModel.clearNewsImage,
+                    onImageSelectionFailed: viewModel.reportImageSelectionFailed,
+                    onCameraPermissionDenied: viewModel.reportCameraPermissionDenied,
+                    onCameraUnavailable: viewModel.reportCameraUnavailable
                 )
 
                 TextField(
                     "",
-                    text: $newsTitle,
+                    text: newsTitle,
                     prompt: Text(LocalizedStringKey(AccessL10nKey.newsFieldTitle))
                 )
                 .textFieldStyle(.roundedBorder)
@@ -190,63 +228,77 @@ struct NewsEditorRouteView: View {
                 Text(LocalizedStringKey(AccessL10nKey.newsFieldBody))
                     .font(tokens.typography.label)
                     .foregroundStyle(tokens.colors.textSecondary)
-                TextEditor(text: $newsBody)
+                TextEditor(text: newsBody)
                     .frame(minHeight: 180.resize)
                     .padding(tokens.spacing.sm)
                     .background(tokens.colors.surfaceSecondary)
                     .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
 
-                Toggle(LocalizedStringKey(AccessL10nKey.newsFieldActive), isOn: $newsActive)
+                Toggle(LocalizedStringKey(AccessL10nKey.newsFieldActive), isOn: newsActive)
 
                 ReguertaButton(
                     LocalizedStringKey(saveActionKey),
-                    isEnabled: !isSavingNews && !isUploadingNewsImage,
-                    isLoading: isSavingNews,
-                    action: onSave
+                    isEnabled: !viewModel.isSavingNews && !viewModel.isUploadingNewsImage,
+                    isLoading: viewModel.isSavingNews,
+                    action: saveNews
                 )
 
                 ReguertaButton(
                     LocalizedStringKey(AccessL10nKey.commonBack),
                     variant: .text,
-                    action: onBack
+                    action: back
                 )
 
                 Spacer(minLength: tokens.spacing.sm)
             }
         }
     }
+
+    private func uploadNewsImage(_ imageData: Data) {
+        Task { await viewModel.uploadNewsImage(imageData) }
+    }
+
+    private func saveNews() {
+        Task {
+            if await viewModel.saveNews() {
+                onSaveSuccess()
+            }
+        }
+    }
+
+    private func back() {
+        viewModel.clearNewsEditor()
+        onBack()
+    }
 }
 
 struct NotificationsListRouteView: View {
     let tokens: ReguertaDesignTokens
-    let isLoadingNotifications: Bool
-    let notificationsFeed: [NotificationEvent]
-    let isAdmin: Bool
+    let viewModel: NewsNotificationsFeatureViewModel
     let notificationMetaText: (NotificationEvent) -> String
     let onCreateNotification: () -> Void
-    let onRefreshNotifications: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
             NotificationsListHeaderCardView(
                 tokens: tokens,
-                isAdmin: isAdmin,
-                onCreateNotification: onCreateNotification,
-                onRefreshNotifications: onRefreshNotifications
+                isAdmin: viewModel.canSendAdminNotifications,
+                onCreateNotification: createNotification,
+                onRefreshNotifications: refreshNotifications
             )
 
-            if isLoadingNotifications {
+            if viewModel.isLoadingNotifications {
                 ReguertaCard {
                     Text(LocalizedStringKey(AccessL10nKey.notificationsLoading))
                         .font(tokens.typography.bodySecondary)
                 }
-            } else if notificationsFeed.isEmpty {
+            } else if viewModel.notificationsFeed.isEmpty {
                 ReguertaCard {
                     Text(LocalizedStringKey(AccessL10nKey.notificationsEmptyState))
                         .font(tokens.typography.bodySecondary)
                 }
             } else {
-                ForEach(notificationsFeed) { notification in
+                ForEach(viewModel.notificationsFeed) { notification in
                     NotificationCardView(
                         tokens: tokens,
                         notification: notification,
@@ -255,6 +307,16 @@ struct NotificationsListRouteView: View {
                 }
             }
         }
+    }
+
+    private func createNotification() {
+        if viewModel.startCreatingNotification() {
+            onCreateNotification()
+        }
+    }
+
+    private func refreshNotifications() {
+        Task { await viewModel.refreshNotifications() }
     }
 }
 
@@ -314,17 +376,47 @@ private struct NotificationCardView: View {
 
 struct NotificationEditorRouteView: View {
     let tokens: ReguertaDesignTokens
-    @Binding var notificationTitle: String
-    @Binding var notificationBody: String
-    @Binding var notificationAudience: NotificationAudience
-    let isSendingNotification: Bool
-    let onSend: () -> Void
+    let viewModel: NewsNotificationsFeatureViewModel
+    let onSendSuccess: () -> Void
     let onBack: () -> Void
 
     private var sendActionKey: String {
-        isSendingNotification
+        viewModel.isSendingNotification
             ? AccessL10nKey.notificationsSendActionSending
             : AccessL10nKey.notificationsSendActionSend
+    }
+
+    private var notificationTitle: Binding<String> {
+        Binding(
+            get: { viewModel.notificationDraft.title },
+            set: { value in
+                viewModel.updateNotificationDraft { draft in
+                    draft.title = value
+                }
+            }
+        )
+    }
+
+    private var notificationBody: Binding<String> {
+        Binding(
+            get: { viewModel.notificationDraft.body },
+            set: { value in
+                viewModel.updateNotificationDraft { draft in
+                    draft.body = value
+                }
+            }
+        )
+    }
+
+    private var notificationAudience: Binding<NotificationAudience> {
+        Binding(
+            get: { viewModel.notificationDraft.audience },
+            set: { value in
+                viewModel.updateNotificationDraft { draft in
+                    draft.audience = value
+                }
+            }
+        )
     }
 
     var body: some View {
@@ -339,7 +431,7 @@ struct NotificationEditorRouteView: View {
 
                 TextField(
                     "",
-                    text: $notificationTitle,
+                    text: notificationTitle,
                     prompt: Text(LocalizedStringKey(AccessL10nKey.notificationsFieldTitle))
                 )
                 .textFieldStyle(.roundedBorder)
@@ -347,7 +439,7 @@ struct NotificationEditorRouteView: View {
                 Text(LocalizedStringKey(AccessL10nKey.notificationsFieldBody))
                     .font(tokens.typography.label)
                     .foregroundStyle(tokens.colors.textSecondary)
-                TextEditor(text: $notificationBody)
+                TextEditor(text: notificationBody)
                     .frame(minHeight: 180.resize)
                     .padding(tokens.spacing.sm)
                     .background(tokens.colors.surfaceSecondary)
@@ -355,7 +447,7 @@ struct NotificationEditorRouteView: View {
 
                 Picker(
                     LocalizedStringKey(AccessL10nKey.notificationsFieldAudience),
-                    selection: $notificationAudience
+                    selection: notificationAudience
                 ) {
                     ForEach(NotificationAudience.allCases, id: \.self) { audience in
                         Text(LocalizedStringKey(audience.titleKey)).tag(audience)
@@ -364,17 +456,30 @@ struct NotificationEditorRouteView: View {
 
                 ReguertaButton(
                     LocalizedStringKey(sendActionKey),
-                    isEnabled: !isSendingNotification,
-                    isLoading: isSendingNotification,
-                    action: onSend
+                    isEnabled: !viewModel.isSendingNotification,
+                    isLoading: viewModel.isSendingNotification,
+                    action: sendNotification
                 )
 
                 ReguertaButton(
                     LocalizedStringKey(AccessL10nKey.commonBack),
                     variant: .text,
-                    action: onBack
+                    action: back
                 )
             }
         }
+    }
+
+    private func sendNotification() {
+        Task {
+            if await viewModel.sendNotification() {
+                onSendSuccess()
+            }
+        }
+    }
+
+    private func back() {
+        viewModel.clearNotificationEditor()
+        onBack()
     }
 }

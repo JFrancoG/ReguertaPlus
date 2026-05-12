@@ -23,12 +23,13 @@ struct ReguertaAppEnvironment {
 
     static func preview() -> ReguertaAppEnvironment {
         let notificationRepository = InMemoryNotificationRepository()
-        let sessionViewModel = SessionViewModel(dependencies: .preview(notificationRepository: notificationRepository))
+        let sessionViewModel = SessionViewModel(dependencies: .preview())
         let accessRootViewModel = AccessRootViewModel(
             sessionViewModel: sessionViewModel,
             productsFeatureDependencies: .preview(),
             ordersFeatureDependencies: .preview(),
             shiftsFeatureDependencies: .preview(notificationRepository: notificationRepository),
+            newsNotificationsFeatureDependencies: .preview(notificationRepository: notificationRepository),
             startupVersionGateUseCase: ResolveStartupVersionGateUseCase(
                 repository: PreviewStartupVersionPolicyRepository()
             ),
@@ -69,7 +70,6 @@ private func makeLiveSessionViewModel(_ dependencies: LiveRootDependencies) -> S
     SessionViewModel(
         dependencies: .live(
             db: dependencies.db,
-            notificationRepository: dependencies.notificationRepository,
             imagePipelineManager: dependencies.imagePipelineManager,
             authorizedDeviceRegistrar: FirebaseAuthorizedDeviceRegistrar(
                 repository: FirestoreDeviceRegistrationRepository(db: dependencies.db)
@@ -98,6 +98,12 @@ private func makeLiveAccessRootViewModel(
         ),
         shiftsFeatureDependencies: ShiftsFeatureDependencies.live(
             db: dependencies.db,
+            notificationRepository: dependencies.notificationRepository,
+            nowMillisProvider: { DevelopmentTimeMachine.shared.nowMillis() }
+        ),
+        newsNotificationsFeatureDependencies: NewsNotificationsFeatureDependencies.live(
+            db: dependencies.db,
+            imagePipelineManager: dependencies.imagePipelineManager,
             notificationRepository: dependencies.notificationRepository,
             nowMillisProvider: { DevelopmentTimeMachine.shared.nowMillis() }
         ),

@@ -77,3 +77,14 @@ workflow de cambios, estado del calendario de entregas, solicitudes de
 planificacion admin ni el override de reloj develop. Orders consume turnos y
 calendario de entregas desde el view model de Shifts propiedad del root para que
 las ventanas de pedido sigan compartidas sin reintroducir dependencias ocultas.
+
+News/Notifications es el cuarto slice de feature migrado. `AccessRootViewModel`
+posee `NewsNotificationsFeatureViewModel`, que recibe dependencias de noticias,
+notificaciones, pipeline de imagenes y reloj desde
+`NewsNotificationsFeatureDependencies`. `SessionViewModel` sigue siendo la
+fuente de sesion, SharedProfile, bylaws y feedback global, pero ya no posee
+feeds de noticias, borradores de noticias, subida de imagenes de noticias, feeds
+de notificaciones, borradores de broadcasts ni workflows admin de envio o
+borrado. Shifts y News/Notifications pueden compartir una unica instancia de
+`NotificationRepository` desde el contenedor raiz cuando ambos slices necesitan
+publicar o leer eventos de notificacion.

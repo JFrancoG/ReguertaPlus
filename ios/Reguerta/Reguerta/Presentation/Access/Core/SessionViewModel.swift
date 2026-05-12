@@ -13,19 +13,6 @@ struct MemberDraft: Equatable, Sendable {
     var isActive = true
 }
 
-struct NewsDraft: Equatable, Sendable {
-    var title = ""
-    var body = ""
-    var urlImage = ""
-    var active = true
-}
-
-struct NotificationDraft: Equatable, Sendable {
-    var title = ""
-    var body = ""
-    var audience: NotificationAudience = .all
-}
-
 struct SharedProfileDraft: Equatable, Sendable {
     var familyNames = ""
     var photoUrl = ""
@@ -134,21 +121,10 @@ final class SessionViewModel {
     var memberDraft = MemberDraft()
     var feedbackMessageKey: String?
     var myOrderFreshnessState: MyOrderFreshnessState = .idle
-    var latestNews: [NewsArticle] = []
-    var newsFeed: [NewsArticle] = []
-    var newsDraft = NewsDraft()
-    var notificationsFeed: [NotificationEvent] = []
-    var notificationDraft = NotificationDraft()
     var sharedProfiles: [SharedProfile] = []
     var sharedProfileDraft = SharedProfileDraft()
     var bylawsQueryInput = ""
     var bylawsAnswerResult: BylawsAnswerResult?
-    var editingNewsId: String?
-    var isLoadingNews = false
-    var isSavingNews = false
-    var isUploadingNewsImage = false
-    var isLoadingNotifications = false
-    var isSendingNotification = false
     var isLoadingSharedProfiles = false
     var isSavingSharedProfile = false
     var isUploadingSharedProfileImage = false
@@ -156,8 +132,6 @@ final class SessionViewModel {
     var isAskingBylaws = false
 
     let repository: any MemberRepository
-    let newsRepository: any NewsRepository
-    let notificationRepository: any NotificationRepository
     let imagePipelineManager: any ImagePipelineManager
     let sharedProfileRepository: any SharedProfileRepository
     let authSessionProvider: any AuthSessionProvider
@@ -210,8 +184,6 @@ final class SessionViewModel {
 
     init(dependencies: SessionViewModelDependencies) {
         self.repository = dependencies.repository
-        self.newsRepository = dependencies.newsRepository
-        self.notificationRepository = dependencies.notificationRepository
         self.imagePipelineManager = dependencies.imagePipelineManager
         self.sharedProfileRepository = dependencies.sharedProfileRepository
         self.authSessionProvider = dependencies.authSessionProvider
@@ -228,7 +200,6 @@ final class SessionViewModel {
 
     convenience init(
         repository: (any MemberRepository)? = nil,
-        notificationRepository: (any NotificationRepository)? = nil,
         sharedProfileRepository: (any SharedProfileRepository)? = nil,
         imagePipelineManager: (any ImagePipelineManager)? = nil,
         authSessionProvider: (any AuthSessionProvider)? = nil,
@@ -243,7 +214,6 @@ final class SessionViewModel {
         self.init(
             dependencies: .live(
                 repository: repository,
-                notificationRepository: notificationRepository,
                 sharedProfileRepository: sharedProfileRepository,
                 imagePipelineManager: imagePipelineManager,
                 authSessionProvider: authSessionProvider,

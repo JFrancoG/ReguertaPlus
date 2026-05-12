@@ -125,7 +125,7 @@ extension AccessRootRoutingView {
     var latestNewsCard: some View {
         LatestNewsCardView(
             tokens: tokens,
-            latestNews: viewModel.latestNews
+            latestNews: rootViewModel.newsNotificationsViewModel.latestNews
         )
     }
 

@@ -113,7 +113,7 @@ extension AccessRootRoutingView {
             titleOverride: homeShellTitleOverride,
             showsBack: homeDestination != .dashboard,
             showsNotificationsAction: homeDestination == .dashboard,
-            hasNotificationIndicator: !viewModel.notificationsFeed.isEmpty,
+            hasNotificationIndicator: !rootViewModel.newsNotificationsViewModel.notificationsFeed.isEmpty,
             showsCartAction: homeDestination == .myOrder,
             cartUnits: myOrderCartUnits,
             showsCartBadge: homeDestination != .myOrder,
@@ -121,10 +121,10 @@ extension AccessRootRoutingView {
                 if homeDestination == .dashboard {
                     openHomeDrawer()
                 } else if homeDestination == .publishNews {
-                    viewModel.clearNewsEditor()
+                    rootViewModel.newsNotificationsViewModel.clearNewsEditor()
                     homeDestination = .news
                 } else if homeDestination == .adminBroadcast {
-                    viewModel.clearNotificationEditor()
+                    rootViewModel.newsNotificationsViewModel.clearNotificationEditor()
                     homeDestination = .notifications
                 } else if homeDestination == .shiftSwapRequest {
                     rootViewModel.shiftsViewModel.clearShiftSwapDraft()
@@ -135,7 +135,7 @@ extension AccessRootRoutingView {
             },
             onNotificationsAction: {
                 homeDestination = .notifications
-                viewModel.refreshNotifications()
+                Task { await rootViewModel.newsNotificationsViewModel.refreshNotifications() }
             },
             onCartAction: {
                 myOrderCartOpenRequests += 1
@@ -198,10 +198,10 @@ extension AccessRootRoutingView {
 
     func refreshBeforeOpeningHomeDestination(_ destination: HomeDestination) {
         let refreshActions: [(HomeDestination, () -> Void)] = [
-            (.publishNews, { viewModel.startCreatingNews() }),
-            (.adminBroadcast, { viewModel.startCreatingNotification() }),
-            (.news, { viewModel.refreshNews() }),
-            (.notifications, { viewModel.refreshNotifications() }),
+            (.publishNews, { _ = rootViewModel.newsNotificationsViewModel.startCreatingNews() }),
+            (.adminBroadcast, { _ = rootViewModel.newsNotificationsViewModel.startCreatingNotification() }),
+            (.news, { Task { await rootViewModel.newsNotificationsViewModel.refreshNews() } }),
+            (.notifications, { Task { await rootViewModel.newsNotificationsViewModel.refreshNotifications() } }),
             (.products, { Task { await rootViewModel.productsViewModel.refreshCatalog() } }),
             (.myOrder, { Task { await rootViewModel.productsViewModel.refreshOrderingProducts() } }),
             (.profile, { viewModel.refreshSharedProfiles() }),

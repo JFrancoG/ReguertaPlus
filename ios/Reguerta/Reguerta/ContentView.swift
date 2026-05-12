@@ -108,11 +108,6 @@ extension AccessRootRoutingView {
         nonmutating set { rootViewModel.myOrderCartOpenRequests = newValue }
     }
 
-    var pendingNewsDeletionId: String? {
-        get { rootViewModel.pendingNewsDeletionId }
-        nonmutating set { rootViewModel.pendingNewsDeletionId = newValue }
-    }
-
     var isImpersonationExpanded: Bool {
         get { rootViewModel.isImpersonationExpanded }
         nonmutating set { rootViewModel.isImpersonationExpanded = newValue }

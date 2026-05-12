@@ -48,7 +48,7 @@ extension AccessRootRoutingView {
                 dismissible: false
             )
         }
-        if let article = pendingNewsDeletionArticle {
+        if let article = rootViewModel.newsNotificationsViewModel.pendingNewsDeletionArticle {
             ReguertaDialog(
                 type: .error,
                 title: l10n(AccessL10nKey.newsDeleteDialogTitle),
@@ -174,11 +174,13 @@ extension AccessRootRoutingView {
     }
 
     func confirmPendingNewsDeletion() {
-        rootViewModel.confirmPendingNewsDeletion()
+        Task {
+            await rootViewModel.newsNotificationsViewModel.confirmNewsDeletion()
+        }
     }
 
     func clearPendingNewsDeletion() {
-        rootViewModel.clearPendingNewsDeletion()
+        rootViewModel.newsNotificationsViewModel.clearPendingNewsDeletion()
     }
 
     func openStoreURL(_ rawURL: String) {

@@ -102,8 +102,6 @@ extension SessionViewModel {
                 members: session.members
             )
         )
-        refreshNews()
-        refreshNotifications()
         refreshSharedProfiles()
     }
 
@@ -120,8 +118,6 @@ extension SessionViewModel {
                 members: session.members
             )
         )
-        refreshNews()
-        refreshNotifications()
         refreshSharedProfiles()
     }
 

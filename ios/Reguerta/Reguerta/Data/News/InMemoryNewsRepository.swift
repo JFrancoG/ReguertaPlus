@@ -1,8 +1,14 @@
 import Foundation
 
 actor InMemoryNewsRepository: NewsRepository {
-    private var articles: [String: NewsArticle] = [
-        "news_welcome_001": NewsArticle(
+    private var articles: [String: NewsArticle]
+
+    init(items: [NewsArticle]? = nil) {
+        self.articles = Dictionary(uniqueKeysWithValues: (items ?? Self.seedArticles).map { ($0.id, $0) })
+    }
+
+    private static let seedArticles: [NewsArticle] = [
+        NewsArticle(
             id: "news_welcome_001",
             title: "seed.news.welcome.title",
             body: "seed.news.welcome.body",
@@ -23,8 +29,18 @@ actor InMemoryNewsRepository: NewsRepository {
     }
 
     func upsert(article: NewsArticle) async -> NewsArticle {
-        articles[article.id] = article
-        return article
+        let articleId = article.id.isEmpty ? "news_\(articles.count + 1)" : article.id
+        let persisted = NewsArticle(
+            id: articleId,
+            title: article.title,
+            body: article.body,
+            active: article.active,
+            publishedBy: article.publishedBy,
+            publishedAtMillis: article.publishedAtMillis,
+            urlImage: article.urlImage
+        )
+        articles[articleId] = persisted
+        return persisted
     }
 
     func delete(newsId: String) async -> Bool {

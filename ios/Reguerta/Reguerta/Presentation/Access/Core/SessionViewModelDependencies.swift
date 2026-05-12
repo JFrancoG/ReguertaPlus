@@ -3,8 +3,6 @@ import Foundation
 
 struct SessionViewModelDependencies {
     let repository: any MemberRepository
-    let newsRepository: any NewsRepository
-    let notificationRepository: any NotificationRepository
     let imagePipelineManager: any ImagePipelineManager
     let sharedProfileRepository: any SharedProfileRepository
     let authSessionProvider: any AuthSessionProvider
@@ -21,7 +19,6 @@ struct SessionViewModelDependencies {
     static func live(
         db: Firestore = Firestore.firestore(),
         repository: (any MemberRepository)? = nil,
-        notificationRepository: (any NotificationRepository)? = nil,
         sharedProfileRepository: (any SharedProfileRepository)? = nil,
         imagePipelineManager: (any ImagePipelineManager)? = nil,
         authSessionProvider: (any AuthSessionProvider)? = nil,
@@ -36,16 +33,10 @@ struct SessionViewModelDependencies {
         let useMockAuth = ProcessInfo.processInfo.arguments.contains("-useMockAuth")
         let freshnessLocalRepository = UserDefaultsCriticalDataFreshnessLocalRepository()
         let selectedRepository = liveMemberRepository(db: db, override: repository)
-        let selectedNotificationRepository = liveNotificationRepository(db: db, override: notificationRepository)
         let selectedSharedProfileRepository = liveSharedProfileRepository(db: db, override: sharedProfileRepository)
 
         return SessionViewModelDependencies(
             repository: selectedRepository,
-            newsRepository: ChainedNewsRepository(
-                primary: FirestoreNewsRepository(db: db),
-                fallback: InMemoryNewsRepository()
-            ),
-            notificationRepository: selectedNotificationRepository,
             imagePipelineManager: imagePipelineManager ?? FirebaseImagePipelineManager(),
             sharedProfileRepository: selectedSharedProfileRepository,
             authSessionProvider: authSessionProvider ?? (useMockAuth ? MockAuthSessionProvider() : FirebaseAuthSessionProvider()),
@@ -64,16 +55,12 @@ struct SessionViewModelDependencies {
         )
     }
 
-    static func preview(
-        notificationRepository: (any NotificationRepository)? = nil
-    ) -> SessionViewModelDependencies {
+    static func preview() -> SessionViewModelDependencies {
         let repository = InMemoryMemberRepository()
         let freshnessLocalRepository = InMemoryCriticalDataFreshnessLocalRepository()
 
         return SessionViewModelDependencies(
             repository: repository,
-            newsRepository: InMemoryNewsRepository(),
-            notificationRepository: notificationRepository ?? InMemoryNotificationRepository(),
             imagePipelineManager: NoOpImagePipelineManager(),
             sharedProfileRepository: InMemorySharedProfileRepository(),
             authSessionProvider: MockAuthSessionProvider(),
@@ -127,16 +114,6 @@ struct SessionViewModelDependencies {
         override ?? ChainedSharedProfileRepository(
             primary: FirestoreSharedProfileRepository(db: db),
             fallback: InMemorySharedProfileRepository()
-        )
-    }
-
-    private static func liveNotificationRepository(
-        db: Firestore,
-        override: (any NotificationRepository)?
-    ) -> any NotificationRepository {
-        override ?? ChainedNotificationRepository(
-            primary: FirestoreNotificationRepository(db: db),
-            fallback: InMemoryNotificationRepository()
         )
     }
 }

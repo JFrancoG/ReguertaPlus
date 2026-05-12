@@ -44,25 +44,18 @@ extension AccessRootRoutingView {
     }
 
     var newsListRoute: some View {
-        NewsListRouteView(
+        let newsNotificationsViewModel = rootViewModel.newsNotificationsViewModel
+        return NewsListRouteView(
             tokens: tokens,
-            isLoadingNews: viewModel.isLoadingNews,
-            newsFeed: viewModel.newsFeed,
-            isAdmin: currentHomeMember?.canPublishNews == true,
+            viewModel: newsNotificationsViewModel,
             newsMetaText: { article in
                 l10n(AccessL10nKey.newsMetaFormat, article.publishedBy)
             },
             onCreateNews: {
-                viewModel.startCreatingNews()
                 homeDestination = .publishNews
             },
-            onRefreshNews: viewModel.refreshNews,
-            onEditNews: { newsId in
-                viewModel.startEditingNews(newsId: newsId)
+            onEditNews: {
                 homeDestination = .publishNews
-            },
-            onDeleteNews: { newsId in
-                pendingNewsDeletionId = newsId
             }
         )
     }
@@ -70,31 +63,11 @@ extension AccessRootRoutingView {
     var newsEditorRoute: some View {
         NewsEditorRouteView(
             tokens: tokens,
-            editingNewsId: viewModel.editingNewsId,
-            newsTitle: newsTitleBinding,
-            newsImageURL: viewModel.newsDraft.urlImage,
-            newsBody: newsBodyBinding,
-            newsActive: newsActiveBinding,
-            isSavingNews: viewModel.isSavingNews,
-            isUploadingNewsImage: viewModel.isUploadingNewsImage,
-            onPickNewsImage: viewModel.uploadNewsImage,
-            onClearNewsImage: viewModel.clearNewsImage,
-            onImageSelectionFailed: {
-                viewModel.feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
-            },
-            onCameraPermissionDenied: {
-                viewModel.feedbackMessageKey = AccessL10nKey.feedbackCameraPermissionRequired
-            },
-            onCameraUnavailable: {
-                viewModel.feedbackMessageKey = AccessL10nKey.feedbackCameraUnavailable
-            },
-            onSave: {
-                viewModel.saveNews {
-                    homeDestination = .news
-                }
+            viewModel: rootViewModel.newsNotificationsViewModel,
+            onSaveSuccess: {
+                homeDestination = .news
             },
             onBack: {
-                viewModel.clearNewsEditor()
                 homeDestination = .news
             }
         )
@@ -159,11 +132,10 @@ extension AccessRootRoutingView {
     }
 
     var notificationsListRoute: some View {
-        NotificationsListRouteView(
+        let newsNotificationsViewModel = rootViewModel.newsNotificationsViewModel
+        return NotificationsListRouteView(
             tokens: tokens,
-            isLoadingNotifications: viewModel.isLoadingNotifications,
-            notificationsFeed: viewModel.notificationsFeed,
-            isAdmin: currentHomeMember?.canSendAdminNotifications == true,
+            viewModel: newsNotificationsViewModel,
             notificationMetaText: { notification in
                 l10n(
                     AccessL10nKey.notificationsMetaFormat,
@@ -171,10 +143,8 @@ extension AccessRootRoutingView {
                 )
             },
             onCreateNotification: {
-                viewModel.startCreatingNotification()
                 homeDestination = .adminBroadcast
-            },
-            onRefreshNotifications: viewModel.refreshNotifications
+            }
         )
     }
 
@@ -214,17 +184,11 @@ extension AccessRootRoutingView {
     var notificationEditorRoute: some View {
         NotificationEditorRouteView(
             tokens: tokens,
-            notificationTitle: notificationTitleBinding,
-            notificationBody: notificationBodyBinding,
-            notificationAudience: notificationAudienceBinding,
-            isSendingNotification: viewModel.isSendingNotification,
-            onSend: {
-                viewModel.sendNotification {
-                    homeDestination = .notifications
-                }
+            viewModel: rootViewModel.newsNotificationsViewModel,
+            onSendSuccess: {
+                homeDestination = .notifications
             },
             onBack: {
-                viewModel.clearNotificationEditor()
                 homeDestination = .notifications
             }
         )

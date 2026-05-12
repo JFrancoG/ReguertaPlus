@@ -2,9 +2,7 @@ import Foundation
 
 extension SessionViewModel {
     private struct AuthorizedSessionBootstrapData {
-        let allNotifications: [NotificationEvent]
         let profiles: [SharedProfile]
-        let allNews: [NewsArticle]
     }
 
     func validateSignInInputs(email: String, password: String) -> Bool {
@@ -144,19 +142,8 @@ extension SessionViewModel {
     }
 
     func resetSessionContentState() {
-        latestNews = []
-        newsFeed = []
-        newsDraft = NewsDraft()
-        notificationsFeed = []
-        notificationDraft = NotificationDraft()
         sharedProfiles = []
         sharedProfileDraft = SharedProfileDraft()
-        editingNewsId = nil
-        isLoadingNews = false
-        isSavingNews = false
-        isUploadingNewsImage = false
-        isLoadingNotifications = false
-        isSendingNotification = false
         isLoadingSharedProfiles = false
         isSavingSharedProfile = false
         isUploadingSharedProfileImage = false
@@ -207,31 +194,20 @@ extension SessionViewModel {
     }
 
     private func setAuthorizedLoadingState(member _: Member) {
-        isLoadingNews = true
-        isLoadingNotifications = true
         isLoadingSharedProfiles = true
     }
 
     private func loadAuthorizedSessionBootstrapData(member _: Member) async -> AuthorizedSessionBootstrapData {
-        async let allNotifications = notificationRepository.allNotifications()
-        async let profiles = sharedProfileRepository.allSharedProfiles()
-        async let allNews = newsRepository.allNews()
+        let profiles = await sharedProfileRepository.allSharedProfiles()
 
-        return await AuthorizedSessionBootstrapData(
-            allNotifications: allNotifications,
-            profiles: profiles,
-            allNews: allNews
+        return AuthorizedSessionBootstrapData(
+            profiles: profiles
         )
     }
 
     private func applyAuthorizedSessionBootstrapData(_ data: AuthorizedSessionBootstrapData, member: Member) {
-        latestNews = data.allNews.filter(\.active).prefix(3).map { $0 }
-        newsFeed = member.isAdmin ? data.allNews : data.allNews.filter(\.active)
-        notificationsFeed = data.allNotifications.filter { $0.isVisible(to: member) }
         sharedProfiles = data.profiles.filter(\.hasVisibleContent)
         sharedProfileDraft = data.profiles.first(where: { $0.userId == member.id })?.toDraft() ?? SharedProfileDraft()
-        isLoadingNews = false
-        isLoadingNotifications = false
         isLoadingSharedProfiles = false
     }
 

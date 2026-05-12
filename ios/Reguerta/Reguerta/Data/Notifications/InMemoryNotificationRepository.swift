@@ -1,8 +1,14 @@
 import Foundation
 
 actor InMemoryNotificationRepository: NotificationRepository {
-    private var notifications: [String: NotificationEvent] = [
-        "notification_welcome_001": NotificationEvent(
+    private var notifications: [String: NotificationEvent]
+
+    init(items: [NotificationEvent]? = nil) {
+        self.notifications = Dictionary(uniqueKeysWithValues: (items ?? Self.seedNotifications).map { ($0.id, $0) })
+    }
+
+    private static let seedNotifications: [NotificationEvent] = [
+        NotificationEvent(
             id: "notification_welcome_001",
             title: "seed.notification.welcome.title",
             body: "seed.notification.welcome.body",
@@ -15,7 +21,7 @@ actor InMemoryNotificationRepository: NotificationRepository {
             sentAtMillis: 1_711_849_600_000,
             weekKey: nil
         ),
-        "notification_admin_001": NotificationEvent(
+        NotificationEvent(
             id: "notification_admin_001",
             title: "seed.notification.admin_channel.title",
             body: "seed.notification.admin_channel.body",
@@ -40,8 +46,22 @@ actor InMemoryNotificationRepository: NotificationRepository {
     }
 
     func send(event: NotificationEvent) async -> NotificationEvent {
-        notifications[event.id] = event
-        return event
+        let eventId = event.id.isEmpty ? "notification_\(notifications.count + 1)" : event.id
+        let persisted = NotificationEvent(
+            id: eventId,
+            title: event.title,
+            body: event.body,
+            type: event.type,
+            target: event.target,
+            userIds: event.userIds,
+            segmentType: event.segmentType,
+            targetRole: event.targetRole,
+            createdBy: event.createdBy,
+            sentAtMillis: event.sentAtMillis,
+            weekKey: event.weekKey
+        )
+        notifications[eventId] = persisted
+        return persisted
     }
 }
 

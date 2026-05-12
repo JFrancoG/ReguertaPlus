@@ -6,6 +6,7 @@ final class AccessRootViewModel {
     @ObservationIgnored let sessionViewModel: SessionViewModel
     @ObservationIgnored let productsViewModel: ProductsRouteViewModel
     @ObservationIgnored let shiftsViewModel: ShiftsFeatureViewModel
+    @ObservationIgnored let newsNotificationsViewModel: NewsNotificationsFeatureViewModel
     @ObservationIgnored let myOrderViewModel: MyOrderRouteViewModel
     @ObservationIgnored let receivedOrdersViewModel: ReceivedOrdersRouteViewModel
     @ObservationIgnored private let startupVersionGateUseCase: ResolveStartupVersionGateUseCase
@@ -28,7 +29,6 @@ final class AccessRootViewModel {
     var homeDestination: HomeDestination = .dashboard
     var myOrderCartUnits = 0
     var myOrderCartOpenRequests = 0
-    var pendingNewsDeletionId: String?
     var isImpersonationExpanded = false
     var nowOverrideMillis: Int64?
 
@@ -49,6 +49,7 @@ final class AccessRootViewModel {
         productsFeatureDependencies: ProductsFeatureDependencies = .preview(),
         ordersFeatureDependencies: OrdersFeatureDependencies = .preview(),
         shiftsFeatureDependencies: ShiftsFeatureDependencies = .preview(),
+        newsNotificationsFeatureDependencies: NewsNotificationsFeatureDependencies = .preview(),
         startupVersionGateUseCase: ResolveStartupVersionGateUseCase,
         shouldSkipSplashProvider: @escaping () -> Bool = {
             ProcessInfo.processInfo.arguments.contains("-skipSplash")
@@ -75,6 +76,13 @@ final class AccessRootViewModel {
             deliveryCalendarRepository: shiftsFeatureDependencies.deliveryCalendarRepository,
             notificationRepository: shiftsFeatureDependencies.notificationRepository,
             nowMillisProvider: shiftsFeatureDependencies.nowMillisProvider
+        )
+        self.newsNotificationsViewModel = NewsNotificationsFeatureViewModel(
+            sessionViewModel: sessionViewModel,
+            newsRepository: newsNotificationsFeatureDependencies.newsRepository,
+            notificationRepository: newsNotificationsFeatureDependencies.notificationRepository,
+            imagePipelineManager: newsNotificationsFeatureDependencies.imagePipelineManager,
+            nowMillisProvider: newsNotificationsFeatureDependencies.nowMillisProvider
         )
         self.myOrderViewModel = MyOrderRouteViewModel(
             sessionViewModel: sessionViewModel,
@@ -191,6 +199,7 @@ final class AccessRootViewModel {
     func handleSessionModeChange(_ mode: SessionMode) {
         productsViewModel.handleSessionModeChange(mode)
         shiftsViewModel.handleSessionModeChange(mode)
+        newsNotificationsViewModel.handleSessionModeChange(mode)
         guard shellState.currentRoute != .splash else { return }
 
         switch mode {
@@ -250,17 +259,6 @@ final class AccessRootViewModel {
         homeDestination = .dashboard
         sessionViewModel.signOut()
         dispatchShell(.signedOut)
-    }
-
-    func confirmPendingNewsDeletion() {
-        guard let pendingNewsDeletionId else { return }
-        sessionViewModel.deleteNews(newsId: pendingNewsDeletionId) { [weak self] in
-            self?.pendingNewsDeletionId = nil
-        }
-    }
-
-    func clearPendingNewsDeletion() {
-        pendingNewsDeletionId = nil
     }
 
     func dismissOptionalStartupUpdate() {

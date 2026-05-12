@@ -74,3 +74,13 @@ delivery calendar state, admin planning requests, or the develop time override.
 Orders consumes shifts and delivery calendar data from the root-owned Shifts
 view model so ordering windows stay shared without reintroducing hidden
 dependencies.
+
+News/Notifications is the fourth migrated feature slice. `AccessRootViewModel`
+owns `NewsNotificationsFeatureViewModel`, which receives news, notification,
+image pipeline, and clock dependencies from
+`NewsNotificationsFeatureDependencies`. `SessionViewModel` remains the session,
+SharedProfile, bylaws, and global feedback source, but it no longer owns news
+feeds, news drafts, image upload for news, notification feeds, broadcast drafts,
+or admin send/delete workflows. Shifts and News/Notifications can share a single
+`NotificationRepository` instance from the root container when both slices need
+to publish or read notification events.
