@@ -82,14 +82,10 @@ extension AccessRootRoutingView {
 
     @ViewBuilder
     var usersRoute: some View {
-        if let session = currentHomeSession {
-            UsersRouteView(
-                tokens: tokens,
-                viewModel: viewModel,
-                session: session,
-                memberDraft: memberDraftBinding
-            )
-        }
+        UsersRouteView(
+            tokens: tokens,
+            viewModel: rootViewModel.usersViewModel
+        )
     }
 
     var myOrderRoute: some View {

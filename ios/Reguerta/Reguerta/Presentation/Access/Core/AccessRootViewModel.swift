@@ -8,6 +8,7 @@ final class AccessRootViewModel {
     @ObservationIgnored let shiftsViewModel: ShiftsFeatureViewModel
     @ObservationIgnored let newsNotificationsViewModel: NewsNotificationsFeatureViewModel
     @ObservationIgnored let sharedProfileViewModel: SharedProfileFeatureViewModel
+    @ObservationIgnored let usersViewModel: UsersFeatureViewModel
     @ObservationIgnored let myOrderViewModel: MyOrderRouteViewModel
     @ObservationIgnored let receivedOrdersViewModel: ReceivedOrdersRouteViewModel
     @ObservationIgnored private let startupVersionGateUseCase: ResolveStartupVersionGateUseCase
@@ -52,6 +53,7 @@ final class AccessRootViewModel {
         shiftsFeatureDependencies: ShiftsFeatureDependencies = .preview(),
         newsNotificationsFeatureDependencies: NewsNotificationsFeatureDependencies = .preview(),
         sharedProfileFeatureDependencies: SharedProfileFeatureDependencies = .preview(),
+        usersFeatureDependencies: UsersFeatureDependencies = .preview(),
         startupVersionGateUseCase: ResolveStartupVersionGateUseCase,
         shouldSkipSplashProvider: @escaping () -> Bool = {
             ProcessInfo.processInfo.arguments.contains("-skipSplash")
@@ -92,6 +94,10 @@ final class AccessRootViewModel {
             imagePipelineManager: sharedProfileFeatureDependencies.imagePipelineManager,
             nowMillisProvider: sharedProfileFeatureDependencies.nowMillisProvider
         )
+        self.usersViewModel = Self.makeUsersViewModel(
+            sessionViewModel: sessionViewModel,
+            dependencies: usersFeatureDependencies
+        )
         self.myOrderViewModel = MyOrderRouteViewModel(
             sessionViewModel: sessionViewModel,
             ordersRepository: ordersFeatureDependencies.ordersRepository,
@@ -107,6 +113,17 @@ final class AccessRootViewModel {
         self.shouldSkipSplashProvider = shouldSkipSplashProvider
         self.installedVersionProvider = installedVersionProvider
         self.nowOverrideMillis = initialNowOverrideMillis
+    }
+
+    private static func makeUsersViewModel(
+        sessionViewModel: SessionViewModel,
+        dependencies: UsersFeatureDependencies
+    ) -> UsersFeatureViewModel {
+        UsersFeatureViewModel(
+            sessionViewModel: sessionViewModel,
+            memberRepository: dependencies.memberRepository,
+            upsertMemberByAdmin: dependencies.upsertMemberByAdmin
+        )
     }
 
     func dispatchShell(_ action: AuthShellAction) {
@@ -209,6 +226,7 @@ final class AccessRootViewModel {
         shiftsViewModel.handleSessionModeChange(mode)
         newsNotificationsViewModel.handleSessionModeChange(mode)
         sharedProfileViewModel.handleSessionModeChange(mode)
+        usersViewModel.handleSessionModeChange(mode)
         guard shellState.currentRoute != .splash else { return }
 
         switch mode {

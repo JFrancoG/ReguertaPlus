@@ -98,3 +98,11 @@ comunitarios, el borrador del perfil actual, subida de imagenes de perfil
 compartido ni workflows de guardar/borrar perfil. El drawer y la ruta de perfil
 consumen el estado de perfiles desde el view model de SharedProfile propiedad
 del root.
+
+Users/Admin Members es el sexto slice de feature migrado. `AccessRootViewModel`
+posee `UsersFeatureViewModel`, que recibe el repositorio compartido de miembros
+y el caso de uso de upsert admin desde `UsersFeatureDependencies`.
+`SessionViewModel` sigue siendo la fuente de auth/sesion, bylaws, freshness y
+feedback global, pero ya no posee borradores de miembros ni workflows admin de
+gestion de socios. La tarjeta admin del dashboard y la ruta de Usuarios consumen
+el view model de Users propiedad del root.

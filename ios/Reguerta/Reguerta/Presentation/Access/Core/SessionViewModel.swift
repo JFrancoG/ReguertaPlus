@@ -1,18 +1,6 @@
 import Foundation
 import Observation
 
-struct MemberDraft: Equatable, Sendable {
-    var displayName = ""
-    var email = ""
-    var companyName = ""
-    var phoneNumber = ""
-    var isMember = true
-    var isProducer = false
-    var isAdmin = false
-    var isCommonPurchaseManager = false
-    var isActive = true
-}
-
 struct AuthorizedSession: Equatable, Sendable {
     var principal: AuthPrincipal
     var authenticatedMember: Member
@@ -100,7 +88,6 @@ final class SessionViewModel {
     var showSessionExpiredDialog = false
     var showUnauthorizedDialog = false
     var mode: SessionMode = .signedOut
-    var memberDraft = MemberDraft()
     var feedbackMessageKey: String?
     var myOrderFreshnessState: MyOrderFreshnessState = .idle
     var bylawsQueryInput = ""
@@ -110,7 +97,6 @@ final class SessionViewModel {
     let repository: any MemberRepository
     let authSessionProvider: any AuthSessionProvider
     let resolveAuthorizedSession: ResolveAuthorizedSessionUseCase
-    let upsertMemberByAdmin: UpsertMemberByAdminUseCase
     let authorizedDeviceRegistrar: any AuthorizedDeviceRegistrar
     let resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase
     let criticalDataFreshnessLocalRepository: any CriticalDataFreshnessLocalRepository
@@ -160,7 +146,6 @@ final class SessionViewModel {
         self.repository = dependencies.repository
         self.authSessionProvider = dependencies.authSessionProvider
         self.resolveAuthorizedSession = dependencies.resolveAuthorizedSession
-        self.upsertMemberByAdmin = dependencies.upsertMemberByAdmin
         self.authorizedDeviceRegistrar = dependencies.authorizedDeviceRegistrar
         self.resolveCriticalDataFreshness = dependencies.resolveCriticalDataFreshness
         self.criticalDataFreshnessLocalRepository = dependencies.criticalDataFreshnessLocalRepository
@@ -174,7 +159,6 @@ final class SessionViewModel {
         repository: (any MemberRepository)? = nil,
         authSessionProvider: (any AuthSessionProvider)? = nil,
         resolveAuthorizedSession: ResolveAuthorizedSessionUseCase? = nil,
-        upsertMemberByAdmin: UpsertMemberByAdminUseCase? = nil,
         authorizedDeviceRegistrar: (any AuthorizedDeviceRegistrar)? = nil,
         reviewerEnvironmentRouter: (any ReviewerEnvironmentRouter)? = nil,
         developImpersonationEnabled: Bool = false,
@@ -186,7 +170,6 @@ final class SessionViewModel {
                 repository: repository,
                 authSessionProvider: authSessionProvider,
                 resolveAuthorizedSession: resolveAuthorizedSession,
-                upsertMemberByAdmin: upsertMemberByAdmin,
                 authorizedDeviceRegistrar: authorizedDeviceRegistrar,
                 reviewerEnvironmentRouter: reviewerEnvironmentRouter,
                 developImpersonationEnabled: developImpersonationEnabled,

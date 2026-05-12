@@ -164,19 +164,11 @@ extension AccessRootRoutingView {
     }
 
     @ViewBuilder
-    func adminToolsCard(session: AuthorizedSession) -> some View {
+    func adminToolsCard(session _: AuthorizedSession) -> some View {
         AdminToolsCardView(
             tokens: tokens,
-            session: session,
-            isExpanded: rootBinding(\.isAdminToolsExpanded),
-            memberDraft: memberDraftBinding,
-            onCreateMember: viewModel.createAuthorizedMember,
-            onToggleAdmin: { memberId in
-                viewModel.toggleAdmin(memberId: memberId)
-            },
-            onToggleActive: { memberId in
-                viewModel.toggleActive(memberId: memberId)
-            }
+            viewModel: rootViewModel.usersViewModel,
+            isExpanded: rootBinding(\.isAdminToolsExpanded)
         )
     }
 

@@ -8,13 +8,6 @@ extension AccessRootRoutingView {
         )
     }
 
-    var memberDraftBinding: Binding<MemberDraft> {
-        Binding(
-            get: { viewModel.memberDraft },
-            set: { viewModel.memberDraft = $0 }
-        )
-    }
-
     func localizedKey(_ key: String) -> LocalizedStringKey {
         LocalizedStringKey(key)
     }

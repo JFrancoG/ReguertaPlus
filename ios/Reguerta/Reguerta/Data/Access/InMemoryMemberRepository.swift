@@ -1,8 +1,16 @@
 import Foundation
 
 actor InMemoryMemberRepository: MemberRepository {
-    private var members: [String: Member] = [
-        "member_admin_001": Member(
+    private var members: [String: Member]
+
+    init(items: [Member]? = nil) {
+        members = Dictionary(
+            uniqueKeysWithValues: (items ?? Self.seedMembers).map { ($0.id, $0) }
+        )
+    }
+
+    private static let seedMembers: [Member] = [
+        Member(
             id: "member_admin_001",
             displayName: "Ana Admin",
             normalizedEmail: "ana.admin@reguerta.app",
@@ -11,7 +19,7 @@ actor InMemoryMemberRepository: MemberRepository {
             isActive: true,
             producerCatalogEnabled: true
         ),
-        "member_producer_001": Member(
+        Member(
             id: "member_producer_001",
             displayName: "Pablo Productor",
             companyName: "Riscos Altos",
@@ -22,7 +30,7 @@ actor InMemoryMemberRepository: MemberRepository {
             producerCatalogEnabled: true,
             producerParity: .even
         ),
-        "member_member_001": Member(
+        Member(
             id: "member_member_001",
             displayName: "Marta Miembro",
             normalizedEmail: "marta.member@reguerta.app",

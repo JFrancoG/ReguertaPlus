@@ -5,7 +5,11 @@ enum MemberManagementError: Error, Equatable {
     case lastAdminRemoval
 }
 
-struct UpsertMemberByAdminUseCase: Sendable {
+protocol MemberAdminUpserting: Sendable {
+    func execute(actorAuthUid: String, target: Member) async throws -> Member
+}
+
+struct UpsertMemberByAdminUseCase: MemberAdminUpserting {
     private let repository: any MemberRepository
 
     init(repository: any MemberRepository) {

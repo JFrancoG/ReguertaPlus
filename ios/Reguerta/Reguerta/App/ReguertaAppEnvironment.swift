@@ -22,8 +22,9 @@ struct ReguertaAppEnvironment {
     }
 
     static func preview() -> ReguertaAppEnvironment {
+        let memberRepository = InMemoryMemberRepository()
         let notificationRepository = InMemoryNotificationRepository()
-        let sessionViewModel = SessionViewModel(dependencies: .preview())
+        let sessionViewModel = SessionViewModel(dependencies: .preview(repository: memberRepository))
         let accessRootViewModel = AccessRootViewModel(
             sessionViewModel: sessionViewModel,
             productsFeatureDependencies: .preview(),
@@ -31,6 +32,7 @@ struct ReguertaAppEnvironment {
             shiftsFeatureDependencies: .preview(notificationRepository: notificationRepository),
             newsNotificationsFeatureDependencies: .preview(notificationRepository: notificationRepository),
             sharedProfileFeatureDependencies: .preview(),
+            usersFeatureDependencies: .preview(memberRepository: memberRepository),
             startupVersionGateUseCase: ResolveStartupVersionGateUseCase(
                 repository: PreviewStartupVersionPolicyRepository()
             ),
@@ -46,11 +48,16 @@ struct ReguertaAppEnvironment {
 
 private struct LiveRootDependencies {
     let db: Firestore
+    let memberRepository: any MemberRepository
     let imagePipelineManager: FirebaseImagePipelineManager
     let notificationRepository: ChainedNotificationRepository
 
     init(db: Firestore = Firestore.firestore()) {
         self.db = db
+        self.memberRepository = ChainedMemberRepository(
+            primary: FirestoreMemberRepository(db: db),
+            fallback: InMemoryMemberRepository()
+        )
         self.imagePipelineManager = FirebaseImagePipelineManager()
         self.notificationRepository = ChainedNotificationRepository(
             primary: FirestoreNotificationRepository(db: db),
@@ -71,6 +78,7 @@ private func makeLiveSessionViewModel(_ dependencies: LiveRootDependencies) -> S
     SessionViewModel(
         dependencies: .live(
             db: dependencies.db,
+            repository: dependencies.memberRepository,
             authorizedDeviceRegistrar: FirebaseAuthorizedDeviceRegistrar(
                 repository: FirestoreDeviceRegistrationRepository(db: dependencies.db)
             ),
@@ -111,6 +119,9 @@ private func makeLiveAccessRootViewModel(
             db: dependencies.db,
             imagePipelineManager: dependencies.imagePipelineManager,
             nowMillisProvider: { DevelopmentTimeMachine.shared.nowMillis() }
+        ),
+        usersFeatureDependencies: UsersFeatureDependencies.live(
+            memberRepository: dependencies.memberRepository
         ),
         startupVersionGateUseCase: ResolveStartupVersionGateUseCase(
             repository: FirestoreStartupVersionPolicyRepository(db: dependencies.db)

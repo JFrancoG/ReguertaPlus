@@ -207,7 +207,7 @@ extension AccessRootRoutingView {
             (.products, { Task { await rootViewModel.productsViewModel.refreshCatalog() } }),
             (.myOrder, { Task { await rootViewModel.productsViewModel.refreshOrderingProducts() } }),
             (.profile, { Task { await rootViewModel.sharedProfileViewModel.refreshProfiles() } }),
-            (.users, { viewModel.refreshMembers() }),
+            (.users, { Task { await rootViewModel.usersViewModel.refreshMembers() } }),
             (.shifts, { Task { await rootViewModel.shiftsViewModel.refreshShifts() } }),
             (.settings, { Task { await rootViewModel.shiftsViewModel.refreshDeliveryCalendar() } })
         ]

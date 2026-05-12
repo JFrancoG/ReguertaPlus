@@ -114,7 +114,6 @@ extension SessionViewModel {
         isRecoveringPassword = false
         feedbackMessageKey = nil
         mode = .signedOut
-        memberDraft = MemberDraft()
         myOrderFreshnessState = .idle
         showSessionExpiredDialog = true
         showUnauthorizedDialog = false

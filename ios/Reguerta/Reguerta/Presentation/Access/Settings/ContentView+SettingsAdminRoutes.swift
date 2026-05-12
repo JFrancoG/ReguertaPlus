@@ -2,23 +2,23 @@ import SwiftUI
 
 struct AdminToolsCardView: View {
     let tokens: ReguertaDesignTokens
-    let session: AuthorizedSession
+    let viewModel: UsersFeatureViewModel
     @Binding var isExpanded: Bool
-    @Binding var memberDraft: MemberDraft
-    let onCreateMember: () -> Void
-    let onToggleAdmin: (String) -> Void
-    let onToggleActive: (String) -> Void
 
     var body: some View {
         ReguertaCard {
             DisclosureGroup(isExpanded: $isExpanded) {
                 VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                    ForEach(session.members) { member in
+                    ForEach(viewModel.sortedMembers) { member in
                         AdminMemberRowView(
                             tokens: tokens,
                             member: member,
-                            onToggleAdmin: onToggleAdmin,
-                            onToggleActive: onToggleActive
+                            onToggleAdmin: { memberId in
+                                Task { _ = await viewModel.toggleAdmin(memberId: memberId) }
+                            },
+                            onToggleActive: { memberId in
+                                Task { _ = await viewModel.toggleActive(memberId: memberId) }
+                            }
                         )
                     }
 
@@ -26,20 +26,23 @@ struct AdminToolsCardView: View {
 
                     Text(localizedKey(AccessL10nKey.adminCreatePreAuthorizedTitle))
                         .font(tokens.typography.titleCard)
-                    TextField(localizedKey(AccessL10nKey.displayNameLabel), text: memberDraftBinding(\.displayName))
+                    TextField(localizedKey(AccessL10nKey.displayNameLabel), text: draftStringBinding(\.displayName))
                         .textFieldStyle(.roundedBorder)
-                    TextField(localizedKey(AccessL10nKey.emailLabel), text: memberDraftBinding(\.email))
+                    TextField(localizedKey(AccessL10nKey.emailLabel), text: draftStringBinding(\.email))
                         .textInputAutocapitalization(.never)
                         .textFieldStyle(.roundedBorder)
 
-                    Toggle(localizedKey(AccessL10nKey.roleMember), isOn: memberDraftBinding(\.isMember))
-                    Toggle(localizedKey(AccessL10nKey.roleProducer), isOn: memberDraftBinding(\.isProducer))
-                    Toggle(localizedKey(AccessL10nKey.roleAdmin), isOn: memberDraftBinding(\.isAdmin))
-                    Toggle(localizedKey(AccessL10nKey.roleActive), isOn: memberDraftBinding(\.isActive))
+                    Toggle(localizedKey(AccessL10nKey.roleMember), isOn: draftBoolBinding(\.isMember))
+                    Toggle(localizedKey(AccessL10nKey.roleProducer), isOn: draftBoolBinding(\.isProducer))
+                    Toggle(localizedKey(AccessL10nKey.roleAdmin), isOn: draftBoolBinding(\.isAdmin))
+                    Toggle(localizedKey(AccessL10nKey.roleActive), isOn: draftBoolBinding(\.isActive))
 
-                    Button(action: onCreateMember) {
+                    Button {
+                        Task { _ = await viewModel.createAuthorizedMember() }
+                    } label: {
                         Text(localizedKey(AccessL10nKey.createMember))
                     }
+                    .disabled(viewModel.isSavingMember)
                 }
                 .padding(.top, tokens.spacing.sm)
             } label: {
@@ -54,24 +57,24 @@ struct AdminToolsCardView: View {
         }
     }
 
-    private func memberDraftBinding(_ keyPath: WritableKeyPath<MemberDraft, String>) -> Binding<String> {
+    private func draftStringBinding(_ keyPath: WritableKeyPath<MemberDraft, String>) -> Binding<String> {
         Binding(
-            get: { memberDraft[keyPath: keyPath] },
+            get: { viewModel.draft[keyPath: keyPath] },
             set: {
-                var updated = memberDraft
+                var updated = viewModel.draft
                 updated[keyPath: keyPath] = $0
-                memberDraft = updated
+                viewModel.updateDraft(updated)
             }
         )
     }
 
-    private func memberDraftBinding(_ keyPath: WritableKeyPath<MemberDraft, Bool>) -> Binding<Bool> {
+    private func draftBoolBinding(_ keyPath: WritableKeyPath<MemberDraft, Bool>) -> Binding<Bool> {
         Binding(
-            get: { memberDraft[keyPath: keyPath] },
+            get: { viewModel.draft[keyPath: keyPath] },
             set: {
-                var updated = memberDraft
+                var updated = viewModel.draft
                 updated[keyPath: keyPath] = $0
-                memberDraft = updated
+                viewModel.updateDraft(updated)
             }
         )
     }

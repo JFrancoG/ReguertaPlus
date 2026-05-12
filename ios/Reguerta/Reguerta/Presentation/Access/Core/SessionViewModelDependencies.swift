@@ -5,7 +5,6 @@ struct SessionViewModelDependencies {
     let repository: any MemberRepository
     let authSessionProvider: any AuthSessionProvider
     let resolveAuthorizedSession: ResolveAuthorizedSessionUseCase
-    let upsertMemberByAdmin: UpsertMemberByAdminUseCase
     let authorizedDeviceRegistrar: any AuthorizedDeviceRegistrar
     let resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase
     let criticalDataFreshnessLocalRepository: any CriticalDataFreshnessLocalRepository
@@ -19,7 +18,6 @@ struct SessionViewModelDependencies {
         repository: (any MemberRepository)? = nil,
         authSessionProvider: (any AuthSessionProvider)? = nil,
         resolveAuthorizedSession: ResolveAuthorizedSessionUseCase? = nil,
-        upsertMemberByAdmin: UpsertMemberByAdminUseCase? = nil,
         authorizedDeviceRegistrar: (any AuthorizedDeviceRegistrar)? = nil,
         reviewerEnvironmentRouter: (any ReviewerEnvironmentRouter)? = nil,
         developImpersonationEnabled: Bool = false,
@@ -34,7 +32,6 @@ struct SessionViewModelDependencies {
             repository: selectedRepository,
             authSessionProvider: authSessionProvider ?? (useMockAuth ? MockAuthSessionProvider() : FirebaseAuthSessionProvider()),
             resolveAuthorizedSession: resolveAuthorizedSession ?? ResolveAuthorizedSessionUseCase(repository: selectedRepository),
-            upsertMemberByAdmin: upsertMemberByAdmin ?? UpsertMemberByAdminUseCase(repository: selectedRepository),
             authorizedDeviceRegistrar: authorizedDeviceRegistrar ?? NoOpAuthorizedDeviceRegistrar(),
             resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase(
                 remoteRepository: makeDefaultFreshnessRemoteRepository(db: db, useMockAuth: useMockAuth),
@@ -48,15 +45,13 @@ struct SessionViewModelDependencies {
         )
     }
 
-    static func preview() -> SessionViewModelDependencies {
-        let repository = InMemoryMemberRepository()
+    static func preview(repository: any MemberRepository = InMemoryMemberRepository()) -> SessionViewModelDependencies {
         let freshnessLocalRepository = InMemoryCriticalDataFreshnessLocalRepository()
 
         return SessionViewModelDependencies(
             repository: repository,
             authSessionProvider: MockAuthSessionProvider(),
             resolveAuthorizedSession: ResolveAuthorizedSessionUseCase(repository: repository),
-            upsertMemberByAdmin: UpsertMemberByAdminUseCase(repository: repository),
             authorizedDeviceRegistrar: NoOpAuthorizedDeviceRegistrar(),
             resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase(
                 remoteRepository: FixedCriticalDataFreshnessRemoteRepository(config: nil),
@@ -97,7 +92,6 @@ struct SessionViewModelDependencies {
             fallback: InMemoryMemberRepository()
         )
     }
-
 }
 
 private struct NoOpAuthorizedDeviceRegistrar: AuthorizedDeviceRegistrar {

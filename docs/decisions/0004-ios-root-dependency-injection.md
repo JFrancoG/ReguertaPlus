@@ -92,3 +92,10 @@ image pipeline, and clock dependencies from `SharedProfileFeatureDependencies`.
 it no longer owns community profile feeds, the current profile draft, shared
 profile image upload, or save/delete profile workflows. The drawer and profile
 route consume profile state from the root-owned SharedProfile view model.
+
+Users/Admin Members is the sixth migrated feature slice. `AccessRootViewModel`
+owns `UsersFeatureViewModel`, which receives the shared member repository and
+admin upsert use case from `UsersFeatureDependencies`. `SessionViewModel`
+remains the auth/session, bylaws, freshness, and global feedback source, but it
+no longer owns member drafts or admin member management workflows. The dashboard
+admin card and the Users route consume the root-owned Users view model.

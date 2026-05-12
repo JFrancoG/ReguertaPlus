@@ -2,38 +2,16 @@ import SwiftUI
 
 struct UsersRouteView: View {
     let tokens: ReguertaDesignTokens
-    let viewModel: SessionViewModel
-    let session: AuthorizedSession
-    @Binding var memberDraft: MemberDraft
-
-    @State private var isEditorOpen = false
-    @State private var editingMemberId: String?
-    @State private var pendingToggleActiveMemberId: String?
-
-    private var canManageMembers: Bool {
-        session.member.canManageMembers
-    }
-
-    private var sortedMembers: [Member] {
-        session.members.sorted {
-            $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
-        }
-    }
+    let viewModel: UsersFeatureViewModel
 
     private var editingMember: Member? {
-        guard let editingMemberId else { return nil }
-        return sortedMembers.first(where: { $0.id == editingMemberId })
-    }
-
-    private var pendingToggleMember: Member? {
-        guard let pendingToggleActiveMemberId else { return nil }
-        return sortedMembers.first(where: { $0.id == pendingToggleActiveMemberId })
+        viewModel.editingMember
     }
 
     var body: some View {
         ZStack {
             Group {
-                if isEditorOpen && canManageMembers {
+                if viewModel.isEditorOpen && viewModel.canManageMembers {
                     usersEditor
                 } else {
                     usersList
@@ -41,7 +19,7 @@ struct UsersRouteView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
-            if let member = pendingToggleMember {
+            if let member = viewModel.pendingToggleMember {
                 ReguertaDialog(
                     type: member.isActive ? .error : .info,
                     title: l10n(
@@ -55,15 +33,14 @@ struct UsersRouteView: View {
                     primaryAction: ReguertaDialogAction(
                         title: AccessL10nKey.commonAccept,
                         action: {
-                            viewModel.toggleActive(memberId: member.id)
-                            pendingToggleActiveMemberId = nil
+                            Task { _ = await viewModel.confirmToggleActive() }
                         }
                     ),
                     secondaryAction: ReguertaDialogAction(
                         title: AccessL10nKey.commonActionCancel,
-                        action: { pendingToggleActiveMemberId = nil }
+                        action: viewModel.dismissToggleActive
                     ),
-                    onDismiss: { pendingToggleActiveMemberId = nil }
+                    onDismiss: viewModel.dismissToggleActive
                 )
             }
         }
@@ -78,35 +55,33 @@ struct UsersRouteView: View {
                             Text(LocalizedStringKey(AccessL10nKey.usersListTitle))
                                 .font(tokens.typography.titleCard)
                             ReguertaButton(LocalizedStringKey(AccessL10nKey.usersListActionReload), variant: .text, fullWidth: false) {
-                                viewModel.refreshMembers()
+                                Task { await viewModel.refreshMembers() }
                             }
                         }
                     }
 
-                    if sortedMembers.isEmpty {
+                    if viewModel.sortedMembers.isEmpty {
                         ReguertaCard {
                             Text(LocalizedStringKey(AccessL10nKey.usersListEmpty))
                                 .font(tokens.typography.bodySecondary)
                                 .foregroundStyle(tokens.colors.textSecondary)
                         }
                     } else {
-                        ForEach(sortedMembers) { member in
+                        ForEach(viewModel.sortedMembers) { member in
                             userCardRow(member)
                         }
                     }
 
-                    if canManageMembers {
+                    if viewModel.canManageMembers {
                         Spacer(minLength: 92.resize)
                     }
                 }
             }
             .scrollDismissesKeyboard(.interactively)
 
-            if canManageMembers {
+            if viewModel.canManageMembers {
                 ReguertaButton(LocalizedStringKey(AccessL10nKey.usersListActionAdd)) {
-                    memberDraft = MemberDraft()
-                    editingMemberId = nil
-                    isEditorOpen = true
+                    viewModel.startCreating()
                 }
                 .padding(.bottom, tokens.spacing.sm)
             }
@@ -133,13 +108,11 @@ struct UsersRouteView: View {
                         .foregroundStyle(tokens.colors.textSecondary)
                 }
 
-                if canManageMembers {
+                if viewModel.canManageMembers {
                     HStack(spacing: tokens.spacing.sm) {
                         Spacer()
                         Button {
-                            memberDraft = member.toDraft()
-                            editingMemberId = member.id
-                            isEditorOpen = true
+                            viewModel.startEditing(memberId: member.id)
                         } label: {
                             Image(systemName: "pencil")
                                 .foregroundStyle(tokens.colors.actionOnPrimary)
@@ -150,7 +123,7 @@ struct UsersRouteView: View {
                         .buttonStyle(.plain)
 
                         Button {
-                            pendingToggleActiveMemberId = member.id
+                            viewModel.requestToggleActive(memberId: member.id)
                         } label: {
                             Image(systemName: "trash")
                                 .foregroundStyle(tokens.colors.actionOnPrimary)
@@ -208,20 +181,10 @@ struct UsersRouteView: View {
 
                 Toggle(
                     LocalizedStringKey(AccessL10nKey.roleProducer),
-                    isOn: Binding(
-                        get: { memberDraft.isProducer },
-                        set: { value in
-                            var updated = memberDraft
-                            updated.isProducer = value
-                            if !value {
-                                updated.companyName = ""
-                            }
-                            memberDraft = updated
-                        }
-                    )
+                    isOn: producerBinding
                 )
 
-                if memberDraft.isProducer {
+                if viewModel.draft.isProducer {
                     TextField(
                         LocalizedStringKey(AccessL10nKey.usersEditorCompanyNameLabel),
                         text: draftStringBinding(\.companyName)
@@ -236,20 +199,31 @@ struct UsersRouteView: View {
                         editingMember == nil
                             ? AccessL10nKey.usersEditorActionCreate
                             : AccessL10nKey.usersEditorActionUpdate
-                    )
+                    ),
+                    isEnabled: !viewModel.isSavingMember,
+                    isLoading: viewModel.isSavingMember
                 ) {
-                    viewModel.saveMemberDraft(editingMemberId: editingMemberId) {
-                        editingMemberId = nil
-                        isEditorOpen = false
-                    }
+                    Task { _ = await viewModel.saveDraft() }
                 }
                 ReguertaButton(LocalizedStringKey(AccessL10nKey.commonBack), variant: .text, fullWidth: false) {
-                    editingMemberId = nil
-                    isEditorOpen = false
-                    memberDraft = MemberDraft()
+                    viewModel.clearEditor()
                 }
             }
         }
+    }
+
+    private var producerBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel.draft.isProducer },
+            set: { value in
+                var updated = viewModel.draft
+                updated.isProducer = value
+                if !value {
+                    updated.companyName = ""
+                }
+                viewModel.updateDraft(updated)
+            }
+        )
     }
 
     private func producerLine(for member: Member) -> String {
@@ -266,39 +240,23 @@ struct UsersRouteView: View {
 
     private func draftStringBinding(_ keyPath: WritableKeyPath<MemberDraft, String>) -> Binding<String> {
         Binding(
-            get: { memberDraft[keyPath: keyPath] },
+            get: { viewModel.draft[keyPath: keyPath] },
             set: { value in
-                var updated = memberDraft
+                var updated = viewModel.draft
                 updated[keyPath: keyPath] = value
-                memberDraft = updated
+                viewModel.updateDraft(updated)
             }
         )
     }
 
     private func draftBoolBinding(_ keyPath: WritableKeyPath<MemberDraft, Bool>) -> Binding<Bool> {
         Binding(
-            get: { memberDraft[keyPath: keyPath] },
+            get: { viewModel.draft[keyPath: keyPath] },
             set: { value in
-                var updated = memberDraft
+                var updated = viewModel.draft
                 updated[keyPath: keyPath] = value
-                memberDraft = updated
+                viewModel.updateDraft(updated)
             }
-        )
-    }
-}
-
-private extension Member {
-    func toDraft() -> MemberDraft {
-        MemberDraft(
-            displayName: displayName,
-            email: normalizedEmail,
-            companyName: companyName ?? "",
-            phoneNumber: phoneNumber ?? "",
-            isMember: roles.contains(.member),
-            isProducer: roles.contains(.producer),
-            isAdmin: roles.contains(.admin),
-            isCommonPurchaseManager: isCommonPurchaseManager,
-            isActive: isActive
         )
     }
 }
