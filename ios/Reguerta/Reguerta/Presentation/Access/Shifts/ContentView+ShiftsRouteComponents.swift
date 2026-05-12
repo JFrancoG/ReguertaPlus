@@ -2,12 +2,9 @@ import SwiftUI
 
 struct ShiftBoardCardView: View {
     let tokens: ReguertaDesignTokens
+    let viewModel: ShiftsFeatureViewModel
     let shift: ShiftAssignment
-    let currentMemberId: String?
-    let currentSession: AuthorizedSession?
     let shiftSwapCopy: ShiftSwapCopy
-    let shiftBoardLines: (ShiftAssignment) -> [ShiftBoardLine]
-    let canRequestSwapForShift: (ShiftAssignment, String) -> Bool
     let onStartSwapRequestForShift: (String) -> Void
 
     private var leftColumnWidth: CGFloat {
@@ -19,12 +16,13 @@ struct ShiftBoardCardView: View {
     }
 
     private var highlightedIndex: Int? {
-        currentMemberId.flatMap { shift.highlightedBoardNameIndex(for: $0) }
+        guard let currentMemberId = viewModel.currentMember?.id else { return nil }
+        return shift.highlightedBoardNameIndex(for: currentMemberId)
     }
 
     private var canRequestSwap: Bool {
-        guard let currentMemberId else { return false }
-        return canRequestSwapForShift(shift, currentMemberId)
+        guard let currentMemberId = viewModel.currentMember?.id else { return false }
+        return viewModel.canRequestSwapForShift(shift, currentMemberId: currentMemberId)
     }
 
     var body: some View {
@@ -32,7 +30,7 @@ struct ShiftBoardCardView: View {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 HStack(alignment: .top, spacing: tokens.spacing.md) {
                     VStack(alignment: leftAlignment, spacing: tokens.spacing.xs) {
-                        ForEach(Array(shiftBoardLines(shift).enumerated()), id: \.offset) { _, line in
+                        ForEach(Array(viewModel.shiftLeftBoardLines(shift, tokens: tokens).enumerated()), id: \.offset) { _, line in
                             Text(line.text)
                                 .font(line.font)
                                 .fontWeight(line.weight)
@@ -43,7 +41,7 @@ struct ShiftBoardCardView: View {
                     .frame(width: leftColumnWidth, alignment: shift.type == .market ? .center : .leading)
 
                     VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                        ForEach(Array(shift.boardNames(session: currentSession).enumerated()), id: \.offset) { index, name in
+                        ForEach(Array(shift.boardNames(session: viewModel.currentSession).enumerated()), id: \.offset) { index, name in
                             Text(name)
                                 .font(boardNameFont(index: index))
                                 .fontWeight(boardNameWeight(index: index))
@@ -86,14 +84,15 @@ struct ShiftBoardCardView: View {
 
 struct ShiftSwapRequestRouteView: View {
     let tokens: ReguertaDesignTokens
+    let viewModel: ShiftsFeatureViewModel
     let shift: ShiftAssignment?
-    let shiftSwapDraftShiftId: String
-    @Binding var shiftSwapReason: String
-    let isSavingShiftSwapRequest: Bool
-    let shiftSwapCopy: ShiftSwapCopy
     let shiftDisplayLabel: String
     let onSave: () -> Void
     let onBack: () -> Void
+
+    private var shiftSwapCopy: ShiftSwapCopy {
+        .localized
+    }
 
     var body: some View {
         ReguertaCard {
@@ -115,20 +114,29 @@ struct ShiftSwapRequestRouteView: View {
                 Text(shiftSwapCopy.reasonLabel)
                     .font(tokens.typography.label)
                     .foregroundStyle(tokens.colors.textSecondary)
-                TextEditor(text: $shiftSwapReason)
+                TextEditor(text: shiftSwapReasonBinding)
                     .frame(minHeight: 160.resize)
                     .padding(tokens.spacing.sm)
                     .background(tokens.colors.surfaceSecondary)
                     .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
 
                 ReguertaButton(
-                    LocalizedStringKey(isSavingShiftSwapRequest ? shiftSwapCopy.sending : shiftSwapCopy.send),
-                    isEnabled: !isSavingShiftSwapRequest && !shiftSwapDraftShiftId.isEmpty,
-                    isLoading: isSavingShiftSwapRequest,
+                    LocalizedStringKey(viewModel.isSavingShiftSwapRequest ? shiftSwapCopy.sending : shiftSwapCopy.send),
+                    isEnabled: !viewModel.isSavingShiftSwapRequest && !viewModel.shiftSwapDraft.shiftId.isEmpty,
+                    isLoading: viewModel.isSavingShiftSwapRequest,
                     action: onSave
                 )
                 ReguertaButton(LocalizedStringKey(shiftSwapCopy.back), variant: .text, action: onBack)
             }
         }
+    }
+
+    private var shiftSwapReasonBinding: Binding<String> {
+        Binding(
+            get: { viewModel.shiftSwapDraft.reason },
+            set: { newValue in
+                viewModel.updateShiftSwapDraft { $0.reason = newValue }
+            }
+        )
     }
 }

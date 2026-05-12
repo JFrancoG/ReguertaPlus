@@ -5,19 +5,8 @@ struct DeliveryCalendarWeekPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
     let futureWeeks: [ShiftAssignment]
     let overrides: [DeliveryCalendarOverride]
+    @Binding var selectedWeekKey: String
     let onSelectWeek: (String) -> Void
-    @State private var selectedWeekKey: String
-
-    init(
-        futureWeeks: [ShiftAssignment],
-        overrides: [DeliveryCalendarOverride],
-        onSelectWeek: @escaping (String) -> Void
-    ) {
-        self.futureWeeks = futureWeeks
-        self.overrides = overrides
-        self.onSelectWeek = onSelectWeek
-        _selectedWeekKey = State(initialValue: futureWeeks.first?.weekKey ?? "")
-    }
 
     var body: some View {
         NavigationStack {
@@ -94,31 +83,11 @@ struct DeliveryCalendarEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     let shift: ShiftAssignment
     let overrideEntry: DeliveryCalendarOverride?
-    let defaultDay: DeliveryWeekday
+    @Binding var selectedWeekday: DeliveryWeekday
     let isSaving: Bool
     let onRefresh: () -> Void
-    let onSave: (String, DeliveryWeekday) -> Void
-    let onDelete: (String) -> Void
-    @State private var selectedWeekday: DeliveryWeekday
-
-    init(
-        shift: ShiftAssignment,
-        overrideEntry: DeliveryCalendarOverride?,
-        defaultDay: DeliveryWeekday,
-        isSaving: Bool,
-        onRefresh: @escaping () -> Void,
-        onSave: @escaping (String, DeliveryWeekday) -> Void,
-        onDelete: @escaping (String) -> Void
-    ) {
-        self.shift = shift
-        self.overrideEntry = overrideEntry
-        self.defaultDay = defaultDay
-        self.isSaving = isSaving
-        self.onRefresh = onRefresh
-        self.onSave = onSave
-        self.onDelete = onDelete
-        _selectedWeekday = State(initialValue: overrideEntry?.deliveryDateMillis.deliveryWeekday ?? defaultDay)
-    }
+    let onSave: () -> Void
+    let onDelete: () -> Void
 
     var body: some View {
         NavigationStack {
@@ -159,8 +128,7 @@ struct DeliveryCalendarEditorSheet: View {
                         }
 
                         ReguertaButton(localizedKey(AccessL10nKey.deliveryCalendarEditorActionSaveException), isEnabled: !isSaving, isLoading: isSaving) {
-                            onSave(shift.weekKey, selectedWeekday)
-                            dismiss()
+                            onSave()
                         }
                         if overrideEntry != nil {
                             ReguertaButton(
@@ -169,8 +137,7 @@ struct DeliveryCalendarEditorSheet: View {
                                 isEnabled: !isSaving,
                                 fullWidth: false
                             ) {
-                                onDelete(shift.weekKey)
-                                dismiss()
+                                onDelete()
                             }
                         }
                     }

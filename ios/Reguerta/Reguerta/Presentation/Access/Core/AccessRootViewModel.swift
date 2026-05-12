@@ -5,6 +5,7 @@ import SwiftUI
 final class AccessRootViewModel {
     @ObservationIgnored let sessionViewModel: SessionViewModel
     @ObservationIgnored let productsViewModel: ProductsRouteViewModel
+    @ObservationIgnored let shiftsViewModel: ShiftsFeatureViewModel
     @ObservationIgnored let myOrderViewModel: MyOrderRouteViewModel
     @ObservationIgnored let receivedOrdersViewModel: ReceivedOrdersRouteViewModel
     @ObservationIgnored private let startupVersionGateUseCase: ResolveStartupVersionGateUseCase
@@ -28,12 +29,8 @@ final class AccessRootViewModel {
     var myOrderCartUnits = 0
     var myOrderCartOpenRequests = 0
     var pendingNewsDeletionId: String?
-    var selectedShiftSegment: ShiftBoardSegment = .delivery
-    var isDeliveryCalendarEditorPresented = false
-    var isDeliveryCalendarWeekPickerPresented = false
-    var selectedDeliveryCalendarWeekKey: String?
     var isImpersonationExpanded = false
-    var pendingShiftPlanningType: ShiftPlanningRequestType?
+    var nowOverrideMillis: Int64?
 
     var shouldSkipSplash: Bool {
         shouldSkipSplashProvider()
@@ -51,13 +48,15 @@ final class AccessRootViewModel {
         sessionViewModel: SessionViewModel,
         productsFeatureDependencies: ProductsFeatureDependencies = .preview(),
         ordersFeatureDependencies: OrdersFeatureDependencies = .preview(),
+        shiftsFeatureDependencies: ShiftsFeatureDependencies = .preview(),
         startupVersionGateUseCase: ResolveStartupVersionGateUseCase,
         shouldSkipSplashProvider: @escaping () -> Bool = {
             ProcessInfo.processInfo.arguments.contains("-skipSplash")
         },
         installedVersionProvider: @escaping () -> String = {
             resolveInstalledAppVersion()
-        }
+        },
+        initialNowOverrideMillis: Int64? = nil
     ) {
         self.sessionViewModel = sessionViewModel
         self.productsViewModel = ProductsRouteViewModel(
@@ -67,6 +66,15 @@ final class AccessRootViewModel {
             seasonalCommitmentRepository: productsFeatureDependencies.seasonalCommitmentRepository,
             imagePipelineManager: productsFeatureDependencies.imagePipelineManager,
             nowMillisProvider: productsFeatureDependencies.nowMillisProvider
+        )
+        self.shiftsViewModel = ShiftsFeatureViewModel(
+            sessionViewModel: sessionViewModel,
+            shiftRepository: shiftsFeatureDependencies.shiftRepository,
+            shiftSwapRequestRepository: shiftsFeatureDependencies.shiftSwapRequestRepository,
+            shiftPlanningRequestRepository: shiftsFeatureDependencies.shiftPlanningRequestRepository,
+            deliveryCalendarRepository: shiftsFeatureDependencies.deliveryCalendarRepository,
+            notificationRepository: shiftsFeatureDependencies.notificationRepository,
+            nowMillisProvider: shiftsFeatureDependencies.nowMillisProvider
         )
         self.myOrderViewModel = MyOrderRouteViewModel(
             sessionViewModel: sessionViewModel,
@@ -82,6 +90,7 @@ final class AccessRootViewModel {
         self.startupVersionGateUseCase = startupVersionGateUseCase
         self.shouldSkipSplashProvider = shouldSkipSplashProvider
         self.installedVersionProvider = installedVersionProvider
+        self.nowOverrideMillis = initialNowOverrideMillis
     }
 
     func dispatchShell(_ action: AuthShellAction) {
@@ -181,6 +190,7 @@ final class AccessRootViewModel {
 
     func handleSessionModeChange(_ mode: SessionMode) {
         productsViewModel.handleSessionModeChange(mode)
+        shiftsViewModel.handleSessionModeChange(mode)
         guard shellState.currentRoute != .splash else { return }
 
         switch mode {
@@ -193,6 +203,19 @@ final class AccessRootViewModel {
 
     func handleNowOverrideChange() {
         productsViewModel.handleNowOverrideChange()
+        shiftsViewModel.handleNowOverrideChange()
+    }
+
+    func setNowOverrideMillis(_ nowMillis: Int64?) {
+        DevelopmentTimeMachine.shared.setOverrideNowMillis(nowMillis)
+        nowOverrideMillis = nowMillis
+        handleNowOverrideChange()
+    }
+
+    func shiftNowByDays(_ days: Int) {
+        let baseMillis = nowOverrideMillis ?? Int64(Date().timeIntervalSince1970 * 1_000)
+        let shiftedMillis = baseMillis + Int64(days) * 24 * 60 * 60 * 1_000
+        setNowOverrideMillis(shiftedMillis)
     }
 
     func handleScenePhaseChange(_ newPhase: ScenePhase) {

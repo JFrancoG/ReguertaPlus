@@ -5,75 +5,39 @@ extension AccessRootRoutingView {
     var shiftsRoute: some View {
         ShiftsRouteView(
             tokens: tokens,
-            selectedShiftSegment: rootBinding(\.selectedShiftSegment),
-            isLoadingShifts: viewModel.isLoadingShifts,
-            shiftsFeed: viewModel.shiftsFeed,
-            shiftSwapRequests: viewModel.shiftSwapRequests,
-            dismissedShiftSwapRequestIds: viewModel.dismissedShiftSwapRequestIds,
-            currentMemberId: currentHomeMember?.id,
-            currentSession: currentHomeSession,
-            shiftSwapCopy: shiftSwapCopy,
-            nextShiftsIsLoading: viewModel.isLoadingShifts,
-            nextDeliverySummary: viewModel.nextDeliveryShift.map(shiftSummary) ?? l10n(AccessL10nKey.shiftsNextPending),
-            nextMarketSummary: viewModel.nextMarketShift.map(shiftSummary) ?? l10n(AccessL10nKey.shiftsNextPending),
-            onRefreshShifts: viewModel.refreshShifts,
+            viewModel: rootViewModel.shiftsViewModel,
             onRefreshFromNextShifts: {
                 homeDestination = .shifts
-                viewModel.refreshShifts()
+                Task { await rootViewModel.shiftsViewModel.refreshShifts() }
             },
             onStartSwapRequestForShift: { shiftId in
-                viewModel.startCreatingShiftSwap(shiftId: shiftId)
+                rootViewModel.shiftsViewModel.startCreatingShiftSwap(shiftId: shiftId)
                 homeDestination = .shiftSwapRequest
-            },
-            onAcceptIncomingCandidate: { requestId, candidateShiftId in
-                viewModel.acceptShiftSwapRequest(requestId: requestId, candidateShiftId: candidateShiftId)
-            },
-            onRejectIncomingCandidate: { requestId, candidateShiftId in
-                viewModel.rejectShiftSwapRequest(requestId: requestId, candidateShiftId: candidateShiftId)
-            },
-            onConfirmResponse: { requestId, candidateShiftId in
-                viewModel.confirmShiftSwapRequest(requestId: requestId, candidateShiftId: candidateShiftId)
-            },
-            onCancelOwnRequest: { requestId in
-                viewModel.cancelShiftSwapRequest(requestId: requestId)
-            },
-            onDismissAppliedRequest: { requestId in
-                viewModel.dismissShiftSwapActivity(requestId: requestId)
-            },
-            shiftBoardLines: shiftLeftBoardLines,
-            shiftSwapDisplayLabel: shiftSwapDisplayLabel,
-            displayNameForSwap: displayNameForSwap,
-            shiftSwapStatusLabel: shiftSwapStatusLabel,
-            canRequestSwapForShift: canRequestSwapForShift
+            }
         )
     }
 
     var shiftSwapRequestRoute: some View {
-        let shift = viewModel.shiftsFeed.first(where: { $0.id == viewModel.shiftSwapDraft.shiftId })
+        let shiftsViewModel = rootViewModel.shiftsViewModel
+        let shift = shiftsViewModel.shiftsFeed.first(where: { $0.id == shiftsViewModel.shiftSwapDraft.shiftId })
         let shiftDisplayLabel = shift.map {
-            shiftSwapDisplayLabel($0, memberId: $0.assignedUserIds.first ?? $0.helperUserId)
-        } ?? viewModel.shiftSwapDraft.shiftId
+            shiftsViewModel.shiftSwapDisplayLabel($0, memberId: $0.assignedUserIds.first ?? $0.helperUserId)
+        } ?? shiftsViewModel.shiftSwapDraft.shiftId
 
         return ShiftSwapRequestRouteView(
             tokens: tokens,
+            viewModel: shiftsViewModel,
             shift: shift,
-            shiftSwapDraftShiftId: viewModel.shiftSwapDraft.shiftId,
-            shiftSwapReason: Binding(
-                get: { viewModel.shiftSwapDraft.reason },
-                set: { newValue in
-                    viewModel.updateShiftSwapDraft { $0.reason = newValue }
-                }
-            ),
-            isSavingShiftSwapRequest: viewModel.isSavingShiftSwapRequest,
-            shiftSwapCopy: shiftSwapCopy,
             shiftDisplayLabel: shiftDisplayLabel,
             onSave: {
-                viewModel.saveShiftSwapRequest {
-                    homeDestination = .shifts
+                Task {
+                    if await shiftsViewModel.saveShiftSwapRequest() {
+                        homeDestination = .shifts
+                    }
                 }
             },
             onBack: {
-                viewModel.clearShiftSwapDraft()
+                shiftsViewModel.clearShiftSwapDraft()
                 homeDestination = .shifts
             }
         )
@@ -162,10 +126,10 @@ extension AccessRootRoutingView {
             context: MyOrderRouteContext(
                 products: rootViewModel.productsViewModel.myOrderProducts,
                 seasonalCommitments: rootViewModel.productsViewModel.myOrderSeasonalCommitments,
-                shifts: viewModel.shiftsFeed,
-                defaultDeliveryDayOfWeek: viewModel.defaultDeliveryDayOfWeek,
-                deliveryCalendarOverrides: viewModel.deliveryCalendarOverrides,
-                nowMillis: viewModel.nowOverrideMillis ?? Int64(Date().timeIntervalSince1970 * 1_000),
+                shifts: rootViewModel.shiftsViewModel.shiftsFeed,
+                defaultDeliveryDayOfWeek: rootViewModel.shiftsViewModel.defaultDeliveryDayOfWeek,
+                deliveryCalendarOverrides: rootViewModel.shiftsViewModel.deliveryCalendarOverrides,
+                nowMillis: rootViewModel.shiftsViewModel.currentNowMillis,
                 isLoading: rootViewModel.productsViewModel.isLoadingOrderingProducts,
                 currentMember: currentHomeMember,
                 members: currentHomeSession?.members ?? []
@@ -186,10 +150,10 @@ extension AccessRootRoutingView {
             viewModel: rootViewModel.receivedOrdersViewModel,
             context: ReceivedOrdersRouteContext(
                 currentMember: currentHomeMember,
-                shifts: viewModel.shiftsFeed,
-                defaultDeliveryDayOfWeek: viewModel.defaultDeliveryDayOfWeek,
-                deliveryCalendarOverrides: viewModel.deliveryCalendarOverrides,
-                nowMillis: viewModel.nowOverrideMillis ?? Int64(Date().timeIntervalSince1970 * 1_000)
+                shifts: rootViewModel.shiftsViewModel.shiftsFeed,
+                defaultDeliveryDayOfWeek: rootViewModel.shiftsViewModel.defaultDeliveryDayOfWeek,
+                deliveryCalendarOverrides: rootViewModel.shiftsViewModel.deliveryCalendarOverrides,
+                nowMillis: rootViewModel.shiftsViewModel.currentNowMillis
             )
         )
     }
@@ -271,39 +235,16 @@ extension AccessRootRoutingView {
         SettingsRouteView(
             tokens: tokens,
             session: currentHomeSession,
+            shiftsViewModel: rootViewModel.shiftsViewModel,
             isDevelopImpersonationEnabled: viewModel.isDevelopImpersonationEnabled,
             isImpersonationExpanded: rootBinding(\.isImpersonationExpanded),
-            isLoadingDeliveryCalendar: viewModel.isLoadingDeliveryCalendar,
-            defaultDeliveryDayOfWeek: viewModel.defaultDeliveryDayOfWeek,
-            shiftsFeed: viewModel.shiftsFeed,
-            deliveryCalendarOverrides: viewModel.deliveryCalendarOverrides,
-            isDeliveryCalendarEditorPresented: rootBinding(\.isDeliveryCalendarEditorPresented),
-            isDeliveryCalendarWeekPickerPresented: rootBinding(\.isDeliveryCalendarWeekPickerPresented),
-            selectedDeliveryCalendarWeekKey: rootBinding(\.selectedDeliveryCalendarWeekKey),
-            isSavingDeliveryCalendar: viewModel.isSavingDeliveryCalendar,
-            isSubmittingShiftPlanningRequest: viewModel.isSubmittingShiftPlanningRequest,
-            pendingShiftPlanningType: rootBinding(\.pendingShiftPlanningType),
-            nowOverrideMillis: viewModel.nowOverrideMillis,
+            nowOverrideMillis: rootViewModel.nowOverrideMillis,
             onClearImpersonation: viewModel.clearImpersonation,
             onImpersonate: { memberId in
                 viewModel.impersonate(memberId: memberId)
             },
-            onSetNowOverrideMillis: viewModel.setNowOverrideMillis,
-            onShiftNowByDays: viewModel.shiftNowByDays,
-            onRefreshDeliveryCalendar: viewModel.refreshDeliveryCalendar,
-            onSaveDeliveryCalendarOverride: { weekKey, weekday, updatedByUserId in
-                viewModel.saveDeliveryCalendarOverride(
-                    weekKey: weekKey,
-                    weekday: weekday,
-                    updatedByUserId: updatedByUserId
-                )
-            },
-            onDeleteDeliveryCalendarOverride: { weekKey in
-                viewModel.deleteDeliveryCalendarOverride(weekKey: weekKey)
-            },
-            onSubmitShiftPlanningRequest: { type, completion in
-                viewModel.submitShiftPlanningRequest(type: type, onSuccess: completion)
-            }
+            onSetNowOverrideMillis: rootViewModel.setNowOverrideMillis,
+            onShiftNowByDays: rootViewModel.shiftNowByDays
         )
     }
 

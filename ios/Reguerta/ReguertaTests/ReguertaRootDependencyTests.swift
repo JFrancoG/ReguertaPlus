@@ -19,7 +19,6 @@ struct ReguertaRootDependencyTests {
 
         #expect(viewModel.mode == .signedOut)
         #expect(viewModel.isDevelopImpersonationEnabled == false)
-        #expect(viewModel.nowOverrideMillis == nil)
     }
 
     @Test

@@ -44,11 +44,6 @@ struct SharedProfileDraft: Equatable, Sendable {
     }
 }
 
-struct ShiftSwapDraft: Equatable, Sendable {
-    var shiftId = ""
-    var reason = ""
-}
-
 struct AuthorizedSession: Equatable, Sendable {
     var principal: AuthPrincipal
     var authenticatedMember: Member
@@ -146,16 +141,8 @@ final class SessionViewModel {
     var notificationDraft = NotificationDraft()
     var sharedProfiles: [SharedProfile] = []
     var sharedProfileDraft = SharedProfileDraft()
-    var shiftsFeed: [ShiftAssignment] = []
-    var deliveryCalendarOverrides: [DeliveryCalendarOverride] = []
-    var defaultDeliveryDayOfWeek: DeliveryWeekday?
-    var shiftSwapRequests: [ShiftSwapRequest] = []
-    var dismissedShiftSwapRequestIds = Set<String>()
-    var shiftSwapDraft = ShiftSwapDraft()
     var bylawsQueryInput = ""
     var bylawsAnswerResult: BylawsAnswerResult?
-    var nextDeliveryShift: ShiftAssignment?
-    var nextMarketShift: ShiftAssignment?
     var editingNewsId: String?
     var isLoadingNews = false
     var isSavingNews = false
@@ -166,24 +153,13 @@ final class SessionViewModel {
     var isSavingSharedProfile = false
     var isUploadingSharedProfileImage = false
     var isDeletingSharedProfile = false
-    var isLoadingShifts = false
-    var isLoadingDeliveryCalendar = false
-    var isSavingDeliveryCalendar = false
-    var isSubmittingShiftPlanningRequest = false
-    var isSavingShiftSwapRequest = false
-    var isUpdatingShiftSwapRequest = false
     var isAskingBylaws = false
-    var nowOverrideMillis: Int64?
 
     let repository: any MemberRepository
     let newsRepository: any NewsRepository
     let notificationRepository: any NotificationRepository
     let imagePipelineManager: any ImagePipelineManager
     let sharedProfileRepository: any SharedProfileRepository
-    let shiftRepository: any ShiftRepository
-    let deliveryCalendarRepository: any DeliveryCalendarRepository
-    let shiftPlanningRequestRepository: any ShiftPlanningRequestRepository
-    let shiftSwapRequestRepository: any ShiftSwapRequestRepository
     let authSessionProvider: any AuthSessionProvider
     let resolveAuthorizedSession: ResolveAuthorizedSessionUseCase
     let upsertMemberByAdmin: UpsertMemberByAdminUseCase
@@ -238,10 +214,6 @@ final class SessionViewModel {
         self.notificationRepository = dependencies.notificationRepository
         self.imagePipelineManager = dependencies.imagePipelineManager
         self.sharedProfileRepository = dependencies.sharedProfileRepository
-        self.shiftRepository = dependencies.shiftRepository
-        self.deliveryCalendarRepository = dependencies.deliveryCalendarRepository
-        self.shiftPlanningRequestRepository = dependencies.shiftPlanningRequestRepository
-        self.shiftSwapRequestRepository = dependencies.shiftSwapRequestRepository
         self.authSessionProvider = dependencies.authSessionProvider
         self.resolveAuthorizedSession = dependencies.resolveAuthorizedSession
         self.upsertMemberByAdmin = dependencies.upsertMemberByAdmin
@@ -252,15 +224,12 @@ final class SessionViewModel {
         self.sessionRefreshPolicy = dependencies.sessionRefreshPolicy
         self.nowMillisProvider = dependencies.nowMillisProvider
         self.developImpersonationEnabled = dependencies.developImpersonationEnabled
-        self.nowOverrideMillis = dependencies.initialNowOverrideMillis
     }
 
     convenience init(
         repository: (any MemberRepository)? = nil,
+        notificationRepository: (any NotificationRepository)? = nil,
         sharedProfileRepository: (any SharedProfileRepository)? = nil,
-        deliveryCalendarRepository: (any DeliveryCalendarRepository)? = nil,
-        shiftPlanningRequestRepository: (any ShiftPlanningRequestRepository)? = nil,
-        shiftSwapRequestRepository: (any ShiftSwapRequestRepository)? = nil,
         imagePipelineManager: (any ImagePipelineManager)? = nil,
         authSessionProvider: (any AuthSessionProvider)? = nil,
         resolveAuthorizedSession: ResolveAuthorizedSessionUseCase? = nil,
@@ -269,16 +238,13 @@ final class SessionViewModel {
         reviewerEnvironmentRouter: (any ReviewerEnvironmentRouter)? = nil,
         developImpersonationEnabled: Bool = false,
         sessionRefreshPolicy: SessionRefreshPolicy = SessionRefreshPolicy(),
-        nowMillisProvider: @escaping @MainActor @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1_000) },
-        initialNowOverrideMillis: Int64? = nil
+        nowMillisProvider: @escaping @MainActor @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1_000) }
     ) {
         self.init(
             dependencies: .live(
                 repository: repository,
+                notificationRepository: notificationRepository,
                 sharedProfileRepository: sharedProfileRepository,
-                deliveryCalendarRepository: deliveryCalendarRepository,
-                shiftPlanningRequestRepository: shiftPlanningRequestRepository,
-                shiftSwapRequestRepository: shiftSwapRequestRepository,
                 imagePipelineManager: imagePipelineManager,
                 authSessionProvider: authSessionProvider,
                 resolveAuthorizedSession: resolveAuthorizedSession,
@@ -287,22 +253,8 @@ final class SessionViewModel {
                 reviewerEnvironmentRouter: reviewerEnvironmentRouter,
                 developImpersonationEnabled: developImpersonationEnabled,
                 sessionRefreshPolicy: sessionRefreshPolicy,
-                nowMillisProvider: nowMillisProvider,
-                initialNowOverrideMillis: initialNowOverrideMillis
+                nowMillisProvider: nowMillisProvider
             )
         )
-    }
-
-    func setNowOverrideMillis(_ nowMillis: Int64?) {
-        DevelopmentTimeMachine.shared.setOverrideNowMillis(nowMillis)
-        nowOverrideMillis = nowMillis
-        refreshShifts()
-        refreshDeliveryCalendar()
-    }
-
-    func shiftNowByDays(_ days: Int) {
-        let baseMillis = nowOverrideMillis ?? Int64(Date().timeIntervalSince1970 * 1_000)
-        let shiftedMillis = baseMillis + Int64(days) * 24 * 60 * 60 * 1_000
-        setNowOverrideMillis(shiftedMillis)
     }
 }

@@ -148,37 +148,14 @@ private struct AdminMemberRowView: View {
 struct SettingsRouteView: View {
     let tokens: ReguertaDesignTokens
     let session: AuthorizedSession?
+    let shiftsViewModel: ShiftsFeatureViewModel
     let isDevelopImpersonationEnabled: Bool
     @Binding var isImpersonationExpanded: Bool
-    let isLoadingDeliveryCalendar: Bool
-    let defaultDeliveryDayOfWeek: DeliveryWeekday?
-    let shiftsFeed: [ShiftAssignment]
-    let deliveryCalendarOverrides: [DeliveryCalendarOverride]
-    @Binding var isDeliveryCalendarEditorPresented: Bool
-    @Binding var isDeliveryCalendarWeekPickerPresented: Bool
-    @Binding var selectedDeliveryCalendarWeekKey: String?
-    let isSavingDeliveryCalendar: Bool
-    let isSubmittingShiftPlanningRequest: Bool
-    @Binding var pendingShiftPlanningType: ShiftPlanningRequestType?
     let nowOverrideMillis: Int64?
     let onClearImpersonation: () -> Void
     let onImpersonate: (String) -> Void
     let onSetNowOverrideMillis: (Int64?) -> Void
     let onShiftNowByDays: (Int) -> Void
-    let onRefreshDeliveryCalendar: () -> Void
-    let onSaveDeliveryCalendarOverride: (String, DeliveryWeekday, String) -> Void
-    let onDeleteDeliveryCalendarOverride: (String) -> Void
-    let onSubmitShiftPlanningRequest: (ShiftPlanningRequestType, @escaping @MainActor @Sendable () -> Void) -> Void
-
-    private var futureDeliveryWeeks: [ShiftAssignment] {
-        let nowMillis = nowOverrideMillis ?? Int64(Date().timeIntervalSince1970 * 1_000)
-        let sortedWeeks = shiftsFeed
-            .filter { $0.type == .delivery && effectiveDateMillis(for: $0) > nowMillis }
-            .sorted { effectiveDateMillis(for: $0) < effectiveDateMillis(for: $1) }
-
-        var seenWeekKeys = Set<String>()
-        return sortedWeeks.filter { seenWeekKeys.insert($0.weekKey).inserted }
-    }
 
     var body: some View {
         ReguertaCard {
@@ -200,7 +177,7 @@ struct SettingsRouteView: View {
                 if let session, session.member.isAdmin {
                     Divider()
                         .overlay(tokens.colors.borderSubtle)
-                    adminDeliveryCalendarSection(session: session)
+                    adminDeliveryCalendarSection
                     Divider()
                         .overlay(tokens.colors.borderSubtle)
                     adminShiftPlanningSection
@@ -297,29 +274,29 @@ struct SettingsRouteView: View {
     }
 
     @ViewBuilder
-    private func adminDeliveryCalendarSection(session: AuthorizedSession) -> some View {
+    private var adminDeliveryCalendarSection: some View {
         adminDeliveryCalendarContent
-        .sheet(isPresented: $isDeliveryCalendarWeekPickerPresented) {
+        .sheet(isPresented: deliveryCalendarWeekPickerPresentedBinding) {
             DeliveryCalendarWeekPickerSheet(
-                futureWeeks: futureDeliveryWeeks,
-                overrides: deliveryCalendarOverrides,
+                futureWeeks: shiftsViewModel.futureDeliveryWeeks,
+                overrides: shiftsViewModel.deliveryCalendarOverrides,
+                selectedWeekKey: deliveryCalendarSelectedWeekBinding,
                 onSelectWeek: { weekKey in
-                    selectedDeliveryCalendarWeekKey = weekKey
-                    isDeliveryCalendarWeekPickerPresented = false
-                    isDeliveryCalendarEditorPresented = true
+                    shiftsViewModel.selectCalendarWeek(weekKey)
                 }
             )
             .presentationDetents([.medium, .large])
         }
         .sheet(
-            isPresented: $isDeliveryCalendarEditorPresented,
-            onDismiss: { selectedDeliveryCalendarWeekKey = nil },
-            content: { deliveryCalendarEditorSheet(session: session) }
+            isPresented: deliveryCalendarEditorPresentedBinding,
+            onDismiss: shiftsViewModel.dismissCalendarEditor,
+            content: { deliveryCalendarEditorSheet }
         )
     }
 
     private var adminDeliveryCalendarContent: some View {
-        let defaultDayLabel = defaultDeliveryDayOfWeek.map { l10n($0.titleKey) } ?? l10n(AccessL10nKey.settingsDeliveryCalendarDefaultDayUnset)
+        let defaultDayLabel = shiftsViewModel.defaultDeliveryDayOfWeek.map { l10n($0.titleKey) } ??
+            l10n(AccessL10nKey.settingsDeliveryCalendarDefaultDayUnset)
 
         return VStack(alignment: .leading, spacing: tokens.spacing.sm) {
             Text(localizedKey(AccessL10nKey.settingsDeliveryCalendarTitle))
@@ -329,20 +306,22 @@ struct SettingsRouteView: View {
                 .font(tokens.typography.body.weight(.semibold))
                 .foregroundStyle(tokens.colors.textPrimary)
 
-            if isLoadingDeliveryCalendar {
+            if shiftsViewModel.isLoadingDeliveryCalendar {
                 Text(localizedKey(AccessL10nKey.settingsDeliveryCalendarLoading))
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
-            } else if futureDeliveryWeeks.isEmpty {
+            } else if shiftsViewModel.futureDeliveryWeeks.isEmpty {
                 Text(localizedKey(AccessL10nKey.settingsDeliveryCalendarEmpty))
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
             } else {
                 HStack(spacing: tokens.spacing.sm) {
                     ReguertaButton(localizedKey(AccessL10nKey.settingsDeliveryCalendarActionChangeDay), fullWidth: false) {
-                        isDeliveryCalendarWeekPickerPresented = true
+                        shiftsViewModel.openCalendarWeekPicker()
                     }
-                    ReguertaButton(localizedKey(AccessL10nKey.commonActionReload), variant: .text, fullWidth: false, action: onRefreshDeliveryCalendar)
+                    ReguertaButton(localizedKey(AccessL10nKey.commonActionReload), variant: .text, fullWidth: false) {
+                        Task { await shiftsViewModel.refreshDeliveryCalendar() }
+                    }
                 }
                 Text(localizedKey(AccessL10nKey.settingsDeliveryCalendarHelp))
                     .font(tokens.typography.label)
@@ -352,19 +331,22 @@ struct SettingsRouteView: View {
     }
 
     @ViewBuilder
-    private func deliveryCalendarEditorSheet(session: AuthorizedSession) -> some View {
-        if let weekKey = selectedDeliveryCalendarWeekKey,
-           let shift = futureDeliveryWeeks.first(where: { $0.weekKey == weekKey }) {
+    private var deliveryCalendarEditorSheet: some View {
+        if let shift = shiftsViewModel.selectedDeliveryCalendarShift {
             DeliveryCalendarEditorSheet(
                 shift: shift,
-                overrideEntry: deliveryCalendarOverrides.first(where: { $0.weekKey == weekKey }),
-                defaultDay: defaultDeliveryDayOfWeek ?? .wednesday,
-                isSaving: isSavingDeliveryCalendar,
-                onRefresh: onRefreshDeliveryCalendar,
-                onSave: { selectedWeekKey, weekday in
-                    onSaveDeliveryCalendarOverride(selectedWeekKey, weekday, session.member.id)
+                overrideEntry: shiftsViewModel.selectedDeliveryCalendarOverride,
+                selectedWeekday: deliveryCalendarWeekdayBinding,
+                isSaving: shiftsViewModel.isSavingDeliveryCalendar,
+                onRefresh: {
+                    Task { await shiftsViewModel.refreshDeliveryCalendar() }
                 },
-                onDelete: onDeleteDeliveryCalendarOverride
+                onSave: {
+                    Task { await shiftsViewModel.saveDeliveryCalendarOverride() }
+                },
+                onDelete: {
+                    Task { await shiftsViewModel.deleteDeliveryCalendarOverride() }
+                }
             )
             .presentationDetents([.medium, .large])
         }
@@ -380,44 +362,43 @@ struct SettingsRouteView: View {
                 .foregroundStyle(tokens.colors.textSecondary)
             HStack(spacing: tokens.spacing.sm) {
                 ReguertaButton(localizedKey(AccessL10nKey.settingsShiftPlanningActionGenerateDelivery), fullWidth: false) {
-                    pendingShiftPlanningType = .delivery
+                    shiftsViewModel.requestShiftPlanning(.delivery)
                 }
                 ReguertaButton(localizedKey(AccessL10nKey.settingsShiftPlanningActionGenerateMarket), fullWidth: false) {
-                    pendingShiftPlanningType = .market
+                    shiftsViewModel.requestShiftPlanning(.market)
                 }
             }
-            .disabled(isSubmittingShiftPlanningRequest)
-            if isSubmittingShiftPlanningRequest {
+            .disabled(shiftsViewModel.isSubmittingShiftPlanningRequest)
+            if shiftsViewModel.isSubmittingShiftPlanningRequest {
                 Text(localizedKey(AccessL10nKey.settingsShiftPlanningSubmitting))
                     .font(tokens.typography.label)
                     .foregroundStyle(tokens.colors.textSecondary)
             }
         }
         .alert(
-            pendingShiftPlanningType == nil
+            shiftsViewModel.pendingShiftPlanningType == nil
                 ? localizedKey("")
                 : localizedKey(
-                    pendingShiftPlanningType == .delivery
+                    shiftsViewModel.pendingShiftPlanningType == .delivery
                         ? AccessL10nKey.settingsShiftPlanningAlertTitleDelivery
                         : AccessL10nKey.settingsShiftPlanningAlertTitleMarket
                 ),
             isPresented: Binding(
-                get: { pendingShiftPlanningType != nil },
+                get: { shiftsViewModel.pendingShiftPlanningType != nil },
                 set: { presented in
                     if !presented {
-                        pendingShiftPlanningType = nil
+                        shiftsViewModel.dismissShiftPlanningRequest()
                     }
                 }
             ),
-            presenting: pendingShiftPlanningType
+            presenting: shiftsViewModel.pendingShiftPlanningType
         ) { type in
             Button(localizedKey(AccessL10nKey.commonActionCancel), role: .cancel) {
-                pendingShiftPlanningType = nil
+                shiftsViewModel.dismissShiftPlanningRequest()
             }
             Button(localizedKey(AccessL10nKey.commonActionConfirm)) {
-                onSubmitShiftPlanningRequest(type) {
-                    pendingShiftPlanningType = nil
-                }
+                shiftsViewModel.requestShiftPlanning(type)
+                Task { await shiftsViewModel.confirmShiftPlanningRequest() }
             }
         } message: { _ in
             Text(localizedKey(AccessL10nKey.settingsShiftPlanningAlertMessage))
@@ -432,11 +413,35 @@ struct SettingsRouteView: View {
             }
     }
 
-    private func effectiveDateMillis(for shift: ShiftAssignment) -> Int64 {
-        deliveryCalendarOverrides.first(where: { $0.weekKey == shift.weekKey })?.deliveryDateMillis ?? shift.dateMillis
-    }
-
     private func localizedKey(_ key: String) -> LocalizedStringKey {
         LocalizedStringKey(key)
+    }
+
+    private var deliveryCalendarWeekPickerPresentedBinding: Binding<Bool> {
+        Binding(
+            get: { shiftsViewModel.isDeliveryCalendarWeekPickerPresented },
+            set: { shiftsViewModel.isDeliveryCalendarWeekPickerPresented = $0 }
+        )
+    }
+
+    private var deliveryCalendarEditorPresentedBinding: Binding<Bool> {
+        Binding(
+            get: { shiftsViewModel.isDeliveryCalendarEditorPresented },
+            set: { shiftsViewModel.isDeliveryCalendarEditorPresented = $0 }
+        )
+    }
+
+    private var deliveryCalendarSelectedWeekBinding: Binding<String> {
+        Binding(
+            get: { shiftsViewModel.selectedDeliveryCalendarWeekKey ?? shiftsViewModel.futureDeliveryWeeks.first?.weekKey ?? "" },
+            set: { shiftsViewModel.selectedDeliveryCalendarWeekKey = $0 }
+        )
+    }
+
+    private var deliveryCalendarWeekdayBinding: Binding<DeliveryWeekday> {
+        Binding(
+            get: { shiftsViewModel.selectedDeliveryCalendarWeekday },
+            set: { shiftsViewModel.selectedDeliveryCalendarWeekday = $0 }
+        )
     }
 }

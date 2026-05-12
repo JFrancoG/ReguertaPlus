@@ -4,8 +4,6 @@ extension SessionViewModel {
     private struct AuthorizedSessionBootstrapData {
         let allNotifications: [NotificationEvent]
         let profiles: [SharedProfile]
-        let shifts: [ShiftAssignment]
-        let requests: [ShiftSwapRequest]
         let allNews: [NewsArticle]
     }
 
@@ -153,11 +151,6 @@ extension SessionViewModel {
         notificationDraft = NotificationDraft()
         sharedProfiles = []
         sharedProfileDraft = SharedProfileDraft()
-        shiftsFeed = []
-        shiftSwapRequests = []
-        shiftSwapDraft = ShiftSwapDraft()
-        nextDeliveryShift = nil
-        nextMarketShift = nil
         editingNewsId = nil
         isLoadingNews = false
         isSavingNews = false
@@ -168,9 +161,6 @@ extension SessionViewModel {
         isSavingSharedProfile = false
         isUploadingSharedProfileImage = false
         isDeletingSharedProfile = false
-        isLoadingShifts = false
-        isSavingShiftSwapRequest = false
-        isUpdatingShiftSwapRequest = false
     }
 
     func clearSessionRefreshTracking() {
@@ -220,21 +210,16 @@ extension SessionViewModel {
         isLoadingNews = true
         isLoadingNotifications = true
         isLoadingSharedProfiles = true
-        isLoadingShifts = true
     }
 
     private func loadAuthorizedSessionBootstrapData(member _: Member) async -> AuthorizedSessionBootstrapData {
         async let allNotifications = notificationRepository.allNotifications()
         async let profiles = sharedProfileRepository.allSharedProfiles()
-        async let shifts = shiftRepository.allShifts()
-        async let requests = shiftSwapRequestRepository.allShiftSwapRequests()
         async let allNews = newsRepository.allNews()
 
         return await AuthorizedSessionBootstrapData(
             allNotifications: allNotifications,
             profiles: profiles,
-            shifts: shifts,
-            requests: requests,
             allNews: allNews
         )
     }
@@ -245,23 +230,9 @@ extension SessionViewModel {
         notificationsFeed = data.allNotifications.filter { $0.isVisible(to: member) }
         sharedProfiles = data.profiles.filter(\.hasVisibleContent)
         sharedProfileDraft = data.profiles.first(where: { $0.userId == member.id })?.toDraft() ?? SharedProfileDraft()
-        shiftsFeed = data.shifts
-        shiftSwapRequests = data.requests.visible(to: member.id)
-        shiftSwapDraft = ShiftSwapDraft()
-        nextDeliveryShift = data.shifts.nextAssignedShift(
-            memberId: member.id,
-            type: .delivery,
-            nowMillis: nowMillisProvider()
-        )
-        nextMarketShift = data.shifts.nextAssignedShift(
-            memberId: member.id,
-            type: .market,
-            nowMillis: nowMillisProvider()
-        )
         isLoadingNews = false
         isLoadingNotifications = false
         isLoadingSharedProfiles = false
-        isLoadingShifts = false
     }
 
     func applyUpdatedAuthorizedMember(_ updatedMember: Member, members: [Member]) {

@@ -102,13 +102,9 @@ extension SessionViewModel {
                 members: session.members
             )
         )
-        dismissedShiftSwapRequestIds = []
-        shiftSwapDraft = ShiftSwapDraft()
         refreshNews()
         refreshNotifications()
         refreshSharedProfiles()
-        refreshShifts()
-        refreshDeliveryCalendar()
     }
 
     func clearImpersonation() {
@@ -124,13 +120,9 @@ extension SessionViewModel {
                 members: session.members
             )
         )
-        dismissedShiftSwapRequestIds = []
-        shiftSwapDraft = ShiftSwapDraft()
         refreshNews()
         refreshNotifications()
         refreshSharedProfiles()
-        refreshShifts()
-        refreshDeliveryCalendar()
     }
 
     func refreshSession(trigger: SessionRefreshTrigger) {

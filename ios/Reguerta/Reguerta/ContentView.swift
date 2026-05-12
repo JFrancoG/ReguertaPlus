@@ -113,34 +113,14 @@ extension AccessRootRoutingView {
         nonmutating set { rootViewModel.pendingNewsDeletionId = newValue }
     }
 
-    var selectedShiftSegment: ShiftBoardSegment {
-        get { rootViewModel.selectedShiftSegment }
-        nonmutating set { rootViewModel.selectedShiftSegment = newValue }
-    }
-
-    var isDeliveryCalendarEditorPresented: Bool {
-        get { rootViewModel.isDeliveryCalendarEditorPresented }
-        nonmutating set { rootViewModel.isDeliveryCalendarEditorPresented = newValue }
-    }
-
-    var isDeliveryCalendarWeekPickerPresented: Bool {
-        get { rootViewModel.isDeliveryCalendarWeekPickerPresented }
-        nonmutating set { rootViewModel.isDeliveryCalendarWeekPickerPresented = newValue }
-    }
-
-    var selectedDeliveryCalendarWeekKey: String? {
-        get { rootViewModel.selectedDeliveryCalendarWeekKey }
-        nonmutating set { rootViewModel.selectedDeliveryCalendarWeekKey = newValue }
-    }
-
     var isImpersonationExpanded: Bool {
         get { rootViewModel.isImpersonationExpanded }
         nonmutating set { rootViewModel.isImpersonationExpanded = newValue }
     }
 
-    var pendingShiftPlanningType: ShiftPlanningRequestType? {
-        get { rootViewModel.pendingShiftPlanningType }
-        nonmutating set { rootViewModel.pendingShiftPlanningType = newValue }
+    var nowOverrideMillis: Int64? {
+        get { rootViewModel.nowOverrideMillis }
+        nonmutating set { rootViewModel.nowOverrideMillis = newValue }
     }
 
     var shouldSkipSplash: Bool {
@@ -186,7 +166,7 @@ struct AccessRootView: AccessRootRoutingView {
         .onChange(of: viewModel.mode) { _, mode in
             rootViewModel.handleSessionModeChange(mode)
         }
-        .onChange(of: viewModel.nowOverrideMillis) { _, _ in
+        .onChange(of: rootViewModel.nowOverrideMillis) { _, _ in
             rootViewModel.handleNowOverrideChange()
         }
         .onChange(of: scenePhase) { _, newPhase in

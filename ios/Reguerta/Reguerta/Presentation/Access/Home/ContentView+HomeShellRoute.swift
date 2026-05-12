@@ -127,7 +127,7 @@ extension AccessRootRoutingView {
                     viewModel.clearNotificationEditor()
                     homeDestination = .notifications
                 } else if homeDestination == .shiftSwapRequest {
-                    viewModel.clearShiftSwapDraft()
+                    rootViewModel.shiftsViewModel.clearShiftSwapDraft()
                     homeDestination = .shifts
                 } else {
                     homeDestination = .dashboard
@@ -145,7 +145,7 @@ extension AccessRootRoutingView {
 
     var homeShellTitleOverride: String? {
         if homeDestination == .dashboard {
-            return formatHomeTopBarDate(nowMillis: viewModel.nowOverrideMillis ?? Int64(Date().timeIntervalSince1970 * 1_000))
+            return formatHomeTopBarDate(nowMillis: rootViewModel.shiftsViewModel.currentNowMillis)
         }
         if homeDestination == .myOrder {
             return "Pedido"
@@ -206,8 +206,8 @@ extension AccessRootRoutingView {
             (.myOrder, { Task { await rootViewModel.productsViewModel.refreshOrderingProducts() } }),
             (.profile, { viewModel.refreshSharedProfiles() }),
             (.users, { viewModel.refreshMembers() }),
-            (.shifts, { viewModel.refreshShifts() }),
-            (.settings, { viewModel.refreshDeliveryCalendar() })
+            (.shifts, { Task { await rootViewModel.shiftsViewModel.refreshShifts() } }),
+            (.settings, { Task { await rootViewModel.shiftsViewModel.refreshDeliveryCalendar() } })
         ]
 
         refreshActions.first { action in action.0 == destination }?.1()

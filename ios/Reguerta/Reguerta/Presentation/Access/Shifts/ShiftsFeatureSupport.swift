@@ -1,5 +1,10 @@
 import Foundation
 
+struct ShiftSwapDraft: Equatable, Sendable {
+    var shiftId = ""
+    var reason = ""
+}
+
 struct ConfirmShiftSwapContext {
     let session: AuthorizedSession
     let request: ShiftSwapRequest

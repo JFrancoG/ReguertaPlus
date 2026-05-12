@@ -64,3 +64,13 @@ image pipeline, and clock dependencies from `ProductsFeatureDependencies`.
 `SessionViewModel` remains the session source, but it no longer owns catalog
 state, product drafts, product image upload, catalog visibility changes, or the
 ordering product feed.
+
+Shifts is the third migrated feature slice. `AccessRootViewModel` owns
+`ShiftsFeatureViewModel`, which receives shift, swap request, planning request,
+delivery calendar, notification, and clock dependencies from
+`ShiftsFeatureDependencies`. `SessionViewModel` remains the session and global
+feedback source, but it no longer owns shift feeds, swap workflow state,
+delivery calendar state, admin planning requests, or the develop time override.
+Orders consumes shifts and delivery calendar data from the root-owned Shifts
+view model so ordering windows stay shared without reintroducing hidden
+dependencies.

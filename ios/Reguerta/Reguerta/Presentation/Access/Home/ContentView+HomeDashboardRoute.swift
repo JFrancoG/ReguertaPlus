@@ -110,12 +110,14 @@ extension AccessRootRoutingView {
     var nextShiftsCard: some View {
         NextShiftsCardView(
             tokens: tokens,
-            isLoading: viewModel.isLoadingShifts,
-            nextDeliverySummary: viewModel.nextDeliveryShift.map(shiftSummary) ?? l10n(AccessL10nKey.shiftsNextPending),
-            nextMarketSummary: viewModel.nextMarketShift.map(shiftSummary) ?? l10n(AccessL10nKey.shiftsNextPending),
+            isLoading: rootViewModel.shiftsViewModel.isLoadingShifts,
+            nextDeliverySummary: rootViewModel.shiftsViewModel.nextDeliveryShift.map(rootViewModel.shiftsViewModel.shiftSummary) ??
+                l10n(AccessL10nKey.shiftsNextPending),
+            nextMarketSummary: rootViewModel.shiftsViewModel.nextMarketShift.map(rootViewModel.shiftsViewModel.shiftSummary) ??
+                l10n(AccessL10nKey.shiftsNextPending),
             onViewAll: {
                 homeDestination = .shifts
-                viewModel.refreshShifts()
+                Task { await rootViewModel.shiftsViewModel.refreshShifts() }
             }
         )
     }
@@ -150,7 +152,7 @@ extension AccessRootRoutingView {
             },
             onOpenShifts: {
                 homeDestination = .shifts
-                viewModel.refreshShifts()
+                Task { await rootViewModel.shiftsViewModel.refreshShifts() }
             },
             onOpenBylaws: {
                 homeDestination = .bylaws
@@ -179,12 +181,13 @@ extension AccessRootRoutingView {
     }
 
     func homeWeeklySummary(for session: AuthorizedSession) -> HomeWeeklySummaryDisplay {
-        let nowMillis = viewModel.nowOverrideMillis ?? Int64(Date().timeIntervalSince1970 * 1_000)
+        let shiftsViewModel = rootViewModel.shiftsViewModel
+        let nowMillis = shiftsViewModel.currentNowMillis
         let baseline = resolveHomeWeeklySummaryDisplay(
             nowMillis: nowMillis,
-            defaultDeliveryDayOfWeek: viewModel.defaultDeliveryDayOfWeek,
-            deliveryCalendarOverrides: viewModel.deliveryCalendarOverrides,
-            shifts: viewModel.shiftsFeed,
+            defaultDeliveryDayOfWeek: shiftsViewModel.defaultDeliveryDayOfWeek,
+            deliveryCalendarOverrides: shiftsViewModel.deliveryCalendarOverrides,
+            shifts: shiftsViewModel.shiftsFeed,
             members: session.members
         )
         return HomeWeeklySummaryDisplay(

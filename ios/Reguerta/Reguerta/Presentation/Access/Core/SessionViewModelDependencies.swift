@@ -7,10 +7,6 @@ struct SessionViewModelDependencies {
     let notificationRepository: any NotificationRepository
     let imagePipelineManager: any ImagePipelineManager
     let sharedProfileRepository: any SharedProfileRepository
-    let shiftRepository: any ShiftRepository
-    let deliveryCalendarRepository: any DeliveryCalendarRepository
-    let shiftPlanningRequestRepository: any ShiftPlanningRequestRepository
-    let shiftSwapRequestRepository: any ShiftSwapRequestRepository
     let authSessionProvider: any AuthSessionProvider
     let resolveAuthorizedSession: ResolveAuthorizedSessionUseCase
     let upsertMemberByAdmin: UpsertMemberByAdminUseCase
@@ -21,15 +17,12 @@ struct SessionViewModelDependencies {
     let sessionRefreshPolicy: SessionRefreshPolicy
     let nowMillisProvider: @MainActor @Sendable () -> Int64
     let developImpersonationEnabled: Bool
-    let initialNowOverrideMillis: Int64?
 
     static func live(
         db: Firestore = Firestore.firestore(),
         repository: (any MemberRepository)? = nil,
+        notificationRepository: (any NotificationRepository)? = nil,
         sharedProfileRepository: (any SharedProfileRepository)? = nil,
-        deliveryCalendarRepository: (any DeliveryCalendarRepository)? = nil,
-        shiftPlanningRequestRepository: (any ShiftPlanningRequestRepository)? = nil,
-        shiftSwapRequestRepository: (any ShiftSwapRequestRepository)? = nil,
         imagePipelineManager: (any ImagePipelineManager)? = nil,
         authSessionProvider: (any AuthSessionProvider)? = nil,
         resolveAuthorizedSession: ResolveAuthorizedSessionUseCase? = nil,
@@ -38,17 +31,13 @@ struct SessionViewModelDependencies {
         reviewerEnvironmentRouter: (any ReviewerEnvironmentRouter)? = nil,
         developImpersonationEnabled: Bool = false,
         sessionRefreshPolicy: SessionRefreshPolicy = SessionRefreshPolicy(),
-        nowMillisProvider: @escaping @MainActor @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1_000) },
-        initialNowOverrideMillis: Int64? = nil
+        nowMillisProvider: @escaping @MainActor @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1_000) }
     ) -> SessionViewModelDependencies {
         let useMockAuth = ProcessInfo.processInfo.arguments.contains("-useMockAuth")
         let freshnessLocalRepository = UserDefaultsCriticalDataFreshnessLocalRepository()
         let selectedRepository = liveMemberRepository(db: db, override: repository)
+        let selectedNotificationRepository = liveNotificationRepository(db: db, override: notificationRepository)
         let selectedSharedProfileRepository = liveSharedProfileRepository(db: db, override: sharedProfileRepository)
-        let selectedDeliveryCalendarRepository = liveDeliveryCalendarRepository(db: db, override: deliveryCalendarRepository)
-        let selectedShiftPlanningRequestRepository =
-            liveShiftPlanningRequestRepository(db: db, override: shiftPlanningRequestRepository)
-        let selectedShiftSwapRequestRepository = liveShiftSwapRequestRepository(db: db, override: shiftSwapRequestRepository)
 
         return SessionViewModelDependencies(
             repository: selectedRepository,
@@ -56,19 +45,9 @@ struct SessionViewModelDependencies {
                 primary: FirestoreNewsRepository(db: db),
                 fallback: InMemoryNewsRepository()
             ),
-            notificationRepository: ChainedNotificationRepository(
-                primary: FirestoreNotificationRepository(db: db),
-                fallback: InMemoryNotificationRepository()
-            ),
+            notificationRepository: selectedNotificationRepository,
             imagePipelineManager: imagePipelineManager ?? FirebaseImagePipelineManager(),
             sharedProfileRepository: selectedSharedProfileRepository,
-            shiftRepository: ChainedShiftRepository(
-                primary: FirestoreShiftRepository(db: db),
-                fallback: InMemoryShiftRepository()
-            ),
-            deliveryCalendarRepository: selectedDeliveryCalendarRepository,
-            shiftPlanningRequestRepository: selectedShiftPlanningRequestRepository,
-            shiftSwapRequestRepository: selectedShiftSwapRequestRepository,
             authSessionProvider: authSessionProvider ?? (useMockAuth ? MockAuthSessionProvider() : FirebaseAuthSessionProvider()),
             resolveAuthorizedSession: resolveAuthorizedSession ?? ResolveAuthorizedSessionUseCase(repository: selectedRepository),
             upsertMemberByAdmin: upsertMemberByAdmin ?? UpsertMemberByAdminUseCase(repository: selectedRepository),
@@ -81,25 +60,22 @@ struct SessionViewModelDependencies {
             reviewerEnvironmentRouter: reviewerEnvironmentRouter ?? NoOpReviewerEnvironmentRouter(),
             sessionRefreshPolicy: sessionRefreshPolicy,
             nowMillisProvider: nowMillisProvider,
-            developImpersonationEnabled: developImpersonationEnabled,
-            initialNowOverrideMillis: initialNowOverrideMillis
+            developImpersonationEnabled: developImpersonationEnabled
         )
     }
 
-    static func preview() -> SessionViewModelDependencies {
+    static func preview(
+        notificationRepository: (any NotificationRepository)? = nil
+    ) -> SessionViewModelDependencies {
         let repository = InMemoryMemberRepository()
         let freshnessLocalRepository = InMemoryCriticalDataFreshnessLocalRepository()
 
         return SessionViewModelDependencies(
             repository: repository,
             newsRepository: InMemoryNewsRepository(),
-            notificationRepository: InMemoryNotificationRepository(),
+            notificationRepository: notificationRepository ?? InMemoryNotificationRepository(),
             imagePipelineManager: NoOpImagePipelineManager(),
             sharedProfileRepository: InMemorySharedProfileRepository(),
-            shiftRepository: InMemoryShiftRepository(),
-            deliveryCalendarRepository: InMemoryDeliveryCalendarRepository(),
-            shiftPlanningRequestRepository: InMemoryShiftPlanningRequestRepository(),
-            shiftSwapRequestRepository: InMemoryShiftSwapRequestRepository(),
             authSessionProvider: MockAuthSessionProvider(),
             resolveAuthorizedSession: ResolveAuthorizedSessionUseCase(repository: repository),
             upsertMemberByAdmin: UpsertMemberByAdminUseCase(repository: repository),
@@ -112,8 +88,7 @@ struct SessionViewModelDependencies {
             reviewerEnvironmentRouter: NoOpReviewerEnvironmentRouter(),
             sessionRefreshPolicy: SessionRefreshPolicy(),
             nowMillisProvider: { Int64(Date().timeIntervalSince1970 * 1_000) },
-            developImpersonationEnabled: false,
-            initialNowOverrideMillis: nil
+            developImpersonationEnabled: false
         )
     }
 
@@ -155,33 +130,13 @@ struct SessionViewModelDependencies {
         )
     }
 
-    private static func liveDeliveryCalendarRepository(
+    private static func liveNotificationRepository(
         db: Firestore,
-        override: (any DeliveryCalendarRepository)?
-    ) -> any DeliveryCalendarRepository {
-        override ?? ChainedDeliveryCalendarRepository(
-            primary: FirestoreDeliveryCalendarRepository(db: db),
-            fallback: InMemoryDeliveryCalendarRepository()
-        )
-    }
-
-    private static func liveShiftPlanningRequestRepository(
-        db: Firestore,
-        override: (any ShiftPlanningRequestRepository)?
-    ) -> any ShiftPlanningRequestRepository {
-        override ?? ChainedShiftPlanningRequestRepository(
-            primary: FirestoreShiftPlanningRequestRepository(db: db),
-            fallback: InMemoryShiftPlanningRequestRepository()
-        )
-    }
-
-    private static func liveShiftSwapRequestRepository(
-        db: Firestore,
-        override: (any ShiftSwapRequestRepository)?
-    ) -> any ShiftSwapRequestRepository {
-        override ?? ChainedShiftSwapRequestRepository(
-            primary: FirestoreShiftSwapRequestRepository(db: db),
-            fallback: InMemoryShiftSwapRequestRepository()
+        override: (any NotificationRepository)?
+    ) -> any NotificationRepository {
+        override ?? ChainedNotificationRepository(
+            primary: FirestoreNotificationRepository(db: db),
+            fallback: InMemoryNotificationRepository()
         )
     }
 }

@@ -67,3 +67,13 @@ compromisos de temporada, pipeline de imagenes y reloj desde
 sesion, pero ya no posee estado de catalogo, borradores de producto, subida de
 imagenes de producto, cambios de visibilidad del catalogo ni el feed de
 productos para pedidos.
+
+Shifts es el tercer slice de feature migrado. `AccessRootViewModel` posee
+`ShiftsFeatureViewModel`, que recibe dependencias de turnos, solicitudes de
+cambio, solicitudes de planificacion, calendario de entregas, notificaciones y
+reloj desde `ShiftsFeatureDependencies`. `SessionViewModel` sigue siendo la
+fuente de sesion y feedback global, pero ya no posee feeds de turnos, estado del
+workflow de cambios, estado del calendario de entregas, solicitudes de
+planificacion admin ni el override de reloj develop. Orders consume turnos y
+calendario de entregas desde el view model de Shifts propiedad del root para que
+las ventanas de pedido sigan compartidas sin reintroducir dependencias ocultas.

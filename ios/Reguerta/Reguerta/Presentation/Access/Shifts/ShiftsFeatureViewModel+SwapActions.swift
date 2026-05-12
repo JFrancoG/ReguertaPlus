@@ -1,39 +1,6 @@
 import Foundation
 
-extension SessionViewModel {
-    func refreshShifts() {
-        guard case .authorized(let session) = mode else { return }
-        isLoadingShifts = true
-        Task { @MainActor in
-            let shifts = await shiftRepository.allShifts()
-            let requests = await shiftSwapRequestRepository.allShiftSwapRequests()
-            shiftsFeed = shifts
-            shiftSwapRequests = requests.visible(to: session.member.id)
-            nextDeliveryShift = shifts.nextAssignedShift(
-                memberId: session.member.id,
-                type: .delivery,
-                nowMillis: nowMillisProvider()
-            )
-            nextMarketShift = shifts.nextAssignedShift(
-                memberId: session.member.id,
-                type: .market,
-                nowMillis: nowMillisProvider()
-            )
-            isLoadingShifts = false
-        }
-    }
-
-    func refreshDeliveryCalendar() {
-        guard case .authorized(let session) = mode else { return }
-        guard session.member.isAdmin else { return }
-        isLoadingDeliveryCalendar = true
-        Task { @MainActor in
-            defaultDeliveryDayOfWeek = await deliveryCalendarRepository.defaultDeliveryDayOfWeek()
-            deliveryCalendarOverrides = await deliveryCalendarRepository.allOverrides()
-            isLoadingDeliveryCalendar = false
-        }
-    }
-
+extension ShiftsFeatureViewModel {
     func updateShiftSwapDraft(_ update: (inout ShiftSwapDraft) -> Void) {
         var draft = shiftSwapDraft
         update(&draft)
@@ -56,120 +23,52 @@ extension SessionViewModel {
         dismissedShiftSwapRequestIds.insert(requestId)
     }
 
-    func saveDeliveryCalendarOverride(
-        weekKey: String,
-        weekday: DeliveryWeekday,
-        updatedByUserId: String,
-        onSuccess: @escaping @MainActor () -> Void = {}
-    ) {
-        guard case .authorized(let session) = mode else { return }
-        guard session.member.isAdmin else { return }
-        guard let override = buildDeliveryCalendarOverride(
-            weekKey: weekKey,
-            weekday: weekday,
-            updatedByUserId: updatedByUserId,
-            updatedAtMillis: nowMillisProvider()
-        ) else { return }
-
-        isSavingDeliveryCalendar = true
-        Task { @MainActor in
-            _ = await deliveryCalendarRepository.upsertOverride(override)
-            defaultDeliveryDayOfWeek = await deliveryCalendarRepository.defaultDeliveryDayOfWeek()
-            deliveryCalendarOverrides = await deliveryCalendarRepository.allOverrides()
-            isSavingDeliveryCalendar = false
-            onSuccess()
-        }
-    }
-
-    func deleteDeliveryCalendarOverride(
-        weekKey: String,
-        onSuccess: @escaping @MainActor () -> Void = {}
-    ) {
-        guard case .authorized(let session) = mode else { return }
-        guard session.member.isAdmin else { return }
-
-        isSavingDeliveryCalendar = true
-        Task { @MainActor in
-            await deliveryCalendarRepository.deleteOverride(weekKey: weekKey)
-            defaultDeliveryDayOfWeek = await deliveryCalendarRepository.defaultDeliveryDayOfWeek()
-            deliveryCalendarOverrides = await deliveryCalendarRepository.allOverrides()
-            isSavingDeliveryCalendar = false
-            onSuccess()
-        }
-    }
-
-    func submitShiftPlanningRequest(
-        type: ShiftPlanningRequestType,
-        onSuccess: @escaping @MainActor () -> Void = {}
-    ) {
-        guard case .authorized(let session) = mode else { return }
-        guard session.member.isAdmin else { return }
-
-        isSubmittingShiftPlanningRequest = true
-        Task { @MainActor in
-            _ = await shiftPlanningRequestRepository.submit(
-                request: ShiftPlanningRequest(
-                    id: "",
-                    type: type,
-                    requestedByUserId: session.member.id,
-                    requestedAtMillis: nowMillisProvider(),
-                    status: .requested
-                )
-            )
-            isSubmittingShiftPlanningRequest = false
-            onSuccess()
-        }
-    }
-
-    func saveShiftSwapRequest(onSuccess: @escaping @MainActor () -> Void = {}) {
-        guard case .authorized(let session) = mode else { return }
-        guard !shiftSwapDraft.shiftId.isEmpty else { return }
-        guard let shift = shiftsFeed.first(where: { $0.id == shiftSwapDraft.shiftId }) else { return }
+    func saveShiftSwapRequest() async -> Bool {
+        guard let session = authorizedSession else { return false }
+        guard !shiftSwapDraft.shiftId.isEmpty else { return false }
+        guard let shift = shiftsFeed.first(where: { $0.id == shiftSwapDraft.shiftId }) else { return false }
         let candidates = shift.swapCandidates(
             allShifts: shiftsFeed,
             requesterUserId: session.member.id,
             nowMillis: nowMillisProvider()
         )
         guard !candidates.isEmpty else {
-            feedbackMessageKey = AccessL10nKey.feedbackShiftSwapNoCandidates
-            return
+            sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackShiftSwapNoCandidates
+            return false
         }
 
         isSavingShiftSwapRequest = true
-        Task { @MainActor in
-            let saved = await shiftSwapRequestRepository.upsert(
-                request: ShiftSwapRequest(
-                    id: "",
-                    requestedShiftId: shift.id,
-                    requesterUserId: session.member.id,
-                    reason: shiftSwapDraft.reason.trimmingCharacters(in: .whitespacesAndNewlines),
-                    status: .open,
-                    candidates: candidates,
-                    responses: [],
-                    selectedCandidateUserId: nil,
-                    selectedCandidateShiftId: nil,
-                    requestedAtMillis: nowMillisProvider(),
-                    confirmedAtMillis: nil,
-                    appliedAtMillis: nil
-                )
+        let saved = await shiftSwapRequestRepository.upsert(
+            request: ShiftSwapRequest(
+                id: "",
+                requestedShiftId: shift.id,
+                requesterUserId: session.member.id,
+                reason: shiftSwapDraft.reason.trimmingCharacters(in: .whitespacesAndNewlines),
+                status: .open,
+                candidates: candidates,
+                responses: [],
+                selectedCandidateUserId: nil,
+                selectedCandidateShiftId: nil,
+                requestedAtMillis: nowMillisProvider(),
+                confirmedAtMillis: nil,
+                appliedAtMillis: nil
             )
-            await sendShiftSwapNotification(
-                title: l10n(AccessL10nKey.shiftSwapNotificationRequestedTitle),
-                body: l10n(
-                    AccessL10nKey.shiftSwapNotificationRequestedBody,
-                    session.member.displayName,
-                    localizedShiftNotificationDateTime(shift.dateMillis)
-                ),
-                type: "shift_swap_requested",
-                targetUserIds: Array(Set(saved.candidates.map(\.userId))),
-                createdBy: session.member.id
-            )
-            let requests = await shiftSwapRequestRepository.allShiftSwapRequests()
-            shiftSwapRequests = requests.visible(to: session.member.id)
-            shiftSwapDraft = ShiftSwapDraft()
-            isSavingShiftSwapRequest = false
-            onSuccess()
-        }
+        )
+        await sendShiftSwapNotification(
+            title: l10n(AccessL10nKey.shiftSwapNotificationRequestedTitle),
+            body: l10n(
+                AccessL10nKey.shiftSwapNotificationRequestedBody,
+                session.member.displayName,
+                localizedShiftNotificationDateTime(shift.dateMillis)
+            ),
+            type: "shift_swap_requested",
+            targetUserIds: Array(Set(saved.candidates.map(\.userId))),
+            createdBy: session.member.id
+        )
+        await refreshShiftSwapState(for: session)
+        shiftSwapDraft = ShiftSwapDraft()
+        isSavingShiftSwapRequest = false
+        return true
     }
 
     func acceptShiftSwapRequest(requestId: String, candidateShiftId: String) {
@@ -230,12 +129,14 @@ extension SessionViewModel {
             isUpdatingShiftSwapRequest = false
         }
     }
+}
 
-    private func updateShiftSwapRequest(
+private extension ShiftsFeatureViewModel {
+    func updateShiftSwapRequest(
         requestId: String,
         transform: @escaping (ShiftSwapRequest, AuthorizedSession, Int64) -> ShiftSwapRequest
     ) {
-        guard case .authorized(let session) = mode else { return }
+        guard let session = authorizedSession else { return }
         guard let request = shiftSwapRequests.first(where: { $0.id == requestId }) else { return }
 
         isUpdatingShiftSwapRequest = true
@@ -248,12 +149,12 @@ extension SessionViewModel {
         }
     }
 
-    private func respondToShiftSwapRequest(
+    func respondToShiftSwapRequest(
         requestId: String,
         candidateShiftId: String,
         responseStatus: ShiftSwapResponseStatus
     ) {
-        guard case .authorized(let session) = mode else { return }
+        guard let session = authorizedSession else { return }
         guard let request = shiftSwapRequests.first(where: { $0.id == requestId }) else { return }
         guard let candidate = request.candidates.first(where: { $0.userId == session.member.id && $0.shiftId == candidateShiftId }) else { return }
         guard let requestedShift = shiftsFeed.first(where: { $0.id == request.requestedShiftId }) else { return }
@@ -303,11 +204,11 @@ extension SessionViewModel {
         }
     }
 
-    private func confirmShiftSwapContext(
+    func confirmShiftSwapContext(
         requestId: String,
         candidateShiftId: String
     ) -> ConfirmShiftSwapContext? {
-        guard case .authorized(let session) = mode else { return nil }
+        guard let session = authorizedSession else { return nil }
         guard let request = shiftSwapRequests.first(where: { $0.id == requestId }) else { return nil }
         guard let requestedShift = shiftsFeed.first(where: { $0.id == request.requestedShiftId }) else { return nil }
         guard let candidate = request.candidates.first(where: { $0.shiftId == candidateShiftId }) else { return nil }
@@ -322,24 +223,15 @@ extension SessionViewModel {
         )
     }
 
-    private func refreshShiftSwapState(for session: AuthorizedSession) async {
+    func refreshShiftSwapState(for session: AuthorizedSession) async {
         let allRequests = await shiftSwapRequestRepository.allShiftSwapRequests()
         let allShifts = await shiftRepository.allShifts()
         shiftSwapRequests = allRequests.visible(to: session.member.id)
         shiftsFeed = allShifts
-        nextDeliveryShift = allShifts.nextAssignedShift(
-            memberId: session.member.id,
-            type: .delivery,
-            nowMillis: nowMillisProvider()
-        )
-        nextMarketShift = allShifts.nextAssignedShift(
-            memberId: session.member.id,
-            type: .market,
-            nowMillis: nowMillisProvider()
-        )
+        recomputeNextShifts()
     }
 
-    private func appliedShiftSwapRequest(
+    func appliedShiftSwapRequest(
         from request: ShiftSwapRequest,
         candidate: ShiftSwapCandidate,
         now: Int64
@@ -360,7 +252,7 @@ extension SessionViewModel {
         )
     }
 
-    private func sendShiftSwapAppliedNotification(context: ConfirmShiftSwapContext) async {
+    func sendShiftSwapAppliedNotification(context: ConfirmShiftSwapContext) async {
         await sendShiftSwapNotification(
             title: l10n(AccessL10nKey.shiftSwapNotificationAppliedTitle),
             body: l10n(
@@ -376,7 +268,7 @@ extension SessionViewModel {
         )
     }
 
-    private func sendShiftSwapNotification(
+    func sendShiftSwapNotification(
         title: String,
         body: String,
         type: String,
@@ -400,7 +292,7 @@ extension SessionViewModel {
         )
     }
 
-    private func shiftSwapResponseNotificationTitle(for status: ShiftSwapResponseStatus) -> String {
+    func shiftSwapResponseNotificationTitle(for status: ShiftSwapResponseStatus) -> String {
         switch status {
         case .available:
             return l10n(AccessL10nKey.shiftSwapNotificationResponseAvailableTitle)
@@ -409,7 +301,7 @@ extension SessionViewModel {
         }
     }
 
-    private func shiftSwapResponseNotificationBody(
+    func shiftSwapResponseNotificationBody(
         for status: ShiftSwapResponseStatus,
         memberDisplayName: String,
         requestedShiftDate: String,
