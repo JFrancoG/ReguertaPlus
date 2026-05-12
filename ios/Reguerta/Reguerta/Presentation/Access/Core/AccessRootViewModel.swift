@@ -7,6 +7,7 @@ final class AccessRootViewModel {
     @ObservationIgnored let productsViewModel: ProductsRouteViewModel
     @ObservationIgnored let shiftsViewModel: ShiftsFeatureViewModel
     @ObservationIgnored let newsNotificationsViewModel: NewsNotificationsFeatureViewModel
+    @ObservationIgnored let sharedProfileViewModel: SharedProfileFeatureViewModel
     @ObservationIgnored let myOrderViewModel: MyOrderRouteViewModel
     @ObservationIgnored let receivedOrdersViewModel: ReceivedOrdersRouteViewModel
     @ObservationIgnored private let startupVersionGateUseCase: ResolveStartupVersionGateUseCase
@@ -50,6 +51,7 @@ final class AccessRootViewModel {
         ordersFeatureDependencies: OrdersFeatureDependencies = .preview(),
         shiftsFeatureDependencies: ShiftsFeatureDependencies = .preview(),
         newsNotificationsFeatureDependencies: NewsNotificationsFeatureDependencies = .preview(),
+        sharedProfileFeatureDependencies: SharedProfileFeatureDependencies = .preview(),
         startupVersionGateUseCase: ResolveStartupVersionGateUseCase,
         shouldSkipSplashProvider: @escaping () -> Bool = {
             ProcessInfo.processInfo.arguments.contains("-skipSplash")
@@ -83,6 +85,12 @@ final class AccessRootViewModel {
             notificationRepository: newsNotificationsFeatureDependencies.notificationRepository,
             imagePipelineManager: newsNotificationsFeatureDependencies.imagePipelineManager,
             nowMillisProvider: newsNotificationsFeatureDependencies.nowMillisProvider
+        )
+        self.sharedProfileViewModel = SharedProfileFeatureViewModel(
+            sessionViewModel: sessionViewModel,
+            sharedProfileRepository: sharedProfileFeatureDependencies.sharedProfileRepository,
+            imagePipelineManager: sharedProfileFeatureDependencies.imagePipelineManager,
+            nowMillisProvider: sharedProfileFeatureDependencies.nowMillisProvider
         )
         self.myOrderViewModel = MyOrderRouteViewModel(
             sessionViewModel: sessionViewModel,
@@ -200,6 +208,7 @@ final class AccessRootViewModel {
         productsViewModel.handleSessionModeChange(mode)
         shiftsViewModel.handleSessionModeChange(mode)
         newsNotificationsViewModel.handleSessionModeChange(mode)
+        sharedProfileViewModel.handleSessionModeChange(mode)
         guard shellState.currentRoute != .splash else { return }
 
         switch mode {

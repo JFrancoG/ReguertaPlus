@@ -82,9 +82,19 @@ News/Notifications es el cuarto slice de feature migrado. `AccessRootViewModel`
 posee `NewsNotificationsFeatureViewModel`, que recibe dependencias de noticias,
 notificaciones, pipeline de imagenes y reloj desde
 `NewsNotificationsFeatureDependencies`. `SessionViewModel` sigue siendo la
-fuente de sesion, SharedProfile, bylaws y feedback global, pero ya no posee
-feeds de noticias, borradores de noticias, subida de imagenes de noticias, feeds
-de notificaciones, borradores de broadcasts ni workflows admin de envio o
-borrado. Shifts y News/Notifications pueden compartir una unica instancia de
+fuente de sesion, bylaws y feedback global, pero ya no posee feeds de noticias,
+borradores de noticias, subida de imagenes de noticias, feeds de
+notificaciones, borradores de broadcasts ni workflows admin de envio o borrado.
+Shifts y News/Notifications pueden compartir una unica instancia de
 `NotificationRepository` desde el contenedor raiz cuando ambos slices necesitan
 publicar o leer eventos de notificacion.
+
+SharedProfile es el quinto slice de feature migrado. `AccessRootViewModel`
+posee `SharedProfileFeatureViewModel`, que recibe dependencias de repositorio de
+perfiles compartidos, pipeline de imagenes y reloj desde
+`SharedProfileFeatureDependencies`. `SessionViewModel` sigue siendo la fuente de
+sesion, bylaws y feedback global, pero ya no posee feeds de perfiles
+comunitarios, el borrador del perfil actual, subida de imagenes de perfil
+compartido ni workflows de guardar/borrar perfil. El drawer y la ruta de perfil
+consumen el estado de perfiles desde el view model de SharedProfile propiedad
+del root.

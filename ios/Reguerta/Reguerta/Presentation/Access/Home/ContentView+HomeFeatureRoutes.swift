@@ -152,30 +152,9 @@ extension AccessRootRoutingView {
     var sharedProfileRoute: some View {
         if let session = currentHomeSession {
             SharedProfileHubRoute(
+                tokens: tokens,
                 session: session,
-                profiles: viewModel.sharedProfiles,
-                draft: Binding(
-                    get: { viewModel.sharedProfileDraft },
-                    set: { viewModel.sharedProfileDraft = $0 }
-                ),
-                isLoading: viewModel.isLoadingSharedProfiles,
-                isSaving: viewModel.isSavingSharedProfile,
-                isUploadingImage: viewModel.isUploadingSharedProfileImage,
-                isDeleting: viewModel.isDeletingSharedProfile,
-                onPickImage: viewModel.uploadSharedProfileImage,
-                onClearImage: viewModel.clearSharedProfileImage,
-                onImageSelectionFailed: {
-                    viewModel.feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
-                },
-                onCameraPermissionDenied: {
-                    viewModel.feedbackMessageKey = AccessL10nKey.feedbackCameraPermissionRequired
-                },
-                onCameraUnavailable: {
-                    viewModel.feedbackMessageKey = AccessL10nKey.feedbackCameraUnavailable
-                },
-                onRefresh: viewModel.refreshSharedProfiles,
-                onSave: viewModel.saveSharedProfile,
-                onDelete: viewModel.deleteSharedProfile,
+                viewModel: rootViewModel.sharedProfileViewModel,
                 displayName: { displayName(for: $0, session: session) }
             )
         }

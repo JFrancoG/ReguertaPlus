@@ -30,6 +30,7 @@ struct ReguertaAppEnvironment {
             ordersFeatureDependencies: .preview(),
             shiftsFeatureDependencies: .preview(notificationRepository: notificationRepository),
             newsNotificationsFeatureDependencies: .preview(notificationRepository: notificationRepository),
+            sharedProfileFeatureDependencies: .preview(),
             startupVersionGateUseCase: ResolveStartupVersionGateUseCase(
                 repository: PreviewStartupVersionPolicyRepository()
             ),
@@ -70,7 +71,6 @@ private func makeLiveSessionViewModel(_ dependencies: LiveRootDependencies) -> S
     SessionViewModel(
         dependencies: .live(
             db: dependencies.db,
-            imagePipelineManager: dependencies.imagePipelineManager,
             authorizedDeviceRegistrar: FirebaseAuthorizedDeviceRegistrar(
                 repository: FirestoreDeviceRegistrationRepository(db: dependencies.db)
             ),
@@ -105,6 +105,11 @@ private func makeLiveAccessRootViewModel(
             db: dependencies.db,
             imagePipelineManager: dependencies.imagePipelineManager,
             notificationRepository: dependencies.notificationRepository,
+            nowMillisProvider: { DevelopmentTimeMachine.shared.nowMillis() }
+        ),
+        sharedProfileFeatureDependencies: SharedProfileFeatureDependencies.live(
+            db: dependencies.db,
+            imagePipelineManager: dependencies.imagePipelineManager,
             nowMillisProvider: { DevelopmentTimeMachine.shared.nowMillis() }
         ),
         startupVersionGateUseCase: ResolveStartupVersionGateUseCase(

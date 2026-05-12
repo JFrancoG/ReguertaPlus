@@ -3,8 +3,6 @@ import Foundation
 
 struct SessionViewModelDependencies {
     let repository: any MemberRepository
-    let imagePipelineManager: any ImagePipelineManager
-    let sharedProfileRepository: any SharedProfileRepository
     let authSessionProvider: any AuthSessionProvider
     let resolveAuthorizedSession: ResolveAuthorizedSessionUseCase
     let upsertMemberByAdmin: UpsertMemberByAdminUseCase
@@ -19,8 +17,6 @@ struct SessionViewModelDependencies {
     static func live(
         db: Firestore = Firestore.firestore(),
         repository: (any MemberRepository)? = nil,
-        sharedProfileRepository: (any SharedProfileRepository)? = nil,
-        imagePipelineManager: (any ImagePipelineManager)? = nil,
         authSessionProvider: (any AuthSessionProvider)? = nil,
         resolveAuthorizedSession: ResolveAuthorizedSessionUseCase? = nil,
         upsertMemberByAdmin: UpsertMemberByAdminUseCase? = nil,
@@ -33,12 +29,9 @@ struct SessionViewModelDependencies {
         let useMockAuth = ProcessInfo.processInfo.arguments.contains("-useMockAuth")
         let freshnessLocalRepository = UserDefaultsCriticalDataFreshnessLocalRepository()
         let selectedRepository = liveMemberRepository(db: db, override: repository)
-        let selectedSharedProfileRepository = liveSharedProfileRepository(db: db, override: sharedProfileRepository)
 
         return SessionViewModelDependencies(
             repository: selectedRepository,
-            imagePipelineManager: imagePipelineManager ?? FirebaseImagePipelineManager(),
-            sharedProfileRepository: selectedSharedProfileRepository,
             authSessionProvider: authSessionProvider ?? (useMockAuth ? MockAuthSessionProvider() : FirebaseAuthSessionProvider()),
             resolveAuthorizedSession: resolveAuthorizedSession ?? ResolveAuthorizedSessionUseCase(repository: selectedRepository),
             upsertMemberByAdmin: upsertMemberByAdmin ?? UpsertMemberByAdminUseCase(repository: selectedRepository),
@@ -61,8 +54,6 @@ struct SessionViewModelDependencies {
 
         return SessionViewModelDependencies(
             repository: repository,
-            imagePipelineManager: NoOpImagePipelineManager(),
-            sharedProfileRepository: InMemorySharedProfileRepository(),
             authSessionProvider: MockAuthSessionProvider(),
             resolveAuthorizedSession: ResolveAuthorizedSessionUseCase(repository: repository),
             upsertMemberByAdmin: UpsertMemberByAdminUseCase(repository: repository),
@@ -107,15 +98,6 @@ struct SessionViewModelDependencies {
         )
     }
 
-    private static func liveSharedProfileRepository(
-        db: Firestore,
-        override: (any SharedProfileRepository)?
-    ) -> any SharedProfileRepository {
-        override ?? ChainedSharedProfileRepository(
-            primary: FirestoreSharedProfileRepository(db: db),
-            fallback: InMemorySharedProfileRepository()
-        )
-    }
 }
 
 private struct NoOpAuthorizedDeviceRegistrar: AuthorizedDeviceRegistrar {

@@ -79,8 +79,16 @@ News/Notifications is the fourth migrated feature slice. `AccessRootViewModel`
 owns `NewsNotificationsFeatureViewModel`, which receives news, notification,
 image pipeline, and clock dependencies from
 `NewsNotificationsFeatureDependencies`. `SessionViewModel` remains the session,
-SharedProfile, bylaws, and global feedback source, but it no longer owns news
-feeds, news drafts, image upload for news, notification feeds, broadcast drafts,
-or admin send/delete workflows. Shifts and News/Notifications can share a single
+bylaws, and global feedback source, but it no longer owns news feeds, news
+drafts, image upload for news, notification feeds, broadcast drafts, or admin
+send/delete workflows. Shifts and News/Notifications can share a single
 `NotificationRepository` instance from the root container when both slices need
 to publish or read notification events.
+
+SharedProfile is the fifth migrated feature slice. `AccessRootViewModel` owns
+`SharedProfileFeatureViewModel`, which receives shared profile repository,
+image pipeline, and clock dependencies from `SharedProfileFeatureDependencies`.
+`SessionViewModel` remains the session, bylaws, and global feedback source, but
+it no longer owns community profile feeds, the current profile draft, shared
+profile image upload, or save/delete profile workflows. The drawer and profile
+route consume profile state from the root-owned SharedProfile view model.

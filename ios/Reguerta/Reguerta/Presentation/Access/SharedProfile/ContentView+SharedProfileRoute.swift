@@ -1,37 +1,46 @@
 import SwiftUI
 
 struct SharedProfileHubRoute: View {
+    let tokens: ReguertaDesignTokens
     let session: AuthorizedSession
-    let profiles: [SharedProfile]
-    @Binding var draft: SharedProfileDraft
-    let isLoading: Bool
-    let isSaving: Bool
-    let isUploadingImage: Bool
-    let isDeleting: Bool
-    let onPickImage: (Data) -> Void
-    let onClearImage: () -> Void
-    let onImageSelectionFailed: () -> Void
-    let onCameraPermissionDenied: () -> Void
-    let onCameraUnavailable: () -> Void
-    let onRefresh: () -> Void
-    let onSave: (@escaping @MainActor () -> Void) -> Void
-    let onDelete: (@escaping @MainActor () -> Void) -> Void
+    let viewModel: SharedProfileFeatureViewModel
     let displayName: (String) -> String
 
-    @Environment(\.reguertaTokens) private var tokens
     @State private var selectedProfileUserId: String?
     @State private var isEditingOwnProfile = false
 
     private var ownProfileExists: Bool {
-        profiles.contains { $0.userId == session.member.id }
+        viewModel.profiles.contains { $0.userId == session.member.id }
     }
 
     private var sortedProfiles: [SharedProfile] {
-        profiles.sorted { displayName($0.userId) < displayName($1.userId) }
+        viewModel.profiles.sorted { displayName($0.userId) < displayName($1.userId) }
     }
 
     private var selectedProfile: SharedProfile? {
         sortedProfiles.first { $0.userId == selectedProfileUserId }
+    }
+
+    private var familyNamesBinding: Binding<String> {
+        Binding(
+            get: { viewModel.draft.familyNames },
+            set: { newValue in
+                var updatedDraft = viewModel.draft
+                updatedDraft.familyNames = newValue
+                viewModel.updateDraft(updatedDraft)
+            }
+        )
+    }
+
+    private var aboutBinding: Binding<String> {
+        Binding(
+            get: { viewModel.draft.about },
+            set: { newValue in
+                var updatedDraft = viewModel.draft
+                updatedDraft.about = newValue
+                viewModel.updateDraft(updatedDraft)
+            }
+        )
     }
 
     private func localizedKey(_ key: String) -> LocalizedStringKey {
@@ -82,10 +91,10 @@ struct SharedProfileHubRoute: View {
                         .font(tokens.typography.bodySecondary)
                         .foregroundStyle(tokens.colors.textSecondary)
                     ReguertaButton(localizedKey(AccessL10nKey.notificationsRefreshAction), variant: .text, fullWidth: false) {
-                        onRefresh()
+                        Task { await viewModel.refreshProfiles() }
                     }
 
-                    if isLoading {
+                    if viewModel.isLoading {
                         Text(localizedKey(AccessL10nKey.profileSharedLoading))
                             .font(tokens.typography.bodySecondary)
                     } else if sortedProfiles.isEmpty {
@@ -129,14 +138,15 @@ struct SharedProfileHubRoute: View {
                     }
                     ReguertaButton(
                         localizedKey(
-                            isDeleting
+                            viewModel.isDeleting
                             ? AccessL10nKey.profileSharedActionDeleting
                             : AccessL10nKey.profileSharedActionDelete
                         ),
                         variant: .text,
-                        isEnabled: !isDeleting
+                        isEnabled: !viewModel.isDeleting
                     ) {
-                        onDelete {
+                        Task {
+                            _ = await viewModel.deleteProfile()
                             selectedProfileUserId = nil
                         }
                     }
@@ -164,24 +174,30 @@ struct SharedProfileHubRoute: View {
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
 
-                TextField("", text: $draft.familyNames, prompt: Text(localizedKey(AccessL10nKey.profileSharedFamilyNamesLabel)))
+                TextField(
+                    "",
+                    text: familyNamesBinding,
+                    prompt: Text(localizedKey(AccessL10nKey.profileSharedFamilyNamesLabel))
+                )
                     .textFieldStyle(.roundedBorder)
                 ReguertaImagePickerField(
                     tokens: tokens,
-                    imageURLString: draft.photoUrl,
-                    isUploading: isUploadingImage,
+                    imageURLString: viewModel.draft.photoUrl,
+                    isUploading: viewModel.isUploadingImage,
                     placeholderSystemImage: "person.fill",
                     subtitleKey: nil,
-                    onPickImageData: onPickImage,
-                    onClearImage: onClearImage,
-                    onImageSelectionFailed: onImageSelectionFailed,
-                    onCameraPermissionDenied: onCameraPermissionDenied,
-                    onCameraUnavailable: onCameraUnavailable
+                    onPickImageData: { imageData in
+                        Task { await viewModel.uploadImage(imageData) }
+                    },
+                    onClearImage: viewModel.clearImage,
+                    onImageSelectionFailed: viewModel.reportImageSelectionFailed,
+                    onCameraPermissionDenied: viewModel.reportCameraPermissionDenied,
+                    onCameraUnavailable: viewModel.reportCameraUnavailable
                 )
                 Text(localizedKey(AccessL10nKey.profileSharedAboutLabel))
                     .font(tokens.typography.label)
                     .foregroundStyle(tokens.colors.textSecondary)
-                TextEditor(text: $draft.about)
+                TextEditor(text: aboutBinding)
                     .frame(minHeight: 160.resize)
                     .padding(tokens.spacing.sm)
                     .background(tokens.colors.surfaceSecondary)
@@ -189,16 +205,17 @@ struct SharedProfileHubRoute: View {
 
                 ReguertaButton(
                     localizedKey(
-                        isSaving
+                        viewModel.isSaving
                         ? AccessL10nKey.profileSharedActionSaving
                         : (ownProfileExists
                             ? AccessL10nKey.profileSharedActionSave
                             : AccessL10nKey.profileSharedActionCreate)
                     ),
-                    isEnabled: !isSaving && !isUploadingImage,
-                    isLoading: isSaving
+                    isEnabled: !viewModel.isSaving && !viewModel.isUploadingImage,
+                    isLoading: viewModel.isSaving
                 ) {
-                    onSave {
+                    Task {
+                        guard await viewModel.saveProfile() else { return }
                         isEditingOwnProfile = false
                         selectedProfileUserId = nil
                     }

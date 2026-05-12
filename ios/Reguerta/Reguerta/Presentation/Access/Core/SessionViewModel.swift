@@ -13,24 +13,6 @@ struct MemberDraft: Equatable, Sendable {
     var isActive = true
 }
 
-struct SharedProfileDraft: Equatable, Sendable {
-    var familyNames = ""
-    var photoUrl = ""
-    var about = ""
-
-    var normalized: SharedProfileDraft {
-        SharedProfileDraft(
-            familyNames: familyNames.trimmingCharacters(in: .whitespacesAndNewlines),
-            photoUrl: photoUrl.trimmingCharacters(in: .whitespacesAndNewlines),
-            about: about.trimmingCharacters(in: .whitespacesAndNewlines)
-        )
-    }
-
-    var hasVisibleContent: Bool {
-        !familyNames.isEmpty || !photoUrl.isEmpty || !about.isEmpty
-    }
-}
-
 struct AuthorizedSession: Equatable, Sendable {
     var principal: AuthPrincipal
     var authenticatedMember: Member
@@ -121,19 +103,11 @@ final class SessionViewModel {
     var memberDraft = MemberDraft()
     var feedbackMessageKey: String?
     var myOrderFreshnessState: MyOrderFreshnessState = .idle
-    var sharedProfiles: [SharedProfile] = []
-    var sharedProfileDraft = SharedProfileDraft()
     var bylawsQueryInput = ""
     var bylawsAnswerResult: BylawsAnswerResult?
-    var isLoadingSharedProfiles = false
-    var isSavingSharedProfile = false
-    var isUploadingSharedProfileImage = false
-    var isDeletingSharedProfile = false
     var isAskingBylaws = false
 
     let repository: any MemberRepository
-    let imagePipelineManager: any ImagePipelineManager
-    let sharedProfileRepository: any SharedProfileRepository
     let authSessionProvider: any AuthSessionProvider
     let resolveAuthorizedSession: ResolveAuthorizedSessionUseCase
     let upsertMemberByAdmin: UpsertMemberByAdminUseCase
@@ -184,8 +158,6 @@ final class SessionViewModel {
 
     init(dependencies: SessionViewModelDependencies) {
         self.repository = dependencies.repository
-        self.imagePipelineManager = dependencies.imagePipelineManager
-        self.sharedProfileRepository = dependencies.sharedProfileRepository
         self.authSessionProvider = dependencies.authSessionProvider
         self.resolveAuthorizedSession = dependencies.resolveAuthorizedSession
         self.upsertMemberByAdmin = dependencies.upsertMemberByAdmin
@@ -200,8 +172,6 @@ final class SessionViewModel {
 
     convenience init(
         repository: (any MemberRepository)? = nil,
-        sharedProfileRepository: (any SharedProfileRepository)? = nil,
-        imagePipelineManager: (any ImagePipelineManager)? = nil,
         authSessionProvider: (any AuthSessionProvider)? = nil,
         resolveAuthorizedSession: ResolveAuthorizedSessionUseCase? = nil,
         upsertMemberByAdmin: UpsertMemberByAdminUseCase? = nil,
@@ -214,8 +184,6 @@ final class SessionViewModel {
         self.init(
             dependencies: .live(
                 repository: repository,
-                sharedProfileRepository: sharedProfileRepository,
-                imagePipelineManager: imagePipelineManager,
                 authSessionProvider: authSessionProvider,
                 resolveAuthorizedSession: resolveAuthorizedSession,
                 upsertMemberByAdmin: upsertMemberByAdmin,

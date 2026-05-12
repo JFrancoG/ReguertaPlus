@@ -1,15 +1,23 @@
 import Foundation
 
 actor InMemorySharedProfileRepository: SharedProfileRepository {
-    private var profiles: [String: SharedProfile] = [
-        "member_admin_001": SharedProfile(
+    private var profiles: [String: SharedProfile]
+
+    init(items: [SharedProfile]? = nil) {
+        profiles = Dictionary(
+            uniqueKeysWithValues: (items ?? Self.seedProfiles).map { ($0.userId, $0) }
+        )
+    }
+
+    private static let seedProfiles: [SharedProfile] = [
+        SharedProfile(
             userId: "member_admin_001",
             familyNames: "Ana, Mario y Leo",
             photoUrl: nil,
             about: "Nos encanta la verdura de temporada y venir a recoger los pedidos en familia.",
             updatedAtMillis: 1_742_800_000_000
         ),
-        "member_member_001": SharedProfile(
+        SharedProfile(
             userId: "member_member_001",
             familyNames: "Marta y Alba",
             photoUrl: nil,

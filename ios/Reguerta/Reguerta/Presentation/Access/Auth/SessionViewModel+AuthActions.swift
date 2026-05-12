@@ -75,7 +75,6 @@ extension SessionViewModel {
         myOrderFreshnessState = .idle
         showSessionExpiredDialog = false
         showUnauthorizedDialog = false
-        resetSessionContentState()
         Task {
             await criticalDataFreshnessLocalRepository.clear()
         }
@@ -102,7 +101,6 @@ extension SessionViewModel {
                 members: session.members
             )
         )
-        refreshSharedProfiles()
     }
 
     func clearImpersonation() {
@@ -118,7 +116,6 @@ extension SessionViewModel {
                 members: session.members
             )
         )
-        refreshSharedProfiles()
     }
 
     func refreshSession(trigger: SessionRefreshTrigger) {

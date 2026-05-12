@@ -158,7 +158,9 @@ extension AccessRootRoutingView {
             HomeDrawerContentView(
                 tokens: tokens,
                 currentMember: currentHomeMember,
-                sharedProfile: viewModel.sharedProfiles.first(where: { $0.userId == currentHomeMember?.id }),
+                sharedProfile: rootViewModel.sharedProfileViewModel.profiles.first {
+                    $0.userId == currentHomeMember?.id
+                },
                 currentDestination: homeDestination,
                 installedVersion: installedVersion,
                 isDevelopBuild: viewModel.isDevelopImpersonationEnabled,
@@ -204,7 +206,7 @@ extension AccessRootRoutingView {
             (.notifications, { Task { await rootViewModel.newsNotificationsViewModel.refreshNotifications() } }),
             (.products, { Task { await rootViewModel.productsViewModel.refreshCatalog() } }),
             (.myOrder, { Task { await rootViewModel.productsViewModel.refreshOrderingProducts() } }),
-            (.profile, { viewModel.refreshSharedProfiles() }),
+            (.profile, { Task { await rootViewModel.sharedProfileViewModel.refreshProfiles() } }),
             (.users, { viewModel.refreshMembers() }),
             (.shifts, { Task { await rootViewModel.shiftsViewModel.refreshShifts() } }),
             (.settings, { Task { await rootViewModel.shiftsViewModel.refreshDeliveryCalendar() } })

@@ -1,10 +1,6 @@
 import Foundation
 
 extension SessionViewModel {
-    private struct AuthorizedSessionBootstrapData {
-        let profiles: [SharedProfile]
-    }
-
     func validateSignInInputs(email: String, password: String) -> Bool {
         var isValid = true
 
@@ -122,7 +118,6 @@ extension SessionViewModel {
         myOrderFreshnessState = .idle
         showSessionExpiredDialog = true
         showUnauthorizedDialog = false
-        resetSessionContentState()
         await criticalDataFreshnessLocalRepository.clear()
     }
 
@@ -139,15 +134,6 @@ extension SessionViewModel {
         registerPasswordErrorKey = nil
         registerRepeatPasswordErrorKey = nil
         recoverEmailErrorKey = nil
-    }
-
-    func resetSessionContentState() {
-        sharedProfiles = []
-        sharedProfileDraft = SharedProfileDraft()
-        isLoadingSharedProfiles = false
-        isSavingSharedProfile = false
-        isUploadingSharedProfileImage = false
-        isDeletingSharedProfile = false
     }
 
     func clearSessionRefreshTracking() {
@@ -175,9 +161,6 @@ extension SessionViewModel {
             myOrderFreshnessState = .checking
             refreshMyOrderFreshness()
         }
-        setAuthorizedLoadingState(member: member)
-        let bootstrapData = await loadAuthorizedSessionBootstrapData(member: member)
-        applyAuthorizedSessionBootstrapData(bootstrapData, member: member)
         await authorizedDeviceRegistrar.register(member: member)
     }
 
@@ -190,25 +173,6 @@ extension SessionViewModel {
         showSessionExpiredDialog = false
         showUnauthorizedDialog = shouldShowDialog
         myOrderFreshnessState = .idle
-        resetSessionContentState()
-    }
-
-    private func setAuthorizedLoadingState(member _: Member) {
-        isLoadingSharedProfiles = true
-    }
-
-    private func loadAuthorizedSessionBootstrapData(member _: Member) async -> AuthorizedSessionBootstrapData {
-        let profiles = await sharedProfileRepository.allSharedProfiles()
-
-        return AuthorizedSessionBootstrapData(
-            profiles: profiles
-        )
-    }
-
-    private func applyAuthorizedSessionBootstrapData(_ data: AuthorizedSessionBootstrapData, member: Member) {
-        sharedProfiles = data.profiles.filter(\.hasVisibleContent)
-        sharedProfileDraft = data.profiles.first(where: { $0.userId == member.id })?.toDraft() ?? SharedProfileDraft()
-        isLoadingSharedProfiles = false
     }
 
     func applyUpdatedAuthorizedMember(_ updatedMember: Member, members: [Member]) {
