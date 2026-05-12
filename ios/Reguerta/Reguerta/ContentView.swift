@@ -28,6 +28,10 @@ extension AccessRootRoutingView {
         appEnvironment.sessionViewModel
     }
 
+    var feedbackCenter: GlobalFeedbackCenter {
+        appEnvironment.feedbackCenter
+    }
+
     var shellState: AuthShellState {
         get { rootViewModel.shellState }
         nonmutating set { rootViewModel.shellState = newValue }
@@ -158,8 +162,8 @@ struct AccessRootView: AccessRootRoutingView {
         .task {
             await rootViewModel.refreshSessionAndEvaluateStartupGate()
         }
-        .onChange(of: viewModel.mode) { _, mode in
-            rootViewModel.handleSessionModeChange(mode)
+        .onChange(of: viewModel.mode) { previousMode, mode in
+            rootViewModel.handleSessionModeChange(from: previousMode, to: mode)
         }
         .onChange(of: rootViewModel.nowOverrideMillis) { _, _ in
             rootViewModel.handleNowOverrideChange()
@@ -176,7 +180,7 @@ struct AccessRootView: AccessRootRoutingView {
         .onChange(of: shellState.currentRoute) { previousRoute, route in
             rootViewModel.handleShellRouteChange(from: previousRoute, to: route)
         }
-        .onChange(of: viewModel.feedbackMessageKey) { _, feedbackKey in
+        .onChange(of: feedbackCenter.messageKey) { _, feedbackKey in
             rootViewModel.handleFeedbackMessageChange(feedbackKey)
         }
     }

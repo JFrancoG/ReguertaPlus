@@ -2,9 +2,9 @@ import Foundation
 
 extension SessionViewModel {
     func signIn() {
-        let email = normalizeEmail(emailInput)
+        let email = normalizeAccessEmail(emailInput)
         let password = passwordInput
-        feedbackMessageKey = nil
+        feedbackCenter.clear()
         emailErrorKey = nil
         passwordErrorKey = nil
 
@@ -28,10 +28,10 @@ extension SessionViewModel {
     }
 
     func signUp() {
-        let email = normalizeEmail(registerEmailInput)
+        let email = normalizeAccessEmail(registerEmailInput)
         let password = registerPasswordInput
         let repeatedPassword = registerRepeatPasswordInput
-        feedbackMessageKey = nil
+        feedbackCenter.clear()
         registerEmailErrorKey = nil
         registerPasswordErrorKey = nil
         registerRepeatPasswordErrorKey = nil
@@ -69,14 +69,10 @@ extension SessionViewModel {
         isAuthenticating = false
         isRegistering = false
         isRecoveringPassword = false
-        feedbackMessageKey = nil
+        feedbackCenter.clear()
         mode = .signedOut
-        myOrderFreshnessState = .idle
         showSessionExpiredDialog = false
         showUnauthorizedDialog = false
-        Task {
-            await criticalDataFreshnessLocalRepository.clear()
-        }
     }
 
     func dismissSessionExpiredDialog() {
@@ -130,7 +126,6 @@ extension SessionViewModel {
 
         isSessionRefreshInFlight = true
         let hadAuthenticatedSession = mode.isAuthenticatedSession
-
         Task { @MainActor in
             defer {
                 lastSessionRefreshAtMillis = nowMillisProvider()
@@ -144,55 +139,23 @@ extension SessionViewModel {
                     await handleExpiredSession()
                 }
             case .active(let principal):
-                let shouldRefreshCriticalData = !hadAuthenticatedSession || shouldRefreshCriticalData(for: principal)
-                await applyAuthorizedSession(
-                    principal: principal,
-                    shouldRefreshCriticalData: shouldRefreshCriticalData
-                )
+                await applyAuthorizedSession(principal: principal)
             case .expired:
                 await handleExpiredSession()
             }
         }
     }
 
-    func refreshMyOrderFreshness() {
-        guard case .authorized(let session) = mode else { return }
-        myOrderFreshnessState = .checking
-        Task { @MainActor in
-            let resolution = await withTaskGroup(of: CriticalDataFreshnessResolution?.self) { group in
-                group.addTask {
-                    await self.resolveCriticalDataFreshness.execute()
-                }
-                group.addTask {
-                    try? await Task.sleep(nanoseconds: 2_500_000_000)
-                    return nil
-                }
-                let first = await group.next() ?? nil
-                group.cancelAll()
-                return first
-            }
-            guard case .authorized(let latestSession) = mode, latestSession == session else { return }
-            switch resolution {
-            case .fresh:
-                myOrderFreshnessState = .ready
-            case .invalidConfig:
-                myOrderFreshnessState = .unavailable
-            case nil:
-                myOrderFreshnessState = .timedOut
-            }
-        }
-    }
-
     func sendPasswordReset() {
-        let email = normalizeEmail(recoverEmailInput)
-        feedbackMessageKey = nil
+        let email = normalizeAccessEmail(recoverEmailInput)
+        feedbackCenter.clear()
         recoverEmailErrorKey = nil
 
         if email.isEmpty {
             recoverEmailErrorKey = AccessL10nKey.feedbackEmailRequired
             return
         }
-        if !isValidEmail(email) {
+        if !isValidAccessEmail(email) {
             recoverEmailErrorKey = AccessL10nKey.feedbackEmailInvalid
             return
         }
@@ -202,16 +165,12 @@ extension SessionViewModel {
             let result = await authSessionProvider.sendPasswordReset(email: email)
             switch result {
             case .success:
-                feedbackMessageKey = AccessL10nKey.authInfoPasswordResetSent
+                feedbackCenter.show(AccessL10nKey.authInfoPasswordResetSent)
             case .failure(let reason):
                 applyPasswordResetFailure(reason)
             }
             isRecoveringPassword = false
         }
-    }
-
-    func clearFeedbackMessage() {
-        feedbackMessageKey = nil
     }
 
     func resetSignInDraft() {
@@ -238,18 +197,4 @@ extension SessionViewModel {
         isRecoveringPassword = false
     }
 
-    func isValidEmail(_ email: String) -> Bool {
-        email.range(
-            of: "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$",
-            options: [.regularExpression, .caseInsensitive]
-        ) != nil
-    }
-
-    func isValidPassword(_ password: String) -> Bool {
-        (6...16).contains(password.count)
-    }
-
-    func normalizeEmail(_ email: String) -> String {
-        email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    }
 }

@@ -90,7 +90,7 @@ extension AccessRootRoutingView {
         HomeWeeklySummaryCardView(tokens: tokens, display: summary)
         HomeActionRowView(
             tokens: tokens,
-            myOrderFreshnessState: viewModel.myOrderFreshnessState,
+            myOrderFreshnessState: rootViewModel.myOrderFreshnessViewModel.state,
             canOpenReceivedOrders: session.member.canAccessReceivedOrders,
             orderState: summary.orderState,
             myOrderSubtitleKey: summary.myOrderSubtitleKey,
@@ -102,7 +102,7 @@ extension AccessRootRoutingView {
                 homeDestination = .receivedOrders
             },
             onRetryFreshness: {
-                viewModel.refreshMyOrderFreshness()
+                rootViewModel.myOrderFreshnessViewModel.retry(currentMode: viewModel.mode)
             }
         )
     }
@@ -158,7 +158,7 @@ extension AccessRootRoutingView {
                 homeDestination = .bylaws
             },
             onRetryFreshness: {
-                viewModel.refreshMyOrderFreshness()
+                rootViewModel.myOrderFreshnessViewModel.retry(currentMode: viewModel.mode)
             }
         )
     }

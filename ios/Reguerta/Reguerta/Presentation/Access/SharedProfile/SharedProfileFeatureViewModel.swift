@@ -5,6 +5,7 @@ import Observation
 @Observable
 final class SharedProfileFeatureViewModel {
     @ObservationIgnored let sessionViewModel: SessionViewModel
+    @ObservationIgnored let feedbackCenter: GlobalFeedbackCenter
     @ObservationIgnored let sharedProfileRepository: any SharedProfileRepository
     @ObservationIgnored let imagePipelineManager: any ImagePipelineManager
     @ObservationIgnored let nowMillisProvider: @MainActor @Sendable () -> Int64
@@ -24,11 +25,13 @@ final class SharedProfileFeatureViewModel {
 
     init(
         sessionViewModel: SessionViewModel,
+        feedbackCenter: GlobalFeedbackCenter = GlobalFeedbackCenter(),
         sharedProfileRepository: any SharedProfileRepository,
         imagePipelineManager: any ImagePipelineManager,
         nowMillisProvider: @escaping @MainActor @Sendable () -> Int64
     ) {
         self.sessionViewModel = sessionViewModel
+        self.feedbackCenter = feedbackCenter
         self.sharedProfileRepository = sharedProfileRepository
         self.imagePipelineManager = imagePipelineManager
         self.nowMillisProvider = nowMillisProvider
@@ -77,7 +80,7 @@ final class SharedProfileFeatureViewModel {
 
         let normalizedDraft = draft.normalized
         guard normalizedDraft.hasVisibleContent else {
-            sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackSharedProfileContentRequired
+            feedbackCenter.show(AccessL10nKey.feedbackSharedProfileContentRequired)
             return false
         }
 
@@ -98,7 +101,7 @@ final class SharedProfileFeatureViewModel {
         applyProfiles(fetchedProfiles, currentMemberId: session.member.id)
         draft = savedProfile.toDraft()
         isSaving = false
-        sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackSharedProfileSaved
+        feedbackCenter.show(AccessL10nKey.feedbackSharedProfileSaved)
         return true
     }
 
@@ -114,9 +117,11 @@ final class SharedProfileFeatureViewModel {
         applyProfiles(fetchedProfiles, currentMemberId: session.member.id)
         draft = SharedProfileDraft()
         isDeleting = false
-        sessionViewModel.feedbackMessageKey = deleted
-            ? AccessL10nKey.feedbackSharedProfileDeleted
-            : AccessL10nKey.feedbackSharedProfileDeleteFailed
+        feedbackCenter.show(
+            deleted
+                ? AccessL10nKey.feedbackSharedProfileDeleted
+                : AccessL10nKey.feedbackSharedProfileDeleteFailed
+        )
         return deleted
     }
 
@@ -139,7 +144,7 @@ final class SharedProfileFeatureViewModel {
             }
             draft.photoUrl = uploaded.downloadURL
         } catch {
-            sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
+            feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
         }
         isUploadingImage = false
     }
@@ -149,15 +154,15 @@ final class SharedProfileFeatureViewModel {
     }
 
     func reportImageSelectionFailed() {
-        sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
+        feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
     }
 
     func reportCameraPermissionDenied() {
-        sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackCameraPermissionRequired
+        feedbackCenter.show(AccessL10nKey.feedbackCameraPermissionRequired)
     }
 
     func reportCameraUnavailable() {
-        sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackCameraUnavailable
+        feedbackCenter.show(AccessL10nKey.feedbackCameraUnavailable)
     }
 
     private func applyProfiles(_ fetchedProfiles: [SharedProfile], currentMemberId: String) {

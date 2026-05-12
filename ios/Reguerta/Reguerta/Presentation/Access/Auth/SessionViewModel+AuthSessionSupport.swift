@@ -7,7 +7,7 @@ extension SessionViewModel {
         if email.isEmpty {
             emailErrorKey = AccessL10nKey.feedbackEmailRequired
             isValid = false
-        } else if !isValidEmail(email) {
+        } else if !isValidAccessEmail(email) {
             emailErrorKey = AccessL10nKey.feedbackEmailInvalid
             isValid = false
         }
@@ -15,7 +15,7 @@ extension SessionViewModel {
         if password.isEmpty {
             passwordErrorKey = AccessL10nKey.feedbackPasswordRequired
             isValid = false
-        } else if !isValidPassword(password) {
+        } else if !isValidAccessPassword(password) {
             passwordErrorKey = AccessL10nKey.authErrorWeakPassword
             isValid = false
         }
@@ -29,7 +29,7 @@ extension SessionViewModel {
         if email.isEmpty {
             registerEmailErrorKey = AccessL10nKey.feedbackEmailRequired
             isValid = false
-        } else if !isValidEmail(email) {
+        } else if !isValidAccessEmail(email) {
             registerEmailErrorKey = AccessL10nKey.feedbackEmailInvalid
             isValid = false
         }
@@ -37,7 +37,7 @@ extension SessionViewModel {
         if password.isEmpty {
             registerPasswordErrorKey = AccessL10nKey.feedbackPasswordRequired
             isValid = false
-        } else if !isValidPassword(password) {
+        } else if !isValidAccessPassword(password) {
             registerPasswordErrorKey = AccessL10nKey.authErrorWeakPassword
             isValid = false
         }
@@ -45,7 +45,7 @@ extension SessionViewModel {
         if repeatedPassword.isEmpty {
             registerRepeatPasswordErrorKey = AccessL10nKey.feedbackPasswordRepeatRequired
             isValid = false
-        } else if !isValidPassword(repeatedPassword) {
+        } else if !isValidAccessPassword(repeatedPassword) {
             registerRepeatPasswordErrorKey = AccessL10nKey.authErrorWeakPassword
             isValid = false
         } else if repeatedPassword != password {
@@ -60,48 +60,33 @@ extension SessionViewModel {
         let mapped = mapAuthFailure(reason, flow: .signIn)
         emailErrorKey = mapped.emailErrorKey
         passwordErrorKey = mapped.passwordErrorKey
-        feedbackMessageKey = mapped.globalMessageKey
+        feedbackCenter.show(mapped.globalMessageKey)
     }
 
     func applySignUpFailure(_ reason: AuthSignInFailureReason) {
         let mapped = mapAuthFailure(reason, flow: .signUp)
         registerEmailErrorKey = mapped.emailErrorKey
         registerPasswordErrorKey = mapped.passwordErrorKey
-        feedbackMessageKey = mapped.globalMessageKey
+        feedbackCenter.show(mapped.globalMessageKey)
     }
 
     func applyPasswordResetFailure(_ reason: AuthSignInFailureReason) {
         let mapped = mapAuthFailure(reason, flow: .passwordReset)
         recoverEmailErrorKey = mapped.emailErrorKey
-        feedbackMessageKey = mapped.globalMessageKey
+        feedbackCenter.show(mapped.globalMessageKey)
     }
 
-    func applyAuthorizedSession(
-        principal: AuthPrincipal,
-        shouldRefreshCriticalData: Bool = true
-    ) async {
+    func applyAuthorizedSession(principal: AuthPrincipal) async {
         await reviewerEnvironmentRouter.applyRouting(for: principal)
         let result = await resolveAuthorizedSession.execute(authPrincipal: principal)
         switch result {
         case .authorized(let member):
             await applyAuthorizedSession(
                 principal: principal,
-                member: member,
-                shouldRefreshCriticalData: shouldRefreshCriticalData
+                member: member
             )
         case .unauthorized(let reason):
             applyUnauthorizedSession(principalEmail: principal.email, reason: reason)
-        }
-    }
-
-    func shouldRefreshCriticalData(for principal: AuthPrincipal) -> Bool {
-        switch mode {
-        case .signedOut:
-            return true
-        case .unauthorized(let email, _):
-            return email != principal.email
-        case .authorized(let session):
-            return session.principal.uid != principal.uid
         }
     }
 
@@ -112,12 +97,10 @@ extension SessionViewModel {
         isAuthenticating = false
         isRegistering = false
         isRecoveringPassword = false
-        feedbackMessageKey = nil
+        feedbackCenter.clear()
         mode = .signedOut
-        myOrderFreshnessState = .idle
         showSessionExpiredDialog = true
         showUnauthorizedDialog = false
-        await criticalDataFreshnessLocalRepository.clear()
     }
 
     func resetAccessCredentialsAndErrors() {
@@ -142,8 +125,7 @@ extension SessionViewModel {
 
     private func applyAuthorizedSession(
         principal: AuthPrincipal,
-        member: Member,
-        shouldRefreshCriticalData: Bool
+        member: Member
     ) async {
         let members = await repository.allMembers()
         mode = .authorized(
@@ -156,10 +138,6 @@ extension SessionViewModel {
         )
         showSessionExpiredDialog = false
         showUnauthorizedDialog = false
-        if shouldRefreshCriticalData {
-            myOrderFreshnessState = .checking
-            refreshMyOrderFreshness()
-        }
         await authorizedDeviceRegistrar.register(member: member)
     }
 
@@ -171,7 +149,6 @@ extension SessionViewModel {
         mode = .unauthorized(email: principalEmail, reason: reason)
         showSessionExpiredDialog = false
         showUnauthorizedDialog = shouldShowDialog
-        myOrderFreshnessState = .idle
     }
 
     func applyUpdatedAuthorizedMember(_ updatedMember: Member, members: [Member]) {

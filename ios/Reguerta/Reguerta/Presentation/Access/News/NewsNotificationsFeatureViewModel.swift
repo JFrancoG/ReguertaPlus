@@ -5,6 +5,7 @@ import Observation
 @Observable
 final class NewsNotificationsFeatureViewModel {
     @ObservationIgnored let sessionViewModel: SessionViewModel
+    @ObservationIgnored let feedbackCenter: GlobalFeedbackCenter
     @ObservationIgnored let newsRepository: any NewsRepository
     @ObservationIgnored let notificationRepository: any NotificationRepository
     @ObservationIgnored let imagePipelineManager: any ImagePipelineManager
@@ -40,12 +41,14 @@ final class NewsNotificationsFeatureViewModel {
 
     init(
         sessionViewModel: SessionViewModel,
+        feedbackCenter: GlobalFeedbackCenter = GlobalFeedbackCenter(),
         newsRepository: any NewsRepository,
         notificationRepository: any NotificationRepository,
         imagePipelineManager: any ImagePipelineManager,
         nowMillisProvider: @escaping @MainActor () -> Int64
     ) {
         self.sessionViewModel = sessionViewModel
+        self.feedbackCenter = feedbackCenter
         self.newsRepository = newsRepository
         self.notificationRepository = notificationRepository
         self.imagePipelineManager = imagePipelineManager

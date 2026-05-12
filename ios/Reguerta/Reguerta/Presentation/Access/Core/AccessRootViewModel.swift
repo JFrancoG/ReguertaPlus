@@ -1,9 +1,33 @@
 import Observation
 import SwiftUI
 
+private struct RootFeatureViewModels {
+    let productsViewModel: ProductsRouteViewModel
+    let shiftsViewModel: ShiftsFeatureViewModel
+    let newsNotificationsViewModel: NewsNotificationsFeatureViewModel
+    let sharedProfileViewModel: SharedProfileFeatureViewModel
+    let usersViewModel: UsersFeatureViewModel
+    let myOrderViewModel: MyOrderRouteViewModel
+    let receivedOrdersViewModel: ReceivedOrdersRouteViewModel
+    let myOrderFreshnessViewModel: MyOrderFreshnessViewModel
+    let bylawsViewModel: BylawsFeatureViewModel
+}
+
+private struct RootFeatureDependencies {
+    let products: ProductsFeatureDependencies
+    let orders: OrdersFeatureDependencies
+    let shifts: ShiftsFeatureDependencies
+    let newsNotifications: NewsNotificationsFeatureDependencies
+    let sharedProfile: SharedProfileFeatureDependencies
+    let users: UsersFeatureDependencies
+    let myOrderFreshness: MyOrderFreshnessFeatureDependencies
+    let bylaws: BylawsFeatureDependencies
+}
+
 @Observable
 final class AccessRootViewModel {
     @ObservationIgnored let sessionViewModel: SessionViewModel
+    @ObservationIgnored let feedbackCenter: GlobalFeedbackCenter
     @ObservationIgnored let productsViewModel: ProductsRouteViewModel
     @ObservationIgnored let shiftsViewModel: ShiftsFeatureViewModel
     @ObservationIgnored let newsNotificationsViewModel: NewsNotificationsFeatureViewModel
@@ -11,6 +35,8 @@ final class AccessRootViewModel {
     @ObservationIgnored let usersViewModel: UsersFeatureViewModel
     @ObservationIgnored let myOrderViewModel: MyOrderRouteViewModel
     @ObservationIgnored let receivedOrdersViewModel: ReceivedOrdersRouteViewModel
+    @ObservationIgnored let myOrderFreshnessViewModel: MyOrderFreshnessViewModel
+    @ObservationIgnored let bylawsViewModel: BylawsFeatureViewModel
     @ObservationIgnored private let startupVersionGateUseCase: ResolveStartupVersionGateUseCase
     @ObservationIgnored private let shouldSkipSplashProvider: () -> Bool
     @ObservationIgnored private let installedVersionProvider: () -> String
@@ -48,12 +74,15 @@ final class AccessRootViewModel {
 
     init(
         sessionViewModel: SessionViewModel,
+        feedbackCenter: GlobalFeedbackCenter? = nil,
         productsFeatureDependencies: ProductsFeatureDependencies = .preview(),
         ordersFeatureDependencies: OrdersFeatureDependencies = .preview(),
         shiftsFeatureDependencies: ShiftsFeatureDependencies = .preview(),
         newsNotificationsFeatureDependencies: NewsNotificationsFeatureDependencies = .preview(),
         sharedProfileFeatureDependencies: SharedProfileFeatureDependencies = .preview(),
         usersFeatureDependencies: UsersFeatureDependencies = .preview(),
+        myOrderFreshnessFeatureDependencies: MyOrderFreshnessFeatureDependencies = .preview(),
+        bylawsFeatureDependencies: BylawsFeatureDependencies = .preview(),
         startupVersionGateUseCase: ResolveStartupVersionGateUseCase,
         shouldSkipSplashProvider: @escaping () -> Bool = {
             ProcessInfo.processInfo.arguments.contains("-skipSplash")
@@ -64,68 +93,189 @@ final class AccessRootViewModel {
         initialNowOverrideMillis: Int64? = nil
     ) {
         self.sessionViewModel = sessionViewModel
-        self.productsViewModel = ProductsRouteViewModel(
+        let resolvedFeedbackCenter = feedbackCenter ?? sessionViewModel.feedbackCenter
+        self.feedbackCenter = resolvedFeedbackCenter
+        let featureViewModels = Self.makeFeatureViewModels(
             sessionViewModel: sessionViewModel,
-            productRepository: productsFeatureDependencies.productRepository,
-            memberRepository: productsFeatureDependencies.memberRepository,
-            seasonalCommitmentRepository: productsFeatureDependencies.seasonalCommitmentRepository,
-            imagePipelineManager: productsFeatureDependencies.imagePipelineManager,
-            nowMillisProvider: productsFeatureDependencies.nowMillisProvider
+            feedbackCenter: resolvedFeedbackCenter,
+            dependencies: RootFeatureDependencies(
+                products: productsFeatureDependencies,
+                orders: ordersFeatureDependencies,
+                shifts: shiftsFeatureDependencies,
+                newsNotifications: newsNotificationsFeatureDependencies,
+                sharedProfile: sharedProfileFeatureDependencies,
+                users: usersFeatureDependencies,
+                myOrderFreshness: myOrderFreshnessFeatureDependencies,
+                bylaws: bylawsFeatureDependencies
+            )
         )
-        self.shiftsViewModel = ShiftsFeatureViewModel(
-            sessionViewModel: sessionViewModel,
-            shiftRepository: shiftsFeatureDependencies.shiftRepository,
-            shiftSwapRequestRepository: shiftsFeatureDependencies.shiftSwapRequestRepository,
-            shiftPlanningRequestRepository: shiftsFeatureDependencies.shiftPlanningRequestRepository,
-            deliveryCalendarRepository: shiftsFeatureDependencies.deliveryCalendarRepository,
-            notificationRepository: shiftsFeatureDependencies.notificationRepository,
-            nowMillisProvider: shiftsFeatureDependencies.nowMillisProvider
-        )
-        self.newsNotificationsViewModel = NewsNotificationsFeatureViewModel(
-            sessionViewModel: sessionViewModel,
-            newsRepository: newsNotificationsFeatureDependencies.newsRepository,
-            notificationRepository: newsNotificationsFeatureDependencies.notificationRepository,
-            imagePipelineManager: newsNotificationsFeatureDependencies.imagePipelineManager,
-            nowMillisProvider: newsNotificationsFeatureDependencies.nowMillisProvider
-        )
-        self.sharedProfileViewModel = SharedProfileFeatureViewModel(
-            sessionViewModel: sessionViewModel,
-            sharedProfileRepository: sharedProfileFeatureDependencies.sharedProfileRepository,
-            imagePipelineManager: sharedProfileFeatureDependencies.imagePipelineManager,
-            nowMillisProvider: sharedProfileFeatureDependencies.nowMillisProvider
-        )
-        self.usersViewModel = Self.makeUsersViewModel(
-            sessionViewModel: sessionViewModel,
-            dependencies: usersFeatureDependencies
-        )
-        self.myOrderViewModel = MyOrderRouteViewModel(
-            sessionViewModel: sessionViewModel,
-            ordersRepository: ordersFeatureDependencies.ordersRepository,
-            cartStore: ordersFeatureDependencies.cartStore,
-            nowMillisProvider: ordersFeatureDependencies.nowMillisProvider
-        )
-        self.receivedOrdersViewModel = ReceivedOrdersRouteViewModel(
-            sessionViewModel: sessionViewModel,
-            ordersRepository: ordersFeatureDependencies.ordersRepository,
-            nowMillisProvider: ordersFeatureDependencies.nowMillisProvider
-        )
+        self.productsViewModel = featureViewModels.productsViewModel
+        self.shiftsViewModel = featureViewModels.shiftsViewModel
+        self.newsNotificationsViewModel = featureViewModels.newsNotificationsViewModel
+        self.sharedProfileViewModel = featureViewModels.sharedProfileViewModel
+        self.usersViewModel = featureViewModels.usersViewModel
+        self.myOrderViewModel = featureViewModels.myOrderViewModel
+        self.receivedOrdersViewModel = featureViewModels.receivedOrdersViewModel
+        self.myOrderFreshnessViewModel = featureViewModels.myOrderFreshnessViewModel
+        self.bylawsViewModel = featureViewModels.bylawsViewModel
         self.startupVersionGateUseCase = startupVersionGateUseCase
         self.shouldSkipSplashProvider = shouldSkipSplashProvider
         self.installedVersionProvider = installedVersionProvider
         self.nowOverrideMillis = initialNowOverrideMillis
     }
 
-    private static func makeUsersViewModel(
+}
+
+private extension AccessRootViewModel {
+    static func makeFeatureViewModels(
         sessionViewModel: SessionViewModel,
+        feedbackCenter: GlobalFeedbackCenter,
+        dependencies: RootFeatureDependencies
+    ) -> RootFeatureViewModels {
+        RootFeatureViewModels(
+            productsViewModel: makeProductsViewModel(
+                sessionViewModel: sessionViewModel,
+                feedbackCenter: feedbackCenter,
+                dependencies: dependencies.products
+            ),
+            shiftsViewModel: makeShiftsViewModel(
+                sessionViewModel: sessionViewModel,
+                feedbackCenter: feedbackCenter,
+                dependencies: dependencies.shifts
+            ),
+            newsNotificationsViewModel: makeNewsNotificationsViewModel(
+                sessionViewModel: sessionViewModel,
+                feedbackCenter: feedbackCenter,
+                dependencies: dependencies.newsNotifications
+            ),
+            sharedProfileViewModel: makeSharedProfileViewModel(
+                sessionViewModel: sessionViewModel,
+                feedbackCenter: feedbackCenter,
+                dependencies: dependencies.sharedProfile
+            ),
+            usersViewModel: makeUsersViewModel(
+                sessionViewModel: sessionViewModel,
+                feedbackCenter: feedbackCenter,
+                dependencies: dependencies.users
+            ),
+            myOrderViewModel: makeMyOrderViewModel(
+                sessionViewModel: sessionViewModel,
+                dependencies: dependencies.orders
+            ),
+            receivedOrdersViewModel: makeReceivedOrdersViewModel(
+                sessionViewModel: sessionViewModel,
+                dependencies: dependencies.orders
+            ),
+            myOrderFreshnessViewModel: MyOrderFreshnessViewModel(
+                dependencies: dependencies.myOrderFreshness
+            ),
+            bylawsViewModel: BylawsFeatureViewModel(
+                feedbackCenter: feedbackCenter,
+                dependencies: dependencies.bylaws
+            )
+        )
+    }
+
+    static func makeProductsViewModel(
+        sessionViewModel: SessionViewModel,
+        feedbackCenter: GlobalFeedbackCenter,
+        dependencies: ProductsFeatureDependencies
+    ) -> ProductsRouteViewModel {
+        ProductsRouteViewModel(
+            sessionViewModel: sessionViewModel,
+            feedbackCenter: feedbackCenter,
+            productRepository: dependencies.productRepository,
+            memberRepository: dependencies.memberRepository,
+            seasonalCommitmentRepository: dependencies.seasonalCommitmentRepository,
+            imagePipelineManager: dependencies.imagePipelineManager,
+            nowMillisProvider: dependencies.nowMillisProvider
+        )
+    }
+
+    static func makeShiftsViewModel(
+        sessionViewModel: SessionViewModel,
+        feedbackCenter: GlobalFeedbackCenter,
+        dependencies: ShiftsFeatureDependencies
+    ) -> ShiftsFeatureViewModel {
+        ShiftsFeatureViewModel(
+            sessionViewModel: sessionViewModel,
+            feedbackCenter: feedbackCenter,
+            shiftRepository: dependencies.shiftRepository,
+            shiftSwapRequestRepository: dependencies.shiftSwapRequestRepository,
+            shiftPlanningRequestRepository: dependencies.shiftPlanningRequestRepository,
+            deliveryCalendarRepository: dependencies.deliveryCalendarRepository,
+            notificationRepository: dependencies.notificationRepository,
+            nowMillisProvider: dependencies.nowMillisProvider
+        )
+    }
+
+    static func makeNewsNotificationsViewModel(
+        sessionViewModel: SessionViewModel,
+        feedbackCenter: GlobalFeedbackCenter,
+        dependencies: NewsNotificationsFeatureDependencies
+    ) -> NewsNotificationsFeatureViewModel {
+        NewsNotificationsFeatureViewModel(
+            sessionViewModel: sessionViewModel,
+            feedbackCenter: feedbackCenter,
+            newsRepository: dependencies.newsRepository,
+            notificationRepository: dependencies.notificationRepository,
+            imagePipelineManager: dependencies.imagePipelineManager,
+            nowMillisProvider: dependencies.nowMillisProvider
+        )
+    }
+
+    static func makeSharedProfileViewModel(
+        sessionViewModel: SessionViewModel,
+        feedbackCenter: GlobalFeedbackCenter,
+        dependencies: SharedProfileFeatureDependencies
+    ) -> SharedProfileFeatureViewModel {
+        SharedProfileFeatureViewModel(
+            sessionViewModel: sessionViewModel,
+            feedbackCenter: feedbackCenter,
+            sharedProfileRepository: dependencies.sharedProfileRepository,
+            imagePipelineManager: dependencies.imagePipelineManager,
+            nowMillisProvider: dependencies.nowMillisProvider
+        )
+    }
+
+    static func makeUsersViewModel(
+        sessionViewModel: SessionViewModel,
+        feedbackCenter: GlobalFeedbackCenter,
         dependencies: UsersFeatureDependencies
     ) -> UsersFeatureViewModel {
         UsersFeatureViewModel(
             sessionViewModel: sessionViewModel,
+            feedbackCenter: feedbackCenter,
             memberRepository: dependencies.memberRepository,
             upsertMemberByAdmin: dependencies.upsertMemberByAdmin
         )
     }
 
+    static func makeMyOrderViewModel(
+        sessionViewModel: SessionViewModel,
+        dependencies: OrdersFeatureDependencies
+    ) -> MyOrderRouteViewModel {
+        MyOrderRouteViewModel(
+            sessionViewModel: sessionViewModel,
+            ordersRepository: dependencies.ordersRepository,
+            cartStore: dependencies.cartStore,
+            nowMillisProvider: dependencies.nowMillisProvider
+        )
+    }
+
+    static func makeReceivedOrdersViewModel(
+        sessionViewModel: SessionViewModel,
+        dependencies: OrdersFeatureDependencies
+    ) -> ReceivedOrdersRouteViewModel {
+        ReceivedOrdersRouteViewModel(
+            sessionViewModel: sessionViewModel,
+            ordersRepository: dependencies.ordersRepository,
+            nowMillisProvider: dependencies.nowMillisProvider
+        )
+    }
+}
+
+extension AccessRootViewModel {
     func dispatchShell(_ action: AuthShellAction) {
         shellState = reduceAuthShell(state: shellState, action: action)
     }
@@ -222,6 +372,11 @@ final class AccessRootViewModel {
     }
 
     func handleSessionModeChange(_ mode: SessionMode) {
+        handleSessionModeChange(from: sessionViewModel.mode, to: mode)
+    }
+
+    func handleSessionModeChange(from previousMode: SessionMode, to mode: SessionMode) {
+        myOrderFreshnessViewModel.handleSessionModeChange(from: previousMode, to: mode)
         productsViewModel.handleSessionModeChange(mode)
         shiftsViewModel.handleSessionModeChange(mode)
         newsNotificationsViewModel.handleSessionModeChange(mode)
@@ -272,7 +427,7 @@ final class AccessRootViewModel {
 
     func handleFeedbackMessageChange(_ feedbackKey: String?) {
         guard feedbackKey == AccessL10nKey.authInfoPasswordResetSent else { return }
-        sessionViewModel.clearFeedbackMessage()
+        feedbackCenter.clear()
         showsRecoverSuccessDialog = true
     }
 
@@ -302,14 +457,14 @@ final class AccessRootViewModel {
         switch previousRoute {
         case .login where newRoute != .login:
             sessionViewModel.resetSignInDraft()
-            sessionViewModel.clearFeedbackMessage()
+            feedbackCenter.clear()
         case .register where newRoute != .register:
             sessionViewModel.resetSignUpDraft()
-            sessionViewModel.clearFeedbackMessage()
+            feedbackCenter.clear()
             areRegisterPasswordsVisible = false
         case .recoverPassword where newRoute != .recoverPassword:
             sessionViewModel.resetRecoverDraft()
-            sessionViewModel.clearFeedbackMessage()
+            feedbackCenter.clear()
             showsRecoverSuccessDialog = false
         default:
             break

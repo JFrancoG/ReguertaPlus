@@ -17,7 +17,7 @@ extension NewsNotificationsFeatureViewModel {
     func startCreatingNews() -> Bool {
         guard let session = authorizedSession else { return false }
         guard session.member.canPublishNews else {
-            sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminPublishNews
+            feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminPublishNews)
             return false
         }
 
@@ -31,7 +31,7 @@ extension NewsNotificationsFeatureViewModel {
     func startEditingNews(newsId: String) -> Bool {
         guard let session = authorizedSession else { return false }
         guard session.member.canPublishNews else {
-            sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminEditNews
+            feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminEditNews)
             return false
         }
         guard let article = newsFeed.first(where: { $0.id == newsId }) else { return false }
@@ -53,7 +53,7 @@ extension NewsNotificationsFeatureViewModel {
     func startCreatingNotification() -> Bool {
         guard let session = authorizedSession else { return false }
         guard session.member.canSendAdminNotifications else {
-            sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminSendNotification
+            feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminSendNotification)
             return false
         }
 
@@ -78,12 +78,12 @@ extension NewsNotificationsFeatureViewModel {
     func saveNews() async -> Bool {
         guard let session = authorizedSession else { return false }
         guard session.member.canPublishNews else {
-            sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminPublishNews
+            feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminPublishNews)
             return false
         }
         let normalizedDraft = newsDraft.normalized
         guard !normalizedDraft.title.isEmpty, !normalizedDraft.body.isEmpty else {
-            sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackNewsTitleBodyRequired
+            feedbackCenter.show(AccessL10nKey.feedbackNewsTitleBodyRequired)
             return false
         }
         guard !isUploadingNewsImage else { return false }
@@ -108,23 +108,25 @@ extension NewsNotificationsFeatureViewModel {
         applyNewsSnapshot(allNews, member: session.member)
         newsDraft = saved.toDraft()
         editingNewsId = saved.id
-        sessionViewModel.feedbackMessageKey = existing == nil
-            ? AccessL10nKey.feedbackNewsCreated
-            : AccessL10nKey.feedbackNewsUpdated
+        feedbackCenter.show(
+            existing == nil
+                ? AccessL10nKey.feedbackNewsCreated
+                : AccessL10nKey.feedbackNewsUpdated
+        )
         return true
     }
 
     func confirmNewsDeletion() async {
         guard let session = authorizedSession else { return }
         guard session.member.canPublishNews else {
-            sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminDeleteNews
+            feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminDeleteNews)
             return
         }
         guard let newsId = pendingNewsDeletionId else { return }
 
         let deleted = await newsRepository.delete(newsId: newsId)
         guard deleted else {
-            sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackNewsDeleteFailed
+            feedbackCenter.show(AccessL10nKey.feedbackNewsDeleteFailed)
             return
         }
         let allNews = await newsRepository.allNews()
@@ -134,18 +136,18 @@ extension NewsNotificationsFeatureViewModel {
             clearNewsEditor()
         }
         pendingNewsDeletionId = nil
-        sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackNewsDeleted
+        feedbackCenter.show(AccessL10nKey.feedbackNewsDeleted)
     }
 
     func sendNotification() async -> Bool {
         guard let session = authorizedSession else { return false }
         guard session.member.canSendAdminNotifications else {
-            sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminSendNotification
+            feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminSendNotification)
             return false
         }
         let normalizedDraft = notificationDraft.normalized
         guard !normalizedDraft.title.isEmpty, !normalizedDraft.body.isEmpty else {
-            sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackNotificationTitleBodyRequired
+            feedbackCenter.show(AccessL10nKey.feedbackNotificationTitleBodyRequired)
             return false
         }
 
@@ -171,14 +173,14 @@ extension NewsNotificationsFeatureViewModel {
         guard isCurrentSession(session) else { return false }
         notificationsFeed = allNotifications.filter { $0.isVisible(to: session.member) }
         notificationDraft = NotificationDraft()
-        sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackNotificationSent
+        feedbackCenter.show(AccessL10nKey.feedbackNotificationSent)
         return true
     }
 
     func uploadNewsImage(_ imageData: Data) async {
         guard let session = authorizedSession else { return }
         guard session.member.canPublishNews else {
-            sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminPublishNews
+            feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminPublishNews)
             return
         }
 
@@ -198,7 +200,7 @@ extension NewsNotificationsFeatureViewModel {
             )
             newsDraft.urlImage = uploaded.downloadURL
         } catch {
-            sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
+            feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
         }
     }
 
@@ -209,14 +211,14 @@ extension NewsNotificationsFeatureViewModel {
     }
 
     func reportImageSelectionFailed() {
-        sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
+        feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
     }
 
     func reportCameraPermissionDenied() {
-        sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackCameraPermissionRequired
+        feedbackCenter.show(AccessL10nKey.feedbackCameraPermissionRequired)
     }
 
     func reportCameraUnavailable() {
-        sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackCameraUnavailable
+        feedbackCenter.show(AccessL10nKey.feedbackCameraUnavailable)
     }
 }

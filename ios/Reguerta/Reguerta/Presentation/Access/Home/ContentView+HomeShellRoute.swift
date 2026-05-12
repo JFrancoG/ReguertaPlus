@@ -25,7 +25,7 @@ extension AccessRootRoutingView {
                                     .zIndex(1)
                                 homeRouteContent
 
-                                if viewModel.feedbackMessageKey != nil {
+                                if feedbackCenter.messageKey != nil {
                                     feedbackMessageRoute
                                 }
                             }
@@ -40,7 +40,7 @@ extension AccessRootRoutingView {
                             homeRouteContent
                                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
-                            if viewModel.feedbackMessageKey != nil {
+                            if feedbackCenter.messageKey != nil {
                                 feedbackMessageRoute
                             }
                         }

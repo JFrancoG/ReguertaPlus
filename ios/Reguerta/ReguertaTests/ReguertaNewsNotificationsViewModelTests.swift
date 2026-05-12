@@ -104,7 +104,7 @@ struct ReguertaNewsNotificationsViewModelTests {
 
         #expect(saved == false)
         #expect(viewModel.newsFeed.isEmpty)
-        #expect(viewModel.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackNewsTitleBodyRequired)
+        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackNewsTitleBodyRequired)
     }
 
     @Test
@@ -135,7 +135,7 @@ struct ReguertaNewsNotificationsViewModelTests {
         #expect(created?.publishedBy == "Ana Admin")
         #expect(created?.publishedAtMillis == 123)
         #expect(created?.urlImage == "https://cdn.test/news.jpg")
-        #expect(viewModel.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackNewsCreated)
+        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackNewsCreated)
 
         let originalId = created?.id ?? ""
         #expect(viewModel.startEditingNews(newsId: originalId))
@@ -151,7 +151,7 @@ struct ReguertaNewsNotificationsViewModelTests {
         #expect(updated?.title == "Actualizada")
         #expect(updated?.publishedBy == "Ana Admin")
         #expect(updated?.publishedAtMillis == 123)
-        #expect(viewModel.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackNewsUpdated)
+        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackNewsUpdated)
     }
 
     @Test
@@ -174,7 +174,7 @@ struct ReguertaNewsNotificationsViewModelTests {
         #expect(viewModel.newsFeed.isEmpty)
         #expect(viewModel.editingNewsId == nil)
         #expect(viewModel.pendingNewsDeletionId == nil)
-        #expect(viewModel.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackNewsDeleted)
+        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackNewsDeleted)
     }
 
     @Test
@@ -198,7 +198,7 @@ struct ReguertaNewsNotificationsViewModelTests {
 
         await failureViewModel.uploadNewsImage(Data([1, 2, 3]))
 
-        #expect(failureViewModel.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackUnableSaveChanges)
+        #expect(failureViewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
     }
 
     @Test
@@ -230,7 +230,7 @@ struct ReguertaNewsNotificationsViewModelTests {
         let regularViewModel = makeNewsNotificationsViewModel(currentMember: regular, members: [regular])
 
         #expect(await regularViewModel.sendNotification() == false)
-        #expect(regularViewModel.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackOnlyAdminSendNotification)
+        #expect(regularViewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackOnlyAdminSendNotification)
 
         let admin = newsAdminMember()
         let adminViewModel = makeNewsNotificationsViewModel(currentMember: admin, members: [admin])
@@ -241,7 +241,7 @@ struct ReguertaNewsNotificationsViewModelTests {
         }
 
         #expect(await adminViewModel.sendNotification() == false)
-        #expect(adminViewModel.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackNotificationTitleBodyRequired)
+        #expect(adminViewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackNotificationTitleBodyRequired)
     }
 
     @Test
@@ -273,7 +273,7 @@ struct ReguertaNewsNotificationsViewModelTests {
         #expect(sent?.createdBy == "admin_1")
         #expect(sent?.sentAtMillis == 999)
         #expect(viewModel.notificationDraft == NotificationDraft())
-        #expect(viewModel.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackNotificationSent)
+        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackNotificationSent)
     }
 
     @Test

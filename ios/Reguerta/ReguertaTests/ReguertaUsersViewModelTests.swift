@@ -34,13 +34,13 @@ struct ReguertaUsersViewModelTests {
         scenario.viewModel.draft = validMemberDraft(email: "new@reguerta.app")
 
         #expect(await scenario.viewModel.saveDraft() == false)
-        #expect(scenario.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackOnlyAdminCreate)
+        #expect(scenario.viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackOnlyAdminCreate)
 
         #expect(await scenario.viewModel.toggleAdmin(memberId: member.id) == false)
-        #expect(scenario.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackOnlyAdminEditRoles)
+        #expect(scenario.viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackOnlyAdminEditRoles)
 
         #expect(await scenario.viewModel.toggleActive(memberId: member.id) == false)
-        #expect(scenario.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackOnlyAdminToggleActive)
+        #expect(scenario.viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackOnlyAdminToggleActive)
     }
 
     @Test
@@ -51,19 +51,19 @@ struct ReguertaUsersViewModelTests {
 
         scenario.viewModel.draft = validMemberDraft(displayName: " ", email: " ")
         #expect(await scenario.viewModel.createAuthorizedMember() == false)
-        #expect(scenario.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackDisplayNameEmailRequired)
+        #expect(scenario.viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackDisplayNameEmailRequired)
 
         scenario.viewModel.draft = validMemberDraft(email: "new@reguerta.app", isMember: false)
         #expect(await scenario.viewModel.createAuthorizedMember() == false)
-        #expect(scenario.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackSelectRole)
+        #expect(scenario.viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackSelectRole)
 
         scenario.viewModel.draft = validMemberDraft(email: "producer@reguerta.app", isProducer: true)
         #expect(await scenario.viewModel.createAuthorizedMember() == false)
-        #expect(scenario.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackProducerCompanyRequired)
+        #expect(scenario.viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackProducerCompanyRequired)
 
         scenario.viewModel.draft = validMemberDraft(email: " existing@reguerta.app ")
         #expect(await scenario.viewModel.createAuthorizedMember() == false)
-        #expect(scenario.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackMemberExists)
+        #expect(scenario.viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackMemberExists)
     }
 
     @Test
@@ -172,7 +172,7 @@ struct ReguertaUsersViewModelTests {
         accessDeniedScenario.viewModel.draft = validMemberDraft(email: "new@reguerta.app")
 
         #expect(await accessDeniedScenario.viewModel.createAuthorizedMember() == false)
-        #expect(accessDeniedScenario.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackOnlyAdminManageMembers)
+        #expect(accessDeniedScenario.viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackOnlyAdminManageMembers)
 
         let lastAdminScenario = makeUsersScenario(currentMember: sessionAdmin, members: [sessionAdmin])
         lastAdminScenario.viewModel.startEditing(memberId: sessionAdmin.id)
@@ -181,7 +181,7 @@ struct ReguertaUsersViewModelTests {
         lastAdminScenario.viewModel.updateDraft(draft)
 
         #expect(await lastAdminScenario.viewModel.saveDraft() == false)
-        #expect(lastAdminScenario.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackCannotRemoveLastAdmin)
+        #expect(lastAdminScenario.viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackCannotRemoveLastAdmin)
 
         let genericScenario = makeUsersScenario(
             currentMember: sessionAdmin,
@@ -191,7 +191,7 @@ struct ReguertaUsersViewModelTests {
         genericScenario.viewModel.draft = validMemberDraft(email: "generic@reguerta.app")
 
         #expect(await genericScenario.viewModel.createAuthorizedMember() == false)
-        #expect(genericScenario.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackUnableSaveChanges)
+        #expect(genericScenario.viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
     }
 
     @Test

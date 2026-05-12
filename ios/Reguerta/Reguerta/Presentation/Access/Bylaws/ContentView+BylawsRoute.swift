@@ -5,31 +5,14 @@ extension AccessRootRoutingView {
     var bylawsRoute: some View {
         BylawsRouteView(
             tokens: tokens,
-            query: Binding(
-                get: { viewModel.bylawsQueryInput },
-                set: { viewModel.bylawsQueryInput = $0 }
-            ),
-            answerResult: viewModel.bylawsAnswerResult,
-            isLoading: viewModel.isAskingBylaws,
-            pdfURL: viewModel.bylawsPdfURL(),
-            onAsk: viewModel.askBylawsQuestion,
-            onClear: viewModel.clearBylawsResult,
-            onPdfUnavailable: {
-                viewModel.feedbackMessageKey = AccessL10nKey.bylawsPdfViewerUnavailable
-            }
+            viewModel: rootViewModel.bylawsViewModel
         )
     }
 }
 
 private struct BylawsRouteView: View {
     let tokens: ReguertaDesignTokens
-    @Binding var query: String
-    let answerResult: BylawsAnswerResult?
-    let isLoading: Bool
-    let pdfURL: URL?
-    let onAsk: () -> Void
-    let onClear: () -> Void
-    let onPdfUnavailable: () -> Void
+    let viewModel: BylawsFeatureViewModel
 
     @State private var isPdfPresented = false
 
@@ -49,27 +32,32 @@ private struct BylawsRouteView: View {
 
                     TextField(
                         "",
-                        text: $query,
+                        text: Binding(
+                            get: { viewModel.queryInput },
+                            set: { viewModel.queryInput = $0 }
+                        ),
                         prompt: Text(LocalizedStringKey(AccessL10nKey.bylawsInputPlaceholder)),
                         axis: .vertical
                     )
                     .textFieldStyle(.roundedBorder)
                     .lineLimit(2 ... 6)
-                    .disabled(isLoading)
+                    .disabled(viewModel.isAsking)
 
                     ReguertaButton(
-                        LocalizedStringKey(isLoading ? AccessL10nKey.bylawsAskLoading : AccessL10nKey.bylawsAskAction),
-                        isEnabled: !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                        isLoading: isLoading,
-                        action: onAsk
+                        LocalizedStringKey(
+                            viewModel.isAsking ? AccessL10nKey.bylawsAskLoading : AccessL10nKey.bylawsAskAction
+                        ),
+                        isEnabled: !viewModel.queryInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                        isLoading: viewModel.isAsking,
+                        action: viewModel.askQuestion
                     )
 
                     ReguertaButton(
                         LocalizedStringKey(AccessL10nKey.bylawsOpenPdfAction),
                         variant: .text
                     ) {
-                        guard pdfURL != nil else {
-                            onPdfUnavailable()
+                        guard viewModel.pdfURL() != nil else {
+                            viewModel.reportPdfUnavailable()
                             return
                         }
                         isPdfPresented = true
@@ -77,16 +65,16 @@ private struct BylawsRouteView: View {
                 }
             }
 
-            if let answerResult {
+            if let answerResult = viewModel.answerResult {
                 BylawsAnswerCardView(
                     tokens: tokens,
                     answerResult: answerResult,
-                    onClear: onClear
+                    onClear: viewModel.clearResult
                 )
             }
         }
         .sheet(isPresented: $isPdfPresented) {
-            if let pdfURL {
+            if let pdfURL = viewModel.pdfURL() {
                 BylawsPdfSheetView(pdfURL: pdfURL)
             } else {
                 ReguertaCard {

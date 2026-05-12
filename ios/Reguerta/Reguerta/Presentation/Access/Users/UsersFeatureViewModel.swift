@@ -5,6 +5,7 @@ import Observation
 @Observable
 final class UsersFeatureViewModel {
     @ObservationIgnored let sessionViewModel: SessionViewModel
+    @ObservationIgnored let feedbackCenter: GlobalFeedbackCenter
     @ObservationIgnored let memberRepository: any MemberRepository
     @ObservationIgnored let upsertMemberByAdmin: any MemberAdminUpserting
 
@@ -45,10 +46,12 @@ final class UsersFeatureViewModel {
 
     init(
         sessionViewModel: SessionViewModel,
+        feedbackCenter: GlobalFeedbackCenter = GlobalFeedbackCenter(),
         memberRepository: any MemberRepository,
         upsertMemberByAdmin: any MemberAdminUpserting
     ) {
         self.sessionViewModel = sessionViewModel
+        self.feedbackCenter = feedbackCenter
         self.memberRepository = memberRepository
         self.upsertMemberByAdmin = upsertMemberByAdmin
     }
@@ -88,7 +91,7 @@ final class UsersFeatureViewModel {
 
     func startCreating() {
         guard canManageMembers else {
-            sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminCreate
+            feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminCreate)
             return
         }
 
@@ -99,7 +102,7 @@ final class UsersFeatureViewModel {
 
     func startEditing(memberId: String) {
         guard canManageMembers else {
-            sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminCreate
+            feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminCreate)
             return
         }
         guard let member = sortedMembers.first(where: { $0.id == memberId }) else { return }
@@ -131,7 +134,7 @@ final class UsersFeatureViewModel {
     func toggleAdmin(memberId: String) async -> Bool {
         guard let session = currentSession else { return false }
         guard canGrantAdminRole else {
-            sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminEditRoles
+            feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminEditRoles)
             return false
         }
         guard let target = sortedMembers.first(where: { $0.id == memberId }) else { return false }
@@ -156,7 +159,7 @@ final class UsersFeatureViewModel {
     func toggleActive(memberId: String) async -> Bool {
         guard let session = currentSession else { return false }
         guard canManageMembers else {
-            sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminToggleActive
+            feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminToggleActive)
             return false
         }
         guard let target = sortedMembers.first(where: { $0.id == memberId }) else { return false }
@@ -169,7 +172,7 @@ final class UsersFeatureViewModel {
 
     func requestToggleActive(memberId: String) {
         guard canManageMembers else {
-            sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminToggleActive
+            feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminToggleActive)
             return
         }
         pendingToggleActiveMemberId = memberId
@@ -195,7 +198,7 @@ final class UsersFeatureViewModel {
             canManageMembers: canManageMembers
         ) {
         case .failure(let error):
-            sessionViewModel.feedbackMessageKey = error.feedbackKey
+            feedbackCenter.show(error.feedbackKey)
             return false
         case .success(let validation):
             guard let target = buildTargetMember(
@@ -242,7 +245,7 @@ final class UsersFeatureViewModel {
 
         let newId = buildMemberId(from: normalizedEmail)
         guard !membersFeed.contains(where: { $0.id == newId }) else {
-            sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackMemberExists
+            feedbackCenter.show(AccessL10nKey.feedbackMemberExists)
             return nil
         }
 
@@ -271,11 +274,11 @@ final class UsersFeatureViewModel {
             syncFromSessionViewModel()
             return true
         } catch MemberManagementError.accessDenied {
-            sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackOnlyAdminManageMembers
+            feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminManageMembers)
         } catch MemberManagementError.lastAdminRemoval {
-            sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackCannotRemoveLastAdmin
+            feedbackCenter.show(AccessL10nKey.feedbackCannotRemoveLastAdmin)
         } catch {
-            sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
+            feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
         }
         return false
     }

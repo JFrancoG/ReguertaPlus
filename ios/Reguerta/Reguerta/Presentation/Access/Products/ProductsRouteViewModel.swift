@@ -5,6 +5,7 @@ import Observation
 @Observable
 final class ProductsRouteViewModel {
     @ObservationIgnored let sessionViewModel: SessionViewModel
+    @ObservationIgnored let feedbackCenter: GlobalFeedbackCenter
     @ObservationIgnored let productRepository: any ProductRepository
     @ObservationIgnored let memberRepository: any MemberRepository
     @ObservationIgnored let seasonalCommitmentRepository: any SeasonalCommitmentRepository
@@ -51,6 +52,7 @@ final class ProductsRouteViewModel {
 
     init(
         sessionViewModel: SessionViewModel,
+        feedbackCenter: GlobalFeedbackCenter = GlobalFeedbackCenter(),
         productRepository: any ProductRepository,
         memberRepository: any MemberRepository,
         seasonalCommitmentRepository: any SeasonalCommitmentRepository,
@@ -58,6 +60,7 @@ final class ProductsRouteViewModel {
         nowMillisProvider: @escaping @MainActor () -> Int64
     ) {
         self.sessionViewModel = sessionViewModel
+        self.feedbackCenter = feedbackCenter
         self.productRepository = productRepository
         self.memberRepository = memberRepository
         self.seasonalCommitmentRepository = seasonalCommitmentRepository
@@ -296,15 +299,15 @@ extension ProductsRouteViewModel {
     }
 
     func showUnableSaveFeedback() {
-        sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackUnableSaveChanges
+        feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
     }
 
     func showCameraPermissionRequiredFeedback() {
-        sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackCameraPermissionRequired
+        feedbackCenter.show(AccessL10nKey.feedbackCameraPermissionRequired)
     }
 
     func showCameraUnavailableFeedback() {
-        sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackCameraUnavailable
+        feedbackCenter.show(AccessL10nKey.feedbackCameraUnavailable)
     }
 }
 

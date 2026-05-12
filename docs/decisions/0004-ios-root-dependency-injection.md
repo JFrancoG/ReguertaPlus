@@ -68,8 +68,8 @@ ordering product feed.
 Shifts is the third migrated feature slice. `AccessRootViewModel` owns
 `ShiftsFeatureViewModel`, which receives shift, swap request, planning request,
 delivery calendar, notification, and clock dependencies from
-`ShiftsFeatureDependencies`. `SessionViewModel` remains the session and global
-feedback source, but it no longer owns shift feeds, swap workflow state,
+`ShiftsFeatureDependencies`. `SessionViewModel` remains the session source, but
+it no longer owns shift feeds, swap workflow state,
 delivery calendar state, admin planning requests, or the develop time override.
 Orders consumes shifts and delivery calendar data from the root-owned Shifts
 view model so ordering windows stay shared without reintroducing hidden
@@ -79,7 +79,7 @@ News/Notifications is the fourth migrated feature slice. `AccessRootViewModel`
 owns `NewsNotificationsFeatureViewModel`, which receives news, notification,
 image pipeline, and clock dependencies from
 `NewsNotificationsFeatureDependencies`. `SessionViewModel` remains the session,
-bylaws, and global feedback source, but it no longer owns news feeds, news
+bylaws, and global feedback source at this step, but it no longer owns news feeds, news
 drafts, image upload for news, notification feeds, broadcast drafts, or admin
 send/delete workflows. Shifts and News/Notifications can share a single
 `NotificationRepository` instance from the root container when both slices need
@@ -88,14 +88,25 @@ to publish or read notification events.
 SharedProfile is the fifth migrated feature slice. `AccessRootViewModel` owns
 `SharedProfileFeatureViewModel`, which receives shared profile repository,
 image pipeline, and clock dependencies from `SharedProfileFeatureDependencies`.
-`SessionViewModel` remains the session, bylaws, and global feedback source, but
-it no longer owns community profile feeds, the current profile draft, shared
-profile image upload, or save/delete profile workflows. The drawer and profile
-route consume profile state from the root-owned SharedProfile view model.
+`SessionViewModel` remains the session, bylaws, and global feedback source at
+this step, but it no longer owns community profile feeds, the current profile
+draft, shared profile image upload, or save/delete profile workflows. The drawer
+and profile route consume profile state from the root-owned SharedProfile view
+model.
 
 Users/Admin Members is the sixth migrated feature slice. `AccessRootViewModel`
 owns `UsersFeatureViewModel`, which receives the shared member repository and
 admin upsert use case from `UsersFeatureDependencies`. `SessionViewModel`
-remains the auth/session, bylaws, freshness, and global feedback source, but it
-no longer owns member drafts or admin member management workflows. The dashboard
-admin card and the Users route consume the root-owned Users view model.
+remains the auth/session, bylaws, freshness, and global feedback source at this
+step, but it no longer owns member drafts or admin member management workflows.
+The dashboard admin card and the Users route consume the root-owned Users view
+model.
+
+Session/Auth closes the root-owned slice migration. `SessionViewModel` remains
+the auth/session owner for login, registration, password recovery, refresh,
+sign-out, impersonation, reviewer routing, and session dialogs. Global feedback
+now lives in a shared `GlobalFeedbackCenter`, order freshness lives in
+`MyOrderFreshnessViewModel`, and bylaws assistance lives in
+`BylawsFeatureViewModel`; all three are constructed by `ReguertaAppEnvironment`
+and owned from `AccessRootViewModel`. Feature view models publish feedback
+through the shared center instead of routing messages through session state.

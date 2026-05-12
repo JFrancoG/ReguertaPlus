@@ -68,7 +68,7 @@ extension AccessRootRoutingView {
 
     @ViewBuilder
     var feedbackMessageRoute: some View {
-        if let feedbackKey = viewModel.feedbackMessageKey {
+        if let feedbackKey = feedbackCenter.messageKey {
             ReguertaCard {
                 VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                     ReguertaInlineFeedback(localizedKey(feedbackKey))
@@ -77,7 +77,7 @@ extension AccessRootRoutingView {
                         variant: .text,
                         fullWidth: false
                     ) {
-                        viewModel.clearFeedbackMessage()
+                        feedbackCenter.clear()
                     }
                 }
             }

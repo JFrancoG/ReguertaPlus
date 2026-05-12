@@ -73,7 +73,7 @@ struct ReguertaProductsViewModelTests {
         await viewModel.save()
 
         #expect(viewModel.catalogProducts.isEmpty)
-        #expect(viewModel.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackUnableSaveChanges)
+        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
     }
 
     @Test
@@ -163,7 +163,7 @@ struct ReguertaProductsViewModelTests {
 
         let products = await repository.products(vendorId: currentProducer.id)
         #expect(products.isEmpty)
-        #expect(viewModel.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackUnableSaveChanges)
+        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
     }
 
     @Test
@@ -207,7 +207,7 @@ struct ReguertaProductsViewModelTests {
 
         await failingViewModel.uploadImage(Data([1, 2, 3]))
 
-        #expect(failingViewModel.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackUnableSaveChanges)
+        #expect(failingViewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
     }
 
     @Test

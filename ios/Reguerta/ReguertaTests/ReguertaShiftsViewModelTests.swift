@@ -161,7 +161,7 @@ struct ReguertaShiftsViewModelTests {
         let saved = await viewModel.saveShiftSwapRequest()
 
         #expect(saved == false)
-        #expect(viewModel.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackShiftSwapNoCandidates)
+        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackShiftSwapNoCandidates)
     }
 
     @Test

@@ -72,7 +72,7 @@ Shifts es el tercer slice de feature migrado. `AccessRootViewModel` posee
 `ShiftsFeatureViewModel`, que recibe dependencias de turnos, solicitudes de
 cambio, solicitudes de planificacion, calendario de entregas, notificaciones y
 reloj desde `ShiftsFeatureDependencies`. `SessionViewModel` sigue siendo la
-fuente de sesion y feedback global, pero ya no posee feeds de turnos, estado del
+fuente de sesion, pero ya no posee feeds de turnos, estado del
 workflow de cambios, estado del calendario de entregas, solicitudes de
 planificacion admin ni el override de reloj develop. Orders consume turnos y
 calendario de entregas desde el view model de Shifts propiedad del root para que
@@ -82,7 +82,7 @@ News/Notifications es el cuarto slice de feature migrado. `AccessRootViewModel`
 posee `NewsNotificationsFeatureViewModel`, que recibe dependencias de noticias,
 notificaciones, pipeline de imagenes y reloj desde
 `NewsNotificationsFeatureDependencies`. `SessionViewModel` sigue siendo la
-fuente de sesion, bylaws y feedback global, pero ya no posee feeds de noticias,
+fuente de sesion, bylaws y feedback global en este paso, pero ya no posee feeds de noticias,
 borradores de noticias, subida de imagenes de noticias, feeds de
 notificaciones, borradores de broadcasts ni workflows admin de envio o borrado.
 Shifts y News/Notifications pueden compartir una unica instancia de
@@ -93,16 +93,25 @@ SharedProfile es el quinto slice de feature migrado. `AccessRootViewModel`
 posee `SharedProfileFeatureViewModel`, que recibe dependencias de repositorio de
 perfiles compartidos, pipeline de imagenes y reloj desde
 `SharedProfileFeatureDependencies`. `SessionViewModel` sigue siendo la fuente de
-sesion, bylaws y feedback global, pero ya no posee feeds de perfiles
-comunitarios, el borrador del perfil actual, subida de imagenes de perfil
-compartido ni workflows de guardar/borrar perfil. El drawer y la ruta de perfil
-consumen el estado de perfiles desde el view model de SharedProfile propiedad
-del root.
+sesion, bylaws y feedback global en este paso, pero ya no posee feeds de
+perfiles comunitarios, el borrador del perfil actual, subida de imagenes de
+perfil compartido ni workflows de guardar/borrar perfil. El drawer y la ruta de
+perfil consumen el estado de perfiles desde el view model de SharedProfile
+propiedad del root.
 
 Users/Admin Members es el sexto slice de feature migrado. `AccessRootViewModel`
 posee `UsersFeatureViewModel`, que recibe el repositorio compartido de miembros
 y el caso de uso de upsert admin desde `UsersFeatureDependencies`.
 `SessionViewModel` sigue siendo la fuente de auth/sesion, bylaws, freshness y
-feedback global, pero ya no posee borradores de miembros ni workflows admin de
-gestion de socios. La tarjeta admin del dashboard y la ruta de Usuarios consumen
-el view model de Users propiedad del root.
+feedback global en este paso, pero ya no posee borradores de miembros ni
+workflows admin de gestion de socios. La tarjeta admin del dashboard y la ruta
+de Usuarios consumen el view model de Users propiedad del root.
+
+Session/Auth cierra la migracion de slices propiedad del root. `SessionViewModel`
+mantiene login, registro, recuperacion de password, refresh, sign out,
+impersonacion, routing de reviewer y dialogos de sesion. El feedback global vive
+ahora en un `GlobalFeedbackCenter` compartido, freshness de Mi Pedido vive en
+`MyOrderFreshnessViewModel` y Bylaws AI vive en `BylawsFeatureViewModel`; los
+tres se construyen en `ReguertaAppEnvironment` y son propiedad de
+`AccessRootViewModel`. Los view models de feature publican feedback mediante el
+centro compartido en vez de pasar mensajes por el estado de sesion.

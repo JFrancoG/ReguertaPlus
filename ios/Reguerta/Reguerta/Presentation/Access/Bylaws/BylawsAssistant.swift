@@ -20,6 +20,14 @@ struct BylawsAnswerResult: Equatable, Sendable {
     let trace: BylawsDecisionTrace
 }
 
+protocol BylawsAnswering: Sendable {
+    func ask(question: String) async -> BylawsAnswerResult
+}
+
+protocol BylawsDocumentProviding: Sendable {
+    @MainActor func bundledPdfURL() -> URL?
+}
+
 private struct BylawsKnowledgeIndex: Decodable {
     let chunks: [BylawsChunk]
 }
@@ -76,7 +84,7 @@ private struct BylawsCloudAnswer: Sendable {
     let pages: [Int]
 }
 
-private struct BylawsCloudGateway {
+private struct BylawsCloudGateway: Sendable {
     let endpointURL: URL?
 
     init(endpoint: String = "") {
@@ -132,7 +140,7 @@ private struct BylawsCloudGateway {
     }
 }
 
-struct BylawsAssistant {
+struct BylawsAssistant: BylawsAnswering, BylawsDocumentProviding {
     let localModelId: String
     let cloudTimeoutSeconds: TimeInterval
     private let cloudGateway: BylawsCloudGateway

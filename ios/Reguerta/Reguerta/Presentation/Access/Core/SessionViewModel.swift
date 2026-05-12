@@ -24,14 +24,6 @@ enum SessionMode: Equatable, Sendable {
     case authorized(AuthorizedSession)
 }
 
-enum MyOrderFreshnessState: Equatable, Sendable {
-    case idle
-    case checking
-    case ready
-    case timedOut
-    case unavailable
-}
-
 @Observable
 final class SessionViewModel {
     var emailInput = "" {
@@ -88,18 +80,12 @@ final class SessionViewModel {
     var showSessionExpiredDialog = false
     var showUnauthorizedDialog = false
     var mode: SessionMode = .signedOut
-    var feedbackMessageKey: String?
-    var myOrderFreshnessState: MyOrderFreshnessState = .idle
-    var bylawsQueryInput = ""
-    var bylawsAnswerResult: BylawsAnswerResult?
-    var isAskingBylaws = false
 
+    let feedbackCenter: GlobalFeedbackCenter
     let repository: any MemberRepository
     let authSessionProvider: any AuthSessionProvider
     let resolveAuthorizedSession: ResolveAuthorizedSessionUseCase
     let authorizedDeviceRegistrar: any AuthorizedDeviceRegistrar
-    let resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase
-    let criticalDataFreshnessLocalRepository: any CriticalDataFreshnessLocalRepository
     let reviewerEnvironmentRouter: any ReviewerEnvironmentRouter
     let sessionRefreshPolicy: SessionRefreshPolicy
     let nowMillisProvider: @MainActor @Sendable () -> Int64
@@ -112,22 +98,22 @@ final class SessionViewModel {
     }
 
     var canSubmitSignIn: Bool {
-        let normalizedEmail = normalizeEmail(emailInput)
+        let normalizedEmail = normalizeAccessEmail(emailInput)
         return !isAuthenticating &&
             !normalizedEmail.isEmpty &&
-            isValidEmail(normalizedEmail) &&
-            isValidPassword(passwordInput) &&
+            isValidAccessEmail(normalizedEmail) &&
+            isValidAccessPassword(passwordInput) &&
             emailErrorKey == nil &&
             passwordErrorKey == nil
     }
 
     var canSubmitSignUp: Bool {
-        let normalizedEmail = normalizeEmail(registerEmailInput)
+        let normalizedEmail = normalizeAccessEmail(registerEmailInput)
         return !isRegistering &&
             !normalizedEmail.isEmpty &&
-            isValidEmail(normalizedEmail) &&
-            isValidPassword(registerPasswordInput) &&
-            isValidPassword(registerRepeatPasswordInput) &&
+            isValidAccessEmail(normalizedEmail) &&
+            isValidAccessPassword(registerPasswordInput) &&
+            isValidAccessPassword(registerRepeatPasswordInput) &&
             registerPasswordInput == registerRepeatPasswordInput &&
             registerEmailErrorKey == nil &&
             registerPasswordErrorKey == nil &&
@@ -135,20 +121,19 @@ final class SessionViewModel {
     }
 
     var canSubmitPasswordReset: Bool {
-        let normalizedEmail = normalizeEmail(recoverEmailInput)
+        let normalizedEmail = normalizeAccessEmail(recoverEmailInput)
         return !isRecoveringPassword &&
             !normalizedEmail.isEmpty &&
-            isValidEmail(normalizedEmail) &&
+            isValidAccessEmail(normalizedEmail) &&
             recoverEmailErrorKey == nil
     }
 
     init(dependencies: SessionViewModelDependencies) {
+        self.feedbackCenter = dependencies.feedbackCenter
         self.repository = dependencies.repository
         self.authSessionProvider = dependencies.authSessionProvider
         self.resolveAuthorizedSession = dependencies.resolveAuthorizedSession
         self.authorizedDeviceRegistrar = dependencies.authorizedDeviceRegistrar
-        self.resolveCriticalDataFreshness = dependencies.resolveCriticalDataFreshness
-        self.criticalDataFreshnessLocalRepository = dependencies.criticalDataFreshnessLocalRepository
         self.reviewerEnvironmentRouter = dependencies.reviewerEnvironmentRouter
         self.sessionRefreshPolicy = dependencies.sessionRefreshPolicy
         self.nowMillisProvider = dependencies.nowMillisProvider
@@ -157,6 +142,7 @@ final class SessionViewModel {
 
     convenience init(
         repository: (any MemberRepository)? = nil,
+        feedbackCenter: GlobalFeedbackCenter = GlobalFeedbackCenter(),
         authSessionProvider: (any AuthSessionProvider)? = nil,
         resolveAuthorizedSession: ResolveAuthorizedSessionUseCase? = nil,
         authorizedDeviceRegistrar: (any AuthorizedDeviceRegistrar)? = nil,
@@ -168,6 +154,7 @@ final class SessionViewModel {
         self.init(
             dependencies: .live(
                 repository: repository,
+                feedbackCenter: feedbackCenter,
                 authSessionProvider: authSessionProvider,
                 resolveAuthorizedSession: resolveAuthorizedSession,
                 authorizedDeviceRegistrar: authorizedDeviceRegistrar,

@@ -8,6 +8,8 @@ struct ReguertaRootDependencyTests {
     func previewEnvironmentSharesSessionWithRootCoordinator() {
         let environment = ReguertaAppEnvironment.preview()
 
+        #expect(environment.accessRootViewModel.feedbackCenter === environment.feedbackCenter)
+        #expect(environment.sessionViewModel.feedbackCenter === environment.feedbackCenter)
         #expect(environment.accessRootViewModel.sessionViewModel === environment.sessionViewModel)
         #expect(environment.accessRootViewModel.installedVersion == "0.0.0-preview")
         #expect(environment.sessionViewModel.mode == .signedOut)

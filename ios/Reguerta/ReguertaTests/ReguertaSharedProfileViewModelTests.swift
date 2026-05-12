@@ -66,7 +66,7 @@ struct ReguertaSharedProfileViewModelTests {
 
         #expect(saved == false)
         #expect(await repository.sharedProfile(userId: currentMember.id) == nil)
-        #expect(viewModel.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackSharedProfileContentRequired)
+        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackSharedProfileContentRequired)
     }
 
     @Test
@@ -100,7 +100,7 @@ struct ReguertaSharedProfileViewModelTests {
                 about: "Somos una familia"
             )
         )
-        #expect(viewModel.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackSharedProfileSaved)
+        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackSharedProfileSaved)
     }
 
     @Test
@@ -118,7 +118,7 @@ struct ReguertaSharedProfileViewModelTests {
         #expect(await repository.sharedProfile(userId: currentMember.id) == nil)
         #expect(viewModel.profiles.isEmpty)
         #expect(viewModel.draft == SharedProfileDraft())
-        #expect(viewModel.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackSharedProfileDeleted)
+        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackSharedProfileDeleted)
     }
 
     @Test
@@ -144,7 +144,7 @@ struct ReguertaSharedProfileViewModelTests {
 
         await failureViewModel.uploadImage(Data([1, 2, 3]))
 
-        #expect(failureViewModel.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackUnableSaveChanges)
+        #expect(failureViewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
     }
 
     @Test
@@ -153,13 +153,13 @@ struct ReguertaSharedProfileViewModelTests {
         let viewModel = makeSharedProfileViewModel(currentMember: currentMember)
 
         viewModel.reportImageSelectionFailed()
-        #expect(viewModel.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackUnableSaveChanges)
+        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
 
         viewModel.reportCameraPermissionDenied()
-        #expect(viewModel.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackCameraPermissionRequired)
+        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackCameraPermissionRequired)
 
         viewModel.reportCameraUnavailable()
-        #expect(viewModel.sessionViewModel.feedbackMessageKey == AccessL10nKey.feedbackCameraUnavailable)
+        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackCameraUnavailable)
     }
 
     @Test

@@ -4,6 +4,7 @@ import Observation
 @Observable
 final class ShiftsFeatureViewModel {
     @ObservationIgnored let sessionViewModel: SessionViewModel
+    @ObservationIgnored let feedbackCenter: GlobalFeedbackCenter
     @ObservationIgnored let shiftRepository: any ShiftRepository
     @ObservationIgnored let shiftSwapRequestRepository: any ShiftSwapRequestRepository
     @ObservationIgnored let shiftPlanningRequestRepository: any ShiftPlanningRequestRepository
@@ -70,6 +71,7 @@ final class ShiftsFeatureViewModel {
 
     init(
         sessionViewModel: SessionViewModel,
+        feedbackCenter: GlobalFeedbackCenter = GlobalFeedbackCenter(),
         shiftRepository: any ShiftRepository,
         shiftSwapRequestRepository: any ShiftSwapRequestRepository,
         shiftPlanningRequestRepository: any ShiftPlanningRequestRepository,
@@ -78,6 +80,7 @@ final class ShiftsFeatureViewModel {
         nowMillisProvider: @escaping @MainActor () -> Int64
     ) {
         self.sessionViewModel = sessionViewModel
+        self.feedbackCenter = feedbackCenter
         self.shiftRepository = shiftRepository
         self.shiftSwapRequestRepository = shiftSwapRequestRepository
         self.shiftPlanningRequestRepository = shiftPlanningRequestRepository

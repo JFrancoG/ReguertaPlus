@@ -95,6 +95,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- 2026-05-12 | ♻️ refactor(ios-session): move session adjuncts to root
 - 2026-05-12 | ♻️ refactor(ios-users): move users to root VM
 - 2026-05-12 | ♻️ refactor(ios-profile): move profiles to root VM
 - 2026-05-12 | ♻️ refactor(ios-news): move news workflows to root VM

@@ -9,7 +9,7 @@ extension AccessRootRoutingView {
                 placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
                 errorMessage: viewModel.emailErrorKey.map(localizedKey),
                 liveValidationMessage: localizedKey(AccessL10nKey.feedbackEmailInvalid),
-                liveValidation: { isValidEmail($0) },
+                liveValidation: { isValidAccessEmail(normalizeAccessEmail($0)) },
                 isEnabled: !viewModel.isAuthenticating,
                 showsClearAction: true,
                 keyboardType: .emailAddress,
@@ -22,7 +22,7 @@ extension AccessRootRoutingView {
                 placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
                 errorMessage: viewModel.passwordErrorKey.map(localizedKey),
                 liveValidationMessage: localizedKey(AccessL10nKey.authErrorWeakPassword),
-                liveValidation: { isValidPassword($0) },
+                liveValidation: { isValidAccessPassword($0) },
                 isEnabled: !viewModel.isAuthenticating,
                 isSecure: true,
                 showsPasswordToggle: true,
@@ -64,7 +64,7 @@ extension AccessRootRoutingView {
                 placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
                 errorMessage: viewModel.registerEmailErrorKey.map(localizedKey),
                 liveValidationMessage: localizedKey(AccessL10nKey.feedbackEmailInvalid),
-                liveValidation: { isValidEmail($0) },
+                liveValidation: { isValidAccessEmail(normalizeAccessEmail($0)) },
                 isEnabled: !viewModel.isRegistering,
                 showsClearAction: true,
                 keyboardType: .emailAddress
@@ -76,7 +76,7 @@ extension AccessRootRoutingView {
                 placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
                 errorMessage: viewModel.registerPasswordErrorKey.map(localizedKey),
                 liveValidationMessage: localizedKey(AccessL10nKey.authErrorWeakPassword),
-                liveValidation: { isValidPassword($0) },
+                liveValidation: { isValidAccessPassword($0) },
                 isEnabled: !viewModel.isRegistering,
                 isSecure: true,
                 sharedPasswordVisibility: rootBinding(\.areRegisterPasswordsVisible),
@@ -93,7 +93,7 @@ extension AccessRootRoutingView {
                     if repeatedPassword.isEmpty {
                         return localizedKey(AccessL10nKey.feedbackPasswordRepeatRequired)
                     }
-                    if !isValidPassword(repeatedPassword) {
+                    if !isValidAccessPassword(repeatedPassword) {
                         return localizedKey(AccessL10nKey.authErrorWeakPassword)
                     }
                     if repeatedPassword != viewModel.registerPasswordInput {
@@ -128,7 +128,7 @@ extension AccessRootRoutingView {
                 placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
                 errorMessage: viewModel.recoverEmailErrorKey.map(localizedKey),
                 liveValidationMessage: localizedKey(AccessL10nKey.feedbackEmailInvalid),
-                liveValidation: { isValidEmail($0) },
+                liveValidation: { isValidAccessEmail(normalizeAccessEmail($0)) },
                 isEnabled: !viewModel.isRecoveringPassword,
                 showsClearAction: true,
                 keyboardType: .emailAddress
@@ -146,14 +146,4 @@ extension AccessRootRoutingView {
         }
     }
 
-    func isValidEmail(_ value: String) -> Bool {
-        value.trimmingCharacters(in: .whitespacesAndNewlines).range(
-            of: "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$",
-            options: [.regularExpression, .caseInsensitive]
-        ) != nil
-    }
-
-    func isValidPassword(_ value: String) -> Bool {
-        (6...16).contains(value.count)
-    }
 }

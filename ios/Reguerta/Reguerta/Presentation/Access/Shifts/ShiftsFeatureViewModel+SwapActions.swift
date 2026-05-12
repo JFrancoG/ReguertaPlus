@@ -33,7 +33,7 @@ extension ShiftsFeatureViewModel {
             nowMillis: nowMillisProvider()
         )
         guard !candidates.isEmpty else {
-            sessionViewModel.feedbackMessageKey = AccessL10nKey.feedbackShiftSwapNoCandidates
+            feedbackCenter.show(AccessL10nKey.feedbackShiftSwapNoCandidates)
             return false
         }
 
