@@ -2051,7 +2051,6 @@ private suspend fun loadMyOrderProducerStatuses(
     val path = ReguertaFirestorePath(environment = environment)
     val readTargets = listOf(
         path.collectionPath(ReguertaFirestoreCollection.ORDERS),
-        "${environment.wireValue}/collections/orders",
     ).distinct()
     var hadSuccessfulRead = false
     var lastFailure: Throwable? = null
@@ -2151,10 +2150,6 @@ private suspend fun fetchPreviousWeekOrderSnapshot(
     val readTargets = listOf(
         path.collectionPath(ReguertaFirestoreCollection.ORDERS) to
             path.collectionPath(ReguertaFirestoreCollection.ORDER_LINES),
-        "${environment.wireValue}/collections/orders" to
-            "${environment.wireValue}/collections/orderLines",
-        "${environment.wireValue}/collections/orders" to
-            "${environment.wireValue}/collections/orderlines",
     ).distinct()
 
     var hadSuccessfulRead = false
@@ -2640,10 +2635,6 @@ internal suspend fun submitCheckoutOrderToFirestore(
         val writeTargets = listOf(
             path.collectionPath(ReguertaFirestoreCollection.ORDERS) to
                 path.collectionPath(ReguertaFirestoreCollection.ORDER_LINES),
-            "${environment.wireValue}/collections/orders" to
-                "${environment.wireValue}/collections/orderLines",
-            "${environment.wireValue}/collections/orders" to
-                "${environment.wireValue}/collections/orderlines",
         ).distinct()
         val orderId = "${member.id}_$weekKey"
         val nowTimestamp = Timestamp(Date(nowMillis))

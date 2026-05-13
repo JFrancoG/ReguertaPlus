@@ -68,8 +68,7 @@ func submitCheckoutOrderToFirestore(
 
     let firestorePath = ReguertaFirestorePath(environment: environment)
     let writeTargets = resolveMyOrderCheckoutWriteTargets(
-        firestorePath: firestorePath,
-        environment: environment
+        firestorePath: firestorePath
     )
     let checkoutContext = buildMyOrderCheckoutContext(
         member: member,
@@ -119,21 +118,12 @@ func buildMyOrderCheckoutLineSnapshots(
 }
 
 func resolveMyOrderCheckoutWriteTargets(
-    firestorePath: ReguertaFirestorePath,
-    environment: ReguertaFirestoreEnvironment
+    firestorePath: ReguertaFirestorePath
 ) -> [MyOrderCheckoutWriteTarget] {
     [
         (
             orders: firestorePath.collectionPath(.orders),
             orderlines: firestorePath.collectionPath(.orderlines)
-        ),
-        (
-            orders: "\(environment.rawValue)/collections/orders",
-            orderlines: "\(environment.rawValue)/collections/orderLines"
-        ),
-        (
-            orders: "\(environment.rawValue)/collections/orders",
-            orderlines: "\(environment.rawValue)/collections/orderlines"
         )
     ]
 }

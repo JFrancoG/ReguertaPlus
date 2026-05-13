@@ -43,7 +43,6 @@ As an admin I want strict Firestore rules for producer status updates so only au
 - Rules file: `firestore.rules`.
 - Protected paths:
   - `{env}/plus-collections/orders/{orderId}`
-  - `{env}/collections/orders/{orderId}`
   - `env`: `develop` and `production`.
 - Producer status mutation contract:
   - Producer writes must include `producerStatusUpdatedBy` and match the authenticated producer identity.

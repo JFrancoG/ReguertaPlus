@@ -138,7 +138,7 @@ firebase deploy --only functions
 Cada vez que se crea o modifica un documento en ciertas colecciones, puedes llamar manualmente a una función HTTP para actualizar el campo correspondiente en el documento:
 
 ```
-{entorno}/collections/config/global.lastTimestamps.{colección}
+{entorno}/plus-collections/config/global.lastTimestamps.{colección}
 ```
 
 ### 📦 Colecciones observadas y funciones HTTP asociadas
@@ -176,8 +176,7 @@ existe el endpoint:
 
 `https://europe-west1-reguerta-9f27f.cloudfunctions.net/validateGlobalFreshnessConfig`
 
-La validación actualiza tanto:
-- `{env}/collections/config/global`
+La validación actualiza:
 - `{env}/plus-collections/config/global`
 
 Parámetros opcionales:

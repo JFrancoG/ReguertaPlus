@@ -15,12 +15,8 @@ final class FirestoreDeliveryCalendarRepository: @unchecked Sendable, DeliveryCa
 
     func defaultDeliveryDayOfWeek() async -> DeliveryWeekday? {
         let path = ReguertaFirestorePath(environment: environment)
-        let prefix = path.resolvedEnvironment.rawValue
         let candidatePaths = [
-            path.documentPath(in: .config, documentId: ReguertaFirestoreDocument.global.rawValue),
-            "\(prefix)/collections/config/\(ReguertaFirestoreDocument.global.rawValue)",
-            "\(prefix)/config/\(ReguertaFirestoreDocument.global.rawValue)",
-            "config/\(ReguertaFirestoreDocument.global.rawValue)"
+            path.documentPath(in: .config, documentId: ReguertaFirestoreDocument.global.rawValue)
         ]
 
         for documentPath in candidatePaths {
@@ -39,12 +35,8 @@ final class FirestoreDeliveryCalendarRepository: @unchecked Sendable, DeliveryCa
 
     func allOverrides() async -> [DeliveryCalendarOverride] {
         let path = ReguertaFirestorePath(environment: environment)
-        let prefix = path.resolvedEnvironment.rawValue
         let candidatePaths = [
-            path.collectionPath(.deliveryCalendar),
-            "\(prefix)/collections/deliveryCalendar",
-            "\(prefix)/deliveryCalendar",
-            "deliveryCalendar"
+            path.collectionPath(.deliveryCalendar)
         ]
 
         for collectionPath in candidatePaths {

@@ -61,7 +61,7 @@ const firestore = admin.firestore();
 const updateTimestamp = async (env: string, collectionName: string) => {
   const now = admin.firestore.Timestamp.now();
   await firestore
-    .collection(`${env}/collections/config`)
+    .collection(`${env}/plus-collections/config`)
     .doc("global")
     .set({
       lastTimestamps: {
@@ -78,7 +78,7 @@ const parseBody = (value: unknown): Record<string, unknown> => {
 };
 
 const usersCollection = (env: string) =>
-  firestore.collection(`${env}/collections/users`);
+  firestore.collection(`${env}/plus-collections/users`);
 
 const plusUsersCollection = (env: string) =>
   firestore.collection(`${env}/plus-collections/users`);
@@ -87,7 +87,6 @@ const deliveryCalendarCollection = (env: string) =>
   firestore.collection(`${env}/plus-collections/deliveryCalendar`);
 
 const globalConfigDocRefs = (env: string) => [
-  firestore.collection(`${env}/collections/config`).doc("global"),
   firestore.collection(`${env}/plus-collections/config`).doc("global"),
 ];
 
@@ -1161,7 +1160,6 @@ const listMembersWithCommitments = async (
   const seasonalCommitmentUserIds = new Set<string>();
   const commitmentCollectionPaths = [
     `${env}/plus-collections/seasonalCommitments`,
-    `${env}/collections/seasonalCommitments`,
   ];
 
   for (const collectionPath of commitmentCollectionPaths) {
@@ -1227,7 +1225,6 @@ const listConfirmedOrderUserIds = async (
   const confirmedUserIds = new Set<string>();
   const orderCollectionPaths = [
     `${env}/plus-collections/orders`,
-    `${env}/collections/orders`,
   ];
 
   for (const collectionPath of orderCollectionPaths) {
@@ -4108,11 +4105,11 @@ export const validateGlobalFreshnessConfig = onRequest(async (req, res) => {
 
 export const cloneGlobalConfig = onRequest(async (_req, res) => {
   const sourceDoc = firestore
-    .collection("develop/collections/config")
+    .collection("develop/plus-collections/config")
     .doc("global");
 
   const targetDoc = firestore
-    .collection("production/collections/config")
+    .collection("production/plus-collections/config")
     .doc("global");
 
   const baseTimestamp = admin.firestore.Timestamp.fromDate(

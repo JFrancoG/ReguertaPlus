@@ -33,15 +33,14 @@ Conjuntos de campos legacy confirmados:
 - `orderLines` (observado): `companyName`, `orderId`, `productId`, `quantity`, `subtotal`, `userId`, `week`
 
 Soporte operativo detectado:
-- `develop/collections/config/global` y `production/collections/config/global` con:
+- `develop/plus-collections/config/global` y `production/plus-collections/config/global` con:
   - `cacheExpirationMinutes`
   - `lastTimestamps`
   - `otherConfig.deliveryDayOfWeek`
   - `versions.{android,ios}.{current,min,forceUpdate,storeUrl}`
 
 Layout de namespaces detectado:
-- `<env>/collections/...` para datos actuales
-- `<env>/plus-collections/...` para el nuevo modelo
+- `<env>/plus-collections/...` para todos los datos runtime de app y backend
 - `<env>` cloud: `develop`, `production`
 
 Campos existentes relevantes en `orderlines` (según datos reales migrados 2025):
@@ -274,8 +273,7 @@ Contrato de `targetPayload`:
 ### `config/global` por entorno (requerido para arranque/sync)
 
 Rutas:
-- ruta actual: `<env>/collections/config/global`
-- ruta de rollout: `<env>/plus-collections/config/global`
+- ruta actual: `<env>/plus-collections/config/global`
 - `<env>`: `develop` o `production`
 
 Campos base:

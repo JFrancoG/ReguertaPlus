@@ -7,7 +7,6 @@ import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
 import com.reguerta.user.data.firestore.ReguertaFirestoreDocument
 import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
 import com.reguerta.user.data.firestore.ReguertaFirestorePath
-import com.reguerta.user.data.firestore.ReguertaRuntimeEnvironment
 import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
 import com.reguerta.user.domain.calendar.DeliveryCalendarRepository
 import com.reguerta.user.domain.calendar.DeliveryWeekday
@@ -30,15 +29,9 @@ class FirestoreDeliveryCalendarRepository(
             documentId = ReguertaFirestoreDocument.GLOBAL.wireValue,
         )
 
-    private val legacyEnvironmentPrefix: String
-        get() = (environment ?: ReguertaRuntimeEnvironment.currentFirestoreEnvironment()).wireValue
-
     override suspend fun getDefaultDeliveryDayOfWeek(): DeliveryWeekday? = withContext(Dispatchers.IO) {
         val candidatePaths = listOf(
             globalConfigDocumentPath,
-            "$legacyEnvironmentPrefix/collections/config/${ReguertaFirestoreDocument.GLOBAL.wireValue}",
-            "$legacyEnvironmentPrefix/config/${ReguertaFirestoreDocument.GLOBAL.wireValue}",
-            "config/${ReguertaFirestoreDocument.GLOBAL.wireValue}",
         ).distinct()
 
         candidatePaths.asSequence().mapNotNull { path ->
@@ -52,9 +45,6 @@ class FirestoreDeliveryCalendarRepository(
     override suspend fun getAllOverrides(): List<DeliveryCalendarOverride> = withContext(Dispatchers.IO) {
         val candidatePaths = listOf(
             calendarCollectionPath,
-            "$legacyEnvironmentPrefix/collections/deliveryCalendar",
-            "$legacyEnvironmentPrefix/deliveryCalendar",
-            "deliveryCalendar",
         ).distinct()
 
         candidatePaths.asSequence().mapNotNull { path ->

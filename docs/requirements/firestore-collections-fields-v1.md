@@ -15,8 +15,8 @@ Define collections and fields as a closed contract so Android, iOS, and backend 
 - Field naming: `camelCase`.
 - Runtime environments: `local`, `develop`, `production`.
 - Cloud Firestore namespaces currently used:
-  - `develop/{collections|plus-collections}/...`
-  - `production/{collections|plus-collections}/...`
+  - `develop/plus-collections/...`
+  - `production/plus-collections/...`
   - `local` is runtime-only (emulator/dev), not a required cloud namespace.
 - Main IDs:
   - `users/{userId}` -> internal stable member ID (not required to match Firebase Auth UID)
@@ -51,8 +51,7 @@ Define collections and fields as a closed contract so Android, iOS, and backend 
 ## 4. Canonical MVP collections
 
 Path prefixes for every collection below:
-- Legacy dataset path: `<env>/collections/<collectionName>/...`
-- Plus dataset path: `<env>/plus-collections/<collectionName>/...`
+- Runtime dataset path: `<env>/plus-collections/<collectionName>/...`
 - `<env>`: `develop` or `production`
 
 ### 4.1 `users/{userId}`
@@ -282,10 +281,6 @@ Delivery calendar strategy (canonical):
 ### 4.12 `config/global` (environment-scoped operational config)
 
 Current live path:
-- `develop/collections/config/global`
-- `production/collections/config/global`
-
-Target-compatible path for the new dataset:
 - `develop/plus-collections/config/global`
 - `production/plus-collections/config/global`
 
@@ -311,9 +306,10 @@ Normalization note for `plus-collections`:
 - Backward compatibility should keep read support for `otherConfig.deliveryDayOfWeek`.
 - `deliveryDayOfWeek` remains mandatory while exception-only `deliveryCalendar` strategy is active.
 
-### 4.13 Existing legacy dataset in `collections` (as-is)
+### 4.13 Retired legacy dataset
 
-Current collection names under `<env>/collections`:
+The previous non-plus dataset is no longer read or written by app or backend runtime code.
+Historical collection names were:
 - `config` (`global` document)
 - `containers`
 - `measures`
@@ -326,7 +322,7 @@ Current collection names under `<env>/collections`:
 Canonical naming note:
 - Specs/docs use logical `orderlines`; migration/adapters must map `orderLines` <-> `orderlines` safely.
 
-### 4.13.1 Confirmed legacy fields in `collections` (current data)
+### 4.13.1 Confirmed legacy fields in the retired dataset
 
 `containers/{containerId}`:
 - `name`
@@ -385,7 +381,7 @@ Canonical naming note:
 - `week`
 
 Migration note:
-- Before production migration jobs, run full schema inventory for `users`, `products`, `orders`, and `orderLines` in both `develop/collections` and `production/collections`.
+- Before production migration jobs, run full schema inventory for `users`, `products`, `orders`, and `orderLines` in the retired non-plus dataset.
 
 ## 5. Mandatory business validations
 

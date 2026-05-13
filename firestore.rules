@@ -11,7 +11,7 @@ service cloud.firestore {
     }
 
     function isSupportedDataset(dataset) {
-      return dataset in ["plus-collections", "collections"];
+      return dataset == "plus-collections";
     }
 
     function isValidProducerStatus(status) {

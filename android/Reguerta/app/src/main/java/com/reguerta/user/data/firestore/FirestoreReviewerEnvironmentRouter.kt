@@ -40,8 +40,6 @@ class FirestoreReviewerEnvironmentRouter(
     private suspend fun loadReviewerPolicy(): ReviewerRoutingPolicy = withContext(Dispatchers.IO) {
         val candidates = listOf(
             "production/plus-collections/config/global",
-            "production/collections/config/global",
-            "production/config/global",
         )
         val snapshot = candidates.firstNotNullOfOrNull { path ->
             runCatching { Tasks.await(firestore.document(path).get()) }

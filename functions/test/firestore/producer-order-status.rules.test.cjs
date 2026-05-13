@@ -18,7 +18,7 @@ const rules = fs.readFileSync(
 );
 
 const envs = ["develop", "production"];
-const datasets = ["plus-collections", "collections"];
+const datasets = ["plus-collections"];
 
 const ACTORS = {
   producerOne: {

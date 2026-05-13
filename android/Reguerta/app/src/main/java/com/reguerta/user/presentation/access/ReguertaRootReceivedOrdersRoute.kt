@@ -798,8 +798,6 @@ private suspend fun loadReceivedOrderLinesForProducer(
     val path = ReguertaFirestorePath(environment = environment)
     val readTargets = listOf(
         path.collectionPath(ReguertaFirestoreCollection.ORDER_LINES),
-        "${environment.wireValue}/collections/orderLines",
-        "${environment.wireValue}/collections/orderlines",
     ).distinct()
 
     val dedupedByKey = linkedMapOf<String, ReceivedOrderLinePayload>()
@@ -850,7 +848,6 @@ private suspend fun loadReceivedOrderStatusesByOrderId(
     val path = ReguertaFirestorePath(environment = environment)
     val readTargets = listOf(
         path.collectionPath(ReguertaFirestoreCollection.ORDERS),
-        "${environment.wireValue}/collections/orders",
     ).distinct()
     val statusesByOrderId = mutableMapOf<String, ReceivedOrderProducerStatus>()
     var hasSuccessfulRead = false
@@ -893,7 +890,6 @@ private suspend fun updateReceivedOrderProducerStatus(
     val path = ReguertaFirestorePath(environment = environment)
     val writeTargets = listOf(
         path.collectionPath(ReguertaFirestoreCollection.ORDERS),
-        "${environment.wireValue}/collections/orders",
     ).distinct()
     val nowTimestamp = Timestamp(Date(nowMillis))
     var lastFailure = ReceivedOrderStatusWriteResult.FAILURE

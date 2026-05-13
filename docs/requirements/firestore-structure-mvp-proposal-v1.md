@@ -33,8 +33,8 @@ Confirmed legacy field sets:
 - `orderLines` (observed): `companyName`, `orderId`, `productId`, `quantity`, `subtotal`, `userId`, `week`
 
 Operational config currently used:
-- `develop/collections/config/global`
-- `production/collections/config/global`
+- `develop/plus-collections/config/global`
+- `production/plus-collections/config/global`
 with:
 - `cacheExpirationMinutes`
 - `lastTimestamps`
@@ -42,8 +42,7 @@ with:
 - `versions.{android,ios}.{current,min,forceUpdate,storeUrl}`
 
 Namespace layout currently used:
-- `<env>/collections/...` for current production data
-- `<env>/plus-collections/...` for the new model rollout
+- `<env>/plus-collections/...` for all app and backend runtime data
 - `<env>` in cloud: `develop`, `production`
 
 Legacy-rich `orderlines` fields are already present and should be preserved until cleanup is proven safe.
@@ -89,8 +88,7 @@ Legacy-rich `orderlines` fields are already present and should be preserved unti
 - `news/{newsId}`
 - `notificationEvents/{eventId}` (recommended)
 - `config/global` is required per environment for startup/version/sync policy:
-  - current path: `<env>/collections/config/global`
-  - rollout path: `<env>/plus-collections/config/global`
+  - current path: `<env>/plus-collections/config/global`
   - `<env>`: `develop` or `production`
 
 Seasonal commitments quantity field contract:

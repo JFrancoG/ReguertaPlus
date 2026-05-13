@@ -26,9 +26,7 @@ final class FirestoreReviewerEnvironmentRouter: @unchecked Sendable, ReviewerEnv
 
     private func loadReviewerPolicy() async -> ReviewerRoutingPolicy {
         let candidates = [
-            "production/plus-collections/config/global",
-            "production/collections/config/global",
-            "production/config/global"
+            "production/plus-collections/config/global"
         ]
 
         for path in candidates {

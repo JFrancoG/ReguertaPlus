@@ -11,7 +11,7 @@ func fetchReceivedOrdersSnapshotForProducer(
     let lines = try await fetchReceivedOrderLines(
         producerId: producerId,
         targetWeekKey: targetWeekKey,
-        readTargets: receivedOrderlineReadTargets(firestorePath: firestorePath, environment: environment),
+        readTargets: receivedOrderlineReadTargets(firestorePath: firestorePath),
         db: db
     )
     guard !lines.isEmpty else { return nil }
@@ -40,10 +40,9 @@ func updateReceivedOrderProducerStatus(
     nowMillis: Int64 = Int64(Date().timeIntervalSince1970 * 1_000)
 ) async -> ReceivedOrderStatusWriteResult {
     let firestorePath = ReguertaFirestorePath(environment: environment)
-    let writeTargets = Array(Set([
-        firestorePath.collectionPath(.orders),
-        "\(environment.rawValue)/collections/orders"
-    ]))
+    let writeTargets = [
+        firestorePath.collectionPath(.orders)
+    ]
     let nowTimestamp = Timestamp(date: Date(timeIntervalSince1970: TimeInterval(nowMillis) / 1_000))
     var lastFailure: ReceivedOrderStatusWriteResult = .failure
 
@@ -66,14 +65,11 @@ func updateReceivedOrderProducerStatus(
 }
 
 private func receivedOrderlineReadTargets(
-    firestorePath: ReguertaFirestorePath,
-    environment: ReguertaFirestoreEnvironment
+    firestorePath: ReguertaFirestorePath
 ) -> [String] {
-    Array(Set([
-        firestorePath.collectionPath(.orderlines),
-        "\(environment.rawValue)/collections/orderLines",
-        "\(environment.rawValue)/collections/orderlines"
-    ]))
+    [
+        firestorePath.collectionPath(.orderlines)
+    ]
 }
 
 private func fetchReceivedOrderLines(
@@ -125,10 +121,9 @@ private func fetchReceivedOrderStatusesByOrderId(
     guard !dedupedOrderIds.isEmpty else { return [:] }
 
     let firestorePath = ReguertaFirestorePath(environment: environment)
-    let readTargets = Array(Set([
-        firestorePath.collectionPath(.orders),
-        "\(environment.rawValue)/collections/orders"
-    ]))
+    let readTargets = [
+        firestorePath.collectionPath(.orders)
+    ]
     var statusesByOrderId: [String: ProducerOrderStatus] = [:]
     var hasSuccessfulRead = false
     var lastError: Error?

@@ -18,8 +18,8 @@ Definir de forma cerrada las colecciones Firestore y los campos de cada una para
 - Nombres de campos: `camelCase`.
 - Entornos runtime: `local`, `develop`, `production`.
 - Namespaces cloud Firestore actualmente usados:
-  - `develop/{collections|plus-collections}/...`
-  - `production/{collections|plus-collections}/...`
+  - `develop/plus-collections/...`
+  - `production/plus-collections/...`
   - `local` se considera runtime/emulador, no namespace cloud obligatorio.
 - IDs de documentos:
   - `users/{userId}`: ID interno estable del socio (no tiene que coincidir con Firebase Auth UID).
@@ -132,8 +132,7 @@ Definir de forma cerrada las colecciones Firestore y los campos de cada una para
 ## 4. Colecciones canonicas MVP
 
 Prefijos de ruta para cada coleccion descrita abajo:
-- Dataset legacy: `<env>/collections/<collectionName>/...`
-- Dataset nuevo: `<env>/plus-collections/<collectionName>/...`
+- Dataset runtime: `<env>/plus-collections/<collectionName>/...`
 - `<env>`: `develop` o `production`
 
 ## 4.1 `users/{userId}`
@@ -396,10 +395,6 @@ Contrato de `targetPayload`:
 ## 4.12 `config/global` (configuracion operativa por entorno)
 
 Ruta actual en produccion/desarrollo:
-- `develop/collections/config/global`
-- `production/collections/config/global`
-
-Ruta objetivo compatible para dataset nuevo:
 - `develop/plus-collections/config/global`
 - `production/plus-collections/config/global`
 
@@ -425,9 +420,10 @@ Nota de normalizacion para `plus-collections`:
 - Debe mantenerse compatibilidad de lectura con `otherConfig.deliveryDayOfWeek`.
 - `deliveryDayOfWeek` se mantiene obligatorio mientras `deliveryCalendar` siga estrategia de solo excepciones.
 
-## 4.13 Dataset legacy en `collections` (as-is)
+## 4.13 Dataset legacy retirado
 
-Nombres actuales bajo `<env>/collections`:
+El dataset anterior no-plus ya no se lee ni se escribe desde runtime de app o backend.
+Nombres historicos:
 - `config` (documento `global`)
 - `containers`
 - `measures`
@@ -440,7 +436,7 @@ Nombres actuales bajo `<env>/collections`:
 Nota de nomenclatura canonica:
 - En specs/docs se usa `orderlines`; la migracion/adaptadores deben mapear `orderLines` <-> `orderlines` sin riesgo.
 
-## 4.13.1 Campos legacy confirmados en `collections` (datos actuales)
+## 4.13.1 Campos legacy confirmados en el dataset retirado
 
 `containers/{containerId}`:
 - `name`
@@ -499,7 +495,7 @@ Nota de nomenclatura canonica:
 - `week`
 
 Nota de migracion:
-- Antes de ejecutar migraciones en produccion, hacer inventario completo de esquema para `users`, `products`, `orders` y `orderLines` en `develop/collections` y `production/collections`.
+- Antes de ejecutar migraciones en produccion, hacer inventario completo de esquema para `users`, `products`, `orders` y `orderLines` en el dataset no-plus retirado.
 
 ## 5. Reglas de validacion de negocio (obligatorias)
 

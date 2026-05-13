@@ -59,10 +59,9 @@ func loadMyOrderProducerStatuses(
     environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment
 ) async -> MyOrderProducerStatusSnapshot {
     let firestorePath = ReguertaFirestorePath(environment: environment)
-    let readTargets = Array(Set([
-        firestorePath.collectionPath(.orders),
-        "\(environment.rawValue)/collections/orders"
-    ]))
+    let readTargets = [
+        firestorePath.collectionPath(.orders)
+    ]
 
     for ordersPath in readTargets {
         do {
@@ -95,8 +94,7 @@ func fetchPreviousWeekOrderSnapshot(
 
     let firestorePath = ReguertaFirestorePath(environment: environment)
     let readTargets = resolvePreviousOrderReadTargets(
-        firestorePath: firestorePath,
-        environment: environment
+        firestorePath: firestorePath
     )
     let deterministicOrderId = "\(member.id)_\(previousWeekKey)"
     var lastError: Error?
@@ -128,21 +126,12 @@ func fetchPreviousWeekOrderSnapshot(
 }
 
 func resolvePreviousOrderReadTargets(
-    firestorePath: ReguertaFirestorePath,
-    environment: ReguertaFirestoreEnvironment
+    firestorePath: ReguertaFirestorePath
 ) -> [MyOrderCheckoutWriteTarget] {
     [
         (
             orders: firestorePath.collectionPath(.orders),
             orderlines: firestorePath.collectionPath(.orderlines)
-        ),
-        (
-            orders: "\(environment.rawValue)/collections/orders",
-            orderlines: "\(environment.rawValue)/collections/orderLines"
-        ),
-        (
-            orders: "\(environment.rawValue)/collections/orders",
-            orderlines: "\(environment.rawValue)/collections/orderlines"
         )
     ]
 }
