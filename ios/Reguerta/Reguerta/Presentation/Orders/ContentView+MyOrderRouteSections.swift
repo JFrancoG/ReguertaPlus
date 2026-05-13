@@ -73,7 +73,7 @@ extension MyOrderRouteView {
 
                 switch viewModel.previousOrderState {
                 case .loading:
-                    ReguertaCard {
+                    reguertaCard {
                         HStack(spacing: tokens.spacing.sm) {
                             ProgressView()
                                 .tint(tokens.colors.actionPrimary)
@@ -93,12 +93,12 @@ extension MyOrderRouteView {
                         .padding(.vertical, tokens.spacing.xl)
 
                 case .error:
-                    ReguertaCard {
+                    reguertaCard {
                         VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                             Text("No hemos podido cargar tu pedido anterior.")
                                 .font(tokens.typography.bodySecondary)
                                 .foregroundStyle(tokens.colors.textSecondary)
-                            ReguertaButton("Reintentar", variant: .text, fullWidth: false) {
+                            reguertaButton("Reintentar", variant: .text, fullWidth: false) {
                                 Task {
                                     await viewModel.retryPreviousOrder()
                                 }
@@ -208,7 +208,7 @@ extension MyOrderRouteView {
 
     @ViewBuilder
     func previousProducerCard(_ group: MyOrderPreviousOrderGroup) -> some View {
-        ReguertaCard {
+        reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 Text(group.companyName)
                     .font(tokens.typography.titleCard.weight(.semibold))
@@ -257,7 +257,7 @@ extension MyOrderRouteView {
     }
 
     var loadingState: some View {
-        ReguertaCard {
+        reguertaCard {
             Text(LocalizedStringKey(AccessL10nKey.myOrderListLoading))
                 .font(tokens.typography.bodySecondary)
                 .foregroundStyle(tokens.colors.textSecondary)
@@ -265,7 +265,7 @@ extension MyOrderRouteView {
     }
 
     var emptyState: some View {
-        ReguertaCard {
+        reguertaCard {
             Text(LocalizedStringKey(AccessL10nKey.myOrderListEmpty))
                 .font(tokens.typography.bodySecondary)
                 .foregroundStyle(tokens.colors.textSecondary)
@@ -318,7 +318,7 @@ extension MyOrderRouteView {
         let quantity = viewModel.quantity(for: product)
         let stockLabel = stockLabel(for: product)
 
-        ReguertaCard {
+        reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 HStack(alignment: .top, spacing: tokens.spacing.sm) {
                     productImage(product)

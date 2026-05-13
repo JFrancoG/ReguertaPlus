@@ -3,7 +3,7 @@ import SwiftUI
 extension AccessRootRoutingView {
     var signInCard: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-            ReguertaInputField(
+            reguertaInputField(
                 localizedKey(AccessL10nKey.emailLabel),
                 text: binding(\.emailInput),
                 placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
@@ -16,7 +16,7 @@ extension AccessRootRoutingView {
                 accessibilityIdentifier: "auth.login.emailField"
             )
 
-            ReguertaInputField(
+            reguertaInputField(
                 localizedKey(AccessL10nKey.passwordLabel),
                 text: binding(\.passwordInput),
                 placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
@@ -45,7 +45,7 @@ extension AccessRootRoutingView {
 
             Spacer(minLength: 72.resize)
 
-            ReguertaButton(
+            reguertaButton(
                 localizedKey(viewModel.isAuthenticating ? AccessL10nKey.signingIn : AccessL10nKey.signIn),
                 isEnabled: viewModel.canSubmitSignIn,
                 isLoading: viewModel.isAuthenticating,
@@ -58,7 +58,7 @@ extension AccessRootRoutingView {
 
     var signUpCard: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-            ReguertaInputField(
+            reguertaInputField(
                 localizedKey(AccessL10nKey.emailLabel),
                 text: binding(\.registerEmailInput),
                 placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
@@ -70,7 +70,7 @@ extension AccessRootRoutingView {
                 keyboardType: .emailAddress
             )
 
-            ReguertaInputField(
+            reguertaInputField(
                 localizedKey(AccessL10nKey.passwordLabel),
                 text: binding(\.registerPasswordInput),
                 placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
@@ -84,7 +84,7 @@ extension AccessRootRoutingView {
                 keyboardType: .default
             )
 
-            ReguertaInputField(
+            reguertaInputField(
                 localizedKey(AccessL10nKey.registerRepeatPasswordLabel),
                 text: binding(\.registerRepeatPasswordInput),
                 placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
@@ -110,7 +110,7 @@ extension AccessRootRoutingView {
 
             Spacer(minLength: 72.resize)
 
-            ReguertaButton(
+            reguertaButton(
                 localizedKey(viewModel.isRegistering ? AccessL10nKey.registerActionCreating : AccessL10nKey.registerActionCreateAccount),
                 isEnabled: viewModel.canSubmitSignUp,
                 isLoading: viewModel.isRegistering
@@ -122,7 +122,7 @@ extension AccessRootRoutingView {
 
     var recoverPasswordCard: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-            ReguertaInputField(
+            reguertaInputField(
                 localizedKey(AccessL10nKey.emailLabel),
                 text: binding(\.recoverEmailInput),
                 placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
@@ -136,7 +136,7 @@ extension AccessRootRoutingView {
 
             Spacer(minLength: 88.resize)
 
-            ReguertaButton(
+            reguertaButton(
                 localizedKey(viewModel.isRecoveringPassword ? AccessL10nKey.recoverActionSending : AccessL10nKey.recoverActionSendEmail),
                 isEnabled: viewModel.canSubmitPasswordReset,
                 isLoading: viewModel.isRecoveringPassword

@@ -13,7 +13,7 @@ extension AccessRootRoutingView {
     @ViewBuilder
     var overlayDialogs: some View {
         if showsRecoverSuccessDialog {
-            ReguertaDialog(
+            reguertaDialog(
                 type: .info,
                 title: l10n(AccessL10nKey.recoverSuccessDialogTitle),
                 message: l10n(AccessL10nKey.recoverSuccessDialogMessage),
@@ -25,7 +25,7 @@ extension AccessRootRoutingView {
             )
         }
         if viewModel.showSessionExpiredDialog {
-            ReguertaDialog(
+            reguertaDialog(
                 type: .error,
                 title: l10n(AccessL10nKey.sessionExpiredTitle),
                 message: l10n(AccessL10nKey.sessionExpiredMessage),
@@ -37,7 +37,7 @@ extension AccessRootRoutingView {
             )
         }
         if viewModel.showUnauthorizedDialog {
-            ReguertaDialog(
+            reguertaDialog(
                 type: .info,
                 title: l10n(AccessL10nKey.unauthorizedDialogTitle),
                 message: l10n(AccessL10nKey.unauthorizedDialogMessage),
@@ -49,7 +49,7 @@ extension AccessRootRoutingView {
             )
         }
         if let article = rootViewModel.newsNotificationsViewModel.pendingNewsDeletionArticle {
-            ReguertaDialog(
+            reguertaDialog(
                 type: .error,
                 title: l10n(AccessL10nKey.newsDeleteDialogTitle),
                 message: l10n(AccessL10nKey.newsDeleteDialogMessage, article.title),
@@ -69,10 +69,10 @@ extension AccessRootRoutingView {
     @ViewBuilder
     var feedbackMessageRoute: some View {
         if let feedbackKey = feedbackCenter.messageKey {
-            ReguertaCard {
+            reguertaCard {
                 VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                    ReguertaInlineFeedback(localizedKey(feedbackKey))
-                    ReguertaButton(
+                    reguertaInlineFeedback(localizedKey(feedbackKey))
+                    reguertaButton(
                         localizedKey(AccessL10nKey.dismissMessage),
                         variant: .text,
                         fullWidth: false
@@ -145,7 +145,7 @@ extension AccessRootRoutingView {
 
     @ViewBuilder
     private func startupVersionGateCard(_ content: StartupVersionGateCardContent) -> some View {
-        ReguertaDialog(
+        reguertaDialog(
             type: content.onSecondaryAction == nil ? .error : .info,
             title: l10n(content.titleKey),
             message: l10n(content.messageKey),

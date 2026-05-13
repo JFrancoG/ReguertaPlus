@@ -193,14 +193,14 @@ extension AccessRootRoutingView {
 
     @ViewBuilder
     func placeholderRoute(titleKey: String, subtitleKey: String) -> some View {
-        ReguertaCard {
+        reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
                 Text(localizedKey(titleKey))
                     .font(tokens.typography.titleSection)
                 Text(localizedKey(subtitleKey))
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
-                ReguertaButton(localizedKey(AccessL10nKey.commonBack)) {
+                reguertaButton(localizedKey(AccessL10nKey.commonBack)) {
                     homeDestination = .dashboard
                 }
             }

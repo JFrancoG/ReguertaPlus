@@ -17,12 +17,12 @@ struct NewsListRouteView: View {
             )
 
             if viewModel.isLoadingNews {
-                ReguertaCard {
+                reguertaCard {
                     Text(LocalizedStringKey(AccessL10nKey.newsLoading))
                         .font(tokens.typography.bodySecondary)
                 }
             } else if viewModel.newsFeed.isEmpty {
-                ReguertaCard {
+                reguertaCard {
                     Text(LocalizedStringKey(AccessL10nKey.newsEmptyState))
                         .font(tokens.typography.bodySecondary)
                 }
@@ -69,7 +69,7 @@ private struct NewsListHeaderCardView: View {
     let onRefreshNews: () -> Void
 
     var body: some View {
-        ReguertaCard {
+        reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 Text(LocalizedStringKey(AccessL10nKey.homeShellNewsTitle))
                     .font(tokens.typography.titleCard)
@@ -77,9 +77,9 @@ private struct NewsListHeaderCardView: View {
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
                 if isAdmin {
-                    ReguertaButton(LocalizedStringKey(AccessL10nKey.newsCreateAction), action: onCreateNews)
+                    reguertaButton(LocalizedStringKey(AccessL10nKey.newsCreateAction), action: onCreateNews)
                 }
-                ReguertaButton(
+                reguertaButton(
                     LocalizedStringKey(AccessL10nKey.newsRefreshAction),
                     variant: .text,
                     action: onRefreshNews
@@ -98,7 +98,7 @@ private struct NewsArticleCardView: View {
     let onDeleteNews: (String) -> Void
 
     var body: some View {
-        ReguertaCard {
+        reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 Text(article.title)
                     .font(tokens.typography.titleCard)
@@ -120,14 +120,14 @@ private struct NewsArticleCardView: View {
                 }
                 if isAdmin {
                     HStack {
-                        ReguertaButton(
+                        reguertaButton(
                             LocalizedStringKey(AccessL10nKey.newsEditAction),
                             variant: .text,
                             fullWidth: false
                         ) {
                             onEditNews(article.id)
                         }
-                        ReguertaButton(
+                        reguertaButton(
                             LocalizedStringKey(AccessL10nKey.newsDeleteAction),
                             variant: .text,
                             fullWidth: false
@@ -196,7 +196,7 @@ struct NewsEditorRouteView: View {
     }
 
     var body: some View {
-        ReguertaCard {
+        reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
                 Text(LocalizedStringKey(editorTitleKey))
                     .font(tokens.typography.titleCard)
@@ -236,14 +236,14 @@ struct NewsEditorRouteView: View {
 
                 Toggle(LocalizedStringKey(AccessL10nKey.newsFieldActive), isOn: newsActive)
 
-                ReguertaButton(
+                reguertaButton(
                     LocalizedStringKey(saveActionKey),
                     isEnabled: !viewModel.isSavingNews && !viewModel.isUploadingNewsImage,
                     isLoading: viewModel.isSavingNews,
                     action: saveNews
                 )
 
-                ReguertaButton(
+                reguertaButton(
                     LocalizedStringKey(AccessL10nKey.commonBack),
                     variant: .text,
                     action: back
@@ -288,12 +288,12 @@ struct NotificationsListRouteView: View {
             )
 
             if viewModel.isLoadingNotifications {
-                ReguertaCard {
+                reguertaCard {
                     Text(LocalizedStringKey(AccessL10nKey.notificationsLoading))
                         .font(tokens.typography.bodySecondary)
                 }
             } else if viewModel.notificationsFeed.isEmpty {
-                ReguertaCard {
+                reguertaCard {
                     Text(LocalizedStringKey(AccessL10nKey.notificationsEmptyState))
                         .font(tokens.typography.bodySecondary)
                 }
@@ -327,7 +327,7 @@ private struct NotificationsListHeaderCardView: View {
     let onRefreshNotifications: () -> Void
 
     var body: some View {
-        ReguertaCard {
+        reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 Text(LocalizedStringKey(AccessL10nKey.homeShellNotifications))
                     .font(tokens.typography.titleCard)
@@ -335,12 +335,12 @@ private struct NotificationsListHeaderCardView: View {
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
                 if isAdmin {
-                    ReguertaButton(
+                    reguertaButton(
                         LocalizedStringKey(AccessL10nKey.notificationsCreateAction),
                         action: onCreateNotification
                     )
                 }
-                ReguertaButton(
+                reguertaButton(
                     LocalizedStringKey(AccessL10nKey.notificationsRefreshAction),
                     variant: .text,
                     action: onRefreshNotifications
@@ -356,7 +356,7 @@ private struct NotificationCardView: View {
     let notificationMetaText: (NotificationEvent) -> String
 
     var body: some View {
-        ReguertaCard {
+        reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 Text(notification.title)
                     .font(tokens.typography.titleCard)
@@ -420,7 +420,7 @@ struct NotificationEditorRouteView: View {
     }
 
     var body: some View {
-        ReguertaCard {
+        reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
                 Text(LocalizedStringKey(AccessL10nKey.notificationsEditorTitle))
                     .font(tokens.typography.titleCard)
@@ -454,14 +454,14 @@ struct NotificationEditorRouteView: View {
                     }
                 }
 
-                ReguertaButton(
+                reguertaButton(
                     LocalizedStringKey(sendActionKey),
                     isEnabled: !viewModel.isSendingNotification,
                     isLoading: viewModel.isSendingNotification,
                     action: sendNotification
                 )
 
-                ReguertaButton(
+                reguertaButton(
                     LocalizedStringKey(AccessL10nKey.commonBack),
                     variant: .text,
                     action: back

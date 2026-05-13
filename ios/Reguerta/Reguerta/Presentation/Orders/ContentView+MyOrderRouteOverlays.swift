@@ -164,7 +164,7 @@ extension MyOrderRouteView {
         let quantity = viewModel.quantity(for: product)
         let selectedOption = viewModel.selectedEcoBasketOption(for: product)
 
-        ReguertaCard {
+        reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 HStack(alignment: .top, spacing: tokens.spacing.sm) {
                     productImage(product)
@@ -223,7 +223,7 @@ extension MyOrderRouteView {
                 message: "Ha ocurrido un problema al guardar tu pedido. Inténtalo de nuevo."
             )
         case .readyToSubmit(let total, let noPickupEcoBaskets):
-            ReguertaDialog(
+            reguertaDialog(
                 type: .info,
                 title: "Pedido realizado con éxito",
                 message: noPickupEcoBaskets > 0
@@ -239,7 +239,7 @@ extension MyOrderRouteView {
     }
 
     func checkoutErrorDialog(title: String, message: String) -> some View {
-        ReguertaDialog(
+        reguertaDialog(
             type: .error,
             title: title,
             message: message,

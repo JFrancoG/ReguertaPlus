@@ -20,7 +20,7 @@ struct UsersRouteView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
             if let member = viewModel.pendingToggleMember {
-                ReguertaDialog(
+                reguertaDialog(
                     type: member.isActive ? .error : .info,
                     title: l10n(
                         member.isActive
@@ -50,18 +50,18 @@ struct UsersRouteView: View {
         ZStack(alignment: .bottom) {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-                    ReguertaCard {
+                    reguertaCard {
                         VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                             Text(LocalizedStringKey(AccessL10nKey.usersListTitle))
                                 .font(tokens.typography.titleCard)
-                            ReguertaButton(LocalizedStringKey(AccessL10nKey.usersListActionReload), variant: .text, fullWidth: false) {
+                            reguertaButton(LocalizedStringKey(AccessL10nKey.usersListActionReload), variant: .text, fullWidth: false) {
                                 Task { await viewModel.refreshMembers() }
                             }
                         }
                     }
 
                     if viewModel.sortedMembers.isEmpty {
-                        ReguertaCard {
+                        reguertaCard {
                             Text(LocalizedStringKey(AccessL10nKey.usersListEmpty))
                                 .font(tokens.typography.bodySecondary)
                                 .foregroundStyle(tokens.colors.textSecondary)
@@ -80,7 +80,7 @@ struct UsersRouteView: View {
             .scrollDismissesKeyboard(.interactively)
 
             if viewModel.canManageMembers {
-                ReguertaButton(LocalizedStringKey(AccessL10nKey.usersListActionAdd)) {
+                reguertaButton(LocalizedStringKey(AccessL10nKey.usersListActionAdd)) {
                     viewModel.startCreating()
                 }
                 .padding(.bottom, tokens.spacing.sm)
@@ -89,7 +89,7 @@ struct UsersRouteView: View {
     }
 
     private func userCardRow(_ member: Member) -> some View {
-        ReguertaCard {
+        reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 Text(member.displayName)
                     .font(tokens.typography.titleCard)
@@ -139,7 +139,7 @@ struct UsersRouteView: View {
     }
 
     private var usersEditor: some View {
-        ReguertaCard {
+        reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
                 Text(
                     LocalizedStringKey(
@@ -194,7 +194,7 @@ struct UsersRouteView: View {
 
                 Toggle(LocalizedStringKey(AccessL10nKey.roleAdmin), isOn: draftBoolBinding(\.isAdmin))
 
-                ReguertaButton(
+                reguertaButton(
                     LocalizedStringKey(
                         editingMember == nil
                             ? AccessL10nKey.usersEditorActionCreate
@@ -205,7 +205,7 @@ struct UsersRouteView: View {
                 ) {
                     Task { _ = await viewModel.saveDraft() }
                 }
-                ReguertaButton(LocalizedStringKey(AccessL10nKey.commonBack), variant: .text, fullWidth: false) {
+                reguertaButton(LocalizedStringKey(AccessL10nKey.commonBack), variant: .text, fullWidth: false) {
                     viewModel.clearEditor()
                 }
             }

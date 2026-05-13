@@ -101,6 +101,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- 2026-05-14 | ♻️ refactor(ios-ui): split design components
 - 2026-05-12 | ♻️ refactor(ios-ui): organize presentation layout
 - 2026-05-12 | ♻️ refactor(ios-session): move session adjuncts to root
 - 2026-05-12 | ♻️ refactor(ios-users): move users to root VM

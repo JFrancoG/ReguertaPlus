@@ -1,17 +1,15 @@
 import SwiftUI
 
-struct ReguertaCard<Content: View>: View {
+struct ReguertaCardView<Content: View>: View {
     @Environment(\.reguertaTokens) private var tokens
-    private let content: () -> Content
 
-    init(@ViewBuilder content: @escaping () -> Content) {
-        self.content = content
-    }
+    let viewModel: ReguertaCardViewModel
+    let content: () -> Content
 
     var body: some View {
         content()
             .padding(tokens.spacing.lg)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: viewModel.maxWidth, alignment: viewModel.alignment)
             .background(tokens.colors.surfacePrimary)
             .overlay(
                 RoundedRectangle(cornerRadius: tokens.radius.md)
@@ -19,4 +17,16 @@ struct ReguertaCard<Content: View>: View {
             )
             .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
     }
+}
+
+#Preview("ReguertaCard") {
+    reguertaCard {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Card title")
+                .font(.headline)
+            Text("Card body")
+                .font(.subheadline)
+        }
+    }
+    .padding()
 }

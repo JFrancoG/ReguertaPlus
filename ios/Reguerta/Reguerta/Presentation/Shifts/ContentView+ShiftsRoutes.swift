@@ -21,14 +21,14 @@ struct ShiftsRouteView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-            ReguertaCard {
+            reguertaCard {
                 VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                     Text(localizedKey(AccessL10nKey.shifts))
                         .font(tokens.typography.titleCard)
                     Text(localizedKey(AccessL10nKey.shiftsListSubtitle))
                         .font(tokens.typography.bodySecondary)
                         .foregroundStyle(tokens.colors.textSecondary)
-                    ReguertaButton(localizedKey(AccessL10nKey.shiftsRefreshAction), variant: .text) {
+                    reguertaButton(localizedKey(AccessL10nKey.shiftsRefreshAction), variant: .text) {
                         Task { await viewModel.refreshShifts() }
                     }
                 }
@@ -49,12 +49,12 @@ struct ShiftsRouteView: View {
             )
 
             if viewModel.isLoadingShifts {
-                ReguertaCard {
+                reguertaCard {
                     Text(localizedKey(AccessL10nKey.shiftsLoading))
                         .font(tokens.typography.bodySecondary)
                 }
             } else if viewModel.shiftsFeed.isEmpty {
-                ReguertaCard {
+                reguertaCard {
                     Text(localizedKey(AccessL10nKey.shiftsEmptyState))
                         .font(tokens.typography.bodySecondary)
                         .foregroundStyle(tokens.colors.textSecondary)
@@ -68,7 +68,7 @@ struct ShiftsRouteView: View {
                 .pickerStyle(.segmented)
 
                 if viewModel.visibleShifts.isEmpty {
-                    ReguertaCard {
+                    reguertaCard {
                         Text(localizedKey(AccessL10nKey.shiftsEmptyState))
                             .font(tokens.typography.bodySecondary)
                             .foregroundStyle(tokens.colors.textSecondary)
@@ -152,7 +152,7 @@ private struct ShiftSwapRequestsCardView: View {
     }
 
     var body: some View {
-        ReguertaCard {
+        reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
                 Text(shiftSwapCopy.requestsTitle)
                     .font(tokens.typography.titleCard)
@@ -208,10 +208,10 @@ private struct ShiftSwapRequestsCardView: View {
                 .font(tokens.typography.label)
                 .foregroundStyle(tokens.colors.textSecondary)
             HStack(spacing: tokens.spacing.sm) {
-                ReguertaButton(LocalizedStringKey(shiftSwapCopy.acceptShort), fullWidth: false) {
+                reguertaButton(LocalizedStringKey(shiftSwapCopy.acceptShort), fullWidth: false) {
                     viewModel.acceptShiftSwapRequest(requestId: request.id, candidateShiftId: candidate.shiftId)
                 }
-                ReguertaButton(LocalizedStringKey(shiftSwapCopy.rejectShort), variant: .text, fullWidth: false) {
+                reguertaButton(LocalizedStringKey(shiftSwapCopy.rejectShort), variant: .text, fullWidth: false) {
                     viewModel.rejectShiftSwapRequest(requestId: request.id, candidateShiftId: candidate.shiftId)
                 }
             }
@@ -240,7 +240,7 @@ private struct ShiftSwapRequestsCardView: View {
                         candidateShift.map { viewModel.shiftSwapDisplayLabel($0, memberId: candidate.userId) } ?? candidate.shiftId
                     ))
                     .font(tokens.typography.label)
-                    ReguertaButton(LocalizedStringKey(shiftSwapCopy.confirm), fullWidth: false) {
+                    reguertaButton(LocalizedStringKey(shiftSwapCopy.confirm), fullWidth: false) {
                         viewModel.confirmShiftSwapRequest(requestId: request.id, candidateShiftId: candidate.shiftId)
                     }
                 }
@@ -265,7 +265,7 @@ private struct ShiftSwapRequestsCardView: View {
                     Text(shiftSwapCopy.waitingMany(Set(request.candidates.map(\.userId)).count))
                         .font(tokens.typography.label)
                         .foregroundStyle(tokens.colors.textSecondary)
-                    ReguertaButton(LocalizedStringKey(shiftSwapCopy.cancel), variant: .text, fullWidth: false) {
+                    reguertaButton(LocalizedStringKey(shiftSwapCopy.cancel), variant: .text, fullWidth: false) {
                         viewModel.cancelShiftSwapRequest(requestId: request.id)
                     }
                 }
@@ -301,7 +301,7 @@ private struct ShiftSwapRequestsCardView: View {
                             .foregroundStyle(tokens.colors.textSecondary)
                     }
                     if request.status == .applied {
-                        ReguertaButton(LocalizedStringKey(shiftSwapCopy.acknowledge), variant: .text, fullWidth: false) {
+                        reguertaButton(LocalizedStringKey(shiftSwapCopy.acknowledge), variant: .text, fullWidth: false) {
                             viewModel.dismissShiftSwapActivity(requestId: request.id)
                         }
                     }

@@ -18,7 +18,7 @@ private struct BylawsRouteView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-            ReguertaCard {
+            reguertaCard {
                 VStack(alignment: .leading, spacing: tokens.spacing.md) {
                     Text(LocalizedStringKey(AccessL10nKey.bylawsTitle))
                         .font(tokens.typography.titleCard)
@@ -43,7 +43,7 @@ private struct BylawsRouteView: View {
                     .lineLimit(2 ... 6)
                     .disabled(viewModel.isAsking)
 
-                    ReguertaButton(
+                    reguertaButton(
                         LocalizedStringKey(
                             viewModel.isAsking ? AccessL10nKey.bylawsAskLoading : AccessL10nKey.bylawsAskAction
                         ),
@@ -52,7 +52,7 @@ private struct BylawsRouteView: View {
                         action: viewModel.askQuestion
                     )
 
-                    ReguertaButton(
+                    reguertaButton(
                         LocalizedStringKey(AccessL10nKey.bylawsOpenPdfAction),
                         variant: .text
                     ) {
@@ -77,7 +77,7 @@ private struct BylawsRouteView: View {
             if let pdfURL = viewModel.pdfURL() {
                 BylawsPdfSheetView(pdfURL: pdfURL)
             } else {
-                ReguertaCard {
+                reguertaCard {
                     Text(LocalizedStringKey(AccessL10nKey.bylawsPdfViewerUnavailable))
                         .font(tokens.typography.bodySecondary)
                         .foregroundStyle(tokens.colors.textSecondary)
@@ -111,7 +111,7 @@ private struct BylawsAnswerCardView: View {
     }
 
     var body: some View {
-        ReguertaCard {
+        reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 Text(LocalizedStringKey(modeKey))
                     .font(tokens.typography.titleCard)
@@ -142,7 +142,7 @@ private struct BylawsAnswerCardView: View {
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textPrimary)
 
-                ReguertaButton(
+                reguertaButton(
                     LocalizedStringKey(AccessL10nKey.commonClear),
                     variant: .text,
                     action: onClear

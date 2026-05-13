@@ -4,7 +4,7 @@
 - issue_id: #134
 - priority: P2
 - platform: ios
-- status: ready
+- status: in-progress
 
 ## Context and problem
 
@@ -27,7 +27,7 @@ As an iOS maintainer I want each reusable design-system component to have a pred
 - Remove explicit `init` declarations from SwiftUI view structs.
 - Keep logic out of SwiftUI view structs.
 - Preserve visual output and behavior.
-- Preserve existing call-site ergonomics where practical, with minimal call-site changes when the new API requires them.
+- Use Swift-style camelCase component factories, with minimal call-site changes where required.
 - Keep `ReguertaScreenHeader` as the reference pattern and out of the migration scope except for small naming consistency fixes if needed.
 
 ### Out of Scope
@@ -60,7 +60,7 @@ As an iOS maintainer I want each reusable design-system component to have a pred
 - SwiftUI view structs contain no explicit `init` declarations.
 - Non-trivial presentation logic is not implemented in SwiftUI view bodies.
 - Existing visuals and accessibility behavior remain unchanged.
-- Existing call sites compile after the refactor.
+- Existing call sites compile after adopting the camelCase component factories.
 - Previews remain available for refactored components.
 - `ReguertaScreenHeader` remains unchanged unless a small consistency adjustment is needed.
 
@@ -82,8 +82,15 @@ As an iOS maintainer I want each reusable design-system component to have a pred
 
 ## Definition of Done (DoD)
 
-- [ ] Acceptance criteria validated.
-- [ ] iOS validation executed or blocker documented.
-- [ ] Android impact reviewed and recorded as out of scope.
-- [ ] Documentation artifacts updated.
+- [x] Acceptance criteria validated.
+- [x] iOS validation executed or blocker documented.
+- [x] Android impact reviewed and recorded as out of scope.
+- [x] Documentation artifacts updated.
 - [ ] Issue and PR linked.
+
+## Validation notes
+
+- `swiftlint lint --config .swiftlint.yml` passed for all touched iOS component files.
+- `xcodebuild -project Reguerta.xcodeproj -scheme Reguerta -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17' test` passed.
+- Xcode emitted repeated `IDELaunchParametersSnapshot` / xctrunner launch warnings during simulator execution, but the final test result was `** TEST SUCCEEDED **`.
+- Android has no code impact; this is an iOS SwiftUI design-system architecture refactor.

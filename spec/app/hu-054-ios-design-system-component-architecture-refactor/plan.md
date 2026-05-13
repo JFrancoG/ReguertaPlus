@@ -57,7 +57,7 @@ Refactor iOS design-system components to match the `ReguertaScreenHeader` archit
 - Create component folders.
 - Move view composition, subviews, and previews into `View` files.
 - Move presentation enums, actions, config models, and helpers into `ViewModel` files.
-- Add temporary aliases only when they avoid unnecessary churn.
+- Adopt camelCase component factories instead of lint-disabled UpperCamelCase factory aliases.
 
 ### Phase 3 - Compile and polish
 - Update imports, project membership, and call sites only as required.
@@ -66,7 +66,7 @@ Refactor iOS design-system components to match the `ReguertaScreenHeader` archit
 
 ## 7. Technical risks and mitigation
 
-- Call-site churn -> preserve existing names through type aliases where they do not add confusion.
+- Call-site churn -> apply a mechanical rename to camelCase factories and validate with `xcodebuild`.
 - Generic `@ViewBuilder` containers -> keep the simplest compiling API and document any exception before broad changes.
 - Xcode project file drift -> validate through `xcodebuild`.
 - Hidden visual changes -> avoid style edits and keep previews close to the moved component.
