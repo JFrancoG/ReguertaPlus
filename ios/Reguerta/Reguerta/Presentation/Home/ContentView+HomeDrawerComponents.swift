@@ -24,25 +24,35 @@ struct HomeDrawerContentView: View {
         LocalizedStringKey(key)
     }
 
-    private func l10n(_ key: String, _ argument: String) -> LocalizedStringKey {
-        LocalizedStringKey("\(key) \(argument)")
+    private var homeDrawerVersionText: String {
+        let version = l10n(AccessL10nKey.homeShellVersion, installedVersion).lowercased()
+        return isDevelopBuild ? "\(version) dev" : version
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.md) {
+        VStack(alignment: .leading, spacing: 0) {
             homeDrawerHeader
+                .padding(.bottom, tokens.spacing.xs)
+
+            homeDrawerProfile
+                .padding(.bottom, tokens.spacing.sm)
+
+            Divider()
+                .overlay(tokens.colors.borderSubtle.opacity(0.55))
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                    homeDrawerProfile
                     homeDrawerNavigationSections
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, tokens.spacing.sm)
             }
 
             Divider()
+                .overlay(tokens.colors.borderSubtle.opacity(0.55))
 
             homeDrawerFooter
+                .padding(.top, tokens.spacing.sm)
         }
     }
 
@@ -50,12 +60,14 @@ struct HomeDrawerContentView: View {
         HStack {
             Button(action: onCloseDrawer) {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 20.resize, weight: .semibold))
+                    .font(.system(size: 28.resize, weight: .semibold))
                     .foregroundStyle(tokens.colors.textPrimary)
-                    .frame(width: 36.resize, height: 36.resize)
+                    .frame(width: 58.resize, height: 58.resize)
+                    .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .contentShape(Rectangle())
+            .homeDrawerCloseGlassButton(tokens: tokens)
+            .accessibilityLabel(localizedKey(AccessL10nKey.commonClose))
             Spacer()
         }
     }
@@ -79,7 +91,6 @@ struct HomeDrawerContentView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.bottom, tokens.spacing.sm)
     }
 
     @ViewBuilder
@@ -114,8 +125,6 @@ struct HomeDrawerContentView: View {
 
     @ViewBuilder
     private var homeDrawerNavigationSections: some View {
-        homeDrawerItem("house.fill", titleKey: AccessL10nKey.homeTitle, destination: .dashboard)
-        homeDrawerItem("cart.fill", titleKey: AccessL10nKey.myOrder, destination: .myOrder)
         homeDrawerItem("doc.text.fill", titleKey: AccessL10nKey.myOrders, destination: .myOrders)
         homeDrawerItem("calendar", titleKey: AccessL10nKey.shifts, destination: .shifts)
         homeDrawerItem("doc.text.magnifyingglass", titleKey: AccessL10nKey.homeShellActionBylaws, destination: .bylaws)
@@ -169,20 +178,9 @@ struct HomeDrawerContentView: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("home.drawer.signOutButton")
 
-            HStack(spacing: tokens.spacing.sm) {
-                Text(l10n(AccessL10nKey.homeShellVersionIOS, installedVersion))
-                    .font(tokens.typography.label)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                if isDevelopBuild {
-                    Text(localizedKey(AccessL10nKey.homeShellDevMarker))
-                        .font(tokens.typography.label)
-                        .foregroundStyle(tokens.colors.actionOnPrimary)
-                        .padding(.horizontal, tokens.spacing.sm)
-                        .padding(.vertical, 2.resize)
-                        .background(tokens.colors.feedbackWarning)
-                        .clipShape(Capsule())
-                }
-            }
+            Text(homeDrawerVersionText)
+                .font(tokens.typography.label)
+                .foregroundStyle(tokens.colors.textSecondary)
             .frame(maxWidth: .infinity, alignment: .center)
         }
     }
@@ -223,5 +221,28 @@ struct HomeDrawerContentView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("home.drawer.item.\(destination.rawValue)")
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func homeDrawerCloseGlassButton(tokens: ReguertaDesignTokens) -> some View {
+        let shape = Circle()
+
+        if #available(iOS 26.0, *) {
+            self.glassEffect(
+                .regular
+                    .tint(tokens.colors.surfaceSecondary.opacity(0.24))
+                    .interactive(true),
+                in: shape
+            )
+        } else {
+            self
+                .background(.ultraThinMaterial, in: shape)
+                .overlay(
+                    shape.stroke(tokens.colors.borderSubtle.opacity(0.42), lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.14), radius: 10.resize, y: 4.resize)
+        }
     }
 }

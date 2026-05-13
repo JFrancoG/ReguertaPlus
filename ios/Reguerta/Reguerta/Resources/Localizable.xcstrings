@@ -2593,13 +2593,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bylaws AI"
+            "value" : "Consult bylaws"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "IA estatutos"
+            "value" : "Consultar estatutos"
           }
         }
       }
@@ -4265,13 +4265,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "View my orders"
+            "value" : "All my orders"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ver mis pedidos"
+            "value" : "Todos mis pedidos"
           }
         }
       }

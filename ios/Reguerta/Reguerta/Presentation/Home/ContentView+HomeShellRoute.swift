@@ -10,85 +10,68 @@ extension AccessRootRoutingView {
             homeDestination != .receivedOrders &&
             homeDestination != .users
         let isDrawerPresented = isHomeDrawerOpen || homeDrawerDragOffset > 0
+        let drawerProgress = resolvedHomeDrawerProgress(drawerWidth: drawerWidth)
 
-        ZStack(alignment: .leading) {
-            if isDrawerPresented {
-                homeDrawerPanel(drawerWidth: drawerWidth)
-                    .zIndex(2)
-            }
+        ZStack(alignment: .topLeading) {
+            homeDrawerPanel(drawerWidth: drawerWidth)
+                .zIndex(1)
 
-            Group {
-                if usesShellScroll {
-                    ScrollView(.vertical, showsIndicators: false) {
+            ZStack(alignment: .topLeading) {
+                Group {
+                    if usesShellScroll {
+                        ScrollView(.vertical, showsIndicators: false) {
+                            VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                                homeShellTopBar
+                                    .padding(.horizontal, homeShellTopBarHorizontalPadding)
+                                    .zIndex(1)
+                                homeRouteContent
+
+                                if feedbackCenter.messageKey != nil {
+                                    feedbackMessageRoute
+                                }
+                            }
+                            .padding(.top, 0)
+                            .padding(.bottom, tokens.spacing.xxl)
+                        }
+                        .scrollDismissesKeyboard(.interactively)
+                    } else {
                         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
                             homeShellTopBar
                                 .padding(.horizontal, homeShellTopBarHorizontalPadding)
                                 .zIndex(1)
                             homeRouteContent
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
                             if feedbackCenter.messageKey != nil {
                                 feedbackMessageRoute
                             }
                         }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                         .padding(.top, 0)
                         .padding(.bottom, tokens.spacing.xxl)
                     }
-                    .scrollDismissesKeyboard(.interactively)
-                } else {
-                    VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-                        homeShellTopBar
-                            .padding(.horizontal, homeShellTopBarHorizontalPadding)
-                            .zIndex(1)
-                        homeRouteContent
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                }
+                .disabled(isDrawerPresented)
+                .padding(tokens.spacing.lg)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .background(tokens.colors.surfacePrimary.ignoresSafeArea())
 
-                        if feedbackCenter.messageKey != nil {
-                            feedbackMessageRoute
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .padding(.top, 0)
-                    .padding(.bottom, tokens.spacing.xxl)
+                if isDrawerPresented {
+                    homeDrawerHomeScrim(progress: drawerProgress, drawerWidth: drawerWidth)
                 }
             }
-            .disabled(isHomeDrawerOpen)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(tokens.colors.surfacePrimary.ignoresSafeArea(.container, edges: .bottom))
             .ignoresSafeArea(.container, edges: .bottom)
             .offset(x: resolvedHomeLayerOffset(drawerWidth: drawerWidth))
-            .shadow(color: .black.opacity(isHomeDrawerOpen ? 0.22 : 0), radius: 14.resize, x: -4.resize, y: 0)
-            .zIndex(1)
-            .animation(.spring(response: 0.28, dampingFraction: 0.82), value: isHomeDrawerOpen)
+            .zIndex(2)
+            .animation(homeDrawerAnimation, value: isHomeDrawerOpen)
             .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.84), value: homeDrawerDragOffset)
-            .overlay {
-                if isHomeDrawerOpen {
-                    Color.black.opacity(0.08)
-                        .contentShape(Rectangle())
-                        .onTapGesture { closeHomeDrawer() }
-                }
-            }
-            .gesture(
-                DragGesture(minimumDistance: 12)
-                    .onChanged { gesture in
-                        if isHomeDrawerOpen {
-                            homeDrawerDragOffset = min(0, gesture.translation.width)
-                        }
-                    }
-                    .onEnded { gesture in
-                        guard isHomeDrawerOpen else { return }
-                        if gesture.translation.width < -56.resize {
-                            closeHomeDrawer()
-                        } else {
-                            withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-                                homeDrawerDragOffset = 0
-                            }
-                        }
-                    }
-            )
 
             if !isHomeDrawerOpen {
                 Color.clear
                     .frame(width: 22.resize)
+                    .frame(maxHeight: .infinity)
+                    .ignoresSafeArea()
                     .contentShape(Rectangle())
                     .gesture(
                         DragGesture(minimumDistance: 12)
@@ -103,6 +86,7 @@ extension AccessRootRoutingView {
                                 }
                             }
                     )
+                    .zIndex(4)
             }
         }
     }
@@ -159,42 +143,47 @@ extension AccessRootRoutingView {
     }
 
     func homeDrawerPanel(drawerWidth: CGFloat) -> some View {
-        HStack(spacing: 0) {
-            HomeDrawerContentView(
-                tokens: tokens,
-                currentMember: currentHomeMember,
-                sharedProfile: rootViewModel.sharedProfileViewModel.profiles.first {
-                    $0.userId == currentHomeMember?.id
-                },
-                currentDestination: homeDestination,
-                installedVersion: installedVersion,
-                isDevelopBuild: viewModel.isDevelopImpersonationEnabled,
-                onNavigate: handleHomeDrawerNavigation,
-                onCloseDrawer: closeHomeDrawer,
-                onSignOut: {
-                    closeHomeDrawer()
-                    homeDestination = .dashboard
-                    viewModel.signOut()
-                    dispatchShell(.signedOut)
-                }
-            )
-            .padding(tokens.spacing.lg)
-            .frame(width: drawerWidth)
-            .frame(maxHeight: .infinity, alignment: .topLeading)
-            .background(tokens.colors.surfacePrimary)
-            .overlay(alignment: .trailing) {
-                Rectangle()
-                    .fill(tokens.colors.borderSubtle.opacity(0.4))
-                    .frame(width: 1)
+        HomeDrawerContentView(
+            tokens: tokens,
+            currentMember: currentHomeMember,
+            sharedProfile: rootViewModel.sharedProfileViewModel.profiles.first {
+                $0.userId == currentHomeMember?.id
+            },
+            currentDestination: homeDestination,
+            installedVersion: installedVersion,
+            isDevelopBuild: viewModel.isDevelopImpersonationEnabled,
+            onNavigate: handleHomeDrawerNavigation,
+            onCloseDrawer: closeHomeDrawer,
+            onSignOut: {
+                closeHomeDrawer()
+                homeDestination = .dashboard
+                viewModel.signOut()
+                dispatchShell(.signedOut)
             }
-
-            Spacer(minLength: 0)
-        }
-        .ignoresSafeArea()
+        )
+        .padding(.top, 8.resizeStatusBarSize)
+        .padding(.bottom, 16.resizeBottomSize)
+        .padding(.horizontal, 16.resize)
+        .frame(width: drawerWidth)
+        .frame(maxHeight: .infinity, alignment: .topLeading)
+        .background(tokens.colors.surfacePrimary.ignoresSafeArea())
+        .offset(x: resolvedHomeDrawerOffset(drawerWidth: drawerWidth))
+        .gesture(closeHomeDrawerDragGesture(drawerWidth: drawerWidth))
+        .ignoresSafeArea(.container, edges: .vertical)
         .allowsHitTesting(isHomeDrawerOpen || homeDrawerDragOffset > 0)
         .accessibilityHidden(!isHomeDrawerOpen && homeDrawerDragOffset <= 0)
-        .animation(.spring(response: 0.28, dampingFraction: 0.82), value: isHomeDrawerOpen)
+        .animation(homeDrawerAnimation, value: isHomeDrawerOpen)
         .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.84), value: homeDrawerDragOffset)
+    }
+
+    func homeDrawerHomeScrim(progress: CGFloat, drawerWidth: CGFloat) -> some View {
+        Color.black
+            .opacity(0.10 * Double(progress))
+            .ignoresSafeArea()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .onTapGesture { closeHomeDrawer() }
+            .gesture(closeHomeDrawerDragGesture(drawerWidth: drawerWidth))
     }
 
     func handleHomeDrawerNavigation(_ destination: HomeDestination) {
@@ -221,25 +210,52 @@ extension AccessRootRoutingView {
     }
 
     func resolvedHomeDrawerOffset(drawerWidth: CGFloat) -> CGFloat {
-        resolvedHomeLayerOffset(drawerWidth: drawerWidth) - drawerWidth
+        -drawerWidth * (1 - resolvedHomeDrawerProgress(drawerWidth: drawerWidth))
     }
 
     func resolvedHomeLayerOffset(drawerWidth: CGFloat) -> CGFloat {
+        drawerWidth * resolvedHomeDrawerProgress(drawerWidth: drawerWidth)
+    }
+
+    func resolvedHomeDrawerProgress(drawerWidth: CGFloat) -> CGFloat {
         if isHomeDrawerOpen {
-            return max(0, drawerWidth + homeDrawerDragOffset)
+            return max(0, min(1, (drawerWidth + homeDrawerDragOffset) / drawerWidth))
         }
-        return max(0, min(drawerWidth, homeDrawerDragOffset))
+        return max(0, min(1, homeDrawerDragOffset / drawerWidth))
+    }
+
+    func closeHomeDrawerDragGesture(drawerWidth: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 12)
+            .onChanged { gesture in
+                if isHomeDrawerOpen {
+                    homeDrawerDragOffset = min(0, gesture.translation.width)
+                }
+            }
+            .onEnded { gesture in
+                guard isHomeDrawerOpen else { return }
+                if gesture.translation.width < -56.resize {
+                    closeHomeDrawer()
+                } else {
+                    withAnimation(homeDrawerAnimation) {
+                        homeDrawerDragOffset = 0
+                    }
+                }
+            }
+    }
+
+    var homeDrawerAnimation: Animation {
+        .easeInOut(duration: 0.45)
     }
 
     func openHomeDrawer() {
-        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+        withAnimation(homeDrawerAnimation) {
             isHomeDrawerOpen = true
             homeDrawerDragOffset = 0
         }
     }
 
     func closeHomeDrawer() {
-        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+        withAnimation(homeDrawerAnimation) {
             isHomeDrawerOpen = false
             homeDrawerDragOffset = 0
         }

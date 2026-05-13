@@ -23,6 +23,7 @@ enum AccessL10nKey {
     static let commonAccept = "common.action.accept"
     static let commonBack = "common.action.back"
     static let commonClear = "common.action.clear"
+    static let commonClose = "common.action.close"
     static let imageSourceDialogTitle = "image.source.dialog.title"
     static let imageSourceDialogMessage = "image.source.dialog.message"
     static let imageSourceActionGallery = "image.source.action.gallery"

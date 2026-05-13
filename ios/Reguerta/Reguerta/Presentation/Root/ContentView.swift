@@ -144,7 +144,7 @@ struct AccessRootView: AccessRootRoutingView {
     var body: some View {
         NavigationStack {
             RootRouteView()
-                .padding(tokens.spacing.lg)
+                .padding(isHomeRoute ? 0 : tokens.spacing.lg)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .background(tokens.colors.surfacePrimary.ignoresSafeArea())
                 .ignoresSafeArea(.container, edges: .bottom)
