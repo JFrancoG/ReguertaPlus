@@ -54,7 +54,7 @@ struct ReguertaImagePickerField: View {
             }
 
             HStack(spacing: tokens.spacing.sm) {
-                ReguertaButton(
+                reguertaButton(
                     LocalizedStringKey(AccessL10nKey.commonActionSelect),
                     variant: .secondary,
                     isEnabled: !isUploading,
@@ -64,7 +64,7 @@ struct ReguertaImagePickerField: View {
                 }
 
                 if !imageURLString.isEmpty {
-                    ReguertaButton(
+                    reguertaButton(
                         LocalizedStringKey(AccessL10nKey.commonClear),
                         variant: .text,
                         isEnabled: !isUploading,

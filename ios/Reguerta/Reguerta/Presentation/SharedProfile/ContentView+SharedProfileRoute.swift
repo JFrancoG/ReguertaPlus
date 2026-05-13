@@ -59,7 +59,7 @@ struct SharedProfileHubRoute: View {
 
     private var listView: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-            ReguertaCard {
+            reguertaCard {
                 VStack(alignment: .leading, spacing: tokens.spacing.md) {
                     Text(localizedKey(AccessL10nKey.profileSharedHubTitle))
                         .font(tokens.typography.titleCard)
@@ -67,7 +67,7 @@ struct SharedProfileHubRoute: View {
                         .font(tokens.typography.bodySecondary)
                         .foregroundStyle(tokens.colors.textSecondary)
 
-                    ReguertaButton(
+                    reguertaButton(
                         localizedKey(
                             ownProfileExists
                             ? AccessL10nKey.profileSharedActionViewMyProfile
@@ -83,14 +83,14 @@ struct SharedProfileHubRoute: View {
                 }
             }
 
-            ReguertaCard {
+            reguertaCard {
                 VStack(alignment: .leading, spacing: tokens.spacing.md) {
                     Text(localizedKey(AccessL10nKey.profileSharedCommunityTitle))
                         .font(tokens.typography.titleCard)
                     Text(localizedKey(AccessL10nKey.profileSharedCommunitySubtitle))
                         .font(tokens.typography.bodySecondary)
                         .foregroundStyle(tokens.colors.textSecondary)
-                    ReguertaButton(localizedKey(AccessL10nKey.notificationsRefreshAction), variant: .text, fullWidth: false) {
+                    reguertaButton(localizedKey(AccessL10nKey.notificationsRefreshAction), variant: .text, fullWidth: false) {
                         Task { await viewModel.refreshProfiles() }
                     }
 
@@ -128,15 +128,15 @@ struct SharedProfileHubRoute: View {
     }
 
     private func detailView(for profile: SharedProfile) -> some View {
-        ReguertaCard {
+        reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
                 sharedProfileCard(profile)
 
                 if profile.userId == session.member.id {
-                    ReguertaButton(localizedKey(AccessL10nKey.profileSharedActionEdit)) {
+                    reguertaButton(localizedKey(AccessL10nKey.profileSharedActionEdit)) {
                         isEditingOwnProfile = true
                     }
-                    ReguertaButton(
+                    reguertaButton(
                         localizedKey(
                             viewModel.isDeleting
                             ? AccessL10nKey.profileSharedActionDeleting
@@ -152,7 +152,7 @@ struct SharedProfileHubRoute: View {
                     }
                 }
 
-                ReguertaButton(localizedKey(AccessL10nKey.commonBack), variant: .text) {
+                reguertaButton(localizedKey(AccessL10nKey.commonBack), variant: .text) {
                     selectedProfileUserId = nil
                 }
             }
@@ -160,7 +160,7 @@ struct SharedProfileHubRoute: View {
     }
 
     private var editorView: some View {
-        ReguertaCard {
+        reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
                 Text(
                     localizedKey(
@@ -203,7 +203,7 @@ struct SharedProfileHubRoute: View {
                     .background(tokens.colors.surfaceSecondary)
                     .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
 
-                ReguertaButton(
+                reguertaButton(
                     localizedKey(
                         viewModel.isSaving
                         ? AccessL10nKey.profileSharedActionSaving
@@ -220,7 +220,7 @@ struct SharedProfileHubRoute: View {
                         selectedProfileUserId = nil
                     }
                 }
-                ReguertaButton(localizedKey(AccessL10nKey.commonBack), variant: .text) {
+                reguertaButton(localizedKey(AccessL10nKey.commonBack), variant: .text) {
                     isEditingOwnProfile = false
                 }
             }

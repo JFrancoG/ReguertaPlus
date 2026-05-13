@@ -73,7 +73,7 @@ private struct ProductEditorCardView: View {
     let canManageCommonPurchase: Bool
 
     var body: some View {
-        ReguertaCard {
+        reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
                 Text(
                     viewModel.editingProductId?.isEmpty == false
@@ -190,7 +190,7 @@ private struct ProductEditorCardView: View {
                 }
 
                 HStack(spacing: tokens.spacing.sm) {
-                    ReguertaButton(
+                    reguertaButton(
                         LocalizedStringKey(
                             viewModel.isSaving
                                 ? AccessL10nKey.productsEditorActionSaving
@@ -201,7 +201,7 @@ private struct ProductEditorCardView: View {
                     ) {
                         Task { await viewModel.save() }
                     }
-                    ReguertaButton(localizedKey(AccessL10nKey.productsEditorActionBack), variant: .text, fullWidth: false) {
+                    reguertaButton(localizedKey(AccessL10nKey.productsEditorActionBack), variant: .text, fullWidth: false) {
                         viewModel.clearEditor()
                     }
                 }
@@ -248,7 +248,7 @@ private struct ProductsListRouteView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-            ReguertaCard {
+            reguertaCard {
                 VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                     HStack(alignment: .top, spacing: tokens.spacing.md) {
                         Text(localizedKey(AccessL10nKey.productsListTitle))
@@ -291,20 +291,20 @@ private struct ProductsListRouteView: View {
                             .disabled(viewModel.isUpdatingCatalogVisibility)
                         }
                     }
-                    ReguertaButton(localizedKey(AccessL10nKey.productsListActionReload), variant: .text, fullWidth: false) {
+                    reguertaButton(localizedKey(AccessL10nKey.productsListActionReload), variant: .text, fullWidth: false) {
                         Task { await viewModel.refreshCatalog() }
                     }
                 }
             }
 
             if viewModel.isLoadingCatalog {
-                ReguertaCard {
+                reguertaCard {
                     Text(localizedKey(AccessL10nKey.productsListLoading))
                         .font(tokens.typography.bodySecondary)
                 }
             } else {
                 if activeProducts.isEmpty {
-                    ReguertaCard {
+                    reguertaCard {
                         Text(localizedKey(AccessL10nKey.productsListEmpty))
                             .font(tokens.typography.bodySecondary)
                             .foregroundStyle(tokens.colors.textSecondary)
@@ -337,7 +337,7 @@ private struct ProductsListRouteView: View {
                 }
             }
 
-            ReguertaButton(localizedKey(AccessL10nKey.productsListActionAdd)) {
+            reguertaButton(localizedKey(AccessL10nKey.productsListActionAdd)) {
                 viewModel.startCreating()
             }
         }
@@ -356,7 +356,7 @@ private struct ProductCardRowView: View {
     }
 
     var body: some View {
-        ReguertaCard {
+        reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
                 HStack(alignment: .top, spacing: tokens.spacing.md) {
                     RoundedRectangle(cornerRadius: 20.resize)

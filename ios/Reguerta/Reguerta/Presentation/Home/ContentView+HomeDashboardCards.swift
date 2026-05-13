@@ -12,7 +12,7 @@ struct NextShiftsCardView: View {
     }
 
     var body: some View {
-        ReguertaCard {
+        reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 Text(localizedKey(AccessL10nKey.shiftsNextTitle))
                     .font(tokens.typography.titleCard)
@@ -26,7 +26,7 @@ struct NextShiftsCardView: View {
                     summaryRow(titleKey: AccessL10nKey.shiftsNextDelivery, value: nextDeliverySummary)
                     summaryRow(titleKey: AccessL10nKey.shiftsNextMarket, value: nextMarketSummary)
                 }
-                ReguertaButton(localizedKey(AccessL10nKey.shiftsViewAll), variant: .text, action: onViewAll)
+                reguertaButton(localizedKey(AccessL10nKey.shiftsViewAll), variant: .text, action: onViewAll)
             }
         }
     }
@@ -108,7 +108,7 @@ struct OperationalModulesCardView: View {
     }
 
     var body: some View {
-        ReguertaCard {
+        reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 Text(localizedKey(AccessL10nKey.operationalModulesTitle))
                     .font(tokens.typography.titleCard)

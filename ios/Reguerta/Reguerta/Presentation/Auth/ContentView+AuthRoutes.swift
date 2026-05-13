@@ -41,7 +41,7 @@ extension AccessRootRoutingView {
 
             Spacer(minLength: 0)
 
-            ReguertaButton(
+            reguertaButton(
                 localizedKey(AccessL10nKey.welcomeCtaEnter),
                 fullWidth: true,
                 accessibilityIdentifier: "auth.welcome.enterButton"

@@ -47,10 +47,10 @@ struct DeliveryCalendarWeekPickerSheet: View {
                 Spacer(minLength: 0)
 
                 HStack(spacing: tokens.spacing.sm) {
-                    ReguertaButton(localizedKey(AccessL10nKey.commonActionClose), variant: .text, fullWidth: false) {
+                    reguertaButton(localizedKey(AccessL10nKey.commonActionClose), variant: .text, fullWidth: false) {
                         dismiss()
                     }
-                    ReguertaButton(localizedKey(AccessL10nKey.commonActionSelect), isEnabled: !selectedWeekKey.isEmpty, fullWidth: false) {
+                    reguertaButton(localizedKey(AccessL10nKey.commonActionSelect), isEnabled: !selectedWeekKey.isEmpty, fullWidth: false) {
                         onSelectWeek(selectedWeekKey)
                     }
                 }
@@ -117,21 +117,21 @@ struct DeliveryCalendarEditorSheet: View {
                         .foregroundStyle(tokens.colors.textSecondary)
 
                         HStack(spacing: tokens.spacing.sm) {
-                            ReguertaButton(localizedKey(AccessL10nKey.deliveryCalendarEditorActionPrevious), variant: .text, fullWidth: false) {
+                            reguertaButton(localizedKey(AccessL10nKey.deliveryCalendarEditorActionPrevious), variant: .text, fullWidth: false) {
                                 selectedWeekday = selectedWeekday.previous
                             }
                             Text(l10n(selectedWeekday.titleKey))
                                 .font(tokens.typography.bodySecondary.weight(.semibold))
-                            ReguertaButton(localizedKey(AccessL10nKey.deliveryCalendarEditorActionNext), variant: .text, fullWidth: false) {
+                            reguertaButton(localizedKey(AccessL10nKey.deliveryCalendarEditorActionNext), variant: .text, fullWidth: false) {
                                 selectedWeekday = selectedWeekday.next
                             }
                         }
 
-                        ReguertaButton(localizedKey(AccessL10nKey.deliveryCalendarEditorActionSaveException), isEnabled: !isSaving, isLoading: isSaving) {
+                        reguertaButton(localizedKey(AccessL10nKey.deliveryCalendarEditorActionSaveException), isEnabled: !isSaving, isLoading: isSaving) {
                             onSave()
                         }
                         if overrideEntry != nil {
-                            ReguertaButton(
+                            reguertaButton(
                                 localizedKey(AccessL10nKey.deliveryCalendarEditorActionRemoveException),
                                 variant: .text,
                                 isEnabled: !isSaving,

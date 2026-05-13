@@ -6,7 +6,7 @@ struct AdminToolsCardView: View {
     @Binding var isExpanded: Bool
 
     var body: some View {
-        ReguertaCard {
+        reguertaCard {
             DisclosureGroup(isExpanded: $isExpanded) {
                 VStack(alignment: .leading, spacing: tokens.spacing.md) {
                     ForEach(viewModel.sortedMembers) { member in
@@ -161,7 +161,7 @@ struct SettingsRouteView: View {
     let onShiftNowByDays: (Int) -> Void
 
     var body: some View {
-        ReguertaCard {
+        reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
                 Text(localizedKey(AccessL10nKey.settingsTitle))
                     .font(tokens.typography.titleSection)
@@ -202,19 +202,19 @@ struct SettingsRouteView: View {
             .foregroundStyle(tokens.colors.textSecondary)
 
             HStack(spacing: tokens.spacing.sm) {
-                ReguertaButton("-1 día", variant: .text) {
+                reguertaButton("-1 día", variant: .text) {
                     onShiftNowByDays(-1)
                 }
-                ReguertaButton("+1 día", variant: .text) {
+                reguertaButton("+1 día", variant: .text) {
                     onShiftNowByDays(1)
                 }
             }
 
             HStack(spacing: tokens.spacing.sm) {
-                ReguertaButton("Ahora", variant: .text) {
+                reguertaButton("Ahora", variant: .text) {
                     onSetNowOverrideMillis(Int64(Date().timeIntervalSince1970 * 1_000))
                 }
-                ReguertaButton("Reset", variant: .text) {
+                reguertaButton("Reset", variant: .text) {
                     onSetNowOverrideMillis(nil)
                 }
             }
@@ -245,7 +245,7 @@ struct SettingsRouteView: View {
         .foregroundStyle(tokens.colors.textSecondary)
 
         if isImpersonating {
-            ReguertaButton(localizedKey(AccessL10nKey.settingsImpersonationActionBackToRealProfile), action: onClearImpersonation)
+            reguertaButton(localizedKey(AccessL10nKey.settingsImpersonationActionBackToRealProfile), action: onClearImpersonation)
         }
 
         Divider()
@@ -254,7 +254,7 @@ struct SettingsRouteView: View {
         Text(localizedKey(AccessL10nKey.settingsImpersonationSectionTitle))
             .font(tokens.typography.titleCard)
             .foregroundStyle(tokens.colors.textPrimary)
-        ReguertaButton(
+        reguertaButton(
             localizedKey(
                 isImpersonationExpanded
                     ? AccessL10nKey.settingsImpersonationActionHideMembers
@@ -267,7 +267,7 @@ struct SettingsRouteView: View {
 
         if isImpersonationExpanded {
             ForEach(activeMembersSortedByName(in: session), id: \.id) { member in
-                ReguertaButton(LocalizedStringKey(member.displayName), variant: .text) {
+                reguertaButton(LocalizedStringKey(member.displayName), variant: .text) {
                     onImpersonate(member.id)
                     isImpersonationExpanded = false
                 }
@@ -319,10 +319,10 @@ struct SettingsRouteView: View {
                     .foregroundStyle(tokens.colors.textSecondary)
             } else {
                 HStack(spacing: tokens.spacing.sm) {
-                    ReguertaButton(localizedKey(AccessL10nKey.settingsDeliveryCalendarActionChangeDay), fullWidth: false) {
+                    reguertaButton(localizedKey(AccessL10nKey.settingsDeliveryCalendarActionChangeDay), fullWidth: false) {
                         shiftsViewModel.openCalendarWeekPicker()
                     }
-                    ReguertaButton(localizedKey(AccessL10nKey.commonActionReload), variant: .text, fullWidth: false) {
+                    reguertaButton(localizedKey(AccessL10nKey.commonActionReload), variant: .text, fullWidth: false) {
                         Task { await shiftsViewModel.refreshDeliveryCalendar() }
                     }
                 }
@@ -364,10 +364,10 @@ struct SettingsRouteView: View {
                 .font(tokens.typography.bodySecondary)
                 .foregroundStyle(tokens.colors.textSecondary)
             HStack(spacing: tokens.spacing.sm) {
-                ReguertaButton(localizedKey(AccessL10nKey.settingsShiftPlanningActionGenerateDelivery), fullWidth: false) {
+                reguertaButton(localizedKey(AccessL10nKey.settingsShiftPlanningActionGenerateDelivery), fullWidth: false) {
                     shiftsViewModel.requestShiftPlanning(.delivery)
                 }
-                ReguertaButton(localizedKey(AccessL10nKey.settingsShiftPlanningActionGenerateMarket), fullWidth: false) {
+                reguertaButton(localizedKey(AccessL10nKey.settingsShiftPlanningActionGenerateMarket), fullWidth: false) {
                     shiftsViewModel.requestShiftPlanning(.market)
                 }
             }

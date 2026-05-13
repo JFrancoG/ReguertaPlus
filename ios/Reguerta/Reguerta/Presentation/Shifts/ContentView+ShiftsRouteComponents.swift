@@ -26,7 +26,7 @@ struct ShiftBoardCardView: View {
     }
 
     var body: some View {
-        ReguertaCard {
+        reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 HStack(alignment: .top, spacing: tokens.spacing.md) {
                     VStack(alignment: leftAlignment, spacing: tokens.spacing.xs) {
@@ -59,7 +59,7 @@ struct ShiftBoardCardView: View {
                     }
                 }
                 if highlightedIndex != nil && canRequestSwap {
-                    ReguertaButton(LocalizedStringKey(shiftSwapCopy.ask), variant: .text, fullWidth: false) {
+                    reguertaButton(LocalizedStringKey(shiftSwapCopy.ask), variant: .text, fullWidth: false) {
                         onStartSwapRequestForShift(shift.id)
                     }
                 }
@@ -95,7 +95,7 @@ struct ShiftSwapRequestRouteView: View {
     }
 
     var body: some View {
-        ReguertaCard {
+        reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
                 Text(shiftSwapCopy.title)
                     .font(tokens.typography.titleCard)
@@ -120,13 +120,13 @@ struct ShiftSwapRequestRouteView: View {
                     .background(tokens.colors.surfaceSecondary)
                     .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
 
-                ReguertaButton(
+                reguertaButton(
                     LocalizedStringKey(viewModel.isSavingShiftSwapRequest ? shiftSwapCopy.sending : shiftSwapCopy.send),
                     isEnabled: !viewModel.isSavingShiftSwapRequest && !viewModel.shiftSwapDraft.shiftId.isEmpty,
                     isLoading: viewModel.isSavingShiftSwapRequest,
                     action: onSave
                 )
-                ReguertaButton(LocalizedStringKey(shiftSwapCopy.back), variant: .text, action: onBack)
+                reguertaButton(LocalizedStringKey(shiftSwapCopy.back), variant: .text, action: onBack)
             }
         }
     }

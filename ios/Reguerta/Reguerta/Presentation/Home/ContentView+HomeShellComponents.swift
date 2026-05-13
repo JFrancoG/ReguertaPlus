@@ -304,7 +304,7 @@ struct HomeActionRowView: View {
                     .font(tokens.typography.label)
                     .foregroundStyle(tokens.colors.textSecondary)
             case .timedOut, .unavailable:
-                ReguertaButton(localizedKey(AccessL10nKey.myOrderFreshnessRetry), variant: .text, fullWidth: false) {
+                reguertaButton(localizedKey(AccessL10nKey.myOrderFreshnessRetry), variant: .text, fullWidth: false) {
                     onRetryFreshness()
                 }
             case .idle, .ready:

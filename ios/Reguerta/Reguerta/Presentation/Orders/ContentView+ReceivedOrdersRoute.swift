@@ -91,7 +91,7 @@ struct ReceivedOrdersRouteView: View {
                     body: "No hay líneas de pedido para preparar en la semana \(viewModel.window.targetWeekKey)."
                 )
             case .error:
-                ReguertaCard {
+                reguertaCard {
                     VStack(alignment: .leading, spacing: tokens.spacing.md) {
                         Text("No se pudieron cargar los pedidos")
                             .font(tokens.typography.titleCard.weight(.semibold))
@@ -99,7 +99,7 @@ struct ReceivedOrdersRouteView: View {
                         Text("Revisa la conexión y vuelve a intentarlo.")
                             .font(tokens.typography.bodySecondary)
                             .foregroundStyle(tokens.colors.textSecondary)
-                        ReguertaButton("Reintentar") {
+                        reguertaButton("Reintentar") {
                             Task {
                                 await viewModel.retry()
                             }
@@ -145,7 +145,7 @@ private extension ReceivedOrdersRouteView {
 
     @ViewBuilder
     func productCard(_ row: ReceivedOrdersProductRow) -> some View {
-        ReguertaCard {
+        reguertaCard {
             HStack(alignment: .center, spacing: tokens.spacing.md) {
                 receivedOrdersProductImage(urlString: row.productImageUrl)
 
@@ -317,7 +317,7 @@ private extension ReceivedOrdersRouteView {
 
     @ViewBuilder
     func infoCard(title: String, body: String) -> some View {
-        ReguertaCard {
+        reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 Text(title)
                     .font(tokens.typography.titleCard.weight(.semibold))
