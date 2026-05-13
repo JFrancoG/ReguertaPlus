@@ -108,6 +108,9 @@ extension AccessRootRoutingView {
             onCartUnitsChange: { units in
                 myOrderCartUnits = units
             },
+            onReadOnlyModeChange: { isReadOnly in
+                myOrderReadOnlyMode = isReadOnly
+            },
             onCheckoutSuccessAcknowledge: {
                 homeDestination = .dashboard
             }

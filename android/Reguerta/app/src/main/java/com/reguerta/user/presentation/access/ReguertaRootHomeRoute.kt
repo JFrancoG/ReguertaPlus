@@ -179,6 +179,7 @@ internal fun HomeRoute(
     var newsPendingDeletionId by rememberSaveable { mutableStateOf<String?>(null) }
     var myOrderCartUnits by rememberSaveable { mutableIntStateOf(0) }
     var myOrderCartOpenRequests by rememberSaveable { mutableIntStateOf(0) }
+    var isMyOrderReadOnlyMode by rememberSaveable { mutableStateOf(false) }
     val member = when (mode) {
         is SessionMode.Authorized -> mode.member
         SessionMode.SignedOut,
@@ -280,6 +281,7 @@ internal fun HomeRoute(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            val showsMyOrderCartAction = currentDestination == HomeDestination.MY_ORDER && !isMyOrderReadOnlyMode
             HomeShellTopBar(
                 title = if (currentDestination == HomeDestination.DASHBOARD) {
                     formatHomeTopBarDate(effectiveNowMillis)
@@ -289,7 +291,7 @@ internal fun HomeRoute(
                 canNavigateBack = currentDestination != HomeDestination.DASHBOARD,
                 showsNotificationsAction = currentDestination == HomeDestination.DASHBOARD,
                 hasNotificationIndicator = notificationsFeed.isNotEmpty(),
-                showsCartAction = currentDestination == HomeDestination.MY_ORDER,
+                showsCartAction = showsMyOrderCartAction,
                 cartUnits = myOrderCartUnits,
                 onBack = {
                     if (currentDestination == HomeDestination.PUBLISH_NEWS) {
@@ -489,6 +491,7 @@ internal fun HomeRoute(
                     cartOpenRequests = myOrderCartOpenRequests,
                     onRefresh = onRefreshMyOrderProducts,
                     onCartUnitsChange = { units -> myOrderCartUnits = units },
+                    onReadOnlyModeChange = { isReadOnly -> isMyOrderReadOnlyMode = isReadOnly },
                     onCheckoutSuccessAcknowledge = {
                         currentDestination = HomeDestination.DASHBOARD
                     },

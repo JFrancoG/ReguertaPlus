@@ -187,6 +187,40 @@ struct ReguertaOrdersViewModelTests {
     }
 
     @Test
+    func myOrderViewModelShowsDatabaseOrderForCurrentWeekWhenLocalConfirmationIsMissing() async {
+        let repository = InMemoryOrdersRepository()
+        await repository.setPreviousOrder(previousOrderSnapshot(weekKey: "2026-W20"), forWeekKey: "2026-W20")
+        let viewModel = makeMyOrderViewModel(repository: repository, nowMillis: testMillis(year: 2026, month: 5, day: 15))
+
+        await viewModel.appear(context: myOrderContext(nowMillis: testMillis(year: 2026, month: 5, day: 15)))
+
+        #expect(viewModel.shouldShowDatabaseOrderSummary)
+        #expect(viewModel.isReadOnlyMode)
+        guard case .loaded(let snapshot) = viewModel.previousOrderState else {
+            Issue.record("Expected current-week database order to load")
+            return
+        }
+        #expect(snapshot.weekKey == "2026-W20")
+    }
+
+    @Test
+    func myOrderViewModelShowsPreviousWeekOrderDuringDeliveryWindow() async {
+        let repository = InMemoryOrdersRepository()
+        await repository.setPreviousOrder(previousOrderSnapshot(weekKey: "2026-W19"), forWeekKey: "2026-W19")
+        let viewModel = makeMyOrderViewModel(repository: repository, nowMillis: testMillis(year: 2026, month: 5, day: 13))
+
+        await viewModel.appear(context: myOrderContext(nowMillis: testMillis(year: 2026, month: 5, day: 13)))
+
+        #expect(viewModel.isConsultaPhase)
+        #expect(viewModel.shouldShowDatabaseOrderSummary)
+        guard case .loaded(let snapshot) = viewModel.previousOrderState else {
+            Issue.record("Expected previous-week database order to load")
+            return
+        }
+        #expect(snapshot.weekKey == "2026-W19")
+    }
+
+    @Test
     func receivedOrdersViewModelDoesNotLoadForNonProducerOrOutsideWindow() async {
         let repository = InMemoryOrdersRepository()
         let nonProducerViewModel = makeReceivedOrdersViewModel(repository: repository)

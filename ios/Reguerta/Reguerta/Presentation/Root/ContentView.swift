@@ -112,6 +112,11 @@ extension AccessRootRoutingView {
         nonmutating set { rootViewModel.myOrderCartOpenRequests = newValue }
     }
 
+    var myOrderReadOnlyMode: Bool {
+        get { rootViewModel.myOrderReadOnlyMode }
+        nonmutating set { rootViewModel.myOrderReadOnlyMode = newValue }
+    }
+
     var isImpersonationExpanded: Bool {
         get { rootViewModel.isImpersonationExpanded }
         nonmutating set { rootViewModel.isImpersonationExpanded = newValue }

@@ -44,6 +44,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-05-13 | 🐛 fix(order): restore last order lookup
 - 2026-05-13 | 🐛 fix(ios): fix side drawer layout
 - 2026-05-12 | 🐛 fix(ios-orders): persist draft cart
 - 2026-05-12 | 🐛 fix(ios-home): restore drawer navigation

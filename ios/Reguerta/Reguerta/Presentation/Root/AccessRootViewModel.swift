@@ -56,6 +56,7 @@ final class AccessRootViewModel {
     var homeDestination: HomeDestination = .dashboard
     var myOrderCartUnits = 0
     var myOrderCartOpenRequests = 0
+    var myOrderReadOnlyMode = false
     var isImpersonationExpanded = false
     var nowOverrideMillis: Int64?
 

@@ -3,7 +3,7 @@ import SwiftUI
 extension MyOrderRouteView {
     @ViewBuilder
     var readOnlyOrderContent: some View {
-        if viewModel.isConsultaPhase {
+        if viewModel.shouldShowDatabaseOrderSummary {
             previousOrderView
         } else {
             confirmedOrderView

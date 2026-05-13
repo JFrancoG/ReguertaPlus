@@ -49,6 +49,13 @@ enum MyOrderPreviousOrderState: Equatable, Sendable {
     case loaded(MyOrderPreviousOrderSnapshot)
     case empty
     case error
+
+    var isLoaded: Bool {
+        if case .loaded = self {
+            return true
+        }
+        return false
+    }
 }
 
 struct MyOrderRouteView: View {
@@ -57,6 +64,7 @@ struct MyOrderRouteView: View {
     let context: MyOrderRouteContext
     let cartOpenRequests: Int
     let onCartUnitsChange: (Int) -> Void
+    let onReadOnlyModeChange: (Bool) -> Void
     let onCheckoutSuccessAcknowledge: () -> Void
 
     var body: some View {
@@ -97,9 +105,13 @@ struct MyOrderRouteView: View {
         .task(id: context.identity) {
             await viewModel.appear(context: context)
             onCartUnitsChange(viewModel.selectedUnits)
+            onReadOnlyModeChange(viewModel.isReadOnlyMode)
         }
         .onChange(of: viewModel.selectedUnits) { _, units in
             onCartUnitsChange(units)
+        }
+        .onChange(of: viewModel.isReadOnlyMode) { _, isReadOnly in
+            onReadOnlyModeChange(isReadOnly)
         }
         .onChange(of: cartOpenRequests) { _, newValue in
             withAnimation(.easeInOut(duration: 0.22)) {

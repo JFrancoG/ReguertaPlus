@@ -67,7 +67,7 @@ extension MyOrderRouteView {
     var previousOrderView: some View {
         ZStack(alignment: .bottom) {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text("Pedido anterior")
+                Text("Mi último pedido")
                     .font(tokens.typography.titleCard.weight(.semibold))
                     .foregroundStyle(tokens.colors.textPrimary)
 
@@ -84,18 +84,13 @@ extension MyOrderRouteView {
                     }
 
                 case .empty:
-                    ReguertaCard {
-                        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                            Text("No hemos encontrado pedido para la semana anterior.")
-                                .font(tokens.typography.bodySecondary)
-                                .foregroundStyle(tokens.colors.textSecondary)
-                            ReguertaButton("Actualizar", variant: .text, fullWidth: false) {
-                                Task {
-                                    await viewModel.retryPreviousOrder()
-                                }
-                            }
-                        }
-                    }
+                    Text("No hay ningún pedido registrado la semana pasada")
+                        .font(tokens.typography.body)
+                        .foregroundStyle(tokens.colors.feedbackError)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.horizontal, tokens.spacing.lg)
+                        .padding(.vertical, tokens.spacing.xl)
 
                 case .error:
                     ReguertaCard {

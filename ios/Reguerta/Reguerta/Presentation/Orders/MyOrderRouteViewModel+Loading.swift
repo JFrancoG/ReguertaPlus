@@ -28,13 +28,14 @@ extension MyOrderRouteViewModel {
     }
 
     func loadPreviousOrderIfNeeded() async {
-        guard isConsultaPhase else {
+        guard isConsultaPhase || !hasConfirmedOrder else {
             loadedConsultaTaskID = nil
             return
         }
         guard loadedConsultaTaskID != consultaTaskID else { return }
         loadedConsultaTaskID = consultaTaskID
-        await loadPreviousWeekOrderState(previousWeekKey: consultaWindow.previousWeekKey)
+        let targetWeekKey = isConsultaPhase ? consultaWindow.previousWeekKey : currentWeekKey
+        await loadPreviousWeekOrderState(previousWeekKey: targetWeekKey)
     }
 
     func loadPreviousWeekOrderState(previousWeekKey: String) async {

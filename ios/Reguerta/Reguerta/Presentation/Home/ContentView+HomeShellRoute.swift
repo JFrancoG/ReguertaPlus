@@ -99,7 +99,7 @@ extension AccessRootRoutingView {
             showsBack: homeDestination != .dashboard,
             showsNotificationsAction: homeDestination == .dashboard,
             hasNotificationIndicator: !rootViewModel.newsNotificationsViewModel.notificationsFeed.isEmpty,
-            showsCartAction: homeDestination == .myOrder,
+            showsCartAction: homeDestination == .myOrder && !myOrderReadOnlyMode,
             cartUnits: myOrderCartUnits,
             showsCartBadge: homeDestination != .myOrder,
             onPrimaryAction: {

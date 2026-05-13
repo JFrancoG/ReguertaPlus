@@ -68,6 +68,31 @@ func receivedOrdersContext(
 }
 
 @MainActor
+func previousOrderSnapshot(weekKey: String) -> MyOrderPreviousOrderSnapshot {
+    MyOrderPreviousOrderSnapshot(
+        weekKey: weekKey,
+        groups: [
+            MyOrderPreviousOrderGroup(
+                vendorId: "producer_even",
+                companyName: "Huerta Norte",
+                lines: [
+                    MyOrderPreviousOrderLine(
+                        vendorId: "producer_even",
+                        companyName: "Huerta Norte",
+                        productName: "Tomates",
+                        packagingLine: "Caja 1 kg",
+                        quantityLabel: "2 uds.",
+                        subtotal: 4
+                    )
+                ],
+                subtotal: 4
+            )
+        ],
+        total: 4
+    )
+}
+
+@MainActor
 func finiteStockProduct(_ product: Product, stock: Double) -> Product {
     Product(
         id: product.id,

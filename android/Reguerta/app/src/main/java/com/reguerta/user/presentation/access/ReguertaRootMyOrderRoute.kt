@@ -64,11 +64,13 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.Source
@@ -218,7 +220,7 @@ private sealed interface MyOrderPreviousOrderState {
     data object Error : MyOrderPreviousOrderState
 }
 
-private data class MyOrderConsultaWindow(
+internal data class MyOrderConsultaWindow(
     val isConsultaPhase: Boolean,
     val previousWeekKey: String,
 )
@@ -239,6 +241,7 @@ internal fun MyOrderRoute(
     cartOpenRequests: Int,
     onRefresh: () -> Unit,
     onCartUnitsChange: (Int) -> Unit,
+    onReadOnlyModeChange: (Boolean) -> Unit = {},
     onCheckoutSuccessAcknowledge: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -343,7 +346,17 @@ internal fun MyOrderRoute(
     ) {
         hasConfirmedOrder && !hasPendingConfirmedEdits && isViewingConfirmedOrder
     }
-    val isReadOnlyMode = isReadOnlyConfirmedView || isConsultaPhase
+    val displayedOrderWeekKey = if (isConsultaPhase) {
+        consultaWindow.previousWeekKey
+    } else {
+        currentWeekKey
+    }
+    val shouldShowDatabaseOrderSummary = isConsultaPhase ||
+        (!hasConfirmedOrder && previousOrderState is MyOrderPreviousOrderState.Loaded)
+    val isReadOnlyMode = isReadOnlyConfirmedView || shouldShowDatabaseOrderSummary
+    LaunchedEffect(isReadOnlyMode) {
+        onReadOnlyModeChange(isReadOnlyMode)
+    }
     LaunchedEffect(cartOpenRequests) {
         if (cartOpenRequests > 0 && selectedUnits > 0 && !isReadOnlyMode) {
             isCartVisible = !isCartVisible
@@ -429,11 +442,11 @@ internal fun MyOrderRoute(
             selectedEcoBasketOptions = selectedEcoBasketOptions,
         )
     }
-    LaunchedEffect(isConsultaPhase, consultaWindow.previousWeekKey, currentMember?.id) {
-        if (!isConsultaPhase) return@LaunchedEffect
+    LaunchedEffect(displayedOrderWeekKey, currentMember?.id) {
+        previousOrderState = MyOrderPreviousOrderState.Loading
         previousOrderState = loadMyOrderPreviousOrderState(
             currentMember = currentMember,
-            previousWeekKey = consultaWindow.previousWeekKey,
+            previousWeekKey = displayedOrderWeekKey,
         )
     }
     LaunchedEffect(products, seasonalCommitmentLimitsByProductId) {
@@ -521,14 +534,15 @@ internal fun MyOrderRoute(
 
         Box(modifier = Modifier.fillMaxSize()) {
             if (isReadOnlyMode) {
-                if (isConsultaPhase) {
+                if (shouldShowDatabaseOrderSummary) {
                     MyOrderPreviousOrderSummary(
                         state = previousOrderState,
                         onRefresh = {
                             coroutineScope.launch {
+                                previousOrderState = MyOrderPreviousOrderState.Loading
                                 previousOrderState = loadMyOrderPreviousOrderState(
                                     currentMember = currentMember,
-                                    previousWeekKey = consultaWindow.previousWeekKey,
+                                    previousWeekKey = displayedOrderWeekKey,
                                 )
                             }
                         },
@@ -1152,23 +1166,15 @@ private fun MyOrderPreviousOrderSummary(
                 }
 
                 MyOrderPreviousOrderState.Empty -> {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Text(
-                                text = stringResource(R.string.my_order_previous_empty),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            TextButton(onClick = onRefresh) {
-                                Text(text = stringResource(R.string.products_refresh_action))
-                            }
-                        }
-                    }
+                    Text(
+                        text = stringResource(R.string.my_order_previous_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 24.dp),
+                    )
                 }
 
                 MyOrderPreviousOrderState.Error -> {
@@ -2140,7 +2146,7 @@ private suspend fun fetchPreviousWeekOrderSnapshot(
     environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment(),
 ): MyOrderPreviousOrderSnapshot? = withContext(Dispatchers.IO) {
     val member = currentMember ?: return@withContext null
-    val orderId = "${member.id}_$previousWeekKey"
+    val deterministicOrderId = "${member.id}_$previousWeekKey"
     val path = ReguertaFirestorePath(environment = environment)
     val readTargets = listOf(
         path.collectionPath(ReguertaFirestoreCollection.ORDERS) to
@@ -2156,17 +2162,69 @@ private suspend fun fetchPreviousWeekOrderSnapshot(
 
     readTargets.forEach { (ordersPath, orderLinesPath) ->
         runCatching {
-            val orderSnapshot = Tasks.await(
-                firestore.document("$ordersPath/$orderId").get(),
+            val orderDocuments = linkedMapOf<String, Map<String, Any>>()
+            val deterministicOrderSnapshot = Tasks.await(
+                firestore.document("$ordersPath/$deterministicOrderId").get(),
             )
-            val orderLinesSnapshot = Tasks.await(
-                firestore.collection(orderLinesPath)
-                    .whereEqualTo("orderId", orderId)
+            if (deterministicOrderSnapshot.exists()) {
+                deterministicOrderSnapshot.data?.let { payload ->
+                    orderDocuments[deterministicOrderSnapshot.id] = payload
+                }
+            }
+            Tasks.await(
+                firestore.collection(ordersPath)
+                    .whereEqualTo("weekKey", previousWeekKey)
                     .get(),
-            )
+            ).documents
+                .filter { document ->
+                    document.matchesMemberOrder(
+                        memberId = member.id,
+                        weekKey = previousWeekKey,
+                        deterministicOrderId = deterministicOrderId,
+                    )
+                }
+                .forEach { document ->
+                    document.data?.let { payload ->
+                        orderDocuments[document.id] = payload
+                    }
+                }
+
+            val candidateOrderIds = (listOf(deterministicOrderId) + orderDocuments.keys)
+                .map(String::trim)
+                .filter(String::isNotBlank)
+                .distinct()
+
+            val lineDocuments = linkedMapOf<String, Map<String, Any>>()
+            candidateOrderIds.forEach { orderId ->
+                Tasks.await(
+                    firestore.collection(orderLinesPath)
+                        .whereEqualTo("orderId", orderId)
+                        .get(),
+                ).documents.forEach { document ->
+                    document.data?.let { payload ->
+                        lineDocuments[document.id] = payload
+                    }
+                }
+            }
+            Tasks.await(
+                firestore.collection(orderLinesPath)
+                    .whereEqualTo("weekKey", previousWeekKey)
+                    .get(),
+            ).documents
+                .mapNotNull { document -> document.data?.let { document.id to it } }
+                .filter { (_, payload) ->
+                    payload.matchesPreviousOrderLine(
+                        memberId = member.id,
+                        weekKey = previousWeekKey,
+                        candidateOrderIds = candidateOrderIds,
+                    )
+                }
+                .forEach { (documentId, payload) ->
+                    lineDocuments[documentId] = payload
+                }
+
             hadSuccessfulRead = true
-            val groups = orderLinesSnapshot.documents
-                .mapNotNull { document -> document.data }
+            val groups = lineDocuments.values
                 .map { payload ->
                     payload.toMyOrderPreviousLine()
                 }
@@ -2183,10 +2241,12 @@ private suspend fun fetchPreviousWeekOrderSnapshot(
                     )
                 }
                 .sortedBy { group -> group.companyName.lowercase(Locale.getDefault()) }
-            if (!orderSnapshot.exists() && groups.isEmpty()) {
+            if (groups.isEmpty()) {
                 null
             } else {
-                val total = orderSnapshot.getDouble("total")
+                val total = orderDocuments.values.firstNotNullOfOrNull { payload ->
+                    (payload["total"] as? Number)?.toDouble()
+                }
                     ?: groups.sumOf(MyOrderPreviousOrderGroup::subtotal)
                 MyOrderPreviousOrderSnapshot(
                     weekKey = previousWeekKey,
@@ -2208,6 +2268,51 @@ private suspend fun fetchPreviousWeekOrderSnapshot(
     }
 
     null
+}
+
+private fun DocumentSnapshot.matchesMemberOrder(
+    memberId: String,
+    weekKey: String,
+    deterministicOrderId: String,
+): Boolean {
+    if (id == deterministicOrderId) {
+        return true
+    }
+    val payload = data.orEmpty()
+    val payloadWeekKey = (payload["weekKey"] as? String)?.trim()
+    val payloadUserId = (payload["userId"] as? String)?.trim()
+    val parsedUserId = parseOrderUserIdFromDocumentId(
+        documentId = id,
+        weekKey = weekKey,
+    )
+    val matchesWeek = payloadWeekKey == weekKey || id.endsWith("_$weekKey")
+    val matchesMember = payloadUserId == memberId || parsedUserId == memberId
+    return matchesWeek && matchesMember
+}
+
+private fun Map<String, Any>.matchesPreviousOrderLine(
+    memberId: String,
+    weekKey: String,
+    candidateOrderIds: List<String>,
+): Boolean {
+    val orderId = (this["orderId"] as? String)?.trim()
+    val payloadWeekKey = (this["weekKey"] as? String)?.trim()
+    val payloadUserId = (this["userId"] as? String)?.trim()
+    val matchesOrderId = !orderId.isNullOrBlank() && candidateOrderIds.contains(orderId)
+    val matchesWeek = payloadWeekKey == weekKey || matchesOrderId
+    val matchesMember = payloadUserId == memberId || matchesOrderId
+    return matchesWeek && matchesMember
+}
+
+private fun parseOrderUserIdFromDocumentId(
+    documentId: String,
+    weekKey: String,
+): String? {
+    val weekSuffix = "_$weekKey"
+    return documentId
+        .takeIf { id -> id.endsWith(weekSuffix) && id.length > weekSuffix.length }
+        ?.dropLast(weekSuffix.length)
+        ?.takeIf(String::isNotBlank)
 }
 
 private fun Map<String, Any>.toMyOrderPreviousLine(): MyOrderPreviousOrderLine {
@@ -2285,9 +2390,9 @@ private fun quantityLabelFromOrderLinePayload(
         return "${quantity.toUiDecimal()} $labelUnit"
     }
     return if (quantity == 1.0) {
-        "1 unit"
+        "1 ud."
     } else {
-        "${quantity.toUiDecimal()} units"
+        "${quantity.toUiDecimal()} uds."
     }
 }
 

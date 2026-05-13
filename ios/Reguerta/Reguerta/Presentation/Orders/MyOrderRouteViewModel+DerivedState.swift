@@ -52,6 +52,10 @@ extension MyOrderRouteViewModel {
         hasConfirmedOrder && !hasPendingConfirmedEdits && isViewingConfirmedOrder
     }
 
+    var shouldShowDatabaseOrderSummary: Bool {
+        isConsultaPhase || (!hasConfirmedOrder && previousOrderState.isLoaded)
+    }
+
     var consultaWindow: MyOrderConsultaWindow {
         resolveMyOrderConsultaWindow(
             defaultDeliveryDayOfWeek: context.defaultDeliveryDayOfWeek,
@@ -66,12 +70,13 @@ extension MyOrderRouteViewModel {
     }
 
     var isReadOnlyMode: Bool {
-        isReadOnlyConfirmedView || isConsultaPhase
+        isReadOnlyConfirmedView || shouldShowDatabaseOrderSummary
     }
 
     var consultaTaskID: String {
         let memberId = currentMember?.id ?? ""
-        return "\(isConsultaPhase)-\(consultaWindow.previousWeekKey)-\(memberId)"
+        let targetWeekKey = isConsultaPhase ? consultaWindow.previousWeekKey : currentWeekKey
+        return "\(isConsultaPhase)-\(targetWeekKey)-\(memberId)"
     }
 
     var finalizeCheckoutTitle: String {

@@ -37,7 +37,8 @@ extension MyOrderRouteViewModel {
     }
 
     func retryPreviousOrder() async {
-        await loadPreviousWeekOrderState(previousWeekKey: consultaWindow.previousWeekKey)
+        let targetWeekKey = isConsultaPhase ? consultaWindow.previousWeekKey : currentWeekKey
+        await loadPreviousWeekOrderState(previousWeekKey: targetWeekKey)
     }
 
     func validateCheckout() async {
