@@ -181,6 +181,8 @@ struct HomeWeeklySummaryCardView: View {
 }
 
 struct HomeActionRowView: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     let tokens: ReguertaDesignTokens
     let myOrderFreshnessState: MyOrderFreshnessState
     let canOpenReceivedOrders: Bool
@@ -255,26 +257,27 @@ struct HomeActionRowView: View {
             VStack(alignment: .center, spacing: tokens.spacing.xs) {
                 Text(localizedKey(titleKey))
                     .font(tokens.typography.titleCard.weight(.semibold))
+                    .foregroundStyle(primary ? tokens.colors.actionPrimary : tokens.colors.textPrimary)
                     .multilineTextAlignment(.center)
                     .lineLimit(subtitleKey == nil ? 2 : 1)
                     .minimumScaleFactor(0.82)
                 if let subtitleKey {
                     Text(localizedKey(subtitleKey))
                         .font(tokens.typography.label)
+                        .foregroundStyle(tokens.colors.textSecondary)
                         .multilineTextAlignment(.center)
                         .lineLimit(1)
                 }
             }
             .frame(maxWidth: .infinity, minHeight: 82.resize, alignment: .center)
             .padding(tokens.spacing.md)
-            .foregroundStyle(primary ? tokens.colors.actionOnPrimary : tokens.colors.actionPrimary)
-            .background(primary ? tokens.colors.actionPrimary.opacity(0.82) : tokens.colors.surfacePrimary.opacity(0.34))
-            .overlay(
-                RoundedRectangle(cornerRadius: tokens.radius.md)
-                    .stroke(primary ? Color.clear : tokens.colors.actionPrimary.opacity(0.82), lineWidth: 1)
+            .contentShape(RoundedRectangle(cornerRadius: tokens.radius.md))
+            .homeActionTileGlass(
+                tokens: tokens,
+                primary: primary,
+                enabled: enabled,
+                colorScheme: colorScheme
             )
-            .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
-            .homeActionTileGlass(tokens: tokens, primary: primary)
             .opacity(enabled ? 1 : 0.55)
         }
         .disabled(!enabled)
@@ -285,20 +288,29 @@ struct HomeActionRowView: View {
 
 private extension View {
     @ViewBuilder
-    func homeActionTileGlass(tokens: ReguertaDesignTokens, primary: Bool) -> some View {
+    func homeActionTileGlass(
+        tokens: ReguertaDesignTokens,
+        primary: Bool,
+        enabled: Bool,
+        colorScheme: ColorScheme
+    ) -> some View {
         let shape = RoundedRectangle(cornerRadius: tokens.radius.md)
+        let isDarkMode = colorScheme == .dark
+        let neutralTint = isDarkMode ? Color.black.opacity(0.32) : Color.white.opacity(0.40)
+        let primaryTint = tokens.colors.actionPrimary.opacity(isDarkMode ? 0.26 : 0.20)
+        let tint = primary ? primaryTint : neutralTint
 
         if #available(iOS 26.0, *) {
             self.glassEffect(
                 .regular
-                    .tint((primary ? tokens.colors.actionPrimary : tokens.colors.surfaceSecondary).opacity(0.22))
-                    .interactive(true),
+                    .tint(tint)
+                    .interactive(enabled),
                 in: shape
             )
         } else {
             self
                 .background(.ultraThinMaterial, in: shape)
-                .shadow(color: .black.opacity(0.12), radius: 8.resize, y: 3.resize)
+                .background(tint, in: shape)
         }
     }
 }
