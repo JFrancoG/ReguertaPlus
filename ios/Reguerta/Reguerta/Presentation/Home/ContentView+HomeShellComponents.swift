@@ -81,6 +81,8 @@ struct HomeWeeklySummaryCardView: View {
     let tokens: ReguertaDesignTokens
     let display: HomeWeeklySummaryDisplay
 
+    private let compactColumnWidth: CGFloat = 96.resize
+
     private func localizedKey(_ key: String) -> LocalizedStringKey {
         LocalizedStringKey(key)
     }
@@ -103,33 +105,41 @@ struct HomeWeeklySummaryCardView: View {
             }
 
             VStack(spacing: 0) {
-                HStack(spacing: 0) {
-                    summaryField(
+                summaryGridRow {
+                    orderStateCell(display.orderState)
+                } right: {
+                    summaryPrimaryCell(
                         titleKey: AccessL10nKey.homeDashboardProducer,
                         value: display.producerName
                     )
-                    .frame(maxWidth: .infinity)
-                    Divider()
-                    summaryField(
+                }
+                Divider()
+                summaryGridRow {
+                    summaryPrimaryCell(
                         titleKey: AccessL10nKey.homeDashboardDelivery,
                         value: display.deliveryLabel
                     )
-                    .frame(width: 112.resize)
-                }
-                Divider()
-                HStack(spacing: 0) {
-                    summaryField(
-                        titleKey: AccessL10nKey.homeDashboardResponsible,
-                        value: display.responsibleName,
+                } right: {
+                    deliveryResponsiblesCell(
+                        titleKey: AccessL10nKey.homeDashboardDeliveryResponsibles,
+                        primary: display.responsibleName,
                         secondary: String(
                             format: NSLocalizedString(AccessL10nKey.homeDashboardHelperFormat, comment: ""),
                             display.helperName
                         )
                     )
-                    .frame(maxWidth: .infinity)
-                    Divider()
-                    orderStatePill(display.orderState)
-                        .frame(width: 112.resize)
+                }
+                Divider()
+                summaryGridRow {
+                    summaryPrimaryCell(
+                        titleKey: AccessL10nKey.homeDashboardMarket,
+                        value: display.marketLabel
+                    )
+                } right: {
+                    marketResponsiblesCell(
+                        titleKey: AccessL10nKey.homeDashboardMarketResponsibles,
+                        names: display.marketResponsibleNames
+                    )
                 }
             }
             .frame(maxWidth: .infinity)
@@ -139,45 +149,97 @@ struct HomeWeeklySummaryCardView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func summaryField(titleKey: String, value: String, secondary: String? = nil) -> some View {
-        VStack(alignment: .leading, spacing: 2.resize) {
+    private func summaryGridRow(
+        @ViewBuilder left: () -> some View,
+        @ViewBuilder right: () -> some View
+    ) -> some View {
+        HStack(spacing: 0) {
+            left()
+                .frame(width: compactColumnWidth)
+            Divider()
+            right()
+                .frame(maxWidth: .infinity)
+        }
+    }
+
+    private func summaryPrimaryCell(
+        titleKey: String,
+        value: String,
+        valueColor: Color? = nil,
+        maxValueLines: Int = 1
+    ) -> some View {
+        VStack(alignment: .center, spacing: 2.resize) {
             Text(localizedKey(titleKey))
                 .font(tokens.typography.label)
                 .foregroundStyle(tokens.colors.textSecondary)
+                .multilineTextAlignment(.center)
                 .lineLimit(1)
             Text(value)
                 .font(tokens.typography.body.weight(.semibold))
+                .foregroundStyle(valueColor ?? tokens.colors.textPrimary)
+                .multilineTextAlignment(.center)
+                .lineLimit(maxValueLines)
+                .minimumScaleFactor(0.82)
+                .truncationMode(.tail)
+        }
+        .frame(maxWidth: .infinity, minHeight: 56.resize, alignment: .center)
+        .padding(.horizontal, tokens.spacing.sm)
+        .padding(.vertical, tokens.spacing.xs)
+    }
+
+    private func deliveryResponsiblesCell(titleKey: String, primary: String, secondary: String) -> some View {
+        VStack(alignment: .center, spacing: 2.resize) {
+            Text(localizedKey(titleKey))
+                .font(tokens.typography.label)
+                .foregroundStyle(tokens.colors.textSecondary)
+                .multilineTextAlignment(.center)
+                .lineLimit(1)
+            Text(primary)
+                .font(tokens.typography.body.weight(.semibold))
                 .foregroundStyle(tokens.colors.textPrimary)
+                .multilineTextAlignment(.center)
                 .lineLimit(1)
                 .truncationMode(.tail)
-            if let secondary {
-                Text(secondary)
+            Text(secondary)
+                .font(tokens.typography.label)
+                .foregroundStyle(tokens.colors.textSecondary)
+                .multilineTextAlignment(.center)
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+        .frame(maxWidth: .infinity, minHeight: 56.resize, alignment: .center)
+        .padding(.horizontal, tokens.spacing.sm)
+        .padding(.vertical, tokens.spacing.xs)
+    }
+
+    private func marketResponsiblesCell(titleKey: String, names: [String]) -> some View {
+        VStack(alignment: .center, spacing: 1.resize) {
+            Text(localizedKey(titleKey))
+                .font(tokens.typography.label)
+                .foregroundStyle(tokens.colors.textSecondary)
+                .multilineTextAlignment(.center)
+                .lineLimit(1)
+            ForEach(Array(names.prefix(3).enumerated()), id: \.offset) { _, name in
+                Text(name)
                     .font(tokens.typography.label)
                     .foregroundStyle(tokens.colors.textSecondary)
+                    .multilineTextAlignment(.center)
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
         }
-        .frame(minHeight: 66.resize, alignment: .center)
-        .padding(.horizontal, tokens.spacing.md)
-        .padding(.vertical, tokens.spacing.sm)
+        .frame(maxWidth: .infinity, minHeight: 56.resize, alignment: .center)
+        .padding(.horizontal, tokens.spacing.sm)
+        .padding(.vertical, tokens.spacing.xs)
     }
 
-    private func orderStatePill(_ state: HomeOrderStateDisplay) -> some View {
-        let color = state.color(tokens: tokens)
-        return VStack(alignment: .leading, spacing: 2.resize) {
-            Text(localizedKey(AccessL10nKey.homeDashboardState))
-                .font(tokens.typography.label)
-                .foregroundStyle(tokens.colors.textSecondary)
-            Text(localizedKey(state.titleKey))
-                .font(tokens.typography.body.weight(.semibold))
-                .foregroundStyle(color)
-                .lineLimit(2)
-                .minimumScaleFactor(0.82)
-        }
-        .frame(minHeight: 66.resize, alignment: .center)
-        .padding(.horizontal, tokens.spacing.md)
-        .padding(.vertical, tokens.spacing.sm)
+    private func orderStateCell(_ state: HomeOrderStateDisplay) -> some View {
+        summaryPrimaryCell(
+            titleKey: AccessL10nKey.homeDashboardState,
+            value: NSLocalizedString(state.titleKey, comment: ""),
+            valueColor: state.color(tokens: tokens),
+            maxValueLines: 2
+        )
     }
 }
 

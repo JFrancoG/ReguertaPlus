@@ -137,13 +137,41 @@ func testMillis(year: Int, month: Int, day: Int) -> Int64 {
 }
 
 @MainActor
-func testDeliveryShift(id: String, year: Int, month: Int, day: Int) -> ShiftAssignment {
+func testDeliveryShift(
+    id: String,
+    year: Int,
+    month: Int,
+    day: Int,
+    assignedUserIds: [String] = ["member_1"],
+    helperUserId: String? = "member_2"
+) -> ShiftAssignment {
     ShiftAssignment(
         id: id,
         type: .delivery,
         dateMillis: testMillis(year: year, month: month, day: day),
-        assignedUserIds: ["member_1"],
-        helperUserId: "member_2",
+        assignedUserIds: assignedUserIds,
+        helperUserId: helperUserId,
+        status: .confirmed,
+        source: "test",
+        createdAtMillis: 0,
+        updatedAtMillis: 0
+    )
+}
+
+@MainActor
+func testMarketShift(
+    id: String,
+    year: Int,
+    month: Int,
+    day: Int,
+    assignedUserIds: [String] = ["member_1", "member_2", "member_3"]
+) -> ShiftAssignment {
+    ShiftAssignment(
+        id: id,
+        type: .market,
+        dateMillis: testMillis(year: year, month: month, day: day),
+        assignedUserIds: assignedUserIds,
+        helperUserId: nil,
         status: .confirmed,
         source: "test",
         createdAtMillis: 0,
@@ -171,6 +199,15 @@ let homeSummaryMembers = [
         producerCatalogEnabled: true
     ),
     Member(
+        id: "member_3",
+        displayName: "Luz",
+        normalizedEmail: "luz@reguerta.test",
+        authUid: nil,
+        roles: [.member],
+        isActive: true,
+        producerCatalogEnabled: true
+    ),
+    Member(
         id: "producer_1",
         displayName: "Huerta Norte",
         companyName: "Huerta Norte",
@@ -191,6 +228,76 @@ let homeSummaryMembers = [
         isActive: true,
         producerCatalogEnabled: true,
         producerParity: .even
+    )
+]
+
+let may2026HomeSummaryMembers = [
+    Member(
+        id: "felix",
+        displayName: "Felix",
+        normalizedEmail: "felix@reguerta.test",
+        authUid: nil,
+        roles: [.member],
+        isActive: true,
+        producerCatalogEnabled: true
+    ),
+    Member(
+        id: "ana_belen",
+        displayName: "Ana Belen",
+        normalizedEmail: "ana.belen@reguerta.test",
+        authUid: nil,
+        roles: [.member],
+        isActive: true,
+        producerCatalogEnabled: true
+    ),
+    Member(
+        id: "valle",
+        displayName: "Valle",
+        normalizedEmail: "valle@reguerta.test",
+        authUid: nil,
+        roles: [.member],
+        isActive: true,
+        producerCatalogEnabled: true
+    ),
+    Member(
+        id: "angeles",
+        displayName: "Angeles",
+        normalizedEmail: "angeles@reguerta.test",
+        authUid: nil,
+        roles: [.member],
+        isActive: true,
+        producerCatalogEnabled: true
+    ),
+    Member(
+        id: "sandra",
+        displayName: "Sandra",
+        normalizedEmail: "sandra@reguerta.test",
+        authUid: nil,
+        roles: [.member],
+        isActive: true,
+        producerCatalogEnabled: true
+    ),
+    Member(
+        id: "producer_tito_fernando",
+        displayName: "Tito Fernando",
+        companyName: "Tito Fernando",
+        normalizedEmail: "tito.fernando@reguerta.test",
+        authUid: nil,
+        roles: [.producer],
+        isActive: true,
+        producerCatalogEnabled: true,
+        producerParity: .even
+    ),
+    Member(
+        id: "producer_laurel",
+        displayName: "El Laurel de Cantillo",
+        companyName: "El Laurel de Cantillo",
+        normalizedEmail: "laurel@reguerta.test",
+        authUid: nil,
+        roles: [.producer],
+        isActive: true,
+        producerCatalogEnabled: true,
+        producerParity: .odd
     )
 ]
 

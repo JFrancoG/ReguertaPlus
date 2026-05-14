@@ -264,7 +264,7 @@ fun HomeDrawerContent(
             )
             HomeDrawerItem(
                 icon = Icons.AutoMirrored.Filled.Article,
-                label = stringResource(R.string.home_shell_news_title),
+                label = stringResource(R.string.home_shell_action_news),
                 selected = currentDestination == HomeDestination.NEWS,
                 onClick = { onNavigate(HomeDestination.NEWS) },
             )

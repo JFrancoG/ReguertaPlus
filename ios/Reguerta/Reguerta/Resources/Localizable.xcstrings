@@ -2086,6 +2086,23 @@
         }
       }
     },
+    "home.dashboard.delivery_responsibles" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delivery responsibles"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Responsables reparto"
+          }
+        }
+      }
+    },
     "home.dashboard.helper.format" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2099,6 +2116,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@"
+          }
+        }
+      }
+    },
+    "home.dashboard.market" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Market"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mercado"
+          }
+        }
+      }
+    },
+    "home.dashboard.market_responsibles" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Market responsibles"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Responsables mercado"
           }
         }
       }
@@ -2592,6 +2643,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Consultar estatutos"
+          }
+        }
+      }
+    },
+    "home.shell.action.news" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "News"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noticias"
           }
         }
       }

@@ -30,12 +30,15 @@ internal enum class HomeOrderStateDisplay {
 
 internal data class HomeWeeklySummaryDisplay(
     val weekKey: String,
+    val orderWeekKey: String,
     val weekRangeLabel: String,
     val weekBadgeLabel: String,
     val producerName: String,
     val deliveryLabel: String,
     val responsibleName: String,
     val helperName: String,
+    val marketLabel: String,
+    val marketResponsibleNames: List<String>,
     val orderState: HomeOrderStateDisplay,
     val isConsultaPhase: Boolean,
 )
@@ -55,10 +58,12 @@ internal fun resolveHomeWeeklySummaryDisplay(
     val deliveryDay = defaultDeliveryDayOfWeek?.toDayOfWeek() ?: DayOfWeek.WEDNESDAY
     val currentWeekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
     val currentWeekKey = currentWeekStart.toIsoWeekKey()
-    val currentDeliveryDate = resolveDeliveryDate(
+    val currentDeliveryDate = resolveEffectiveHomeDeliveryDate(
+        weekKey = currentWeekKey,
         weekStart = currentWeekStart,
         deliveryDay = deliveryDay,
         overrides = deliveryCalendarOverrides,
+        shifts = shifts,
         zoneId = zoneId,
     )
     val targetWeekStart = if (today.isAfter(currentDeliveryDate)) {
@@ -67,10 +72,16 @@ internal fun resolveHomeWeeklySummaryDisplay(
         currentWeekStart
     }
     val targetWeekKey = targetWeekStart.toIsoWeekKey()
+    val orderWeekStart = targetWeekStart.minusWeeks(1)
+    val orderWeekKey = orderWeekStart.toIsoWeekKey()
     val isConsultaPhase = !today.isBefore(currentWeekStart) && !today.isAfter(currentDeliveryDate)
     val targetShift = shifts
         .filter { it.type == ShiftType.DELIVERY }
         .firstOrNull { it.effectiveDateMillis(deliveryCalendarOverrides).toLocalDate(zoneId).toIsoWeekKey() == targetWeekKey }
+    val targetMarketShift = shifts
+        .filter { it.type == ShiftType.MARKET }
+        .filter { !it.dateMillis.toLocalDate(zoneId).isBefore(today) }
+        .minByOrNull { it.dateMillis }
     val targetDeliveryDate = targetShift
         ?.effectiveDateMillis(deliveryCalendarOverrides)
         ?.toLocalDate(zoneId)
@@ -80,17 +91,30 @@ internal fun resolveHomeWeeklySummaryDisplay(
             overrides = deliveryCalendarOverrides,
             zoneId = zoneId,
         )
+    val fallbackMarketDate = orderWeekStart.plusDays(5)
+    val targetMarketDate = targetMarketShift
+        ?.dateMillis
+        ?.toLocalDate(zoneId)
+        ?: fallbackMarketDate.takeUnless { it.isBefore(today) }
     val weekNumber = targetWeekStart.get(WeekFields.ISO.weekOfWeekBasedYear())
     val targetWeekEnd = targetWeekStart.plusDays(6)
 
     return HomeWeeklySummaryDisplay(
         weekKey = targetWeekKey,
+        orderWeekKey = orderWeekKey,
         weekRangeLabel = "${targetWeekStart.toShortDayMonth(locale)} - ${targetWeekEnd.toShortDayMonth(locale)}",
         weekBadgeLabel = "Semana $weekNumber",
         producerName = resolveProducerName(targetWeekStart, members),
         deliveryLabel = targetDeliveryDate.toShortWeekdayDay(locale),
         responsibleName = targetShift?.assignedUserIds?.firstOrNull()?.let { members.displayNameForHome(it) } ?: "Pendiente",
         helperName = targetShift?.helperUserId?.let { members.displayNameForHome(it) } ?: "Pendiente",
+        marketLabel = targetMarketDate?.toShortWeekdayDay(locale) ?: "Pendiente",
+        marketResponsibleNames = targetMarketShift
+            ?.assignedUserIds
+            ?.take(3)
+            ?.map { members.displayNameForHome(it) }
+            ?.ifEmpty { listOf("Pendiente") }
+            ?: listOf("Pendiente"),
         orderState = orderState,
         isConsultaPhase = isConsultaPhase,
     )
@@ -142,6 +166,30 @@ private fun resolveDeliveryDate(
     return overrides.firstOrNull { it.weekKey == weekKey }
         ?.deliveryDateMillis
         ?.toLocalDate(zoneId)
+        ?: weekStart.plusDays(deliveryDay.value.toLong() - 1L)
+}
+
+private fun resolveEffectiveHomeDeliveryDate(
+    weekKey: String,
+    weekStart: LocalDate,
+    deliveryDay: DayOfWeek,
+    overrides: List<DeliveryCalendarOverride>,
+    shifts: List<ShiftAssignment>,
+    zoneId: ZoneId,
+): LocalDate {
+    val overrideDate = overrides.firstOrNull { it.weekKey == weekKey }
+        ?.deliveryDateMillis
+        ?.toLocalDate(zoneId)
+    if (overrideDate != null) {
+        return overrideDate
+    }
+    val weekEnd = weekStart.plusDays(6)
+    return shifts
+        .asSequence()
+        .filter { it.type == ShiftType.DELIVERY }
+        .map { it.effectiveDateMillis(overrides).toLocalDate(zoneId) }
+        .filter { !it.isBefore(weekStart) && !it.isAfter(weekEnd) }
+        .minOrNull()
         ?: weekStart.plusDays(deliveryDay.value.toLong() - 1L)
 }
 

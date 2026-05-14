@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Card
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalDrawerSheet
@@ -370,7 +371,7 @@ internal fun HomeRoute(
                                 orderState = resolveHomeOrderState(
                                     context = context,
                                     memberId = mode.member.id,
-                                    weekKey = baselineSummary.weekKey,
+                                    weekKey = baselineSummary.orderWeekKey,
                                 ),
                             )
                             AuthorizedHome(
@@ -399,6 +400,10 @@ internal fun HomeRoute(
                             }
                         }
                     }
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                    )
                     LatestNewsCard(
                         news = latestNews,
                         onViewAll = {

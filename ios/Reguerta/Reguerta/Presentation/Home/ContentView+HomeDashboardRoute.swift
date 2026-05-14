@@ -31,12 +31,15 @@ enum HomeOrderStateDisplay: Equatable {
 
 struct HomeWeeklySummaryDisplay: Equatable {
     let weekKey: String
+    let orderWeekKey: String
     let weekRangeLabel: String
     let weekBadgeLabel: String
     let producerName: String
     let deliveryLabel: String
     let responsibleName: String
     let helperName: String
+    let marketLabel: String
+    let marketResponsibleNames: [String]
     let orderState: HomeOrderStateDisplay
     let isConsultaPhase: Bool
 
@@ -54,11 +57,14 @@ private struct HomeWeeklySummaryResolutionContext {
 
 private struct HomeWeeklySummaryTarget {
     let weekKey: String
+    let orderWeekKey: String
     let weekStart: Date
     let weekEnd: Date
     let weekNumber: Int
     let deliveryDate: Date
     let shift: ShiftAssignment?
+    let marketDate: Date?
+    let marketShift: ShiftAssignment?
 }
 
 extension AccessRootRoutingView {
@@ -76,6 +82,8 @@ extension AccessRootRoutingView {
                 EmptyView()
             case .authorized(let session):
                 authorizedHome(session: session)
+                Divider()
+                    .background(tokens.colors.borderSubtle.opacity(0.65))
             }
 
             latestNewsCard
@@ -186,13 +194,16 @@ extension AccessRootRoutingView {
         )
         return HomeWeeklySummaryDisplay(
             weekKey: baseline.weekKey,
+            orderWeekKey: baseline.orderWeekKey,
             weekRangeLabel: baseline.weekRangeLabel,
             weekBadgeLabel: baseline.weekBadgeLabel,
             producerName: baseline.producerName,
             deliveryLabel: baseline.deliveryLabel,
             responsibleName: baseline.responsibleName,
             helperName: baseline.helperName,
-            orderState: resolveHomeOrderState(memberId: session.member.id, weekKey: baseline.weekKey),
+            marketLabel: baseline.marketLabel,
+            marketResponsibleNames: baseline.marketResponsibleNames,
+            orderState: resolveHomeOrderState(memberId: session.member.id, weekKey: baseline.orderWeekKey),
             isConsultaPhase: baseline.isConsultaPhase
         )
     }
@@ -224,11 +235,10 @@ func resolveHomeWeeklySummaryDisplay(
         overrides: deliveryCalendarOverrides,
         calendar: calendar
     )
-    let currentDeliveryDate = resolveHomeDeliveryDate(
+    let currentDeliveryDate = resolveHomeEffectiveDeliveryDate(
+        weekKey: currentWeekStart.homeIsoWeekKey(calendar: calendar),
         weekStart: currentWeekStart,
-        deliveryWeekday: deliveryWeekday,
-        overrides: deliveryCalendarOverrides,
-        calendar: calendar
+        context: context
     )
     let target = resolveHomeWeeklySummaryTarget(
         today: today,
@@ -259,10 +269,17 @@ private func resolveHomeWeeklySummaryTarget(
         calendar: context.calendar
     )
     let targetWeekKey = targetWeekStart.homeIsoWeekKey(calendar: context.calendar)
+    let orderWeekStart = context.calendar.date(byAdding: .day, value: -7, to: targetWeekStart) ?? targetWeekStart
+    let orderWeekKey = orderWeekStart.homeIsoWeekKey(calendar: context.calendar)
     let targetShift = resolveHomeTargetDeliveryShift(
         shifts: context.shifts,
         targetWeekKey: targetWeekKey,
         overrides: context.overrides
+    )
+    let targetMarketShift = resolveHomeTargetMarketShift(
+        shifts: context.shifts,
+        today: today,
+        calendar: context.calendar
     )
     let deliveryDate = resolveHomeTargetDeliveryDate(
         targetShift: targetShift,
@@ -271,13 +288,20 @@ private func resolveHomeWeeklySummaryTarget(
         overrides: context.overrides,
         calendar: context.calendar
     )
+    let fallbackMarketDate = context.calendar.date(byAdding: .day, value: 5, to: orderWeekStart) ?? orderWeekStart
+    let marketDate = targetMarketShift.map {
+        Date(timeIntervalSince1970: TimeInterval($0.dateMillis) / 1_000)
+    } ?? (fallbackMarketDate < today ? nil : fallbackMarketDate)
     return HomeWeeklySummaryTarget(
         weekKey: targetWeekKey,
+        orderWeekKey: orderWeekKey,
         weekStart: targetWeekStart,
         weekEnd: context.calendar.date(byAdding: .day, value: 6, to: targetWeekStart) ?? targetWeekStart,
         weekNumber: context.calendar.component(.weekOfYear, from: targetWeekStart),
         deliveryDate: deliveryDate,
-        shift: targetShift
+        shift: targetShift,
+        marketDate: marketDate,
+        marketShift: targetMarketShift
     )
 }
 
@@ -290,6 +314,7 @@ private func buildHomeWeeklySummaryDisplay(
 ) -> HomeWeeklySummaryDisplay {
     HomeWeeklySummaryDisplay(
         weekKey: target.weekKey,
+        orderWeekKey: target.orderWeekKey,
         weekRangeLabel: "\(target.weekStart.homeShortDayMonth(locale: locale)) - \(target.weekEnd.homeShortDayMonth(locale: locale))",
         weekBadgeLabel: "Semana \(target.weekNumber)",
         producerName: resolveHomeProducerName(weekStart: target.weekStart, members: members, calendar: calendar),
@@ -300,6 +325,11 @@ private func buildHomeWeeklySummaryDisplay(
         helperName: target.shift?.helperUserId.flatMap { memberId in
             members.first(where: { $0.id == memberId })?.displayName
         } ?? "Pendiente",
+        marketLabel: target.marketDate?.homeShortWeekdayDay(locale: locale) ?? "Pendiente",
+        marketResponsibleNames: homeDisplayNames(
+            for: Array(target.marketShift?.assignedUserIds.prefix(3) ?? []),
+            members: members
+        ),
         orderState: .notStarted,
         isConsultaPhase: isConsultaPhase
     )
@@ -342,6 +372,22 @@ private func resolveHomeTargetDeliveryShift(
         }
 }
 
+private func resolveHomeTargetMarketShift(
+    shifts: [ShiftAssignment],
+    today: Date,
+    calendar: Calendar
+) -> ShiftAssignment? {
+    shifts
+        .filter { shift in
+            guard shift.type == .market else { return false }
+            let marketDate = calendar.startOfDay(
+                for: Date(timeIntervalSince1970: TimeInterval(shift.dateMillis) / 1_000)
+            )
+            return marketDate >= today
+        }
+        .min { $0.dateMillis < $1.dateMillis }
+}
+
 private func resolveHomeTargetDeliveryDate(
     targetShift: ShiftAssignment?,
     weekStart: Date,
@@ -357,6 +403,13 @@ private func resolveHomeTargetDeliveryDate(
         overrides: overrides,
         calendar: calendar
     )
+}
+
+private func homeDisplayNames(for memberIds: [String], members: [Member]) -> [String] {
+    let names = memberIds.map { memberId in
+        members.first(where: { $0.id == memberId })?.displayName ?? memberId
+    }
+    return names.isEmpty ? ["Pendiente"] : names
 }
 
 func resolveHomeOrderState(
@@ -406,6 +459,40 @@ private func resolveHomeDeliveryDate(
         return calendar.startOfDay(for: Date(timeIntervalSince1970: TimeInterval(override.deliveryDateMillis) / 1_000))
     }
     return calendar.date(byAdding: .day, value: deliveryWeekday.homeDayOffset, to: weekStart) ?? weekStart
+}
+
+private func resolveHomeEffectiveDeliveryDate(
+    weekKey: String,
+    weekStart: Date,
+    context: HomeWeeklySummaryResolutionContext
+) -> Date {
+    if let override = context.overrides.first(where: { $0.weekKey == weekKey }) {
+        return context.calendar.startOfDay(
+            for: Date(timeIntervalSince1970: TimeInterval(override.deliveryDateMillis) / 1_000)
+        )
+    }
+    let weekEnd = context.calendar.date(byAdding: .day, value: 6, to: weekStart) ?? weekStart
+    if let deliveryShiftDate = context.shifts
+        .filter({ $0.type == .delivery })
+        .map({
+            context.calendar.startOfDay(
+                for: Date(
+                    timeIntervalSince1970: TimeInterval(
+                        effectiveHomeDeliveryMillis(for: $0, overrides: context.overrides)
+                    ) / 1_000
+                )
+            )
+        })
+        .filter({ $0 >= weekStart && $0 <= weekEnd })
+        .sorted(by: <)
+        .first {
+        return deliveryShiftDate
+    }
+    return context.calendar.date(
+        byAdding: .day,
+        value: context.deliveryWeekday.homeDayOffset,
+        to: weekStart
+    ) ?? weekStart
 }
 
 private func resolveHomeProducerName(

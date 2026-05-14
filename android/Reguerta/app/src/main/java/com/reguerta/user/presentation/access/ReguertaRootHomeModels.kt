@@ -27,7 +27,7 @@ internal fun HomeDestination.titleRes(): Int = when (this) {
     HomeDestination.SHIFTS -> R.string.module_shifts
     HomeDestination.BYLAWS -> R.string.home_shell_action_bylaws
     HomeDestination.SHIFT_SWAP_REQUEST -> R.string.shift_swap_request_screen_title
-    HomeDestination.NEWS -> R.string.home_shell_news_title
+    HomeDestination.NEWS -> R.string.home_shell_action_news
     HomeDestination.NOTIFICATIONS -> R.string.home_shell_notifications
     HomeDestination.PROFILE -> R.string.home_shell_action_profile
     HomeDestination.SETTINGS -> R.string.home_shell_action_settings
