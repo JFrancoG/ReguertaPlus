@@ -95,6 +95,7 @@ extension AccessRootRoutingView {
             orderState: summary.orderState,
             myOrderSubtitleKey: summary.myOrderSubtitleKey,
             onOpenMyOrder: {
+                rootViewModel.myOrderViewModel.resetCartOverlayForRouteEntry()
                 homeDestination = .myOrder
                 Task { await rootViewModel.productsViewModel.refreshOrderingProducts() }
             },
@@ -143,6 +144,7 @@ extension AccessRootRoutingView {
             myOrderFreshnessState: myOrderFreshnessState,
             disabledMessageKey: disabledMessageKey,
             onOpenMyOrder: {
+                rootViewModel.myOrderViewModel.resetCartOverlayForRouteEntry()
                 homeDestination = .myOrder
                 Task { await rootViewModel.productsViewModel.refreshOrderingProducts() }
             },

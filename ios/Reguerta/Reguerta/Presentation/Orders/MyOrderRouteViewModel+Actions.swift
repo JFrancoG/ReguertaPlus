@@ -32,6 +32,10 @@ extension MyOrderRouteViewModel {
         isCartVisible = false
     }
 
+    func resetCartOverlayForRouteEntry() {
+        isCartVisible = false
+    }
+
     func editConfirmedOrder() {
         isViewingConfirmedOrder = false
     }

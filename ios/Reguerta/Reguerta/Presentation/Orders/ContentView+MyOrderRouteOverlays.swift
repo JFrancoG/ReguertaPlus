@@ -68,7 +68,7 @@ extension MyOrderRouteView {
 
                 Spacer(minLength: 0)
             }
-            .padding(.top, tokens.spacing.xs)
+            .padding(.top, 0)
             .padding(.bottom, tokens.spacing.md)
             .padding(.horizontal, tokens.spacing.lg)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -81,11 +81,7 @@ extension MyOrderRouteView {
 
     var cartOverlayHeader: some View {
         HStack(spacing: tokens.spacing.sm) {
-            Text("Mi carrito")
-                .font(tokens.typography.titleSection)
-                .foregroundStyle(tokens.colors.textPrimary)
-                .lineLimit(1)
-            Spacer()
+            Spacer(minLength: 0)
             Text("Total: \(viewModel.cartTotal.myOrderUiDecimal) €")
                 .font(tokens.typography.titleCard.weight(.semibold))
                 .foregroundStyle(tokens.colors.actionPrimary)
@@ -108,48 +104,48 @@ extension MyOrderRouteView {
     @ViewBuilder
     var cartOverlayCheckoutFooter: some View {
         if !viewModel.isReadOnlyConfirmedView {
-            let footerHeight = 64.resize
-            let bottomExtension = Swift.max(CGFloat(-24).resizeBottomSize, 0)
-            let footerShape = UnevenRoundedRectangle(
-                cornerRadii: RectangleCornerRadii(
-                    topLeading: 24.resize,
-                    bottomLeading: 0,
-                    bottomTrailing: 0,
-                    topTrailing: 24.resize
-                ),
-                style: .continuous
-            )
-
-            ZStack(alignment: .top) {
-                footerShape
-                    .fill(tokens.colors.surfaceSecondary.opacity(0.96))
-                    .ignoresSafeArea(.container, edges: .bottom)
-
-                HStack {
-                    Button {
-                        Task {
-                            await viewModel.validateCheckout()
-                        }
-                    } label: {
-                        Text(viewModel.finalizeCheckoutTitle)
-                            .font(tokens.typography.body.weight(.semibold))
-                            .foregroundStyle(tokens.colors.actionOnPrimary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, tokens.spacing.sm)
-                            .background(tokens.colors.actionPrimary)
-                            .clipShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(!viewModel.canSubmitCheckout)
-                    .opacity(viewModel.canSubmitCheckout ? 1 : 0.55)
+            Button {
+                Task {
+                    await viewModel.validateCheckout()
                 }
-                .padding(.horizontal, tokens.spacing.lg + tokens.spacing.md)
-                .frame(height: footerHeight, alignment: .center)
+            } label: {
+                Text(viewModel.finalizeCheckoutTitle)
+                    .font(tokens.typography.body.weight(.semibold))
+                    .foregroundStyle(tokens.colors.actionOnPrimary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52.resize)
+                    .background {
+                        floatingCheckoutButtonBackground(isEnabled: viewModel.canSubmitCheckout)
+                    }
+                    .clipShape(Capsule())
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: footerHeight + bottomExtension, alignment: .top)
-            .containerRelativeFrame(.horizontal, alignment: .center)
-            .shadow(color: .black.opacity(0.18), radius: 5.resize, y: -2.resize)
+            .buttonStyle(.plain)
+            .disabled(!viewModel.canSubmitCheckout)
+            .opacity(viewModel.canSubmitCheckout ? 1 : 0.55)
+            .padding(.horizontal, tokens.spacing.xl + tokens.spacing.sm)
+            .padding(.bottom, 8.resizeBottomSize)
+            .shadow(color: .black.opacity(0.18), radius: 14.resize, y: 6.resize)
+        }
+    }
+
+    @ViewBuilder
+    func floatingCheckoutButtonBackground(isEnabled: Bool) -> some View {
+        let shape = Capsule()
+        let actionOpacity = isEnabled ? 0.42 : 0.22
+
+        if #available(iOS 26.0, *) {
+            shape
+                .fill(tokens.colors.actionPrimary.opacity(actionOpacity))
+                .glassEffect(
+                    .regular
+                        .tint(tokens.colors.actionPrimary.opacity(isEnabled ? 0.32 : 0.16))
+                        .interactive(isEnabled),
+                    in: shape
+                )
+        } else {
+            shape
+                .fill(.ultraThinMaterial)
+                .background(tokens.colors.actionPrimary.opacity(isEnabled ? 0.72 : 0.34), in: shape)
         }
     }
 

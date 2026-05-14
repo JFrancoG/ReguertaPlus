@@ -179,7 +179,9 @@ internal fun HomeRoute(
     var newsPendingDeletionId by rememberSaveable { mutableStateOf<String?>(null) }
     var myOrderCartUnits by rememberSaveable { mutableIntStateOf(0) }
     var myOrderCartOpenRequests by rememberSaveable { mutableIntStateOf(0) }
+    var myOrderRouteEntryRequests by rememberSaveable { mutableIntStateOf(0) }
     var isMyOrderReadOnlyMode by rememberSaveable { mutableStateOf(false) }
+    var isMyOrderCartVisible by rememberSaveable { mutableStateOf(false) }
     val member = when (mode) {
         is SessionMode.Authorized -> mode.member
         SessionMode.SignedOut,
@@ -195,6 +197,12 @@ internal fun HomeRoute(
 
     fun handleDrawerNavigation(destination: HomeDestination) {
         currentDestination = destination
+        if (destination != HomeDestination.MY_ORDER) {
+            isMyOrderCartVisible = false
+        } else {
+            myOrderRouteEntryRequests += 1
+            isMyOrderCartVisible = false
+        }
         if (destination == HomeDestination.NEWS) {
             onRefreshNews()
         } else if (destination == HomeDestination.NOTIFICATIONS) {
@@ -282,12 +290,15 @@ internal fun HomeRoute(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             val showsMyOrderCartAction = currentDestination == HomeDestination.MY_ORDER && !isMyOrderReadOnlyMode
+            val homeShellTitle = when {
+                currentDestination == HomeDestination.DASHBOARD -> formatHomeTopBarDate(effectiveNowMillis)
+                currentDestination == HomeDestination.MY_ORDER && isMyOrderCartVisible && !isMyOrderReadOnlyMode -> {
+                    stringResource(R.string.my_order_cart_title)
+                }
+                else -> stringResource(currentDestination.titleRes())
+            }
             HomeShellTopBar(
-                title = if (currentDestination == HomeDestination.DASHBOARD) {
-                    formatHomeTopBarDate(effectiveNowMillis)
-                } else {
-                    stringResource(currentDestination.titleRes())
-                },
+                title = homeShellTitle,
                 canNavigateBack = currentDestination != HomeDestination.DASHBOARD,
                 showsNotificationsAction = currentDestination == HomeDestination.DASHBOARD,
                 hasNotificationIndicator = notificationsFeed.isNotEmpty(),
@@ -302,6 +313,8 @@ internal fun HomeRoute(
                         onClearProductEditor()
                     } else if (currentDestination == HomeDestination.SHIFT_SWAP_REQUEST) {
                         onClearShiftSwapDraft()
+                    } else if (currentDestination == HomeDestination.MY_ORDER) {
+                        isMyOrderCartVisible = false
                     }
                     currentDestination = when (currentDestination) {
                         HomeDestination.PUBLISH_NEWS -> HomeDestination.NEWS
@@ -366,6 +379,8 @@ internal fun HomeRoute(
                                 weeklySummaryDisplay = weeklySummary,
                                 onRetryMyOrderFreshness = onRetryMyOrderFreshness,
                                 onOpenMyOrder = {
+                                    myOrderRouteEntryRequests += 1
+                                    isMyOrderCartVisible = false
                                     currentDestination = HomeDestination.MY_ORDER
                                     onRefreshMyOrderProducts()
                                 },
@@ -489,11 +504,14 @@ internal fun HomeRoute(
                     nowOverrideMillis = nowOverrideMillis,
                     isLoading = isLoadingMyOrderProducts,
                     cartOpenRequests = myOrderCartOpenRequests,
+                    routeEntryRequests = myOrderRouteEntryRequests,
                     onRefresh = onRefreshMyOrderProducts,
                     onCartUnitsChange = { units -> myOrderCartUnits = units },
                     onReadOnlyModeChange = { isReadOnly -> isMyOrderReadOnlyMode = isReadOnly },
+                    onCartVisibilityChange = { isVisible -> isMyOrderCartVisible = isVisible },
                     onCheckoutSuccessAcknowledge = {
                         currentDestination = HomeDestination.DASHBOARD
+                        isMyOrderCartVisible = false
                     },
                     )
 

@@ -9,6 +9,7 @@ struct HomeShellTopBarView: View {
     let showsCartAction: Bool
     let cartUnits: Int
     let showsCartBadge: Bool
+    let hidesTitle: Bool
     let onPrimaryAction: () -> Void
     let onNotificationsAction: () -> Void
     let onCartAction: () -> Void
@@ -21,11 +22,11 @@ struct HomeShellTopBarView: View {
     }
 
     private var headerTitle: ReguertaHeaderText? {
-        showsBack ? titleText : nil
+        showsBack && !hidesTitle ? titleText : nil
     }
 
     private var leadingText: ReguertaHeaderText? {
-        showsBack ? nil : titleText
+        showsBack || hidesTitle ? nil : titleText
     }
 
     private var leadingAction: ReguertaHeaderAction {

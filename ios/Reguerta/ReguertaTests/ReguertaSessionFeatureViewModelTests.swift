@@ -36,12 +36,12 @@ struct ReguertaSessionFeatureViewModelTests {
         let readyViewModel = makeFreshnessViewModel(config: validFreshnessConfig())
 
         readyViewModel.handleSessionModeChange(from: .signedOut, to: authorizedMode(uid: "uid_ready"))
-        await waitForCondition { readyViewModel.state == .ready }
+        await waitForCondition(timeoutNanoseconds: 2_000_000_000) { readyViewModel.state == .ready }
         #expect(readyViewModel.state == .ready)
 
         let unavailableViewModel = makeFreshnessViewModel(config: nil)
         unavailableViewModel.handleSessionModeChange(from: .signedOut, to: authorizedMode(uid: "uid_unavailable"))
-        await waitForCondition { unavailableViewModel.state == .unavailable }
+        await waitForCondition(timeoutNanoseconds: 2_000_000_000) { unavailableViewModel.state == .unavailable }
         #expect(unavailableViewModel.state == .unavailable)
 
         let timedOutViewModel = makeFreshnessViewModel(

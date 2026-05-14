@@ -20,7 +20,7 @@ extension AccessRootRoutingView {
                 Group {
                     if usesShellScroll {
                         ScrollView(.vertical, showsIndicators: false) {
-                            VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                            VStack(alignment: .leading, spacing: homeShellRouteSpacing) {
                                 homeShellTopBar
                                     .padding(.horizontal, homeShellTopBarHorizontalPadding)
                                     .background(tokens.colors.surfacePrimary)
@@ -31,11 +31,11 @@ extension AccessRootRoutingView {
                                 }
                             }
                             .padding(.top, 0)
-                            .padding(.bottom, tokens.spacing.xxl)
+                            .padding(.bottom, homeShellContentBottomPadding)
                         }
                         .scrollDismissesKeyboard(.interactively)
                     } else {
-                        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                        VStack(alignment: .leading, spacing: homeShellRouteSpacing) {
                             homeShellTopBar
                                 .padding(.horizontal, homeShellTopBarHorizontalPadding)
                                 .background(tokens.colors.surfacePrimary)
@@ -48,11 +48,13 @@ extension AccessRootRoutingView {
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                         .padding(.top, 0)
-                        .padding(.bottom, tokens.spacing.xxl)
+                        .padding(.bottom, homeShellContentBottomPadding)
                     }
                 }
                 .disabled(isDrawerPresented)
-                .padding(tokens.spacing.lg)
+                .padding(.top, tokens.spacing.lg)
+                .padding(.horizontal, tokens.spacing.lg)
+                .padding(.bottom, homeShellOuterBottomPadding)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .background(tokens.colors.surfacePrimary.ignoresSafeArea())
 
@@ -101,6 +103,7 @@ extension AccessRootRoutingView {
             showsCartAction: homeDestination == .myOrder && !myOrderReadOnlyMode,
             cartUnits: myOrderCartUnits,
             showsCartBadge: homeDestination != .myOrder,
+            hidesTitle: false,
             onPrimaryAction: {
                 if homeDestination == .dashboard {
                     openHomeDrawer()
@@ -113,6 +116,9 @@ extension AccessRootRoutingView {
                 } else if homeDestination == .shiftSwapRequest {
                     rootViewModel.shiftsViewModel.clearShiftSwapDraft()
                     homeDestination = .shifts
+                } else if homeDestination == .myOrder {
+                    rootViewModel.myOrderViewModel.resetCartOverlayForRouteEntry()
+                    homeDestination = .dashboard
                 } else {
                     homeDestination = .dashboard
                 }
@@ -134,7 +140,7 @@ extension AccessRootRoutingView {
         case .myOrder:
             let myOrderViewModel = rootViewModel.myOrderViewModel
             if !myOrderViewModel.isReadOnlyMode {
-                return "Lista de productos"
+                return myOrderViewModel.isCartVisible ? "Mi carrito" : "Lista de productos"
             }
             return myOrderViewModel.shouldShowDatabaseOrderSummary ? "Mi último pedido" : "Mi pedido"
         case .receivedOrders:
@@ -158,7 +164,25 @@ extension AccessRootRoutingView {
     }
 
     var homeShellTopBarHorizontalPadding: CGFloat {
-        0
+        homeDestination == .myOrder ? tokens.spacing.sm : 0
+    }
+
+    var isMyOrderCartOverlayVisible: Bool {
+        guard homeDestination == .myOrder else { return false }
+        let myOrderViewModel = rootViewModel.myOrderViewModel
+        return myOrderViewModel.isCartVisible && !myOrderViewModel.isReadOnlyMode
+    }
+
+    var homeShellRouteSpacing: CGFloat {
+        isMyOrderCartOverlayVisible ? tokens.spacing.xs : tokens.spacing.lg
+    }
+
+    var homeShellOuterBottomPadding: CGFloat {
+        homeDestination == .myOrder ? 0 : tokens.spacing.lg
+    }
+
+    var homeShellContentBottomPadding: CGFloat {
+        homeDestination == .myOrder ? 0 : tokens.spacing.xxl
     }
 
     func homeDrawerPanel(drawerWidth: CGFloat) -> some View {
@@ -218,7 +242,10 @@ extension AccessRootRoutingView {
             (.news, { Task { await rootViewModel.newsNotificationsViewModel.refreshNews() } }),
             (.notifications, { Task { await rootViewModel.newsNotificationsViewModel.refreshNotifications() } }),
             (.products, { Task { await rootViewModel.productsViewModel.refreshCatalog() } }),
-            (.myOrder, { Task { await rootViewModel.productsViewModel.refreshOrderingProducts() } }),
+            (.myOrder, {
+                rootViewModel.myOrderViewModel.resetCartOverlayForRouteEntry()
+                Task { await rootViewModel.productsViewModel.refreshOrderingProducts() }
+            }),
             (.profile, { Task { await rootViewModel.sharedProfileViewModel.refreshProfiles() } }),
             (.users, { Task { await rootViewModel.usersViewModel.refreshMembers() } }),
             (.shifts, { Task { await rootViewModel.shiftsViewModel.refreshShifts() } }),

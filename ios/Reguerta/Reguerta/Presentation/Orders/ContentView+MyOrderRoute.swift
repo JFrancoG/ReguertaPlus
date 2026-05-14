@@ -117,6 +117,9 @@ struct MyOrderRouteView: View {
                 viewModel.handleCartOpenRequest(newValue)
             }
         }
+        .onDisappear {
+            viewModel.resetCartOverlayForRouteEntry()
+        }
         .overlay {
             if let checkoutAlert = viewModel.checkoutAlert {
                 checkoutDialog(checkoutAlert)

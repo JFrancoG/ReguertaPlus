@@ -46,6 +46,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-05-14 | 🐛 fix(order): polish cart overlay layout
 - 2026-05-14 | 🐛 fix(ios-home): refine order buttons glass
 - 2026-05-13 | 🐛 fix(firestore): remove legacy collection paths
 - 2026-05-13 | 🐛 fix(order): restore last order lookup
