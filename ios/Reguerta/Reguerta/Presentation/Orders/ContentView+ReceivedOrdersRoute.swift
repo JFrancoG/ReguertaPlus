@@ -7,10 +7,6 @@ struct ReceivedOrdersRouteView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.md) {
-            Text("Pedidos a preparar")
-                .font(tokens.typography.titleSection)
-                .foregroundStyle(tokens.colors.textPrimary)
-
             tabSelector
             statusFeedbackView
 

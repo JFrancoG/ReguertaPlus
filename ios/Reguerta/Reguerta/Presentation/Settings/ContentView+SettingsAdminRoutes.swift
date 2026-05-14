@@ -163,9 +163,6 @@ struct SettingsRouteView: View {
     var body: some View {
         reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text(localizedKey(AccessL10nKey.settingsTitle))
-                    .font(tokens.typography.titleSection)
-                    .foregroundStyle(tokens.colors.textPrimary)
                 Text(localizedKey(AccessL10nKey.settingsSubtitleDevelopImpersonation))
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)

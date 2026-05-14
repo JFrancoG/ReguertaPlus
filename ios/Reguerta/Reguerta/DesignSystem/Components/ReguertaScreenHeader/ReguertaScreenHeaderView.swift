@@ -14,7 +14,6 @@ struct ReguertaScreenHeaderView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .reguertaScreenHeaderGlassContainer(spacing: tokens.spacing.xl)
     }
 }
 
@@ -35,7 +34,7 @@ private struct ReguertaScreenHeaderTopRowView: View {
                 ReguertaGlassIconButton(iconAction: trailingAction)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 58.resize)
+        .frame(maxWidth: .infinity, minHeight: 52.resize)
     }
 }
 
@@ -79,28 +78,34 @@ private struct ReguertaScreenHeaderTitleView: View {
 }
 
 struct ReguertaGlassIconButton: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.reguertaTokens) private var tokens
 
     let iconAction: ReguertaHeaderAction
 
     var body: some View {
-        Button(action: iconAction.action) {
-            ZStack(alignment: .topTrailing) {
+        ZStack(alignment: .topTrailing) {
+            Button(action: iconAction.action) {
                 Image(systemName: iconAction.systemImageName)
-                    .font(.system(size: 21.resize, weight: .semibold))
+                    .font(.system(size: 20.resize, weight: .semibold))
                     .foregroundStyle(iconAction.iconColor(tokens: tokens))
-                    .frame(width: 58.resize, height: 58.resize)
+                    .frame(width: 52.resize, height: 52.resize)
                     .contentShape(Circle())
-
-                ReguertaHeaderBadgeView(badge: iconAction.badge)
             }
+            .buttonStyle(.plain)
+            .disabled(!iconAction.isEnabled)
+            .opacity(iconAction.opacity)
+            .reguertaHeaderGlassButton(
+                isEnabled: iconAction.isEnabled,
+                colorScheme: colorScheme
+            )
+            .accessibilityLabel(iconAction.accessibilityLabel.viewText)
+            .reguertaHeaderAccessibilityIdentifier(iconAction.accessibilityIdentifier)
+
+            ReguertaHeaderBadgeView(badge: iconAction.badge)
+                .allowsHitTesting(false)
         }
-        .buttonStyle(.plain)
-        .disabled(!iconAction.isEnabled)
-        .opacity(iconAction.opacity)
-        .reguertaHeaderGlassButton(tokens: tokens, isEnabled: iconAction.isEnabled)
-        .accessibilityLabel(iconAction.accessibilityLabel.viewText)
-        .reguertaHeaderAccessibilityIdentifier(iconAction.accessibilityIdentifier)
+        .frame(width: 52.resize, height: 52.resize)
     }
 }
 
@@ -127,10 +132,10 @@ private struct ReguertaHeaderDotBadgeView: View {
     var body: some View {
         Circle()
             .fill(tokens.colors.feedbackError)
-            .frame(width: 9.resize, height: 9.resize)
+            .frame(width: 8.resize, height: 8.resize)
             .overlay(Circle().stroke(tokens.colors.surfacePrimary, lineWidth: 1.resize))
-            .padding(.top, 12.resize)
-            .padding(.trailing, 12.resize)
+            .padding(.top, 10.resize)
+            .padding(.trailing, 10.resize)
     }
 }
 
@@ -143,12 +148,12 @@ private struct ReguertaHeaderCountBadgeView: View {
         Text(text)
             .font(tokens.typography.label)
             .foregroundStyle(tokens.colors.actionOnPrimary)
-            .frame(minWidth: 18.resize, minHeight: 18.resize)
+            .frame(minWidth: 17.resize, minHeight: 17.resize)
             .padding(.horizontal, 4.resize)
             .background(tokens.colors.feedbackError, in: Capsule())
             .overlay(Capsule().stroke(tokens.colors.surfacePrimary, lineWidth: 1.5.resize))
-            .padding(.top, 5.resize)
-            .padding(.trailing, 5.resize)
+            .padding(.top, 4.resize)
+            .padding(.trailing, 4.resize)
     }
 }
 

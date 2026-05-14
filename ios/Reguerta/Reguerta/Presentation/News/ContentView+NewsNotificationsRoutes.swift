@@ -71,8 +71,6 @@ private struct NewsListHeaderCardView: View {
     var body: some View {
         reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                Text(LocalizedStringKey(AccessL10nKey.homeShellNewsTitle))
-                    .font(tokens.typography.titleCard)
                 Text(LocalizedStringKey(AccessL10nKey.newsListSubtitle))
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
@@ -145,13 +143,6 @@ struct NewsEditorRouteView: View {
     let tokens: ReguertaDesignTokens
     let viewModel: NewsNotificationsFeatureViewModel
     let onSaveSuccess: () -> Void
-    let onBack: () -> Void
-
-    private var editorTitleKey: String {
-        viewModel.editingNewsId == nil
-            ? AccessL10nKey.newsEditorTitleCreate
-            : AccessL10nKey.newsEditorTitleEdit
-    }
 
     private var saveActionKey: String {
         if viewModel.isSavingNews {
@@ -198,9 +189,6 @@ struct NewsEditorRouteView: View {
     var body: some View {
         reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text(LocalizedStringKey(editorTitleKey))
-                    .font(tokens.typography.titleCard)
-
                 Text(LocalizedStringKey(AccessL10nKey.newsEditorSubtitle))
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
@@ -243,12 +231,6 @@ struct NewsEditorRouteView: View {
                     action: saveNews
                 )
 
-                reguertaButton(
-                    LocalizedStringKey(AccessL10nKey.commonBack),
-                    variant: .text,
-                    action: back
-                )
-
                 Spacer(minLength: tokens.spacing.sm)
             }
         }
@@ -264,11 +246,6 @@ struct NewsEditorRouteView: View {
                 onSaveSuccess()
             }
         }
-    }
-
-    private func back() {
-        viewModel.clearNewsEditor()
-        onBack()
     }
 }
 
@@ -329,8 +306,6 @@ private struct NotificationsListHeaderCardView: View {
     var body: some View {
         reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                Text(LocalizedStringKey(AccessL10nKey.homeShellNotifications))
-                    .font(tokens.typography.titleCard)
                 Text(LocalizedStringKey(AccessL10nKey.notificationsListSubtitle))
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
@@ -378,7 +353,6 @@ struct NotificationEditorRouteView: View {
     let tokens: ReguertaDesignTokens
     let viewModel: NewsNotificationsFeatureViewModel
     let onSendSuccess: () -> Void
-    let onBack: () -> Void
 
     private var sendActionKey: String {
         viewModel.isSendingNotification
@@ -422,9 +396,6 @@ struct NotificationEditorRouteView: View {
     var body: some View {
         reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text(LocalizedStringKey(AccessL10nKey.notificationsEditorTitle))
-                    .font(tokens.typography.titleCard)
-
                 Text(LocalizedStringKey(AccessL10nKey.notificationsEditorSubtitle))
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
@@ -460,12 +431,6 @@ struct NotificationEditorRouteView: View {
                     isLoading: viewModel.isSendingNotification,
                     action: sendNotification
                 )
-
-                reguertaButton(
-                    LocalizedStringKey(AccessL10nKey.commonBack),
-                    variant: .text,
-                    action: back
-                )
             }
         }
     }
@@ -476,10 +441,5 @@ struct NotificationEditorRouteView: View {
                 onSendSuccess()
             }
         }
-    }
-
-    private func back() {
-        viewModel.clearNotificationEditor()
-        onBack()
     }
 }

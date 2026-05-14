@@ -34,7 +34,6 @@ extension AccessRootRoutingView {
             notificationEditorRoute
         default:
             placeholderRoute(
-                titleKey: homeDestination.titleKey,
                 subtitleKey: homeDestination.subtitleKey
             )
         }

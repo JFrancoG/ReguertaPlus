@@ -74,7 +74,6 @@ struct MyOrderRouteView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             } else {
                 VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                    headerRow
                     if viewModel.context.isLoading {
                         loadingState
                     } else if viewModel.groupedProducts.isEmpty {

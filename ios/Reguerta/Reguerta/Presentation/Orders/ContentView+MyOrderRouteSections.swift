@@ -1,16 +1,6 @@
 import SwiftUI
 
 extension MyOrderRouteView {
-    var headerRow: some View {
-        HStack(spacing: tokens.spacing.md) {
-            VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                Text("Lista de productos")
-                    .font(tokens.typography.titleSection)
-                    .foregroundStyle(tokens.colors.textPrimary)
-            }
-        }
-    }
-
     var confirmedOrderView: some View {
         ZStack(alignment: .bottom) {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
@@ -56,7 +46,7 @@ extension MyOrderRouteView {
             }
             .padding(.horizontal, tokens.spacing.md)
             .padding(.vertical, tokens.spacing.sm)
-            .background(tokens.colors.actionPrimary.opacity(0.3))
+            .background(tokens.colors.actionPrimary.opacity(0.62))
             .clipShape(Capsule())
             .padding(.horizontal, tokens.spacing.sm)
             .padding(.bottom, tokens.spacing.sm)
@@ -67,10 +57,6 @@ extension MyOrderRouteView {
     var previousOrderView: some View {
         ZStack(alignment: .bottom) {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text("Mi último pedido")
-                    .font(tokens.typography.titleCard.weight(.semibold))
-                    .foregroundStyle(tokens.colors.textPrimary)
-
                 switch viewModel.previousOrderState {
                 case .loading:
                     reguertaCard {
@@ -107,10 +93,6 @@ extension MyOrderRouteView {
                     }
 
                 case .loaded(let snapshot):
-                    Text("Semana \(snapshot.weekKey)")
-                        .font(tokens.typography.bodySecondary)
-                        .foregroundStyle(tokens.colors.textSecondary)
-
                     ScrollView(.vertical, showsIndicators: false) {
                         VStack(spacing: tokens.spacing.md) {
                             ForEach(snapshot.groups) { group in
@@ -131,7 +113,7 @@ extension MyOrderRouteView {
                 }
                 .padding(.horizontal, tokens.spacing.md)
                 .padding(.vertical, tokens.spacing.sm)
-                .background(tokens.colors.actionPrimary.opacity(0.3))
+                .background(tokens.colors.actionPrimary.opacity(0.62))
                 .clipShape(Capsule())
                 .padding(.horizontal, tokens.spacing.sm)
                 .padding(.bottom, tokens.spacing.sm)

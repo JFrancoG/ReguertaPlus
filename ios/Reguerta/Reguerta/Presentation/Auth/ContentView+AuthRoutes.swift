@@ -74,53 +74,38 @@ extension AccessRootRoutingView {
 
     var loginRoute: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-            HStack {
-                authBackButton
-                Spacer()
-            }
-            Text(localizedKey(AccessL10nKey.loginTitle))
-                .font(tokens.typography.titleHero)
-                .foregroundStyle(tokens.colors.actionPrimary)
+            authHeader(titleKey: AccessL10nKey.loginTitle)
             signInCard
         }
     }
 
     var registerRoute: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-            HStack {
-                authBackButton
-                Spacer()
-            }
-            Text(localizedKey(AccessL10nKey.registerTitle))
-                .font(tokens.typography.titleHero)
-                .foregroundStyle(tokens.colors.actionPrimary)
+            authHeader(titleKey: AccessL10nKey.registerTitle)
             signUpCard
         }
     }
 
     var recoverRoute: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-            HStack {
-                authBackButton
-                Spacer()
-            }
-            Text(localizedKey(AccessL10nKey.recoverTitle))
-                .font(tokens.typography.titleHero)
-                .foregroundStyle(tokens.colors.actionPrimary)
+            authHeader(titleKey: AccessL10nKey.recoverTitle)
             recoverPasswordCard
         }
     }
 
-    var authBackButton: some View {
-        Button {
-            dispatchShell(.back)
-        } label: {
-            Image(systemName: "chevron.left")
-                .font(tokens.typography.body)
-                .foregroundStyle(tokens.colors.textPrimary)
-                .frame(width: 64.resize, height: 36.resize, alignment: .leading)
-        }
-        .buttonStyle(.plain)
-        .contentShape(Rectangle())
+    func authHeader(titleKey: String) -> some View {
+        ReguertaScreenHeaderView(
+            viewModel: ReguertaScreenHeaderViewModel(
+                title: .localized(titleKey),
+                leadingAction: ReguertaHeaderAction(
+                    systemImageName: "chevron.left",
+                    accessibilityLabel: .localized(AccessL10nKey.commonBack),
+                    accessibilityIdentifier: "auth.header.backButton",
+                    action: {
+                        dispatchShell(.back)
+                    }
+                )
+            )
+        )
     }
 }

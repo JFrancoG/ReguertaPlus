@@ -13,7 +13,7 @@ final class ReguertaUITests: XCTestCase {
     private let passwordFieldId = "auth.login.passwordField"
     private let signInButtonId = "auth.login.signInButton"
     private let menuButtonId = "home.topBar.menuButton"
-    private let topBarTitleId = "home.topBar.title"
+    private let topBarTitleId = "reguerta.screenHeader.title"
     private let newsDrawerItemId = "home.drawer.item.news"
     private let myOrderButtonId = "home.module.myOrder"
     private let receivedOrdersButtonId = "home.module.receivedOrders"

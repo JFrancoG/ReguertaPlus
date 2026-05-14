@@ -23,8 +23,6 @@ struct ShiftsRouteView: View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
             reguertaCard {
                 VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                    Text(localizedKey(AccessL10nKey.shifts))
-                        .font(tokens.typography.titleCard)
                     Text(localizedKey(AccessL10nKey.shiftsListSubtitle))
                         .font(tokens.typography.bodySecondary)
                         .foregroundStyle(tokens.colors.textSecondary)

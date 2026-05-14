@@ -35,10 +35,6 @@ extension AccessRootRoutingView {
                         homeDestination = .shifts
                     }
                 }
-            },
-            onBack: {
-                shiftsViewModel.clearShiftSwapDraft()
-                homeDestination = .shifts
             }
         )
     }
@@ -65,9 +61,6 @@ extension AccessRootRoutingView {
             tokens: tokens,
             viewModel: rootViewModel.newsNotificationsViewModel,
             onSaveSuccess: {
-                homeDestination = .news
-            },
-            onBack: {
                 homeDestination = .news
             }
         )
@@ -166,9 +159,6 @@ extension AccessRootRoutingView {
             viewModel: rootViewModel.newsNotificationsViewModel,
             onSendSuccess: {
                 homeDestination = .notifications
-            },
-            onBack: {
-                homeDestination = .notifications
             }
         )
     }
@@ -192,17 +182,12 @@ extension AccessRootRoutingView {
     }
 
     @ViewBuilder
-    func placeholderRoute(titleKey: String, subtitleKey: String) -> some View {
+    func placeholderRoute(subtitleKey: String) -> some View {
         reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text(localizedKey(titleKey))
-                    .font(tokens.typography.titleSection)
                 Text(localizedKey(subtitleKey))
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
-                reguertaButton(localizedKey(AccessL10nKey.commonBack)) {
-                    homeDestination = .dashboard
-                }
             }
         }
     }
