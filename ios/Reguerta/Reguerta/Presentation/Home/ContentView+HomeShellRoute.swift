@@ -23,7 +23,7 @@ extension AccessRootRoutingView {
                             VStack(alignment: .leading, spacing: tokens.spacing.lg) {
                                 homeShellTopBar
                                     .padding(.horizontal, homeShellTopBarHorizontalPadding)
-                                    .zIndex(1)
+                                    .background(tokens.colors.surfacePrimary)
                                 homeRouteContent
 
                                 if feedbackCenter.messageKey != nil {
@@ -38,7 +38,7 @@ extension AccessRootRoutingView {
                         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
                             homeShellTopBar
                                 .padding(.horizontal, homeShellTopBarHorizontalPadding)
-                                .zIndex(1)
+                                .background(tokens.colors.surfacePrimary)
                             homeRouteContent
                                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
@@ -93,7 +93,6 @@ extension AccessRootRoutingView {
 
     var homeShellTopBar: some View {
         HomeShellTopBarView(
-            tokens: tokens,
             titleKey: homeDestination.titleKey,
             titleOverride: homeShellTitleOverride,
             showsBack: homeDestination != .dashboard,
@@ -129,17 +128,37 @@ extension AccessRootRoutingView {
     }
 
     var homeShellTitleOverride: String? {
-        if homeDestination == .dashboard {
+        switch homeDestination {
+        case .dashboard:
             return formatHomeTopBarDate(nowMillis: rootViewModel.shiftsViewModel.currentNowMillis)
+        case .myOrder:
+            let myOrderViewModel = rootViewModel.myOrderViewModel
+            if !myOrderViewModel.isReadOnlyMode {
+                return "Lista de productos"
+            }
+            return myOrderViewModel.shouldShowDatabaseOrderSummary ? "Mi último pedido" : "Mi pedido"
+        case .receivedOrders:
+            return "Pedidos a preparar"
+        case .bylaws:
+            return l10n(AccessL10nKey.bylawsTitle)
+        case .settings:
+            return l10n(AccessL10nKey.settingsTitle)
+        case .shiftSwapRequest:
+            return l10n(AccessL10nKey.shiftSwapRequestScreenTitle)
+        case .publishNews:
+            let editorTitleKey = rootViewModel.newsNotificationsViewModel.editingNewsId == nil
+                ? AccessL10nKey.newsEditorTitleCreate
+                : AccessL10nKey.newsEditorTitleEdit
+            return l10n(editorTitleKey)
+        case .adminBroadcast:
+            return l10n(AccessL10nKey.notificationsEditorTitle)
+        default:
+            return nil
         }
-        if homeDestination == .myOrder {
-            return "Pedido"
-        }
-        return nil
     }
 
     var homeShellTopBarHorizontalPadding: CGFloat {
-        homeDestination == .myOrder ? tokens.spacing.lg : 0
+        0
     }
 
     func homeDrawerPanel(drawerWidth: CGFloat) -> some View {

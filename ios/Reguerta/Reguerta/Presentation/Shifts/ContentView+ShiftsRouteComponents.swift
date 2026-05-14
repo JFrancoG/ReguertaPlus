@@ -88,7 +88,6 @@ struct ShiftSwapRequestRouteView: View {
     let shift: ShiftAssignment?
     let shiftDisplayLabel: String
     let onSave: () -> Void
-    let onBack: () -> Void
 
     private var shiftSwapCopy: ShiftSwapCopy {
         .localized
@@ -97,8 +96,6 @@ struct ShiftSwapRequestRouteView: View {
     var body: some View {
         reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text(shiftSwapCopy.title)
-                    .font(tokens.typography.titleCard)
                 Text(shiftSwapCopy.subtitle)
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
@@ -126,7 +123,6 @@ struct ShiftSwapRequestRouteView: View {
                     isLoading: viewModel.isSavingShiftSwapRequest,
                     action: onSave
                 )
-                reguertaButton(LocalizedStringKey(shiftSwapCopy.back), variant: .text, action: onBack)
             }
         }
     }

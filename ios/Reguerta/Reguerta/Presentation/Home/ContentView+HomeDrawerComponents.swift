@@ -58,16 +58,14 @@ struct HomeDrawerContentView: View {
 
     private var homeDrawerHeader: some View {
         HStack {
-            Button(action: onCloseDrawer) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 28.resize, weight: .semibold))
-                    .foregroundStyle(tokens.colors.textPrimary)
-                    .frame(width: 58.resize, height: 58.resize)
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .homeDrawerCloseGlassButton(tokens: tokens)
-            .accessibilityLabel(localizedKey(AccessL10nKey.commonClose))
+            ReguertaGlassIconButton(
+                iconAction: ReguertaHeaderAction(
+                    systemImageName: "chevron.left",
+                    accessibilityLabel: .localized(AccessL10nKey.commonClose),
+                    accessibilityIdentifier: "home.drawer.closeButton",
+                    action: onCloseDrawer
+                )
+            )
             Spacer()
         }
     }
@@ -221,28 +219,5 @@ struct HomeDrawerContentView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("home.drawer.item.\(destination.rawValue)")
-    }
-}
-
-private extension View {
-    @ViewBuilder
-    func homeDrawerCloseGlassButton(tokens: ReguertaDesignTokens) -> some View {
-        let shape = Circle()
-
-        if #available(iOS 26.0, *) {
-            self.glassEffect(
-                .regular
-                    .tint(tokens.colors.surfaceSecondary.opacity(0.24))
-                    .interactive(true),
-                in: shape
-            )
-        } else {
-            self
-                .background(.ultraThinMaterial, in: shape)
-                .overlay(
-                    shape.stroke(tokens.colors.borderSubtle.opacity(0.42), lineWidth: 1)
-                )
-                .shadow(color: .black.opacity(0.14), radius: 10.resize, y: 4.resize)
-        }
     }
 }

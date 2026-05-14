@@ -20,8 +20,6 @@ private struct BylawsRouteView: View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
             reguertaCard {
                 VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                    Text(LocalizedStringKey(AccessL10nKey.bylawsTitle))
-                        .font(tokens.typography.titleCard)
                     Text(LocalizedStringKey(AccessL10nKey.bylawsSubtitle))
                         .font(tokens.typography.bodySecondary)
                         .foregroundStyle(tokens.colors.textSecondary)

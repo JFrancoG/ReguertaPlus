@@ -93,34 +93,26 @@ struct ReguertaScreenHeaderViewModel {
 
 extension View {
     @ViewBuilder
-    func reguertaScreenHeaderGlassContainer(spacing: CGFloat) -> some View {
-        if #available(iOS 26.0, *) {
-            GlassEffectContainer(spacing: spacing) {
-                self
-            }
-        } else {
-            self
-        }
-    }
-
-    @ViewBuilder
-    func reguertaHeaderGlassButton(tokens: ReguertaDesignTokens, isEnabled: Bool) -> some View {
+    func reguertaHeaderGlassButton(
+        isEnabled: Bool,
+        colorScheme: ColorScheme
+    ) -> some View {
         let shape = Circle()
+        let isDarkMode = colorScheme == .dark
+        let tint = isDarkMode ? Color.black.opacity(0.36) : Color.white.opacity(0.42)
 
         if #available(iOS 26.0, *) {
-            self.glassEffect(
-                .regular
-                    .tint(tokens.colors.surfaceSecondary.opacity(0.18))
-                    .interactive(isEnabled),
-                in: shape
-            )
+            self
+                .glassEffect(
+                    .regular
+                        .tint(tint)
+                        .interactive(isEnabled),
+                    in: shape
+                )
         } else {
             self
                 .background(.ultraThinMaterial, in: shape)
-                .overlay(
-                    shape.stroke(tokens.colors.borderSubtle.opacity(0.42), lineWidth: 1)
-                )
-                .shadow(color: .black.opacity(0.18), radius: 10.resize, y: 4.resize)
+                .background(tint, in: shape)
         }
     }
 

@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct HomeShellTopBarView: View {
-    let tokens: ReguertaDesignTokens
     let titleKey: String
     let titleOverride: String?
     let showsBack: Bool
@@ -14,159 +13,66 @@ struct HomeShellTopBarView: View {
     let onNotificationsAction: () -> Void
     let onCartAction: () -> Void
 
-    private func localizedKey(_ key: String) -> LocalizedStringKey {
-        LocalizedStringKey(key)
-    }
-
-    var body: some View {
-        if #available(iOS 26.0, *) {
-            GlassEffectContainer(spacing: tokens.spacing.xl) {
-                topBarContent
-            }
-        } else {
-            topBarContent
+    private var titleText: ReguertaHeaderText {
+        if let titleOverride {
+            return .verbatim(titleOverride)
         }
+        return .localized(titleKey)
     }
 
-    private var topBarContent: some View {
-        HStack {
-            HomeShellGlassIconButton(
-                tokens: tokens,
-                systemName: showsBack ? "chevron.left" : "line.3.horizontal",
-                fontSize: showsBack ? 21.resize : 23.resize,
-                action: onPrimaryAction
+    private var headerTitle: ReguertaHeaderText? {
+        showsBack ? titleText : nil
+    }
+
+    private var leadingText: ReguertaHeaderText? {
+        showsBack ? nil : titleText
+    }
+
+    private var leadingAction: ReguertaHeaderAction {
+        ReguertaHeaderAction(
+            systemImageName: showsBack ? "chevron.left" : "line.3.horizontal",
+            accessibilityLabel: .localized(showsBack ? AccessL10nKey.commonBack : AccessL10nKey.homeShellMenu),
+            accessibilityIdentifier: showsBack ? "home.topBar.backButton" : "home.topBar.menuButton",
+            action: onPrimaryAction
+        )
+    }
+
+    private var trailingAction: ReguertaHeaderAction? {
+        if showsNotificationsAction {
+            return ReguertaHeaderAction(
+                systemImageName: "bell",
+                accessibilityLabel: .localized(AccessL10nKey.homeShellNotifications),
+                accessibilityIdentifier: "home.topBar.notificationsButton",
+                badge: hasNotificationIndicator ? .dot : nil,
+                action: onNotificationsAction
             )
-            .accessibilityIdentifier(showsBack ? "home.topBar.backButton" : "home.topBar.menuButton")
-
-            Spacer()
-
-            if let titleOverride {
-                Text(titleOverride)
-                    .font(tokens.typography.titleCard)
-                    .foregroundStyle(tokens.colors.textPrimary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.78)
-                    .accessibilityIdentifier("home.topBar.title")
-            } else {
-                Text(localizedKey(titleKey))
-                    .font(tokens.typography.titleCard)
-                    .foregroundStyle(tokens.colors.textPrimary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.78)
-                    .accessibilityIdentifier("home.topBar.title")
-            }
-
-            Spacer()
-
-            if showsNotificationsAction {
-                ZStack(alignment: .topTrailing) {
-                    HomeShellGlassIconButton(
-                        tokens: tokens,
-                        systemName: "bell",
-                        fontSize: 21.resize,
-                        action: onNotificationsAction
-                    )
-                    .accessibilityLabel(localizedKey(AccessL10nKey.homeShellNotifications))
-
-                    if hasNotificationIndicator {
-                        Circle()
-                            .fill(tokens.colors.feedbackError)
-                            .frame(width: 9.resize, height: 9.resize)
-                            .padding(.top, 12.resize)
-                            .padding(.trailing, 12.resize)
-                    }
-                }
-            } else if showsCartAction {
-                HomeShellCartButton(
-                    tokens: tokens,
-                    units: cartUnits,
-                    showsBadge: showsCartBadge,
-                    action: onCartAction
-                )
-            } else {
-                Color.clear
-                    .frame(width: 58.resize, height: 58.resize)
-            }
         }
-        .frame(maxWidth: .infinity, minHeight: 62.resize)
-    }
-}
 
-private struct HomeShellCartButton: View {
-    let tokens: ReguertaDesignTokens
-    let units: Int
-    let showsBadge: Bool
-    let action: () -> Void
-
-    var body: some View {
-        ZStack(alignment: .topTrailing) {
-            Button(action: action) {
-                Image(systemName: "cart")
-                    .font(.system(size: 21.resize, weight: .semibold))
-                    .foregroundStyle(units > 0 ? tokens.colors.textPrimary : tokens.colors.textSecondary)
-                    .frame(width: 58.resize, height: 58.resize)
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .disabled(units == 0)
-            .homeShellGlassButton(tokens: tokens)
-            .opacity(units > 0 ? 1 : 0.72)
-            .accessibilityLabel("Ver carrito")
-
-            if showsBadge && units > 0 {
-                Text("\(min(units, 99))")
-                    .font(tokens.typography.label)
-                    .foregroundStyle(tokens.colors.actionOnPrimary)
-                    .frame(width: 18.resize, height: 18.resize)
-                    .background(tokens.colors.feedbackError, in: Circle())
-                    .overlay(Circle().stroke(tokens.colors.surfacePrimary, lineWidth: 1.5.resize))
-                    .padding(.top, 5.resize)
-                    .padding(.trailing, 5.resize)
-                    .zIndex(1)
-            }
-        }
-    }
-}
-
-private struct HomeShellGlassIconButton: View {
-    let tokens: ReguertaDesignTokens
-    let systemName: String
-    let fontSize: CGFloat
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: fontSize, weight: .semibold))
-                .foregroundStyle(tokens.colors.textPrimary)
-                .frame(width: 58.resize, height: 58.resize)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .homeShellGlassButton(tokens: tokens)
-    }
-}
-
-private extension View {
-    @ViewBuilder
-    func homeShellGlassButton(tokens: ReguertaDesignTokens) -> some View {
-        let shape = Circle()
-
-        if #available(iOS 26.0, *) {
-            self.glassEffect(
-                .regular
-                    .tint(tokens.colors.surfaceSecondary.opacity(0.18))
-                    .interactive(true),
-                in: shape
+        if showsCartAction {
+            return ReguertaHeaderAction(
+                systemImageName: "cart",
+                accessibilityLabel: .verbatim("Ver carrito"),
+                accessibilityIdentifier: "home.topBar.cartButton",
+                isEnabled: cartUnits > 0,
+                badge: showsCartBadge && cartUnits > 0 ? .count(cartUnits) : nil,
+                action: onCartAction
             )
-        } else {
-            self
-                .background(.ultraThinMaterial, in: shape)
-                .overlay(
-                    shape.stroke(tokens.colors.borderSubtle.opacity(0.42), lineWidth: 1)
-                )
-                .shadow(color: .black.opacity(0.18), radius: 10.resize, y: 4.resize)
         }
+
+        return nil
+    }
+
+    private var headerViewModel: ReguertaScreenHeaderViewModel {
+        ReguertaScreenHeaderViewModel(
+            title: headerTitle,
+            leadingAction: leadingAction,
+            leadingText: leadingText,
+            trailingAction: trailingAction
+        )
+    }
+
+    var body: some View {
+        ReguertaScreenHeaderView(viewModel: headerViewModel)
     }
 }
 
