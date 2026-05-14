@@ -143,51 +143,26 @@ func fetchPreviousWeekOrderSnapshot(
     previousWeekKey: String,
     db: Firestore
 ) async throws -> MyOrderPreviousOrderSnapshot? {
-    var orderDocuments: [String: [String: Any]] = [:]
-    let deterministicOrderSnapshot = try await db.document("\(target.orders)/\(deterministicOrderId)").getDocument()
-    if deterministicOrderSnapshot.exists {
-        orderDocuments[deterministicOrderSnapshot.documentID] = deterministicOrderSnapshot.data() ?? [:]
-    }
-
-    let weekOrdersSnapshot = try await db.collection(target.orders)
-        .whereField("weekKey", isEqualTo: previousWeekKey)
-        .getDocuments()
-    for document in weekOrdersSnapshot.documents where document.matchesMemberOrder(
+    let orderDocuments = try await fetchPreviousOrderDocuments(
+        target: target,
+        deterministicOrderId: deterministicOrderId,
         memberId: memberId,
         weekKey: previousWeekKey,
-        deterministicOrderId: deterministicOrderId
-    ) {
-        orderDocuments[document.documentID] = document.data()
-    }
+        db: db
+    )
 
     let candidateOrderIds = Array(([deterministicOrderId] + Array(orderDocuments.keys))
         .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
         .filter { !$0.isEmpty })
         .uniquePreservingOrder()
 
-    var lineDocuments: [String: [String: Any]] = [:]
-    for orderId in candidateOrderIds {
-        let linesSnapshot = try await db.collection(target.orderlines)
-            .whereField("orderId", isEqualTo: orderId)
-            .getDocuments()
-        for document in linesSnapshot.documents {
-            lineDocuments[document.documentID] = document.data()
-        }
-    }
-
-    let weekLinesSnapshot = try await db.collection(target.orderlines)
-        .whereField("weekKey", isEqualTo: previousWeekKey)
-        .getDocuments()
-    for document in weekLinesSnapshot.documents {
-        let data = document.data()
-        if data.matchesPreviousOrderLine(
-            memberId: memberId,
-            weekKey: previousWeekKey,
-            candidateOrderIds: candidateOrderIds
-        ) {
-            lineDocuments[document.documentID] = data
-        }
-    }
+    let lineDocuments = try await fetchPreviousOrderLineDocuments(
+        target: target,
+        candidateOrderIds: candidateOrderIds,
+        memberId: memberId,
+        weekKey: previousWeekKey,
+        db: db
+    )
 
     let lines = lineDocuments.values.map { data in
         myOrderPreviousLine(from: data)
@@ -207,6 +182,67 @@ func fetchPreviousWeekOrderSnapshot(
         groups: groups,
         total: total
     )
+}
+
+private func fetchPreviousOrderDocuments(
+    target: MyOrderCheckoutWriteTarget,
+    deterministicOrderId: String,
+    memberId: String,
+    weekKey: String,
+    db: Firestore
+) async throws -> [String: [String: Any]] {
+    var orderDocuments: [String: [String: Any]] = [:]
+    let deterministicOrderSnapshot = try await db.document("\(target.orders)/\(deterministicOrderId)").getDocument()
+    if deterministicOrderSnapshot.exists {
+        orderDocuments[deterministicOrderSnapshot.documentID] = deterministicOrderSnapshot.data() ?? [:]
+    }
+
+    let weekOrdersSnapshot = try await db.collection(target.orders)
+        .whereField("weekKey", isEqualTo: weekKey)
+        .getDocuments()
+    for document in weekOrdersSnapshot.documents where document.matchesMemberOrder(
+        memberId: memberId,
+        weekKey: weekKey,
+        deterministicOrderId: deterministicOrderId
+    ) {
+        orderDocuments[document.documentID] = document.data()
+    }
+
+    return orderDocuments
+}
+
+private func fetchPreviousOrderLineDocuments(
+    target: MyOrderCheckoutWriteTarget,
+    candidateOrderIds: [String],
+    memberId: String,
+    weekKey: String,
+    db: Firestore
+) async throws -> [String: [String: Any]] {
+    var lineDocuments: [String: [String: Any]] = [:]
+    for orderId in candidateOrderIds {
+        let linesSnapshot = try await db.collection(target.orderlines)
+            .whereField("orderId", isEqualTo: orderId)
+            .getDocuments()
+        for document in linesSnapshot.documents {
+            lineDocuments[document.documentID] = document.data()
+        }
+    }
+
+    let weekLinesSnapshot = try await db.collection(target.orderlines)
+        .whereField("weekKey", isEqualTo: weekKey)
+        .getDocuments()
+    for document in weekLinesSnapshot.documents {
+        let data = document.data()
+        if data.matchesPreviousOrderLine(
+            memberId: memberId,
+            weekKey: weekKey,
+            candidateOrderIds: candidateOrderIds
+        ) {
+            lineDocuments[document.documentID] = data
+        }
+    }
+
+    return lineDocuments
 }
 
 private extension QueryDocumentSnapshot {
