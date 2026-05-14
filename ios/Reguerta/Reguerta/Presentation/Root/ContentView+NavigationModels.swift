@@ -25,7 +25,7 @@ extension HomeDestination {
         case .shifts: AccessL10nKey.shifts
         case .bylaws: AccessL10nKey.homeShellActionBylaws
         case .shiftSwapRequest: AccessL10nKey.shifts
-        case .news: AccessL10nKey.homeShellNewsTitle
+        case .news: AccessL10nKey.homeShellActionNews
         case .notifications: AccessL10nKey.homeShellNotifications
         case .profile: AccessL10nKey.homeShellActionProfile
         case .settings: AccessL10nKey.homeShellActionSettings

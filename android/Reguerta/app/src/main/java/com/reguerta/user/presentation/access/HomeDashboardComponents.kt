@@ -4,18 +4,25 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -72,34 +79,58 @@ internal fun HomeWeeklySummaryCard(
                 )
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(MaterialTheme.shapes.medium)
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium),
             ) {
-                HomeSummaryField(
-                    label = stringResource(R.string.home_dashboard_producer),
-                    value = display.producerName,
-                    modifier = Modifier.weight(1.55f),
+                HomeSummaryGridRow(
+                    leftContent = {
+                        HomeSummaryPrimaryCell(
+                            label = stringResource(R.string.home_dashboard_state),
+                            value = stringResource(display.orderState.labelRes()),
+                            valueColor = display.orderState.color(),
+                            maxValueLines = 2,
+                        )
+                    },
+                    rightContent = {
+                        HomeSummaryPrimaryCell(
+                            label = stringResource(R.string.home_dashboard_producer),
+                            value = display.producerName,
+                        )
+                    },
                 )
-                HomeSummaryField(
-                    label = stringResource(R.string.home_dashboard_delivery),
-                    value = display.deliveryLabel,
-                    modifier = Modifier.weight(0.95f),
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                HomeSummaryGridRow(
+                    leftContent = {
+                        HomeSummaryPrimaryCell(
+                            label = stringResource(R.string.home_dashboard_delivery),
+                            value = display.deliveryLabel,
+                        )
+                    },
+                    rightContent = {
+                        HomeSummaryResponsibleCell(
+                            label = stringResource(R.string.home_dashboard_delivery_responsibles),
+                            primary = display.responsibleName,
+                            secondary = stringResource(R.string.home_dashboard_helper_format, display.helperName),
+                        )
+                    },
                 )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-            ) {
-                HomeSummaryField(
-                    label = stringResource(R.string.home_dashboard_responsible),
-                    value = display.responsibleName,
-                    secondary = stringResource(R.string.home_dashboard_helper_format, display.helperName),
-                    modifier = Modifier.weight(1.55f),
-                )
-                HomeOrderStatePill(
-                    state = display.orderState,
-                    modifier = Modifier.weight(0.95f),
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                HomeSummaryGridRow(
+                    leftContent = {
+                        HomeSummaryPrimaryCell(
+                            label = stringResource(R.string.home_dashboard_market),
+                            value = display.marketLabel,
+                        )
+                    },
+                    rightContent = {
+                        HomeSummaryMarketResponsiblesCell(
+                            label = stringResource(R.string.home_dashboard_market_responsibles),
+                            names = display.marketResponsibleNames,
+                        )
+                    },
                 )
             }
         }
@@ -107,25 +138,59 @@ internal fun HomeWeeklySummaryCard(
 }
 
 @Composable
-private fun HomeSummaryField(
+private fun HomeSummaryGridRow(
+    leftContent: @Composable () -> Unit,
+    rightContent: @Composable () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min),
+    ) {
+        Box(
+            modifier = Modifier
+                .weight(0.84f)
+                .fillMaxHeight(),
+            contentAlignment = Alignment.Center,
+        ) {
+            leftContent()
+        }
+        VerticalDivider(
+            modifier = Modifier.fillMaxHeight(),
+            color = MaterialTheme.colorScheme.outlineVariant,
+        )
+        Box(
+            modifier = Modifier
+                .weight(1.66f)
+                .fillMaxHeight(),
+            contentAlignment = Alignment.Center,
+        ) {
+            rightContent()
+        }
+    }
+}
+
+@Composable
+private fun HomeSummaryPrimaryCell(
     label: String,
     value: String,
-    modifier: Modifier = Modifier,
-    secondary: String? = null,
+    valueColor: Color = MaterialTheme.colorScheme.onSurface,
+    maxValueLines: Int = 1,
 ) {
     val spacing = ReguertaThemeTokens.spacing
     Column(
-        modifier = modifier
-            .heightIn(min = 66.dp)
-            .clip(MaterialTheme.shapes.medium)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium)
-            .padding(horizontal = spacing.md, vertical = spacing.sm),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .padding(horizontal = spacing.sm, vertical = spacing.xs),
+        horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -133,49 +198,88 @@ private fun HomeSummaryField(
             text = value,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
+            color = valueColor,
+            textAlign = TextAlign.Center,
+            maxLines = maxValueLines,
             overflow = TextOverflow.Ellipsis,
         )
-        secondary?.let {
-            Text(
-                text = it,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
     }
 }
 
 @Composable
-private fun HomeOrderStatePill(
-    state: HomeOrderStateDisplay,
-    modifier: Modifier = Modifier,
+private fun HomeSummaryResponsibleCell(
+    label: String,
+    primary: String,
+    secondary: String,
 ) {
     val spacing = ReguertaThemeTokens.spacing
-    val color = state.color()
     Column(
-        modifier = modifier
-            .heightIn(min = 66.dp)
-            .clip(MaterialTheme.shapes.medium)
-            .border(1.dp, color, MaterialTheme.shapes.medium)
-            .padding(horizontal = spacing.md, vertical = spacing.sm),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .padding(horizontal = spacing.sm, vertical = spacing.xs),
+        horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Text(
-            text = stringResource(R.string.home_dashboard_state),
+            text = label,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            text = stringResource(state.labelRes()),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = color,
-            maxLines = 2,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+        Text(
+            text = primary,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = secondary,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun HomeSummaryMarketResponsiblesCell(
+    label: String,
+    names: List<String>,
+) {
+    val spacing = ReguertaThemeTokens.spacing
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .padding(horizontal = spacing.sm, vertical = spacing.xs),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        names.take(3).forEach { name ->
+            Text(
+                text = name,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 

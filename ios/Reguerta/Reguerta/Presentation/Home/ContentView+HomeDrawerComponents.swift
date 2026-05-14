@@ -126,7 +126,7 @@ struct HomeDrawerContentView: View {
         homeDrawerItem("doc.text.fill", titleKey: AccessL10nKey.myOrders, destination: .myOrders)
         homeDrawerItem("calendar", titleKey: AccessL10nKey.shifts, destination: .shifts)
         homeDrawerItem("doc.text.magnifyingglass", titleKey: AccessL10nKey.homeShellActionBylaws, destination: .bylaws)
-        homeDrawerItem("newspaper.fill", titleKey: AccessL10nKey.homeShellNewsTitle, destination: .news)
+        homeDrawerItem("newspaper.fill", titleKey: AccessL10nKey.homeShellActionNews, destination: .news)
         homeDrawerItem("bell", titleKey: AccessL10nKey.homeShellNotifications, destination: .notifications)
         homeDrawerItem("person.3.fill", titleKey: AccessL10nKey.homeShellActionProfile, destination: .profile)
         homeDrawerItem("gearshape.fill", titleKey: AccessL10nKey.homeShellActionSettings, destination: .settings)

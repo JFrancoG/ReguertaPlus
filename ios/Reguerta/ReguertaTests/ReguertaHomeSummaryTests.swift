@@ -16,6 +16,7 @@ struct ReguertaHomeSummaryTests {
         )
 
         #expect(display.weekKey == "2026-W19")
+        #expect(display.orderWeekKey == "2026-W18")
         #expect(display.weekRangeLabel == "4 may - 10 may")
         #expect(display.producerName == "Huerta Sur")
         #expect(display.isConsultaPhase)
@@ -38,10 +39,82 @@ struct ReguertaHomeSummaryTests {
         )
 
         #expect(display.weekKey == "2026-W20")
+        #expect(display.orderWeekKey == "2026-W19")
         #expect(display.weekRangeLabel == "11 may - 17 may")
         #expect(display.producerName == "Huerta Norte")
         #expect(!display.isConsultaPhase)
         #expect(display.myOrderSubtitleKey == AccessL10nKey.homeDashboardMyOrderSubtitleEdit)
+    }
+
+    @Test
+    func homeWeeklySummaryAfterWednesdayDeliveryUsesNextDeliveryCycleAndCurrentMarket() {
+        let display = resolveHomeWeeklySummaryDisplay(
+            nowMillis: testMillis(year: 2026, month: 5, day: 14),
+            defaultDeliveryDayOfWeek: .friday,
+            deliveryCalendarOverrides: [],
+            shifts: [
+                testDeliveryShift(id: "delivery_w20", year: 2026, month: 5, day: 13),
+                testDeliveryShift(
+                    id: "delivery_w21",
+                    year: 2026,
+                    month: 5,
+                    day: 20,
+                    assignedUserIds: ["felix"],
+                    helperUserId: "ana_belen"
+                ),
+                testMarketShift(
+                    id: "market_w20",
+                    year: 2026,
+                    month: 5,
+                    day: 16,
+                    assignedUserIds: ["valle", "angeles", "sandra"]
+                )
+            ],
+            members: may2026HomeSummaryMembers
+        )
+
+        #expect(display.weekKey == "2026-W21")
+        #expect(display.orderWeekKey == "2026-W20")
+        #expect(display.weekRangeLabel == "18 may - 24 may")
+        #expect(display.weekBadgeLabel == "Semana 21")
+        #expect(display.producerName == "Tito Fernando")
+        #expect(display.deliveryLabel == "Mié 20")
+        #expect(display.marketLabel == "Sáb 16")
+        #expect(display.responsibleName == "Felix")
+        #expect(display.helperName == "Ana Belen")
+        #expect(display.marketResponsibleNames == ["Valle", "Angeles", "Sandra"])
+    }
+
+    @Test
+    func homeWeeklySummaryMarketMovesToNextShiftTheDayAfterMarket() {
+        let display = resolveHomeWeeklySummaryDisplay(
+            nowMillis: testMillis(year: 2026, month: 5, day: 17),
+            defaultDeliveryDayOfWeek: .friday,
+            deliveryCalendarOverrides: [],
+            shifts: [
+                testDeliveryShift(id: "delivery_w20", year: 2026, month: 5, day: 13),
+                testDeliveryShift(id: "delivery_w21", year: 2026, month: 5, day: 20),
+                testMarketShift(
+                    id: "market_w20",
+                    year: 2026,
+                    month: 5,
+                    day: 16,
+                    assignedUserIds: ["valle", "angeles", "sandra"]
+                ),
+                testMarketShift(
+                    id: "market_w24",
+                    year: 2026,
+                    month: 6,
+                    day: 13,
+                    assignedUserIds: ["angeles", "sandra", "valle"]
+                )
+            ],
+            members: may2026HomeSummaryMembers
+        )
+
+        #expect(display.weekKey == "2026-W21")
+        #expect(display.marketLabel == "Sáb 13")
+        #expect(display.marketResponsibleNames == ["Angeles", "Sandra", "Valle"])
     }
 
     @Test

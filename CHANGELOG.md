@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-05-14 | ✨ feat(home): add weekly market context
 - 2026-05-14 | ✨ feat(ios-ui): migrate liquid glass headers
 - 2026-05-13 | ✨ feat(ios-ui): add screen header component
 - 2026-05-03 | ✨ feat(home): apply HU-051 redesign
