@@ -2,121 +2,99 @@ import SwiftUI
 
 extension MyOrderRouteView {
     var confirmedOrderView: some View {
-        ZStack(alignment: .bottom) {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                HStack(spacing: tokens.spacing.sm) {
-                    Text("Pedido confirmado")
-                        .font(tokens.typography.titleCard.weight(.semibold))
-                        .foregroundStyle(tokens.colors.textPrimary)
-                    Spacer()
-                    Button {
-                        viewModel.editConfirmedOrder()
-                    } label: {
-                        HStack(spacing: tokens.spacing.xs) {
-                            Image(systemName: "pencil")
-                            Text("Editar pedido")
-                                .font(tokens.typography.body.weight(.semibold))
-                        }
-                        .foregroundStyle(tokens.colors.actionPrimary)
-                        .padding(.horizontal, tokens.spacing.md)
-                        .padding(.vertical, tokens.spacing.sm)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: tokens.radius.md)
-                                .stroke(tokens.colors.actionPrimary, lineWidth: 1)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: tokens.spacing.md) {
-                        ForEach(viewModel.confirmedOrderGroups) { group in
-                            confirmedProducerCard(group)
-                        }
-                    }
-                    .padding(.bottom, 96.resize)
-                }
-            }
-
-            HStack {
-                Text("Suma total pedido: \(viewModel.cartTotal.myOrderUiDecimal) €")
-                    .font(tokens.typography.body.weight(.semibold))
+        VStack(alignment: .leading, spacing: tokens.spacing.md) {
+            HStack(spacing: tokens.spacing.sm) {
+                Text("Pedido confirmado")
+                    .font(tokens.typography.titleCard.weight(.semibold))
                     .foregroundStyle(tokens.colors.textPrimary)
-                    .frame(maxWidth: .infinity)
+                Spacer()
+                Button {
+                    viewModel.editConfirmedOrder()
+                } label: {
+                    HStack(spacing: tokens.spacing.xs) {
+                        Image(systemName: "pencil")
+                        Text("Editar pedido")
+                            .font(tokens.typography.body.weight(.semibold))
+                    }
+                    .foregroundStyle(tokens.colors.actionPrimary)
+                    .padding(.horizontal, tokens.spacing.md)
+                    .padding(.vertical, tokens.spacing.sm)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: tokens.radius.md)
+                            .stroke(tokens.colors.actionPrimary, lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
             }
-            .padding(.horizontal, tokens.spacing.md)
-            .padding(.vertical, tokens.spacing.sm)
-            .background(tokens.colors.actionPrimary.opacity(0.62))
-            .clipShape(Capsule())
-            .padding(.horizontal, tokens.spacing.sm)
-            .padding(.bottom, tokens.spacing.sm)
+
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: tokens.spacing.md) {
+                    ForEach(viewModel.confirmedOrderGroups) { group in
+                        confirmedProducerCard(group)
+                    }
+                }
+                .padding(.bottom, tokens.spacing.sm)
+            }
+        }
+        .safeAreaInset(edge: .bottom, spacing: tokens.spacing.xs) {
+            orderTotalBar("Suma total pedido: \(viewModel.cartTotal.myOrderUiDecimal) €")
+                .accessibilityIdentifier("myOrder.confirmedTotalBar")
         }
     }
 
     @ViewBuilder
     var previousOrderView: some View {
-        ZStack(alignment: .bottom) {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                switch viewModel.previousOrderState {
-                case .loading:
-                    reguertaCard {
-                        HStack(spacing: tokens.spacing.sm) {
-                            ProgressView()
-                                .tint(tokens.colors.actionPrimary)
-                            Text("Cargando pedido de la semana anterior…")
-                                .font(tokens.typography.bodySecondary)
-                                .foregroundStyle(tokens.colors.textSecondary)
-                        }
+        VStack(alignment: .leading, spacing: tokens.spacing.md) {
+            switch viewModel.previousOrderState {
+            case .loading:
+                reguertaCard {
+                    HStack(spacing: tokens.spacing.sm) {
+                        ProgressView()
+                            .tint(tokens.colors.actionPrimary)
+                        Text("Cargando pedido de la semana anterior…")
+                            .font(tokens.typography.bodySecondary)
+                            .foregroundStyle(tokens.colors.textSecondary)
                     }
+                }
 
-                case .empty:
-                    Text("No hay ningún pedido registrado la semana pasada")
-                        .font(tokens.typography.body)
-                        .foregroundStyle(tokens.colors.feedbackError)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.horizontal, tokens.spacing.lg)
-                        .padding(.vertical, tokens.spacing.xl)
+            case .empty:
+                Text("No hay ningún pedido registrado la semana pasada")
+                    .font(tokens.typography.body)
+                    .foregroundStyle(tokens.colors.feedbackError)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.horizontal, tokens.spacing.lg)
+                    .padding(.vertical, tokens.spacing.xl)
 
-                case .error:
-                    reguertaCard {
-                        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                            Text("No hemos podido cargar tu pedido anterior.")
-                                .font(tokens.typography.bodySecondary)
-                                .foregroundStyle(tokens.colors.textSecondary)
-                            reguertaButton("Reintentar", variant: .text, fullWidth: false) {
-                                Task {
-                                    await viewModel.retryPreviousOrder()
-                                }
+            case .error:
+                reguertaCard {
+                    VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                        Text("No hemos podido cargar tu pedido anterior.")
+                            .font(tokens.typography.bodySecondary)
+                            .foregroundStyle(tokens.colors.textSecondary)
+                        reguertaButton("Reintentar", variant: .text, fullWidth: false) {
+                            Task {
+                                await viewModel.retryPreviousOrder()
                             }
                         }
                     }
+                }
 
-                case .loaded(let snapshot):
-                    ScrollView(.vertical, showsIndicators: false) {
-                        VStack(spacing: tokens.spacing.md) {
-                            ForEach(snapshot.groups) { group in
-                                previousProducerCard(group)
-                            }
+            case .loaded(let snapshot):
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: tokens.spacing.md) {
+                        ForEach(snapshot.groups) { group in
+                            previousProducerCard(group)
                         }
-                        .padding(.bottom, 96.resize)
                     }
+                    .padding(.bottom, tokens.spacing.sm)
                 }
             }
-
+        }
+        .safeAreaInset(edge: .bottom, spacing: tokens.spacing.xs) {
             if case .loaded(let snapshot) = viewModel.previousOrderState {
-                HStack {
-                    Text("Suma total pedido: \(snapshot.total.myOrderUiDecimal) €")
-                        .font(tokens.typography.body.weight(.semibold))
-                        .foregroundStyle(tokens.colors.textPrimary)
-                        .frame(maxWidth: .infinity)
-                }
-                .padding(.horizontal, tokens.spacing.md)
-                .padding(.vertical, tokens.spacing.sm)
-                .background(tokens.colors.actionPrimary.opacity(0.62))
-                .clipShape(Capsule())
-                .padding(.horizontal, tokens.spacing.sm)
-                .padding(.bottom, tokens.spacing.sm)
+                orderTotalBar("Suma total pedido: \(snapshot.total.myOrderUiDecimal) €")
+                    .accessibilityIdentifier("myOrder.previousTotalBar")
             }
         }
     }
@@ -238,6 +216,22 @@ extension MyOrderRouteView {
         return "\(line.unitsSelected) \(line.unitsSelected == 1 ? "ud." : "uds.")"
     }
 
+    func orderTotalBar(_ text: String) -> some View {
+        HStack {
+            Text(text)
+                .font(tokens.typography.body.weight(.semibold))
+                .foregroundStyle(tokens.colors.textPrimary)
+                .frame(maxWidth: .infinity)
+        }
+        .padding(.horizontal, tokens.spacing.md)
+        .padding(.vertical, tokens.spacing.sm)
+        .background(tokens.colors.actionPrimary.opacity(0.62))
+        .clipShape(Capsule())
+        .padding(.horizontal, tokens.spacing.sm)
+        .padding(.bottom, tokens.spacing.sm)
+        .background(tokens.colors.surfacePrimary)
+    }
+
     var loadingState: some View {
         ProgressView()
             .controlSize(.large)
@@ -270,9 +264,11 @@ extension MyOrderRouteView {
                 }
             }
             .padding(.top, tokens.spacing.xs)
-            .padding(.bottom, 152.resize)
+            .padding(.bottom, 88.resize)
         }
+        .scrollClipDisabled(!viewModel.isCartVisible)
         .scrollDismissesKeyboard(.interactively)
+        .ignoresSafeArea(.container, edges: .bottom)
     }
 
     @ViewBuilder
@@ -291,10 +287,12 @@ extension MyOrderRouteView {
             Spacer(minLength: 0)
         }
         .padding(.vertical, tokens.spacing.sm)
-        .frame(maxWidth: .infinity)
         .padding(.horizontal, tokens.spacing.lg)
-        .background(tokens.colors.surfaceSecondary.opacity(0.9))
-        .padding(.horizontal, -tokens.spacing.lg)
+        .frame(maxWidth: .infinity)
+        .background {
+            tokens.colors.surfaceSecondary
+                .padding(.horizontal, 0)
+        }
     }
 
     @ViewBuilder

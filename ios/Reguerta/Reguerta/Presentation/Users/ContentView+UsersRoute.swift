@@ -9,81 +9,83 @@ struct UsersRouteView: View {
     }
 
     var body: some View {
-        ZStack {
-            Group {
-                if viewModel.isEditorOpen && viewModel.canManageMembers {
-                    usersEditor
-                } else {
-                    usersList
+        routeContent
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .overlay {
+                if let member = viewModel.pendingToggleMember {
+                    reguertaDialog(
+                        type: member.isActive ? .error : .info,
+                        title: l10n(
+                            member.isActive
+                                ? AccessL10nKey.usersToggleActiveAlertTitleDeactivate
+                                : AccessL10nKey.usersToggleActiveAlertTitleActivate
+                        ),
+                        message: member.isActive
+                            ? l10n(AccessL10nKey.usersToggleActiveAlertMessageDeactivate, member.displayName)
+                            : l10n(AccessL10nKey.usersToggleActiveAlertMessageActivate, member.displayName),
+                        primaryAction: ReguertaDialogAction(
+                            title: AccessL10nKey.commonAccept,
+                            action: {
+                                Task { _ = await viewModel.confirmToggleActive() }
+                            }
+                        ),
+                        secondaryAction: ReguertaDialogAction(
+                            title: AccessL10nKey.commonActionCancel,
+                            action: viewModel.dismissToggleActive
+                        ),
+                        onDismiss: viewModel.dismissToggleActive
+                    )
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
 
-            if let member = viewModel.pendingToggleMember {
-                reguertaDialog(
-                    type: member.isActive ? .error : .info,
-                    title: l10n(
-                        member.isActive
-                            ? AccessL10nKey.usersToggleActiveAlertTitleDeactivate
-                            : AccessL10nKey.usersToggleActiveAlertTitleActivate
-                    ),
-                    message: member.isActive
-                        ? l10n(AccessL10nKey.usersToggleActiveAlertMessageDeactivate, member.displayName)
-                        : l10n(AccessL10nKey.usersToggleActiveAlertMessageActivate, member.displayName),
-                    primaryAction: ReguertaDialogAction(
-                        title: AccessL10nKey.commonAccept,
-                        action: {
-                            Task { _ = await viewModel.confirmToggleActive() }
-                        }
-                    ),
-                    secondaryAction: ReguertaDialogAction(
-                        title: AccessL10nKey.commonActionCancel,
-                        action: viewModel.dismissToggleActive
-                    ),
-                    onDismiss: viewModel.dismissToggleActive
-                )
-            }
+    @ViewBuilder
+    private var routeContent: some View {
+        if viewModel.isEditorOpen && viewModel.canManageMembers {
+            usersEditor
+        } else {
+            usersList
         }
     }
 
     private var usersList: some View {
-        ZStack(alignment: .bottom) {
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                reguertaCard {
+                    VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                        Text(LocalizedStringKey(AccessL10nKey.usersListTitle))
+                            .font(tokens.typography.titleCard)
+                        reguertaButton(LocalizedStringKey(AccessL10nKey.usersListActionReload), variant: .text, fullWidth: false) {
+                            Task { await viewModel.refreshMembers() }
+                        }
+                    }
+                }
+
+                if viewModel.sortedMembers.isEmpty {
                     reguertaCard {
-                        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                            Text(LocalizedStringKey(AccessL10nKey.usersListTitle))
-                                .font(tokens.typography.titleCard)
-                            reguertaButton(LocalizedStringKey(AccessL10nKey.usersListActionReload), variant: .text, fullWidth: false) {
-                                Task { await viewModel.refreshMembers() }
-                            }
-                        }
+                        Text(LocalizedStringKey(AccessL10nKey.usersListEmpty))
+                            .font(tokens.typography.bodySecondary)
+                            .foregroundStyle(tokens.colors.textSecondary)
                     }
-
-                    if viewModel.sortedMembers.isEmpty {
-                        reguertaCard {
-                            Text(LocalizedStringKey(AccessL10nKey.usersListEmpty))
-                                .font(tokens.typography.bodySecondary)
-                                .foregroundStyle(tokens.colors.textSecondary)
-                        }
-                    } else {
-                        ForEach(viewModel.sortedMembers) { member in
-                            userCardRow(member)
-                        }
-                    }
-
-                    if viewModel.canManageMembers {
-                        Spacer(minLength: 92.resize)
+                } else {
+                    ForEach(viewModel.sortedMembers) { member in
+                        userCardRow(member)
                     }
                 }
             }
-            .scrollDismissesKeyboard(.interactively)
-
+            .padding(.bottom, tokens.spacing.sm)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .safeAreaInset(edge: .bottom, spacing: tokens.spacing.xs) {
             if viewModel.canManageMembers {
-                reguertaButton(LocalizedStringKey(AccessL10nKey.usersListActionAdd)) {
+                reguertaButton(
+                    LocalizedStringKey(AccessL10nKey.usersListActionAdd),
+                    accessibilityIdentifier: "users.addButton"
+                ) {
                     viewModel.startCreating()
                 }
                 .padding(.bottom, tokens.spacing.sm)
+                .background(tokens.colors.surfacePrimary)
             }
         }
     }
@@ -139,77 +141,81 @@ struct UsersRouteView: View {
     }
 
     private var usersEditor: some View {
-        reguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text(
-                    LocalizedStringKey(
-                        editingMember == nil
-                            ? AccessL10nKey.usersEditorTitleCreate
-                            : AccessL10nKey.usersEditorTitleEdit
+        ScrollView(.vertical, showsIndicators: false) {
+            reguertaCard {
+                VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                    Text(
+                        LocalizedStringKey(
+                            editingMember == nil
+                                ? AccessL10nKey.usersEditorTitleCreate
+                                : AccessL10nKey.usersEditorTitleEdit
+                        )
                     )
-                )
-                .font(tokens.typography.titleCard)
+                    .font(tokens.typography.titleCard)
 
-                if editingMember == nil {
+                    if editingMember == nil {
+                        TextField(
+                            LocalizedStringKey(AccessL10nKey.emailLabel),
+                            text: draftStringBinding(\.email)
+                        )
+                        .textFieldStyle(.roundedBorder)
+                    } else if let email = editingMember?.normalizedEmail {
+                        Text(email)
+                            .font(tokens.typography.body.weight(.semibold))
+                            .foregroundStyle(tokens.colors.textPrimary)
+                    }
+
                     TextField(
-                        LocalizedStringKey(AccessL10nKey.emailLabel),
-                        text: draftStringBinding(\.email)
+                        LocalizedStringKey(AccessL10nKey.displayNameLabel),
+                        text: draftStringBinding(\.displayName)
                     )
                     .textFieldStyle(.roundedBorder)
-                } else if let email = editingMember?.normalizedEmail {
-                    Text(email)
-                        .font(tokens.typography.body.weight(.semibold))
-                        .foregroundStyle(tokens.colors.textPrimary)
-                }
 
-                TextField(
-                    LocalizedStringKey(AccessL10nKey.displayNameLabel),
-                    text: draftStringBinding(\.displayName)
-                )
-                .textFieldStyle(.roundedBorder)
-
-                TextField(
-                    LocalizedStringKey(AccessL10nKey.usersEditorPhoneLabel),
-                    text: draftStringBinding(\.phoneNumber)
-                )
-                .textFieldStyle(.roundedBorder)
-
-                Toggle(
-                    LocalizedStringKey(AccessL10nKey.usersEditorCommonPurchaseManagerLabel),
-                    isOn: draftBoolBinding(\.isCommonPurchaseManager)
-                )
-
-                Toggle(
-                    LocalizedStringKey(AccessL10nKey.roleProducer),
-                    isOn: producerBinding
-                )
-
-                if viewModel.draft.isProducer {
                     TextField(
-                        LocalizedStringKey(AccessL10nKey.usersEditorCompanyNameLabel),
-                        text: draftStringBinding(\.companyName)
+                        LocalizedStringKey(AccessL10nKey.usersEditorPhoneLabel),
+                        text: draftStringBinding(\.phoneNumber)
                     )
                     .textFieldStyle(.roundedBorder)
-                }
 
-                Toggle(LocalizedStringKey(AccessL10nKey.roleAdmin), isOn: draftBoolBinding(\.isAdmin))
+                    Toggle(
+                        LocalizedStringKey(AccessL10nKey.usersEditorCommonPurchaseManagerLabel),
+                        isOn: draftBoolBinding(\.isCommonPurchaseManager)
+                    )
 
-                reguertaButton(
-                    LocalizedStringKey(
-                        editingMember == nil
-                            ? AccessL10nKey.usersEditorActionCreate
-                            : AccessL10nKey.usersEditorActionUpdate
-                    ),
-                    isEnabled: !viewModel.isSavingMember,
-                    isLoading: viewModel.isSavingMember
-                ) {
-                    Task { _ = await viewModel.saveDraft() }
-                }
-                reguertaButton(LocalizedStringKey(AccessL10nKey.commonBack), variant: .text, fullWidth: false) {
-                    viewModel.clearEditor()
+                    Toggle(
+                        LocalizedStringKey(AccessL10nKey.roleProducer),
+                        isOn: producerBinding
+                    )
+
+                    if viewModel.draft.isProducer {
+                        TextField(
+                            LocalizedStringKey(AccessL10nKey.usersEditorCompanyNameLabel),
+                            text: draftStringBinding(\.companyName)
+                        )
+                        .textFieldStyle(.roundedBorder)
+                    }
+
+                    Toggle(LocalizedStringKey(AccessL10nKey.roleAdmin), isOn: draftBoolBinding(\.isAdmin))
+
+                    reguertaButton(
+                        LocalizedStringKey(
+                            editingMember == nil
+                                ? AccessL10nKey.usersEditorActionCreate
+                                : AccessL10nKey.usersEditorActionUpdate
+                        ),
+                        isEnabled: !viewModel.isSavingMember,
+                        isLoading: viewModel.isSavingMember
+                    ) {
+                        Task { _ = await viewModel.saveDraft() }
+                    }
+                    reguertaButton(LocalizedStringKey(AccessL10nKey.commonBack), variant: .text, fullWidth: false) {
+                        viewModel.clearEditor()
+                    }
                 }
             }
+            .padding(.bottom, tokens.spacing.sm)
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private var producerBinding: Binding<Bool> {

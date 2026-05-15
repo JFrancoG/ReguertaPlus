@@ -116,7 +116,8 @@ struct LatestNewsCardView: View {
                 .scrollContentBackground(.hidden)
                 .contentMargins(.top, 0, for: .scrollContent)
                 .contentMargins(.horizontal, 0, for: .scrollContent)
-                .contentMargins(.bottom, 16.resizeBottomSize, for: .scrollContent)
+                .contentMargins(.bottom, 0, for: .scrollContent)
+                .ignoresSafeArea(.container, edges: .bottom)
                 .accessibilityIdentifier("home.latestNews.scroll")
             }
         }

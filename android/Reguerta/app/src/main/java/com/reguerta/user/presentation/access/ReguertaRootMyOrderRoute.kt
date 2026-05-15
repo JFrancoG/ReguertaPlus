@@ -111,6 +111,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 private const val CommonPurchasesGroupId = "__my_order_reguerta_common_purchases__"
+private const val MyOrderCartAnimationMillis = 400
 private const val MyOrderCartPrefsName = "reguerta_my_order_cart"
 private const val MyOrderCartQuantitiesSuffix = ".quantities"
 private const val MyOrderCartOptionsSuffix = ".eco_options"
@@ -372,11 +373,7 @@ internal fun MyOrderRoute(
             isCartVisible = !isCartVisible
         }
     }
-    val finalizeActionLabel = if (hasConfirmedOrder && hasPendingConfirmedEdits) {
-        stringResource(R.string.my_order_finalize_update_action)
-    } else {
-        stringResource(R.string.my_order_finalize_action)
-    }
+    val finalizeActionLabel = stringResource(R.string.my_order_finalize_action)
     val canSubmitOrder = !isSubmittingCheckout &&
         !isReadOnlyMode &&
         selectedUnits > 0 &&
@@ -538,7 +535,7 @@ internal fun MyOrderRoute(
         val cartPanelWidth = maxWidth
         val cartPanelOffsetX by animateDpAsState(
             targetValue = if (isCartVisible) 0.dp else cartPanelWidth + 24.dp,
-            animationSpec = tween(durationMillis = 220),
+            animationSpec = tween(durationMillis = MyOrderCartAnimationMillis),
             label = "my_order_cart_offset",
         )
         val producerHeaderEdgeInset = ReguertaThemeTokens.spacing.lg

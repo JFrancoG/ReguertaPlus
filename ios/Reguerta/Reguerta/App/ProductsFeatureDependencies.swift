@@ -13,7 +13,17 @@ struct ProductsFeatureDependencies {
         imagePipelineManager: any ImagePipelineManager,
         nowMillisProvider: @escaping @MainActor () -> Int64
     ) -> ProductsFeatureDependencies {
-        ProductsFeatureDependencies(
+        if ProcessInfo.processInfo.arguments.contains("-useMockProductData") {
+            return ProductsFeatureDependencies(
+                productRepository: InMemoryProductRepository(items: mockProductData),
+                memberRepository: InMemoryMemberRepository(),
+                seasonalCommitmentRepository: InMemorySeasonalCommitmentRepository(),
+                imagePipelineManager: imagePipelineManager,
+                nowMillisProvider: nowMillisProvider
+            )
+        }
+
+        return ProductsFeatureDependencies(
             productRepository: ChainedProductRepository(
                 primary: FirestoreProductRepository(db: db),
                 fallback: InMemoryProductRepository()
@@ -46,4 +56,34 @@ struct ProductsFeatureDependencies {
             nowMillisProvider: nowMillisProvider
         )
     }
+
+    private static let mockProductData: [Product] = [
+        Product(
+            id: "mock_tomatoes",
+            vendorId: "member_producer_001",
+            companyName: "Riscos Altos",
+            name: "Tomatoes",
+            description: "Mock ordering product for UI tests.",
+            productImageUrl: nil,
+            price: 2.50,
+            pricingMode: .fixed,
+            unitName: "unit",
+            unitAbbreviation: "ud",
+            unitPlural: "units",
+            unitQty: 1,
+            packContainerName: nil,
+            packContainerAbbreviation: nil,
+            packContainerPlural: nil,
+            packContainerQty: nil,
+            isAvailable: true,
+            stockMode: .infinite,
+            stockQty: nil,
+            isEcoBasket: false,
+            isCommonPurchase: false,
+            commonPurchaseType: nil,
+            archived: false,
+            createdAtMillis: 1_000,
+            updatedAtMillis: 1_000
+        )
+    ]
 }

@@ -37,6 +37,7 @@ struct ReguertaDialogView: View {
             .clipShape(RoundedRectangle(cornerRadius: tokens.radius.lg))
             .padding(tokens.spacing.lg)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func dismissIfAllowed() {

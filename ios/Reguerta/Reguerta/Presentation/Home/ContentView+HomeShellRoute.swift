@@ -35,7 +35,13 @@ extension AccessRootViewModel {
     }
 
     var homeShellRouteSpacing: CGFloat {
-        isMyOrderCartOverlayVisible ? 4.resize : 12.resize
+        if isMyOrderCartOverlayVisible {
+            return 0
+        }
+        if homeDestination == .myOrder {
+            return 18.resize
+        }
+        return 12.resize
     }
 
     var homeShellTopBarHorizontalPadding: CGFloat {
@@ -391,34 +397,30 @@ extension AccessRootRoutingView {
             homeDrawerPanel
                 .zIndex(1)
 
-            ZStack(alignment: .topLeading) {
-                VStack(alignment: .center, spacing: rootViewModel.homeShellRouteSpacing) {
-                    ReguertaScreenHeaderView(viewModel: rootViewModel.homeShellHeaderViewModel)
-                        .padding(.horizontal, rootViewModel.homeShellTopBarHorizontalPadding)
-                        .frame(width: rootViewModel.homeContentWidth)
-                        .background(tokens.colors.surfacePrimary)
-
-                    homeRouteContent
-                        .frame(width: rootViewModel.homeContentWidth, alignment: .topLeading)
-                        .frame(maxHeight: .infinity, alignment: .topLeading)
-
-                    if rootViewModel.shouldShowHomeFeedbackMessage {
-                        feedbackMessageRoute
-                            .frame(width: rootViewModel.homeContentWidth)
-                    }
+            ReguertaScreenScaffold(
+                contentWidth: rootViewModel.homeContentWidth,
+                headerViewModel: rootViewModel.homeShellHeaderViewModel,
+                headerHorizontalPadding: rootViewModel.homeShellTopBarHorizontalPadding,
+                headerContentSpacing: rootViewModel.homeShellRouteSpacing,
+                showsBottomInset: rootViewModel.shouldShowHomeFeedbackMessage
+            ) {
+                homeRouteContent
+                    .frame(maxHeight: .infinity, alignment: .topLeading)
+            } bottomContent: {
+                if rootViewModel.shouldShowHomeFeedbackMessage {
+                    feedbackMessageRoute
                 }
-                .disabled(rootViewModel.isHomeDrawerPresented)
-                .padding(.top, rootViewModel.homeTopSpacing)
-                .padding(.bottom, rootViewModel.homeBottomSpacing)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .background(tokens.colors.surfacePrimary.ignoresSafeArea())
-
+            }
+            .disabled(rootViewModel.isHomeDrawerPresented)
+            .overlay(alignment: .topLeading) {
                 if rootViewModel.isHomeDrawerPresented {
                     homeDrawerHomeScrim
                 }
             }
+            .overlay {
+                homeCheckoutDialogOverlay
+            }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .ignoresSafeArea(.container, edges: .vertical)
             .offset(x: rootViewModel.homeLayerOffset)
             .zIndex(2)
             .animation(rootViewModel.homeDrawerAnimation, value: rootViewModel.isHomeDrawerOpen)
@@ -434,6 +436,76 @@ extension AccessRootRoutingView {
                     .zIndex(4)
             }
         }
+    }
+
+    @ViewBuilder
+    var homeCheckoutDialogOverlay: some View {
+        if rootViewModel.homeDestination == .myOrder,
+           let checkoutAlert = rootViewModel.myOrderViewModel.checkoutAlert {
+            homeCheckoutDialog(checkoutAlert)
+        }
+    }
+
+    @ViewBuilder
+    func homeCheckoutDialog(_ alert: MyOrderCheckoutAlert) -> some View {
+        switch alert {
+        case .missingCommitments(let names):
+            homeCheckoutErrorDialog(
+                title: "Faltan productos de compromiso",
+                message: "Necesitas incluir al menos una unidad de: \(names.joined(separator: ", "))."
+            )
+        case .exceededCommitments(let names):
+            homeCheckoutErrorDialog(
+                title: "Has superado el compromiso",
+                message: "No puedes añadir más cantidad de la comprometida en: \(names.joined(separator: ", "))."
+            )
+        case .incompatibleCommitments(let names):
+            homeCheckoutErrorDialog(
+                title: "Compromiso no representable",
+                message: "La cantidad comprometida de \(names.joined(separator: ", ")) no encaja con el paso de compra actual. Contacta con administración."
+            )
+        case .ecoBasketPriceMismatch:
+            homeCheckoutErrorDialog(
+                title: "Precio de ecocesta inconsistente",
+                message: "Todas las ecocestas activas deben mantener el mismo precio para continuar."
+            )
+        case .submitFailed:
+            homeCheckoutErrorDialog(
+                title: "No se pudo guardar el pedido",
+                message: "Ha ocurrido un problema al guardar tu pedido. Inténtalo de nuevo."
+            )
+        case .readyToSubmit(let total, let noPickupEcoBaskets):
+            reguertaDialog(
+                type: .info,
+                title: "Pedido realizado con éxito",
+                message: noPickupEcoBaskets > 0
+                    ? "Todo correcto. Total: \(total.myOrderUiDecimal) €. Ecocestas marcadas como no_pickup: \(noPickupEcoBaskets). Tu pedido se ha guardado."
+                    : "Todo correcto. Total: \(total.myOrderUiDecimal) €. Tu pedido se ha guardado.",
+                primaryAction: ReguertaDialogAction(
+                    title: "Aceptar",
+                    action: handleHomeCheckoutSuccessAcknowledged
+                ),
+                dismissible: false
+            )
+        }
+    }
+
+    func homeCheckoutErrorDialog(title: String, message: String) -> some View {
+        reguertaDialog(
+            type: .error,
+            title: title,
+            message: message,
+            primaryAction: ReguertaDialogAction(
+                title: "Aceptar",
+                action: rootViewModel.myOrderViewModel.dismissCheckoutAlert
+            ),
+            onDismiss: rootViewModel.myOrderViewModel.dismissCheckoutAlert
+        )
+    }
+
+    func handleHomeCheckoutSuccessAcknowledged() {
+        rootViewModel.myOrderViewModel.acknowledgeCheckoutSuccess()
+        rootViewModel.homeDestination = .dashboard
     }
 
     var homeDrawerPanel: some View {

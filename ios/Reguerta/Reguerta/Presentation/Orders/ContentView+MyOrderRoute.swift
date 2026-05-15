@@ -68,39 +68,15 @@ struct MyOrderRouteView: View {
     let onCheckoutSuccessAcknowledge: () -> Void
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            if viewModel.isReadOnlyMode {
-                readOnlyOrderContent
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            } else {
-                VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                    if viewModel.context.isLoading {
-                        loadingState
-                    } else if viewModel.groupedProducts.isEmpty {
-                        emptyState
-                    } else {
-                        productsList
-                    }
+        routeContent
+            .overlay(alignment: .bottom) {
+                if shouldShowSearchOverlay {
+                    searchOverlay
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
-
-            if !viewModel.isReadOnlyMode && !viewModel.isCartVisible && !viewModel.context.isLoading {
-                searchOverlay
+            .overlay {
+                cartOverlayLayer
             }
-
-            if !viewModel.isReadOnlyMode && viewModel.isCartVisible {
-                Color.black.opacity(0.22)
-                    .ignoresSafeArea()
-                    .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.22)) {
-                            viewModel.closeCartOverlay()
-                        }
-                    }
-                cartOverlay
-                    .transition(.move(edge: .trailing))
-            }
-        }
         .task(id: context.identity) {
             await viewModel.appear(context: context)
             onCartUnitsChange(viewModel.selectedUnits)
@@ -113,17 +89,75 @@ struct MyOrderRouteView: View {
             onReadOnlyModeChange(isReadOnly)
         }
         .onChange(of: cartOpenRequests) { _, newValue in
-            withAnimation(.easeInOut(duration: 0.22)) {
+            withAnimation(myOrderCartOverlayAnimation) {
                 viewModel.handleCartOpenRequest(newValue)
             }
         }
         .onDisappear {
             viewModel.resetCartOverlayForRouteEntry()
         }
-        .overlay {
-            if let checkoutAlert = viewModel.checkoutAlert {
-                checkoutDialog(checkoutAlert)
+    }
+}
+
+extension MyOrderRouteView {
+    var myOrderCartOverlayAnimation: Animation {
+        .easeInOut(duration: 0.4)
+    }
+
+    var myOrderScreenHorizontalBleed: CGFloat {
+        let contentWidth = 358.resize
+        let screenOutset = max(0, (DeviceScale.shortestSide - contentWidth) / 2)
+        return screenOutset.rounded(.up) + 1.resize
+    }
+}
+
+private extension MyOrderRouteView {
+    var shouldShowSearchOverlay: Bool {
+        !viewModel.isReadOnlyMode && !viewModel.isCartVisible && !viewModel.context.isLoading
+    }
+
+    @ViewBuilder
+    var routeContent: some View {
+        if viewModel.isReadOnlyMode {
+            readOnlyOrderContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        } else {
+            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                if viewModel.context.isLoading {
+                    loadingState
+                } else if viewModel.groupedProducts.isEmpty {
+                    emptyState
+                } else {
+                    productsList
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+    }
+
+    @ViewBuilder
+    var cartOverlayLayer: some View {
+        if !viewModel.isReadOnlyMode {
+            ZStack(alignment: .bottom) {
+                Color.black.opacity(viewModel.isCartVisible ? 0.22 : 0)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(myOrderCartOverlayAnimation) {
+                            viewModel.closeCartOverlay()
+                        }
+                    }
+
+                cartOverlay
+                    .visualEffect { content, geometry in
+                        content.offset(
+                            x: viewModel.isCartVisible ? 0 : geometry.size.width + tokens.spacing.xxl
+                        )
+                    }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            .allowsHitTesting(viewModel.isCartVisible)
+            .accessibilityHidden(!viewModel.isCartVisible)
+            .animation(myOrderCartOverlayAnimation, value: viewModel.isCartVisible)
         }
     }
 }

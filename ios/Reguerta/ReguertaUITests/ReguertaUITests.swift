@@ -15,8 +15,11 @@ final class ReguertaUITests: XCTestCase {
     private let menuButtonId = "home.topBar.menuButton"
     private let topBarTitleId = "reguerta.screenHeader.title"
     private let newsDrawerItemId = "home.drawer.item.news"
+    private let usersDrawerItemId = "home.drawer.item.users"
     private let myOrderButtonId = "home.module.myOrder"
     private let receivedOrdersButtonId = "home.module.receivedOrders"
+    private let myOrderSearchFieldId = "myOrder.searchField"
+    private let usersAddButtonId = "users.addButton"
     private let latestNewsTitleIdPrefix = "home.latestNews.article."
     private let latestNewsScrollId = "home.latestNews.scroll"
 
@@ -115,6 +118,47 @@ final class ReguertaUITests: XCTestCase {
     }
 
     @MainActor
+    func testMyOrderSearchBarStaysAboveBottomSafeArea() throws {
+        let app = configuredApp()
+        signInAsProducer(in: app)
+
+        let myOrderButton = app.buttons[myOrderButtonId]
+        XCTAssertTrue(waitForHittable(myOrderButton, timeout: 5), "My order button not hittable")
+        XCTAssertTrue(waitForEnabled(myOrderButton, timeout: 5), "My order button not enabled")
+        myOrderButton.tap()
+
+        let searchField = app.textFields[myOrderSearchFieldId]
+        XCTAssertTrue(searchField.waitForExistence(timeout: 8), "My order search field not found")
+        XCTAssertTrue(waitForHittable(searchField, timeout: 5), "My order search field not hittable")
+        XCTAssertLessThanOrEqual(
+            searchField.frame.maxY,
+            app.frame.maxY - 8,
+            "My order search field should not be covered by the bottom edge"
+        )
+    }
+
+    @MainActor
+    func testUsersAddButtonStaysAboveBottomSafeArea() throws {
+        let app = configuredApp()
+        signInAsAdmin(in: app)
+
+        openDrawer(in: app)
+        let usersDrawerItem = app.buttons[usersDrawerItemId]
+        XCTAssertTrue(usersDrawerItem.waitForExistence(timeout: 5), "Users drawer item not found")
+        XCTAssertTrue(waitForHittable(usersDrawerItem, timeout: 5), "Users drawer item not hittable")
+        usersDrawerItem.tap()
+
+        let addButton = app.buttons[usersAddButtonId]
+        XCTAssertTrue(addButton.waitForExistence(timeout: 8), "Users add button not found")
+        XCTAssertTrue(waitForHittable(addButton, timeout: 5), "Users add button not hittable")
+        XCTAssertLessThanOrEqual(
+            addButton.frame.maxY,
+            app.frame.maxY - 8,
+            "Users add button should not be covered by the bottom edge"
+        )
+    }
+
+    @MainActor
     func testDrawerNavigationOpensSelectedRoute() throws {
         let app = configuredApp()
         let emailField = launchAndOpenLogin(app)
@@ -177,7 +221,13 @@ final class ReguertaUITests: XCTestCase {
 
     private func configuredApp() -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-skipSplash", "-useMockAuth"]
+        app.launchArguments += [
+            "-AppleLanguages", "(en)",
+            "-AppleLocale", "en_US",
+            "-skipSplash",
+            "-useMockAuth",
+            "-useMockProductData"
+        ]
         return app
     }
 
@@ -199,9 +249,23 @@ final class ReguertaUITests: XCTestCase {
 
     @MainActor
     private func signInAsProducer(in app: XCUIApplication) {
+        signIn(email: "pablo.producer@reguerta.app", in: app)
+
+        XCTAssertTrue(app.buttons[myOrderButtonId].waitForExistence(timeout: 8), "Home did not load")
+    }
+
+    @MainActor
+    private func signInAsAdmin(in app: XCUIApplication) {
+        signIn(email: "ana.admin@reguerta.app", in: app)
+
+        XCTAssertTrue(app.buttons[menuButtonId].waitForExistence(timeout: 8), "Home did not load")
+    }
+
+    @MainActor
+    private func signIn(email: String, in app: XCUIApplication) {
         let emailField = launchAndOpenLogin(app)
         emailField.tap()
-        emailField.typeText("pablo.producer@reguerta.app")
+        emailField.typeText(email)
 
         let passwordField = app.secureTextFields[passwordFieldId]
         XCTAssertTrue(passwordField.waitForExistence(timeout: 5), "Password field not found")
@@ -210,13 +274,27 @@ final class ReguertaUITests: XCTestCase {
 
         app.buttons[signInButtonId].tap()
         dismissPasswordSavePromptIfNeeded(in: app)
+    }
 
-        XCTAssertTrue(app.buttons[myOrderButtonId].waitForExistence(timeout: 8), "Home did not load")
+    @MainActor
+    private func openDrawer(in app: XCUIApplication) {
+        let menuButton = app.buttons[menuButtonId]
+        XCTAssertTrue(menuButton.waitForExistence(timeout: 8), "Menu button not found")
+        dismissPasswordSavePromptIfNeeded(in: app, timeout: 1)
+        XCTAssertTrue(waitForHittable(menuButton, timeout: 5), "Menu button not hittable")
+        menuButton.tap()
     }
 
     @MainActor
     private func waitForHittable(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
         let predicate = NSPredicate(format: "isHittable == true")
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    }
+
+    @MainActor
+    private func waitForEnabled(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+        let predicate = NSPredicate(format: "isEnabled == true")
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }

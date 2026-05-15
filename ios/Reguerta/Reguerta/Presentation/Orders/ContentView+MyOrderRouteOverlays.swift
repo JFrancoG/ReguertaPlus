@@ -25,7 +25,7 @@ extension MyOrderRouteView {
             )
             .shadow(color: .black.opacity(0.16), radius: 18.resize, y: 8.resize)
             .padding(.horizontal, tokens.spacing.md)
-            .padding(.bottom, 24.resizeBottomSize)
+            .padding(.bottom, 8.resizeBottomSize)
     }
 
     var searchOverlayContent: some View {
@@ -43,6 +43,7 @@ extension MyOrderRouteView {
                 .font(tokens.typography.titleCard)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .accessibilityIdentifier("myOrder.searchField")
             if viewModel.searchQuery.isNotEmpty {
                 Button {
                     viewModel.clearSearch()
@@ -60,8 +61,6 @@ extension MyOrderRouteView {
 
     var cartOverlay: some View {
         ZStack(alignment: .bottom) {
-            tokens.colors.surfacePrimary
-
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
                 cartOverlayHeader
                 cartOverlayProductsList
@@ -76,7 +75,13 @@ extension MyOrderRouteView {
             cartOverlayCheckoutFooter
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background {
+            tokens.colors.surfacePrimary
+                .ignoresSafeArea(.container, edges: .bottom)
+                .padding(.horizontal, -myOrderScreenHorizontalBleed)
+        }
         .allowsHitTesting(viewModel.isCartVisible)
+        .accessibilityIdentifier("myOrder.cartOverlay")
     }
 
     var cartOverlayHeader: some View {
@@ -97,8 +102,9 @@ extension MyOrderRouteView {
                     selectedProductCard(product)
                 }
             }
-            .padding(.bottom, 116.resize)
+            .padding(.bottom, 88.resize)
         }
+        .ignoresSafeArea(.container, edges: .bottom)
     }
 
     @ViewBuilder
@@ -125,6 +131,7 @@ extension MyOrderRouteView {
             .padding(.horizontal, tokens.spacing.xl + tokens.spacing.sm)
             .padding(.bottom, 8.resizeBottomSize)
             .shadow(color: .black.opacity(0.18), radius: 14.resize, y: 6.resize)
+            .accessibilityIdentifier("myOrder.checkoutButton")
         }
     }
 
@@ -150,7 +157,7 @@ extension MyOrderRouteView {
     }
 
     func closeCartOverlay() {
-        withAnimation(.easeInOut(duration: 0.22)) {
+        withAnimation(myOrderCartOverlayAnimation) {
             viewModel.closeCartOverlay()
         }
     }

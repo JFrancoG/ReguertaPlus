@@ -132,10 +132,13 @@ private extension ReceivedOrdersRouteView {
                     }
                 }
             }
-            .padding(.bottom, 106.resize)
+            .padding(.bottom, tokens.spacing.sm)
         }
         .safeAreaInset(edge: .bottom, spacing: tokens.spacing.xs) {
             totalBar(total: snapshot.generalTotal)
+                .padding(.bottom, tokens.spacing.sm)
+                .background(tokens.colors.surfacePrimary)
+                .accessibilityIdentifier("receivedOrders.totalBar")
         }
     }
 

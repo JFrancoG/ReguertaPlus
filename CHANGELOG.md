@@ -47,6 +47,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-05-15 | 🐛 fix(mobile): polish safe area order UI
 - 2026-05-15 | 🐛 fix(orders): polish my order list UI
 - 2026-05-15 | 🐛 fix(ios-home): fix dashboard news layout
 - 2026-05-14 | 🐛 fix(order): polish cart overlay layout

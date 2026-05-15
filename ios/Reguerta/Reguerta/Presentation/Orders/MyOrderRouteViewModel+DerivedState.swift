@@ -80,7 +80,7 @@ extension MyOrderRouteViewModel {
     }
 
     var finalizeCheckoutTitle: String {
-        hasConfirmedOrder && hasPendingConfirmedEdits ? "Guardar cambios" : "Finalizar compra"
+        "Finalizar pedido"
     }
 
     var canSubmitCheckout: Bool {
