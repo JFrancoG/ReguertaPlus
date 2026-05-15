@@ -2,7 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        AccessRootView()
+        MainView()
     }
 }
 
@@ -140,7 +140,13 @@ extension AccessRootRoutingView {
     }
 }
 
-struct AccessRootView: AccessRootRoutingView {
+struct AccessRootView: View {
+    var body: some View {
+        MainView()
+    }
+}
+
+struct MainView: AccessRootRoutingView {
     @Environment(\.reguertaAppEnvironment) var appEnvironment
     @Environment(\.openURL) var openURL
     @Environment(\.reguertaTokens) var tokens
@@ -152,7 +158,6 @@ struct AccessRootView: AccessRootRoutingView {
                 .padding(isHomeRoute ? 0 : tokens.spacing.lg)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .background(tokens.colors.surfacePrimary.ignoresSafeArea())
-                .ignoresSafeArea(.container, edges: .bottom)
                 .overlay {
                     DeviceScaleCaptureView()
                 }

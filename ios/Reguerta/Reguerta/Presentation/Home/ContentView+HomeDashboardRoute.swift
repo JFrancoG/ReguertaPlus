@@ -67,145 +67,140 @@ private struct HomeWeeklySummaryTarget {
     let marketShift: ShiftAssignment?
 }
 
+enum HomeDashboardContent {
+    case signedOut
+    case unauthorized
+    case authorized(HomeAuthorizedDashboardPresentation)
+}
+
+struct HomeDashboardPresentation {
+    let content: HomeDashboardContent
+}
+
+struct HomeAuthorizedDashboardPresentation {
+    let weeklySummary: HomeWeeklySummaryDisplay
+    let actionRow: HomeActionRowPresentation
+}
+
+struct HomeActionRowPresentation {
+    let myOrderFreshnessState: MyOrderFreshnessState
+    let canOpenReceivedOrders: Bool
+    let orderState: HomeOrderStateDisplay
+    let myOrderSubtitleKey: String
+
+    var shouldShowCheckingMessage: Bool {
+        myOrderFreshnessState == .checking
+    }
+
+    var shouldShowRetry: Bool {
+        myOrderFreshnessState == .timedOut || myOrderFreshnessState == .unavailable
+    }
+
+    var isMyOrderEnabled: Bool {
+        myOrderFreshnessState == .ready
+    }
+}
+
 extension AccessRootRoutingView {
     @ViewBuilder
     var dashboardRoute: some View {
+        HomeDashboardRouteView(
+            tokens: tokens,
+            presentation: rootViewModel.homeDashboardPresentation,
+            newsViewModel: rootViewModel.newsNotificationsViewModel,
+            onOpenMyOrder: rootViewModel.handleHomeDashboardMyOrderAction,
+            onOpenReceivedOrders: rootViewModel.handleHomeDashboardReceivedOrdersAction,
+            onRetryFreshness: rootViewModel.handleHomeDashboardFreshnessRetry
+        )
+    }
+}
+
+struct HomeDashboardRouteView: View {
+    let tokens: ReguertaDesignTokens
+    let presentation: HomeDashboardPresentation
+    let newsViewModel: NewsNotificationsFeatureViewModel
+    let onOpenMyOrder: () -> Void
+    let onOpenReceivedOrders: () -> Void
+    let onRetryFreshness: () -> Void
+
+    var body: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-            switch viewModel.mode {
-            case .signedOut:
-                cardContainer {
-                    Text(localizedKey(AccessL10nKey.signedOutHint))
-                        .font(tokens.typography.bodySecondary)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                }
-            case .unauthorized:
-                EmptyView()
-            case .authorized(let session):
-                authorizedHome(session: session)
-                Divider()
-                    .background(tokens.colors.borderSubtle.opacity(0.65))
-            }
+            HomeDashboardSessionSectionView(
+                tokens: tokens,
+                content: presentation.content,
+                onOpenMyOrder: onOpenMyOrder,
+                onOpenReceivedOrders: onOpenReceivedOrders,
+                onRetryFreshness: onRetryFreshness
+            )
 
-            latestNewsCard
-                .frame(maxHeight: .infinity, alignment: .top)
+            LatestNewsCardView(
+                tokens: tokens,
+                latestNews: newsViewModel.homeLatestNewsItems
+            )
+            .frame(maxHeight: .infinity, alignment: .topLeading)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(width: 358.resize, alignment: .topLeading)
+        .frame(maxHeight: .infinity, alignment: .topLeading)
     }
+}
 
-    @ViewBuilder
-    func authorizedHome(session: AuthorizedSession) -> some View {
-        let summary = homeWeeklySummary(for: session)
-        HomeWeeklySummaryCardView(tokens: tokens, display: summary)
-        HomeActionRowView(
-            tokens: tokens,
-            myOrderFreshnessState: rootViewModel.myOrderFreshnessViewModel.state,
-            canOpenReceivedOrders: session.member.canAccessReceivedOrders,
-            orderState: summary.orderState,
-            myOrderSubtitleKey: summary.myOrderSubtitleKey,
-            onOpenMyOrder: {
-                rootViewModel.myOrderViewModel.resetCartOverlayForRouteEntry()
-                homeDestination = .myOrder
-                Task { await rootViewModel.productsViewModel.refreshOrderingProducts() }
-            },
-            onOpenReceivedOrders: {
-                homeDestination = .receivedOrders
-            },
-            onRetryFreshness: {
-                rootViewModel.myOrderFreshnessViewModel.retry(currentMode: viewModel.mode)
-            }
-        )
+private struct HomeDashboardSessionSectionView: View {
+    let tokens: ReguertaDesignTokens
+    let content: HomeDashboardContent
+    let onOpenMyOrder: () -> Void
+    let onOpenReceivedOrders: () -> Void
+    let onRetryFreshness: () -> Void
+
+    var body: some View {
+        switch content {
+        case .signedOut:
+            HomeSignedOutDashboardCardView(tokens: tokens)
+        case .unauthorized:
+            EmptyView()
+        case .authorized(let presentation):
+            HomeAuthorizedDashboardSectionView(
+                tokens: tokens,
+                presentation: presentation,
+                onOpenMyOrder: onOpenMyOrder,
+                onOpenReceivedOrders: onOpenReceivedOrders,
+                onRetryFreshness: onRetryFreshness
+            )
+        }
     }
+}
 
-    var nextShiftsCard: some View {
-        NextShiftsCardView(
-            tokens: tokens,
-            isLoading: rootViewModel.shiftsViewModel.isLoadingShifts,
-            nextDeliverySummary: rootViewModel.shiftsViewModel.nextDeliveryShift.map(rootViewModel.shiftsViewModel.shiftSummary) ??
-                l10n(AccessL10nKey.shiftsNextPending),
-            nextMarketSummary: rootViewModel.shiftsViewModel.nextMarketShift.map(rootViewModel.shiftsViewModel.shiftSummary) ??
-                l10n(AccessL10nKey.shiftsNextPending),
-            onViewAll: {
-                homeDestination = .shifts
-                Task { await rootViewModel.shiftsViewModel.refreshShifts() }
-            }
-        )
+private struct HomeAuthorizedDashboardSectionView: View {
+    let tokens: ReguertaDesignTokens
+    let presentation: HomeAuthorizedDashboardPresentation
+    let onOpenMyOrder: () -> Void
+    let onOpenReceivedOrders: () -> Void
+    let onRetryFreshness: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+            HomeWeeklySummaryCardView(tokens: tokens, display: presentation.weeklySummary)
+            HomeActionRowView(
+                tokens: tokens,
+                presentation: presentation.actionRow,
+                onOpenMyOrder: onOpenMyOrder,
+                onOpenReceivedOrders: onOpenReceivedOrders,
+                onRetryFreshness: onRetryFreshness
+            )
+            Divider()
+                .background(tokens.colors.borderSubtle.opacity(0.65))
+        }
     }
+}
 
-    var latestNewsCard: some View {
-        LatestNewsCardView(
-            tokens: tokens,
-            latestNews: rootViewModel.newsNotificationsViewModel.latestNews
-        )
-    }
+private struct HomeSignedOutDashboardCardView: View {
+    let tokens: ReguertaDesignTokens
 
-    @ViewBuilder
-    func operationalModules(
-        modulesEnabled: Bool,
-        canOpenProducts: Bool,
-        myOrderFreshnessState: MyOrderFreshnessState,
-        disabledMessageKey: String? = nil
-    ) -> some View {
-        OperationalModulesCardView(
-            tokens: tokens,
-            modulesEnabled: modulesEnabled,
-            canOpenProducts: canOpenProducts,
-            myOrderFreshnessState: myOrderFreshnessState,
-            disabledMessageKey: disabledMessageKey,
-            onOpenMyOrder: {
-                rootViewModel.myOrderViewModel.resetCartOverlayForRouteEntry()
-                homeDestination = .myOrder
-                Task { await rootViewModel.productsViewModel.refreshOrderingProducts() }
-            },
-            onOpenProducts: {
-                homeDestination = .products
-                Task { await rootViewModel.productsViewModel.refreshCatalog() }
-            },
-            onOpenShifts: {
-                homeDestination = .shifts
-                Task { await rootViewModel.shiftsViewModel.refreshShifts() }
-            },
-            onOpenBylaws: {
-                homeDestination = .bylaws
-            },
-            onRetryFreshness: {
-                rootViewModel.myOrderFreshnessViewModel.retry(currentMode: viewModel.mode)
-            }
-        )
-    }
-
-    @ViewBuilder
-    func adminToolsCard(session _: AuthorizedSession) -> some View {
-        AdminToolsCardView(
-            tokens: tokens,
-            viewModel: rootViewModel.usersViewModel,
-            isExpanded: rootBinding(\.isAdminToolsExpanded)
-        )
-    }
-
-    func homeWeeklySummary(for session: AuthorizedSession) -> HomeWeeklySummaryDisplay {
-        let shiftsViewModel = rootViewModel.shiftsViewModel
-        let nowMillis = shiftsViewModel.currentNowMillis
-        let baseline = resolveHomeWeeklySummaryDisplay(
-            nowMillis: nowMillis,
-            defaultDeliveryDayOfWeek: shiftsViewModel.defaultDeliveryDayOfWeek,
-            deliveryCalendarOverrides: shiftsViewModel.deliveryCalendarOverrides,
-            shifts: shiftsViewModel.shiftsFeed,
-            members: session.members
-        )
-        return HomeWeeklySummaryDisplay(
-            weekKey: baseline.weekKey,
-            orderWeekKey: baseline.orderWeekKey,
-            weekRangeLabel: baseline.weekRangeLabel,
-            weekBadgeLabel: baseline.weekBadgeLabel,
-            producerName: baseline.producerName,
-            deliveryLabel: baseline.deliveryLabel,
-            responsibleName: baseline.responsibleName,
-            helperName: baseline.helperName,
-            marketLabel: baseline.marketLabel,
-            marketResponsibleNames: baseline.marketResponsibleNames,
-            orderState: resolveHomeOrderState(memberId: session.member.id, weekKey: baseline.orderWeekKey),
-            isConsultaPhase: baseline.isConsultaPhase
-        )
+    var body: some View {
+        reguertaCard {
+            Text(LocalizedStringKey(AccessL10nKey.signedOutHint))
+                .font(tokens.typography.bodySecondary)
+                .foregroundStyle(tokens.colors.textSecondary)
+        }
     }
 }
 

@@ -44,9 +44,52 @@ struct NextShiftsCardView: View {
     }
 }
 
+enum HomeLatestNewsImagePlacement: Equatable {
+    case leading
+    case trailing
+}
+
+struct HomeLatestNewsItemPresentation: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let body: String
+    let imageURL: URL?
+    let imagePlacement: HomeLatestNewsImagePlacement?
+    let titleAccessibilityIdentifier: String
+}
+
+extension NewsNotificationsFeatureViewModel {
+    var homeLatestNewsItems: [HomeLatestNewsItemPresentation] {
+        latestNews.enumerated().map { index, article in
+            HomeLatestNewsItemPresentation(
+                id: article.id,
+                title: article.title,
+                body: article.body,
+                imageURL: article.homeLatestNewsImageURL,
+                imagePlacement: article.homeLatestNewsImageURL.map { _ in
+                    index.isMultiple(of: 2) ? .trailing : .leading
+                },
+                titleAccessibilityIdentifier: "home.latestNews.article.\(article.id).title"
+            )
+        }
+    }
+}
+
+private extension NewsArticle {
+    var homeLatestNewsImageURL: URL? {
+        guard
+            let urlImage,
+            urlImage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        else {
+            return nil
+        }
+        return URL(string: urlImage.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+}
+
 struct LatestNewsCardView: View {
     let tokens: ReguertaDesignTokens
-    let latestNews: [NewsArticle]
+    let latestNews: [HomeLatestNewsItemPresentation]
 
     private func localizedKey(_ key: String) -> LocalizedStringKey {
         LocalizedStringKey(key)
@@ -62,32 +105,96 @@ struct LatestNewsCardView: View {
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
             } else {
-                ScrollView(.vertical, showsIndicators: false) {
-                    LazyVStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                        ForEach(latestNews.indices, id: \.self) { index in
-                            let article = latestNews[index]
-                            VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                                Text(article.title)
-                                    .font(tokens.typography.body.weight(.semibold))
-                                    .foregroundStyle(tokens.colors.textPrimary)
-                                Text(article.body)
-                                    .font(tokens.typography.bodySecondary)
-                                    .foregroundStyle(tokens.colors.textSecondary)
-                                    .lineLimit(3)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
-                            if index < latestNews.count - 1 {
-                                Divider()
-                                    .background(tokens.colors.borderSubtle.opacity(0.65))
-                            }
-                        }
-                    }
+                List(latestNews) { item in
+                    HomeLatestNewsRowView(tokens: tokens, item: item)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                        .padding(.bottom, tokens.spacing.sm)
                 }
-                .scrollBounceBehavior(.basedOnSize)
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .contentMargins(.top, 0, for: .scrollContent)
+                .contentMargins(.horizontal, 0, for: .scrollContent)
+                .contentMargins(.bottom, 16.resizeBottomSize, for: .scrollContent)
+                .accessibilityIdentifier("home.latestNews.scroll")
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+}
+
+private struct HomeLatestNewsRowView: View {
+    let tokens: ReguertaDesignTokens
+    let item: HomeLatestNewsItemPresentation
+
+    var body: some View {
+        Group {
+            switch item.imagePlacement {
+            case .leading:
+                HStack(alignment: .top, spacing: tokens.spacing.md) {
+                    if let imageURL = item.imageURL {
+                        HomeLatestNewsImageView(tokens: tokens, imageURL: imageURL)
+                    }
+                    HomeLatestNewsTextView(tokens: tokens, item: item)
+                }
+            case .trailing:
+                HStack(alignment: .top, spacing: tokens.spacing.md) {
+                    HomeLatestNewsTextView(tokens: tokens, item: item)
+                    if let imageURL = item.imageURL {
+                        HomeLatestNewsImageView(tokens: tokens, imageURL: imageURL)
+                    }
+                }
+            case nil:
+                HomeLatestNewsTextView(tokens: tokens, item: item)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+}
+
+private struct HomeLatestNewsTextView: View {
+    let tokens: ReguertaDesignTokens
+    let item: HomeLatestNewsItemPresentation
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+            Text(item.title)
+                .font(tokens.typography.titleCard)
+                .foregroundStyle(tokens.colors.textPrimary)
+                .accessibilityIdentifier(item.titleAccessibilityIdentifier)
+            Text(item.body)
+                .font(tokens.typography.bodySecondary)
+                .foregroundStyle(tokens.colors.textSecondary)
+                .lineLimit(3)
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+}
+
+private struct HomeLatestNewsImageView: View {
+    let tokens: ReguertaDesignTokens
+    let imageURL: URL
+
+    var body: some View {
+        AsyncImage(url: imageURL) { phase in
+            if let image = phase.image {
+                image
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                RoundedRectangle(cornerRadius: tokens.radius.sm)
+                    .fill(tokens.colors.surfaceSecondary)
+                    .overlay {
+                        Image(systemName: "photo")
+                            .font(.system(size: 24.resize))
+                            .foregroundStyle(tokens.colors.textSecondary)
+                    }
+            }
+        }
+        .frame(width: 144.resize, height: 144.resize)
+        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
+        .accessibilityHidden(true)
     }
 }
 

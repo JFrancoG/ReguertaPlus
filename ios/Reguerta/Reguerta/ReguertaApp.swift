@@ -16,7 +16,7 @@ struct ReguertaApp: App {
     var body: some Scene {
         WindowGroup {
             ReguertaTheme {
-                ContentView()
+                MainView()
                     .environment(\.reguertaAppEnvironment, appEnvironment)
             }
         }

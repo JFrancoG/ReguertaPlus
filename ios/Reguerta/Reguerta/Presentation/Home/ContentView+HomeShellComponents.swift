@@ -221,7 +221,7 @@ struct HomeWeeklySummaryCardView: View {
                 .lineLimit(1)
             ForEach(Array(names.prefix(3).enumerated()), id: \.offset) { _, name in
                 Text(name)
-                    .font(tokens.typography.label)
+                    .font(tokens.typography.labelRegular)
                     .foregroundStyle(tokens.colors.textSecondary)
                     .multilineTextAlignment(.center)
                     .lineLimit(1)
@@ -230,7 +230,7 @@ struct HomeWeeklySummaryCardView: View {
         }
         .frame(maxWidth: .infinity, minHeight: 56.resize, alignment: .center)
         .padding(.horizontal, tokens.spacing.sm)
-        .padding(.vertical, tokens.spacing.xs)
+        .padding(.vertical, tokens.spacing.sm)
     }
 
     private func orderStateCell(_ state: HomeOrderStateDisplay) -> some View {
@@ -247,10 +247,7 @@ struct HomeActionRowView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     let tokens: ReguertaDesignTokens
-    let myOrderFreshnessState: MyOrderFreshnessState
-    let canOpenReceivedOrders: Bool
-    let orderState: HomeOrderStateDisplay
-    let myOrderSubtitleKey: String
+    let presentation: HomeActionRowPresentation
     let onOpenMyOrder: () -> Void
     let onOpenReceivedOrders: () -> Void
     let onRetryFreshness: () -> Void
@@ -269,17 +266,16 @@ struct HomeActionRowView: View {
                 actionRowContent
             }
 
-            switch myOrderFreshnessState {
-            case .checking:
+            if presentation.shouldShowCheckingMessage {
                 Text(localizedKey(AccessL10nKey.myOrderFreshnessChecking))
                     .font(tokens.typography.label)
                     .foregroundStyle(tokens.colors.textSecondary)
-            case .timedOut, .unavailable:
+            }
+
+            if presentation.shouldShowRetry {
                 reguertaButton(localizedKey(AccessL10nKey.myOrderFreshnessRetry), variant: .text, fullWidth: false) {
                     onRetryFreshness()
                 }
-            case .idle, .ready:
-                EmptyView()
             }
         }
     }
@@ -288,12 +284,12 @@ struct HomeActionRowView: View {
         HStack(spacing: tokens.spacing.sm) {
             actionTile(
                 titleKey: AccessL10nKey.myOrder,
-                subtitleKey: myOrderSubtitleKey,
+                subtitleKey: presentation.myOrderSubtitleKey,
                 primary: true,
-                enabled: myOrderFreshnessState == .ready,
+                enabled: presentation.isMyOrderEnabled,
                 action: onOpenMyOrder
             )
-            if canOpenReceivedOrders {
+            if presentation.canOpenReceivedOrders {
                 actionTile(
                     titleKey: AccessL10nKey.homeShellActionReceivedOrders,
                     subtitleKey: nil,

@@ -38,6 +38,7 @@ struct ReguertaDesignTokens {
         var bodyDialog: Font { .custom("CabinSketch-Regular", size: 16.resize, relativeTo: .body) }
         var bodySecondary: Font { .custom("CabinSketch-Regular", size: 16.resize, relativeTo: .subheadline) }
         var label: Font { .custom("CabinSketch-Bold", size: 14.resize, relativeTo: .footnote) }
+        var labelRegular: Font { .custom("CabinSketch-Regular", size: 14.resize, relativeTo: .footnote) }
     }
 
     let colors: Colors

@@ -17,6 +17,8 @@ final class ReguertaUITests: XCTestCase {
     private let newsDrawerItemId = "home.drawer.item.news"
     private let myOrderButtonId = "home.module.myOrder"
     private let receivedOrdersButtonId = "home.module.receivedOrders"
+    private let latestNewsTitleIdPrefix = "home.latestNews.article."
+    private let latestNewsScrollId = "home.latestNews.scroll"
 
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.
@@ -86,6 +88,33 @@ final class ReguertaUITests: XCTestCase {
     }
 
     @MainActor
+    func testHomeShowsLatestNewsWithoutBottomObstruction() throws {
+        let app = configuredApp()
+        signInAsProducer(in: app)
+
+        let latestNewsTitles = app.staticTexts.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", latestNewsTitleIdPrefix)
+        )
+        XCTAssertTrue(
+            waitForElementCount(latestNewsTitles, minimumCount: 1, timeout: 8),
+            "Latest news title not found"
+        )
+
+        let latestNewsTitle = latestNewsTitles.element(boundBy: latestNewsTitles.count - 1)
+        let latestNewsScroll = app.scrollViews[latestNewsScrollId]
+        for _ in 0 ..< 4 where !latestNewsTitle.isHittable {
+            latestNewsScroll.swipeUp()
+        }
+
+        XCTAssertTrue(latestNewsTitle.isHittable, "Latest news title should be visible and hittable")
+        XCTAssertLessThanOrEqual(
+            latestNewsTitle.frame.maxY,
+            app.frame.maxY - 8,
+            "Latest news title should not be covered by the bottom edge"
+        )
+    }
+
+    @MainActor
     func testDrawerNavigationOpensSelectedRoute() throws {
         let app = configuredApp()
         let emailField = launchAndOpenLogin(app)
@@ -150,6 +179,39 @@ final class ReguertaUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-skipSplash", "-useMockAuth"]
         return app
+    }
+
+    @MainActor
+    private func waitForElementCount(
+        _ query: XCUIElementQuery,
+        minimumCount: Int,
+        timeout: TimeInterval
+    ) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if query.count >= minimumCount {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+        }
+        return query.count >= minimumCount
+    }
+
+    @MainActor
+    private func signInAsProducer(in app: XCUIApplication) {
+        let emailField = launchAndOpenLogin(app)
+        emailField.tap()
+        emailField.typeText("pablo.producer@reguerta.app")
+
+        let passwordField = app.secureTextFields[passwordFieldId]
+        XCTAssertTrue(passwordField.waitForExistence(timeout: 5), "Password field not found")
+        passwordField.tap()
+        passwordField.typeText("test1234")
+
+        app.buttons[signInButtonId].tap()
+        dismissPasswordSavePromptIfNeeded(in: app)
+
+        XCTAssertTrue(app.buttons[myOrderButtonId].waitForExistence(timeout: 8), "Home did not load")
     }
 
     @MainActor
