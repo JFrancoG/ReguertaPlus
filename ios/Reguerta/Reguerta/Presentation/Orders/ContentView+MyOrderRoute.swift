@@ -137,6 +137,9 @@ private extension MyOrderRouteView {
 
     @ViewBuilder
     var cartOverlayLayer: some View {
+        let isCartVisible = viewModel.isCartVisible
+        let hiddenCartOverlayPadding = tokens.spacing.xxl
+
         if !viewModel.isReadOnlyMode {
             ZStack(alignment: .bottom) {
                 Color.black.opacity(viewModel.isCartVisible ? 0.22 : 0)
@@ -150,7 +153,7 @@ private extension MyOrderRouteView {
                 cartOverlay
                     .visualEffect { content, geometry in
                         content.offset(
-                            x: viewModel.isCartVisible ? 0 : geometry.size.width + tokens.spacing.xxl
+                            x: isCartVisible ? 0 : geometry.size.width + hiddenCartOverlayPadding
                         )
                     }
             }
