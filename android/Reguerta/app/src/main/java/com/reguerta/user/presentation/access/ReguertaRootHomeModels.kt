@@ -31,9 +31,9 @@ internal fun HomeDestination.titleRes(): Int = when (this) {
     HomeDestination.NOTIFICATIONS -> R.string.home_shell_notifications
     HomeDestination.PROFILE -> R.string.home_shell_action_profile
     HomeDestination.SETTINGS -> R.string.home_shell_action_settings
-    HomeDestination.PRODUCTS -> R.string.home_shell_action_products
+    HomeDestination.PRODUCTS -> R.string.products_catalog_title
     HomeDestination.RECEIVED_ORDERS -> R.string.home_shell_action_received_orders
-    HomeDestination.USERS -> R.string.home_shell_action_users
+    HomeDestination.USERS -> R.string.users_list_title
     HomeDestination.PUBLISH_NEWS -> R.string.home_shell_action_publish_news
     HomeDestination.ADMIN_BROADCAST -> R.string.home_shell_action_admin_broadcast
 }

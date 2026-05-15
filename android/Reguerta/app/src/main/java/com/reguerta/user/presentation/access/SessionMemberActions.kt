@@ -26,7 +26,7 @@ internal class SessionMemberActions(
 
     fun saveMemberDraft(
         editingMemberId: String?,
-        onSuccess: () -> Unit = {},
+        onSuccess: (String) -> Unit = {},
     ) {
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
         if (!mode.member.canManageMembers) {
@@ -159,7 +159,7 @@ internal class SessionMemberActions(
         mode: SessionMode.Authorized,
         target: Member,
         onSuccessState: (SessionUiState) -> SessionUiState = { it },
-        onSuccess: () -> Unit = {},
+        onSuccess: (String) -> Unit = {},
     ) {
         scope.launch {
             val updatedMember = try {
@@ -199,7 +199,7 @@ internal class SessionMemberActions(
                     ),
                 )
             }
-            onSuccess()
+            onSuccess(updatedMember.id)
         }
     }
 

@@ -1,6 +1,6 @@
 # Components
 
-This catalog defines the current component contract and parity status for auth/onboarding.
+This catalog defines the current component contract and parity status for reusable app UI.
 
 ## 1. Status Legend
 
@@ -15,8 +15,10 @@ This catalog defines the current component contract and parity status for auth/o
 |---|---|---|---|---|---|
 | Card/container shell | `ui/components/auth/ReguertaCard.kt` | `DesignSystem/Components/ReguertaCard.swift` | Group related content using semantic surface + border/radius tokens | stable | Main shell for splash/welcome/login/register/recover |
 | Button | `ReguertaButton` + `ReguertaButtonVariant` | `ReguertaButton` + `ReguertaButtonVariant` | Unified primary/secondary/text action model with loading and disabled support | stable | Variants: `primary`, `secondary`, `text` |
+| Floating action button | `ReguertaFloatingActionButton` | `ReguertaFloatingActionButton` | Persistent bottom action over scrollable content without an opaque footer band | stable | Matches the checkout action style; iOS uses Liquid Glass with material fallback |
 | Input/Auth field | `ReguertaInputField` | `ReguertaInputField` | Label, placeholder, helper/error text, trailing action, focus/disabled/error states | stable | Keyboard type exposed in both platforms |
 | Inline feedback | `ReguertaInlineFeedback` + `ReguertaFeedbackKind` | `ReguertaInlineFeedback` + `ReguertaFeedbackKind` | Reusable inline info/warning/error messages | stable | Used in auth shell and generic feedback areas |
+| List item card + action buttons | `ReguertaListItemCard`, `ReguertaEditListActionButton`, `ReguertaDeleteListActionButton` | `ReguertaListItemCard`, `ReguertaListActionIconButton` | Reusable list cards with add/edit/delete highlight parity for operational lists | stable | Used by products and authorized members; 44px action buttons by default |
 
 ## 3. Auth Flow Reference Wiring
 
@@ -55,6 +57,8 @@ Current references:
 - Define component APIs by behavior and explicit state, not by a single screen context.
 - Keep `enabled`, `disabled`, `loading`, `focus`, and `error` visible in the component contract.
 - Consume semantic theme/tokens only. Avoid raw colors and ad-hoc dimensions in feature views.
+- For bottom actions over scrollable lists, prefer `ReguertaFloatingActionButton` and give the scroll content explicit bottom padding so content can pass behind the button.
+- For repeated list rows with edit/delete actions, prefer `ReguertaListItemCard` and the shared action icon buttons before adding feature-local card styles.
 
 ## 6. Explicit Legacy Exclusions
 

@@ -291,7 +291,7 @@ class SessionViewModel(
 
     fun clearProductImage() = productActions.clearProductImage()
 
-    fun saveProduct(onSuccess: () -> Unit = {}) = productActions.saveProduct(onSuccess)
+    fun saveProduct(onSuccess: (String) -> Unit = {}) = productActions.saveProduct(onSuccess)
 
     fun archiveProduct(
         productId: String,
@@ -397,7 +397,7 @@ class SessionViewModel(
 
     fun saveMemberDraft(
         editingMemberId: String?,
-        onSuccess: () -> Unit = {},
+        onSuccess: (String) -> Unit = {},
     ) = memberActions.saveMemberDraft(editingMemberId, onSuccess)
 
     fun refreshMembers() = memberActions.refreshMembers()

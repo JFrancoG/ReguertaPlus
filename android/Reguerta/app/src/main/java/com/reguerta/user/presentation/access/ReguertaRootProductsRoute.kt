@@ -1,7 +1,6 @@
 package com.reguerta.user.presentation.access
 
 import android.net.Uri
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,14 +9,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -29,6 +25,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,15 +33,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.reguerta.user.R
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.isProducer
@@ -53,6 +45,8 @@ import com.reguerta.user.domain.products.Product
 import com.reguerta.user.domain.products.ProductStockMode
 import com.reguerta.user.ui.components.auth.ReguertaButton
 import com.reguerta.user.ui.components.auth.ReguertaButtonVariant
+import com.reguerta.user.ui.components.auth.ReguertaFloatingActionButton
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,7 +66,7 @@ fun ProductsRoute(
     onPickImage: (Uri) -> Unit,
     onClearImage: () -> Unit,
     onCancelEditor: () -> Unit,
-    onSaveProduct: () -> Unit,
+    onSaveProduct: (onSuccess: (String) -> Unit) -> Unit,
     onArchiveProduct: (String, onSuccess: () -> Unit) -> Unit,
     onSetProducerCatalogVisibility: (Boolean, onSuccess: () -> Unit) -> Unit,
 ) {
@@ -85,105 +79,118 @@ fun ProductsRoute(
         member.isCommonPurchaseManager && !member.isProducer
     } == true
     var commonPurchaseExpanded by rememberSaveable { mutableStateOf(false) }
-    var pendingCatalogVisibility by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    var highlightedProductId by rememberSaveable { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(highlightedProductId) {
+        val productId = highlightedProductId ?: return@LaunchedEffect
+        delay(1_600)
+        if (highlightedProductId == productId) {
+            highlightedProductId = null
+        }
+    }
 
     if (isEditing) {
-        Card {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    text = stringResource(
-                        if (editingProductId.isNullOrBlank()) {
-                            R.string.products_editor_title_create
-                        } else {
-                            R.string.products_editor_title_edit
-                        },
-                    ),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                ReguertaImagePickerField(
-                    imageUrl = draft.productImageUrl,
-                    isUploading = isUploadingImage,
-                    onPickImage = onPickImage,
-                    onClearImage = onClearImage,
-                    placeholderIcon = Icons.Default.Image,
-                    subtitle = stringResource(R.string.products_editor_subtitle),
-                )
-                OutlinedTextField(
-                    value = draft.name,
-                    onValueChange = { onDraftChanged(draft.copy(name = it)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.products_field_name)) },
-                )
-                OutlinedTextField(
-                    value = draft.description,
-                    onValueChange = { onDraftChanged(draft.copy(description = it)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.products_field_description)) },
-                    minLines = 3,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = draft.unitQty,
-                        onValueChange = { onDraftChanged(draft.copy(unitQty = it)) },
-                        modifier = Modifier.weight(1f),
-                        label = { Text(stringResource(R.string.products_field_unit_qty)) },
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+        ) {
+            Card {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        text = stringResource(
+                            if (editingProductId.isNullOrBlank()) {
+                                R.string.products_editor_title_create
+                            } else {
+                                R.string.products_editor_title_edit
+                            },
+                        ),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    ReguertaImagePickerField(
+                        imageUrl = draft.productImageUrl,
+                        isUploading = isUploadingImage,
+                        onPickImage = onPickImage,
+                        onClearImage = onClearImage,
+                        placeholderIcon = Icons.Default.Image,
+                        subtitle = stringResource(R.string.products_editor_subtitle),
                     )
                     OutlinedTextField(
-                        value = draft.packContainerQty,
-                        onValueChange = { onDraftChanged(draft.copy(packContainerQty = it)) },
-                        modifier = Modifier.weight(1f),
-                        label = { Text(stringResource(R.string.products_field_pack_qty)) },
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = draft.packContainerName,
-                        onValueChange = { onDraftChanged(draft.copy(packContainerName = it)) },
-                        modifier = Modifier.weight(1f),
-                        label = { Text(stringResource(R.string.products_field_pack_name)) },
+                        value = draft.name,
+                        onValueChange = { onDraftChanged(draft.copy(name = it)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.products_field_name)) },
                     )
                     OutlinedTextField(
-                        value = draft.unitName,
-                        onValueChange = { onDraftChanged(draft.copy(unitName = it)) },
-                        modifier = Modifier.weight(1f),
-                        label = { Text(stringResource(R.string.products_field_unit_name)) },
+                        value = draft.description,
+                        onValueChange = { onDraftChanged(draft.copy(description = it)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.products_field_description)) },
+                        minLines = 3,
                     )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = draft.packContainerPlural,
-                        onValueChange = { onDraftChanged(draft.copy(packContainerPlural = it)) },
-                        modifier = Modifier.weight(1f),
-                        label = { Text(stringResource(R.string.products_field_pack_plural)) },
-                    )
-                    OutlinedTextField(
-                        value = draft.unitPlural,
-                        onValueChange = { onDraftChanged(draft.copy(unitPlural = it)) },
-                        modifier = Modifier.weight(1f),
-                        label = { Text(stringResource(R.string.products_field_unit_plural)) },
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = draft.price,
-                        onValueChange = { onDraftChanged(draft.copy(price = it)) },
-                        modifier = Modifier.weight(1f),
-                        label = { Text(stringResource(R.string.products_field_price)) },
-                    )
-                    OutlinedTextField(
-                        value = draft.stockQty,
-                        onValueChange = { onDraftChanged(draft.copy(stockQty = it)) },
-                        modifier = Modifier.weight(1f),
-                        label = { Text(stringResource(R.string.products_field_stock_qty)) },
-                        enabled = draft.stockMode == ProductStockMode.FINITE,
-                    )
-                }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = draft.unitQty,
+                            onValueChange = { onDraftChanged(draft.copy(unitQty = it)) },
+                            modifier = Modifier.weight(1f),
+                            label = { Text(stringResource(R.string.products_field_unit_qty)) },
+                        )
+                        OutlinedTextField(
+                            value = draft.packContainerQty,
+                            onValueChange = { onDraftChanged(draft.copy(packContainerQty = it)) },
+                            modifier = Modifier.weight(1f),
+                            label = { Text(stringResource(R.string.products_field_pack_qty)) },
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = draft.packContainerName,
+                            onValueChange = { onDraftChanged(draft.copy(packContainerName = it)) },
+                            modifier = Modifier.weight(1f),
+                            label = { Text(stringResource(R.string.products_field_pack_name)) },
+                        )
+                        OutlinedTextField(
+                            value = draft.unitName,
+                            onValueChange = { onDraftChanged(draft.copy(unitName = it)) },
+                            modifier = Modifier.weight(1f),
+                            label = { Text(stringResource(R.string.products_field_unit_name)) },
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = draft.packContainerPlural,
+                            onValueChange = { onDraftChanged(draft.copy(packContainerPlural = it)) },
+                            modifier = Modifier.weight(1f),
+                            label = { Text(stringResource(R.string.products_field_pack_plural)) },
+                        )
+                        OutlinedTextField(
+                            value = draft.unitPlural,
+                            onValueChange = { onDraftChanged(draft.copy(unitPlural = it)) },
+                            modifier = Modifier.weight(1f),
+                            label = { Text(stringResource(R.string.products_field_unit_plural)) },
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = draft.price,
+                            onValueChange = { onDraftChanged(draft.copy(price = it)) },
+                            modifier = Modifier.weight(1f),
+                            label = { Text(stringResource(R.string.products_field_price)) },
+                        )
+                        OutlinedTextField(
+                            value = draft.stockQty,
+                            onValueChange = { onDraftChanged(draft.copy(stockQty = it)) },
+                            modifier = Modifier.weight(1f),
+                            label = { Text(stringResource(R.string.products_field_stock_qty)) },
+                            enabled = draft.stockMode == ProductStockMode.FINITE,
+                        )
+                    }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -316,7 +323,10 @@ fun ProductsRoute(
                         enabled = !isSaving && !isUploadingImage,
                         onClick = {
                             focusManager.clearFocus(force = true)
-                            onSaveProduct()
+                            onSaveProduct { savedProductId ->
+                                highlightedProductId = savedProductId
+                                onCancelEditor()
+                            }
                         },
                     )
                     ReguertaButton(
@@ -332,79 +342,19 @@ fun ProductsRoute(
                 }
             }
         }
+        }
         return
     }
 
     Box(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxSize(),
     ) {
         Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Card {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.products_catalog_title),
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        if (currentMember?.isProducer == true) {
-                            Button(
-                                onClick = {
-                                    pendingCatalogVisibility = !currentMember.producerCatalogEnabled
-                                },
-                                enabled = !isUpdatingProducerCatalogVisibility,
-                                shape = RoundedCornerShape(18.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (currentMember.producerCatalogEnabled) {
-                                        Color(0xFFF08D43)
-                                    } else {
-                                        MaterialTheme.colorScheme.primary
-                                    },
-                                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                ),
-                                contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                                    horizontal = 14.dp,
-                                    vertical = 8.dp,
-                                ),
-                            ) {
-                                Text(
-                                    text = stringResource(
-                                        if (currentMember.producerCatalogEnabled) {
-                                            R.string.products_visibility_disable_compact_action
-                                        } else {
-                                            R.string.products_visibility_enable_compact_action
-                                        },
-                                    ),
-                                    textAlign = TextAlign.Center,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    lineHeight = 16.sp,
-                                )
-                            }
-                        }
-                    }
-                    ReguertaButton(
-                        label = stringResource(R.string.products_refresh_action),
-                        variant = ReguertaButtonVariant.TEXT,
-                        fullWidth = false,
-                        onClick = onRefresh,
-                    )
-                }
-            }
-
             if (isLoading) {
                 Card {
                     Text(
@@ -424,8 +374,13 @@ fun ProductsRoute(
                     activeProducts.forEach { product ->
                         ProductListItem(
                             product = product,
+                            isHighlighted = highlightedProductId == product.id,
                             onEdit = { onEditProduct(product.id) },
-                            onArchive = { onArchiveProduct(product.id) { } },
+                            onArchive = {
+                                onArchiveProduct(product.id) {
+                                    highlightedProductId = product.id
+                                }
+                            },
                         )
                     }
                 }
@@ -440,6 +395,7 @@ fun ProductsRoute(
                     archivedProducts.forEach { product ->
                         ProductListItem(
                             product = product,
+                            isHighlighted = highlightedProductId == product.id,
                             onEdit = { onEditProduct(product.id) },
                             onArchive = {},
                         )
@@ -447,30 +403,15 @@ fun ProductsRoute(
                 }
             }
 
-            Spacer(modifier = Modifier.height(96.dp))
+            Spacer(modifier = Modifier.height(128.dp))
         }
 
-        ReguertaButton(
+        ReguertaFloatingActionButton(
             label = stringResource(R.string.products_create_action),
-            variant = ReguertaButtonVariant.PRIMARY,
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .navigationBarsPadding(),
+                .align(Alignment.BottomCenter),
             onClick = onCreateProduct,
         )
     }
 
-    pendingCatalogVisibility?.let { targetEnabled ->
-        ProducerCatalogVisibilityDialog(
-            targetEnabled = targetEnabled,
-            isUpdating = isUpdatingProducerCatalogVisibility,
-            onConfirm = {
-                onSetProducerCatalogVisibility(targetEnabled) {
-                    pendingCatalogVisibility = null
-                }
-            },
-            onDismiss = { pendingCatalogVisibility = null },
-        )
-    }
 }

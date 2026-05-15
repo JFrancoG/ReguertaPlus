@@ -19,6 +19,7 @@ final class UsersFeatureViewModel {
     var isLoadingMembers = false
     var isSavingMember = false
     var isTogglingMember = false
+    var highlightedMemberId: String?
 
     var sortedMembers: [Member] {
         membersFeed.sorted { lhs, rhs in
@@ -272,6 +273,7 @@ final class UsersFeatureViewModel {
             let members = await memberRepository.allMembers()
             sessionViewModel.applyUpdatedAuthorizedMember(updated, members: members)
             syncFromSessionViewModel()
+            highlightMember(updated.id)
             return true
         } catch MemberManagementError.accessDenied {
             feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminManageMembers)
@@ -323,6 +325,7 @@ final class UsersFeatureViewModel {
         isLoadingMembers = false
         isSavingMember = false
         isTogglingMember = false
+        highlightedMemberId = nil
     }
 
     private func isCurrentSession(_ session: AuthorizedSession) -> Bool {
@@ -334,6 +337,18 @@ final class UsersFeatureViewModel {
     private func sortedMembers(from members: [Member]) -> [Member] {
         members.sorted {
             $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
+        }
+    }
+
+    private func highlightMember(_ memberId: String) {
+        highlightedMemberId = memberId
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 1_600_000_000)
+            await MainActor.run {
+                if self?.highlightedMemberId == memberId {
+                    self?.highlightedMemberId = nil
+                }
+            }
         }
     }
 }

@@ -1,6 +1,6 @@
 # Components
 
-Este catálogo define el contrato actual de componentes y su estado de paridad para auth/onboarding.
+Este catálogo define el contrato actual de componentes y su estado de paridad para UI reutilizable de la app.
 
 ## 1. Leyenda de estado
 
@@ -15,8 +15,10 @@ Este catálogo define el contrato actual de componentes y su estado de paridad p
 |---|---|---|---|---|---|
 | Card/contenedor | `ui/components/auth/ReguertaCard.kt` | `DesignSystem/Components/ReguertaCard.swift` | Agrupar contenido con surface + borde/radio semánticos | stable | Shell principal de splash/welcome/login/register/recover |
 | Button | `ReguertaButton` + `ReguertaButtonVariant` | `ReguertaButton` + `ReguertaButtonVariant` | Modelo unificado primaria/secundaria/texto con loading y disabled | stable | Variantes: `primary`, `secondary`, `text` |
+| Botón flotante | `ReguertaFloatingActionButton` | `ReguertaFloatingActionButton` | Acción inferior persistente sobre contenido con scroll, sin franja opaca de footer | stable | Alineado con el estilo de finalizar pedido; iOS usa Liquid Glass con fallback material |
 | Input/Auth field | `ReguertaInputField` | `ReguertaInputField` | Label, placeholder, helper/error text, trailing action, estados focus/disabled/error | stable | `keyboardType` expuesto en ambas plataformas |
 | Feedback inline | `ReguertaInlineFeedback` + `ReguertaFeedbackKind` | `ReguertaInlineFeedback` + `ReguertaFeedbackKind` | Mensajes reutilizables de info/warning/error | stable | Uso en auth shell y zonas de feedback |
+| Card de lista + botones de acción | `ReguertaListItemCard`, `ReguertaEditListActionButton`, `ReguertaDeleteListActionButton` | `ReguertaListItemCard`, `ReguertaListActionIconButton` | Cards reutilizables para listas con paridad de resaltado y acciones editar/eliminar | stable | Usado por productos y regüertenses autorizados; botones de 44px por defecto |
 
 ## 3. Referencia de uso en Auth
 
@@ -55,6 +57,8 @@ Referencias actuales:
 - Definir APIs por comportamiento y estados explícitos, no por contexto de una pantalla concreta.
 - Mantener `enabled`, `disabled`, `loading`, `focus` y `error` visibles en el contrato del componente.
 - Consumir solo theme/tokens semánticos. Evitar colores y medidas hardcodeadas en vistas de feature.
+- Para acciones inferiores sobre listas con scroll, preferir `ReguertaFloatingActionButton` y dar padding inferior explícito al contenido para que pueda pasar por detrás del botón.
+- Para filas repetidas con acciones de editar/eliminar, preferir `ReguertaListItemCard` y los botones de acción compartidos antes de añadir estilos locales de feature.
 
 ## 6. Exclusiones legacy explícitas
 

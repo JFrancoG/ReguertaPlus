@@ -110,49 +110,15 @@ extension MyOrderRouteView {
     @ViewBuilder
     var cartOverlayCheckoutFooter: some View {
         if !viewModel.isReadOnlyConfirmedView {
-            Button {
+            reguertaFloatingActionButton(
+                verbatim: viewModel.finalizeCheckoutTitle,
+                isEnabled: viewModel.canSubmitCheckout,
+                accessibilityIdentifier: "myOrder.checkoutButton"
+            ) {
                 Task {
                     await viewModel.validateCheckout()
                 }
-            } label: {
-                Text(viewModel.finalizeCheckoutTitle)
-                    .font(tokens.typography.body.weight(.semibold))
-                    .foregroundStyle(tokens.colors.actionOnPrimary)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52.resize)
-                    .background {
-                        floatingCheckoutButtonBackground(isEnabled: viewModel.canSubmitCheckout)
-                    }
-                    .clipShape(Capsule())
             }
-            .buttonStyle(.plain)
-            .disabled(!viewModel.canSubmitCheckout)
-            .opacity(viewModel.canSubmitCheckout ? 1 : 0.55)
-            .padding(.horizontal, tokens.spacing.xl + tokens.spacing.sm)
-            .padding(.bottom, 8.resizeBottomSize)
-            .shadow(color: .black.opacity(0.18), radius: 14.resize, y: 6.resize)
-            .accessibilityIdentifier("myOrder.checkoutButton")
-        }
-    }
-
-    @ViewBuilder
-    func floatingCheckoutButtonBackground(isEnabled: Bool) -> some View {
-        let shape = Capsule()
-        let actionOpacity = isEnabled ? 0.42 : 0.22
-
-        if #available(iOS 26.0, *) {
-            shape
-                .fill(tokens.colors.actionPrimary.opacity(actionOpacity))
-                .glassEffect(
-                    .regular
-                        .tint(tokens.colors.actionPrimary.opacity(isEnabled ? 0.32 : 0.16))
-                        .interactive(isEnabled),
-                    in: shape
-                )
-        } else {
-            shape
-                .fill(.ultraThinMaterial)
-                .background(tokens.colors.actionPrimary.opacity(isEnabled ? 0.72 : 0.34), in: shape)
         }
     }
 
