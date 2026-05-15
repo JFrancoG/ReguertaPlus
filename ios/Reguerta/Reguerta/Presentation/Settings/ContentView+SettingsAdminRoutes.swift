@@ -161,29 +161,33 @@ struct SettingsRouteView: View {
     let onShiftNowByDays: (Int) -> Void
 
     var body: some View {
-        reguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text(localizedKey(AccessL10nKey.settingsSubtitleDevelopImpersonation))
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
+        ScrollView(.vertical, showsIndicators: false) {
+            reguertaCard {
+                VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                    Text(localizedKey(AccessL10nKey.settingsSubtitleDevelopImpersonation))
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
 
-                if isDevelopImpersonationEnabled, let session {
-                    impersonationSection(session: session)
-                    Divider()
-                        .overlay(tokens.colors.borderSubtle)
-                    developmentTimeSection
-                }
+                    if isDevelopImpersonationEnabled, let session {
+                        impersonationSection(session: session)
+                        Divider()
+                            .overlay(tokens.colors.borderSubtle)
+                        developmentTimeSection
+                    }
 
-                if let session, session.member.isAdmin {
-                    Divider()
-                        .overlay(tokens.colors.borderSubtle)
-                    adminDeliveryCalendarSection
-                    Divider()
-                        .overlay(tokens.colors.borderSubtle)
-                    adminShiftPlanningSection
+                    if let session, session.member.isAdmin {
+                        Divider()
+                            .overlay(tokens.colors.borderSubtle)
+                        adminDeliveryCalendarSection
+                        Divider()
+                            .overlay(tokens.colors.borderSubtle)
+                        adminShiftPlanningSection
+                    }
                 }
             }
+            .padding(.bottom, tokens.spacing.sm)
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private var developmentTimeSection: some View {

@@ -20,70 +20,74 @@ struct ShiftsRouteView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-            reguertaCard {
-                VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                    Text(localizedKey(AccessL10nKey.shiftsListSubtitle))
-                        .font(tokens.typography.bodySecondary)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                    reguertaButton(localizedKey(AccessL10nKey.shiftsRefreshAction), variant: .text) {
-                        Task { await viewModel.refreshShifts() }
+        ScrollView(.vertical, showsIndicators: false) {
+            LazyVStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                reguertaCard {
+                    VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                        Text(localizedKey(AccessL10nKey.shiftsListSubtitle))
+                            .font(tokens.typography.bodySecondary)
+                            .foregroundStyle(tokens.colors.textSecondary)
+                        reguertaButton(localizedKey(AccessL10nKey.shiftsRefreshAction), variant: .text) {
+                            Task { await viewModel.refreshShifts() }
+                        }
                     }
                 }
-            }
 
-            NextShiftsCardView(
-                tokens: tokens,
-                isLoading: viewModel.isLoadingShifts,
-                nextDeliverySummary: viewModel.nextDeliveryShift.map(viewModel.shiftSummary) ?? l10n(AccessL10nKey.shiftsNextPending),
-                nextMarketSummary: viewModel.nextMarketShift.map(viewModel.shiftSummary) ?? l10n(AccessL10nKey.shiftsNextPending),
-                onViewAll: onRefreshFromNextShifts
-            )
+                NextShiftsCardView(
+                    tokens: tokens,
+                    isLoading: viewModel.isLoadingShifts,
+                    nextDeliverySummary: viewModel.nextDeliveryShift.map(viewModel.shiftSummary) ?? l10n(AccessL10nKey.shiftsNextPending),
+                    nextMarketSummary: viewModel.nextMarketShift.map(viewModel.shiftSummary) ?? l10n(AccessL10nKey.shiftsNextPending),
+                    onViewAll: onRefreshFromNextShifts
+                )
 
-            ShiftSwapRequestsCardView(
-                tokens: tokens,
-                viewModel: viewModel,
-                shiftSwapCopy: shiftSwapCopy
-            )
+                ShiftSwapRequestsCardView(
+                    tokens: tokens,
+                    viewModel: viewModel,
+                    shiftSwapCopy: shiftSwapCopy
+                )
 
-            if viewModel.isLoadingShifts {
-                reguertaCard {
-                    Text(localizedKey(AccessL10nKey.shiftsLoading))
-                        .font(tokens.typography.bodySecondary)
-                }
-            } else if viewModel.shiftsFeed.isEmpty {
-                reguertaCard {
-                    Text(localizedKey(AccessL10nKey.shiftsEmptyState))
-                        .font(tokens.typography.bodySecondary)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                }
-            } else {
-                Picker("", selection: selectedShiftSegmentBinding) {
-                    ForEach(ShiftBoardSegment.allCases, id: \.self) { segment in
-                        Text(localizedKey(segment.titleKey)).tag(segment)
+                if viewModel.isLoadingShifts {
+                    reguertaCard {
+                        Text(localizedKey(AccessL10nKey.shiftsLoading))
+                            .font(tokens.typography.bodySecondary)
                     }
-                }
-                .pickerStyle(.segmented)
-
-                if viewModel.visibleShifts.isEmpty {
+                } else if viewModel.shiftsFeed.isEmpty {
                     reguertaCard {
                         Text(localizedKey(AccessL10nKey.shiftsEmptyState))
                             .font(tokens.typography.bodySecondary)
                             .foregroundStyle(tokens.colors.textSecondary)
                     }
                 } else {
-                    ForEach(viewModel.visibleShifts) { shift in
-                        ShiftBoardCardView(
-                            tokens: tokens,
-                            viewModel: viewModel,
-                            shift: shift,
-                            shiftSwapCopy: shiftSwapCopy,
-                            onStartSwapRequestForShift: onStartSwapRequestForShift
-                        )
+                    Picker("", selection: selectedShiftSegmentBinding) {
+                        ForEach(ShiftBoardSegment.allCases, id: \.self) { segment in
+                            Text(localizedKey(segment.titleKey)).tag(segment)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    if viewModel.visibleShifts.isEmpty {
+                        reguertaCard {
+                            Text(localizedKey(AccessL10nKey.shiftsEmptyState))
+                                .font(tokens.typography.bodySecondary)
+                                .foregroundStyle(tokens.colors.textSecondary)
+                        }
+                    } else {
+                        ForEach(viewModel.visibleShifts) { shift in
+                            ShiftBoardCardView(
+                                tokens: tokens,
+                                viewModel: viewModel,
+                                shift: shift,
+                                shiftSwapCopy: shiftSwapCopy,
+                                onStartSwapRequestForShift: onStartSwapRequestForShift
+                            )
+                        }
                     }
                 }
             }
+            .padding(.bottom, tokens.spacing.sm)
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private var selectedShiftSegmentBinding: Binding<ShiftBoardSegment> {

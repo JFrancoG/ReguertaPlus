@@ -17,23 +17,11 @@ struct ProductsRouteView: View {
     }
 
     var body: some View {
-        Group {
-            if viewModel.isEditing {
-                ProductEditorCardView(
-                    tokens: tokens,
-                    viewModel: viewModel,
-                    canManageEcoBasket: viewModel.canManageEcoBasket,
-                    canManageCommonPurchase: viewModel.canManageCommonPurchase
-                )
-            } else {
-                ProductsListRouteView(
-                    tokens: tokens,
-                    viewModel: viewModel,
-                    activeProducts: activeProducts,
-                    archivedProducts: archivedProducts
-                )
-            }
+        ScrollView(.vertical, showsIndicators: false) {
+            routeContent
+                .padding(.bottom, tokens.spacing.sm)
         }
+        .scrollDismissesKeyboard(.interactively)
         .alert(
             localizedKey(
                 viewModel.pendingCatalogVisibility == true
@@ -61,6 +49,25 @@ struct ProductsRouteView: View {
                 isEnabled
                 ? localizedKey(AccessL10nKey.productsCatalogVisibilityAlertMessageReactivate)
                 : localizedKey(AccessL10nKey.productsCatalogVisibilityAlertMessagePause)
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var routeContent: some View {
+        if viewModel.isEditing {
+            ProductEditorCardView(
+                tokens: tokens,
+                viewModel: viewModel,
+                canManageEcoBasket: viewModel.canManageEcoBasket,
+                canManageCommonPurchase: viewModel.canManageCommonPurchase
+            )
+        } else {
+            ProductsListRouteView(
+                tokens: tokens,
+                viewModel: viewModel,
+                activeProducts: activeProducts,
+                archivedProducts: archivedProducts
             )
         }
     }

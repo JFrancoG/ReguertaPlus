@@ -94,37 +94,41 @@ struct ShiftSwapRequestRouteView: View {
     }
 
     var body: some View {
-        reguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text(shiftSwapCopy.subtitle)
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                Text(shiftSwapCopy.shift(shiftDisplayLabel))
-                    .font(tokens.typography.bodySecondary)
-                Text(
-                    shiftSwapCopy.broadcastScope(
-                        shift?.type == .market ? shiftSwapCopy.marketLabel : shiftSwapCopy.deliveryLabel
+        ScrollView(.vertical, showsIndicators: false) {
+            reguertaCard {
+                VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                    Text(shiftSwapCopy.subtitle)
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                    Text(shiftSwapCopy.shift(shiftDisplayLabel))
+                        .font(tokens.typography.bodySecondary)
+                    Text(
+                        shiftSwapCopy.broadcastScope(
+                            shift?.type == .market ? shiftSwapCopy.marketLabel : shiftSwapCopy.deliveryLabel
+                        )
                     )
-                )
-                .font(tokens.typography.bodySecondary)
-                .foregroundStyle(tokens.colors.textSecondary)
-                Text(shiftSwapCopy.reasonLabel)
-                    .font(tokens.typography.label)
+                    .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
-                TextEditor(text: shiftSwapReasonBinding)
-                    .frame(minHeight: 160.resize)
-                    .padding(tokens.spacing.sm)
-                    .background(tokens.colors.surfaceSecondary)
-                    .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
+                    Text(shiftSwapCopy.reasonLabel)
+                        .font(tokens.typography.label)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                    TextEditor(text: shiftSwapReasonBinding)
+                        .frame(minHeight: 160.resize)
+                        .padding(tokens.spacing.sm)
+                        .background(tokens.colors.surfaceSecondary)
+                        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
 
-                reguertaButton(
-                    LocalizedStringKey(viewModel.isSavingShiftSwapRequest ? shiftSwapCopy.sending : shiftSwapCopy.send),
-                    isEnabled: !viewModel.isSavingShiftSwapRequest && !viewModel.shiftSwapDraft.shiftId.isEmpty,
-                    isLoading: viewModel.isSavingShiftSwapRequest,
-                    action: onSave
-                )
+                    reguertaButton(
+                        LocalizedStringKey(viewModel.isSavingShiftSwapRequest ? shiftSwapCopy.sending : shiftSwapCopy.send),
+                        isEnabled: !viewModel.isSavingShiftSwapRequest && !viewModel.shiftSwapDraft.shiftId.isEmpty,
+                        isLoading: viewModel.isSavingShiftSwapRequest,
+                        action: onSave
+                    )
+                }
             }
+            .padding(.bottom, tokens.spacing.sm)
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private var shiftSwapReasonBinding: Binding<String> {

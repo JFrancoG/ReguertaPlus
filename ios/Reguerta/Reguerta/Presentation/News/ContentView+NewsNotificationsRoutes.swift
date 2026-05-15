@@ -8,37 +8,41 @@ struct NewsListRouteView: View {
     let onEditNews: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-            NewsListHeaderCardView(
-                tokens: tokens,
-                isAdmin: viewModel.canPublishNews,
-                onCreateNews: createNews,
-                onRefreshNews: refreshNews
-            )
+        ScrollView(.vertical, showsIndicators: false) {
+            LazyVStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                NewsListHeaderCardView(
+                    tokens: tokens,
+                    isAdmin: viewModel.canPublishNews,
+                    onCreateNews: createNews,
+                    onRefreshNews: refreshNews
+                )
 
-            if viewModel.isLoadingNews {
-                reguertaCard {
-                    Text(LocalizedStringKey(AccessL10nKey.newsLoading))
-                        .font(tokens.typography.bodySecondary)
-                }
-            } else if viewModel.newsFeed.isEmpty {
-                reguertaCard {
-                    Text(LocalizedStringKey(AccessL10nKey.newsEmptyState))
-                        .font(tokens.typography.bodySecondary)
-                }
-            } else {
-                ForEach(viewModel.newsFeed) { article in
-                    NewsArticleCardView(
-                        tokens: tokens,
-                        article: article,
-                        isAdmin: viewModel.canPublishNews,
-                        newsMetaText: newsMetaText,
-                        onEditNews: editNews,
-                        onDeleteNews: requestNewsDeletion
-                    )
+                if viewModel.isLoadingNews {
+                    reguertaCard {
+                        Text(LocalizedStringKey(AccessL10nKey.newsLoading))
+                            .font(tokens.typography.bodySecondary)
+                    }
+                } else if viewModel.newsFeed.isEmpty {
+                    reguertaCard {
+                        Text(LocalizedStringKey(AccessL10nKey.newsEmptyState))
+                            .font(tokens.typography.bodySecondary)
+                    }
+                } else {
+                    ForEach(viewModel.newsFeed) { article in
+                        NewsArticleCardView(
+                            tokens: tokens,
+                            article: article,
+                            isAdmin: viewModel.canPublishNews,
+                            newsMetaText: newsMetaText,
+                            onEditNews: editNews,
+                            onDeleteNews: requestNewsDeletion
+                        )
+                    }
                 }
             }
+            .padding(.bottom, tokens.spacing.sm)
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private func createNews() {
@@ -256,34 +260,38 @@ struct NotificationsListRouteView: View {
     let onCreateNotification: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-            NotificationsListHeaderCardView(
-                tokens: tokens,
-                isAdmin: viewModel.canSendAdminNotifications,
-                onCreateNotification: createNotification,
-                onRefreshNotifications: refreshNotifications
-            )
+        ScrollView(.vertical, showsIndicators: false) {
+            LazyVStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                NotificationsListHeaderCardView(
+                    tokens: tokens,
+                    isAdmin: viewModel.canSendAdminNotifications,
+                    onCreateNotification: createNotification,
+                    onRefreshNotifications: refreshNotifications
+                )
 
-            if viewModel.isLoadingNotifications {
-                reguertaCard {
-                    Text(LocalizedStringKey(AccessL10nKey.notificationsLoading))
-                        .font(tokens.typography.bodySecondary)
-                }
-            } else if viewModel.notificationsFeed.isEmpty {
-                reguertaCard {
-                    Text(LocalizedStringKey(AccessL10nKey.notificationsEmptyState))
-                        .font(tokens.typography.bodySecondary)
-                }
-            } else {
-                ForEach(viewModel.notificationsFeed) { notification in
-                    NotificationCardView(
-                        tokens: tokens,
-                        notification: notification,
-                        notificationMetaText: notificationMetaText
-                    )
+                if viewModel.isLoadingNotifications {
+                    reguertaCard {
+                        Text(LocalizedStringKey(AccessL10nKey.notificationsLoading))
+                            .font(tokens.typography.bodySecondary)
+                    }
+                } else if viewModel.notificationsFeed.isEmpty {
+                    reguertaCard {
+                        Text(LocalizedStringKey(AccessL10nKey.notificationsEmptyState))
+                            .font(tokens.typography.bodySecondary)
+                    }
+                } else {
+                    ForEach(viewModel.notificationsFeed) { notification in
+                        NotificationCardView(
+                            tokens: tokens,
+                            notification: notification,
+                            notificationMetaText: notificationMetaText
+                        )
+                    }
                 }
             }
+            .padding(.bottom, tokens.spacing.sm)
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private func createNotification() {
@@ -394,45 +402,49 @@ struct NotificationEditorRouteView: View {
     }
 
     var body: some View {
-        reguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text(LocalizedStringKey(AccessL10nKey.notificationsEditorSubtitle))
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
+        ScrollView(.vertical, showsIndicators: false) {
+            reguertaCard {
+                VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                    Text(LocalizedStringKey(AccessL10nKey.notificationsEditorSubtitle))
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
 
-                TextField(
-                    "",
-                    text: notificationTitle,
-                    prompt: Text(LocalizedStringKey(AccessL10nKey.notificationsFieldTitle))
-                )
-                .textFieldStyle(.roundedBorder)
+                    TextField(
+                        "",
+                        text: notificationTitle,
+                        prompt: Text(LocalizedStringKey(AccessL10nKey.notificationsFieldTitle))
+                    )
+                    .textFieldStyle(.roundedBorder)
 
-                Text(LocalizedStringKey(AccessL10nKey.notificationsFieldBody))
-                    .font(tokens.typography.label)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                TextEditor(text: notificationBody)
-                    .frame(minHeight: 180.resize)
-                    .padding(tokens.spacing.sm)
-                    .background(tokens.colors.surfaceSecondary)
-                    .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
+                    Text(LocalizedStringKey(AccessL10nKey.notificationsFieldBody))
+                        .font(tokens.typography.label)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                    TextEditor(text: notificationBody)
+                        .frame(minHeight: 180.resize)
+                        .padding(tokens.spacing.sm)
+                        .background(tokens.colors.surfaceSecondary)
+                        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
 
-                Picker(
-                    LocalizedStringKey(AccessL10nKey.notificationsFieldAudience),
-                    selection: notificationAudience
-                ) {
-                    ForEach(NotificationAudience.allCases, id: \.self) { audience in
-                        Text(LocalizedStringKey(audience.titleKey)).tag(audience)
+                    Picker(
+                        LocalizedStringKey(AccessL10nKey.notificationsFieldAudience),
+                        selection: notificationAudience
+                    ) {
+                        ForEach(NotificationAudience.allCases, id: \.self) { audience in
+                            Text(LocalizedStringKey(audience.titleKey)).tag(audience)
+                        }
                     }
-                }
 
-                reguertaButton(
-                    LocalizedStringKey(sendActionKey),
-                    isEnabled: !viewModel.isSendingNotification,
-                    isLoading: viewModel.isSendingNotification,
-                    action: sendNotification
-                )
+                    reguertaButton(
+                        LocalizedStringKey(sendActionKey),
+                        isEnabled: !viewModel.isSendingNotification,
+                        isLoading: viewModel.isSendingNotification,
+                        action: sendNotification
+                    )
+                }
             }
+            .padding(.bottom, tokens.spacing.sm)
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private func sendNotification() {
