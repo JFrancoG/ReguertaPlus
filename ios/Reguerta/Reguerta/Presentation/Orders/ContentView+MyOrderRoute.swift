@@ -85,7 +85,7 @@ struct MyOrderRouteView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
 
-            if !viewModel.isReadOnlyMode && !viewModel.isCartVisible {
+            if !viewModel.isReadOnlyMode && !viewModel.isCartVisible && !viewModel.context.isLoading {
                 searchOverlay
             }
 

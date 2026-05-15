@@ -25,7 +25,7 @@ extension MyOrderRouteView {
             )
             .shadow(color: .black.opacity(0.16), radius: 18.resize, y: 8.resize)
             .padding(.horizontal, tokens.spacing.md)
-            .padding(.bottom, tokens.spacing.md)
+            .padding(.bottom, 24.resizeBottomSize)
     }
 
     var searchOverlayContent: some View {

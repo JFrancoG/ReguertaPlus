@@ -239,11 +239,11 @@ extension MyOrderRouteView {
     }
 
     var loadingState: some View {
-        reguertaCard {
-            Text(LocalizedStringKey(AccessL10nKey.myOrderListLoading))
-                .font(tokens.typography.bodySecondary)
-                .foregroundStyle(tokens.colors.textSecondary)
-        }
+        ProgressView()
+            .controlSize(.large)
+            .tint(tokens.colors.actionPrimary)
+            .scaleEffect(1.24)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
     var emptyState: some View {
@@ -291,8 +291,10 @@ extension MyOrderRouteView {
             Spacer(minLength: 0)
         }
         .padding(.vertical, tokens.spacing.sm)
-        .padding(.horizontal, tokens.spacing.md)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, tokens.spacing.lg)
         .background(tokens.colors.surfaceSecondary.opacity(0.9))
+        .padding(.horizontal, -tokens.spacing.lg)
     }
 
     @ViewBuilder

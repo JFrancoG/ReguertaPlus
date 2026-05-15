@@ -154,7 +154,7 @@ fun HomeShellTopBar(
                                 text = cartUnits.coerceAtMost(99).toString(),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onError,
-                                fontWeight = FontWeight.SemiBold,
+                                fontWeight = FontWeight.Normal,
                             )
                         }
                     }

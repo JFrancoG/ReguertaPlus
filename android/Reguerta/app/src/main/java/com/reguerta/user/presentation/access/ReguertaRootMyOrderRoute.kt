@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -93,6 +94,7 @@ import com.reguerta.user.ui.components.auth.ReguertaDialog
 import com.reguerta.user.ui.components.auth.ReguertaDialogAction
 import com.reguerta.user.ui.components.auth.ReguertaDialogType
 import com.reguerta.user.ui.theme.ColorFeedbackWarningDefault
+import com.reguerta.user.ui.theme.ReguertaThemeTokens
 import java.text.Normalizer
 import java.time.DayOfWeek
 import java.time.Instant
@@ -539,6 +541,7 @@ internal fun MyOrderRoute(
             animationSpec = tween(durationMillis = 220),
             label = "my_order_cart_offset",
         )
+        val producerHeaderEdgeInset = ReguertaThemeTokens.spacing.lg
 
         Box(modifier = Modifier.fillMaxSize()) {
             if (isReadOnlyMode) {
@@ -562,40 +565,25 @@ internal fun MyOrderRoute(
                         onEdit = { isViewingConfirmedOrder = false },
                     )
                 }
+            } else if (isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(42.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        strokeWidth = 4.dp,
+                    )
+                }
             } else {
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                MyOrderHeader()
+                    MyOrderHeader()
 
-                when {
-                    isLoading -> {
-                        Card(modifier = Modifier.fillMaxWidth()) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.2.dp)
-                                    Text(
-                                        text = stringResource(R.string.my_order_products_loading),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                    )
-                                }
-                                TextButton(onClick = onRefresh) {
-                                    Text(text = stringResource(R.string.products_refresh_action))
-                                }
-                            }
-                        }
-                    }
-
-                    groupedProducts.isEmpty() -> {
+                    if (groupedProducts.isEmpty()) {
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(
                                 modifier = Modifier
@@ -612,9 +600,7 @@ internal fun MyOrderRoute(
                                 }
                             }
                         }
-                    }
-
-                    else -> {
+                    } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(top = 4.dp, bottom = 144.dp),
@@ -622,112 +608,119 @@ internal fun MyOrderRoute(
                         ) {
                             groupedProducts.forEach { group ->
                                 stickyHeader(key = "header_${group.vendorId}") {
-                                    ProducerGroupHeader(group = group)
+                                    ProducerGroupHeader(
+                                        group = group,
+                                        modifier = Modifier
+                                            .requiredWidth(
+                                                cartPanelWidth + producerHeaderEdgeInset + producerHeaderEdgeInset,
+                                            )
+                                            .offset(x = -producerHeaderEdgeInset),
+                                    )
                                 }
                                 items(
                                     items = group.products,
                                     key = Product::id,
                                 ) { product ->
-                                MyOrderProductCard(
-                                    product = product,
-                                    quantity = selectedQuantities[product.id].orZero,
-                                    commitmentLimit = seasonalCommitmentLimitsByProductId[product.id],
-                                    isEditable = !isReadOnlyMode,
-                                    onIncrease = { increaseProduct(product) },
-                                    onDecrease = { decreaseProduct(product) },
-                                )
-                            }
-                            }
-                        }
-                    }
-                }
-                }
-
-                if (!isCartVisible) {
-                SearchBarOverlay(
-                    searchQuery = searchQuery,
-                    onSearchQueryChange = { searchQuery = it },
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(vertical = 12.dp),
-                )
-                }
-
-                if (isCartVisible) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.24f))
-                        .clickable { isCartVisible = false },
-                )
-                }
-
-                Surface(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .fillMaxHeight()
-                    .width(cartPanelWidth)
-                    .offset(x = cartPanelOffsetX),
-                color = MaterialTheme.colorScheme.surface,
-            ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(start = 16.dp, top = 0.dp, end = 16.dp, bottom = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = stringResource(
-                                    R.string.my_order_total_format,
-                                    cartTotal.toUiDecimal(),
-                                ),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.primary,
-                                maxLines = 1,
-                            )
-                        }
-
-                        if (selectedProducts.isEmpty()) {
-                            Text(
-                                text = stringResource(R.string.my_order_cart_empty),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier.weight(1f),
-                                contentPadding = PaddingValues(bottom = 96.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                items(
-                                    items = selectedProducts,
-                                    key = Product::id,
-                                ) { product ->
-                                    SelectedProductCard(
+                                    MyOrderProductCard(
                                         product = product,
                                         quantity = selectedQuantities[product.id].orZero,
                                         commitmentLimit = seasonalCommitmentLimitsByProductId[product.id],
-                                        ecoBasketOption = selectedEcoBasketOptions[product.id],
-                                        isEditable = !isReadOnlyConfirmedView,
+                                        isEditable = !isReadOnlyMode,
                                         onIncrease = { increaseProduct(product) },
                                         onDecrease = { decreaseProduct(product) },
-                                        onEcoBasketOptionChange = { selectedOption ->
-                                            if (!isReadOnlyConfirmedView) {
-                                                selectedEcoBasketOptions = selectedEcoBasketOptions + (product.id to selectedOption)
-                                            }
-                                        },
                                     )
                                 }
                             }
                         }
                     }
+                }
+
+                if (!isCartVisible) {
+                    SearchBarOverlay(
+                        searchQuery = searchQuery,
+                        onSearchQueryChange = { searchQuery = it },
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 40.dp),
+                    )
+                }
+
+                if (isCartVisible) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.24f))
+                            .clickable { isCartVisible = false },
+                    )
+                }
+
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .fillMaxHeight()
+                        .width(cartPanelWidth)
+                        .offset(x = cartPanelOffsetX),
+                    color = MaterialTheme.colorScheme.surface,
+                ) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(start = 16.dp, top = 0.dp, end = 16.dp, bottom = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = stringResource(
+                                        R.string.my_order_total_format,
+                                        cartTotal.toUiDecimal(),
+                                    ),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    maxLines = 1,
+                                )
+                            }
+
+                            if (selectedProducts.isEmpty()) {
+                                Text(
+                                    text = stringResource(R.string.my_order_cart_empty),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            } else {
+                                LazyColumn(
+                                    modifier = Modifier.weight(1f),
+                                    contentPadding = PaddingValues(bottom = 96.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                                ) {
+                                    items(
+                                        items = selectedProducts,
+                                        key = Product::id,
+                                    ) { product ->
+                                        SelectedProductCard(
+                                            product = product,
+                                            quantity = selectedQuantities[product.id].orZero,
+                                            commitmentLimit = seasonalCommitmentLimitsByProductId[product.id],
+                                            ecoBasketOption = selectedEcoBasketOptions[product.id],
+                                            isEditable = !isReadOnlyConfirmedView,
+                                            onIncrease = { increaseProduct(product) },
+                                            onDecrease = { decreaseProduct(product) },
+                                            onEcoBasketOptionChange = { selectedOption ->
+                                                if (!isReadOnlyConfirmedView) {
+                                                    selectedEcoBasketOptions =
+                                                        selectedEcoBasketOptions + (product.id to selectedOption)
+                                                }
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                        }
 
                     if (!isReadOnlyMode) {
                         Button(
@@ -1320,10 +1313,12 @@ private fun MyOrderPreviousProducerCard(group: MyOrderPreviousOrderGroup) {
 }
 
 @Composable
-private fun ProducerGroupHeader(group: MyOrderProducerGroup) {
+private fun ProducerGroupHeader(
+    group: MyOrderProducerGroup,
+    modifier: Modifier = Modifier.fillMaxWidth(),
+) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f))
             .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.Center,
