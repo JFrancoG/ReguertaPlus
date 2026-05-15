@@ -93,6 +93,7 @@ import com.reguerta.user.domain.shifts.ShiftType
 import com.reguerta.user.ui.components.auth.ReguertaDialog
 import com.reguerta.user.ui.components.auth.ReguertaDialogAction
 import com.reguerta.user.ui.components.auth.ReguertaDialogType
+import com.reguerta.user.ui.components.auth.ReguertaFloatingActionButton
 import com.reguerta.user.ui.theme.ColorFeedbackWarningDefault
 import com.reguerta.user.ui.theme.ReguertaThemeTokens
 import java.text.Normalizer
@@ -720,8 +721,9 @@ internal fun MyOrderRoute(
                         }
 
                     if (!isReadOnlyMode) {
-                        Button(
-                            onClick = {
+                        ReguertaFloatingActionButton(
+                            label = finalizeActionLabel,
+                            onClick = checkoutClick@{
                                 val validationResult = validateMyOrderCheckout(
                                     currentMember = currentMember,
                                     members = members,
@@ -759,7 +761,7 @@ internal fun MyOrderRoute(
                                     }
                                 }
                                 if (checkoutDialogState != null) {
-                                    return@Button
+                                    return@checkoutClick
                                 }
 
                                 coroutineScope.launch {
@@ -793,24 +795,10 @@ internal fun MyOrderRoute(
                                 }
                             },
                             enabled = canSubmitOrder,
+                            loading = isSubmittingCheckout,
                             modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .fillMaxWidth()
-                                .padding(horizontal = 28.dp)
-                                .padding(bottom = 8.dp)
-                                .height(52.dp)
-                                .shadow(
-                                    elevation = 8.dp,
-                                    shape = RoundedCornerShape(28.dp),
-                                    clip = false,
-                                ),
-                            shape = RoundedCornerShape(28.dp),
-                        ) {
-                            Text(
-                                text = finalizeActionLabel,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                        }
+                                .align(Alignment.BottomCenter),
+                        )
                     }
                 }
             }

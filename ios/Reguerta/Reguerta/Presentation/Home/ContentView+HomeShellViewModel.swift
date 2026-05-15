@@ -293,6 +293,10 @@ private extension AccessRootViewModel {
             return l10n(AccessL10nKey.homeShellNewsTitle)
         case .settings:
             return l10n(AccessL10nKey.settingsTitle)
+        case .products:
+            return l10n(AccessL10nKey.productsListTitle)
+        case .users:
+            return l10n(AccessL10nKey.usersListTitle)
         case .shiftSwapRequest:
             return l10n(AccessL10nKey.shiftSwapRequestScreenTitle)
         case .publishNews:

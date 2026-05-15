@@ -191,7 +191,7 @@
     <string name="users_list_title">Regüertenses autorizados</string>
     <string name="users_list_action_reload">Recargar</string>
     <string name="users_list_empty_state">Aún no hay usuarios autorizados.</string>
-    <string name="users_create_action">Autorizar nuevo usuario</string>
+    <string name="users_create_action">Autorizar regüertense</string>
     <string name="users_editor_title_create">Autorizar regüertense</string>
     <string name="users_editor_title_edit">Actualizar regüertense</string>
     <string name="users_editor_company_name_label">Nombre de la empresa</string>
@@ -232,6 +232,7 @@
     <string name="products_editor_subtitle">El productor queda fijado a tu cuenta. Aqui se guardan stock, disponibilidad y reglas de ecocesta.</string>
     <string name="products_field_name">Nombre</string>
     <string name="products_field_description">Descripción</string>
+    <string name="products_description_empty">Sin descripción.</string>
     <string name="products_field_image_url">URL de imagen</string>
     <string name="products_pick_image_action">Seleccionar imagen</string>
     <string name="products_clear_image_action">Quitar imagen</string>

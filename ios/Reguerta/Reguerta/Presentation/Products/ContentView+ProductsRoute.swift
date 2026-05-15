@@ -17,11 +17,27 @@ struct ProductsRouteView: View {
     }
 
     var body: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            routeContent
-                .padding(.bottom, tokens.spacing.sm)
+        ZStack(alignment: .bottom) {
+            ScrollViewReader { proxy in
+                ScrollView(.vertical, showsIndicators: false) {
+                    routeContent
+                        .padding(.bottom, viewModel.isEditing ? tokens.spacing.sm : ReguertaFloatingActionButtonLayout.scrollContentBottomPadding)
+                }
+                .scrollDismissesKeyboard(.interactively)
+                .onChange(of: viewModel.highlightedProductId) { _, productId in
+                    guard let productId else { return }
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        proxy.scrollTo(productId, anchor: .center)
+                    }
+                }
+            }
+
+            if !viewModel.isEditing {
+                reguertaFloatingActionButton(localizedKey(AccessL10nKey.productsListActionAdd)) {
+                    viewModel.startCreating()
+                }
+            }
         }
-        .scrollDismissesKeyboard(.interactively)
         .alert(
             localizedKey(
                 viewModel.pendingCatalogVisibility == true
@@ -245,65 +261,12 @@ private struct ProductsListRouteView: View {
     let activeProducts: [Product]
     let archivedProducts: [Product]
 
-    private var isProducer: Bool {
-        viewModel.currentMember?.isProducer == true
-    }
-
     private func localizedKey(_ key: String) -> LocalizedStringKey {
         LocalizedStringKey(key)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-            reguertaCard {
-                VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                    HStack(alignment: .top, spacing: tokens.spacing.md) {
-                        Text(localizedKey(AccessL10nKey.productsListTitle))
-                            .font(tokens.typography.titleCard)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        if isProducer {
-                            Button {
-                                viewModel.requestCatalogVisibilityChange()
-                            } label: {
-                                Group {
-                                    if viewModel.isUpdatingCatalogVisibility {
-                                        ProgressView()
-                                            .tint(tokens.colors.actionOnPrimary)
-                                    } else {
-                                        Text(
-                                            viewModel.currentMember?.producerCatalogEnabled == true
-                                            ? localizedKey(AccessL10nKey.productsListBulkToggleDisableAll)
-                                            : localizedKey(AccessL10nKey.productsListBulkToggleEnableAll)
-                                        )
-                                            .font(tokens.typography.label)
-                                            .multilineTextAlignment(.center)
-                                            .lineSpacing(2)
-                                    }
-                                }
-                                .foregroundStyle(tokens.colors.actionOnPrimary)
-                                .padding(.horizontal, tokens.spacing.md)
-                                .padding(.vertical, tokens.spacing.sm)
-                                .background(
-                                    viewModel.currentMember?.producerCatalogEnabled == true
-                                    ? tokens.colors.feedbackWarning
-                                    : tokens.colors.actionPrimary
-                                )
-                                .clipShape(Capsule())
-                                .overlay(
-                                    Capsule()
-                                        .stroke(tokens.colors.surfacePrimary.opacity(0.85), lineWidth: 2)
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(viewModel.isUpdatingCatalogVisibility)
-                        }
-                    }
-                    reguertaButton(localizedKey(AccessL10nKey.productsListActionReload), variant: .text, fullWidth: false) {
-                        Task { await viewModel.refreshCatalog() }
-                    }
-                }
-            }
-
             if viewModel.isLoadingCatalog {
                 reguertaCard {
                     Text(localizedKey(AccessL10nKey.productsListLoading))
@@ -322,9 +285,11 @@ private struct ProductsListRouteView: View {
                             tokens: tokens,
                             product: product,
                             archived: false,
+                            isHighlighted: viewModel.highlightedProductId == product.id,
                             onEdit: { viewModel.startEditing(productId: product.id) },
                             onArchive: { Task { await viewModel.archive(productId: product.id) } }
                         )
+                        .id(product.id)
                     }
                 }
 
@@ -337,17 +302,17 @@ private struct ProductsListRouteView: View {
                             tokens: tokens,
                             product: product,
                             archived: true,
+                            isHighlighted: viewModel.highlightedProductId == product.id,
                             onEdit: { viewModel.startEditing(productId: product.id) },
                             onArchive: {}
                         )
+                        .id(product.id)
                     }
                 }
             }
-
-            reguertaButton(localizedKey(AccessL10nKey.productsListActionAdd)) {
-                viewModel.startCreating()
-            }
         }
+        .animation(.easeInOut(duration: 0.25), value: activeProducts.map(\.id))
+        .animation(.easeInOut(duration: 0.25), value: archivedProducts.map(\.id))
     }
 }
 
@@ -355,81 +320,124 @@ private struct ProductCardRowView: View {
     let tokens: ReguertaDesignTokens
     let product: Product
     let archived: Bool
+    let isHighlighted: Bool
     let onEdit: () -> Void
     let onArchive: () -> Void
+
+    private var descriptionText: String {
+        product.description.isEmpty ? l10n(AccessL10nKey.productsCardDescriptionEmpty) : product.description
+    }
 
     private func decimalText(_ value: Double) -> String {
         value.productUIDecimal
     }
 
-    var body: some View {
-        reguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                HStack(alignment: .top, spacing: tokens.spacing.md) {
-                    RoundedRectangle(cornerRadius: 20.resize)
-                        .fill(tokens.colors.surfaceSecondary)
-                        .frame(width: 96.resize, height: 96.resize)
-                        .overlay {
-                            if let imageURL = URL(string: product.productImageUrl ?? ""), !(product.productImageUrl ?? "").isEmpty {
-                                AsyncImage(url: imageURL) { phase in
-                                    if let image = phase.image {
-                                        image
-                                            .resizable()
-                                            .scaledToFill()
-                                    } else {
-                                        Image(systemName: "photo")
-                                            .font(.system(size: 28.resize))
-                                            .foregroundStyle(tokens.colors.textSecondary)
-                                    }
-                                }
-                                .frame(width: 96.resize, height: 96.resize)
-                                .clipShape(RoundedRectangle(cornerRadius: 20.resize))
-                            } else {
-                                Image(systemName: "photo")
-                                    .font(.system(size: 28.resize))
-                                    .foregroundStyle(tokens.colors.textSecondary)
-                            }
-                        }
-                    VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                        HStack(alignment: .top) {
-                            VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                                Text(product.name)
-                                    .font(tokens.typography.titleCard)
-                                Text(product.description.isEmpty ? l10n(AccessL10nKey.productsCardDescriptionEmpty) : product.description)
-                                    .font(tokens.typography.bodySecondary)
-                                    .foregroundStyle(tokens.colors.textSecondary)
-                            }
-                            Spacer(minLength: tokens.spacing.sm)
-                            HStack(spacing: tokens.spacing.xs) {
-                                Button(action: onEdit) {
-                                    Image(systemName: "pencil")
-                                }
-                                .buttonStyle(.plain)
+    private var priceText: String {
+        String(format: "%.2f €", product.price)
+    }
 
-                                if !archived {
-                                    Button(action: onArchive) {
-                                        Image(systemName: "trash")
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                        }
-                        Text("\(decimalText(product.price)) €")
-                            .font(tokens.typography.titleCard)
-                        Text(
-                            archived
-                            ? l10n(AccessL10nKey.productsCardStatusArchived)
-                            : (
-                                product.stockMode == .infinite
-                                ? l10n(AccessL10nKey.productsCardStatusStockUnlimited)
-                                : l10n(AccessL10nKey.productsCardStatusStockValue, decimalText(product.stockQty ?? 0))
-                            )
-                        )
-                        .font(tokens.typography.bodySecondary)
-                        .foregroundStyle(tokens.colors.textSecondary)
+    private var stockText: String {
+        if archived {
+            return l10n(AccessL10nKey.productsCardStatusArchived)
+        }
+        if product.stockMode == .infinite {
+            return l10n(AccessL10nKey.productsCardStatusStockUnlimited)
+        }
+        return l10n(AccessL10nKey.productsCardStatusStockValue, decimalText(product.stockQty ?? 0))
+    }
+
+    var body: some View {
+        reguertaListItemCard(isHighlighted: isHighlighted) {
+            VStack(alignment: .leading, spacing: 0) {
+                Spacer().frame(height: 16.resize)
+                ZStack(alignment: .topTrailing) {
+                    HStack {
+                        Spacer().frame(width: 12.resize)
+                        productImage
+                        Spacer()
                     }
+
+                    HStack(spacing: 8.resize) {
+                        ReguertaListActionIconButton(
+                            systemImageName: "pencil",
+                            accessibilityLabel: "Editar producto",
+                            backgroundColor: tokens.colors.actionPrimary,
+                            action: onEdit
+                        )
+
+                        if !archived {
+                            ReguertaListActionIconButton(
+                                systemImageName: "trash",
+                                accessibilityLabel: "Archivar producto",
+                                backgroundColor: tokens.colors.feedbackError,
+                                action: onArchive
+                            )
+                        }
+                    }
+                    .padding(.trailing, 12.resize)
                 }
+                Spacer().frame(height: 8.resize)
+
+                VStack(alignment: .leading, spacing: 4.resize) {
+                    Text(product.name)
+                        .font(.custom("CabinSketch-Bold", size: 18.resize, relativeTo: .headline))
+                        .foregroundStyle(tokens.colors.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 12.resize)
+
+                    Text(descriptionText)
+                        .font(.custom("CabinSketch-Regular", size: 14.resize, relativeTo: .subheadline))
+                        .foregroundStyle(tokens.colors.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 12.resize)
+
+                    HStack(alignment: .firstTextBaseline, spacing: 8.resize) {
+                        Text(priceText)
+                            .font(.custom("CabinSketch-Bold", size: 18.resize, relativeTo: .headline))
+                            .foregroundStyle(tokens.colors.textPrimary)
+
+                        Spacer(minLength: 8.resize)
+
+                        Text(stockText)
+                            .font(.custom("CabinSketch-Bold", size: 18.resize, relativeTo: .headline))
+                            .foregroundStyle(tokens.colors.textPrimary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
+                    }
+                    .padding(.horizontal, 12.resize)
+                }
+                Spacer().frame(height: 16.resize)
             }
         }
+    }
+
+    @ViewBuilder
+    private var productImage: some View {
+        RoundedRectangle(cornerRadius: 8.resize)
+            .fill(tokens.colors.surfaceSecondary)
+            .frame(width: 72.resize, height: 72.resize)
+            .overlay {
+                if let imageURL = URL(string: product.productImageUrl ?? ""), !(product.productImageUrl ?? "").isEmpty {
+                    AsyncImage(url: imageURL) { phase in
+                        if let image = phase.image {
+                            image
+                                .resizable()
+                                .scaledToFill()
+                        } else {
+                            Image(systemName: "photo")
+                                .font(.system(size: 24.resize))
+                                .foregroundStyle(tokens.colors.textSecondary)
+                        }
+                    }
+                    .frame(width: 72.resize, height: 72.resize)
+                    .clipShape(RoundedRectangle(cornerRadius: 8.resize))
+                } else {
+                    Image(systemName: "photo")
+                        .font(.system(size: 24.resize))
+                        .foregroundStyle(tokens.colors.textSecondary)
+                }
+            }
+            .clipped()
     }
 }

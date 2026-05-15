@@ -93,7 +93,7 @@ internal class SessionProductActions(
         }
     }
 
-    fun saveProduct(onSuccess: () -> Unit = {}) {
+    fun saveProduct(onSuccess: (String) -> Unit = {}) {
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
         if (!mode.member.canManageSessionProductCatalog) {
             emitMessage(R.string.feedback_only_producer_manage_products)
@@ -169,7 +169,7 @@ internal class SessionProductActions(
                 )
             }
             emitMessage(if (existing == null) R.string.feedback_product_created else R.string.feedback_product_updated)
-            onSuccess()
+            onSuccess(saved.id)
         }
     }
 

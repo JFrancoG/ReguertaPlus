@@ -49,94 +49,117 @@ struct UsersRouteView: View {
     }
 
     private var usersList: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-                reguertaCard {
-                    VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                        Text(LocalizedStringKey(AccessL10nKey.usersListTitle))
-                            .font(tokens.typography.titleCard)
-                        reguertaButton(LocalizedStringKey(AccessL10nKey.usersListActionReload), variant: .text, fullWidth: false) {
-                            Task { await viewModel.refreshMembers() }
+        ZStack(alignment: .bottom) {
+            ScrollViewReader { proxy in
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                        if viewModel.sortedMembers.isEmpty {
+                            reguertaCard {
+                                Text(LocalizedStringKey(AccessL10nKey.usersListEmpty))
+                                    .font(tokens.typography.bodySecondary)
+                                    .foregroundStyle(tokens.colors.textSecondary)
+                            }
+                        } else {
+                            ForEach(viewModel.sortedMembers) { member in
+                                userCardRow(member)
+                                    .id(member.id)
+                            }
                         }
                     }
+                    .padding(.bottom, viewModel.canManageMembers ? ReguertaFloatingActionButtonLayout.scrollContentBottomPadding : tokens.spacing.sm)
+                    .animation(.easeInOut(duration: 0.25), value: viewModel.sortedMembers.map(\.id))
                 }
-
-                if viewModel.sortedMembers.isEmpty {
-                    reguertaCard {
-                        Text(LocalizedStringKey(AccessL10nKey.usersListEmpty))
-                            .font(tokens.typography.bodySecondary)
-                            .foregroundStyle(tokens.colors.textSecondary)
-                    }
-                } else {
-                    ForEach(viewModel.sortedMembers) { member in
-                        userCardRow(member)
+                .scrollDismissesKeyboard(.interactively)
+                .onChange(of: viewModel.highlightedMemberId) { _, memberId in
+                    guard let memberId else { return }
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        proxy.scrollTo(memberId, anchor: .center)
                     }
                 }
             }
-            .padding(.bottom, tokens.spacing.sm)
-        }
-        .scrollDismissesKeyboard(.interactively)
-        .safeAreaInset(edge: .bottom, spacing: tokens.spacing.xs) {
+
             if viewModel.canManageMembers {
-                reguertaButton(
+                reguertaFloatingActionButton(
                     LocalizedStringKey(AccessL10nKey.usersListActionAdd),
                     accessibilityIdentifier: "users.addButton"
                 ) {
                     viewModel.startCreating()
                 }
-                .padding(.bottom, tokens.spacing.sm)
-                .background(tokens.colors.surfacePrimary)
             }
         }
     }
 
     private func userCardRow(_ member: Member) -> some View {
-        reguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                Text(member.displayName)
-                    .font(tokens.typography.titleCard)
-                Text(member.normalizedEmail)
-                    .font(tokens.typography.bodySecondary)
-
-                if member.roles.contains(.producer) {
-                    Text(producerLine(for: member))
-                        .font(tokens.typography.label)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                }
-
-                if member.roles.contains(.admin) {
-                    Text(LocalizedStringKey(AccessL10nKey.usersCardAdminLabel))
-                        .font(tokens.typography.label)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                }
+        reguertaListItemCard(isHighlighted: viewModel.highlightedMemberId == member.id) {
+            VStack(alignment: .leading, spacing: 0) {
+                Spacer().frame(height: 16.resize)
+                userCardTextRows(member)
 
                 if viewModel.canManageMembers {
-                    HStack(spacing: tokens.spacing.sm) {
-                        Spacer()
-                        Button {
-                            viewModel.startEditing(memberId: member.id)
-                        } label: {
-                            Image(systemName: "pencil")
-                                .foregroundStyle(tokens.colors.actionOnPrimary)
-                                .padding(tokens.spacing.sm)
-                                .background(tokens.colors.actionPrimary)
-                                .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
-                        }
-                        .buttonStyle(.plain)
-
-                        Button {
-                            viewModel.requestToggleActive(memberId: member.id)
-                        } label: {
-                            Image(systemName: "trash")
-                                .foregroundStyle(tokens.colors.actionOnPrimary)
-                                .padding(tokens.spacing.sm)
-                                .background(tokens.colors.feedbackError)
-                                .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
-                        }
-                        .buttonStyle(.plain)
-                    }
+                    Spacer().frame(height: 16.resize)
+                    userCardActions(member)
                 }
+                Spacer().frame(height: 16.resize)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func userCardTextRows(_ member: Member) -> some View {
+        Text(member.displayName)
+            .font(.custom("CabinSketch-Bold", size: 18.resize, relativeTo: .body))
+            .foregroundStyle(tokens.colors.textPrimary)
+            .padding(.horizontal, 16.resize)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+        Spacer().frame(height: 16.resize)
+
+        Text(member.normalizedEmail)
+            .font(.custom("CabinSketch-Regular", size: 18.resize, relativeTo: .body))
+            .foregroundStyle(tokens.colors.textPrimary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.72)
+            .padding(.horizontal, 16.resize)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+        if member.roles.contains(.producer) {
+            Spacer().frame(height: 16.resize)
+            Text(producerLine(for: member))
+                .font(.custom("CabinSketch-Regular", size: 18.resize, relativeTo: .body))
+                .foregroundStyle(tokens.colors.textPrimary)
+                .lineLimit(2)
+                .minimumScaleFactor(0.72)
+                .padding(.horizontal, 16.resize)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+
+        if member.roles.contains(.admin) {
+            Spacer().frame(height: 16.resize)
+            Text(LocalizedStringKey(AccessL10nKey.usersCardAdminLabel))
+                .font(.custom("CabinSketch-Regular", size: 18.resize, relativeTo: .body))
+                .foregroundStyle(tokens.colors.textPrimary)
+                .padding(.horizontal, 16.resize)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func userCardActions(_ member: Member) -> some View {
+        HStack(spacing: tokens.spacing.sm) {
+            Spacer()
+            ReguertaListActionIconButton(
+                systemImageName: "pencil",
+                accessibilityLabel: "Editar Regüertense",
+                backgroundColor: tokens.colors.actionPrimary,
+                action: { viewModel.startEditing(memberId: member.id) }
+            )
+
+            ReguertaListActionIconButton(
+                systemImageName: "trash",
+                accessibilityLabel: "Desactivar Regüertense",
+                backgroundColor: tokens.colors.feedbackError,
+                action: { viewModel.requestToggleActive(memberId: member.id) }
+            )
+            Spacer().frame(width: 12.resize)
         }
     }
 

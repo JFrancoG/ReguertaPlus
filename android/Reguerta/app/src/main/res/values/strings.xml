@@ -191,7 +191,7 @@
     <string name="users_list_title">Authorized Regüertenses</string>
     <string name="users_list_action_reload">Refresh</string>
     <string name="users_list_empty_state">No authorized users were found yet.</string>
-    <string name="users_create_action">Authorize new user</string>
+    <string name="users_create_action">Authorize Regüertense</string>
     <string name="users_editor_title_create">Authorize Regüertense</string>
     <string name="users_editor_title_edit">Update Regüertense</string>
     <string name="users_editor_company_name_label">Company name</string>
@@ -232,6 +232,7 @@
     <string name="products_editor_subtitle">Vendor is fixed to your producer account. Stock, availability, and eco-basket rules are saved here.</string>
     <string name="products_field_name">Name</string>
     <string name="products_field_description">Description</string>
+    <string name="products_description_empty">No description.</string>
     <string name="products_field_image_url">Image URL</string>
     <string name="products_pick_image_action">Select image</string>
     <string name="products_clear_image_action">Remove image</string>

@@ -26,6 +26,7 @@ final class ProductsRouteViewModel {
     var isUploadingImage = false
     var isUpdatingCatalogVisibility = false
     var pendingCatalogVisibility: Bool?
+    var highlightedProductId: String?
 
     var activeProducts: [Product] {
         catalogProducts.filter { !$0.archived }
@@ -214,13 +215,14 @@ extension ProductsRouteViewModel {
         }
     }
 
-    func save() async {
-        guard let session = authorizedSession else { return }
+    @discardableResult
+    func save() async -> Bool {
+        guard let session = authorizedSession else { return false }
         guard session.member.canManageProductCatalog else {
             showUnableSaveFeedback()
-            return
+            return false
         }
-        guard !isUploadingImage else { return }
+        guard !isUploadingImage else { return false }
         let existing = catalogProducts.first { $0.id == editingProductId }
         guard let input = resolveProductSaveInput(
             draft: draft,
@@ -228,7 +230,7 @@ extension ProductsRouteViewModel {
             nowMillis: nowMillisProvider()
         ) else {
             showUnableSaveFeedback()
-            return
+            return false
         }
 
         isSaving = true
@@ -241,17 +243,19 @@ extension ProductsRouteViewModel {
             existingProduct: input.existing
         ) else {
             showUnableSaveFeedback()
-            return
+            return false
         }
 
         let saved = await productRepository.upsert(
             product: buildProductToSave(sessionMember: session.member, input: input)
         )
         let products = await productRepository.products(vendorId: session.member.id)
-        guard isCurrentSession(session) else { return }
+        guard isCurrentSession(session) else { return false }
         catalogProducts = products
-        draft = saved.toDraft()
-        editingProductId = saved.id
+        draft = ProductDraft()
+        editingProductId = nil
+        highlightProduct(saved.id)
+        return true
     }
 
     func archive(productId: String) async {
@@ -270,6 +274,7 @@ extension ProductsRouteViewModel {
         if editingProductId == productId {
             clearEditor()
         }
+        highlightProduct(productId)
     }
 
     func requestCatalogVisibilityChange() {
@@ -300,6 +305,18 @@ extension ProductsRouteViewModel {
 
     func dismissCatalogVisibilityChange() {
         pendingCatalogVisibility = nil
+    }
+
+    func highlightProduct(_ productId: String) {
+        highlightedProductId = productId
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 1_600_000_000)
+            await MainActor.run {
+                if self?.highlightedProductId == productId {
+                    self?.highlightedProductId = nil
+                }
+            }
+        }
     }
 
     func showUnableSaveFeedback() {
@@ -344,6 +361,7 @@ private extension ProductsRouteViewModel {
         isUploadingImage = false
         isUpdatingCatalogVisibility = false
         pendingCatalogVisibility = nil
+        highlightedProductId = nil
     }
 
     private func syncCurrentSessionFromSessionViewModel() {

@@ -8,22 +8,18 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,7 +28,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.reguerta.user.R
 import com.reguerta.user.domain.access.Member
@@ -40,9 +38,14 @@ import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.canManageMembers
 import com.reguerta.user.ui.components.auth.ReguertaButton
 import com.reguerta.user.ui.components.auth.ReguertaButtonVariant
+import com.reguerta.user.ui.components.auth.ReguertaDeleteListActionButton
 import com.reguerta.user.ui.components.auth.ReguertaDialog
 import com.reguerta.user.ui.components.auth.ReguertaDialogAction
 import com.reguerta.user.ui.components.auth.ReguertaDialogType
+import com.reguerta.user.ui.components.auth.ReguertaEditListActionButton
+import com.reguerta.user.ui.components.auth.ReguertaFloatingActionButton
+import com.reguerta.user.ui.components.auth.ReguertaListItemCard
+import kotlinx.coroutines.delay
 
 @Composable
 internal fun UsersRoute(
@@ -50,7 +53,7 @@ internal fun UsersRoute(
     members: List<Member>,
     draft: MemberDraft,
     onDraftChanged: (MemberDraft) -> Unit,
-    onSaveMemberDraft: (String?, onSuccess: () -> Unit) -> Unit,
+    onSaveMemberDraft: (String?, onSuccess: (String) -> Unit) -> Unit,
     onRefreshMembers: () -> Unit,
     onToggleActive: (String) -> Unit,
 ) {
@@ -59,6 +62,15 @@ internal fun UsersRoute(
     var isEditorOpen by rememberSaveable { mutableStateOf(false) }
     var editingMemberId by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingToggleActiveMemberId by rememberSaveable { mutableStateOf<String?>(null) }
+    var highlightedMemberId by rememberSaveable { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(highlightedMemberId) {
+        val memberId = highlightedMemberId ?: return@LaunchedEffect
+        delay(1_600)
+        if (highlightedMemberId == memberId) {
+            highlightedMemberId = null
+        }
+    }
 
     if (isEditorOpen && canManageMembers) {
         UsersEditorCard(
@@ -66,7 +78,8 @@ internal fun UsersRoute(
             editingMember = sortedMembers.firstOrNull { it.id == editingMemberId },
             onDraftChanged = onDraftChanged,
             onSave = {
-                onSaveMemberDraft(editingMemberId) {
+                onSaveMemberDraft(editingMemberId) { savedMemberId ->
+                    highlightedMemberId = savedMemberId
                     isEditorOpen = false
                     editingMemberId = null
                 }
@@ -89,27 +102,6 @@ internal fun UsersRoute(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    Card {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            Text(
-                                text = stringResource(R.string.users_list_title),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            ReguertaButton(
-                                label = stringResource(R.string.users_list_action_reload),
-                                variant = ReguertaButtonVariant.TEXT,
-                                fullWidth = false,
-                                onClick = onRefreshMembers,
-                            )
-                        }
-                    }
-
                     if (sortedMembers.isEmpty()) {
                         Card {
                             Text(
@@ -124,6 +116,7 @@ internal fun UsersRoute(
                             UserListItem(
                                 member = listedMember,
                                 showAdminActions = canManageMembers,
+                                isHighlighted = highlightedMemberId == listedMember.id,
                                 onEdit = {
                                     editingMemberId = listedMember.id
                                     onDraftChanged(listedMember.toDraft())
@@ -137,18 +130,15 @@ internal fun UsersRoute(
                     }
 
                     if (canManageMembers) {
-                        Spacer(modifier = Modifier.height(104.dp))
+                        Spacer(modifier = Modifier.height(128.dp))
                     }
                 }
             }
 
             if (canManageMembers) {
-                ReguertaButton(
+                ReguertaFloatingActionButton(
                     label = stringResource(R.string.users_create_action),
-                    variant = ReguertaButtonVariant.PRIMARY,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
                         .align(Alignment.BottomCenter),
                     onClick = {
                         editingMemberId = null
@@ -185,6 +175,7 @@ internal fun UsersRoute(
                     label = stringResource(R.string.common_action_accept),
                     onClick = {
                         onToggleActive(memberId)
+                        highlightedMemberId = memberId
                         pendingToggleActiveMemberId = null
                     },
                 ),
@@ -322,24 +313,27 @@ private fun UsersEditorCard(
 private fun UserListItem(
     member: Member,
     showAdminActions: Boolean,
+    isHighlighted: Boolean,
     onEdit: () -> Unit,
     onToggleActive: () -> Unit,
 ) {
-    Card {
+    ReguertaListItemCard(isHighlighted = isHighlighted) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
                 text = member.displayName,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
                 text = member.normalizedEmail,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal),
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
 
             if (member.roles.contains(MemberRole.PRODUCER)) {
@@ -348,16 +342,19 @@ private fun UserListItem(
                 val producerLine = stringResource(R.string.users_card_producer_company_format, companyName)
                 Text(
                     text = producerLine,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Normal,
+                        fontStyle = FontStyle.Italic,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
             }
 
             if (member.roles.contains(MemberRole.ADMIN)) {
                 Text(
                     text = stringResource(R.string.users_card_admin_label),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal),
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
             }
 
@@ -367,24 +364,21 @@ private fun UserListItem(
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(onClick = onEdit) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = stringResource(R.string.users_card_action_edit),
-                        )
-                    }
-                    IconButton(onClick = onToggleActive) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = stringResource(
-                                if (member.isActive) {
-                                    R.string.admin_action_deactivate
-                                } else {
-                                    R.string.admin_action_activate
-                                },
-                            ),
-                        )
-                    }
+                    ReguertaEditListActionButton(
+                        contentDescription = stringResource(R.string.users_card_action_edit),
+                        onClick = onEdit,
+                    )
+                    Spacer(modifier = Modifier.size(8.dp))
+                    ReguertaDeleteListActionButton(
+                        contentDescription = stringResource(
+                            if (member.isActive) {
+                                R.string.admin_action_deactivate
+                            } else {
+                                R.string.admin_action_activate
+                            },
+                        ),
+                        onClick = onToggleActive,
+                    )
                 }
             }
         }

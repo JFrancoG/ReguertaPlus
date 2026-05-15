@@ -119,7 +119,7 @@ internal fun HomeRoute(
     onToggleAdmin: (String) -> Unit,
     onToggleActive: (String) -> Unit,
     onCreateMember: () -> Unit,
-    onSaveMemberDraft: (String?, onSuccess: () -> Unit) -> Unit,
+    onSaveMemberDraft: (String?, onSuccess: (String) -> Unit) -> Unit,
     onStartCreatingNews: () -> Unit,
     onStartCreatingNotification: () -> Unit,
     onStartCreatingProduct: () -> Unit,
@@ -132,7 +132,7 @@ internal fun HomeRoute(
     onUploadSharedProfileImageFromUri: (Uri) -> Unit,
     onClearSharedProfileImage: () -> Unit,
     onSaveNews: (onSuccess: () -> Unit) -> Unit,
-    onSaveProduct: (onSuccess: () -> Unit) -> Unit,
+    onSaveProduct: (onSuccess: (String) -> Unit) -> Unit,
     onSetProducerCatalogVisibility: (Boolean, onSuccess: () -> Unit) -> Unit,
     onSendNotification: (onSuccess: () -> Unit) -> Unit,
     onDeleteNews: (String, () -> Unit) -> Unit,
@@ -281,6 +281,7 @@ internal fun HomeRoute(
         val usesRouteScroll =
             currentDestination != HomeDestination.MY_ORDER &&
                 currentDestination != HomeDestination.RECEIVED_ORDERS &&
+                currentDestination != HomeDestination.PRODUCTS &&
                 currentDestination != HomeDestination.USERS
         Column(
             modifier = Modifier
@@ -492,7 +493,7 @@ internal fun HomeRoute(
                     onPickImage = onUploadProductImageFromUri,
                     onClearImage = onClearProductImage,
                     onCancelEditor = onClearProductEditor,
-                    onSaveProduct = { onSaveProduct { } },
+                    onSaveProduct = onSaveProduct,
                     onArchiveProduct = onArchiveProduct,
                     onSetProducerCatalogVisibility = onSetProducerCatalogVisibility,
                     )
