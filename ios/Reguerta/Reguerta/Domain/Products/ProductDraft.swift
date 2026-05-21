@@ -175,9 +175,13 @@ extension Product {
 
 extension Double {
     var productUIDecimal: String {
+        productUIDecimal(locale: .current)
+    }
+
+    func productUIDecimal(locale: Locale) -> String {
         truncatingRemainder(dividingBy: 1) == 0
             ? String(Int(self))
-            : String(self)
+            : String(self).replacingOccurrences(of: ".", with: locale.decimalSeparator ?? ".")
     }
 }
 

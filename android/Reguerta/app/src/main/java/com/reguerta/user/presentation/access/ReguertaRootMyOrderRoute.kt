@@ -679,7 +679,7 @@ internal fun MyOrderRoute(
                                 Text(
                                     text = stringResource(
                                         R.string.my_order_total_format,
-                                        cartTotal.toUiDecimal(),
+                                        cartTotal.toEuroCurrencyText(),
                                     ),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
@@ -866,13 +866,13 @@ internal fun MyOrderRoute(
                     message = if (dialogState.noPickupEcoBaskets > 0) {
                         stringResource(
                             R.string.my_order_checkout_success_message_with_no_pickup,
-                            dialogState.total.toUiDecimal(),
+                            dialogState.total.toEuroCurrencyText(),
                             dialogState.noPickupEcoBaskets,
                         )
                     } else {
                         stringResource(
                             R.string.my_order_checkout_success_message,
-                            dialogState.total.toUiDecimal(),
+                            dialogState.total.toEuroCurrencyText(),
                         )
                     },
                     primaryAction = ReguertaDialogAction(
@@ -1002,7 +1002,7 @@ private fun MyOrderConfirmedSummary(
         MyOrderSummaryTotalBar(
             text = stringResource(
                 R.string.my_order_confirmed_total_sum_format,
-                total.toUiDecimal(),
+                total.toEuroCurrencyText(),
             ),
             modifier = Modifier.align(Alignment.BottomCenter),
         )
@@ -1069,7 +1069,7 @@ private fun MyOrderConfirmedProducerCard(group: MyOrderConfirmedGroup) {
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        text = "${line.subtotal.toUiDecimal()} €",
+                        text = line.subtotal.toEuroCurrencyText(),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -1090,7 +1090,7 @@ private fun MyOrderConfirmedProducerCard(group: MyOrderConfirmedGroup) {
                 Text(
                     text = stringResource(
                         R.string.my_order_producer_subtotal_format,
-                        group.subtotal.toUiDecimal(),
+                        group.subtotal.toEuroCurrencyText(),
                     ),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
@@ -1196,7 +1196,7 @@ private fun MyOrderPreviousOrderSummary(
             MyOrderSummaryTotalBar(
                 text = stringResource(
                     R.string.my_order_confirmed_total_sum_format,
-                    state.snapshot.total.toUiDecimal(),
+                    state.snapshot.total.toEuroCurrencyText(),
                 ),
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
@@ -1273,7 +1273,7 @@ private fun MyOrderPreviousProducerCard(group: MyOrderPreviousOrderGroup) {
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        text = "${line.subtotal.toUiDecimal()} €",
+                        text = line.subtotal.toEuroCurrencyText(),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -1294,7 +1294,7 @@ private fun MyOrderPreviousProducerCard(group: MyOrderPreviousOrderGroup) {
                 Text(
                     text = stringResource(
                         R.string.my_order_producer_subtotal_format,
-                        group.subtotal.toUiDecimal(),
+                        group.subtotal.toEuroCurrencyText(),
                     ),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
@@ -1415,7 +1415,7 @@ private fun MyOrderProductCard(
                 Text(
                     text = stringResource(
                         R.string.my_order_price_per_unit_format,
-                        product.price.toUiDecimal(),
+                        product.price.toEuroCurrencyText(),
                     ),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
@@ -1603,7 +1603,7 @@ private fun SelectedProductCard(
                     Text(
                         text = stringResource(
                             R.string.my_order_price_per_unit_format,
-                            product.price.toUiDecimal(),
+                            product.price.toEuroCurrencyText(),
                         ),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,

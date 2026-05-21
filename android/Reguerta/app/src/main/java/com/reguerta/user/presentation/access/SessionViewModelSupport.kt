@@ -14,11 +14,13 @@ import com.reguerta.user.domain.shifts.ShiftSwapCandidate
 import com.reguerta.user.domain.shifts.ShiftSwapRequest
 import com.reguerta.user.domain.shifts.ShiftType
 import java.text.DateFormat
+import java.text.DecimalFormatSymbols
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.temporal.WeekFields
+import java.util.Locale
 
 internal fun SharedProfile.toDraft(): SharedProfileDraft =
     SharedProfileDraft(
@@ -78,11 +80,11 @@ internal val Member.isSessionProducer: Boolean
 internal val Member.canManageSessionProductCatalog: Boolean
     get() = canManageProductCatalog
 
-internal fun Double.toSessionUiDecimal(): String =
+internal fun Double.toSessionUiDecimal(locale: Locale = Locale.getDefault()): String =
     if (this % 1.0 == 0.0) {
         toLong().toString()
     } else {
-        toString()
+        toString().replace('.', DecimalFormatSymbols.getInstance(locale).decimalSeparator)
     }
 
 internal fun SharedProfileDraft.normalized(): SharedProfileDraft =

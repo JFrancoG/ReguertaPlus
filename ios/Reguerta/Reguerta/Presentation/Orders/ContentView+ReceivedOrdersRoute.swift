@@ -223,7 +223,7 @@ private extension ReceivedOrdersRouteView {
             Divider()
                 .overlay(tokens.colors.borderSubtle.opacity(0.8))
 
-            Text("Total: \(group.total.myOrderUiDecimal) €")
+            Text("Total: \(group.total.euroCurrencyText())")
                 .font(tokens.typography.titleCard.weight(.semibold))
                 .foregroundStyle(tokens.colors.feedbackError)
                 .frame(maxWidth: .infinity, alignment: .trailing)
@@ -250,7 +250,7 @@ private extension ReceivedOrdersRouteView {
                     Text(line.quantityUnitLabel())
                         .font(tokens.typography.bodySecondary)
                         .foregroundStyle(tokens.colors.textSecondary)
-                    Text("\(line.subtotal.myOrderUiDecimal) €")
+                    Text(line.subtotal.euroCurrencyText())
                         .font(tokens.typography.body.weight(.semibold))
                         .foregroundStyle(tokens.colors.textPrimary)
                 }
@@ -303,7 +303,7 @@ private extension ReceivedOrdersRouteView {
     @ViewBuilder
     func totalBar(total: Double) -> some View {
         HStack {
-            Text("Suma total general: \(total.myOrderUiDecimal) €")
+            Text("Suma total general: \(total.euroCurrencyText())")
                 .font(tokens.typography.titleCard.weight(.semibold))
                 .foregroundStyle(tokens.colors.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .center)

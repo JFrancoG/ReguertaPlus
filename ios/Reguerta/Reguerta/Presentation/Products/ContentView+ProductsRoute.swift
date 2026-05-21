@@ -333,7 +333,7 @@ private struct ProductCardRowView: View {
     }
 
     private var priceText: String {
-        String(format: "%.2f €", product.price)
+        product.price.euroCurrencyText()
     }
 
     private var stockText: String {
