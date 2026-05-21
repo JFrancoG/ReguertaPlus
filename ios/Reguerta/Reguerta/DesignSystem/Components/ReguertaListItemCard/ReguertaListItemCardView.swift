@@ -42,6 +42,7 @@ struct ReguertaListActionIconButton: View {
     let accessibilityLabel: String
     let backgroundColor: Color
     var size: CGFloat = 44.resize
+    var isEnabled: Bool = true
     let action: () -> Void
 
     var body: some View {
@@ -50,10 +51,11 @@ struct ReguertaListActionIconButton: View {
                 .font(.system(size: size * 0.58, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: size, height: size)
-                .background(backgroundColor)
+                .background(backgroundColor.opacity(isEnabled ? 1 : 0.45))
                 .clipShape(RoundedRectangle(cornerRadius: 12.resize))
         }
         .buttonStyle(.plain)
+        .disabled(!isEnabled)
         .accessibilityLabel(Text(verbatim: accessibilityLabel))
     }
 }

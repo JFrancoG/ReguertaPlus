@@ -133,32 +133,45 @@ extension MyOrderRouteView {
         let quantity = viewModel.quantity(for: product)
         let selectedOption = viewModel.selectedEcoBasketOption(for: product)
 
-        reguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+        reguertaListItemCard {
+            VStack(alignment: .leading, spacing: 0) {
+                Spacer().frame(height: 16.resize)
                 HStack(alignment: .top, spacing: tokens.spacing.sm) {
                     productImage(product)
                     VStack(alignment: .leading, spacing: tokens.spacing.xs) {
                         Text(product.name)
                             .font(tokens.typography.body.weight(.semibold))
+                            .foregroundStyle(tokens.colors.textPrimary)
+                            .lineLimit(2)
                         Text("\(product.price.myOrderUiDecimal) € / ud.")
                             .font(tokens.typography.bodySecondary)
                             .foregroundStyle(tokens.colors.textSecondary)
                     }
                     Spacer(minLength: 0)
                 }
+                .padding(.horizontal, 12.resize)
+
+                Spacer().frame(height: 12.resize)
+
                 quantityControls(
                     product: product,
                     quantity: quantity,
                     isEditable: !viewModel.isReadOnlyMode
                 )
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.horizontal, 12.resize)
+
                 if product.isEcoBasket, quantity > 0, !viewModel.isReadOnlyMode {
+                    Spacer().frame(height: 12.resize)
                     ecoBasketOptionSelector(
                         selectedOption: selectedOption,
                         onOptionSelected: { option in
                             viewModel.selectEcoBasketOption(productId: product.id, option: option)
                         }
                     )
+                    .padding(.horizontal, 12.resize)
                 }
+                Spacer().frame(height: 16.resize)
             }
         }
     }
