@@ -1042,7 +1042,9 @@ private fun MyOrderConfirmedProducerCard(group: MyOrderConfirmedGroup) {
                 )
             }
 
-            group.lines.forEachIndexed { index, line ->
+            MyOrderProducerDivider()
+
+            group.lines.forEach { line ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.Top,
@@ -1074,16 +1076,9 @@ private fun MyOrderConfirmedProducerCard(group: MyOrderConfirmedGroup) {
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
-                if (index != group.lines.lastIndex) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 6.dp)
-                            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.24f))
-                            .height(1.dp),
-                    )
-                }
             }
+
+            MyOrderProducerDivider()
 
             Row(modifier = Modifier.fillMaxWidth()) {
                 Spacer(modifier = Modifier.weight(1f))
@@ -1246,7 +1241,9 @@ private fun MyOrderPreviousProducerCard(group: MyOrderPreviousOrderGroup) {
                 color = MaterialTheme.colorScheme.primary,
             )
 
-            group.lines.forEachIndexed { index, line ->
+            MyOrderProducerDivider()
+
+            group.lines.forEach { line ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.Top,
@@ -1278,16 +1275,9 @@ private fun MyOrderPreviousProducerCard(group: MyOrderPreviousOrderGroup) {
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
-                if (index != group.lines.lastIndex) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 6.dp)
-                            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.24f))
-                            .height(1.dp),
-                    )
-                }
             }
+
+            MyOrderProducerDivider()
 
             Row(modifier = Modifier.fillMaxWidth()) {
                 Spacer(modifier = Modifier.weight(1f))
@@ -1303,6 +1293,16 @@ private fun MyOrderPreviousProducerCard(group: MyOrderPreviousOrderGroup) {
             }
         }
     }
+}
+
+@Composable
+private fun MyOrderProducerDivider() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.24f))
+            .height(1.dp),
+    )
 }
 
 @Composable

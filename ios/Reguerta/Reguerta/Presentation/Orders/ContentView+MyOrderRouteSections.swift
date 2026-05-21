@@ -117,6 +117,9 @@ extension MyOrderRouteView {
                     .foregroundStyle(tokens.colors.textSecondary)
             }
 
+            Divider()
+                .overlay(tokens.colors.borderSubtle)
+
             confirmedProducerLinesSection(group)
         }
         .padding(tokens.spacing.lg)
@@ -135,6 +138,9 @@ extension MyOrderRouteView {
             ForEach(group.lines) { line in
                 confirmedProducerLineRow(line)
             }
+
+            Divider()
+                .overlay(tokens.colors.borderSubtle)
 
             HStack {
                 Spacer()
@@ -165,8 +171,6 @@ extension MyOrderRouteView {
                     .font(tokens.typography.body.weight(.semibold))
                     .foregroundStyle(tokens.colors.textPrimary)
             }
-            Divider()
-                .overlay(tokens.colors.borderSubtle)
         }
     }
 
@@ -177,6 +181,9 @@ extension MyOrderRouteView {
                 Text(group.companyName)
                     .font(tokens.typography.titleCard.weight(.semibold))
                     .foregroundStyle(tokens.colors.actionPrimary)
+
+                Divider()
+                    .overlay(tokens.colors.borderSubtle)
 
                 ForEach(group.lines) { line in
                     VStack(alignment: .leading, spacing: tokens.spacing.xs) {
@@ -197,10 +204,11 @@ extension MyOrderRouteView {
                                 .font(tokens.typography.body.weight(.semibold))
                                 .foregroundStyle(tokens.colors.textPrimary)
                         }
-                        Divider()
-                            .overlay(tokens.colors.borderSubtle)
                     }
                 }
+
+                Divider()
+                    .overlay(tokens.colors.borderSubtle)
 
                 HStack {
                     Spacer()
