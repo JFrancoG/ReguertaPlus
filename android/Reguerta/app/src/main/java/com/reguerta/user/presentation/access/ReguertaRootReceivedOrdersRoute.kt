@@ -416,7 +416,7 @@ internal fun ReceivedOrdersRoute(
                 Text(
                     text = stringResource(
                         R.string.received_orders_general_total_format,
-                        loadedSnapshot.generalTotal.toReceivedMoney(),
+                        loadedSnapshot.generalTotal.toEuroCurrencyText(),
                     ),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
@@ -622,7 +622,7 @@ private fun ReceivedOrdersMemberCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Text(
-                            text = "${line.subtotal.toReceivedMoney()} €",
+                            text = line.subtotal.toEuroCurrencyText(),
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.SemiBold,
                         )
@@ -634,7 +634,7 @@ private fun ReceivedOrdersMemberCard(
             }
 
             Text(
-                text = stringResource(R.string.received_orders_member_total_format, group.total.toReceivedMoney()),
+                text = stringResource(R.string.received_orders_member_total_format, group.total.toEuroCurrencyText()),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.error,
                 fontWeight = FontWeight.SemiBold,
@@ -1119,9 +1119,6 @@ private fun Double.toReceivedUiDecimal(): String {
         .trimEnd('0')
         .trimEnd('.')
 }
-
-private fun Double.toReceivedMoney(): String =
-    String.format(Locale.US, "%.2f", this)
 
 private fun isApproximatelyOne(value: Double): Boolean =
     abs(value - 1.0) < 0.0001

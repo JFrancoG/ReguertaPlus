@@ -89,8 +89,8 @@ extension AccessRootRoutingView {
                 type: .info,
                 title: "Pedido realizado con éxito",
                 message: noPickupEcoBaskets > 0
-                    ? "Todo correcto. Total: \(total.myOrderUiDecimal) €. Ecocestas marcadas como no_pickup: \(noPickupEcoBaskets). Tu pedido se ha guardado."
-                    : "Todo correcto. Total: \(total.myOrderUiDecimal) €. Tu pedido se ha guardado.",
+                    ? "Todo correcto. Total: \(total.euroCurrencyText()). Ecocestas marcadas como no_pickup: \(noPickupEcoBaskets). Tu pedido se ha guardado."
+                    : "Todo correcto. Total: \(total.euroCurrencyText()). Tu pedido se ha guardado.",
                 primaryAction: ReguertaDialogAction(
                     title: "Aceptar",
                     action: handleHomeCheckoutSuccessAcknowledged

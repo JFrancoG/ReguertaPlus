@@ -152,7 +152,7 @@ internal fun ProductListItem(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = product.price.toUiPrice(),
+                        text = product.price.toEuroCurrencyText(),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -206,5 +206,3 @@ private fun ProductImage(
         }
     }
 }
-
-private fun Double.toUiPrice(): String = String.format(Locale.US, "%.2f €", this)

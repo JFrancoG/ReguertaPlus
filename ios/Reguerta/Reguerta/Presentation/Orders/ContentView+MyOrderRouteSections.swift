@@ -39,7 +39,7 @@ extension MyOrderRouteView {
                 .ignoresSafeArea(.container, edges: .bottom)
             }
 
-            orderTotalBar("Suma total pedido: \(viewModel.cartTotal.myOrderUiDecimal) €")
+            orderTotalBar("Suma total pedido: \(viewModel.cartTotal.euroCurrencyText())")
                 .accessibilityIdentifier("myOrder.confirmedTotalBar")
         }
     }
@@ -97,7 +97,7 @@ extension MyOrderRouteView {
             }
 
             if case .loaded(let snapshot) = viewModel.previousOrderState {
-                orderTotalBar("Suma total pedido: \(snapshot.total.myOrderUiDecimal) €")
+                orderTotalBar("Suma total pedido: \(snapshot.total.euroCurrencyText())")
                     .accessibilityIdentifier("myOrder.previousTotalBar")
             }
         }
@@ -138,7 +138,7 @@ extension MyOrderRouteView {
 
             HStack {
                 Spacer()
-                Text("Total: \(group.subtotal.myOrderUiDecimal) €")
+                Text("Total: \(group.subtotal.euroCurrencyText())")
                     .font(tokens.typography.body.weight(.semibold))
                     .foregroundStyle(Color(red: 0.78, green: 0.38, blue: 0.36))
             }
@@ -161,7 +161,7 @@ extension MyOrderRouteView {
                 Text(confirmedQuantityLabel(for: line))
                     .font(tokens.typography.body.weight(.semibold))
                     .foregroundStyle(tokens.colors.textPrimary)
-                Text("\(line.subtotal.myOrderUiDecimal) €")
+                Text(line.subtotal.euroCurrencyText())
                     .font(tokens.typography.body.weight(.semibold))
                     .foregroundStyle(tokens.colors.textPrimary)
             }
@@ -193,7 +193,7 @@ extension MyOrderRouteView {
                             Text(line.quantityLabel)
                                 .font(tokens.typography.body.weight(.semibold))
                                 .foregroundStyle(tokens.colors.textPrimary)
-                            Text("\(line.subtotal.myOrderUiDecimal) €")
+                            Text(line.subtotal.euroCurrencyText())
                                 .font(tokens.typography.body.weight(.semibold))
                                 .foregroundStyle(tokens.colors.textPrimary)
                         }
@@ -204,7 +204,7 @@ extension MyOrderRouteView {
 
                 HStack {
                     Spacer()
-                    Text("Total: \(group.subtotal.myOrderUiDecimal) €")
+                    Text("Total: \(group.subtotal.euroCurrencyText())")
                         .font(tokens.typography.body.weight(.semibold))
                         .foregroundStyle(Color(red: 0.78, green: 0.38, blue: 0.36))
                 }
@@ -351,7 +351,7 @@ extension MyOrderRouteView {
                         .foregroundStyle(tokens.colors.textSecondary)
 
                     HStack(alignment: .firstTextBaseline) {
-                        Text("\(product.price.myOrderUiDecimal) € / ud.")
+                        Text("\(product.price.euroCurrencyText()) / ud.")
                             .font(tokens.typography.body.weight(.semibold))
                             .foregroundStyle(tokens.colors.textPrimary)
                         Spacer()

@@ -87,7 +87,7 @@ extension MyOrderRouteView {
     var cartOverlayHeader: some View {
         HStack(spacing: tokens.spacing.sm) {
             Spacer(minLength: 0)
-            Text("Total: \(viewModel.cartTotal.myOrderUiDecimal) €")
+            Text("Total: \(viewModel.cartTotal.euroCurrencyText())")
                 .font(tokens.typography.titleCard.weight(.semibold))
                 .foregroundStyle(tokens.colors.actionPrimary)
                 .lineLimit(1)
@@ -143,7 +143,7 @@ extension MyOrderRouteView {
                             .font(tokens.typography.body.weight(.semibold))
                             .foregroundStyle(tokens.colors.textPrimary)
                             .lineLimit(2)
-                        Text("\(product.price.myOrderUiDecimal) € / ud.")
+                        Text("\(product.price.euroCurrencyText()) / ud.")
                             .font(tokens.typography.bodySecondary)
                             .foregroundStyle(tokens.colors.textSecondary)
                     }
@@ -209,8 +209,8 @@ extension MyOrderRouteView {
                 type: .info,
                 title: "Pedido realizado con éxito",
                 message: noPickupEcoBaskets > 0
-                    ? "Todo correcto. Total: \(total.myOrderUiDecimal) €. Ecocestas marcadas como no_pickup: \(noPickupEcoBaskets). Tu pedido se ha guardado."
-                    : "Todo correcto. Total: \(total.myOrderUiDecimal) €. Tu pedido se ha guardado.",
+                    ? "Todo correcto. Total: \(total.euroCurrencyText()). Ecocestas marcadas como no_pickup: \(noPickupEcoBaskets). Tu pedido se ha guardado."
+                    : "Todo correcto. Total: \(total.euroCurrencyText()). Tu pedido se ha guardado.",
                 primaryAction: ReguertaDialogAction(
                     title: "Aceptar",
                     action: handleCheckoutSuccessAcknowledged
