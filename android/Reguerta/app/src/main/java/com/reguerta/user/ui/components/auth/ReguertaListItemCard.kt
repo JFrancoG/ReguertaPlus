@@ -74,13 +74,15 @@ fun ReguertaListActionIconButton(
     containerColor: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     IconButton(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier
             .size(ReguertaListActionButtonSize)
             .clip(RoundedCornerShape(12.dp))
-            .background(containerColor),
+            .background(if (enabled) containerColor else containerColor.copy(alpha = 0.45f)),
     ) {
         Icon(
             imageVector = icon,

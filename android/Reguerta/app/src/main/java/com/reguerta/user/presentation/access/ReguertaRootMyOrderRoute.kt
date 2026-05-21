@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.annotation.VisibleForTesting
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredWidth
@@ -94,6 +96,8 @@ import com.reguerta.user.ui.components.auth.ReguertaDialog
 import com.reguerta.user.ui.components.auth.ReguertaDialogAction
 import com.reguerta.user.ui.components.auth.ReguertaDialogType
 import com.reguerta.user.ui.components.auth.ReguertaFloatingActionButton
+import com.reguerta.user.ui.components.auth.ReguertaListActionIconButton
+import com.reguerta.user.ui.components.auth.ReguertaListItemCard
 import com.reguerta.user.ui.theme.ColorFeedbackWarningDefault
 import com.reguerta.user.ui.theme.ReguertaThemeTokens
 import java.text.Normalizer
@@ -982,7 +986,7 @@ private fun MyOrderConfirmedSummary(
             } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(bottom = 84.dp),
+                    contentPadding = PaddingValues(bottom = 120.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(
@@ -995,24 +999,13 @@ private fun MyOrderConfirmedSummary(
             }
         }
 
-        Surface(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            shape = RoundedCornerShape(14.dp),
-            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
-        ) {
-            Text(
-                text = stringResource(
-                    R.string.my_order_confirmed_total_sum_format,
-                    total.toUiDecimal(),
-                ),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            )
-        }
+        MyOrderSummaryTotalBar(
+            text = stringResource(
+                R.string.my_order_confirmed_total_sum_format,
+                total.toUiDecimal(),
+            ),
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
     }
 }
 
@@ -1185,7 +1178,7 @@ private fun MyOrderPreviousOrderSummary(
                     )
                     LazyColumn(
                         modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(bottom = 84.dp),
+                        contentPadding = PaddingValues(bottom = 120.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         items(
@@ -1200,25 +1193,40 @@ private fun MyOrderPreviousOrderSummary(
         }
 
         if (state is MyOrderPreviousOrderState.Loaded) {
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
-            ) {
-                Text(
-                    text = stringResource(
-                        R.string.my_order_confirmed_total_sum_format,
-                        state.snapshot.total.toUiDecimal(),
-                    ),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                )
-            }
+            MyOrderSummaryTotalBar(
+                text = stringResource(
+                    R.string.my_order_confirmed_total_sum_format,
+                    state.snapshot.total.toUiDecimal(),
+                ),
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
+    }
+}
+
+@Composable
+private fun MyOrderSummaryTotalBar(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .navigationBarsPadding()
+            .padding(bottom = 12.dp),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.32f)),
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        )
     }
 }
 
@@ -1359,38 +1367,32 @@ private fun MyOrderProductCard(
         commitmentLimit = commitmentLimit,
     )
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    ReguertaListItemCard {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.Top,
-            ) {
-                ProductImage(product = product)
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    QuantityControls(
-                        quantity = quantity,
-                        canIncrease = isEditable && canIncrease,
-                        onIncrease = onIncrease,
-                        onDecrease = onDecrease,
-                        isEditable = isEditable,
-                    )
-                    Text(
-                        text = product.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
+            Box(modifier = Modifier.fillMaxWidth()) {
+                ProductImage(
+                    product = product,
+                    modifier = Modifier.align(Alignment.TopStart),
+                )
+                QuantityControls(
+                    quantity = quantity,
+                    canIncrease = isEditable && canIncrease,
+                    onIncrease = onIncrease,
+                    onDecrease = onDecrease,
+                    isEditable = isEditable,
+                    modifier = Modifier.align(Alignment.TopEnd),
+                )
             }
+
+            Text(
+                text = product.name,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
 
             if (product.description.isNotBlank()) {
                 Text(
@@ -1433,21 +1435,24 @@ private fun MyOrderProductCard(
 }
 
 @Composable
-private fun ProductImage(product: Product) {
+private fun ProductImage(
+    product: Product,
+    modifier: Modifier = Modifier,
+) {
     if (!product.productImageUrl.isNullOrBlank()) {
         AsyncImage(
             model = product.productImageUrl,
             contentDescription = product.name,
-            modifier = Modifier
+            modifier = modifier
                 .size(72.dp)
-                .clip(RoundedCornerShape(12.dp)),
+                .clip(RoundedCornerShape(8.dp)),
             contentScale = ContentScale.Crop,
         )
     } else {
         Box(
-            modifier = Modifier
+            modifier = modifier
                 .size(72.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(8.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,
         ) {
@@ -1468,6 +1473,7 @@ private fun QuantityControls(
     onIncrease: () -> Unit,
     onDecrease: () -> Unit,
     isEditable: Boolean,
+    modifier: Modifier = Modifier,
 ) {
     if (!isEditable) {
         if (quantity > 0) {
@@ -1480,6 +1486,7 @@ private fun QuantityControls(
                 text = quantityText,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
+                modifier = modifier,
             )
         }
         return
@@ -1488,8 +1495,9 @@ private fun QuantityControls(
         Button(
             onClick = onIncrease,
             enabled = canIncrease,
-            shape = RoundedCornerShape(10.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            modifier = modifier.height(44.dp),
+            shape = RoundedCornerShape(12.dp),
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -1505,13 +1513,14 @@ private fun QuantityControls(
             Icon(
                 imageVector = Icons.Default.ShoppingCart,
                 contentDescription = null,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(24.dp),
             )
         }
     } else {
         Row(
+            modifier = modifier,
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             val quantityText = if (quantity == 1) {
                 stringResource(R.string.my_order_quantity_single)
@@ -1549,20 +1558,13 @@ private fun QuantityActionButton(
     containerColor: Color,
     enabled: Boolean = true,
 ) {
-    IconButton(
-        onClick = onClick,
+    ReguertaListActionIconButton(
+        icon = icon,
+        contentDescription = contentDescription,
+        containerColor = containerColor,
         enabled = enabled,
-        modifier = Modifier
-            .size(38.dp)
-            .clip(RoundedCornerShape(9.dp))
-            .background(if (enabled) containerColor else containerColor.copy(alpha = 0.45f)),
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = Color.White,
-        )
-    }
+        onClick = onClick,
+    )
 }
 
 @Composable
@@ -1576,11 +1578,9 @@ private fun SelectedProductCard(
     onDecrease: () -> Unit,
     onEcoBasketOptionChange: (String) -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    ReguertaListItemCard {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(
@@ -1621,6 +1621,7 @@ private fun SelectedProductCard(
                 onIncrease = onIncrease,
                 onDecrease = onDecrease,
                 isEditable = isEditable,
+                modifier = Modifier.align(Alignment.End),
             )
             if (product.isEcoBasket && quantity > 0 && isEditable) {
                 EcoBasketOptionSelector(

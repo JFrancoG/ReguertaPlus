@@ -48,6 +48,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-05-21 | 🐛 fix(order): polish my order cards
 - 2026-05-15 | 🐛 fix(ios): resolve lint and concurrency errors
 - 2026-05-15 | 🐛 fix(ios-ui): restore drawer route scrolling
 - 2026-05-15 | 🐛 fix(mobile): polish safe area order UI
