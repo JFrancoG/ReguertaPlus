@@ -22,6 +22,7 @@ import com.reguerta.user.domain.freshness.CriticalDataFreshnessLocalRepository
 import com.reguerta.user.domain.freshness.ResolveCriticalDataFreshnessUseCase
 import com.reguerta.user.domain.news.NewsRepository
 import com.reguerta.user.domain.notifications.NotificationRepository
+import com.reguerta.user.domain.notifications.PushNotificationPermissionProvider
 import com.reguerta.user.domain.profiles.SharedProfileRepository
 import com.reguerta.user.domain.products.ProductRepository
 import com.reguerta.user.domain.shifts.ShiftPlanningRequest
@@ -61,6 +62,7 @@ class SessionViewModel(
     private val resolveAuthorizedSession: ResolveAuthorizedSessionUseCase,
     private val upsertMemberByAdmin: UpsertMemberByAdminUseCase,
     private val authorizedDeviceRegistrar: AuthorizedDeviceRegistrar = AuthorizedDeviceRegistrar { },
+    private val pushNotificationPermissionProvider: PushNotificationPermissionProvider = PushNotificationPermissionProvider { true },
     private val resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase,
     private val criticalDataFreshnessLocalRepository: CriticalDataFreshnessLocalRepository,
     private val reviewerEnvironmentRouter: ReviewerEnvironmentRouter = NoOpReviewerEnvironmentRouter,
@@ -112,6 +114,8 @@ class SessionViewModel(
             imagePipelineManager = imagePipelineManager,
             nowMillisProvider = nowMillisProvider,
             emitMessage = ::emitMessage,
+            emitEvent = ::emitEvent,
+            pushNotificationPermissionProvider = pushNotificationPermissionProvider,
         )
     }
 
@@ -355,6 +359,14 @@ class SessionViewModel(
 
     fun refreshNotifications() = communityActions.refreshNotifications()
 
+    fun prepareNotificationsRoute() = communityActions.prepareNotificationsRoute()
+
+    fun markVisibleNotificationsReadOnExit() = communityActions.markVisibleNotificationsReadOnExit()
+
+    fun dismissPushNotificationPermissionDialog() = communityActions.dismissPushNotificationPermissionDialog()
+
+    fun openPushNotificationSettings() = communityActions.openPushNotificationSettings()
+
     fun saveNews(onSuccess: () -> Unit = {}) = communityActions.saveNews(onSuccess)
 
     fun deleteNews(
@@ -407,8 +419,12 @@ class SessionViewModel(
     fun toggleActive(memberId: String) = memberActions.toggleActive(memberId)
 
     private fun emitMessage(@StringRes messageRes: Int) {
+        emitEvent(SessionUiEvent.ShowMessage(messageRes))
+    }
+
+    private fun emitEvent(event: SessionUiEvent) {
         viewModelScope.launch {
-            _uiEvents.emit(SessionUiEvent.ShowMessage(messageRes))
+            _uiEvents.emit(event)
         }
     }
 }

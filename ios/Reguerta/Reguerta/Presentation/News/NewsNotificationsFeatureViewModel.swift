@@ -8,6 +8,7 @@ final class NewsNotificationsFeatureViewModel {
     @ObservationIgnored let feedbackCenter: GlobalFeedbackCenter
     @ObservationIgnored let newsRepository: any NewsRepository
     @ObservationIgnored let notificationRepository: any NotificationRepository
+    @ObservationIgnored let pushNotificationPermissionProvider: any PushNotificationPermissionProvider
     @ObservationIgnored let imagePipelineManager: any ImagePipelineManager
     @ObservationIgnored let nowMillisProvider: @MainActor () -> Int64
 
@@ -18,6 +19,7 @@ final class NewsNotificationsFeatureViewModel {
     var newsDraft = NewsDraft()
     var notificationDraft = NotificationDraft()
     var notificationsFeed: [NotificationEvent] = []
+    var readNotificationIds: Set<String> = []
     var editingNewsId: String?
     var pendingNewsDeletionId: String?
     var isLoadingNews = false
@@ -25,6 +27,9 @@ final class NewsNotificationsFeatureViewModel {
     var isUploadingNewsImage = false
     var isLoadingNotifications = false
     var isSendingNotification = false
+    var isPushNotificationPermissionActive = true
+    var showsPushNotificationPermissionDialog = false
+    var didDismissPushNotificationPermissionDialogForVisit = false
 
     var pendingNewsDeletionArticle: NewsArticle? {
         guard let pendingNewsDeletionId else { return nil }
@@ -39,7 +44,17 @@ final class NewsNotificationsFeatureViewModel {
         currentMember?.canSendAdminNotifications == true
     }
 
-    init(
+    var notificationListItems: [NotificationListItem] {
+        notificationsFeed.map {
+            NotificationListItem(notification: $0, isRead: readNotificationIds.contains($0.id))
+        }
+    }
+
+    var hasUnreadNotifications: Bool {
+        notificationsFeed.contains { !readNotificationIds.contains($0.id) }
+    }
+
+    convenience init(
         sessionViewModel: SessionViewModel,
         feedbackCenter: GlobalFeedbackCenter = GlobalFeedbackCenter(),
         newsRepository: any NewsRepository,
@@ -47,10 +62,31 @@ final class NewsNotificationsFeatureViewModel {
         imagePipelineManager: any ImagePipelineManager,
         nowMillisProvider: @escaping @MainActor () -> Int64
     ) {
+        self.init(
+            sessionViewModel: sessionViewModel,
+            feedbackCenter: feedbackCenter,
+            newsRepository: newsRepository,
+            notificationRepository: notificationRepository,
+            pushNotificationPermissionProvider: FixedPushNotificationPermissionProvider(isActive: true),
+            imagePipelineManager: imagePipelineManager,
+            nowMillisProvider: nowMillisProvider
+        )
+    }
+
+    init(
+        sessionViewModel: SessionViewModel,
+        feedbackCenter: GlobalFeedbackCenter = GlobalFeedbackCenter(),
+        newsRepository: any NewsRepository,
+        notificationRepository: any NotificationRepository,
+        pushNotificationPermissionProvider: any PushNotificationPermissionProvider,
+        imagePipelineManager: any ImagePipelineManager,
+        nowMillisProvider: @escaping @MainActor () -> Int64
+    ) {
         self.sessionViewModel = sessionViewModel
         self.feedbackCenter = feedbackCenter
         self.newsRepository = newsRepository
         self.notificationRepository = notificationRepository
+        self.pushNotificationPermissionProvider = pushNotificationPermissionProvider
         self.imagePipelineManager = imagePipelineManager
         self.nowMillisProvider = nowMillisProvider
     }

@@ -53,7 +53,11 @@ final class AccessRootViewModel {
     var isHomeDrawerOpen = false
     var homeDrawerDragOffset: CGFloat = 0
     var isAdminToolsExpanded = false
-    var homeDestination: HomeDestination = .dashboard
+    var homeDestination: HomeDestination = .dashboard {
+        didSet {
+            handleHomeDestinationChange(from: oldValue, to: homeDestination)
+        }
+    }
     var myOrderCartUnits = 0
     var myOrderCartOpenRequests = 0
     var myOrderReadOnlyMode = false
@@ -219,6 +223,7 @@ private extension AccessRootViewModel {
             feedbackCenter: feedbackCenter,
             newsRepository: dependencies.newsRepository,
             notificationRepository: dependencies.notificationRepository,
+            pushNotificationPermissionProvider: dependencies.pushNotificationPermissionProvider,
             imagePipelineManager: dependencies.imagePipelineManager,
             nowMillisProvider: dependencies.nowMillisProvider
         )
@@ -477,5 +482,15 @@ extension AccessRootViewModel {
         showsRecoverSuccessDialog = false
         sessionViewModel.resetRecoverDraft()
         dispatchShell(.signedOut)
+    }
+
+    func handleHomeDestinationChange(from previousDestination: HomeDestination, to destination: HomeDestination) {
+        guard previousDestination != destination else { return }
+        if previousDestination == .notifications {
+            Task { await newsNotificationsViewModel.markVisibleNotificationsReadOnExit() }
+        }
+        if destination == .notifications {
+            Task { await newsNotificationsViewModel.prepareNotificationsRoute() }
+        }
     }
 }

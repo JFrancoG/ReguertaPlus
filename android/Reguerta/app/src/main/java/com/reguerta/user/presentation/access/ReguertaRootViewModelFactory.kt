@@ -28,6 +28,7 @@ import com.reguerta.user.data.media.FirebaseImagePipelineManager
 import com.reguerta.user.data.news.ChainedNewsRepository
 import com.reguerta.user.data.news.FirestoreNewsRepository
 import com.reguerta.user.data.news.InMemoryNewsRepository
+import com.reguerta.user.data.notifications.AndroidPushNotificationPermissionProvider
 import com.reguerta.user.data.notifications.ChainedNotificationRepository
 import com.reguerta.user.data.notifications.FirestoreNotificationRepository
 import com.reguerta.user.data.notifications.InMemoryNotificationRepository
@@ -117,6 +118,9 @@ fun rememberSessionViewModel(): SessionViewModel {
             repository = deviceRegistrationRepository,
         )
     }
+    val pushNotificationPermissionProvider = remember(context.applicationContext) {
+        AndroidPushNotificationPermissionProvider(context = context.applicationContext)
+    }
     val reviewerEnvironmentRouter = remember(firestore) {
         FirestoreReviewerEnvironmentRouter(firestore = firestore)
     }
@@ -149,6 +153,7 @@ fun rememberSessionViewModel(): SessionViewModel {
             resolveAuthorizedSession = ResolveAuthorizedSessionUseCase(memberRepository = repository),
             upsertMemberByAdmin = UpsertMemberByAdminUseCase(memberRepository = repository),
             authorizedDeviceRegistrar = authorizedDeviceRegistrar,
+            pushNotificationPermissionProvider = pushNotificationPermissionProvider,
             resolveCriticalDataFreshness = ResolveCriticalDataFreshnessUseCase(
                 remoteRepository = FirestoreCriticalDataFreshnessRemoteRepository(
                     firestore = firestore,

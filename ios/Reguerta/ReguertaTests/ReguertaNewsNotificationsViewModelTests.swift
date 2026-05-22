@@ -225,6 +225,77 @@ struct ReguertaNewsNotificationsViewModelTests {
     }
 
     @Test
+    func notificationsViewModelCombinesVisibleNotificationsWithReadState() async {
+        let regular = newsRegularMember(id: "member_1")
+        let repository = InMemoryNotificationRepository(
+            items: [
+                notificationEvent(id: "read", target: "all", sentAtMillis: 10),
+                notificationEvent(id: "unread", target: "users", userIds: ["member_1"], sentAtMillis: 20)
+            ],
+            readNotificationIdsByMember: ["member_1": ["read"]]
+        )
+        let viewModel = makeNewsNotificationsViewModel(
+            currentMember: regular,
+            members: [regular],
+            notificationRepository: repository
+        )
+
+        await viewModel.refreshNotifications()
+
+        #expect(viewModel.notificationListItems.map(\.id) == ["unread", "read"])
+        #expect(viewModel.notificationListItems.map(\.isRead) == [false, true])
+        #expect(viewModel.hasUnreadNotifications)
+    }
+
+    @Test
+    func notificationsViewModelMarksVisibleNotificationsReadOnExit() async {
+        let regular = newsRegularMember(id: "member_1")
+        let repository = InMemoryNotificationRepository(
+            items: [
+                notificationEvent(id: "first", target: "all", sentAtMillis: 10),
+                notificationEvent(id: "second", target: "users", userIds: ["member_1"], sentAtMillis: 20)
+            ]
+        )
+        let viewModel = makeNewsNotificationsViewModel(
+            currentMember: regular,
+            members: [regular],
+            notificationRepository: repository,
+            nowMillis: 456
+        )
+
+        await viewModel.refreshNotifications()
+        await viewModel.markVisibleNotificationsReadOnExit()
+
+        #expect(await repository.readNotificationIds(memberId: "member_1") == Set(["first", "second"]))
+        #expect(viewModel.notificationListItems.allSatisfy { $0.isRead })
+        #expect(!viewModel.hasUnreadNotifications)
+    }
+
+    @Test
+    func notificationsViewModelShowsPushPermissionDialogPerVisitWhenInactive() async {
+        let regular = newsRegularMember(id: "member_1")
+        let viewModel = makeNewsNotificationsViewModel(
+            currentMember: regular,
+            members: [regular],
+            pushNotificationPermissionProvider: FixedPushNotificationPermissionProvider(isActive: false)
+        )
+
+        await viewModel.prepareNotificationsRoute()
+
+        #expect(viewModel.isPushNotificationPermissionActive == false)
+        #expect(viewModel.showsPushNotificationPermissionDialog)
+
+        viewModel.dismissPushNotificationPermissionDialog()
+        #expect(viewModel.showsPushNotificationPermissionDialog == false)
+
+        await viewModel.refreshPushNotificationPermission(showDialogIfInactive: true)
+        #expect(viewModel.showsPushNotificationPermissionDialog == false)
+
+        await viewModel.prepareNotificationsRoute()
+        #expect(viewModel.showsPushNotificationPermissionDialog)
+    }
+
+    @Test
     func notificationsViewModelBlocksInvalidOrUnauthorizedSend() async {
         let regular = newsRegularMember()
         let regularViewModel = makeNewsNotificationsViewModel(currentMember: regular, members: [regular])
@@ -300,6 +371,7 @@ private func makeNewsNotificationsViewModel(
     members: [Member],
     newsRepository: InMemoryNewsRepository? = nil,
     notificationRepository: InMemoryNotificationRepository? = nil,
+    pushNotificationPermissionProvider: any PushNotificationPermissionProvider = FixedPushNotificationPermissionProvider(isActive: true),
     imagePipelineManager: any ImagePipelineManager = NewsMockImagePipelineManager(result: .success("https://cdn.test/news.jpg")),
     nowMillis: Int64 = 100
 ) -> NewsNotificationsFeatureViewModel {
@@ -317,6 +389,7 @@ private func makeNewsNotificationsViewModel(
         sessionViewModel: sessionViewModel,
         newsRepository: newsRepository,
         notificationRepository: notificationRepository,
+        pushNotificationPermissionProvider: pushNotificationPermissionProvider,
         imagePipelineManager: imagePipelineManager,
         nowMillisProvider: { nowMillis }
     )

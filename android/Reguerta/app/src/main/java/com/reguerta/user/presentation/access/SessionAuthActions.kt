@@ -85,6 +85,7 @@ internal class SessionAuthActions(
                         is AccessResolutionResult.Authorized -> {
                             val members = memberRepository.getAllMembers()
                             val allNotifications = notificationRepository.getAllNotifications()
+                            val readNotificationIds = notificationRepository.getReadNotificationIds(result.member.id)
                             uiState.update {
                                 it.copy(
                                     isAuthenticating = false,
@@ -96,6 +97,7 @@ internal class SessionAuthActions(
                                     ),
                                     myOrderFreshnessState = MyOrderFreshnessUiState.Checking,
                                     notificationsFeed = allNotifications.filter { event -> event.isVisibleTo(result.member) },
+                                    readNotificationIds = readNotificationIds,
                                 )
                             }
                             registerAuthorizedDevice(result.member)
@@ -193,6 +195,7 @@ internal class SessionAuthActions(
                         is AccessResolutionResult.Authorized -> {
                             val members = memberRepository.getAllMembers()
                             val allNotifications = notificationRepository.getAllNotifications()
+                            val readNotificationIds = notificationRepository.getReadNotificationIds(result.member.id)
                             uiState.update {
                                 it.copy(
                                     isRegistering = false,
@@ -207,6 +210,7 @@ internal class SessionAuthActions(
                                     ),
                                     myOrderFreshnessState = MyOrderFreshnessUiState.Checking,
                                     notificationsFeed = allNotifications.filter { event -> event.isVisibleTo(result.member) },
+                                    readNotificationIds = readNotificationIds,
                                 )
                             }
                             registerAuthorizedDevice(result.member)
@@ -391,6 +395,7 @@ internal class SessionAuthActions(
             is AccessResolutionResult.Authorized -> {
                 val members = memberRepository.getAllMembers()
                 val allNotifications = notificationRepository.getAllNotifications()
+                val readNotificationIds = notificationRepository.getReadNotificationIds(result.member.id)
                 val products = productRepository.getProductsForVendor(result.member.id)
                 val sharedProfiles = sharedProfileRepository.getAllSharedProfiles()
                 val allShifts = shiftRepository.getAllShifts()
@@ -436,6 +441,7 @@ internal class SessionAuthActions(
                                 allNews.filter { article -> article.active }
                             },
                             notificationsFeed = allNotifications.filter { event -> event.isVisibleTo(result.member) },
+                            readNotificationIds = readNotificationIds,
                             productsFeed = products,
                             myOrderProductsFeed = emptyList(),
                             myOrderSeasonalCommitmentsFeed = emptyList(),

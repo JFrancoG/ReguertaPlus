@@ -36,13 +36,30 @@ class InMemoryNotificationRepository : NotificationRepository {
             weekKey = null,
         ),
     )
+    private val readNotificationIdsByMember = mutableMapOf<String, MutableSet<String>>()
 
     override suspend fun getAllNotifications(): List<NotificationEvent> = mutex.withLock {
         notifications.values.sortedByDescending { it.sentAtMillis }
     }
 
+    override suspend fun getReadNotificationIds(memberId: String): Set<String> = mutex.withLock {
+        readNotificationIdsByMember[memberId]?.toSet().orEmpty()
+    }
+
+    override suspend fun markNotificationsRead(
+        memberId: String,
+        notificationIds: Set<String>,
+        readAtMillis: Long,
+    ) = mutex.withLock {
+        if (notificationIds.isEmpty()) return@withLock
+        val readIds = readNotificationIdsByMember.getOrPut(memberId) { mutableSetOf() }
+        readIds.addAll(notificationIds.filter(String::isNotBlank))
+    }
+
     override suspend fun sendNotification(event: NotificationEvent): NotificationEvent = mutex.withLock {
-        notifications[event.id] = event
-        event
+        val eventId = event.id.ifBlank { "notification_${notifications.size + 1}" }
+        val persisted = event.copy(id = eventId)
+        notifications[eventId] = persisted
+        persisted
     }
 }

@@ -8,6 +8,7 @@ import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.news.NewsRepository
 import com.reguerta.user.domain.notifications.NotificationEvent
 import com.reguerta.user.domain.notifications.NotificationRepository
+import com.reguerta.user.domain.notifications.PushNotificationPermissionProvider
 import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.profiles.SharedProfileRepository
 import com.reguerta.user.domain.access.canPublishNews
@@ -26,6 +27,8 @@ internal class SessionCommunityActions(
     private val imagePipelineManager: ImagePipelineManager,
     private val nowMillisProvider: () -> Long,
     private val emitMessage: (Int) -> Unit,
+    private val emitEvent: (SessionUiEvent) -> Unit,
+    private val pushNotificationPermissionProvider: PushNotificationPermissionProvider,
 ) {
     fun refreshSharedProfiles() {
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
@@ -140,6 +143,7 @@ internal class SessionCommunityActions(
         scope.launch {
             uiState.update { it.copy(isLoadingNotifications = true) }
             val allNotifications = notificationRepository.getAllNotifications()
+            val readNotificationIds = notificationRepository.getReadNotificationIds(mode.member.id)
             val visibleNotifications = allNotifications.filter { event -> event.isVisibleTo(mode.member) }
             uiState.update {
                 val currentMode = it.mode as? SessionMode.Authorized
@@ -148,11 +152,76 @@ internal class SessionCommunityActions(
                 } else {
                     it.copy(
                         notificationsFeed = visibleNotifications,
+                        readNotificationIds = readNotificationIds,
                         isLoadingNotifications = false,
                     )
                 }
             }
         }
+    }
+
+    fun prepareNotificationsRoute() {
+        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
+        scope.launch {
+            uiState.update {
+                it.copy(
+                    isLoadingNotifications = true,
+                    showPushNotificationPermissionDialog = false,
+                )
+            }
+            val allNotifications = notificationRepository.getAllNotifications()
+            val readNotificationIds = notificationRepository.getReadNotificationIds(mode.member.id)
+            val isPermissionActive = pushNotificationPermissionProvider.isPushNotificationPermissionActive()
+            val visibleNotifications = allNotifications.filter { event -> event.isVisibleTo(mode.member) }
+            uiState.update {
+                val currentMode = it.mode as? SessionMode.Authorized
+                if (currentMode?.principal?.uid != mode.principal.uid) {
+                    it
+                } else {
+                    it.copy(
+                        notificationsFeed = visibleNotifications,
+                        readNotificationIds = readNotificationIds,
+                        isLoadingNotifications = false,
+                        isPushNotificationPermissionActive = isPermissionActive,
+                        showPushNotificationPermissionDialog = !isPermissionActive,
+                    )
+                }
+            }
+        }
+    }
+
+    fun markVisibleNotificationsReadOnExit() {
+        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
+        val unreadIds = uiState.value.notificationsFeed
+            .map { it.id }
+            .filter { it !in uiState.value.readNotificationIds }
+            .toSet()
+        if (unreadIds.isEmpty()) return
+
+        scope.launch {
+            notificationRepository.markNotificationsRead(
+                memberId = mode.member.id,
+                notificationIds = unreadIds,
+                readAtMillis = nowMillisProvider(),
+            )
+            uiState.update {
+                val currentMode = it.mode as? SessionMode.Authorized
+                if (currentMode?.principal?.uid != mode.principal.uid) {
+                    it
+                } else {
+                    it.copy(readNotificationIds = it.readNotificationIds + unreadIds)
+                }
+            }
+        }
+    }
+
+    fun dismissPushNotificationPermissionDialog() {
+        uiState.update { it.copy(showPushNotificationPermissionDialog = false) }
+    }
+
+    fun openPushNotificationSettings() {
+        uiState.update { it.copy(showPushNotificationPermissionDialog = false) }
+        emitEvent(SessionUiEvent.OpenPushNotificationSettings)
     }
 
     fun saveNews(onSuccess: () -> Unit = {}) {
@@ -348,9 +417,11 @@ internal class SessionCommunityActions(
                 ),
             )
             val allNotifications = notificationRepository.getAllNotifications()
+            val readNotificationIds = notificationRepository.getReadNotificationIds(mode.member.id)
             uiState.update {
                 it.copy(
                     notificationsFeed = allNotifications.filter { event -> event.isVisibleTo(mode.member) },
+                    readNotificationIds = readNotificationIds,
                     notificationDraft = NotificationDraft(),
                     isSendingNotification = false,
                 )

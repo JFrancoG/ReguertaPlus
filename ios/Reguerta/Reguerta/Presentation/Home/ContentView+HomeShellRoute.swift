@@ -30,6 +30,9 @@ extension AccessRootRoutingView {
             .overlay {
                 homeCheckoutDialogOverlay
             }
+            .overlay {
+                homePushNotificationPermissionDialogOverlay
+            }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .offset(x: rootViewModel.homeLayerOffset)
             .zIndex(2)
@@ -45,6 +48,27 @@ extension AccessRootRoutingView {
                     .gesture(openHomeDrawerDragGesture)
                     .zIndex(4)
             }
+        }
+    }
+
+    @ViewBuilder
+    var homePushNotificationPermissionDialogOverlay: some View {
+        if rootViewModel.homeDestination == .notifications,
+           rootViewModel.newsNotificationsViewModel.showsPushNotificationPermissionDialog {
+            reguertaDialog(
+                type: .info,
+                title: l10n(AccessL10nKey.notificationsPushPermissionDialogTitle),
+                message: l10n(AccessL10nKey.notificationsPushPermissionDialogMessage),
+                primaryAction: ReguertaDialogAction(
+                    title: l10n(AccessL10nKey.notificationsPushPermissionDialogSettings),
+                    action: rootViewModel.newsNotificationsViewModel.openPushNotificationSettings
+                ),
+                secondaryAction: ReguertaDialogAction(
+                    title: l10n(AccessL10nKey.commonClose),
+                    action: rootViewModel.newsNotificationsViewModel.dismissPushNotificationPermissionDialog
+                ),
+                onDismiss: rootViewModel.newsNotificationsViewModel.dismissPushNotificationPermissionDialog
+            )
         }
     }
 

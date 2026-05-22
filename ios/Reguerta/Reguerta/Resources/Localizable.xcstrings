@@ -3940,13 +3940,64 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "There are no notifications to show yet."
+            "value" : "You do not have any notifications yet."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Todavía no hay notificaciones para mostrar."
+            "value" : "Aún no tienes notificaciones"
+          }
+        }
+      }
+    },
+    "notifications.push_permission.dialog.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn on notifications to stay informed and receive alerts."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activa las notificaciones para mantenerte informado y poderte dar avisos."
+          }
+        }
+      }
+    },
+    "notifications.push_permission.dialog.settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Go to Settings"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ir a Ajustes"
+          }
+        }
+      }
+    },
+    "notifications.push_permission.dialog.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Push notifications are not enabled"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las notificaciones push no están activadas"
           }
         }
       }

@@ -253,7 +253,7 @@ private extension AccessRootViewModel {
                 systemImageName: "bell",
                 accessibilityLabel: .localized(AccessL10nKey.homeShellNotifications),
                 accessibilityIdentifier: "home.topBar.notificationsButton",
-                badge: newsNotificationsViewModel.notificationsFeed.isEmpty ? nil : .dot,
+                badge: newsNotificationsViewModel.hasUnreadNotifications ? .dot : nil,
                 action: { [weak self] in
                     self?.handleHomeNotificationsAction()
                 }
@@ -360,10 +360,6 @@ private extension AccessRootViewModel {
             .news: { [weak self] in
                 guard let self else { return }
                 Task { await self.newsNotificationsViewModel.refreshNews() }
-            },
-            .notifications: { [weak self] in
-                guard let self else { return }
-                Task { await self.newsNotificationsViewModel.refreshNotifications() }
             },
             .products: { [weak self] in
                 guard let self else { return }

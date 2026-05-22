@@ -46,6 +46,7 @@
     <string name="common_action_confirm">Confirmar</string>
     <string name="common_action_accept">Aceptar</string>
     <string name="common_action_clear">Borrar</string>
+    <string name="common_action_close">Cerrar</string>
     <string name="common_action_show_password">Mostrar contraseña</string>
     <string name="common_action_hide_password">Ocultar contraseña</string>
 
@@ -463,7 +464,7 @@
     <string name="news_save_action_create">Publicar noticia</string>
     <string name="news_save_action_update">Guardar cambios</string>
     <string name="news_save_action_saving">Guardando…</string>
-    <string name="notifications_empty_state">Todavía no hay notificaciones para mostrar.</string>
+    <string name="notifications_empty_state">Aún no tienes notificaciones</string>
     <string name="notifications_list_subtitle">Consulta las últimas notificaciones en orden inverso de envío.</string>
     <string name="notifications_refresh_action">Actualizar notificaciones</string>
     <string name="notifications_loading">Cargando notificaciones…</string>
@@ -481,6 +482,9 @@
     <string name="notifications_target_producers">Productores</string>
     <string name="notifications_target_admins">Admins</string>
     <string name="notifications_target_users">Usuarios seleccionados</string>
+    <string name="notifications_push_permission_dialog_title">Las notificaciones push no están activadas</string>
+    <string name="notifications_push_permission_dialog_message">Activa las notificaciones para mantenerte informado y poderte dar avisos.</string>
+    <string name="notifications_push_permission_dialog_settings">Ir a Ajustes</string>
     <string name="profile_shared_title">Perfil compartido</string>
     <string name="profile_shared_subtitle">Comparte un poco sobre tu familia para que el resto de la comunidad os conozca mejor.</string>
     <string name="profile_shared_family_names_label">Nombres de la familia</string>

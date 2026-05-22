@@ -35,6 +35,15 @@ struct NotificationDraft: Equatable, Sendable {
     }
 }
 
+struct NotificationListItem: Identifiable, Equatable, Sendable {
+    let notification: NotificationEvent
+    let isRead: Bool
+
+    var id: String {
+        notification.id
+    }
+}
+
 extension NewsArticle {
     func toDraft() -> NewsDraft {
         NewsDraft(
@@ -43,6 +52,25 @@ extension NewsArticle {
             urlImage: urlImage ?? "",
             active: active
         )
+    }
+}
+
+extension NotificationEvent {
+    var iconSystemName: String {
+        switch type {
+        case "order_reminder", "order_auto_generated":
+            "cart"
+        case "shift_swap_requested", "shift_swap_accepted", "shift_swap_applied":
+            "arrow.left.arrow.right"
+        case "shift_updated":
+            "calendar"
+        case "news_published":
+            "newspaper"
+        case "admin_broadcast":
+            "megaphone"
+        default:
+            "bell"
+        }
     }
 }
 
