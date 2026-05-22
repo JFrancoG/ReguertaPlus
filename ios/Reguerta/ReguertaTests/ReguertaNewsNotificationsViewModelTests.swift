@@ -36,6 +36,35 @@ struct ReguertaNewsNotificationsViewModelTests {
     }
 
     @Test
+    func newsListPresentationCarriesMetadataArchivedStateAndImagePlacement() {
+        let article = newsArticle(
+            id: "archived",
+            title: "Archived",
+            active: false,
+            publishedBy: "Ana Admin",
+            urlImage: "https://cdn.test/news.jpg"
+        )
+
+        let item = HomeLatestNewsItemPresentation(
+            article: article,
+            index: 1,
+            metadataText: "Publicada por Ana Admin",
+            statusText: "Archivada",
+            bodyLineLimit: nil,
+            titleAccessibilityIdentifierPrefix: "news.list.article",
+            cardAccessibilityIdentifierPrefix: "news.list.articleCard"
+        )
+
+        #expect(item.metadataText == "Publicada por Ana Admin")
+        #expect(item.statusText == "Archivada")
+        #expect(item.bodyLineLimit == nil)
+        #expect(item.imageURL == URL(string: "https://cdn.test/news.jpg"))
+        #expect(item.imagePlacement == .leading)
+        #expect(item.titleAccessibilityIdentifier == "news.list.article.archived.title")
+        #expect(item.cardAccessibilityIdentifier == "news.list.articleCard.archived")
+    }
+
+    @Test
     func newsNotificationsViewModelResetsStateWhenSessionLeavesAuthorizedMode() {
         let admin = newsAdminMember()
         let viewModel = makeNewsNotificationsViewModel(currentMember: admin, members: [admin])
@@ -135,9 +164,13 @@ struct ReguertaNewsNotificationsViewModelTests {
         #expect(created?.publishedBy == "Ana Admin")
         #expect(created?.publishedAtMillis == 123)
         #expect(created?.urlImage == "https://cdn.test/news.jpg")
-        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackNewsCreated)
-
         let originalId = created?.id ?? ""
+        #expect(viewModel.pendingNewsSaveConfirmation == NewsSaveConfirmation(newsId: originalId, isNew: true))
+        #expect(viewModel.feedbackCenter.messageKey == nil)
+
+        #expect(viewModel.closeNewsSaveConfirmation() == originalId)
+        #expect(viewModel.highlightedNewsId == originalId)
+        #expect(viewModel.editingNewsId == nil)
         #expect(viewModel.startEditingNews(newsId: originalId))
         viewModel.updateNewsDraft { draft in
             draft.title = "Actualizada"
@@ -151,7 +184,8 @@ struct ReguertaNewsNotificationsViewModelTests {
         #expect(updated?.title == "Actualizada")
         #expect(updated?.publishedBy == "Ana Admin")
         #expect(updated?.publishedAtMillis == 123)
-        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackNewsUpdated)
+        #expect(viewModel.pendingNewsSaveConfirmation == NewsSaveConfirmation(newsId: originalId, isNew: false))
+        #expect(viewModel.feedbackCenter.messageKey == nil)
     }
 
     @Test
@@ -344,7 +378,11 @@ struct ReguertaNewsNotificationsViewModelTests {
         #expect(sent?.createdBy == "admin_1")
         #expect(sent?.sentAtMillis == 999)
         #expect(viewModel.notificationDraft == NotificationDraft())
-        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackNotificationSent)
+        #expect(viewModel.isNotificationSendConfirmationPresented)
+        #expect(viewModel.feedbackCenter.messageKey == nil)
+
+        viewModel.closeNotificationSendConfirmation()
+        #expect(viewModel.isNotificationSendConfirmationPresented == false)
     }
 
     @Test

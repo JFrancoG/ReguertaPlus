@@ -14,6 +14,7 @@ struct ReguertaImagePickerField: View {
     let onImageSelectionFailed: () -> Void
     let onCameraPermissionDenied: () -> Void
     let onCameraUnavailable: () -> Void
+    var placesActionsBesideImage = false
 
     @State private var isSourceDialogPresented = false
     @State private var isPhotoPickerPresented = false
@@ -21,61 +22,20 @@ struct ReguertaImagePickerField: View {
     @State private var isCameraPresented = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.md) {
-            RoundedRectangle(cornerRadius: 24.resize)
-                .fill(tokens.colors.surfaceSecondary)
-                .frame(width: 112.resize, height: 112.resize)
-                .overlay {
-                    if let imageURL = URL(string: imageURLString), !imageURLString.isEmpty {
-                        AsyncImage(url: imageURL) { phase in
-                            if let image = phase.image {
-                                image
-                                    .resizable()
-                                    .scaledToFill()
-                            } else {
-                                Image(systemName: placeholderSystemImage)
-                                    .font(.system(size: 34.resize))
-                                    .foregroundStyle(tokens.colors.textSecondary)
-                            }
-                        }
-                        .frame(width: 112.resize, height: 112.resize)
-                        .clipShape(RoundedRectangle(cornerRadius: 24.resize))
-                    } else {
-                        Image(systemName: placeholderSystemImage)
-                            .font(.system(size: 34.resize))
-                            .foregroundStyle(tokens.colors.textSecondary)
+        Group {
+            if placesActionsBesideImage {
+                HStack(alignment: .center, spacing: tokens.spacing.md) {
+                    imagePreview
+                    VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                        subtitleView
+                        imageControls
                     }
                 }
-
-            if let subtitleKey, !subtitleKey.isEmpty {
-                Text(LocalizedStringKey(subtitleKey))
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-            }
-
-            HStack(spacing: tokens.spacing.sm) {
-                reguertaButton(
-                    LocalizedStringKey(AccessL10nKey.commonActionSelect),
-                    variant: .secondary,
-                    isEnabled: !isUploading,
-                    fullWidth: false
-                ) {
-                    isSourceDialogPresented = true
-                }
-
-                if !imageURLString.isEmpty {
-                    reguertaButton(
-                        LocalizedStringKey(AccessL10nKey.commonClear),
-                        variant: .text,
-                        isEnabled: !isUploading,
-                        fullWidth: false,
-                        action: onClearImage
-                    )
-                }
-
-                if isUploading {
-                    ProgressView()
-                        .tint(tokens.colors.actionPrimary)
+            } else {
+                VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                    imagePreview
+                    subtitleView
+                    imageControls
                 }
             }
         }
@@ -132,6 +92,71 @@ struct ReguertaImagePickerField: View {
                         onImageSelectionFailed()
                     }
                 }
+            }
+        }
+    }
+
+    private var imagePreview: some View {
+        RoundedRectangle(cornerRadius: 24.resize)
+            .fill(tokens.colors.surfaceSecondary)
+            .frame(width: 112.resize, height: 112.resize)
+            .overlay {
+                if let imageURL = URL(string: imageURLString), !imageURLString.isEmpty {
+                    AsyncImage(url: imageURL) { phase in
+                        if let image = phase.image {
+                            image
+                                .resizable()
+                                .scaledToFill()
+                        } else {
+                            Image(systemName: placeholderSystemImage)
+                                .font(.system(size: 34.resize))
+                                .foregroundStyle(tokens.colors.textSecondary)
+                        }
+                    }
+                    .frame(width: 112.resize, height: 112.resize)
+                    .clipShape(RoundedRectangle(cornerRadius: 24.resize))
+                } else {
+                    Image(systemName: placeholderSystemImage)
+                        .font(.system(size: 34.resize))
+                        .foregroundStyle(tokens.colors.textSecondary)
+                }
+            }
+            .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private var subtitleView: some View {
+        if let subtitleKey, !subtitleKey.isEmpty {
+            Text(LocalizedStringKey(subtitleKey))
+                .font(tokens.typography.bodySecondary)
+                .foregroundStyle(tokens.colors.textSecondary)
+        }
+    }
+
+    private var imageControls: some View {
+        HStack(spacing: tokens.spacing.sm) {
+            reguertaButton(
+                LocalizedStringKey(AccessL10nKey.commonActionSelect),
+                variant: .secondary,
+                isEnabled: !isUploading,
+                fullWidth: false
+            ) {
+                isSourceDialogPresented = true
+            }
+
+            if !imageURLString.isEmpty {
+                reguertaButton(
+                    LocalizedStringKey(AccessL10nKey.commonClear),
+                    variant: .text,
+                    isEnabled: !isUploading,
+                    fullWidth: false,
+                    action: onClearImage
+                )
+            }
+
+            if isUploading {
+                ProgressView()
+                    .tint(tokens.colors.actionPrimary)
             }
         }
     }

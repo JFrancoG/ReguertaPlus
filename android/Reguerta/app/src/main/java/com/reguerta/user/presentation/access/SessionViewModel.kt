@@ -367,7 +367,7 @@ class SessionViewModel(
 
     fun openPushNotificationSettings() = communityActions.openPushNotificationSettings()
 
-    fun saveNews(onSuccess: () -> Unit = {}) = communityActions.saveNews(onSuccess)
+    fun saveNews(onSuccess: (NewsSaveResult) -> Unit = {}) = communityActions.saveNews(onSuccess)
 
     fun deleteNews(
         newsId: String,

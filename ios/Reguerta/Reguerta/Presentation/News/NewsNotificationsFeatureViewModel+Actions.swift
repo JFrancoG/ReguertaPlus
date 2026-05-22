@@ -50,6 +50,15 @@ extension NewsNotificationsFeatureViewModel {
     }
 
     @discardableResult
+    func closeNewsSaveConfirmation() -> String? {
+        guard let confirmation = pendingNewsSaveConfirmation else { return nil }
+        pendingNewsSaveConfirmation = nil
+        clearNewsEditor()
+        highlightNews(confirmation.newsId)
+        return confirmation.newsId
+    }
+
+    @discardableResult
     func startCreatingNotification() -> Bool {
         guard let session = authorizedSession else { return false }
         guard session.member.canSendAdminNotifications else {
@@ -59,12 +68,18 @@ extension NewsNotificationsFeatureViewModel {
 
         notificationDraft = NotificationDraft()
         isSendingNotification = false
+        isNotificationSendConfirmationPresented = false
         return true
     }
 
     func clearNotificationEditor() {
         notificationDraft = NotificationDraft()
         isSendingNotification = false
+    }
+
+    func closeNotificationSendConfirmation() {
+        isNotificationSendConfirmationPresented = false
+        clearNotificationEditor()
     }
 
     func dismissPushNotificationPermissionDialog() {
@@ -119,10 +134,9 @@ extension NewsNotificationsFeatureViewModel {
         applyNewsSnapshot(allNews, member: session.member)
         newsDraft = saved.toDraft()
         editingNewsId = saved.id
-        feedbackCenter.show(
-            existing == nil
-                ? AccessL10nKey.feedbackNewsCreated
-                : AccessL10nKey.feedbackNewsUpdated
+        pendingNewsSaveConfirmation = NewsSaveConfirmation(
+            newsId: saved.id,
+            isNew: existing == nil
         )
         return true
     }
@@ -186,7 +200,7 @@ extension NewsNotificationsFeatureViewModel {
         notificationsFeed = allNotifications.filter { $0.isVisible(to: session.member) }
         readNotificationIds = readIds
         notificationDraft = NotificationDraft()
-        feedbackCenter.show(AccessL10nKey.feedbackNotificationSent)
+        isNotificationSendConfirmationPresented = true
         return true
     }
 
@@ -233,5 +247,17 @@ extension NewsNotificationsFeatureViewModel {
 
     func reportCameraUnavailable() {
         feedbackCenter.show(AccessL10nKey.feedbackCameraUnavailable)
+    }
+
+    func highlightNews(_ newsId: String) {
+        highlightedNewsId = newsId
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 1_600_000_000)
+            await MainActor.run {
+                if self?.highlightedNewsId == newsId {
+                    self?.highlightedNewsId = nil
+                }
+            }
+        }
     }
 }

@@ -53,24 +53,67 @@ struct HomeLatestNewsItemPresentation: Identifiable, Equatable {
     let id: String
     let title: String
     let body: String
+    let metadataText: String?
+    let statusText: String?
     let imageURL: URL?
     let imagePlacement: HomeLatestNewsImagePlacement?
+    let bodyLineLimit: Int?
     let titleAccessibilityIdentifier: String
+    let cardAccessibilityIdentifier: String
+
+    init(
+        id: String,
+        title: String,
+        body: String,
+        metadataText: String? = nil,
+        statusText: String? = nil,
+        imageURL: URL?,
+        imagePlacement: HomeLatestNewsImagePlacement?,
+        bodyLineLimit: Int? = 3,
+        titleAccessibilityIdentifier: String,
+        cardAccessibilityIdentifier: String
+    ) {
+        self.id = id
+        self.title = title
+        self.body = body
+        self.metadataText = metadataText
+        self.statusText = statusText
+        self.imageURL = imageURL
+        self.imagePlacement = imagePlacement
+        self.bodyLineLimit = bodyLineLimit
+        self.titleAccessibilityIdentifier = titleAccessibilityIdentifier
+        self.cardAccessibilityIdentifier = cardAccessibilityIdentifier
+    }
+
+    init(
+        article: NewsArticle,
+        index: Int,
+        metadataText: String? = nil,
+        statusText: String? = nil,
+        bodyLineLimit: Int? = 3,
+        titleAccessibilityIdentifierPrefix: String = "home.latestNews.article",
+        cardAccessibilityIdentifierPrefix: String = "home.latestNews.articleCard"
+    ) {
+        let imageURL = article.homeLatestNewsImageURL
+        self.init(
+            id: article.id,
+            title: article.title,
+            body: article.body,
+            metadataText: metadataText,
+            statusText: statusText,
+            imageURL: imageURL,
+            imagePlacement: imageURL.map { _ in index.isMultiple(of: 2) ? .trailing : .leading },
+            bodyLineLimit: bodyLineLimit,
+            titleAccessibilityIdentifier: "\(titleAccessibilityIdentifierPrefix).\(article.id).title",
+            cardAccessibilityIdentifier: "\(cardAccessibilityIdentifierPrefix).\(article.id)"
+        )
+    }
 }
 
 extension NewsNotificationsFeatureViewModel {
     var homeLatestNewsItems: [HomeLatestNewsItemPresentation] {
         latestNews.enumerated().map { index, article in
-            HomeLatestNewsItemPresentation(
-                id: article.id,
-                title: article.title,
-                body: article.body,
-                imageURL: article.homeLatestNewsImageURL,
-                imagePlacement: article.homeLatestNewsImageURL.map { _ in
-                    index.isMultiple(of: 2) ? .trailing : .leading
-                },
-                titleAccessibilityIdentifier: "home.latestNews.article.\(article.id).title"
-            )
+            HomeLatestNewsItemPresentation(article: article, index: index)
         }
     }
 }
@@ -105,18 +148,22 @@ struct LatestNewsCardView: View {
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
             } else {
-                List(latestNews) { item in
-                    HomeLatestNewsRowView(tokens: tokens, item: item)
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.clear)
-                        .padding(.bottom, tokens.spacing.sm)
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                        ForEach(latestNews) { item in
+                            reguertaListItemCard {
+                                HomeLatestNewsRowView(tokens: tokens, item: item)
+                                    .padding(tokens.spacing.lg)
+                            }
+                            .accessibilityElement(children: .contain)
+                            .accessibilityIdentifier(item.cardAccessibilityIdentifier)
+                        }
+
+                        Color.clear
+                            .frame(height: tokens.spacing.xxl)
+                            .accessibilityHidden(true)
+                    }
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-                .contentMargins(.top, 0, for: .scrollContent)
-                .contentMargins(.horizontal, 0, for: .scrollContent)
-                .contentMargins(.bottom, 0, for: .scrollContent)
                 .ignoresSafeArea(.container, edges: .bottom)
                 .accessibilityIdentifier("home.latestNews.scroll")
             }
@@ -125,7 +172,7 @@ struct LatestNewsCardView: View {
     }
 }
 
-private struct HomeLatestNewsRowView: View {
+struct HomeLatestNewsRowView: View {
     let tokens: ReguertaDesignTokens
     let item: HomeLatestNewsItemPresentation
 
@@ -164,10 +211,20 @@ private struct HomeLatestNewsTextView: View {
                 .font(tokens.typography.titleCard)
                 .foregroundStyle(tokens.colors.textPrimary)
                 .accessibilityIdentifier(item.titleAccessibilityIdentifier)
+            if let metadataText = item.metadataText {
+                Text(metadataText)
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.textSecondary)
+            }
+            if let statusText = item.statusText {
+                Text(statusText)
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.actionPrimary)
+            }
             Text(item.body)
                 .font(tokens.typography.bodySecondary)
                 .foregroundStyle(tokens.colors.textSecondary)
-                .lineLimit(3)
+                .lineLimit(item.bodyLineLimit)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }

@@ -290,7 +290,7 @@ private extension AccessRootViewModel {
         case .bylaws:
             return l10n(AccessL10nKey.bylawsTitle)
         case .news:
-            return l10n(AccessL10nKey.homeShellNewsTitle)
+            return l10n(AccessL10nKey.homeShellActionNews)
         case .settings:
             return l10n(AccessL10nKey.settingsTitle)
         case .products:

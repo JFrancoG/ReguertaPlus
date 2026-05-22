@@ -224,7 +224,7 @@ internal class SessionCommunityActions(
         emitEvent(SessionUiEvent.OpenPushNotificationSettings)
     }
 
-    fun saveNews(onSuccess: () -> Unit = {}) {
+    fun saveNews(onSuccess: (NewsSaveResult) -> Unit = {}) {
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
         if (!mode.member.canPublishNews) {
             emitMessage(R.string.feedback_only_admin_publish_news)
@@ -258,6 +258,7 @@ internal class SessionCommunityActions(
             val allNews = newsRepository.getAllNews()
             val visibleNews = allNews
             val latestActiveNews = allNews.filter { it.active }.take(3)
+            val isNew = existing == null
             uiState.update {
                 it.copy(
                     latestNews = latestActiveNews,
@@ -272,14 +273,7 @@ internal class SessionCommunityActions(
                     isSavingNews = false,
                 )
             }
-            emitMessage(
-                if (existing == null) {
-                    R.string.feedback_news_created
-                } else {
-                    R.string.feedback_news_updated
-                },
-            )
-            onSuccess()
+            onSuccess(NewsSaveResult(newsId = saved.id, isNew = isNew))
         }
     }
 
@@ -426,7 +420,6 @@ internal class SessionCommunityActions(
                     isSendingNotification = false,
                 )
             }
-            emitMessage(R.string.feedback_notification_sent)
             onSuccess()
         }
     }

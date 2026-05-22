@@ -179,7 +179,6 @@ fun HomeDrawerContent(
 ) {
     val drawerScrollState = rememberScrollState()
     val canManageMembers = member?.canManageMembers == true
-    val canPublishNews = member?.canPublishNews == true
     val canSendAdminNotifications = member?.canSendAdminNotifications == true
 
     Column(
@@ -269,12 +268,6 @@ fun HomeDrawerContent(
                 onClick = { onNavigate(HomeDestination.NEWS) },
             )
             HomeDrawerItem(
-                icon = Icons.Filled.Notifications,
-                label = stringResource(R.string.home_shell_notifications),
-                selected = currentDestination == HomeDestination.NOTIFICATIONS,
-                onClick = { onNavigate(HomeDestination.NOTIFICATIONS) },
-            )
-            HomeDrawerItem(
                 icon = Icons.Filled.Group,
                 label = stringResource(R.string.home_shell_action_profile),
                 selected = currentDestination == HomeDestination.PROFILE,
@@ -307,7 +300,7 @@ fun HomeDrawerContent(
                 )
             }
 
-            if (canManageMembers || canPublishNews || canSendAdminNotifications) {
+            if (canManageMembers || canSendAdminNotifications) {
                 HomeDrawerDivider()
                 if (canManageMembers) {
                     HomeDrawerItem(
@@ -315,14 +308,6 @@ fun HomeDrawerContent(
                         label = stringResource(R.string.home_shell_action_users),
                         selected = currentDestination == HomeDestination.USERS,
                         onClick = { onNavigate(HomeDestination.USERS) },
-                    )
-                }
-                if (canPublishNews) {
-                    HomeDrawerItem(
-                        icon = Icons.Filled.Add,
-                        label = stringResource(R.string.home_shell_action_publish_news),
-                        selected = currentDestination == HomeDestination.PUBLISH_NEWS,
-                        onClick = { onNavigate(HomeDestination.PUBLISH_NEWS) },
                     )
                 }
                 if (canSendAdminNotifications) {
@@ -542,8 +527,9 @@ private fun ShiftSummaryRow(
 fun LatestNewsCard(
     news: List<NewsArticle>,
     onViewAll: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Card {
+    Card(modifier = modifier) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -561,20 +547,7 @@ fun LatestNewsCard(
                     style = MaterialTheme.typography.bodyMedium,
                 )
             } else {
-                news.forEach { article ->
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            text = article.title,
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = article.body,
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 3,
-                        )
-                    }
-                }
+                LatestNewsSummaryRows(news = news)
             }
             ReguertaFlatButton(
                 label = stringResource(R.string.news_view_all),

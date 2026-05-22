@@ -21,6 +21,7 @@ final class ReguertaUITests: XCTestCase {
     private let myOrderSearchFieldId = "myOrder.searchField"
     private let usersAddButtonId = "users.addButton"
     private let latestNewsTitleIdPrefix = "home.latestNews.article."
+    private let latestNewsCardIdPrefix = "home.latestNews.articleCard."
     private let latestNewsScrollId = "home.latestNews.scroll"
 
     override func setUpWithError() throws {
@@ -103,17 +104,25 @@ final class ReguertaUITests: XCTestCase {
             "Latest news title not found"
         )
 
-        let latestNewsTitle = latestNewsTitles.element(boundBy: latestNewsTitles.count - 1)
+        let latestNewsCards = app.otherElements.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", latestNewsCardIdPrefix)
+        )
+        XCTAssertTrue(
+            waitForElementCount(latestNewsCards, minimumCount: 1, timeout: 3),
+            "Latest news card not found"
+        )
         let latestNewsScroll = app.scrollViews[latestNewsScrollId]
-        for _ in 0 ..< 4 where !latestNewsTitle.isHittable {
+        for _ in 0 ..< 4 {
             latestNewsScroll.swipeUp()
         }
 
+        let latestNewsTitle = latestNewsTitles.element(boundBy: latestNewsTitles.count - 1)
+        let latestNewsCard = latestNewsCards.element(boundBy: latestNewsCards.count - 1)
         XCTAssertTrue(latestNewsTitle.isHittable, "Latest news title should be visible and hittable")
         XCTAssertLessThanOrEqual(
-            latestNewsTitle.frame.maxY,
-            app.frame.maxY - 8,
-            "Latest news title should not be covered by the bottom edge"
+            latestNewsCard.frame.maxY,
+            app.frame.maxY - 24,
+            "Latest news card should keep visible bottom breathing room"
         )
     }
 
@@ -186,7 +195,7 @@ final class ReguertaUITests: XCTestCase {
 
         let title = app.staticTexts[topBarTitleId]
         XCTAssertTrue(title.waitForExistence(timeout: 3), "Top bar title not found")
-        XCTAssertEqual(title.label, "Latest news")
+        XCTAssertEqual(title.label, "News")
     }
 
     @MainActor

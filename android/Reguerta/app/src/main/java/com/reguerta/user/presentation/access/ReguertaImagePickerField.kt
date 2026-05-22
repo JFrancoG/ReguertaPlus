@@ -11,8 +11,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -53,6 +55,7 @@ internal fun ReguertaImagePickerField(
     placeholderIcon: ImageVector,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
+    actionsBesideImage: Boolean = false,
 ) {
     val context = LocalContext.current
     var showSourceDialog by rememberSaveable { mutableStateOf(false) }
@@ -113,42 +116,46 @@ internal fun ReguertaImagePickerField(
         }
     }
 
-    Box(
-        modifier = modifier
-            .size(112.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (imageUrl.isNotBlank()) {
-            AsyncImage(
-                model = imageUrl,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
-        } else {
-            Icon(
-                imageVector = placeholderIcon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(40.dp),
+    @Composable
+    fun ImagePreview() {
+        Box(
+            modifier = modifier
+                .size(112.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (imageUrl.isNotBlank()) {
+                AsyncImage(
+                    model = imageUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            } else {
+                Icon(
+                    imageVector = placeholderIcon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(40.dp),
+                )
+            }
+        }
+    }
+
+    @Composable
+    fun ImageSubtitle() {
+        if (!subtitle.isNullOrBlank()) {
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
 
-    if (!subtitle.isNullOrBlank()) {
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    @Composable
+    fun ImageControls() {
         ReguertaButton(
             label = stringResource(R.string.products_pick_image_action),
             variant = ReguertaButtonVariant.SECONDARY,
@@ -174,6 +181,32 @@ internal fun ReguertaImagePickerField(
                 modifier = Modifier.size(20.dp),
                 strokeWidth = 2.dp,
             )
+        }
+    }
+
+    if (actionsBesideImage) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ImagePreview()
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = Alignment.Start,
+            ) {
+                ImageSubtitle()
+                ImageControls()
+            }
+        }
+    } else {
+        ImagePreview()
+        ImageSubtitle()
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ImageControls()
         }
     }
 
