@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-05-22 | ✨ feat(news): refine news and notification UX
 - 2026-05-22 | ✨ feat(notifications): add read-state feed
 - 2026-05-16 | ✨ feat(ui): add reusable list controls
 - 2026-05-14 | ✨ feat(home): add weekly market context

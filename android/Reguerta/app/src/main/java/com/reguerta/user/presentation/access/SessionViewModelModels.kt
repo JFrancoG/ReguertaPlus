@@ -36,6 +36,11 @@ data class NewsDraft(
     val active: Boolean = true,
 )
 
+data class NewsSaveResult(
+    val newsId: String,
+    val isNew: Boolean,
+)
+
 data class NotificationDraft(
     val title: String = "",
     val body: String = "",

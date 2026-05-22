@@ -108,6 +108,9 @@ extension NewsNotificationsFeatureViewModel {
         notificationDraft = NotificationDraft()
         editingNewsId = nil
         pendingNewsDeletionId = nil
+        pendingNewsSaveConfirmation = nil
+        isNotificationSendConfirmationPresented = false
+        highlightedNewsId = nil
         isSavingNews = false
         isUploadingNewsImage = false
         isSendingNotification = false

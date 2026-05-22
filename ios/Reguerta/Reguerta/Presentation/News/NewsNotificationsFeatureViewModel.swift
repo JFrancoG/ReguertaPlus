@@ -1,6 +1,11 @@
 import Foundation
 import Observation
 
+struct NewsSaveConfirmation: Equatable {
+    let newsId: String
+    let isNew: Bool
+}
+
 @MainActor
 @Observable
 final class NewsNotificationsFeatureViewModel {
@@ -22,6 +27,9 @@ final class NewsNotificationsFeatureViewModel {
     var readNotificationIds: Set<String> = []
     var editingNewsId: String?
     var pendingNewsDeletionId: String?
+    var pendingNewsSaveConfirmation: NewsSaveConfirmation?
+    var isNotificationSendConfirmationPresented = false
+    var highlightedNewsId: String?
     var isLoadingNews = false
     var isSavingNews = false
     var isUploadingNewsImage = false

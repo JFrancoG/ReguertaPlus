@@ -25,6 +25,7 @@ import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -55,6 +56,7 @@ import com.reguerta.user.ui.components.auth.ReguertaDialog
 import com.reguerta.user.ui.components.auth.ReguertaDialogAction
 import com.reguerta.user.ui.components.auth.ReguertaDialogType
 import com.reguerta.user.ui.components.auth.ReguertaFlatButton
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 @Composable
 internal fun HomeRoute(
@@ -135,7 +137,7 @@ internal fun HomeRoute(
     onClearNewsImage: () -> Unit,
     onUploadSharedProfileImageFromUri: (Uri) -> Unit,
     onClearSharedProfileImage: () -> Unit,
-    onSaveNews: (onSuccess: () -> Unit) -> Unit,
+    onSaveNews: (onSuccess: (NewsSaveResult) -> Unit) -> Unit,
     onSaveProduct: (onSuccess: (String) -> Unit) -> Unit,
     onSetProducerCatalogVisibility: (Boolean, onSuccess: () -> Unit) -> Unit,
     onSendNotification: (onSuccess: () -> Unit) -> Unit,
@@ -181,6 +183,10 @@ internal fun HomeRoute(
     var isDrawerOpen by rememberSaveable { mutableStateOf(false) }
     var currentDestination by rememberSaveable { mutableStateOf(HomeDestination.DASHBOARD) }
     var newsPendingDeletionId by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingSavedNewsId by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingSavedNewsWasNew by rememberSaveable { mutableStateOf(false) }
+    var isNotificationSentDialogVisible by rememberSaveable { mutableStateOf(false) }
+    var highlightedNewsId by rememberSaveable { mutableStateOf<String?>(null) }
     var myOrderCartUnits by rememberSaveable { mutableIntStateOf(0) }
     var myOrderCartOpenRequests by rememberSaveable { mutableIntStateOf(0) }
     var myOrderRouteEntryRequests by rememberSaveable { mutableIntStateOf(0) }
@@ -194,6 +200,14 @@ internal fun HomeRoute(
     }
     val currentSharedProfile = sharedProfiles.firstOrNull { profile -> profile.userId == member?.id }
     val effectiveNowMillis = nowOverrideMillis ?: System.currentTimeMillis()
+
+    LaunchedEffect(highlightedNewsId) {
+        val currentHighlightedNewsId = highlightedNewsId ?: return@LaunchedEffect
+        delay(1_600)
+        if (highlightedNewsId == currentHighlightedNewsId) {
+            highlightedNewsId = null
+        }
+    }
 
     fun closeDrawer() {
         isDrawerOpen = false
@@ -231,8 +245,6 @@ internal fun HomeRoute(
             Unit
         } else if (destination == HomeDestination.SHIFT_SWAP_REQUEST) {
             onRefreshShifts()
-        } else if (destination == HomeDestination.PUBLISH_NEWS) {
-            onStartCreatingNews()
         } else if (destination == HomeDestination.ADMIN_BROADCAST) {
             onStartCreatingNotification()
         } else if (destination == HomeDestination.SETTINGS) {
@@ -240,7 +252,19 @@ internal fun HomeRoute(
         }
     }
 
+    fun closeNewsSaveDialog() {
+        val savedNewsId = pendingSavedNewsId ?: return
+        pendingSavedNewsId = null
+        pendingSavedNewsWasNew = false
+        onClearNewsEditor()
+        highlightedNewsId = savedNewsId
+        navigateHome(HomeDestination.NEWS)
+    }
+
     fun handleDrawerNavigation(destination: HomeDestination) {
+        if (destination == HomeDestination.PUBLISH_NEWS) {
+            onStartCreatingNews()
+        }
         navigateHome(destination)
         closeDrawer()
     }
@@ -295,7 +319,10 @@ internal fun HomeRoute(
             currentDestination != HomeDestination.MY_ORDER &&
                 currentDestination != HomeDestination.RECEIVED_ORDERS &&
                 currentDestination != HomeDestination.PRODUCTS &&
-                currentDestination != HomeDestination.USERS
+                currentDestination != HomeDestination.USERS &&
+                currentDestination != HomeDestination.NEWS &&
+                currentDestination != HomeDestination.PUBLISH_NEWS &&
+                currentDestination != HomeDestination.ADMIN_BROADCAST
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -309,6 +336,9 @@ internal fun HomeRoute(
                 currentDestination == HomeDestination.DASHBOARD -> formatHomeTopBarDate(effectiveNowMillis)
                 currentDestination == HomeDestination.MY_ORDER && isMyOrderCartVisible && !isMyOrderReadOnlyMode -> {
                     stringResource(R.string.my_order_cart_title)
+                }
+                currentDestination == HomeDestination.PUBLISH_NEWS && editingNewsId != null -> {
+                    stringResource(R.string.news_editor_title_edit)
                 }
                 else -> stringResource(currentDestination.titleRes())
             }
@@ -419,6 +449,7 @@ internal fun HomeRoute(
                         onViewAll = {
                             navigateHome(HomeDestination.NEWS)
                         },
+                        modifier = Modifier.padding(bottom = 16.dp),
                     )
                     }
 
@@ -426,7 +457,7 @@ internal fun HomeRoute(
                     articles = newsFeed,
                     isLoading = isLoadingNews,
                     isAdmin = member?.canPublishNews == true,
-                    onRefresh = onRefreshNews,
+                    highlightedNewsId = highlightedNewsId,
                     onCreateNews = {
                         onStartCreatingNews()
                         navigateHome(HomeDestination.PUBLISH_NEWS)
@@ -448,13 +479,10 @@ internal fun HomeRoute(
                     onPickImage = onUploadNewsImageFromUri,
                     onClearImage = onClearNewsImage,
                     onDraftChanged = onNewsDraftChanged,
-                    onCancel = {
-                        onClearNewsEditor()
-                        navigateHome(HomeDestination.NEWS)
-                    },
                     onSave = {
-                        onSaveNews {
-                            navigateHome(HomeDestination.NEWS)
+                        onSaveNews { result ->
+                            pendingSavedNewsId = result.newsId
+                            pendingSavedNewsWasNew = result.isNew
                         }
                     },
                     )
@@ -468,13 +496,9 @@ internal fun HomeRoute(
                     draft = notificationDraft,
                     isSending = isSendingNotification,
                     onDraftChanged = onNotificationDraftChanged,
-                    onCancel = {
-                        onClearNotificationEditor()
-                        navigateHome(HomeDestination.NOTIFICATIONS)
-                    },
                     onSend = {
                         onSendNotification {
-                            navigateHome(HomeDestination.NOTIFICATIONS)
+                            isNotificationSentDialogVisible = true
                         }
                     },
                     )
@@ -655,6 +679,31 @@ internal fun HomeRoute(
     }
     }
 
+    pendingSavedNewsId?.let {
+        ReguertaDialog(
+            type = ReguertaDialogType.INFO,
+            title = stringResource(
+                if (pendingSavedNewsWasNew) {
+                    R.string.news_save_created_dialog_title
+                } else {
+                    R.string.news_save_updated_dialog_title
+                },
+            ),
+            message = stringResource(
+                if (pendingSavedNewsWasNew) {
+                    R.string.news_save_created_dialog_message
+                } else {
+                    R.string.news_save_updated_dialog_message
+                },
+            ),
+            primaryAction = ReguertaDialogAction(
+                label = stringResource(R.string.common_action_close),
+                onClick = ::closeNewsSaveDialog,
+            ),
+            onDismissRequest = ::closeNewsSaveDialog,
+        )
+    }
+
     newsPendingDeletionId?.let { pendingId ->
         val title = newsFeed.firstOrNull { it.id == pendingId }?.title.orEmpty()
         ReguertaDialog(
@@ -674,6 +723,27 @@ internal fun HomeRoute(
                 onClick = { newsPendingDeletionId = null },
             ),
             onDismissRequest = { newsPendingDeletionId = null },
+        )
+    }
+
+    if (isNotificationSentDialogVisible) {
+        ReguertaDialog(
+            type = ReguertaDialogType.INFO,
+            title = stringResource(R.string.notifications_send_success_dialog_title),
+            message = stringResource(R.string.notifications_send_success_dialog_message),
+            primaryAction = ReguertaDialogAction(
+                label = stringResource(R.string.common_action_close),
+                onClick = {
+                    isNotificationSentDialogVisible = false
+                    onClearNotificationEditor()
+                    navigateHome(HomeDestination.NOTIFICATIONS)
+                },
+            ),
+            onDismissRequest = {
+                isNotificationSentDialogVisible = false
+                onClearNotificationEditor()
+                navigateHome(HomeDestination.NOTIFICATIONS)
+            },
         )
     }
 

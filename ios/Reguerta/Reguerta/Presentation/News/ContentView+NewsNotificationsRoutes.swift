@@ -8,39 +8,50 @@ struct NewsListRouteView: View {
     let onEditNews: () -> Void
 
     var body: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            LazyVStack(alignment: .leading, spacing: tokens.spacing.lg) {
-                NewsListHeaderCardView(
-                    tokens: tokens,
-                    isAdmin: viewModel.canPublishNews,
-                    onCreateNews: createNews,
-                    onRefreshNews: refreshNews
-                )
-
-                if viewModel.isLoadingNews {
-                    reguertaCard {
-                        Text(LocalizedStringKey(AccessL10nKey.newsLoading))
-                            .font(tokens.typography.bodySecondary)
+        ZStack(alignment: .bottom) {
+            ScrollViewReader { proxy in
+                ScrollView(.vertical, showsIndicators: false) {
+                    LazyVStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                        if viewModel.isLoadingNews {
+                            Text(LocalizedStringKey(AccessL10nKey.newsLoading))
+                                .font(tokens.typography.bodySecondary)
+                        } else if viewModel.newsFeed.isEmpty {
+                            Text(LocalizedStringKey(AccessL10nKey.newsEmptyState))
+                                .font(tokens.typography.bodySecondary)
+                        } else {
+                            ForEach(Array(viewModel.newsFeed.enumerated()), id: \.element.id) { index, article in
+                                NewsArticleCardView(
+                                    tokens: tokens,
+                                    article: article,
+                                    index: index,
+                                    isAdmin: viewModel.canPublishNews,
+                                    isHighlighted: viewModel.highlightedNewsId == article.id,
+                                    newsMetaText: newsMetaText,
+                                    onEditNews: editNews,
+                                    onDeleteNews: requestNewsDeletion
+                                )
+                                .id(article.id)
+                            }
+                        }
                     }
-                } else if viewModel.newsFeed.isEmpty {
-                    reguertaCard {
-                        Text(LocalizedStringKey(AccessL10nKey.newsEmptyState))
-                            .font(tokens.typography.bodySecondary)
-                    }
-                } else {
-                    ForEach(viewModel.newsFeed) { article in
-                        NewsArticleCardView(
-                            tokens: tokens,
-                            article: article,
-                            isAdmin: viewModel.canPublishNews,
-                            newsMetaText: newsMetaText,
-                            onEditNews: editNews,
-                            onDeleteNews: requestNewsDeletion
-                        )
+                    .padding(.bottom, viewModel.canPublishNews
+                        ? ReguertaFloatingActionButtonLayout.scrollContentBottomPadding
+                        : tokens.spacing.sm)
+                    .animation(.easeInOut(duration: 0.25), value: viewModel.newsFeed.map(\.id))
+                }
+                .onChange(of: viewModel.highlightedNewsId) { _, newsId in
+                    guard let newsId else { return }
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        proxy.scrollTo(newsId, anchor: .center)
                     }
                 }
             }
-            .padding(.bottom, tokens.spacing.sm)
+
+            if viewModel.canPublishNews {
+                reguertaFloatingActionButton(LocalizedStringKey(AccessL10nKey.newsCreateAction)) {
+                    createNews()
+                }
+            }
         }
         .scrollDismissesKeyboard(.interactively)
     }
@@ -49,10 +60,6 @@ struct NewsListRouteView: View {
         if viewModel.startCreatingNews() {
             onCreateNews()
         }
-    }
-
-    private func refreshNews() {
-        Task { await viewModel.refreshNews() }
     }
 
     private func editNews(_ newsId: String) {
@@ -66,79 +73,53 @@ struct NewsListRouteView: View {
     }
 }
 
-private struct NewsListHeaderCardView: View {
-    let tokens: ReguertaDesignTokens
-    let isAdmin: Bool
-    let onCreateNews: () -> Void
-    let onRefreshNews: () -> Void
-
-    var body: some View {
-        reguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                Text(LocalizedStringKey(AccessL10nKey.newsListSubtitle))
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                if isAdmin {
-                    reguertaButton(LocalizedStringKey(AccessL10nKey.newsCreateAction), action: onCreateNews)
-                }
-                reguertaButton(
-                    LocalizedStringKey(AccessL10nKey.newsRefreshAction),
-                    variant: .text,
-                    action: onRefreshNews
-                )
-            }
-        }
-    }
-}
-
 private struct NewsArticleCardView: View {
     let tokens: ReguertaDesignTokens
     let article: NewsArticle
+    let index: Int
     let isAdmin: Bool
+    let isHighlighted: Bool
     let newsMetaText: (NewsArticle) -> String
     let onEditNews: (String) -> Void
     let onDeleteNews: (String) -> Void
 
     var body: some View {
-        reguertaCard {
+        reguertaListItemCard(isHighlighted: isHighlighted) {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                Text(article.title)
-                    .font(tokens.typography.titleCard)
-                Text(newsMetaText(article))
-                    .font(tokens.typography.label)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                if !article.active {
-                    Text(LocalizedStringKey(AccessL10nKey.newsInactiveBadge))
-                        .font(tokens.typography.label)
-                        .foregroundStyle(tokens.colors.actionPrimary)
-                }
-                Text(article.body)
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textPrimary)
-                if let urlImage = article.urlImage {
-                    Text(urlImage)
-                        .font(tokens.typography.label)
-                        .foregroundStyle(tokens.colors.actionPrimary)
-                }
+                HomeLatestNewsRowView(
+                    tokens: tokens,
+                    item: HomeLatestNewsItemPresentation(
+                        article: article,
+                        index: index,
+                        metadataText: newsMetaText(article),
+                        statusText: article.active ? nil : l10n(AccessL10nKey.newsInactiveBadge),
+                        bodyLineLimit: nil,
+                        titleAccessibilityIdentifierPrefix: "news.list.article",
+                        cardAccessibilityIdentifierPrefix: "news.list.articleCard"
+                    )
+                )
+
                 if isAdmin {
-                    HStack {
-                        reguertaButton(
-                            LocalizedStringKey(AccessL10nKey.newsEditAction),
-                            variant: .text,
-                            fullWidth: false
-                        ) {
-                            onEditNews(article.id)
-                        }
-                        reguertaButton(
-                            LocalizedStringKey(AccessL10nKey.newsDeleteAction),
-                            variant: .text,
-                            fullWidth: false
-                        ) {
-                            onDeleteNews(article.id)
-                        }
+                    HStack(spacing: tokens.spacing.sm) {
+                        Spacer()
+                        ReguertaListActionIconButton(
+                            systemImageName: "pencil",
+                            accessibilityLabel: l10n(AccessL10nKey.newsEditAction),
+                            backgroundColor: tokens.colors.actionPrimary,
+                            action: { onEditNews(article.id) }
+                        )
+
+                        ReguertaListActionIconButton(
+                            systemImageName: "trash",
+                            accessibilityLabel: l10n(AccessL10nKey.newsDeleteAction),
+                            backgroundColor: tokens.colors.feedbackError,
+                            action: { onDeleteNews(article.id) }
+                        )
+                        Spacer().frame(width: 12.resize)
                     }
                 }
             }
+            .padding(tokens.spacing.lg)
         }
     }
 }
@@ -179,65 +160,89 @@ struct NewsEditorRouteView: View {
         )
     }
 
-    private var newsActive: Binding<Bool> {
+    private var newsArchived: Binding<Bool> {
         Binding(
-            get: { viewModel.newsDraft.active },
+            get: { !viewModel.newsDraft.active },
             set: { value in
                 viewModel.updateNewsDraft { draft in
-                    draft.active = value
+                    draft.active = !value
                 }
             }
         )
     }
 
     var body: some View {
-        reguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text(LocalizedStringKey(AccessL10nKey.newsEditorSubtitle))
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
+        ZStack(alignment: .bottom) {
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                    Text(LocalizedStringKey(AccessL10nKey.newsFieldTitle))
+                        .font(tokens.typography.label)
+                        .foregroundStyle(tokens.colors.textSecondary)
 
-                ReguertaImagePickerField(
-                    tokens: tokens,
-                    imageURLString: viewModel.newsDraft.urlImage,
-                    isUploading: viewModel.isUploadingNewsImage,
-                    placeholderSystemImage: "photo",
-                    subtitleKey: nil,
-                    onPickImageData: uploadNewsImage,
-                    onClearImage: viewModel.clearNewsImage,
-                    onImageSelectionFailed: viewModel.reportImageSelectionFailed,
-                    onCameraPermissionDenied: viewModel.reportCameraPermissionDenied,
-                    onCameraUnavailable: viewModel.reportCameraUnavailable
+                    TextField(
+                        "",
+                        text: newsTitle
+                    )
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityLabel(Text(LocalizedStringKey(AccessL10nKey.newsFieldTitle)))
+
+                    Text(LocalizedStringKey(AccessL10nKey.newsFieldBody))
+                        .font(tokens.typography.label)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                    TextEditor(text: newsBody)
+                        .frame(minHeight: 180.resize)
+                        .padding(tokens.spacing.sm)
+                        .background(tokens.colors.surfaceSecondary)
+                        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
+                        .accessibilityLabel(Text(LocalizedStringKey(AccessL10nKey.newsFieldBody)))
+
+                    ReguertaImagePickerField(
+                        tokens: tokens,
+                        imageURLString: viewModel.newsDraft.urlImage,
+                        isUploading: viewModel.isUploadingNewsImage,
+                        placeholderSystemImage: "photo",
+                        subtitleKey: nil,
+                        onPickImageData: uploadNewsImage,
+                        onClearImage: viewModel.clearNewsImage,
+                        onImageSelectionFailed: viewModel.reportImageSelectionFailed,
+                        onCameraPermissionDenied: viewModel.reportCameraPermissionDenied,
+                        onCameraUnavailable: viewModel.reportCameraUnavailable,
+                        placesActionsBesideImage: true
+                    )
+
+                    Toggle(LocalizedStringKey(AccessL10nKey.newsFieldActive), isOn: newsArchived)
+                }
+                .padding(.bottom, ReguertaFloatingActionButtonLayout.scrollContentBottomPadding)
+            }
+
+            reguertaFloatingActionButton(
+                LocalizedStringKey(saveActionKey),
+                isEnabled: !viewModel.isSavingNews && !viewModel.isUploadingNewsImage,
+                action: saveNews
+            )
+        }
+        .overlay {
+            if let confirmation = viewModel.pendingNewsSaveConfirmation {
+                reguertaDialog(
+                    type: .info,
+                    title: l10n(
+                        confirmation.isNew
+                            ? AccessL10nKey.newsSaveCreatedDialogTitle
+                            : AccessL10nKey.newsSaveUpdatedDialogTitle
+                    ),
+                    message: l10n(
+                        confirmation.isNew
+                            ? AccessL10nKey.newsSaveCreatedDialogMessage
+                            : AccessL10nKey.newsSaveUpdatedDialogMessage
+                    ),
+                    primaryAction: ReguertaDialogAction(
+                        title: AccessL10nKey.commonActionClose,
+                        action: closeNewsSaveDialog
+                    )
                 )
-
-                TextField(
-                    "",
-                    text: newsTitle,
-                    prompt: Text(LocalizedStringKey(AccessL10nKey.newsFieldTitle))
-                )
-                .textFieldStyle(.roundedBorder)
-
-                Text(LocalizedStringKey(AccessL10nKey.newsFieldBody))
-                    .font(tokens.typography.label)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                TextEditor(text: newsBody)
-                    .frame(minHeight: 180.resize)
-                    .padding(tokens.spacing.sm)
-                    .background(tokens.colors.surfaceSecondary)
-                    .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
-
-                Toggle(LocalizedStringKey(AccessL10nKey.newsFieldActive), isOn: newsActive)
-
-                reguertaButton(
-                    LocalizedStringKey(saveActionKey),
-                    isEnabled: !viewModel.isSavingNews && !viewModel.isUploadingNewsImage,
-                    isLoading: viewModel.isSavingNews,
-                    action: saveNews
-                )
-
-                Spacer(minLength: tokens.spacing.sm)
             }
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private func uploadNewsImage(_ imageData: Data) {
@@ -246,10 +251,13 @@ struct NewsEditorRouteView: View {
 
     private func saveNews() {
         Task {
-            if await viewModel.saveNews() {
-                onSaveSuccess()
-            }
+            _ = await viewModel.saveNews()
         }
+    }
+
+    private func closeNewsSaveDialog() {
+        guard viewModel.closeNewsSaveConfirmation() != nil else { return }
+        onSaveSuccess()
     }
 }
 
@@ -373,19 +381,19 @@ struct NotificationEditorRouteView: View {
     }
 
     var body: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            reguertaCard {
+        ZStack(alignment: .bottom) {
+            ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                    Text(LocalizedStringKey(AccessL10nKey.notificationsEditorSubtitle))
-                        .font(tokens.typography.bodySecondary)
+                    Text(LocalizedStringKey(AccessL10nKey.notificationsFieldTitle))
+                        .font(tokens.typography.label)
                         .foregroundStyle(tokens.colors.textSecondary)
 
                     TextField(
                         "",
-                        text: notificationTitle,
-                        prompt: Text(LocalizedStringKey(AccessL10nKey.notificationsFieldTitle))
+                        text: notificationTitle
                     )
                     .textFieldStyle(.roundedBorder)
+                    .accessibilityLabel(Text(LocalizedStringKey(AccessL10nKey.notificationsFieldTitle)))
 
                     Text(LocalizedStringKey(AccessL10nKey.notificationsFieldBody))
                         .font(tokens.typography.label)
@@ -395,34 +403,55 @@ struct NotificationEditorRouteView: View {
                         .padding(tokens.spacing.sm)
                         .background(tokens.colors.surfaceSecondary)
                         .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
+                        .accessibilityLabel(Text(LocalizedStringKey(AccessL10nKey.notificationsFieldBody)))
 
+                    Text(LocalizedStringKey(AccessL10nKey.notificationsFieldAudience))
+                        .font(tokens.typography.label)
+                        .foregroundStyle(tokens.colors.textSecondary)
                     Picker(
-                        LocalizedStringKey(AccessL10nKey.notificationsFieldAudience),
+                        "",
                         selection: notificationAudience
                     ) {
                         ForEach(NotificationAudience.allCases, id: \.self) { audience in
                             Text(LocalizedStringKey(audience.titleKey)).tag(audience)
                         }
                     }
-
-                    reguertaButton(
-                        LocalizedStringKey(sendActionKey),
-                        isEnabled: !viewModel.isSendingNotification,
-                        isLoading: viewModel.isSendingNotification,
-                        action: sendNotification
-                    )
+                    .pickerStyle(.menu)
+                    .accessibilityLabel(Text(LocalizedStringKey(AccessL10nKey.notificationsFieldAudience)))
                 }
+                .padding(.bottom, ReguertaFloatingActionButtonLayout.scrollContentBottomPadding)
             }
-            .padding(.bottom, tokens.spacing.sm)
+
+            reguertaFloatingActionButton(
+                LocalizedStringKey(sendActionKey),
+                isEnabled: !viewModel.isSendingNotification,
+                action: sendNotification
+            )
+        }
+        .overlay {
+            if viewModel.isNotificationSendConfirmationPresented {
+                reguertaDialog(
+                    type: .info,
+                    title: l10n(AccessL10nKey.notificationsSendSuccessDialogTitle),
+                    message: l10n(AccessL10nKey.notificationsSendSuccessDialogMessage),
+                    primaryAction: ReguertaDialogAction(
+                        title: AccessL10nKey.commonActionClose,
+                        action: closeNotificationSendDialog
+                    )
+                )
+            }
         }
         .scrollDismissesKeyboard(.interactively)
     }
 
     private func sendNotification() {
         Task {
-            if await viewModel.sendNotification() {
-                onSendSuccess()
-            }
+            _ = await viewModel.sendNotification()
         }
+    }
+
+    private func closeNotificationSendDialog() {
+        viewModel.closeNotificationSendConfirmation()
+        onSendSuccess()
     }
 }
