@@ -256,35 +256,25 @@ struct NewsEditorRouteView: View {
 struct NotificationsListRouteView: View {
     let tokens: ReguertaDesignTokens
     let viewModel: NewsNotificationsFeatureViewModel
-    let notificationMetaText: (NotificationEvent) -> String
-    let onCreateNotification: () -> Void
+    let notificationDateText: (NotificationEvent) -> String
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
             LazyVStack(alignment: .leading, spacing: tokens.spacing.lg) {
-                NotificationsListHeaderCardView(
-                    tokens: tokens,
-                    isAdmin: viewModel.canSendAdminNotifications,
-                    onCreateNotification: createNotification,
-                    onRefreshNotifications: refreshNotifications
-                )
-
                 if viewModel.isLoadingNotifications {
-                    reguertaCard {
-                        Text(LocalizedStringKey(AccessL10nKey.notificationsLoading))
-                            .font(tokens.typography.bodySecondary)
-                    }
+                    Text(LocalizedStringKey(AccessL10nKey.notificationsLoading))
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
                 } else if viewModel.notificationsFeed.isEmpty {
-                    reguertaCard {
-                        Text(LocalizedStringKey(AccessL10nKey.notificationsEmptyState))
-                            .font(tokens.typography.bodySecondary)
-                    }
+                    Text(LocalizedStringKey(AccessL10nKey.notificationsEmptyState))
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.feedbackError)
                 } else {
-                    ForEach(viewModel.notificationsFeed) { notification in
-                        NotificationCardView(
+                    ForEach(viewModel.notificationListItems) { item in
+                        NotificationListItemView(
                             tokens: tokens,
-                            notification: notification,
-                            notificationMetaText: notificationMetaText
+                            item: item,
+                            dateText: notificationDateText(item.notification)
                         )
                     }
                 }
@@ -293,67 +283,48 @@ struct NotificationsListRouteView: View {
         }
         .scrollDismissesKeyboard(.interactively)
     }
-
-    private func createNotification() {
-        if viewModel.startCreatingNotification() {
-            onCreateNotification()
-        }
-    }
-
-    private func refreshNotifications() {
-        Task { await viewModel.refreshNotifications() }
-    }
 }
 
-private struct NotificationsListHeaderCardView: View {
+private struct NotificationListItemView: View {
     let tokens: ReguertaDesignTokens
-    let isAdmin: Bool
-    let onCreateNotification: () -> Void
-    let onRefreshNotifications: () -> Void
+    let item: NotificationListItem
+    let dateText: String
 
     var body: some View {
-        reguertaCard {
+        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+            Text(dateText)
+                .font(tokens.typography.label)
+                .foregroundStyle(tokens.colors.textSecondary)
+
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                Text(LocalizedStringKey(AccessL10nKey.notificationsListSubtitle))
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                if isAdmin {
-                    reguertaButton(
-                        LocalizedStringKey(AccessL10nKey.notificationsCreateAction),
-                        action: onCreateNotification
-                    )
+                HStack(alignment: .firstTextBaseline, spacing: tokens.spacing.sm) {
+                    Image(systemName: item.notification.iconSystemName)
+                        .foregroundStyle(tokens.colors.textPrimary)
+                        .accessibilityHidden(true)
+                    Text(item.notification.title)
+                        .font(tokens.typography.titleCard)
+                        .foregroundStyle(tokens.colors.textPrimary)
                 }
-                reguertaButton(
-                    LocalizedStringKey(AccessL10nKey.notificationsRefreshAction),
-                    variant: .text,
-                    action: onRefreshNotifications
-                )
-            }
-        }
-    }
-}
 
-private struct NotificationCardView: View {
-    let tokens: ReguertaDesignTokens
-    let notification: NotificationEvent
-    let notificationMetaText: (NotificationEvent) -> String
-
-    var body: some View {
-        reguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                Text(notification.title)
-                    .font(tokens.typography.titleCard)
-                Text(notificationMetaText(notification))
-                    .font(tokens.typography.label)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                Text(notification.body)
+                Text(item.notification.body)
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textPrimary)
-                Text(LocalizedStringKey(notification.audienceTitleKey))
-                    .font(tokens.typography.label)
-                    .foregroundStyle(tokens.colors.actionPrimary)
             }
+            .padding(tokens.spacing.lg)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(notificationBackgroundColor)
+            .overlay(
+                RoundedRectangle(cornerRadius: tokens.radius.md)
+                    .stroke(tokens.colors.borderSubtle.opacity(0.55), lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
+            .accessibilityElement(children: .combine)
         }
+    }
+
+    private var notificationBackgroundColor: Color {
+        (item.isRead ? tokens.colors.actionPrimary : tokens.colors.feedbackWarning)
+            .opacity(0.15)
     }
 }
 

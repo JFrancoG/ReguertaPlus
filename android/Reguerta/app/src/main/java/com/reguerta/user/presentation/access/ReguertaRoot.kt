@@ -1,6 +1,11 @@
 package com.reguerta.user.presentation.access
 
 import android.annotation.SuppressLint
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -90,8 +95,9 @@ fun ReguertaRoot(
 
     LaunchedEffect(viewModel) {
         viewModel.uiEvents.collect { event ->
-            if (event is SessionUiEvent.ShowMessage) {
-                snackbarHostState.showSnackbar(context.getString(event.messageRes))
+            when (event) {
+                is SessionUiEvent.ShowMessage -> snackbarHostState.showSnackbar(context.getString(event.messageRes))
+                SessionUiEvent.OpenPushNotificationSettings -> openNotificationSettings(context)
             }
         }
     }
@@ -194,7 +200,8 @@ fun ReguertaRoot(
                     latestNews = state.latestNews,
                     newsFeed = state.newsFeed,
                     newsDraft = state.newsDraft,
-                    notificationsFeed = state.notificationsFeed,
+                    notificationFeedItems = state.notificationFeedItems,
+                    hasUnreadNotifications = state.hasUnreadNotifications,
                     notificationDraft = state.notificationDraft,
                     productsFeed = state.productsFeed,
                     myOrderProductsFeed = state.myOrderProductsFeed,
@@ -219,6 +226,7 @@ fun ReguertaRoot(
                     isUploadingNewsImage = state.isUploadingNewsImage,
                     isLoadingNotifications = state.isLoadingNotifications,
                     isSendingNotification = state.isSendingNotification,
+                    showPushNotificationPermissionDialog = state.showPushNotificationPermissionDialog,
                     isLoadingProducts = state.isLoadingProducts,
                     isLoadingMyOrderProducts = state.isLoadingMyOrderProducts,
                     isSavingProduct = state.isSavingProduct,
@@ -249,6 +257,10 @@ fun ReguertaRoot(
                     onSaveMemberDraft = viewModel::saveMemberDraft,
                     onStartCreatingNews = viewModel::startCreatingNews,
                     onStartCreatingNotification = viewModel::startCreatingNotification,
+                    onPrepareNotificationsRoute = viewModel::prepareNotificationsRoute,
+                    onMarkVisibleNotificationsReadOnExit = viewModel::markVisibleNotificationsReadOnExit,
+                    onDismissPushNotificationPermissionDialog = viewModel::dismissPushNotificationPermissionDialog,
+                    onOpenPushNotificationSettings = viewModel::openPushNotificationSettings,
                     onStartCreatingProduct = viewModel::startCreatingProduct,
                     onStartEditingNews = viewModel::startEditingNews,
                     onStartEditingProduct = viewModel::startEditingProduct,
@@ -265,7 +277,6 @@ fun ReguertaRoot(
                     onDeleteNews = viewModel::deleteNews,
                     onArchiveProduct = viewModel::archiveProduct,
                     onRefreshNews = viewModel::refreshNews,
-                    onRefreshNotifications = viewModel::refreshNotifications,
                     onRefreshProducts = viewModel::refreshProducts,
                     onRefreshMyOrderProducts = viewModel::refreshMyOrderProducts,
                     onRefreshSharedProfiles = viewModel::refreshSharedProfiles,
@@ -431,4 +442,20 @@ fun ReguertaRoot(
             }
         }
     }
+}
+
+private fun openNotificationSettings(context: Context) {
+    val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+        }
+    } else {
+        Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.fromParts("package", context.packageName, null),
+        )
+    }.apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    context.startActivity(intent)
 }

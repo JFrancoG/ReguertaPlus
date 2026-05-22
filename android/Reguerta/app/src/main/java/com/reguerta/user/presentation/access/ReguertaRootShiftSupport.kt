@@ -16,6 +16,7 @@ import com.reguerta.user.domain.shifts.ShiftStatus
 import com.reguerta.user.domain.shifts.ShiftSwapRequestStatus
 import com.reguerta.user.domain.shifts.ShiftType
 import java.text.DateFormat
+import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -196,6 +197,9 @@ fun NotificationEvent.audienceLabelRes(): Int =
 
 fun Long.toLocalizedDateTime(): String =
     DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(java.util.Date(this))
+
+fun Long.toNotificationDateLabel(): String =
+    SimpleDateFormat("dd MMMM yyyy", Locale.getDefault()).format(java.util.Date(this))
 
 internal fun Long.toLocalizedDateOnly(): String =
     DateFormat.getDateInstance(DateFormat.MEDIUM).format(java.util.Date(this))

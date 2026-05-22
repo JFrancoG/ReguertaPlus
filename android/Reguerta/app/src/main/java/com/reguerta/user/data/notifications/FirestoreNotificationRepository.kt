@@ -22,6 +22,9 @@ class FirestoreNotificationRepository(
     private val notificationsCollectionPath: String
         get() = firestorePath.collectionPath(ReguertaFirestoreCollection.NOTIFICATION_EVENTS)
 
+    private fun notificationReadsCollectionPath(memberId: String): String =
+        "${firestorePath.documentPath(ReguertaFirestoreCollection.USERS, memberId)}/notificationReads"
+
     override suspend fun getAllNotifications(): List<NotificationEvent> = withContext(Dispatchers.IO) {
         runCatching {
             val snapshot = Tasks.await(
@@ -31,6 +34,43 @@ class FirestoreNotificationRepository(
                 .mapNotNull { it.toNotificationEvent() }
                 .sortedByDescending { it.sentAtMillis }
         }.getOrDefault(emptyList())
+    }
+
+    override suspend fun getReadNotificationIds(memberId: String): Set<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val snapshot = Tasks.await(
+                firestore.collection(notificationReadsCollectionPath(memberId)).get(),
+            )
+            snapshot.documents.map { it.id }.toSet()
+        }.getOrDefault(emptySet())
+    }
+
+    override suspend fun markNotificationsRead(
+        memberId: String,
+        notificationIds: Set<String>,
+        readAtMillis: Long,
+    ) = withContext(Dispatchers.IO) {
+        val normalizedIds = notificationIds.map(String::trim).filter(String::isNotBlank).toSet()
+        if (normalizedIds.isEmpty()) return@withContext
+
+        val batch = firestore.batch()
+        val readAt = Timestamp(
+            readAtMillis / 1_000,
+            ((readAtMillis % 1_000) * 1_000_000).toInt(),
+        )
+        val collection = firestore.collection(notificationReadsCollectionPath(memberId))
+        normalizedIds.forEach { notificationId ->
+            batch.set(
+                collection.document(notificationId),
+                mapOf(
+                    "notificationEventId" to notificationId,
+                    "readAt" to readAt,
+                ),
+                SetOptions.merge(),
+            )
+        }
+        runCatching { Tasks.await(batch.commit()) }
+        Unit
     }
 
     override suspend fun sendNotification(event: NotificationEvent): NotificationEvent = withContext(Dispatchers.IO) {

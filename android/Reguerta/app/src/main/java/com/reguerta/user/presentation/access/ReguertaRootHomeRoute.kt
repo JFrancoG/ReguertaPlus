@@ -42,12 +42,10 @@ import com.reguerta.user.R
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.canAccessReceivedOrders
 import com.reguerta.user.domain.access.canPublishNews
-import com.reguerta.user.domain.access.canSendAdminNotifications
 import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
 import com.reguerta.user.domain.calendar.DeliveryWeekday
 import com.reguerta.user.domain.commitments.SeasonalCommitment
 import com.reguerta.user.domain.news.NewsArticle
-import com.reguerta.user.domain.notifications.NotificationEvent
 import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.products.Product
 import com.reguerta.user.domain.shifts.ShiftAssignment
@@ -67,7 +65,8 @@ internal fun HomeRoute(
     latestNews: List<NewsArticle>,
     newsFeed: List<NewsArticle>,
     newsDraft: NewsDraft,
-    notificationsFeed: List<NotificationEvent>,
+    notificationFeedItems: List<NotificationFeedItem>,
+    hasUnreadNotifications: Boolean,
     notificationDraft: NotificationDraft,
     productsFeed: List<Product>,
     myOrderProductsFeed: List<Product>,
@@ -92,6 +91,7 @@ internal fun HomeRoute(
     isUploadingNewsImage: Boolean,
     isLoadingNotifications: Boolean,
     isSendingNotification: Boolean,
+    showPushNotificationPermissionDialog: Boolean,
     isLoadingProducts: Boolean,
     isLoadingMyOrderProducts: Boolean,
     isSavingProduct: Boolean,
@@ -122,6 +122,10 @@ internal fun HomeRoute(
     onSaveMemberDraft: (String?, onSuccess: (String) -> Unit) -> Unit,
     onStartCreatingNews: () -> Unit,
     onStartCreatingNotification: () -> Unit,
+    onPrepareNotificationsRoute: () -> Unit,
+    onMarkVisibleNotificationsReadOnExit: () -> Unit,
+    onDismissPushNotificationPermissionDialog: () -> Unit,
+    onOpenPushNotificationSettings: () -> Unit,
     onStartCreatingProduct: () -> Unit,
     onStartEditingNews: (String) -> Unit,
     onStartEditingProduct: (String) -> Unit,
@@ -138,7 +142,6 @@ internal fun HomeRoute(
     onDeleteNews: (String, () -> Unit) -> Unit,
     onArchiveProduct: (String, onSuccess: () -> Unit) -> Unit,
     onRefreshNews: () -> Unit,
-    onRefreshNotifications: () -> Unit,
     onRefreshProducts: () -> Unit,
     onRefreshMyOrderProducts: () -> Unit,
     onRefreshSharedProfiles: () -> Unit,
@@ -196,18 +199,24 @@ internal fun HomeRoute(
         isDrawerOpen = false
     }
 
-    fun handleDrawerNavigation(destination: HomeDestination) {
-        currentDestination = destination
+    fun navigateHome(destination: HomeDestination) {
+        val previousDestination = currentDestination
+        if (previousDestination == HomeDestination.NOTIFICATIONS && destination != HomeDestination.NOTIFICATIONS) {
+            onMarkVisibleNotificationsReadOnExit()
+        }
         if (destination != HomeDestination.MY_ORDER) {
             isMyOrderCartVisible = false
         } else {
             myOrderRouteEntryRequests += 1
             isMyOrderCartVisible = false
         }
+
+        currentDestination = destination
+
         if (destination == HomeDestination.NEWS) {
             onRefreshNews()
         } else if (destination == HomeDestination.NOTIFICATIONS) {
-            onRefreshNotifications()
+            onPrepareNotificationsRoute()
         } else if (destination == HomeDestination.MY_ORDER) {
             onRefreshMyOrderProducts()
         } else if (destination == HomeDestination.PRODUCTS) {
@@ -229,6 +238,10 @@ internal fun HomeRoute(
         } else if (destination == HomeDestination.SETTINGS) {
             onRefreshDeliveryCalendar()
         }
+    }
+
+    fun handleDrawerNavigation(destination: HomeDestination) {
+        navigateHome(destination)
         closeDrawer()
     }
 
@@ -303,7 +316,7 @@ internal fun HomeRoute(
                 title = homeShellTitle,
                 canNavigateBack = currentDestination != HomeDestination.DASHBOARD,
                 showsNotificationsAction = currentDestination == HomeDestination.DASHBOARD,
-                hasNotificationIndicator = notificationsFeed.isNotEmpty(),
+                hasNotificationIndicator = hasUnreadNotifications,
                 showsCartAction = showsMyOrderCartAction,
                 cartUnits = myOrderCartUnits,
                 onBack = {
@@ -318,19 +331,18 @@ internal fun HomeRoute(
                     } else if (currentDestination == HomeDestination.MY_ORDER) {
                         isMyOrderCartVisible = false
                     }
-                    currentDestination = when (currentDestination) {
+                    navigateHome(when (currentDestination) {
                         HomeDestination.PUBLISH_NEWS -> HomeDestination.NEWS
                         HomeDestination.ADMIN_BROADCAST -> HomeDestination.NOTIFICATIONS
                         HomeDestination.SHIFT_SWAP_REQUEST -> HomeDestination.SHIFTS
                         else -> HomeDestination.DASHBOARD
-                    }
+                    })
                 },
                 onOpenMenu = {
                     isDrawerOpen = true
                 },
                 onOpenNotifications = {
-                    currentDestination = HomeDestination.NOTIFICATIONS
-                    onRefreshNotifications()
+                    navigateHome(HomeDestination.NOTIFICATIONS)
                 },
                 onOpenCart = {
                     myOrderCartOpenRequests += 1
@@ -381,13 +393,10 @@ internal fun HomeRoute(
                                 weeklySummaryDisplay = weeklySummary,
                                 onRetryMyOrderFreshness = onRetryMyOrderFreshness,
                                 onOpenMyOrder = {
-                                    myOrderRouteEntryRequests += 1
-                                    isMyOrderCartVisible = false
-                                    currentDestination = HomeDestination.MY_ORDER
-                                    onRefreshMyOrderProducts()
+                                    navigateHome(HomeDestination.MY_ORDER)
                                 },
                                 onOpenReceivedOrders = {
-                                    currentDestination = HomeDestination.RECEIVED_ORDERS
+                                    navigateHome(HomeDestination.RECEIVED_ORDERS)
                                 },
                             )
                         }
@@ -408,8 +417,7 @@ internal fun HomeRoute(
                     LatestNewsCard(
                         news = latestNews,
                         onViewAll = {
-                            currentDestination = HomeDestination.NEWS
-                            onRefreshNews()
+                            navigateHome(HomeDestination.NEWS)
                         },
                     )
                     }
@@ -421,11 +429,11 @@ internal fun HomeRoute(
                     onRefresh = onRefreshNews,
                     onCreateNews = {
                         onStartCreatingNews()
-                        currentDestination = HomeDestination.PUBLISH_NEWS
+                        navigateHome(HomeDestination.PUBLISH_NEWS)
                     },
                     onEditNews = { newsId ->
                         onStartEditingNews(newsId)
-                        currentDestination = HomeDestination.PUBLISH_NEWS
+                        navigateHome(HomeDestination.PUBLISH_NEWS)
                     },
                     onRequestDeleteNews = { newsId ->
                         newsPendingDeletionId = newsId
@@ -442,24 +450,18 @@ internal fun HomeRoute(
                     onDraftChanged = onNewsDraftChanged,
                     onCancel = {
                         onClearNewsEditor()
-                        currentDestination = HomeDestination.NEWS
+                        navigateHome(HomeDestination.NEWS)
                     },
                     onSave = {
                         onSaveNews {
-                            currentDestination = HomeDestination.NEWS
+                            navigateHome(HomeDestination.NEWS)
                         }
                     },
                     )
 
                     HomeDestination.NOTIFICATIONS -> NotificationsFeedRoute(
-                    notifications = notificationsFeed,
+                    notificationItems = notificationFeedItems,
                     isLoading = isLoadingNotifications,
-                    isAdmin = member?.canSendAdminNotifications == true,
-                    onRefresh = onRefreshNotifications,
-                    onCreateNotification = {
-                        onStartCreatingNotification()
-                        currentDestination = HomeDestination.ADMIN_BROADCAST
-                    },
                     )
 
                     HomeDestination.ADMIN_BROADCAST -> NotificationEditorRoute(
@@ -468,11 +470,11 @@ internal fun HomeRoute(
                     onDraftChanged = onNotificationDraftChanged,
                     onCancel = {
                         onClearNotificationEditor()
-                        currentDestination = HomeDestination.NOTIFICATIONS
+                        navigateHome(HomeDestination.NOTIFICATIONS)
                     },
                     onSend = {
                         onSendNotification {
-                            currentDestination = HomeDestination.NOTIFICATIONS
+                            navigateHome(HomeDestination.NOTIFICATIONS)
                         }
                     },
                     )
@@ -516,7 +518,7 @@ internal fun HomeRoute(
                     onReadOnlyModeChange = { isReadOnly -> isMyOrderReadOnlyMode = isReadOnly },
                     onCartVisibilityChange = { isVisible -> isMyOrderCartVisible = isVisible },
                     onCheckoutSuccessAcknowledge = {
-                        currentDestination = HomeDestination.DASHBOARD
+                        navigateHome(HomeDestination.DASHBOARD)
                         isMyOrderCartVisible = false
                     },
                     )
@@ -544,10 +546,10 @@ internal fun HomeRoute(
                     onClearImage = onClearSharedProfileImage,
                     onRefresh = onRefreshSharedProfiles,
                     onSave = {
-                        onSaveSharedProfile { currentDestination = HomeDestination.PROFILE }
+                        onSaveSharedProfile { navigateHome(HomeDestination.PROFILE) }
                     },
                     onDelete = {
-                        onDeleteSharedProfile { currentDestination = HomeDestination.PROFILE }
+                        onDeleteSharedProfile { navigateHome(HomeDestination.PROFILE) }
                     },
                     )
 
@@ -565,7 +567,7 @@ internal fun HomeRoute(
                     onRefresh = onRefreshShifts,
                     onRequestShiftSwap = { shiftId ->
                         onStartCreatingShiftSwap(shiftId)
-                        currentDestination = HomeDestination.SHIFT_SWAP_REQUEST
+                        navigateHome(HomeDestination.SHIFT_SWAP_REQUEST)
                     },
                     onAcceptShiftSwapRequest = onAcceptShiftSwapRequest,
                     onRejectShiftSwapRequest = onRejectShiftSwapRequest,
@@ -583,11 +585,11 @@ internal fun HomeRoute(
                     onDraftChanged = onShiftSwapDraftChanged,
                     onCancel = {
                         onClearShiftSwapDraft()
-                        currentDestination = HomeDestination.SHIFTS
+                        navigateHome(HomeDestination.SHIFTS)
                     },
                     onSave = {
                         onSaveShiftSwapRequest {
-                            currentDestination = HomeDestination.SHIFTS
+                            navigateHome(HomeDestination.SHIFTS)
                         }
                     },
                     )
@@ -637,7 +639,7 @@ internal fun HomeRoute(
                     title = stringResource(currentDestination.titleRes()),
                     subtitle = stringResource(currentDestination.subtitleRes()),
                     onBackHome = {
-                        currentDestination = HomeDestination.DASHBOARD
+                        navigateHome(HomeDestination.DASHBOARD)
                     },
                     )
                 }
@@ -672,6 +674,23 @@ internal fun HomeRoute(
                 onClick = { newsPendingDeletionId = null },
             ),
             onDismissRequest = { newsPendingDeletionId = null },
+        )
+    }
+
+    if (showPushNotificationPermissionDialog && currentDestination == HomeDestination.NOTIFICATIONS) {
+        ReguertaDialog(
+            type = ReguertaDialogType.INFO,
+            title = stringResource(R.string.notifications_push_permission_dialog_title),
+            message = stringResource(R.string.notifications_push_permission_dialog_message),
+            primaryAction = ReguertaDialogAction(
+                label = stringResource(R.string.notifications_push_permission_dialog_settings),
+                onClick = onOpenPushNotificationSettings,
+            ),
+            secondaryAction = ReguertaDialogAction(
+                label = stringResource(R.string.common_action_close),
+                onClick = onDismissPushNotificationPermissionDialog,
+            ),
+            onDismissRequest = onDismissPushNotificationPermissionDialog,
         )
     }
 }

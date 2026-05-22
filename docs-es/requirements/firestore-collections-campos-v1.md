@@ -25,6 +25,7 @@ Definir de forma cerrada las colecciones Firestore y los campos de cada una para
   - `users/{userId}`: ID interno estable del socio (no tiene que coincidir con Firebase Auth UID).
   - `users.authUid`: Firebase Auth UID tras primer login autorizado (nullable antes de ese primer acceso).
   - `users/{userId}/devices/{deviceId}`: metadatos por dispositivo para notificaciones push y diagnostico.
+  - `users/{userId}/notificationReads/{eventId}`: marcas de lectura por usuario para notificaciones in-app.
   - `orders/{orderId}`: recomendado `order_{userId}_{weekKey}`.
   - `deliveryCalendar/{weekKey}`: ejemplo `2026-W10` (`weekKey` es el ID del documento).
 - Moneda/precios en MVP: `number` decimal (maximo 2 decimales operativos).
@@ -172,6 +173,13 @@ Subcoleccion `users/{userId}/devices/{deviceId}`:
 | `tokenUpdatedAt` | timestamp\|null | no | sistema | Ultima actualizacion del token FCM |
 | `firstSeenAt` | timestamp | si | sistema | Primera vez detectado |
 | `lastSeenAt` | timestamp | si | sistema | Ultima actividad detectada |
+
+Subcoleccion `users/{userId}/notificationReads/{eventId}`:
+
+| Campo | Tipo | Req | Editable | Notas |
+|---|---|---|---|---|
+| `notificationEventId` | string | si | no | Debe coincidir con docId y con `notificationEvents/{eventId}` cuando exista |
+| `readAt` | timestamp | si | sistema | Momento en que el usuario salio de la pantalla de notificaciones con el evento visible |
 
 ## 4.2 `sharedProfiles/{userId}`
 
@@ -382,6 +390,10 @@ Estrategia canonica de calendario:
 | `sentAt` | timestamp | si | sistema | |
 | `createdBy` | string | si | sistema/admin | `system` o `userId` autorizado |
 | `weekKey` | string | no | sistema | Solo cuando la notificacion aplique a una semana concreta |
+
+El estado de lectura por usuario se guarda fuera de los eventos inmutables en
+`users/{userId}/notificationReads/{eventId}`. Las apps marcan como leidas las
+notificaciones visibles al salir de la pantalla de notificaciones.
 
 Contrato de `targetPayload`:
 - Para `target == all`: mapa vacio o `null`.

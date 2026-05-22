@@ -46,6 +46,7 @@
     <string name="common_action_confirm">Confirm</string>
     <string name="common_action_accept">Accept</string>
     <string name="common_action_clear">Clear</string>
+    <string name="common_action_close">Close</string>
     <string name="common_action_show_password">Show password</string>
     <string name="common_action_hide_password">Hide password</string>
 
@@ -463,7 +464,7 @@
     <string name="news_save_action_create">Publish news</string>
     <string name="news_save_action_update">Save changes</string>
     <string name="news_save_action_saving">Saving…</string>
-    <string name="notifications_empty_state">There are no notifications to show yet.</string>
+    <string name="notifications_empty_state">You do not have any notifications yet.</string>
     <string name="notifications_list_subtitle">Read the latest notifications in reverse publication order.</string>
     <string name="notifications_refresh_action">Refresh notifications</string>
     <string name="notifications_loading">Loading notifications…</string>
@@ -481,6 +482,9 @@
     <string name="notifications_target_producers">Producers</string>
     <string name="notifications_target_admins">Admins</string>
     <string name="notifications_target_users">Selected users</string>
+    <string name="notifications_push_permission_dialog_title">Push notifications are not enabled</string>
+    <string name="notifications_push_permission_dialog_message">Turn on notifications to stay informed and receive alerts.</string>
+    <string name="notifications_push_permission_dialog_settings">Go to Settings</string>
     <string name="profile_shared_title">Shared profile</string>
     <string name="profile_shared_subtitle">Share a little about your family so the rest of the community can get to know you better.</string>
     <string name="profile_shared_family_names_label">Family names</string>

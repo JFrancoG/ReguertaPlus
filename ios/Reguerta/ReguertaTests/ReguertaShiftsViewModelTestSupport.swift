@@ -129,6 +129,12 @@ actor RecordingNotificationRepository: NotificationRepository {
         events
     }
 
+    func readNotificationIds(memberId _: String) async -> Set<String> {
+        []
+    }
+
+    func markNotificationsRead(memberId _: String, notificationIds _: [String], readAtMillis _: Int64) async {}
+
     func send(event: NotificationEvent) async -> NotificationEvent {
         events.append(event)
         return event

@@ -42,6 +42,11 @@ data class NotificationDraft(
     val audience: NotificationAudience = NotificationAudience.ALL,
 )
 
+data class NotificationFeedItem(
+    val notification: NotificationEvent,
+    val isRead: Boolean,
+)
+
 data class SharedProfileDraft(
     val familyNames: String = "",
     val photoUrl: String = "",
@@ -136,6 +141,7 @@ data class SessionUiState(
     val newsFeed: List<NewsArticle> = emptyList(),
     val newsDraft: NewsDraft = NewsDraft(),
     val notificationsFeed: List<NotificationEvent> = emptyList(),
+    val readNotificationIds: Set<String> = emptySet(),
     val notificationDraft: NotificationDraft = NotificationDraft(),
     val productsFeed: List<Product> = emptyList(),
     val myOrderProductsFeed: List<Product> = emptyList(),
@@ -160,6 +166,8 @@ data class SessionUiState(
     val isUploadingNewsImage: Boolean = false,
     val isLoadingNotifications: Boolean = false,
     val isSendingNotification: Boolean = false,
+    val isPushNotificationPermissionActive: Boolean = true,
+    val showPushNotificationPermissionDialog: Boolean = false,
     val isLoadingProducts: Boolean = false,
     val isLoadingMyOrderProducts: Boolean = false,
     val isSavingProduct: Boolean = false,
@@ -177,10 +185,22 @@ data class SessionUiState(
     val isUpdatingShiftSwapRequest: Boolean = false,
     val isAskingBylaws: Boolean = false,
     val nowOverrideMillis: Long? = null,
-)
+) {
+    val notificationFeedItems: List<NotificationFeedItem>
+        get() = notificationsFeed.map { notification ->
+            NotificationFeedItem(
+                notification = notification,
+                isRead = readNotificationIds.contains(notification.id),
+            )
+        }
+
+    val hasUnreadNotifications: Boolean
+        get() = notificationsFeed.any { notification -> !readNotificationIds.contains(notification.id) }
+}
 
 sealed interface SessionUiEvent {
     data class ShowMessage(@param:StringRes val messageRes: Int) : SessionUiEvent
+    data object OpenPushNotificationSettings : SessionUiEvent
 }
 
 sealed interface MyOrderFreshnessUiState {

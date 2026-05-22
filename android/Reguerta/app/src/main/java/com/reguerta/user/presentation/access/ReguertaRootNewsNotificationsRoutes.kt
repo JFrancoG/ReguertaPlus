@@ -11,8 +11,16 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Article
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -24,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.reguerta.user.R
 import com.reguerta.user.domain.news.NewsArticle
@@ -31,6 +40,7 @@ import com.reguerta.user.domain.notifications.NotificationAudience
 import com.reguerta.user.domain.notifications.NotificationEvent
 import com.reguerta.user.ui.components.auth.ReguertaFlatButton
 import com.reguerta.user.ui.components.auth.ReguertaFullButton
+import com.reguerta.user.ui.theme.ColorFeedbackWarningDefault
 
 @Composable
 fun NewsFeedRoute(
@@ -239,95 +249,91 @@ fun NewsEditorRoute(
 
 @Composable
 fun NotificationsFeedRoute(
-    notifications: List<NotificationEvent>,
+    notificationItems: List<NotificationFeedItem>,
     isLoading: Boolean,
-    isAdmin: Boolean,
-    onRefresh: () -> Unit,
-    onCreateNotification: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Card {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.home_shell_notifications),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = stringResource(R.string.notifications_list_subtitle),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                if (isAdmin) {
-                    ReguertaFullButton(
-                        label = stringResource(R.string.notifications_create_action),
-                        onClick = onCreateNotification,
-                        fullWidth = true,
-                    )
-                }
-                ReguertaFlatButton(
-                    label = stringResource(R.string.notifications_refresh_action),
-                    onClick = onRefresh,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        }
-
         if (isLoading) {
-            Card {
-                Text(
-                    text = stringResource(R.string.notifications_loading),
-                    modifier = Modifier.padding(16.dp),
-                )
-            }
-        } else if (notifications.isEmpty()) {
-            Card {
-                Text(
-                    text = stringResource(R.string.notifications_empty_state),
-                    modifier = Modifier.padding(16.dp),
-                )
-            }
+            Text(
+                text = stringResource(R.string.notifications_loading),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else if (notificationItems.isEmpty()) {
+            Text(
+                text = stringResource(R.string.notifications_empty_state),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
         } else {
-            notifications.forEach { event ->
-                Card {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(
-                            text = event.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = stringResource(
-                                R.string.notifications_meta_format,
-                                event.sentAtMillis.toLocalizedDateTime(),
-                            ),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            text = event.body,
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        Text(
-                            text = stringResource(event.audienceLabelRes()),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                }
+            notificationItems.forEach { item ->
+                NotificationFeedItemCard(item = item)
             }
         }
     }
 }
+
+@Composable
+private fun NotificationFeedItemCard(item: NotificationFeedItem) {
+    val event = item.notification
+    val containerColor = if (item.isRead) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+    } else {
+        ColorFeedbackWarningDefault.copy(alpha = 0.15f)
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = event.sentAtMillis.toNotificationDateLabel(),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = containerColor),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = event.notificationIcon(),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = event.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+                Text(
+                    text = event.body,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+        }
+    }
+}
+
+private fun NotificationEvent.notificationIcon(): ImageVector =
+    when (type) {
+        "order_reminder", "order_auto_generated" -> Icons.Filled.ShoppingCart
+        "shift_swap_requested", "shift_swap_accepted", "shift_swap_applied" -> Icons.Filled.SwapHoriz
+        "shift_updated" -> Icons.Filled.CalendarToday
+        "news_published" -> Icons.AutoMirrored.Filled.Article
+        "admin_broadcast" -> Icons.Filled.Campaign
+        else -> Icons.Filled.Notifications
+    }
 
 @Composable
 fun NotificationEditorRoute(

@@ -2,9 +2,18 @@ import Foundation
 
 actor InMemoryNotificationRepository: NotificationRepository {
     private var notifications: [String: NotificationEvent]
+    private var readNotificationIdsByMember: [String: Set<String>]
 
     init(items: [NotificationEvent]? = nil) {
+        self.init(items: items, readNotificationIdsByMember: [:])
+    }
+
+    init(
+        items: [NotificationEvent]? = nil,
+        readNotificationIdsByMember: [String: Set<String>]
+    ) {
         self.notifications = Dictionary(uniqueKeysWithValues: (items ?? Self.seedNotifications).map { ($0.id, $0) })
+        self.readNotificationIdsByMember = readNotificationIdsByMember
     }
 
     private static let seedNotifications: [NotificationEvent] = [
@@ -43,6 +52,17 @@ actor InMemoryNotificationRepository: NotificationRepository {
             localized.append(await localizedSeedNotification(event))
         }
         return localized.sorted { $0.sentAtMillis > $1.sentAtMillis }
+    }
+
+    func readNotificationIds(memberId: String) async -> Set<String> {
+        readNotificationIdsByMember[memberId] ?? []
+    }
+
+    func markNotificationsRead(memberId: String, notificationIds: [String], readAtMillis _: Int64) async {
+        guard !notificationIds.isEmpty else { return }
+        var readIds = readNotificationIdsByMember[memberId] ?? []
+        readIds.formUnion(notificationIds)
+        readNotificationIdsByMember[memberId] = readIds
     }
 
     func send(event: NotificationEvent) async -> NotificationEvent {

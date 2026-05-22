@@ -67,6 +67,17 @@ extension NewsNotificationsFeatureViewModel {
         isSendingNotification = false
     }
 
+    func dismissPushNotificationPermissionDialog() {
+        showsPushNotificationPermissionDialog = false
+        didDismissPushNotificationPermissionDialogForVisit = true
+    }
+
+    func openPushNotificationSettings() {
+        showsPushNotificationPermissionDialog = false
+        didDismissPushNotificationPermissionDialogForVisit = true
+        pushNotificationPermissionProvider.openSettings()
+    }
+
     func requestNewsDeletion(newsId: String) {
         pendingNewsDeletionId = newsId
     }
@@ -170,8 +181,10 @@ extension NewsNotificationsFeatureViewModel {
             )
         )
         let allNotifications = await notificationRepository.allNotifications()
+        let readIds = await notificationRepository.readNotificationIds(memberId: session.member.id)
         guard isCurrentSession(session) else { return false }
         notificationsFeed = allNotifications.filter { $0.isVisible(to: session.member) }
+        readNotificationIds = readIds
         notificationDraft = NotificationDraft()
         feedbackCenter.show(AccessL10nKey.feedbackNotificationSent)
         return true

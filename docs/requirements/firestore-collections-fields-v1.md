@@ -22,6 +22,7 @@ Define collections and fields as a closed contract so Android, iOS, and backend 
   - `users/{userId}` -> internal stable member ID (not required to match Firebase Auth UID)
   - `users.authUid` -> Firebase Auth UID after first authorized login (nullable before first login)
   - `users/{userId}/devices/{deviceId}` -> per-device metadata for push delivery and diagnostics
+  - `users/{userId}/notificationReads/{eventId}` -> per-user read markers for in-app notifications
   - `orders/{orderId}` -> recommended `order_{userId}_{weekKey}`
   - `deliveryCalendar/{weekKey}` -> e.g. `2026-W10` (`weekKey` is document ID)
 - Logical delete for historical entities (`archived`, `archivedAt`).
@@ -88,6 +89,10 @@ Subcollection `users/{userId}/devices/{deviceId}`:
 - `tokenUpdatedAt`: timestamp|null (last refresh time for `fcmToken`)
 - `firstSeenAt`: timestamp (required)
 - `lastSeenAt`: timestamp (required)
+
+Subcollection `users/{userId}/notificationReads/{eventId}`:
+- `notificationEventId`: string (required, should match document ID and an existing `notificationEvents/{eventId}` when available)
+- `readAt`: timestamp (required)
 
 ### 4.2 `sharedProfiles/{userId}`
 
@@ -268,6 +273,10 @@ Delivery calendar strategy (canonical):
 - `sentAt`: timestamp (required)
 - `createdBy`: string (required, `system` or authorized `userId`)
 - `weekKey`: string (optional, only when the notification applies to a specific week)
+
+Per-user read state is stored outside immutable events in
+`users/{userId}/notificationReads/{eventId}`. Clients mark visible
+notifications as read when the user leaves the notifications screen.
 
 `targetPayload` contract:
 - For `target == all`: empty map or null.

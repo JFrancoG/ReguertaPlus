@@ -129,14 +129,8 @@ extension AccessRootRoutingView {
         return NotificationsListRouteView(
             tokens: tokens,
             viewModel: newsNotificationsViewModel,
-            notificationMetaText: { notification in
-                l10n(
-                    AccessL10nKey.notificationsMetaFormat,
-                    localizedDateTime(notification.sentAtMillis)
-                )
-            },
-            onCreateNotification: {
-                homeDestination = .adminBroadcast
+            notificationDateText: { notification in
+                localizedNotificationDate(notification.sentAtMillis)
             }
         )
     }

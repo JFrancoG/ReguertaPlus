@@ -17,6 +17,12 @@ final class FirestoreNotificationRepository: @unchecked Sendable, NotificationRe
         db.reguertaCollection(.notificationEvents, environment: environment)
     }
 
+    private func notificationReadsCollection(memberId: String) -> CollectionReference {
+        db.reguertaCollection(.users, environment: environment)
+            .document(memberId)
+            .collection("notificationReads")
+    }
+
     func allNotifications() async -> [NotificationEvent] {
         do {
             let snapshot = try await notificationsCollection.getDocuments()
@@ -26,6 +32,37 @@ final class FirestoreNotificationRepository: @unchecked Sendable, NotificationRe
         } catch {
             return []
         }
+    }
+
+    func readNotificationIds(memberId: String) async -> Set<String> {
+        do {
+            let snapshot = try await notificationReadsCollection(memberId: memberId).getDocuments()
+            return Set(snapshot.documents.map(\.documentID))
+        } catch {
+            return []
+        }
+    }
+
+    func markNotificationsRead(memberId: String, notificationIds: [String], readAtMillis: Int64) async {
+        let normalizedIds = Set(notificationIds.map {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines)
+        }.filter { !$0.isEmpty })
+        guard !normalizedIds.isEmpty else { return }
+
+        let batch = db.batch()
+        let readAt = Timestamp(date: Date(timeIntervalSince1970: TimeInterval(readAtMillis) / 1_000))
+        let collection = notificationReadsCollection(memberId: memberId)
+        for notificationId in normalizedIds {
+            batch.setData(
+                [
+                    "notificationEventId": notificationId,
+                    "readAt": readAt
+                ],
+                forDocument: collection.document(notificationId),
+                merge: true
+            )
+        }
+        try? await batch.commit()
     }
 
     func send(event: NotificationEvent) async -> NotificationEvent {
