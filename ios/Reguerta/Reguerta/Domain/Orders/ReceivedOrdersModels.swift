@@ -34,10 +34,36 @@ struct ReceivedOrderLineRecord: Identifiable, Equatable, Sendable {
     let quantity: Double
     let quantityUnitSingular: String
     let quantityUnitPlural: String
+    let measureQuantityPerUnit: Double
+    let measureUnitSingular: String
+    let measureUnitPlural: String
+    let measureUnitAbbreviation: String?
+    let isWeightPricing: Bool
     let subtotal: Double
 
     var dedupKey: String {
         "\(orderId)|\(consumerId)|\(productId)"
+    }
+
+    var totalMeasureQuantity: Double {
+        guard isWeightPricing else {
+            return quantity * measureQuantityPerUnit
+        }
+        return weightQuantityRepresentsMeasure ? quantity : quantity * measureQuantityPerUnit
+    }
+
+    var orderedQuantity: Double {
+        guard isWeightPricing, measureQuantityPerUnit > 0 else {
+            return quantity
+        }
+        return weightQuantityRepresentsMeasure ? quantity / measureQuantityPerUnit : quantity
+    }
+
+    private var weightQuantityRepresentsMeasure: Bool {
+        guard isWeightPricing, measureQuantityPerUnit > 0 else {
+            return true
+        }
+        return quantity >= measureQuantityPerUnit
     }
 }
 
@@ -50,11 +76,26 @@ struct ReceivedOrdersProductRow: Identifiable, Equatable, Sendable {
     let totalQuantity: Double
     let quantityUnitSingular: String
     let quantityUnitPlural: String
+    let totalMeasureQuantity: Double
+    let measureUnitSingular: String
+    let measureUnitPlural: String
+    let measureUnitAbbreviation: String?
+    let subtotal: Double
 
     var id: String { productId }
 
     func quantityUnitLabel() -> String {
         receivedOrdersIsApproximatelyOne(totalQuantity) ? quantityUnitSingular : quantityUnitPlural
+    }
+
+    func totalMeasureLabel() -> String {
+        receivedOrdersMeasureLabel(
+            quantity: totalMeasureQuantity,
+            singular: measureUnitSingular,
+            plural: measureUnitPlural,
+            abbreviation: measureUnitAbbreviation,
+            prefersAbbreviation: true
+        )
     }
 }
 
@@ -65,10 +106,24 @@ struct ReceivedOrdersMemberLine: Identifiable, Equatable, Sendable {
     let quantity: Double
     let quantityUnitSingular: String
     let quantityUnitPlural: String
+    let totalMeasureQuantity: Double
+    let measureUnitSingular: String
+    let measureUnitPlural: String
+    let measureUnitAbbreviation: String?
     let subtotal: Double
 
     func quantityUnitLabel() -> String {
         receivedOrdersIsApproximatelyOne(quantity) ? quantityUnitSingular : quantityUnitPlural
+    }
+
+    func totalMeasureLabel() -> String {
+        receivedOrdersMeasureLabel(
+            quantity: totalMeasureQuantity,
+            singular: measureUnitSingular,
+            plural: measureUnitPlural,
+            abbreviation: measureUnitAbbreviation,
+            prefersAbbreviation: true
+        )
     }
 }
 
@@ -89,6 +144,23 @@ struct ReceivedOrdersSnapshot: Equatable, Sendable {
 
 func receivedOrdersIsApproximatelyOne(_ value: Double) -> Bool {
     abs(value - 1) < 0.000_1
+}
+
+func receivedOrdersMeasureLabel(
+    quantity: Double,
+    singular: String,
+    plural: String,
+    abbreviation: String?,
+    prefersAbbreviation: Bool
+) -> String {
+    let quantityText = quantity.myOrderUiDecimal
+    let numberAwareUnit = receivedOrdersIsApproximatelyOne(quantity) ? singular : plural
+    let unit = prefersAbbreviation
+        ? (abbreviation?.isNotEmpty == true ? abbreviation! : numberAwareUnit)
+        : numberAwareUnit
+    return [quantityText, unit]
+        .filter(\.isNotEmpty)
+        .joined(separator: " ")
 }
 
 extension ReceivedOrdersSnapshot {

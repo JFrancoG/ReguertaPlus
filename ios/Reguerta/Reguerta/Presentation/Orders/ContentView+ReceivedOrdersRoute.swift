@@ -39,29 +39,26 @@ struct ReceivedOrdersRouteView: View {
 
     @ViewBuilder
     private var tabSelector: some View {
-        HStack(spacing: tokens.spacing.xs) {
-            ForEach(ReceivedOrdersTab.allCases) { tab in
-                Button {
-                    viewModel.selectTab(tab)
-                } label: {
-                    Text(tab.title)
-                        .font(tokens.typography.bodySecondary.weight(.semibold))
-                        .foregroundStyle(tokens.colors.textPrimary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, tokens.spacing.sm)
-                        .background(
-                            viewModel.selectedTab == tab ?
-                            tokens.colors.surfacePrimary :
-                                Color.clear
-                        )
-                        .clipShape(Capsule())
+        Picker(
+            "Pedidos recibidos",
+            selection: Binding(
+                get: { viewModel.selectedTab },
+                set: { tab in
+                    withAnimation(.snappy(duration: 0.22)) {
+                        viewModel.selectTab(tab)
+                    }
                 }
-                .buttonStyle(.plain)
+            )
+        ) {
+            ForEach(ReceivedOrdersTab.allCases) { tab in
+                Text(tab.title)
+                    .font(tokens.typography.label.weight(.semibold))
+                    .tag(tab)
             }
         }
-        .padding(tokens.spacing.xs)
-        .background(tokens.colors.surfaceSecondary.opacity(0.72))
-        .clipShape(Capsule())
+        .pickerStyle(.segmented)
+        .tint(tokens.colors.actionPrimary)
+        .accessibilityIdentifier("receivedOrders.tabSelector")
     }
 
     @ViewBuilder
@@ -112,13 +109,17 @@ struct ReceivedOrdersRouteView: View {
 private extension ReceivedOrdersRouteView {
     @ViewBuilder
     func loadedContent(_ snapshot: ReceivedOrdersSnapshot) -> some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            LazyVStack(alignment: .leading, spacing: tokens.spacing.md) {
-                if viewModel.selectedTab == .byProduct {
-                    ForEach(snapshot.byProductRows) { row in
-                        productCard(row)
-                    }
-                } else {
+        switch viewModel.selectedTab {
+        case .byProduct:
+            receivedOrdersList(bottomPadding: tokens.spacing.sm) {
+                ForEach(snapshot.byProductRows) { row in
+                    productCard(row)
+                }
+            }
+
+        case .byMember:
+            ZStack(alignment: .bottom) {
+                receivedOrdersList(bottomPadding: totalBarScrollBottomPadding) {
                     ForEach(snapshot.byMemberGroups) { group in
                         memberCard(
                             group,
@@ -131,44 +132,102 @@ private extension ReceivedOrdersRouteView {
                         )
                     }
                 }
+
+                totalBar(total: snapshot.generalTotal)
+                    .accessibilityIdentifier("receivedOrders.totalBar")
             }
-            .padding(.bottom, tokens.spacing.sm)
         }
-        .safeAreaInset(edge: .bottom, spacing: tokens.spacing.xs) {
-            totalBar(total: snapshot.generalTotal)
-                .padding(.bottom, tokens.spacing.sm)
-                .background(tokens.colors.surfacePrimary)
-                .accessibilityIdentifier("receivedOrders.totalBar")
+    }
+
+    func receivedOrdersList<Content: View>(
+        bottomPadding: CGFloat,
+        @ViewBuilder content: @escaping () -> Content
+    ) -> some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            LazyVStack(spacing: tokens.spacing.md) {
+                content()
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, bottomPadding)
         }
+        .ignoresSafeArea(.container, edges: .bottom)
+    }
+
+    var totalBarScrollBottomPadding: CGFloat {
+        72.resize + 8.resizeBottomSize
+    }
+
+    var receivedOrdersProductNameFont: Font {
+        .custom("CabinSketch-Bold", size: 16.resize, relativeTo: .subheadline)
+    }
+
+    var receivedOrdersSmallDetailFont: Font {
+        .custom("CabinSketch-Regular", size: 11.resize, relativeTo: .caption)
+    }
+
+    var receivedOrdersProductQuantityFont: Font {
+        .custom("CabinSketch-Bold", size: 28.resize, relativeTo: .title2)
+    }
+
+    var receivedOrdersParentheticalFont: Font {
+        .custom("CabinSketch-Regular", size: 12.resize, relativeTo: .caption)
+    }
+
+    var receivedOrdersMemberAmountFont: Font {
+        .custom("CabinSketch-Bold", size: 18.resize, relativeTo: .body)
+    }
+
+    var receivedOrdersMemberTotalFont: Font {
+        .custom("CabinSketch-Bold", size: 20.resize, relativeTo: .headline)
+    }
+
+    var receivedOrdersGeneralTotalFont: Font {
+        .custom("CabinSketch-Bold", size: 22.resize, relativeTo: .headline)
     }
 
     @ViewBuilder
     func productCard(_ row: ReceivedOrdersProductRow) -> some View {
-        reguertaCard {
-            HStack(alignment: .center, spacing: tokens.spacing.md) {
+        reguertaListItemCard {
+            HStack(alignment: .center, spacing: 0) {
                 receivedOrdersProductImage(urlString: row.productImageUrl)
+                    .frame(width: 76.resize)
 
-                VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+                verticalDivider(height: 72.resize)
+
+                VStack(alignment: .center, spacing: 4.resize) {
                     Text(row.productName)
-                        .font(tokens.typography.titleCard.weight(.semibold))
+                        .font(receivedOrdersProductNameFont)
                         .foregroundStyle(tokens.colors.actionPrimary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
                     Text(row.packagingLine)
-                        .font(tokens.typography.bodySecondary)
+                        .font(receivedOrdersSmallDetailFont)
                         .foregroundStyle(tokens.colors.textSecondary)
+                        .multilineTextAlignment(.center)
                         .lineLimit(2)
                 }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, tokens.spacing.sm)
 
-                Spacer(minLength: 0)
+                verticalDivider(height: 72.resize)
 
-                VStack(alignment: .trailing, spacing: tokens.spacing.xs) {
+                VStack(alignment: .center, spacing: 4.resize) {
                     Text(row.totalQuantity.myOrderUiDecimal)
-                        .font(tokens.typography.titleCard.weight(.bold))
+                        .font(receivedOrdersProductQuantityFont)
                         .foregroundStyle(tokens.colors.textPrimary)
-                    Text(row.quantityUnitLabel())
-                        .font(tokens.typography.bodySecondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+                    Text(row.totalMeasureLabel())
+                        .font(receivedOrdersSmallDetailFont)
                         .foregroundStyle(tokens.colors.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.78)
                 }
+                .frame(width: 88.resize)
             }
+            .padding(.vertical, tokens.spacing.sm)
+            .padding(.horizontal, tokens.spacing.sm)
         }
     }
 
@@ -178,53 +237,41 @@ private extension ReceivedOrdersRouteView {
         isUpdatingStatus: Bool,
         onSelectStatus: @escaping (ProducerOrderStatus) -> Void
     ) -> some View {
-        let style = group.producerStatus.visualStyle
-        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-            HStack(spacing: tokens.spacing.sm) {
-                Text(group.consumerDisplayName)
-                    .font(tokens.typography.titleCard.weight(.semibold))
-                    .foregroundStyle(tokens.colors.actionPrimary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                Text(group.producerStatus.title)
-                    .font(tokens.typography.label.weight(.semibold))
-                    .foregroundStyle(tokens.colors.textSecondary)
+        reguertaListItemCard {
+            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                HStack(alignment: .firstTextBaseline, spacing: tokens.spacing.sm) {
+                    Text(group.consumerDisplayName)
+                        .font(tokens.typography.body.weight(.semibold))
+                        .foregroundStyle(tokens.colors.actionPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+
+                    producerStatusHeaderButton(
+                        selectedStatus: group.producerStatus,
+                        isUpdatingStatus: isUpdatingStatus,
+                        onSelectStatus: onSelectStatus
+                    )
+                }
+
+                horizontalDivider()
+
+                memberLinesSection(group)
             }
-
-            producerStatusSelector(
-                selectedStatus: group.producerStatus,
-                isUpdatingStatus: isUpdatingStatus,
-                onSelectStatus: onSelectStatus
-            )
-
-            memberLinesSection(group)
+            .padding(tokens.spacing.md)
         }
-        .padding(tokens.spacing.lg)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(style.container)
-        .overlay(
-            RoundedRectangle(cornerRadius: tokens.radius.md)
-                .stroke(style.border, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
     }
 
     @ViewBuilder
     func memberLinesSection(_ group: ReceivedOrdersMemberGroup) -> some View {
         VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-            ForEach(group.lines.indices, id: \.self) { index in
-                let line = group.lines[index]
+            ForEach(Array(group.lines.enumerated()), id: \.element.id) { _, line in
                 memberLineRow(line)
-                if index < group.lines.count - 1 {
-                    Divider()
-                        .overlay(tokens.colors.borderSubtle.opacity(0.6))
-                }
+                horizontalDivider(opacity: 0.6)
             }
 
-            Divider()
-                .overlay(tokens.colors.borderSubtle.opacity(0.8))
-
             Text("Total: \(group.total.euroCurrencyText())")
-                .font(tokens.typography.titleCard.weight(.semibold))
+                .font(receivedOrdersMemberTotalFont)
                 .foregroundStyle(tokens.colors.feedbackError)
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
@@ -232,86 +279,110 @@ private extension ReceivedOrdersRouteView {
 
     @ViewBuilder
     func memberLineRow(_ line: ReceivedOrdersMemberLine) -> some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-            HStack(alignment: .top, spacing: tokens.spacing.md) {
-                VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                    Text(line.productName)
-                        .font(tokens.typography.body.weight(.semibold))
-                        .foregroundStyle(tokens.colors.textPrimary)
-                    Text(line.packagingLine)
-                        .font(tokens.typography.bodySecondary)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                }
-                Spacer(minLength: 0)
-                VStack(alignment: .trailing, spacing: tokens.spacing.xs) {
-                    Text(line.quantity.myOrderUiDecimal)
-                        .font(tokens.typography.body.weight(.semibold))
-                        .foregroundStyle(tokens.colors.textPrimary)
-                    Text(line.quantityUnitLabel())
-                        .font(tokens.typography.bodySecondary)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                    Text(line.subtotal.euroCurrencyText())
-                        .font(tokens.typography.body.weight(.semibold))
-                        .foregroundStyle(tokens.colors.textPrimary)
-                }
+        HStack(alignment: .center, spacing: tokens.spacing.sm) {
+            VStack(alignment: .leading, spacing: 4.resize) {
+                Text(line.productName)
+                    .font(tokens.typography.bodySecondary.weight(.semibold))
+                    .foregroundStyle(tokens.colors.textPrimary)
+                    .lineLimit(2)
+                Text(line.packagingLine)
+                    .font(tokens.typography.labelRegular)
+                    .foregroundStyle(tokens.colors.textSecondary)
+                    .lineLimit(2)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            verticalDivider(height: 50.resize)
+
+            VStack(alignment: .center, spacing: 4.resize) {
+                HStack(alignment: .firstTextBaseline, spacing: 3.resize) {
+                    Text(line.quantity.myOrderUiDecimal)
+                        .font(receivedOrdersMemberAmountFont)
+                        .foregroundStyle(tokens.colors.textPrimary)
+                    Text("(\(line.totalMeasureLabel()))")
+                        .font(receivedOrdersParentheticalFont)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+                Text(line.subtotal.euroCurrencyText())
+                    .font(receivedOrdersMemberAmountFont)
+                    .foregroundStyle(tokens.colors.textPrimary)
+            }
+            .frame(width: 112.resize)
         }
     }
 
-    @ViewBuilder
-    func producerStatusSelector(
+    func producerStatusHeaderButton(
         selectedStatus: ProducerOrderStatus,
         isUpdatingStatus: Bool,
         onSelectStatus: @escaping (ProducerOrderStatus) -> Void
     ) -> some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-            Text("Estado productor")
-                .font(tokens.typography.bodySecondary.weight(.semibold))
-                .foregroundStyle(tokens.colors.textSecondary)
-            Text(selectedStatus.title)
-                .font(tokens.typography.body.weight(.semibold))
+        let style = selectedStatus.visualStyle
+        let targetStatus = nextProducerStatus(after: selectedStatus)
+        let shape = RoundedRectangle(cornerRadius: tokens.radius.sm, style: .continuous)
+
+        return Button {
+            if let targetStatus {
+                onSelectStatus(targetStatus)
+            }
+        } label: {
+            Text(isUpdatingStatus ? "Guardando..." : selectedStatus.title)
+                .font(tokens.typography.labelRegular.weight(.semibold))
                 .foregroundStyle(tokens.colors.textPrimary)
-            if selectedStatus != .delivered {
-                let isPrepared = selectedStatus == .prepared
-                let targetStatus: ProducerOrderStatus = isPrepared ? .read : .prepared
-                Button {
-                    onSelectStatus(targetStatus)
-                } label: {
-                    Text(isPrepared ? "Marcar pendiente" : "Marcar preparado")
-                        .font(tokens.typography.bodySecondary.weight(.semibold))
-                        .foregroundStyle(tokens.colors.textPrimary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, tokens.spacing.xs)
-                        .background(tokens.colors.actionPrimary.opacity(0.14))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: tokens.radius.sm)
-                                .stroke(tokens.colors.actionPrimary, lineWidth: 1)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
-                }
-                .buttonStyle(.plain)
-                .disabled(isUpdatingStatus)
-            }
-            if isUpdatingStatus {
-                Text("Guardando estado…")
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-            }
+                .lineLimit(1)
+                .padding(.horizontal, tokens.spacing.sm)
+                .padding(.vertical, 6.resize)
+                .background(shape.fill(style.container))
+                .overlay(shape.stroke(style.border, lineWidth: 1.resize))
         }
+        .buttonStyle(.plain)
+        .disabled(targetStatus == nil || isUpdatingStatus)
+    }
+
+    func nextProducerStatus(after status: ProducerOrderStatus) -> ProducerOrderStatus? {
+        switch status {
+        case .unread, .read:
+            return .prepared
+        case .prepared:
+            return .read
+        case .delivered:
+            return nil
+        }
+    }
+
+    func horizontalDivider(opacity: Double = 0.8) -> some View {
+        Divider()
+            .overlay(tokens.colors.borderSubtle.opacity(opacity))
+    }
+
+    func verticalDivider(height: CGFloat) -> some View {
+        Rectangle()
+            .fill(tokens.colors.borderSubtle.opacity(0.55))
+            .frame(width: 1.resize, height: height)
     }
 
     @ViewBuilder
     func totalBar(total: Double) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 8.resize, style: .continuous)
+
         HStack {
             Text("Suma total general: \(total.euroCurrencyText())")
-                .font(tokens.typography.titleCard.weight(.semibold))
+                .font(receivedOrdersGeneralTotalFont)
                 .foregroundStyle(tokens.colors.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .center)
+                .minimumScaleFactor(0.86)
         }
-        .padding(.vertical, tokens.spacing.md)
-        .padding(.horizontal, tokens.spacing.lg)
-        .background(tokens.colors.actionPrimary.opacity(0.34))
-        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
+        .padding(.horizontal, tokens.spacing.md)
+        .frame(height: 50.resize)
+        .background(shape.fill(tokens.colors.actionPrimary.opacity(0.7)))
+        .overlay(
+            shape.stroke(tokens.colors.borderSubtle.opacity(0.65), lineWidth: 1.resize)
+        )
+        .clipShape(shape)
+        .padding(.horizontal, tokens.spacing.sm)
+        .padding(.bottom, 8.resizeBottomSize)
+        .allowsHitTesting(false)
     }
 
     @ViewBuilder

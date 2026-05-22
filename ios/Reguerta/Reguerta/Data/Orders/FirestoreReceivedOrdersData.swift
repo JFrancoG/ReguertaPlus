@@ -222,7 +222,9 @@ private func buildReceivedOrdersProductRows(
     Dictionary(grouping: lines, by: \.productId)
         .compactMap { productId, grouped -> ReceivedOrdersProductRow? in
             guard let first = grouped.first else { return nil }
-            let totalQuantity = grouped.reduce(0) { partial, line in partial + line.quantity }
+            let totalQuantity = grouped.reduce(0) { partial, line in partial + line.orderedQuantity }
+            let totalMeasureQuantity = grouped.reduce(0) { partial, line in partial + line.totalMeasureQuantity }
+            let subtotal = grouped.reduce(0) { partial, line in partial + line.subtotal }
             return ReceivedOrdersProductRow(
                 productId: productId,
                 productName: first.productName,
@@ -231,7 +233,12 @@ private func buildReceivedOrdersProductRows(
                 packagingLine: first.packagingLine,
                 totalQuantity: totalQuantity,
                 quantityUnitSingular: first.quantityUnitSingular,
-                quantityUnitPlural: first.quantityUnitPlural
+                quantityUnitPlural: first.quantityUnitPlural,
+                totalMeasureQuantity: totalMeasureQuantity,
+                measureUnitSingular: first.measureUnitSingular,
+                measureUnitPlural: first.measureUnitPlural,
+                measureUnitAbbreviation: first.measureUnitAbbreviation,
+                subtotal: subtotal
             )
         }
         .sorted { lhs, rhs in
@@ -270,9 +277,13 @@ private func buildReceivedOrdersMemberLines(
             id: "\(line.orderId)|\(line.productId)",
             productName: line.productName,
             packagingLine: line.packagingLine,
-            quantity: line.quantity,
+            quantity: line.orderedQuantity,
             quantityUnitSingular: line.quantityUnitSingular,
             quantityUnitPlural: line.quantityUnitPlural,
+            totalMeasureQuantity: line.totalMeasureQuantity,
+            measureUnitSingular: line.measureUnitSingular,
+            measureUnitPlural: line.measureUnitPlural,
+            measureUnitAbbreviation: line.measureUnitAbbreviation,
             subtotal: line.subtotal
         )
     }.sorted { lhs, rhs in
