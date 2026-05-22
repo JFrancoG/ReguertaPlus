@@ -45,14 +45,23 @@ func receivedOrderLineRecord(
     let productImageUrl = receivedOrderString(from: data["productImageUrl"])
     let quantity = receivedOrderDouble(from: data["quantity"]) ?? 0
     guard quantity > 0 else { return nil }
+    let priceAtOrder = receivedOrderDouble(from: data["priceAtOrder"])
     let subtotal = receivedOrderDouble(from: data["subtotal"])
-        ?? quantity * (receivedOrderDouble(from: data["priceAtOrder"]) ?? 0)
+        ?? quantity * (priceAtOrder ?? 0)
     let quantityUnitSingular = receivedOrderString(from: data["packContainerName"])
         ?? receivedOrderString(from: data["unitName"])
         ?? "ud."
     let quantityUnitPlural = receivedOrderString(from: data["packContainerPlural"])
         ?? receivedOrderString(from: data["unitPlural"])
         ?? quantityUnitSingular
+    let measureQuantityPerUnit = receivedOrderMeasureQuantityPerUnit(from: data)
+    let measureUnitSingular = receivedOrderString(from: data["unitName"])
+        ?? quantityUnitSingular
+    let measureUnitPlural = receivedOrderString(from: data["unitPlural"])
+        ?? measureUnitSingular
+    let measureUnitAbbreviation = receivedOrderString(from: data["unitAbbreviation"])
+        ?? receivedOrderString(from: data["packContainerAbbreviation"])
+    let pricingMode = receivedOrderString(from: data["pricingModeAtOrder"])?.lowercased()
 
     return ReceivedOrderLineRecord(
         id: "\(orderId)_\(productId)_\(consumerId)",
@@ -67,6 +76,11 @@ func receivedOrderLineRecord(
         quantity: quantity,
         quantityUnitSingular: quantityUnitSingular,
         quantityUnitPlural: quantityUnitPlural,
+        measureQuantityPerUnit: measureQuantityPerUnit,
+        measureUnitSingular: measureUnitSingular,
+        measureUnitPlural: measureUnitPlural,
+        measureUnitAbbreviation: measureUnitAbbreviation,
+        isWeightPricing: pricingMode == ProductPricingMode.weight.rawValue,
         subtotal: subtotal
     )
 }
@@ -75,19 +89,27 @@ private func receivedOrderPackagingLine(from data: [String: Any]) -> String {
     let containerName = receivedOrderString(from: data["packContainerName"])
         ?? receivedOrderString(from: data["unitName"])
         ?? ""
-    let quantity = (receivedOrderDouble(from: data["packContainerQty"])
-        ?? receivedOrderDouble(from: data["unitQty"])
-        ?? 1).myOrderUiDecimal
-    let unitLabel = receivedOrderString(from: data["packContainerAbbreviation"])
-        ?? receivedOrderString(from: data["packContainerPlural"])
-        ?? receivedOrderString(from: data["unitAbbreviation"])
-        ?? receivedOrderString(from: data["unitPlural"])
-        ?? receivedOrderString(from: data["unitName"])
-        ?? ""
+    let quantity = receivedOrderMeasureQuantityPerUnit(from: data)
+    let unitName = receivedOrderString(from: data["unitName"]) ?? ""
+    let unitPlural = receivedOrderString(from: data["unitPlural"]) ?? unitName
+    let unitLabel = receivedOrdersMeasureLabel(
+        quantity: quantity,
+        singular: unitName,
+        plural: unitPlural,
+        abbreviation: receivedOrderString(from: data["unitAbbreviation"])
+            ?? receivedOrderString(from: data["packContainerAbbreviation"]),
+        prefersAbbreviation: false
+    )
 
-    return [containerName, quantity, unitLabel]
+    return [containerName, unitLabel]
         .filter(\.isNotEmpty)
         .joined(separator: " ")
+}
+
+private func receivedOrderMeasureQuantityPerUnit(from data: [String: Any]) -> Double {
+    receivedOrderDouble(from: data["unitQty"])
+        ?? receivedOrderDouble(from: data["packContainerQty"])
+        ?? 1
 }
 
 private func receivedOrderString(from value: Any?) -> String? {

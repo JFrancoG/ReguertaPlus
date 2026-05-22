@@ -117,10 +117,25 @@ private data class ReceivedOrderLinePayload(
     val quantity: Double,
     val quantityUnitSingular: String,
     val quantityUnitPlural: String,
+    val measureQuantityPerUnit: Double,
+    val isWeightPricing: Boolean,
     val subtotal: Double,
 ) {
     val dedupKey: String
         get() = "$orderId|$consumerId|$productId"
+
+    val orderedQuantity: Double
+        get() = if (isWeightPricing && measureQuantityPerUnit > 0.0 && weightQuantityRepresentsMeasure) {
+            quantity / measureQuantityPerUnit
+        } else {
+            quantity
+        }
+
+    private val weightQuantityRepresentsMeasure: Boolean
+        get() {
+            if (!isWeightPricing || measureQuantityPerUnit <= 0.0) return true
+            return quantity >= measureQuantityPerUnit
+        }
 }
 
 private data class ReceivedOrdersProductRow(
@@ -946,7 +961,7 @@ private fun buildReceivedOrdersSnapshot(
                 productName = first.productName,
                 productImageUrl = first.productImageUrl,
                 packagingLine = first.packagingLine,
-                totalQuantity = grouped.sumOf { line -> line.quantity },
+                totalQuantity = grouped.sumOf { line -> line.orderedQuantity },
                 quantityUnitSingular = first.quantityUnitSingular,
                 quantityUnitPlural = first.quantityUnitPlural,
             )
@@ -962,7 +977,7 @@ private fun buildReceivedOrdersSnapshot(
                 id = "${line.orderId}|${line.productId}",
                 productName = line.productName,
                 packagingLine = line.packagingLine,
-                quantity = line.quantity,
+                quantity = line.orderedQuantity,
                 quantityUnitSingular = line.quantityUnitSingular,
                 quantityUnitPlural = line.quantityUnitPlural,
                 subtotal = line.subtotal,
@@ -1009,12 +1024,15 @@ private fun toReceivedOrderLinePayload(
     if (quantity <= 0.0) {
         return null
     }
+    val priceAtOrder = (payload["priceAtOrder"] as? Number)?.toDouble()
     val subtotal = (payload["subtotal"] as? Number)?.toDouble()
-        ?: quantity * ((payload["priceAtOrder"] as? Number)?.toDouble() ?: 0.0)
+        ?: quantity * (priceAtOrder ?: 0.0)
     val quantityUnitSingular = (payload["packContainerName"] as? String)?.trim().orEmpty()
         .ifBlank { (payload["unitName"] as? String)?.trim().orEmpty().ifBlank { "ud." } }
     val quantityUnitPlural = (payload["packContainerPlural"] as? String)?.trim().orEmpty()
         .ifBlank { (payload["unitPlural"] as? String)?.trim().orEmpty().ifBlank { quantityUnitSingular } }
+    val measureQuantityPerUnit = receivedOrdersMeasureQuantityPerUnitFromPayload(payload)
+    val pricingMode = (payload["pricingModeAtOrder"] as? String)?.trim()
 
     return ReceivedOrderLinePayload(
         orderId = orderId,
@@ -1028,6 +1046,8 @@ private fun toReceivedOrderLinePayload(
         quantity = quantity,
         quantityUnitSingular = quantityUnitSingular,
         quantityUnitPlural = quantityUnitPlural,
+        measureQuantityPerUnit = measureQuantityPerUnit,
+        isWeightPricing = pricingMode.equals("weight", ignoreCase = true),
         subtotal = subtotal,
     )
 }
@@ -1036,22 +1056,42 @@ private fun receivedOrdersPackagingLineFromPayload(payload: Map<String, Any>): S
     val containerName = (payload["packContainerName"] as? String)
         ?.takeIf(String::isNotBlank)
         ?: (payload["unitName"] as? String).orEmpty()
-    val quantity = ((payload["packContainerQty"] as? Number)?.toDouble()
-        ?: (payload["unitQty"] as? Number)?.toDouble()
-        ?: 1.0).toReceivedUiDecimal()
-    val fallbackUnitName = (payload["unitName"] as? String).orEmpty()
-    val fallbackUnitPlural = (payload["unitPlural"] as? String).orEmpty()
-    val unitLabel = (payload["packContainerAbbreviation"] as? String)
-        ?.takeIf(String::isNotBlank)
-        ?: (payload["packContainerPlural"] as? String)?.takeIf(String::isNotBlank)
-        ?: (payload["unitAbbreviation"] as? String)?.takeIf(String::isNotBlank)
-        ?: if (((payload["packContainerQty"] as? Number)?.toDouble() ?: 1.0) == 1.0) {
-            fallbackUnitName
-        } else {
-            fallbackUnitPlural
-        }
+    val quantity = receivedOrdersMeasureQuantityPerUnitFromPayload(payload)
+    val unitName = (payload["unitName"] as? String).orEmpty()
+    val unitPlural = (payload["unitPlural"] as? String).orEmpty().ifBlank { unitName }
+    val unitLabel = receivedOrdersMeasureLabel(
+        quantity = quantity,
+        singular = unitName,
+        plural = unitPlural,
+        abbreviation = (payload["unitAbbreviation"] as? String)?.takeIf(String::isNotBlank)
+            ?: (payload["packContainerAbbreviation"] as? String)?.takeIf(String::isNotBlank),
+        prefersAbbreviation = false,
+    )
 
-    return listOf(containerName, quantity, unitLabel)
+    return listOf(containerName, unitLabel)
+        .filter { value -> value.isNotBlank() }
+        .joinToString(separator = " ")
+}
+
+private fun receivedOrdersMeasureQuantityPerUnitFromPayload(payload: Map<String, Any>): Double =
+    (payload["unitQty"] as? Number)?.toDouble()
+        ?: (payload["packContainerQty"] as? Number)?.toDouble()
+        ?: 1.0
+
+private fun receivedOrdersMeasureLabel(
+    quantity: Double,
+    singular: String,
+    plural: String,
+    abbreviation: String?,
+    prefersAbbreviation: Boolean,
+): String {
+    val numberAwareUnit = if (isApproximatelyOne(quantity)) singular else plural
+    val unit = if (prefersAbbreviation && !abbreviation.isNullOrBlank()) {
+        abbreviation
+    } else {
+        numberAwareUnit
+    }
+    return listOf(quantity.toReceivedUiDecimal(), unit)
         .filter { value -> value.isNotBlank() }
         .joinToString(separator = " ")
 }

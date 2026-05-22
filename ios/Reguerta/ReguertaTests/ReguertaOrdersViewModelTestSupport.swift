@@ -135,7 +135,12 @@ func receivedOrdersSnapshot(status: ProducerOrderStatus) -> ReceivedOrdersSnapsh
                 packagingLine: "Caja 1 kg",
                 totalQuantity: 3,
                 quantityUnitSingular: "caja",
-                quantityUnitPlural: "cajas"
+                quantityUnitPlural: "cajas",
+                totalMeasureQuantity: 3,
+                measureUnitSingular: "kg",
+                measureUnitPlural: "kg",
+                measureUnitAbbreviation: "kg",
+                subtotal: 6
             )
         ],
         byMemberGroups: [
@@ -152,6 +157,10 @@ func receivedOrdersSnapshot(status: ProducerOrderStatus) -> ReceivedOrdersSnapsh
                         quantity: 3,
                         quantityUnitSingular: "caja",
                         quantityUnitPlural: "cajas",
+                        totalMeasureQuantity: 3,
+                        measureUnitSingular: "kg",
+                        measureUnitPlural: "kg",
+                        measureUnitAbbreviation: "kg",
                         subtotal: 6
                     )
                 ],
