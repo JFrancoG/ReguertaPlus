@@ -46,6 +46,8 @@ fun ReguertaButton(
     val isEnabled = enabled && !loading
     val spacing = ReguertaThemeTokens.spacing
     val buttonTokens = ReguertaThemeTokens.button
+    val disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+    val disabledContentColor = MaterialTheme.colorScheme.onSurface
     val contentColor = if (variant == ReguertaButtonVariant.PRIMARY) {
         MaterialTheme.colorScheme.onPrimary
     } else if (variant == ReguertaButtonVariant.DESTRUCTIVE) {
@@ -87,8 +89,8 @@ fun ReguertaButton(
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
-                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                disabledContainerColor = disabledContainerColor,
+                disabledContentColor = disabledContentColor,
             ),
             contentPadding = PaddingValues(
                 horizontal = buttonTokens.horizontalPadding,
@@ -102,6 +104,12 @@ fun ReguertaButton(
             modifier = buttonModifier.defaultMinSize(minHeight = buttonTokens.minHeight),
             enabled = isEnabled,
             shape = shape,
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = contentColor,
+                disabledContainerColor = disabledContainerColor,
+                disabledContentColor = disabledContentColor,
+            ),
             contentPadding = PaddingValues(
                 horizontal = buttonTokens.horizontalPadding,
                 vertical = buttonTokens.verticalPadding,
@@ -117,8 +125,8 @@ fun ReguertaButton(
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.error,
                 contentColor = MaterialTheme.colorScheme.onError,
-                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                disabledContainerColor = disabledContainerColor,
+                disabledContentColor = disabledContentColor,
             ),
             contentPadding = PaddingValues(
                 horizontal = buttonTokens.horizontalPadding,
@@ -131,6 +139,10 @@ fun ReguertaButton(
             onClick = onClick,
             modifier = buttonModifier,
             enabled = isEnabled,
+            colors = ButtonDefaults.textButtonColors(
+                contentColor = contentColor,
+                disabledContentColor = disabledContentColor,
+            ),
             content = content,
         )
     }

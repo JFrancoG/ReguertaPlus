@@ -82,7 +82,6 @@ internal class SessionCommunityActions(
                     isSavingSharedProfile = false,
                 )
             }
-            emitMessage(R.string.feedback_shared_profile_saved)
             onSuccess()
         }
     }

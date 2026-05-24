@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 private val ReguertaListActionButtonSize = 44.dp
@@ -74,13 +75,14 @@ fun ReguertaListActionIconButton(
     containerColor: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    size: Dp = ReguertaListActionButtonSize,
     enabled: Boolean = true,
 ) {
     IconButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier
-            .size(ReguertaListActionButtonSize)
+            .size(size)
             .clip(RoundedCornerShape(12.dp))
             .background(if (enabled) containerColor else containerColor.copy(alpha = 0.45f)),
     ) {
@@ -97,6 +99,8 @@ fun ReguertaEditListActionButton(
     contentDescription: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    size: Dp = ReguertaListActionButtonSize,
+    enabled: Boolean = true,
 ) {
     ReguertaListActionIconButton(
         icon = Icons.Default.Edit,
@@ -104,6 +108,8 @@ fun ReguertaEditListActionButton(
         containerColor = MaterialTheme.colorScheme.primary,
         onClick = onClick,
         modifier = modifier,
+        size = size,
+        enabled = enabled,
     )
 }
 
@@ -112,6 +118,8 @@ fun ReguertaDeleteListActionButton(
     contentDescription: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    size: Dp = ReguertaListActionButtonSize,
+    enabled: Boolean = true,
 ) {
     ReguertaListActionIconButton(
         icon = Icons.Default.Delete,
@@ -119,5 +127,7 @@ fun ReguertaDeleteListActionButton(
         containerColor = MaterialTheme.colorScheme.error,
         onClick = onClick,
         modifier = modifier,
+        size = size,
+        enabled = enabled,
     )
 }

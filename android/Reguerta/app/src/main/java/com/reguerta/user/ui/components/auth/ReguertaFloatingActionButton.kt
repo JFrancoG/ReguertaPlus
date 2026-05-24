@@ -33,8 +33,16 @@ fun ReguertaFloatingActionButton(
 ) {
     val shape = RoundedCornerShape(28.dp)
     val isInteractive = enabled && !loading
-    val containerAlpha = if (isInteractive) 0.82f else 0.42f
-    val contentColor = MaterialTheme.colorScheme.onPrimary
+    val containerColor = if (isInteractive) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.82f)
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerHigh
+    }
+    val contentColor = if (isInteractive) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
 
     Button(
         onClick = onClick,
@@ -52,10 +60,10 @@ fun ReguertaFloatingActionButton(
         enabled = isInteractive,
         shape = shape,
         colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = containerAlpha),
+            containerColor = containerColor,
             contentColor = contentColor,
-            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = containerAlpha),
-            disabledContentColor = contentColor.copy(alpha = 0.7f),
+            disabledContainerColor = containerColor,
+            disabledContentColor = contentColor,
         ),
         border = BorderStroke(1.dp, contentColor.copy(alpha = if (isInteractive) 0.42f else 0.24f)),
         contentPadding = PaddingValues(horizontal = 24.dp, vertical = 0.dp),

@@ -305,6 +305,8 @@ enum AccessL10nKey {
     static let profileSharedActionSaving = "profile.shared.action.saving"
     static let profileSharedActionDelete = "profile.shared.action.delete"
     static let profileSharedActionDeleting = "profile.shared.action.deleting"
+    static let profileSharedSavedDialogTitle = "profile.shared.saved_dialog.title"
+    static let profileSharedSavedDialogMessage = "profile.shared.saved_dialog.message"
     static let feedbackSharedProfileContentRequired = "feedback.shared_profile_content_required"
     static let feedbackSharedProfileSaved = "feedback.shared_profile_saved"
     static let feedbackSharedProfileDeleted = "feedback.shared_profile_deleted"

@@ -19,7 +19,7 @@ struct ReguertaFloatingActionButtonView: View {
         Button(action: action) {
             title
                 .font(tokens.typography.body.weight(.semibold))
-                .foregroundStyle(tokens.colors.actionOnPrimary)
+                .foregroundStyle(isEnabled ? tokens.colors.actionOnPrimary : tokens.colors.textPrimary.opacity(0.86))
                 .lineLimit(1)
                 .minimumScaleFactor(0.78)
                 .frame(maxWidth: .infinity)
@@ -31,7 +31,6 @@ struct ReguertaFloatingActionButtonView: View {
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
-        .opacity(isEnabled ? 1 : 0.55)
         .padding(.horizontal, tokens.spacing.xl + tokens.spacing.sm)
         .padding(.bottom, 8.resizeBottomSize)
         .shadow(color: .black.opacity(0.18), radius: 14.resize, y: 6.resize)
@@ -50,17 +49,17 @@ private struct ReguertaFloatingActionButtonBackground: View {
 
         if #available(iOS 26.0, *) {
             shape
-                .fill(tokens.colors.actionPrimary.opacity(actionOpacity))
+                .fill(isEnabled ? tokens.colors.actionPrimary.opacity(actionOpacity) : tokens.colors.surfaceSecondary)
                 .glassEffect(
                     .regular
-                        .tint(tokens.colors.actionPrimary.opacity(isEnabled ? 0.32 : 0.16))
+                        .tint(isEnabled ? tokens.colors.actionPrimary.opacity(0.32) : tokens.colors.surfaceSecondary.opacity(0.72))
                         .interactive(isEnabled),
                     in: shape
                 )
         } else {
             shape
                 .fill(.ultraThinMaterial)
-                .background(tokens.colors.actionPrimary.opacity(isEnabled ? 0.72 : 0.34), in: shape)
+                .background(isEnabled ? tokens.colors.actionPrimary.opacity(0.72) : tokens.colors.surfaceSecondary, in: shape)
         }
     }
 }

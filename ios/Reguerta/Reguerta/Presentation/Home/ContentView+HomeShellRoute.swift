@@ -33,6 +33,9 @@ extension AccessRootRoutingView {
             .overlay {
                 homePushNotificationPermissionDialogOverlay
             }
+            .overlay {
+                homeSharedProfileSavedDialogOverlay
+            }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .offset(x: rootViewModel.homeLayerOffset)
             .zIndex(2)
@@ -48,6 +51,22 @@ extension AccessRootRoutingView {
                     .gesture(openHomeDrawerDragGesture)
                     .zIndex(4)
             }
+        }
+    }
+
+    @ViewBuilder
+    var homeSharedProfileSavedDialogOverlay: some View {
+        if rootViewModel.showsSharedProfileSavedDialog {
+            reguertaDialog(
+                type: .info,
+                title: l10n(AccessL10nKey.profileSharedSavedDialogTitle),
+                message: l10n(AccessL10nKey.profileSharedSavedDialogMessage),
+                primaryAction: ReguertaDialogAction(
+                    title: l10n(AccessL10nKey.commonAccept),
+                    action: rootViewModel.dismissSharedProfileSavedDialog
+                ),
+                onDismiss: rootViewModel.dismissSharedProfileSavedDialog
+            )
         }
     }
 

@@ -62,6 +62,8 @@ final class AccessRootViewModel {
     var myOrderCartOpenRequests = 0
     var myOrderReadOnlyMode = false
     var isImpersonationExpanded = false
+    var sharedProfileTitleOverride: String?
+    var showsSharedProfileSavedDialog = false
     var nowOverrideMillis: Int64?
 
     var shouldSkipSplash: Bool {
@@ -483,11 +485,13 @@ extension AccessRootViewModel {
         sessionViewModel.resetRecoverDraft()
         dispatchShell(.signedOut)
     }
-
     func handleHomeDestinationChange(from previousDestination: HomeDestination, to destination: HomeDestination) {
         guard previousDestination != destination else { return }
         if previousDestination == .notifications {
             Task { await newsNotificationsViewModel.markVisibleNotificationsReadOnExit() }
+        }
+        if destination != .profile {
+            sharedProfileTitleOverride = nil
         }
         if destination == .notifications {
             Task { await newsNotificationsViewModel.prepareNotificationsRoute() }
