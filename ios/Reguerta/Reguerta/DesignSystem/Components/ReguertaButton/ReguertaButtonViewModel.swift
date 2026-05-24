@@ -26,7 +26,7 @@ struct ReguertaButtonViewModel {
         case .primary:
             isInteractive ? tokens.colors.actionPrimary : tokens.colors.surfaceSecondary
         case .secondary:
-            tokens.colors.surfacePrimary
+            isInteractive ? tokens.colors.surfacePrimary : tokens.colors.surfaceSecondary
         case .destructive:
             isInteractive ? tokens.colors.feedbackError : tokens.colors.surfaceSecondary
         case .text:
@@ -35,9 +35,13 @@ struct ReguertaButtonViewModel {
     }
 
     func foregroundColor(tokens: ReguertaDesignTokens) -> Color {
-        switch variant {
+        if !isInteractive {
+            return tokens.colors.textPrimary.opacity(0.86)
+        }
+
+        return switch variant {
         case .primary, .destructive:
-            isInteractive ? tokens.colors.actionOnPrimary : tokens.colors.textSecondary
+            tokens.colors.actionOnPrimary
         case .secondary:
             tokens.colors.textPrimary
         case .text:

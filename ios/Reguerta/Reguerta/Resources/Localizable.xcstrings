@@ -2679,13 +2679,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Profile"
+            "value" : "Community"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Perfil"
+            "value" : "Comunidad"
           }
         }
       }
@@ -5210,13 +5210,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Create my profile"
+            "value" : "Save profile"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Crear mi perfil"
+            "value" : "Guardar perfil"
           }
         }
       }
@@ -5278,13 +5278,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save profile"
+            "value" : "Save changes"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Guardar perfil"
+            "value" : "Guardar cambios"
           }
         }
       }
@@ -5312,13 +5312,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "View my profile"
+            "value" : "My profile"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ver mi perfil"
+            "value" : "Mi perfil"
           }
         }
       }
@@ -5346,13 +5346,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shared profiles"
+            "value" : "La Regüerta"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Perfiles compartidos"
+            "value" : "La Regüerta"
           }
         }
       }
@@ -5380,13 +5380,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Create my shared profile"
+            "value" : "My family"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Crear mi perfil compartido"
+            "value" : "Mi familia"
           }
         }
       }
@@ -5397,13 +5397,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit my shared profile"
+            "value" : "My family"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Editar mi perfil compartido"
+            "value" : "Mi familia"
           }
         }
       }
@@ -5431,13 +5431,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Family names"
+            "value" : "Your household name"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nombres de la familia"
+            "value" : "Nombre de tu unidad familiar"
           }
         }
       }
@@ -5448,13 +5448,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Share what you want with the community so we can get to know each other better."
+            "value" : "Share tastes, occupation, or whatever you want about your household with La Regüerta so we can get to know each other better."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Comparte lo que quieras con la comunidad para conocernos mejor."
+            "value" : "Comparte en tu perfil gustos, ocupación o lo que quieras de tu unidad familiar con La Regüerta para conocernos mejor"
           }
         }
       }
@@ -5523,6 +5523,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vista previa de la foto del perfil compartido"
+          }
+        }
+      }
+    },
+    "profile.shared.saved_dialog.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your community profile has been saved successfully."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu perfil de comunidad se ha guardado correctamente."
+          }
+        }
+      }
+    },
+    "profile.shared.saved_dialog.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profile saved"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Perfil guardado"
           }
         }
       }

@@ -192,6 +192,7 @@ internal fun HomeRoute(
     var myOrderRouteEntryRequests by rememberSaveable { mutableIntStateOf(0) }
     var isMyOrderReadOnlyMode by rememberSaveable { mutableStateOf(false) }
     var isMyOrderCartVisible by rememberSaveable { mutableStateOf(false) }
+    var sharedProfileTitleOverride by rememberSaveable { mutableStateOf<String?>(null) }
     val member = when (mode) {
         is SessionMode.Authorized -> mode.member
         SessionMode.SignedOut,
@@ -223,6 +224,9 @@ internal fun HomeRoute(
         } else {
             myOrderRouteEntryRequests += 1
             isMyOrderCartVisible = false
+        }
+        if (destination != HomeDestination.PROFILE) {
+            sharedProfileTitleOverride = null
         }
 
         currentDestination = destination
@@ -322,7 +326,8 @@ internal fun HomeRoute(
                 currentDestination != HomeDestination.USERS &&
                 currentDestination != HomeDestination.NEWS &&
                 currentDestination != HomeDestination.PUBLISH_NEWS &&
-                currentDestination != HomeDestination.ADMIN_BROADCAST
+                currentDestination != HomeDestination.ADMIN_BROADCAST &&
+                currentDestination != HomeDestination.PROFILE
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -339,6 +344,9 @@ internal fun HomeRoute(
                 }
                 currentDestination == HomeDestination.PUBLISH_NEWS && editingNewsId != null -> {
                     stringResource(R.string.news_editor_title_edit)
+                }
+                currentDestination == HomeDestination.PROFILE && !sharedProfileTitleOverride.isNullOrBlank() -> {
+                    sharedProfileTitleOverride.orEmpty()
                 }
                 else -> stringResource(currentDestination.titleRes())
             }
@@ -568,12 +576,19 @@ internal fun HomeRoute(
                     onDraftChanged = onSharedProfileDraftChanged,
                     onPickImage = onUploadSharedProfileImageFromUri,
                     onClearImage = onClearSharedProfileImage,
-                    onRefresh = onRefreshSharedProfiles,
-                    onSave = {
-                        onSaveSharedProfile { navigateHome(HomeDestination.PROFILE) }
+                    onSave = { onSuccess ->
+                        onSaveSharedProfile {
+                            onSuccess()
+                            navigateHome(HomeDestination.PROFILE)
+                        }
                     },
                     onDelete = {
-                        onDeleteSharedProfile { navigateHome(HomeDestination.PROFILE) }
+                        onDeleteSharedProfile {
+                            navigateHome(HomeDestination.PROFILE)
+                        }
+                    },
+                    onTitleChanged = { titleOverride ->
+                        sharedProfileTitleOverride = titleOverride
                     },
                     )
 

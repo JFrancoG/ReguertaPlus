@@ -101,7 +101,6 @@ final class SharedProfileFeatureViewModel {
         applyProfiles(fetchedProfiles, currentMemberId: session.member.id)
         draft = savedProfile.toDraft()
         isSaving = false
-        feedbackCenter.show(AccessL10nKey.feedbackSharedProfileSaved)
         return true
     }
 

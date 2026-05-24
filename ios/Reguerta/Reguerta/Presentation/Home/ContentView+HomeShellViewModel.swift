@@ -83,6 +83,18 @@ extension AccessRootViewModel {
         )
     }
 
+    func setSharedProfileTitleOverride(_ title: String?) {
+        sharedProfileTitleOverride = title
+    }
+
+    func showSharedProfileSavedDialog() {
+        showsSharedProfileSavedDialog = true
+    }
+
+    func dismissSharedProfileSavedDialog() {
+        showsSharedProfileSavedDialog = false
+    }
+
     var homeShellHeaderViewModel: ReguertaScreenHeaderViewModel {
         ReguertaScreenHeaderViewModel(
             title: homeHeaderTitle,
@@ -297,6 +309,8 @@ private extension AccessRootViewModel {
             return l10n(AccessL10nKey.productsListTitle)
         case .users:
             return l10n(AccessL10nKey.usersListTitle)
+        case .profile:
+            return sharedProfileTitleOverride
         case .shiftSwapRequest:
             return l10n(AccessL10nKey.shiftSwapRequestScreenTitle)
         case .publishNews:

@@ -142,7 +142,9 @@ extension AccessRootRoutingView {
                 tokens: tokens,
                 session: session,
                 viewModel: rootViewModel.sharedProfileViewModel,
-                displayName: { displayName(for: $0, session: session) }
+                displayName: { displayName(for: $0, session: session) },
+                onTitleChanged: rootViewModel.setSharedProfileTitleOverride,
+                onProfileSaved: rootViewModel.showSharedProfileSavedDialog
             )
         }
     }

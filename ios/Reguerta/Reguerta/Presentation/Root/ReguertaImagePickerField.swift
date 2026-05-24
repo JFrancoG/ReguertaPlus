@@ -15,6 +15,11 @@ struct ReguertaImagePickerField: View {
     let onCameraPermissionDenied: () -> Void
     let onCameraUnavailable: () -> Void
     var placesActionsBesideImage = false
+    var usesIconControls = false
+    var overlaysControlsOnImage = false
+    var previewSize: CGFloat = 112.resize
+    var usesFitPreview = false
+    var controlSize: CGFloat = 44.resize
 
     @State private var isSourceDialogPresented = false
     @State private var isPhotoPickerPresented = false
@@ -23,7 +28,17 @@ struct ReguertaImagePickerField: View {
 
     var body: some View {
         Group {
-            if placesActionsBesideImage {
+            if overlaysControlsOnImage {
+                VStack(alignment: .center, spacing: tokens.spacing.sm) {
+                    ZStack(alignment: .bottomTrailing) {
+                        imagePreview
+                        imageControls
+                            .offset(x: tokens.spacing.sm, y: tokens.spacing.sm)
+                    }
+                    subtitleView
+                }
+                .frame(maxWidth: .infinity)
+            } else if placesActionsBesideImage {
                 HStack(alignment: .center, spacing: tokens.spacing.md) {
                     imagePreview
                     VStack(alignment: .leading, spacing: tokens.spacing.sm) {
@@ -99,25 +114,28 @@ struct ReguertaImagePickerField: View {
     private var imagePreview: some View {
         RoundedRectangle(cornerRadius: 24.resize)
             .fill(tokens.colors.surfaceSecondary)
-            .frame(width: 112.resize, height: 112.resize)
+            .frame(width: previewSize, height: previewSize)
             .overlay {
                 if let imageURL = URL(string: imageURLString), !imageURLString.isEmpty {
                     AsyncImage(url: imageURL) { phase in
                         if let image = phase.image {
-                            image
-                                .resizable()
-                                .scaledToFill()
+                            let resizableImage = image.resizable()
+                            if usesFitPreview {
+                                resizableImage.scaledToFit()
+                            } else {
+                                resizableImage.scaledToFill()
+                            }
                         } else {
                             Image(systemName: placeholderSystemImage)
-                                .font(.system(size: 34.resize))
+                                .font(.system(size: previewSize * 0.3))
                                 .foregroundStyle(tokens.colors.textSecondary)
                         }
                     }
-                    .frame(width: 112.resize, height: 112.resize)
+                    .frame(width: previewSize, height: previewSize)
                     .clipShape(RoundedRectangle(cornerRadius: 24.resize))
                 } else {
                     Image(systemName: placeholderSystemImage)
-                        .font(.system(size: 34.resize))
+                        .font(.system(size: previewSize * 0.3))
                         .foregroundStyle(tokens.colors.textSecondary)
                 }
             }
@@ -135,23 +153,46 @@ struct ReguertaImagePickerField: View {
 
     private var imageControls: some View {
         HStack(spacing: tokens.spacing.sm) {
-            reguertaButton(
-                LocalizedStringKey(AccessL10nKey.commonActionSelect),
-                variant: .secondary,
-                isEnabled: !isUploading,
-                fullWidth: false
-            ) {
-                isSourceDialogPresented = true
-            }
+            if usesIconControls {
+                ReguertaListActionIconButton(
+                    systemImageName: "pencil",
+                    accessibilityLabel: l10n(AccessL10nKey.commonActionSelect),
+                    backgroundColor: tokens.colors.actionPrimary,
+                    size: controlSize,
+                    isEnabled: !isUploading
+                ) {
+                    isSourceDialogPresented = true
+                }
 
-            if !imageURLString.isEmpty {
+                if !imageURLString.isEmpty {
+                    ReguertaListActionIconButton(
+                        systemImageName: "trash",
+                        accessibilityLabel: l10n(AccessL10nKey.commonClear),
+                        backgroundColor: tokens.colors.feedbackError,
+                        size: controlSize,
+                        isEnabled: !isUploading,
+                        action: onClearImage
+                    )
+                }
+            } else {
                 reguertaButton(
-                    LocalizedStringKey(AccessL10nKey.commonClear),
-                    variant: .text,
+                    LocalizedStringKey(AccessL10nKey.commonActionSelect),
+                    variant: .secondary,
                     isEnabled: !isUploading,
-                    fullWidth: false,
-                    action: onClearImage
-                )
+                    fullWidth: false
+                ) {
+                    isSourceDialogPresented = true
+                }
+
+                if !imageURLString.isEmpty {
+                    reguertaButton(
+                        LocalizedStringKey(AccessL10nKey.commonClear),
+                        variant: .text,
+                        isEnabled: !isUploading,
+                        fullWidth: false,
+                        action: onClearImage
+                    )
+                }
             }
 
             if isUploading {
@@ -159,6 +200,12 @@ struct ReguertaImagePickerField: View {
                     .tint(tokens.colors.actionPrimary)
             }
         }
+        .shadow(
+            color: tokens.colors.textPrimary.opacity(overlaysControlsOnImage ? 0.22 : 0),
+            radius: overlaysControlsOnImage ? 8.resize : 0,
+            x: 0,
+            y: overlaysControlsOnImage ? 3.resize : 0
+        )
     }
 
     private func openCameraFlow() {

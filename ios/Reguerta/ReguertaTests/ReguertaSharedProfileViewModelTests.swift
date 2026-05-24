@@ -100,7 +100,7 @@ struct ReguertaSharedProfileViewModelTests {
                 about: "Somos una familia"
             )
         )
-        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackSharedProfileSaved)
+        #expect(viewModel.feedbackCenter.messageKey == nil)
     }
 
     @Test

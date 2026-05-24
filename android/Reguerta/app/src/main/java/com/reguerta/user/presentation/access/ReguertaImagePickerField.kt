@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -30,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -41,9 +43,11 @@ import coil3.compose.AsyncImage
 import com.reguerta.user.R
 import com.reguerta.user.ui.components.auth.ReguertaButton
 import com.reguerta.user.ui.components.auth.ReguertaButtonVariant
+import com.reguerta.user.ui.components.auth.ReguertaDeleteListActionButton
 import com.reguerta.user.ui.components.auth.ReguertaDialog
 import com.reguerta.user.ui.components.auth.ReguertaDialogAction
 import com.reguerta.user.ui.components.auth.ReguertaDialogType
+import com.reguerta.user.ui.components.auth.ReguertaEditListActionButton
 import java.io.File
 
 @Composable
@@ -56,6 +60,11 @@ internal fun ReguertaImagePickerField(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     actionsBesideImage: Boolean = false,
+    usesIconControls: Boolean = false,
+    overlaysControlsOnImage: Boolean = false,
+    previewSize: Int = 112,
+    previewContentScale: ContentScale = ContentScale.Crop,
+    controlSize: Int = 44,
 ) {
     val context = LocalContext.current
     var showSourceDialog by rememberSaveable { mutableStateOf(false) }
@@ -120,7 +129,7 @@ internal fun ReguertaImagePickerField(
     fun ImagePreview() {
         Box(
             modifier = modifier
-                .size(112.dp)
+                .size(previewSize.dp)
                 .clip(RoundedCornerShape(24.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,
@@ -130,14 +139,14 @@ internal fun ReguertaImagePickerField(
                     model = imageUrl,
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
+                    contentScale = previewContentScale,
                 )
             } else {
                 Icon(
                     imageVector = placeholderIcon,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.size((previewSize * 0.36f).dp),
                 )
             }
         }
@@ -156,24 +165,50 @@ internal fun ReguertaImagePickerField(
 
     @Composable
     fun ImageControls() {
-        ReguertaButton(
-            label = stringResource(R.string.products_pick_image_action),
-            variant = ReguertaButtonVariant.SECONDARY,
-            fullWidth = false,
-            enabled = !isUploading,
-            onClick = {
-                showSourceDialog = true
-            },
-        )
+        val overlayButtonModifier = if (overlaysControlsOnImage) {
+            Modifier.shadow(8.dp, RoundedCornerShape(12.dp), clip = false)
+        } else {
+            Modifier
+        }
 
-        if (imageUrl.isNotBlank()) {
+        if (usesIconControls) {
+            ReguertaEditListActionButton(
+                contentDescription = stringResource(R.string.products_pick_image_action),
+                onClick = { showSourceDialog = true },
+                enabled = !isUploading,
+                modifier = overlayButtonModifier,
+                size = controlSize.dp,
+            )
+
+            if (imageUrl.isNotBlank()) {
+                ReguertaDeleteListActionButton(
+                    contentDescription = stringResource(R.string.products_clear_image_action),
+                    onClick = onClearImage,
+                    enabled = !isUploading,
+                    modifier = overlayButtonModifier,
+                    size = controlSize.dp,
+                )
+            }
+        } else {
             ReguertaButton(
-                label = stringResource(R.string.products_clear_image_action),
-                variant = ReguertaButtonVariant.TEXT,
+                label = stringResource(R.string.products_pick_image_action),
+                variant = ReguertaButtonVariant.SECONDARY,
                 fullWidth = false,
                 enabled = !isUploading,
-                onClick = onClearImage,
+                onClick = {
+                    showSourceDialog = true
+                },
             )
+
+            if (imageUrl.isNotBlank()) {
+                ReguertaButton(
+                    label = stringResource(R.string.products_clear_image_action),
+                    variant = ReguertaButtonVariant.TEXT,
+                    fullWidth = false,
+                    enabled = !isUploading,
+                    onClick = onClearImage,
+                )
+            }
         }
 
         if (isUploading) {
@@ -184,7 +219,29 @@ internal fun ReguertaImagePickerField(
         }
     }
 
-    if (actionsBesideImage) {
+    if (overlaysControlsOnImage) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+            ) {
+                ImagePreview()
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .offset(x = 10.dp, y = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ImageControls()
+                }
+            }
+            ImageSubtitle()
+        }
+    } else if (actionsBesideImage) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
