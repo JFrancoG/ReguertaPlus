@@ -110,6 +110,18 @@ extension AccessRootRoutingView {
         )
     }
 
+    var myOrdersHistoryRoute: some View {
+        MyOrdersHistoryRouteView(
+            tokens: tokens,
+            viewModel: rootViewModel.myOrdersHistoryViewModel,
+            context: MyOrdersHistoryRouteContext(
+                currentMember: currentHomeMember,
+                nowMillis: rootViewModel.shiftsViewModel.currentNowMillis
+            ),
+            onTitleChanged: rootViewModel.setMyOrdersHistoryTitleOverride
+        )
+    }
+
     var receivedOrdersRoute: some View {
         ReceivedOrdersRouteView(
             tokens: tokens,

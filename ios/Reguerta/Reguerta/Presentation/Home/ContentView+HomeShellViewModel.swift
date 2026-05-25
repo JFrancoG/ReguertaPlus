@@ -87,6 +87,10 @@ extension AccessRootViewModel {
         sharedProfileTitleOverride = title
     }
 
+    func setMyOrdersHistoryTitleOverride(_ title: String?) {
+        myOrdersHistoryTitleOverride = title
+    }
+
     func showSharedProfileSavedDialog() {
         showsSharedProfileSavedDialog = true
     }
@@ -299,6 +303,8 @@ private extension AccessRootViewModel {
             return myOrderViewModel.shouldShowDatabaseOrderSummary ? "Mi último pedido" : "Mi pedido"
         case .receivedOrders:
             return "Pedidos a preparar"
+        case .myOrders:
+            return myOrdersHistoryTitleOverride ?? myOrdersHistoryViewModel.selectedWeek?.orderTitle ?? "Pedido"
         case .bylaws:
             return l10n(AccessL10nKey.bylawsTitle)
         case .news:

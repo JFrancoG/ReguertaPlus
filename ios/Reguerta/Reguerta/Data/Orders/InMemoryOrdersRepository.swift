@@ -19,6 +19,7 @@ actor InMemoryOrdersRepository: OrdersRepository {
 
     private var submittedOrders: [SubmittedOrder] = []
     private var previousOrdersByWeekKey: [String: MyOrderPreviousOrderSnapshot] = [:]
+    private var orderHistoryWeekKeysByMemberId: [String: Set<String>] = [:]
     private var producerStatusesByOrderId: [String: MyOrderProducerStatusSnapshot] = [:]
     private var receivedSnapshotsByProducerWeek: [String: ReceivedOrdersSnapshot] = [:]
     private var updateResultsByOrderId: [String: ReceivedOrderStatusWriteResult] = [:]
@@ -47,11 +48,28 @@ actor InMemoryOrdersRepository: OrdersRepository {
         currentMember: Member?,
         previousWeekKey: String
     ) async throws -> MyOrderPreviousOrderSnapshot? {
+        try await orderSummarySnapshot(currentMember: currentMember, weekKey: previousWeekKey)
+    }
+
+    func orderHistoryWeekKeys(currentMember: Member?) async throws -> [String] {
+        if let previousOrderError {
+            throw previousOrderError
+        }
+        guard let currentMember else { return [] }
+        let explicitKeys = orderHistoryWeekKeysByMemberId[currentMember.id] ?? []
+        let seededKeys = Set(previousOrdersByWeekKey.keys)
+        return Array(explicitKeys.union(seededKeys)).sorted()
+    }
+
+    func orderSummarySnapshot(
+        currentMember: Member?,
+        weekKey: String
+    ) async throws -> MyOrderPreviousOrderSnapshot? {
         if let previousOrderError {
             throw previousOrderError
         }
         guard currentMember != nil else { return nil }
-        return previousOrdersByWeekKey[previousWeekKey]
+        return previousOrdersByWeekKey[weekKey]
     }
 
     func myOrderProducerStatuses(orderId: String) async -> MyOrderProducerStatusSnapshot {
@@ -79,6 +97,10 @@ actor InMemoryOrdersRepository: OrdersRepository {
 
     func setPreviousOrder(_ snapshot: MyOrderPreviousOrderSnapshot, forWeekKey weekKey: String) {
         previousOrdersByWeekKey[weekKey] = snapshot
+    }
+
+    func setOrderHistoryWeekKeys(_ weekKeys: [String], forMemberId memberId: String = "member_1") {
+        orderHistoryWeekKeysByMemberId[memberId] = Set(weekKeys)
     }
 
     func setPreviousOrderError(_ error: Error?) {

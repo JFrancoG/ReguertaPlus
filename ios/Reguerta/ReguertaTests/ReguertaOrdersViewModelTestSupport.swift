@@ -31,6 +31,16 @@ func makeReceivedOrdersViewModel(
 }
 
 @MainActor
+func makeMyOrdersHistoryViewModel(
+    repository: InMemoryOrdersRepository? = nil
+) -> MyOrdersHistoryRouteViewModel {
+    MyOrdersHistoryRouteViewModel(
+        sessionViewModel: SessionViewModel(dependencies: .preview()),
+        ordersRepository: repository ?? InMemoryOrdersRepository()
+    )
+}
+
+@MainActor
 func myOrderContext(
     products: [Product] = [],
     seasonalCommitments: [SeasonalCommitment] = [],
@@ -50,6 +60,17 @@ func myOrderContext(
         isLoading: isLoading,
         currentMember: resolvedMember,
         members: [resolvedMember, producer(id: "producer_even", parity: .even)]
+    )
+}
+
+@MainActor
+func myOrdersHistoryContext(
+    nowMillis: Int64,
+    currentMember: Member? = nil
+) -> MyOrdersHistoryRouteContext {
+    MyOrdersHistoryRouteContext(
+        currentMember: currentMember ?? member(id: "member_1", ecoCommitmentMode: .weekly),
+        nowMillis: nowMillis
     )
 }
 

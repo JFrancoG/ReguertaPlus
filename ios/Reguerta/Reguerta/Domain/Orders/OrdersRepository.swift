@@ -17,6 +17,13 @@ protocol OrdersRepository {
         previousWeekKey: String
     ) async throws -> MyOrderPreviousOrderSnapshot?
 
+    func orderHistoryWeekKeys(currentMember: Member?) async throws -> [String]
+
+    func orderSummarySnapshot(
+        currentMember: Member?,
+        weekKey: String
+    ) async throws -> MyOrderPreviousOrderSnapshot?
+
     func myOrderProducerStatuses(orderId: String) async -> MyOrderProducerStatusSnapshot
 
     func receivedOrdersSnapshot(

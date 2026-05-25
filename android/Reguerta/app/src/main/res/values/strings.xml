@@ -332,6 +332,14 @@
     <string name="my_order_previous_empty">No order was registered last week</string>
     <string name="my_order_previous_error">We could not load your previous-week order.</string>
     <string name="my_order_previous_retry">Retry</string>
+    <string name="my_orders_history_title_fallback">Order</string>
+    <string name="my_orders_history_week_fallback">Week</string>
+    <string name="my_orders_history_previous_week">Previous week</string>
+    <string name="my_orders_history_next_week">Next week</string>
+    <string name="my_orders_history_loading">Loading order…</string>
+    <string name="my_orders_history_empty">No order was registered for this week</string>
+    <string name="my_orders_history_error">We could not load this order.</string>
+    <string name="my_orders_history_picker_select">Select</string>
     <string name="my_order_cart_empty">No products selected yet.</string>
     <string name="my_order_finalize_action">Finish order</string>
     <string name="my_order_finalize_update_action">Save changes</string>
