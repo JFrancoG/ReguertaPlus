@@ -22,6 +22,8 @@ extension AccessRootRoutingView {
             usersRoute
         case .myOrder:
             myOrderRoute
+        case .myOrders:
+            myOrdersHistoryRoute
         case .receivedOrders:
             receivedOrdersRoute
         case .profile:

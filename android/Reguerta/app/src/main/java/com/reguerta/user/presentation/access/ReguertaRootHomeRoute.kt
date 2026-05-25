@@ -193,6 +193,7 @@ internal fun HomeRoute(
     var isMyOrderReadOnlyMode by rememberSaveable { mutableStateOf(false) }
     var isMyOrderCartVisible by rememberSaveable { mutableStateOf(false) }
     var sharedProfileTitleOverride by rememberSaveable { mutableStateOf<String?>(null) }
+    var myOrdersHistoryTitleOverride by rememberSaveable { mutableStateOf<String?>(null) }
     val member = when (mode) {
         is SessionMode.Authorized -> mode.member
         SessionMode.SignedOut,
@@ -227,6 +228,9 @@ internal fun HomeRoute(
         }
         if (destination != HomeDestination.PROFILE) {
             sharedProfileTitleOverride = null
+        }
+        if (destination != HomeDestination.MY_ORDERS) {
+            myOrdersHistoryTitleOverride = null
         }
 
         currentDestination = destination
@@ -321,6 +325,7 @@ internal fun HomeRoute(
         ) {
         val usesRouteScroll =
             currentDestination != HomeDestination.MY_ORDER &&
+                currentDestination != HomeDestination.MY_ORDERS &&
                 currentDestination != HomeDestination.RECEIVED_ORDERS &&
                 currentDestination != HomeDestination.PRODUCTS &&
                 currentDestination != HomeDestination.USERS &&
@@ -347,6 +352,9 @@ internal fun HomeRoute(
                 }
                 currentDestination == HomeDestination.PROFILE && !sharedProfileTitleOverride.isNullOrBlank() -> {
                     sharedProfileTitleOverride.orEmpty()
+                }
+                currentDestination == HomeDestination.MY_ORDERS -> {
+                    myOrdersHistoryTitleOverride ?: stringResource(R.string.my_orders_history_title_fallback)
                 }
                 else -> stringResource(currentDestination.titleRes())
             }
@@ -555,6 +563,15 @@ internal fun HomeRoute(
                     },
                     )
 
+                    HomeDestination.MY_ORDERS -> MyOrdersHistoryRoute(
+                    modifier = Modifier.fillMaxSize(),
+                    currentMember = member,
+                    nowOverrideMillis = nowOverrideMillis,
+                    onTitleChanged = { titleOverride ->
+                        myOrdersHistoryTitleOverride = titleOverride
+                    },
+                    )
+
                     HomeDestination.RECEIVED_ORDERS -> ReceivedOrdersRoute(
                     modifier = Modifier.fillMaxSize(),
                     currentMember = member,
@@ -674,13 +691,6 @@ internal fun HomeRoute(
                         onClear = onClearBylawsResult,
                     )
 
-                    else -> HomePlaceholderRoute(
-                    title = stringResource(currentDestination.titleRes()),
-                    subtitle = stringResource(currentDestination.subtitleRes()),
-                    onBackHome = {
-                        navigateHome(HomeDestination.DASHBOARD)
-                    },
-                    )
                 }
             }
             if (isDrawerOpen) {

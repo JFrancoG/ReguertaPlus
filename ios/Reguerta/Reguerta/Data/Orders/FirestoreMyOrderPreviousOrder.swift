@@ -88,15 +88,28 @@ func fetchPreviousWeekOrderSnapshot(
     db: Firestore = Firestore.firestore(),
     environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment
 ) async throws -> MyOrderPreviousOrderSnapshot? {
+    try await fetchOrderSummarySnapshot(
+        currentMember: currentMember,
+        weekKey: previousWeekKey,
+        db: db,
+        environment: environment
+    )
+}
+
+func fetchOrderSummarySnapshot(
+    currentMember: Member?,
+    weekKey: String,
+    db: Firestore = Firestore.firestore(),
+    environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment
+) async throws -> MyOrderPreviousOrderSnapshot? {
     guard let member = currentMember else {
         return nil
     }
-
     let firestorePath = ReguertaFirestorePath(environment: environment)
     let readTargets = resolvePreviousOrderReadTargets(
         firestorePath: firestorePath
     )
-    let deterministicOrderId = "\(member.id)_\(previousWeekKey)"
+    let deterministicOrderId = "\(member.id)_\(weekKey)"
     var lastError: Error?
     var hasSuccessfulRead = false
 
@@ -106,7 +119,7 @@ func fetchPreviousWeekOrderSnapshot(
                 target: target,
                 deterministicOrderId: deterministicOrderId,
                 memberId: member.id,
-                previousWeekKey: previousWeekKey,
+                previousWeekKey: weekKey,
                 db: db
             )
             hasSuccessfulRead = true

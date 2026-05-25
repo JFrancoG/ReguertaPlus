@@ -30,9 +30,27 @@ struct FirestoreOrdersRepository: OrdersRepository {
         currentMember: Member?,
         previousWeekKey: String
     ) async throws -> MyOrderPreviousOrderSnapshot? {
-        try await fetchPreviousWeekOrderSnapshot(
+        try await orderSummarySnapshot(
             currentMember: currentMember,
-            previousWeekKey: previousWeekKey,
+            weekKey: previousWeekKey
+        )
+    }
+
+    func orderHistoryWeekKeys(currentMember: Member?) async throws -> [String] {
+        try await fetchOrderHistoryWeekKeys(
+            currentMember: currentMember,
+            db: db,
+            environment: environment
+        )
+    }
+
+    func orderSummarySnapshot(
+        currentMember: Member?,
+        weekKey: String
+    ) async throws -> MyOrderPreviousOrderSnapshot? {
+        try await fetchOrderSummarySnapshot(
+            currentMember: currentMember,
+            weekKey: weekKey,
             db: db,
             environment: environment
         )

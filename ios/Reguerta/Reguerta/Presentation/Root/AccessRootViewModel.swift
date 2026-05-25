@@ -7,6 +7,7 @@ private struct RootFeatureViewModels {
     let sharedProfileViewModel: SharedProfileFeatureViewModel
     let usersViewModel: UsersFeatureViewModel
     let myOrderViewModel: MyOrderRouteViewModel
+    let myOrdersHistoryViewModel: MyOrdersHistoryRouteViewModel
     let receivedOrdersViewModel: ReceivedOrdersRouteViewModel
     let myOrderFreshnessViewModel: MyOrderFreshnessViewModel
     let bylawsViewModel: BylawsFeatureViewModel
@@ -33,6 +34,7 @@ final class AccessRootViewModel {
     @ObservationIgnored let sharedProfileViewModel: SharedProfileFeatureViewModel
     @ObservationIgnored let usersViewModel: UsersFeatureViewModel
     @ObservationIgnored let myOrderViewModel: MyOrderRouteViewModel
+    @ObservationIgnored let myOrdersHistoryViewModel: MyOrdersHistoryRouteViewModel
     @ObservationIgnored let receivedOrdersViewModel: ReceivedOrdersRouteViewModel
     @ObservationIgnored let myOrderFreshnessViewModel: MyOrderFreshnessViewModel
     @ObservationIgnored let bylawsViewModel: BylawsFeatureViewModel
@@ -63,6 +65,7 @@ final class AccessRootViewModel {
     var myOrderReadOnlyMode = false
     var isImpersonationExpanded = false
     var sharedProfileTitleOverride: String?
+    var myOrdersHistoryTitleOverride: String?
     var showsSharedProfileSavedDialog = false
     var nowOverrideMillis: Int64?
 
@@ -121,6 +124,7 @@ final class AccessRootViewModel {
         self.sharedProfileViewModel = featureViewModels.sharedProfileViewModel
         self.usersViewModel = featureViewModels.usersViewModel
         self.myOrderViewModel = featureViewModels.myOrderViewModel
+        self.myOrdersHistoryViewModel = featureViewModels.myOrdersHistoryViewModel
         self.receivedOrdersViewModel = featureViewModels.receivedOrdersViewModel
         self.myOrderFreshnessViewModel = featureViewModels.myOrderFreshnessViewModel
         self.bylawsViewModel = featureViewModels.bylawsViewModel
@@ -165,6 +169,10 @@ private extension AccessRootViewModel {
                 dependencies: dependencies.users
             ),
             myOrderViewModel: makeMyOrderViewModel(
+                sessionViewModel: sessionViewModel,
+                dependencies: dependencies.orders
+            ),
+            myOrdersHistoryViewModel: makeMyOrdersHistoryViewModel(
                 sessionViewModel: sessionViewModel,
                 dependencies: dependencies.orders
             ),
@@ -258,28 +266,6 @@ private extension AccessRootViewModel {
         )
     }
 
-    static func makeMyOrderViewModel(
-        sessionViewModel: SessionViewModel,
-        dependencies: OrdersFeatureDependencies
-    ) -> MyOrderRouteViewModel {
-        MyOrderRouteViewModel(
-            sessionViewModel: sessionViewModel,
-            ordersRepository: dependencies.ordersRepository,
-            cartStore: dependencies.cartStore,
-            nowMillisProvider: dependencies.nowMillisProvider
-        )
-    }
-
-    static func makeReceivedOrdersViewModel(
-        sessionViewModel: SessionViewModel,
-        dependencies: OrdersFeatureDependencies
-    ) -> ReceivedOrdersRouteViewModel {
-        ReceivedOrdersRouteViewModel(
-            sessionViewModel: sessionViewModel,
-            ordersRepository: dependencies.ordersRepository,
-            nowMillisProvider: dependencies.nowMillisProvider
-        )
-    }
 }
 
 extension AccessRootViewModel {
@@ -492,6 +478,9 @@ extension AccessRootViewModel {
         }
         if destination != .profile {
             sharedProfileTitleOverride = nil
+        }
+        if destination != .myOrders {
+            myOrdersHistoryTitleOverride = nil
         }
         if destination == .notifications {
             Task { await newsNotificationsViewModel.prepareNotificationsRoute() }
