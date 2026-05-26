@@ -26,6 +26,8 @@ extension AccessRootRoutingView {
             myOrdersHistoryRoute
         case .receivedOrders:
             receivedOrdersRoute
+        case .receivedOrdersHistory:
+            receivedOrdersHistoryRoute
         case .profile:
             sharedProfileRoute
         case .settings:

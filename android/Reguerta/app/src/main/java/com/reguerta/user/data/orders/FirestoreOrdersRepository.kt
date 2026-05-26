@@ -1,6 +1,8 @@
 package com.reguerta.user.data.orders
 
 import com.google.android.gms.tasks.Tasks
+import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
 import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
 import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
@@ -9,9 +11,18 @@ import com.reguerta.user.domain.orders.OrderSummaryGroup
 import com.reguerta.user.domain.orders.OrderSummaryLine
 import com.reguerta.user.domain.orders.OrderSummarySnapshot
 import com.reguerta.user.domain.orders.OrdersRepository
+import com.reguerta.user.domain.orders.ReceivedOrderLineRecord
+import com.reguerta.user.domain.orders.ReceivedOrderProducerStatus
+import com.reguerta.user.domain.orders.ReceivedOrderStatusWriteResult
+import com.reguerta.user.domain.orders.ReceivedOrdersMemberGroup
+import com.reguerta.user.domain.orders.ReceivedOrdersMemberLine
+import com.reguerta.user.domain.orders.ReceivedOrdersProductRow
+import com.reguerta.user.domain.orders.ReceivedOrdersSnapshot
 import com.reguerta.user.domain.orders.isValidIsoWeekKey
+import com.reguerta.user.domain.orders.toReceivedOrderStatusWriteResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.Date
 import java.util.Locale
 
 class FirestoreOrdersRepository(
@@ -102,6 +113,101 @@ class FirestoreOrdersRepository(
         }
     }
 
+    override suspend fun receivedOrdersHistoryWeekKeys(producerId: String?): List<String> = withContext(Dispatchers.IO) {
+        val resolvedProducerId = producerId?.trim()?.takeIf(String::isNotBlank) ?: return@withContext emptyList()
+        val weekKeys = linkedSetOf<String>()
+        var hasSuccessfulRead = false
+        var lastFailure: Throwable? = null
+
+        runCatching {
+            Tasks.await(
+                firestore.collection(orderLinesPath)
+                    .whereEqualTo("vendorId", resolvedProducerId)
+                    .get(),
+            )
+        }.onSuccess { snapshot ->
+            hasSuccessfulRead = true
+            snapshot.documents.forEach { document ->
+                val weekKey = (document.data.orEmpty()["weekKey"] as? String)?.trim()
+                if (!weekKey.isNullOrBlank() && weekKey.isValidIsoWeekKey()) {
+                    weekKeys += weekKey
+                }
+            }
+        }.onFailure { failure ->
+            lastFailure = failure
+        }
+
+        if (!hasSuccessfulRead && lastFailure != null) {
+            throw lastFailure
+        }
+        weekKeys.sorted()
+    }
+
+    override suspend fun receivedOrdersSnapshot(
+        producerId: String?,
+        weekKey: String,
+        markUnreadAsRead: Boolean,
+    ): ReceivedOrdersSnapshot? = withContext(Dispatchers.IO) {
+        val resolvedProducerId = producerId?.trim()?.takeIf(String::isNotBlank) ?: return@withContext null
+        val normalizedWeekKey = weekKey.trim().takeIf(String::isValidIsoWeekKey) ?: return@withContext null
+        val lines = fetchReceivedOrderLinesForProducer(
+            producerId = resolvedProducerId,
+            weekKey = normalizedWeekKey,
+        )
+        if (lines.isEmpty()) return@withContext null
+
+        var statusesByOrderId = fetchReceivedOrderStatusesByOrderId(
+            orderIds = lines.map(ReceivedOrderLineRecord::orderId).distinct(),
+            producerId = resolvedProducerId,
+        )
+        if (markUnreadAsRead) {
+            val unreadOrderIds = statusesByOrderId
+                .filterValues { status -> status == ReceivedOrderProducerStatus.UNREAD }
+                .keys
+                .toList()
+            if (unreadOrderIds.isNotEmpty()) {
+                val markedAsRead = markReceivedOrdersAsRead(
+                    orderIds = unreadOrderIds,
+                    producerId = resolvedProducerId,
+                )
+                if (markedAsRead.isNotEmpty()) {
+                    statusesByOrderId = statusesByOrderId.toMutableMap().apply {
+                        markedAsRead.forEach { orderId ->
+                            this[orderId] = ReceivedOrderProducerStatus.READ
+                        }
+                    }
+                }
+            }
+        }
+        buildReceivedOrdersSnapshot(lines, statusesByOrderId)
+    }
+
+    override suspend fun updateReceivedOrderProducerStatus(
+        orderId: String,
+        producerId: String,
+        status: ReceivedOrderProducerStatus,
+        nowMillis: Long,
+    ): ReceivedOrderStatusWriteResult = withContext(Dispatchers.IO) {
+        var lastFailure = ReceivedOrderStatusWriteResult.FAILURE
+        try {
+            val orderReference = firestore.document("$ordersPath/$orderId")
+            Tasks.await(
+                orderReference.update(
+                    mapOf(
+                        "producerStatus" to status.wireValue,
+                        "producerStatusesByVendor.$producerId" to status.wireValue,
+                        "producerStatusUpdatedBy" to producerId,
+                        "updatedAt" to Timestamp(Date(nowMillis)),
+                    ),
+                ),
+            )
+            return@withContext ReceivedOrderStatusWriteResult.SUCCESS
+        } catch (throwable: Throwable) {
+            lastFailure = throwable.toReceivedOrderStatusWriteResult()
+        }
+        lastFailure
+    }
+
     private fun fetchMemberOrderDocuments(
         memberId: String,
         weekKey: String,
@@ -159,6 +265,105 @@ class FirestoreOrdersRepository(
                 lineDocuments[document.id] = document.data.orEmpty()
             }
         return lineDocuments
+    }
+
+    private fun fetchReceivedOrderLinesForProducer(
+        producerId: String,
+        weekKey: String,
+    ): List<ReceivedOrderLineRecord> {
+        val dedupedByKey = linkedMapOf<String, ReceivedOrderLineRecord>()
+        var hasSuccessfulRead = false
+        var lastFailure: Throwable? = null
+
+        runCatching {
+            Tasks.await(
+                firestore.collection(orderLinesPath)
+                    .whereEqualTo("vendorId", producerId)
+                    .whereEqualTo("weekKey", weekKey)
+                    .get(),
+            )
+        }.onSuccess { snapshot ->
+            hasSuccessfulRead = true
+            snapshot.documents.forEach { document ->
+                val payload = document.data.orEmpty()
+                receivedOrderLineRecord(payload, fallbackDocumentId = document.id)?.let { line ->
+                    dedupedByKey[line.dedupKey] = line
+                }
+            }
+        }.onFailure { failure ->
+            lastFailure = failure
+        }
+
+        if (!hasSuccessfulRead && lastFailure != null) {
+            throw lastFailure
+        }
+
+        return dedupedByKey.values.sortedWith(
+            compareBy(
+                { it.consumerDisplayName.lowercase(Locale.ROOT) },
+                { it.productName.lowercase(Locale.ROOT) },
+            ),
+        )
+    }
+
+    private fun fetchReceivedOrderStatusesByOrderId(
+        orderIds: List<String>,
+        producerId: String,
+    ): Map<String, ReceivedOrderProducerStatus> {
+        if (orderIds.isEmpty()) return emptyMap()
+
+        val statusesByOrderId = mutableMapOf<String, ReceivedOrderProducerStatus>()
+        var hasSuccessfulRead = false
+        var lastFailure: Throwable? = null
+
+        orderIds.distinct().chunked(10).forEach { chunk ->
+            runCatching {
+                Tasks.await(
+                    firestore.collection(ordersPath)
+                        .whereIn(FieldPath.documentId(), chunk)
+                        .get(),
+                )
+            }.onSuccess { snapshot ->
+                hasSuccessfulRead = true
+                snapshot.documents.forEach { document ->
+                    statusesByOrderId[document.id] = document.data.orEmpty().readProducerStatusForVendor(producerId)
+                }
+            }.onFailure { failure ->
+                lastFailure = failure
+            }
+        }
+
+        if (!hasSuccessfulRead && lastFailure != null) {
+            throw lastFailure
+        }
+        return statusesByOrderId
+    }
+
+    private fun markReceivedOrdersAsRead(
+        orderIds: List<String>,
+        producerId: String,
+    ): Set<String> {
+        val updatedOrderIds = linkedSetOf<String>()
+        orderIds.distinct().forEach { orderId ->
+            val updated = runCatching {
+                val orderReference = firestore.document("$ordersPath/$orderId")
+                Tasks.await(
+                    orderReference.update(
+                        mapOf(
+                            "producerStatus" to ReceivedOrderProducerStatus.READ.wireValue,
+                            "producerStatusesByVendor.$producerId" to ReceivedOrderProducerStatus.READ.wireValue,
+                            "producerStatusUpdatedBy" to producerId,
+                            "updatedAt" to Timestamp(Date()),
+                        ),
+                    ),
+                )
+                ReceivedOrderStatusWriteResult.SUCCESS
+            }.getOrElse { ReceivedOrderStatusWriteResult.FAILURE }
+            if (updated == ReceivedOrderStatusWriteResult.SUCCESS) {
+                updatedOrderIds += orderId
+            }
+        }
+        return updatedOrderIds
     }
 }
 
@@ -280,3 +485,161 @@ private fun Double.toOrderUiDecimal(): String {
     if (this % 1.0 == 0.0) return toLong().toString()
     return String.format(Locale.US, "%.2f", this).trimEnd('0').trimEnd('.')
 }
+
+private fun buildReceivedOrdersSnapshot(
+    lines: List<ReceivedOrderLineRecord>,
+    statusesByOrderId: Map<String, ReceivedOrderProducerStatus>,
+): ReceivedOrdersSnapshot {
+    val byProductRows = lines.groupBy { it.productId }
+        .mapNotNull { (productId, grouped) ->
+            val first = grouped.firstOrNull() ?: return@mapNotNull null
+            ReceivedOrdersProductRow(
+                productId = productId,
+                productName = first.productName,
+                productImageUrl = first.productImageUrl,
+                packagingLine = first.packagingLine,
+                totalQuantity = grouped.sumOf { line -> line.orderedQuantity },
+                quantityUnitSingular = first.quantityUnitSingular,
+                quantityUnitPlural = first.quantityUnitPlural,
+            )
+        }
+        .sortedBy { it.productName.lowercase(Locale.ROOT) }
+
+    val byMemberGroups = lines.groupBy { line ->
+        "${line.consumerId}|${line.consumerDisplayName}"
+    }.mapNotNull { (key, grouped) ->
+        val first = grouped.firstOrNull() ?: return@mapNotNull null
+        val memberLines = grouped.map { line ->
+            ReceivedOrdersMemberLine(
+                id = "${line.orderId}|${line.productId}",
+                productName = line.productName,
+                packagingLine = line.packagingLine,
+                quantity = line.orderedQuantity,
+                quantityUnitSingular = line.quantityUnitSingular,
+                quantityUnitPlural = line.quantityUnitPlural,
+                subtotal = line.subtotal,
+            )
+        }.sortedBy { it.productName.lowercase(Locale.ROOT) }
+        ReceivedOrdersMemberGroup(
+            id = key,
+            orderId = first.orderId,
+            consumerDisplayName = first.consumerDisplayName,
+            producerStatus = statusesByOrderId[first.orderId] ?: ReceivedOrderProducerStatus.UNREAD,
+            lines = memberLines,
+            total = memberLines.sumOf(ReceivedOrdersMemberLine::subtotal),
+        )
+    }.sortedBy { it.consumerDisplayName.lowercase(Locale.ROOT) }
+
+    return ReceivedOrdersSnapshot(
+        byProductRows = byProductRows,
+        byMemberGroups = byMemberGroups,
+        generalTotal = lines.sumOf(ReceivedOrderLineRecord::subtotal),
+    )
+}
+
+private fun Map<String, Any>.readProducerStatusForVendor(producerId: String): ReceivedOrderProducerStatus {
+    val statusesByVendor = this["producerStatusesByVendor"] as? Map<*, *>
+    val vendorValue = statusesByVendor?.get(producerId) as? String
+    if (!vendorValue.isNullOrBlank()) {
+        return ReceivedOrderProducerStatus.fromWireValue(vendorValue)
+    }
+    return ReceivedOrderProducerStatus.fromWireValue(this["producerStatus"] as? String)
+}
+
+private fun receivedOrderLineRecord(
+    payload: Map<String, Any>,
+    fallbackDocumentId: String,
+): ReceivedOrderLineRecord? {
+    val orderId = (payload["orderId"] as? String)?.trim().orEmpty().ifBlank { fallbackDocumentId }
+    val consumerId = (payload["userId"] as? String)?.trim().orEmpty().ifBlank { "__consumer_unknown__" }
+    val consumerDisplayName = (payload["consumerDisplayName"] as? String)?.trim().orEmpty()
+        .ifBlank { consumerId }
+    val productId = (payload["productId"] as? String)?.trim().orEmpty().ifBlank { fallbackDocumentId }
+    val productName = (payload["productName"] as? String)?.trim().orEmpty().ifBlank { "Producto" }
+    val companyName = (payload["companyName"] as? String)?.trim().orEmpty().ifBlank { "Productor" }
+    val quantity = (payload["quantity"] as? Number)?.toDouble() ?: 0.0
+    if (quantity <= 0.0) return null
+    val priceAtOrder = (payload["priceAtOrder"] as? Number)?.toDouble()
+    val subtotal = (payload["subtotal"] as? Number)?.toDouble()
+        ?: quantity * (priceAtOrder ?: 0.0)
+    val quantityUnitSingular = (payload["packContainerName"] as? String)?.trim().orEmpty()
+        .ifBlank { (payload["unitName"] as? String)?.trim().orEmpty().ifBlank { "ud." } }
+    val quantityUnitPlural = (payload["packContainerPlural"] as? String)?.trim().orEmpty()
+        .ifBlank { (payload["unitPlural"] as? String)?.trim().orEmpty().ifBlank { quantityUnitSingular } }
+    val measureQuantityPerUnit = receivedOrdersMeasureQuantityPerUnitFromPayload(payload)
+    val pricingMode = (payload["pricingModeAtOrder"] as? String)?.trim()
+
+    return ReceivedOrderLineRecord(
+        id = "${orderId}_${productId}_$consumerId",
+        orderId = orderId,
+        consumerId = consumerId,
+        consumerDisplayName = consumerDisplayName,
+        productId = productId,
+        productName = productName,
+        productImageUrl = (payload["productImageUrl"] as? String)?.trim().orEmpty().ifBlank { null },
+        companyName = companyName,
+        packagingLine = receivedOrdersPackagingLineFromPayload(payload),
+        quantity = quantity,
+        quantityUnitSingular = quantityUnitSingular,
+        quantityUnitPlural = quantityUnitPlural,
+        measureQuantityPerUnit = measureQuantityPerUnit,
+        isWeightPricing = pricingMode.equals("weight", ignoreCase = true),
+        subtotal = subtotal,
+    )
+}
+
+private fun receivedOrdersPackagingLineFromPayload(payload: Map<String, Any>): String {
+    val containerName = (payload["packContainerName"] as? String)
+        ?.takeIf(String::isNotBlank)
+        ?: (payload["unitName"] as? String).orEmpty()
+    val quantity = receivedOrdersMeasureQuantityPerUnitFromPayload(payload)
+    val unitName = (payload["unitName"] as? String).orEmpty()
+    val unitPlural = (payload["unitPlural"] as? String).orEmpty().ifBlank { unitName }
+    val unitLabel = receivedOrdersMeasureLabel(
+        quantity = quantity,
+        singular = unitName,
+        plural = unitPlural,
+        abbreviation = (payload["unitAbbreviation"] as? String)?.takeIf(String::isNotBlank)
+            ?: (payload["packContainerAbbreviation"] as? String)?.takeIf(String::isNotBlank),
+        prefersAbbreviation = false,
+    )
+
+    return listOf(containerName, unitLabel)
+        .filter(String::isNotBlank)
+        .joinToString(separator = " ")
+}
+
+private fun receivedOrdersMeasureQuantityPerUnitFromPayload(payload: Map<String, Any>): Double =
+    (payload["unitQty"] as? Number)?.toDouble()
+        ?: (payload["packContainerQty"] as? Number)?.toDouble()
+        ?: 1.0
+
+private fun receivedOrdersMeasureLabel(
+    quantity: Double,
+    singular: String,
+    plural: String,
+    abbreviation: String?,
+    prefersAbbreviation: Boolean,
+): String {
+    val numberAwareUnit = if (receivedOrdersIsApproximatelyOne(quantity)) singular else plural
+    val unit = if (prefersAbbreviation && !abbreviation.isNullOrBlank()) {
+        abbreviation
+    } else {
+        numberAwareUnit
+    }
+    return listOf(quantity.toReceivedUiDecimal(), unit)
+        .filter(String::isNotBlank)
+        .joinToString(separator = " ")
+}
+
+private fun Double.toReceivedUiDecimal(): String {
+    if (this % 1.0 == 0.0) {
+        return toLong().toString()
+    }
+    return String.format(Locale.US, "%.2f", this)
+        .trimEnd('0')
+        .trimEnd('.')
+}
+
+private fun receivedOrdersIsApproximatelyOne(value: Double): Boolean =
+    kotlin.math.abs(value - 1.0) < 0.0001

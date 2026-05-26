@@ -31,6 +31,16 @@ func makeReceivedOrdersViewModel(
 }
 
 @MainActor
+func makeReceivedOrdersHistoryViewModel(
+    repository: InMemoryOrdersRepository? = nil
+) -> ReceivedOrdersHistoryRouteViewModel {
+    ReceivedOrdersHistoryRouteViewModel(
+        sessionViewModel: SessionViewModel(dependencies: .preview()),
+        ordersRepository: repository ?? InMemoryOrdersRepository()
+    )
+}
+
+@MainActor
 func makeMyOrdersHistoryViewModel(
     repository: InMemoryOrdersRepository? = nil
 ) -> MyOrdersHistoryRouteViewModel {
@@ -84,6 +94,17 @@ func receivedOrdersContext(
         shifts: [],
         defaultDeliveryDayOfWeek: .wednesday,
         deliveryCalendarOverrides: [],
+        nowMillis: nowMillis
+    )
+}
+
+@MainActor
+func receivedOrdersHistoryContext(
+    nowMillis: Int64,
+    currentMember: Member? = nil
+) -> ReceivedOrdersHistoryRouteContext {
+    ReceivedOrdersHistoryRouteContext(
+        currentMember: currentMember ?? producer(id: "producer_even", parity: .even),
         nowMillis: nowMillis
     )
 }

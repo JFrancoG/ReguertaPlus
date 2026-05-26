@@ -75,6 +75,7 @@ enum AccessL10nKey {
     static let homeShellSectionAdmin = "home.shell.section.admin"
     static let homeShellActionProducts = "home.shell.action.products"
     static let homeShellActionReceivedOrders = "home.shell.action.received_orders"
+    static let homeShellActionReceivedOrdersHistory = "home.shell.action.received_orders_history"
     static let homeShellActionUsers = "home.shell.action.users"
     static let homeShellActionProfile = "home.shell.action.profile"
     static let homeShellActionSettings = "home.shell.action.settings"
@@ -139,6 +140,7 @@ enum AccessL10nKey {
     static let homePlaceholderSettings = "home.placeholder.settings"
     static let homePlaceholderProducts = "home.placeholder.products"
     static let homePlaceholderReceivedOrders = "home.placeholder.received_orders"
+    static let homePlaceholderReceivedOrdersHistory = "home.placeholder.received_orders_history"
     static let homePlaceholderUsers = "home.placeholder.users"
     static let homePlaceholderAdminBroadcast = "home.placeholder.admin_broadcast"
 

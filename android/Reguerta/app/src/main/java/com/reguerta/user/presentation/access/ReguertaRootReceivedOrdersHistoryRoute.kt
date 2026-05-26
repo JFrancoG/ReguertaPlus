@@ -1,8 +1,8 @@
 package com.reguerta.user.presentation.access
 
+import android.widget.NumberPicker
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,20 +17,27 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -38,11 +45,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
@@ -51,69 +60,71 @@ import com.reguerta.user.R
 import com.reguerta.user.data.orders.FirestoreOrdersRepository
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.canAccessReceivedOrders
-import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
-import com.reguerta.user.domain.calendar.DeliveryWeekday
+import com.reguerta.user.domain.orders.OrderHistoryWeekOption
 import com.reguerta.user.domain.orders.ReceivedOrderProducerStatus
-import com.reguerta.user.domain.orders.ReceivedOrderStatusWriteResult
 import com.reguerta.user.domain.orders.ReceivedOrdersMemberGroup
 import com.reguerta.user.domain.orders.ReceivedOrdersMemberLine
 import com.reguerta.user.domain.orders.ReceivedOrdersProductRow
 import com.reguerta.user.domain.orders.ReceivedOrdersSnapshot
-import com.reguerta.user.domain.shifts.ShiftAssignment
 import java.util.Locale
 
 @Composable
-internal fun ReceivedOrdersRoute(
+internal fun ReceivedOrdersHistoryRoute(
     modifier: Modifier = Modifier,
     currentMember: Member?,
-    shifts: List<ShiftAssignment>,
-    defaultDeliveryDayOfWeek: DeliveryWeekday?,
-    deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
     nowOverrideMillis: Long?,
+    onTitleChanged: (String?) -> Unit = {},
 ) {
     val firestore = remember { FirebaseFirestore.getInstance() }
     val repository = remember(firestore) { FirestoreOrdersRepository(firestore = firestore) }
-    val viewModel: ReceivedOrdersViewModel = viewModel(
-        factory = ReceivedOrdersViewModelFactory(repository),
+    val viewModel: ReceivedOrdersHistoryViewModel = viewModel(
+        factory = ReceivedOrdersHistoryViewModelFactory(repository),
     )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val effectiveNowMillis = remember(nowOverrideMillis) { nowOverrideMillis ?: System.currentTimeMillis() }
 
-    LaunchedEffect(
-        currentMember?.id,
-        currentMember?.canAccessReceivedOrders,
-        shifts,
-        defaultDeliveryDayOfWeek,
-        deliveryCalendarOverrides,
-        effectiveNowMillis,
-    ) {
+    LaunchedEffect(currentMember?.id, currentMember?.canAccessReceivedOrders, effectiveNowMillis) {
         viewModel.appear(
-            ReceivedOrdersContext(
+            ReceivedOrdersHistoryContext(
                 producerId = currentMember?.id,
                 isProducer = currentMember?.canAccessReceivedOrders == true,
-                shifts = shifts,
-                defaultDeliveryDayOfWeek = defaultDeliveryDayOfWeek,
-                deliveryCalendarOverrides = deliveryCalendarOverrides,
                 nowMillis = effectiveNowMillis,
             ),
         )
     }
+    LaunchedEffect(state.selectedTitle) {
+        onTitleChanged(state.selectedTitle)
+    }
+    DisposableEffect(Unit) {
+        onDispose { onTitleChanged(null) }
+    }
 
-    ReceivedOrdersContent(
+    ReceivedOrdersHistoryContent(
         state = state,
-        onSelectTab = viewModel::selectTab,
+        onPrevious = viewModel::selectPreviousWeek,
+        onNext = viewModel::selectNextWeek,
         onRetry = viewModel::retry,
-        onSelectStatus = viewModel::updateProducerStatus,
+        onSelectTab = viewModel::selectTab,
+        onOpenPicker = viewModel::presentWeekPicker,
+        onDismissPicker = viewModel::dismissWeekPicker,
+        onPickerSelection = viewModel::setPickerSelection,
+        onCommitPicker = viewModel::commitPickerSelection,
         modifier = modifier,
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ReceivedOrdersContent(
-    state: ReceivedOrdersUiState,
-    onSelectTab: (ReceivedOrdersRouteTab) -> Unit,
+private fun ReceivedOrdersHistoryContent(
+    state: ReceivedOrdersHistoryUiState,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
     onRetry: () -> Unit,
-    onSelectStatus: (String, ReceivedOrderProducerStatus) -> Unit,
+    onSelectTab: (ReceivedOrdersHistoryTab) -> Unit,
+    onOpenPicker: () -> Unit,
+    onDismissPicker: () -> Unit,
+    onPickerSelection: (String) -> Unit,
+    onCommitPicker: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -121,82 +132,162 @@ private fun ReceivedOrdersContent(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = stringResource(R.string.received_orders_title),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
+            ReceivedOrdersHistoryWeekHeader(
+                selectedWeek = state.selectedWeek,
+                canGoPrevious = state.canGoPrevious,
+                canGoNext = state.canGoNext,
+                onPrevious = onPrevious,
+                onNext = onNext,
+                onOpenPicker = onOpenPicker,
             )
 
-            ReceivedOrdersRouteTabSelector(
+            ReceivedOrdersHistoryTabSelector(
                 selectedTab = state.selectedTab,
                 onSelect = onSelectTab,
             )
 
-            state.statusWriteFeedback?.let { feedback ->
-                val messageRes = when (feedback) {
-                    ReceivedOrderStatusWriteResult.PERMISSION_DENIED -> R.string.received_orders_status_update_permission_denied
-                    ReceivedOrderStatusWriteResult.FAILURE -> R.string.received_orders_status_update_failed
-                    ReceivedOrderStatusWriteResult.SUCCESS -> null
-                }
-                if (messageRes != null) {
-                    Text(
-                        text = stringResource(messageRes),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error,
+            when (val loadState = state.loadState) {
+                ReceivedOrdersHistoryLoadState.Idle -> {
+                    ReceivedOrdersHistoryInfoCard(
+                        title = stringResource(R.string.received_orders_producer_only_title),
+                        body = stringResource(R.string.received_orders_producer_only_body),
                     )
                 }
-            }
 
-            when (val loadState = state.loadState) {
-                ReceivedOrdersLoadState.Idle -> {
-                    if (!state.isProducer) {
-                        ReceivedOrdersInfoCard(
-                            title = stringResource(R.string.received_orders_producer_only_title),
-                            body = stringResource(R.string.received_orders_producer_only_body),
-                        )
-                    } else {
-                        ReceivedOrdersInfoCard(
-                            title = stringResource(R.string.received_orders_window_closed_title),
-                            body = stringResource(R.string.received_orders_window_closed_body),
-                        )
-                    }
-                }
-
-                ReceivedOrdersLoadState.Loading -> ReceivedOrdersLoadingIndicator(
+                ReceivedOrdersHistoryLoadState.Loading -> ReceivedOrdersHistoryLoadingIndicator(
                     modifier = Modifier.weight(1f),
                 )
 
-                ReceivedOrdersLoadState.Empty -> ReceivedOrdersInfoCard(
-                    title = stringResource(R.string.received_orders_empty_title),
-                    body = stringResource(R.string.received_orders_empty_body_format, state.window.targetWeekKey),
-                )
+                ReceivedOrdersHistoryLoadState.Empty -> ReceivedOrdersHistoryEmptyState()
 
-                ReceivedOrdersLoadState.Error -> ReceivedOrdersErrorCard(onRetry = onRetry)
+                ReceivedOrdersHistoryLoadState.Error -> ReceivedOrdersHistoryErrorCard(onRetry = onRetry)
 
-                is ReceivedOrdersLoadState.Loaded -> ReceivedOrdersSummaryList(
+                is ReceivedOrdersHistoryLoadState.Loaded -> ReceivedOrdersHistorySummaryList(
                     snapshot = loadState.snapshot,
                     selectedTab = state.selectedTab,
-                    updatingStatusOrderId = state.updatingStatusOrderId,
-                    onSelectStatus = onSelectStatus,
                     modifier = Modifier.weight(1f),
                 )
             }
         }
 
-        val loadedSnapshot = (state.loadState as? ReceivedOrdersLoadState.Loaded)?.snapshot
-        if (loadedSnapshot != null && state.selectedTab == ReceivedOrdersRouteTab.BY_MEMBER) {
-            ReceivedOrdersTotalBar(
+        val loadedSnapshot = (state.loadState as? ReceivedOrdersHistoryLoadState.Loaded)?.snapshot
+        if (loadedSnapshot != null && !state.isWeekPickerVisible && state.selectedTab == ReceivedOrdersHistoryTab.BY_MEMBER) {
+            ReceivedOrdersHistoryTotalBar(
                 total = loadedSnapshot.generalTotal,
                 modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
+    }
+
+    if (state.isWeekPickerVisible) {
+        ModalBottomSheet(onDismissRequest = onDismissPicker) {
+            ReceivedOrdersHistoryWeekPickerSheet(
+                weeks = state.availableWeeks,
+                selectedWeekKey = state.pickerSelectedWeekKey ?: state.selectedWeekKey,
+                onSelectionChange = onPickerSelection,
+                onCancel = onDismissPicker,
+                onDone = onCommitPicker,
             )
         }
     }
 }
 
 @Composable
-private fun ReceivedOrdersRouteTabSelector(
-    selectedTab: ReceivedOrdersRouteTab,
-    onSelect: (ReceivedOrdersRouteTab) -> Unit,
+private fun ReceivedOrdersHistoryWeekHeader(
+    selectedWeek: OrderHistoryWeekOption?,
+    canGoPrevious: Boolean,
+    canGoNext: Boolean,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onOpenPicker: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ReceivedOrdersHistoryGlassNavButton(
+            imageVector = Icons.Filled.ChevronLeft,
+            enabled = canGoPrevious,
+            contentDescription = stringResource(R.string.my_orders_history_previous_week),
+            onClick = onPrevious,
+        )
+        ReceivedOrdersHistoryGlassPickerButton(
+            title = selectedWeek?.title ?: stringResource(R.string.my_orders_history_week_fallback),
+            onClick = onOpenPicker,
+        )
+        ReceivedOrdersHistoryGlassNavButton(
+            imageVector = Icons.Filled.ChevronRight,
+            enabled = canGoNext,
+            contentDescription = stringResource(R.string.my_orders_history_next_week),
+            onClick = onNext,
+        )
+    }
+}
+
+@Composable
+private fun ReceivedOrdersHistoryGlassNavButton(
+    imageVector: ImageVector,
+    enabled: Boolean,
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = if (enabled) 0.62f else 0.18f),
+        tonalElevation = if (enabled) 8.dp else 0.dp,
+        shadowElevation = if (enabled) 3.dp else 0.dp,
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.primary.copy(alpha = if (enabled) 0.34f else 0.12f),
+        ),
+    ) {
+        IconButton(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier.size(46.dp),
+        ) {
+            Icon(
+                imageVector = imageVector,
+                contentDescription = contentDescription,
+                tint = if (enabled) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.48f)
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReceivedOrdersHistoryGlassPickerButton(
+    title: String,
+    onClick: () -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.56f),
+        tonalElevation = 8.dp,
+        shadowElevation = 3.dp,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.32f)),
+    ) {
+        TextButton(onClick = onClick) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 10.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReceivedOrdersHistoryTabSelector(
+    selectedTab: ReceivedOrdersHistoryTab,
+    onSelect: (ReceivedOrdersHistoryTab) -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -206,23 +297,23 @@ private fun ReceivedOrdersRouteTabSelector(
             .padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        ReceivedOrdersRouteTabButton(
+        ReceivedOrdersHistoryTabButton(
             label = stringResource(R.string.received_orders_tab_by_product),
-            selected = selectedTab == ReceivedOrdersRouteTab.BY_PRODUCT,
-            onClick = { onSelect(ReceivedOrdersRouteTab.BY_PRODUCT) },
+            selected = selectedTab == ReceivedOrdersHistoryTab.BY_PRODUCT,
+            onClick = { onSelect(ReceivedOrdersHistoryTab.BY_PRODUCT) },
             modifier = Modifier.weight(1f),
         )
-        ReceivedOrdersRouteTabButton(
+        ReceivedOrdersHistoryTabButton(
             label = stringResource(R.string.received_orders_tab_by_member),
-            selected = selectedTab == ReceivedOrdersRouteTab.BY_MEMBER,
-            onClick = { onSelect(ReceivedOrdersRouteTab.BY_MEMBER) },
+            selected = selectedTab == ReceivedOrdersHistoryTab.BY_MEMBER,
+            onClick = { onSelect(ReceivedOrdersHistoryTab.BY_MEMBER) },
             modifier = Modifier.weight(1f),
         )
     }
 }
 
 @Composable
-private fun ReceivedOrdersRouteTabButton(
+private fun ReceivedOrdersHistoryTabButton(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
@@ -246,7 +337,7 @@ private fun ReceivedOrdersRouteTabButton(
 }
 
 @Composable
-private fun ReceivedOrdersLoadingIndicator(modifier: Modifier = Modifier) {
+private fun ReceivedOrdersHistoryLoadingIndicator(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.Center,
@@ -256,7 +347,20 @@ private fun ReceivedOrdersLoadingIndicator(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun ReceivedOrdersErrorCard(onRetry: () -> Unit) {
+private fun ReceivedOrdersHistoryEmptyState() {
+    Text(
+        text = stringResource(R.string.received_orders_history_empty),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.error,
+        textAlign = TextAlign.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 24.dp),
+    )
+}
+
+@Composable
+private fun ReceivedOrdersHistoryErrorCard(onRetry: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -275,19 +379,17 @@ private fun ReceivedOrdersErrorCard(onRetry: () -> Unit) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Button(onClick = onRetry) {
-                Text(stringResource(R.string.received_orders_retry))
+            TextButton(onClick = onRetry) {
+                Text(text = stringResource(R.string.received_orders_retry))
             }
         }
     }
 }
 
 @Composable
-private fun ReceivedOrdersSummaryList(
+private fun ReceivedOrdersHistorySummaryList(
     snapshot: ReceivedOrdersSnapshot,
-    selectedTab: ReceivedOrdersRouteTab,
-    updatingStatusOrderId: String?,
-    onSelectStatus: (String, ReceivedOrderProducerStatus) -> Unit,
+    selectedTab: ReceivedOrdersHistoryTab,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -295,30 +397,26 @@ private fun ReceivedOrdersSummaryList(
         contentPadding = PaddingValues(bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (selectedTab == ReceivedOrdersRouteTab.BY_PRODUCT) {
+        if (selectedTab == ReceivedOrdersHistoryTab.BY_PRODUCT) {
             items(
                 items = snapshot.byProductRows,
                 key = ReceivedOrdersProductRow::productId,
             ) { row ->
-                ReceivedOrdersProductCard(row = row)
+                ReceivedOrdersHistoryProductCard(row = row)
             }
         } else {
             items(
                 items = snapshot.byMemberGroups,
                 key = ReceivedOrdersMemberGroup::id,
             ) { group ->
-                ReceivedOrdersMemberCard(
-                    group = group,
-                    isUpdatingStatus = updatingStatusOrderId == group.orderId,
-                    onSelectStatus = { status -> onSelectStatus(group.orderId, status) },
-                )
+                ReceivedOrdersHistoryMemberCard(group = group)
             }
         }
     }
 }
 
 @Composable
-private fun ReceivedOrdersProductCard(row: ReceivedOrdersProductRow) {
+private fun ReceivedOrdersHistoryProductCard(row: ReceivedOrdersProductRow) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -371,7 +469,7 @@ private fun ReceivedOrdersProductCard(row: ReceivedOrdersProductRow) {
 
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = row.totalQuantity.toReceivedOrdersDecimal(),
+                    text = row.totalQuantity.toReceivedOrdersHistoryDecimal(),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                 )
@@ -386,12 +484,8 @@ private fun ReceivedOrdersProductCard(row: ReceivedOrdersProductRow) {
 }
 
 @Composable
-private fun ReceivedOrdersMemberCard(
-    group: ReceivedOrdersMemberGroup,
-    isUpdatingStatus: Boolean,
-    onSelectStatus: (ReceivedOrderProducerStatus) -> Unit,
-) {
-    val palette = group.producerStatus.receivedOrdersStatusPalette()
+private fun ReceivedOrdersHistoryMemberCard(group: ReceivedOrdersMemberGroup) {
+    val palette = group.producerStatus.historyStatusPalette()
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = palette.containerColor),
@@ -403,25 +497,27 @@ private fun ReceivedOrdersMemberCard(
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
-                text = group.consumerDisplayName,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center,
-            )
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = group.consumerDisplayName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f),
+                )
+                ReceivedOrdersHistoryStatusText(status = group.producerStatus)
+            }
 
-            ReceivedOrdersPreparedAction(
-                selectedStatus = group.producerStatus,
-                isUpdatingStatus = isUpdatingStatus,
-                onUpdateStatus = onSelectStatus,
-            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.24f))
 
             group.lines.forEachIndexed { index, line ->
-                ReceivedOrdersMemberLineRow(line = line)
+                ReceivedOrdersHistoryMemberLineRow(line = line)
                 if (index < group.lines.lastIndex) {
-                    Spacer(modifier = Modifier.height(2.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f))
                 }
             }
 
@@ -438,67 +534,7 @@ private fun ReceivedOrdersMemberCard(
 }
 
 @Composable
-private fun ReceivedOrdersPreparedAction(
-    selectedStatus: ReceivedOrderProducerStatus,
-    isUpdatingStatus: Boolean,
-    onUpdateStatus: (ReceivedOrderProducerStatus) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = stringResource(R.string.received_orders_status_title),
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            text = selectedStatus.receivedOrdersStatusLabel(),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-
-        val targetStatus = selectedStatus.nextOperationalStatus()
-        if (targetStatus != null) {
-            TextButton(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.primary,
-                        shape = RoundedCornerShape(10.dp),
-                    )
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
-                onClick = { onUpdateStatus(targetStatus) },
-                enabled = !isUpdatingStatus,
-            ) {
-                Text(
-                    text = stringResource(
-                        if (selectedStatus == ReceivedOrderProducerStatus.PREPARED) {
-                            R.string.received_orders_mark_pending
-                        } else {
-                            R.string.received_orders_mark_prepared
-                        },
-                    ),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        }
-        if (isUpdatingStatus) {
-            Text(
-                text = stringResource(R.string.received_orders_status_updating),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun ReceivedOrdersMemberLineRow(line: ReceivedOrdersMemberLine) {
+private fun ReceivedOrdersHistoryMemberLineRow(line: ReceivedOrdersMemberLine) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -521,7 +557,7 @@ private fun ReceivedOrdersMemberLineRow(line: ReceivedOrdersMemberLine) {
         }
         Column(horizontalAlignment = Alignment.End) {
             Text(
-                text = line.quantity.toReceivedOrdersDecimal(),
+                text = line.quantity.toReceivedOrdersHistoryDecimal(),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -540,7 +576,18 @@ private fun ReceivedOrdersMemberLineRow(line: ReceivedOrdersMemberLine) {
 }
 
 @Composable
-private fun ReceivedOrdersInfoCard(
+private fun ReceivedOrdersHistoryStatusText(status: ReceivedOrderProducerStatus) {
+    Text(
+        text = stringResource(R.string.common_status_format, status.historyStatusLabel()),
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.End,
+    )
+}
+
+@Composable
+private fun ReceivedOrdersHistoryInfoCard(
     title: String,
     body: String,
 ) {
@@ -566,7 +613,7 @@ private fun ReceivedOrdersInfoCard(
 }
 
 @Composable
-private fun ReceivedOrdersTotalBar(
+private fun ReceivedOrdersHistoryTotalBar(
     total: Double,
     modifier: Modifier = Modifier,
 ) {
@@ -590,13 +637,84 @@ private fun ReceivedOrdersTotalBar(
     }
 }
 
-private data class ReceivedOrdersStatusPalette(
+@Composable
+private fun ReceivedOrdersHistoryWeekPickerSheet(
+    weeks: List<OrderHistoryWeekOption>,
+    selectedWeekKey: String?,
+    onSelectionChange: (String) -> Unit,
+    onCancel: () -> Unit,
+    onDone: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = onCancel) {
+                Text(stringResource(R.string.common_action_cancel))
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            Button(onClick = onDone, enabled = weeks.isNotEmpty()) {
+                Text(stringResource(R.string.my_orders_history_picker_select))
+            }
+        }
+        if (weeks.isNotEmpty()) {
+            ReceivedOrdersHistoryNumberPickerWheel(
+                weeks = weeks,
+                selectedWeekKey = selectedWeekKey,
+                onSelectionChange = onSelectionChange,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReceivedOrdersHistoryNumberPickerWheel(
+    weeks: List<OrderHistoryWeekOption>,
+    selectedWeekKey: String?,
+    onSelectionChange: (String) -> Unit,
+) {
+    val labels = remember(weeks) { weeks.map(OrderHistoryWeekOption::pickerLabel).toTypedArray() }
+    val selectedIndex = weeks.indexOfFirst { it.weekKey == selectedWeekKey }.takeIf { it >= 0 } ?: 0
+    AndroidView(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(184.dp),
+        factory = { context ->
+            NumberPicker(context).apply {
+                wrapSelectorWheel = false
+                minValue = 0
+                maxValue = labels.lastIndex
+                displayedValues = labels
+                value = selectedIndex
+                setOnValueChangedListener { _, _, newValue ->
+                    weeks.getOrNull(newValue)?.weekKey?.let(onSelectionChange)
+                }
+            }
+        },
+        update = { picker ->
+            picker.displayedValues = null
+            picker.minValue = 0
+            picker.maxValue = labels.lastIndex
+            picker.displayedValues = labels
+            picker.value = selectedIndex.coerceIn(0, labels.lastIndex)
+        },
+    )
+}
+
+private data class ReceivedOrdersHistoryStatusPalette(
     val containerColor: Color,
     val borderColor: Color,
 )
 
 @Composable
-private fun ReceivedOrderProducerStatus.receivedOrdersStatusLabel(): String =
+private fun ReceivedOrderProducerStatus.historyStatusLabel(): String =
     when (this) {
         ReceivedOrderProducerStatus.UNREAD -> stringResource(R.string.received_orders_status_pending)
         ReceivedOrderProducerStatus.READ -> stringResource(R.string.received_orders_status_pending)
@@ -605,42 +723,32 @@ private fun ReceivedOrderProducerStatus.receivedOrdersStatusLabel(): String =
     }
 
 @Composable
-private fun ReceivedOrderProducerStatus.receivedOrdersStatusPalette(): ReceivedOrdersStatusPalette {
+private fun ReceivedOrderProducerStatus.historyStatusPalette(): ReceivedOrdersHistoryStatusPalette {
     val colors = MaterialTheme.colorScheme
     return when (this) {
-        ReceivedOrderProducerStatus.UNREAD -> ReceivedOrdersStatusPalette(
+        ReceivedOrderProducerStatus.UNREAD -> ReceivedOrdersHistoryStatusPalette(
             containerColor = colors.surfaceVariant.copy(alpha = 0.38f),
             borderColor = colors.outline.copy(alpha = 0.34f),
         )
 
-        ReceivedOrderProducerStatus.READ -> ReceivedOrdersStatusPalette(
+        ReceivedOrderProducerStatus.READ -> ReceivedOrdersHistoryStatusPalette(
             containerColor = colors.surfaceVariant.copy(alpha = 0.38f),
             borderColor = colors.outline.copy(alpha = 0.34f),
         )
 
-        ReceivedOrderProducerStatus.PREPARED -> ReceivedOrdersStatusPalette(
+        ReceivedOrderProducerStatus.PREPARED -> ReceivedOrdersHistoryStatusPalette(
             containerColor = Color(0xFFFFF2D7),
             borderColor = Color(0xFFDCA74E),
         )
 
-        ReceivedOrderProducerStatus.DELIVERED -> ReceivedOrdersStatusPalette(
+        ReceivedOrderProducerStatus.DELIVERED -> ReceivedOrdersHistoryStatusPalette(
             containerColor = Color(0xFFE6F6E7),
             borderColor = Color(0xFF74A56F),
         )
     }
 }
 
-private fun ReceivedOrderProducerStatus.nextOperationalStatus(): ReceivedOrderProducerStatus? =
-    when (this) {
-        ReceivedOrderProducerStatus.UNREAD,
-        ReceivedOrderProducerStatus.READ,
-            -> ReceivedOrderProducerStatus.PREPARED
-
-        ReceivedOrderProducerStatus.PREPARED -> ReceivedOrderProducerStatus.READ
-        ReceivedOrderProducerStatus.DELIVERED -> null
-    }
-
-private fun Double.toReceivedOrdersDecimal(): String {
+private fun Double.toReceivedOrdersHistoryDecimal(): String {
     if (this % 1.0 == 0.0) {
         return toLong().toString()
     }

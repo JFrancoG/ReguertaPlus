@@ -31,4 +31,14 @@ extension AccessRootViewModel {
             ordersRepository: dependencies.ordersRepository
         )
     }
+
+    static func makeReceivedOrdersHistoryViewModel(
+        sessionViewModel: SessionViewModel,
+        dependencies: OrdersFeatureDependencies
+    ) -> ReceivedOrdersHistoryRouteViewModel {
+        ReceivedOrdersHistoryRouteViewModel(
+            sessionViewModel: sessionViewModel,
+            ordersRepository: dependencies.ordersRepository
+        )
+    }
 }

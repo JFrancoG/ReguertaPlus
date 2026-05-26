@@ -72,6 +72,27 @@ struct FirestoreOrdersRepository: OrdersRepository {
         )
     }
 
+    func receivedOrdersHistoryWeekKeys(producerId: String) async throws -> [String] {
+        try await fetchReceivedOrderHistoryWeekKeys(
+            producerId: producerId,
+            db: db,
+            environment: environment
+        )
+    }
+
+    func receivedOrdersHistorySnapshot(
+        producerId: String,
+        weekKey: String
+    ) async throws -> ReceivedOrdersSnapshot? {
+        try await fetchReceivedOrdersSnapshotForProducer(
+            producerId: producerId,
+            targetWeekKey: weekKey,
+            synchronizesUnreadStatuses: false,
+            db: db,
+            environment: environment
+        )
+    }
+
     func updateReceivedOrderProducerStatus(
         orderId: String,
         producerId: String,

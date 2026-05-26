@@ -194,6 +194,7 @@ internal fun HomeRoute(
     var isMyOrderCartVisible by rememberSaveable { mutableStateOf(false) }
     var sharedProfileTitleOverride by rememberSaveable { mutableStateOf<String?>(null) }
     var myOrdersHistoryTitleOverride by rememberSaveable { mutableStateOf<String?>(null) }
+    var receivedOrdersHistoryTitleOverride by rememberSaveable { mutableStateOf<String?>(null) }
     val member = when (mode) {
         is SessionMode.Authorized -> mode.member
         SessionMode.SignedOut,
@@ -231,6 +232,9 @@ internal fun HomeRoute(
         }
         if (destination != HomeDestination.MY_ORDERS) {
             myOrdersHistoryTitleOverride = null
+        }
+        if (destination != HomeDestination.RECEIVED_ORDERS_HISTORY) {
+            receivedOrdersHistoryTitleOverride = null
         }
 
         currentDestination = destination
@@ -327,6 +331,7 @@ internal fun HomeRoute(
             currentDestination != HomeDestination.MY_ORDER &&
                 currentDestination != HomeDestination.MY_ORDERS &&
                 currentDestination != HomeDestination.RECEIVED_ORDERS &&
+                currentDestination != HomeDestination.RECEIVED_ORDERS_HISTORY &&
                 currentDestination != HomeDestination.PRODUCTS &&
                 currentDestination != HomeDestination.USERS &&
                 currentDestination != HomeDestination.NEWS &&
@@ -355,6 +360,9 @@ internal fun HomeRoute(
                 }
                 currentDestination == HomeDestination.MY_ORDERS -> {
                     myOrdersHistoryTitleOverride ?: stringResource(R.string.my_orders_history_title_fallback)
+                }
+                currentDestination == HomeDestination.RECEIVED_ORDERS_HISTORY -> {
+                    receivedOrdersHistoryTitleOverride ?: stringResource(R.string.home_shell_action_received_orders)
                 }
                 else -> stringResource(currentDestination.titleRes())
             }
@@ -579,6 +587,15 @@ internal fun HomeRoute(
                     defaultDeliveryDayOfWeek = defaultDeliveryDayOfWeek,
                     deliveryCalendarOverrides = deliveryCalendarOverrides,
                     nowOverrideMillis = nowOverrideMillis,
+                    )
+
+                    HomeDestination.RECEIVED_ORDERS_HISTORY -> ReceivedOrdersHistoryRoute(
+                    modifier = Modifier.fillMaxSize(),
+                    currentMember = member,
+                    nowOverrideMillis = nowOverrideMillis,
+                    onTitleChanged = { titleOverride ->
+                        receivedOrdersHistoryTitleOverride = titleOverride
+                    },
                     )
 
                     HomeDestination.PROFILE -> SharedProfileRoute(

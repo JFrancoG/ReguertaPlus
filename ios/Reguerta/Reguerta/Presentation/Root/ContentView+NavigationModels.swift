@@ -11,6 +11,7 @@ enum HomeDestination: String, Sendable {
     case settings
     case products
     case receivedOrders
+    case receivedOrdersHistory
     case users
     case publishNews
     case adminBroadcast
@@ -31,6 +32,7 @@ extension HomeDestination {
         case .settings: AccessL10nKey.homeShellActionSettings
         case .products: AccessL10nKey.homeShellActionProducts
         case .receivedOrders: AccessL10nKey.homeShellActionReceivedOrders
+        case .receivedOrdersHistory: AccessL10nKey.homeShellActionReceivedOrdersHistory
         case .users: AccessL10nKey.homeShellActionUsers
         case .publishNews: AccessL10nKey.homeShellActionPublishNews
         case .adminBroadcast: AccessL10nKey.homeShellActionAdminBroadcast
@@ -51,6 +53,7 @@ extension HomeDestination {
         case .settings: AccessL10nKey.homePlaceholderSettings
         case .products: AccessL10nKey.homePlaceholderProducts
         case .receivedOrders: AccessL10nKey.homePlaceholderReceivedOrders
+        case .receivedOrdersHistory: AccessL10nKey.homePlaceholderReceivedOrdersHistory
         case .users: AccessL10nKey.homePlaceholderUsers
         case .publishNews: AccessL10nKey.newsEditorSubtitle
         case .adminBroadcast: AccessL10nKey.notificationsEditorSubtitle

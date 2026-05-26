@@ -15,6 +15,7 @@ enum class HomeDestination {
     SETTINGS,
     PRODUCTS,
     RECEIVED_ORDERS,
+    RECEIVED_ORDERS_HISTORY,
     USERS,
     PUBLISH_NEWS,
     ADMIN_BROADCAST,
@@ -33,6 +34,7 @@ internal fun HomeDestination.titleRes(): Int = when (this) {
     HomeDestination.SETTINGS -> R.string.home_shell_action_settings
     HomeDestination.PRODUCTS -> R.string.products_catalog_title
     HomeDestination.RECEIVED_ORDERS -> R.string.home_shell_action_received_orders
+    HomeDestination.RECEIVED_ORDERS_HISTORY -> R.string.home_shell_action_received_orders_history
     HomeDestination.USERS -> R.string.users_list_title
     HomeDestination.PUBLISH_NEWS -> R.string.home_shell_action_publish_news
     HomeDestination.ADMIN_BROADCAST -> R.string.home_shell_action_admin_broadcast
@@ -51,6 +53,7 @@ internal fun HomeDestination.subtitleRes(): Int = when (this) {
     HomeDestination.SETTINGS -> R.string.home_placeholder_settings
     HomeDestination.PRODUCTS -> R.string.home_placeholder_products
     HomeDestination.RECEIVED_ORDERS -> R.string.home_placeholder_received_orders
+    HomeDestination.RECEIVED_ORDERS_HISTORY -> R.string.home_placeholder_received_orders_history
     HomeDestination.USERS -> R.string.home_placeholder_users
     HomeDestination.PUBLISH_NEWS -> R.string.news_editor_subtitle
     HomeDestination.ADMIN_BROADCAST -> R.string.notifications_editor_subtitle
