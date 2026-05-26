@@ -9,6 +9,7 @@ private struct RootFeatureViewModels {
     let myOrderViewModel: MyOrderRouteViewModel
     let myOrdersHistoryViewModel: MyOrdersHistoryRouteViewModel
     let receivedOrdersViewModel: ReceivedOrdersRouteViewModel
+    let receivedOrdersHistoryViewModel: ReceivedOrdersHistoryRouteViewModel
     let myOrderFreshnessViewModel: MyOrderFreshnessViewModel
     let bylawsViewModel: BylawsFeatureViewModel
 }
@@ -36,6 +37,7 @@ final class AccessRootViewModel {
     @ObservationIgnored let myOrderViewModel: MyOrderRouteViewModel
     @ObservationIgnored let myOrdersHistoryViewModel: MyOrdersHistoryRouteViewModel
     @ObservationIgnored let receivedOrdersViewModel: ReceivedOrdersRouteViewModel
+    @ObservationIgnored let receivedOrdersHistoryViewModel: ReceivedOrdersHistoryRouteViewModel
     @ObservationIgnored let myOrderFreshnessViewModel: MyOrderFreshnessViewModel
     @ObservationIgnored let bylawsViewModel: BylawsFeatureViewModel
     @ObservationIgnored private let startupVersionGateUseCase: ResolveStartupVersionGateUseCase
@@ -66,6 +68,7 @@ final class AccessRootViewModel {
     var isImpersonationExpanded = false
     var sharedProfileTitleOverride: String?
     var myOrdersHistoryTitleOverride: String?
+    var receivedOrdersHistoryTitleOverride: String?
     var showsSharedProfileSavedDialog = false
     var nowOverrideMillis: Int64?
 
@@ -126,6 +129,7 @@ final class AccessRootViewModel {
         self.myOrderViewModel = featureViewModels.myOrderViewModel
         self.myOrdersHistoryViewModel = featureViewModels.myOrdersHistoryViewModel
         self.receivedOrdersViewModel = featureViewModels.receivedOrdersViewModel
+        self.receivedOrdersHistoryViewModel = featureViewModels.receivedOrdersHistoryViewModel
         self.myOrderFreshnessViewModel = featureViewModels.myOrderFreshnessViewModel
         self.bylawsViewModel = featureViewModels.bylawsViewModel
         self.startupVersionGateUseCase = startupVersionGateUseCase
@@ -177,6 +181,10 @@ private extension AccessRootViewModel {
                 dependencies: dependencies.orders
             ),
             receivedOrdersViewModel: makeReceivedOrdersViewModel(
+                sessionViewModel: sessionViewModel,
+                dependencies: dependencies.orders
+            ),
+            receivedOrdersHistoryViewModel: makeReceivedOrdersHistoryViewModel(
                 sessionViewModel: sessionViewModel,
                 dependencies: dependencies.orders
             ),
@@ -481,6 +489,9 @@ extension AccessRootViewModel {
         }
         if destination != .myOrders {
             myOrdersHistoryTitleOverride = nil
+        }
+        if destination != .receivedOrdersHistory {
+            receivedOrdersHistoryTitleOverride = nil
         }
         if destination == .notifications {
             Task { await newsNotificationsViewModel.prepareNotificationsRoute() }

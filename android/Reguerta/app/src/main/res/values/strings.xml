@@ -71,6 +71,7 @@
     <string name="module_my_orders">View my orders</string>
     <string name="home_shell_action_products">Products</string>
     <string name="home_shell_action_received_orders">Received orders</string>
+    <string name="home_shell_action_received_orders_history">Order history</string>
     <string name="home_shell_action_users">Users</string>
     <string name="home_shell_action_profile">Community</string>
     <string name="home_shell_action_settings">Settings</string>
@@ -187,6 +188,7 @@
     <string name="bylaws_pdf_viewer_unavailable">No PDF viewer app found on this device.</string>
     <string name="home_placeholder_products">Product management will connect here in its dedicated story.</string>
     <string name="home_placeholder_received_orders">Received orders and historical filters will connect here in a later story.</string>
+    <string name="home_placeholder_received_orders_history">Browse received orders by ISO week.</string>
     <string name="home_placeholder_users">User management will connect here in its dedicated story.</string>
     <string name="home_placeholder_admin_broadcast">Extraordinary admin notifications will connect here in a later story.</string>
     <string name="users_list_title">Authorized Regüertenses</string>
@@ -367,6 +369,7 @@
     <string name="received_orders_loading_body">Collecting producer order lines for this week.</string>
     <string name="received_orders_empty_title">No received orders</string>
     <string name="received_orders_empty_body_format">There are no received order lines for week %1$s.</string>
+    <string name="received_orders_history_empty">There are no received orders for this week.</string>
     <string name="received_orders_error_title">Could not load received orders</string>
     <string name="received_orders_error_body">Check your connection and try again.</string>
     <string name="received_orders_retry">Retry</string>

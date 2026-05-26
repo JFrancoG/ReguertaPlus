@@ -1,5 +1,7 @@
 package com.reguerta.user.presentation.access
 
+import com.reguerta.user.domain.orders.ReceivedOrderStatusWriteResult
+import com.reguerta.user.domain.orders.toReceivedOrderStatusWriteResult
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

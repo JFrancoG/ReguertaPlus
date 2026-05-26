@@ -294,9 +294,9 @@ fun HomeDrawerContent(
             if (member?.canAccessReceivedOrders == true) {
                 HomeDrawerItem(
                     icon = Icons.Filled.Inbox,
-                    label = stringResource(R.string.home_shell_action_received_orders),
-                    selected = currentDestination == HomeDestination.RECEIVED_ORDERS,
-                    onClick = { onNavigate(HomeDestination.RECEIVED_ORDERS) },
+                    label = stringResource(R.string.home_shell_action_received_orders_history),
+                    selected = currentDestination == HomeDestination.RECEIVED_ORDERS_HISTORY,
+                    onClick = { onNavigate(HomeDestination.RECEIVED_ORDERS_HISTORY) },
                 )
             }
 

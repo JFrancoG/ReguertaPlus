@@ -1,127 +1,39 @@
 import SwiftUI
 
-struct ReceivedOrdersRouteView: View {
+struct ReceivedOrdersSummaryContent: View {
     let tokens: ReguertaDesignTokens
-    let viewModel: ReceivedOrdersRouteViewModel
-    let context: ReceivedOrdersRouteContext
+    let snapshot: ReceivedOrdersSnapshot
+    let selectedTab: ReceivedOrdersTab
+    let updatingStatusOrderId: String?
+    let showsStatusActions: Bool
+    let onSelectStatus: (String, ProducerOrderStatus) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.md) {
-            tabSelector
-            statusFeedbackView
-
-            routeContent
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .task(id: context.identity) {
-            await viewModel.appear(context: context)
-        }
-    }
-
-    @ViewBuilder
-    private var statusFeedbackView: some View {
-        switch viewModel.statusWriteFeedback {
-        case .permissionDenied:
-            Text("No tienes permiso para actualizar este estado de productor.")
-                .font(tokens.typography.bodySecondary)
-                .foregroundStyle(tokens.colors.feedbackError)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        case .failure:
-            Text("No se pudo guardar el estado de productor. Inténtalo de nuevo.")
-                .font(tokens.typography.bodySecondary)
-                .foregroundStyle(tokens.colors.feedbackError)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        case .success, .none:
-            EmptyView()
-        }
-    }
-
-    @ViewBuilder
-    private var tabSelector: some View {
-        Picker(
-            "Pedidos recibidos",
-            selection: Binding(
-                get: { viewModel.selectedTab },
-                set: { tab in
-                    withAnimation(.snappy(duration: 0.22)) {
-                        viewModel.selectTab(tab)
-                    }
+        switch selectedTab {
+        case .byProduct:
+            receivedOrdersList(bottomPadding: tokens.spacing.sm) {
+                ForEach(snapshot.byProductRows) { row in
+                    productCard(row)
                 }
-            )
-        ) {
-            ForEach(ReceivedOrdersTab.allCases) { tab in
-                Text(tab.title)
-                    .font(tokens.typography.label.weight(.semibold))
-                    .tag(tab)
             }
-        }
-        .pickerStyle(.segmented)
-        .tint(tokens.colors.actionPrimary)
-        .accessibilityIdentifier("receivedOrders.tabSelector")
-    }
 
-    @ViewBuilder
-    private var routeContent: some View {
-        if !viewModel.isProducer {
-            infoCard(
-                title: "Solo para productores",
-                body: "Esta sección aparece cuando accedes con un perfil productor."
-            )
-        } else if !viewModel.window.isEnabled {
-            infoCard(
-                title: "Pedidos fuera de ventana",
-                body: "La pantalla de preparación se habilita entre lunes y día de reparto."
-            )
-        } else {
-            switch viewModel.loadState {
-            case .idle, .loading:
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            case .empty:
-                infoCard(
-                    title: "Sin pedidos recibidos",
-                    body: "No hay líneas de pedido para preparar en la semana \(viewModel.window.targetWeekKey)."
-                )
-            case .error:
-                reguertaCard {
-                    VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                        Text("No se pudieron cargar los pedidos")
-                            .font(tokens.typography.titleCard.weight(.semibold))
-                            .foregroundStyle(tokens.colors.feedbackError)
-                        Text("Revisa la conexión y vuelve a intentarlo.")
-                            .font(tokens.typography.bodySecondary)
-                            .foregroundStyle(tokens.colors.textSecondary)
-                        reguertaButton("Reintentar") {
-                            Task {
-                                await viewModel.retry()
+        case .byMember:
+            ZStack(alignment: .bottom) {
+                receivedOrdersList(bottomPadding: totalBarScrollBottomPadding) {
+                    ForEach(snapshot.byMemberGroups) { group in
+                        memberCard(
+                            group,
+                            isUpdatingStatus: updatingStatusOrderId == group.orderId,
+                            onSelectStatus: { status in
+                                onSelectStatus(group.orderId, status)
                             }
-                        }
+                        )
                     }
                 }
-            case .loaded(let snapshot):
-                loadedContent(snapshot)
+
+                totalBar(total: snapshot.generalTotal)
             }
         }
-    }
-}
-
-private extension ReceivedOrdersRouteView {
-    @ViewBuilder
-    func loadedContent(_ snapshot: ReceivedOrdersSnapshot) -> some View {
-        ReceivedOrdersSummaryContent(
-            tokens: tokens,
-            snapshot: snapshot,
-            selectedTab: viewModel.selectedTab,
-            updatingStatusOrderId: viewModel.updatingStatusOrderId,
-            showsStatusActions: true,
-            onSelectStatus: { orderId, status in
-                Task {
-                    await viewModel.updateProducerStatus(orderId: orderId, status: status)
-                }
-            }
-        )
-        .accessibilityIdentifier("receivedOrders.summaryContent")
     }
 
     func receivedOrdersList<Content: View>(
@@ -232,11 +144,15 @@ private extension ReceivedOrdersRouteView {
                         .lineLimit(1)
                         .minimumScaleFactor(0.78)
 
-                    producerStatusHeaderButton(
-                        selectedStatus: group.producerStatus,
-                        isUpdatingStatus: isUpdatingStatus,
-                        onSelectStatus: onSelectStatus
-                    )
+                    if showsStatusActions {
+                        producerStatusHeaderButton(
+                            selectedStatus: group.producerStatus,
+                            isUpdatingStatus: isUpdatingStatus,
+                            onSelectStatus: onSelectStatus
+                        )
+                    } else {
+                        producerStatusReadOnlyLabel(selectedStatus: group.producerStatus)
+                    }
                 }
 
                 horizontalDivider()
@@ -303,26 +219,41 @@ private extension ReceivedOrdersRouteView {
         isUpdatingStatus: Bool,
         onSelectStatus: @escaping (ProducerOrderStatus) -> Void
     ) -> some View {
-        let style = selectedStatus.visualStyle
         let targetStatus = nextProducerStatus(after: selectedStatus)
-        let shape = RoundedRectangle(cornerRadius: tokens.radius.sm, style: .continuous)
 
         return Button {
             if let targetStatus {
                 onSelectStatus(targetStatus)
             }
         } label: {
-            Text(isUpdatingStatus ? "Guardando..." : selectedStatus.title)
-                .font(tokens.typography.labelRegular.weight(.semibold))
-                .foregroundStyle(tokens.colors.textPrimary)
-                .lineLimit(1)
-                .padding(.horizontal, tokens.spacing.sm)
-                .padding(.vertical, 6.resize)
-                .background(shape.fill(style.container))
-                .overlay(shape.stroke(style.border, lineWidth: 1.resize))
+            producerStatusLabel(
+                text: isUpdatingStatus ? "Guardando..." : selectedStatus.title,
+                selectedStatus: selectedStatus
+            )
         }
         .buttonStyle(.plain)
         .disabled(targetStatus == nil || isUpdatingStatus)
+    }
+
+    func producerStatusReadOnlyLabel(selectedStatus: ProducerOrderStatus) -> some View {
+        Text("Estado: \(selectedStatus.title)")
+            .font(tokens.typography.labelRegular.weight(.semibold))
+            .foregroundStyle(tokens.colors.textSecondary)
+            .lineLimit(1)
+    }
+
+    func producerStatusLabel(text: String, selectedStatus: ProducerOrderStatus) -> some View {
+        let style = selectedStatus.visualStyle
+        let shape = RoundedRectangle(cornerRadius: tokens.radius.sm, style: .continuous)
+
+        return Text(text)
+            .font(tokens.typography.labelRegular.weight(.semibold))
+            .foregroundStyle(tokens.colors.textPrimary)
+            .lineLimit(1)
+            .padding(.horizontal, tokens.spacing.sm)
+            .padding(.vertical, 6.resize)
+            .background(shape.fill(style.container))
+            .overlay(shape.stroke(style.border, lineWidth: 1.resize))
     }
 
     func nextProducerStatus(after status: ProducerOrderStatus) -> ProducerOrderStatus? {
@@ -368,20 +299,6 @@ private extension ReceivedOrdersRouteView {
         .padding(.horizontal, tokens.spacing.sm)
         .padding(.bottom, 8.resizeBottomSize)
         .allowsHitTesting(false)
-    }
-
-    @ViewBuilder
-    func infoCard(title: String, body: String) -> some View {
-        reguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                Text(title)
-                    .font(tokens.typography.titleCard.weight(.semibold))
-                    .foregroundStyle(tokens.colors.textPrimary)
-                Text(body)
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-            }
-        }
     }
 
     @ViewBuilder

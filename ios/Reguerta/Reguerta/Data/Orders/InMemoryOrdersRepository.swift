@@ -22,7 +22,9 @@ actor InMemoryOrdersRepository: OrdersRepository {
     private var orderHistoryWeekKeysByMemberId: [String: Set<String>] = [:]
     private var producerStatusesByOrderId: [String: MyOrderProducerStatusSnapshot] = [:]
     private var receivedSnapshotsByProducerWeek: [String: ReceivedOrdersSnapshot] = [:]
+    private var receivedHistoryWeekKeysByProducerId: [String: Set<String>] = [:]
     private var updateResultsByOrderId: [String: ReceivedOrderStatusWriteResult] = [:]
+    private var receivedStatusUpdateRequests: [(orderId: String, producerId: String, status: ProducerOrderStatus)] = []
 
     init() {}
 
@@ -86,13 +88,34 @@ actor InMemoryOrdersRepository: OrdersRepository {
         return receivedSnapshotsByProducerWeek[receivedKey(producerId: producerId, weekKey: targetWeekKey)]
     }
 
+    func receivedOrdersHistoryWeekKeys(producerId: String) async throws -> [String] {
+        if let receivedOrdersError {
+            throw receivedOrdersError
+        }
+        let explicitKeys = receivedHistoryWeekKeysByProducerId[producerId] ?? []
+        let seededKeys = receivedSnapshotsByProducerWeek.keys.compactMap { key -> String? in
+            let parts = key.components(separatedBy: "|")
+            guard parts.count == 2, parts[0] == producerId else { return nil }
+            return parts[1]
+        }
+        return Array(explicitKeys.union(seededKeys)).sorted()
+    }
+
+    func receivedOrdersHistorySnapshot(
+        producerId: String,
+        weekKey: String
+    ) async throws -> ReceivedOrdersSnapshot? {
+        try await receivedOrdersSnapshot(producerId: producerId, targetWeekKey: weekKey)
+    }
+
     func updateReceivedOrderProducerStatus(
         orderId: String,
         producerId: String,
         status: ProducerOrderStatus,
         nowMillis: Int64
     ) async -> ReceivedOrderStatusWriteResult {
-        updateResultsByOrderId[orderId] ?? .success
+        receivedStatusUpdateRequests.append((orderId: orderId, producerId: producerId, status: status))
+        return updateResultsByOrderId[orderId] ?? .success
     }
 
     func setPreviousOrder(_ snapshot: MyOrderPreviousOrderSnapshot, forWeekKey weekKey: String) {
@@ -123,6 +146,10 @@ actor InMemoryOrdersRepository: OrdersRepository {
         receivedSnapshotsByProducerWeek[receivedKey(producerId: producerId, weekKey: weekKey)] = snapshot
     }
 
+    func setReceivedOrdersHistoryWeekKeys(_ weekKeys: [String], forProducerId producerId: String = "member_1") {
+        receivedHistoryWeekKeysByProducerId[producerId] = Set(weekKeys)
+    }
+
     func setReceivedOrdersError(_ error: Error?) {
         receivedOrdersError = error
     }
@@ -133,6 +160,10 @@ actor InMemoryOrdersRepository: OrdersRepository {
 
     func submissions() -> [SubmittedOrder] {
         submittedOrders
+    }
+
+    func receivedStatusUpdates() -> [(orderId: String, producerId: String, status: ProducerOrderStatus)] {
+        receivedStatusUpdateRequests
     }
 
     private func receivedKey(producerId: String, weekKey: String) -> String {

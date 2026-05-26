@@ -137,7 +137,11 @@ struct HomeDrawerContentView: View {
             homeDrawerItem("shippingbox.fill", titleKey: AccessL10nKey.homeShellActionProducts, destination: .products)
         }
         if isProducer {
-            homeDrawerItem("tray.full.fill", titleKey: AccessL10nKey.homeShellActionReceivedOrders, destination: .receivedOrders)
+            homeDrawerItem(
+                "tray.full.fill",
+                titleKey: AccessL10nKey.homeShellActionReceivedOrdersHistory,
+                destination: .receivedOrdersHistory
+            )
         }
 
         if currentMember?.canManageMembers == true ||

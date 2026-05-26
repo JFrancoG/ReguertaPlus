@@ -4,6 +4,7 @@ import Foundation
 func fetchReceivedOrdersSnapshotForProducer(
     producerId: String,
     targetWeekKey: String,
+    synchronizesUnreadStatuses: Bool = true,
     db: Firestore = Firestore.firestore(),
     environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment
 ) async throws -> ReceivedOrdersSnapshot? {
@@ -21,14 +22,56 @@ func fetchReceivedOrdersSnapshotForProducer(
         db: db,
         environment: environment
     )
-    let synchronizedStatuses = await synchronizeUnreadReceivedOrderStatuses(
-        statusesByOrderId: statusesByOrderId,
-        producerId: producerId,
-        db: db,
-        environment: environment
-    )
+    let synchronizedStatuses: [String: ProducerOrderStatus]
+    if synchronizesUnreadStatuses {
+        synchronizedStatuses = await synchronizeUnreadReceivedOrderStatuses(
+            statusesByOrderId: statusesByOrderId,
+            producerId: producerId,
+            db: db,
+            environment: environment
+        )
+    } else {
+        synchronizedStatuses = statusesByOrderId
+    }
 
     return buildReceivedOrdersSnapshot(from: lines, statusesByOrderId: synchronizedStatuses)
+}
+
+func fetchReceivedOrderHistoryWeekKeys(
+    producerId: String,
+    db: Firestore = Firestore.firestore(),
+    environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment
+) async throws -> [String] {
+    let normalizedProducerId = producerId.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard normalizedProducerId.isNotEmpty else { return [] }
+
+    let firestorePath = ReguertaFirestorePath(environment: environment)
+    var weekKeys = Set<String>()
+    var hasSuccessfulRead = false
+    var lastError: Error?
+
+    for orderlinesPath in receivedOrderlineReadTargets(firestorePath: firestorePath) {
+        do {
+            let snapshot = try await db.collection(orderlinesPath)
+                .whereField("vendorId", isEqualTo: normalizedProducerId)
+                .getDocuments()
+            hasSuccessfulRead = true
+            for document in snapshot.documents {
+                if let weekKey = document.data()["weekKey"] as? String,
+                   weekKey.isValidIsoWeekKey {
+                    weekKeys.insert(weekKey)
+                }
+            }
+        } catch {
+            lastError = error
+        }
+    }
+
+    if !hasSuccessfulRead, let lastError {
+        throw lastError
+    }
+
+    return weekKeys.sorted()
 }
 
 func updateReceivedOrderProducerStatus(

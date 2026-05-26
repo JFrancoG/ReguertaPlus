@@ -136,6 +136,18 @@ extension AccessRootRoutingView {
         )
     }
 
+    var receivedOrdersHistoryRoute: some View {
+        ReceivedOrdersHistoryRouteView(
+            tokens: tokens,
+            viewModel: rootViewModel.receivedOrdersHistoryViewModel,
+            context: ReceivedOrdersHistoryRouteContext(
+                currentMember: currentHomeMember,
+                nowMillis: rootViewModel.shiftsViewModel.currentNowMillis
+            ),
+            onTitleChanged: rootViewModel.setReceivedOrdersHistoryTitleOverride
+        )
+    }
+
     var notificationsListRoute: some View {
         let newsNotificationsViewModel = rootViewModel.newsNotificationsViewModel
         return NotificationsListRouteView(
