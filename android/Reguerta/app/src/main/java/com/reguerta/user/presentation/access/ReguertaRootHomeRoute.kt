@@ -337,7 +337,8 @@ internal fun HomeRoute(
                 currentDestination != HomeDestination.NEWS &&
                 currentDestination != HomeDestination.PUBLISH_NEWS &&
                 currentDestination != HomeDestination.ADMIN_BROADCAST &&
-                currentDestination != HomeDestination.PROFILE
+                currentDestination != HomeDestination.PROFILE &&
+                currentDestination != HomeDestination.SHIFTS
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -630,14 +631,12 @@ internal fun HomeRoute(
                     shifts = shiftsFeed,
                     shiftSwapRequests = shiftSwapRequests,
                     dismissedShiftSwapRequestIds = dismissedShiftSwapRequestIds,
-                    nextDeliveryShift = nextDeliveryShift,
-                    nextMarketShift = nextMarketShift,
                     deliveryCalendarOverrides = deliveryCalendarOverrides,
                     currentMember = member,
                     members = (mode as? SessionMode.Authorized)?.members.orEmpty(),
                     isLoading = isLoadingShifts,
                     isUpdatingShiftSwapRequest = isUpdatingShiftSwapRequest,
-                    onRefresh = onRefreshShifts,
+                    nowMillis = effectiveNowMillis,
                     onRequestShiftSwap = { shiftId ->
                         onStartCreatingShiftSwap(shiftId)
                         navigateHome(HomeDestination.SHIFT_SWAP_REQUEST)

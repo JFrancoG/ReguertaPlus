@@ -2753,7 +2753,7 @@ const buildMarketSheetName = (seasonLabel: string): string =>
   `turnos-mercado ${seasonLabel}`;
 
 const shiftTypeLabelEs = (type: ShiftPlanningRequestType): string =>
-  type === "delivery" ? "reparto" : "mercadillo";
+  type === "delivery" ? "reparto" : "mercado";
 
 const normalizeWeekdayWireValue = (value: string | null): string =>
   (value || "WED").trim().toUpperCase();

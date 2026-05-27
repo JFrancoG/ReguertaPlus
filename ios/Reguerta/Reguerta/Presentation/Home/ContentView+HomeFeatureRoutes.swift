@@ -6,10 +6,6 @@ extension AccessRootRoutingView {
         ShiftsRouteView(
             tokens: tokens,
             viewModel: rootViewModel.shiftsViewModel,
-            onRefreshFromNextShifts: {
-                homeDestination = .shifts
-                Task { await rootViewModel.shiftsViewModel.refreshShifts() }
-            },
             onStartSwapRequestForShift: { shiftId in
                 rootViewModel.shiftsViewModel.startCreatingShiftSwap(shiftId: shiftId)
                 homeDestination = .shiftSwapRequest

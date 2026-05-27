@@ -5,16 +5,22 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -23,7 +29,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -36,20 +46,19 @@ import com.reguerta.user.domain.shifts.ShiftSwapRequest
 import com.reguerta.user.domain.shifts.ShiftType
 import com.reguerta.user.ui.components.auth.ReguertaButton
 import com.reguerta.user.ui.components.auth.ReguertaButtonVariant
+import com.reguerta.user.ui.components.auth.ReguertaCard
 
 @Composable
 fun ShiftsRoute(
     shifts: List<ShiftAssignment>,
     shiftSwapRequests: List<ShiftSwapRequest>,
     dismissedShiftSwapRequestIds: Set<String>,
-    nextDeliveryShift: ShiftAssignment?,
-    nextMarketShift: ShiftAssignment?,
     deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
     currentMember: Member?,
     members: List<Member>,
     isLoading: Boolean,
     isUpdatingShiftSwapRequest: Boolean,
-    onRefresh: () -> Unit,
+    nowMillis: Long,
     onRequestShiftSwap: (String) -> Unit,
     onAcceptShiftSwapRequest: (String, String) -> Unit,
     onRejectShiftSwapRequest: (String, String) -> Unit,
@@ -58,105 +67,288 @@ fun ShiftsRoute(
     onDismissShiftSwapActivity: (String) -> Unit,
 ) {
     var selectedSegment by rememberSaveable { mutableStateOf(ShiftBoardSegment.DELIVERY) }
-    val deliveryShifts = remember(shifts) {
-        shifts.filter { it.type == ShiftType.DELIVERY }.sortedBy { it.dateMillis }
+    val currentMemberId = currentMember?.id
+    val deliveryShifts = remember(shifts, deliveryCalendarOverrides) {
+        shifts
+            .filter { it.type == ShiftType.DELIVERY }
+            .sortedBy { it.effectiveDateMillis(deliveryCalendarOverrides) }
     }
-    val marketShifts = remember(shifts) {
-        shifts.filter { it.type == ShiftType.MARKET }.sortedBy { it.dateMillis }
+    val marketShifts = remember(shifts, deliveryCalendarOverrides) {
+        shifts
+            .filter { it.type == ShiftType.MARKET }
+            .sortedBy { it.effectiveDateMillis(deliveryCalendarOverrides) }
+    }
+    val hasShiftSwapActivity = remember(shiftSwapRequests, dismissedShiftSwapRequestIds, currentMemberId) {
+        shiftSwapRequests.hasVisibleShiftSwapActivity(
+            currentMemberId = currentMemberId,
+            dismissedRequestIds = dismissedShiftSwapRequestIds,
+        )
     }
 
     Column(
+        modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Card {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.shifts_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = stringResource(R.string.shifts_list_subtitle),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Button(onClick = onRefresh) {
-                    Text(text = stringResource(R.string.shifts_refresh_action))
-                }
-            }
+        if (hasShiftSwapActivity) {
+            ShiftSwapRequestsCard(
+                requests = shiftSwapRequests,
+                dismissedRequestIds = dismissedShiftSwapRequestIds,
+                shifts = shifts,
+                deliveryCalendarOverrides = deliveryCalendarOverrides,
+                members = members,
+                currentMemberId = currentMemberId,
+                isUpdating = isUpdatingShiftSwapRequest,
+                onAccept = onAcceptShiftSwapRequest,
+                onReject = onRejectShiftSwapRequest,
+                onCancel = onCancelShiftSwapRequest,
+                onConfirm = onConfirmShiftSwapRequest,
+                onDismissRequest = onDismissShiftSwapActivity,
+            )
         }
 
-        NextShiftsCard(
-            nextDeliveryShift = nextDeliveryShift,
-            nextMarketShift = nextMarketShift,
-            deliveryCalendarOverrides = deliveryCalendarOverrides,
-            isLoading = isLoading,
-            members = members,
-            onViewAll = onRefresh,
-        )
-
-        ShiftSwapRequestsCard(
-            requests = shiftSwapRequests,
-            dismissedRequestIds = dismissedShiftSwapRequestIds,
+        MyNextShiftsSection(
             shifts = shifts,
             deliveryCalendarOverrides = deliveryCalendarOverrides,
-            members = members,
-            currentMemberId = currentMember?.id,
+            currentMemberId = currentMemberId,
+            nowMillis = nowMillis,
+            isLoading = isLoading,
+        )
+
+        ShiftBoardSection(
+            modifier = Modifier.weight(1f),
             selectedSegment = selectedSegment,
-            isUpdating = isUpdatingShiftSwapRequest,
-            onAccept = onAcceptShiftSwapRequest,
-            onReject = onRejectShiftSwapRequest,
-            onCancel = onCancelShiftSwapRequest,
-            onConfirm = onConfirmShiftSwapRequest,
-            onDismissRequest = onDismissShiftSwapActivity,
+            onSegmentSelected = { selectedSegment = it },
+            deliveryShifts = deliveryShifts,
+            marketShifts = marketShifts,
+            deliveryCalendarOverrides = deliveryCalendarOverrides,
+            members = members,
+            currentMemberId = currentMemberId,
+            nowMillis = nowMillis,
+            isLoading = isLoading,
+            onRequestShiftSwap = onRequestShiftSwap,
+        )
+    }
+}
+
+@Composable
+private fun MyNextShiftsSection(
+    shifts: List<ShiftAssignment>,
+    deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
+    currentMemberId: String?,
+    nowMillis: Long,
+    isLoading: Boolean,
+) {
+    val leadShift = remember(shifts, deliveryCalendarOverrides, currentMemberId, nowMillis) {
+        currentMemberId?.let {
+            shifts.nextDeliveryLeadShift(
+                memberId = it,
+                overrides = deliveryCalendarOverrides,
+                nowMillis = nowMillis,
+            )
+        }
+    }
+    val helperShift = remember(shifts, deliveryCalendarOverrides, currentMemberId, nowMillis) {
+        currentMemberId?.let {
+            shifts.nextDeliveryHelperShift(
+                memberId = it,
+                overrides = deliveryCalendarOverrides,
+                nowMillis = nowMillis,
+            )
+        }
+    }
+    val marketShift = remember(shifts, deliveryCalendarOverrides, currentMemberId, nowMillis) {
+        currentMemberId?.let {
+            shifts.nextMarketAssignedShift(
+                memberId = it,
+                overrides = deliveryCalendarOverrides,
+                nowMillis = nowMillis,
+            )
+        }
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.shifts_next_title),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.semantics { heading() },
         )
 
         if (isLoading) {
-            Card {
-                Text(
-                    text = stringResource(R.string.shifts_loading),
-                    modifier = Modifier.padding(16.dp),
-                )
-            }
-        } else if (shifts.isEmpty()) {
-            Card {
-                Text(
-                    text = stringResource(R.string.shifts_empty_state),
-                    modifier = Modifier.padding(16.dp),
-                )
-            }
-        } else {
-            ShiftBoardSegmentSelector(
-                selectedSegment = selectedSegment,
-                onSegmentSelected = { selectedSegment = it },
+            Text(
+                text = stringResource(R.string.shifts_loading),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        } else {
+            ReguertaCard(
+                modifier = Modifier.semantics(mergeDescendants = true) {},
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.shifts_type_delivery),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Column(
+                            modifier = Modifier.weight(2f),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            NextShiftDateLine(
+                                label = stringResource(R.string.shifts_next_delivery_helper),
+                                value = helperShift.shiftShortDateLabel(deliveryCalendarOverrides),
+                                prominent = false,
+                            )
+                            NextShiftDateLine(
+                                label = stringResource(R.string.shifts_next_delivery_lead),
+                                value = leadShift.shiftShortDateLabel(deliveryCalendarOverrides),
+                                prominent = true,
+                            )
+                        }
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.shifts_type_market),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            text = marketShift.shiftShortDateLabel(deliveryCalendarOverrides),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(2f),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
 
-            val boardShifts = when (selectedSegment) {
-                ShiftBoardSegment.DELIVERY -> deliveryShifts
-                ShiftBoardSegment.MARKET -> marketShifts
+@Composable
+private fun NextShiftDateLine(
+    label: String,
+    value: String,
+    prominent: Boolean,
+    modifier: Modifier = Modifier,
+): Unit = Text(
+    text = "$value $label",
+    modifier = modifier,
+    style = if (prominent) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium,
+    fontWeight = if (prominent) FontWeight.SemiBold else FontWeight.Normal,
+    color = MaterialTheme.colorScheme.onSurface,
+)
+
+@Composable
+private fun ShiftAssignment?.shiftShortDateLabel(
+    deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
+): String =
+    this?.effectiveDateMillis(deliveryCalendarOverrides)?.toShortDateOnly()
+        ?: stringResource(R.string.shifts_next_pending)
+
+@Composable
+private fun ShiftBoardSection(
+    modifier: Modifier = Modifier,
+    selectedSegment: ShiftBoardSegment,
+    onSegmentSelected: (ShiftBoardSegment) -> Unit,
+    deliveryShifts: List<ShiftAssignment>,
+    marketShifts: List<ShiftAssignment>,
+    deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
+    members: List<Member>,
+    currentMemberId: String?,
+    nowMillis: Long,
+    isLoading: Boolean,
+    onRequestShiftSwap: (String) -> Unit,
+) {
+    val boardShifts = when (selectedSegment) {
+        ShiftBoardSegment.DELIVERY -> deliveryShifts
+        ShiftBoardSegment.MARKET -> marketShifts
+    }
+    val boardWindow = remember(boardShifts, deliveryCalendarOverrides, nowMillis) {
+        boardShifts.shiftBoardWindow(
+            overrides = deliveryCalendarOverrides,
+            nowMillis = nowMillis,
+        )
+    }
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(selectedSegment, boardWindow.targetShiftId, boardShifts.size) {
+        val targetIndex = boardShifts.indexOfFirst { shift -> shift.id == boardWindow.targetShiftId }
+        if (targetIndex >= 0) {
+            listState.scrollToItem(targetIndex)
+        }
+    }
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        ShiftBoardSegmentSelector(
+            selectedSegment = selectedSegment,
+            onSegmentSelected = onSegmentSelected,
+        )
+
+        when {
+            isLoading -> {
+                Card {
+                    Text(
+                        text = stringResource(R.string.shifts_loading),
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
             }
 
-            if (boardShifts.isEmpty()) {
+            boardShifts.isEmpty() -> {
                 Card {
                     Text(
                         text = stringResource(R.string.shifts_empty_state),
                         modifier = Modifier.padding(16.dp),
                     )
                 }
-            } else {
-                boardShifts.forEach { shift ->
-                    ShiftBoardCard(
-                        shift = shift,
-                        deliveryCalendarOverrides = deliveryCalendarOverrides,
-                        members = members,
-                        currentMemberId = currentMember?.id,
-                        onRequestShiftSwap = onRequestShiftSwap,
-                    )
+            }
+
+            else -> {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    state = listState,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(
+                        items = boardShifts,
+                        key = { shift -> shift.id },
+                    ) { shift ->
+                        ShiftBoardCard(
+                            shift = shift,
+                            deliveryCalendarOverrides = deliveryCalendarOverrides,
+                            members = members,
+                            currentMemberId = currentMemberId,
+                            containerColor = shift.boardCardContainerColor(boardWindow),
+                            onRequestShiftSwap = onRequestShiftSwap,
+                        )
+                    }
                 }
             }
         }
@@ -183,6 +375,7 @@ private fun ShiftBoardSegmentSelector(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(20.dp))
+                    .semantics { selected = isSelected }
                     .background(
                         if (isSelected) {
                             MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
@@ -211,6 +404,7 @@ private fun ShiftBoardCard(
     deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
     members: List<Member>,
     currentMemberId: String?,
+    containerColor: Color,
     onRequestShiftSwap: (String) -> Unit,
 ) {
     val primaryNames = shift.primaryBoardNames(members)
@@ -222,7 +416,9 @@ private fun ShiftBoardCard(
     val highlightedIndex = remember(shift, currentMemberId) {
         currentMemberId?.let { shift.highlightedBoardNameIndex(it) }
     }
-    Card {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -292,6 +488,14 @@ private fun ShiftBoardCard(
         }
     }
 }
+
+@Composable
+private fun ShiftAssignment.boardCardContainerColor(window: ShiftBoardWindow): Color =
+    if (window.highlights(id)) {
+        MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f)
+    } else {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+    }
 
 enum class ShiftBoardSegment(@param:StringRes val labelRes: Int) {
     DELIVERY(R.string.shifts_type_delivery),

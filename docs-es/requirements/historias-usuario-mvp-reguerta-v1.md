@@ -161,11 +161,11 @@ Criterios de aceptación:
 
 ### HU-041 Tablero segmentado de turnos y celdas dedicadas
 
-Como socio quiero que el tablero de turnos se separe en pestañas de reparto y mercadillo con celdas específicas para leer la planificación más rápido.
+Como socio quiero que el tablero de turnos se separe en pestañas de reparto y mercado con celdas específicas para leer la planificación más rápido.
 
 Criterios de aceptación:
 - La pestaña de reparto muestra número de semana y rango de fechas, más encargado y ayudante.
-- La pestaña de mercadillo muestra mes y fecha exacta del sábado, más los nombres asignados.
+- La pestaña de mercado muestra mes y fecha exacta del sábado, más los nombres asignados.
 - El tablero sigue siendo desplazable y legible en Android e iOS.
 
 ## 6. Revisor Apple/TestFlight

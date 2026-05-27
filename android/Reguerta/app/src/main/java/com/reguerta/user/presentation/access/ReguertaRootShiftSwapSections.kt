@@ -12,6 +12,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.reguerta.user.R
@@ -21,8 +23,6 @@ import com.reguerta.user.domain.shifts.ShiftAssignment
 import com.reguerta.user.domain.shifts.ShiftSwapCandidate
 import com.reguerta.user.domain.shifts.ShiftSwapRequest
 import com.reguerta.user.domain.shifts.ShiftSwapRequestStatus
-import com.reguerta.user.domain.shifts.ShiftSwapResponse
-import com.reguerta.user.domain.shifts.ShiftSwapResponseStatus
 import com.reguerta.user.ui.components.auth.ReguertaButton
 import com.reguerta.user.ui.components.auth.ReguertaButtonVariant
 import com.reguerta.user.ui.components.auth.ReguertaFlatButton
@@ -35,7 +35,6 @@ internal fun ShiftSwapRequestsCard(
     deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
     members: List<Member>,
     currentMemberId: String?,
-    selectedSegment: ShiftBoardSegment,
     isUpdating: Boolean,
     onAccept: (String, String) -> Unit,
     onReject: (String, String) -> Unit,
@@ -43,11 +42,14 @@ internal fun ShiftSwapRequestsCard(
     onConfirm: (String, String) -> Unit,
     onDismissRequest: (String) -> Unit,
 ) {
-    val relevantRequests = remember(requests, shifts, selectedSegment) {
-        requests.filter { request ->
-            shifts.firstOrNull { it.id == request.requestedShiftId }?.type == selectedSegment.toShiftType()
-        }
+    val activity = remember(requests, dismissedRequestIds, currentMemberId) {
+        requests.visibleShiftSwapActivity(
+            currentMemberId = currentMemberId,
+            dismissedRequestIds = dismissedRequestIds,
+        )
     }
+
+    if (!activity.hasContent) return
 
     Card {
         Column(
@@ -60,6 +62,7 @@ internal fun ShiftSwapRequestsCard(
                 text = stringResource(R.string.shift_swap_requests_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.semantics { heading() },
             )
             Text(
                 text = stringResource(R.string.shift_swap_requests_subtitle),
@@ -67,42 +70,10 @@ internal fun ShiftSwapRequestsCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            if (relevantRequests.isEmpty() || currentMemberId == null) {
-                Text(
-                    text = stringResource(R.string.shift_swap_requests_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                return@Column
-            }
-
-            val incoming = relevantRequests.flatMap { request ->
-                request.candidates
-                    .filter { it.userId == currentMemberId }
-                    .filter { candidate ->
-                        request.status == ShiftSwapRequestStatus.OPEN &&
-                            request.responses.none { response ->
-                                response.userId == candidate.userId && response.shiftId == candidate.shiftId
-                            }
-                    }
-                    .map { candidate -> request to candidate }
-            }
-            val requesterOpen = relevantRequests.filter { it.requesterUserId == currentMemberId && it.status == ShiftSwapRequestStatus.OPEN }
-            val availableResponses = requesterOpen.flatMap { request ->
-                request.shiftSwapAvailableResponses().mapNotNull { response ->
-                    val candidate = request.candidates.firstOrNull { it.userId == response.userId && it.shiftId == response.shiftId }
-                    candidate?.let { Triple(request, it, response) }
-                }
-            }
-            val waiting = requesterOpen.filter { request -> request.shiftSwapAvailableResponses().isEmpty() }
-            val history = relevantRequests.filter { request ->
-                request.status != ShiftSwapRequestStatus.OPEN &&
-                    request.id !in dismissedRequestIds
-            }
-
-            if (incoming.isNotEmpty()) {
+            if (activity.incoming.isNotEmpty()) {
                 IncomingShiftSwapSection(
                     title = stringResource(R.string.shift_swap_requests_incoming),
-                    pendingCandidates = incoming,
+                    pendingCandidates = activity.incoming,
                     shifts = shifts,
                     deliveryCalendarOverrides = deliveryCalendarOverrides,
                     members = members,
@@ -112,10 +83,10 @@ internal fun ShiftSwapRequestsCard(
                 )
             }
 
-            if (availableResponses.isNotEmpty()) {
+            if (activity.availableResponses.isNotEmpty()) {
                 RequesterResponsesSection(
                     title = stringResource(R.string.shift_swap_requests_responses),
-                    responseOptions = availableResponses,
+                    responseOptions = activity.availableResponses,
                     shifts = shifts,
                     deliveryCalendarOverrides = deliveryCalendarOverrides,
                     members = members,
@@ -124,10 +95,10 @@ internal fun ShiftSwapRequestsCard(
                 )
             }
 
-            if (waiting.isNotEmpty()) {
+            if (activity.waiting.isNotEmpty()) {
                 WaitingShiftSwapSection(
                     title = stringResource(R.string.shift_swap_requests_outgoing),
-                    requests = waiting,
+                    requests = activity.waiting,
                     shifts = shifts,
                     deliveryCalendarOverrides = deliveryCalendarOverrides,
                     members = members,
@@ -135,10 +106,10 @@ internal fun ShiftSwapRequestsCard(
                 )
             }
 
-            if (history.isNotEmpty()) {
+            if (activity.history.isNotEmpty()) {
                 HistoryShiftSwapSection(
                     title = stringResource(R.string.shift_swap_requests_history),
-                    requests = history,
+                    requests = activity.history,
                     shifts = shifts,
                     deliveryCalendarOverrides = deliveryCalendarOverrides,
                     members = members,
@@ -231,7 +202,7 @@ private fun IncomingShiftSwapSection(
 @Composable
 private fun RequesterResponsesSection(
     title: String,
-    responseOptions: List<Triple<ShiftSwapRequest, ShiftSwapCandidate, ShiftSwapResponse>>,
+    responseOptions: List<ShiftSwapResponseOption>,
     shifts: List<ShiftAssignment>,
     deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
     members: List<Member>,
@@ -245,7 +216,9 @@ private fun RequesterResponsesSection(
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.SemiBold,
         )
-        responseOptions.sortedByDescending { it.first.requestedAtMillis }.forEach { (request, candidate, _) ->
+        responseOptions.sortedByDescending { it.request.requestedAtMillis }.forEach { option ->
+            val request = option.request
+            val candidate = option.candidate
             val requestedShift = shifts.firstOrNull { it.id == request.requestedShiftId }
             val candidateShift = shifts.firstOrNull { it.id == candidate.shiftId }
             Card {
@@ -419,6 +392,3 @@ private fun ShiftSwapRequestHistoryItem(
 
 private fun List<Member>.shiftSwapDisplayNameFor(memberId: String): String =
     firstOrNull { member -> member.id == memberId }?.displayName ?: memberId
-
-private fun ShiftSwapRequest.shiftSwapAvailableResponses(): List<ShiftSwapResponse> =
-    responses.filter { it.status == ShiftSwapResponseStatus.AVAILABLE }

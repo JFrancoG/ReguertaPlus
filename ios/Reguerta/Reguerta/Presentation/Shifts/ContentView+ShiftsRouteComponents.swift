@@ -5,6 +5,7 @@ struct ShiftBoardCardView: View {
     let viewModel: ShiftsFeatureViewModel
     let shift: ShiftAssignment
     let shiftSwapCopy: ShiftSwapCopy
+    let isHighlighted: Bool
     let onStartSwapRequestForShift: (String) -> Void
 
     private var leftColumnWidth: CGFloat {
@@ -26,45 +27,52 @@ struct ShiftBoardCardView: View {
     }
 
     var body: some View {
-        reguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                HStack(alignment: .top, spacing: tokens.spacing.md) {
-                    VStack(alignment: leftAlignment, spacing: tokens.spacing.xs) {
-                        ForEach(Array(viewModel.shiftLeftBoardLines(shift, tokens: tokens).enumerated()), id: \.offset) { _, line in
-                            Text(line.text)
-                                .font(line.font)
-                                .fontWeight(line.weight)
-                                .foregroundStyle(line.color)
-                                .multilineTextAlignment(shift.type == .market ? .center : .leading)
-                        }
-                    }
-                    .frame(width: leftColumnWidth, alignment: shift.type == .market ? .center : .leading)
-
-                    VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                        ForEach(Array(shift.boardNames(session: viewModel.currentSession).enumerated()), id: \.offset) { index, name in
-                            Text(name)
-                                .font(boardNameFont(index: index))
-                                .fontWeight(boardNameWeight(index: index))
-                                .foregroundStyle(
-                                    highlightedIndex == index
-                                    ? tokens.colors.actionPrimary
-                                    : tokens.colors.textPrimary
-                                )
-                        }
-                        if shift.status != .planned {
-                            Text(LocalizedStringKey(shift.status.titleKey))
-                                .font(tokens.typography.label)
-                                .foregroundStyle(tokens.colors.textSecondary)
-                        }
+        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+            HStack(alignment: .top, spacing: tokens.spacing.md) {
+                VStack(alignment: leftAlignment, spacing: tokens.spacing.xs) {
+                    ForEach(Array(viewModel.shiftLeftBoardLines(shift, tokens: tokens).enumerated()), id: \.offset) { _, line in
+                        Text(line.text)
+                            .font(line.font)
+                            .fontWeight(line.weight)
+                            .foregroundStyle(line.color)
+                            .multilineTextAlignment(shift.type == .market ? .center : .leading)
                     }
                 }
-                if highlightedIndex != nil && canRequestSwap {
-                    reguertaButton(LocalizedStringKey(shiftSwapCopy.ask), variant: .text, fullWidth: false) {
-                        onStartSwapRequestForShift(shift.id)
+                .frame(width: leftColumnWidth, alignment: shift.type == .market ? .center : .leading)
+
+                VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+                    ForEach(Array(shift.boardNames(session: viewModel.currentSession).enumerated()), id: \.offset) { index, name in
+                        Text(name)
+                            .font(boardNameFont(index: index))
+                            .fontWeight(boardNameWeight(index: index))
+                            .foregroundStyle(
+                                highlightedIndex == index
+                                ? tokens.colors.actionPrimary
+                                : tokens.colors.textPrimary
+                            )
+                    }
+                    if shift.status != .planned {
+                        Text(LocalizedStringKey(shift.status.titleKey))
+                            .font(tokens.typography.label)
+                            .foregroundStyle(tokens.colors.textSecondary)
                     }
                 }
             }
+            if highlightedIndex != nil && canRequestSwap {
+                reguertaButton(LocalizedStringKey(shiftSwapCopy.ask), variant: .text, fullWidth: false) {
+                    onStartSwapRequestForShift(shift.id)
+                }
+            }
         }
+        .padding(tokens.spacing.lg)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(cardBackgroundColor)
+        .overlay(
+            RoundedRectangle(cornerRadius: tokens.radius.md)
+                .stroke(tokens.colors.borderSubtle.opacity(0.55), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
+        .accessibilityElement(children: .combine)
     }
 
     private func boardNameFont(index: Int) -> Font {
@@ -79,6 +87,13 @@ struct ShiftBoardCardView: View {
             return .regular
         }
         return index == 0 ? .semibold : .regular
+    }
+
+    private var cardBackgroundColor: Color {
+        if isHighlighted {
+            return tokens.colors.feedbackWarning.opacity(0.15)
+        }
+        return tokens.colors.actionPrimary.opacity(0.15)
     }
 }
 

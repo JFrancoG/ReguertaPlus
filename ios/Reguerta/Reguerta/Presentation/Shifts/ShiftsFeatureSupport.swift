@@ -5,6 +5,42 @@ struct ShiftSwapDraft: Equatable, Sendable {
     var reason = ""
 }
 
+struct ShiftBoardWindow: Equatable, Sendable {
+    let highlightedShiftId: String?
+
+    var targetShiftId: String? {
+        highlightedShiftId
+    }
+
+    func highlights(_ shift: ShiftAssignment) -> Bool {
+        shift.id == highlightedShiftId
+    }
+}
+
+struct ShiftSwapResponseOption: Equatable, Sendable {
+    let request: ShiftSwapRequest
+    let candidate: ShiftSwapCandidate
+    let response: ShiftSwapResponse
+
+    var id: String {
+        "\(request.id):\(candidate.userId):\(candidate.shiftId)"
+    }
+}
+
+struct VisibleShiftSwapActivity: Sendable {
+    let incoming: [(ShiftSwapRequest, ShiftSwapCandidate)]
+    let availableResponses: [ShiftSwapResponseOption]
+    let outgoing: [ShiftSwapRequest]
+    let history: [ShiftSwapRequest]
+
+    var hasContent: Bool {
+        !incoming.isEmpty ||
+            !availableResponses.isEmpty ||
+            !outgoing.isEmpty ||
+            !history.isEmpty
+    }
+}
+
 struct ConfirmShiftSwapContext {
     let session: AuthorizedSession
     let request: ShiftSwapRequest
@@ -31,6 +67,65 @@ extension Array where Element == ShiftSwapRequest {
             request.requesterUserId == memberId || request.candidates.contains(where: { $0.userId == memberId })
         }
             .sorted { $0.requestedAtMillis > $1.requestedAtMillis }
+    }
+
+    func visibleShiftSwapActivity(
+        currentMemberId: String?,
+        dismissedRequestIds: Set<String>
+    ) -> VisibleShiftSwapActivity {
+        guard let currentMemberId else {
+            return VisibleShiftSwapActivity(
+                incoming: [],
+                availableResponses: [],
+                outgoing: [],
+                history: []
+            )
+        }
+
+        let incoming = flatMap { request in
+            request.candidates
+                .filter { $0.userId == currentMemberId }
+                .filter { candidate in
+                    request.status == .open &&
+                        !request.responses.contains {
+                            $0.userId == candidate.userId && $0.shiftId == candidate.shiftId
+                        }
+                }
+                .map { (request, $0) }
+        }
+        let requesterOpen = filter {
+            $0.requesterUserId == currentMemberId && $0.status == .open
+        }
+        let availableResponses = requesterOpen.flatMap { request in
+            request.availableResponses.compactMap { response in
+                request.candidates.first {
+                    $0.userId == response.userId && $0.shiftId == response.shiftId
+                }
+                .map {
+                    ShiftSwapResponseOption(
+                        request: request,
+                        candidate: $0,
+                        response: response
+                    )
+                }
+            }
+        }
+        let outgoing = requesterOpen.filter { $0.availableResponses.isEmpty }
+        let history = filter { request in
+            request.status != .open &&
+                !dismissedRequestIds.contains(request.id) &&
+                (
+                    request.requesterUserId == currentMemberId ||
+                        request.candidates.contains { candidate in candidate.userId == currentMemberId }
+                )
+        }
+
+        return VisibleShiftSwapActivity(
+            incoming: incoming,
+            availableResponses: availableResponses,
+            outgoing: outgoing,
+            history: history
+        )
     }
 }
 

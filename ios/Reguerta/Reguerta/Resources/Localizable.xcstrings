@@ -7185,7 +7185,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "mercadillo"
+            "value" : "mercado"
           }
         }
       }
@@ -7377,6 +7377,40 @@
         }
       }
     },
+    "shifts.next.delivery.helper" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Helper"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ayudante"
+          }
+        }
+      }
+    },
+    "shifts.next.delivery.lead" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lead"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Encargado"
+          }
+        }
+      }
+    },
     "shifts.next.market" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7389,7 +7423,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Próximo mercadillo"
+            "value" : "Próximo mercado"
           }
         }
       }
@@ -7423,7 +7457,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Consulta tu próximo reparto y tu próximo mercadillo."
+            "value" : "Consulta tu próximo reparto y tu próximo mercado."
           }
         }
       }
@@ -7434,13 +7468,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your next shifts"
+            "value" : "My next shifts"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tus próximos turnos"
+            "value" : "Mis próximos turnos"
           }
         }
       }
@@ -7542,7 +7576,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mercadillo"
+            "value" : "Mercado"
           }
         }
       }

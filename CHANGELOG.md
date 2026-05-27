@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-05-27 | ✨ feat(shifts): redesign shifts screen
 - 2026-05-26 | ✨ feat(orders): add received order history
 - 2026-05-25 | ✨ feat(orders): add weekly order history
 - 2026-05-25 | ✨ feat(community): refine family profiles
