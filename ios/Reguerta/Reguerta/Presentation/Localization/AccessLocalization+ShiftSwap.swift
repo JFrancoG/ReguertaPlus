@@ -1,6 +1,14 @@
 import Foundation
 
 extension AccessL10nKey {
+    static let shiftsNextTitle = "shifts.next.title"
+    static let shiftsNextSubtitle = "shifts.next.subtitle"
+    static let shiftsNextDelivery = "shifts.next.delivery"
+    static let shiftsNextDeliveryLead = "shifts.next.delivery.lead"
+    static let shiftsNextDeliveryHelper = "shifts.next.delivery.helper"
+    static let shiftsNextMarket = "shifts.next.market"
+    static let shiftsNextPending = "shifts.next.pending"
+
     static let shiftSwapRequestScreenTitle = "shift_swap_request.screen.title"
     static let shiftSwapRequestScreenSubtitle = "shift_swap_request.screen.subtitle"
     static let shiftSwapRequestRequestsTitle = "shift_swap_request.requests.title"

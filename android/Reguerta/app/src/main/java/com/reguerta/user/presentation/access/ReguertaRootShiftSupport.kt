@@ -13,7 +13,11 @@ import com.reguerta.user.domain.notifications.NotificationAudience
 import com.reguerta.user.domain.notifications.NotificationEvent
 import com.reguerta.user.domain.shifts.ShiftAssignment
 import com.reguerta.user.domain.shifts.ShiftStatus
+import com.reguerta.user.domain.shifts.ShiftSwapCandidate
 import com.reguerta.user.domain.shifts.ShiftSwapRequestStatus
+import com.reguerta.user.domain.shifts.ShiftSwapRequest
+import com.reguerta.user.domain.shifts.ShiftSwapResponse
+import com.reguerta.user.domain.shifts.ShiftSwapResponseStatus
 import com.reguerta.user.domain.shifts.ShiftType
 import java.text.DateFormat
 import java.text.SimpleDateFormat
@@ -124,6 +128,156 @@ internal fun ShiftAssignment.highlightedBoardNameIndex(currentMemberId: String):
     ShiftType.MARKET -> assignedUserIds.indexOf(currentMemberId).takeIf { it >= 0 }
 }
 
+internal fun List<ShiftAssignment>.nextDeliveryLeadShift(
+    memberId: String,
+    overrides: List<DeliveryCalendarOverride>,
+    nowMillis: Long,
+): ShiftAssignment? =
+    asSequence()
+        .filter { shift ->
+            shift.type == ShiftType.DELIVERY &&
+                shift.assignedUserIds.firstOrNull() == memberId &&
+                shift.effectiveDateMillis(overrides) >= nowMillis
+        }
+        .minByOrNull { shift -> shift.effectiveDateMillis(overrides) }
+
+internal fun List<ShiftAssignment>.nextDeliveryHelperShift(
+    memberId: String,
+    overrides: List<DeliveryCalendarOverride>,
+    nowMillis: Long,
+): ShiftAssignment? =
+    asSequence()
+        .filter { shift ->
+            shift.type == ShiftType.DELIVERY &&
+                shift.helperUserId == memberId &&
+                shift.effectiveDateMillis(overrides) >= nowMillis
+        }
+        .minByOrNull { shift -> shift.effectiveDateMillis(overrides) }
+
+internal fun List<ShiftAssignment>.nextMarketAssignedShift(
+    memberId: String,
+    overrides: List<DeliveryCalendarOverride>,
+    nowMillis: Long,
+): ShiftAssignment? =
+    asSequence()
+        .filter { shift ->
+            shift.type == ShiftType.MARKET &&
+                shift.assignedUserIds.contains(memberId) &&
+                shift.effectiveDateMillis(overrides) >= nowMillis
+        }
+        .minByOrNull { shift -> shift.effectiveDateMillis(overrides) }
+
+internal data class ShiftBoardWindow(
+    val highlightedShiftId: String?,
+) {
+    val targetShiftId: String?
+        get() = highlightedShiftId
+
+    fun highlights(shiftId: String): Boolean =
+        shiftId == highlightedShiftId
+}
+
+internal fun List<ShiftAssignment>.shiftBoardWindow(
+    overrides: List<DeliveryCalendarOverride>,
+    nowMillis: Long,
+): ShiftBoardWindow {
+    val today = nowMillis.toLocalDate()
+    val highlighted = filter { shift -> shift.effectiveDateMillis(overrides).toLocalDate() >= today }
+        .minByOrNull { shift -> shift.effectiveDateMillis(overrides) }
+
+    return ShiftBoardWindow(
+        highlightedShiftId = highlighted?.id,
+    )
+}
+
+internal data class ShiftSwapResponseOption(
+    val request: ShiftSwapRequest,
+    val candidate: ShiftSwapCandidate,
+    val response: ShiftSwapResponse,
+)
+
+internal data class VisibleShiftSwapActivity(
+    val incoming: List<Pair<ShiftSwapRequest, ShiftSwapCandidate>>,
+    val availableResponses: List<ShiftSwapResponseOption>,
+    val waiting: List<ShiftSwapRequest>,
+    val history: List<ShiftSwapRequest>,
+) {
+    val hasContent: Boolean
+        get() = incoming.isNotEmpty() ||
+            availableResponses.isNotEmpty() ||
+            waiting.isNotEmpty() ||
+            history.isNotEmpty()
+}
+
+internal fun List<ShiftSwapRequest>.visibleShiftSwapActivity(
+    currentMemberId: String?,
+    dismissedRequestIds: Set<String>,
+): VisibleShiftSwapActivity {
+    if (currentMemberId == null) {
+        return VisibleShiftSwapActivity(
+            incoming = emptyList(),
+            availableResponses = emptyList(),
+            waiting = emptyList(),
+            history = emptyList(),
+        )
+    }
+
+    val incoming = flatMap { request ->
+        request.candidates
+            .filter { candidate -> candidate.userId == currentMemberId }
+            .filter { candidate ->
+                request.status == ShiftSwapRequestStatus.OPEN &&
+                    request.responses.none { response ->
+                        response.userId == candidate.userId && response.shiftId == candidate.shiftId
+                    }
+            }
+            .map { candidate -> request to candidate }
+    }
+    val requesterOpen = filter { request ->
+        request.requesterUserId == currentMemberId && request.status == ShiftSwapRequestStatus.OPEN
+    }
+    val availableResponses = requesterOpen.flatMap { request ->
+        request.shiftSwapAvailableResponses().mapNotNull { response ->
+            val candidate = request.candidates.firstOrNull { candidate ->
+                candidate.userId == response.userId && candidate.shiftId == response.shiftId
+            }
+            candidate?.let {
+                ShiftSwapResponseOption(
+                    request = request,
+                    candidate = it,
+                    response = response,
+                )
+            }
+        }
+    }
+    val waiting = requesterOpen.filter { request -> request.shiftSwapAvailableResponses().isEmpty() }
+    val history = filter { request ->
+        request.status != ShiftSwapRequestStatus.OPEN &&
+            request.id !in dismissedRequestIds &&
+            (request.requesterUserId == currentMemberId ||
+                request.candidates.any { candidate -> candidate.userId == currentMemberId })
+    }
+
+    return VisibleShiftSwapActivity(
+        incoming = incoming,
+        availableResponses = availableResponses,
+        waiting = waiting,
+        history = history,
+    )
+}
+
+internal fun List<ShiftSwapRequest>.hasVisibleShiftSwapActivity(
+    currentMemberId: String?,
+    dismissedRequestIds: Set<String>,
+): Boolean =
+    visibleShiftSwapActivity(
+        currentMemberId = currentMemberId,
+        dismissedRequestIds = dismissedRequestIds,
+    ).hasContent
+
+internal fun ShiftSwapRequest.shiftSwapAvailableResponses(): List<ShiftSwapResponse> =
+    responses.filter { it.status == ShiftSwapResponseStatus.AVAILABLE }
+
 private fun List<String>.toMemberNames(members: List<Member>): String =
     map { memberId -> members.displayNameFor(memberId) }
         .joinToString(separator = ", ")
@@ -203,6 +357,9 @@ fun Long.toNotificationDateLabel(): String =
 
 internal fun Long.toLocalizedDateOnly(): String =
     DateFormat.getDateInstance(DateFormat.MEDIUM).format(java.util.Date(this))
+
+internal fun Long.toShortDateOnly(): String =
+    SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(java.util.Date(this))
 
 internal fun ShiftAssignment.toShiftSwapDisplayLabel(
     memberId: String?,

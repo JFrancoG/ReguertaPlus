@@ -1,93 +1,207 @@
 import SwiftUI
 
-private struct ShiftSwapResponseOption {
+private struct IncomingShiftSwapOption: Identifiable {
     let request: ShiftSwapRequest
     let candidate: ShiftSwapCandidate
+
+    var id: String {
+        "\(request.id):\(candidate.userId):\(candidate.shiftId)"
+    }
 }
 
 struct ShiftsRouteView: View {
     let tokens: ReguertaDesignTokens
     let viewModel: ShiftsFeatureViewModel
-    let onRefreshFromNextShifts: () -> Void
     let onStartSwapRequestForShift: (String) -> Void
 
     private var shiftSwapCopy: ShiftSwapCopy {
         .localized
     }
 
-    private func localizedKey(_ key: String) -> LocalizedStringKey {
-        LocalizedStringKey(key)
-    }
-
     var body: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            LazyVStack(alignment: .leading, spacing: tokens.spacing.lg) {
-                reguertaCard {
-                    VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                        Text(localizedKey(AccessL10nKey.shiftsListSubtitle))
-                            .font(tokens.typography.bodySecondary)
-                            .foregroundStyle(tokens.colors.textSecondary)
-                        reguertaButton(localizedKey(AccessL10nKey.shiftsRefreshAction), variant: .text) {
-                            Task { await viewModel.refreshShifts() }
-                        }
-                    }
-                }
-
-                NextShiftsCardView(
-                    tokens: tokens,
-                    isLoading: viewModel.isLoadingShifts,
-                    nextDeliverySummary: viewModel.nextDeliveryShift.map(viewModel.shiftSummary) ?? l10n(AccessL10nKey.shiftsNextPending),
-                    nextMarketSummary: viewModel.nextMarketShift.map(viewModel.shiftSummary) ?? l10n(AccessL10nKey.shiftsNextPending),
-                    onViewAll: onRefreshFromNextShifts
-                )
-
+        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+            if viewModel.hasVisibleShiftSwapActivity {
                 ShiftSwapRequestsCardView(
                     tokens: tokens,
                     viewModel: viewModel,
                     shiftSwapCopy: shiftSwapCopy
                 )
+            }
 
-                if viewModel.isLoadingShifts {
-                    reguertaCard {
-                        Text(localizedKey(AccessL10nKey.shiftsLoading))
-                            .font(tokens.typography.bodySecondary)
-                    }
-                } else if viewModel.shiftsFeed.isEmpty {
-                    reguertaCard {
-                        Text(localizedKey(AccessL10nKey.shiftsEmptyState))
-                            .font(tokens.typography.bodySecondary)
-                            .foregroundStyle(tokens.colors.textSecondary)
-                    }
-                } else {
-                    Picker("", selection: selectedShiftSegmentBinding) {
-                        ForEach(ShiftBoardSegment.allCases, id: \.self) { segment in
-                            Text(localizedKey(segment.titleKey)).tag(segment)
+            MyNextShiftsSectionView(
+                tokens: tokens,
+                viewModel: viewModel
+            )
+
+            ShiftBoardSectionView(
+                tokens: tokens,
+                viewModel: viewModel,
+                shiftSwapCopy: shiftSwapCopy,
+                onStartSwapRequestForShift: onStartSwapRequestForShift
+            )
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+}
+
+private struct MyNextShiftsSectionView: View {
+    let tokens: ReguertaDesignTokens
+    let viewModel: ShiftsFeatureViewModel
+
+    private func localizedKey(_ key: String) -> LocalizedStringKey {
+        LocalizedStringKey(key)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+            Text(localizedKey(AccessL10nKey.shiftsNextTitle))
+                .font(tokens.typography.titleCard)
+                .accessibilityAddTraits(.isHeader)
+
+            if viewModel.isLoadingShifts {
+                Text(localizedKey(AccessL10nKey.shiftsLoading))
+                    .font(tokens.typography.bodySecondary)
+                    .foregroundStyle(tokens.colors.textSecondary)
+            } else {
+                reguertaCard {
+                    VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                        nextShiftRow(titleKey: AccessL10nKey.shiftsTypeDelivery) {
+                            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                                nextDateLine(
+                                    titleKey: AccessL10nKey.shiftsNextDeliveryHelper,
+                                    value: dateLabel(viewModel.nextDeliveryHelperShift),
+                                    prominent: false
+                                )
+                                nextDateLine(
+                                    titleKey: AccessL10nKey.shiftsNextDeliveryLead,
+                                    value: dateLabel(viewModel.nextDeliveryLeadShift),
+                                    prominent: true
+                                )
+                            }
+                        }
+                        Divider()
+                            .overlay(tokens.colors.borderSubtle.opacity(0.65))
+                        nextShiftRow(titleKey: AccessL10nKey.shiftsTypeMarket) {
+                            Text(dateLabel(viewModel.nextMarketAssignedShift))
+                                .font(tokens.typography.titleCard)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(tokens.colors.textPrimary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.82)
                         }
                     }
-                    .pickerStyle(.segmented)
+                }
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
 
-                    if viewModel.visibleShifts.isEmpty {
-                        reguertaCard {
-                            Text(localizedKey(AccessL10nKey.shiftsEmptyState))
-                                .font(tokens.typography.bodySecondary)
-                                .foregroundStyle(tokens.colors.textSecondary)
-                        }
-                    } else {
-                        ForEach(viewModel.visibleShifts) { shift in
+    private func nextShiftRow<Content: View>(
+        titleKey: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        HStack(alignment: .top, spacing: tokens.spacing.lg) {
+            Text(localizedKey(titleKey))
+                .font(tokens.typography.body.weight(.semibold))
+                .foregroundStyle(tokens.colors.actionPrimary)
+                .frame(width: 104, alignment: .leading)
+
+            content()
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func nextDateLine(titleKey: String, value: String, prominent: Bool) -> some View {
+        Text("\(value) \(l10n(titleKey))")
+            .font(prominent ? tokens.typography.titleCard : tokens.typography.bodySecondary)
+            .fontWeight(prominent ? .semibold : .regular)
+            .foregroundStyle(tokens.colors.textPrimary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.82)
+    }
+
+    private func dateLabel(_ shift: ShiftAssignment?) -> String {
+        shift.map(viewModel.localizedEffectiveShortDateOnly) ?? l10n(AccessL10nKey.shiftsNextPending)
+    }
+}
+
+private struct ShiftBoardSectionView: View {
+    let tokens: ReguertaDesignTokens
+    let viewModel: ShiftsFeatureViewModel
+    let shiftSwapCopy: ShiftSwapCopy
+    let onStartSwapRequestForShift: (String) -> Void
+
+    private func localizedKey(_ key: String) -> LocalizedStringKey {
+        LocalizedStringKey(key)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.md) {
+            Picker("", selection: selectedShiftSegmentBinding) {
+                ForEach(ShiftBoardSegment.allCases, id: \.self) { segment in
+                    Text(localizedKey(segment.titleKey)).tag(segment)
+                }
+            }
+            .pickerStyle(.segmented)
+            .accessibilityLabel(localizedKey(AccessL10nKey.shifts))
+
+            if viewModel.isLoadingShifts {
+                reguertaCard {
+                    Text(localizedKey(AccessL10nKey.shiftsLoading))
+                        .font(tokens.typography.bodySecondary)
+                }
+            } else if viewModel.visibleShifts.isEmpty {
+                reguertaCard {
+                    Text(localizedKey(AccessL10nKey.shiftsEmptyState))
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                }
+            } else {
+                boardScroll
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var boardScroll: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.vertical, showsIndicators: true) {
+                LazyVStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                    ForEach(viewModel.visibleShifts) { shift in
                             ShiftBoardCardView(
                                 tokens: tokens,
                                 viewModel: viewModel,
                                 shift: shift,
                                 shiftSwapCopy: shiftSwapCopy,
+                                isHighlighted: viewModel.selectedBoardWindow.highlights(shift),
                                 onStartSwapRequestForShift: onStartSwapRequestForShift
                             )
-                        }
+                        .id(shift.id)
                     }
                 }
+                .padding(.bottom, tokens.spacing.sm)
             }
-            .padding(.bottom, tokens.spacing.sm)
+            .scrollDismissesKeyboard(.interactively)
+            .onAppear {
+                scrollToTarget(proxy)
+            }
+            .onChange(of: viewModel.selectedShiftSegment) {
+                scrollToTarget(proxy)
+            }
+            .onChange(of: viewModel.selectedBoardWindow.targetShiftId) {
+                scrollToTarget(proxy)
+            }
+            .onChange(of: viewModel.visibleShiftIdsSignature) {
+                scrollToTarget(proxy)
+            }
         }
-        .scrollDismissesKeyboard(.interactively)
+    }
+
+    private func scrollToTarget(_ proxy: ScrollViewProxy) {
+        guard let targetShiftId = viewModel.selectedBoardWindow.targetShiftId else { return }
+        proxy.scrollTo(targetShiftId, anchor: .top)
     }
 
     private var selectedShiftSegmentBinding: Binding<ShiftBoardSegment> {
@@ -103,80 +217,37 @@ private struct ShiftSwapRequestsCardView: View {
     let viewModel: ShiftsFeatureViewModel
     let shiftSwapCopy: ShiftSwapCopy
 
-    private var segmentType: ShiftType {
-        viewModel.selectedShiftSegment == .delivery ? .delivery : .market
+    private var activity: VisibleShiftSwapActivity {
+        viewModel.visibleShiftSwapActivity
     }
 
-    private var relevantRequests: [ShiftSwapRequest] {
-        viewModel.shiftSwapRequests.filter { request in
-            guard let shift = viewModel.shiftsFeed.first(where: { $0.id == request.requestedShiftId }) else { return false }
-            return shift.type == segmentType
-        }
-    }
-
-    private var incoming: [(ShiftSwapRequest, ShiftSwapCandidate)] {
-        relevantRequests.flatMap { request in
-            request.candidates
-                .filter { $0.userId == viewModel.currentMember?.id }
-                .filter { candidate in
-                    request.status == .open &&
-                        !request.responses.contains(where: { $0.userId == candidate.userId && $0.shiftId == candidate.shiftId })
-                }
-                .map { (request, $0) }
-        }
-    }
-
-    private var requesterOpen: [ShiftSwapRequest] {
-        relevantRequests.filter { $0.requesterUserId == viewModel.currentMember?.id && $0.status == .open }
-    }
-
-    private var availableResponses: [ShiftSwapResponseOption] {
-        requesterOpen.flatMap { request in
-            request.availableResponses.compactMap { response in
-                request.candidates.first(where: { $0.userId == response.userId && $0.shiftId == response.shiftId }).map {
-                    ShiftSwapResponseOption(
-                        request: request,
-                        candidate: $0
-                    )
-                }
-            }
-        }
-    }
-
-    private var outgoing: [ShiftSwapRequest] {
-        requesterOpen.filter { $0.availableResponses.isEmpty }
-    }
-
-    private var history: [ShiftSwapRequest] {
-        relevantRequests.filter {
-            $0.status != .open && !viewModel.dismissedShiftSwapRequestIds.contains($0.id)
+    private var incomingOptions: [IncomingShiftSwapOption] {
+        activity.incoming.map { request, candidate in
+            IncomingShiftSwapOption(request: request, candidate: candidate)
         }
     }
 
     var body: some View {
-        reguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                Text(shiftSwapCopy.requestsTitle)
-                    .font(tokens.typography.titleCard)
-                Text(shiftSwapCopy.requestsSubtitle)
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-
-                if relevantRequests.isEmpty {
-                    Text(shiftSwapCopy.empty)
+        if activity.hasContent {
+            reguertaCard {
+                VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                    Text(shiftSwapCopy.requestsTitle)
+                        .font(tokens.typography.titleCard)
+                        .accessibilityAddTraits(.isHeader)
+                    Text(shiftSwapCopy.requestsSubtitle)
                         .font(tokens.typography.bodySecondary)
                         .foregroundStyle(tokens.colors.textSecondary)
-                } else {
-                    if !incoming.isEmpty {
+
+                    if !incomingOptions.isEmpty {
                         incomingSection
                     }
-                    if !availableResponses.isEmpty {
+                    if !activity.availableResponses.isEmpty {
                         availableResponsesSection
                     }
-                    if !outgoing.isEmpty {
+                    if !activity.outgoing.isEmpty {
                         outgoingSection
                     }
-                    if !history.isEmpty {
+                    if !activity.history.isEmpty {
                         historySection
                     }
                 }
@@ -189,8 +260,8 @@ private struct ShiftSwapRequestsCardView: View {
             Text(shiftSwapCopy.incoming)
                 .font(tokens.typography.label.weight(.semibold))
                 .foregroundStyle(tokens.colors.actionPrimary)
-            ForEach(Array(incoming.enumerated()), id: \.offset) { _, item in
-                incomingRow(item.0, candidate: item.1)
+            ForEach(incomingOptions) { option in
+                incomingRow(option.request, candidate: option.candidate)
             }
         }
     }
@@ -228,7 +299,7 @@ private struct ShiftSwapRequestsCardView: View {
             Text(shiftSwapCopy.responses)
                 .font(tokens.typography.label.weight(.semibold))
                 .foregroundStyle(tokens.colors.actionPrimary)
-            ForEach(Array(availableResponses.enumerated()), id: \.offset) { _, item in
+            ForEach(activity.availableResponses, id: \.id) { item in
                 let request = item.request
                 let candidate = item.candidate
                 let requestedShift = viewModel.shiftsFeed.first(where: { $0.id == request.requestedShiftId })
@@ -258,7 +329,7 @@ private struct ShiftSwapRequestsCardView: View {
             Text(shiftSwapCopy.outgoing)
                 .font(tokens.typography.label.weight(.semibold))
                 .foregroundStyle(tokens.colors.actionPrimary)
-            ForEach(outgoing) { request in
+            ForEach(activity.outgoing) { request in
                 let shift = viewModel.shiftsFeed.first(where: { $0.id == request.requestedShiftId })
 
                 VStack(alignment: .leading, spacing: tokens.spacing.xs) {
@@ -283,7 +354,7 @@ private struct ShiftSwapRequestsCardView: View {
             Text(shiftSwapCopy.history)
                 .font(tokens.typography.label.weight(.semibold))
                 .foregroundStyle(tokens.colors.actionPrimary)
-            ForEach(history) { request in
+            ForEach(activity.history) { request in
                 let shift = viewModel.shiftsFeed.first(where: { $0.id == request.requestedShiftId })
 
                 VStack(alignment: .leading, spacing: tokens.spacing.xs) {

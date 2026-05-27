@@ -2,6 +2,69 @@ import Foundation
 import SwiftUI
 
 extension ShiftsFeatureViewModel {
+    var nextDeliveryLeadShift: ShiftAssignment? {
+        guard let memberId = currentMember?.id else { return nil }
+        return deliveryShifts
+            .filter {
+                $0.assignedUserIds.first == memberId &&
+                    effectiveDateMillis(for: $0) >= currentNowMillis
+            }
+            .min { effectiveDateMillis(for: $0) < effectiveDateMillis(for: $1) }
+    }
+
+    var nextDeliveryHelperShift: ShiftAssignment? {
+        guard let memberId = currentMember?.id else { return nil }
+        return deliveryShifts
+            .filter {
+                $0.helperUserId == memberId &&
+                    effectiveDateMillis(for: $0) >= currentNowMillis
+            }
+            .min { effectiveDateMillis(for: $0) < effectiveDateMillis(for: $1) }
+    }
+
+    var nextMarketAssignedShift: ShiftAssignment? {
+        guard let memberId = currentMember?.id else { return nil }
+        return marketShifts
+            .filter {
+                $0.assignedUserIds.contains(memberId) &&
+                    effectiveDateMillis(for: $0) >= currentNowMillis
+            }
+            .min { effectiveDateMillis(for: $0) < effectiveDateMillis(for: $1) }
+    }
+
+    var selectedBoardWindow: ShiftBoardWindow {
+        shiftBoardWindow(for: selectedShiftSegment)
+    }
+
+    var visibleShiftIdsSignature: String {
+        visibleShifts.map(\.id).joined(separator: "|")
+    }
+
+    var visibleShiftSwapActivity: VisibleShiftSwapActivity {
+        shiftSwapRequests.visibleShiftSwapActivity(
+            currentMemberId: currentMember?.id,
+            dismissedRequestIds: dismissedShiftSwapRequestIds
+        )
+    }
+
+    var hasVisibleShiftSwapActivity: Bool {
+        visibleShiftSwapActivity.hasContent
+    }
+
+    func shiftBoardWindow(for segment: ShiftBoardSegment) -> ShiftBoardWindow {
+        let shifts = segment == .delivery ? deliveryShifts : marketShifts
+        let today = Calendar.current.startOfDay(
+            for: Date(timeIntervalSince1970: TimeInterval(currentNowMillis) / 1_000)
+        )
+        let highlighted = shifts
+            .filter { effectiveDate(for: $0) >= today }
+            .min { effectiveDateMillis(for: $0) < effectiveDateMillis(for: $1) }
+
+        return ShiftBoardWindow(
+            highlightedShiftId: highlighted?.id
+        )
+    }
+
     func deliveryOverride(for shift: ShiftAssignment) -> DeliveryCalendarOverride? {
         guard shift.type == .delivery else { return nil }
         return deliveryCalendarOverrides.first(where: { $0.weekKey == shift.weekKey })
@@ -21,6 +84,10 @@ extension ShiftsFeatureViewModel {
 
     func localizedEffectiveDateOnly(_ shift: ShiftAssignment) -> String {
         localizedDateOnly(effectiveDateMillis(for: shift))
+    }
+
+    func localizedEffectiveShortDateOnly(_ shift: ShiftAssignment) -> String {
+        localizedShortDateOnly(effectiveDateMillis(for: shift))
     }
 
     func shiftLeftBoardLines(_ shift: ShiftAssignment, tokens: ReguertaDesignTokens) -> [ShiftBoardLine] {
@@ -126,6 +193,13 @@ extension ShiftsFeatureViewModel {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .none
+        return formatter.string(from: Date(timeIntervalSince1970: TimeInterval(millis) / 1_000))
+    }
+
+    func localizedShortDateOnly(_ millis: Int64) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.dateFormat = "dd MMM yyyy"
         return formatter.string(from: Date(timeIntervalSince1970: TimeInterval(millis) / 1_000))
     }
 }

@@ -106,9 +106,11 @@
     <string name="home_shell_version_android_format">Android %1$s</string>
     <string name="home_shell_dev_marker">DEV</string>
     <string name="shifts_title">Shifts</string>
-    <string name="shifts_next_title">Your next shifts</string>
+    <string name="shifts_next_title">My next shifts</string>
     <string name="shifts_next_subtitle">Keep track of your upcoming delivery and market assignments.</string>
     <string name="shifts_next_delivery">Next delivery</string>
+    <string name="shifts_next_delivery_lead">Lead</string>
+    <string name="shifts_next_delivery_helper">Helper</string>
     <string name="shifts_next_market">Next market</string>
     <string name="shifts_next_pending">Pending assignment</string>
     <string name="shifts_view_all">View all shifts</string>
