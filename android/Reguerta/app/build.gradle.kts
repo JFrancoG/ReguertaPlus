@@ -9,7 +9,7 @@ plugins {
 android {
     namespace = "com.reguerta.user"
     compileSdk {
-        version = release(36)
+        version = release(37)
     }
 
     defaultConfig {
