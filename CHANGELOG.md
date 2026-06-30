@@ -107,6 +107,7 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
+- 2026-06-30 | 📦 build(ios): update Firebase Swift package
 - 2026-06-30 | 📦 build(android): update Android dependencies
 - 2026-05-13 | 🔧 chore(project): add HU-054 setup updates
 - 2026-05-03 | 📦 build(android): update Gradle and AGP

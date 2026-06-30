@@ -35,6 +35,13 @@ xcuserdata/
 .build/
 .swiftpm/
 Packages/
+!ios/Reguerta/Reguerta.xcodeproj/project.xcworkspace/
+ios/Reguerta/Reguerta.xcodeproj/project.xcworkspace/*
+!ios/Reguerta/Reguerta.xcodeproj/project.xcworkspace/xcshareddata/
+ios/Reguerta/Reguerta.xcodeproj/project.xcworkspace/xcshareddata/*
+!ios/Reguerta/Reguerta.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+ios/Reguerta/Reguerta.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/*
+!ios/Reguerta/Reguerta.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
 # CocoaPods
 Pods/
