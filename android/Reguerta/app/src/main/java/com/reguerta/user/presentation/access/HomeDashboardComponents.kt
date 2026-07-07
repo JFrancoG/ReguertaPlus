@@ -68,6 +68,7 @@ internal fun HomeWeeklySummaryCard(
                 Text(
                     text = display.weekBadgeLabel,
                     style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Normal,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
                         .clip(RoundedCornerShape(999.dp))

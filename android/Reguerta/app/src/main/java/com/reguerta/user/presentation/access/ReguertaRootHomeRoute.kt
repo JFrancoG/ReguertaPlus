@@ -1,17 +1,27 @@
 package com.reguerta.user.presentation.access
 
 import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
@@ -20,6 +30,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -28,9 +40,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.platform.LocalContext
 import androidx.activity.compose.BackHandler
 import com.reguerta.user.R
@@ -51,6 +67,11 @@ import com.reguerta.user.ui.components.auth.ReguertaDialogAction
 import com.reguerta.user.ui.components.auth.ReguertaDialogType
 import com.reguerta.user.ui.components.auth.ReguertaFlatButton
 import kotlinx.coroutines.delay
+
+private const val HomeDrawerAnimationMillis = 400
+private const val HomeDrawerWidthFraction = 304f / 390f
+private const val HomeDrawerScrimAlpha = 0.15f
+
 @Composable
 internal fun HomeRoute(
     modifier: Modifier = Modifier,
@@ -277,140 +298,163 @@ internal fun HomeRoute(
     }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val drawerWidth = maxWidth * 0.78f
-        val resolvedDrawerWidth = if (drawerWidth > 320.dp) 320.dp else drawerWidth
+        val drawerWidth = maxWidth * HomeDrawerWidthFraction
+        val drawerAnimationSpec = tween<Dp>(
+            durationMillis = HomeDrawerAnimationMillis,
+            easing = FastOutSlowInEasing,
+        )
         val homeOffset by animateDpAsState(
-            targetValue = if (isDrawerOpen) resolvedDrawerWidth else 0.dp,
+            targetValue = if (isDrawerOpen) drawerWidth else 0.dp,
+            animationSpec = drawerAnimationSpec,
             label = "homeDrawerOffset",
         )
         val homeElevation by animateDpAsState(
             targetValue = if (isDrawerOpen) 12.dp else 0.dp,
+            animationSpec = drawerAnimationSpec,
             label = "homeDrawerElevation",
         )
+        val isHomeShifted = isDrawerOpen || homeOffset > 0.dp
 
         Surface(
-            modifier = Modifier
-                .fillMaxSize()
-                .widthIn(max = resolvedDrawerWidth),
+            modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.surface,
         ) {
-            Box(modifier = Modifier.widthIn(max = resolvedDrawerWidth)) {
-                HomeDrawerContent(
-                    member = member,
-                    sharedProfile = currentSharedProfile,
-                    currentDestination = currentDestination,
-                    installedVersion = installedVersion,
-                    isDevelopBuild = isDevelopImpersonationEnabled,
-                    onNavigate = ::handleDrawerNavigation,
-                    onCloseDrawer = ::closeDrawer,
-                    onSignOut = {
-                        closeDrawer()
-                        onSignOut()
-                    },
-                )
+            Row(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(drawerWidth)
+                        .clipToBounds(),
+                ) {
+                    HomeDrawerContent(
+                        member = member,
+                        sharedProfile = currentSharedProfile,
+                        currentDestination = currentDestination,
+                        installedVersion = installedVersion,
+                        isDevelopBuild = isDevelopImpersonationEnabled,
+                        onNavigate = ::handleDrawerNavigation,
+                        onCloseDrawer = ::closeDrawer,
+                        onSignOut = {
+                            closeDrawer()
+                            onSignOut()
+                        },
+                    )
+                }
+                Spacer(modifier = Modifier.weight(1f))
             }
         }
 
-        Surface(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .offset(x = homeOffset)
-                .shadow(homeElevation),
-            color = MaterialTheme.colorScheme.background,
+                .shadow(homeElevation, clip = false)
+                .zIndex(1f),
         ) {
-        val usesRouteScroll =
-            currentDestination != HomeDestination.MY_ORDER &&
-                currentDestination != HomeDestination.MY_ORDERS &&
-                currentDestination != HomeDestination.RECEIVED_ORDERS &&
-                currentDestination != HomeDestination.RECEIVED_ORDERS_HISTORY &&
-                currentDestination != HomeDestination.PRODUCTS &&
-                currentDestination != HomeDestination.USERS &&
-                currentDestination != HomeDestination.NEWS &&
-                currentDestination != HomeDestination.PUBLISH_NEWS &&
-                currentDestination != HomeDestination.ADMIN_BROADCAST &&
-                currentDestination != HomeDestination.PROFILE &&
-                currentDestination != HomeDestination.SHIFTS
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxSize()
-                .imePadding()
-                .padding(start = 16.dp, top = 0.dp, end = 16.dp, bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            val showsMyOrderCartAction = currentDestination == HomeDestination.MY_ORDER && !isMyOrderReadOnlyMode
-            val homeShellTitle = when {
-                currentDestination == HomeDestination.DASHBOARD -> formatHomeTopBarDate(effectiveNowMillis)
-                currentDestination == HomeDestination.MY_ORDER && isMyOrderCartVisible && !isMyOrderReadOnlyMode -> {
-                    stringResource(R.string.my_order_cart_title)
-                }
-                currentDestination == HomeDestination.PUBLISH_NEWS && editingNewsId != null -> {
-                    stringResource(R.string.news_editor_title_edit)
-                }
-                currentDestination == HomeDestination.PROFILE && !sharedProfileTitleOverride.isNullOrBlank() -> {
-                    sharedProfileTitleOverride.orEmpty()
-                }
-                currentDestination == HomeDestination.MY_ORDERS -> {
-                    myOrdersHistoryTitleOverride ?: stringResource(R.string.my_orders_history_title_fallback)
-                }
-                currentDestination == HomeDestination.RECEIVED_ORDERS_HISTORY -> {
-                    receivedOrdersHistoryTitleOverride ?: stringResource(R.string.home_shell_action_received_orders)
-                }
-                else -> stringResource(currentDestination.titleRes())
-            }
-            HomeShellTopBar(
-                title = homeShellTitle,
-                canNavigateBack = currentDestination != HomeDestination.DASHBOARD,
-                showsNotificationsAction = currentDestination == HomeDestination.DASHBOARD,
-                hasNotificationIndicator = hasUnreadNotifications,
-                showsCartAction = showsMyOrderCartAction,
-                cartUnits = myOrderCartUnits,
-                onBack = {
-                    if (currentDestination == HomeDestination.PUBLISH_NEWS) {
-                        onClearNewsEditor()
-                    } else if (currentDestination == HomeDestination.ADMIN_BROADCAST) {
-                        onClearNotificationEditor()
-                    } else if (currentDestination == HomeDestination.PRODUCTS) {
-                        onClearProductEditor()
-                    } else if (currentDestination == HomeDestination.SHIFT_SWAP_REQUEST) {
-                        onClearShiftSwapDraft()
-                    } else if (currentDestination == HomeDestination.MY_ORDER) {
-                        isMyOrderCartVisible = false
-                    }
-                    navigateHome(when (currentDestination) {
-                        HomeDestination.PUBLISH_NEWS -> HomeDestination.NEWS
-                        HomeDestination.ADMIN_BROADCAST -> HomeDestination.NOTIFICATIONS
-                        HomeDestination.SHIFT_SWAP_REQUEST -> HomeDestination.SHIFTS
-                        else -> HomeDestination.DASHBOARD
-                    })
-                },
-                onOpenMenu = {
-                    isDrawerOpen = true
-                },
-                onOpenNotifications = {
-                    navigateHome(HomeDestination.NOTIFICATIONS)
-                },
-                onOpenCart = {
-                    myOrderCartOpenRequests += 1
-                },
-            )
-            Column(
-                modifier = if (usesRouteScroll) {
-                    Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState())
-                } else {
-                    Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                },
-                verticalArrangement = if (usesRouteScroll) {
-                    Arrangement.spacedBy(16.dp)
-                } else {
-                    Arrangement.Top
-                },
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background,
             ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                val usesRouteScroll =
+                    currentDestination != HomeDestination.MY_ORDER &&
+                        currentDestination != HomeDestination.MY_ORDERS &&
+                        currentDestination != HomeDestination.RECEIVED_ORDERS &&
+                        currentDestination != HomeDestination.RECEIVED_ORDERS_HISTORY &&
+                        currentDestination != HomeDestination.PRODUCTS &&
+                        currentDestination != HomeDestination.USERS &&
+                        currentDestination != HomeDestination.NEWS &&
+                        currentDestination != HomeDestination.PUBLISH_NEWS &&
+                        currentDestination != HomeDestination.ADMIN_BROADCAST &&
+                        currentDestination != HomeDestination.PROFILE &&
+                        currentDestination != HomeDestination.SHIFTS
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxSize()
+                        .windowInsetsPadding(
+                            WindowInsets.safeDrawing.only(
+                                WindowInsetsSides.Horizontal + WindowInsetsSides.Top,
+                            ),
+                        )
+                        .imePadding()
+                        .padding(start = 16.dp, top = 0.dp, end = 16.dp, bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    val showsMyOrderCartAction = currentDestination == HomeDestination.MY_ORDER && !isMyOrderReadOnlyMode
+                    val homeShellTitle = when {
+                        currentDestination == HomeDestination.DASHBOARD -> formatHomeTopBarDate(effectiveNowMillis)
+                        currentDestination == HomeDestination.MY_ORDER && isMyOrderCartVisible && !isMyOrderReadOnlyMode -> {
+                            stringResource(R.string.my_order_cart_title)
+                        }
+                        currentDestination == HomeDestination.PUBLISH_NEWS && editingNewsId != null -> {
+                            stringResource(R.string.news_editor_title_edit)
+                        }
+                        currentDestination == HomeDestination.NOTIFICATIONS -> ""
+                        currentDestination == HomeDestination.PROFILE && !sharedProfileTitleOverride.isNullOrBlank() -> {
+                            sharedProfileTitleOverride.orEmpty()
+                        }
+                        currentDestination == HomeDestination.MY_ORDERS -> {
+                            myOrdersHistoryTitleOverride ?: stringResource(R.string.my_orders_history_title_fallback)
+                        }
+                        currentDestination == HomeDestination.RECEIVED_ORDERS_HISTORY -> {
+                            receivedOrdersHistoryTitleOverride ?: stringResource(R.string.home_shell_action_received_orders)
+                        }
+                        else -> stringResource(currentDestination.titleRes())
+                    }
+                    HomeShellTopBar(
+                        title = homeShellTitle,
+                        canNavigateBack = currentDestination != HomeDestination.DASHBOARD,
+                        showsNotificationsAction = currentDestination == HomeDestination.DASHBOARD,
+                        hasNotificationIndicator = hasUnreadNotifications,
+                        showsCartAction = showsMyOrderCartAction,
+                        cartUnits = myOrderCartUnits,
+                        onBack = {
+                            if (currentDestination == HomeDestination.PUBLISH_NEWS) {
+                                onClearNewsEditor()
+                            } else if (currentDestination == HomeDestination.ADMIN_BROADCAST) {
+                                onClearNotificationEditor()
+                            } else if (currentDestination == HomeDestination.PRODUCTS) {
+                                onClearProductEditor()
+                            } else if (currentDestination == HomeDestination.SHIFT_SWAP_REQUEST) {
+                                onClearShiftSwapDraft()
+                            } else if (currentDestination == HomeDestination.MY_ORDER) {
+                                isMyOrderCartVisible = false
+                            }
+                            navigateHome(when (currentDestination) {
+                                HomeDestination.PUBLISH_NEWS -> HomeDestination.NEWS
+                                HomeDestination.ADMIN_BROADCAST -> HomeDestination.NOTIFICATIONS
+                                HomeDestination.SHIFT_SWAP_REQUEST -> HomeDestination.SHIFTS
+                                else -> HomeDestination.DASHBOARD
+                            })
+                        },
+                        onOpenMenu = {
+                            isDrawerOpen = true
+                        },
+                        onOpenNotifications = {
+                            navigateHome(HomeDestination.NOTIFICATIONS)
+                        },
+                        onOpenCart = {
+                            myOrderCartOpenRequests += 1
+                        },
+                    )
+                    Column(
+                        modifier = if (usesRouteScroll) {
+                            Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .verticalScroll(rememberScrollState())
+                        } else {
+                            Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                        },
+                        verticalArrangement = if (usesRouteScroll) {
+                            Arrangement.spacedBy(16.dp)
+                        } else {
+                            Arrangement.Top
+                        },
+                    ) {
                 when (currentDestination) {
                     HomeDestination.DASHBOARD -> {
                     when (mode) {
@@ -469,6 +513,12 @@ internal fun HomeRoute(
                             navigateHome(HomeDestination.NEWS)
                         },
                         modifier = Modifier.padding(bottom = 16.dp),
+                    )
+                    Spacer(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(bottom = 16.dp),
                     )
                     }
 
@@ -701,17 +751,22 @@ internal fun HomeRoute(
                         onClear = onClearBylawsResult,
                     )
 
+                    }
                 }
-            }
-            if (isDrawerOpen) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clickable(onClick = ::closeDrawer),
-                )
+                }
+
+                if (isHomeShifted) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = HomeDrawerScrimAlpha))
+                            .clickable(onClick = ::closeDrawer),
+                    )
+                }
+
             }
         }
-    }
+
     }
 
     pendingSavedNewsId?.let {
@@ -798,4 +853,5 @@ internal fun HomeRoute(
             onDismissRequest = onDismissPushNotificationPermissionDialog,
         )
     }
+}
 }

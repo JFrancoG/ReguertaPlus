@@ -347,7 +347,17 @@ fun NotificationsFeedRoute(
     notificationItems: List<NotificationFeedItem>,
     isLoading: Boolean,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.home_shell_notifications),
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
         if (isLoading) {
             Text(
                 text = stringResource(R.string.notifications_loading),
@@ -362,14 +372,20 @@ fun NotificationsFeedRoute(
             )
         } else {
             notificationItems.forEach { item ->
-                NotificationFeedItemCard(item = item)
+                NotificationFeedItemCard(
+                    item = item,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
     }
 }
 
 @Composable
-private fun NotificationFeedItemCard(item: NotificationFeedItem) {
+private fun NotificationFeedItemCard(
+    item: NotificationFeedItem,
+    modifier: Modifier = Modifier,
+) {
     val event = item.notification
     val containerColor = if (item.isRead) {
         MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
@@ -377,9 +393,13 @@ private fun NotificationFeedItemCard(item: NotificationFeedItem) {
         ColorFeedbackWarningDefault.copy(alpha = 0.15f)
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         Text(
             text = event.sentAtMillis.toNotificationDateLabel(),
+            modifier = Modifier.fillMaxWidth(),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

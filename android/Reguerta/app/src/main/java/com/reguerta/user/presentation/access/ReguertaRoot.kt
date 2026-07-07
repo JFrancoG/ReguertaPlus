@@ -190,7 +190,6 @@ fun ReguertaRoot(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
             ) {
                 HomeRoute(
                     modifier = Modifier.fillMaxSize(),

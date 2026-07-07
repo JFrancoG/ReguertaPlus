@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -25,7 +26,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
@@ -180,7 +180,8 @@ fun HomeDrawerContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 20.dp),
+            .safeDrawingPadding()
+            .padding(start = 16.dp, top = 0.dp, end = 16.dp, bottom = 20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(
@@ -189,7 +190,7 @@ fun HomeDrawerContent(
         ) {
             IconButton(
                 onClick = onCloseDrawer,
-                modifier = Modifier.size(36.dp),
+                modifier = Modifier.size(48.dp),
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -227,18 +228,6 @@ fun HomeDrawerContent(
                 .verticalScroll(drawerScrollState),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            HomeDrawerItem(
-                icon = Icons.Filled.Home,
-                label = stringResource(R.string.home_title),
-                selected = currentDestination == HomeDestination.DASHBOARD,
-                onClick = { onNavigate(HomeDestination.DASHBOARD) },
-            )
-            HomeDrawerItem(
-                icon = Icons.Filled.ShoppingCart,
-                label = stringResource(R.string.module_my_order),
-                selected = currentDestination == HomeDestination.MY_ORDER,
-                onClick = { onNavigate(HomeDestination.MY_ORDER) },
-            )
             HomeDrawerItem(
                 icon = Icons.AutoMirrored.Filled.Article,
                 label = stringResource(R.string.module_my_orders),
@@ -438,6 +427,8 @@ private fun HomeDrawerItem(
             text = label,
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.weight(1f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -532,7 +523,7 @@ fun LatestNewsCard(
         Text(
             text = stringResource(R.string.home_shell_news_title),
             modifier = Modifier.fillMaxWidth(),
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
         )

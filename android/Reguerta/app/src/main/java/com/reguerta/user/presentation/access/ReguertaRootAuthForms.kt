@@ -19,6 +19,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalFocusManager
 import com.reguerta.user.R
@@ -160,6 +161,7 @@ internal fun SignInCard(
                     label = stringResource(R.string.login_link_forgot_password),
                     onClick = onOpenRecover,
                     variant = ReguertaButtonVariant.TEXT,
+                    textStyle = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal),
                     fullWidth = false,
                 )
             }

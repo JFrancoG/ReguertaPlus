@@ -70,5 +70,17 @@ internal fun reguertaTypography(scale: Float = 1f): Typography {
             fontSize = (14f * safeScale).sp,
             lineHeight = (18f * safeScale).sp,
         ),
+        labelMedium = TextStyle(
+            fontFamily = CabinSketch,
+            fontWeight = FontWeight.Normal,
+            fontSize = (14f * safeScale).sp,
+            lineHeight = (18f * safeScale).sp,
+        ),
+        labelSmall = TextStyle(
+            fontFamily = CabinSketch,
+            fontWeight = FontWeight.Normal,
+            fontSize = (12f * safeScale).sp,
+            lineHeight = (16f * safeScale).sp,
+        ),
     )
 }
