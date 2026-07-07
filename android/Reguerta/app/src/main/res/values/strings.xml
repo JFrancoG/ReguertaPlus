@@ -11,6 +11,7 @@
     <string name="access_action_signing_in">Signing in…</string>
     <string name="access_action_sign_in">Sign in</string>
     <string name="access_action_sign_out">Sign out</string>
+    <string name="access_action_sign_out_confirm_message">Are you sure you want to sign out?</string>
     <string name="access_action_dismiss_message">Dismiss message</string>
     <string name="auth_shell_splash_loading">Preparing experience…</string>
     <string name="startup_update_forced_title">Update required</string>

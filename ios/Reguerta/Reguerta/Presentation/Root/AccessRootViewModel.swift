@@ -70,8 +70,8 @@ final class AccessRootViewModel {
     var myOrdersHistoryTitleOverride: String?
     var receivedOrdersHistoryTitleOverride: String?
     var showsSharedProfileSavedDialog = false
+    var showsHomeSignOutDialog = false
     var nowOverrideMillis: Int64?
-
     var shouldSkipSplash: Bool {
         shouldSkipSplashProvider()
     }

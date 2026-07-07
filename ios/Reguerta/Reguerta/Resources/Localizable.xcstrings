@@ -109,13 +109,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Do you want to sign out now? You can stay here if you tapped it by mistake."
+            "value" : "Are you sure you want to sign out?"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "¿Seguro que quieres cerrar sesión ahora? Puedes quedarte aquí si lo has pulsado por error."
+            "value" : "¿Estás seguro que quieres cerrar la sesión?"
           }
         }
       }
@@ -126,13 +126,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sign out?"
+            "value" : "Sign out"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "¿Cerrar sesión?"
+            "value" : "Cerrar sesión"
           }
         }
       }

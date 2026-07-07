@@ -5,13 +5,16 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.presentation.access.HomeDestination
 import com.reguerta.user.presentation.access.HomeDrawerContent
+import com.reguerta.user.presentation.access.HomeDrawerContentWithLogoutConfirmation
 import com.reguerta.user.ui.theme.ReguertaTheme
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 
@@ -49,6 +52,102 @@ class HomeDrawerContentTest {
         composeRule.onNodeWithText("Users").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Send notification").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Sign out").assertIsDisplayed()
+    }
+
+    @Test
+    fun drawerSignOutClickShowsConfirmationBeforeSigningOut() {
+        var confirmCount = 0
+
+        composeRule.setContent {
+            ReguertaTheme {
+                HomeDrawerContentWithLogoutConfirmation(
+                    member = fullAccessMember(),
+                    sharedProfile = sharedProfile(),
+                    currentDestination = HomeDestination.DASHBOARD,
+                    installedVersion = "0.3.0.1",
+                    isDevelopBuild = true,
+                    onNavigate = {},
+                    onCloseDrawer = {},
+                    onSignOut = { confirmCount += 1 },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Sign out").performClick()
+        composeRule.waitUntil(timeoutMillis = 1_000) {
+            runCatching {
+                composeRule.onNodeWithText("Are you sure you want to sign out?").assertIsDisplayed()
+            }.isSuccess
+        }
+
+        composeRule.onNodeWithText("Are you sure you want to sign out?").assertIsDisplayed()
+        composeRule.runOnIdle {
+            assertEquals(0, confirmCount)
+        }
+    }
+
+    @Test
+    fun logoutConfirmationCancelKeepsSessionActive() {
+        var confirmCount = 0
+
+        composeRule.setContent {
+            ReguertaTheme {
+                HomeDrawerContentWithLogoutConfirmation(
+                    member = fullAccessMember(),
+                    sharedProfile = sharedProfile(),
+                    currentDestination = HomeDestination.DASHBOARD,
+                    installedVersion = "0.3.0.1",
+                    isDevelopBuild = true,
+                    onNavigate = {},
+                    onCloseDrawer = {},
+                    onSignOut = { confirmCount += 1 },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Sign out").performClick()
+        composeRule.waitUntil(timeoutMillis = 1_000) {
+            runCatching {
+                composeRule.onNodeWithText("Are you sure you want to sign out?").assertIsDisplayed()
+            }.isSuccess
+        }
+        composeRule.onNodeWithText("Back").performClick()
+
+        composeRule.runOnIdle {
+            assertEquals(0, confirmCount)
+        }
+    }
+
+    @Test
+    fun logoutConfirmationConfirmInvokesSignOutOnce() {
+        var confirmCount = 0
+
+        composeRule.setContent {
+            ReguertaTheme {
+                HomeDrawerContentWithLogoutConfirmation(
+                    member = fullAccessMember(),
+                    sharedProfile = sharedProfile(),
+                    currentDestination = HomeDestination.DASHBOARD,
+                    installedVersion = "0.3.0.1",
+                    isDevelopBuild = true,
+                    onNavigate = {},
+                    onCloseDrawer = {},
+                    onSignOut = { confirmCount += 1 },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Sign out").performClick()
+        composeRule.waitUntil(timeoutMillis = 1_000) {
+            runCatching {
+                composeRule.onNodeWithText("Are you sure you want to sign out?").assertIsDisplayed()
+            }.isSuccess
+        }
+        composeRule.onNodeWithText("Confirm").performClick()
+
+        composeRule.runOnIdle {
+            assertEquals(1, confirmCount)
+        }
     }
 
     private fun fullAccessMember(): Member =
