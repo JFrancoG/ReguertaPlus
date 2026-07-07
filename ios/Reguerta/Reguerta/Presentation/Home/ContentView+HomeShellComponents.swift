@@ -97,7 +97,7 @@ struct HomeWeeklySummaryCardView: View {
                     .minimumScaleFactor(0.78)
                 Spacer(minLength: tokens.spacing.sm)
                 Text(display.weekBadgeLabel)
-                    .font(tokens.typography.label)
+                    .font(tokens.typography.labelRegular)
                     .foregroundStyle(tokens.colors.actionPrimary)
                     .padding(.horizontal, tokens.spacing.sm)
                     .padding(.vertical, tokens.spacing.xs)

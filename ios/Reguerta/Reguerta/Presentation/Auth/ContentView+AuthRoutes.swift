@@ -20,6 +20,7 @@ extension AccessRootRoutingView {
     var welcomeRoute: some View {
         VStack(spacing: tokens.spacing.md) {
             Spacer(minLength: tokens.spacing.md)
+                .frame(maxHeight: 112.resize)
 
             Text(localizedKey(AccessL10nKey.welcomeTitlePrefix))
                 .font(.custom("CabinSketch-Regular", size: 22.resize, relativeTo: .headline))

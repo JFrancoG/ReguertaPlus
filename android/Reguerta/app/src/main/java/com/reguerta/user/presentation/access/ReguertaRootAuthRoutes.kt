@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -49,11 +50,11 @@ internal fun WelcomeRoute(
     val controlScale = adaptiveProfile.tokenScale.controls
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val compactHeight = maxHeight < 760.dp || maxWidth < 390.dp
-        val logoWidth = if (compactHeight) 0.68f else 0.74f
+        val logoWidth = if (compactHeight) 0.62f else 0.68f
         val buttonWidth = if (compactHeight) maxWidth * 0.84f else maxWidth * 0.88f
-        val topSpacing = if (compactHeight) (8f * controlScale).dp else (44f * controlScale).dp
+        val topSpacing = if (compactHeight) (26f * controlScale).dp else (52f * controlScale).dp
         val bottomSpacing = if (compactHeight) (6f * controlScale).dp else (10f * controlScale).dp
-        val titleToLogoWeight = if (compactHeight) 0.18f else 0.35f
+        val titleToLogoWeight = if (compactHeight) 0.12f else 0.26f
         val middleSectionWeight = if (compactHeight) 0.62f else 0.9f
         val prefixStyle = if (compactHeight) {
             MaterialTheme.typography.headlineSmall.copy(
@@ -171,6 +172,7 @@ internal fun LoginRoute(
     onPasswordChanged: (String) -> Unit,
 ) {
     val spacing = ReguertaThemeTokens.spacing
+    val authTitleStyle = authRouteTitleStyle()
     Column(
         modifier = Modifier.fillMaxSize(),
     ) {
@@ -178,7 +180,7 @@ internal fun LoginRoute(
 
         Text(
             text = stringResource(R.string.login_title),
-            style = MaterialTheme.typography.displayLarge,
+            style = authTitleStyle,
             color = MaterialTheme.colorScheme.primary,
         )
 
@@ -205,13 +207,14 @@ internal fun RegisterRoute(
     onBack: () -> Unit,
 ) {
     val spacing = ReguertaThemeTokens.spacing
+    val authTitleStyle = authRouteTitleStyle()
     Column(
         modifier = Modifier.fillMaxSize(),
     ) {
         AuthBackButton(onBack = onBack)
         Text(
             text = stringResource(R.string.register_title),
-            style = MaterialTheme.typography.displayLarge,
+            style = authTitleStyle,
             color = MaterialTheme.colorScheme.primary,
         )
         Spacer(modifier = Modifier.height(spacing.xl))
@@ -235,15 +238,15 @@ internal fun RecoverPasswordRoute(
     onResetEmailDialogAccepted: () -> Unit,
     onBack: () -> Unit,
 ) {
-    val adaptiveProfile = ReguertaAdaptive.profile
     val spacing = ReguertaThemeTokens.spacing
+    val authTitleStyle = authRouteTitleStyle()
     Column(
         modifier = Modifier.fillMaxSize(),
     ) {
         AuthBackButton(onBack = onBack)
         Text(
             text = stringResource(R.string.recover_title),
-            style = MaterialTheme.typography.displayLarge,
+            style = authTitleStyle,
             color = MaterialTheme.colorScheme.primary,
         )
         Spacer(modifier = Modifier.height(spacing.xl))
@@ -268,6 +271,16 @@ internal fun RecoverPasswordRoute(
             )
         }
     }
+}
+
+@Composable
+private fun authRouteTitleStyle(): TextStyle {
+    val typeScale = ReguertaAdaptive.profile.typographyScale
+    return MaterialTheme.typography.headlineSmall.copy(
+        fontWeight = FontWeight.Normal,
+        fontSize = (26f * typeScale).sp,
+        lineHeight = (32f * typeScale).sp,
+    )
 }
 
 @Composable

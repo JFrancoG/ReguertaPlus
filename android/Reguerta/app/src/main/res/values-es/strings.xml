@@ -68,14 +68,14 @@
     <string name="home_shell_section_common">Común</string>
     <string name="home_shell_section_producer">Productor</string>
     <string name="home_shell_section_admin">Admin</string>
-    <string name="module_my_orders">Ver mis pedidos</string>
+    <string name="module_my_orders">Todos mis pedidos</string>
     <string name="home_shell_action_products">Productos</string>
     <string name="home_shell_action_received_orders">Pedidos recibidos</string>
     <string name="home_shell_action_received_orders_history">Histórico de pedidos</string>
     <string name="home_shell_action_users">Usuarios</string>
     <string name="home_shell_action_profile">Comunidad</string>
     <string name="home_shell_action_settings">Ajustes</string>
-    <string name="home_shell_action_bylaws">IA estatutos</string>
+    <string name="home_shell_action_bylaws">Consultar estatutos</string>
     <string name="home_shell_action_news">Noticias</string>
     <string name="home_shell_action_publish_news">Nueva noticia</string>
     <string name="home_shell_action_admin_broadcast">Mandar notificación</string>
