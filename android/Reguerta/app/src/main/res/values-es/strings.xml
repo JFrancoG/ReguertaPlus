@@ -95,6 +95,7 @@
     <string name="home_dashboard_market_responsibles">Responsables mercado</string>
     <string name="home_dashboard_helper_format">%1$s</string>
     <string name="home_dashboard_state">Pedido</string>
+    <string name="home_dashboard_order_state_consultation">Último pedido</string>
     <string name="home_dashboard_order_state_not_started">Sin hacer</string>
     <string name="home_dashboard_order_state_unconfirmed">Sin confirmar</string>
     <string name="home_dashboard_order_state_completed">Hecho</string>

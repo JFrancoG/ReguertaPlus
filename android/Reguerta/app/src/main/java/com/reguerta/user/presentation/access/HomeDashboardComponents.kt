@@ -6,7 +6,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,6 +34,8 @@ import com.reguerta.user.R
 import com.reguerta.user.ui.theme.ColorFeedbackWarningDefault
 import com.reguerta.user.ui.theme.ReguertaThemeTokens
 
+private val HomeSummaryGridRowHeight = 76.dp
+
 @Composable
 internal fun HomeWeeklySummaryCard(
     display: HomeWeeklySummaryDisplay,
@@ -49,7 +50,7 @@ internal fun HomeWeeklySummaryCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(spacing.lg),
+                .padding(vertical = spacing.lg),
             verticalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
             Row(
@@ -86,6 +87,7 @@ internal fun HomeWeeklySummaryCard(
                     .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium),
             ) {
                 HomeSummaryGridRow(
+                    modifier = Modifier.height(HomeSummaryGridRowHeight),
                     leftContent = {
                         HomeSummaryPrimaryCell(
                             label = stringResource(R.string.home_dashboard_state),
@@ -103,6 +105,7 @@ internal fun HomeWeeklySummaryCard(
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 HomeSummaryGridRow(
+                    modifier = Modifier.height(HomeSummaryGridRowHeight),
                     leftContent = {
                         HomeSummaryPrimaryCell(
                             label = stringResource(R.string.home_dashboard_delivery),
@@ -119,6 +122,7 @@ internal fun HomeWeeklySummaryCard(
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 HomeSummaryGridRow(
+                    modifier = Modifier.height(HomeSummaryGridRowHeight),
                     leftContent = {
                         HomeSummaryPrimaryCell(
                             label = stringResource(R.string.home_dashboard_market),
@@ -139,13 +143,12 @@ internal fun HomeWeeklySummaryCard(
 
 @Composable
 private fun HomeSummaryGridRow(
+    modifier: Modifier = Modifier,
     leftContent: @Composable () -> Unit,
     rightContent: @Composable () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(IntrinsicSize.Min),
+        modifier = modifier.fillMaxWidth(),
     ) {
         Box(
             modifier = Modifier
@@ -392,6 +395,7 @@ private fun HomeDashboardAction(
 }
 
 private fun HomeOrderStateDisplay.labelRes(): Int = when (this) {
+    HomeOrderStateDisplay.CONSULTATION -> R.string.home_dashboard_order_state_consultation
     HomeOrderStateDisplay.NOT_STARTED -> R.string.home_dashboard_order_state_not_started
     HomeOrderStateDisplay.UNCONFIRMED -> R.string.home_dashboard_order_state_unconfirmed
     HomeOrderStateDisplay.COMPLETED -> R.string.home_dashboard_order_state_completed
@@ -399,6 +403,7 @@ private fun HomeOrderStateDisplay.labelRes(): Int = when (this) {
 
 private fun HomeOrderStateDisplay.myOrderSubtitleRes(isConsultaPhase: Boolean): Int = when {
     isConsultaPhase -> R.string.home_dashboard_my_order_subtitle_last_order
+    this == HomeOrderStateDisplay.CONSULTATION -> R.string.home_dashboard_my_order_subtitle_last_order
     this == HomeOrderStateDisplay.NOT_STARTED -> R.string.home_dashboard_my_order_subtitle_edit
     this == HomeOrderStateDisplay.UNCONFIRMED -> R.string.home_dashboard_my_order_subtitle_review
     else -> R.string.home_dashboard_my_order_subtitle_completed
@@ -406,6 +411,7 @@ private fun HomeOrderStateDisplay.myOrderSubtitleRes(isConsultaPhase: Boolean): 
 
 @Composable
 private fun HomeOrderStateDisplay.color(): Color = when (this) {
+    HomeOrderStateDisplay.CONSULTATION -> MaterialTheme.colorScheme.onSurface
     HomeOrderStateDisplay.NOT_STARTED -> MaterialTheme.colorScheme.error
     HomeOrderStateDisplay.UNCONFIRMED -> ColorFeedbackWarningDefault
     HomeOrderStateDisplay.COMPLETED -> MaterialTheme.colorScheme.primary

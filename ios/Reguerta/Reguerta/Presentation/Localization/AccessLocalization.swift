@@ -99,6 +99,7 @@ enum AccessL10nKey {
     static let homeDashboardMarketResponsibles = "home.dashboard.market_responsibles"
     static let homeDashboardHelperFormat = "home.dashboard.helper.format"
     static let homeDashboardState = "home.dashboard.state"
+    static let homeDashboardOrderStateConsultation = "home.dashboard.order_state.consultation"
     static let homeDashboardOrderStateNotStarted = "home.dashboard.order_state.not_started"
     static let homeDashboardOrderStateUnconfirmed = "home.dashboard.order_state.unconfirmed"
     static let homeDashboardOrderStateCompleted = "home.dashboard.order_state.completed"

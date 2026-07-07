@@ -1,15 +1,17 @@
 import SwiftUI
 
 enum HomeOrderStateDisplay: Equatable {
+    case consultation
     case notStarted
     case unconfirmed
     case completed
 
     func myOrderSubtitleKey(isConsultaPhase: Bool) -> String {
-        if isConsultaPhase {
+        if isConsultaPhase || self == .consultation {
             return AccessL10nKey.homeDashboardMyOrderSubtitleLastOrder
         }
         return switch self {
+        case .consultation: AccessL10nKey.homeDashboardMyOrderSubtitleLastOrder
         case .notStarted: AccessL10nKey.homeDashboardMyOrderSubtitleEdit
         case .unconfirmed: AccessL10nKey.homeDashboardMyOrderSubtitleReview
         case .completed: AccessL10nKey.homeDashboardMyOrderSubtitleCompleted
@@ -18,6 +20,7 @@ enum HomeOrderStateDisplay: Equatable {
 
     var titleKey: String {
         switch self {
+        case .consultation: AccessL10nKey.homeDashboardOrderStateConsultation
         case .notStarted: AccessL10nKey.homeDashboardOrderStateNotStarted
         case .unconfirmed: AccessL10nKey.homeDashboardOrderStateUnconfirmed
         case .completed: AccessL10nKey.homeDashboardOrderStateCompleted

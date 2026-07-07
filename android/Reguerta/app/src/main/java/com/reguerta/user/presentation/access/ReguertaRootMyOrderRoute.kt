@@ -91,7 +91,6 @@ import com.reguerta.user.domain.products.Product
 import com.reguerta.user.domain.products.ProductPricingMode
 import com.reguerta.user.domain.products.ProductStockMode
 import com.reguerta.user.domain.shifts.ShiftAssignment
-import com.reguerta.user.domain.shifts.ShiftType
 import com.reguerta.user.ui.components.auth.ReguertaDialog
 import com.reguerta.user.ui.components.auth.ReguertaDialogAction
 import com.reguerta.user.ui.components.auth.ReguertaDialogType
@@ -2103,19 +2102,7 @@ private fun resolveEffectiveDeliveryDate(
         return Instant.ofEpochMilli(override.deliveryDateMillis).atZone(zoneId).toLocalDate()
     }
     val weekStart = currentWeekKey.toIsoWeekStartDate() ?: fallbackWeekStart
-    val weekEnd = weekStart.plusDays(6)
-    val shiftDeliveryDate = shifts
-        .asSequence()
-        .filter { shift -> shift.type == ShiftType.DELIVERY }
-        .map { shift -> Instant.ofEpochMilli(shift.dateMillis).atZone(zoneId).toLocalDate() }
-        .filter { shiftDate -> !shiftDate.isBefore(weekStart) && !shiftDate.isAfter(weekEnd) }
-        .sorted()
-        .firstOrNull()
-    if (shiftDeliveryDate != null) {
-        return shiftDeliveryDate
-    }
-    val deliveryDay = defaultDeliveryDayOfWeek?.toDayOfWeek() ?: DayOfWeek.WEDNESDAY
-    return weekStart.plusDays((deliveryDay.value - DayOfWeek.MONDAY.value).toLong())
+    return weekStart.plusDays((DayOfWeek.WEDNESDAY.value - DayOfWeek.MONDAY.value).toLong())
 }
 
 private suspend fun fetchPreviousWeekOrderSnapshot(

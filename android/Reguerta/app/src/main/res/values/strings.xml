@@ -95,6 +95,7 @@
     <string name="home_dashboard_market_responsibles">Market responsibles</string>
     <string name="home_dashboard_helper_format">%1$s</string>
     <string name="home_dashboard_state">Order</string>
+    <string name="home_dashboard_order_state_consultation">Last order</string>
     <string name="home_dashboard_order_state_not_started">Not started</string>
     <string name="home_dashboard_order_state_unconfirmed">Unconfirmed</string>
     <string name="home_dashboard_order_state_completed">Done</string>

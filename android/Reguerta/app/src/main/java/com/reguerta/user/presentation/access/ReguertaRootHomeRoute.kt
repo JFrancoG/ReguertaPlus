@@ -6,31 +6,25 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.Surface
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -57,7 +51,6 @@ import com.reguerta.user.ui.components.auth.ReguertaDialogAction
 import com.reguerta.user.ui.components.auth.ReguertaDialogType
 import com.reguerta.user.ui.components.auth.ReguertaFlatButton
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 @Composable
 internal fun HomeRoute(
     modifier: Modifier = Modifier,
@@ -253,8 +246,6 @@ internal fun HomeRoute(
             onRefreshMembers()
         } else if (destination == HomeDestination.SHIFTS) {
             onRefreshShifts()
-        } else if (destination == HomeDestination.BYLAWS) {
-            Unit
         } else if (destination == HomeDestination.SHIFT_SWAP_REQUEST) {
             onRefreshShifts()
         } else if (destination == HomeDestination.ADMIN_BROADCAST) {
@@ -344,8 +335,8 @@ internal fun HomeRoute(
                 .fillMaxWidth()
                 .fillMaxSize()
                 .imePadding()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(start = 16.dp, top = 0.dp, end = 16.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             val showsMyOrderCartAction = currentDestination == HomeDestination.MY_ORDER && !isMyOrderReadOnlyMode
             val homeShellTitle = when {
@@ -436,10 +427,13 @@ internal fun HomeRoute(
                                 orderState = HomeOrderStateDisplay.NOT_STARTED,
                             )
                             val weeklySummary = baselineSummary.copy(
-                                orderState = resolveHomeOrderState(
-                                    context = context,
-                                    memberId = mode.member.id,
-                                    weekKey = baselineSummary.orderWeekKey,
+                                orderState = resolveHomeDisplayedOrderState(
+                                    isConsultaPhase = baselineSummary.isConsultaPhase,
+                                    orderState = resolveHomeOrderState(
+                                        context = context,
+                                        memberId = mode.member.id,
+                                        weekKey = baselineSummary.orderWeekKey,
+                                    ),
                                 ),
                             )
                             AuthorizedHome(

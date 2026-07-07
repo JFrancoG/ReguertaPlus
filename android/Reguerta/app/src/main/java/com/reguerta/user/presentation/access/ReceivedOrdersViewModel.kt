@@ -12,7 +12,6 @@ import com.reguerta.user.domain.orders.ReceivedOrdersSnapshot
 import com.reguerta.user.domain.orders.toIsoWeekStartDate
 import com.reguerta.user.domain.orders.toIsoWeekKey
 import com.reguerta.user.domain.shifts.ShiftAssignment
-import com.reguerta.user.domain.shifts.ShiftType
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -245,17 +244,5 @@ private fun resolveReceivedOrdersDeliveryDate(
         return Instant.ofEpochMilli(override.deliveryDateMillis).atZone(zoneId).toLocalDate()
     }
     val weekStart = currentWeekKey.toIsoWeekStartDate() ?: fallbackWeekStart
-    val weekEnd = weekStart.plusDays(6)
-    val shiftDeliveryDate = shifts
-        .asSequence()
-        .filter { shift -> shift.type == ShiftType.DELIVERY }
-        .map { shift -> Instant.ofEpochMilli(shift.dateMillis).atZone(zoneId).toLocalDate() }
-        .filter { shiftDate -> !shiftDate.isBefore(weekStart) && !shiftDate.isAfter(weekEnd) }
-        .sorted()
-        .firstOrNull()
-    if (shiftDeliveryDate != null) {
-        return shiftDeliveryDate
-    }
-    val deliveryDay = defaultDeliveryDayOfWeek?.toDayOfWeek() ?: DayOfWeek.WEDNESDAY
-    return weekStart.plusDays((deliveryDay.value - DayOfWeek.MONDAY.value).toLong())
+    return weekStart.plusDays((DayOfWeek.WEDNESDAY.value - DayOfWeek.MONDAY.value).toLong())
 }

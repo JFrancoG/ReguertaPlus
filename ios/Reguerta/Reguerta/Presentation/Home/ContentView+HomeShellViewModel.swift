@@ -219,6 +219,7 @@ extension AccessRootViewModel {
             shifts: shiftsViewModel.shiftsFeed,
             members: session.members
         )
+        let storedOrderState = resolveHomeOrderState(memberId: session.member.id, weekKey: baseline.orderWeekKey)
         return HomeWeeklySummaryDisplay(
             weekKey: baseline.weekKey,
             orderWeekKey: baseline.orderWeekKey,
@@ -230,7 +231,10 @@ extension AccessRootViewModel {
             helperName: baseline.helperName,
             marketLabel: baseline.marketLabel,
             marketResponsibleNames: baseline.marketResponsibleNames,
-            orderState: resolveHomeOrderState(memberId: session.member.id, weekKey: baseline.orderWeekKey),
+            orderState: resolveHomeDisplayedOrderState(
+                isConsultaPhase: baseline.isConsultaPhase,
+                orderState: storedOrderState
+            ),
             isConsultaPhase: baseline.isConsultaPhase
         )
     }

@@ -2243,6 +2243,23 @@
         }
       }
     },
+    "home.dashboard.order_state.consultation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last order"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Último pedido"
+          }
+        }
+      }
+    },
     "home.dashboard.order_state.not_started" : {
       "extractionState" : "manual",
       "localizations" : {

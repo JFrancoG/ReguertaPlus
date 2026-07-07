@@ -377,6 +377,8 @@ private extension View {
 private extension HomeOrderStateDisplay {
     func color(tokens: ReguertaDesignTokens) -> Color {
         switch self {
+        case .consultation:
+            return tokens.colors.textPrimary
         case .notStarted:
             return tokens.colors.feedbackError
         case .unconfirmed:

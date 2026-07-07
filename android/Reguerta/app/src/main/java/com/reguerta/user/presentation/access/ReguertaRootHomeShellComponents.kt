@@ -81,87 +81,83 @@ fun HomeShellTopBar(
     onOpenNotifications: () -> Unit,
     onOpenCart: () -> Unit,
 ) {
-    Card {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = if (canNavigateBack) onBack else onOpenMenu) {
-                Icon(
-                    imageVector = if (canNavigateBack) Icons.AutoMirrored.Filled.ArrowBack else Icons.Filled.Menu,
-                    contentDescription = if (canNavigateBack) {
-                        stringResource(R.string.common_action_back)
-                    } else {
-                        stringResource(R.string.home_shell_menu)
-                    },
-                )
-            }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = if (canNavigateBack) onBack else onOpenMenu) {
+            Icon(
+                imageVector = if (canNavigateBack) Icons.AutoMirrored.Filled.ArrowBack else Icons.Filled.Menu,
+                contentDescription = if (canNavigateBack) {
+                    stringResource(R.string.common_action_back)
+                } else {
+                    stringResource(R.string.home_shell_menu)
+                },
+            )
+        }
 
-            if (title.isNotBlank()) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f),
-                )
-            } else {
-                Spacer(modifier = Modifier.weight(1f))
-            }
+        if (title.isNotBlank()) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f),
+            )
+        } else {
+            Spacer(modifier = Modifier.weight(1f))
+        }
 
-            if (showsNotificationsAction) {
-                Box(contentAlignment = Alignment.TopEnd) {
-                    IconButton(onClick = onOpenNotifications) {
-                        Icon(
-                            imageVector = Icons.Filled.Notifications,
-                            contentDescription = stringResource(R.string.home_shell_notifications),
-                        )
-                    }
-                    if (hasNotificationIndicator) {
-                        Box(
-                            modifier = Modifier
-                                .padding(top = 9.dp, end = 9.dp)
-                                .size(9.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.error),
-                        )
-                    }
+        if (showsNotificationsAction) {
+            Box(contentAlignment = Alignment.TopEnd) {
+                IconButton(onClick = onOpenNotifications) {
+                    Icon(
+                        imageVector = Icons.Filled.Notifications,
+                        contentDescription = stringResource(R.string.home_shell_notifications),
+                    )
                 }
-            } else if (showsCartAction) {
-                Box(contentAlignment = Alignment.TopEnd) {
-                    IconButton(
-                        onClick = onOpenCart,
-                        enabled = cartUnits > 0,
+                if (hasNotificationIndicator) {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 9.dp, end = 9.dp)
+                            .size(9.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.error),
+                    )
+                }
+            }
+        } else if (showsCartAction) {
+            Box(contentAlignment = Alignment.TopEnd) {
+                IconButton(
+                    onClick = onOpenCart,
+                    enabled = cartUnits > 0,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.ShoppingCart,
+                        contentDescription = stringResource(R.string.my_order_view_cart_action),
+                    )
+                }
+                if (cartUnits > 0) {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 8.dp, end = 8.dp)
+                            .size(18.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.error),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.ShoppingCart,
-                            contentDescription = stringResource(R.string.my_order_view_cart_action),
+                        Text(
+                            text = cartUnits.coerceAtMost(99).toString(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onError,
+                            fontWeight = FontWeight.Normal,
                         )
                     }
-                    if (cartUnits > 0) {
-                        Box(
-                            modifier = Modifier
-                                .padding(top = 8.dp, end = 8.dp)
-                                .size(18.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.error),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = cartUnits.coerceAtMost(99).toString(),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onError,
-                                fontWeight = FontWeight.Normal,
-                            )
-                        }
-                    }
                 }
-            } else {
-                Spacer(modifier = Modifier.size(48.dp))
             }
+        } else {
+            Spacer(modifier = Modifier.size(48.dp))
         }
     }
 }
@@ -529,31 +525,29 @@ fun LatestNewsCard(
     onViewAll: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(modifier = modifier) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.home_shell_news_title),
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+        )
+        if (news.isEmpty()) {
             Text(
-                text = stringResource(R.string.home_shell_news_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+                text = stringResource(R.string.news_empty_state),
+                style = MaterialTheme.typography.bodyMedium,
             )
-            if (news.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.news_empty_state),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            } else {
-                LatestNewsSummaryRows(news = news)
-            }
-            ReguertaFlatButton(
-                label = stringResource(R.string.news_view_all),
-                onClick = onViewAll,
-                modifier = Modifier.fillMaxWidth(),
-            )
+        } else {
+            LatestNewsSummaryRows(news = news)
         }
+        ReguertaFlatButton(
+            label = stringResource(R.string.news_view_all),
+            onClick = onViewAll,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
