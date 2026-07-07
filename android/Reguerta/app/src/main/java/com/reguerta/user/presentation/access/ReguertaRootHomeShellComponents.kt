@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -86,7 +87,10 @@ fun HomeShellTopBar(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = if (canNavigateBack) onBack else onOpenMenu) {
+        IconButton(
+            modifier = if (canNavigateBack) Modifier.offset(x = (-12).dp) else Modifier,
+            onClick = if (canNavigateBack) onBack else onOpenMenu,
+        ) {
             Icon(
                 imageVector = if (canNavigateBack) Icons.AutoMirrored.Filled.ArrowBack else Icons.Filled.Menu,
                 contentDescription = if (canNavigateBack) {

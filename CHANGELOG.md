@@ -54,6 +54,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-07-08 | 🐛 fix(android-orders): polish order cards
 - 2026-07-07 | 🐛 fix(ui): polish drawer and mobile spacing
 - 2026-07-07 | 🐛 fix(home): align weekly delivery summary
 - 2026-05-22 | 🐛 fix(orders): correct received order prep display

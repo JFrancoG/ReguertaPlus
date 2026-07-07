@@ -1162,14 +1162,6 @@ private fun MyOrderPreviousOrderSummary(
                 }
 
                 is MyOrderPreviousOrderState.Loaded -> {
-                    Text(
-                        text = stringResource(
-                            R.string.my_order_previous_week_format,
-                            state.snapshot.weekKey,
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                     LazyColumn(
                         modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(bottom = 120.dp),
@@ -1226,72 +1218,18 @@ private fun MyOrderSummaryTotalBar(
 
 @Composable
 private fun MyOrderPreviousProducerCard(group: MyOrderPreviousOrderGroup) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text = group.companyName,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
+    PersonalOrderSummaryProducerCard(
+        companyName = group.companyName,
+        lines = group.lines.map { line ->
+            PersonalOrderSummaryLineUi(
+                productName = line.productName,
+                packagingLine = line.packagingLine,
+                quantityLabel = line.quantityLabel,
+                subtotal = line.subtotal,
             )
-
-            MyOrderProducerDivider()
-
-            group.lines.forEach { line ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.Top,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        Text(
-                            text = line.productName,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = line.packagingLine,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Text(
-                        text = line.quantityLabel,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        text = line.subtotal.toEuroCurrencyText(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-            }
-
-            MyOrderProducerDivider()
-
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Spacer(modifier = Modifier.weight(1f))
-                Text(
-                    text = stringResource(
-                        R.string.my_order_producer_subtotal_format,
-                        group.subtotal.toEuroCurrencyText(),
-                    ),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-        }
-    }
+        },
+        subtotal = group.subtotal,
+    )
 }
 
 @Composable
@@ -1977,6 +1915,9 @@ private fun Double.toUiDecimal(): String =
         String.format(Locale.getDefault(), "%.2f", this)
     }
 
+private fun Double.isApproximatelyOne(): Boolean =
+    kotlin.math.abs(this - 1.0) < 0.0001
+
 private fun countNoPickupEcoBasketUnits(
     products: List<Product>,
     selectedQuantities: Map<String, Int>,
@@ -2319,23 +2260,21 @@ private fun Map<String, Any>.readProducerStatusesByVendor(): Map<String, MyOrder
 private fun packagingLineFromOrderLinePayload(payload: Map<String, Any>): String {
     val containerName = (payload["packContainerName"] as? String)
         ?.takeIf(String::isNotBlank)
-        ?: (payload["unitName"] as? String).orEmpty()
-    val quantity = ((payload["packContainerQty"] as? Number)?.toDouble()
-        ?: (payload["unitQty"] as? Number)?.toDouble()
-        ?: 1.0).toUiDecimal()
+    val containerQuantity = (payload["packContainerQty"] as? Number)?.toDouble()
+    val containerLabel = listOfNotNull(
+        containerQuantity
+            ?.takeUnless { it.isApproximatelyOne() }
+            ?.toUiDecimal(),
+        containerName,
+    ).joinToString(separator = " ")
+    val measureQuantity = ((payload["unitQty"] as? Number)?.toDouble() ?: 1.0).toUiDecimal()
     val fallbackUnitName = (payload["unitName"] as? String).orEmpty()
-    val fallbackUnitPlural = (payload["unitPlural"] as? String).orEmpty()
-    val unitLabel = (payload["packContainerAbbreviation"] as? String)
-        ?.takeIf(String::isNotBlank)
-        ?: (payload["packContainerPlural"] as? String)?.takeIf(String::isNotBlank)
-        ?: (payload["unitAbbreviation"] as? String)?.takeIf(String::isNotBlank)
-        ?: if (((payload["packContainerQty"] as? Number)?.toDouble() ?: 1.0) == 1.0) {
-            fallbackUnitName
-        } else {
-            fallbackUnitPlural
-        }
+    val fallbackUnitPlural = (payload["unitPlural"] as? String).orEmpty().ifBlank { fallbackUnitName }
+    val unitQuantity = (payload["unitQty"] as? Number)?.toDouble() ?: 1.0
+    val unitLabel = (payload["unitAbbreviation"] as? String)?.takeIf(String::isNotBlank)
+        ?: if (unitQuantity.isApproximatelyOne()) fallbackUnitName else fallbackUnitPlural
 
-    return listOf(containerName, quantity, unitLabel)
+    return listOf(containerLabel, measureQuantity, unitLabel)
         .filter { value -> value.isNotBlank() }
         .joinToString(separator = " ")
 }
