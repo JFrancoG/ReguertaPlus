@@ -2,9 +2,9 @@ import FirebaseFirestore
 import Foundation
 
 func resolveMyOrderConsultaWindow(
-    defaultDeliveryDayOfWeek: DeliveryWeekday?,
+    defaultDeliveryDayOfWeek _: DeliveryWeekday?,
     deliveryCalendarOverrides: [DeliveryCalendarOverride],
-    shifts: [ShiftAssignment],
+    shifts _: [ShiftAssignment],
     now: Date = Date(),
     timeZone: TimeZone = TimeZone(identifier: "Europe/Madrid") ?? .current
 ) -> MyOrderConsultaWindow {
@@ -14,7 +14,6 @@ func resolveMyOrderConsultaWindow(
     let weekStartDay = calendar.startOfDay(
         for: calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
     )
-    let weekEndDay = calendar.date(byAdding: .day, value: 6, to: weekStartDay) ?? weekStartDay
     let today = calendar.startOfDay(for: now)
     let currentWeekKey = String(
         format: "%04d-W%02d",
@@ -27,16 +26,8 @@ func resolveMyOrderConsultaWindow(
         effectiveDeliveryDate = calendar.startOfDay(
             for: Date(timeIntervalSince1970: TimeInterval(override.deliveryDateMillis) / 1_000)
         )
-    } else if let currentWeekDeliveryShiftDate = shifts
-        .filter({ $0.type == .delivery })
-        .map({ calendar.startOfDay(for: Date(timeIntervalSince1970: TimeInterval($0.dateMillis) / 1_000)) })
-        .filter({ $0 >= weekStartDay && $0 <= weekEndDay })
-        .sorted(by: <)
-        .first {
-        effectiveDeliveryDate = currentWeekDeliveryShiftDate
     } else {
-        let dayOffset = (defaultDeliveryDayOfWeek ?? .wednesday).myOrderDayOffset
-        effectiveDeliveryDate = calendar.date(byAdding: .day, value: dayOffset, to: weekStartDay) ?? weekStartDay
+        effectiveDeliveryDate = calendar.date(byAdding: .day, value: 2, to: weekStartDay) ?? weekStartDay
     }
 
     let previousWeekDate = calendar.date(byAdding: .day, value: -7, to: weekStartDay) ?? weekStartDay

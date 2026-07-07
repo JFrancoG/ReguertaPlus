@@ -54,6 +54,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-07-07 | 🐛 fix(home): align weekly delivery summary
 - 2026-05-22 | 🐛 fix(orders): correct received order prep display
 - 2026-05-21 | 🐛 fix(order): align producer card dividers
 - 2026-05-21 | 🐛 fix(prices): localize euro formatting

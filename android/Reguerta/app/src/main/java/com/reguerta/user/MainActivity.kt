@@ -11,8 +11,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import com.reguerta.user.presentation.access.ReguertaRoot
 import com.reguerta.user.ui.theme.ReguertaTheme
@@ -24,9 +22,7 @@ class MainActivity : ComponentActivity() {
         requestNotificationsPermissionIfNeeded()
         setContent {
             ReguertaTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    ReguertaRoot(modifier = Modifier.padding(innerPadding))
-                }
+                ReguertaRoot(modifier = Modifier.fillMaxSize())
             }
         }
     }

@@ -229,6 +229,7 @@ struct AuthShellView: AccessRootRoutingView {
                 .padding(.bottom, tokens.spacing.md)
             }
             .scrollDismissesKeyboard(.interactively)
+            .scrollClipDisabled()
         }
     }
 }

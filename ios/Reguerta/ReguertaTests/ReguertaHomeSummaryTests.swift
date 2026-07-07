@@ -118,6 +118,47 @@ struct ReguertaHomeSummaryTests {
     }
 
     @Test
+    func homeWeeklySummaryUsesWednesdayWhenNoDeliveryCalendarOverrideEvenIfShiftIsLater() {
+        let display = resolveHomeWeeklySummaryDisplay(
+            nowMillis: testMillis(year: 2026, month: 7, day: 7),
+            defaultDeliveryDayOfWeek: .wednesday,
+            deliveryCalendarOverrides: [],
+            shifts: [testDeliveryShift(id: "delivery_w28", year: 2026, month: 7, day: 9)],
+            members: homeSummaryMembers
+        )
+
+        #expect(display.weekKey == "2026-W28")
+        #expect(display.deliveryLabel == "Mié 8")
+        #expect(display.responsibleName == "Carmen")
+        #expect(display.helperName == "Javier")
+    }
+
+    @Test
+    func homeWeeklySummaryUsesDeliveryCalendarOverrideWhenPresent() {
+        let override = DeliveryCalendarOverride(
+            weekKey: "2026-W28",
+            deliveryDateMillis: testMillis(year: 2026, month: 7, day: 9),
+            ordersBlockedDateMillis: testMillis(year: 2026, month: 7, day: 9),
+            ordersOpenAtMillis: testMillis(year: 2026, month: 7, day: 9),
+            ordersCloseAtMillis: testMillis(year: 2026, month: 7, day: 9),
+            updatedBy: "test",
+            updatedAtMillis: 0
+        )
+        let display = resolveHomeWeeklySummaryDisplay(
+            nowMillis: testMillis(year: 2026, month: 7, day: 7),
+            defaultDeliveryDayOfWeek: .wednesday,
+            deliveryCalendarOverrides: [override],
+            shifts: [testDeliveryShift(id: "delivery_w28", year: 2026, month: 7, day: 9)],
+            members: homeSummaryMembers
+        )
+
+        #expect(display.weekKey == "2026-W28")
+        #expect(display.deliveryLabel == "Jue 9")
+        #expect(display.responsibleName == "Carmen")
+        #expect(display.helperName == "Javier")
+    }
+
+    @Test
     func homeOrderStateMappingUsesConfirmedBeforeDraft() {
         let suiteName = "home-order-state-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -132,5 +173,12 @@ struct ReguertaHomeSummaryTests {
         #expect(resolveHomeOrderState(userDefaults: defaults, memberId: "member_1", weekKey: "2026-W19") == .unconfirmed)
         defaults.set(["product_1": 2], forKey: confirmedKey)
         #expect(resolveHomeOrderState(userDefaults: defaults, memberId: "member_1", weekKey: "2026-W19") == .completed)
+    }
+
+    @Test
+    func homeDisplayedOrderStateUsesConsultationBeforeDelivery() {
+        #expect(resolveHomeDisplayedOrderState(isConsultaPhase: true, orderState: .notStarted) == .consultation)
+        #expect(resolveHomeDisplayedOrderState(isConsultaPhase: true, orderState: .unconfirmed) == .consultation)
+        #expect(resolveHomeDisplayedOrderState(isConsultaPhase: false, orderState: .notStarted) == .notStarted)
     }
 }

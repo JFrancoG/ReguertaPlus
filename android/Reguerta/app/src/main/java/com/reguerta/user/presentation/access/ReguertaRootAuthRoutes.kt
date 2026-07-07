@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -171,12 +170,9 @@ internal fun LoginRoute(
     onEmailChanged: (String) -> Unit,
     onPasswordChanged: (String) -> Unit,
 ) {
-    val adaptiveProfile = ReguertaAdaptive.profile
     val spacing = ReguertaThemeTokens.spacing
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .offset(y = (-20f * adaptiveProfile.tokenScale.controls).dp),
+        modifier = Modifier.fillMaxSize(),
     ) {
         AuthBackButton(onBack = onBack)
 
@@ -208,12 +204,9 @@ internal fun RegisterRoute(
     onRepeatPasswordChanged: (String) -> Unit,
     onBack: () -> Unit,
 ) {
-    val adaptiveProfile = ReguertaAdaptive.profile
     val spacing = ReguertaThemeTokens.spacing
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .offset(y = (-20f * adaptiveProfile.tokenScale.controls).dp),
+        modifier = Modifier.fillMaxSize(),
     ) {
         AuthBackButton(onBack = onBack)
         Text(
@@ -245,9 +238,7 @@ internal fun RecoverPasswordRoute(
     val adaptiveProfile = ReguertaAdaptive.profile
     val spacing = ReguertaThemeTokens.spacing
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .offset(y = (-20f * adaptiveProfile.tokenScale.controls).dp),
+        modifier = Modifier.fillMaxSize(),
     ) {
         AuthBackButton(onBack = onBack)
         Text(
@@ -283,7 +274,9 @@ internal fun RecoverPasswordRoute(
 private fun AuthBackButton(onBack: () -> Unit) {
     val controlScale = ReguertaAdaptive.profile.tokenScale.controls
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = (4f * controlScale).dp),
         horizontalArrangement = Arrangement.Start,
     ) {
         Icon(
@@ -291,7 +284,6 @@ private fun AuthBackButton(onBack: () -> Unit) {
             contentDescription = stringResource(R.string.common_action_back),
             tint = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier
-                .offset(x = (-2f * controlScale).dp)
                 .size((24f * controlScale).dp)
                 .clickable(onClick = onBack),
         )

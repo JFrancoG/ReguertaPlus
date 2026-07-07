@@ -221,6 +221,41 @@ struct ReguertaOrdersViewModelTests {
     }
 
     @Test
+    func myOrderConsultaWindowUsesWednesdayWhenNoDeliveryCalendarOverrideEvenIfShiftIsLater() {
+        let window = resolveMyOrderConsultaWindow(
+            defaultDeliveryDayOfWeek: .wednesday,
+            deliveryCalendarOverrides: [],
+            shifts: [testDeliveryShift(id: "delivery_w28", year: 2026, month: 7, day: 9)],
+            now: Date(timeIntervalSince1970: TimeInterval(testMillis(year: 2026, month: 7, day: 9)) / 1_000)
+        )
+
+        #expect(!window.isConsultaPhase)
+        #expect(window.previousWeekKey == "2026-W27")
+    }
+
+    @Test
+    func myOrderConsultaWindowUsesDeliveryCalendarOverrideWhenPresent() {
+        let override = DeliveryCalendarOverride(
+            weekKey: "2026-W28",
+            deliveryDateMillis: testMillis(year: 2026, month: 7, day: 9),
+            ordersBlockedDateMillis: testMillis(year: 2026, month: 7, day: 9),
+            ordersOpenAtMillis: testMillis(year: 2026, month: 7, day: 9),
+            ordersCloseAtMillis: testMillis(year: 2026, month: 7, day: 9),
+            updatedBy: "test",
+            updatedAtMillis: 0
+        )
+        let window = resolveMyOrderConsultaWindow(
+            defaultDeliveryDayOfWeek: .wednesday,
+            deliveryCalendarOverrides: [override],
+            shifts: [testDeliveryShift(id: "delivery_w28", year: 2026, month: 7, day: 9)],
+            now: Date(timeIntervalSince1970: TimeInterval(testMillis(year: 2026, month: 7, day: 9)) / 1_000)
+        )
+
+        #expect(window.isConsultaPhase)
+        #expect(window.previousWeekKey == "2026-W27")
+    }
+
+    @Test
     func receivedOrdersViewModelDoesNotLoadForNonProducerOrOutsideWindow() async {
         let repository = InMemoryOrdersRepository()
         let nonProducerViewModel = makeReceivedOrdersViewModel(repository: repository)

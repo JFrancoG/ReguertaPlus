@@ -23,6 +23,7 @@ private const val HomeOrderCartQuantitiesSuffix = ".quantities"
 private const val HomeOrderConfirmedQuantitiesSuffix = ".confirmed_quantities"
 
 internal enum class HomeOrderStateDisplay {
+    CONSULTATION,
     NOT_STARTED,
     UNCONFIRMED,
     COMPLETED,
@@ -55,15 +56,10 @@ internal fun resolveHomeWeeklySummaryDisplay(
     locale: Locale = Locale.forLanguageTag("es-ES"),
 ): HomeWeeklySummaryDisplay {
     val today = Instant.ofEpochMilli(nowMillis).atZone(zoneId).toLocalDate()
-    val deliveryDay = defaultDeliveryDayOfWeek?.toDayOfWeek() ?: DayOfWeek.WEDNESDAY
     val currentWeekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-    val currentWeekKey = currentWeekStart.toIsoWeekKey()
     val currentDeliveryDate = resolveEffectiveHomeDeliveryDate(
-        weekKey = currentWeekKey,
         weekStart = currentWeekStart,
-        deliveryDay = deliveryDay,
-        overrides = deliveryCalendarOverrides,
-        shifts = shifts,
+        deliveryCalendarOverrides = deliveryCalendarOverrides,
         zoneId = zoneId,
     )
     val targetWeekStart = if (today.isAfter(currentDeliveryDate)) {
@@ -77,20 +73,16 @@ internal fun resolveHomeWeeklySummaryDisplay(
     val isConsultaPhase = !today.isBefore(currentWeekStart) && !today.isAfter(currentDeliveryDate)
     val targetShift = shifts
         .filter { it.type == ShiftType.DELIVERY }
-        .firstOrNull { it.effectiveDateMillis(deliveryCalendarOverrides).toLocalDate(zoneId).toIsoWeekKey() == targetWeekKey }
+        .firstOrNull { it.dateMillis.toLocalDate(zoneId).toIsoWeekKey() == targetWeekKey }
     val targetMarketShift = shifts
         .filter { it.type == ShiftType.MARKET }
         .filter { !it.dateMillis.toLocalDate(zoneId).isBefore(today) }
         .minByOrNull { it.dateMillis }
-    val targetDeliveryDate = targetShift
-        ?.effectiveDateMillis(deliveryCalendarOverrides)
-        ?.toLocalDate(zoneId)
-        ?: resolveDeliveryDate(
-            weekStart = targetWeekStart,
-            deliveryDay = deliveryDay,
-            overrides = deliveryCalendarOverrides,
-            zoneId = zoneId,
-        )
+    val targetDeliveryDate = resolveHomeCalendarDeliveryDate(
+        weekStart = targetWeekStart,
+        deliveryCalendarOverrides = deliveryCalendarOverrides,
+        zoneId = zoneId,
+    )
     val fallbackMarketDate = orderWeekStart.plusDays(5)
     val targetMarketDate = targetMarketShift
         ?.dateMillis
@@ -134,6 +126,12 @@ internal fun resolveHomeOrderState(
     }
 }
 
+internal fun resolveHomeDisplayedOrderState(
+    isConsultaPhase: Boolean,
+    orderState: HomeOrderStateDisplay,
+): HomeOrderStateDisplay =
+    if (isConsultaPhase) HomeOrderStateDisplay.CONSULTATION else orderState
+
 internal fun formatHomeTopBarDate(
     nowMillis: Long,
     zoneId: ZoneId = ZoneId.systemDefault(),
@@ -156,41 +154,25 @@ private fun android.content.SharedPreferences.hasPositiveQuantity(key: String): 
         }
     }.getOrDefault(false)
 
-private fun resolveDeliveryDate(
+private fun resolveEffectiveHomeDeliveryDate(
     weekStart: LocalDate,
-    deliveryDay: DayOfWeek,
-    overrides: List<DeliveryCalendarOverride>,
+    deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
+    zoneId: ZoneId,
+): LocalDate = resolveHomeCalendarDeliveryDate(
+    weekStart = weekStart,
+    deliveryCalendarOverrides = deliveryCalendarOverrides,
+    zoneId = zoneId,
+)
+
+private fun resolveHomeCalendarDeliveryDate(
+    weekStart: LocalDate,
+    deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
     zoneId: ZoneId,
 ): LocalDate {
     val weekKey = weekStart.toIsoWeekKey()
-    return overrides.firstOrNull { it.weekKey == weekKey }
-        ?.deliveryDateMillis
-        ?.toLocalDate(zoneId)
-        ?: weekStart.plusDays(deliveryDay.value.toLong() - 1L)
-}
-
-private fun resolveEffectiveHomeDeliveryDate(
-    weekKey: String,
-    weekStart: LocalDate,
-    deliveryDay: DayOfWeek,
-    overrides: List<DeliveryCalendarOverride>,
-    shifts: List<ShiftAssignment>,
-    zoneId: ZoneId,
-): LocalDate {
-    val overrideDate = overrides.firstOrNull { it.weekKey == weekKey }
-        ?.deliveryDateMillis
-        ?.toLocalDate(zoneId)
-    if (overrideDate != null) {
-        return overrideDate
-    }
-    val weekEnd = weekStart.plusDays(6)
-    return shifts
-        .asSequence()
-        .filter { it.type == ShiftType.DELIVERY }
-        .map { it.effectiveDateMillis(overrides).toLocalDate(zoneId) }
-        .filter { !it.isBefore(weekStart) && !it.isAfter(weekEnd) }
-        .minOrNull()
-        ?: weekStart.plusDays(deliveryDay.value.toLong() - 1L)
+    val override = deliveryCalendarOverrides.firstOrNull { it.weekKey == weekKey }
+    return override?.deliveryDateMillis?.toLocalDate(zoneId)
+        ?: weekStart.plusDays(DayOfWeek.WEDNESDAY.value.toLong() - 1L)
 }
 
 private fun resolveProducerName(weekStart: LocalDate, members: List<Member>): String {

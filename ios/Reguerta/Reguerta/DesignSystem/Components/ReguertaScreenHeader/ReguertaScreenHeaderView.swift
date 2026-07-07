@@ -82,6 +82,8 @@ struct ReguertaGlassIconButton: View {
     @Environment(\.reguertaTokens) private var tokens
 
     let iconAction: ReguertaHeaderAction
+    private var buttonSize: CGFloat { 52.resize }
+    private var effectPadding: CGFloat { 6.resize }
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -89,7 +91,7 @@ struct ReguertaGlassIconButton: View {
                 Image(systemName: iconAction.systemImageName)
                     .font(.system(size: 20.resize, weight: .semibold))
                     .foregroundStyle(iconAction.iconColor(tokens: tokens))
-                    .frame(width: 52.resize, height: 52.resize)
+                    .frame(width: buttonSize, height: buttonSize)
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
@@ -99,13 +101,15 @@ struct ReguertaGlassIconButton: View {
                 isEnabled: iconAction.isEnabled,
                 colorScheme: colorScheme
             )
+            .padding(effectPadding)
             .accessibilityLabel(iconAction.accessibilityLabel.viewText)
             .reguertaHeaderAccessibilityIdentifier(iconAction.accessibilityIdentifier)
 
             ReguertaHeaderBadgeView(badge: iconAction.badge)
+                .padding(effectPadding)
                 .allowsHitTesting(false)
         }
-        .frame(width: 52.resize, height: 52.resize)
+        .frame(width: buttonSize + effectPadding * 2, height: buttonSize + effectPadding * 2)
     }
 }
 

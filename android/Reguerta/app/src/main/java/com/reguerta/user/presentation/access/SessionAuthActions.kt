@@ -81,45 +81,11 @@ internal class SessionAuthActions(
 
             when (val authResult = authSessionProvider.signIn(email = email, password = password)) {
                 is AuthSignInResult.Success -> {
-                    when (val result = resolveAuthorizedSession(authResult.principal)) {
-                        is AccessResolutionResult.Authorized -> {
-                            val members = memberRepository.getAllMembers()
-                            val allNotifications = notificationRepository.getAllNotifications()
-                            val readNotificationIds = notificationRepository.getReadNotificationIds(result.member.id)
-                            uiState.update {
-                                it.copy(
-                                    isAuthenticating = false,
-                                    mode = SessionMode.Authorized(
-                                        principal = authResult.principal,
-                                        authenticatedMember = result.member,
-                                        member = result.member,
-                                        members = members,
-                                    ),
-                                    myOrderFreshnessState = MyOrderFreshnessUiState.Checking,
-                                    notificationsFeed = allNotifications.filter { event -> event.isVisibleTo(result.member) },
-                                    readNotificationIds = readNotificationIds,
-                                )
-                            }
-                            registerAuthorizedDevice(result.member)
-                            refreshMyOrderFreshness()
-                        }
-
-                        is AccessResolutionResult.Unauthorized -> {
-                            val showUnauthorizedDialog = shouldShowUnauthorizedDialog(
-                                currentMode = uiState.value.mode,
-                                email = authResult.principal.email,
-                                reason = result.reason,
-                            )
-                            uiState.update { state ->
-                                state.toUnauthorizedAfterAuthAttemptState(
-                                    email = authResult.principal.email,
-                                    reason = result.reason,
-                                    showUnauthorizedDialog = showUnauthorizedDialog,
-                                    clearRegisterInputs = false,
-                                )
-                            }
-                        }
-                    }
+                    applyAuthorizedSession(
+                        principal = authResult.principal,
+                        shouldRefreshCriticalData = true,
+                    )
+                    uiState.update { it.copy(isAuthenticating = false) }
                 }
 
                 is AuthSignInResult.Failure -> {
@@ -191,47 +157,17 @@ internal class SessionAuthActions(
 
             when (val authResult = authSessionProvider.signUp(email = email, password = password)) {
                 is AuthSignInResult.Success -> {
-                    when (val result = resolveAuthorizedSession(authResult.principal)) {
-                        is AccessResolutionResult.Authorized -> {
-                            val members = memberRepository.getAllMembers()
-                            val allNotifications = notificationRepository.getAllNotifications()
-                            val readNotificationIds = notificationRepository.getReadNotificationIds(result.member.id)
-                            uiState.update {
-                                it.copy(
-                                    isRegistering = false,
-                                    registerEmailInput = "",
-                                    registerPasswordInput = "",
-                                    registerRepeatPasswordInput = "",
-                                    mode = SessionMode.Authorized(
-                                        principal = authResult.principal,
-                                        authenticatedMember = result.member,
-                                        member = result.member,
-                                        members = members,
-                                    ),
-                                    myOrderFreshnessState = MyOrderFreshnessUiState.Checking,
-                                    notificationsFeed = allNotifications.filter { event -> event.isVisibleTo(result.member) },
-                                    readNotificationIds = readNotificationIds,
-                                )
-                            }
-                            registerAuthorizedDevice(result.member)
-                            refreshMyOrderFreshness()
-                        }
-
-                        is AccessResolutionResult.Unauthorized -> {
-                            val showUnauthorizedDialog = shouldShowUnauthorizedDialog(
-                                currentMode = uiState.value.mode,
-                                email = authResult.principal.email,
-                                reason = result.reason,
-                            )
-                            uiState.update { state ->
-                                state.toUnauthorizedAfterAuthAttemptState(
-                                    email = authResult.principal.email,
-                                    reason = result.reason,
-                                    showUnauthorizedDialog = showUnauthorizedDialog,
-                                    clearRegisterInputs = true,
-                                )
-                            }
-                        }
+                    applyAuthorizedSession(
+                        principal = authResult.principal,
+                        shouldRefreshCriticalData = true,
+                    )
+                    uiState.update {
+                        it.copy(
+                            isRegistering = false,
+                            registerEmailInput = "",
+                            registerPasswordInput = "",
+                            registerRepeatPasswordInput = "",
+                        )
                     }
                 }
 
@@ -402,6 +338,8 @@ internal class SessionAuthActions(
                 val ownSharedProfile = sharedProfiles.firstOrNull { it.userId == result.member.id }
                 uiState.update {
                     it.copy(
+                        isAuthenticating = false,
+                        isRegistering = false,
                         mode = SessionMode.Authorized(
                             principal = principal,
                             authenticatedMember = result.member,

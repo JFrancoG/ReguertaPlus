@@ -3,6 +3,7 @@ package com.reguerta.user.presentation.access
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.ProducerParity
+import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
 import com.reguerta.user.domain.calendar.DeliveryWeekday
 import com.reguerta.user.domain.shifts.ShiftAssignment
 import com.reguerta.user.domain.shifts.ShiftStatus
@@ -130,10 +131,79 @@ class HomeWeeklySummaryDisplayTest {
     }
 
     @Test
+    fun weeklySummary_usesWednesdayWhenNoDeliveryCalendarOverrideEvenIfShiftIsLater() {
+        val display = resolveHomeWeeklySummaryDisplay(
+            nowMillis = LocalDate.of(2026, 7, 7).atStartOfDay(zone).toInstant().toEpochMilli(),
+            defaultDeliveryDayOfWeek = DeliveryWeekday.WEDNESDAY,
+            deliveryCalendarOverrides = emptyList(),
+            shifts = listOf(deliveryShift("delivery_2026w28", LocalDate.of(2026, 7, 9))),
+            members = members,
+            currentMemberId = "member_1",
+            orderState = HomeOrderStateDisplay.NOT_STARTED,
+            zoneId = zone,
+        )
+
+        assertEquals("2026-W28", display.weekKey)
+        assertEquals("Mié 8", display.deliveryLabel)
+        assertEquals("Carmen", display.responsibleName)
+        assertEquals("Javier", display.helperName)
+    }
+
+    @Test
+    fun weeklySummary_usesDeliveryCalendarOverrideWhenPresent() {
+        val display = resolveHomeWeeklySummaryDisplay(
+            nowMillis = LocalDate.of(2026, 7, 7).atStartOfDay(zone).toInstant().toEpochMilli(),
+            defaultDeliveryDayOfWeek = DeliveryWeekday.WEDNESDAY,
+            deliveryCalendarOverrides = listOf(
+                deliveryOverride(
+                    weekKey = "2026-W28",
+                    deliveryDate = LocalDate.of(2026, 7, 9),
+                ),
+            ),
+            shifts = listOf(deliveryShift("delivery_2026w28", LocalDate.of(2026, 7, 9))),
+            members = members,
+            currentMemberId = "member_1",
+            orderState = HomeOrderStateDisplay.NOT_STARTED,
+            zoneId = zone,
+        )
+
+        assertEquals("2026-W28", display.weekKey)
+        assertEquals("Jue 9", display.deliveryLabel)
+        assertEquals("Carmen", display.responsibleName)
+        assertEquals("Javier", display.helperName)
+    }
+
+    @Test
     fun orderStateLabelsPreserveRequiredMapping() {
+        assertEquals(HomeOrderStateDisplay.CONSULTATION, HomeOrderStateDisplay.CONSULTATION)
         assertEquals(HomeOrderStateDisplay.NOT_STARTED, HomeOrderStateDisplay.NOT_STARTED)
         assertEquals(HomeOrderStateDisplay.UNCONFIRMED, HomeOrderStateDisplay.UNCONFIRMED)
         assertEquals(HomeOrderStateDisplay.COMPLETED, HomeOrderStateDisplay.COMPLETED)
+    }
+
+    @Test
+    fun displayedOrderState_usesConsultationStateBeforeDelivery() {
+        assertEquals(
+            HomeOrderStateDisplay.CONSULTATION,
+            resolveHomeDisplayedOrderState(
+                isConsultaPhase = true,
+                orderState = HomeOrderStateDisplay.NOT_STARTED,
+            ),
+        )
+        assertEquals(
+            HomeOrderStateDisplay.CONSULTATION,
+            resolveHomeDisplayedOrderState(
+                isConsultaPhase = true,
+                orderState = HomeOrderStateDisplay.UNCONFIRMED,
+            ),
+        )
+        assertEquals(
+            HomeOrderStateDisplay.NOT_STARTED,
+            resolveHomeDisplayedOrderState(
+                isConsultaPhase = false,
+                orderState = HomeOrderStateDisplay.NOT_STARTED,
+            ),
+        )
     }
 
     private fun deliveryShift(
@@ -170,6 +240,22 @@ class HomeWeeklySummaryDisplayTest {
             createdAtMillis = 0,
             updatedAtMillis = 0,
         )
+
+    private fun deliveryOverride(
+        weekKey: String,
+        deliveryDate: LocalDate,
+    ): DeliveryCalendarOverride {
+        val deliveryMillis = deliveryDate.atStartOfDay(zone).toInstant().toEpochMilli()
+        return DeliveryCalendarOverride(
+            weekKey = weekKey,
+            deliveryDateMillis = deliveryMillis,
+            ordersBlockedDateMillis = deliveryMillis,
+            ordersOpenAtMillis = deliveryMillis,
+            ordersCloseAtMillis = deliveryMillis,
+            updatedBy = "test",
+            updatedAtMillis = 0,
+        )
+    }
 
     private val members = listOf(
         Member(
