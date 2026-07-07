@@ -453,17 +453,19 @@ private fun orderSummaryLine(payload: Map<String, Any>): OrderSummaryLine {
 
 private fun orderPackagingLine(payload: Map<String, Any>): String {
     val containerName = (payload["packContainerName"] as? String)?.trim()?.takeIf(String::isNotBlank)
-        ?: (payload["unitName"] as? String)?.trim().orEmpty()
-    val quantity = ((payload["packContainerQty"] as? Number)?.toDouble()
-        ?: (payload["unitQty"] as? Number)?.toDouble()
-        ?: 1.0).toOrderUiDecimal()
+    val containerQuantity = (payload["packContainerQty"] as? Number)?.toDouble()
+    val containerLabel = listOfNotNull(
+        containerQuantity
+            ?.takeUnless { it.isOrderApproximatelyOne() }
+            ?.toOrderUiDecimal(),
+        containerName,
+    ).joinToString(separator = " ")
     val unitName = (payload["unitName"] as? String)?.trim().orEmpty()
-    val unitPlural = (payload["unitPlural"] as? String)?.trim().orEmpty()
-    val unit = (payload["packContainerAbbreviation"] as? String)?.trim()?.takeIf(String::isNotBlank)
-        ?: (payload["packContainerPlural"] as? String)?.trim()?.takeIf(String::isNotBlank)
-        ?: (payload["unitAbbreviation"] as? String)?.trim()?.takeIf(String::isNotBlank)
-        ?: if ((payload["packContainerQty"] as? Number)?.toDouble() == 1.0) unitName else unitPlural
-    return listOf(containerName, quantity, unit)
+    val unitPlural = (payload["unitPlural"] as? String)?.trim().orEmpty().ifBlank { unitName }
+    val unitQuantity = (payload["unitQty"] as? Number)?.toDouble() ?: 1.0
+    val unit = (payload["unitAbbreviation"] as? String)?.trim()?.takeIf(String::isNotBlank)
+        ?: if (unitQuantity.isOrderApproximatelyOne()) unitName else unitPlural
+    return listOf(containerLabel, unitQuantity.toOrderUiDecimal(), unit)
         .filter(String::isNotBlank)
         .joinToString(separator = " ")
 }
@@ -485,6 +487,9 @@ private fun Double.toOrderUiDecimal(): String {
     if (this % 1.0 == 0.0) return toLong().toString()
     return String.format(Locale.US, "%.2f", this).trimEnd('0').trimEnd('.')
 }
+
+private fun Double.isOrderApproximatelyOne(): Boolean =
+    kotlin.math.abs(this - 1.0) < 0.0001
 
 private fun buildReceivedOrdersSnapshot(
     lines: List<ReceivedOrderLineRecord>,

@@ -25,7 +25,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -34,7 +33,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -54,7 +52,6 @@ import com.reguerta.user.data.orders.FirestoreOrdersRepository
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.orders.OrderHistoryWeekOption
 import com.reguerta.user.domain.orders.OrderSummaryGroup
-import com.reguerta.user.domain.orders.OrderSummaryLine
 import com.reguerta.user.domain.orders.OrderSummarySnapshot
 
 @Composable
@@ -62,7 +59,6 @@ internal fun MyOrdersHistoryRoute(
     modifier: Modifier = Modifier,
     currentMember: Member?,
     nowOverrideMillis: Long?,
-    onTitleChanged: (String?) -> Unit = {},
 ) {
     val firestore = remember { FirebaseFirestore.getInstance() }
     val repository = remember(firestore) { FirestoreOrdersRepository(firestore = firestore) }
@@ -80,13 +76,6 @@ internal fun MyOrdersHistoryRoute(
             ),
         )
     }
-    LaunchedEffect(state.selectedWeek?.orderTitle) {
-        onTitleChanged(state.selectedWeek?.orderTitle)
-    }
-    DisposableEffect(Unit) {
-        onDispose { onTitleChanged(null) }
-    }
-
     MyOrdersHistoryContent(
         state = state,
         onPrevious = viewModel::selectPreviousWeek,
@@ -120,6 +109,14 @@ private fun MyOrdersHistoryContent(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            state.selectedWeek?.orderTitle?.let { orderTitle ->
+                Text(
+                    text = orderTitle,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
             OrderHistoryWeekHeader(
                 selectedWeek = state.selectedWeek,
                 canGoPrevious = state.canGoPrevious,
@@ -215,12 +212,12 @@ private fun GlassWeekNavigationButton(
 ) {
     Surface(
         shape = CircleShape,
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = if (enabled) 0.62f else 0.18f),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (enabled) 1f else 0.45f),
         tonalElevation = if (enabled) 8.dp else 0.dp,
         shadowElevation = if (enabled) 3.dp else 0.dp,
         border = BorderStroke(
             1.dp,
-            MaterialTheme.colorScheme.primary.copy(alpha = if (enabled) 0.34f else 0.12f),
+            MaterialTheme.colorScheme.outline.copy(alpha = if (enabled) 0.80f else 0.35f),
         ),
     ) {
         IconButton(
@@ -248,10 +245,10 @@ private fun GlassWeekPickerButton(
 ) {
     Surface(
         shape = RoundedCornerShape(50),
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.56f),
+        color = MaterialTheme.colorScheme.surfaceVariant,
         tonalElevation = 8.dp,
         shadowElevation = 3.dp,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.32f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.80f)),
     ) {
         TextButton(onClick = onClick) {
             Text(
@@ -330,69 +327,18 @@ private fun OrderSummaryList(
 
 @Composable
 private fun OrderSummaryProducerCard(group: OrderSummaryGroup) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text = group.companyName,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
+    PersonalOrderSummaryProducerCard(
+        companyName = group.companyName,
+        lines = group.lines.map { line ->
+            PersonalOrderSummaryLineUi(
+                productName = line.productName,
+                packagingLine = line.packagingLine,
+                quantityLabel = line.quantityLabel,
+                subtotal = line.subtotal,
             )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.24f))
-            group.lines.forEach { line ->
-                OrderSummaryLineRow(line = line)
-            }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.24f))
-            Text(
-                text = stringResource(R.string.my_order_producer_subtotal_format, group.subtotal.toEuroCurrencyText()),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.End,
-            )
-        }
-    }
-}
-
-@Composable
-private fun OrderSummaryLineRow(line: OrderSummaryLine) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            Text(
-                text = line.productName,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = line.packagingLine,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Text(
-            text = line.quantityLabel,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Text(
-            text = line.subtotal.toEuroCurrencyText(),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-    }
+        },
+        subtotal = group.subtotal,
+    )
 }
 
 @Composable

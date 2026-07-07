@@ -207,7 +207,6 @@ internal fun HomeRoute(
     var isMyOrderReadOnlyMode by rememberSaveable { mutableStateOf(false) }
     var isMyOrderCartVisible by rememberSaveable { mutableStateOf(false) }
     var sharedProfileTitleOverride by rememberSaveable { mutableStateOf<String?>(null) }
-    var myOrdersHistoryTitleOverride by rememberSaveable { mutableStateOf<String?>(null) }
     var receivedOrdersHistoryTitleOverride by rememberSaveable { mutableStateOf<String?>(null) }
     val member = when (mode) {
         is SessionMode.Authorized -> mode.member
@@ -243,9 +242,6 @@ internal fun HomeRoute(
         }
         if (destination != HomeDestination.PROFILE) {
             sharedProfileTitleOverride = null
-        }
-        if (destination != HomeDestination.MY_ORDERS) {
-            myOrdersHistoryTitleOverride = null
         }
         if (destination != HomeDestination.RECEIVED_ORDERS_HISTORY) {
             receivedOrdersHistoryTitleOverride = null
@@ -387,15 +383,14 @@ internal fun HomeRoute(
                         currentDestination == HomeDestination.MY_ORDER && isMyOrderCartVisible && !isMyOrderReadOnlyMode -> {
                             stringResource(R.string.my_order_cart_title)
                         }
+                        currentDestination == HomeDestination.MY_ORDER && isMyOrderReadOnlyMode -> ""
+                        currentDestination == HomeDestination.MY_ORDERS -> ""
                         currentDestination == HomeDestination.PUBLISH_NEWS && editingNewsId != null -> {
                             stringResource(R.string.news_editor_title_edit)
                         }
                         currentDestination == HomeDestination.NOTIFICATIONS -> ""
                         currentDestination == HomeDestination.PROFILE && !sharedProfileTitleOverride.isNullOrBlank() -> {
                             sharedProfileTitleOverride.orEmpty()
-                        }
-                        currentDestination == HomeDestination.MY_ORDERS -> {
-                            myOrdersHistoryTitleOverride ?: stringResource(R.string.my_orders_history_title_fallback)
                         }
                         currentDestination == HomeDestination.RECEIVED_ORDERS_HISTORY -> {
                             receivedOrdersHistoryTitleOverride ?: stringResource(R.string.home_shell_action_received_orders)
@@ -620,9 +615,6 @@ internal fun HomeRoute(
                     modifier = Modifier.fillMaxSize(),
                     currentMember = member,
                     nowOverrideMillis = nowOverrideMillis,
-                    onTitleChanged = { titleOverride ->
-                        myOrdersHistoryTitleOverride = titleOverride
-                    },
                     )
 
                     HomeDestination.RECEIVED_ORDERS -> ReceivedOrdersRoute(
