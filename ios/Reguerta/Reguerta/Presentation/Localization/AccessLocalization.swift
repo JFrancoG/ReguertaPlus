@@ -162,6 +162,8 @@ enum AccessL10nKey {
     static let bylawsAskAction = "bylaws.ask.action"
     static let bylawsAskLoading = "bylaws.ask.loading"
     static let bylawsOpenPdfAction = "bylaws.open_pdf.action"
+    static let bylawsAnswerTitle = "bylaws.answer.title"
+    static let bylawsDevelopDetailsTitle = "bylaws.develop_details.title"
     static let bylawsModeLocal = "bylaws.mode.local"
     static let bylawsModeCloud = "bylaws.mode.cloud"
     static let bylawsModeFallback = "bylaws.mode.fallback"

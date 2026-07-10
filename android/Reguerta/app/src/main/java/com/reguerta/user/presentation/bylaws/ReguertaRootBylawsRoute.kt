@@ -10,18 +10,27 @@ import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -54,59 +63,82 @@ internal fun BylawsRoute(
     onQueryChanged: (String) -> Unit,
     onAsk: () -> Unit,
     onClear: () -> Unit,
+    isDevelopBuild: Boolean,
 ) {
     var isPdfViewerVisible by rememberSaveable { mutableStateOf(false) }
+    val isSendEnabled = queryInput.isNotBlank() && !isLoading
 
-    Card {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.bylaws_title),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                text = stringResource(R.string.bylaws_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-            )
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.bylaws_subtitle),
+            style = MaterialTheme.typography.bodyMedium,
+        )
 
+        Box(modifier = Modifier.fillMaxWidth()) {
             OutlinedTextField(
                 value = queryInput,
                 onValueChange = onQueryChanged,
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text(stringResource(R.string.bylaws_input_label)) },
                 placeholder = { Text(stringResource(R.string.bylaws_input_placeholder)) },
-                minLines = 2,
+                minLines = 3,
+                maxLines = 6,
                 enabled = !isLoading,
+                shape = RoundedCornerShape(20.dp),
+                trailingIcon = {
+                    Box(modifier = Modifier.size(48.dp))
+                },
             )
 
-            Button(
-                onClick = onAsk,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading,
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 4.dp, bottom = 4.dp)
+                    .size(48.dp),
+                contentAlignment = Alignment.Center,
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
-                        modifier = Modifier.padding(end = 8.dp),
+                        modifier = Modifier.size(22.dp),
                         strokeWidth = 2.dp,
                     )
+                } else {
+                    IconButton(
+                        onClick = onAsk,
+                        enabled = isSendEnabled,
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = stringResource(R.string.bylaws_ask_action),
+                            modifier = Modifier.size(27.dp),
+                            tint = if (isSendEnabled) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                            },
+                        )
+                    }
                 }
-                Text(stringResource(if (isLoading) R.string.bylaws_ask_loading else R.string.bylaws_ask_action))
             }
+        }
 
-            TextButton(
-                onClick = { isPdfViewerVisible = true },
-                enabled = !isLoading,
-            ) {
-                Text(stringResource(R.string.bylaws_open_pdf_action))
-            }
+        TextButton(
+            onClick = { isPdfViewerVisible = true },
+            enabled = !isLoading,
+        ) {
+            Text(stringResource(R.string.bylaws_open_pdf_action))
+        }
 
-            answerResult?.let { result ->
-                BylawsAnswerCard(result = result, onClear = onClear)
-            }
+        answerResult?.let { result ->
+            HorizontalDivider()
+            BylawsAnswerSection(
+                result = result,
+                onClear = onClear,
+                isDevelopBuild = isDevelopBuild,
+            )
         }
     }
 
@@ -118,17 +150,41 @@ internal fun BylawsRoute(
 }
 
 @Composable
-private fun BylawsAnswerCard(
+private fun BylawsAnswerSection(
     result: BylawsAnswerResult,
     onClear: () -> Unit,
+    isDevelopBuild: Boolean,
 ) {
-    Card {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
+            Text(
+                text = stringResource(R.string.bylaws_answer_title),
+                style = MaterialTheme.typography.titleLarge,
+            )
+            IconButton(onClick = onClear) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = stringResource(R.string.common_action_clear),
+                    tint = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+        Text(
+            text = result.answer,
+            style = MaterialTheme.typography.bodyLarge,
+        )
+        if (isDevelopBuild) {
+            Text(
+                text = stringResource(R.string.bylaws_develop_details_title),
+                style = MaterialTheme.typography.labelLarge,
+            )
             Text(
                 text = when (result.mode) {
                     BylawsAnswerMode.LOCAL -> stringResource(R.string.bylaws_mode_local)
@@ -154,13 +210,6 @@ private fun BylawsAnswerCard(
                     ),
                     style = MaterialTheme.typography.bodySmall,
                 )
-            }
-            Text(
-                text = result.answer,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            TextButton(onClick = onClear) {
-                Text(stringResource(R.string.common_action_clear))
             }
         }
     }

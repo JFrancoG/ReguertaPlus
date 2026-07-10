@@ -55,6 +55,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-07-11 | 🐛 fix(bylaws): refine query experience
 - 2026-07-10 | 🐛 fix(android-ui): space screen header content
 - 2026-07-10 | 🐛 fix(community): merge profile intro copy
 - 2026-07-10 | 🐛 fix(android-ui): standardize screen headers
