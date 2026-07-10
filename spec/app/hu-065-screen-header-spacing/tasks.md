@@ -17,6 +17,6 @@
 - [x] Record validation evidence.
 
 ## 4. Delivery
-- [ ] Update changelog.
-- [ ] Commit and push the focused change.
-- [ ] Open a draft pull request linked to issue #169.
+- [x] Update changelog.
+- [x] Commit and push the focused change.
+- [x] Open draft pull request #170 linked to issue #169.

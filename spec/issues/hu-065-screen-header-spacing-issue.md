@@ -1,6 +1,7 @@
 # Issue mirror - HU-065
 
 - GitHub issue: https://github.com/JFrancoG/ReguertaPlus/issues/169
+- Draft pull request: https://github.com/JFrancoG/ReguertaPlus/pull/170
 - Title: `[HU-065] Separar el título del contenido en Android`
 - Labels: `bug`, `area:app`, `platform:android`, `priority:P3`
 - Branch: `codex/hu-065-screen-header-spacing`

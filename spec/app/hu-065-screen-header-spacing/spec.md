@@ -40,10 +40,11 @@ As a member I want a little breathing room below each screen title so that the h
 - `ANDROID_SERIAL=emulator-5554 ./gradlew app:connectedDebugAndroidTest` passed 10 tests on `Pixel_8_Pro_API_35` (API 35), including the 8 dp title-to-content geometry assertion.
 - Platform parity: intentional Android-only change because the affected shared component is Android-specific; iOS layout is unchanged.
 - Existing unrelated local changes in Android/iOS Bylaws, Home routing, and localization files were preserved and excluded from this story.
+- Delivery: GitHub issue #169 and draft pull request #170 are mutually linked.
 
 ## Definition of Done
 
 - [x] Acceptance criteria validated.
 - [x] Android-only parity scope documented.
 - [x] Relevant checks executed.
-- [ ] GitHub issue and pull request linked.
+- [x] GitHub issue and pull request linked.
