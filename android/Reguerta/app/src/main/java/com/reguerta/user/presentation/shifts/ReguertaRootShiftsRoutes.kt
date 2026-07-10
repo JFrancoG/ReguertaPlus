@@ -94,13 +94,6 @@ fun ShiftsRoute(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(
-            text = stringResource(R.string.shifts_title),
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.semantics { heading() },
-        )
-
         if (hasShiftSwapActivity) {
             ShiftSwapRequestsCard(
                 requests = shiftSwapRequests,

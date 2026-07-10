@@ -55,6 +55,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-07-10 | 🐛 fix(android-ui): standardize screen headers
 - 2026-07-10 | 🐛 fix(ui): restore news image and header layout
 - 2026-07-10 | 🐛 fix(shifts): align helper assignments
 - 2026-07-08 | 🐛 fix(ios-ui): refine welcome layout

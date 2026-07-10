@@ -93,6 +93,7 @@ import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
 import com.reguerta.user.domain.calendar.DeliveryWeekday
 import com.reguerta.user.domain.commitments.SeasonalCommitment
 import com.reguerta.user.domain.products.Product
+import com.reguerta.user.ui.components.ReguertaScreenTitle
 import com.reguerta.user.domain.products.ProductPricingMode
 import com.reguerta.user.domain.products.ProductStockMode
 import com.reguerta.user.domain.shifts.ShiftAssignment
@@ -923,22 +924,8 @@ internal fun MyOrderRoute(
 
 
 @Composable
-private fun MyOrderHeader(
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.my_order_list_title),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
-    }
+private fun MyOrderHeader() {
+    ReguertaScreenTitle(title = stringResource(R.string.my_order_list_title))
 }
 
 @Composable
@@ -956,10 +943,9 @@ private fun MyOrderConfirmedSummary(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = stringResource(R.string.my_order_confirmed_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
+                ReguertaScreenTitle(
+                    title = stringResource(R.string.my_order_confirmed_title),
+                    modifier = Modifier.weight(1f),
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 OutlinedButton(
@@ -1110,11 +1096,7 @@ private fun MyOrderPreviousOrderSummary(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = stringResource(R.string.my_order_previous_title),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
+            ReguertaScreenTitle(title = stringResource(R.string.my_order_previous_title))
             when (state) {
                 MyOrderPreviousOrderState.Loading -> {
                     Card(modifier = Modifier.fillMaxWidth()) {

@@ -40,13 +40,6 @@ internal fun HomeDestination.titleRes(): Int = when (this) {
     HomeDestination.ADMIN_BROADCAST -> R.string.home_shell_action_admin_broadcast
 }
 
-internal fun HomeDestination.placesTitleBelowNavigation(): Boolean = when (this) {
-    HomeDestination.NEWS,
-    HomeDestination.PROFILE,
-        -> true
-    else -> false
-}
-
 internal fun HomeDestination.subtitleRes(): Int = when (this) {
     HomeDestination.DASHBOARD -> R.string.home_placeholder_subtitle
     HomeDestination.MY_ORDER -> R.string.home_placeholder_my_order

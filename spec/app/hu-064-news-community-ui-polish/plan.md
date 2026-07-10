@@ -11,8 +11,9 @@ Clarify Android header hierarchy on News and Community and restore optional news
 - Compare the requested News/Community placement with routes that already render their title below the back arrow.
 
 2. Android UI
-- Add a narrowly scoped below-navigation title mode to the shared Home shell header.
-- Enable it only for the top-level News and Community destinations.
+- Introduce a reusable screen header that owns back navigation, trailing actions, title placement, typography, and heading semantics.
+- Use it for every Home destination with back navigation while preserving the compact Dashboard header.
+- Reuse its title primitive for dynamic route-owned titles and remove duplicate static titles where the shell now owns them.
 - Preserve nested Community title overrides and existing back behavior.
 
 3. iOS image diagnosis and repair
@@ -23,4 +24,4 @@ Clarify Android header hierarchy on News and Community and restore optional news
 4. Validation
 - Run Android unit tests and lint, plus connected UI tests when a device/emulator is available.
 - Run iOS tests on the configured simulator or the closest available equivalent.
-- Review the final diff for unrelated route/header changes and record parity notes.
+- Review all Home destination title ownership and record parity notes.

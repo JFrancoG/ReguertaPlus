@@ -71,13 +71,13 @@ import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
 import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.shifts.ShiftAssignment
+import com.reguerta.user.ui.components.ReguertaScreenHeader
 import com.reguerta.user.ui.components.auth.ReguertaFlatButton
 
 @Composable
 fun HomeShellTopBar(
     title: String,
     canNavigateBack: Boolean,
-    placesTitleBelowNavigation: Boolean = false,
     showsNotificationsAction: Boolean,
     hasNotificationIndicator: Boolean,
     showsCartAction: Boolean,
@@ -87,103 +87,123 @@ fun HomeShellTopBar(
     onOpenNotifications: () -> Unit,
     onOpenCart: () -> Unit,
 ) {
-    Column(
+    if (canNavigateBack) {
+        ReguertaScreenHeader(
+            title = title,
+            navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
+            navigationContentDescription = stringResource(R.string.common_action_back),
+            onNavigationClick = onBack,
+            trailingContent = {
+                HomeShellTrailingAction(
+                    showsNotificationsAction = showsNotificationsAction,
+                    hasNotificationIndicator = hasNotificationIndicator,
+                    showsCartAction = showsCartAction,
+                    cartUnits = cartUnits,
+                    onOpenNotifications = onOpenNotifications,
+                    onOpenCart = onOpenCart,
+                )
+            },
+        )
+        return
+    }
+
+    Row(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(
-                modifier = if (canNavigateBack) Modifier.offset(x = (-12).dp) else Modifier,
-                onClick = if (canNavigateBack) onBack else onOpenMenu,
-            ) {
-                Icon(
-                    imageVector = if (canNavigateBack) Icons.AutoMirrored.Filled.ArrowBack else Icons.Filled.Menu,
-                    contentDescription = if (canNavigateBack) {
-                        stringResource(R.string.common_action_back)
-                    } else {
-                        stringResource(R.string.home_shell_menu)
-                    },
-                )
-            }
-
-            if (!placesTitleBelowNavigation && title.isNotBlank()) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f),
-                )
-            } else {
-                Spacer(modifier = Modifier.weight(1f))
-            }
-
-            if (showsNotificationsAction) {
-                Box(contentAlignment = Alignment.TopEnd) {
-                    IconButton(onClick = onOpenNotifications) {
-                        Icon(
-                            imageVector = Icons.Filled.Notifications,
-                            contentDescription = stringResource(R.string.home_shell_notifications),
-                        )
-                    }
-                    if (hasNotificationIndicator) {
-                        Box(
-                            modifier = Modifier
-                                .padding(top = 9.dp, end = 9.dp)
-                                .size(9.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.error),
-                        )
-                    }
-                }
-            } else if (showsCartAction) {
-                Box(contentAlignment = Alignment.TopEnd) {
-                    IconButton(
-                        onClick = onOpenCart,
-                        enabled = cartUnits > 0,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.ShoppingCart,
-                            contentDescription = stringResource(R.string.my_order_view_cart_action),
-                        )
-                    }
-                    if (cartUnits > 0) {
-                        Box(
-                            modifier = Modifier
-                                .padding(top = 8.dp, end = 8.dp)
-                                .size(18.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.error),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = cartUnits.coerceAtMost(99).toString(),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onError,
-                                fontWeight = FontWeight.Normal,
-                            )
-                        }
-                    }
-                }
-            } else {
-                Spacer(modifier = Modifier.size(48.dp))
-            }
+        IconButton(onClick = onOpenMenu) {
+            Icon(
+                imageVector = Icons.Filled.Menu,
+                contentDescription = stringResource(R.string.home_shell_menu),
+            )
         }
 
-        if (placesTitleBelowNavigation && title.isNotBlank()) {
+        if (title.isNotBlank()) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .semantics { heading() },
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f),
             )
+        } else {
+            Spacer(modifier = Modifier.weight(1f))
         }
+
+        HomeShellTrailingAction(
+            showsNotificationsAction = showsNotificationsAction,
+            hasNotificationIndicator = hasNotificationIndicator,
+            showsCartAction = showsCartAction,
+            cartUnits = cartUnits,
+            onOpenNotifications = onOpenNotifications,
+            onOpenCart = onOpenCart,
+        )
+    }
+}
+
+@Composable
+private fun HomeShellTrailingAction(
+    showsNotificationsAction: Boolean,
+    hasNotificationIndicator: Boolean,
+    showsCartAction: Boolean,
+    cartUnits: Int,
+    onOpenNotifications: () -> Unit,
+    onOpenCart: () -> Unit,
+) {
+    when {
+        showsNotificationsAction -> {
+            Box(contentAlignment = Alignment.TopEnd) {
+                IconButton(onClick = onOpenNotifications) {
+                    Icon(
+                        imageVector = Icons.Filled.Notifications,
+                        contentDescription = stringResource(R.string.home_shell_notifications),
+                    )
+                }
+                if (hasNotificationIndicator) {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 9.dp, end = 9.dp)
+                            .size(9.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.error),
+                    )
+                }
+            }
+        }
+
+        showsCartAction -> {
+            Box(contentAlignment = Alignment.TopEnd) {
+                IconButton(
+                    onClick = onOpenCart,
+                    enabled = cartUnits > 0,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.ShoppingCart,
+                        contentDescription = stringResource(R.string.my_order_view_cart_action),
+                    )
+                }
+                if (cartUnits > 0) {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 8.dp, end = 8.dp)
+                            .size(18.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.error),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = cartUnits.coerceAtMost(99).toString(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onError,
+                            fontWeight = FontWeight.Normal,
+                        )
+                    }
+                }
+            }
+        }
+
+        else -> Spacer(modifier = Modifier.size(48.dp))
     }
 }
 

@@ -414,8 +414,6 @@ internal fun HomeRoute(
                         currentDestination == HomeDestination.PUBLISH_NEWS && editingNewsId != null -> {
                             stringResource(R.string.news_editor_title_edit)
                         }
-                        currentDestination == HomeDestination.NOTIFICATIONS -> ""
-                        currentDestination == HomeDestination.SHIFTS -> ""
                         currentDestination == HomeDestination.PROFILE && !sharedProfileTitleOverride.isNullOrBlank() -> {
                             sharedProfileTitleOverride.orEmpty()
                         }
@@ -427,7 +425,6 @@ internal fun HomeRoute(
                     HomeShellTopBar(
                         title = homeShellTitle,
                         canNavigateBack = currentDestination != HomeDestination.DASHBOARD,
-                        placesTitleBelowNavigation = currentDestination.placesTitleBelowNavigation(),
                         showsNotificationsAction = currentDestination == HomeDestination.DASHBOARD,
                         hasNotificationIndicator = hasUnreadNotifications,
                         showsCartAction = showsMyOrderCartAction,

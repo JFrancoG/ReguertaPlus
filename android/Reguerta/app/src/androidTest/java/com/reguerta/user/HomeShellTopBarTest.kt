@@ -17,8 +17,8 @@ class HomeShellTopBarTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun requestedTitlePlacementRendersBelowBackNavigationRow() {
-        setTopBarContent(title = "News", placesTitleBelowNavigation = true)
+    fun backNavigationTitleRendersBelowNavigationRow() {
+        setTopBarContent(title = "News", canNavigateBack = true)
 
         val backBounds = composeRule
             .onNodeWithContentDescription("Back")
@@ -33,33 +33,32 @@ class HomeShellTopBarTest {
     }
 
     @Test
-    fun defaultTitlePlacementRemainsInsideNavigationRow() {
-        setTopBarContent(title = "Settings", placesTitleBelowNavigation = false)
+    fun dashboardTitleRemainsInsideMenuRow() {
+        setTopBarContent(title = "Friday, July 10", canNavigateBack = false)
 
-        val backBounds = composeRule
-            .onNodeWithContentDescription("Back")
+        val menuBounds = composeRule
+            .onNodeWithContentDescription("Open navigation menu")
             .fetchSemanticsNode()
             .boundsInRoot
         val titleCenterY = composeRule
-            .onNodeWithText("Settings")
+            .onNodeWithText("Friday, July 10")
             .fetchSemanticsNode()
             .boundsInRoot
             .center
             .y
 
-        assertTrue(titleCenterY in backBounds.top..backBounds.bottom)
+        assertTrue(titleCenterY in menuBounds.top..menuBounds.bottom)
     }
 
     private fun setTopBarContent(
         title: String,
-        placesTitleBelowNavigation: Boolean,
+        canNavigateBack: Boolean,
     ) {
         composeRule.setContent {
             ReguertaTheme {
                 HomeShellTopBar(
                     title = title,
-                    canNavigateBack = true,
-                    placesTitleBelowNavigation = placesTitleBelowNavigation,
+                    canNavigateBack = canNavigateBack,
                     showsNotificationsAction = false,
                     hasNotificationIndicator = false,
                     showsCartAction = false,

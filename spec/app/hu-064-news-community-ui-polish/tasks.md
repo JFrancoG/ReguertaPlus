@@ -9,7 +9,10 @@
 ## 2. Android UI
 - [x] Put the News title below the back arrow.
 - [x] Put the Community title below the back arrow.
-- [x] Preserve back semantics, route actions, and unrelated header layouts.
+- [x] Replace the route-specific placement flag with a reusable back-navigation screen header.
+- [x] Standardize screen-title typography and heading semantics with a reusable title primitive.
+- [x] Move static Shifts and Notifications titles into the shared header and migrate dynamic order titles to the shared title primitive.
+- [x] Preserve back semantics, route actions, and the compact Dashboard layout.
 - [x] Add or update targeted UI/unit coverage where the current test structure supports it.
 
 ## 3. iOS News image
@@ -23,6 +26,7 @@
 - [x] Run Android connected UI tests on Pixel 8 Pro API 35.
 - [x] Run iOS tests on iPhone 17 and record the pre-existing drawer-navigation UI failure.
 - [x] Record validation and parity evidence in `spec.md`.
+- [x] Re-run Android validation after the reusable-header follow-up.
 
 ## 5. Closure
 - [x] Update story status and Definition of Done.
