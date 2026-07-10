@@ -38,4 +38,4 @@
 ## 7. Closure
 - [x] Apply the Responsable/Apoyo role terminology and reinforce the iOS upcoming responsible row.
 - [x] Update DoD status in `spec.md`.
-- [ ] Link PR when created.
+- [x] Link PR #164.

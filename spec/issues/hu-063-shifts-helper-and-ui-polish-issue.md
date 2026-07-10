@@ -7,6 +7,7 @@ Ajustar la pantalla de turnos para que iOS calcule el ayudante de reparto igual 
 ## Links
 - GitHub Issue: #163
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/163
+- Pull Request: #164 https://github.com/JFrancoG/ReguertaPlus/pull/164
 - Spec: spec/shifts/hu-063-shifts-helper-and-ui-polish/spec.md
 - Plan: spec/shifts/hu-063-shifts-helper-and-ui-polish/plan.md
 - Tasks: spec/shifts/hu-063-shifts-helper-and-ui-polish/tasks.md

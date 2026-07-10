@@ -95,6 +95,7 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-07-10 | 📝 docs(shifts): link HU-063 pull request
 - 2026-05-03 | 📝 docs(design): refine home drawer proposal
 - 2026-05-03 | 📝 docs(design): add home drawer proposal
 - 2026-05-03 | 📝 docs(design): add home dashboard proposal

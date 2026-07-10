@@ -88,4 +88,4 @@ As a cooperative member I want my upcoming shifts to show the correct helper/lea
 - [x] Android/iOS parity reviewed or temporary gap documented.
 - [x] Agreed tests executed or skipped with reason.
 - [x] Technical/functional documentation updated.
-- [ ] Issue and PR linked.
+- [x] Issue #163 and PR #164 linked.
