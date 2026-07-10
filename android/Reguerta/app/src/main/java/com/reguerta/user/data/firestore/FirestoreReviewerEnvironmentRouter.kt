@@ -6,7 +6,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.reguerta.user.domain.access.AccessCapability
 import com.reguerta.user.domain.access.AuthPrincipal
 import com.reguerta.user.domain.access.MemberPermissionMatrix
-import com.reguerta.user.presentation.access.ReviewerEnvironmentRouter
+import com.reguerta.user.presentation.root.ReviewerEnvironmentRouter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

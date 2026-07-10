@@ -1,8 +1,8 @@
 package com.reguerta.user.domain.orders
 
 import com.reguerta.user.data.orders.InMemoryOrdersRepository
-import com.reguerta.user.presentation.access.MyOrdersHistoryUiState
-import com.reguerta.user.presentation.access.ReceivedOrdersHistoryUiState
+import com.reguerta.user.presentation.orders.MyOrdersHistoryUiState
+import com.reguerta.user.presentation.orders.ReceivedOrdersHistoryUiState
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.runBlocking

@@ -1,0 +1,425 @@
+package com.reguerta.user.presentation.root
+
+import android.net.Uri
+import com.reguerta.user.R
+import com.reguerta.user.data.media.ImagePipelineManager
+import com.reguerta.user.data.media.ImageUploadNamespace
+import com.reguerta.user.domain.news.NewsArticle
+import com.reguerta.user.domain.news.NewsRepository
+import com.reguerta.user.domain.notifications.NotificationEvent
+import com.reguerta.user.domain.notifications.NotificationRepository
+import com.reguerta.user.domain.notifications.PushNotificationPermissionProvider
+import com.reguerta.user.domain.profiles.SharedProfile
+import com.reguerta.user.domain.profiles.SharedProfileRepository
+import com.reguerta.user.domain.access.canPublishNews
+import com.reguerta.user.domain.access.canSendAdminNotifications
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+internal class SessionCommunityActions(
+    private val uiState: MutableStateFlow<SessionUiState>,
+    private val scope: CoroutineScope,
+    private val newsRepository: NewsRepository,
+    private val notificationRepository: NotificationRepository,
+    private val sharedProfileRepository: SharedProfileRepository,
+    private val imagePipelineManager: ImagePipelineManager,
+    private val nowMillisProvider: () -> Long,
+    private val emitMessage: (Int) -> Unit,
+    private val emitEvent: (SessionUiEvent) -> Unit,
+    private val pushNotificationPermissionProvider: PushNotificationPermissionProvider,
+) {
+    fun refreshSharedProfiles() {
+        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
+        scope.launch {
+            uiState.update { it.copy(isLoadingSharedProfiles = true) }
+            val profiles = sharedProfileRepository.getAllSharedProfiles()
+            val ownProfile = profiles.firstOrNull { it.userId == mode.member.id }
+            uiState.update {
+                val currentMode = it.mode as? SessionMode.Authorized
+                if (currentMode?.principal?.uid != mode.principal.uid) {
+                    it
+                } else {
+                    it.copy(
+                        sharedProfiles = profiles.filter { profile -> profile.hasVisibleContent },
+                        sharedProfileDraft = ownProfile?.toDraft() ?: SharedProfileDraft(),
+                        isLoadingSharedProfiles = false,
+                        isUploadingSharedProfileImage = false,
+                    )
+                }
+            }
+        }
+    }
+
+    fun saveSharedProfile(onSuccess: () -> Unit = {}) {
+        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
+        val draft = uiState.value.sharedProfileDraft.normalized()
+        if (uiState.value.isUploadingSharedProfileImage) {
+            return
+        }
+        if (!draft.hasVisibleContent) {
+            emitMessage(R.string.feedback_shared_profile_content_required)
+            return
+        }
+
+        scope.launch {
+            uiState.update { it.copy(isSavingSharedProfile = true) }
+            val saved = sharedProfileRepository.upsertSharedProfile(
+                SharedProfile(
+                    userId = mode.member.id,
+                    familyNames = draft.familyNames,
+                    photoUrl = draft.photoUrl.ifBlank { null },
+                    about = draft.about,
+                    updatedAtMillis = nowMillisProvider(),
+                ),
+            )
+            val profiles = sharedProfileRepository.getAllSharedProfiles()
+            uiState.update {
+                it.copy(
+                    sharedProfiles = profiles.filter { profile -> profile.hasVisibleContent },
+                    sharedProfileDraft = saved.toDraft(),
+                    isSavingSharedProfile = false,
+                )
+            }
+            onSuccess()
+        }
+    }
+
+    fun deleteSharedProfile(onSuccess: () -> Unit = {}) {
+        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
+        scope.launch {
+            uiState.update { it.copy(isDeletingSharedProfile = true) }
+            val deleted = sharedProfileRepository.deleteSharedProfile(mode.member.id)
+            val profiles = sharedProfileRepository.getAllSharedProfiles()
+            uiState.update {
+                it.copy(
+                    sharedProfiles = profiles.filter { profile -> profile.hasVisibleContent },
+                    sharedProfileDraft = SharedProfileDraft(),
+                    isDeletingSharedProfile = false,
+                )
+            }
+            emitMessage(
+                if (deleted) {
+                    R.string.feedback_shared_profile_deleted
+                } else {
+                    R.string.feedback_shared_profile_delete_failed
+                },
+            )
+            onSuccess()
+        }
+    }
+
+    fun refreshNews() {
+        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
+        scope.launch {
+            uiState.update { it.copy(isLoadingNews = true) }
+            val allNews = newsRepository.getAllNews()
+            val visibleNews = if (mode.member.canPublishNews) {
+                allNews
+            } else {
+                allNews.filter { article -> article.active }
+            }
+            val latestActiveNews = allNews.filter { it.active }.take(3)
+            uiState.update {
+                val currentMode = it.mode as? SessionMode.Authorized
+                if (currentMode?.principal?.uid != mode.principal.uid) {
+                    it
+                } else {
+                    it.copy(
+                        latestNews = latestActiveNews,
+                        newsFeed = visibleNews,
+                        isLoadingNews = false,
+                        isUploadingNewsImage = false,
+                    )
+                }
+            }
+        }
+    }
+
+    fun refreshNotifications() {
+        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
+        scope.launch {
+            uiState.update { it.copy(isLoadingNotifications = true) }
+            val allNotifications = notificationRepository.getAllNotifications()
+            val readNotificationIds = notificationRepository.getReadNotificationIds(mode.member.id)
+            val visibleNotifications = allNotifications.filter { event -> event.isVisibleTo(mode.member) }
+            uiState.update {
+                val currentMode = it.mode as? SessionMode.Authorized
+                if (currentMode?.principal?.uid != mode.principal.uid) {
+                    it
+                } else {
+                    it.copy(
+                        notificationsFeed = visibleNotifications,
+                        readNotificationIds = readNotificationIds,
+                        isLoadingNotifications = false,
+                    )
+                }
+            }
+        }
+    }
+
+    fun prepareNotificationsRoute() {
+        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
+        scope.launch {
+            uiState.update {
+                it.copy(
+                    isLoadingNotifications = true,
+                    showPushNotificationPermissionDialog = false,
+                )
+            }
+            val allNotifications = notificationRepository.getAllNotifications()
+            val readNotificationIds = notificationRepository.getReadNotificationIds(mode.member.id)
+            val isPermissionActive = pushNotificationPermissionProvider.isPushNotificationPermissionActive()
+            val visibleNotifications = allNotifications.filter { event -> event.isVisibleTo(mode.member) }
+            uiState.update {
+                val currentMode = it.mode as? SessionMode.Authorized
+                if (currentMode?.principal?.uid != mode.principal.uid) {
+                    it
+                } else {
+                    it.copy(
+                        notificationsFeed = visibleNotifications,
+                        readNotificationIds = readNotificationIds,
+                        isLoadingNotifications = false,
+                        isPushNotificationPermissionActive = isPermissionActive,
+                        showPushNotificationPermissionDialog = !isPermissionActive,
+                    )
+                }
+            }
+        }
+    }
+
+    fun markVisibleNotificationsReadOnExit() {
+        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
+        val unreadIds = uiState.value.notificationsFeed
+            .map { it.id }
+            .filter { it !in uiState.value.readNotificationIds }
+            .toSet()
+        if (unreadIds.isEmpty()) return
+
+        scope.launch {
+            notificationRepository.markNotificationsRead(
+                memberId = mode.member.id,
+                notificationIds = unreadIds,
+                readAtMillis = nowMillisProvider(),
+            )
+            uiState.update {
+                val currentMode = it.mode as? SessionMode.Authorized
+                if (currentMode?.principal?.uid != mode.principal.uid) {
+                    it
+                } else {
+                    it.copy(readNotificationIds = it.readNotificationIds + unreadIds)
+                }
+            }
+        }
+    }
+
+    fun dismissPushNotificationPermissionDialog() {
+        uiState.update { it.copy(showPushNotificationPermissionDialog = false) }
+    }
+
+    fun openPushNotificationSettings() {
+        uiState.update { it.copy(showPushNotificationPermissionDialog = false) }
+        emitEvent(SessionUiEvent.OpenPushNotificationSettings)
+    }
+
+    fun saveNews(onSuccess: (NewsSaveResult) -> Unit = {}) {
+        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
+        if (!mode.member.canPublishNews) {
+            emitMessage(R.string.feedback_only_admin_publish_news)
+            return
+        }
+        if (uiState.value.isUploadingNewsImage) {
+            return
+        }
+
+        val draft = uiState.value.newsDraft
+        if (draft.title.trim().isBlank() || draft.body.trim().isBlank()) {
+            emitMessage(R.string.feedback_news_title_body_required)
+            return
+        }
+
+        scope.launch {
+            uiState.update { it.copy(isSavingNews = true) }
+            val nowMillis = nowMillisProvider()
+            val existing = uiState.value.newsFeed.firstOrNull { it.id == uiState.value.editingNewsId }
+            val saved = newsRepository.upsertNews(
+                NewsArticle(
+                    id = uiState.value.editingNewsId.orEmpty(),
+                    title = draft.title.trim(),
+                    body = draft.body.trim(),
+                    active = draft.active,
+                    publishedBy = existing?.publishedBy ?: mode.member.displayName,
+                    publishedAtMillis = existing?.publishedAtMillis ?: nowMillis,
+                    urlImage = draft.urlImage.trim().ifBlank { null },
+                ),
+            )
+            val allNews = newsRepository.getAllNews()
+            val visibleNews = allNews
+            val latestActiveNews = allNews.filter { it.active }.take(3)
+            val isNew = existing == null
+            uiState.update {
+                it.copy(
+                    latestNews = latestActiveNews,
+                    newsFeed = visibleNews,
+                    newsDraft = NewsDraft(
+                        title = saved.title,
+                        body = saved.body,
+                        urlImage = saved.urlImage.orEmpty(),
+                        active = saved.active,
+                    ),
+                    editingNewsId = saved.id,
+                    isSavingNews = false,
+                )
+            }
+            onSuccess(NewsSaveResult(newsId = saved.id, isNew = isNew))
+        }
+    }
+
+    fun uploadNewsImageFromUri(sourceUri: Uri) {
+        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
+        if (!mode.member.canPublishNews) {
+            emitMessage(R.string.feedback_only_admin_publish_news)
+            return
+        }
+        scope.launch {
+            uiState.update { it.copy(isUploadingNewsImage = true) }
+            val currentState = uiState.value
+            val uploaded = imagePipelineManager.processAndUpload(
+                sourceUri = sourceUri,
+                ownerId = mode.member.id,
+                namespace = ImageUploadNamespace.NEWS,
+                entityId = currentState.editingNewsId,
+                nameHint = currentState.newsDraft.title,
+            )
+            if (uploaded == null) {
+                uiState.update { it.copy(isUploadingNewsImage = false) }
+                emitMessage(R.string.feedback_news_image_upload_failed)
+                return@launch
+            }
+            uiState.update {
+                it.copy(
+                    newsDraft = it.newsDraft.copy(urlImage = uploaded.downloadUrl),
+                    isUploadingNewsImage = false,
+                )
+            }
+            emitMessage(R.string.feedback_news_image_uploaded)
+        }
+    }
+
+    fun clearNewsImage() {
+        uiState.update {
+            it.copy(
+                newsDraft = it.newsDraft.copy(urlImage = ""),
+            )
+        }
+    }
+
+    fun uploadSharedProfileImageFromUri(sourceUri: Uri) {
+        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
+        scope.launch {
+            uiState.update { it.copy(isUploadingSharedProfileImage = true) }
+            val uploaded = imagePipelineManager.processAndUpload(
+                sourceUri = sourceUri,
+                ownerId = mode.member.id,
+                namespace = ImageUploadNamespace.SHARED_PROFILES,
+                entityId = mode.member.id,
+                nameHint = mode.member.displayName,
+            )
+            if (uploaded == null) {
+                uiState.update { it.copy(isUploadingSharedProfileImage = false) }
+                emitMessage(R.string.feedback_shared_profile_image_upload_failed)
+                return@launch
+            }
+            uiState.update {
+                it.copy(
+                    sharedProfileDraft = it.sharedProfileDraft.copy(photoUrl = uploaded.downloadUrl),
+                    isUploadingSharedProfileImage = false,
+                )
+            }
+            emitMessage(R.string.feedback_shared_profile_image_uploaded)
+        }
+    }
+
+    fun clearSharedProfileImage() {
+        uiState.update {
+            it.copy(
+                sharedProfileDraft = it.sharedProfileDraft.copy(photoUrl = ""),
+            )
+        }
+    }
+
+    fun deleteNews(
+        newsId: String,
+        onSuccess: () -> Unit = {},
+    ) {
+        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
+        if (!mode.member.canPublishNews) {
+            emitMessage(R.string.feedback_only_admin_delete_news)
+            return
+        }
+
+        scope.launch {
+            val deleted = newsRepository.deleteNews(newsId)
+            if (!deleted) {
+                emitMessage(R.string.feedback_news_delete_failed)
+                return@launch
+            }
+            val allNews = newsRepository.getAllNews()
+            uiState.update {
+                it.copy(
+                    latestNews = allNews.filter { article -> article.active }.take(3),
+                    newsFeed = allNews,
+                    newsDraft = if (it.editingNewsId == newsId) NewsDraft() else it.newsDraft,
+                    editingNewsId = if (it.editingNewsId == newsId) null else it.editingNewsId,
+                )
+            }
+            emitMessage(R.string.feedback_news_deleted)
+            onSuccess()
+        }
+    }
+
+    fun sendNotification(onSuccess: () -> Unit = {}) {
+        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
+        if (!mode.member.canSendAdminNotifications) {
+            emitMessage(R.string.feedback_only_admin_send_notification)
+            return
+        }
+
+        val draft = uiState.value.notificationDraft
+        if (draft.title.trim().isBlank() || draft.body.trim().isBlank()) {
+            emitMessage(R.string.feedback_notification_title_body_required)
+            return
+        }
+
+        scope.launch {
+            uiState.update { it.copy(isSendingNotification = true) }
+            notificationRepository.sendNotification(
+                NotificationEvent(
+                    id = "",
+                    title = draft.title.trim(),
+                    body = draft.body.trim(),
+                    type = "admin_broadcast",
+                    target = draft.audience.toTarget(),
+                    userIds = emptyList(),
+                    segmentType = draft.audience.toSegmentType(),
+                    targetRole = draft.audience.toTargetRole(),
+                    createdBy = mode.member.id,
+                    sentAtMillis = nowMillisProvider(),
+                    weekKey = null,
+                ),
+            )
+            val allNotifications = notificationRepository.getAllNotifications()
+            val readNotificationIds = notificationRepository.getReadNotificationIds(mode.member.id)
+            uiState.update {
+                it.copy(
+                    notificationsFeed = allNotifications.filter { event -> event.isVisibleTo(mode.member) },
+                    readNotificationIds = readNotificationIds,
+                    notificationDraft = NotificationDraft(),
+                    isSendingNotification = false,
+                )
+            }
+            onSuccess()
+        }
+    }
+}

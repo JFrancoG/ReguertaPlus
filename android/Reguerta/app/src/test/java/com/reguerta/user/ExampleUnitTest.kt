@@ -5,7 +5,7 @@ import com.reguerta.user.data.notifications.InMemoryNotificationRepository
 import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.notifications.NotificationAudience
 import com.reguerta.user.domain.notifications.NotificationEvent
-import com.reguerta.user.presentation.access.SessionUiState
+import com.reguerta.user.presentation.root.SessionUiState
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import org.junit.Assert.assertEquals
