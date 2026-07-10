@@ -12,7 +12,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
-import com.reguerta.user.presentation.access.ReguertaRoot
+import com.reguerta.user.presentation.root.ReguertaRoot
 import com.reguerta.user.ui.theme.ReguertaTheme
 
 class MainActivity : ComponentActivity() {
