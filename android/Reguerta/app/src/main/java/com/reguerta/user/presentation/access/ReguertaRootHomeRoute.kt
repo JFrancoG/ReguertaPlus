@@ -389,6 +389,7 @@ internal fun HomeRoute(
                             stringResource(R.string.news_editor_title_edit)
                         }
                         currentDestination == HomeDestination.NOTIFICATIONS -> ""
+                        currentDestination == HomeDestination.SHIFTS -> ""
                         currentDestination == HomeDestination.PROFILE && !sharedProfileTitleOverride.isNullOrBlank() -> {
                             sharedProfileTitleOverride.orEmpty()
                         }

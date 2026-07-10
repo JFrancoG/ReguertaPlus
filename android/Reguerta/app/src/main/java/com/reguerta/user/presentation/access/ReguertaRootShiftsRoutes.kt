@@ -2,12 +2,15 @@ package com.reguerta.user.presentation.access
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -18,7 +21,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -35,6 +37,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.reguerta.user.R
@@ -89,6 +92,13 @@ fun ShiftsRoute(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        Text(
+            text = stringResource(R.string.shifts_title),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.semantics { heading() },
+        )
+
         if (hasShiftSwapActivity) {
             ShiftSwapRequestsCard(
                 requests = shiftSwapRequests,
@@ -169,12 +179,16 @@ private fun MyNextShiftsSection(
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             text = stringResource(R.string.shifts_next_title),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.semantics { heading() },
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Normal,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { heading() },
         )
 
         if (isLoading) {
@@ -182,6 +196,8 @@ private fun MyNextShiftsSection(
                 text = stringResource(R.string.shifts_loading),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
             )
         } else {
             ReguertaCard(
@@ -190,22 +206,25 @@ private fun MyNextShiftsSection(
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.Top,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
                             text = stringResource(R.string.shifts_type_delivery),
-                            style = MaterialTheme.typography.titleSmall,
+                            style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary,
+                            textAlign = TextAlign.Center,
                             modifier = Modifier.weight(1f),
                         )
                         Column(
                             modifier = Modifier.weight(2f),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             NextShiftDateLine(
                                 label = stringResource(R.string.shifts_next_delivery_helper),
@@ -223,20 +242,22 @@ private fun MyNextShiftsSection(
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.Top,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
                             text = stringResource(R.string.shifts_type_market),
-                            style = MaterialTheme.typography.titleSmall,
+                            style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary,
+                            textAlign = TextAlign.Center,
                             modifier = Modifier.weight(1f),
                         )
                         Text(
                             text = marketShift.shiftShortDateLabel(deliveryCalendarOverrides),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Normal,
                             color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center,
                             modifier = Modifier.weight(2f),
                         )
                     }
@@ -254,10 +275,11 @@ private fun NextShiftDateLine(
     modifier: Modifier = Modifier,
 ): Unit = Text(
     text = "$value $label",
-    modifier = modifier,
-    style = if (prominent) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium,
-    fontWeight = if (prominent) FontWeight.SemiBold else FontWeight.Normal,
+    modifier = modifier.fillMaxWidth(),
+    style = if (prominent) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall,
+    fontWeight = FontWeight.Normal,
     color = MaterialTheme.colorScheme.onSurface,
+    textAlign = TextAlign.Center,
 )
 
 @Composable
@@ -342,6 +364,7 @@ private fun ShiftBoardSection(
                     ) { shift ->
                         ShiftBoardCard(
                             shift = shift,
+                            deliveryShifts = deliveryShifts,
                             deliveryCalendarOverrides = deliveryCalendarOverrides,
                             members = members,
                             currentMemberId = currentMemberId,
@@ -370,11 +393,10 @@ private fun ShiftBoardSegmentSelector(
     ) {
         ShiftBoardSegment.entries.forEach { segment ->
             val isSelected = selectedSegment == segment
-            TextButton(
-                onClick = { onSegmentSelected(segment) },
+            Box(
                 modifier = Modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(RoundedCornerShape(18.dp))
                     .semantics { selected = isSelected }
                     .background(
                         if (isSelected) {
@@ -382,10 +404,14 @@ private fun ShiftBoardSegmentSelector(
                         } else {
                             MaterialTheme.colorScheme.surface.copy(alpha = 0f)
                         }
-                    ),
+                    )
+                    .clickable { onSegmentSelected(segment) }
+                    .padding(vertical = 7.dp, horizontal = 8.dp),
+                contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = stringResource(segment.labelRes),
+                    style = MaterialTheme.typography.bodyLarge,
                     color = if (isSelected) {
                         MaterialTheme.colorScheme.primary
                     } else {
@@ -401,20 +427,24 @@ private fun ShiftBoardSegmentSelector(
 @Composable
 private fun ShiftBoardCard(
     shift: ShiftAssignment,
+    deliveryShifts: List<ShiftAssignment>,
     deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
     members: List<Member>,
     currentMemberId: String?,
     containerColor: Color,
     onRequestShiftSwap: (String) -> Unit,
 ) {
-    val primaryNames = shift.primaryBoardNames(members)
+    val resolvedHelperUserId = remember(shift, deliveryShifts) {
+        deliveryShifts.resolvedHelperUserIdFor(shift)
+    }
+    val primaryNames = shift.primaryBoardNames(members, resolvedHelperUserId)
     val leftLines = shift.leftBoardLines(deliveryCalendarOverrides)
     val leftAlignment = if (shift.type == ShiftType.MARKET) Alignment.CenterHorizontally else Alignment.Start
     val canRequestShiftSwap = remember(shift, currentMemberId, deliveryCalendarOverrides) {
         currentMemberId != null && shift.canBeRequestedBy(currentMemberId, deliveryCalendarOverrides)
     }
-    val highlightedIndex = remember(shift, currentMemberId) {
-        currentMemberId?.let { shift.highlightedBoardNameIndex(it) }
+    val highlightedIndex = remember(shift, currentMemberId, resolvedHelperUserId) {
+        currentMemberId?.let { shift.highlightedBoardNameIndex(it, resolvedHelperUserId) }
     }
     Card(
         colors = CardDefaults.cardColors(containerColor = containerColor),
@@ -427,10 +457,11 @@ private fun ShiftBoardCard(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(
-                    modifier = Modifier.weight(0.38f),
+                    modifier = Modifier.weight(0.30f),
                     horizontalAlignment = leftAlignment,
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
@@ -446,7 +477,7 @@ private fun ShiftBoardCard(
                 }
 
                 Column(
-                    modifier = Modifier.weight(0.62f),
+                    modifier = Modifier.weight(0.70f),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     primaryNames.forEachIndexed { index, name ->
@@ -466,6 +497,8 @@ private fun ShiftBoardCard(
                             } else {
                                 MaterialTheme.colorScheme.onSurface
                             },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                     if (shift.status != ShiftStatus.PLANNED) {
@@ -478,12 +511,19 @@ private fun ShiftBoardCard(
                 }
             }
             if (highlightedIndex != null && canRequestShiftSwap) {
-                ReguertaButton(
-                    label = stringResource(R.string.shift_swap_request_button_label),
-                    variant = ReguertaButtonVariant.SECONDARY,
-                    fullWidth = false,
-                    onClick = { onRequestShiftSwap(shift.id) },
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    ReguertaButton(
+                        label = stringResource(R.string.shift_swap_request_button_label),
+                        variant = ReguertaButtonVariant.SECONDARY,
+                        modifier = Modifier.widthIn(min = 192.dp),
+                        cornerRadius = 999.dp,
+                        fullWidth = false,
+                        onClick = { onRequestShiftSwap(shift.id) },
+                    )
+                }
             }
         }
     }

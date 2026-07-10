@@ -53,20 +53,25 @@ private struct MyNextShiftsSectionView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+        VStack(alignment: .center, spacing: tokens.spacing.sm) {
             Text(localizedKey(AccessL10nKey.shiftsNextTitle))
-                .font(tokens.typography.titleCard)
+                .font(tokens.typography.body)
+                .fontWeight(.regular)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, alignment: .center)
                 .accessibilityAddTraits(.isHeader)
 
             if viewModel.isLoadingShifts {
                 Text(localizedKey(AccessL10nKey.shiftsLoading))
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity, alignment: .center)
             } else {
                 reguertaCard {
-                    VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                    VStack(alignment: .center, spacing: tokens.spacing.sm) {
                         nextShiftRow(titleKey: AccessL10nKey.shiftsTypeDelivery) {
-                            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                            VStack(alignment: .center, spacing: tokens.spacing.sm) {
                                 nextDateLine(
                                     titleKey: AccessL10nKey.shiftsNextDeliveryHelper,
                                     value: dateLabel(viewModel.nextDeliveryHelperShift),
@@ -83,9 +88,10 @@ private struct MyNextShiftsSectionView: View {
                             .overlay(tokens.colors.borderSubtle.opacity(0.65))
                         nextShiftRow(titleKey: AccessL10nKey.shiftsTypeMarket) {
                             Text(dateLabel(viewModel.nextMarketAssignedShift))
-                                .font(tokens.typography.titleCard)
-                                .fontWeight(.semibold)
+                                .font(tokens.typography.bodySecondary)
+                                .fontWeight(.regular)
                                 .foregroundStyle(tokens.colors.textPrimary)
+                                .multilineTextAlignment(.center)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.82)
                         }
@@ -94,30 +100,32 @@ private struct MyNextShiftsSectionView: View {
                 .accessibilityElement(children: .combine)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private func nextShiftRow<Content: View>(
         titleKey: String,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        HStack(alignment: .top, spacing: tokens.spacing.lg) {
+        HStack(alignment: .center, spacing: tokens.spacing.lg) {
             Text(localizedKey(titleKey))
                 .font(tokens.typography.body.weight(.semibold))
                 .foregroundStyle(tokens.colors.actionPrimary)
-                .frame(width: 104, alignment: .leading)
+                .multilineTextAlignment(.center)
+                .frame(width: 104, alignment: .center)
 
             content()
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .center)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private func nextDateLine(titleKey: String, value: String, prominent: Bool) -> some View {
         Text("\(value) \(l10n(titleKey))")
-            .font(prominent ? tokens.typography.titleCard : tokens.typography.bodySecondary)
-            .fontWeight(prominent ? .semibold : .regular)
+            .font(prominent ? tokens.typography.body : tokens.typography.bodySecondary)
+            .fontWeight(.regular)
             .foregroundStyle(tokens.colors.textPrimary)
+            .multilineTextAlignment(.center)
             .lineLimit(1)
             .minimumScaleFactor(0.82)
     }

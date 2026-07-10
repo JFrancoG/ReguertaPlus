@@ -54,6 +54,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-07-10 | 🐛 fix(shifts): align helper assignments
 - 2026-07-08 | 🐛 fix(android-orders): polish order cards
 - 2026-07-07 | 🐛 fix(ui): polish drawer and mobile spacing
 - 2026-07-07 | 🐛 fix(home): align weekly delivery summary
@@ -94,6 +95,7 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-07-10 | 📝 docs(shifts): link HU-063 pull request
 - 2026-05-03 | 📝 docs(design): refine home drawer proposal
 - 2026-05-03 | 📝 docs(design): add home drawer proposal
 - 2026-05-03 | 📝 docs(design): add home dashboard proposal

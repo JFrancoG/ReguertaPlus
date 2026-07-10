@@ -82,7 +82,7 @@
     <string name="home_shell_badge_soon">Pronto</string>
     <string name="home_shell_weekly_title">Contexto semanal</string>
     <string name="home_shell_weekly_responsible">Responsable</string>
-    <string name="home_shell_weekly_support">Ayudante</string>
+    <string name="home_shell_weekly_support">Apoyo</string>
     <string name="home_shell_weekly_main_producer">Productor principal</string>
     <string name="home_shell_weekly_delivery">Día de reparto</string>
     <string name="home_shell_weekly_delivery_default">Miércoles</string>
@@ -110,8 +110,8 @@
     <string name="shifts_next_title">Mis próximos turnos</string>
     <string name="shifts_next_subtitle">Consulta tu próximo reparto y tu próximo mercado.</string>
     <string name="shifts_next_delivery">Próximo reparto</string>
-    <string name="shifts_next_delivery_lead">Encargado</string>
-    <string name="shifts_next_delivery_helper">Ayudante</string>
+    <string name="shifts_next_delivery_lead">Responsable</string>
+    <string name="shifts_next_delivery_helper">Apoyo</string>
     <string name="shifts_next_market">Próximo mercado</string>
     <string name="shifts_next_pending">Pendiente de asignación</string>
     <string name="shifts_view_all">Ver todos los turnos</string>
@@ -158,7 +158,7 @@
     <string name="shift_swap_request_status_applied">Aplicada</string>
     <string name="feedback_shift_swap_no_candidates">Todavía no hay socios futuros válidos a los que pedir el cambio.</string>
     <string name="shifts_assigned_members_format">Asignados: %1$s</string>
-    <string name="shifts_helper_format">Ayudante: %1$s</string>
+    <string name="shifts_helper_format">Apoyo: %1$s</string>
     <string name="home_shell_news_title">Últimas noticias</string>
     <string name="home_shell_news_intro">Este espacio queda preparado para mostrar las últimas novedades de la comunidad.</string>
     <string name="home_shell_news_item_one">Aquí aparecerán avisos semanales y cambios de reparto.</string>
@@ -202,7 +202,7 @@
     <string name="users_editor_title_edit">Actualizar regüertense</string>
     <string name="users_editor_company_name_label">Nombre de la empresa</string>
     <string name="users_editor_phone_label">Teléfono</string>
-    <string name="users_editor_common_purchase_manager_label">Socio encargado de compras comunes</string>
+    <string name="users_editor_common_purchase_manager_label">Socio responsable de compras comunes</string>
     <string name="users_editor_save_action_create">Autorizar</string>
     <string name="users_editor_save_action_update">Actualizar</string>
     <string name="users_card_action_edit">Editar usuario</string>

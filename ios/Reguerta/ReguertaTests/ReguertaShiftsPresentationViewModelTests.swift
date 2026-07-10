@@ -16,9 +16,8 @@ struct ReguertaShiftsPresentationViewModelTests {
         let helperDelivery = shift(
             id: "helper_delivery",
             type: .delivery,
-            dateMillis: testMillis(year: 2026, month: 5, day: 15),
-            assignedUserIds: ["member_2"],
-            helperUserId: currentMember.id
+            dateMillis: testMillis(year: 2026, month: 5, day: 1),
+            assignedUserIds: ["member_2"]
         )
         let market = shift(
             id: "market_assigned",
@@ -38,6 +37,69 @@ struct ReguertaShiftsPresentationViewModelTests {
         #expect(viewModel.nextDeliveryLeadShift?.id == leadDelivery.id)
         #expect(viewModel.nextDeliveryHelperShift?.id == helperDelivery.id)
         #expect(viewModel.nextMarketAssignedShift?.id == market.id)
+    }
+
+    @Test
+    func shiftsViewModelDerivesTodayHelperFromFollowingLeadShift() async {
+        let currentMember = shiftMember(id: "nohemi", displayName: "Nohemi")
+        let helperDelivery = shift(
+            id: "delivery_2026_w28",
+            type: .delivery,
+            dateMillis: testMillis(year: 2026, month: 7, day: 8),
+            assignedUserIds: ["mercedes"]
+        )
+        let leadDelivery = shift(
+            id: "delivery_2026_w29",
+            type: .delivery,
+            dateMillis: testMillis(year: 2026, month: 7, day: 15),
+            assignedUserIds: [currentMember.id]
+        )
+        let viewModel = makeShiftsViewModel(
+            currentMember: currentMember,
+            members: [currentMember],
+            shiftRepository: InMemoryShiftRepository(items: [helperDelivery, leadDelivery]),
+            nowMillisProvider: { testMillis(year: 2026, month: 7, day: 10) + 15 * 60 * 60 * 1_000 }
+        )
+
+        await viewModel.refreshShifts()
+
+        #expect(viewModel.nextDeliveryHelperShift?.id == helperDelivery.id)
+        #expect(viewModel.nextDeliveryLeadShift?.id == leadDelivery.id)
+        #expect(viewModel.resolvedHelperUserId(for: helperDelivery) == currentMember.id)
+        #expect(viewModel.boardNames(for: helperDelivery).last == currentMember.displayName)
+        #expect(viewModel.highlightedBoardNameIndex(for: helperDelivery, currentMemberId: currentMember.id) == 1)
+    }
+
+    @Test
+    func shiftsViewModelUsesFollowingLeadOverPersistedHelperForBoardNames() async {
+        let currentMember = shiftMember(id: "nohemi", displayName: "Nohemi")
+        let followingLead = shiftMember(id: "pedro", displayName: "Pedro")
+        let delivery = shift(
+            id: "delivery_2026_w29",
+            type: .delivery,
+            dateMillis: testMillis(year: 2026, month: 7, day: 15),
+            assignedUserIds: [currentMember.id],
+            helperUserId: "stale_helper"
+        )
+        let nextDelivery = shift(
+            id: "delivery_2026_w30",
+            type: .delivery,
+            dateMillis: testMillis(year: 2026, month: 7, day: 22),
+            assignedUserIds: [followingLead.id],
+            helperUserId: "stale_last_helper"
+        )
+        let viewModel = makeShiftsViewModel(
+            currentMember: currentMember,
+            members: [currentMember, followingLead],
+            shiftRepository: InMemoryShiftRepository(items: [delivery, nextDelivery]),
+            nowMillisProvider: { testMillis(year: 2026, month: 7, day: 10) }
+        )
+
+        await viewModel.refreshShifts()
+
+        #expect(viewModel.resolvedHelperUserId(for: delivery) == followingLead.id)
+        #expect(viewModel.boardNames(for: delivery).last == followingLead.displayName)
+        #expect(viewModel.resolvedHelperUserId(for: nextDelivery) == nil)
     }
 
     @Test

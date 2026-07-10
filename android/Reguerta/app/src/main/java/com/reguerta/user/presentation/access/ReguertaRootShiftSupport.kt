@@ -74,7 +74,7 @@ internal fun ShiftAssignment.leftBoardLines(overrides: List<DeliveryCalendarOver
         val localDate = effectiveDateMillis(overrides).toLocalDate()
         listOf(
             ShiftBoardLine(
-                text = localDate.toLocalizedMonthLabel(),
+                text = localDate.toLocalizedMonthYearLabel(),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -93,10 +93,13 @@ internal fun ShiftAssignment.leftBoardLines(overrides: List<DeliveryCalendarOver
     }
 }
 
-internal fun ShiftAssignment.primaryBoardNames(members: List<Member>): List<String> = when (type) {
+internal fun ShiftAssignment.primaryBoardNames(
+    members: List<Member>,
+    resolvedHelperUserId: String?,
+): List<String> = when (type) {
     ShiftType.DELIVERY -> buildList {
         assignedUserIds.firstOrNull()?.let { add(members.displayNameFor(it)) }
-        add(helperUserId?.let { members.displayNameFor(it) } ?: "—")
+        add(resolvedHelperUserId?.let { members.displayNameFor(it) } ?: "—")
     }.ifEmpty { listOf("—", "—") }
     ShiftType.MARKET -> assignedUserIds
         .map { memberId -> members.displayNameFor(memberId) }
@@ -109,6 +112,18 @@ internal fun ShiftAssignment.primaryBoardNames(members: List<Member>): List<Stri
         }
 }
 
+internal fun List<ShiftAssignment>.resolvedHelperUserIdFor(shift: ShiftAssignment): String? {
+    if (shift.type != ShiftType.DELIVERY) return null
+
+    return asSequence()
+        .filter { candidate ->
+            candidate.type == ShiftType.DELIVERY && candidate.dateMillis > shift.dateMillis
+        }
+        .minByOrNull { candidate -> candidate.dateMillis }
+        ?.assignedUserIds
+        ?.firstOrNull()
+}
+
 internal fun ShiftAssignment.canBeRequestedBy(
     currentMemberId: String,
     overrides: List<DeliveryCalendarOverride>,
@@ -119,10 +134,13 @@ internal fun ShiftAssignment.canBeRequestedBy(
         assignedUserIds.contains(currentMemberId)
 }
 
-internal fun ShiftAssignment.highlightedBoardNameIndex(currentMemberId: String): Int? = when (type) {
+internal fun ShiftAssignment.highlightedBoardNameIndex(
+    currentMemberId: String,
+    resolvedHelperUserId: String?,
+): Int? = when (type) {
     ShiftType.DELIVERY -> when {
         assignedUserIds.firstOrNull() == currentMemberId -> 0
-        helperUserId == currentMemberId -> 1
+        resolvedHelperUserId == currentMemberId -> 1
         else -> null
     }
     ShiftType.MARKET -> assignedUserIds.indexOf(currentMemberId).takeIf { it >= 0 }
@@ -137,7 +155,7 @@ internal fun List<ShiftAssignment>.nextDeliveryLeadShift(
         .filter { shift ->
             shift.type == ShiftType.DELIVERY &&
                 shift.assignedUserIds.firstOrNull() == memberId &&
-                shift.effectiveDateMillis(overrides) >= nowMillis
+                shift.isUpcomingEffectiveDay(overrides, nowMillis)
         }
         .minByOrNull { shift -> shift.effectiveDateMillis(overrides) }
 
@@ -146,13 +164,13 @@ internal fun List<ShiftAssignment>.nextDeliveryHelperShift(
     overrides: List<DeliveryCalendarOverride>,
     nowMillis: Long,
 ): ShiftAssignment? =
-    asSequence()
-        .filter { shift ->
-            shift.type == ShiftType.DELIVERY &&
-                shift.helperUserId == memberId &&
-                shift.effectiveDateMillis(overrides) >= nowMillis
-        }
-        .minByOrNull { shift -> shift.effectiveDateMillis(overrides) }
+    nextDeliveryLeadShift(memberId, overrides, nowMillis)?.let { nextLeadShift ->
+        asSequence()
+            .filter { shift ->
+                shift.type == ShiftType.DELIVERY && shift.dateMillis < nextLeadShift.dateMillis
+            }
+            .maxByOrNull { shift -> shift.dateMillis }
+    }
 
 internal fun List<ShiftAssignment>.nextMarketAssignedShift(
     memberId: String,
@@ -163,7 +181,7 @@ internal fun List<ShiftAssignment>.nextMarketAssignedShift(
         .filter { shift ->
             shift.type == ShiftType.MARKET &&
                 shift.assignedUserIds.contains(memberId) &&
-                shift.effectiveDateMillis(overrides) >= nowMillis
+                shift.isUpcomingEffectiveDay(overrides, nowMillis)
         }
         .minByOrNull { shift -> shift.effectiveDateMillis(overrides) }
 
@@ -318,9 +336,20 @@ private fun LocalDate.toLocalizedBoardDate(): String {
     return "$weekday $dayOfMonth $month"
 }
 
-private fun LocalDate.toLocalizedMonthLabel(): String {
+private fun ShiftAssignment.isUpcomingEffectiveDay(
+    overrides: List<DeliveryCalendarOverride>,
+    nowMillis: Long,
+): Boolean =
+    effectiveDateMillis(overrides).toLocalDate() >= nowMillis.toLocalDate()
+
+private fun LocalDate.toLocalizedMonthYearLabel(): String {
     val locale = Locale.getDefault()
-    return month.getDisplayName(TextStyle.FULL, locale).toTitleCase(locale)
+    val monthLabel = month
+        .getDisplayName(TextStyle.SHORT, locale)
+        .trimEnd('.')
+        .take(3)
+        .toTitleCase(locale)
+    return "$monthLabel $year"
 }
 
 private fun LocalDate.toLocalizedWeekdayLabel(): String {

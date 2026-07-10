@@ -110,8 +110,8 @@
     <string name="shifts_next_title">My next shifts</string>
     <string name="shifts_next_subtitle">Keep track of your upcoming delivery and market assignments.</string>
     <string name="shifts_next_delivery">Next delivery</string>
-    <string name="shifts_next_delivery_lead">Lead</string>
-    <string name="shifts_next_delivery_helper">Helper</string>
+    <string name="shifts_next_delivery_lead">Responsible</string>
+    <string name="shifts_next_delivery_helper">Support</string>
     <string name="shifts_next_market">Next market</string>
     <string name="shifts_next_pending">Pending assignment</string>
     <string name="shifts_view_all">View all shifts</string>
@@ -158,7 +158,7 @@
     <string name="shift_swap_request_status_applied">Applied</string>
     <string name="feedback_shift_swap_no_candidates">There are no eligible future members to request a swap from yet.</string>
     <string name="shifts_assigned_members_format">Assigned: %1$s</string>
-    <string name="shifts_helper_format">Helper: %1$s</string>
+    <string name="shifts_helper_format">Support: %1$s</string>
     <string name="home_shell_news_title">Latest news</string>
     <string name="home_shell_news_intro">This space is ready for the latest community updates.</string>
     <string name="home_shell_news_item_one">Weekly notices and delivery changes will appear here.</string>
@@ -202,7 +202,7 @@
     <string name="users_editor_title_edit">Update Regüertense</string>
     <string name="users_editor_company_name_label">Company name</string>
     <string name="users_editor_phone_label">Phone number</string>
-    <string name="users_editor_common_purchase_manager_label">Member in charge of common purchases</string>
+    <string name="users_editor_common_purchase_manager_label">Member responsible for common purchases</string>
     <string name="users_editor_save_action_create">Authorize</string>
     <string name="users_editor_save_action_update">Update</string>
     <string name="users_card_action_edit">Edit user</string>
