@@ -766,6 +766,7 @@ internal fun HomeRoute(
                         onQueryChanged = onBylawsQueryChanged,
                         onAsk = onAskBylawsQuestion,
                         onClear = onClearBylawsResult,
+                        isDevelopBuild = isDevelopImpersonationEnabled,
                     )
 
                     }

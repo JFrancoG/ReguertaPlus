@@ -699,13 +699,30 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ask bylaws AI"
+            "value" : "Find answer"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Consultar IA de estatutos"
+            "value" : "Buscar respuesta"
+          }
+        }
+      }
+    },
+    "bylaws.answer.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Answer"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Respuesta"
           }
         }
       }
@@ -733,13 +750,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Question"
+            "value" : "What would you like to know?"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pregunta"
+            "value" : "¿Qué quieres saber?"
           }
         }
       }
@@ -750,13 +767,30 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Example: Duties of members"
+            "value" : "For example: What are members’ rights?"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ejemplo: deberes de las personas asociadas"
+            "value" : "Por ejemplo: ¿Cuáles son los derechos de las personas asociadas?"
+          }
+        }
+      }
+    },
+    "bylaws.develop_details.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Development details"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detalles de desarrollo"
           }
         }
       }
@@ -818,13 +852,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open full PDF"
+            "value" : "Read the full bylaws"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Abrir PDF completo"
+            "value" : "Consultar los estatutos completos"
           }
         }
       }
@@ -886,13 +920,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ask about the bylaws. Regular questions are answered locally, complex ones may escalate to cloud mode."
+            "value" : "Get clear answers to questions about Regüerta’s bylaws. Enter a question to find the relevant information or open the full document."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Haz preguntas sobre los estatutos. Las preguntas habituales se responden en local y las complejas pueden escalar a nube."
+            "value" : "Resuelve tus dudas sobre los estatutos de Regüerta. Escribe una pregunta para encontrar la información que necesitas o consulta el documento completo."
           }
         }
       }

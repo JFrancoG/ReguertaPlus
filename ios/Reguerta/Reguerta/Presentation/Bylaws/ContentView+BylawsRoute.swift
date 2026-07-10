@@ -5,7 +5,8 @@ extension AccessRootRoutingView {
     var bylawsRoute: some View {
         BylawsRouteView(
             tokens: tokens,
-            viewModel: rootViewModel.bylawsViewModel
+            viewModel: rootViewModel.bylawsViewModel,
+            isDevelopBuild: viewModel.isDevelopImpersonationEnabled
         )
     }
 }
@@ -13,12 +14,13 @@ extension AccessRootRoutingView {
 private struct BylawsRouteView: View {
     let tokens: ReguertaDesignTokens
     let viewModel: BylawsFeatureViewModel
+    let isDevelopBuild: Bool
 
     @State private var isPdfPresented = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-            reguertaCard {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: tokens.spacing.lg) {
                 VStack(alignment: .leading, spacing: tokens.spacing.md) {
                     Text(LocalizedStringKey(AccessL10nKey.bylawsSubtitle))
                         .font(tokens.typography.bodySecondary)
@@ -28,49 +30,49 @@ private struct BylawsRouteView: View {
                         .font(tokens.typography.label)
                         .foregroundStyle(tokens.colors.textSecondary)
 
-                    TextField(
-                        "",
-                        text: Binding(
+                    BylawsQuestionComposerView(
+                        tokens: tokens,
+                        query: Binding(
                             get: { viewModel.queryInput },
                             set: { viewModel.queryInput = $0 }
                         ),
-                        prompt: Text(LocalizedStringKey(AccessL10nKey.bylawsInputPlaceholder)),
-                        axis: .vertical
-                    )
-                    .textFieldStyle(.roundedBorder)
-                    .lineLimit(2 ... 6)
-                    .disabled(viewModel.isAsking)
-
-                    reguertaButton(
-                        LocalizedStringKey(
-                            viewModel.isAsking ? AccessL10nKey.bylawsAskLoading : AccessL10nKey.bylawsAskAction
-                        ),
-                        isEnabled: !viewModel.queryInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                         isLoading: viewModel.isAsking,
-                        action: viewModel.askQuestion
+                        onSend: viewModel.askQuestion
                     )
 
-                    reguertaButton(
-                        LocalizedStringKey(AccessL10nKey.bylawsOpenPdfAction),
-                        variant: .text
-                    ) {
+                    Button {
                         guard viewModel.pdfURL() != nil else {
                             viewModel.reportPdfUnavailable()
                             return
                         }
                         isPdfPresented = true
+                    } label: {
+                        Text(LocalizedStringKey(AccessL10nKey.bylawsOpenPdfAction))
+                            .font(tokens.typography.labelRegular)
+                            .foregroundStyle(tokens.colors.actionPrimary)
+                            .padding(.vertical, tokens.spacing.sm)
                     }
+                    .buttonStyle(.plain)
+                    .disabled(viewModel.isAsking)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                if let answerResult = viewModel.answerResult {
+                    Divider()
+                        .overlay(tokens.colors.borderSubtle)
+
+                    BylawsAnswerSectionView(
+                        tokens: tokens,
+                        answerResult: answerResult,
+                        isDevelopBuild: isDevelopBuild,
+                        onClear: viewModel.clearResult
+                    )
                 }
             }
-
-            if let answerResult = viewModel.answerResult {
-                BylawsAnswerCardView(
-                    tokens: tokens,
-                    answerResult: answerResult,
-                    onClear: viewModel.clearResult
-                )
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.bottom, tokens.spacing.lg)
         }
+        .scrollDismissesKeyboard(.interactively)
         .sheet(isPresented: $isPdfPresented) {
             if let pdfURL = viewModel.pdfURL() {
                 BylawsPdfSheetView(pdfURL: pdfURL)
@@ -86,9 +88,67 @@ private struct BylawsRouteView: View {
     }
 }
 
-private struct BylawsAnswerCardView: View {
+private struct BylawsQuestionComposerView: View {
+    let tokens: ReguertaDesignTokens
+    @Binding var query: String
+    let isLoading: Bool
+    let onSend: () -> Void
+
+    private var isSendEnabled: Bool {
+        !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isLoading
+    }
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: tokens.spacing.sm) {
+            TextField(
+                "",
+                text: $query,
+                prompt: Text(LocalizedStringKey(AccessL10nKey.bylawsInputPlaceholder)),
+                axis: .vertical
+            )
+            .textFieldStyle(.plain)
+            .font(tokens.typography.bodySecondary)
+            .lineLimit(3 ... 6)
+            .disabled(isLoading)
+
+            if isLoading {
+                ProgressView()
+                    .tint(tokens.colors.actionPrimary)
+                    .frame(width: 44.resize, height: 44.resize)
+            } else {
+                Button(action: onSend) {
+                    Image(systemName: "paperplane.fill")
+                        .font(.title3)
+                        .foregroundStyle(
+                            isSendEnabled
+                                ? tokens.colors.actionPrimary
+                                : tokens.colors.textSecondary.opacity(0.45)
+                        )
+                        .frame(width: 44.resize, height: 44.resize)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(!isSendEnabled)
+                .accessibilityLabel(Text(LocalizedStringKey(AccessL10nKey.bylawsAskAction)))
+            }
+        }
+        .padding(.leading, tokens.spacing.md)
+        .padding(.trailing, tokens.spacing.xs)
+        .padding(.vertical, tokens.spacing.sm)
+        .background(tokens.colors.surfaceSecondary.opacity(0.35))
+        .overlay {
+            RoundedRectangle(cornerRadius: tokens.radius.md)
+                .stroke(tokens.colors.borderSubtle, lineWidth: 1)
+        }
+        .compositingGroup()
+        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
+    }
+}
+
+private struct BylawsAnswerSectionView: View {
     let tokens: ReguertaDesignTokens
     let answerResult: BylawsAnswerResult
+    let isDevelopBuild: Bool
     let onClear: () -> Void
 
     private var modeKey: String {
@@ -109,10 +169,36 @@ private struct BylawsAnswerCardView: View {
     }
 
     var body: some View {
-        reguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                Text(LocalizedStringKey(modeKey))
+        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+            HStack {
+                Text(LocalizedStringKey(AccessL10nKey.bylawsAnswerTitle))
                     .font(tokens.typography.titleCard)
+
+                Spacer()
+
+                Button(action: onClear) {
+                    Image(systemName: "trash")
+                        .font(.body)
+                        .foregroundStyle(tokens.colors.feedbackError)
+                        .frame(width: 44.resize, height: 44.resize)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text(LocalizedStringKey(AccessL10nKey.commonClear)))
+            }
+
+            Text(answerResult.answer)
+                .font(tokens.typography.bodySecondary)
+                .foregroundStyle(tokens.colors.textPrimary)
+
+            if isDevelopBuild {
+                Text(LocalizedStringKey(AccessL10nKey.bylawsDevelopDetailsTitle))
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.textSecondary)
+
+                Text(LocalizedStringKey(modeKey))
+                    .font(tokens.typography.label)
+                    .foregroundStyle(tokens.colors.textSecondary)
 
                 Text(
                     l10n(
@@ -136,15 +222,6 @@ private struct BylawsAnswerCardView: View {
                     .foregroundStyle(tokens.colors.textSecondary)
                 }
 
-                Text(answerResult.answer)
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textPrimary)
-
-                reguertaButton(
-                    LocalizedStringKey(AccessL10nKey.commonClear),
-                    variant: .text,
-                    action: onClear
-                )
             }
         }
     }
