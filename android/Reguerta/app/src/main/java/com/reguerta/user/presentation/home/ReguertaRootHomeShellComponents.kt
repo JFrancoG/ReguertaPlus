@@ -53,6 +53,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -69,6 +71,7 @@ import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
 import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.shifts.ShiftAssignment
+import com.reguerta.user.ui.components.ReguertaScreenHeader
 import com.reguerta.user.ui.components.auth.ReguertaFlatButton
 
 @Composable
@@ -84,22 +87,35 @@ fun HomeShellTopBar(
     onOpenNotifications: () -> Unit,
     onOpenCart: () -> Unit,
 ) {
+    if (canNavigateBack) {
+        ReguertaScreenHeader(
+            title = title,
+            navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
+            navigationContentDescription = stringResource(R.string.common_action_back),
+            onNavigationClick = onBack,
+            trailingContent = {
+                HomeShellTrailingAction(
+                    showsNotificationsAction = showsNotificationsAction,
+                    hasNotificationIndicator = hasNotificationIndicator,
+                    showsCartAction = showsCartAction,
+                    cartUnits = cartUnits,
+                    onOpenNotifications = onOpenNotifications,
+                    onOpenCart = onOpenCart,
+                )
+            },
+        )
+        return
+    }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(
-            modifier = if (canNavigateBack) Modifier.offset(x = (-12).dp) else Modifier,
-            onClick = if (canNavigateBack) onBack else onOpenMenu,
-        ) {
+        IconButton(onClick = onOpenMenu) {
             Icon(
-                imageVector = if (canNavigateBack) Icons.AutoMirrored.Filled.ArrowBack else Icons.Filled.Menu,
-                contentDescription = if (canNavigateBack) {
-                    stringResource(R.string.common_action_back)
-                } else {
-                    stringResource(R.string.home_shell_menu)
-                },
+                imageVector = Icons.Filled.Menu,
+                contentDescription = stringResource(R.string.home_shell_menu),
             )
         }
 
@@ -115,7 +131,28 @@ fun HomeShellTopBar(
             Spacer(modifier = Modifier.weight(1f))
         }
 
-        if (showsNotificationsAction) {
+        HomeShellTrailingAction(
+            showsNotificationsAction = showsNotificationsAction,
+            hasNotificationIndicator = hasNotificationIndicator,
+            showsCartAction = showsCartAction,
+            cartUnits = cartUnits,
+            onOpenNotifications = onOpenNotifications,
+            onOpenCart = onOpenCart,
+        )
+    }
+}
+
+@Composable
+private fun HomeShellTrailingAction(
+    showsNotificationsAction: Boolean,
+    hasNotificationIndicator: Boolean,
+    showsCartAction: Boolean,
+    cartUnits: Int,
+    onOpenNotifications: () -> Unit,
+    onOpenCart: () -> Unit,
+) {
+    when {
+        showsNotificationsAction -> {
             Box(contentAlignment = Alignment.TopEnd) {
                 IconButton(onClick = onOpenNotifications) {
                     Icon(
@@ -133,7 +170,9 @@ fun HomeShellTopBar(
                     )
                 }
             }
-        } else if (showsCartAction) {
+        }
+
+        showsCartAction -> {
             Box(contentAlignment = Alignment.TopEnd) {
                 IconButton(
                     onClick = onOpenCart,
@@ -162,9 +201,9 @@ fun HomeShellTopBar(
                     }
                 }
             }
-        } else {
-            Spacer(modifier = Modifier.size(48.dp))
         }
+
+        else -> Spacer(modifier = Modifier.size(48.dp))
     }
 }
 

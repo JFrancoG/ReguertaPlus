@@ -358,13 +358,6 @@ fun NotificationsFeedRoute(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(
-            text = stringResource(R.string.home_shell_notifications),
-            modifier = Modifier.fillMaxWidth(),
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
         if (isLoading) {
             Text(
                 text = stringResource(R.string.notifications_loading),

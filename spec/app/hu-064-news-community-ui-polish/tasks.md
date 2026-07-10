@@ -1,0 +1,38 @@
+# Tasks - HU-064 (News and community UI polish)
+
+## 1. Preparation
+- [x] Create `codex/hu-064-news-community-ui-polish` branch from updated `main`.
+- [x] Create GitHub issue #167 and link it from the story artifacts.
+- [x] Create issue mirror and story docs.
+- [x] Review current Android headers and iOS News image path.
+
+## 2. Android UI
+- [x] Put the News title below the back arrow.
+- [x] Put the Community title below the back arrow.
+- [x] Replace the route-specific placement flag with a reusable back-navigation screen header.
+- [x] Standardize screen-title typography and heading semantics with a reusable title primitive.
+- [x] Move static Shifts and Notifications titles into the shared header and migrate dynamic order titles to the shared title primitive.
+- [x] Preserve back semantics, route actions, and the compact Dashboard layout.
+- [x] Add or update targeted UI/unit coverage where the current test structure supports it.
+
+## 3. Cross-platform Community copy
+- [x] Merge “Get to know each other better” into the general guidance paragraph on Android and iOS.
+- [x] Remove the obsolete standalone title localization and redundant layout wrapper.
+
+## 4. iOS News image
+- [x] Identify the failing URL/image-loading contract.
+- [x] Restore image rendering in Home latest news and the full News list.
+- [x] Preserve graceful behavior for missing or invalid image references.
+- [x] Add focused regression coverage.
+
+## 5. Validation
+- [x] Run Android unit tests and lint.
+- [x] Run Android connected UI tests on Pixel 8 Pro API 35.
+- [x] Run iOS tests on iPhone 17 and record the pre-existing drawer-navigation UI failure.
+- [x] Record validation and parity evidence in `spec.md`.
+- [x] Re-run Android validation after the reusable-header follow-up.
+- [x] Re-run Android and iOS validation after the Community copy follow-up.
+
+## 6. Closure
+- [x] Update story status and Definition of Done.
+- [x] Link draft pull request #168 and keep issue #167 open until merge.

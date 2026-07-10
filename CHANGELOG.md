@@ -55,6 +55,9 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-07-10 | 🐛 fix(community): merge profile intro copy
+- 2026-07-10 | 🐛 fix(android-ui): standardize screen headers
+- 2026-07-10 | 🐛 fix(ui): restore news image and header layout
 - 2026-07-10 | 🐛 fix(shifts): align helper assignments
 - 2026-07-08 | 🐛 fix(ios-ui): refine welcome layout
 - 2026-07-08 | 🐛 fix(android-orders): polish order cards
@@ -97,6 +100,7 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-07-10 | 📝 docs(app): link HU-064 pull request
 - 2026-07-10 | 📝 docs(shifts): link HU-063 pull request
 - 2026-05-03 | 📝 docs(design): refine home drawer proposal
 - 2026-05-03 | 📝 docs(design): add home drawer proposal
@@ -114,6 +118,7 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
+- 2026-07-10 | 📦 build(android): update Firebase BoM to 34.16.0
 - 2026-07-07 | 📦 build(android): update Compose and Navigation
 - 2026-06-30 | 📦 build(ios): update Firebase Swift package
 - 2026-06-30 | 📦 build(android): update Android dependencies

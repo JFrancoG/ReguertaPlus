@@ -5523,30 +5523,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Share tastes, occupation, or whatever you want about your household with La Regüerta so we can get to know each other better."
+            "value" : "Let’s get to know each other better. Share tastes, occupation, or whatever you want about your household with La Regüerta."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Comparte en tu perfil gustos, ocupación o lo que quieras de tu unidad familiar con La Regüerta para conocernos mejor"
-          }
-        }
-      }
-    },
-    "profile.shared.hub.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Let’s get to know each other better"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Conozcámonos mejor"
+            "value" : "Conozcámonos mejor. Comparte en tu perfil gustos, ocupación o lo que quieras de tu unidad familiar con La Regüerta."
           }
         }
       }

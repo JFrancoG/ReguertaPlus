@@ -512,8 +512,7 @@
     <string name="profile_shared_photo_url_label">URL de la foto (opcional)</string>
     <string name="profile_shared_about_label">Sobre nosotros</string>
     <string name="profile_shared_photo_preview">Vista previa de la foto del perfil compartido</string>
-    <string name="profile_shared_hub_title">Conozcámonos mejor</string>
-    <string name="profile_shared_hub_subtitle">Comparte en tu perfil gustos, ocupación o lo que quieras de tu unidad familiar con La Regüerta para conocernos mejor</string>
+    <string name="profile_shared_hub_subtitle">Conozcámonos mejor. Comparte en tu perfil gustos, ocupación o lo que quieras de tu unidad familiar con La Regüerta.</string>
     <string name="profile_shared_editor_title_create">Mi familia</string>
     <string name="profile_shared_editor_title_edit">Mi familia</string>
     <string name="profile_shared_editor_subtitle">Podrás actualizar o eliminar este perfil cuando quieras.</string>

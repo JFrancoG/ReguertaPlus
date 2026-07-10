@@ -54,6 +54,7 @@ import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.orders.OrderHistoryWeekOption
 import com.reguerta.user.domain.orders.OrderSummaryGroup
 import com.reguerta.user.domain.orders.OrderSummarySnapshot
+import com.reguerta.user.ui.components.ReguertaScreenTitle
 
 @Composable
 internal fun MyOrdersHistoryRoute(
@@ -111,12 +112,7 @@ private fun MyOrdersHistoryContent(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             state.selectedWeek?.orderTitle?.let { orderTitle ->
-                Text(
-                    text = orderTitle,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                ReguertaScreenTitle(title = orderTitle)
             }
             OrderHistoryWeekHeader(
                 selectedWeek = state.selectedWeek,

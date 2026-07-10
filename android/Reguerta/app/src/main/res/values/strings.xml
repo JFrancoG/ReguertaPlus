@@ -512,8 +512,7 @@
     <string name="profile_shared_photo_url_label">Photo URL (optional)</string>
     <string name="profile_shared_about_label">About us</string>
     <string name="profile_shared_photo_preview">Shared profile photo preview</string>
-    <string name="profile_shared_hub_title">Let’s get to know each other better</string>
-    <string name="profile_shared_hub_subtitle">Share tastes, occupation, or whatever you want about your household with La Regüerta so we can get to know each other better.</string>
+    <string name="profile_shared_hub_subtitle">Let’s get to know each other better. Share tastes, occupation, or whatever you want about your household with La Regüerta.</string>
     <string name="profile_shared_editor_title_create">My family</string>
     <string name="profile_shared_editor_title_edit">My family</string>
     <string name="profile_shared_editor_subtitle">You can update or remove this profile whenever you want.</string>
