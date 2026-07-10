@@ -16,12 +16,16 @@ Clarify Android header hierarchy on News and Community and restore optional news
 - Reuse its title primitive for dynamic route-owned titles and remove duplicate static titles where the shell now owns them.
 - Preserve nested Community title overrides and existing back behavior.
 
-3. iOS image diagnosis and repair
+3. Cross-platform Community copy
+- Merge the standalone Community encouragement title into the opening guidance paragraph on Android and iOS.
+- Remove obsolete localization keys and flatten the redundant layout wrapper on both platforms.
+
+4. iOS image diagnosis and repair
 - Trace persisted `urlImage` values from Firestore mapping and the upload pipeline into News presentation.
 - Identify why the current SwiftUI image loader does not render the stored reference.
 - Implement the smallest compatible correction and add focused regression coverage.
 
-4. Validation
+5. Validation
 - Run Android unit tests and lint, plus connected UI tests when a device/emulator is available.
 - Run iOS tests on the configured simulator or the closest available equivalent.
 - Review all Home destination title ownership and record parity notes.

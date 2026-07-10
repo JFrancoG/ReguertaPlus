@@ -24,6 +24,7 @@ As a cooperative member I want News and Community to have a clear, consistent he
 - Android back-navigation screens use one reusable header with shared typography, spacing, semantics, and trailing actions.
 - Dynamic in-content screen titles can reuse the same title primitive.
 - Existing Android top-bar actions and nested Community titles keep working.
+- Android and iOS Community hubs present “Get to know each other better” as the opening sentence of the general profile guidance instead of a separate card title.
 - iOS news image URL handling and rendering are diagnosed and corrected.
 - Targeted regression coverage for the iOS image URL/rendering contract where practical.
 
@@ -45,6 +46,7 @@ As a cooperative member I want News and Community to have a clear, consistent he
 - Android back-navigation destinations with a shell title use the same reusable header and `headlineSmall` title treatment.
 - Dashboard retains its compact menu/date/action row.
 - Android still exposes the same back navigation behavior and accessibility description.
+- On Android and iOS Community, the introductory guidance is one body-text paragraph beginning with the localized “Get to know each other better” sentence.
 - On iOS, a news article with a valid persisted image reference renders its remote image in both the Home latest-news card and the full News list.
 - An absent or invalid iOS news image reference keeps the current non-blocking placeholder/no-image behavior.
 - No Firestore news fields or image upload contracts change.
@@ -80,9 +82,12 @@ As a cooperative member I want News and Community to have a clear, consistent he
 - Android: `ANDROID_SERIAL=emulator-5554 ./gradlew app:connectedDebugAndroidTest` passed 9 tests on `Pixel_8_Pro_API_35` (API 35), including the new header-position coverage.
 - Android follow-up: `./gradlew app:testDebugUnitTest app:lintDebug` passed after replacing the route-specific placement flag with the reusable screen header.
 - Android follow-up: `ANDROID_SERIAL=emulator-5554 ./gradlew app:connectedDebugAndroidTest` passed 9 tests on `Pixel_8_Pro_API_35` (API 35), including shared back-header and compact Dashboard geometry.
+- Community-copy follow-up Android: unit tests and lint passed; the first connected run hit a one-second timeout in the unrelated sign-out confirmation test, which passed both in isolation and in a subsequent complete 9-test run on `Pixel_8_Pro_API_35` (API 35).
+- Community-copy follow-up iOS: the full `xcodebuild` test run succeeded on iPhone 17 / iOS 26.5 with 171 passed, zero failed, and one test skipped across four parameterized runs.
 - iOS focused: `NewsImageDataLoaderTests` passed 3 tests on iPhone 17.
 - iOS full: 170 tests passed and 4 launch tests were skipped on iPhone 17 / iOS 26.5. The run reports the pre-existing `ReguertaUITests.testDrawerNavigationOpensSelectedRoute()` failure because the login email field is not found before News navigation begins; the News image loader tests and `testHomeShowsLatestNewsWithoutBottomObstruction()` passed.
 - Platform parity: no temporary gap. Android now shares the requested header hierarchy across back-navigation screens and iOS restores the existing optional image contract without backend changes.
+- Community copy parity: no gap; Android and iOS use the same single-paragraph hierarchy and equivalent English/Spanish localization.
 
 ## Definition of Done (DoD)
 

@@ -15,19 +15,24 @@
 - [x] Preserve back semantics, route actions, and the compact Dashboard layout.
 - [x] Add or update targeted UI/unit coverage where the current test structure supports it.
 
-## 3. iOS News image
+## 3. Cross-platform Community copy
+- [x] Merge “Get to know each other better” into the general guidance paragraph on Android and iOS.
+- [x] Remove the obsolete standalone title localization and redundant layout wrapper.
+
+## 4. iOS News image
 - [x] Identify the failing URL/image-loading contract.
 - [x] Restore image rendering in Home latest news and the full News list.
 - [x] Preserve graceful behavior for missing or invalid image references.
 - [x] Add focused regression coverage.
 
-## 4. Validation
+## 5. Validation
 - [x] Run Android unit tests and lint.
 - [x] Run Android connected UI tests on Pixel 8 Pro API 35.
 - [x] Run iOS tests on iPhone 17 and record the pre-existing drawer-navigation UI failure.
 - [x] Record validation and parity evidence in `spec.md`.
 - [x] Re-run Android validation after the reusable-header follow-up.
+- [x] Re-run Android and iOS validation after the Community copy follow-up.
 
-## 5. Closure
+## 6. Closure
 - [x] Update story status and Definition of Done.
 - [x] Link draft pull request #168 and keep issue #167 open until merge.

@@ -287,7 +287,6 @@ enum AccessL10nKey {
     static let profileSharedPhotoURLLabel = "profile.shared.photo_url.label"
     static let profileSharedAboutLabel = "profile.shared.about.label"
     static let profileSharedPhotoPreview = "profile.shared.photo.preview"
-    static let profileSharedHubTitle = "profile.shared.hub.title"
     static let profileSharedHubSubtitle = "profile.shared.hub.subtitle"
     static let profileSharedEditorTitleCreate = "profile.shared.editor.title.create"
     static let profileSharedEditorTitleEdit = "profile.shared.editor.title.edit"

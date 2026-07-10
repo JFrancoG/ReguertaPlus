@@ -248,21 +248,10 @@ internal fun SharedProfileRoute(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(24.dp),
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Text(
-                            text = stringResource(R.string.profile_shared_hub_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = stringResource(R.string.profile_shared_hub_subtitle),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
+                    Text(
+                        text = stringResource(R.string.profile_shared_hub_subtitle),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
 
                     Column(
                         modifier = Modifier

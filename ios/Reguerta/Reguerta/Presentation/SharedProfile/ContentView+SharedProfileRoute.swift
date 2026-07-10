@@ -87,13 +87,9 @@ struct SharedProfileHubRoute: View {
         ZStack(alignment: .bottom) {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: tokens.spacing.xl) {
-                    VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                        Text(localizedKey(AccessL10nKey.profileSharedHubTitle))
-                            .font(tokens.typography.titleCard)
-                        Text(localizedKey(AccessL10nKey.profileSharedHubSubtitle))
-                            .font(tokens.typography.bodySecondary)
-                            .foregroundStyle(tokens.colors.textSecondary)
-                    }
+                    Text(localizedKey(AccessL10nKey.profileSharedHubSubtitle))
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
 
                     VStack(alignment: .leading, spacing: tokens.spacing.md) {
                         if viewModel.isLoading {
