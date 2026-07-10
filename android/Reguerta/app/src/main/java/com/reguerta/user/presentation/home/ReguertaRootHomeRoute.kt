@@ -427,6 +427,7 @@ internal fun HomeRoute(
                     HomeShellTopBar(
                         title = homeShellTitle,
                         canNavigateBack = currentDestination != HomeDestination.DASHBOARD,
+                        placesTitleBelowNavigation = currentDestination.placesTitleBelowNavigation(),
                         showsNotificationsAction = currentDestination == HomeDestination.DASHBOARD,
                         hasNotificationIndicator = hasUnreadNotifications,
                         showsCartAction = showsMyOrderCartAction,

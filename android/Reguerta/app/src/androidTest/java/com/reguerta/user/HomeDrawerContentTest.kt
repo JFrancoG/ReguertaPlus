@@ -10,9 +10,9 @@ import androidx.compose.ui.test.performScrollTo
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.profiles.SharedProfile
-import com.reguerta.user.presentation.access.HomeDestination
-import com.reguerta.user.presentation.access.HomeDrawerContent
-import com.reguerta.user.presentation.access.HomeDrawerContentWithLogoutConfirmation
+import com.reguerta.user.presentation.home.HomeDestination
+import com.reguerta.user.presentation.home.HomeDrawerContent
+import com.reguerta.user.presentation.home.HomeDrawerContentWithLogoutConfirmation
 import com.reguerta.user.ui.theme.ReguertaTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule

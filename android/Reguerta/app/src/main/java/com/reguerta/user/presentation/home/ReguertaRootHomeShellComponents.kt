@@ -53,6 +53,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -75,6 +77,7 @@ import com.reguerta.user.ui.components.auth.ReguertaFlatButton
 fun HomeShellTopBar(
     title: String,
     canNavigateBack: Boolean,
+    placesTitleBelowNavigation: Boolean = false,
     showsNotificationsAction: Boolean,
     hasNotificationIndicator: Boolean,
     showsCartAction: Boolean,
@@ -84,86 +87,102 @@ fun HomeShellTopBar(
     onOpenNotifications: () -> Unit,
     onOpenCart: () -> Unit,
 ) {
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        IconButton(
-            modifier = if (canNavigateBack) Modifier.offset(x = (-12).dp) else Modifier,
-            onClick = if (canNavigateBack) onBack else onOpenMenu,
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                imageVector = if (canNavigateBack) Icons.AutoMirrored.Filled.ArrowBack else Icons.Filled.Menu,
-                contentDescription = if (canNavigateBack) {
-                    stringResource(R.string.common_action_back)
-                } else {
-                    stringResource(R.string.home_shell_menu)
-                },
-            )
+            IconButton(
+                modifier = if (canNavigateBack) Modifier.offset(x = (-12).dp) else Modifier,
+                onClick = if (canNavigateBack) onBack else onOpenMenu,
+            ) {
+                Icon(
+                    imageVector = if (canNavigateBack) Icons.AutoMirrored.Filled.ArrowBack else Icons.Filled.Menu,
+                    contentDescription = if (canNavigateBack) {
+                        stringResource(R.string.common_action_back)
+                    } else {
+                        stringResource(R.string.home_shell_menu)
+                    },
+                )
+            }
+
+            if (!placesTitleBelowNavigation && title.isNotBlank()) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f),
+                )
+            } else {
+                Spacer(modifier = Modifier.weight(1f))
+            }
+
+            if (showsNotificationsAction) {
+                Box(contentAlignment = Alignment.TopEnd) {
+                    IconButton(onClick = onOpenNotifications) {
+                        Icon(
+                            imageVector = Icons.Filled.Notifications,
+                            contentDescription = stringResource(R.string.home_shell_notifications),
+                        )
+                    }
+                    if (hasNotificationIndicator) {
+                        Box(
+                            modifier = Modifier
+                                .padding(top = 9.dp, end = 9.dp)
+                                .size(9.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.error),
+                        )
+                    }
+                }
+            } else if (showsCartAction) {
+                Box(contentAlignment = Alignment.TopEnd) {
+                    IconButton(
+                        onClick = onOpenCart,
+                        enabled = cartUnits > 0,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.ShoppingCart,
+                            contentDescription = stringResource(R.string.my_order_view_cart_action),
+                        )
+                    }
+                    if (cartUnits > 0) {
+                        Box(
+                            modifier = Modifier
+                                .padding(top = 8.dp, end = 8.dp)
+                                .size(18.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.error),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = cartUnits.coerceAtMost(99).toString(),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onError,
+                                fontWeight = FontWeight.Normal,
+                            )
+                        }
+                    }
+                }
+            } else {
+                Spacer(modifier = Modifier.size(48.dp))
+            }
         }
 
-        if (title.isNotBlank()) {
+        if (placesTitleBelowNavigation && title.isNotBlank()) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics { heading() },
             )
-        } else {
-            Spacer(modifier = Modifier.weight(1f))
-        }
-
-        if (showsNotificationsAction) {
-            Box(contentAlignment = Alignment.TopEnd) {
-                IconButton(onClick = onOpenNotifications) {
-                    Icon(
-                        imageVector = Icons.Filled.Notifications,
-                        contentDescription = stringResource(R.string.home_shell_notifications),
-                    )
-                }
-                if (hasNotificationIndicator) {
-                    Box(
-                        modifier = Modifier
-                            .padding(top = 9.dp, end = 9.dp)
-                            .size(9.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.error),
-                    )
-                }
-            }
-        } else if (showsCartAction) {
-            Box(contentAlignment = Alignment.TopEnd) {
-                IconButton(
-                    onClick = onOpenCart,
-                    enabled = cartUnits > 0,
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.ShoppingCart,
-                        contentDescription = stringResource(R.string.my_order_view_cart_action),
-                    )
-                }
-                if (cartUnits > 0) {
-                    Box(
-                        modifier = Modifier
-                            .padding(top = 8.dp, end = 8.dp)
-                            .size(18.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.error),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = cartUnits.coerceAtMost(99).toString(),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onError,
-                            fontWeight = FontWeight.Normal,
-                        )
-                    }
-                }
-            }
-        } else {
-            Spacer(modifier = Modifier.size(48.dp))
         }
     }
 }

@@ -9,7 +9,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.reguerta.user.domain.news.NewsArticle
-import com.reguerta.user.presentation.access.NewsFeedRoute
+import com.reguerta.user.presentation.news.NewsFeedRoute
 import com.reguerta.user.ui.theme.ReguertaTheme
 import org.junit.Rule
 import org.junit.Test

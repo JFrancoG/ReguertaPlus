@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct NextShiftsCardView: View {
     let tokens: ReguertaDesignTokens
@@ -233,26 +234,39 @@ private struct HomeLatestNewsTextView: View {
 private struct HomeLatestNewsImageView: View {
     let tokens: ReguertaDesignTokens
     let imageURL: URL
+    @State private var loadedImage: Image?
+
+    private let loader = NewsImageDataLoader()
 
     var body: some View {
-        AsyncImage(url: imageURL) { phase in
-            if let image = phase.image {
-                image
-                    .resizable()
-                    .scaledToFit()
-            } else {
-                RoundedRectangle(cornerRadius: tokens.radius.sm)
-                    .fill(tokens.colors.surfaceSecondary)
-                    .overlay {
-                        Image(systemName: "photo")
-                            .font(.system(size: 24.resize))
-                            .foregroundStyle(tokens.colors.textSecondary)
-                    }
+        RoundedRectangle(cornerRadius: tokens.radius.sm)
+            .fill(tokens.colors.surfaceSecondary)
+            .overlay {
+                if let loadedImage {
+                    loadedImage
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    Image(systemName: "photo")
+                        .font(.system(size: 24.resize))
+                        .foregroundStyle(tokens.colors.textSecondary)
+                }
             }
-        }
-        .frame(width: 144.resize, height: 144.resize)
-        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
-        .accessibilityHidden(true)
+            .frame(width: 144.resize, height: 144.resize)
+            .compositingGroup()
+            .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
+            .accessibilityHidden(true)
+            .task(id: imageURL) {
+                loadedImage = nil
+                guard
+                    let data = try? await loader.load(from: imageURL),
+                    !Task.isCancelled,
+                    let image = UIImage(data: data)
+                else {
+                    return
+                }
+                loadedImage = Image(uiImage: image)
+            }
     }
 }
 
