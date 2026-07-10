@@ -148,6 +148,15 @@ extension AccessRootViewModel {
 
     func handleHomeDrawerSignOut() {
         closeHomeDrawer()
+        showsHomeSignOutDialog = true
+    }
+
+    func dismissHomeDrawerSignOutDialog() {
+        showsHomeSignOutDialog = false
+    }
+
+    func confirmHomeDrawerSignOut() {
+        showsHomeSignOutDialog = false
         homeDestination = .dashboard
         sessionViewModel.signOut()
         dispatchShell(.signedOut)

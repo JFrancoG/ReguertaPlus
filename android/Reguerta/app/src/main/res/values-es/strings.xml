@@ -11,6 +11,7 @@
     <string name="access_action_signing_in">Iniciando sesión…</string>
     <string name="access_action_sign_in">Iniciar sesión</string>
     <string name="access_action_sign_out">Cerrar sesión</string>
+    <string name="access_action_sign_out_confirm_message">¿Estás seguro que quieres cerrar la sesión?</string>
     <string name="access_action_dismiss_message">Cerrar mensaje</string>
     <string name="auth_shell_splash_loading">Preparando experiencia…</string>
     <string name="startup_update_forced_title">Actualización obligatoria</string>

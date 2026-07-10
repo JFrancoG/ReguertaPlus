@@ -1,22 +1,27 @@
 package com.reguerta.user.ui.components.auth
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,21 +56,26 @@ fun ReguertaDialog(
     onDismissRequest: () -> Unit = {},
 ) {
     val spacing = ReguertaThemeTokens.spacing
-    val radius = ReguertaThemeTokens.radius
-    val buttonTokens = ReguertaThemeTokens.button
     val dialogTitleStyle = MaterialTheme.typography.headlineMedium.copy(
-        fontSize = 20.sp,
-        lineHeight = 26.sp,
+        fontSize = 24.sp,
+        lineHeight = 30.sp,
     )
     val dialogBodyStyle = MaterialTheme.typography.bodyMedium.copy(
-        fontSize = 13.sp,
-        lineHeight = 18.sp,
+        fontSize = 17.sp,
+        lineHeight = 24.sp,
     )
     val accentColor = if (type == ReguertaDialogType.ERROR) {
         MaterialTheme.colorScheme.error
     } else {
         MaterialTheme.colorScheme.primary
     }
+    val primaryActionTextColor = if (type == ReguertaDialogType.ERROR) {
+        MaterialTheme.colorScheme.onError
+    } else {
+        MaterialTheme.colorScheme.onPrimary
+    }
+    val dialogShape = RoundedCornerShape(26.dp)
+    val dialogTextSecondary = MaterialTheme.colorScheme.onSurfaceVariant
 
     Dialog(
         onDismissRequest = onDismissRequest,
@@ -77,18 +87,20 @@ fun ReguertaDialog(
     ) {
         Surface(
             modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .widthIn(max = 360.dp),
-            shape = RoundedCornerShape(radius.lg),
+                .fillMaxWidth(0.86f)
+                .widthIn(max = 336.dp),
+            shape = dialogShape,
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 2.dp,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.65f)),
+            tonalElevation = 0.dp,
+            shadowElevation = 8.dp,
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(spacing.lg),
+                    .padding(horizontal = spacing.xxl, vertical = 28.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(spacing.md),
+                verticalArrangement = Arrangement.spacedBy(spacing.lg),
             ) {
                 DialogIcon(type = type, accentColor = accentColor)
 
@@ -102,8 +114,8 @@ fun ReguertaDialog(
                 Text(
                     text = message,
                     style = dialogBodyStyle,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = spacing.sm),
+                    color = dialogTextSecondary,
                     textAlign = TextAlign.Center,
                 )
 
@@ -111,46 +123,93 @@ fun ReguertaDialog(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(spacing.sm, Alignment.CenterHorizontally),
+                            .padding(top = spacing.xs),
+                        horizontalArrangement = Arrangement.spacedBy(spacing.md, Alignment.CenterHorizontally),
                     ) {
-                        ReguertaButton(
+                        DialogActionButton(
                             label = secondaryAction.label,
                             onClick = secondaryAction.onClick,
-                            variant = ReguertaButtonVariant.SECONDARY,
-                            fullWidth = false,
-                            modifier = Modifier.width(buttonTokens.dialogTwoButtonsWidth),
+                            accentColor = accentColor,
+                            primaryContentColor = primaryActionTextColor,
+                            isPrimary = false,
+                            modifier = Modifier.weight(1f),
                         )
 
-                        ReguertaButton(
+                        DialogActionButton(
                             label = primaryAction.label,
                             onClick = primaryAction.onClick,
-                            variant = if (type == ReguertaDialogType.ERROR) {
-                                ReguertaButtonVariant.DESTRUCTIVE
-                            } else {
-                                ReguertaButtonVariant.PRIMARY
-                            },
-                            fullWidth = false,
-                            modifier = Modifier.width(buttonTokens.dialogTwoButtonsWidth),
+                            accentColor = accentColor,
+                            primaryContentColor = primaryActionTextColor,
+                            isPrimary = true,
+                            modifier = Modifier.weight(1f),
                         )
                     }
                 } else {
-                    ReguertaButton(
+                    DialogActionButton(
                         label = primaryAction.label,
                         onClick = primaryAction.onClick,
-                        variant = if (type == ReguertaDialogType.ERROR) {
-                            ReguertaButtonVariant.DESTRUCTIVE
-                        } else {
-                            ReguertaButtonVariant.PRIMARY
-                        },
                         modifier = Modifier.padding(top = 8.dp),
-                        fullWidth = true,
+                        accentColor = accentColor,
+                        primaryContentColor = primaryActionTextColor,
+                        isPrimary = true,
                     )
                 }
             }
         }
     }
 }
+
+@Composable
+private fun DialogActionButton(
+    label: String,
+    onClick: () -> Unit,
+    accentColor: Color,
+    primaryContentColor: Color,
+    isPrimary: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val secondaryContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+    val shape = RoundedCornerShape(999.dp)
+    val textStyle = MaterialTheme.typography.titleLarge.copy(
+        fontSize = 22.sp,
+        lineHeight = 28.sp,
+    )
+    val buttonModifier = modifier
+        .fillMaxWidth()
+        .defaultMinSize(minHeight = 58.dp)
+
+    if (isPrimary) {
+        Button(
+            onClick = onClick,
+            modifier = buttonModifier,
+            shape = shape,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = accentColor,
+                contentColor = primaryContentColor,
+            ),
+            contentPadding = dialogButtonPadding(),
+        ) {
+            Text(text = label, style = textStyle, textAlign = TextAlign.Center)
+        }
+    } else {
+        OutlinedButton(
+            onClick = onClick,
+            modifier = buttonModifier,
+            shape = shape,
+            border = BorderStroke(1.5.dp, accentColor),
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = secondaryContainerColor,
+                contentColor = accentColor,
+            ),
+            contentPadding = dialogButtonPadding(),
+        ) {
+            Text(text = label, style = textStyle, textAlign = TextAlign.Center)
+        }
+    }
+}
+
+private fun dialogButtonPadding() =
+    PaddingValues(horizontal = 16.dp, vertical = 10.dp)
 
 @Composable
 private fun DialogIcon(
@@ -166,14 +225,14 @@ private fun DialogIcon(
 
     Box(
         modifier = Modifier
-            .size(88.dp)
+            .size(104.dp)
             .background(accentColor.copy(alpha = 0.22f), CircleShape),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            modifier = Modifier.size(38.dp),
+            modifier = Modifier.size(48.dp),
             tint = accentColor,
         )
     }

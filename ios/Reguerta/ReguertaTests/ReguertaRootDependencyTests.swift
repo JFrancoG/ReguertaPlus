@@ -93,6 +93,48 @@ struct ReguertaRootDependencyTests {
         #expect(rootViewModel.shellState.canGoBack == false)
     }
 
+    @Test
+    func homeDrawerSignOutRequestsConfirmationWithoutEndingSession() {
+        let rootViewModel = makeRootViewModel()
+        rootViewModel.shellState = AuthShellState(backStack: [.home])
+        rootViewModel.sessionViewModel.mode = .authorized(makeAuthorizedSession())
+        rootViewModel.isHomeDrawerOpen = true
+
+        rootViewModel.handleHomeDrawerSignOut()
+
+        #expect(rootViewModel.showsHomeSignOutDialog)
+        #expect(rootViewModel.isHomeDrawerOpen == false)
+        #expect(rootViewModel.shellState.currentRoute == .home)
+        guard case .authorized = rootViewModel.sessionViewModel.mode else {
+            Issue.record("Drawer sign-out should wait for explicit confirmation")
+            return
+        }
+
+        rootViewModel.dismissHomeDrawerSignOutDialog()
+
+        #expect(rootViewModel.showsHomeSignOutDialog == false)
+        guard case .authorized = rootViewModel.sessionViewModel.mode else {
+            Issue.record("Dismissing the dialog should keep the session active")
+            return
+        }
+    }
+
+    @Test
+    func homeDrawerSignOutConfirmationSignsOutAndRoutesWelcome() {
+        let rootViewModel = makeRootViewModel()
+        rootViewModel.shellState = AuthShellState(backStack: [.home])
+        rootViewModel.sessionViewModel.mode = .authorized(makeAuthorizedSession())
+        rootViewModel.showsHomeSignOutDialog = true
+
+        rootViewModel.confirmHomeDrawerSignOut()
+
+        #expect(rootViewModel.showsHomeSignOutDialog == false)
+        #expect(rootViewModel.homeDestination == .dashboard)
+        #expect(rootViewModel.sessionViewModel.mode == .signedOut)
+        #expect(rootViewModel.shellState.currentRoute == .welcome)
+        #expect(rootViewModel.shellState.canGoBack == false)
+    }
+
     private func makeRootViewModel(
         startupPolicy: StartupVersionPolicy? = nil,
         shouldSkipSplash: Bool = false,
@@ -105,6 +147,24 @@ struct ReguertaRootDependencyTests {
             ),
             shouldSkipSplashProvider: { shouldSkipSplash },
             installedVersionProvider: { installedVersion }
+        )
+    }
+
+    private func makeAuthorizedSession() -> AuthorizedSession {
+        let member = Member(
+            id: "member_root",
+            displayName: "Root Member",
+            normalizedEmail: "root@reguerta.test",
+            authUid: "auth_root",
+            roles: [.member],
+            isActive: true,
+            producerCatalogEnabled: true
+        )
+        return AuthorizedSession(
+            principal: AuthPrincipal(uid: "auth_root", email: "root@reguerta.test"),
+            authenticatedMember: member,
+            member: member,
+            members: [member]
         )
     }
 }

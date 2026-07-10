@@ -19,8 +19,7 @@ extension AccessRootRoutingView {
 
     var welcomeRoute: some View {
         VStack(spacing: tokens.spacing.md) {
-            Spacer(minLength: tokens.spacing.md)
-                .frame(maxHeight: 112.resize)
+            Spacer().frame(height: 32.resize)
 
             Text(localizedKey(AccessL10nKey.welcomeTitlePrefix))
                 .font(.custom("CabinSketch-Regular", size: 22.resize, relativeTo: .headline))
@@ -28,11 +27,11 @@ extension AccessRootRoutingView {
                 .frame(maxWidth: .infinity)
 
             Text(localizedKey(AccessL10nKey.welcomeTitleBrand))
-                .font(.custom("CabinSketch-Bold", size: 40.resize, relativeTo: .title))
+                .font(.custom("CabinSketch-Bold", size: 36.resize, relativeTo: .title))
                 .foregroundStyle(tokens.colors.actionPrimary)
                 .frame(maxWidth: .infinity)
 
-            Spacer().frame(height: 24.resize)
+            Spacer()
 
             Image("brand_logo")
                 .resizable()
@@ -40,7 +39,7 @@ extension AccessRootRoutingView {
                 .frame(width: 214.resize, height: 214.resize)
                 .frame(maxWidth: .infinity)
 
-            Spacer(minLength: 0)
+            Spacer()
 
             reguertaButton(
                 localizedKey(AccessL10nKey.welcomeCtaEnter),
@@ -52,7 +51,7 @@ extension AccessRootRoutingView {
             .frame(maxWidth: 320.resize)
             .frame(maxWidth: .infinity)
 
-            Spacer(minLength: 0)
+            Spacer()
 
             HStack(spacing: tokens.spacing.xs) {
                 Text(localizedKey(AccessL10nKey.welcomeNotRegistered))

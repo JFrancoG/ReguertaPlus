@@ -44,6 +44,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.zIndex
@@ -71,6 +72,7 @@ import kotlinx.coroutines.delay
 private const val HomeDrawerAnimationMillis = 400
 private const val HomeDrawerWidthFraction = 304f / 390f
 private const val HomeDrawerScrimAlpha = 0.15f
+private const val HomeLogoutConfirmationDelayMillis = 80L
 
 @Composable
 internal fun HomeRoute(
@@ -322,7 +324,7 @@ internal fun HomeRoute(
                         .width(drawerWidth)
                         .clipToBounds(),
                 ) {
-                    HomeDrawerContent(
+                    HomeDrawerContentWithLogoutConfirmation(
                         member = member,
                         sharedProfile = currentSharedProfile,
                         currentDestination = currentDestination,
@@ -330,10 +332,7 @@ internal fun HomeRoute(
                         isDevelopBuild = isDevelopImpersonationEnabled,
                         onNavigate = ::handleDrawerNavigation,
                         onCloseDrawer = ::closeDrawer,
-                        onSignOut = {
-                            closeDrawer()
-                            onSignOut()
-                        },
+                        onSignOut = onSignOut,
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
@@ -343,7 +342,7 @@ internal fun HomeRoute(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .offset(x = homeOffset)
+                .offset { IntOffset(homeOffset.roundToPx(), 0) }
                 .shadow(homeElevation, clip = false)
                 .zIndex(1f),
         ) {
@@ -761,7 +760,6 @@ internal fun HomeRoute(
         }
 
     }
-
     pendingSavedNewsId?.let {
         ReguertaDialog(
             type = ReguertaDialogType.INFO,
@@ -847,4 +845,77 @@ internal fun HomeRoute(
         )
     }
 }
+}
+
+@Composable
+fun HomeDrawerContentWithLogoutConfirmation(
+    member: Member?,
+    sharedProfile: SharedProfile?,
+    currentDestination: HomeDestination,
+    installedVersion: String,
+    isDevelopBuild: Boolean,
+    onNavigate: (HomeDestination) -> Unit,
+    onCloseDrawer: () -> Unit,
+    onSignOut: () -> Unit,
+) {
+    var showLogoutConfirmationDialog by rememberSaveable { mutableStateOf(false) }
+    var logoutConfirmationRequestCount by rememberSaveable { mutableIntStateOf(0) }
+
+    LaunchedEffect(logoutConfirmationRequestCount) {
+        if (logoutConfirmationRequestCount == 0) {
+            return@LaunchedEffect
+        }
+        delay(HomeLogoutConfirmationDelayMillis)
+        showLogoutConfirmationDialog = true
+    }
+
+    fun dismissLogoutConfirmation() {
+        showLogoutConfirmationDialog = false
+    }
+
+    HomeDrawerContent(
+        member = member,
+        sharedProfile = sharedProfile,
+        currentDestination = currentDestination,
+        installedVersion = installedVersion,
+        isDevelopBuild = isDevelopBuild,
+        onNavigate = onNavigate,
+        onCloseDrawer = onCloseDrawer,
+        onSignOut = {
+            onCloseDrawer()
+            showLogoutConfirmationDialog = false
+            logoutConfirmationRequestCount += 1
+        },
+    )
+
+    if (showLogoutConfirmationDialog) {
+        HomeLogoutConfirmationDialog(
+            onConfirmSignOut = {
+                showLogoutConfirmationDialog = false
+                onSignOut()
+            },
+            onDismiss = ::dismissLogoutConfirmation,
+        )
+    }
+}
+
+@Composable
+private fun HomeLogoutConfirmationDialog(
+    onConfirmSignOut: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ReguertaDialog(
+        type = ReguertaDialogType.INFO,
+        title = stringResource(R.string.access_action_sign_out),
+        message = stringResource(R.string.access_action_sign_out_confirm_message),
+        primaryAction = ReguertaDialogAction(
+            label = stringResource(R.string.common_action_confirm),
+            onClick = onConfirmSignOut,
+        ),
+        secondaryAction = ReguertaDialogAction(
+            label = stringResource(R.string.common_action_back),
+            onClick = onDismiss,
+        ),
+        onDismissRequest = onDismiss,
+    )
 }

@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-07-08 | ✨ feat(access): confirm drawer sign-out
 - 2026-05-27 | ✨ feat(shifts): redesign shifts screen
 - 2026-05-26 | ✨ feat(orders): add received order history
 - 2026-05-25 | ✨ feat(orders): add weekly order history
@@ -55,6 +56,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - 2026-07-10 | 🐛 fix(shifts): align helper assignments
+- 2026-07-08 | 🐛 fix(ios-ui): refine welcome layout
 - 2026-07-08 | 🐛 fix(android-orders): polish order cards
 - 2026-07-07 | 🐛 fix(ui): polish drawer and mobile spacing
 - 2026-07-07 | 🐛 fix(home): align weekly delivery summary

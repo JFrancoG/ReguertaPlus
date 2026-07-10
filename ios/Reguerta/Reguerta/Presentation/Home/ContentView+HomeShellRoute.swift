@@ -1,5 +1,10 @@
 import SwiftUI
 
+private enum HomeSignOutDialogL10n {
+    static let confirm = "common.action.confirm"
+    static let message = "access.action.sign_out.confirm.message"
+}
+
 extension AccessRootRoutingView {
     @ViewBuilder
     var homeRoute: some View {
@@ -36,6 +41,9 @@ extension AccessRootRoutingView {
             .overlay {
                 homeSharedProfileSavedDialogOverlay
             }
+            .overlay {
+                homeSignOutConfirmationDialogOverlay
+            }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .offset(x: rootViewModel.homeLayerOffset)
             .zIndex(2)
@@ -66,6 +74,26 @@ extension AccessRootRoutingView {
                     action: rootViewModel.dismissSharedProfileSavedDialog
                 ),
                 onDismiss: rootViewModel.dismissSharedProfileSavedDialog
+            )
+        }
+    }
+
+    @ViewBuilder
+    var homeSignOutConfirmationDialogOverlay: some View {
+        if rootViewModel.showsHomeSignOutDialog {
+            reguertaDialog(
+                type: .info,
+                title: l10n(AccessL10nKey.signOut),
+                message: l10n(HomeSignOutDialogL10n.message),
+                primaryAction: ReguertaDialogAction(
+                    title: l10n(HomeSignOutDialogL10n.confirm),
+                    action: rootViewModel.confirmHomeDrawerSignOut
+                ),
+                secondaryAction: ReguertaDialogAction(
+                    title: l10n(AccessL10nKey.commonBack),
+                    action: rootViewModel.dismissHomeDrawerSignOutDialog
+                ),
+                onDismiss: rootViewModel.dismissHomeDrawerSignOutDialog
             )
         }
     }
