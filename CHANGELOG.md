@@ -118,6 +118,7 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
+- 2026-07-10 | 📦 build(android): update Firebase BoM to 34.16.0
 - 2026-07-07 | 📦 build(android): update Compose and Navigation
 - 2026-06-30 | 📦 build(ios): update Firebase Swift package
 - 2026-06-30 | 📦 build(android): update Android dependencies
