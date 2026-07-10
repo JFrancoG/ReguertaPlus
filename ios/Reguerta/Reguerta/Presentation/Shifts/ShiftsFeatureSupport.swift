@@ -69,10 +69,7 @@ extension Array where Element == ShiftSwapRequest {
             .sorted { $0.requestedAtMillis > $1.requestedAtMillis }
     }
 
-    func visibleShiftSwapActivity(
-        currentMemberId: String?,
-        dismissedRequestIds: Set<String>
-    ) -> VisibleShiftSwapActivity {
+    func visibleShiftSwapActivity(currentMemberId: String?, dismissedRequestIds: Set<String>) -> VisibleShiftSwapActivity {
         guard let currentMemberId else {
             return VisibleShiftSwapActivity(
                 incoming: [],
@@ -93,9 +90,7 @@ extension Array where Element == ShiftSwapRequest {
                 }
                 .map { (request, $0) }
         }
-        let requesterOpen = filter {
-            $0.requesterUserId == currentMemberId && $0.status == .open
-        }
+        let requesterOpen = filter { $0.requesterUserId == currentMemberId && $0.status == .open }
         let availableResponses = requesterOpen.flatMap { request in
             request.availableResponses.compactMap { response in
                 request.candidates.first {
@@ -112,14 +107,9 @@ extension Array where Element == ShiftSwapRequest {
         }
         let outgoing = requesterOpen.filter { $0.availableResponses.isEmpty }
         let history = filter { request in
-            request.status != .open &&
-                !dismissedRequestIds.contains(request.id) &&
-                (
-                    request.requesterUserId == currentMemberId ||
-                        request.candidates.contains { candidate in candidate.userId == currentMemberId }
-                )
+            request.status != .open && !dismissedRequestIds.contains(request.id)
+            && (request.requesterUserId == currentMemberId || request.candidates.contains { candidate in candidate.userId == currentMemberId })
         }
-
         return VisibleShiftSwapActivity(
             incoming: incoming,
             availableResponses: availableResponses,

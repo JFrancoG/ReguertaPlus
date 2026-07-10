@@ -131,6 +131,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- 2026-07-10 | ♻️ refactor(mobile): clean platform warnings
 - 2026-05-14 | ♻️ refactor(ios-orders): split previous order fetch
 - 2026-05-14 | ♻️ refactor(ios-ui): split design components
 - 2026-05-12 | ♻️ refactor(ios-ui): organize presentation layout

@@ -13,6 +13,12 @@ actor InMemoryOrdersRepository: OrdersRepository {
         let nowMillis: Int64
     }
 
+    struct ReceivedStatusUpdate: Equatable {
+        let orderId: String
+        let producerId: String
+        let status: ProducerOrderStatus
+    }
+
     var submitResult = true
     var previousOrderError: Error?
     var receivedOrdersError: Error?
@@ -24,7 +30,7 @@ actor InMemoryOrdersRepository: OrdersRepository {
     private var receivedSnapshotsByProducerWeek: [String: ReceivedOrdersSnapshot] = [:]
     private var receivedHistoryWeekKeysByProducerId: [String: Set<String>] = [:]
     private var updateResultsByOrderId: [String: ReceivedOrderStatusWriteResult] = [:]
-    private var receivedStatusUpdateRequests: [(orderId: String, producerId: String, status: ProducerOrderStatus)] = []
+    private var receivedStatusUpdateRequests: [ReceivedStatusUpdate] = []
 
     init() {}
 
@@ -114,7 +120,9 @@ actor InMemoryOrdersRepository: OrdersRepository {
         status: ProducerOrderStatus,
         nowMillis: Int64
     ) async -> ReceivedOrderStatusWriteResult {
-        receivedStatusUpdateRequests.append((orderId: orderId, producerId: producerId, status: status))
+        receivedStatusUpdateRequests.append(
+            ReceivedStatusUpdate(orderId: orderId, producerId: producerId, status: status)
+        )
         return updateResultsByOrderId[orderId] ?? .success
     }
 
@@ -162,7 +170,7 @@ actor InMemoryOrdersRepository: OrdersRepository {
         submittedOrders
     }
 
-    func receivedStatusUpdates() -> [(orderId: String, producerId: String, status: ProducerOrderStatus)] {
+    func receivedStatusUpdates() -> [ReceivedStatusUpdate] {
         receivedStatusUpdateRequests
     }
 

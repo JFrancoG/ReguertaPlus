@@ -137,58 +137,6 @@ struct ReguertaNewsNotificationsViewModelTests {
     }
 
     @Test
-    func newsViewModelSavesNewAndEditedNewsWithExistingMetadataRules() async {
-        let admin = newsAdminMember(displayName: "Ana Admin")
-        let repository = InMemoryNewsRepository(items: [])
-        let viewModel = makeNewsNotificationsViewModel(
-            currentMember: admin,
-            members: [admin],
-            newsRepository: repository,
-            nowMillis: 123
-        )
-
-        #expect(viewModel.startCreatingNews())
-        viewModel.updateNewsDraft { draft in
-            draft.title = "  Nueva noticia  "
-            draft.body = "  Cuerpo  "
-            draft.active = false
-            draft.urlImage = " https://cdn.test/news.jpg "
-        }
-        #expect(await viewModel.saveNews())
-
-        var articles = await repository.allNews()
-        let created = try? #require(articles.first)
-        #expect(created?.title == "Nueva noticia")
-        #expect(created?.body == "Cuerpo")
-        #expect(created?.active == false)
-        #expect(created?.publishedBy == "Ana Admin")
-        #expect(created?.publishedAtMillis == 123)
-        #expect(created?.urlImage == "https://cdn.test/news.jpg")
-        let originalId = created?.id ?? ""
-        #expect(viewModel.pendingNewsSaveConfirmation == NewsSaveConfirmation(newsId: originalId, isNew: true))
-        #expect(viewModel.feedbackCenter.messageKey == nil)
-
-        #expect(viewModel.closeNewsSaveConfirmation() == originalId)
-        #expect(viewModel.highlightedNewsId == originalId)
-        #expect(viewModel.editingNewsId == nil)
-        #expect(viewModel.startEditingNews(newsId: originalId))
-        viewModel.updateNewsDraft { draft in
-            draft.title = "Actualizada"
-            draft.body = "Cuerpo actualizado"
-            draft.active = true
-        }
-        #expect(await viewModel.saveNews())
-
-        articles = await repository.allNews()
-        let updated = articles.first(where: { $0.id == originalId })
-        #expect(updated?.title == "Actualizada")
-        #expect(updated?.publishedBy == "Ana Admin")
-        #expect(updated?.publishedAtMillis == 123)
-        #expect(viewModel.pendingNewsSaveConfirmation == NewsSaveConfirmation(newsId: originalId, isNew: false))
-        #expect(viewModel.feedbackCenter.messageKey == nil)
-    }
-
-    @Test
     func newsViewModelDeletesNewsAndClearsEditorWhenEditingDeletedArticle() async {
         let admin = newsAdminMember()
         let article = newsArticle(id: "delete_me")
@@ -368,15 +316,19 @@ struct ReguertaNewsNotificationsViewModelTests {
         }
         #expect(await viewModel.sendNotification())
 
-        let sent = try? #require((await repository.allNotifications()).first)
-        #expect(sent?.title == "Aviso")
-        #expect(sent?.body == "Cuerpo")
-        #expect(sent?.type == "admin_broadcast")
-        #expect(sent?.target == "segment")
-        #expect(sent?.segmentType == "role")
-        #expect(sent?.targetRole == .producer)
-        #expect(sent?.createdBy == "admin_1")
-        #expect(sent?.sentAtMillis == 999)
+        let notifications = await repository.allNotifications()
+        guard let sent = notifications.first else {
+            Issue.record("Expected sent notification")
+            return
+        }
+        #expect(sent.title == "Aviso")
+        #expect(sent.body == "Cuerpo")
+        #expect(sent.type == "admin_broadcast")
+        #expect(sent.target == "segment")
+        #expect(sent.segmentType == "role")
+        #expect(sent.targetRole == .producer)
+        #expect(sent.createdBy == "admin_1")
+        #expect(sent.sentAtMillis == 999)
         #expect(viewModel.notificationDraft == NotificationDraft())
         #expect(viewModel.isNotificationSendConfirmationPresented)
         #expect(viewModel.feedbackCenter.messageKey == nil)

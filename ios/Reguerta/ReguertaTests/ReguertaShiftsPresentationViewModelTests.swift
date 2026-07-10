@@ -144,6 +144,10 @@ struct ReguertaShiftsPresentationViewModelTests {
         #expect(viewModel.shiftBoardWindow(for: .delivery).highlights(shiftedDelivery))
         #expect(viewModel.shiftBoardWindow(for: .delivery).targetShiftId == shiftedDelivery.id)
 
+        await assertTodayDeliveryWinsBoardWindow(for: currentMember)
+    }
+
+    private func assertTodayDeliveryWinsBoardWindow(for currentMember: Member) async {
         let todayDelivery = shift(
             id: "today_delivery",
             type: .delivery,

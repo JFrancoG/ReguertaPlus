@@ -316,8 +316,10 @@ struct SharedProfileHubRoute: View {
             profilePhotoOrientations[profile.userId] = orientation
         }
     }
+}
 
-    private func sharedProfileCarouselCard(_ profile: SharedProfile) -> some View {
+private extension SharedProfileHubRoute {
+    func sharedProfileCarouselCard(_ profile: SharedProfile) -> some View {
         VStack(alignment: .center, spacing: tokens.spacing.md) {
             Text(sharedProfileListName(profile))
                 .font(tokens.typography.titleCard.weight(.semibold))
@@ -346,7 +348,7 @@ struct SharedProfileHubRoute: View {
     }
 
     @ViewBuilder
-    private func sharedProfileDetailContent(_ profile: SharedProfile) -> some View {
+    func sharedProfileDetailContent(_ profile: SharedProfile) -> some View {
         let orientation = profilePhotoOrientations[profile.userId] ?? .landscape
         let hasPhoto = profile.photoUrl?.isEmpty == false
 
@@ -370,7 +372,7 @@ struct SharedProfileHubRoute: View {
     }
 
     @ViewBuilder
-    private func sharedProfileDetailPhoto(_ profile: SharedProfile) -> some View {
+    func sharedProfileDetailPhoto(_ profile: SharedProfile) -> some View {
         if let rawURL = profile.photoUrl, let url = URL(string: rawURL), !rawURL.isEmpty {
             AsyncImage(url: url) { phase in
                 switch phase {
@@ -391,7 +393,7 @@ struct SharedProfileHubRoute: View {
     }
 
     @ViewBuilder
-    private func profileAvatar(
+    func profileAvatar(
         _ profile: SharedProfile,
         size: CGFloat = 72.resize,
         cornerRadius: CGFloat? = nil
@@ -417,7 +419,7 @@ struct SharedProfileHubRoute: View {
         }
     }
 
-    private func avatarPlaceholder(size: CGFloat, cornerRadius: CGFloat) -> some View {
+    func avatarPlaceholder(size: CGFloat, cornerRadius: CGFloat) -> some View {
         SharedProfileAvatarPlaceholder(tokens: tokens, size: size, cornerRadius: cornerRadius)
     }
 }

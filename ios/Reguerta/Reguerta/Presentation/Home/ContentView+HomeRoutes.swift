@@ -36,10 +36,6 @@ extension AccessRootRoutingView {
             newsEditorRoute
         case .adminBroadcast:
             notificationEditorRoute
-        default:
-            placeholderRoute(
-                subtitleKey: homeDestination.subtitleKey
-            )
         }
     }
 }

@@ -340,7 +340,10 @@ final class UsersFeatureViewModel {
         }
     }
 
-    private func highlightMember(_ memberId: String) {
+}
+
+private extension UsersFeatureViewModel {
+    func highlightMember(_ memberId: String) {
         highlightedMemberId = memberId
         Task { [weak self] in
             try? await Task.sleep(nanoseconds: 1_600_000_000)

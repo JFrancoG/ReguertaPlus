@@ -180,7 +180,7 @@ final class ReceivedOrdersHistoryRouteViewModel {
                 producerId: producerId,
                 weekKey: weekKey
             )
-            if let snapshot, (!snapshot.byProductRows.isEmpty || !snapshot.byMemberGroups.isEmpty) {
+            if let snapshot, !snapshot.byProductRows.isEmpty || !snapshot.byMemberGroups.isEmpty {
                 loadState = .loaded(snapshot)
             } else {
                 loadState = .empty

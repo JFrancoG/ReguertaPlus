@@ -3,8 +3,6 @@ package com.reguerta.user.presentation.access
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
-import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
@@ -39,14 +37,15 @@ import com.reguerta.user.ui.components.auth.ReguertaDialogAction
 import com.reguerta.user.ui.components.auth.ReguertaDialogType
 import com.reguerta.user.ui.theme.ReguertaThemeTokens
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration.Companion.milliseconds
 
-private const val StartupPolicyFetchTimeoutMillis = 2_500L
+private val StartupPolicyFetchTimeout = 2_500.milliseconds
 
 @Composable
 @SuppressLint("LocalContextGetResourceValueCall")
 fun ReguertaRoot(
-    viewModel: SessionViewModel = rememberSessionViewModel(),
     modifier: Modifier = Modifier,
+    viewModel: SessionViewModel = rememberSessionViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -63,14 +62,16 @@ fun ReguertaRoot(
     }
 
     var shellState by remember { mutableStateOf(AuthShellState()) }
-    var splashAnimationFinished by remember { mutableStateOf(false) }
+    var splashAnimationFinished by remember { mutableStateOf(value = false) }
     var startupGateState by remember {
         mutableStateOf<StartupGateUiState>(StartupGateUiState.Checking)
     }
-    val isAuthenticatedSession = state.mode is SessionMode.Authorized || state.mode is SessionMode.Unauthorized
+    val isAuthenticatedSession = (
+        state.mode is SessionMode.Authorized || state.mode is SessionMode.Unauthorized
+    )
 
     LaunchedEffect(startupVersionGateResolver) {
-        val decision = withTimeoutOrNull(StartupPolicyFetchTimeoutMillis) {
+        val decision = withTimeoutOrNull(StartupPolicyFetchTimeout) {
             startupVersionGateResolver(
                 platform = StartupPlatform.ANDROID,
                 installedVersion = installedVersion,
@@ -189,7 +190,7 @@ fun ReguertaRoot(
         if (shellState.currentRoute == AuthShellRoute.HOME) {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .fillMaxSize(),
             ) {
                 HomeRoute(
                     modifier = Modifier.fillMaxSize(),
@@ -322,8 +323,7 @@ fun ReguertaRoot(
                             onClick = signOutAndRoute,
                         ),
                         dismissible = false,
-                        onDismissRequest = {},
-                    )
+                    ) {}
                 }
             }
         } else {
@@ -444,16 +444,8 @@ fun ReguertaRoot(
 }
 
 private fun openNotificationSettings(context: Context) {
-    val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-        }
-    } else {
-        Intent(
-            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-            Uri.fromParts("package", context.packageName, null),
-        )
-    }.apply {
+    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
     context.startActivity(intent)
