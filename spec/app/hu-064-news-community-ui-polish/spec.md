@@ -85,4 +85,4 @@ As a cooperative member I want News and Community to have a clear, consistent he
 - [x] Android/iOS parity reviewed or temporary gap documented.
 - [x] Relevant checks executed or skipped with reason.
 - [x] Technical/functional documentation updated.
-- [ ] GitHub issue and pull request linked.
+- [x] GitHub issue #167 and pull request #168 linked.

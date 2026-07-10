@@ -7,7 +7,7 @@ Mover en Android los títulos de Noticias y Comunidad debajo de la flecha de vue
 ## Links
 - GitHub Issue: #167
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/167
-- Pull Request: pending
+- Pull Request: #168 https://github.com/JFrancoG/ReguertaPlus/pull/168
 - Spec: spec/app/hu-064-news-community-ui-polish/spec.md
 - Plan: spec/app/hu-064-news-community-ui-polish/plan.md
 - Tasks: spec/app/hu-064-news-community-ui-polish/tasks.md
@@ -41,7 +41,7 @@ Mover en Android los títulos de Noticias y Comunidad debajo de la flecha de vue
 - [x] Trazar el valor `urlImage` de iOS desde persistencia hasta la carga remota.
 - [x] Implementar los ajustes y añadir cobertura focalizada.
 - [x] Ejecutar la validación relevante por plataforma.
-- [ ] Abrir PR y enlazarla con esta issue.
+- [x] Abrir PR #168 y enlazarla con esta issue.
 
 ## Suggested labels
 - type:feature

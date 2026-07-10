@@ -26,4 +26,4 @@
 
 ## 5. Closure
 - [x] Update story status and Definition of Done.
-- [ ] Link the pull request and final issue state.
+- [x] Link draft pull request #168 and keep issue #167 open until merge.
