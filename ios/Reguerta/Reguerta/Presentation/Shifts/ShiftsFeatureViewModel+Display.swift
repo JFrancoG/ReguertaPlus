@@ -7,19 +7,16 @@ extension ShiftsFeatureViewModel {
         return deliveryShifts
             .filter {
                 $0.assignedUserIds.first == memberId &&
-                    effectiveDateMillis(for: $0) >= currentNowMillis
+                    isUpcomingEffectiveDay($0)
             }
             .min { effectiveDateMillis(for: $0) < effectiveDateMillis(for: $1) }
     }
 
     var nextDeliveryHelperShift: ShiftAssignment? {
-        guard let memberId = currentMember?.id else { return nil }
+        guard let nextLeadShift = nextDeliveryLeadShift else { return nil }
         return deliveryShifts
-            .filter {
-                $0.helperUserId == memberId &&
-                    effectiveDateMillis(for: $0) >= currentNowMillis
-            }
-            .min { effectiveDateMillis(for: $0) < effectiveDateMillis(for: $1) }
+            .filter { $0.dateMillis < nextLeadShift.dateMillis }
+            .max { $0.dateMillis < $1.dateMillis }
     }
 
     var nextMarketAssignedShift: ShiftAssignment? {
@@ -27,7 +24,7 @@ extension ShiftsFeatureViewModel {
         return marketShifts
             .filter {
                 $0.assignedUserIds.contains(memberId) &&
-                    effectiveDateMillis(for: $0) >= currentNowMillis
+                    isUpcomingEffectiveDay($0)
             }
             .min { effectiveDateMillis(for: $0) < effectiveDateMillis(for: $1) }
     }
@@ -78,6 +75,14 @@ extension ShiftsFeatureViewModel {
         Date(timeIntervalSince1970: TimeInterval(effectiveDateMillis(for: shift)) / 1_000)
     }
 
+    private func isUpcomingEffectiveDay(_ shift: ShiftAssignment) -> Bool {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(
+            for: Date(timeIntervalSince1970: TimeInterval(currentNowMillis) / 1_000)
+        )
+        return calendar.startOfDay(for: effectiveDate(for: shift)) >= today
+    }
+
     func localizedEffectiveDateTime(_ shift: ShiftAssignment) -> String {
         localizedDateTime(effectiveDateMillis(for: shift))
     }
@@ -109,15 +114,12 @@ extension ShiftsFeatureViewModel {
             ]
         case .market:
             let date = effectiveDate(for: shift)
-            let monthFormatter = DateFormatter()
-            monthFormatter.locale = Locale.current
-            monthFormatter.dateFormat = "LLLL"
             let weekdayFormatter = DateFormatter()
             weekdayFormatter.locale = Locale.current
             weekdayFormatter.dateFormat = "EEEE"
             return [
                 ShiftBoardLine(
-                    text: monthFormatter.string(from: date).capitalized,
+                    text: date.shortMonthYearLabel,
                     font: tokens.typography.bodySecondary,
                     weight: .semibold,
                     color: tokens.colors.textPrimary
@@ -135,6 +137,48 @@ extension ShiftsFeatureViewModel {
                     color: tokens.colors.textPrimary
                 )
             ]
+        }
+    }
+
+    func resolvedHelperUserId(for shift: ShiftAssignment) -> String? {
+        guard shift.type == .delivery else { return nil }
+
+        let followingLead = deliveryShifts
+            .filter { $0.dateMillis > shift.dateMillis }
+            .min { $0.dateMillis < $1.dateMillis }
+
+        return followingLead?.assignedUserIds.first
+    }
+
+    func boardNames(for shift: ShiftAssignment) -> [String] {
+        switch shift.type {
+        case .delivery:
+            let leadName = shift.assignedUserIds.first.map {
+                boardDisplayName(for: $0)
+            } ?? "—"
+            let helperName = resolvedHelperUserId(for: shift).map {
+                boardDisplayName(for: $0)
+            } ?? "—"
+            return [leadName, helperName]
+        case .market:
+            return shift.boardNames(session: currentSession)
+        }
+    }
+
+    private func boardDisplayName(for memberId: String) -> String {
+        guard let currentSession else { return memberId }
+        return displayName(for: memberId, in: currentSession)
+    }
+
+    func highlightedBoardNameIndex(for shift: ShiftAssignment, currentMemberId: String) -> Int? {
+        switch shift.type {
+        case .delivery:
+            if shift.assignedUserIds.first == currentMemberId {
+                return 0
+            }
+            return resolvedHelperUserId(for: shift) == currentMemberId ? 1 : nil
+        case .market:
+            return shift.highlightedBoardNameIndex(for: currentMemberId)
         }
     }
 

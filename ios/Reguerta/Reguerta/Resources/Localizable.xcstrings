@@ -1475,7 +1475,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Selecciona un día de reparto futuro con encargado."
+            "value" : "Selecciona un día de reparto futuro con responsable."
           }
         }
       }
@@ -3173,7 +3173,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ayudante"
+            "value" : "Apoyo"
           }
         }
       }
@@ -7332,13 +7332,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Helper: %1$@"
+            "value" : "Support: %1$@"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ayudante: %1$@"
+            "value" : "Apoyo: %1$@"
           }
         }
       }
@@ -7400,13 +7400,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Helper"
+            "value" : "Support"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ayudante"
+            "value" : "Apoyo"
           }
         }
       }
@@ -7417,13 +7417,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lead"
+            "value" : "Responsible"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Encargado"
+            "value" : "Responsable"
           }
         }
       }
@@ -7782,13 +7782,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Member in charge of common purchases"
+            "value" : "Member responsible for common purchases"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Socio encargado de compras comunes"
+            "value" : "Socio responsable de compras comunes"
           }
         }
       }

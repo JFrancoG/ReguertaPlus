@@ -201,6 +201,18 @@ extension Date {
         return formatter.string(from: self).replacingOccurrences(of: ".", with: "")
     }
 
+    var shortMonthYearLabel: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.dateFormat = "MMM"
+        let month = formatter.string(from: self)
+            .replacingOccurrences(of: ".", with: "")
+            .prefix(3)
+            .capitalized
+        let year = Calendar.current.component(.year, from: self)
+        return "\(month) \(year)"
+    }
+
     var dayNumberLabel: String {
         let formatter = DateFormatter()
         formatter.locale = Locale.current

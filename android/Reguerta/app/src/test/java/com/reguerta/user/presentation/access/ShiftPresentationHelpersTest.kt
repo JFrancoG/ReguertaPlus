@@ -24,9 +24,9 @@ class ShiftPresentationHelpersTest {
         val memberId = "member_1"
         val shifts = listOf(
             deliveryShift(
-                id = "past_lead",
+                id = "helper_for_next_lead",
                 date = LocalDate.of(2026, 5, 1),
-                assignedUserIds = listOf(memberId),
+                assignedUserIds = listOf("member_2"),
             ),
             deliveryShift(
                 id = "next_lead",
@@ -34,10 +34,9 @@ class ShiftPresentationHelpersTest {
                 assignedUserIds = listOf(memberId),
             ),
             deliveryShift(
-                id = "next_helper",
+                id = "following_delivery",
                 date = LocalDate.of(2026, 5, 15),
                 assignedUserIds = listOf("member_2"),
-                helperUserId = memberId,
             ),
             marketShift(
                 id = "next_market",
@@ -48,8 +47,51 @@ class ShiftPresentationHelpersTest {
         val nowMillis = millis(LocalDate.of(2026, 5, 2))
 
         assertEquals("next_lead", shifts.nextDeliveryLeadShift(memberId, emptyList(), nowMillis)?.id)
-        assertEquals("next_helper", shifts.nextDeliveryHelperShift(memberId, emptyList(), nowMillis)?.id)
+        assertEquals("helper_for_next_lead", shifts.nextDeliveryHelperShift(memberId, emptyList(), nowMillis)?.id)
         assertEquals("next_market", shifts.nextMarketAssignedShift(memberId, emptyList(), nowMillis)?.id)
+    }
+
+    @Test
+    fun nextDeliveryHelperStaysPairedWithFollowingLeadAfterHelperDate() {
+        val memberId = "nohemi"
+        val helperDelivery = deliveryShift(
+            id = "delivery_2026_w28",
+            date = LocalDate.of(2026, 7, 8),
+            assignedUserIds = listOf("mercedes"),
+        )
+        val leadDelivery = deliveryShift(
+            id = "delivery_2026_w29",
+            date = LocalDate.of(2026, 7, 15),
+            assignedUserIds = listOf(memberId),
+        )
+        val shifts = listOf(helperDelivery, leadDelivery)
+        val nowMillis = millis(LocalDate.of(2026, 7, 10)) + 15L * 60L * 60L * 1_000L
+
+        assertEquals("delivery_2026_w28", shifts.nextDeliveryHelperShift(memberId, emptyList(), nowMillis)?.id)
+        assertEquals("delivery_2026_w29", shifts.nextDeliveryLeadShift(memberId, emptyList(), nowMillis)?.id)
+    }
+
+    @Test
+    fun deliveryBoardDerivesHelperFromFollowingLeadInsteadOfStoredHelper() {
+        val helperDelivery = deliveryShift(
+            id = "delivery_2026_w29",
+            date = LocalDate.of(2026, 7, 15),
+            assignedUserIds = listOf("nohemi"),
+            helperUserId = "stale_helper",
+        )
+        val followingLead = deliveryShift(
+            id = "delivery_2026_w30",
+            date = LocalDate.of(2026, 7, 22),
+            assignedUserIds = listOf("pedro"),
+            helperUserId = "stale_last_helper",
+        )
+        val shifts = listOf(helperDelivery, followingLead)
+
+        val resolvedHelperUserId = shifts.resolvedHelperUserIdFor(helperDelivery)
+
+        assertEquals("pedro", resolvedHelperUserId)
+        assertEquals(1, helperDelivery.highlightedBoardNameIndex("pedro", resolvedHelperUserId))
+        assertEquals(null, shifts.resolvedHelperUserIdFor(followingLead))
     }
 
     @Test

@@ -9,7 +9,7 @@ struct ShiftBoardCardView: View {
     let onStartSwapRequestForShift: (String) -> Void
 
     private var leftColumnWidth: CGFloat {
-        shift.type == .market ? 88.resize : 104.resize
+        shift.type == .market ? 80.resize : 88.resize
     }
 
     private var leftAlignment: HorizontalAlignment {
@@ -18,7 +18,7 @@ struct ShiftBoardCardView: View {
 
     private var highlightedIndex: Int? {
         guard let currentMemberId = viewModel.currentMember?.id else { return nil }
-        return shift.highlightedBoardNameIndex(for: currentMemberId)
+        return viewModel.highlightedBoardNameIndex(for: shift, currentMemberId: currentMemberId)
     }
 
     private var canRequestSwap: Bool {
@@ -26,30 +26,45 @@ struct ShiftBoardCardView: View {
         return viewModel.canRequestSwapForShift(shift, currentMemberId: currentMemberId)
     }
 
+    private var leftLines: [ShiftBoardDisplayLine] {
+        viewModel.shiftLeftBoardLines(shift, tokens: tokens).enumerated().map { index, line in
+            ShiftBoardDisplayLine(id: "\(shift.id)-left-\(index)", line: line)
+        }
+    }
+
+    private var boardNames: [ShiftBoardDisplayName] {
+        viewModel.boardNames(for: shift).enumerated().map { index, name in
+            ShiftBoardDisplayName(id: "\(shift.id)-name-\(index)", index: index, name: name)
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-            HStack(alignment: .top, spacing: tokens.spacing.md) {
+            HStack(alignment: .center, spacing: tokens.spacing.md) {
                 VStack(alignment: leftAlignment, spacing: tokens.spacing.xs) {
-                    ForEach(Array(viewModel.shiftLeftBoardLines(shift, tokens: tokens).enumerated()), id: \.offset) { _, line in
-                        Text(line.text)
-                            .font(line.font)
-                            .fontWeight(line.weight)
-                            .foregroundStyle(line.color)
+                    ForEach(leftLines) { item in
+                        Text(item.line.text)
+                            .font(item.line.font)
+                            .fontWeight(item.line.weight)
+                            .foregroundStyle(item.line.color)
                             .multilineTextAlignment(shift.type == .market ? .center : .leading)
                     }
                 }
                 .frame(width: leftColumnWidth, alignment: shift.type == .market ? .center : .leading)
 
                 VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                    ForEach(Array(shift.boardNames(session: viewModel.currentSession).enumerated()), id: \.offset) { index, name in
-                        Text(name)
-                            .font(boardNameFont(index: index))
-                            .fontWeight(boardNameWeight(index: index))
+                    ForEach(boardNames) { item in
+                        Text(item.name)
+                            .font(boardNameFont(index: item.index))
+                            .fontWeight(boardNameWeight(index: item.index))
                             .foregroundStyle(
-                                highlightedIndex == index
+                                highlightedIndex == item.index
                                 ? tokens.colors.actionPrimary
                                 : tokens.colors.textPrimary
                             )
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.78)
+                            .allowsTightening(true)
                     }
                     if shift.status != .planned {
                         Text(LocalizedStringKey(shift.status.titleKey))
@@ -57,11 +72,18 @@ struct ShiftBoardCardView: View {
                             .foregroundStyle(tokens.colors.textSecondary)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             if highlightedIndex != nil && canRequestSwap {
-                reguertaButton(LocalizedStringKey(shiftSwapCopy.ask), variant: .text, fullWidth: false) {
+                reguertaButton(
+                    LocalizedStringKey(shiftSwapCopy.ask),
+                    variant: .secondary,
+                    fullWidth: false,
+                    fixedWidth: 196.resize
+                ) {
                     onStartSwapRequestForShift(shift.id)
                 }
+                .frame(maxWidth: .infinity, alignment: .center)
             }
         }
         .padding(tokens.spacing.lg)
@@ -95,6 +117,17 @@ struct ShiftBoardCardView: View {
         }
         return tokens.colors.actionPrimary.opacity(0.15)
     }
+}
+
+private struct ShiftBoardDisplayLine: Identifiable {
+    let id: String
+    let line: ShiftBoardLine
+}
+
+private struct ShiftBoardDisplayName: Identifiable {
+    let id: String
+    let index: Int
+    let name: String
 }
 
 struct ShiftSwapRequestRouteView: View {

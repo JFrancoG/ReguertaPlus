@@ -71,7 +71,7 @@ internal fun DeliveryCalendarWeekPickerDialog(
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = "Selecciona un dia de reparto futuro con encargado.",
+                text = "Selecciona un dia de reparto futuro con responsable.",
                 style = MaterialTheme.typography.bodyMedium,
             )
             ExposedDropdownMenuBox(
