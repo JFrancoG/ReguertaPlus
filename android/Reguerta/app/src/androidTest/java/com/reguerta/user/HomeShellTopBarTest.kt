@@ -1,8 +1,11 @@
 package com.reguerta.user
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.Text
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.reguerta.user.presentation.home.HomeShellTopBar
 import com.reguerta.user.ui.theme.ReguertaTheme
@@ -33,6 +36,31 @@ class HomeShellTopBarTest {
     }
 
     @Test
+    fun backNavigationTitleAddsEightDpBeforeContent() {
+        setTopBarContent(
+            title = "News",
+            canNavigateBack = true,
+            contentAfterHeader = "First content",
+        )
+
+        val titleBounds = composeRule
+            .onNodeWithText("News")
+            .fetchSemanticsNode()
+            .boundsInRoot
+        val contentBounds = composeRule
+            .onNodeWithText("First content")
+            .fetchSemanticsNode()
+            .boundsInRoot
+        val expectedGapPx = with(composeRule.density) { 8.dp.toPx() }
+        val actualGapPx = contentBounds.top - titleBounds.bottom
+
+        assertTrue(
+            "Expected an 8 dp gap below the screen title, but measured $actualGapPx px",
+            actualGapPx >= expectedGapPx - 1f,
+        )
+    }
+
+    @Test
     fun dashboardTitleRemainsInsideMenuRow() {
         setTopBarContent(title = "Friday, July 10", canNavigateBack = false)
 
@@ -53,21 +81,25 @@ class HomeShellTopBarTest {
     private fun setTopBarContent(
         title: String,
         canNavigateBack: Boolean,
+        contentAfterHeader: String? = null,
     ) {
         composeRule.setContent {
             ReguertaTheme {
-                HomeShellTopBar(
-                    title = title,
-                    canNavigateBack = canNavigateBack,
-                    showsNotificationsAction = false,
-                    hasNotificationIndicator = false,
-                    showsCartAction = false,
-                    cartUnits = 0,
-                    onBack = {},
-                    onOpenMenu = {},
-                    onOpenNotifications = {},
-                    onOpenCart = {},
-                )
+                Column {
+                    HomeShellTopBar(
+                        title = title,
+                        canNavigateBack = canNavigateBack,
+                        showsNotificationsAction = false,
+                        hasNotificationIndicator = false,
+                        showsCartAction = false,
+                        cartUnits = 0,
+                        onBack = {},
+                        onOpenMenu = {},
+                        onOpenNotifications = {},
+                        onOpenCart = {},
+                    )
+                    contentAfterHeader?.let { Text(text = it) }
+                }
             }
         }
     }

@@ -55,6 +55,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-07-10 | 🐛 fix(android-ui): space screen header content
 - 2026-07-10 | 🐛 fix(community): merge profile intro copy
 - 2026-07-10 | 🐛 fix(android-ui): standardize screen headers
 - 2026-07-10 | 🐛 fix(ui): restore news image and header layout
@@ -100,6 +101,7 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-07-10 | 📝 docs(app): link HU-065 pull request
 - 2026-07-10 | 📝 docs(app): link HU-064 pull request
 - 2026-07-10 | 📝 docs(shifts): link HU-063 pull request
 - 2026-05-03 | 📝 docs(design): refine home drawer proposal
