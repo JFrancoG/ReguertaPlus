@@ -428,8 +428,8 @@
     <string name="received_orders_tab_by_member">By member</string>
     <string name="received_orders_producer_only_title">Producer access only</string>
     <string name="received_orders_producer_only_body">This section is available when you sign in with a producer profile.</string>
-    <string name="received_orders_window_closed_title">Outside preparation window</string>
-    <string name="received_orders_window_closed_body">The preparation view is enabled between Monday and delivery day.</string>
+    <string name="received_orders_window_closed_title">Preparation starts on Monday</string>
+    <string name="received_orders_window_closed_body">From then until delivery day, you can review orders and mark them as prepared.</string>
     <string name="received_orders_loading_title">Loading received orders…</string>
     <string name="received_orders_loading_body">Collecting producer order lines for this week.</string>
     <string name="received_orders_empty_title">No received orders</string>

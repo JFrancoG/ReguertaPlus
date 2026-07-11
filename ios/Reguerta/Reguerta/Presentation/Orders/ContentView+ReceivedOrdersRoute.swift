@@ -23,12 +23,12 @@ struct ReceivedOrdersRouteView: View {
     private var statusFeedbackView: some View {
         switch viewModel.statusWriteFeedback {
         case .permissionDenied:
-            Text("No tienes permiso para actualizar este estado de productor.")
+            Text(l10n(AccessL10nKey.receivedOrdersStatusPermissionDenied))
                 .font(tokens.typography.bodySecondary)
                 .foregroundStyle(tokens.colors.feedbackError)
                 .frame(maxWidth: .infinity, alignment: .leading)
         case .failure:
-            Text("No se pudo guardar el estado de productor. Inténtalo de nuevo.")
+            Text(l10n(AccessL10nKey.receivedOrdersStatusFailure))
                 .font(tokens.typography.bodySecondary)
                 .foregroundStyle(tokens.colors.feedbackError)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -40,7 +40,7 @@ struct ReceivedOrdersRouteView: View {
     @ViewBuilder
     private var tabSelector: some View {
         Picker(
-            "Pedidos recibidos",
+            l10n(AccessL10nKey.receivedOrdersTabsTitle),
             selection: Binding(
                 get: { viewModel.selectedTab },
                 set: { tab in
@@ -65,14 +65,11 @@ struct ReceivedOrdersRouteView: View {
     private var routeContent: some View {
         if !viewModel.isProducer {
             infoCard(
-                title: "Solo para productores",
-                body: "Esta sección aparece cuando accedes con un perfil productor."
+                title: l10n(AccessL10nKey.receivedOrdersProducerOnlyTitle),
+                body: l10n(AccessL10nKey.receivedOrdersProducerOnlyBody)
             )
         } else if !viewModel.window.isEnabled {
-            infoCard(
-                title: "Pedidos fuera de ventana",
-                body: "La pantalla de preparación se habilita entre lunes y día de reparto."
-            )
+            windowClosedCard
         } else {
             switch viewModel.loadState {
             case .idle, .loading:
@@ -80,19 +77,22 @@ struct ReceivedOrdersRouteView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             case .empty:
                 infoCard(
-                    title: "Sin pedidos recibidos",
-                    body: "No hay líneas de pedido para preparar en la semana \(viewModel.window.targetWeekKey)."
+                    title: l10n(AccessL10nKey.receivedOrdersEmptyTitle),
+                    body: l10n(
+                        AccessL10nKey.receivedOrdersEmptyBodyFormat,
+                        viewModel.window.targetWeekKey
+                    )
                 )
             case .error:
                 reguertaCard {
                     VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                        Text("No se pudieron cargar los pedidos")
+                        Text(l10n(AccessL10nKey.receivedOrdersErrorTitle))
                             .font(tokens.typography.titleCard.weight(.semibold))
                             .foregroundStyle(tokens.colors.feedbackError)
-                        Text("Revisa la conexión y vuelve a intentarlo.")
+                        Text(l10n(AccessL10nKey.receivedOrdersErrorBody))
                             .font(tokens.typography.bodySecondary)
                             .foregroundStyle(tokens.colors.textSecondary)
-                        reguertaButton("Reintentar") {
+                        reguertaButton(LocalizedStringKey(AccessL10nKey.receivedOrdersRetry)) {
                             Task {
                                 await viewModel.retry()
                             }
@@ -107,6 +107,36 @@ struct ReceivedOrdersRouteView: View {
 }
 
 private extension ReceivedOrdersRouteView {
+    var windowClosedCard: some View {
+        let shape = RoundedRectangle(cornerRadius: tokens.radius.lg, style: .continuous)
+
+        return HStack(alignment: .top, spacing: tokens.spacing.md) {
+            Image(systemName: "calendar.badge.clock")
+                .font(.system(size: 20.resize, weight: .semibold))
+                .foregroundStyle(tokens.colors.actionPrimary)
+                .frame(width: 44.resize, height: 44.resize)
+                .background(
+                    tokens.colors.actionPrimary.opacity(0.14),
+                    in: RoundedRectangle(cornerRadius: tokens.radius.md, style: .continuous)
+                )
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                Text(l10n(AccessL10nKey.receivedOrdersWindowClosedTitle))
+                    .font(tokens.typography.titleCard.weight(.semibold))
+                    .foregroundStyle(tokens.colors.textPrimary)
+                Text(l10n(AccessL10nKey.receivedOrdersWindowClosedBody))
+                    .font(tokens.typography.bodySecondary)
+                    .foregroundStyle(tokens.colors.textSecondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(tokens.spacing.xl)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(tokens.colors.actionPrimary.opacity(0.09), in: shape)
+        .overlay(shape.stroke(tokens.colors.actionPrimary.opacity(0.28), lineWidth: 1.resize))
+    }
+
     @ViewBuilder
     func loadedContent(_ snapshot: ReceivedOrdersSnapshot) -> some View {
         ReceivedOrdersSummaryContent(

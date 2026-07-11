@@ -63,5 +63,8 @@ internal fun shouldHideHomeShellTitle(
     destination: HomeDestination,
     isMyOrderCartVisible: Boolean,
     isMyOrderReadOnlyMode: Boolean,
-): Boolean = destination == HomeDestination.MY_ORDER &&
-    (!isMyOrderCartVisible || isMyOrderReadOnlyMode)
+): Boolean = when (destination) {
+    HomeDestination.MY_ORDER -> !isMyOrderCartVisible || isMyOrderReadOnlyMode
+    HomeDestination.RECEIVED_ORDERS -> true
+    else -> false
+}

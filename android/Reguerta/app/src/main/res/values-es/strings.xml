@@ -428,8 +428,8 @@
     <string name="received_orders_tab_by_member">Por regüertense</string>
     <string name="received_orders_producer_only_title">Solo para productores</string>
     <string name="received_orders_producer_only_body">Esta sección aparece cuando accedes con un perfil productor.</string>
-    <string name="received_orders_window_closed_title">Pedidos fuera de ventana</string>
-    <string name="received_orders_window_closed_body">La pantalla de preparación se habilita entre lunes y día de reparto.</string>
+    <string name="received_orders_window_closed_title">La preparación empieza el lunes</string>
+    <string name="received_orders_window_closed_body">Desde entonces y hasta el día de reparto, podrás revisar los pedidos y marcarlos como preparados.</string>
     <string name="received_orders_loading_title">Cargando pedidos recibidos…</string>
     <string name="received_orders_loading_body">Recopilando líneas de pedido del productor para esta semana.</string>
     <string name="received_orders_empty_title">Sin pedidos recibidos</string>
