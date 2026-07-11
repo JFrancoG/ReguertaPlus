@@ -370,7 +370,7 @@
     <string name="my_order_list_subtitle">Grouped by producer</string>
     <string name="my_order_confirmed_title">Confirmed order</string>
     <string name="my_order_view_cart_action">View</string>
-    <string name="my_order_common_purchases_group_name">Regüerta shared purchases</string>
+    <string name="my_order_common_purchases_group_name">Regüerta purchases</string>
     <string name="my_order_add_action">Add</string>
     <string name="my_order_quantity_single">1 unit</string>
     <string name="my_order_quantity_plural_format">%1$d units</string>
