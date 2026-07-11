@@ -63,10 +63,12 @@ internal class SessionProductActions(
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
         scope.launch {
             uiState.update { it.copy(isLoadingMyOrderProducts = true) }
-            val membersById = mode.members.associateBy { it.id }
+            val refreshedMembers = memberRepository.getAllMembers().ifEmpty { mode.members }
+            val membersById = refreshedMembers.associateBy { it.id }
+            val refreshedCurrentMember = membersById[mode.member.id] ?: mode.member
             val currentWeekParity = currentIsoWeekProducerParity(nowMillis = nowMillisProvider())
             val seasonalCommitments = linkedMapOf<String, com.reguerta.user.domain.commitments.SeasonalCommitment>()
-            mode.member.seasonalCommitmentLookupKeys()
+            refreshedCurrentMember.seasonalCommitmentLookupKeys()
                 .map { lookupKey ->
                     async {
                         seasonalCommitmentRepository.getActiveCommitmentsForUser(lookupKey)
@@ -96,6 +98,12 @@ internal class SessionProductActions(
                     it.copy(isLoadingMyOrderProducts = false)
                 } else {
                     it.copy(
+                        mode = currentMode.copy(
+                            authenticatedMember = membersById[currentMode.authenticatedMember.id]
+                                ?: currentMode.authenticatedMember,
+                            member = membersById[currentMode.member.id] ?: currentMode.member,
+                            members = refreshedMembers,
+                        ),
                         myOrderProductsFeed = visibleProducts,
                         myOrderSeasonalCommitmentsFeed = seasonalCommitments.values.toList(),
                         isLoadingMyOrderProducts = false,
@@ -294,6 +302,7 @@ internal class SessionProductActions(
                         isUpdatingProducerCatalogVisibility = false,
                     )
                 }
+                refreshMyOrderProducts()
                 emitMessage(
                     if (isEnabled) {
                         R.string.feedback_producer_catalog_enabled
@@ -310,7 +319,7 @@ internal class SessionProductActions(
     }
 }
 
-private fun com.reguerta.user.domain.access.Member?.isVisibleForOrdering(): Boolean =
+internal fun com.reguerta.user.domain.access.Member?.isVisibleForOrdering(): Boolean =
     this?.isActive != false && this?.producerCatalogEnabled != false
 
 internal fun com.reguerta.user.domain.access.Member.seasonalCommitmentLookupKeys(): List<String> =

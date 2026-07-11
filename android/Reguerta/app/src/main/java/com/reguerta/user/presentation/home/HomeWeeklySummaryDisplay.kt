@@ -184,7 +184,7 @@ private fun resolveProducerName(weekStart: LocalDate, members: List<Member>): St
         ProducerParity.ODD
     }
     val producers = members
-        .filter { it.isProducer && it.producerCatalogEnabled }
+        .filter(Member::isProducer)
         .sortedBy { it.companyName?.takeIf(String::isNotBlank) ?: it.displayName }
     return producers
         .firstOrNull { it.producerParity == parity }

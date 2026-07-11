@@ -25,7 +25,6 @@ final class ProductsRouteViewModel {
     var isSaving = false
     var isUploadingImage = false
     var isUpdatingCatalogVisibility = false
-    var pendingCatalogVisibility: Bool?
     var highlightedProductId: String?
 
     var activeProducts: [Product] {
@@ -126,14 +125,18 @@ extension ProductsRouteViewModel {
         }
 
         isLoadingOrderingProducts = true
+        let refreshedMembers = await memberRepository.allMembers()
+        let effectiveMembers = refreshedMembers.isEmpty ? session.members : refreshedMembers
+        let membersById = Dictionary(uniqueKeysWithValues: effectiveMembers.map { ($0.id, $0) })
+        let refreshedCurrentMember = membersById[session.member.id] ?? session.member
         let currentWeekParity = producerParityForISOWeek(nowMillis: nowMillisProvider())
-        let commitments = await loadSeasonalCommitments(for: session.member)
+        let commitments = await loadSeasonalCommitments(for: refreshedCurrentMember)
         let visibleProducts = await productRepository.allProducts()
             .filter { product in
                 product.isVisibleInOrdering &&
-                    session.membersById[product.vendorId].isVisibleForOrdering &&
+                    membersById[product.vendorId].isVisibleForOrdering &&
                     product.matchesCurrentProducerWeek(
-                        membersById: session.membersById,
+                        membersById: membersById,
                         currentWeekParity: currentWeekParity
                     )
             }
@@ -142,6 +145,8 @@ extension ProductsRouteViewModel {
             isLoadingOrderingProducts = false
             return
         }
+        sessionViewModel.applyRefreshedAuthorizedMembers(effectiveMembers)
+        syncCurrentSessionFromSessionViewModel()
         myOrderProducts = visibleProducts
         myOrderSeasonalCommitments = commitments
         hasLoadedOrderingProducts = true
@@ -277,34 +282,22 @@ extension ProductsRouteViewModel {
         highlightProduct(productId)
     }
 
-    func requestCatalogVisibilityChange() {
-        guard currentMember?.isProducer == true else { return }
-        pendingCatalogVisibility = !(currentMember?.producerCatalogEnabled ?? true)
-    }
-
-    func confirmCatalogVisibilityChange() async {
+    func setVacationModeEnabled(_ isEnabled: Bool) async {
         guard let session = authorizedSession else { return }
-        guard let isEnabled = pendingCatalogVisibility else { return }
         guard session.member.isProducer else { return }
-        guard session.member.producerCatalogEnabled != isEnabled else {
-            dismissCatalogVisibilityChange()
-            return
-        }
+        let catalogEnabled = !isEnabled
+        guard session.member.producerCatalogEnabled != catalogEnabled else { return }
 
         isUpdatingCatalogVisibility = true
         defer { isUpdatingCatalogVisibility = false }
         let updatedMember = await memberRepository.upsert(
-            member: session.member.copy(producerCatalogEnabled: isEnabled)
+            member: session.member.copy(producerCatalogEnabled: catalogEnabled)
         )
         let members = await memberRepository.allMembers()
         sessionViewModel.applyUpdatedAuthorizedMember(updatedMember, members: members)
         syncCurrentSessionFromSessionViewModel()
         catalogProducts = await productRepository.products(vendorId: updatedMember.id)
-        pendingCatalogVisibility = nil
-    }
-
-    func dismissCatalogVisibilityChange() {
-        pendingCatalogVisibility = nil
+        await refreshOrderingProducts()
     }
 
     func highlightProduct(_ productId: String) {
@@ -360,7 +353,6 @@ private extension ProductsRouteViewModel {
         isSaving = false
         isUploadingImage = false
         isUpdatingCatalogVisibility = false
-        pendingCatalogVisibility = nil
         highlightedProductId = nil
     }
 

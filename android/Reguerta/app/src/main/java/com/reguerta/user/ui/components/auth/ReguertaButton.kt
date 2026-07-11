@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.reguerta.user.ui.theme.ReguertaThemeTokens
@@ -38,6 +39,7 @@ fun ReguertaButton(
     variant: ReguertaButtonVariant = ReguertaButtonVariant.PRIMARY,
     textStyle: TextStyle? = null,
     cornerRadius: Dp? = null,
+    horizontalPadding: Dp? = null,
     enabled: Boolean = true,
     fullWidth: Boolean = true,
     loading: Boolean = false,
@@ -46,6 +48,7 @@ fun ReguertaButton(
     val isEnabled = enabled && !loading
     val spacing = ReguertaThemeTokens.spacing
     val buttonTokens = ReguertaThemeTokens.button
+    val resolvedHorizontalPadding = horizontalPadding ?: buttonTokens.horizontalPadding
     val disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh
     val disabledContentColor = MaterialTheme.colorScheme.onSurface
     val contentColor = if (variant == ReguertaButtonVariant.PRIMARY) {
@@ -70,6 +73,7 @@ fun ReguertaButton(
             }
             Text(
                 text = label,
+                textAlign = TextAlign.Center,
                 style = textStyle ?: if (variant == ReguertaButtonVariant.TEXT) {
                     MaterialTheme.typography.titleMedium
                 } else {
@@ -78,7 +82,7 @@ fun ReguertaButton(
             )
         }
     }
-    val shape = RoundedCornerShape(cornerRadius ?: buttonTokens.cornerRadius)
+    val shape = cornerRadius?.let(::RoundedCornerShape) ?: RoundedCornerShape(50)
 
     when (variant) {
         ReguertaButtonVariant.PRIMARY -> Button(
@@ -93,7 +97,7 @@ fun ReguertaButton(
                 disabledContentColor = disabledContentColor,
             ),
             contentPadding = PaddingValues(
-                horizontal = buttonTokens.horizontalPadding,
+                horizontal = resolvedHorizontalPadding,
                 vertical = buttonTokens.verticalPadding,
             ),
             content = content,
@@ -111,7 +115,7 @@ fun ReguertaButton(
                 disabledContentColor = disabledContentColor,
             ),
             contentPadding = PaddingValues(
-                horizontal = buttonTokens.horizontalPadding,
+                horizontal = resolvedHorizontalPadding,
                 vertical = buttonTokens.verticalPadding,
             ),
             content = content,
@@ -129,7 +133,7 @@ fun ReguertaButton(
                 disabledContentColor = disabledContentColor,
             ),
             contentPadding = PaddingValues(
-                horizontal = buttonTokens.horizontalPadding,
+                horizontal = resolvedHorizontalPadding,
                 vertical = buttonTokens.verticalPadding,
             ),
             content = content,

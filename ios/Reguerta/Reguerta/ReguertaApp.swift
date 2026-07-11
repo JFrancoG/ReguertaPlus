@@ -10,8 +10,13 @@ import SwiftUI
 @main
 struct ReguertaApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @AppStorage(AppAppearance.storageKey) private var appAppearanceRawValue = AppAppearance.system.rawValue
 
     private let appEnvironment = ReguertaAppEnvironment.live()
+
+    private var appAppearance: AppAppearance {
+        AppAppearance(rawValue: appAppearanceRawValue) ?? .system
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -19,6 +24,7 @@ struct ReguertaApp: App {
                 MainView()
                     .environment(\.reguertaAppEnvironment, appEnvironment)
             }
+            .preferredColorScheme(appAppearance.preferredColorScheme)
         }
     }
 }

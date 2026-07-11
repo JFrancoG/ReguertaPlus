@@ -38,35 +38,6 @@ struct ProductsRouteView: View {
                 }
             }
         }
-        .alert(
-            localizedKey(
-                viewModel.pendingCatalogVisibility == true
-                    ? AccessL10nKey.productsCatalogVisibilityAlertTitleReactivate
-                    : AccessL10nKey.productsCatalogVisibilityAlertTitlePause
-            ),
-            isPresented: Binding(
-                get: { viewModel.pendingCatalogVisibility != nil },
-                set: { presented in
-                    if !presented {
-                        viewModel.dismissCatalogVisibilityChange()
-                    }
-                }
-            ),
-            presenting: viewModel.pendingCatalogVisibility
-        ) { _ in
-            Button(localizedKey(AccessL10nKey.commonActionCancel), role: .cancel) {
-                viewModel.dismissCatalogVisibilityChange()
-            }
-            Button(localizedKey(AccessL10nKey.commonActionConfirm)) {
-                Task { await viewModel.confirmCatalogVisibilityChange() }
-            }
-        } message: { isEnabled in
-            Text(
-                isEnabled
-                ? localizedKey(AccessL10nKey.productsCatalogVisibilityAlertMessageReactivate)
-                : localizedKey(AccessL10nKey.productsCatalogVisibilityAlertMessagePause)
-            )
-        }
     }
 
     @ViewBuilder

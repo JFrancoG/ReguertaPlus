@@ -8,12 +8,20 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.reguerta.user.data.settings.DataStoreAppearancePreferences
 import com.reguerta.user.presentation.root.ReguertaRoot
+import com.reguerta.user.ui.theme.AppAppearance
 import com.reguerta.user.ui.theme.ReguertaTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -21,8 +29,25 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         requestNotificationsPermissionIfNeeded()
         setContent {
-            ReguertaTheme {
-                ReguertaRoot(modifier = Modifier.fillMaxSize())
+            val appearancePreferences = remember {
+                DataStoreAppearancePreferences(applicationContext)
+            }
+            val appearance by appearancePreferences.appearance.collectAsStateWithLifecycle(
+                initialValue = AppAppearance.SYSTEM,
+            )
+            val scope = rememberCoroutineScope()
+            ReguertaTheme(
+                darkTheme = appearance.resolvesToDark(isSystemInDarkTheme()),
+            ) {
+                ReguertaRoot(
+                    modifier = Modifier.fillMaxSize(),
+                    appAppearance = appearance,
+                    onAppAppearanceChanged = { updatedAppearance ->
+                        scope.launch {
+                            appearancePreferences.setAppearance(updatedAppearance)
+                        }
+                    },
+                )
             }
         }
     }

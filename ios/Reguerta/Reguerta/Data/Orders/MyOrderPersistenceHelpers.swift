@@ -158,7 +158,6 @@ extension Member {
             producer.id != id &&
                 producer.isProducer &&
                 producer.isActive &&
-                producer.producerCatalogEnabled &&
                 producer.producerParity == parity
         }?.id
     }

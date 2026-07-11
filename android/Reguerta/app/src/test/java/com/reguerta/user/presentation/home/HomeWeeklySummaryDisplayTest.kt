@@ -39,6 +39,29 @@ class HomeWeeklySummaryDisplayTest {
     }
 
     @Test
+    fun weeklySummary_keepsScheduledProducerWhileVacationModeIsEnabled() {
+        val vacationMembers = members.map { member ->
+            if (member.id == "producer_2") {
+                member.copy(producerCatalogEnabled = false)
+            } else {
+                member
+            }
+        }
+        val display = resolveHomeWeeklySummaryDisplay(
+            nowMillis = LocalDate.of(2026, 5, 6).atStartOfDay(zone).toInstant().toEpochMilli(),
+            defaultDeliveryDayOfWeek = DeliveryWeekday.FRIDAY,
+            deliveryCalendarOverrides = emptyList(),
+            shifts = listOf(deliveryShift("delivery_2026w19", LocalDate.of(2026, 5, 8))),
+            members = vacationMembers,
+            currentMemberId = "member_1",
+            orderState = HomeOrderStateDisplay.UNCONFIRMED,
+            zoneId = zone,
+        )
+
+        assertEquals("Huerta Sur", display.producerName)
+    }
+
+    @Test
     fun weeklySummary_movesToNextWeekAfterDelivery() {
         val display = resolveHomeWeeklySummaryDisplay(
             nowMillis = LocalDate.of(2026, 5, 9).atStartOfDay(zone).toInstant().toEpochMilli(),

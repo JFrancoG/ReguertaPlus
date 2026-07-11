@@ -337,11 +337,6 @@ class SessionViewModel(
         onSuccess: () -> Unit = {},
     ) = shiftActions.saveDeliveryCalendarOverride(weekKey, weekday, updatedByUserId, onSuccess)
 
-    fun deleteDeliveryCalendarOverride(
-        weekKey: String,
-        onSuccess: () -> Unit = {},
-    ) = shiftActions.deleteDeliveryCalendarOverride(weekKey, onSuccess)
-
     fun submitShiftPlanningRequest(
         type: ShiftPlanningRequestType,
         onSuccess: () -> Unit = {},

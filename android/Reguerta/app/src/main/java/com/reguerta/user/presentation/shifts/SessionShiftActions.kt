@@ -108,39 +108,26 @@ internal class SessionShiftActions(
         if (!mode.member.isAdmin) return
         scope.launch {
             uiState.update { it.copy(isSavingDeliveryCalendar = true) }
-            val now = nowMillisProvider()
-            val override = buildDeliveryCalendarOverride(
-                weekKey = weekKey,
-                weekday = weekday,
-                updatedByUserId = updatedByUserId,
-                updatedAtMillis = now,
-            ) ?: run {
-                uiState.update { it.copy(isSavingDeliveryCalendar = false) }
-                return@launch
+            val calendarState = uiState.value
+            val shouldDeleteOverride = shouldDeleteDeliveryCalendarOverride(
+                hasExistingOverride = calendarState.deliveryCalendarOverrides.any { it.weekKey == weekKey },
+                selectedWeekday = weekday,
+                defaultWeekday = calendarState.defaultDeliveryDayOfWeek,
+            )
+            if (shouldDeleteOverride) {
+                deliveryCalendarRepository.deleteOverride(weekKey)
+            } else {
+                val override = buildDeliveryCalendarOverride(
+                    weekKey = weekKey,
+                    weekday = weekday,
+                    updatedByUserId = updatedByUserId,
+                    updatedAtMillis = nowMillisProvider(),
+                ) ?: run {
+                    uiState.update { it.copy(isSavingDeliveryCalendar = false) }
+                    return@launch
+                }
+                deliveryCalendarRepository.upsertOverride(override)
             }
-            deliveryCalendarRepository.upsertOverride(override)
-            val defaultDay = deliveryCalendarRepository.getDefaultDeliveryDayOfWeek()
-            val overrides = deliveryCalendarRepository.getAllOverrides()
-            uiState.update {
-                it.copy(
-                    defaultDeliveryDayOfWeek = defaultDay,
-                    deliveryCalendarOverrides = overrides,
-                    isSavingDeliveryCalendar = false,
-                )
-            }
-            onSuccess()
-        }
-    }
-
-    fun deleteDeliveryCalendarOverride(
-        weekKey: String,
-        onSuccess: () -> Unit = {},
-    ) {
-        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
-        if (!mode.member.isAdmin) return
-        scope.launch {
-            uiState.update { it.copy(isSavingDeliveryCalendar = true) }
-            deliveryCalendarRepository.deleteOverride(weekKey)
             val defaultDay = deliveryCalendarRepository.getDefaultDeliveryDayOfWeek()
             val overrides = deliveryCalendarRepository.getAllOverrides()
             uiState.update {
@@ -422,3 +409,9 @@ internal class SessionShiftActions(
         )
     }
 }
+
+internal fun shouldDeleteDeliveryCalendarOverride(
+    hasExistingOverride: Boolean,
+    selectedWeekday: DeliveryWeekday,
+    defaultWeekday: DeliveryWeekday?,
+): Boolean = hasExistingOverride && selectedWeekday == defaultWeekday

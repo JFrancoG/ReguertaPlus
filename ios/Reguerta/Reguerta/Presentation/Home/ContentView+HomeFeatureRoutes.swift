@@ -185,6 +185,7 @@ extension AccessRootRoutingView {
             tokens: tokens,
             session: currentHomeSession,
             shiftsViewModel: rootViewModel.shiftsViewModel,
+            productsViewModel: rootViewModel.productsViewModel,
             isDevelopImpersonationEnabled: viewModel.isDevelopImpersonationEnabled,
             isImpersonationExpanded: rootBinding(\.isImpersonationExpanded),
             nowOverrideMillis: rootViewModel.nowOverrideMillis,

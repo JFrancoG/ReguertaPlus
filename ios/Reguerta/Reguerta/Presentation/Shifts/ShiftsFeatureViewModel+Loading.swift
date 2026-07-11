@@ -62,55 +62,51 @@ extension ShiftsFeatureViewModel {
     }
 
     func openCalendarWeekPicker() {
-        if selectedDeliveryCalendarWeekKey == nil {
-            selectedDeliveryCalendarWeekKey = futureDeliveryWeeks.first?.weekKey
+        guard let weekKey = selectedDeliveryCalendarWeekKey ?? futureDeliveryWeeks.first?.weekKey else {
+            return
         }
+        selectCalendarWeekForEditing(weekKey)
         isDeliveryCalendarWeekPickerPresented = true
     }
 
-    func selectCalendarWeek(_ weekKey: String) {
+    func selectCalendarWeekForEditing(_ weekKey: String) {
         selectedDeliveryCalendarWeekKey = weekKey
-        selectedDeliveryCalendarWeekday = deliveryCalendarOverrides.first { $0.weekKey == weekKey }?.deliveryDateMillis.deliveryWeekday ??
+        let effectiveWeekday = deliveryCalendarOverrides.first { $0.weekKey == weekKey }?.deliveryDateMillis.deliveryWeekday ??
             defaultDeliveryDayOfWeek ??
             .wednesday
-        isDeliveryCalendarWeekPickerPresented = false
-        isDeliveryCalendarEditorPresented = true
+        selectedDeliveryCalendarWeekday = effectiveWeekday
+        originalDeliveryCalendarWeekday = effectiveWeekday
     }
 
     func dismissCalendarEditor() {
         selectedDeliveryCalendarWeekKey = nil
         selectedDeliveryCalendarWeekday = defaultDeliveryDayOfWeek ?? .wednesday
+        originalDeliveryCalendarWeekday = selectedDeliveryCalendarWeekday
     }
 
     func saveDeliveryCalendarOverride() async {
         guard let session = authorizedSession, session.member.isAdmin else { return }
         guard let weekKey = selectedDeliveryCalendarWeekKey else { return }
-        guard let override = buildDeliveryCalendarOverride(
+        let shouldDeleteOverride = selectedDeliveryCalendarOverride != nil &&
+            selectedDeliveryCalendarWeekday == defaultDeliveryDayOfWeek
+        let override = shouldDeleteOverride ? nil : buildDeliveryCalendarOverride(
             weekKey: weekKey,
             weekday: selectedDeliveryCalendarWeekday,
             updatedByUserId: session.member.id,
             updatedAtMillis: nowMillisProvider()
-        ) else { return }
+        )
+        guard shouldDeleteOverride || override != nil else { return }
 
         isSavingDeliveryCalendar = true
-        _ = await deliveryCalendarRepository.upsertOverride(override)
+        if shouldDeleteOverride {
+            await deliveryCalendarRepository.deleteOverride(weekKey: weekKey)
+        } else if let override {
+            _ = await deliveryCalendarRepository.upsertOverride(override)
+        }
         defaultDeliveryDayOfWeek = await deliveryCalendarRepository.defaultDeliveryDayOfWeek()
         deliveryCalendarOverrides = await deliveryCalendarRepository.allOverrides()
         isSavingDeliveryCalendar = false
-        isDeliveryCalendarEditorPresented = false
-        dismissCalendarEditor()
-    }
-
-    func deleteDeliveryCalendarOverride() async {
-        guard let session = authorizedSession, session.member.isAdmin else { return }
-        guard let weekKey = selectedDeliveryCalendarWeekKey else { return }
-
-        isSavingDeliveryCalendar = true
-        await deliveryCalendarRepository.deleteOverride(weekKey: weekKey)
-        defaultDeliveryDayOfWeek = await deliveryCalendarRepository.defaultDeliveryDayOfWeek()
-        deliveryCalendarOverrides = await deliveryCalendarRepository.allOverrides()
-        isSavingDeliveryCalendar = false
-        isDeliveryCalendarEditorPresented = false
+        isDeliveryCalendarWeekPickerPresented = false
         dismissCalendarEditor()
     }
 
@@ -206,10 +202,10 @@ extension ShiftsFeatureViewModel {
         deliveryCalendarOverrides = []
         isLoadingDeliveryCalendar = false
         isSavingDeliveryCalendar = false
-        isDeliveryCalendarEditorPresented = false
         isDeliveryCalendarWeekPickerPresented = false
         selectedDeliveryCalendarWeekKey = nil
         selectedDeliveryCalendarWeekday = .wednesday
+        originalDeliveryCalendarWeekday = .wednesday
         pendingShiftPlanningType = nil
     }
 }

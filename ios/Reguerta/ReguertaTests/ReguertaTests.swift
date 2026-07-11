@@ -1,11 +1,20 @@
 import FirebaseAuth
 import Foundation
+import SwiftUI
 import Testing
 
 @testable import Reguerta
 
 @MainActor
 struct ReguertaTests {
+    @Test
+    func appAppearanceMapsSystemLightAndDarkModes() {
+        #expect(AppAppearance(rawValue: "unexpected") == nil)
+        #expect(AppAppearance.system.preferredColorScheme == nil)
+        #expect(AppAppearance.light.preferredColorScheme == .light)
+        #expect(AppAppearance.dark.preferredColorScheme == .dark)
+    }
+
     @Test
     func unauthorizedEmailStaysRestricted() async {
         let repository = InMemoryMemberRepository()

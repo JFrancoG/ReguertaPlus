@@ -61,7 +61,6 @@ fun ProductsRoute(
     isLoading: Boolean,
     isSaving: Boolean,
     isUploadingImage: Boolean,
-    isUpdatingProducerCatalogVisibility: Boolean,
     onRefresh: () -> Unit,
     onDraftChanged: (ProductDraft) -> Unit,
     onCreateProduct: () -> Unit,
@@ -71,7 +70,6 @@ fun ProductsRoute(
     onCancelEditor: () -> Unit,
     onSaveProduct: (onSuccess: (String) -> Unit) -> Unit,
     onArchiveProduct: (String, onSuccess: () -> Unit) -> Unit,
-    onSetProducerCatalogVisibility: (Boolean, onSuccess: () -> Unit) -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
     val activeProducts = remember(products) { products.filterNot { it.archived } }
