@@ -70,10 +70,11 @@ As a cooperative member, I want the complete order flow to follow the app langua
 - The full iOS `test` command compiled the app and completed the unit suite, but the UI runner repeatedly failed to acquire an LLDB debugger version (`DebuggerVersionStore.StoreError: no debugger version`). The stalled UI run was interrupted after 110 seconds; no app/unit test failure was reported.
 - `jq empty ios/Reguerta/Reguerta/Resources/Localizable.xcstrings`, the targeted hardcoded-copy scan, `git diff --check`, and the iOS String Catalog compiler all passed.
 - Implementation parity is complete: iOS owns the same English/Spanish order concepts as Android, while Android now suppresses only the redundant normal-list shell title.
+- Pull request: https://github.com/JFrancoG/ReguertaPlus/pull/182
 
 ## Definition of Done
 
 - [x] Android/iOS parity reviewed or temporary gap documented.
 - [x] Relevant tests and lint executed.
 - [x] Story evidence and issue links updated.
-- [ ] Pull request linked for delivery.
+- [x] Pull request linked for delivery.

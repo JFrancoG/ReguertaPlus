@@ -107,6 +107,7 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-07-11 | 📝 docs(orders): link HU-068 pull request
 - 2026-07-10 | 📝 docs(app): link HU-065 pull request
 - 2026-07-10 | 📝 docs(app): link HU-064 pull request
 - 2026-07-10 | 📝 docs(shifts): link HU-063 pull request

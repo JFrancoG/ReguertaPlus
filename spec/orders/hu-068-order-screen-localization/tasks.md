@@ -28,4 +28,4 @@
 - [x] Run iOS tests on an available iPhone simulator; document the separate UI-runner debugger blocker.
 - [x] Run static hardcoded-copy and diff checks.
 - [x] Record validation evidence and parity status in `spec.md`.
-- [ ] Link the eventual pull request.
+- [x] Link pull request #182.

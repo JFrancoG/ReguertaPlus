@@ -1,6 +1,7 @@
 # Issue mirror - HU-068
 
 - GitHub issue: https://github.com/JFrancoG/ReguertaPlus/issues/181
+- Pull request: https://github.com/JFrancoG/ReguertaPlus/pull/182
 - Title: `[HU-068] Localizar Mi pedido en iOS y simplificar su cabecera Android`
 - Labels: `bug`, `area:orders`, `platform:cross`, `priority:P2`
 - Branch: `codex/hu-068-order-screen-localization`
