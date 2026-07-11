@@ -8,6 +8,12 @@ struct ReceivedOrdersSummaryContent: View {
     let showsStatusActions: Bool
     let onSelectStatus: (String, ProducerOrderStatus) -> Void
 
+    @Environment(\.locale) private var locale
+
+    private var presentationLocale: Locale {
+        reguertaPresentationLocale(fallback: locale)
+    }
+
     var body: some View {
         switch selectedTab {
         case .byProduct:
@@ -171,7 +177,12 @@ struct ReceivedOrdersSummaryContent: View {
                 horizontalDivider(opacity: 0.6)
             }
 
-            Text("Total: \(group.total.euroCurrencyText())")
+            Text(
+                l10n(
+                    AccessL10nKey.receivedOrdersMemberTotalFormat,
+                    group.total.euroCurrencyText(locale: presentationLocale)
+                )
+            )
                 .font(receivedOrdersMemberTotalFont)
                 .foregroundStyle(tokens.colors.feedbackError)
                 .frame(maxWidth: .infinity, alignment: .trailing)
@@ -206,7 +217,7 @@ struct ReceivedOrdersSummaryContent: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                 }
-                Text(line.subtotal.euroCurrencyText())
+                Text(line.subtotal.euroCurrencyText(locale: presentationLocale))
                     .font(receivedOrdersMemberAmountFont)
                     .foregroundStyle(tokens.colors.textPrimary)
             }
@@ -227,7 +238,9 @@ struct ReceivedOrdersSummaryContent: View {
             }
         } label: {
             producerStatusLabel(
-                text: isUpdatingStatus ? "Guardando..." : selectedStatus.title,
+                text: isUpdatingStatus
+                    ? l10n(AccessL10nKey.receivedOrdersStatusSaving)
+                    : localizedProducerOrderStatusTitle(selectedStatus),
                 selectedStatus: selectedStatus
             )
         }
@@ -236,7 +249,12 @@ struct ReceivedOrdersSummaryContent: View {
     }
 
     func producerStatusReadOnlyLabel(selectedStatus: ProducerOrderStatus) -> some View {
-        Text("Estado: \(selectedStatus.title)")
+        Text(
+            l10n(
+                AccessL10nKey.receivedOrdersStatusFormat,
+                localizedProducerOrderStatusTitle(selectedStatus)
+            )
+        )
             .font(tokens.typography.labelRegular.weight(.semibold))
             .foregroundStyle(tokens.colors.textSecondary)
             .lineLimit(1)
@@ -283,7 +301,12 @@ struct ReceivedOrdersSummaryContent: View {
         let shape = RoundedRectangle(cornerRadius: 8.resize, style: .continuous)
 
         HStack {
-            Text("Suma total general: \(total.euroCurrencyText())")
+            Text(
+                l10n(
+                    AccessL10nKey.receivedOrdersGeneralTotalFormat,
+                    total.euroCurrencyText(locale: presentationLocale)
+                )
+            )
                 .font(receivedOrdersGeneralTotalFont)
                 .foregroundStyle(tokens.colors.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .center)

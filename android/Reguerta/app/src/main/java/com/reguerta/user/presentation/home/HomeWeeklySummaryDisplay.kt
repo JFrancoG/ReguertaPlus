@@ -12,6 +12,10 @@ import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.chrono.IsoChronology
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeFormatterBuilder
+import java.time.format.FormatStyle
 import java.time.format.TextStyle
 import java.time.temporal.TemporalAdjusters
 import java.time.temporal.WeekFields
@@ -53,7 +57,9 @@ internal fun resolveHomeWeeklySummaryDisplay(
     currentMemberId: String?,
     orderState: HomeOrderStateDisplay,
     zoneId: ZoneId = ZoneId.systemDefault(),
-    locale: Locale = Locale.forLanguageTag("es-ES"),
+    locale: Locale,
+    weekLabel: String,
+    pendingLabel: String,
 ): HomeWeeklySummaryDisplay {
     val today = Instant.ofEpochMilli(nowMillis).atZone(zoneId).toLocalDate()
     val currentWeekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
@@ -83,11 +89,10 @@ internal fun resolveHomeWeeklySummaryDisplay(
         deliveryCalendarOverrides = deliveryCalendarOverrides,
         zoneId = zoneId,
     )
-    val fallbackMarketDate = orderWeekStart.plusDays(5)
     val targetMarketDate = targetMarketShift
         ?.dateMillis
         ?.toLocalDate(zoneId)
-        ?: fallbackMarketDate.takeUnless { it.isBefore(today) }
+        ?: resolveNextScheduledHomeMarketDate(today)
     val weekNumber = targetWeekStart.get(WeekFields.ISO.weekOfWeekBasedYear())
     val targetWeekEnd = targetWeekStart.plusDays(6)
 
@@ -95,18 +100,20 @@ internal fun resolveHomeWeeklySummaryDisplay(
         weekKey = targetWeekKey,
         orderWeekKey = orderWeekKey,
         weekRangeLabel = "${targetWeekStart.toShortDayMonth(locale)} - ${targetWeekEnd.toShortDayMonth(locale)}",
-        weekBadgeLabel = "Semana $weekNumber",
-        producerName = resolveProducerName(targetWeekStart, members),
+        weekBadgeLabel = "$weekLabel $weekNumber",
+        producerName = resolveProducerName(targetWeekStart, members, pendingLabel),
         deliveryLabel = targetDeliveryDate.toShortWeekdayDay(locale),
-        responsibleName = targetShift?.assignedUserIds?.firstOrNull()?.let { members.displayNameForHome(it) } ?: "Pendiente",
-        helperName = targetShift?.helperUserId?.let { members.displayNameForHome(it) } ?: "Pendiente",
-        marketLabel = targetMarketDate?.toShortWeekdayDay(locale) ?: "Pendiente",
+        responsibleName = targetShift?.assignedUserIds?.firstOrNull()?.let { members.displayNameForHome(it) } ?: pendingLabel,
+        helperName = targetShift?.helperUserId?.let { members.displayNameForHome(it) } ?: pendingLabel,
+        marketLabel = targetMarketDate?.let { date ->
+            if (targetMarketShift == null) date.toShortDayMonth(locale) else date.toShortWeekdayDay(locale)
+        } ?: pendingLabel,
         marketResponsibleNames = targetMarketShift
             ?.assignedUserIds
             ?.take(3)
             ?.map { members.displayNameForHome(it) }
-            ?.ifEmpty { listOf("Pendiente") }
-            ?: listOf("Pendiente"),
+            ?.ifEmpty { listOf(pendingLabel) }
+            ?: listOf(pendingLabel),
         orderState = orderState,
         isConsultaPhase = isConsultaPhase,
     )
@@ -135,12 +142,16 @@ internal fun resolveHomeDisplayedOrderState(
 internal fun formatHomeTopBarDate(
     nowMillis: Long,
     zoneId: ZoneId = ZoneId.systemDefault(),
-    locale: Locale = Locale.forLanguageTag("es-ES"),
+    locale: Locale = Locale.getDefault(),
 ): String {
     val date = Instant.ofEpochMilli(nowMillis).atZone(zoneId).toLocalDate()
-    val weekday = date.dayOfWeek.getDisplayName(TextStyle.FULL, locale).lowercase(locale)
-    val month = date.month.getDisplayName(TextStyle.FULL, locale).lowercase(locale)
-    return "$weekday ${date.dayOfMonth} $month"
+    val monthDayPattern = localizedMonthDayPattern(locale, monthPattern = "MMMM")
+    val localizedPattern = when {
+        monthDayPattern.startsWith("MMMM") -> "EEEE, $monthDayPattern"
+        locale.language == "es" -> "EEEE, d 'de' MMMM"
+        else -> "EEEE, $monthDayPattern"
+    }
+    return date.format(DateTimeFormatter.ofPattern(localizedPattern, locale))
 }
 
 private fun android.content.SharedPreferences.hasPositiveQuantity(key: String): Boolean =
@@ -175,7 +186,18 @@ private fun resolveHomeCalendarDeliveryDate(
         ?: weekStart.plusDays(DayOfWeek.WEDNESDAY.value.toLong() - 1L)
 }
 
-private fun resolveProducerName(weekStart: LocalDate, members: List<Member>): String {
+private fun resolveNextScheduledHomeMarketDate(today: LocalDate): LocalDate? =
+    generateSequence(today.withDayOfMonth(1)) { monthStart -> monthStart.plusMonths(1) }
+        .take(24)
+        .filter { monthStart -> monthStart.monthValue != 7 && monthStart.monthValue != 8 }
+        .map { monthStart -> monthStart.with(TemporalAdjusters.dayOfWeekInMonth(3, DayOfWeek.SATURDAY)) }
+        .firstOrNull { marketDate -> !marketDate.isBefore(today) }
+
+private fun resolveProducerName(
+    weekStart: LocalDate,
+    members: List<Member>,
+    pendingLabel: String,
+): String {
     val orderWeekStart = weekStart.minusWeeks(1)
     val orderWeekNumber = orderWeekStart.get(WeekFields.ISO.weekOfWeekBasedYear())
     val parity = if (orderWeekNumber % 2 == 0) {
@@ -191,7 +213,7 @@ private fun resolveProducerName(weekStart: LocalDate, members: List<Member>): St
         ?.let { it.companyName?.takeIf(String::isNotBlank) ?: it.displayName }
         ?: producers.getOrNull(orderWeekNumber % producers.size.coerceAtLeast(1))
             ?.let { it.companyName?.takeIf(String::isNotBlank) ?: it.displayName }
-        ?: "Pendiente"
+        ?: pendingLabel
 }
 
 private fun List<Member>.displayNameForHome(memberId: String): String =
@@ -207,7 +229,23 @@ private fun Long.toLocalDate(zoneId: ZoneId): LocalDate =
     Instant.ofEpochMilli(this).atZone(zoneId).toLocalDate()
 
 private fun LocalDate.toShortDayMonth(locale: Locale): String =
-    "$dayOfMonth ${month.getDisplayName(TextStyle.SHORT, locale).trimEnd('.').lowercase(locale)}"
+    format(DateTimeFormatter.ofPattern(localizedMonthDayPattern(locale), locale))
+        .replace(".", "")
+
+private fun localizedMonthDayPattern(locale: Locale, monthPattern: String = "MMM"): String {
+    val localizedPattern = DateTimeFormatterBuilder.getLocalizedDateTimePattern(
+        FormatStyle.MEDIUM,
+        null,
+        IsoChronology.INSTANCE,
+        locale,
+    )
+    val monthIndex = listOf(localizedPattern.indexOf('M'), localizedPattern.indexOf('L'))
+        .filter { it >= 0 }
+        .minOrNull()
+        ?: Int.MAX_VALUE
+    val dayIndex = localizedPattern.indexOf('d').takeIf { it >= 0 } ?: Int.MAX_VALUE
+    return if (monthIndex < dayIndex) "$monthPattern d" else "d $monthPattern"
+}
 
 private fun LocalDate.toShortWeekdayDay(locale: Locale): String {
     val weekday = dayOfWeek.getDisplayName(TextStyle.SHORT, locale).trimEnd('.')

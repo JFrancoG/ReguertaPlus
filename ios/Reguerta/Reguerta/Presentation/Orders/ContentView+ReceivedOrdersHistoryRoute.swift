@@ -6,6 +6,24 @@ struct ReceivedOrdersHistoryRouteView: View {
     let context: ReceivedOrdersHistoryRouteContext
     let onTitleChanged: (String?) -> Void
 
+    @Environment(\.locale) private var locale
+
+    private var presentationLocale: Locale {
+        reguertaPresentationLocale(fallback: locale)
+    }
+
+    private var selectedTitle: String? {
+        viewModel.selectedWeek.map {
+            orderHistoryWeekPresentation(
+                $0,
+                locale: presentationLocale,
+                weekLabel: l10n(AccessL10nKey.orderHistoryWeek),
+                shortWeekLabel: l10n(AccessL10nKey.orderHistoryWeekShort),
+                orderLabel: l10n(AccessL10nKey.receivedOrdersHistoryTitle)
+            ).orderTitle
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.md) {
             OrderHistoryWeekHeader(
@@ -30,9 +48,9 @@ struct ReceivedOrdersHistoryRouteView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .task(id: context.identity) {
             await viewModel.appear(context: context)
-            onTitleChanged(viewModel.selectedTitle)
+            onTitleChanged(selectedTitle)
         }
-        .onChange(of: viewModel.selectedTitle) { _, title in
+        .onChange(of: selectedTitle) { _, title in
             onTitleChanged(title)
         }
         .onDisappear {
@@ -70,7 +88,7 @@ struct ReceivedOrdersHistoryRouteView: View {
     @ViewBuilder
     private var tabSelector: some View {
         Picker(
-            "Pedidos recibidos",
+            LocalizedStringKey(AccessL10nKey.receivedOrdersTabsTitle),
             selection: Binding(
                 get: { viewModel.selectedTab },
                 set: { tab in
@@ -81,7 +99,7 @@ struct ReceivedOrdersHistoryRouteView: View {
             )
         ) {
             ForEach(ReceivedOrdersTab.allCases) { tab in
-                Text(tab.title)
+                Text(localizedReceivedOrdersTabTitle(tab))
                     .font(tokens.typography.label.weight(.semibold))
                     .tag(tab)
             }
@@ -95,8 +113,8 @@ struct ReceivedOrdersHistoryRouteView: View {
     private var routeContent: some View {
         if !viewModel.isProducer {
             infoCard(
-                title: "Solo para productores",
-                body: "Esta sección aparece cuando accedes con un perfil productor."
+                title: l10n(AccessL10nKey.receivedOrdersProducerOnlyTitle),
+                body: l10n(AccessL10nKey.receivedOrdersProducerOnlyBody)
             )
         } else {
             switch viewModel.loadState {
@@ -107,7 +125,7 @@ struct ReceivedOrdersHistoryRouteView: View {
                     .accessibilityIdentifier("receivedOrdersHistory.loadingIndicator")
 
             case .empty:
-                Text("No hay pedidos recibidos para esta semana")
+                Text(l10n(AccessL10nKey.receivedOrdersHistoryEmpty))
                     .font(tokens.typography.body)
                     .foregroundStyle(tokens.colors.feedbackError)
                     .multilineTextAlignment(.center)
@@ -118,13 +136,13 @@ struct ReceivedOrdersHistoryRouteView: View {
             case .error:
                 reguertaCard {
                     VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                        Text("No se pudieron cargar los pedidos")
+                        Text(l10n(AccessL10nKey.receivedOrdersErrorTitle))
                             .font(tokens.typography.titleCard.weight(.semibold))
                             .foregroundStyle(tokens.colors.feedbackError)
-                        Text("Revisa la conexión y vuelve a intentarlo.")
+                        Text(l10n(AccessL10nKey.receivedOrdersErrorBody))
                             .font(tokens.typography.bodySecondary)
                             .foregroundStyle(tokens.colors.textSecondary)
-                        reguertaButton("Reintentar") {
+                        reguertaButton(LocalizedStringKey(AccessL10nKey.receivedOrdersRetry)) {
                             Task {
                                 await viewModel.retry()
                             }

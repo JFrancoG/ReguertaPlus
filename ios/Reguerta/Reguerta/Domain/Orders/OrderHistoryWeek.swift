@@ -60,6 +60,33 @@ func orderHistoryContinuousWeekOptions(
     return options
 }
 
+func orderHistoryBrowsableWeekOptions(
+    realWeekKeys: [String],
+    oldestOrderWeekKey: String? = nil,
+    preferredWeekKey: String,
+    timeZone: TimeZone = TimeZone(identifier: "Europe/Madrid") ?? .current,
+    locale: Locale = Locale(identifier: "es_ES")
+) -> [OrderHistoryWeekOption] {
+    let validRealWeekKeys = realWeekKeys.filter(\.isValidIsoWeekKey)
+    let validOldestOrderWeekKey = oldestOrderWeekKey?.isValidIsoWeekKey == true ? oldestOrderWeekKey : nil
+    let firstWeekKey: String?
+    if let earliestKnownWeekKey = (validRealWeekKeys + [validOldestOrderWeekKey].compactMap { $0 }).min() {
+        firstWeekKey = earliestKnownWeekKey
+    } else if preferredWeekKey.isValidIsoWeekKey,
+              let preferredYear = Int(preferredWeekKey.prefix(4)) {
+        firstWeekKey = String(format: "%04d-W01", preferredYear)
+    } else {
+        firstWeekKey = nil
+    }
+
+    return orderHistoryContinuousWeekOptions(
+        realWeekKeys: validRealWeekKeys + [firstWeekKey].compactMap { $0 },
+        preferredWeekKey: preferredWeekKey,
+        timeZone: timeZone,
+        locale: locale
+    )
+}
+
 func orderHistoryWeekOption(
     weekKey: String,
     timeZone: TimeZone = TimeZone(identifier: "Europe/Madrid") ?? .current,
@@ -124,8 +151,7 @@ private func orderHistoryWeekKey(for date: Date, calendar: Calendar) -> String {
 private func orderHistoryShortDayMonth(_ date: Date, locale: Locale) -> String {
     let formatter = DateFormatter()
     formatter.locale = locale
-    formatter.dateFormat = "d MMM"
+    formatter.setLocalizedDateFormatFromTemplate("d MMM")
     return formatter.string(from: date)
         .replacingOccurrences(of: ".", with: "")
-        .lowercased()
 }

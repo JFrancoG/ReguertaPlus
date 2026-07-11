@@ -13,6 +13,7 @@ class InMemoryOrdersRepository : OrdersRepository {
     private val historyWeekKeysByMemberId = mutableMapOf<String, Set<String>>()
     private val summariesByMemberWeek = mutableMapOf<String, OrderSummarySnapshot>()
     private val receivedHistoryWeekKeysByProducerId = mutableMapOf<String, Set<String>>()
+    private var storedOldestOrderHistoryWeekKey: String? = null
     private val receivedSnapshotsByProducerWeek = mutableMapOf<String, ReceivedOrdersSnapshot>()
     private val receivedStatusUpdateRequests = mutableListOf<ReceivedStatusUpdateRequest>()
     private val receivedStatusUpdateResultsByOrderId = mutableMapOf<String, ReceivedOrderStatusWriteResult>()
@@ -54,6 +55,11 @@ class InMemoryOrdersRepository : OrdersRepository {
         (explicitKeys + seededKeys).sorted()
     }
 
+    override suspend fun oldestOrderHistoryWeekKey(): String? = mutex.withLock {
+        forcedError?.let { throw it }
+        storedOldestOrderHistoryWeekKey
+    }
+
     override suspend fun receivedOrdersSnapshot(
         producerId: String?,
         weekKey: String,
@@ -84,6 +90,10 @@ class InMemoryOrdersRepository : OrdersRepository {
 
     suspend fun setReceivedOrdersHistoryWeekKeys(producerId: String, weekKeys: List<String>) = mutex.withLock {
         receivedHistoryWeekKeysByProducerId[producerId] = weekKeys.toSet()
+    }
+
+    suspend fun setOldestOrderHistoryWeekKey(weekKey: String?) = mutex.withLock {
+        storedOldestOrderHistoryWeekKey = weekKey
     }
 
     suspend fun setReceivedOrdersSnapshot(

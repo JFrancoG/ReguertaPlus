@@ -94,6 +94,8 @@
     <string name="home_dashboard_delivery_responsibles">Delivery responsibles</string>
     <string name="home_dashboard_market">Market</string>
     <string name="home_dashboard_market_responsibles">Market responsibles</string>
+    <string name="home_dashboard_pending">Pending</string>
+    <string name="home_dashboard_week">Week</string>
     <string name="home_dashboard_helper_format">%1$s</string>
     <string name="home_dashboard_state">Order</string>
     <string name="home_dashboard_order_state_consultation">Last order</string>
@@ -388,6 +390,9 @@
     <string name="my_order_previous_retry">Retry</string>
     <string name="my_orders_history_title_fallback">Order</string>
     <string name="my_orders_history_week_fallback">Week</string>
+    <string name="my_orders_history_week_label">Week</string>
+    <string name="my_orders_history_week_short_label">Wk</string>
+    <string name="my_orders_history_order_label">Order</string>
     <string name="my_orders_history_previous_week">Previous week</string>
     <string name="my_orders_history_next_week">Next week</string>
     <string name="my_orders_history_loading">Loading order…</string>
@@ -422,6 +427,7 @@
     <string name="received_orders_empty_title">No received orders</string>
     <string name="received_orders_empty_body_format">There are no received order lines for week %1$s.</string>
     <string name="received_orders_history_empty">There are no received orders for this week.</string>
+    <string name="received_orders_history_title_label">Received orders</string>
     <string name="received_orders_error_title">Could not load received orders</string>
     <string name="received_orders_error_body">Check your connection and try again.</string>
     <string name="received_orders_retry">Retry</string>

@@ -150,8 +150,10 @@ final class ReceivedOrdersHistoryRouteViewModel {
         do {
             let producerId = context.currentMember?.id ?? ""
             let realWeekKeys = try await ordersRepository.receivedOrdersHistoryWeekKeys(producerId: producerId)
-            availableWeeks = orderHistoryContinuousWeekOptions(
+            let oldestOrderWeekKey = try await ordersRepository.oldestOrderHistoryWeekKey()
+            availableWeeks = orderHistoryBrowsableWeekOptions(
                 realWeekKeys: realWeekKeys,
+                oldestOrderWeekKey: oldestOrderWeekKey,
                 preferredWeekKey: preferredWeekKey
             )
             if availableWeeks.isEmpty, let fallback = orderHistoryWeekOption(weekKey: preferredWeekKey) {
@@ -159,7 +161,10 @@ final class ReceivedOrdersHistoryRouteViewModel {
             }
             await loadSelectedWeek(force: true)
         } catch {
-            availableWeeks = orderHistoryWeekOption(weekKey: preferredWeekKey).map { [$0] } ?? []
+            availableWeeks = orderHistoryBrowsableWeekOptions(
+                realWeekKeys: [],
+                preferredWeekKey: preferredWeekKey
+            )
             loadState = .error
             loadedHistoryIdentity = nil
         }

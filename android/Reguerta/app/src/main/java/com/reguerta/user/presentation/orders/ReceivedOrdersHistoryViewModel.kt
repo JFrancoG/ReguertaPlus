@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.reguerta.user.domain.orders.OrderHistoryWeekOption
 import com.reguerta.user.domain.orders.OrdersRepository
 import com.reguerta.user.domain.orders.ReceivedOrdersSnapshot
-import com.reguerta.user.domain.orders.orderHistoryContinuousWeekOptions
+import com.reguerta.user.domain.orders.orderHistoryBrowsableWeekOptions
 import com.reguerta.user.domain.orders.orderHistoryPreviousIsoWeekKey
 import com.reguerta.user.domain.orders.orderHistoryWeekOption
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -168,8 +168,10 @@ class ReceivedOrdersHistoryViewModel(
         loadedWeekKey = null
         runCatching {
             val realWeekKeys = ordersRepository.receivedOrdersHistoryWeekKeys(context.producerId)
-            val options = orderHistoryContinuousWeekOptions(
+            val oldestOrderWeekKey = ordersRepository.oldestOrderHistoryWeekKey()
+            val options = orderHistoryBrowsableWeekOptions(
                 realWeekKeys = realWeekKeys,
+                oldestOrderWeekKey = oldestOrderWeekKey,
                 preferredWeekKey = preferredWeekKey,
             ).ifEmpty {
                 orderHistoryWeekOption(preferredWeekKey)?.let(::listOf).orEmpty()
@@ -186,7 +188,10 @@ class ReceivedOrdersHistoryViewModel(
             loadedHistoryIdentity = null
             _uiState.update {
                 it.copy(
-                    availableWeeks = orderHistoryWeekOption(preferredWeekKey)?.let(::listOf).orEmpty(),
+                    availableWeeks = orderHistoryBrowsableWeekOptions(
+                        realWeekKeys = emptyList(),
+                        preferredWeekKey = preferredWeekKey,
+                    ),
                     loadState = ReceivedOrdersHistoryLoadState.Error,
                 )
             }

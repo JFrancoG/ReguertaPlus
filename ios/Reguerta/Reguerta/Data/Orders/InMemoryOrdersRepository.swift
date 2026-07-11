@@ -29,6 +29,7 @@ actor InMemoryOrdersRepository: OrdersRepository {
     private var producerStatusesByOrderId: [String: MyOrderProducerStatusSnapshot] = [:]
     private var receivedSnapshotsByProducerWeek: [String: ReceivedOrdersSnapshot] = [:]
     private var receivedHistoryWeekKeysByProducerId: [String: Set<String>] = [:]
+    private var storedOldestOrderHistoryWeekKey: String?
     private var updateResultsByOrderId: [String: ReceivedOrderStatusWriteResult] = [:]
     private var receivedStatusUpdateRequests: [ReceivedStatusUpdate] = []
 
@@ -107,6 +108,13 @@ actor InMemoryOrdersRepository: OrdersRepository {
         return Array(explicitKeys.union(seededKeys)).sorted()
     }
 
+    func oldestOrderHistoryWeekKey() async throws -> String? {
+        if let receivedOrdersError {
+            throw receivedOrdersError
+        }
+        return storedOldestOrderHistoryWeekKey
+    }
+
     func receivedOrdersHistorySnapshot(
         producerId: String,
         weekKey: String
@@ -156,6 +164,10 @@ actor InMemoryOrdersRepository: OrdersRepository {
 
     func setReceivedOrdersHistoryWeekKeys(_ weekKeys: [String], forProducerId producerId: String = "member_1") {
         receivedHistoryWeekKeysByProducerId[producerId] = Set(weekKeys)
+    }
+
+    func setOldestOrderHistoryWeekKey(_ weekKey: String?) {
+        storedOldestOrderHistoryWeekKey = weekKey
     }
 
     func setReceivedOrdersError(_ error: Error?) {

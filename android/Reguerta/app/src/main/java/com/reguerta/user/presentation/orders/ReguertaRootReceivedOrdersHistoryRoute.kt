@@ -48,6 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -83,6 +84,13 @@ internal fun ReceivedOrdersHistoryRoute(
     )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val effectiveNowMillis = remember(nowOverrideMillis) { nowOverrideMillis ?: System.currentTimeMillis() }
+    val locale = LocalConfiguration.current.locales[0]
+    val weekCopy = MyOrdersHistoryWeekCopy(
+        weekLabel = stringResource(R.string.my_orders_history_week_label),
+        shortWeekLabel = stringResource(R.string.my_orders_history_week_short_label),
+        orderLabel = stringResource(R.string.received_orders_history_title_label),
+    )
+    val selectedWeekPresentation = state.selectedWeek?.toMyOrdersHistoryPresentation(locale, weekCopy)
 
     LaunchedEffect(currentMember?.id, currentMember?.canAccessReceivedOrders, effectiveNowMillis) {
         viewModel.appear(
@@ -93,8 +101,8 @@ internal fun ReceivedOrdersHistoryRoute(
             ),
         )
     }
-    LaunchedEffect(state.selectedTitle) {
-        onTitleChanged(state.selectedTitle)
+    LaunchedEffect(selectedWeekPresentation?.orderTitle) {
+        onTitleChanged(selectedWeekPresentation?.orderTitle)
     }
     DisposableEffect(Unit) {
         onDispose { onTitleChanged(null) }
@@ -110,6 +118,8 @@ internal fun ReceivedOrdersHistoryRoute(
         onDismissPicker = viewModel::dismissWeekPicker,
         onPickerSelection = viewModel::setPickerSelection,
         onCommitPicker = viewModel::commitPickerSelection,
+        locale = locale,
+        weekCopy = weekCopy,
         modifier = modifier,
     )
 }
@@ -126,15 +136,18 @@ private fun ReceivedOrdersHistoryContent(
     onDismissPicker: () -> Unit,
     onPickerSelection: (String) -> Unit,
     onCommitPicker: () -> Unit,
+    locale: Locale,
+    weekCopy: MyOrdersHistoryWeekCopy,
     modifier: Modifier = Modifier,
 ) {
+    val selectedWeekPresentation = state.selectedWeek?.toMyOrdersHistoryPresentation(locale, weekCopy)
     Box(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             ReceivedOrdersHistoryWeekHeader(
-                selectedWeek = state.selectedWeek,
+                selectedWeek = selectedWeekPresentation,
                 canGoPrevious = state.canGoPrevious,
                 canGoNext = state.canGoNext,
                 onPrevious = onPrevious,
@@ -184,6 +197,8 @@ private fun ReceivedOrdersHistoryContent(
         ModalBottomSheet(onDismissRequest = onDismissPicker) {
             ReceivedOrdersHistoryWeekPickerSheet(
                 weeks = state.availableWeeks,
+                locale = locale,
+                weekCopy = weekCopy,
                 selectedWeekKey = state.pickerSelectedWeekKey ?: state.selectedWeekKey,
                 onSelectionChange = onPickerSelection,
                 onCancel = onDismissPicker,
@@ -195,7 +210,7 @@ private fun ReceivedOrdersHistoryContent(
 
 @Composable
 private fun ReceivedOrdersHistoryWeekHeader(
-    selectedWeek: OrderHistoryWeekOption?,
+    selectedWeek: MyOrdersHistoryWeekPresentation?,
     canGoPrevious: Boolean,
     canGoNext: Boolean,
     onPrevious: () -> Unit,
@@ -235,12 +250,12 @@ private fun ReceivedOrdersHistoryGlassNavButton(
 ) {
     Surface(
         shape = CircleShape,
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = if (enabled) 0.62f else 0.18f),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (enabled) 1f else 0.45f),
         tonalElevation = if (enabled) 8.dp else 0.dp,
         shadowElevation = if (enabled) 3.dp else 0.dp,
         border = BorderStroke(
             1.dp,
-            MaterialTheme.colorScheme.primary.copy(alpha = if (enabled) 0.34f else 0.12f),
+            MaterialTheme.colorScheme.outline.copy(alpha = if (enabled) 0.80f else 0.35f),
         ),
     ) {
         IconButton(
@@ -268,10 +283,10 @@ private fun ReceivedOrdersHistoryGlassPickerButton(
 ) {
     Surface(
         shape = RoundedCornerShape(50),
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.56f),
+        color = MaterialTheme.colorScheme.surfaceVariant,
         tonalElevation = 8.dp,
         shadowElevation = 3.dp,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.32f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.80f)),
     ) {
         TextButton(onClick = onClick) {
             Text(
@@ -641,6 +656,8 @@ private fun ReceivedOrdersHistoryTotalBar(
 @Composable
 private fun ReceivedOrdersHistoryWeekPickerSheet(
     weeks: List<OrderHistoryWeekOption>,
+    locale: Locale,
+    weekCopy: MyOrdersHistoryWeekCopy,
     selectedWeekKey: String?,
     onSelectionChange: (String) -> Unit,
     onCancel: () -> Unit,
@@ -668,6 +685,8 @@ private fun ReceivedOrdersHistoryWeekPickerSheet(
         if (weeks.isNotEmpty()) {
             ReceivedOrdersHistoryNumberPickerWheel(
                 weeks = weeks,
+                locale = locale,
+                weekCopy = weekCopy,
                 selectedWeekKey = selectedWeekKey,
                 onSelectionChange = onSelectionChange,
             )
@@ -678,10 +697,14 @@ private fun ReceivedOrdersHistoryWeekPickerSheet(
 @Composable
 private fun ReceivedOrdersHistoryNumberPickerWheel(
     weeks: List<OrderHistoryWeekOption>,
+    locale: Locale,
+    weekCopy: MyOrdersHistoryWeekCopy,
     selectedWeekKey: String?,
     onSelectionChange: (String) -> Unit,
 ) {
-    val labels = remember(weeks) { weeks.map(OrderHistoryWeekOption::pickerLabel).toTypedArray() }
+    val labels = remember(weeks, locale, weekCopy) {
+        weeks.map { it.toMyOrdersHistoryPresentation(locale, weekCopy).pickerLabel }.toTypedArray()
+    }
     val selectedIndex = weeks.indexOfFirst { it.weekKey == selectedWeekKey }.takeIf { it >= 0 } ?: 0
     AndroidView(
         modifier = Modifier

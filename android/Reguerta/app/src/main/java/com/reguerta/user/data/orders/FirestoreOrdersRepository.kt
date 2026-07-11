@@ -143,6 +143,18 @@ class FirestoreOrdersRepository(
         weekKeys.sorted()
     }
 
+    override suspend fun oldestOrderHistoryWeekKey(): String? = withContext(Dispatchers.IO) {
+        val snapshot = Tasks.await(
+            firestore.collection(ordersPath)
+                .orderBy("weekKey")
+                .limit(1)
+                .get(),
+        )
+        snapshot.documents.firstOrNull()?.let { document ->
+            orderHistoryWeekKey(document.data.orEmpty(), document.id)
+        }
+    }
+
     override suspend fun receivedOrdersSnapshot(
         producerId: String?,
         weekKey: String,

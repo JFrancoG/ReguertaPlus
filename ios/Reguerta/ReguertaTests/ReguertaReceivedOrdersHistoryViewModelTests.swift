@@ -6,6 +6,27 @@ import Testing
 @MainActor
 struct ReguertaReceivedOrdersHistoryViewModelTests {
     @Test
+    func receivedOrdersHistoryPresentationUsesTheActiveEnglishLocale() throws {
+        let option = try #require(
+            orderHistoryWeekOption(
+                weekKey: "2026-W27",
+                locale: Locale(identifier: "en")
+            )
+        )
+        let presentation = orderHistoryWeekPresentation(
+            option,
+            locale: Locale(identifier: "en"),
+            weekLabel: "Week",
+            shortWeekLabel: "Wk",
+            orderLabel: "Received orders"
+        )
+
+        #expect(presentation.title == "2026 Week 27")
+        #expect(presentation.pickerLabel == "Jun 29 - Jul 5 · 2026 Wk 27")
+        #expect(presentation.orderTitle == "Received orders Jun 29 - Jul 5")
+    }
+
+    @Test
     func receivedOrdersHistorySelectsPreviousIsoWeekAndFormatsTitle() async {
         let repository = InMemoryOrdersRepository()
         await repository.setReceivedOrdersHistoryWeekKeys(["2026-W21"], forProducerId: "producer_even")
@@ -70,6 +91,33 @@ struct ReguertaReceivedOrdersHistoryViewModelTests {
         await viewModel.selectNextWeek()
         #expect(viewModel.selectedWeekKey == "2026-W21")
         #expect(!viewModel.canGoNext)
+    }
+
+    @Test
+    func receivedOrdersHistoryUsesOldestGlobalOrderWhenProducerHasNoOrders() async {
+        let repository = InMemoryOrdersRepository()
+        await repository.setOldestOrderHistoryWeekKey("2025-W01")
+        let viewModel = makeReceivedOrdersHistoryViewModel(repository: repository)
+
+        await viewModel.appear(
+            context: receivedOrdersHistoryContext(nowMillis: testMillis(year: 2026, month: 7, day: 11))
+        )
+
+        #expect(viewModel.availableWeeks.first?.weekKey == "2025-W01")
+        #expect(viewModel.availableWeeks.last?.weekKey == "2026-W27")
+        #expect(viewModel.selectedWeekKey == "2026-W27")
+        #expect(viewModel.canGoPrevious)
+        #expect(!viewModel.canGoNext)
+        #expect(viewModel.loadState == .empty)
+
+        await viewModel.selectPreviousWeek()
+        #expect(viewModel.selectedWeekKey == "2026-W26")
+        #expect(viewModel.loadState == .empty)
+
+        await repository.setOldestOrderHistoryWeekKey("2026-W01")
+        await viewModel.loadHistoryIfNeeded(force: true)
+        #expect(viewModel.availableWeeks.first?.weekKey == "2026-W01")
+        #expect(viewModel.availableWeeks.last?.weekKey == "2026-W27")
     }
 
     @Test

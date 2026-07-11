@@ -33,6 +33,8 @@ protocol OrdersRepository {
 
     func receivedOrdersHistoryWeekKeys(producerId: String) async throws -> [String]
 
+    func oldestOrderHistoryWeekKey() async throws -> String?
+
     func receivedOrdersHistorySnapshot(
         producerId: String,
         weekKey: String

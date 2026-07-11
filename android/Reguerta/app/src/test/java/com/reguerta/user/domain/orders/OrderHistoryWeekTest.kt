@@ -2,9 +2,13 @@ package com.reguerta.user.domain.orders
 
 import com.reguerta.user.data.orders.InMemoryOrdersRepository
 import com.reguerta.user.presentation.orders.MyOrdersHistoryUiState
+import com.reguerta.user.presentation.orders.MyOrdersHistoryWeekCopy
 import com.reguerta.user.presentation.orders.ReceivedOrdersHistoryUiState
+import com.reguerta.user.presentation.orders.localizedGenericOrderHistoryQuantityLabel
+import com.reguerta.user.presentation.orders.toMyOrdersHistoryPresentation
 import java.time.LocalDate
 import java.time.ZoneId
+import java.util.Locale
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -39,6 +43,45 @@ class OrderHistoryWeekTest {
         assertEquals("2026 Semana 20", options[1].title)
         assertEquals("11 may - 17 may · 2026 Sem 20", options[1].pickerLabel)
         assertEquals("Pedido 18 may - 24 may", options[2].orderTitle)
+    }
+
+    @Test
+    fun myOrdersHistoryPresentation_usesTheActiveEnglishLocale() {
+        val option = requireNotNull(
+            orderHistoryWeekOption(
+                weekKey = "2026-W27",
+                locale = Locale.US,
+            ),
+        )
+        val presentation = option.toMyOrdersHistoryPresentation(
+            locale = Locale.US,
+            copy = MyOrdersHistoryWeekCopy(
+                weekLabel = "Week",
+                shortWeekLabel = "Wk",
+                orderLabel = "Order",
+            ),
+        )
+
+        assertEquals("Jun 29 - Jul 5", presentation.rangeLabel)
+        assertEquals("2026 Week 27", presentation.title)
+        assertEquals("Jun 29 - Jul 5 · 2026 Wk 27", presentation.pickerLabel)
+        assertEquals("Order Jun 29 - Jul 5", presentation.orderTitle)
+    }
+
+    @Test
+    fun myOrdersHistoryPresentation_localizesGenericUnitLabelsOnly() {
+        assertEquals(
+            "1 unit",
+            localizedGenericOrderHistoryQuantityLabel("1 ud.", Locale.US, "1 unit", "%1\$d units"),
+        )
+        assertEquals(
+            "3 units",
+            localizedGenericOrderHistoryQuantityLabel("3 uds.", Locale.US, "1 unit", "%1\$d units"),
+        )
+        assertEquals(
+            "1 kg",
+            localizedGenericOrderHistoryQuantityLabel("1 kg", Locale.US, "1 unit", "%1\$d units"),
+        )
     }
 
     @Test
@@ -103,6 +146,48 @@ class OrderHistoryWeekTest {
         assertTrue(middle.canGoNext)
         assertTrue(last.canGoPrevious)
         assertFalse(last.canGoNext)
+    }
+
+    @Test
+    fun receivedOrdersHistoryUsesOldestGlobalOrderWhenProducerHasNoOrders() {
+        val options = orderHistoryBrowsableWeekOptions(
+            realWeekKeys = emptyList(),
+            oldestOrderWeekKey = "2025-W01",
+            preferredWeekKey = "2026-W27",
+        )
+        val state = ReceivedOrdersHistoryUiState(
+            availableWeeks = options,
+            selectedWeekKey = "2026-W27",
+        )
+
+        assertEquals("2025-W01", options.first().weekKey)
+        assertEquals("2026-W27", options.last().weekKey)
+        assertTrue(state.canGoPrevious)
+        assertFalse(state.canGoNext)
+
+        val optionsAfterDeleting2025 = orderHistoryBrowsableWeekOptions(
+            realWeekKeys = emptyList(),
+            oldestOrderWeekKey = "2026-W01",
+            preferredWeekKey = "2026-W27",
+        )
+        assertEquals("2026-W01", optionsAfterDeleting2025.first().weekKey)
+    }
+
+    @Test
+    fun receivedOrdersHistoryPresentation_usesTheActiveEnglishLocale() {
+        val option = requireNotNull(orderHistoryWeekOption("2026-W27", Locale.US))
+        val presentation = option.toMyOrdersHistoryPresentation(
+            locale = Locale.US,
+            copy = MyOrdersHistoryWeekCopy(
+                weekLabel = "Week",
+                shortWeekLabel = "Wk",
+                orderLabel = "Received orders",
+            ),
+        )
+
+        assertEquals("2026 Week 27", presentation.title)
+        assertEquals("Jun 29 - Jul 5 · 2026 Wk 27", presentation.pickerLabel)
+        assertEquals("Received orders Jun 29 - Jul 5", presentation.orderTitle)
     }
 
     @Test

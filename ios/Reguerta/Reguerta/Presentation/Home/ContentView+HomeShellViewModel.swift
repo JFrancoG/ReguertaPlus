@@ -226,7 +226,8 @@ extension AccessRootViewModel {
             defaultDeliveryDayOfWeek: shiftsViewModel.defaultDeliveryDayOfWeek,
             deliveryCalendarOverrides: shiftsViewModel.deliveryCalendarOverrides,
             shifts: shiftsViewModel.shiftsFeed,
-            members: session.members
+            members: session.members,
+            localization: .current
         )
         let storedOrderState = resolveHomeOrderState(memberId: session.member.id, weekKey: baseline.orderWeekKey)
         return HomeWeeklySummaryDisplay(
@@ -324,8 +325,7 @@ private extension AccessRootViewModel {
             return myOrdersHistoryTitleOverride ?? myOrdersHistoryViewModel.selectedWeek?.orderTitle ?? "Pedido"
         case .receivedOrdersHistory:
             return receivedOrdersHistoryTitleOverride
-                ?? receivedOrdersHistoryViewModel.selectedTitle
-                ?? "Pedidos recibidos"
+                ?? l10n(AccessL10nKey.receivedOrdersHistoryTitle)
         case .bylaws:
             return l10n(AccessL10nKey.bylawsTitle)
         case .news:
