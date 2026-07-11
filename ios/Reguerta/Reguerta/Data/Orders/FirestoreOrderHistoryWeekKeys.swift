@@ -37,6 +37,19 @@ func fetchOrderHistoryWeekKeys(
     return weekKeys.sorted()
 }
 
+func fetchOldestOrderHistoryWeekKey(
+    db: Firestore = Firestore.firestore(),
+    environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment
+) async throws -> String? {
+    let ordersPath = ReguertaFirestorePath(environment: environment).collectionPath(.orders)
+    let snapshot = try await db.collection(ordersPath)
+        .order(by: "weekKey")
+        .limit(to: 1)
+        .getDocuments()
+    guard let document = snapshot.documents.first else { return nil }
+    return orderHistoryWeekKey(from: document.data(), documentID: document.documentID)
+}
+
 private func fetchOrderHistoryWeekKeys(
     target: MyOrderCheckoutWriteTarget,
     memberId: String,

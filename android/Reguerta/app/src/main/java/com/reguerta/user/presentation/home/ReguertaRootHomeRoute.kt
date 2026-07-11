@@ -76,6 +76,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.activity.compose.BackHandler
 import com.reguerta.user.R
 import com.reguerta.user.domain.access.Member
@@ -225,6 +226,9 @@ internal fun HomeRoute(
     installedVersion: String,
 ) {
     val context = LocalContext.current
+    val locale = LocalConfiguration.current.locales[0]
+    val homeWeekLabel = stringResource(R.string.home_dashboard_week)
+    val homePendingLabel = stringResource(R.string.home_dashboard_pending)
     var isDrawerOpen by rememberSaveable { mutableStateOf(false) }
     var currentDestination by rememberSaveable { mutableStateOf(HomeDestination.DASHBOARD) }
     var newsPendingDeletionId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -407,7 +411,10 @@ internal fun HomeRoute(
                 ) {
                     val showsMyOrderCartAction = currentDestination == HomeDestination.MY_ORDER && !isMyOrderReadOnlyMode
                     val homeShellTitle = when {
-                        currentDestination == HomeDestination.DASHBOARD -> formatHomeTopBarDate(effectiveNowMillis)
+                        currentDestination == HomeDestination.DASHBOARD -> formatHomeTopBarDate(
+                            nowMillis = effectiveNowMillis,
+                            locale = locale,
+                        )
                         currentDestination == HomeDestination.MY_ORDER && isMyOrderCartVisible && !isMyOrderReadOnlyMode -> {
                             stringResource(R.string.my_order_cart_title)
                         }
@@ -420,7 +427,7 @@ internal fun HomeRoute(
                             sharedProfileTitleOverride.orEmpty()
                         }
                         currentDestination == HomeDestination.RECEIVED_ORDERS_HISTORY -> {
-                            receivedOrdersHistoryTitleOverride ?: stringResource(R.string.home_shell_action_received_orders)
+                            receivedOrdersHistoryTitleOverride ?: stringResource(R.string.received_orders_history_title_label)
                         }
                         else -> stringResource(currentDestination.titleRes())
                     }
@@ -491,6 +498,9 @@ internal fun HomeRoute(
                                 members = members,
                                 currentMemberId = mode.member.id,
                                 orderState = HomeOrderStateDisplay.NOT_STARTED,
+                                locale = locale,
+                                weekLabel = homeWeekLabel,
+                                pendingLabel = homePendingLabel,
                             )
                             val weeklySummary = baselineSummary.copy(
                                 orderState = resolveHomeDisplayedOrderState(

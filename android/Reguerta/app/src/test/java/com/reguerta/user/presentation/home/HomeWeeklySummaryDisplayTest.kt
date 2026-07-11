@@ -10,11 +10,13 @@ import com.reguerta.user.domain.shifts.ShiftStatus
 import com.reguerta.user.domain.shifts.ShiftType
 import java.time.LocalDate
 import java.time.ZoneId
+import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class HomeWeeklySummaryDisplayTest {
     private val zone = ZoneId.of("Europe/Madrid")
+    private val spanishLocale = Locale.forLanguageTag("es-ES")
 
     @Test
     fun weeklySummary_usesCurrentWeekBeforeDelivery() {
@@ -27,6 +29,9 @@ class HomeWeeklySummaryDisplayTest {
             currentMemberId = "member_1",
             orderState = HomeOrderStateDisplay.UNCONFIRMED,
             zoneId = zone,
+            locale = spanishLocale,
+            weekLabel = "Semana",
+            pendingLabel = "Pendiente",
         )
 
         assertEquals("2026-W19", display.weekKey)
@@ -56,6 +61,9 @@ class HomeWeeklySummaryDisplayTest {
             currentMemberId = "member_1",
             orderState = HomeOrderStateDisplay.UNCONFIRMED,
             zoneId = zone,
+            locale = spanishLocale,
+            weekLabel = "Semana",
+            pendingLabel = "Pendiente",
         )
 
         assertEquals("Huerta Sur", display.producerName)
@@ -75,6 +83,9 @@ class HomeWeeklySummaryDisplayTest {
             currentMemberId = "member_1",
             orderState = HomeOrderStateDisplay.NOT_STARTED,
             zoneId = zone,
+            locale = spanishLocale,
+            weekLabel = "Semana",
+            pendingLabel = "Pendiente",
         )
 
         assertEquals("2026-W20", display.weekKey)
@@ -108,6 +119,9 @@ class HomeWeeklySummaryDisplayTest {
             currentMemberId = "member_1",
             orderState = HomeOrderStateDisplay.UNCONFIRMED,
             zoneId = zone,
+            locale = spanishLocale,
+            weekLabel = "Semana",
+            pendingLabel = "Pendiente",
         )
 
         assertEquals("2026-W21", display.weekKey)
@@ -146,6 +160,9 @@ class HomeWeeklySummaryDisplayTest {
             currentMemberId = "member_1",
             orderState = HomeOrderStateDisplay.NOT_STARTED,
             zoneId = zone,
+            locale = spanishLocale,
+            weekLabel = "Semana",
+            pendingLabel = "Pendiente",
         )
 
         assertEquals("2026-W21", display.weekKey)
@@ -164,6 +181,9 @@ class HomeWeeklySummaryDisplayTest {
             currentMemberId = "member_1",
             orderState = HomeOrderStateDisplay.NOT_STARTED,
             zoneId = zone,
+            locale = spanishLocale,
+            weekLabel = "Semana",
+            pendingLabel = "Pendiente",
         )
 
         assertEquals("2026-W28", display.weekKey)
@@ -188,12 +208,42 @@ class HomeWeeklySummaryDisplayTest {
             currentMemberId = "member_1",
             orderState = HomeOrderStateDisplay.NOT_STARTED,
             zoneId = zone,
+            locale = spanishLocale,
+            weekLabel = "Semana",
+            pendingLabel = "Pendiente",
         )
 
         assertEquals("2026-W28", display.weekKey)
         assertEquals("Jue 9", display.deliveryLabel)
         assertEquals("Carmen", display.responsibleName)
         assertEquals("Javier", display.helperName)
+    }
+
+    @Test
+    fun weeklySummary_usesEnglishLocaleAndSkipsSummerMarkets() {
+        val nowMillis = LocalDate.of(2026, 7, 11).atStartOfDay(zone).toInstant().toEpochMilli()
+        val display = resolveHomeWeeklySummaryDisplay(
+            nowMillis = nowMillis,
+            defaultDeliveryDayOfWeek = DeliveryWeekday.WEDNESDAY,
+            deliveryCalendarOverrides = emptyList(),
+            shifts = emptyList(),
+            members = members,
+            currentMemberId = "member_1",
+            orderState = HomeOrderStateDisplay.NOT_STARTED,
+            zoneId = zone,
+            locale = Locale.US,
+            weekLabel = "Week",
+            pendingLabel = "Pending",
+        )
+
+        assertEquals("Saturday, July 11", formatHomeTopBarDate(nowMillis, zone, Locale.US))
+        assertEquals("Jul 13 - Jul 19", display.weekRangeLabel)
+        assertEquals("Week 29", display.weekBadgeLabel)
+        assertEquals("Wed 15", display.deliveryLabel)
+        assertEquals("Sep 19", display.marketLabel)
+        assertEquals("Pending", display.responsibleName)
+        assertEquals("Pending", display.helperName)
+        assertEquals(listOf("Pending"), display.marketResponsibleNames)
     }
 
     @Test

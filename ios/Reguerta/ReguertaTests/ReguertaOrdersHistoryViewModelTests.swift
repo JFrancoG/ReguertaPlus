@@ -6,6 +6,53 @@ import Testing
 @MainActor
 struct ReguertaOrdersHistoryViewModelTests {
     @Test
+    func myOrdersHistoryPresentationUsesTheActiveEnglishLocale() throws {
+        let option = try #require(
+            orderHistoryWeekOption(
+                weekKey: "2026-W27",
+                locale: Locale(identifier: "en_US")
+            )
+        )
+        let presentation = orderHistoryWeekPresentation(
+            option,
+            locale: Locale(identifier: "en_US"),
+            weekLabel: "Week",
+            shortWeekLabel: "Wk",
+            orderLabel: "Order"
+        )
+
+        #expect(presentation.rangeLabel == "Jun 29 - Jul 5")
+        #expect(presentation.title == "2026 Week 27")
+        #expect(presentation.pickerLabel == "Jun 29 - Jul 5 · 2026 Wk 27")
+        #expect(presentation.orderTitle == "Order Jun 29 - Jul 5")
+    }
+
+    @Test
+    func myOrdersHistoryPresentationLocalizesGenericUnitLabelsOnly() {
+        #expect(
+            localizedGenericOrderHistoryQuantityLabel(
+                "1 ud.",
+                singleLabel: "1 unit",
+                pluralFormat: "%lld units"
+            ) == "1 unit"
+        )
+        #expect(
+            localizedGenericOrderHistoryQuantityLabel(
+                "3 uds.",
+                singleLabel: "1 unit",
+                pluralFormat: "%lld units"
+            ) == "3 units"
+        )
+        #expect(
+            localizedGenericOrderHistoryQuantityLabel(
+                "1 kg",
+                singleLabel: "1 unit",
+                pluralFormat: "%lld units"
+            ) == "1 kg"
+        )
+    }
+
+    @Test
     func myOrdersHistorySelectsPreviousIsoWeekAndFormatsHeader() async {
         let repository = InMemoryOrdersRepository()
         await repository.setOrderHistoryWeekKeys(["2026-W21"], forMemberId: "member_1")

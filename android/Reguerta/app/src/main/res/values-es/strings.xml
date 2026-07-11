@@ -94,6 +94,8 @@
     <string name="home_dashboard_delivery_responsibles">Responsables reparto</string>
     <string name="home_dashboard_market">Mercado</string>
     <string name="home_dashboard_market_responsibles">Responsables mercado</string>
+    <string name="home_dashboard_pending">Pendiente</string>
+    <string name="home_dashboard_week">Semana</string>
     <string name="home_dashboard_helper_format">%1$s</string>
     <string name="home_dashboard_state">Pedido</string>
     <string name="home_dashboard_order_state_consultation">Último pedido</string>
@@ -388,6 +390,9 @@
     <string name="my_order_previous_retry">Reintentar</string>
     <string name="my_orders_history_title_fallback">Pedido</string>
     <string name="my_orders_history_week_fallback">Semana</string>
+    <string name="my_orders_history_week_label">Semana</string>
+    <string name="my_orders_history_week_short_label">Sem</string>
+    <string name="my_orders_history_order_label">Pedido</string>
     <string name="my_orders_history_previous_week">Semana anterior</string>
     <string name="my_orders_history_next_week">Semana posterior</string>
     <string name="my_orders_history_loading">Cargando pedido…</string>
@@ -422,6 +427,7 @@
     <string name="received_orders_empty_title">Sin pedidos recibidos</string>
     <string name="received_orders_empty_body_format">No hay líneas de pedido para preparar en la semana %1$s.</string>
     <string name="received_orders_history_empty">No hay pedidos recibidos para esta semana.</string>
+    <string name="received_orders_history_title_label">Pedidos recibidos</string>
     <string name="received_orders_error_title">No se pudieron cargar los pedidos</string>
     <string name="received_orders_error_body">Revisa la conexión y vuelve a intentarlo.</string>
     <string name="received_orders_retry">Reintentar</string>

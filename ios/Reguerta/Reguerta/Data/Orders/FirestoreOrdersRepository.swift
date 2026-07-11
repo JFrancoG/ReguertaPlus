@@ -80,6 +80,13 @@ struct FirestoreOrdersRepository: OrdersRepository {
         )
     }
 
+    func oldestOrderHistoryWeekKey() async throws -> String? {
+        try await fetchOldestOrderHistoryWeekKey(
+            db: db,
+            environment: environment
+        )
+    }
+
     func receivedOrdersHistorySnapshot(
         producerId: String,
         weekKey: String

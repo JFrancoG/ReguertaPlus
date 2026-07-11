@@ -39,6 +39,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -54,7 +55,55 @@ import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.orders.OrderHistoryWeekOption
 import com.reguerta.user.domain.orders.OrderSummaryGroup
 import com.reguerta.user.domain.orders.OrderSummarySnapshot
+import com.reguerta.user.domain.orders.orderHistoryWeekOption
 import com.reguerta.user.ui.components.ReguertaScreenTitle
+import java.util.Locale
+
+internal data class MyOrdersHistoryWeekCopy(
+    val weekLabel: String,
+    val shortWeekLabel: String,
+    val orderLabel: String,
+)
+
+internal data class MyOrdersHistoryWeekPresentation(
+    val rangeLabel: String,
+    val title: String,
+    val shortYearWeekLabel: String,
+    val pickerLabel: String,
+    val orderTitle: String,
+)
+
+internal fun OrderHistoryWeekOption.toMyOrdersHistoryPresentation(
+    locale: Locale,
+    copy: MyOrdersHistoryWeekCopy,
+): MyOrdersHistoryWeekPresentation {
+    val localizedRange = orderHistoryWeekOption(weekKey, locale)?.rangeLabel ?: rangeLabel
+    val title = "$weekYear ${copy.weekLabel} $weekNumber"
+    val shortYearWeekLabel = "$weekYear ${copy.shortWeekLabel} $weekNumber"
+    return MyOrdersHistoryWeekPresentation(
+        rangeLabel = localizedRange,
+        title = title,
+        shortYearWeekLabel = shortYearWeekLabel,
+        pickerLabel = "$localizedRange · $shortYearWeekLabel",
+        orderTitle = "${copy.orderLabel} $localizedRange",
+    )
+}
+
+internal fun localizedGenericOrderHistoryQuantityLabel(
+    rawLabel: String,
+    locale: Locale,
+    singleLabel: String,
+    pluralFormat: String,
+): String {
+    val quantity = GENERIC_UNIT_PATTERN.matchEntire(rawLabel)?.groupValues?.getOrNull(1)?.toIntOrNull()
+        ?: return rawLabel
+    return if (quantity == 1) singleLabel else String.format(locale, pluralFormat, quantity)
+}
+
+private val GENERIC_UNIT_PATTERN = Regex(
+    pattern = """\s*(\d+)\s+ud(?:s|\(s\))?\.?\s*""",
+    option = RegexOption.IGNORE_CASE,
+)
 
 @Composable
 internal fun MyOrdersHistoryRoute(
@@ -104,6 +153,14 @@ private fun MyOrdersHistoryContent(
     onCommitPicker: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val locale = LocalConfiguration.current.locales[0]
+    val weekCopy = MyOrdersHistoryWeekCopy(
+        weekLabel = stringResource(R.string.my_orders_history_week_label),
+        shortWeekLabel = stringResource(R.string.my_orders_history_week_short_label),
+        orderLabel = stringResource(R.string.my_orders_history_order_label),
+    )
+    val selectedWeekPresentation = state.selectedWeek?.toMyOrdersHistoryPresentation(locale, weekCopy)
+
     Box(
         modifier = modifier.fillMaxSize(),
     ) {
@@ -111,11 +168,11 @@ private fun MyOrdersHistoryContent(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            state.selectedWeek?.orderTitle?.let { orderTitle ->
+            selectedWeekPresentation?.orderTitle?.let { orderTitle ->
                 ReguertaScreenTitle(title = orderTitle)
             }
             OrderHistoryWeekHeader(
-                selectedWeek = state.selectedWeek,
+                selectedWeek = selectedWeekPresentation,
                 canGoPrevious = state.canGoPrevious,
                 canGoNext = state.canGoNext,
                 onPrevious = onPrevious,
@@ -135,6 +192,7 @@ private fun MyOrdersHistoryContent(
 
                 is MyOrdersHistoryLoadState.Loaded -> OrderSummaryList(
                     snapshot = loadState.snapshot,
+                    locale = locale,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -153,6 +211,8 @@ private fun MyOrdersHistoryContent(
         ModalBottomSheet(onDismissRequest = onDismissPicker) {
             OrderHistoryWeekPickerSheet(
                 weeks = state.availableWeeks,
+                locale = locale,
+                copy = weekCopy,
                 selectedWeekKey = state.pickerSelectedWeekKey ?: state.selectedWeekKey,
                 onSelectionChange = onPickerSelection,
                 onCancel = onDismissPicker,
@@ -164,7 +224,7 @@ private fun MyOrdersHistoryContent(
 
 @Composable
 private fun OrderHistoryWeekHeader(
-    selectedWeek: OrderHistoryWeekOption?,
+    selectedWeek: MyOrdersHistoryWeekPresentation?,
     canGoPrevious: Boolean,
     canGoNext: Boolean,
     onPrevious: () -> Unit,
@@ -306,6 +366,7 @@ private fun OrderHistoryErrorCard(onRetry: () -> Unit) {
 @Composable
 private fun OrderSummaryList(
     snapshot: OrderSummarySnapshot,
+    locale: Locale,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -317,20 +378,27 @@ private fun OrderSummaryList(
             items = snapshot.groups,
             key = OrderSummaryGroup::vendorId,
         ) { group ->
-            OrderSummaryProducerCard(group = group)
+            OrderSummaryProducerCard(group = group, locale = locale)
         }
     }
 }
 
 @Composable
-private fun OrderSummaryProducerCard(group: OrderSummaryGroup) {
+private fun OrderSummaryProducerCard(group: OrderSummaryGroup, locale: Locale) {
+    val singleQuantityLabel = stringResource(R.string.my_order_quantity_single)
+    val pluralQuantityFormat = stringResource(R.string.my_order_quantity_plural_format)
     PersonalOrderSummaryProducerCard(
         companyName = group.companyName,
         lines = group.lines.map { line ->
             PersonalOrderSummaryLineUi(
                 productName = line.productName,
                 packagingLine = line.packagingLine,
-                quantityLabel = line.quantityLabel,
+                quantityLabel = localizedGenericOrderHistoryQuantityLabel(
+                    rawLabel = line.quantityLabel,
+                    locale = locale,
+                    singleLabel = singleQuantityLabel,
+                    pluralFormat = pluralQuantityFormat,
+                ),
                 subtotal = line.subtotal,
             )
         },
@@ -369,6 +437,8 @@ private fun OrderSummaryTotalBar(
 @Composable
 private fun OrderHistoryWeekPickerSheet(
     weeks: List<OrderHistoryWeekOption>,
+    locale: Locale,
+    copy: MyOrdersHistoryWeekCopy,
     selectedWeekKey: String?,
     onSelectionChange: (String) -> Unit,
     onCancel: () -> Unit,
@@ -396,6 +466,8 @@ private fun OrderHistoryWeekPickerSheet(
         if (weeks.isNotEmpty()) {
             NumberPickerWheel(
                 weeks = weeks,
+                locale = locale,
+                copy = copy,
                 selectedWeekKey = selectedWeekKey,
                 onSelectionChange = onSelectionChange,
             )
@@ -406,10 +478,14 @@ private fun OrderHistoryWeekPickerSheet(
 @Composable
 private fun NumberPickerWheel(
     weeks: List<OrderHistoryWeekOption>,
+    locale: Locale,
+    copy: MyOrdersHistoryWeekCopy,
     selectedWeekKey: String?,
     onSelectionChange: (String) -> Unit,
 ) {
-    val labels = remember(weeks) { weeks.map(OrderHistoryWeekOption::pickerLabel).toTypedArray() }
+    val labels = remember(weeks, locale, copy) {
+        weeks.map { it.toMyOrdersHistoryPresentation(locale, copy).pickerLabel }.toTypedArray()
+    }
     val selectedIndex = weeks.indexOfFirst { it.weekKey == selectedWeekKey }.takeIf { it >= 0 } ?: 0
     AndroidView(
         modifier = Modifier

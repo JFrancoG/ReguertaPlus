@@ -5,6 +5,9 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeFormatterBuilder
+import java.time.format.FormatStyle
+import java.time.chrono.IsoChronology
 import java.time.temporal.WeekFields
 import java.util.Locale
 
@@ -54,6 +57,25 @@ fun orderHistoryContinuousWeekOptions(
     }.toList()
 }
 
+fun orderHistoryBrowsableWeekOptions(
+    realWeekKeys: List<String>,
+    oldestOrderWeekKey: String? = null,
+    preferredWeekKey: String,
+    locale: Locale = Locale.forLanguageTag("es-ES"),
+): List<OrderHistoryWeekOption> {
+    val validRealWeekKeys = realWeekKeys.filter(String::isValidIsoWeekKey)
+    val validOldestOrderWeekKey = oldestOrderWeekKey?.takeIf(String::isValidIsoWeekKey)
+    val firstWeekKey = (validRealWeekKeys + listOfNotNull(validOldestOrderWeekKey)).minOrNull() ?: preferredWeekKey
+        .takeIf(String::isValidIsoWeekKey)
+        ?.substringBefore("-W")
+        ?.let { year -> "$year-W01" }
+    return orderHistoryContinuousWeekOptions(
+        realWeekKeys = validRealWeekKeys + listOfNotNull(firstWeekKey),
+        preferredWeekKey = preferredWeekKey,
+        locale = locale,
+    )
+}
+
 fun orderHistoryWeekOption(
     weekKey: String,
     locale: Locale = Locale.forLanguageTag("es-ES"),
@@ -91,6 +113,17 @@ private fun LocalDate.toOrderHistoryWeekOption(locale: Locale): OrderHistoryWeek
 }
 
 private fun LocalDate.toShortDayMonth(locale: Locale): String {
-    val formatter = DateTimeFormatter.ofPattern("d MMM", locale)
-    return format(formatter).replace(".", "").lowercase(locale)
+    val localizedPattern = DateTimeFormatterBuilder.getLocalizedDateTimePattern(
+        FormatStyle.MEDIUM,
+        null,
+        IsoChronology.INSTANCE,
+        locale,
+    )
+    val monthIndex = listOf(localizedPattern.indexOf('M'), localizedPattern.indexOf('L'))
+        .filter { it >= 0 }
+        .minOrNull()
+        ?: Int.MAX_VALUE
+    val dayIndex = localizedPattern.indexOf('d').takeIf { it >= 0 } ?: Int.MAX_VALUE
+    val monthDayPattern = if (monthIndex < dayIndex) "MMM d" else "d MMM"
+    return format(DateTimeFormatter.ofPattern(monthDayPattern, locale)).replace(".", "")
 }

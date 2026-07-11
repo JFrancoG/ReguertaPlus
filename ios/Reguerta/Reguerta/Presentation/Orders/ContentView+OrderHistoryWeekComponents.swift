@@ -1,5 +1,50 @@
 import SwiftUI
 
+struct OrderHistoryWeekPresentation: Equatable {
+    let rangeLabel: String
+    let title: String
+    let shortYearWeekLabel: String
+    let pickerLabel: String
+    let orderTitle: String
+}
+
+func orderHistoryWeekPresentation(
+    _ week: OrderHistoryWeekOption,
+    locale: Locale,
+    weekLabel: String,
+    shortWeekLabel: String,
+    orderLabel: String
+) -> OrderHistoryWeekPresentation {
+    let rangeLabel = orderHistoryWeekOption(weekKey: week.weekKey, locale: locale)?.rangeLabel ?? week.rangeLabel
+    let title = "\(week.weekYear) \(weekLabel) \(week.weekNumber)"
+    let shortYearWeekLabel = "\(week.weekYear) \(shortWeekLabel) \(week.weekNumber)"
+    return OrderHistoryWeekPresentation(
+        rangeLabel: rangeLabel,
+        title: title,
+        shortYearWeekLabel: shortYearWeekLabel,
+        pickerLabel: "\(rangeLabel) · \(shortYearWeekLabel)",
+        orderTitle: "\(orderLabel) \(rangeLabel)"
+    )
+}
+
+func localizedGenericOrderHistoryQuantityLabel(
+    _ rawLabel: String,
+    singleLabel: String,
+    pluralFormat: String
+) -> String {
+    let pattern = #"^\s*(\d+)\s+ud(?:s|\(s\))?\.?\s*$"#
+    guard let expression = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+        return rawLabel
+    }
+    let fullRange = NSRange(rawLabel.startIndex..<rawLabel.endIndex, in: rawLabel)
+    guard let match = expression.firstMatch(in: rawLabel, range: fullRange),
+          let quantityRange = Range(match.range(at: 1), in: rawLabel),
+          let quantity = Int64(rawLabel[quantityRange]) else {
+        return rawLabel
+    }
+    return quantity == 1 ? singleLabel : String(format: pluralFormat, quantity)
+}
+
 struct OrderHistoryWeekHeader: View {
     let tokens: ReguertaDesignTokens
     let selectedWeek: OrderHistoryWeekOption?
@@ -9,6 +54,24 @@ struct OrderHistoryWeekHeader: View {
     let onNext: () -> Void
     let onPickWeek: () -> Void
 
+    @Environment(\.locale) private var locale
+
+    private var presentationLocale: Locale {
+        reguertaPresentationLocale(fallback: locale)
+    }
+
+    private var selectedWeekPresentation: OrderHistoryWeekPresentation? {
+        selectedWeek.map {
+            orderHistoryWeekPresentation(
+                $0,
+                locale: presentationLocale,
+                weekLabel: l10n(AccessL10nKey.orderHistoryWeek),
+                shortWeekLabel: l10n(AccessL10nKey.orderHistoryWeekShort),
+                orderLabel: l10n(AccessL10nKey.orderHistoryOrder)
+            )
+        }
+    }
+
     var body: some View {
         VStack(alignment: .center, spacing: tokens.spacing.sm) {
             HStack(spacing: tokens.spacing.sm) {
@@ -16,13 +79,13 @@ struct OrderHistoryWeekHeader: View {
                     tokens: tokens,
                     systemImageName: "chevron.left",
                     isEnabled: canGoPrevious,
-                    accessibilityLabel: "Semana anterior",
+                    accessibilityLabel: l10n(AccessL10nKey.orderHistoryPreviousWeek),
                     action: onPrevious
                 )
 
                 GlassWeekPickerButton(
                     tokens: tokens,
-                    title: selectedWeek?.title ?? "Semana",
+                    title: selectedWeekPresentation?.title ?? l10n(AccessL10nKey.orderHistoryWeek),
                     action: onPickWeek
                 )
 
@@ -30,7 +93,7 @@ struct OrderHistoryWeekHeader: View {
                     tokens: tokens,
                     systemImageName: "chevron.right",
                     isEnabled: canGoNext,
-                    accessibilityLabel: "Semana posterior",
+                    accessibilityLabel: l10n(AccessL10nKey.orderHistoryNextWeek),
                     action: onNext
                 )
             }
@@ -46,19 +109,43 @@ struct OrderHistoryWeekPickerSheet: View {
     let onCancel: () -> Void
     let onDone: () -> Void
 
+    @Environment(\.locale) private var locale
+
+    private var presentationLocale: Locale {
+        reguertaPresentationLocale(fallback: locale)
+    }
+
     var body: some View {
         VStack(spacing: tokens.spacing.md) {
             HStack {
-                reguertaButton("Cancelar", variant: .text, fullWidth: false, action: onCancel)
+                reguertaButton(
+                    LocalizedStringKey(AccessL10nKey.commonActionCancel),
+                    variant: .text,
+                    fullWidth: false,
+                    action: onCancel
+                )
                 Spacer()
-                reguertaButton("Seleccionar", fullWidth: false, action: onDone)
+                reguertaButton(
+                    LocalizedStringKey(AccessL10nKey.orderHistorySelect),
+                    fullWidth: false,
+                    action: onDone
+                )
             }
             .padding(.horizontal, tokens.spacing.lg)
             .padding(.top, tokens.spacing.md)
 
-            Picker("Semana", selection: $selection) {
+            Picker(l10n(AccessL10nKey.orderHistoryWeek), selection: $selection) {
                 ForEach(weeks) { week in
-                    OrderHistoryWeekPickerLabel(tokens: tokens, week: week)
+                    OrderHistoryWeekPickerLabel(
+                        tokens: tokens,
+                        presentation: orderHistoryWeekPresentation(
+                            week,
+                            locale: presentationLocale,
+                            weekLabel: l10n(AccessL10nKey.orderHistoryWeek),
+                            shortWeekLabel: l10n(AccessL10nKey.orderHistoryWeekShort),
+                            orderLabel: l10n(AccessL10nKey.orderHistoryOrder)
+                        )
+                    )
                         .tag(week.weekKey)
                 }
             }
@@ -110,13 +197,13 @@ private struct GlassWeekPickerButton: View {
 
 private struct OrderHistoryWeekPickerLabel: View {
     let tokens: ReguertaDesignTokens
-    let week: OrderHistoryWeekOption
+    let presentation: OrderHistoryWeekPresentation
 
     var body: some View {
         HStack(spacing: 0) {
-            Text(week.rangeLabel)
+            Text(presentation.rangeLabel)
                 .font(tokens.typography.titleCard.weight(.semibold))
-            Text(" · \(week.shortYearWeekLabel)")
+            Text(" · \(presentation.shortYearWeekLabel)")
                 .font(tokens.typography.bodySecondary.weight(.semibold))
         }
         .frame(maxWidth: .infinity, alignment: .center)

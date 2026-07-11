@@ -6,6 +6,24 @@ struct MyOrdersHistoryRouteView: View {
     let context: MyOrdersHistoryRouteContext
     let onTitleChanged: (String?) -> Void
 
+    @Environment(\.locale) private var locale
+
+    private var presentationLocale: Locale {
+        reguertaPresentationLocale(fallback: locale)
+    }
+
+    private var selectedWeekPresentation: OrderHistoryWeekPresentation? {
+        viewModel.selectedWeek.map {
+            orderHistoryWeekPresentation(
+                $0,
+                locale: presentationLocale,
+                weekLabel: l10n(AccessL10nKey.orderHistoryWeek),
+                shortWeekLabel: l10n(AccessL10nKey.orderHistoryWeekShort),
+                orderLabel: l10n(AccessL10nKey.orderHistoryOrder)
+            )
+        }
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
@@ -30,16 +48,19 @@ struct MyOrdersHistoryRouteView: View {
             if !viewModel.isWeekPickerPresented, case .loaded(let snapshot) = viewModel.loadState {
                 OrderSummaryTotalBar(
                     tokens: tokens,
-                    text: "Suma total pedido: \(snapshot.total.euroCurrencyText())"
+                    text: l10n(
+                        AccessL10nKey.orderHistoryOrderTotalFormat,
+                        snapshot.total.euroCurrencyText(locale: presentationLocale)
+                    )
                 )
                 .accessibilityIdentifier("myOrdersHistory.totalBar")
             }
         }
         .task(id: context.identity) {
             await viewModel.appear(context: context)
-            onTitleChanged(viewModel.selectedWeek?.orderTitle)
+            onTitleChanged(selectedWeekPresentation?.orderTitle)
         }
-        .onChange(of: viewModel.selectedWeek?.orderTitle) { _, title in
+        .onChange(of: selectedWeekPresentation?.orderTitle) { _, title in
             onTitleChanged(title)
         }
         .onDisappear {
@@ -84,7 +105,7 @@ struct MyOrdersHistoryRouteView: View {
                 .accessibilityIdentifier("myOrdersHistory.loadingIndicator")
 
         case .empty:
-            Text("No hay ningún pedido registrado para esta semana")
+            Text(l10n(AccessL10nKey.orderHistoryEmpty))
                 .font(tokens.typography.body)
                 .foregroundStyle(tokens.colors.feedbackError)
                 .multilineTextAlignment(.center)
@@ -95,10 +116,14 @@ struct MyOrdersHistoryRouteView: View {
         case .error:
             reguertaCard {
                 VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                    Text("No hemos podido cargar este pedido.")
+                    Text(l10n(AccessL10nKey.orderHistoryError))
                         .font(tokens.typography.bodySecondary)
                         .foregroundStyle(tokens.colors.textSecondary)
-                    reguertaButton("Reintentar", variant: .text, fullWidth: false) {
+                    reguertaButton(
+                        LocalizedStringKey(AccessL10nKey.orderHistoryRetry),
+                        variant: .text,
+                        fullWidth: false
+                    ) {
                         Task {
                             await viewModel.retry()
                         }
@@ -110,6 +135,7 @@ struct MyOrdersHistoryRouteView: View {
             OrderSummaryList(
                 tokens: tokens,
                 groups: snapshot.groups,
+                locale: presentationLocale,
                 bottomPadding: 72.resize + 8.resizeBottomSize
             )
         }
@@ -119,13 +145,14 @@ struct MyOrdersHistoryRouteView: View {
 private struct OrderSummaryList: View {
     let tokens: ReguertaDesignTokens
     let groups: [MyOrderPreviousOrderGroup]
+    let locale: Locale
     let bottomPadding: CGFloat
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
             LazyVStack(spacing: tokens.spacing.md) {
                 ForEach(groups) { group in
-                    OrderSummaryProducerCard(tokens: tokens, group: group)
+                    OrderSummaryProducerCard(tokens: tokens, group: group, locale: locale)
                 }
             }
             .padding(.bottom, bottomPadding)
@@ -137,6 +164,7 @@ private struct OrderSummaryList: View {
 private struct OrderSummaryProducerCard: View {
     let tokens: ReguertaDesignTokens
     let group: MyOrderPreviousOrderGroup
+    let locale: Locale
 
     var body: some View {
         reguertaCard {
@@ -159,10 +187,16 @@ private struct OrderSummaryProducerCard: View {
                                 .foregroundStyle(tokens.colors.textSecondary)
                         }
                         Spacer()
-                        Text(line.quantityLabel)
+                        Text(
+                            localizedGenericOrderHistoryQuantityLabel(
+                                line.quantityLabel,
+                                singleLabel: l10n(AccessL10nKey.orderHistoryQuantitySingle),
+                                pluralFormat: l10n(AccessL10nKey.orderHistoryQuantityPluralFormat)
+                            )
+                        )
                             .font(tokens.typography.body.weight(.semibold))
                             .foregroundStyle(tokens.colors.textPrimary)
-                        Text(line.subtotal.euroCurrencyText())
+                        Text(line.subtotal.euroCurrencyText(locale: locale))
                             .font(tokens.typography.body.weight(.semibold))
                             .foregroundStyle(tokens.colors.textPrimary)
                     }
@@ -173,7 +207,12 @@ private struct OrderSummaryProducerCard: View {
 
                 HStack {
                     Spacer()
-                    Text("Total: \(group.subtotal.euroCurrencyText())")
+                    Text(
+                        l10n(
+                            AccessL10nKey.orderHistoryProducerTotalFormat,
+                            group.subtotal.euroCurrencyText(locale: locale)
+                        )
+                    )
                         .font(tokens.typography.body.weight(.semibold))
                         .foregroundStyle(Color(red: 0.78, green: 0.38, blue: 0.36))
                 }

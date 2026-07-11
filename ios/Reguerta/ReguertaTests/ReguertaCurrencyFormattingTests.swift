@@ -5,6 +5,19 @@ import Testing
 
 struct ReguertaCurrencyFormattingTests {
     @Test
+    func presentationLocaleUsesTheAppLanguageInsteadOfTheSystemRegion() {
+        let locale = reguertaPresentationLocale(
+            preferredLocalizations: ["en"],
+            fallback: Locale(identifier: "es_ES")
+        )
+        let formatted = 12.5.euroCurrencyText(locale: locale)
+
+        #expect(locale.language.languageCode == .english)
+        #expect(formatted.contains("12.50"))
+        #expect(formatted.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("€"))
+    }
+
+    @Test
     func euroCurrencyTextUsesSpanishDecimalSeparatorAndTrailingSymbol() {
         let formatted = 12.5.euroCurrencyText(locale: Locale(identifier: "es_ES"))
 

@@ -4,6 +4,20 @@ private let homeOrderCartStoragePrefix = "reguerta_my_order_cart"
 private let homeOrderCartQuantitiesSuffix = ".quantities"
 private let homeOrderConfirmedQuantitiesSuffix = ".confirmed_quantities"
 
+struct HomeWeeklySummaryLocalization {
+    let locale: Locale
+    let weekLabel: String
+    let pendingLabel: String
+
+    static var current: HomeWeeklySummaryLocalization {
+        HomeWeeklySummaryLocalization(
+            locale: .current,
+            weekLabel: l10n(AccessL10nKey.homeDashboardWeek),
+            pendingLabel: l10n(AccessL10nKey.homeDashboardPending)
+        )
+    }
+}
+
 private struct HomeWeeklySummaryResolutionContext {
     let deliveryCalendarOverrides: [DeliveryCalendarOverride]
     let shifts: [ShiftAssignment]
@@ -22,17 +36,25 @@ private struct HomeWeeklySummaryTarget {
     let marketShift: ShiftAssignment?
 }
 
+private struct HomeWeeklySummaryPresentationContext {
+    let members: [Member]
+    let calendar: Calendar
+    let locale: Locale
+    let weekLabel: String
+    let pendingLabel: String
+}
+
 func resolveHomeWeeklySummaryDisplay(
     nowMillis: Int64,
     defaultDeliveryDayOfWeek _: DeliveryWeekday?,
     deliveryCalendarOverrides: [DeliveryCalendarOverride],
     shifts: [ShiftAssignment],
     members: [Member],
-    calendar: Calendar = Calendar(identifier: .iso8601)
+    calendar: Calendar = Calendar(identifier: .iso8601),
+    localization: HomeWeeklySummaryLocalization = .current
 ) -> HomeWeeklySummaryDisplay {
     var calendar = calendar
     calendar.timeZone = .current
-    let locale = Locale(identifier: "es_ES")
     let today = calendar.startOfDay(for: Date(timeIntervalSince1970: TimeInterval(nowMillis) / 1_000))
     let currentWeekStart = calendar.dateInterval(of: .weekOfYear, for: today)?.start ?? today
     let context = HomeWeeklySummaryResolutionContext(
@@ -54,9 +76,13 @@ func resolveHomeWeeklySummaryDisplay(
 
     return buildHomeWeeklySummaryDisplay(
         target: target,
-        members: members,
-        calendar: calendar,
-        locale: locale,
+        context: HomeWeeklySummaryPresentationContext(
+            members: members,
+            calendar: calendar,
+            locale: localization.locale,
+            weekLabel: localization.weekLabel,
+            pendingLabel: localization.pendingLabel
+        ),
         isConsultaPhase: isConsultaPhase
     )
 }
@@ -90,10 +116,9 @@ private func resolveHomeWeeklySummaryTarget(
         deliveryCalendarOverrides: context.deliveryCalendarOverrides,
         calendar: context.calendar
     )
-    let fallbackMarketDate = context.calendar.date(byAdding: .day, value: 5, to: orderWeekStart) ?? orderWeekStart
     let marketDate = targetMarketShift.map {
         Date(timeIntervalSince1970: TimeInterval($0.dateMillis) / 1_000)
-    } ?? (fallbackMarketDate < today ? nil : fallbackMarketDate)
+    } ?? resolveHomeNextScheduledMarketDate(onOrAfter: today, calendar: context.calendar)
     return HomeWeeklySummaryTarget(
         weekKey: targetWeekKey,
         orderWeekKey: orderWeekKey,
@@ -109,28 +134,36 @@ private func resolveHomeWeeklySummaryTarget(
 
 private func buildHomeWeeklySummaryDisplay(
     target: HomeWeeklySummaryTarget,
-    members: [Member],
-    calendar: Calendar,
-    locale: Locale,
+    context: HomeWeeklySummaryPresentationContext,
     isConsultaPhase: Bool
 ) -> HomeWeeklySummaryDisplay {
     HomeWeeklySummaryDisplay(
         weekKey: target.weekKey,
         orderWeekKey: target.orderWeekKey,
-        weekRangeLabel: "\(target.weekStart.homeShortDayMonth(locale: locale)) - \(target.weekEnd.homeShortDayMonth(locale: locale))",
-        weekBadgeLabel: "Semana \(target.weekNumber)",
-        producerName: resolveHomeProducerName(weekStart: target.weekStart, members: members, calendar: calendar),
-        deliveryLabel: target.deliveryDate.homeShortWeekdayDay(locale: locale),
+        weekRangeLabel: "\(target.weekStart.homeShortDayMonth(locale: context.locale)) - \(target.weekEnd.homeShortDayMonth(locale: context.locale))",
+        weekBadgeLabel: "\(context.weekLabel) \(target.weekNumber)",
+        producerName: resolveHomeProducerName(
+            weekStart: target.weekStart,
+            members: context.members,
+            calendar: context.calendar,
+            pendingLabel: context.pendingLabel
+        ),
+        deliveryLabel: target.deliveryDate.homeShortWeekdayDay(locale: context.locale),
         responsibleName: target.shift?.assignedUserIds.first.flatMap { memberId in
-            members.first(where: { $0.id == memberId })?.displayName
-        } ?? "Pendiente",
+            context.members.first(where: { $0.id == memberId })?.displayName
+        } ?? context.pendingLabel,
         helperName: target.shift?.helperUserId.flatMap { memberId in
-            members.first(where: { $0.id == memberId })?.displayName
-        } ?? "Pendiente",
-        marketLabel: target.marketDate?.homeShortWeekdayDay(locale: locale) ?? "Pendiente",
+            context.members.first(where: { $0.id == memberId })?.displayName
+        } ?? context.pendingLabel,
+        marketLabel: target.marketDate.map { date in
+            target.marketShift == nil
+                ? date.homeShortDayMonth(locale: context.locale)
+                : date.homeShortWeekdayDay(locale: context.locale)
+        } ?? context.pendingLabel,
         marketResponsibleNames: homeDisplayNames(
             for: Array(target.marketShift?.assignedUserIds.prefix(3) ?? []),
-            members: members
+            members: context.members,
+            pendingLabel: context.pendingLabel
         ),
         orderState: .notStarted,
         isConsultaPhase: isConsultaPhase
@@ -175,6 +208,35 @@ private func resolveHomeTargetMarketShift(
         .min { $0.dateMillis < $1.dateMillis }
 }
 
+private func resolveHomeNextScheduledMarketDate(
+    onOrAfter today: Date,
+    calendar: Calendar
+) -> Date? {
+    let monthComponents = calendar.dateComponents([.year, .month], from: today)
+    guard var monthStart = calendar.date(from: monthComponents) else { return nil }
+
+    for _ in 0..<24 {
+        let month = calendar.component(.month, from: monthStart)
+        if month != 7 && month != 8 {
+            let weekday = calendar.component(.weekday, from: monthStart)
+            let daysUntilSaturday = (7 - weekday + 7) % 7
+            let thirdSaturdayOffset = daysUntilSaturday + 14
+            if let thirdSaturday = calendar.date(
+                byAdding: .day,
+                value: thirdSaturdayOffset,
+                to: monthStart
+            ), thirdSaturday >= today {
+                return thirdSaturday
+            }
+        }
+        guard let nextMonth = calendar.date(byAdding: .month, value: 1, to: monthStart) else {
+            return nil
+        }
+        monthStart = nextMonth
+    }
+    return nil
+}
+
 private func resolveHomeTargetDeliveryDate(
     weekStart: Date,
     deliveryCalendarOverrides: [DeliveryCalendarOverride],
@@ -187,11 +249,15 @@ private func resolveHomeTargetDeliveryDate(
     )
 }
 
-private func homeDisplayNames(for memberIds: [String], members: [Member]) -> [String] {
+private func homeDisplayNames(
+    for memberIds: [String],
+    members: [Member],
+    pendingLabel: String
+) -> [String] {
     let names = memberIds.map { memberId in
         members.first(where: { $0.id == memberId })?.displayName ?? memberId
     }
-    return names.isEmpty ? ["Pendiente"] : names
+    return names.isEmpty ? [pendingLabel] : names
 }
 
 func resolveHomeOrderState(
@@ -220,13 +286,13 @@ func resolveHomeDisplayedOrderState(
 
 func formatHomeTopBarDate(
     nowMillis: Int64,
-    locale: Locale = Locale(identifier: "es_ES")
+    locale: Locale = .current
 ) -> String {
     let date = Date(timeIntervalSince1970: TimeInterval(nowMillis) / 1_000)
     let formatter = DateFormatter()
     formatter.locale = locale
-    formatter.dateFormat = "EEEE d MMMM"
-    return formatter.string(from: date).lowercased()
+    formatter.setLocalizedDateFormatFromTemplate("EEEE d MMMM")
+    return formatter.string(from: date)
 }
 
 private func resolveHomeCalendarDeliveryDate(
@@ -257,7 +323,8 @@ private func resolveHomeEffectiveDeliveryDate(
 private func resolveHomeProducerName(
     weekStart: Date,
     members: [Member],
-    calendar: Calendar
+    calendar: Calendar,
+    pendingLabel: String
 ) -> String {
     let orderWeekStart = calendar.date(byAdding: .day, value: -7, to: weekStart) ?? weekStart
     let orderWeekNumber = calendar.component(.weekOfYear, from: orderWeekStart)
@@ -270,7 +337,7 @@ private func resolveHomeProducerName(
             return lhsName.localizedCaseInsensitiveCompare(rhsName) == .orderedAscending
         }
     let producer = producers.first { $0.producerParity == parity } ?? producers[safe: orderWeekNumber % max(producers.count, 1)]
-    return producer?.companyName?.isEmpty == false ? producer!.companyName! : (producer?.displayName ?? "Pendiente")
+    return producer?.companyName?.isEmpty == false ? producer!.companyName! : (producer?.displayName ?? pendingLabel)
 }
 
 private extension Array {
@@ -305,8 +372,8 @@ private extension Date {
     func homeShortDayMonth(locale: Locale) -> String {
         let formatter = DateFormatter()
         formatter.locale = locale
-        formatter.dateFormat = "d MMM"
-        return formatter.string(from: self).replacingOccurrences(of: ".", with: "").lowercased()
+        formatter.setLocalizedDateFormatFromTemplate("d MMM")
+        return formatter.string(from: self).replacingOccurrences(of: ".", with: "")
     }
 
     func homeShortWeekdayDay(locale: Locale) -> String {

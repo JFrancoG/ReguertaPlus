@@ -3,6 +3,12 @@ import Testing
 
 @testable import Reguerta
 
+private let spanishHomeLocalization = HomeWeeklySummaryLocalization(
+    locale: Locale(identifier: "es_ES"),
+    weekLabel: "Semana",
+    pendingLabel: "Pendiente"
+)
+
 @MainActor
 struct ReguertaHomeSummaryTests {
     @Test
@@ -12,7 +18,8 @@ struct ReguertaHomeSummaryTests {
             defaultDeliveryDayOfWeek: .friday,
             deliveryCalendarOverrides: [],
             shifts: [testDeliveryShift(id: "delivery_w19", year: 2026, month: 5, day: 8)],
-            members: homeSummaryMembers
+            members: homeSummaryMembers,
+            localization: spanishHomeLocalization
         )
 
         #expect(display.weekKey == "2026-W19")
@@ -50,7 +57,8 @@ struct ReguertaHomeSummaryTests {
             defaultDeliveryDayOfWeek: .friday,
             deliveryCalendarOverrides: [],
             shifts: [testDeliveryShift(id: "delivery_w19", year: 2026, month: 5, day: 8)],
-            members: vacationMembers
+            members: vacationMembers,
+            localization: spanishHomeLocalization
         )
 
         #expect(display.producerName == "Huerta Sur")
@@ -66,7 +74,8 @@ struct ReguertaHomeSummaryTests {
                 testDeliveryShift(id: "delivery_w19", year: 2026, month: 5, day: 8),
                 testDeliveryShift(id: "delivery_w20", year: 2026, month: 5, day: 15)
             ],
-            members: homeSummaryMembers
+            members: homeSummaryMembers,
+            localization: spanishHomeLocalization
         )
 
         #expect(display.weekKey == "2026-W20")
@@ -101,7 +110,8 @@ struct ReguertaHomeSummaryTests {
                     assignedUserIds: ["valle", "angeles", "sandra"]
                 )
             ],
-            members: may2026HomeSummaryMembers
+            members: may2026HomeSummaryMembers,
+            localization: spanishHomeLocalization
         )
 
         #expect(display.weekKey == "2026-W21")
@@ -140,7 +150,8 @@ struct ReguertaHomeSummaryTests {
                     assignedUserIds: ["angeles", "sandra", "valle"]
                 )
             ],
-            members: may2026HomeSummaryMembers
+            members: may2026HomeSummaryMembers,
+            localization: spanishHomeLocalization
         )
 
         #expect(display.weekKey == "2026-W21")
@@ -155,7 +166,8 @@ struct ReguertaHomeSummaryTests {
             defaultDeliveryDayOfWeek: .wednesday,
             deliveryCalendarOverrides: [],
             shifts: [testDeliveryShift(id: "delivery_w28", year: 2026, month: 7, day: 9)],
-            members: homeSummaryMembers
+            members: homeSummaryMembers,
+            localization: spanishHomeLocalization
         )
 
         #expect(display.weekKey == "2026-W28")
@@ -180,13 +192,40 @@ struct ReguertaHomeSummaryTests {
             defaultDeliveryDayOfWeek: .wednesday,
             deliveryCalendarOverrides: [override],
             shifts: [testDeliveryShift(id: "delivery_w28", year: 2026, month: 7, day: 9)],
-            members: homeSummaryMembers
+            members: homeSummaryMembers,
+            localization: spanishHomeLocalization
         )
 
         #expect(display.weekKey == "2026-W28")
         #expect(display.deliveryLabel == "Jue 9")
         #expect(display.responsibleName == "Carmen")
         #expect(display.helperName == "Javier")
+    }
+
+    @Test
+    func homeWeeklySummaryUsesEnglishLocaleAndSkipsSummerMarkets() {
+        let nowMillis = testMillis(year: 2026, month: 7, day: 11)
+        let display = resolveHomeWeeklySummaryDisplay(
+            nowMillis: nowMillis,
+            defaultDeliveryDayOfWeek: .wednesday,
+            deliveryCalendarOverrides: [],
+            shifts: [],
+            members: homeSummaryMembers,
+            localization: HomeWeeklySummaryLocalization(
+                locale: Locale(identifier: "en_US"),
+                weekLabel: "Week",
+                pendingLabel: "Pending"
+            )
+        )
+
+        #expect(formatHomeTopBarDate(nowMillis: nowMillis, locale: Locale(identifier: "en_US")) == "Saturday, July 11")
+        #expect(display.weekRangeLabel == "Jul 13 - Jul 19")
+        #expect(display.weekBadgeLabel == "Week 29")
+        #expect(display.deliveryLabel == "Wed 15")
+        #expect(display.marketLabel == "Sep 19")
+        #expect(display.responsibleName == "Pending")
+        #expect(display.helperName == "Pending")
+        #expect(display.marketResponsibleNames == ["Pending"])
     }
 
     @Test
