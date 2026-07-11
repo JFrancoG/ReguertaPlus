@@ -303,7 +303,7 @@ private extension AccessRootViewModel {
         if homeDestination == .myOrder && !myOrderReadOnlyMode {
             return ReguertaHeaderAction(
                 systemImageName: "cart",
-                accessibilityLabel: .verbatim("Ver carrito"),
+                accessibilityLabel: .localized(AccessL10nKey.myOrderCartViewAction),
                 accessibilityIdentifier: "home.topBar.cartButton",
                 isEnabled: myOrderCartUnits > 0,
                 badge: myOrderCartUnits > 0 ? .count(myOrderCartUnits) : nil,
@@ -322,9 +322,17 @@ private extension AccessRootViewModel {
             return formatHomeTopBarDate(nowMillis: shiftsViewModel.currentNowMillis)
         case .myOrder:
             if !myOrderViewModel.isReadOnlyMode {
-                return myOrderViewModel.isCartVisible ? "Mi carrito" : "Lista de productos"
+                return l10n(
+                    myOrderViewModel.isCartVisible
+                        ? AccessL10nKey.myOrderCartTitle
+                        : AccessL10nKey.myOrderListTitle
+                )
             }
-            return myOrderViewModel.shouldShowDatabaseOrderSummary ? "Mi último pedido" : "Mi pedido"
+            return l10n(
+                myOrderViewModel.shouldShowDatabaseOrderSummary
+                    ? AccessL10nKey.myOrderPreviousTitle
+                    : AccessL10nKey.myOrder
+            )
         case .receivedOrders:
             return "Pedidos a preparar"
         case .myOrders:

@@ -6,6 +6,28 @@ import Testing
 @MainActor
 struct ReguertaOrdersViewModelTests {
     @Test
+    func myOrderViewModelUsesLocalizedOrderActions() {
+        let viewModel = makeMyOrderViewModel()
+
+        #expect(viewModel.finalizeCheckoutTitle == l10n(AccessL10nKey.myOrderFinalizeAction))
+
+        viewModel.confirmedQuantities = ["tomato": 1]
+
+        #expect(viewModel.finalizeCheckoutTitle == l10n(AccessL10nKey.myOrderFinalizeUpdateAction))
+    }
+
+    @Test
+    func myOrderDynamicCopyResolvesFromTheLocalizationCatalog() {
+        let total = l10n(AccessL10nKey.myOrderConfirmedTotalFormat, "€4.63")
+        let remaining = l10n(AccessL10nKey.myOrderStockRemainingFormat, "3")
+
+        #expect(total != AccessL10nKey.myOrderConfirmedTotalFormat)
+        #expect(total.contains("€4.63"))
+        #expect(remaining != AccessL10nKey.myOrderStockRemainingFormat)
+        #expect(remaining.contains("3"))
+    }
+
+    @Test
     func myOrderViewModelKeepsRestoredDraftWhileProductsLoad() async {
         let cartStore = InMemoryMyOrderCartStore()
         let product = regularProduct(id: "tomato", vendorId: "producer_even", name: "Tomates")

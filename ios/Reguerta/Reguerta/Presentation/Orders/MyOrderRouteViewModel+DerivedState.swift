@@ -80,7 +80,7 @@ extension MyOrderRouteViewModel {
     }
 
     var finalizeCheckoutTitle: String {
-        "Finalizar pedido"
+        l10n(hasConfirmedOrder ? AccessL10nKey.myOrderFinalizeUpdateAction : AccessL10nKey.myOrderFinalizeAction)
     }
 
     var canSubmitCheckout: Bool {
@@ -154,7 +154,7 @@ extension MyOrderRouteViewModel {
             groups.append(
                 MyOrderProducerGroup(
                     vendorId: myOrderCommonPurchasesGroupId,
-                    companyName: "Compras Regüerta",
+                    companyName: l10n(AccessL10nKey.myOrderCommonPurchasesGroupName),
                     products: commonPurchases.sorted { lhs, rhs in
                         lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
                     },
