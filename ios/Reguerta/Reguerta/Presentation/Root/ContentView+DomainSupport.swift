@@ -149,15 +149,6 @@ extension DeliveryWeekday {
         }
     }
 
-    var previous: DeliveryWeekday {
-        let all = DeliveryWeekday.allCases
-        return all[(all.firstIndex(of: self)! + all.count - 1) % all.count]
-    }
-
-    var next: DeliveryWeekday {
-        let all = DeliveryWeekday.allCases
-        return all[(all.firstIndex(of: self)! + 1) % all.count]
-    }
 }
 
 extension Int64 {

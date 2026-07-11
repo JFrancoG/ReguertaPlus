@@ -94,6 +94,7 @@ import com.reguerta.user.ui.components.auth.ReguertaDialog
 import com.reguerta.user.ui.components.auth.ReguertaDialogAction
 import com.reguerta.user.ui.components.auth.ReguertaDialogType
 import com.reguerta.user.ui.components.auth.ReguertaFlatButton
+import com.reguerta.user.ui.theme.AppAppearance
 import kotlinx.coroutines.delay
 
 private const val HomeDrawerAnimationMillis = 400
@@ -105,6 +106,7 @@ private const val HomeLogoutConfirmationDelayMillis = 80L
 internal fun HomeRoute(
     modifier: Modifier = Modifier,
     mode: SessionMode,
+    appAppearance: AppAppearance,
     myOrderFreshnessState: MyOrderFreshnessUiState,
     draft: MemberDraft,
     latestNews: List<NewsArticle>,
@@ -154,6 +156,7 @@ internal fun HomeRoute(
     isUpdatingShiftSwapRequest: Boolean,
     isAskingBylaws: Boolean,
     nowOverrideMillis: Long?,
+    onAppAppearanceChanged: (AppAppearance) -> Unit,
     onDraftChanged: (MemberDraft) -> Unit,
     onNewsDraftChanged: (NewsDraft) -> Unit,
     onNotificationDraftChanged: (NotificationDraft) -> Unit,
@@ -209,7 +212,6 @@ internal fun HomeRoute(
     onSaveSharedProfile: (onSuccess: () -> Unit) -> Unit,
     onDeleteSharedProfile: (onSuccess: () -> Unit) -> Unit,
     onSaveDeliveryCalendarOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
-    onDeleteDeliveryCalendarOverride: (String, onSuccess: () -> Unit) -> Unit,
     onSubmitShiftPlanningRequest: (ShiftPlanningRequestType, onSuccess: () -> Unit) -> Unit,
     onRetryMyOrderFreshness: () -> Unit,
     onOpenProducts: () -> Unit,
@@ -600,7 +602,6 @@ internal fun HomeRoute(
                     isLoading = isLoadingProducts,
                     isSaving = isSavingProduct,
                     isUploadingImage = isUploadingProductImage,
-                    isUpdatingProducerCatalogVisibility = isUpdatingProducerCatalogVisibility,
                     onRefresh = onRefreshProducts,
                     onDraftChanged = onProductDraftChanged,
                     onCreateProduct = onStartCreatingProduct,
@@ -610,7 +611,6 @@ internal fun HomeRoute(
                     onCancelEditor = onClearProductEditor,
                     onSaveProduct = onSaveProduct,
                     onArchiveProduct = onArchiveProduct,
-                    onSetProducerCatalogVisibility = onSetProducerCatalogVisibility,
                     )
 
                     HomeDestination.MY_ORDER -> MyOrderRoute(
@@ -728,6 +728,7 @@ internal fun HomeRoute(
                     )
 
                     HomeDestination.SETTINGS -> SettingsRoute(
+                    appAppearance = appAppearance,
                     currentMember = member,
                     authenticatedMember = (mode as? SessionMode.Authorized)?.authenticatedMember,
                     members = (mode as? SessionMode.Authorized)?.members.orEmpty(),
@@ -737,15 +738,16 @@ internal fun HomeRoute(
                     isLoadingDeliveryCalendar = isLoadingDeliveryCalendar,
                     isSavingDeliveryCalendar = isSavingDeliveryCalendar,
                     isSubmittingShiftPlanningRequest = isSubmittingShiftPlanningRequest,
+                    isUpdatingProducerCatalogVisibility = isUpdatingProducerCatalogVisibility,
                     isDevelopImpersonationEnabled = isDevelopImpersonationEnabled,
                     nowOverrideMillis = nowOverrideMillis,
                     onImpersonateMember = onImpersonateMember,
                     onClearImpersonation = onClearImpersonation,
                     onSetNowOverrideMillis = onSetNowOverrideMillis,
                     onShiftNowByDays = onShiftNowByDays,
-                    onRefreshDeliveryCalendar = onRefreshDeliveryCalendar,
+                    onAppAppearanceChanged = onAppAppearanceChanged,
+                    onSetProducerCatalogVisibility = onSetProducerCatalogVisibility,
                     onSaveDeliveryCalendarOverride = onSaveDeliveryCalendarOverride,
-                    onDeleteDeliveryCalendarOverride = onDeleteDeliveryCalendarOverride,
                     onSubmitShiftPlanningRequest = onSubmitShiftPlanningRequest,
                     )
 

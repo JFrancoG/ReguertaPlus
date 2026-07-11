@@ -263,7 +263,7 @@ private func resolveHomeProducerName(
     let orderWeekNumber = calendar.component(.weekOfYear, from: orderWeekStart)
     let parity: ProducerParity = orderWeekNumber.isMultiple(of: 2) ? .even : .odd
     let producers = members
-        .filter { $0.isProducer && $0.producerCatalogEnabled }
+        .filter(\.isProducer)
         .sorted { lhs, rhs in
             let lhsName = lhs.companyName?.isEmpty == false ? lhs.companyName! : lhs.displayName
             let rhsName = rhs.companyName?.isEmpty == false ? rhs.companyName! : rhs.displayName

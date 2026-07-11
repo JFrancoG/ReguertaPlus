@@ -211,7 +211,7 @@ struct ReguertaProductsViewModelTests {
     }
 
     @Test
-    func productsViewModelChangesCatalogVisibilityAndUpdatesSessionMember() async {
+    func productsViewModelEnablesVacationModeAndUpdatesSessionMember() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let memberRepository = InMemoryMemberRepository()
         let viewModel = await makeProductsViewModel(
@@ -220,14 +220,12 @@ struct ReguertaProductsViewModelTests {
             memberRepository: memberRepository
         )
 
-        viewModel.requestCatalogVisibilityChange()
-        await viewModel.confirmCatalogVisibilityChange()
+        await viewModel.setVacationModeEnabled(true)
 
         guard case .authorized(let session) = viewModel.sessionViewModel.mode else {
             Issue.record("Expected authorized session")
             return
         }
-        #expect(viewModel.pendingCatalogVisibility == nil)
         #expect(viewModel.currentMember?.producerCatalogEnabled == false)
         #expect(session.member.producerCatalogEnabled == false)
     }

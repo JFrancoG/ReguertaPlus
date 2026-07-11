@@ -166,6 +166,20 @@ extension SessionViewModel {
         )
     }
 
+    func applyRefreshedAuthorizedMembers(_ members: [Member]) {
+        guard case .authorized(let session) = mode else { return }
+        let refreshedMembers = members.isEmpty ? session.members : members
+        mode = .authorized(
+            AuthorizedSession(
+                principal: session.principal,
+                authenticatedMember: refreshedMembers.first { $0.id == session.authenticatedMember.id }
+                    ?? session.authenticatedMember,
+                member: refreshedMembers.first { $0.id == session.member.id } ?? session.member,
+                members: refreshedMembers
+            )
+        )
+    }
+
     private func shouldShowUnauthorizedDialog(for email: String, reason: UnauthorizedReason) -> Bool {
         guard reason == .userNotFoundInAuthorizedUsers else { return false }
         if case .unauthorized(let currentEmail, _) = mode {

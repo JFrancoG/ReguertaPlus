@@ -154,7 +154,6 @@ private fun requiredEcoBasketCommitmentProducts(
                 .filter { producer ->
                     producer.isProducer &&
                         producer.isActive &&
-                        producer.producerCatalogEnabled &&
                         producer.producerParity == parity
                 }
                 .map(Member::id)

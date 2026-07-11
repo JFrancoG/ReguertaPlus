@@ -152,8 +152,10 @@ struct SettingsRouteView: View {
     let tokens: ReguertaDesignTokens
     let session: AuthorizedSession?
     let shiftsViewModel: ShiftsFeatureViewModel
+    let productsViewModel: ProductsRouteViewModel
     let isDevelopImpersonationEnabled: Bool
     @Binding var isImpersonationExpanded: Bool
+    @AppStorage(AppAppearance.storageKey) private var appAppearanceRawValue = AppAppearance.system.rawValue
     let nowOverrideMillis: Int64?
     let onClearImpersonation: () -> Void
     let onImpersonate: (String) -> Void
@@ -162,27 +164,59 @@ struct SettingsRouteView: View {
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
-            reguertaCard {
-                VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                    Text(localizedKey(AccessL10nKey.settingsSubtitleDevelopImpersonation))
-                        .font(tokens.typography.bodySecondary)
-                        .foregroundStyle(tokens.colors.textSecondary)
+            VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                SettingsScopeHeaderView(
+                    tokens: tokens,
+                    titleKey: AccessL10nKey.settingsScopeGeneral
+                )
+                SettingsAppearanceSectionView(
+                    tokens: tokens,
+                    appearanceRawValue: $appAppearanceRawValue
+                )
 
-                    if isDevelopImpersonationEnabled, let session {
-                        impersonationSection(session: session)
-                        Divider()
-                            .overlay(tokens.colors.borderSubtle)
-                        developmentTimeSection
-                    }
+                if let session, session.member.isProducer {
+                    Divider()
+                        .overlay(tokens.colors.borderSubtle)
+                    SettingsScopeHeaderView(
+                        tokens: tokens,
+                        titleKey: AccessL10nKey.settingsScopeProducer
+                    )
+                    SettingsVacationModeSectionView(
+                        tokens: tokens,
+                        isEnabled: !session.member.producerCatalogEnabled,
+                        isSaving: productsViewModel.isUpdatingCatalogVisibility,
+                        onChanged: { enabled in
+                            Task { await productsViewModel.setVacationModeEnabled(enabled) }
+                        }
+                    )
+                }
 
-                    if let session, session.member.isAdmin {
-                        Divider()
-                            .overlay(tokens.colors.borderSubtle)
-                        adminDeliveryCalendarSection
-                        Divider()
-                            .overlay(tokens.colors.borderSubtle)
-                        adminShiftPlanningSection
-                    }
+                if let session, session.member.isAdmin {
+                    Divider()
+                        .overlay(tokens.colors.borderSubtle)
+                    SettingsScopeHeaderView(
+                        tokens: tokens,
+                        titleKey: AccessL10nKey.settingsScopeAdmin
+                    )
+                    adminDeliveryCalendarSection
+                    Divider()
+                        .overlay(tokens.colors.borderSubtle)
+                    adminShiftPlanningSection
+                }
+
+                if isDevelopImpersonationEnabled, let session {
+                    Divider()
+                        .overlay(tokens.colors.borderSubtle)
+                    SettingsDevelopSectionView(
+                        tokens: tokens,
+                        session: session,
+                        isImpersonationExpanded: $isImpersonationExpanded,
+                        nowOverrideMillis: nowOverrideMillis,
+                        onClearImpersonation: onClearImpersonation,
+                        onImpersonate: onImpersonate,
+                        onSetNowOverrideMillis: onSetNowOverrideMillis,
+                        onShiftNowByDays: onShiftNowByDays
+                    )
                 }
             }
             .padding(.bottom, tokens.spacing.sm)
@@ -190,170 +224,12 @@ struct SettingsRouteView: View {
         .scrollDismissesKeyboard(.interactively)
     }
 
-    private var developmentTimeSection: some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-            Text("Reloj de pruebas (develop)")
-                .font(tokens.typography.titleCard)
-                .foregroundStyle(tokens.colors.textPrimary)
-            Text(
-                nowOverrideMillis.map { "Fecha simulada: \(localizedDateTime($0))" }
-                    ?? "Fecha simulada: desactivada (usando fecha real)"
-            )
-            .font(tokens.typography.bodySecondary)
-            .foregroundStyle(tokens.colors.textSecondary)
-
-            HStack(spacing: tokens.spacing.sm) {
-                reguertaButton("-1 día", variant: .text) {
-                    onShiftNowByDays(-1)
-                }
-                reguertaButton("+1 día", variant: .text) {
-                    onShiftNowByDays(1)
-                }
-            }
-
-            HStack(spacing: tokens.spacing.sm) {
-                reguertaButton("Ahora", variant: .text) {
-                    onSetNowOverrideMillis(Int64(Date().timeIntervalSince1970 * 1_000))
-                }
-                reguertaButton("Reset", variant: .text) {
-                    onSetNowOverrideMillis(nil)
-                }
-            }
-        }
-    }
-
-    private func localizedDateTime(_ millis: Int64) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = .current
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: Date(timeIntervalSince1970: TimeInterval(millis) / 1_000))
-    }
-
-    @ViewBuilder
-    private func impersonationSection(session: AuthorizedSession) -> some View {
-        let isImpersonating = session.member.id != session.authenticatedMember.id
-
-        Text(l10n(AccessL10nKey.settingsImpersonationAccountReal, session.authenticatedMember.displayName))
-            .font(tokens.typography.body.weight(.semibold))
-            .foregroundStyle(tokens.colors.textPrimary)
-        Text(
-            isImpersonating
-                ? l10n(AccessL10nKey.settingsImpersonationViewingAs, session.member.displayName)
-                : l10n(AccessL10nKey.settingsImpersonationUsingOwnProfile)
-        )
-        .font(tokens.typography.bodySecondary)
-        .foregroundStyle(tokens.colors.textSecondary)
-
-        if isImpersonating {
-            reguertaButton(localizedKey(AccessL10nKey.settingsImpersonationActionBackToRealProfile), action: onClearImpersonation)
-        }
-
-        Divider()
-            .overlay(tokens.colors.borderSubtle)
-
-        Text(localizedKey(AccessL10nKey.settingsImpersonationSectionTitle))
-            .font(tokens.typography.titleCard)
-            .foregroundStyle(tokens.colors.textPrimary)
-        reguertaButton(
-            localizedKey(
-                isImpersonationExpanded
-                    ? AccessL10nKey.settingsImpersonationActionHideMembers
-                    : AccessL10nKey.settingsImpersonationActionSelectMember
-            ),
-            variant: .text
-        ) {
-            isImpersonationExpanded.toggle()
-        }
-
-        if isImpersonationExpanded {
-            ForEach(activeMembersSortedByName(in: session), id: \.id) { member in
-                reguertaButton(LocalizedStringKey(member.displayName), variant: .text) {
-                    onImpersonate(member.id)
-                    isImpersonationExpanded = false
-                }
-                .disabled(member.id == session.member.id)
-            }
-        }
-    }
-
     @ViewBuilder
     private var adminDeliveryCalendarSection: some View {
-        adminDeliveryCalendarContent
-        .sheet(isPresented: deliveryCalendarWeekPickerPresentedBinding) {
-            DeliveryCalendarWeekPickerSheet(
-                futureWeeks: shiftsViewModel.futureDeliveryWeeks,
-                overrides: shiftsViewModel.deliveryCalendarOverrides,
-                selectedWeekKey: deliveryCalendarSelectedWeekBinding,
-                onSelectWeek: { weekKey in
-                    shiftsViewModel.selectCalendarWeek(weekKey)
-                }
-            )
-            .presentationDetents([.medium, .large])
-        }
-        .sheet(
-            isPresented: deliveryCalendarEditorPresentedBinding,
-            onDismiss: shiftsViewModel.dismissCalendarEditor,
-            content: { deliveryCalendarEditorSheet }
+        SettingsDeliveryCalendarSectionView(
+            tokens: tokens,
+            shiftsViewModel: shiftsViewModel
         )
-    }
-
-    private var adminDeliveryCalendarContent: some View {
-        let defaultDayLabel = shiftsViewModel.defaultDeliveryDayOfWeek.map { l10n($0.titleKey) } ??
-            l10n(AccessL10nKey.settingsDeliveryCalendarDefaultDayUnset)
-
-        return VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-            Text(localizedKey(AccessL10nKey.settingsDeliveryCalendarTitle))
-                .font(tokens.typography.titleCard)
-                .foregroundStyle(tokens.colors.textPrimary)
-            Text(l10n(AccessL10nKey.settingsDeliveryCalendarDefaultDay, defaultDayLabel))
-                .font(tokens.typography.body.weight(.semibold))
-                .foregroundStyle(tokens.colors.textPrimary)
-
-            if shiftsViewModel.isLoadingDeliveryCalendar {
-                Text(localizedKey(AccessL10nKey.settingsDeliveryCalendarLoading))
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-            } else if shiftsViewModel.futureDeliveryWeeks.isEmpty {
-                Text(localizedKey(AccessL10nKey.settingsDeliveryCalendarEmpty))
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-            } else {
-                HStack(spacing: tokens.spacing.sm) {
-                    reguertaButton(localizedKey(AccessL10nKey.settingsDeliveryCalendarActionChangeDay), fullWidth: false) {
-                        shiftsViewModel.openCalendarWeekPicker()
-                    }
-                    reguertaButton(localizedKey(AccessL10nKey.commonActionReload), variant: .text, fullWidth: false) {
-                        Task { await shiftsViewModel.refreshDeliveryCalendar() }
-                    }
-                }
-                Text(localizedKey(AccessL10nKey.settingsDeliveryCalendarHelp))
-                    .font(tokens.typography.label)
-                    .foregroundStyle(tokens.colors.textSecondary)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var deliveryCalendarEditorSheet: some View {
-        if let shift = shiftsViewModel.selectedDeliveryCalendarShift {
-            DeliveryCalendarEditorSheet(
-                shift: shift,
-                overrideEntry: shiftsViewModel.selectedDeliveryCalendarOverride,
-                selectedWeekday: deliveryCalendarWeekdayBinding,
-                isSaving: shiftsViewModel.isSavingDeliveryCalendar,
-                onRefresh: {
-                    Task { await shiftsViewModel.refreshDeliveryCalendar() }
-                },
-                onSave: {
-                    Task { await shiftsViewModel.saveDeliveryCalendarOverride() }
-                },
-                onDelete: {
-                    Task { await shiftsViewModel.deleteDeliveryCalendarOverride() }
-                }
-            )
-            .presentationDetents([.medium, .large])
-        }
     }
 
     private var adminShiftPlanningSection: some View {
@@ -365,13 +241,16 @@ struct SettingsRouteView: View {
                 .font(tokens.typography.bodySecondary)
                 .foregroundStyle(tokens.colors.textSecondary)
             HStack(spacing: tokens.spacing.sm) {
-                reguertaButton(localizedKey(AccessL10nKey.settingsShiftPlanningActionGenerateDelivery), fullWidth: false) {
+                reguertaButton(localizedKey(AccessL10nKey.settingsShiftPlanningActionGenerateDelivery)) {
                     shiftsViewModel.requestShiftPlanning(.delivery)
                 }
-                reguertaButton(localizedKey(AccessL10nKey.settingsShiftPlanningActionGenerateMarket), fullWidth: false) {
+                .frame(maxWidth: .infinity)
+                reguertaButton(localizedKey(AccessL10nKey.settingsShiftPlanningActionGenerateMarket)) {
                     shiftsViewModel.requestShiftPlanning(.market)
                 }
+                .frame(maxWidth: .infinity)
             }
+            .frame(maxWidth: .infinity, alignment: .center)
             .disabled(shiftsViewModel.isSubmittingShiftPlanningRequest)
             if shiftsViewModel.isSubmittingShiftPlanningRequest {
                 Text(localizedKey(AccessL10nKey.settingsShiftPlanningSubmitting))
@@ -409,43 +288,8 @@ struct SettingsRouteView: View {
         }
     }
 
-    private func activeMembersSortedByName(in session: AuthorizedSession) -> [Member] {
-        session.members
-            .filter(\.isActive)
-            .sorted { lhs, rhs in
-                lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
-            }
-    }
-
     private func localizedKey(_ key: String) -> LocalizedStringKey {
         LocalizedStringKey(key)
     }
 
-    private var deliveryCalendarWeekPickerPresentedBinding: Binding<Bool> {
-        Binding(
-            get: { shiftsViewModel.isDeliveryCalendarWeekPickerPresented },
-            set: { shiftsViewModel.isDeliveryCalendarWeekPickerPresented = $0 }
-        )
-    }
-
-    private var deliveryCalendarEditorPresentedBinding: Binding<Bool> {
-        Binding(
-            get: { shiftsViewModel.isDeliveryCalendarEditorPresented },
-            set: { shiftsViewModel.isDeliveryCalendarEditorPresented = $0 }
-        )
-    }
-
-    private var deliveryCalendarSelectedWeekBinding: Binding<String> {
-        Binding(
-            get: { shiftsViewModel.selectedDeliveryCalendarWeekKey ?? shiftsViewModel.futureDeliveryWeeks.first?.weekKey ?? "" },
-            set: { shiftsViewModel.selectedDeliveryCalendarWeekKey = $0 }
-        )
-    }
-
-    private var deliveryCalendarWeekdayBinding: Binding<DeliveryWeekday> {
-        Binding(
-            get: { shiftsViewModel.selectedDeliveryCalendarWeekday },
-            set: { shiftsViewModel.selectedDeliveryCalendarWeekday = $0 }
-        )
-    }
 }

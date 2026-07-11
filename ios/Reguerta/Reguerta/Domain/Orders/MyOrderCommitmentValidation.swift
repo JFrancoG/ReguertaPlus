@@ -136,7 +136,6 @@ private func requiredEcoBasketCommitmentProducts(
                 .filter { producer in
                     producer.isProducer &&
                         producer.isActive &&
-                        producer.producerCatalogEnabled &&
                         producer.producerParity == parity
                 }
                 .map(\.id)

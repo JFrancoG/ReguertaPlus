@@ -29,10 +29,10 @@ final class ShiftsFeatureViewModel {
     var isSubmittingShiftPlanningRequest = false
     var isSavingShiftSwapRequest = false
     var isUpdatingShiftSwapRequest = false
-    var isDeliveryCalendarEditorPresented = false
     var isDeliveryCalendarWeekPickerPresented = false
     var selectedDeliveryCalendarWeekKey: String?
     var selectedDeliveryCalendarWeekday: DeliveryWeekday = .wednesday
+    var originalDeliveryCalendarWeekday: DeliveryWeekday = .wednesday
     var pendingShiftPlanningType: ShiftPlanningRequestType?
 
     var deliveryShifts: [ShiftAssignment] {
@@ -59,14 +59,13 @@ final class ShiftsFeatureViewModel {
         return sortedWeeks.filter { seenWeekKeys.insert($0.weekKey).inserted }
     }
 
-    var selectedDeliveryCalendarShift: ShiftAssignment? {
-        guard let selectedDeliveryCalendarWeekKey else { return nil }
-        return futureDeliveryWeeks.first { $0.weekKey == selectedDeliveryCalendarWeekKey }
-    }
-
     var selectedDeliveryCalendarOverride: DeliveryCalendarOverride? {
         guard let selectedDeliveryCalendarWeekKey else { return nil }
         return deliveryCalendarOverrides.first { $0.weekKey == selectedDeliveryCalendarWeekKey }
+    }
+
+    var hasDeliveryCalendarDayChange: Bool {
+        selectedDeliveryCalendarWeekday != originalDeliveryCalendarWeekday
     }
 
     init(

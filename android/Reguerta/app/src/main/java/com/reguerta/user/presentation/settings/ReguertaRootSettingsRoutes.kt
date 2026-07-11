@@ -3,41 +3,50 @@ package com.reguerta.user.presentation.settings
 import com.reguerta.user.presentation.shifts.effectiveDateMillis
 import com.reguerta.user.presentation.shifts.toLocalizedDateTime
 import com.reguerta.user.presentation.shifts.toWeekKey
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.reguerta.user.R
 import com.reguerta.user.domain.access.Member
+import com.reguerta.user.domain.access.isProducer
 import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
 import com.reguerta.user.domain.calendar.DeliveryWeekday
 import com.reguerta.user.domain.shifts.ShiftAssignment
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestType
 import com.reguerta.user.domain.shifts.ShiftType
-import com.reguerta.user.ui.components.auth.ReguertaButton
 import com.reguerta.user.ui.components.auth.ReguertaDialog
 import com.reguerta.user.ui.components.auth.ReguertaDialogAction
 import com.reguerta.user.ui.components.auth.ReguertaDialogType
+import com.reguerta.user.ui.components.auth.ReguertaButton
 import com.reguerta.user.ui.components.auth.ReguertaFlatButton
+import com.reguerta.user.ui.theme.AppAppearance
 import java.util.Locale
 
 @Composable
 fun SettingsRoute(
+    appAppearance: AppAppearance,
     currentMember: Member?,
     authenticatedMember: Member?,
     members: List<Member>,
@@ -47,147 +56,269 @@ fun SettingsRoute(
     isLoadingDeliveryCalendar: Boolean,
     isSavingDeliveryCalendar: Boolean,
     isSubmittingShiftPlanningRequest: Boolean,
+    isUpdatingProducerCatalogVisibility: Boolean,
     isDevelopImpersonationEnabled: Boolean,
     nowOverrideMillis: Long?,
     onImpersonateMember: (String) -> Unit,
     onClearImpersonation: () -> Unit,
     onSetNowOverrideMillis: (Long?) -> Unit,
     onShiftNowByDays: (Int) -> Unit,
-    onRefreshDeliveryCalendar: () -> Unit,
+    onAppAppearanceChanged: (AppAppearance) -> Unit,
+    onSetProducerCatalogVisibility: (Boolean, onSuccess: () -> Unit) -> Unit,
     onSaveDeliveryCalendarOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
-    onDeleteDeliveryCalendarOverride: (String, onSuccess: () -> Unit) -> Unit,
     onSubmitShiftPlanningRequest: (ShiftPlanningRequestType, onSuccess: () -> Unit) -> Unit,
 ) {
     var isImpersonationExpanded by rememberSaveable { mutableStateOf(false) }
-    Card {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        SettingsSectionTitle(stringResource(R.string.settings_scope_general))
+        AppearanceSelector(
+            selectedAppearance = appAppearance,
+            onAppearanceSelected = onAppAppearanceChanged,
+        )
+
+        if (currentMember?.isProducer == true) {
+            HorizontalDivider()
+            SettingsSectionTitle(stringResource(R.string.settings_scope_producer))
+            ProducerVacationModeSetting(
+                isVacationModeEnabled = !currentMember.producerCatalogEnabled,
+                isSaving = isUpdatingProducerCatalogVisibility,
+                onVacationModeChanged = { enabled ->
+                    onSetProducerCatalogVisibility(!enabled) {}
+                },
+            )
+        }
+
+        if (currentMember?.isAdmin == true) {
+            HorizontalDivider()
+            SettingsSectionTitle(stringResource(R.string.settings_scope_admin))
+            AdminDeliveryCalendarSection(
+                currentMember = currentMember,
+                shifts = shifts,
+                overrides = deliveryCalendarOverrides,
+                defaultDeliveryDayOfWeek = defaultDeliveryDayOfWeek,
+                nowMillis = nowOverrideMillis ?: System.currentTimeMillis(),
+                isLoading = isLoadingDeliveryCalendar,
+                isSaving = isSavingDeliveryCalendar,
+                onSaveOverride = onSaveDeliveryCalendarOverride,
+            )
+            HorizontalDivider()
+            AdminShiftPlanningSection(
+                isSubmitting = isSubmittingShiftPlanningRequest,
+                onSubmit = onSubmitShiftPlanningRequest,
+            )
+        }
+
+        if (isDevelopImpersonationEnabled && currentMember != null && authenticatedMember != null) {
+            HorizontalDivider()
+            SettingsSectionTitle(stringResource(R.string.settings_scope_develop))
             Text(
-                text = "Ajustes",
-                style = MaterialTheme.typography.titleMedium,
+                text = stringResource(R.string.settings_develop_impersonation_summary),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            val isImpersonating = currentMember.id != authenticatedMember.id
+            Text(
+                text = stringResource(
+                    R.string.settings_develop_real_account_format,
+                    authenticatedMember.displayName,
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+            )
+            Text(
+                text = if (isImpersonating) {
+                    stringResource(R.string.settings_develop_viewing_as_format, currentMember.displayName)
+                } else {
+                    stringResource(R.string.settings_develop_using_own_profile)
+                },
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            if (isImpersonating) {
+                ReguertaFlatButton(
+                    label = stringResource(R.string.settings_develop_back_to_real_profile),
+                    onClick = onClearImpersonation,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            HorizontalDivider()
+            Text(
+                text = stringResource(R.string.settings_develop_impersonation_title),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            ReguertaFlatButton(
+                label = if (isImpersonationExpanded) {
+                    stringResource(R.string.settings_develop_hide_members)
+                } else {
+                    stringResource(R.string.settings_develop_choose_member)
+                },
+                onClick = { isImpersonationExpanded = !isImpersonationExpanded },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (isImpersonationExpanded) {
+                members
+                    .filter { it.isActive }
+                    .sortedBy { it.displayName.lowercase(Locale.getDefault()) }
+                    .forEach { member ->
+                        val isSelected = member.id == currentMember.id
+                        ReguertaFlatButton(
+                            label = member.displayName,
+                            onClick = {
+                                onImpersonateMember(member.id)
+                                isImpersonationExpanded = false
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isSelected,
+                        )
+                    }
+            }
+            HorizontalDivider()
+            Text(
+                text = stringResource(R.string.settings_develop_clock_title),
+                style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = "La impersonacion solo aparece en develop para probar flujos con otros socios sin salir de tu sesion real.",
+                text = nowOverrideMillis?.let {
+                    stringResource(R.string.settings_develop_simulated_date_format, it.toLocalizedDateTime())
+                } ?: stringResource(R.string.settings_develop_simulated_date_disabled),
                 style = MaterialTheme.typography.bodyMedium,
             )
-            if (isDevelopImpersonationEnabled && currentMember != null && authenticatedMember != null) {
-                val isImpersonating = currentMember.id != authenticatedMember.id
-                Text(
-                    text = "Cuenta real: ${authenticatedMember.displayName}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                )
-                Text(
-                    text = if (isImpersonating) {
-                        "Viendo la app como: ${currentMember.displayName}"
-                    } else {
-                        "Ahora mismo estas usando tu propio perfil."
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                if (isImpersonating) {
-                    ReguertaFlatButton(
-                        label = "Volver a mi perfil real",
-                        onClick = onClearImpersonation,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-                HorizontalDivider()
-                Text(
-                    text = "Impersonacion develop",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ReguertaFlatButton(
+                    label = stringResource(R.string.settings_develop_previous_day),
+                    onClick = { onShiftNowByDays(-1) },
+                    modifier = Modifier.weight(1f),
                 )
                 ReguertaFlatButton(
-                    label = if (isImpersonationExpanded) {
-                        "Ocultar socios"
-                    } else {
-                        "Elegir socio"
-                    },
-                    onClick = { isImpersonationExpanded = !isImpersonationExpanded },
-                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(R.string.settings_develop_next_day),
+                    onClick = { onShiftNowByDays(1) },
+                    modifier = Modifier.weight(1f),
                 )
-                if (isImpersonationExpanded) {
-                    members
-                        .filter { it.isActive }
-                        .sortedBy { it.displayName.lowercase(Locale.getDefault()) }
-                        .forEach { member ->
-                            val isSelected = member.id == currentMember.id
-                            ReguertaFlatButton(
-                                label = member.displayName,
-                                onClick = {
-                                    onImpersonateMember(member.id)
-                                    isImpersonationExpanded = false
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                enabled = !isSelected,
-                            )
-                        }
-                }
-                HorizontalDivider()
-                Text(
-                    text = "Reloj de pruebas (develop)",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = nowOverrideMillis?.let { "Fecha simulada: ${it.toLocalizedDateTime()}" }
-                        ?: "Fecha simulada: desactivada (usando fecha real)",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ReguertaFlatButton(
-                        label = "-1 dia",
-                        onClick = { onShiftNowByDays(-1) },
-                        modifier = Modifier.weight(1f),
-                    )
-                    ReguertaFlatButton(
-                        label = "+1 dia",
-                        onClick = { onShiftNowByDays(1) },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ReguertaFlatButton(
-                        label = "Ahora",
-                        onClick = { onSetNowOverrideMillis(System.currentTimeMillis()) },
-                        modifier = Modifier.weight(1f),
-                    )
-                    ReguertaFlatButton(
-                        label = "Reset",
-                        onClick = { onSetNowOverrideMillis(null) },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
             }
-            if (currentMember?.isAdmin == true) {
-                HorizontalDivider()
-                AdminDeliveryCalendarSection(
-                    currentMember = currentMember,
-                    shifts = shifts,
-                    overrides = deliveryCalendarOverrides,
-                    defaultDeliveryDayOfWeek = defaultDeliveryDayOfWeek,
-                    nowMillis = nowOverrideMillis ?: System.currentTimeMillis(),
-                    isLoading = isLoadingDeliveryCalendar,
-                    isSaving = isSavingDeliveryCalendar,
-                    onRefresh = onRefreshDeliveryCalendar,
-                    onSaveOverride = onSaveDeliveryCalendarOverride,
-                    onDeleteOverride = onDeleteDeliveryCalendarOverride,
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ReguertaFlatButton(
+                    label = stringResource(R.string.settings_develop_now),
+                    onClick = { onSetNowOverrideMillis(System.currentTimeMillis()) },
+                    modifier = Modifier.weight(1f),
                 )
-                HorizontalDivider()
-                AdminShiftPlanningSection(
-                    isSubmitting = isSubmittingShiftPlanningRequest,
-                    onSubmit = onSubmitShiftPlanningRequest,
+                ReguertaFlatButton(
+                    label = stringResource(R.string.settings_develop_reset),
+                    onClick = { onSetNowOverrideMillis(null) },
+                    modifier = Modifier.weight(1f),
                 )
             }
         }
     }
 }
+
+@Composable
+private fun SettingsSectionTitle(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.primary,
+        fontWeight = FontWeight.SemiBold,
+    )
+}
+
+@Composable
+private fun AppearanceSelector(
+    selectedAppearance: AppAppearance,
+    onAppearanceSelected: (AppAppearance) -> Unit,
+) {
+    Column(
+        modifier = Modifier.selectableGroup(),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.settings_appearance_title),
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium,
+        )
+        Text(
+            text = stringResource(R.string.settings_appearance_summary),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        AppAppearance.entries.forEach { appearance ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .selectable(
+                        selected = selectedAppearance == appearance,
+                        onClick = { onAppearanceSelected(appearance) },
+                        role = Role.RadioButton,
+                    )
+                    .padding(vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                RadioButton(
+                    selected = selectedAppearance == appearance,
+                    onClick = null,
+                )
+                Text(
+                    text = stringResource(appearance.labelResource),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProducerVacationModeSetting(
+    isVacationModeEnabled: Boolean,
+    isSaving: Boolean,
+    onVacationModeChanged: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .toggleable(
+                value = isVacationModeEnabled,
+                enabled = !isSaving,
+                role = Role.Switch,
+                onValueChange = onVacationModeChanged,
+            )
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.settings_vacation_mode_title),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+            )
+            Text(
+                text = stringResource(R.string.settings_vacation_mode_summary),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(
+            checked = isVacationModeEnabled,
+            onCheckedChange = null,
+            enabled = !isSaving,
+        )
+    }
+}
+
+private val AppAppearance.labelResource: Int
+    get() = when (this) {
+        AppAppearance.SYSTEM -> R.string.settings_appearance_system
+        AppAppearance.LIGHT -> R.string.settings_appearance_light
+        AppAppearance.DARK -> R.string.settings_appearance_dark
+    }
 
 @Composable
 private fun AdminDeliveryCalendarSection(
@@ -198,9 +329,7 @@ private fun AdminDeliveryCalendarSection(
     nowMillis: Long,
     isLoading: Boolean,
     isSaving: Boolean,
-    onRefresh: () -> Unit,
     onSaveOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
-    onDeleteOverride: (String, onSuccess: () -> Unit) -> Unit,
 ) {
     val futureWeeks = remember(shifts, overrides, nowMillis) {
         shifts.filter { it.type == ShiftType.DELIVERY && it.effectiveDateMillis(overrides) > nowMillis }
@@ -208,72 +337,47 @@ private fun AdminDeliveryCalendarSection(
             .distinctBy { it.dateMillis.toWeekKey() }
     }
     var isPickerVisible by rememberSaveable { mutableStateOf(false) }
-    var selectedWeekKey by rememberSaveable { mutableStateOf<String?>(null) }
     Text(
-        text = "Calendario de reparto",
-        style = MaterialTheme.typography.titleSmall,
+        text = stringResource(R.string.settings_delivery_calendar_title),
+        style = MaterialTheme.typography.bodyLarge,
         fontWeight = FontWeight.SemiBold,
-    )
-    Text(
-        text = "Gestiona excepciones por semana. Si quitas una excepcion, esa semana vuelve al dia por defecto del calendario.",
-        style = MaterialTheme.typography.bodyMedium,
-    )
-    Text(
-        text = "Dia por defecto: ${defaultDeliveryDayOfWeek?.toLocalizedLabel() ?: "sin configurar"}",
-        style = MaterialTheme.typography.bodyMedium,
-        fontWeight = FontWeight.Medium,
     )
     if (isLoading) {
         Text(
-            text = "Cargando calendario...",
+            text = stringResource(R.string.settings_delivery_calendar_loading),
             style = MaterialTheme.typography.bodyMedium,
         )
     } else if (futureWeeks.isEmpty()) {
         Text(
-            text = "No hay semanas de reparto futuras en los turnos cargados.",
+            text = stringResource(R.string.settings_delivery_calendar_empty),
             style = MaterialTheme.typography.bodyMedium,
         )
     } else {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { isPickerVisible = true }) {
-                Text("Cambiar dia de reparto")
-            }
-            TextButton(onClick = onRefresh) {
-                Text("Recargar")
-            }
-        }
         Text(
-            text = "Primero eliges la semana a cambiar y despues editas solo esa excepcion.",
+            text = stringResource(R.string.settings_delivery_calendar_help),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        if (isPickerVisible) {
-            DeliveryCalendarWeekPickerDialog(
-                futureWeeks = futureWeeks,
-                overrides = overrides,
-                onDismiss = { isPickerVisible = false },
-                onSelectWeek = { weekKey ->
-                    selectedWeekKey = weekKey
-                    isPickerVisible = false
-                },
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            ReguertaButton(
+                label = stringResource(R.string.settings_delivery_calendar_action_change_day),
+                onClick = { isPickerVisible = true },
+                fullWidth = false,
             )
         }
-        selectedWeekKey?.let { weekKey ->
-            val selectedShift = futureWeeks.firstOrNull { it.dateMillis.toWeekKey() == weekKey }
-            if (selectedShift != null) {
-                DeliveryCalendarOverrideDialog(
-                    currentMember = currentMember,
-                    selectedShift = selectedShift,
-                    override = overrides.firstOrNull { it.weekKey == weekKey },
-                    defaultDeliveryDayOfWeek = defaultDeliveryDayOfWeek ?: DeliveryWeekday.WEDNESDAY,
-                    isSaving = isSaving,
-                    onDismiss = { selectedWeekKey = null },
-                    onSaveOverride = onSaveOverride,
-                    onDeleteOverride = onDeleteOverride,
-                )
-            } else {
-                selectedWeekKey = null
-            }
+        if (isPickerVisible) {
+            DeliveryCalendarWeekPickerDialog(
+                currentMember = currentMember,
+                futureWeeks = futureWeeks,
+                overrides = overrides,
+                defaultDeliveryDayOfWeek = defaultDeliveryDayOfWeek ?: DeliveryWeekday.WEDNESDAY,
+                isSaving = isSaving,
+                onDismiss = { isPickerVisible = false },
+                onSaveOverride = onSaveOverride,
+            )
         }
     }
 }
@@ -286,48 +390,55 @@ private fun AdminShiftPlanningSection(
     var pendingType by rememberSaveable { mutableStateOf<ShiftPlanningRequestType?>(null) }
 
     Text(
-        text = "Planificacion de turnos",
-        style = MaterialTheme.typography.titleSmall,
+        text = stringResource(R.string.settings_shift_planning_title),
+        style = MaterialTheme.typography.bodyLarge,
         fontWeight = FontWeight.SemiBold,
     )
     Text(
-        text = "Genera una temporada nueva con socios activos, escribe la hoja nueva y manda una notificacion a los socios asignados.",
+        text = stringResource(R.string.settings_shift_planning_subtitle),
         style = MaterialTheme.typography.bodyMedium,
     )
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+    ) {
+        ReguertaButton(
+            label = stringResource(R.string.settings_shift_planning_action_generate_delivery),
             onClick = { pendingType = ShiftPlanningRequestType.DELIVERY },
+            modifier = Modifier.weight(1f),
+            textStyle = MaterialTheme.typography.titleMedium,
+            horizontalPadding = 8.dp,
             enabled = !isSubmitting,
-        ) {
-            Text("Generar reparto")
-        }
-        Button(
+        )
+        ReguertaButton(
+            label = stringResource(R.string.settings_shift_planning_action_generate_market),
             onClick = { pendingType = ShiftPlanningRequestType.MARKET },
+            modifier = Modifier.weight(1f),
+            textStyle = MaterialTheme.typography.titleMedium,
+            horizontalPadding = 8.dp,
             enabled = !isSubmitting,
-        ) {
-            Text("Generar mercado")
-        }
+        )
     }
     if (isSubmitting) {
         Text(
-            text = "Enviando solicitud de planificacion...",
+            text = stringResource(R.string.settings_shift_planning_submitting),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 
     pendingType?.let { type ->
-        val readableType = if (type == ShiftPlanningRequestType.DELIVERY) {
-            "reparto"
+        val title = if (type == ShiftPlanningRequestType.DELIVERY) {
+            stringResource(R.string.settings_shift_planning_alert_title_delivery)
         } else {
-            "mercado"
+            stringResource(R.string.settings_shift_planning_alert_title_market)
         }
         ReguertaDialog(
             type = ReguertaDialogType.INFO,
-            title = "Generar turnos de $readableType",
-            message = "Se creara una planificacion nueva con socios activos, se escribira en la sheet de la temporada siguiente y se notificara a los socios asignados. Si vuelves a lanzarlo, se regenerara esa temporada.",
+            title = title,
+            message = stringResource(R.string.settings_shift_planning_alert_message),
             primaryAction = ReguertaDialogAction(
-                label = "Confirmar",
+                label = stringResource(R.string.common_action_confirm),
                 onClick = {
                     onSubmit(type) {
                         pendingType = null
@@ -335,7 +446,7 @@ private fun AdminShiftPlanningSection(
                 },
             ),
             secondaryAction = ReguertaDialogAction(
-                label = "Cancelar",
+                label = stringResource(R.string.common_action_cancel),
                 onClick = { pendingType = null },
             ),
             onDismissRequest = { pendingType = null },

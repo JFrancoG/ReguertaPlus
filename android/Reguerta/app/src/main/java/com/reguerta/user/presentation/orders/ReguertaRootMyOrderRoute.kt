@@ -1923,10 +1923,9 @@ private fun countNoPickupEcoBasketUnits(
 private fun Member.committedEcoBasketProducerId(members: List<Member>): String? {
     val parity = ecoCommitmentParity ?: return null
     return members.firstOrNull { producer ->
-        producer.id != id &&
+            producer.id != id &&
             producer.isProducer &&
             producer.isActive &&
-            producer.producerCatalogEnabled &&
             producer.producerParity == parity
     }?.id
 }

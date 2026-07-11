@@ -26,6 +26,37 @@ struct ReguertaHomeSummaryTests {
     }
 
     @Test
+    func homeWeeklySummaryKeepsScheduledProducerWhileVacationModeIsEnabled() {
+        let vacationMembers = homeSummaryMembers.map { member in
+            guard member.id == "producer_2" else { return member }
+            return Member(
+                id: member.id,
+                displayName: member.displayName,
+                companyName: member.companyName,
+                phoneNumber: member.phoneNumber,
+                normalizedEmail: member.normalizedEmail,
+                authUid: member.authUid,
+                roles: member.roles,
+                isActive: member.isActive,
+                producerCatalogEnabled: false,
+                isCommonPurchaseManager: member.isCommonPurchaseManager,
+                producerParity: member.producerParity,
+                ecoCommitmentMode: member.ecoCommitmentMode,
+                ecoCommitmentParity: member.ecoCommitmentParity
+            )
+        }
+        let display = resolveHomeWeeklySummaryDisplay(
+            nowMillis: testMillis(year: 2026, month: 5, day: 6),
+            defaultDeliveryDayOfWeek: .friday,
+            deliveryCalendarOverrides: [],
+            shifts: [testDeliveryShift(id: "delivery_w19", year: 2026, month: 5, day: 8)],
+            members: vacationMembers
+        )
+
+        #expect(display.producerName == "Huerta Sur")
+    }
+
+    @Test
     func homeWeeklySummaryMovesToNextWeekAfterDelivery() {
         let display = resolveHomeWeeklySummaryDisplay(
             nowMillis: testMillis(year: 2026, month: 5, day: 9),

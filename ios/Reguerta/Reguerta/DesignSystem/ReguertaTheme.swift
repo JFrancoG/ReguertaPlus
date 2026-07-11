@@ -1,4 +1,25 @@
 import SwiftUI
+
+enum AppAppearance: String, CaseIterable, Identifiable, Sendable {
+    case system
+    case light
+    case dark
+
+    static let storageKey = "app_appearance"
+
+    var id: String { rawValue }
+
+    var preferredColorScheme: ColorScheme? {
+        switch self {
+        case .system:
+            nil
+        case .light:
+            .light
+        case .dark:
+            .dark
+        }
+    }
+}
 import UIKit
 
 struct ReguertaDesignTokens {

@@ -44,6 +44,7 @@ import com.reguerta.user.presentation.home.HomeRoute
 import com.reguerta.user.ui.components.auth.ReguertaDialog
 import com.reguerta.user.ui.components.auth.ReguertaDialogAction
 import com.reguerta.user.ui.components.auth.ReguertaDialogType
+import com.reguerta.user.ui.theme.AppAppearance
 import com.reguerta.user.ui.theme.ReguertaThemeTokens
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration.Companion.milliseconds
@@ -55,6 +56,8 @@ private val StartupPolicyFetchTimeout = 2_500.milliseconds
 fun ReguertaRoot(
     modifier: Modifier = Modifier,
     viewModel: SessionViewModel = rememberSessionViewModel(),
+    appAppearance: AppAppearance = AppAppearance.SYSTEM,
+    onAppAppearanceChanged: (AppAppearance) -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -204,6 +207,7 @@ fun ReguertaRoot(
                 HomeRoute(
                     modifier = Modifier.fillMaxSize(),
                     mode = state.mode,
+                    appAppearance = appAppearance,
                     myOrderFreshnessState = state.myOrderFreshnessState,
                     draft = state.memberDraft,
                     latestNews = state.latestNews,
@@ -253,6 +257,7 @@ fun ReguertaRoot(
                     isUpdatingShiftSwapRequest = state.isUpdatingShiftSwapRequest,
                     isAskingBylaws = state.isAskingBylaws,
                     nowOverrideMillis = state.nowOverrideMillis,
+                    onAppAppearanceChanged = onAppAppearanceChanged,
                     onDraftChanged = viewModel::onMemberDraftChanged,
                     onNewsDraftChanged = viewModel::onNewsDraftChanged,
                     onNotificationDraftChanged = viewModel::onNotificationDraftChanged,
@@ -308,7 +313,6 @@ fun ReguertaRoot(
                     onSaveSharedProfile = viewModel::saveSharedProfile,
                     onDeleteSharedProfile = viewModel::deleteSharedProfile,
                     onSaveDeliveryCalendarOverride = viewModel::saveDeliveryCalendarOverride,
-                    onDeleteDeliveryCalendarOverride = viewModel::deleteDeliveryCalendarOverride,
                     onSubmitShiftPlanningRequest = viewModel::submitShiftPlanningRequest,
                     onRetryMyOrderFreshness = viewModel::refreshMyOrderFreshness,
                     onOpenProducts = viewModel::refreshProducts,

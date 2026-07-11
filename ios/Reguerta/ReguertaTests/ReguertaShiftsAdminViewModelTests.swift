@@ -60,8 +60,10 @@ struct ReguertaShiftsAdminViewModelTests {
         await adminViewModel.refreshShifts()
         await adminViewModel.refreshDeliveryCalendar()
 
-        adminViewModel.selectCalendarWeek(delivery.weekKey)
+        adminViewModel.selectCalendarWeekForEditing(delivery.weekKey)
+        #expect(adminViewModel.hasDeliveryCalendarDayChange == false)
         adminViewModel.selectedDeliveryCalendarWeekday = .friday
+        #expect(adminViewModel.hasDeliveryCalendarDayChange)
         await adminViewModel.saveDeliveryCalendarOverride()
 
         var overrides = await calendarRepository.allOverrides()
@@ -69,8 +71,10 @@ struct ReguertaShiftsAdminViewModelTests {
         #expect(overrides.first?.weekKey == delivery.weekKey)
         #expect(overrides.first?.deliveryDateMillis.deliveryWeekday == .friday)
 
-        adminViewModel.selectCalendarWeek(delivery.weekKey)
-        await adminViewModel.deleteDeliveryCalendarOverride()
+        adminViewModel.selectCalendarWeekForEditing(delivery.weekKey)
+        adminViewModel.selectedDeliveryCalendarWeekday = .wednesday
+        #expect(adminViewModel.hasDeliveryCalendarDayChange)
+        await adminViewModel.saveDeliveryCalendarOverride()
 
         overrides = await calendarRepository.allOverrides()
         #expect(overrides.isEmpty)
