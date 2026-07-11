@@ -75,6 +75,7 @@ private struct ProductEditorHeroView: View {
             imageURLString: viewModel.draft.productImageUrl,
             isUploading: viewModel.isUploadingImage,
             placeholderSystemImage: "photo",
+            placeholderAssetName: "product_no_available",
             subtitleKey: nil,
             onPickImageData: { imageData in
                 Task { await viewModel.uploadImage(imageData) }

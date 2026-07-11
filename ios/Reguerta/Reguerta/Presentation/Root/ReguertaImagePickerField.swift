@@ -8,6 +8,7 @@ struct ReguertaImagePickerField: View {
     let imageURLString: String
     let isUploading: Bool
     let placeholderSystemImage: String
+    var placeholderAssetName: String?
     let subtitleKey: String?
     let onPickImageData: (Data) -> Void
     let onClearImage: () -> Void
@@ -134,20 +135,31 @@ struct ReguertaImagePickerField: View {
                                 resizableImage.scaledToFill()
                             }
                         } else {
-                            Image(systemName: placeholderSystemImage)
-                                .font(.system(size: previewSize * 0.3))
-                                .foregroundStyle(tokens.colors.textSecondary)
+                            placeholderPreview
                         }
                     }
                     .frame(width: previewSize, height: previewSize)
                     .clipShape(RoundedRectangle(cornerRadius: 24.resize))
                 } else {
-                    Image(systemName: placeholderSystemImage)
-                        .font(.system(size: previewSize * 0.3))
-                        .foregroundStyle(tokens.colors.textSecondary)
+                    placeholderPreview
                 }
             }
             .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private var placeholderPreview: some View {
+        if let placeholderAssetName, !placeholderAssetName.isEmpty {
+            Image(placeholderAssetName)
+                .resizable()
+                .scaledToFill()
+                .frame(width: previewSize, height: previewSize)
+                .clipShape(RoundedRectangle(cornerRadius: 24.resize))
+        } else {
+            Image(systemName: placeholderSystemImage)
+                .font(.system(size: previewSize * 0.3))
+                .foregroundStyle(tokens.colors.textSecondary)
+        }
     }
 
     @ViewBuilder
