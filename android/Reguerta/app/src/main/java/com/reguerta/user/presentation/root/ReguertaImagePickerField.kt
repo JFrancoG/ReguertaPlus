@@ -9,6 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +37,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -65,6 +69,8 @@ internal fun ReguertaImagePickerField(
     previewSize: Int = 112,
     previewContentScale: ContentScale = ContentScale.Crop,
     controlSize: Int = 44,
+    selectsImageOnPreviewTap: Boolean = false,
+    showsImageControls: Boolean = true,
 ) {
     val context = LocalContext.current
     var showSourceDialog by rememberSaveable { mutableStateOf(false) }
@@ -127,8 +133,21 @@ internal fun ReguertaImagePickerField(
 
     @Composable
     fun ImagePreview() {
+        val imageActionLabel = stringResource(R.string.products_pick_image_action)
+        val previewModifier = if (selectsImageOnPreviewTap) {
+            modifier
+                .semantics { contentDescription = imageActionLabel }
+                .clickable(
+                    enabled = !isUploading,
+                    role = Role.Button,
+                    onClickLabel = imageActionLabel,
+                    onClick = { showSourceDialog = true },
+                )
+        } else {
+            modifier
+        }
         Box(
-            modifier = modifier
+            modifier = previewModifier
                 .size(previewSize.dp)
                 .clip(RoundedCornerShape(24.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant),
@@ -149,6 +168,12 @@ internal fun ReguertaImagePickerField(
                     modifier = Modifier.size((previewSize * 0.36f).dp),
                 )
             }
+            if (selectsImageOnPreviewTap && isUploading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(28.dp),
+                    strokeWidth = 3.dp,
+                )
+            }
         }
     }
 
@@ -165,6 +190,8 @@ internal fun ReguertaImagePickerField(
 
     @Composable
     fun ImageControls() {
+        if (!showsImageControls) return
+
         val overlayButtonModifier = if (overlaysControlsOnImage) {
             Modifier.shadow(8.dp, RoundedCornerShape(12.dp), clip = false)
         } else {

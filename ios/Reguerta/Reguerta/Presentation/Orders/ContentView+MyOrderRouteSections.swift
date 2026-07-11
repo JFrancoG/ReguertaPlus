@@ -359,7 +359,7 @@ extension MyOrderRouteView {
                         .foregroundStyle(tokens.colors.textSecondary)
 
                     HStack(alignment: .firstTextBaseline) {
-                        Text("\(product.price.euroCurrencyText()) / ud.")
+                        Text(productPriceText(product))
                             .font(tokens.typography.body.weight(.semibold))
                             .foregroundStyle(tokens.colors.textPrimary)
                         Spacer()
@@ -408,7 +408,7 @@ extension MyOrderRouteView {
         isEditable: Bool
     ) -> some View {
         if !isEditable {
-            readOnlyQuantityControls(quantity: quantity)
+            readOnlyQuantityControls(product: product, quantity: quantity)
         } else if quantity == 0 {
             addQuantityButton(product: product, quantity: quantity)
         } else {
@@ -417,9 +417,9 @@ extension MyOrderRouteView {
     }
 
     @ViewBuilder
-    func readOnlyQuantityControls(quantity: Int) -> some View {
+    func readOnlyQuantityControls(product: Product, quantity: Int) -> some View {
         if quantity > 0 {
-            Text(quantityUnitText(quantity))
+            Text(quantityUnitText(product: product, quantity: quantity))
                 .font(tokens.typography.body.weight(.semibold))
                 .foregroundStyle(tokens.colors.textPrimary)
         }
@@ -449,12 +449,12 @@ extension MyOrderRouteView {
     func editableQuantityControls(product: Product, quantity: Int) -> some View {
         let canIncreaseQuantity = viewModel.canIncrease(product: product, currentQuantity: quantity)
         return HStack(spacing: tokens.spacing.sm) {
-            Text(quantityUnitText(quantity))
+            Text(quantityUnitText(product: product, quantity: quantity))
                 .font(tokens.typography.body.weight(.semibold))
                 .foregroundStyle(tokens.colors.textPrimary)
 
             ReguertaListActionIconButton(
-                systemImageName: quantity == 1 ? "trash" : "minus",
+                systemImageName: quantity <= product.minimumSelectionCount ? "trash" : "minus",
                 accessibilityLabel: "Quitar producto",
                 backgroundColor: tokens.colors.feedbackError,
                 action: { viewModel.decrease(product) }
@@ -470,7 +470,15 @@ extension MyOrderRouteView {
         }
     }
 
-    func quantityUnitText(_ quantity: Int) -> String {
-        "\(quantity) \(quantity == 1 ? "ud." : "uds.")"
+    func quantityUnitText(product: Product, quantity: Int) -> String {
+        if product.pricingMode == .weight {
+            return "\(product.selectedQuantity(selectionCount: quantity).myOrderUiDecimal) kg"
+        }
+        return "\(quantity) \(quantity == 1 ? "ud." : "uds.")"
+    }
+
+    func productPriceText(_ product: Product) -> String {
+        let unit = product.pricingMode == .weight ? "kg" : "ud."
+        return "\(product.price.euroCurrencyText()) / \(unit)"
     }
 }

@@ -1,7 +1,7 @@
 # Tasks - HU-026 (Weighted products priced by weight unit)
 
 ## 1. Preparation
-- [ ] Confirm final weighted field contract (`pricingMode`, `price`, `weightStep`, min/max).
+- [x] Confirm final weighted field contract (`pricingMode`, `price`, `weightStep`, min/max).
 - [ ] Define rounding and subtotal calculation policy.
 
 ## 2. Android implementation

@@ -20,6 +20,8 @@ struct ReguertaImagePickerField: View {
     var previewSize: CGFloat = 112.resize
     var usesFitPreview = false
     var controlSize: CGFloat = 44.resize
+    var selectsImageOnPreviewTap = false
+    var showsImageControls = true
 
     @State private var isSourceDialogPresented = false
     @State private var isPhotoPickerPresented = false
@@ -31,26 +33,32 @@ struct ReguertaImagePickerField: View {
             if overlaysControlsOnImage {
                 VStack(alignment: .center, spacing: tokens.spacing.sm) {
                     ZStack(alignment: .bottomTrailing) {
-                        imagePreview
-                        imageControls
-                            .offset(x: tokens.spacing.sm, y: tokens.spacing.sm)
+                        interactiveImagePreview
+                        if showsImageControls {
+                            imageControls
+                                .offset(x: tokens.spacing.sm, y: tokens.spacing.sm)
+                        }
                     }
                     subtitleView
                 }
                 .frame(maxWidth: .infinity)
             } else if placesActionsBesideImage {
                 HStack(alignment: .center, spacing: tokens.spacing.md) {
-                    imagePreview
+                    interactiveImagePreview
                     VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                         subtitleView
-                        imageControls
+                        if showsImageControls {
+                            imageControls
+                        }
                     }
                 }
             } else {
                 VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                    imagePreview
+                    interactiveImagePreview
                     subtitleView
-                    imageControls
+                    if showsImageControls {
+                        imageControls
+                    }
                 }
             }
         }
@@ -140,6 +148,28 @@ struct ReguertaImagePickerField: View {
                 }
             }
             .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private var interactiveImagePreview: some View {
+        if selectsImageOnPreviewTap {
+            Button {
+                isSourceDialogPresented = true
+            } label: {
+                imagePreview
+                    .overlay {
+                        if isUploading {
+                            ProgressView()
+                                .tint(tokens.colors.actionPrimary)
+                        }
+                    }
+            }
+            .buttonStyle(.plain)
+            .disabled(isUploading)
+            .accessibilityLabel(Text(LocalizedStringKey(AccessL10nKey.commonActionSelect)))
+        } else {
+            imagePreview
+        }
     }
 
     @ViewBuilder

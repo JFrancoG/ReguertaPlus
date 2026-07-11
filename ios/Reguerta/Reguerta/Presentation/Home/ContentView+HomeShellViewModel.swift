@@ -125,6 +125,12 @@ extension AccessRootViewModel {
         case .shiftSwapRequest:
             shiftsViewModel.clearShiftSwapDraft()
             homeDestination = .shifts
+        case .products:
+            if productsViewModel.isEditing {
+                productsViewModel.clearEditor()
+            } else {
+                homeDestination = .dashboard
+            }
         case .myOrder:
             myOrderViewModel.resetCartOverlayForRouteEntry()
             homeDestination = .dashboard
@@ -333,6 +339,13 @@ private extension AccessRootViewModel {
         case .settings:
             return l10n(AccessL10nKey.settingsTitle)
         case .products:
+            if productsViewModel.isEditing {
+                return l10n(
+                    productsViewModel.editingProductId?.isEmpty == false
+                        ? AccessL10nKey.productsEditorTitleEdit
+                        : AccessL10nKey.productsEditorTitleNew
+                )
+            }
             return l10n(AccessL10nKey.productsListTitle)
         case .users:
             return l10n(AccessL10nKey.usersListTitle)

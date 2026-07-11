@@ -92,7 +92,9 @@ extension MyOrderRouteViewModel {
 
     var cartTotal: Double {
         selectedProducts.reduce(0) { partial, product in
-            partial + Double(selectedQuantities[product.id, default: 0]) * product.price
+            partial + product.selectedQuantity(
+                selectionCount: selectedQuantities[product.id, default: 0]
+            ) * product.price
         }
     }
 
@@ -175,9 +177,7 @@ extension MyOrderRouteViewModel {
         let lines = selectedProducts.compactMap { product -> MyOrderConfirmedLine? in
             let unitsSelected = selectedQuantities[product.id, default: 0]
             guard unitsSelected > 0 else { return nil }
-            let quantityAtOrder = product.pricingMode == .weight
-                ? Double(unitsSelected) * product.unitQty
-                : Double(unitsSelected)
+            let quantityAtOrder = product.selectedQuantity(selectionCount: unitsSelected)
             return MyOrderConfirmedLine(
                 product: product,
                 unitsSelected: unitsSelected,

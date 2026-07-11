@@ -54,6 +54,7 @@ fun ReguertaInputField(
     placeholder: String? = null,
     helperMessage: String? = null,
     enabled: Boolean = true,
+    readOnly: Boolean = false,
     keyboardType: KeyboardType = KeyboardType.Text,
     errorMessage: String? = null,
     liveValidationErrorMessage: String? = null,
@@ -65,6 +66,9 @@ fun ReguertaInputField(
     passwordVisible: Boolean? = null,
     onPasswordVisibilityChange: ((Boolean) -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
+    singleLine: Boolean = true,
+    minLines: Int = 1,
+    maxLines: Int = if (singleLine) 1 else 4,
 ) {
     var focused by remember { mutableStateOf(false) }
     var interacted by remember { mutableStateOf(false) }
@@ -125,7 +129,10 @@ fun ReguertaInputField(
                         onValueChange(it)
                     },
                     enabled = enabled,
-                    singleLine = true,
+                    readOnly = readOnly,
+                    singleLine = singleLine,
+                    minLines = minLines,
+                    maxLines = maxLines,
                     textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
                     keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                     visualTransformation = if (isPassword && !resolvedPasswordVisible) {

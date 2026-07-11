@@ -78,6 +78,9 @@ class FirestoreProductRepository(
         persisted.packContainerPlural?.let { payload["packContainerPlural"] = it }
         persisted.packContainerQty?.let { payload["packContainerQty"] = it }
         persisted.stockQty?.let { payload["stockQty"] = it }
+        persisted.weightStep?.let { payload["weightStep"] = it }
+        persisted.minWeight?.let { payload["minWeight"] = it }
+        persisted.maxWeight?.let { payload["maxWeight"] = it }
         persisted.commonPurchaseType?.toWireValue()?.let { payload["commonPurchaseType"] = it }
 
         runCatching {
@@ -126,6 +129,9 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toProduct(): Product?
         archived = getBoolean("archived") ?: false,
         createdAtMillis = getTimestamp("createdAt")?.toDate()?.time ?: 0L,
         updatedAtMillis = getTimestamp("updatedAt")?.toDate()?.time ?: 0L,
+        weightStep = getDouble("weightStep"),
+        minWeight = getDouble("minWeight"),
+        maxWeight = getDouble("maxWeight"),
     )
 }
 

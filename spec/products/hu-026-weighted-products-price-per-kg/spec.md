@@ -18,7 +18,7 @@ As a producer I want to configure a product with `price` in `weight` mode and as
 
 ### In Scope
 - Product-level pricing mode `weight` in addition to `fixed`.
-- Product fields for `price`, `weightStep`, and optional min/max weight limits.
+- Product fields for `price`, `weightStep`, and required min/max weight limits in weighted mode.
 - Orderline snapshot fields for weighted mode (`pricingModeAtOrder`, `priceAtOrder`).
 - Decimal weight input in consumer order flow.
 - Real-time subtotal calculation for weighted lines.
@@ -38,6 +38,15 @@ As a producer I want to configure a product with `price` in `weight` mode and as
 - Subtotal is computed as `quantity * price` and shown in real time.
 - Saved orderline keeps weighted snapshot fields (`pricingModeAtOrder`, `priceAtOrder`).
 - Existing fixed-unit products keep working unchanged.
+
+## Confirmed product-editor contract
+
+- Selecting `A granel` sets `pricingMode = weight` and fixes the measure to kilograms.
+- Bulk products require `minWeight`, `maxWeight`, and `weightStep`; container quantity, measure quantity, and measure selector are hidden.
+- The selectable sequence starts at `minWeight`, advances by `weightStep`, and never exceeds `maxWeight`.
+- `maxWeight` must be reachable from `minWeight` using whole increments of `weightStep`.
+- Approximate gram/kilogram measures are not part of the new mobile catalog.
+- Selecting the `Ecocesta` container derives `isEcoBasket = true`; that container is only available to producers with an assigned even/odd `producerParity`.
 
 ## Dependencies
 

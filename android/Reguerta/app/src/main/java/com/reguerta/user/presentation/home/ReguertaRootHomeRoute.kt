@@ -10,6 +10,8 @@ import com.reguerta.user.presentation.orders.MyOrdersHistoryRoute
 import com.reguerta.user.presentation.orders.ReceivedOrdersHistoryRoute
 import com.reguerta.user.presentation.orders.ReceivedOrdersRoute
 import com.reguerta.user.presentation.products.ProductsRoute
+import com.reguerta.user.presentation.products.isProductEditorOpen
+import com.reguerta.user.presentation.products.productEditorTitleRes
 import com.reguerta.user.presentation.settings.SettingsRoute
 import com.reguerta.user.presentation.sharedprofile.SharedProfileRoute
 import com.reguerta.user.presentation.shifts.ShiftSwapRequestRoute
@@ -420,6 +422,9 @@ internal fun HomeRoute(
                         }
                         currentDestination == HomeDestination.MY_ORDER && isMyOrderReadOnlyMode -> ""
                         currentDestination == HomeDestination.MY_ORDERS -> ""
+                        currentDestination == HomeDestination.PRODUCTS && isProductEditorOpen(editingProductId) -> {
+                            stringResource(productEditorTitleRes(editingProductId))
+                        }
                         currentDestination == HomeDestination.PUBLISH_NEWS && editingNewsId != null -> {
                             stringResource(R.string.news_editor_title_edit)
                         }
@@ -439,23 +444,27 @@ internal fun HomeRoute(
                         showsCartAction = showsMyOrderCartAction,
                         cartUnits = myOrderCartUnits,
                         onBack = {
-                            if (currentDestination == HomeDestination.PUBLISH_NEWS) {
-                                onClearNewsEditor()
-                            } else if (currentDestination == HomeDestination.ADMIN_BROADCAST) {
-                                onClearNotificationEditor()
-                            } else if (currentDestination == HomeDestination.PRODUCTS) {
+                            if (currentDestination == HomeDestination.PRODUCTS && isProductEditorOpen(editingProductId)) {
                                 onClearProductEditor()
-                            } else if (currentDestination == HomeDestination.SHIFT_SWAP_REQUEST) {
-                                onClearShiftSwapDraft()
-                            } else if (currentDestination == HomeDestination.MY_ORDER) {
-                                isMyOrderCartVisible = false
+                            } else {
+                                if (currentDestination == HomeDestination.PUBLISH_NEWS) {
+                                    onClearNewsEditor()
+                                } else if (currentDestination == HomeDestination.ADMIN_BROADCAST) {
+                                    onClearNotificationEditor()
+                                } else if (currentDestination == HomeDestination.PRODUCTS) {
+                                    onClearProductEditor()
+                                } else if (currentDestination == HomeDestination.SHIFT_SWAP_REQUEST) {
+                                    onClearShiftSwapDraft()
+                                } else if (currentDestination == HomeDestination.MY_ORDER) {
+                                    isMyOrderCartVisible = false
+                                }
+                                navigateHome(when (currentDestination) {
+                                    HomeDestination.PUBLISH_NEWS -> HomeDestination.NEWS
+                                    HomeDestination.ADMIN_BROADCAST -> HomeDestination.NOTIFICATIONS
+                                    HomeDestination.SHIFT_SWAP_REQUEST -> HomeDestination.SHIFTS
+                                    else -> HomeDestination.DASHBOARD
+                                })
                             }
-                            navigateHome(when (currentDestination) {
-                                HomeDestination.PUBLISH_NEWS -> HomeDestination.NEWS
-                                HomeDestination.ADMIN_BROADCAST -> HomeDestination.NOTIFICATIONS
-                                HomeDestination.SHIFT_SWAP_REQUEST -> HomeDestination.SHIFTS
-                                else -> HomeDestination.DASHBOARD
-                            })
                         },
                         onOpenMenu = {
                             isDrawerOpen = true
