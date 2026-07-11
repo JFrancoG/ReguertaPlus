@@ -8,6 +8,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -34,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -61,6 +63,7 @@ internal fun ReguertaImagePickerField(
     onPickImage: (Uri) -> Unit,
     onClearImage: () -> Unit,
     placeholderIcon: ImageVector,
+    placeholderPainter: Painter? = null,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     actionsBesideImage: Boolean = false,
@@ -156,6 +159,15 @@ internal fun ReguertaImagePickerField(
             if (imageUrl.isNotBlank()) {
                 AsyncImage(
                     model = imageUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = previewContentScale,
+                    error = placeholderPainter,
+                    fallback = placeholderPainter,
+                )
+            } else if (placeholderPainter != null) {
+                Image(
+                    painter = placeholderPainter,
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = previewContentScale,

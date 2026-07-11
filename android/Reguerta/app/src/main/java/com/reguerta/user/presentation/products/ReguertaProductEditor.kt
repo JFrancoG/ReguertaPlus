@@ -41,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -283,6 +284,7 @@ private fun ProductEditorHero(
                 onPickImage = onPickImage,
                 onClearImage = onClearImage,
                 placeholderIcon = Icons.Default.Image,
+                placeholderPainter = painterResource(R.drawable.product_no_available),
                 previewSize = if (isCompact) 160 else 136,
                 selectsImageOnPreviewTap = true,
                 showsImageControls = false,

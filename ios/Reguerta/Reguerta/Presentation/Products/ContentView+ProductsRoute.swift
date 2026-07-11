@@ -228,17 +228,17 @@ private struct ProductCardRowView: View {
                                 .resizable()
                                 .scaledToFill()
                         } else {
-                            Image(systemName: "photo")
-                                .font(.system(size: 24.resize))
-                                .foregroundStyle(tokens.colors.textSecondary)
+                            Image("product_no_available")
+                                .resizable()
+                                .scaledToFill()
                         }
                     }
                     .frame(width: 72.resize, height: 72.resize)
                     .clipShape(RoundedRectangle(cornerRadius: 8.resize))
                 } else {
-                    Image(systemName: "photo")
-                        .font(.system(size: 24.resize))
-                        .foregroundStyle(tokens.colors.textSecondary)
+                    Image("product_no_available")
+                        .resizable()
+                        .scaledToFill()
                 }
             }
             .clipped()
