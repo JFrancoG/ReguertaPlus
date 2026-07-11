@@ -100,9 +100,7 @@ func buildMyOrderCheckoutLineSnapshots(
     products.compactMap { product in
         let selectedUnits = selectedQuantities[product.id, default: 0]
         guard selectedUnits > 0 else { return nil }
-        let quantityAtOrder = product.pricingMode == .weight
-            ? Double(selectedUnits) * product.unitQty
-            : Double(selectedUnits)
+        let quantityAtOrder = product.selectedQuantity(selectionCount: selectedUnits)
         let subtotal = quantityAtOrder * product.price
         let selectedOption = selectedEcoBasketOptions[product.id]
         let ecoBasketOption = (selectedOption == ecoBasketOptionPickup || selectedOption == ecoBasketOptionNoPickup)

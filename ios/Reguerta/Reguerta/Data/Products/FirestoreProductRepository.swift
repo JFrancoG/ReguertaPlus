@@ -111,7 +111,10 @@ final class FirestoreProductRepository: @unchecked Sendable, ProductRepository {
             "commonPurchaseType": product.commonPurchaseType?.rawValue as Any,
             "archived": product.archived,
             "createdAt": timestamp(for: product.createdAtMillis),
-            "updatedAt": timestamp(for: product.updatedAtMillis)
+            "updatedAt": timestamp(for: product.updatedAtMillis),
+            "weightStep": product.weightStep as Any,
+            "minWeight": product.minWeight as Any,
+            "maxWeight": product.maxWeight as Any
         ]
     }
 
@@ -166,7 +169,10 @@ final class FirestoreProductRepository: @unchecked Sendable, ProductRepository {
             commonPurchaseType: normalizedString(data["commonPurchaseType"]).flatMap(CommonPurchaseType.init(rawValue:)),
             archived: (data["archived"] as? Bool) ?? false,
             createdAtMillis: Int64(createdAtMillis),
-            updatedAtMillis: Int64(updatedAtMillis)
+            updatedAtMillis: Int64(updatedAtMillis),
+            weightStep: data["weightStep"] as? Double,
+            minWeight: data["minWeight"] as? Double,
+            maxWeight: data["maxWeight"] as? Double
         )
     }
 

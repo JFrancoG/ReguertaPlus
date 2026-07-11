@@ -44,7 +44,7 @@ final class ProductsRouteViewModel {
     }
 
     var canManageEcoBasket: Bool {
-        isProducer
+        isProducer && currentMember?.producerParity != nil
     }
 
     var canManageCommonPurchase: Bool {

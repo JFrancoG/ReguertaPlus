@@ -111,9 +111,9 @@ Subcollection `users/{userId}/notificationReads/{eventId}`:
 - `productImageUrl`: string|null (Storage URL)
 - `price`: number (required)
 - `pricingMode`: string (`fixed`|`weight`) (required, default `fixed`)
-- `weightStep`: number|null (required when `pricingMode == weight`, same unit as `unitName`)
-- `minWeight`: number|null (optional, only for `weight`, same unit as `unitName`)
-- `maxWeight`: number|null (optional, only for `weight`, same unit as `unitName`)
+- `weightStep`: number|null (required when `pricingMode == weight`, kilograms in the mobile app)
+- `minWeight`: number|null (required when `pricingMode == weight`)
+- `maxWeight`: number|null (required when `pricingMode == weight`)
 - `unitName`: string (required)
 - `unitAbbreviation`: string (optional, recommended)
 - `unitPlural`: string (required)
@@ -436,7 +436,7 @@ Migration note:
   - `all`: empty/null payload only.
   - `users`: non-empty `userIds`.
   - `segment`: valid `segmentType` and required keys per segment contract.
-- If `products.pricingMode == weight`, `price` and `weightStep` are required and > 0.
+- If `products.pricingMode == weight`, `price`, `weightStep`, `minWeight`, and `maxWeight` are required and > 0; `minWeight <= maxWeight`, and the maximum must be reachable from the minimum using whole `weightStep` increments.
 - If `orderlines.pricingModeAtOrder == weight`, `quantity` stores weight amount (decimal allowed, in `unitName`), and `subtotal = quantity * priceAtOrder`.
 
 ## 6. Minimum recommended indexes

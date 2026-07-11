@@ -81,7 +81,9 @@ extension MyOrderRouteViewModel {
         guard !isReadOnlyMode else { return }
         let currentQuantity = selectedQuantities[product.id, default: 0]
         guard canIncrease(product: product, currentQuantity: currentQuantity) else { return }
-        selectedQuantities[product.id] = currentQuantity + 1
+        selectedQuantities[product.id] = currentQuantity == 0
+            ? product.minimumSelectionCount
+            : currentQuantity + 1
         if product.isEcoBasket, selectedEcoBasketOptions[product.id] == nil {
             selectedEcoBasketOptions[product.id] = ecoBasketOptionPickup
         }
@@ -92,7 +94,7 @@ extension MyOrderRouteViewModel {
         guard !isReadOnlyMode else { return }
         let currentQuantity = selectedQuantities[product.id, default: 0]
         guard currentQuantity > 0 else { return }
-        if currentQuantity == 1 {
+        if currentQuantity <= product.minimumSelectionCount {
             selectedQuantities.removeValue(forKey: product.id)
             if product.isEcoBasket {
                 selectedEcoBasketOptions.removeValue(forKey: product.id)
@@ -122,12 +124,18 @@ extension MyOrderRouteViewModel {
     func finiteStockLimit(for product: Product) -> Int? {
         guard product.stockMode == .finite else { return nil }
         let stock = max(0, product.stockQty ?? 0)
-        return Int(stock.rounded(.down))
+        return product.pricingMode == .weight
+            ? Int((stock / product.effectiveWeightStep).rounded(.down))
+            : Int(stock.rounded(.down))
     }
 
     func canIncrease(product: Product, currentQuantity: Int) -> Bool {
         if let commitmentLimit = seasonalCommitmentUnitLimitsByProductId[product.id],
            currentQuantity >= commitmentLimit {
+            return false
+        }
+        if let maximumSelectionCount = product.maximumSelectionCount,
+           currentQuantity >= maximumSelectionCount {
             return false
         }
         guard let finiteLimit = finiteStockLimit(for: product) else { return true }
@@ -166,11 +174,16 @@ extension MyOrderRouteViewModel {
         selectedQuantities.reduce(into: [String: Int]()) { partialResult, entry in
             guard let product = productsById[entry.key] else { return }
             guard entry.value > 0 else { return }
+            let normalizedQuantity = max(entry.value, product.minimumSelectionCount)
+            let weightLimitedQuantity = min(
+                normalizedQuantity,
+                product.maximumSelectionCount ?? normalizedQuantity
+            )
             let stockLimitedQuantity: Int
             if let finiteLimit = finiteStockLimit(for: product) {
-                stockLimitedQuantity = min(entry.value, finiteLimit)
+                stockLimitedQuantity = min(weightLimitedQuantity, finiteLimit)
             } else {
-                stockLimitedQuantity = entry.value
+                stockLimitedQuantity = weightLimitedQuantity
             }
             let allowedQuantity = min(
                 stockLimitedQuantity,

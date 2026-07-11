@@ -96,6 +96,10 @@ import com.reguerta.user.domain.products.Product
 import com.reguerta.user.ui.components.ReguertaScreenTitle
 import com.reguerta.user.domain.products.ProductPricingMode
 import com.reguerta.user.domain.products.ProductStockMode
+import com.reguerta.user.domain.products.effectiveWeightStep
+import com.reguerta.user.domain.products.maximumSelectionCount
+import com.reguerta.user.domain.products.minimumSelectionCount
+import com.reguerta.user.domain.products.selectedQuantity
 import com.reguerta.user.domain.shifts.ShiftAssignment
 import com.reguerta.user.ui.components.auth.ReguertaDialog
 import com.reguerta.user.ui.components.auth.ReguertaDialogAction
@@ -390,7 +394,7 @@ internal fun MyOrderRoute(
         (!hasConfirmedOrder || hasPendingConfirmedEdits)
     val cartTotal = remember(selectedProducts, selectedQuantities) {
         selectedProducts.sumOf { product ->
-            selectedQuantities[product.id].orZero.toDouble() * product.price
+            product.selectedQuantity(selectedQuantities[product.id].orZero) * product.price
         }
     }
     val noPickupEcoBasketUnits = remember(products, selectedQuantities, selectedEcoBasketOptions) {
@@ -472,8 +476,12 @@ internal fun MyOrderRoute(
             val product = productsById[productId] ?: return@mapNotNull null
             val finiteLimit = finiteStockLimit(product)
             val commitmentLimit = seasonalCommitmentLimitsByProductId[productId]
-            val allowedByCommitment = commitmentLimit?.let { qty.coerceAtMost(it) } ?: qty
-            val allowedQty = finiteLimit?.let { allowedByCommitment.coerceAtMost(it) } ?: allowedByCommitment
+            val minimumQuantity = product.minimumSelectionCount
+            val normalizedQuantity = qty.coerceAtLeast(minimumQuantity)
+            val allowedByCommitment = commitmentLimit?.let { normalizedQuantity.coerceAtMost(it) } ?: normalizedQuantity
+            val allowedByWeight = product.maximumSelectionCount?.let { allowedByCommitment.coerceAtMost(it) }
+                ?: allowedByCommitment
+            val allowedQty = finiteLimit?.let { allowedByWeight.coerceAtMost(it) } ?: allowedByWeight
             if (allowedQty > 0) {
                 productId to allowedQty
             } else {
@@ -507,7 +515,7 @@ internal fun MyOrderRoute(
         if (!isReadOnlyMode) {
             val currentQty = selectedQuantities[product.id].orZero
             if (currentQty > 0) {
-                val updatedQuantities = if (currentQty == 1) {
+                val updatedQuantities = if (currentQty <= product.minimumSelectionCount) {
                     selectedQuantities - product.id
                 } else {
                     selectedQuantities + (product.id to (currentQty - 1))
@@ -533,7 +541,8 @@ internal fun MyOrderRoute(
                     commitmentLimit = seasonalCommitmentLimitsByProductId[product.id],
                 )
             ) {
-                selectedQuantities = selectedQuantities + (product.id to (currentQty + 1))
+                val nextQuantity = if (currentQty == 0) product.minimumSelectionCount else currentQty + 1
+                selectedQuantities = selectedQuantities + (product.id to nextQuantity)
                 if (product.isEcoBasket && selectedEcoBasketOptions[product.id] == null) {
                     selectedEcoBasketOptions = selectedEcoBasketOptions + (product.id to EcoBasketOptionPickup)
                 }
@@ -1302,6 +1311,7 @@ private fun MyOrderProductCard(
                     modifier = Modifier.align(Alignment.TopStart),
                 )
                 QuantityControls(
+                    product = product,
                     quantity = quantity,
                     canIncrease = isEditable && canIncrease,
                     onIncrease = onIncrease,
@@ -1338,7 +1348,11 @@ private fun MyOrderProductCard(
             ) {
                 Text(
                     text = stringResource(
-                        R.string.my_order_price_per_unit_format,
+                        if (product.pricingMode == ProductPricingMode.WEIGHT) {
+                            R.string.my_order_price_per_kg_format
+                        } else {
+                            R.string.my_order_price_per_unit_format
+                        },
                         product.price.toEuroCurrencyText(),
                     ),
                     style = MaterialTheme.typography.titleMedium,
@@ -1392,6 +1406,7 @@ private fun ProductImage(
 
 @Composable
 private fun QuantityControls(
+    product: Product,
     quantity: Int,
     canIncrease: Boolean,
     onIncrease: () -> Unit,
@@ -1401,11 +1416,7 @@ private fun QuantityControls(
 ) {
     if (!isEditable) {
         if (quantity > 0) {
-            val quantityText = if (quantity == 1) {
-                stringResource(R.string.my_order_quantity_single)
-            } else {
-                stringResource(R.string.my_order_quantity_plural_format, quantity)
-            }
+            val quantityText = product.quantitySelectionText(quantity)
             Text(
                 text = quantityText,
                 style = MaterialTheme.typography.titleMedium,
@@ -1446,11 +1457,7 @@ private fun QuantityControls(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            val quantityText = if (quantity == 1) {
-                stringResource(R.string.my_order_quantity_single)
-            } else {
-                stringResource(R.string.my_order_quantity_plural_format, quantity)
-            }
+            val quantityText = product.quantitySelectionText(quantity)
             Text(
                 text = quantityText,
                 style = MaterialTheme.typography.titleMedium,
@@ -1458,7 +1465,7 @@ private fun QuantityControls(
             )
 
             QuantityActionButton(
-                icon = if (quantity == 1) Icons.Default.Delete else Icons.Default.Remove,
+                icon = if (quantity <= product.minimumSelectionCount) Icons.Default.Delete else Icons.Default.Remove,
                 contentDescription = stringResource(R.string.my_order_decrease_action),
                 onClick = onDecrease,
                 containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.9f),
@@ -1526,7 +1533,11 @@ private fun SelectedProductCard(
                     )
                     Text(
                         text = stringResource(
-                            R.string.my_order_price_per_unit_format,
+                            if (product.pricingMode == ProductPricingMode.WEIGHT) {
+                                R.string.my_order_price_per_kg_format
+                            } else {
+                                R.string.my_order_price_per_unit_format
+                            },
                             product.price.toEuroCurrencyText(),
                         ),
                         style = MaterialTheme.typography.bodyMedium,
@@ -1536,6 +1547,7 @@ private fun SelectedProductCard(
             }
 
             QuantityControls(
+                product = product,
                 quantity = quantity,
                 canIncrease = isEditable && canIncrease(
                     product = product,
@@ -1735,11 +1747,7 @@ private fun buildMyOrderConfirmedGroups(
         if (unitsSelected <= 0) {
             null
         } else {
-            val quantityAtOrder = if (product.pricingMode == ProductPricingMode.WEIGHT) {
-                unitsSelected.toDouble() * product.unitQty
-            } else {
-                unitsSelected.toDouble()
-            }
+            val quantityAtOrder = product.selectedQuantity(unitsSelected)
             MyOrderConfirmedLine(
                 product = product,
                 unitsSelected = unitsSelected,
@@ -1793,7 +1801,11 @@ private fun finiteStockLimit(product: Product): Int? {
         return null
     }
     val stock = max(0.0, product.stockQty ?: 0.0)
-    return floor(stock).toInt()
+    return if (product.pricingMode == ProductPricingMode.WEIGHT) {
+        floor(stock / product.effectiveWeightStep).toInt()
+    } else {
+        floor(stock).toInt()
+    }
 }
 
 private fun canIncrease(
@@ -1804,9 +1816,22 @@ private fun canIncrease(
     if (commitmentLimit != null && currentQuantity >= commitmentLimit) {
         return false
     }
+    if (product.maximumSelectionCount?.let { currentQuantity >= it } == true) {
+        return false
+    }
     val finiteLimit = finiteStockLimit(product) ?: return true
     return currentQuantity < finiteLimit
 }
+
+@Composable
+private fun Product.quantitySelectionText(selectionCount: Int): String =
+    if (pricingMode == ProductPricingMode.WEIGHT) {
+        "${selectedQuantity(selectionCount).toUiDecimal()} kg"
+    } else if (selectionCount == 1) {
+        stringResource(R.string.my_order_quantity_single)
+    } else {
+        stringResource(R.string.my_order_quantity_plural_format, selectionCount)
+    }
 
 private data class MyOrderStockLabel(
     val text: String,
@@ -2503,11 +2528,7 @@ internal suspend fun submitCheckoutOrderToFirestore(
                 if (selectedUnits <= 0) {
                     return@mapNotNull null
                 }
-                val quantityAtOrder = if (product.pricingMode == ProductPricingMode.WEIGHT) {
-                    selectedUnits.toDouble() * product.unitQty
-                } else {
-                    selectedUnits.toDouble()
-                }
+                val quantityAtOrder = product.selectedQuantity(selectedUnits)
                 val subtotal = quantityAtOrder * product.price
                 MyOrderCheckoutLineSnapshot(
                     product = product,

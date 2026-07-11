@@ -205,8 +205,8 @@ Regla: lectura para socios autenticados; escritura solo propietario o admin.
 | `price` | number | si | si | Precio actual |
 | `pricingMode` | string | si | si | `fixed` o `weight` |
 | `weightStep` | number\|null | no | si | Requerido si `pricingMode == weight` (misma unidad que `unitName`) |
-| `minWeight` | number\|null | no | si | Opcional solo en `weight` (misma unidad que `unitName`) |
-| `maxWeight` | number\|null | no | si | Opcional solo en `weight` (misma unidad que `unitName`) |
+| `minWeight` | number\|null | no | si | Requerido si `pricingMode == weight` (kg en la app movil) |
+| `maxWeight` | number\|null | no | si | Requerido si `pricingMode == weight` (kg en la app movil) |
 | `unitName` | string | si | si | Ej. unidad/kg/docena |
 | `unitAbbreviation` | string | no | si | Abreviatura para UI compacta (ej. `kg`, `gr`) |
 | `unitPlural` | string | si | si | |
@@ -558,7 +558,7 @@ Nota de migracion:
   - `all`: payload vacio o `null`.
   - `users`: `userIds` no vacio.
   - `segment`: `segmentType` valido y claves obligatorias segun el tipo de segmento.
-- Si `products.pricingMode == weight`, `price` y `weightStep` son requeridos y > 0.
+- Si `products.pricingMode == weight`, `price`, `weightStep`, `minWeight` y `maxWeight` son requeridos y > 0; `minWeight <= maxWeight` y el maximo debe alcanzarse desde el minimo mediante incrementos enteros de `weightStep`.
 - Si `orderlines.pricingModeAtOrder == weight`, `quantity` almacena cantidad de peso (permite decimal, en `unitName`) y `subtotal = quantity * priceAtOrder`.
 
 ## 6. Indices minimos recomendados

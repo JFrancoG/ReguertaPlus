@@ -61,11 +61,56 @@ struct ReguertaProductsViewModelTests {
     }
 
     @Test
+    func productEditorUsesAsymmetricStockStepsWithoutGoingBelowZero() async {
+        let currentProducer = producer(id: "producer_even", parity: .even)
+        let viewModel = await makeProductsViewModel(
+            currentMember: currentProducer,
+            members: [currentProducer]
+        )
+
+        viewModel.startCreating()
+        viewModel.setUnlimitedStock(false)
+        viewModel.increaseFiniteStock()
+        #expect(viewModel.finiteStockQuantity == 10)
+        #expect(viewModel.draft.stockQty == "10")
+
+        viewModel.decreaseFiniteStock()
+        #expect(viewModel.finiteStockQuantity == 9)
+
+        viewModel.updateDraft { $0.stockQty = "0" }
+        viewModel.decreaseFiniteStock()
+        #expect(viewModel.finiteStockQuantity == 0)
+        #expect(viewModel.draft.stockQty == "0")
+    }
+
+    @Test
+    func productsHeaderAndBackActionFollowEditorState() {
+        let rootViewModel = ReguertaAppEnvironment.preview().accessRootViewModel
+        rootViewModel.homeDestination = .products
+        rootViewModel.productsViewModel.editingProductId = ""
+
+        guard case .verbatim(let title)? = rootViewModel.homeShellHeaderViewModel.title else {
+            Issue.record("Expected a verbatim product editor title")
+            return
+        }
+        #expect(title == l10n(AccessL10nKey.productsEditorTitleNew))
+
+        rootViewModel.handleHomePrimaryAction()
+
+        #expect(rootViewModel.homeDestination == .products)
+        #expect(rootViewModel.productsViewModel.editingProductId == nil)
+
+        rootViewModel.handleHomePrimaryAction()
+        #expect(rootViewModel.homeDestination == .dashboard)
+    }
+
+    @Test
     func productsViewModelBlocksInvalidSaveInput() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let viewModel = await makeProductsViewModel(currentMember: currentProducer, members: [currentProducer])
 
         viewModel.startCreating()
+        viewModel.selectContainer(.ecoBasket)
         viewModel.updateDraft { draft in
             draft.name = ""
             draft.price = "abc"
@@ -88,12 +133,12 @@ struct ReguertaProductsViewModelTests {
         )
 
         viewModel.startCreating()
+        viewModel.selectContainer(.ecoBasket)
         viewModel.updateDraft { draft in
             draft.name = "Ecocesta"
             draft.price = "12"
             draft.unitName = "cesta"
             draft.unitPlural = "cestas"
-            draft.isEcoBasket = true
         }
         await viewModel.save()
 
@@ -152,12 +197,12 @@ struct ReguertaProductsViewModelTests {
         )
 
         viewModel.startCreating()
+        viewModel.selectContainer(.ecoBasket)
         viewModel.updateDraft { draft in
             draft.name = "Ecocesta nueva"
             draft.price = "12"
             draft.unitName = "cesta"
             draft.unitPlural = "cestas"
-            draft.isEcoBasket = true
         }
         await viewModel.save()
 
@@ -293,7 +338,7 @@ struct ReguertaProductsViewModelTests {
 }
 
 @MainActor
-private func makeProductsViewModel(
+func makeProductsViewModel(
     currentMember: Member,
     members: [Member],
     productRepository: InMemoryProductRepository? = nil,

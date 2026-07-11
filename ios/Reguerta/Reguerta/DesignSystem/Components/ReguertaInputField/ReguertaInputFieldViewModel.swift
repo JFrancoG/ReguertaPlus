@@ -16,6 +16,7 @@ struct ReguertaInputFieldViewModel {
     let liveValidation: ((String) -> Bool)?
     let liveValidationMessageProvider: ((String) -> LocalizedStringKey?)?
     let isEnabled: Bool
+    let isReadOnly: Bool
     let isSecure: Bool
     let sharedPasswordVisibility: Binding<Bool>?
     let showsClearAction: Bool
@@ -24,6 +25,9 @@ struct ReguertaInputFieldViewModel {
     let trailingIcon: Image?
     let onTrailingTap: (() -> Void)?
     let accessibilityIdentifier: String?
+    let isMultiline: Bool
+    let textInputAutocapitalization: TextInputAutocapitalization?
+    let autocorrectionDisabled: Bool
 
     func effectiveErrorMessage(text: String, hasInteracted: Bool) -> LocalizedStringKey? {
         if let errorMessage { return errorMessage }
@@ -84,6 +88,7 @@ func reguertaInputField(
     liveValidation: ((String) -> Bool)? = nil,
     liveValidationMessageProvider: ((String) -> LocalizedStringKey?)? = nil,
     isEnabled: Bool = true,
+    isReadOnly: Bool = false,
     isSecure: Bool = false,
     sharedPasswordVisibility: Binding<Bool>? = nil,
     showsClearAction: Bool = false,
@@ -91,7 +96,10 @@ func reguertaInputField(
     keyboardType: UIKeyboardType = .default,
     trailingIcon: Image? = nil,
     onTrailingTap: (() -> Void)? = nil,
-    accessibilityIdentifier: String? = nil
+    accessibilityIdentifier: String? = nil,
+    isMultiline: Bool = false,
+    textInputAutocapitalization: TextInputAutocapitalization? = .never,
+    autocorrectionDisabled: Bool = true
 ) -> some View {
     ReguertaInputFieldView(
         text: text,
@@ -104,6 +112,7 @@ func reguertaInputField(
             liveValidation: liveValidation,
             liveValidationMessageProvider: liveValidationMessageProvider,
             isEnabled: isEnabled,
+            isReadOnly: isReadOnly,
             isSecure: isSecure,
             sharedPasswordVisibility: sharedPasswordVisibility,
             showsClearAction: showsClearAction,
@@ -111,7 +120,10 @@ func reguertaInputField(
             keyboardType: keyboardType,
             trailingIcon: trailingIcon,
             onTrailingTap: onTrailingTap,
-            accessibilityIdentifier: accessibilityIdentifier
+            accessibilityIdentifier: accessibilityIdentifier,
+            isMultiline: isMultiline,
+            textInputAutocapitalization: textInputAutocapitalization,
+            autocorrectionDisabled: autocorrectionDisabled
         )
     )
 }

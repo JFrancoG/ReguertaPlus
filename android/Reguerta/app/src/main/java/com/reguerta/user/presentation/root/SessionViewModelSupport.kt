@@ -42,7 +42,10 @@ internal fun Product.toDraft(): ProductDraft =
         packContainerName = packContainerName.orEmpty(),
         packContainerAbbreviation = packContainerAbbreviation.orEmpty(),
         packContainerPlural = packContainerPlural.orEmpty(),
-        packContainerQty = packContainerQty?.toSessionUiDecimal().orEmpty(),
+        packContainerQty = packContainerQty?.toSessionUiDecimal() ?: "1",
+        weightStep = (weightStep ?: unitQty).toSessionUiDecimal(),
+        minWeight = (minWeight ?: weightStep ?: unitQty).toSessionUiDecimal(),
+        maxWeight = (maxWeight ?: minWeight ?: weightStep ?: unitQty).toSessionUiDecimal(),
         isAvailable = isAvailable,
         stockMode = stockMode,
         stockQty = stockQty?.toSessionUiDecimal().orEmpty(),
@@ -65,6 +68,9 @@ internal fun ProductDraft.normalized(): ProductDraft =
         packContainerAbbreviation = packContainerAbbreviation.trim(),
         packContainerPlural = packContainerPlural.trim(),
         packContainerQty = packContainerQty.trim(),
+        weightStep = weightStep.trim(),
+        minWeight = minWeight.trim(),
+        maxWeight = maxWeight.trim(),
         stockQty = stockQty.trim(),
     )
 

@@ -17,6 +17,7 @@ import com.reguerta.user.data.media.ImageUploadNamespace
 import com.reguerta.user.domain.access.MemberRepository
 import com.reguerta.user.domain.commitments.SeasonalCommitmentRepository
 import com.reguerta.user.domain.products.Product
+import com.reguerta.user.domain.products.ProductContainerOption
 import com.reguerta.user.domain.products.ProductPricingMode
 import com.reguerta.user.domain.products.ProductRepository
 import com.reguerta.user.domain.products.ProductStockMode
@@ -28,6 +29,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.awaitAll
+import kotlin.math.abs
 
 internal class SessionProductActions(
     private val uiState: MutableStateFlow<SessionUiState>,
@@ -123,23 +125,36 @@ internal class SessionProductActions(
         val nowMillis = nowMillisProvider()
         val existing = uiState.value.productsFeed.firstOrNull { it.id == uiState.value.editingProductId }
         val price = draft.price.toPositiveDoubleOrNull()
-        val unitQty = draft.unitQty.toPositiveDoubleOrNull()
+        val container = ProductContainerOption.matching(draft.packContainerName)
+        val isBulk = container == ProductContainerOption.BULK
+        val weightStep = if (isBulk) draft.weightStep.toPositiveDoubleOrNull() else null
+        val minWeight = if (isBulk) draft.minWeight.toPositiveDoubleOrNull() else null
+        val maxWeight = if (isBulk) draft.maxWeight.toPositiveDoubleOrNull() else null
+        val unitQty = if (isBulk) weightStep else draft.unitQty.toPositiveDoubleOrNull()
         val stockQty = if (draft.stockMode == ProductStockMode.FINITE) draft.stockQty.toNonNegativeDoubleOrNull() else null
-        val packContainerQty = if (draft.packContainerName.isNotBlank()) draft.packContainerQty.toPositiveDoubleOrNull() else null
-        if (draft.name.isBlank() || price == null || draft.unitName.isBlank() || draft.unitPlural.isBlank() || unitQty == null) {
+        val packContainerQty = if (draft.packContainerName.isNotBlank() && !isBulk) {
+            draft.packContainerQty.toPositiveDoubleOrNull()
+        } else {
+            null
+        }
+        if (draft.name.isBlank() || price == null || unitQty == null || (!isBulk && (draft.unitName.isBlank() || draft.unitPlural.isBlank()))) {
             emitMessage(R.string.feedback_product_required_fields)
+            return
+        }
+        if (isBulk && !isValidWeightRange(minWeight = minWeight, maxWeight = maxWeight, step = weightStep)) {
+            emitMessage(R.string.feedback_product_weight_range_invalid)
             return
         }
         if (draft.stockMode == ProductStockMode.FINITE && stockQty == null) {
             emitMessage(R.string.feedback_product_stock_required)
             return
         }
-        if (draft.packContainerName.isNotBlank() && packContainerQty == null) {
+        if (draft.packContainerName.isNotBlank() && !isBulk && packContainerQty == null) {
             emitMessage(R.string.feedback_product_pack_qty_required)
             return
         }
         scope.launch {
-            val canManageEcoBasket = mode.member.isSessionProducer
+            val canManageEcoBasket = mode.member.isSessionProducer && mode.member.producerParity != null
             val canManageCommonPurchase = mode.member.isCommonPurchaseManager && !mode.member.isSessionProducer
             val allProducts = productRepository.getAllProducts()
             val activeEcoBasketPrice = allProducts.firstOrNull { product ->
@@ -159,10 +174,10 @@ internal class SessionProductActions(
                     description = draft.description,
                     productImageUrl = draft.productImageUrl.ifBlank { null },
                     price = price,
-                    pricingMode = ProductPricingMode.FIXED,
-                    unitName = draft.unitName,
-                    unitAbbreviation = draft.unitAbbreviation.ifBlank { null },
-                    unitPlural = draft.unitPlural,
+                    pricingMode = if (isBulk) ProductPricingMode.WEIGHT else ProductPricingMode.FIXED,
+                    unitName = if (isBulk) "kilo" else draft.unitName,
+                    unitAbbreviation = if (isBulk) "kg" else draft.unitAbbreviation.ifBlank { null },
+                    unitPlural = if (isBulk) "kilos" else draft.unitPlural,
                     unitQty = unitQty,
                     packContainerName = draft.packContainerName.ifBlank { null },
                     packContainerAbbreviation = draft.packContainerAbbreviation.ifBlank { null },
@@ -171,12 +186,15 @@ internal class SessionProductActions(
                     isAvailable = draft.isAvailable,
                     stockMode = draft.stockMode,
                     stockQty = stockQty,
-                    isEcoBasket = if (canManageEcoBasket) draft.isEcoBasket else false,
+                    isEcoBasket = canManageEcoBasket && container == ProductContainerOption.ECO_BASKET,
                     isCommonPurchase = if (canManageCommonPurchase) draft.isCommonPurchase else false,
                     commonPurchaseType = if (canManageCommonPurchase && draft.isCommonPurchase) draft.commonPurchaseType else null,
                     archived = existing?.archived ?: false,
                     createdAtMillis = existing?.createdAtMillis ?: nowMillis,
                     updatedAtMillis = nowMillis,
+                    weightStep = weightStep,
+                    minWeight = minWeight,
+                    maxWeight = maxWeight,
                 ),
             )
             val products = productRepository.getProductsForVendor(mode.member.id)
@@ -317,6 +335,12 @@ internal class SessionProductActions(
             }
         }
     }
+}
+
+internal fun isValidWeightRange(minWeight: Double?, maxWeight: Double?, step: Double?): Boolean {
+    if (minWeight == null || maxWeight == null || step == null || minWeight > maxWeight) return false
+    val intervals = (maxWeight - minWeight) / step
+    return abs(intervals - intervals.toInt()) < 0.000_001
 }
 
 internal fun com.reguerta.user.domain.access.Member?.isVisibleForOrdering(): Boolean =

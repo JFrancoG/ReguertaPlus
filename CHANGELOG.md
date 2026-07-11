@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-07-11 | ✨ feat(products): redesign mobile product editor
 - 2026-07-11 | ✨ feat(settings): add appearance and unavailable mode
 - 2026-07-08 | ✨ feat(access): confirm drawer sign-out
 - 2026-05-27 | ✨ feat(shifts): redesign shifts screen

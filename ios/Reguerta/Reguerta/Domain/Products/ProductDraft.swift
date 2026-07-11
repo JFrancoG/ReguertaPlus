@@ -12,10 +12,13 @@ struct ProductDraft: Equatable, Sendable {
     var packContainerName = ""
     var packContainerAbbreviation = ""
     var packContainerPlural = ""
-    var packContainerQty = ""
+    var packContainerQty = "1"
+    var weightStep = "0.5"
+    var minWeight = "0.5"
+    var maxWeight = "3"
     var isAvailable = true
-    var stockMode: ProductStockMode = .infinite
-    var stockQty = ""
+    var stockMode: ProductStockMode = .finite
+    var stockQty = "0"
     var isEcoBasket = false
     var isCommonPurchase = false
     var commonPurchaseType: CommonPurchaseType?
@@ -34,6 +37,9 @@ struct ProductDraft: Equatable, Sendable {
             packContainerAbbreviation: packContainerAbbreviation.trimmingCharacters(in: .whitespacesAndNewlines),
             packContainerPlural: packContainerPlural.trimmingCharacters(in: .whitespacesAndNewlines),
             packContainerQty: packContainerQty.trimmingCharacters(in: .whitespacesAndNewlines),
+            weightStep: weightStep.trimmingCharacters(in: .whitespacesAndNewlines),
+            minWeight: minWeight.trimmingCharacters(in: .whitespacesAndNewlines),
+            maxWeight: maxWeight.trimmingCharacters(in: .whitespacesAndNewlines),
             isAvailable: isAvailable,
             stockMode: stockMode,
             stockQty: stockQty.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -51,6 +57,9 @@ struct ProductSaveInput: Equatable, Sendable {
     let unitQty: Double
     let stockQty: Double?
     let packContainerQty: Double?
+    let weightStep: Double?
+    let minWeight: Double?
+    let maxWeight: Double?
     let nowMillis: Int64
 }
 
@@ -60,19 +69,29 @@ func resolveProductSaveInput(
     nowMillis: Int64
 ) -> ProductSaveInput? {
     let draft = draft.normalized
-    guard let price = draft.price.productPositiveDouble,
-          let unitQty = draft.unitQty.productPositiveDouble,
-          !draft.name.isEmpty,
-          !draft.unitName.isEmpty,
-          !draft.unitPlural.isEmpty else {
+    guard let price = draft.price.productPositiveDouble, !draft.name.isEmpty else {
+        return nil
+    }
+    let isBulk = ProductContainerOption.matching(name: draft.packContainerName) == .bulk
+    let weightStep = isBulk ? draft.weightStep.productPositiveDouble : nil
+    let minWeight = isBulk ? draft.minWeight.productPositiveDouble : nil
+    let maxWeight = isBulk ? draft.maxWeight.productPositiveDouble : nil
+    guard !isBulk || validWeightRange(minimum: minWeight, maximum: maxWeight, step: weightStep) else {
+        return nil
+    }
+    let unitQty = isBulk ? weightStep : draft.unitQty.productPositiveDouble
+    guard let unitQty,
+          isBulk || (!draft.unitName.isEmpty && !draft.unitPlural.isEmpty) else {
         return nil
     }
     let stockQty = draft.stockMode == .finite ? draft.stockQty.productNonNegativeDouble : nil
     guard draft.stockMode != .finite || stockQty != nil else {
         return nil
     }
-    let packContainerQty = draft.packContainerName.isEmpty ? nil : draft.packContainerQty.productPositiveDouble
-    guard draft.packContainerName.isEmpty || packContainerQty != nil else {
+    let packContainerQty = (draft.packContainerName.isEmpty || isBulk)
+        ? nil
+        : draft.packContainerQty.productPositiveDouble
+    guard draft.packContainerName.isEmpty || isBulk || packContainerQty != nil else {
         return nil
     }
 
@@ -83,12 +102,18 @@ func resolveProductSaveInput(
         unitQty: unitQty,
         stockQty: stockQty,
         packContainerQty: packContainerQty,
+        weightStep: weightStep,
+        minWeight: minWeight,
+        maxWeight: maxWeight,
         nowMillis: nowMillis
     )
 }
 
 func buildProductToSave(sessionMember: Member, input: ProductSaveInput) -> Product {
     let canManageCommonPurchase = sessionMember.isCommonPurchaseManager && !sessionMember.isProducer
+    let container = ProductContainerOption.matching(name: input.draft.packContainerName)
+    let isBulk = container == .bulk
+    let isEcoBasket = sessionMember.isProducer && sessionMember.producerParity != nil && container == .ecoBasket
     return Product(
         id: input.existing?.id ?? "",
         vendorId: input.existing?.vendorId ?? sessionMember.id,
@@ -97,10 +122,10 @@ func buildProductToSave(sessionMember: Member, input: ProductSaveInput) -> Produ
         description: input.draft.description,
         productImageUrl: input.draft.productImageUrl.isEmpty ? nil : input.draft.productImageUrl,
         price: input.price,
-        pricingMode: .fixed,
-        unitName: input.draft.unitName,
-        unitAbbreviation: input.draft.unitAbbreviation.isEmpty ? nil : input.draft.unitAbbreviation,
-        unitPlural: input.draft.unitPlural,
+        pricingMode: isBulk ? .weight : .fixed,
+        unitName: isBulk ? "kilo" : input.draft.unitName,
+        unitAbbreviation: isBulk ? "kg" : (input.draft.unitAbbreviation.isEmpty ? nil : input.draft.unitAbbreviation),
+        unitPlural: isBulk ? "kilos" : input.draft.unitPlural,
         unitQty: input.unitQty,
         packContainerName: input.draft.packContainerName.isEmpty ? nil : input.draft.packContainerName,
         packContainerAbbreviation: input.draft.packContainerAbbreviation.isEmpty ? nil : input.draft.packContainerAbbreviation,
@@ -109,12 +134,15 @@ func buildProductToSave(sessionMember: Member, input: ProductSaveInput) -> Produ
         isAvailable: input.draft.isAvailable,
         stockMode: input.draft.stockMode,
         stockQty: input.stockQty,
-        isEcoBasket: sessionMember.isProducer ? input.draft.isEcoBasket : false,
+        isEcoBasket: isEcoBasket,
         isCommonPurchase: canManageCommonPurchase ? input.draft.isCommonPurchase : false,
         commonPurchaseType: (canManageCommonPurchase && input.draft.isCommonPurchase) ? input.draft.commonPurchaseType : nil,
         archived: input.existing?.archived ?? false,
         createdAtMillis: input.existing?.createdAtMillis ?? input.nowMillis,
-        updatedAtMillis: input.nowMillis
+        updatedAtMillis: input.nowMillis,
+        weightStep: input.weightStep,
+        minWeight: input.minWeight,
+        maxWeight: input.maxWeight
     )
 }
 
@@ -132,7 +160,10 @@ extension Product {
             packContainerName: packContainerName ?? "",
             packContainerAbbreviation: packContainerAbbreviation ?? "",
             packContainerPlural: packContainerPlural ?? "",
-            packContainerQty: packContainerQty?.productUIDecimal ?? "",
+            packContainerQty: packContainerQty?.productUIDecimal ?? "1",
+            weightStep: (weightStep ?? unitQty).productUIDecimal,
+            minWeight: (minWeight ?? weightStep ?? unitQty).productUIDecimal,
+            maxWeight: (maxWeight ?? minWeight ?? weightStep ?? unitQty).productUIDecimal,
             isAvailable: isAvailable,
             stockMode: stockMode,
             stockQty: stockQty?.productUIDecimal ?? "",
@@ -168,7 +199,10 @@ extension Product {
             commonPurchaseType: commonPurchaseType,
             archived: true,
             createdAtMillis: createdAtMillis,
-            updatedAtMillis: nowMillis
+            updatedAtMillis: nowMillis,
+            weightStep: weightStep,
+            minWeight: minWeight,
+            maxWeight: maxWeight
         )
     }
 }
@@ -203,4 +237,10 @@ private extension String {
         }
         return value
     }
+}
+
+private func validWeightRange(minimum: Double?, maximum: Double?, step: Double?) -> Bool {
+    guard let minimum, let maximum, let step, minimum <= maximum else { return false }
+    let intervals = (maximum - minimum) / step
+    return abs(intervals - intervals.rounded()) < 0.000_001
 }
