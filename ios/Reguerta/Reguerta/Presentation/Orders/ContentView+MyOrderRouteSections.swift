@@ -314,7 +314,10 @@ extension MyOrderRouteView {
                 badge(LocalizedStringKey(AccessL10nKey.myOrderBadgeCommittedEcoProducer))
             }
             if group.isCommonPurchasesGroup {
-                badge(LocalizedStringKey(AccessL10nKey.myOrderBadgeCommonPurchase))
+                badge(
+                    LocalizedStringKey(AccessL10nKey.myOrderBadgeCommonPurchase),
+                    usesCompactFont: true
+                )
             }
             Spacer(minLength: 0)
         }
@@ -505,9 +508,16 @@ extension MyOrderRouteView {
     }
 
     @ViewBuilder
-    func badge(_ title: LocalizedStringKey) -> some View {
+    func badge(
+        _ title: LocalizedStringKey,
+        usesCompactFont: Bool = false
+    ) -> some View {
         Text(title)
-            .font(tokens.typography.label)
+            .font(
+                usesCompactFont
+                    ? .custom("CabinSketch-Bold", size: 12.resize, relativeTo: .footnote)
+                    : tokens.typography.label
+            )
             .foregroundStyle(tokens.colors.actionPrimary)
             .padding(.horizontal, tokens.spacing.sm)
             .padding(.vertical, tokens.spacing.xs)

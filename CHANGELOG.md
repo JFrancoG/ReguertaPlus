@@ -57,6 +57,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-07-11 | 🐛 fix(ios-orders): shrink purchase badge text
 - 2026-07-11 | 🐛 fix(orders): shorten shared purchase title
 - 2026-07-11 | 🐛 fix(orders): localize order screen copy
 - 2026-07-11 | 🐛 fix(products): show product fallback image
