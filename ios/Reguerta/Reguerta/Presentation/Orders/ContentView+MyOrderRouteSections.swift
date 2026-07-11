@@ -5,7 +5,7 @@ extension MyOrderRouteView {
         ZStack(alignment: .bottom) {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
                 HStack(spacing: tokens.spacing.sm) {
-                    Text("Pedido confirmado")
+                    Text(LocalizedStringKey(AccessL10nKey.myOrderConfirmedTitle))
                         .font(tokens.typography.titleCard.weight(.semibold))
                         .foregroundStyle(tokens.colors.textPrimary)
                     Spacer()
@@ -14,7 +14,7 @@ extension MyOrderRouteView {
                     } label: {
                         HStack(spacing: tokens.spacing.xs) {
                             Image(systemName: "pencil")
-                            Text("Editar pedido")
+                            Text(LocalizedStringKey(AccessL10nKey.myOrderEditConfirmedAction))
                                 .font(tokens.typography.body.weight(.semibold))
                         }
                         .foregroundStyle(tokens.colors.actionPrimary)
@@ -39,7 +39,9 @@ extension MyOrderRouteView {
                 .ignoresSafeArea(.container, edges: .bottom)
             }
 
-            orderTotalBar("Suma total pedido: \(viewModel.cartTotal.euroCurrencyText())")
+            orderTotalBar(
+                l10n(AccessL10nKey.myOrderConfirmedTotalFormat, viewModel.cartTotal.euroCurrencyText())
+            )
                 .accessibilityIdentifier("myOrder.confirmedTotalBar")
         }
     }
@@ -54,14 +56,14 @@ extension MyOrderRouteView {
                         HStack(spacing: tokens.spacing.sm) {
                             ProgressView()
                                 .tint(tokens.colors.actionPrimary)
-                            Text("Cargando pedido de la semana anterior…")
+                            Text(LocalizedStringKey(AccessL10nKey.myOrderPreviousLoading))
                                 .font(tokens.typography.bodySecondary)
                                 .foregroundStyle(tokens.colors.textSecondary)
                         }
                     }
 
                 case .empty:
-                    Text("No hay ningún pedido registrado la semana pasada")
+                    Text(LocalizedStringKey(AccessL10nKey.myOrderPreviousEmpty))
                         .font(tokens.typography.body)
                         .foregroundStyle(tokens.colors.feedbackError)
                         .multilineTextAlignment(.center)
@@ -72,10 +74,14 @@ extension MyOrderRouteView {
                 case .error:
                     reguertaCard {
                         VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                            Text("No hemos podido cargar tu pedido anterior.")
+                            Text(LocalizedStringKey(AccessL10nKey.myOrderPreviousError))
                                 .font(tokens.typography.bodySecondary)
                                 .foregroundStyle(tokens.colors.textSecondary)
-                            reguertaButton("Reintentar", variant: .text, fullWidth: false) {
+                            reguertaButton(
+                                LocalizedStringKey(AccessL10nKey.myOrderPreviousRetry),
+                                variant: .text,
+                                fullWidth: false
+                            ) {
                                 Task {
                                     await viewModel.retryPreviousOrder()
                                 }
@@ -97,7 +103,9 @@ extension MyOrderRouteView {
             }
 
             if case .loaded(let snapshot) = viewModel.previousOrderState {
-                orderTotalBar("Suma total pedido: \(snapshot.total.euroCurrencyText())")
+                orderTotalBar(
+                    l10n(AccessL10nKey.myOrderConfirmedTotalFormat, snapshot.total.euroCurrencyText())
+                )
                     .accessibilityIdentifier("myOrder.previousTotalBar")
             }
         }
@@ -112,7 +120,7 @@ extension MyOrderRouteView {
                     .font(tokens.typography.titleCard.weight(.semibold))
                     .foregroundStyle(tokens.colors.actionPrimary)
                 Spacer(minLength: 0)
-                Text(group.producerStatus.title)
+                Text(localizedProducerOrderStatusTitle(group.producerStatus))
                     .font(tokens.typography.label.weight(.semibold))
                     .foregroundStyle(tokens.colors.textSecondary)
             }
@@ -144,7 +152,7 @@ extension MyOrderRouteView {
 
             HStack {
                 Spacer()
-                Text("Total: \(group.subtotal.euroCurrencyText())")
+                Text(l10n(AccessL10nKey.myOrderProducerSubtotalFormat, group.subtotal.euroCurrencyText()))
                     .font(tokens.typography.body.weight(.semibold))
                     .foregroundStyle(Color(red: 0.78, green: 0.38, blue: 0.36))
             }
@@ -212,7 +220,7 @@ extension MyOrderRouteView {
 
                 HStack {
                     Spacer()
-                    Text("Total: \(group.subtotal.euroCurrencyText())")
+                    Text(l10n(AccessL10nKey.myOrderProducerSubtotalFormat, group.subtotal.euroCurrencyText()))
                         .font(tokens.typography.body.weight(.semibold))
                         .foregroundStyle(Color(red: 0.78, green: 0.38, blue: 0.36))
                 }
@@ -225,7 +233,10 @@ extension MyOrderRouteView {
             let unitLabel = line.product.unitAbbreviation ?? line.product.unitName
             return "\(line.quantityAtOrder.myOrderUiDecimal) \(unitLabel)"
         }
-        return "\(line.unitsSelected) \(line.unitsSelected == 1 ? "ud." : "uds.")"
+        if line.unitsSelected == 1 {
+            return l10n(AccessL10nKey.myOrderQuantitySingle)
+        }
+        return l10n(AccessL10nKey.myOrderQuantityPluralFormat, line.unitsSelected)
     }
 
     func orderTotalBar(_ text: String) -> some View {
@@ -300,10 +311,13 @@ extension MyOrderRouteView {
                 .font(tokens.typography.titleCard.weight(.semibold))
                 .foregroundStyle(tokens.colors.actionPrimary)
             if group.isCommittedEcoBasketProducer {
-                badge("Compromiso ecocesta")
+                badge(LocalizedStringKey(AccessL10nKey.myOrderBadgeCommittedEcoProducer))
             }
             if group.isCommonPurchasesGroup {
-                badge("Compra común")
+                badge(
+                    LocalizedStringKey(AccessL10nKey.myOrderBadgeCommonPurchase),
+                    usesCompactFont: true
+                )
             }
             Spacer(minLength: 0)
         }
@@ -431,7 +445,7 @@ extension MyOrderRouteView {
             viewModel.increase(product)
         } label: {
             HStack(spacing: tokens.spacing.xs) {
-                Text("Añadir")
+                Text(LocalizedStringKey(AccessL10nKey.myOrderAddAction))
                     .font(tokens.typography.body.weight(.semibold))
                 Image(systemName: "cart.badge.plus")
                     .font(.system(size: 24.resize, weight: .semibold))
@@ -455,14 +469,14 @@ extension MyOrderRouteView {
 
             ReguertaListActionIconButton(
                 systemImageName: quantity <= product.minimumSelectionCount ? "trash" : "minus",
-                accessibilityLabel: "Quitar producto",
+                accessibilityLabel: l10n(AccessL10nKey.myOrderDecreaseAction),
                 backgroundColor: tokens.colors.feedbackError,
                 action: { viewModel.decrease(product) }
             )
 
             ReguertaListActionIconButton(
                 systemImageName: "plus",
-                accessibilityLabel: "Añadir producto",
+                accessibilityLabel: l10n(AccessL10nKey.myOrderIncreaseAction),
                 backgroundColor: tokens.colors.actionPrimary,
                 isEnabled: canIncreaseQuantity,
                 action: { viewModel.increase(product) }
@@ -472,13 +486,42 @@ extension MyOrderRouteView {
 
     func quantityUnitText(product: Product, quantity: Int) -> String {
         if product.pricingMode == .weight {
-            return "\(product.selectedQuantity(selectionCount: quantity).myOrderUiDecimal) kg"
+            return l10n(
+                AccessL10nKey.myOrderQuantityWeightFormat,
+                product.selectedQuantity(selectionCount: quantity).myOrderUiDecimal,
+                "kg"
+            )
         }
-        return "\(quantity) \(quantity == 1 ? "ud." : "uds.")"
+        if quantity == 1 {
+            return l10n(AccessL10nKey.myOrderQuantitySingle)
+        }
+        return l10n(AccessL10nKey.myOrderQuantityPluralFormat, quantity)
     }
 
     func productPriceText(_ product: Product) -> String {
-        let unit = product.pricingMode == .weight ? "kg" : "ud."
-        return "\(product.price.euroCurrencyText()) / \(unit)"
+        l10n(
+            product.pricingMode == .weight
+                ? AccessL10nKey.myOrderPricePerKgFormat
+                : AccessL10nKey.myOrderPricePerUnitFormat,
+            product.price.euroCurrencyText()
+        )
+    }
+
+    @ViewBuilder
+    func badge(
+        _ title: LocalizedStringKey,
+        usesCompactFont: Bool = false
+    ) -> some View {
+        Text(title)
+            .font(
+                usesCompactFont
+                    ? .custom("CabinSketch-Bold", size: 12.resize, relativeTo: .footnote)
+                    : tokens.typography.label
+            )
+            .foregroundStyle(tokens.colors.actionPrimary)
+            .padding(.horizontal, tokens.spacing.sm)
+            .padding(.vertical, tokens.spacing.xs)
+            .background(tokens.colors.actionPrimary.opacity(0.12))
+            .clipShape(Capsule())
     }
 }

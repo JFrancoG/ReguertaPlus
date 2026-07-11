@@ -57,6 +57,10 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-07-11 | 🐛 fix(android-orders): align purchase group title
+- 2026-07-11 | 🐛 fix(ios-orders): shrink purchase badge text
+- 2026-07-11 | 🐛 fix(orders): shorten shared purchase title
+- 2026-07-11 | 🐛 fix(orders): localize order screen copy
 - 2026-07-11 | 🐛 fix(products): show product fallback image
 - 2026-07-11 | 🐛 fix(mobile): localize weekly order screens
 - 2026-07-11 | 🐛 fix(bylaws): refine query experience
@@ -106,6 +110,7 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-07-11 | 📝 docs(orders): link HU-068 pull request
 - 2026-07-10 | 📝 docs(app): link HU-065 pull request
 - 2026-07-10 | 📝 docs(app): link HU-064 pull request
 - 2026-07-10 | 📝 docs(shifts): link HU-063 pull request

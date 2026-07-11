@@ -34,7 +34,7 @@ extension MyOrderRouteView {
                 .font(.system(size: 23.resize, weight: .medium))
                 .foregroundStyle(tokens.colors.textSecondary)
             TextField(
-                "Buscar productos",
+                LocalizedStringKey(AccessL10nKey.myOrderListSearch),
                 text: Binding(
                     get: { viewModel.searchQuery },
                     set: { viewModel.searchQuery = $0 }
@@ -52,6 +52,7 @@ extension MyOrderRouteView {
                         .foregroundStyle(tokens.colors.textSecondary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(LocalizedStringKey(AccessL10nKey.commonClear))
             }
         }
         .frame(minHeight: 58.resize)
@@ -87,7 +88,7 @@ extension MyOrderRouteView {
     var cartOverlayHeader: some View {
         HStack(spacing: tokens.spacing.sm) {
             Spacer(minLength: 0)
-            Text("Total: \(viewModel.cartTotal.euroCurrencyText())")
+            Text(l10n(AccessL10nKey.myOrderProducerSubtotalFormat, viewModel.cartTotal.euroCurrencyText()))
                 .font(tokens.typography.titleCard.weight(.semibold))
                 .foregroundStyle(tokens.colors.actionPrimary)
                 .lineLimit(1)
@@ -143,7 +144,7 @@ extension MyOrderRouteView {
                             .font(tokens.typography.body.weight(.semibold))
                             .foregroundStyle(tokens.colors.textPrimary)
                             .lineLimit(2)
-                        Text("\(product.price.euroCurrencyText()) / ud.")
+                        Text(l10n(AccessL10nKey.myOrderPricePerUnitFormat, product.price.euroCurrencyText()))
                             .font(tokens.typography.bodySecondary)
                             .foregroundStyle(tokens.colors.textSecondary)
                     }
@@ -181,38 +182,42 @@ extension MyOrderRouteView {
         switch alert {
         case .missingCommitments(let names):
             checkoutErrorDialog(
-                title: "Faltan productos de compromiso",
-                message: "Necesitas incluir al menos una unidad de: \(names.joined(separator: ", "))."
+                title: l10n(AccessL10nKey.myOrderCheckoutMissingTitle),
+                message: l10n(AccessL10nKey.myOrderCheckoutMissingMessage, names.formatted(.list(type: .and)))
             )
         case .exceededCommitments(let names):
             checkoutErrorDialog(
-                title: "Has superado el compromiso",
-                message: "No puedes añadir más cantidad de la comprometida en: \(names.joined(separator: ", "))."
+                title: l10n(AccessL10nKey.myOrderCheckoutExceededTitle),
+                message: l10n(AccessL10nKey.myOrderCheckoutExceededMessage, names.formatted(.list(type: .and)))
             )
         case .incompatibleCommitments(let names):
             checkoutErrorDialog(
-                title: "Compromiso no representable",
-                message: "La cantidad comprometida de \(names.joined(separator: ", ")) no encaja con el paso de compra actual. Contacta con administración."
+                title: l10n(AccessL10nKey.myOrderCheckoutIncompatibleTitle),
+                message: l10n(AccessL10nKey.myOrderCheckoutIncompatibleMessage, names.formatted(.list(type: .and)))
             )
         case .ecoBasketPriceMismatch:
             checkoutErrorDialog(
-                title: "Precio de ecocesta inconsistente",
-                message: "Todas las ecocestas activas deben mantener el mismo precio para continuar."
+                title: l10n(AccessL10nKey.myOrderCheckoutEcoPriceTitle),
+                message: l10n(AccessL10nKey.myOrderCheckoutEcoPriceMessage)
             )
         case .submitFailed:
             checkoutErrorDialog(
-                title: "No se pudo guardar el pedido",
-                message: "Ha ocurrido un problema al guardar tu pedido. Inténtalo de nuevo."
+                title: l10n(AccessL10nKey.myOrderCheckoutSubmitErrorTitle),
+                message: l10n(AccessL10nKey.myOrderCheckoutSubmitErrorMessage)
             )
         case .readyToSubmit(let total, let noPickupEcoBaskets):
             reguertaDialog(
                 type: .info,
-                title: "Pedido realizado con éxito",
+                title: l10n(AccessL10nKey.myOrderCheckoutSuccessTitle),
                 message: noPickupEcoBaskets > 0
-                    ? "Todo correcto. Total: \(total.euroCurrencyText()). Ecocestas marcadas como no_pickup: \(noPickupEcoBaskets). Tu pedido se ha guardado."
-                    : "Todo correcto. Total: \(total.euroCurrencyText()). Tu pedido se ha guardado.",
+                    ? l10n(
+                        AccessL10nKey.myOrderCheckoutSuccessWithNoPickupMessage,
+                        total.euroCurrencyText(),
+                        noPickupEcoBaskets
+                    )
+                    : l10n(AccessL10nKey.myOrderCheckoutSuccessMessage, total.euroCurrencyText()),
                 primaryAction: ReguertaDialogAction(
-                    title: "Aceptar",
+                    title: l10n(AccessL10nKey.commonAccept),
                     action: handleCheckoutSuccessAcknowledged
                 ),
                 dismissible: false
@@ -226,7 +231,7 @@ extension MyOrderRouteView {
             title: title,
             message: message,
             primaryAction: ReguertaDialogAction(
-                title: "Aceptar",
+                title: l10n(AccessL10nKey.commonAccept),
                 action: viewModel.dismissCheckoutAlert
             ),
             onDismiss: viewModel.dismissCheckoutAlert
@@ -242,11 +247,11 @@ extension MyOrderRouteView {
         guard product.stockMode == .finite else { return nil }
         let stock = max(0, product.stockQty ?? 0)
         guard stock > 0 else {
-            return ("Sin Stock", tokens.colors.feedbackError)
+            return (l10n(AccessL10nKey.myOrderStockSoldOut), tokens.colors.feedbackError)
         }
         guard stock < 20 else { return nil }
         return (
-            "Quedan: \(stock.myOrderUiDecimal) uds.",
+            l10n(AccessL10nKey.myOrderStockRemainingFormat, stock.myOrderUiDecimal),
             stock < 10 ? tokens.colors.feedbackWarning : tokens.colors.actionPrimary
         )
     }
@@ -257,18 +262,18 @@ extension MyOrderRouteView {
         onOptionSelected: @escaping (String) -> Void
     ) -> some View {
         VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-            Text("Opción ecocesta")
+            Text(LocalizedStringKey(AccessL10nKey.myOrderEcoBasketOptionLabel))
                 .font(tokens.typography.label.weight(.semibold))
                 .foregroundStyle(tokens.colors.textPrimary)
 
             HStack(spacing: tokens.spacing.sm) {
                 ecoBasketOptionButton(
-                    title: "Recoger",
+                    title: LocalizedStringKey(AccessL10nKey.myOrderEcoBasketOptionPickup),
                     isSelected: selectedOption == ecoBasketOptionPickup,
                     onTap: { onOptionSelected(ecoBasketOptionPickup) }
                 )
                 ecoBasketOptionButton(
-                    title: "No recoger",
+                    title: LocalizedStringKey(AccessL10nKey.myOrderEcoBasketOptionNoPickup),
                     isSelected: selectedOption == ecoBasketOptionNoPickup,
                     onTap: { onOptionSelected(ecoBasketOptionNoPickup) }
                 )
@@ -278,7 +283,7 @@ extension MyOrderRouteView {
 
     @ViewBuilder
     func ecoBasketOptionButton(
-        title: String,
+        title: LocalizedStringKey,
         isSelected: Bool,
         onTap: @escaping () -> Void
     ) -> some View {
@@ -309,14 +314,4 @@ extension MyOrderRouteView {
         .buttonStyle(.plain)
     }
 
-    @ViewBuilder
-    func badge(_ title: String) -> some View {
-        Text(title)
-            .font(tokens.typography.label)
-            .foregroundStyle(tokens.colors.actionPrimary)
-            .padding(.horizontal, tokens.spacing.sm)
-            .padding(.vertical, tokens.spacing.xs)
-            .background(tokens.colors.actionPrimary.opacity(0.12))
-            .clipShape(Capsule())
-    }
 }

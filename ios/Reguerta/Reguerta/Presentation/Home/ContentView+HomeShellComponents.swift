@@ -52,7 +52,7 @@ struct HomeShellTopBarView: View {
         if showsCartAction {
             return ReguertaHeaderAction(
                 systemImageName: "cart",
-                accessibilityLabel: .verbatim("Ver carrito"),
+                accessibilityLabel: .localized(AccessL10nKey.myOrderCartViewAction),
                 accessibilityIdentifier: "home.topBar.cartButton",
                 isEnabled: cartUnits > 0,
                 badge: showsCartBadge && cartUnits > 0 ? .count(cartUnits) : nil,

@@ -58,3 +58,10 @@ internal fun HomeDestination.subtitleRes(): Int = when (this) {
     HomeDestination.PUBLISH_NEWS -> R.string.news_editor_subtitle
     HomeDestination.ADMIN_BROADCAST -> R.string.notifications_editor_subtitle
 }
+
+internal fun shouldHideHomeShellTitle(
+    destination: HomeDestination,
+    isMyOrderCartVisible: Boolean,
+    isMyOrderReadOnlyMode: Boolean,
+): Boolean = destination == HomeDestination.MY_ORDER &&
+    (!isMyOrderCartVisible || isMyOrderReadOnlyMode)

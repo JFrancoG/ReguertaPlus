@@ -420,7 +420,11 @@ internal fun HomeRoute(
                         currentDestination == HomeDestination.MY_ORDER && isMyOrderCartVisible && !isMyOrderReadOnlyMode -> {
                             stringResource(R.string.my_order_cart_title)
                         }
-                        currentDestination == HomeDestination.MY_ORDER && isMyOrderReadOnlyMode -> ""
+                        shouldHideHomeShellTitle(
+                            destination = currentDestination,
+                            isMyOrderCartVisible = isMyOrderCartVisible,
+                            isMyOrderReadOnlyMode = isMyOrderReadOnlyMode,
+                        ) -> ""
                         currentDestination == HomeDestination.MY_ORDERS -> ""
                         currentDestination == HomeDestination.PRODUCTS && isProductEditorOpen(editingProductId) -> {
                             stringResource(productEditorTitleRes(editingProductId))
