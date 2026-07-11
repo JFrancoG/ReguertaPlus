@@ -28,6 +28,17 @@ class HomeShellTitleTest {
     }
 
     @Test
+    fun receivedOrdersHidesRedundantShellTitle() {
+        assertTrue(
+            shouldHideHomeShellTitle(
+                destination = HomeDestination.RECEIVED_ORDERS,
+                isMyOrderCartVisible = false,
+                isMyOrderReadOnlyMode = false,
+            ),
+        )
+    }
+
+    @Test
     fun otherDestinationsKeepTheirShellTitles() {
         assertFalse(
             shouldHideHomeShellTitle(

@@ -261,17 +261,37 @@ struct ReceivedOrdersSummaryContent: View {
     }
 
     func producerStatusLabel(text: String, selectedStatus: ProducerOrderStatus) -> some View {
-        let style = selectedStatus.visualStyle
+        let style = receivedOrdersStatusChipStyle(selectedStatus)
         let shape = RoundedRectangle(cornerRadius: tokens.radius.sm, style: .continuous)
 
         return Text(text)
-            .font(tokens.typography.labelRegular.weight(.semibold))
+            .font(tokens.typography.bodySecondary.weight(.semibold))
             .foregroundStyle(tokens.colors.textPrimary)
             .lineLimit(1)
-            .padding(.horizontal, tokens.spacing.sm)
-            .padding(.vertical, 6.resize)
+            .padding(.horizontal, tokens.spacing.md)
+            .frame(minHeight: 44.resize)
             .background(shape.fill(style.container))
             .overlay(shape.stroke(style.border, lineWidth: 1.resize))
+    }
+
+    func receivedOrdersStatusChipStyle(_ status: ProducerOrderStatus) -> ProducerStatusVisualStyle {
+        switch status {
+        case .unread, .read:
+            return ProducerStatusVisualStyle(
+                container: tokens.colors.surfaceSecondary.opacity(0.82),
+                border: tokens.colors.borderSubtle
+            )
+        case .prepared:
+            return ProducerStatusVisualStyle(
+                container: tokens.colors.feedbackWarning.opacity(0.16),
+                border: tokens.colors.feedbackWarning.opacity(0.65)
+            )
+        case .delivered:
+            return ProducerStatusVisualStyle(
+                container: tokens.colors.actionPrimary.opacity(0.28),
+                border: tokens.colors.actionPrimary.opacity(0.65)
+            )
+        }
     }
 
     func nextProducerStatus(after status: ProducerOrderStatus) -> ProducerOrderStatus? {

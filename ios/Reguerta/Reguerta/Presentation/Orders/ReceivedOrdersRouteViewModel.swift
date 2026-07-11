@@ -8,12 +8,7 @@ enum ReceivedOrdersTab: String, CaseIterable, Identifiable, Sendable {
     var id: String { rawValue }
 
     var title: String {
-        switch self {
-        case .byProduct:
-            return "Por producto"
-        case .byMember:
-            return "Por regüertense"
-        }
+        localizedReceivedOrdersTabTitle(self)
     }
 }
 

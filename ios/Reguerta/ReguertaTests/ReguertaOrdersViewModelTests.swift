@@ -28,6 +28,27 @@ struct ReguertaOrdersViewModelTests {
     }
 
     @Test
+    func receivedOrdersCopyResolvesFromTheLocalizationCatalog() {
+        let keys = [
+            AccessL10nKey.receivedOrdersTitle,
+            AccessL10nKey.receivedOrdersTabsTitle,
+            AccessL10nKey.receivedOrdersWindowClosedTitle,
+            AccessL10nKey.receivedOrdersWindowClosedBody,
+            AccessL10nKey.receivedOrdersEmptyTitle,
+            AccessL10nKey.receivedOrdersStatusPermissionDenied,
+            AccessL10nKey.receivedOrdersStatusFailure,
+        ]
+
+        for key in keys {
+            #expect(l10n(key) != key)
+        }
+
+        let emptyBody = l10n(AccessL10nKey.receivedOrdersEmptyBodyFormat, "2026-W28")
+        #expect(emptyBody != AccessL10nKey.receivedOrdersEmptyBodyFormat)
+        #expect(emptyBody.contains("2026-W28"))
+    }
+
+    @Test
     func myOrderViewModelKeepsRestoredDraftWhileProductsLoad() async {
         let cartStore = InMemoryMyOrderCartStore()
         let product = regularProduct(id: "tomato", vendorId: "producer_even", name: "Tomates")

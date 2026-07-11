@@ -334,7 +334,7 @@ private extension AccessRootViewModel {
                     : AccessL10nKey.myOrder
             )
         case .receivedOrders:
-            return "Pedidos a preparar"
+            return l10n(AccessL10nKey.receivedOrdersTitle)
         case .myOrders:
             return myOrdersHistoryTitleOverride ?? myOrdersHistoryViewModel.selectedWeek?.orderTitle ?? "Pedido"
         case .receivedOrdersHistory:
