@@ -59,6 +59,12 @@ internal fun HomeDestination.subtitleRes(): Int = when (this) {
     HomeDestination.ADMIN_BROADCAST -> R.string.notifications_editor_subtitle
 }
 
+internal fun HomeDestination.backDestination(): HomeDestination = when (this) {
+    HomeDestination.PUBLISH_NEWS -> HomeDestination.NEWS
+    HomeDestination.SHIFT_SWAP_REQUEST -> HomeDestination.SHIFTS
+    else -> HomeDestination.DASHBOARD
+}
+
 internal fun shouldHideHomeShellTitle(
     destination: HomeDestination,
     isMyOrderCartVisible: Boolean,

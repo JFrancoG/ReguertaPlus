@@ -121,7 +121,7 @@ extension AccessRootViewModel {
             homeDestination = .news
         case .adminBroadcast:
             newsNotificationsViewModel.clearNotificationEditor()
-            homeDestination = .notifications
+            homeDestination = .dashboard
         case .shiftSwapRequest:
             shiftsViewModel.clearShiftSwapDraft()
             homeDestination = .shifts

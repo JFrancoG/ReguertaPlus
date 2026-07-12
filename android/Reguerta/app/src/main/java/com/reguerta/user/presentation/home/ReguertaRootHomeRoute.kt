@@ -477,12 +477,7 @@ internal fun HomeRoute(
                                 } else if (currentDestination == HomeDestination.MY_ORDER) {
                                     isMyOrderCartVisible = false
                                 }
-                                navigateHome(when (currentDestination) {
-                                    HomeDestination.PUBLISH_NEWS -> HomeDestination.NEWS
-                                    HomeDestination.ADMIN_BROADCAST -> HomeDestination.NOTIFICATIONS
-                                    HomeDestination.SHIFT_SWAP_REQUEST -> HomeDestination.SHIFTS
-                                    else -> HomeDestination.DASHBOARD
-                                })
+                                navigateHome(currentDestination.backDestination())
                             }
                         },
                         onOpenMenu = {
