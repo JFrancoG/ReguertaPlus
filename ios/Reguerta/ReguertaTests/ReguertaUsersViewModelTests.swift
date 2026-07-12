@@ -135,6 +135,53 @@ struct ReguertaUsersViewModelTests {
     }
 
     @Test
+    func usersEditorKeepsProducerAndCommonPurchasesCompanyStateConsistent() {
+        let admin = usersAdminMember()
+        let scenario = makeUsersScenario(currentMember: admin, members: [admin])
+
+        scenario.viewModel.startCreating()
+        scenario.viewModel.setCommonPurchaseManager(true)
+
+        #expect(scenario.viewModel.draft.isCommonPurchaseManager)
+        #expect(scenario.viewModel.draft.isProducer)
+        #expect(scenario.viewModel.draft.companyName == "Compras Regüerta")
+
+        scenario.viewModel.setCommonPurchaseManager(false)
+
+        #expect(scenario.viewModel.draft.isCommonPurchaseManager == false)
+        #expect(scenario.viewModel.draft.isProducer)
+        #expect(scenario.viewModel.draft.companyName == "Compras Regüerta")
+
+        scenario.viewModel.setProducer(false)
+
+        #expect(scenario.viewModel.draft.isProducer == false)
+        #expect(scenario.viewModel.draft.isCommonPurchaseManager == false)
+        #expect(scenario.viewModel.draft.companyName.isEmpty)
+    }
+
+    @Test
+    func usersHeaderAndBackActionFollowEditorState() {
+        let rootViewModel = ReguertaAppEnvironment.preview().accessRootViewModel
+        rootViewModel.homeDestination = .users
+        rootViewModel.usersViewModel.isEditorOpen = true
+        rootViewModel.usersViewModel.editingMemberId = nil
+
+        guard case .verbatim(let title)? = rootViewModel.homeShellHeaderViewModel.title else {
+            Issue.record("Expected a verbatim users editor title")
+            return
+        }
+        #expect(title == l10n(AccessL10nKey.usersEditorTitleCreate))
+
+        rootViewModel.handleHomePrimaryAction()
+
+        #expect(rootViewModel.homeDestination == .users)
+        #expect(rootViewModel.usersViewModel.isEditorOpen == false)
+
+        rootViewModel.handleHomePrimaryAction()
+        #expect(rootViewModel.homeDestination == .dashboard)
+    }
+
+    @Test
     func usersViewModelTogglesAdminAndActiveStatusAndUpdatesSession() async {
         let admin = usersAdminMember()
         let member = usersRegularMember(id: "member_1", displayName: "Member One")

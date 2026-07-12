@@ -131,6 +131,12 @@ extension AccessRootViewModel {
             } else {
                 homeDestination = .dashboard
             }
+        case .users:
+            if usersViewModel.isEditorOpen {
+                usersViewModel.clearEditor()
+            } else {
+                homeDestination = .dashboard
+            }
         case .myOrder:
             myOrderViewModel.resetCartOverlayForRouteEntry()
             homeDestination = .dashboard
@@ -356,6 +362,13 @@ private extension AccessRootViewModel {
             }
             return l10n(AccessL10nKey.productsListTitle)
         case .users:
+            if usersViewModel.isEditorOpen {
+                return l10n(
+                    usersViewModel.editingMemberId == nil
+                        ? AccessL10nKey.usersEditorTitleCreate
+                        : AccessL10nKey.usersEditorTitleEdit
+                )
+            }
             return l10n(AccessL10nKey.usersListTitle)
         case .profile:
             return sharedProfileTitleOverride

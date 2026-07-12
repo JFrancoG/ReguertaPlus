@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-07-12 | ✨ feat(users): redesign member editor
 - 2026-07-11 | ✨ feat(products): redesign mobile product editor
 - 2026-07-11 | ✨ feat(settings): add appearance and unavailable mode
 - 2026-07-08 | ✨ feat(access): confirm drawer sign-out
@@ -115,6 +116,7 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-07-12 | 📝 docs(users): link HU-069 pull request
 - 2026-07-11 | 📝 docs(orders): link HU-068 pull request
 - 2026-07-10 | 📝 docs(app): link HU-065 pull request
 - 2026-07-10 | 📝 docs(app): link HU-064 pull request

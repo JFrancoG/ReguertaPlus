@@ -4,10 +4,6 @@ struct UsersRouteView: View {
     let tokens: ReguertaDesignTokens
     let viewModel: UsersFeatureViewModel
 
-    private var editingMember: Member? {
-        viewModel.editingMember
-    }
-
     var body: some View {
         routeContent
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -42,7 +38,7 @@ struct UsersRouteView: View {
     @ViewBuilder
     private var routeContent: some View {
         if viewModel.isEditorOpen && viewModel.canManageMembers {
-            usersEditor
+            UsersEditorView(tokens: tokens, viewModel: viewModel)
         } else {
             usersList
         }
@@ -163,98 +159,6 @@ struct UsersRouteView: View {
         }
     }
 
-    private var usersEditor: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            reguertaCard {
-                VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                    Text(
-                        LocalizedStringKey(
-                            editingMember == nil
-                                ? AccessL10nKey.usersEditorTitleCreate
-                                : AccessL10nKey.usersEditorTitleEdit
-                        )
-                    )
-                    .font(tokens.typography.titleCard)
-
-                    if editingMember == nil {
-                        TextField(
-                            LocalizedStringKey(AccessL10nKey.emailLabel),
-                            text: draftStringBinding(\.email)
-                        )
-                        .textFieldStyle(.roundedBorder)
-                    } else if let email = editingMember?.normalizedEmail {
-                        Text(email)
-                            .font(tokens.typography.body.weight(.semibold))
-                            .foregroundStyle(tokens.colors.textPrimary)
-                    }
-
-                    TextField(
-                        LocalizedStringKey(AccessL10nKey.displayNameLabel),
-                        text: draftStringBinding(\.displayName)
-                    )
-                    .textFieldStyle(.roundedBorder)
-
-                    TextField(
-                        LocalizedStringKey(AccessL10nKey.usersEditorPhoneLabel),
-                        text: draftStringBinding(\.phoneNumber)
-                    )
-                    .textFieldStyle(.roundedBorder)
-
-                    Toggle(
-                        LocalizedStringKey(AccessL10nKey.usersEditorCommonPurchaseManagerLabel),
-                        isOn: draftBoolBinding(\.isCommonPurchaseManager)
-                    )
-
-                    Toggle(
-                        LocalizedStringKey(AccessL10nKey.roleProducer),
-                        isOn: producerBinding
-                    )
-
-                    if viewModel.draft.isProducer {
-                        TextField(
-                            LocalizedStringKey(AccessL10nKey.usersEditorCompanyNameLabel),
-                            text: draftStringBinding(\.companyName)
-                        )
-                        .textFieldStyle(.roundedBorder)
-                    }
-
-                    Toggle(LocalizedStringKey(AccessL10nKey.roleAdmin), isOn: draftBoolBinding(\.isAdmin))
-
-                    reguertaButton(
-                        LocalizedStringKey(
-                            editingMember == nil
-                                ? AccessL10nKey.usersEditorActionCreate
-                                : AccessL10nKey.usersEditorActionUpdate
-                        ),
-                        isEnabled: !viewModel.isSavingMember,
-                        isLoading: viewModel.isSavingMember
-                    ) {
-                        Task { _ = await viewModel.saveDraft() }
-                    }
-                    reguertaButton(LocalizedStringKey(AccessL10nKey.commonBack), variant: .text, fullWidth: false) {
-                        viewModel.clearEditor()
-                    }
-                }
-            }
-            .padding(.bottom, tokens.spacing.sm)
-        }
-        .scrollDismissesKeyboard(.interactively)
-    }
-
-    private var producerBinding: Binding<Bool> {
-        Binding(
-            get: { viewModel.draft.isProducer },
-            set: { value in
-                var updated = viewModel.draft
-                updated.isProducer = value
-                if !value {
-                    updated.companyName = ""
-                }
-                viewModel.updateDraft(updated)
-            }
-        )
-    }
-
     private func producerLine(for member: Member) -> String {
         let producer = l10n(AccessL10nKey.roleProducer)
         let companyName = member.companyName?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -267,25 +171,93 @@ struct UsersRouteView: View {
         return "\(producer). \(resolvedCompanyName)"
     }
 
-    private func draftStringBinding(_ keyPath: WritableKeyPath<MemberDraft, String>) -> Binding<String> {
-        Binding(
-            get: { viewModel.draft[keyPath: keyPath] },
-            set: { value in
-                var updated = viewModel.draft
-                updated[keyPath: keyPath] = value
-                viewModel.updateDraft(updated)
+}
+
+private struct UsersEditorView: View {
+    let tokens: ReguertaDesignTokens
+    @Bindable var viewModel: UsersFeatureViewModel
+
+    var body: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                reguertaInputField(
+                    LocalizedStringKey(AccessL10nKey.emailLabel),
+                    text: $viewModel.draft.email,
+                    isReadOnly: viewModel.editingMember != nil,
+                    showsClearAction: viewModel.editingMember == nil,
+                    keyboardType: .emailAddress
+                )
+
+                reguertaInputField(
+                    LocalizedStringKey(AccessL10nKey.displayNameLabel),
+                    text: $viewModel.draft.displayName,
+                    showsClearAction: true,
+                    textInputAutocapitalization: .words,
+                    autocorrectionDisabled: false
+                )
+
+                reguertaInputField(
+                    LocalizedStringKey(AccessL10nKey.usersEditorPhoneLabel),
+                    text: $viewModel.draft.phoneNumber,
+                    showsClearAction: true,
+                    keyboardType: .phonePad
+                )
+
+                roleToggle(
+                    AccessL10nKey.usersEditorCommonPurchaseManagerLabel,
+                    isOn: commonPurchaseManagerBinding
+                )
+                roleToggle(AccessL10nKey.roleProducer, isOn: producerBinding)
+
+                if viewModel.draft.isProducer {
+                    reguertaInputField(
+                        LocalizedStringKey(AccessL10nKey.usersEditorCompanyNameLabel),
+                        text: $viewModel.draft.companyName,
+                        isReadOnly: viewModel.draft.isCommonPurchaseManager,
+                        showsClearAction: !viewModel.draft.isCommonPurchaseManager,
+                        textInputAutocapitalization: .words,
+                        autocorrectionDisabled: false
+                    )
+                }
+
+                roleToggle(AccessL10nKey.roleAdmin, isOn: $viewModel.draft.isAdmin)
+
+                reguertaButton(
+                    LocalizedStringKey(
+                        viewModel.editingMember == nil
+                            ? AccessL10nKey.usersEditorActionCreate
+                            : AccessL10nKey.usersEditorActionUpdate
+                    ),
+                    isEnabled: !viewModel.isSavingMember,
+                    isLoading: viewModel.isSavingMember
+                ) {
+                    Task { _ = await viewModel.saveDraft() }
+                }
             }
+            .padding(.bottom, tokens.spacing.sm)
+        }
+        .scrollDismissesKeyboard(.interactively)
+    }
+
+    private func roleToggle(_ key: String, isOn: Binding<Bool>) -> some View {
+        Toggle(isOn: isOn) {
+            Text(LocalizedStringKey(key))
+                .font(tokens.typography.body)
+                .foregroundStyle(tokens.colors.textPrimary)
+        }
+    }
+
+    private var producerBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel.draft.isProducer },
+            set: { value in viewModel.setProducer(value) }
         )
     }
 
-    private func draftBoolBinding(_ keyPath: WritableKeyPath<MemberDraft, Bool>) -> Binding<Bool> {
+    private var commonPurchaseManagerBinding: Binding<Bool> {
         Binding(
-            get: { viewModel.draft[keyPath: keyPath] },
-            set: { value in
-                var updated = viewModel.draft
-                updated[keyPath: keyPath] = value
-                viewModel.updateDraft(updated)
-            }
+            get: { viewModel.draft.isCommonPurchaseManager },
+            set: { value in viewModel.setCommonPurchaseManager(value) }
         )
     }
 }

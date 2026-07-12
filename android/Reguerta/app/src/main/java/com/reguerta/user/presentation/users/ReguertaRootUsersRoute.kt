@@ -1,7 +1,6 @@
 package com.reguerta.user.presentation.users
 
 import com.reguerta.user.presentation.root.MemberDraft
-import com.reguerta.user.presentation.root.toDraft
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,7 +17,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,9 +28,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.reguerta.user.R
@@ -47,23 +47,58 @@ import com.reguerta.user.ui.components.auth.ReguertaDialogAction
 import com.reguerta.user.ui.components.auth.ReguertaDialogType
 import com.reguerta.user.ui.components.auth.ReguertaEditListActionButton
 import com.reguerta.user.ui.components.auth.ReguertaFloatingActionButton
+import com.reguerta.user.ui.components.auth.ReguertaInputField
 import com.reguerta.user.ui.components.auth.ReguertaListItemCard
 import kotlinx.coroutines.delay
+
+internal fun usersEditorTitleRes(isEditorOpen: Boolean, editingMemberId: String?): Int =
+    when {
+        !isEditorOpen -> R.string.users_list_title
+        editingMemberId == null -> R.string.users_editor_title_create
+        else -> R.string.users_editor_title_edit
+    }
+
+internal fun MemberDraft.withProducerSelection(isSelected: Boolean): MemberDraft =
+    if (isSelected) {
+        copy(isProducer = true)
+    } else {
+        copy(
+            isProducer = false,
+            isCommonPurchaseManager = false,
+            companyName = "",
+        )
+    }
+
+internal fun MemberDraft.withCommonPurchaseManagerSelection(
+    isSelected: Boolean,
+    commonPurchasesCompanyName: String,
+): MemberDraft =
+    if (isSelected) {
+        copy(
+            isCommonPurchaseManager = true,
+            isProducer = true,
+            companyName = commonPurchasesCompanyName,
+        )
+    } else {
+        copy(isCommonPurchaseManager = false)
+    }
 
 @Composable
 internal fun UsersRoute(
     currentMember: Member?,
     members: List<Member>,
     draft: MemberDraft,
+    isEditorOpen: Boolean,
+    editingMemberId: String?,
     onDraftChanged: (MemberDraft) -> Unit,
+    onEditorStateChanged: (isOpen: Boolean, editingMemberId: String?) -> Unit,
     onSaveMemberDraft: (String?, onSuccess: (String) -> Unit) -> Unit,
     onRefreshMembers: () -> Unit,
     onToggleActive: (String) -> Unit,
 ) {
     val canManageMembers = currentMember?.canManageMembers == true
     val sortedMembers = remember(members) { members.sortedBy { it.displayName.lowercase() } }
-    var isEditorOpen by rememberSaveable { mutableStateOf(false) }
-    var editingMemberId by rememberSaveable { mutableStateOf<String?>(null) }
+    val commonPurchasesCompanyName = stringResource(R.string.users_editor_common_purchase_company_name)
     var pendingToggleActiveMemberId by rememberSaveable { mutableStateOf<String?>(null) }
     var highlightedMemberId by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -76,21 +111,15 @@ internal fun UsersRoute(
     }
 
     if (isEditorOpen && canManageMembers) {
-        UsersEditorCard(
+        UsersEditorForm(
             draft = draft,
             editingMember = sortedMembers.firstOrNull { it.id == editingMemberId },
             onDraftChanged = onDraftChanged,
             onSave = {
                 onSaveMemberDraft(editingMemberId) { savedMemberId ->
                     highlightedMemberId = savedMemberId
-                    isEditorOpen = false
-                    editingMemberId = null
+                    onEditorStateChanged(false, null)
                 }
-            },
-            onBack = {
-                isEditorOpen = false
-                editingMemberId = null
-                onDraftChanged(MemberDraft())
             },
         )
     } else {
@@ -121,9 +150,18 @@ internal fun UsersRoute(
                                 showAdminActions = canManageMembers,
                                 isHighlighted = highlightedMemberId == listedMember.id,
                                 onEdit = {
-                                    editingMemberId = listedMember.id
-                                    onDraftChanged(listedMember.toDraft())
-                                    isEditorOpen = true
+                                    val editingDraft = listedMember.toDraft().let { memberDraft ->
+                                        if (memberDraft.isCommonPurchaseManager) {
+                                            memberDraft.withCommonPurchaseManagerSelection(
+                                                isSelected = true,
+                                                commonPurchasesCompanyName = commonPurchasesCompanyName,
+                                            )
+                                        } else {
+                                            memberDraft
+                                        }
+                                    }
+                                    onDraftChanged(editingDraft)
+                                    onEditorStateChanged(true, listedMember.id)
                                 },
                                 onToggleActive = {
                                     pendingToggleActiveMemberId = listedMember.id
@@ -144,9 +182,8 @@ internal fun UsersRoute(
                     modifier = Modifier
                         .align(Alignment.BottomCenter),
                     onClick = {
-                        editingMemberId = null
                         onDraftChanged(MemberDraft())
-                        isEditorOpen = true
+                        onEditorStateChanged(true, null)
                     },
                 )
             }
@@ -199,116 +236,95 @@ internal fun UsersRoute(
 }
 
 @Composable
-private fun UsersEditorCard(
+private fun UsersEditorForm(
     draft: MemberDraft,
     editingMember: Member?,
     onDraftChanged: (MemberDraft) -> Unit,
     onSave: () -> Unit,
-    onBack: () -> Unit,
 ) {
-    Card {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                text = stringResource(
-                    if (editingMember == null) {
-                        R.string.users_editor_title_create
-                    } else {
-                        R.string.users_editor_title_edit
-                    },
-                ),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
+    val focusManager = LocalFocusManager.current
+    val commonPurchasesCompanyName = stringResource(R.string.users_editor_common_purchase_company_name)
 
-            if (editingMember == null) {
-                OutlinedTextField(
-                    value = draft.email,
-                    onValueChange = { onDraftChanged(draft.copy(email = it)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.common_input_email_label)) },
-                    singleLine = true,
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        ReguertaInputField(
+            label = stringResource(R.string.common_input_email_label),
+            value = draft.email,
+            onValueChange = { onDraftChanged(draft.copy(email = it)) },
+            readOnly = editingMember != null,
+            keyboardType = KeyboardType.Email,
+            showClearAction = editingMember == null,
+        )
+
+        ReguertaInputField(
+            label = stringResource(R.string.admin_input_display_name_label),
+            value = draft.displayName,
+            onValueChange = { onDraftChanged(draft.copy(displayName = it)) },
+            showClearAction = true,
+        )
+
+        ReguertaInputField(
+            label = stringResource(R.string.users_editor_phone_label),
+            value = draft.phoneNumber,
+            onValueChange = { onDraftChanged(draft.copy(phoneNumber = it)) },
+            keyboardType = KeyboardType.Phone,
+            showClearAction = true,
+        )
+
+        CommonPurchaseManagerSwitchRow(
+            checked = draft.isCommonPurchaseManager,
+            label = stringResource(R.string.users_editor_common_purchase_manager_label),
+            onCheckedChange = {
+                onDraftChanged(
+                    draft.withCommonPurchaseManagerSelection(
+                        isSelected = it,
+                        commonPurchasesCompanyName = commonPurchasesCompanyName,
+                    ),
                 )
-            } else {
-                Text(
-                    text = editingMember.normalizedEmail,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                )
-            }
+            },
+        )
 
-            OutlinedTextField(
-                value = draft.displayName,
-                onValueChange = { onDraftChanged(draft.copy(displayName = it)) },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.admin_input_display_name_label)) },
-                singleLine = true,
-            )
+        RoleCheckboxRow(
+            checked = draft.isProducer,
+            label = stringResource(R.string.role_producer),
+            onCheckedChange = { onDraftChanged(draft.withProducerSelection(it)) },
+        )
 
-            OutlinedTextField(
-                value = draft.phoneNumber,
-                onValueChange = { onDraftChanged(draft.copy(phoneNumber = it)) },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.users_editor_phone_label)) },
-                singleLine = true,
-            )
-
-            CommonPurchaseManagerSwitchRow(
-                checked = draft.isCommonPurchaseManager,
-                label = stringResource(R.string.users_editor_common_purchase_manager_label),
-                onCheckedChange = { onDraftChanged(draft.copy(isCommonPurchaseManager = it)) },
-            )
-
-            RoleCheckboxRow(
-                checked = draft.isProducer,
-                label = stringResource(R.string.role_producer),
-                onCheckedChange = {
-                    onDraftChanged(
-                        draft.copy(
-                            isProducer = it,
-                            companyName = if (it) draft.companyName else "",
-                        ),
-                    )
-                },
-            )
-
-            if (draft.isProducer) {
-                OutlinedTextField(
-                    value = draft.companyName,
-                    onValueChange = { onDraftChanged(draft.copy(companyName = it)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.users_editor_company_name_label)) },
-                    singleLine = true,
-                )
-            }
-
-            RoleCheckboxRow(
-                checked = draft.isAdmin,
-                label = stringResource(R.string.role_admin),
-                onCheckedChange = { onDraftChanged(draft.copy(isAdmin = it)) },
-            )
-
-            ReguertaButton(
-                label = stringResource(
-                    if (editingMember == null) {
-                        R.string.users_editor_save_action_create
-                    } else {
-                        R.string.users_editor_save_action_update
-                    },
-                ),
-                variant = ReguertaButtonVariant.PRIMARY,
-                onClick = onSave,
-            )
-            ReguertaButton(
-                label = stringResource(R.string.common_action_back),
-                variant = ReguertaButtonVariant.SECONDARY,
-                onClick = onBack,
+        if (draft.isProducer) {
+            ReguertaInputField(
+                label = stringResource(R.string.users_editor_company_name_label),
+                value = draft.companyName,
+                onValueChange = { onDraftChanged(draft.copy(companyName = it)) },
+                readOnly = draft.isCommonPurchaseManager,
+                showClearAction = !draft.isCommonPurchaseManager,
             )
         }
+
+        RoleCheckboxRow(
+            checked = draft.isAdmin,
+            label = stringResource(R.string.role_admin),
+            onCheckedChange = { onDraftChanged(draft.copy(isAdmin = it)) },
+        )
+
+        ReguertaButton(
+            label = stringResource(
+                if (editingMember == null) {
+                    R.string.users_editor_save_action_create
+                } else {
+                    R.string.users_editor_save_action_update
+                },
+            ),
+            variant = ReguertaButtonVariant.PRIMARY,
+            onClick = {
+                focusManager.clearFocus(force = true)
+                onSave()
+            },
+        )
     }
 }
 

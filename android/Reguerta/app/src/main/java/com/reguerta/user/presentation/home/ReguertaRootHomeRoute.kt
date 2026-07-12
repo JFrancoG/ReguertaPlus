@@ -17,6 +17,7 @@ import com.reguerta.user.presentation.sharedprofile.SharedProfileRoute
 import com.reguerta.user.presentation.shifts.ShiftSwapRequestRoute
 import com.reguerta.user.presentation.shifts.ShiftsRoute
 import com.reguerta.user.presentation.users.UsersRoute
+import com.reguerta.user.presentation.users.usersEditorTitleRes
 import com.reguerta.user.presentation.root.BylawsAnswerResult
 import com.reguerta.user.presentation.root.MemberDraft
 import com.reguerta.user.presentation.root.MyOrderFreshnessUiState
@@ -245,6 +246,8 @@ internal fun HomeRoute(
     var isMyOrderCartVisible by rememberSaveable { mutableStateOf(false) }
     var sharedProfileTitleOverride by rememberSaveable { mutableStateOf<String?>(null) }
     var receivedOrdersHistoryTitleOverride by rememberSaveable { mutableStateOf<String?>(null) }
+    var isUsersEditorOpen by rememberSaveable { mutableStateOf(false) }
+    var editingMemberId by rememberSaveable { mutableStateOf<String?>(null) }
     val member = when (mode) {
         is SessionMode.Authorized -> mode.member
         SessionMode.SignedOut,
@@ -282,6 +285,11 @@ internal fun HomeRoute(
         }
         if (destination != HomeDestination.RECEIVED_ORDERS_HISTORY) {
             receivedOrdersHistoryTitleOverride = null
+        }
+        if (destination != HomeDestination.USERS) {
+            isUsersEditorOpen = false
+            editingMemberId = null
+            onDraftChanged(MemberDraft())
         }
 
         currentDestination = destination
@@ -429,6 +437,9 @@ internal fun HomeRoute(
                         currentDestination == HomeDestination.PRODUCTS && isProductEditorOpen(editingProductId) -> {
                             stringResource(productEditorTitleRes(editingProductId))
                         }
+                        currentDestination == HomeDestination.USERS -> {
+                            stringResource(usersEditorTitleRes(isUsersEditorOpen, editingMemberId))
+                        }
                         currentDestination == HomeDestination.PUBLISH_NEWS && editingNewsId != null -> {
                             stringResource(R.string.news_editor_title_edit)
                         }
@@ -450,6 +461,10 @@ internal fun HomeRoute(
                         onBack = {
                             if (currentDestination == HomeDestination.PRODUCTS && isProductEditorOpen(editingProductId)) {
                                 onClearProductEditor()
+                            } else if (currentDestination == HomeDestination.USERS && isUsersEditorOpen) {
+                                isUsersEditorOpen = false
+                                editingMemberId = null
+                                onDraftChanged(MemberDraft())
                             } else {
                                 if (currentDestination == HomeDestination.PUBLISH_NEWS) {
                                     onClearNewsEditor()
@@ -778,7 +793,13 @@ internal fun HomeRoute(
                     currentMember = member,
                     members = (mode as? SessionMode.Authorized)?.members.orEmpty(),
                     draft = draft,
+                    isEditorOpen = isUsersEditorOpen,
+                    editingMemberId = editingMemberId,
                     onDraftChanged = onDraftChanged,
+                    onEditorStateChanged = { isOpen, memberId ->
+                        isUsersEditorOpen = isOpen
+                        editingMemberId = memberId
+                    },
                     onSaveMemberDraft = onSaveMemberDraft,
                     onRefreshMembers = onRefreshMembers,
                     onToggleActive = onToggleActive,
