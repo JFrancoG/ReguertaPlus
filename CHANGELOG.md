@@ -150,6 +150,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- 2026-07-12 | ♻️ refactor(ios): clear SwiftLint warnings
 - 2026-07-10 | ♻️ refactor(android): organize presentation packages
 - 2026-07-10 | ♻️ refactor(mobile): clean platform warnings
 - 2026-05-14 | ♻️ refactor(ios-orders): split previous order fetch

@@ -403,7 +403,7 @@ func myOrderPackagingLine(
     return [
         containerComponents.joined(separator: " "),
         measureQuantity.myOrderUiDecimal(locale: locale),
-        unit,
+        unit
     ]
         .filter { !$0.isEmpty }
         .joined(separator: " ")

@@ -41,7 +41,9 @@ struct ReceivedOrdersSummaryContent: View {
             }
         }
     }
+}
 
+extension ReceivedOrdersSummaryContent {
     func receivedOrdersList<Content: View>(
         bottomPadding: CGFloat,
         @ViewBuilder content: @escaping () -> Content

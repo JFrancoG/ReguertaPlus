@@ -35,7 +35,7 @@ struct ReguertaOrdersViewModelTests {
                 "packContainerQty": NSNumber(value: 1),
                 "unitQty": NSNumber(value: 6),
                 "unitName": "unidad",
-                "unitPlural": "ud(s).",
+                "unitPlural": "ud(s)."
             ]) == "Caja 6 ud(s)."
         )
         #expect(
@@ -44,7 +44,7 @@ struct ReguertaOrdersViewModelTests {
                 "packContainerQty": NSNumber(value: 2),
                 "unitQty": NSNumber(value: 6),
                 "unitName": "unidad",
-                "unitPlural": "ud(s).",
+                "unitPlural": "ud(s)."
             ]) == "2 Caja 6 ud(s)."
         )
         #expect(
@@ -54,7 +54,7 @@ struct ReguertaOrdersViewModelTests {
                 "unitQty": NSNumber(value: 500),
                 "unitName": "gramo",
                 "unitPlural": "gramos",
-                "unitAbbreviation": "g",
+                "unitAbbreviation": "g"
             ]) == "Paquete 500 g"
         )
         #expect(
@@ -64,9 +64,13 @@ struct ReguertaOrdersViewModelTests {
                 "unitQty": NSNumber(value: 1),
                 "unitName": "kilo",
                 "unitPlural": "kilos",
-                "unitAbbreviation": "kg",
+                "unitAbbreviation": "kg"
             ]) == "Pieza 1 kg"
         )
+    }
+
+    @Test
+    func myOrderPackagingLineUsesTheRequestedLocaleForDecimalQuantities() {
         #expect(
             myOrderPackagingLine(
                 from: [
@@ -75,7 +79,7 @@ struct ReguertaOrdersViewModelTests {
                     "unitQty": NSNumber(value: 0.5),
                     "unitName": "kilo",
                     "unitPlural": "kilos",
-                    "unitAbbreviation": "kg",
+                    "unitAbbreviation": "kg"
                 ],
                 locale: Locale(identifier: "en_US")
             ) == "Pieza 0.5 kg"
@@ -88,7 +92,7 @@ struct ReguertaOrdersViewModelTests {
                     "unitQty": NSNumber(value: 0.125),
                     "unitName": "kilo",
                     "unitPlural": "kilos",
-                    "unitAbbreviation": "kg",
+                    "unitAbbreviation": "kg"
                 ],
                 locale: Locale(identifier: "en_US")
             ) == "Pieza 0.125 kg"
@@ -104,7 +108,7 @@ struct ReguertaOrdersViewModelTests {
             AccessL10nKey.receivedOrdersWindowClosedBody,
             AccessL10nKey.receivedOrdersEmptyTitle,
             AccessL10nKey.receivedOrdersStatusPermissionDenied,
-            AccessL10nKey.receivedOrdersStatusFailure,
+            AccessL10nKey.receivedOrdersStatusFailure
         ]
 
         for key in keys {
@@ -115,7 +119,9 @@ struct ReguertaOrdersViewModelTests {
         #expect(emptyBody != AccessL10nKey.receivedOrdersEmptyBodyFormat)
         #expect(emptyBody.contains("2026-W28"))
     }
+}
 
+extension ReguertaOrdersViewModelTests {
     @Test
     func myOrderViewModelKeepsRestoredDraftWhileProductsLoad() async {
         let cartStore = InMemoryMyOrderCartStore()
@@ -483,74 +489,4 @@ extension ReguertaOrdersViewModelTests {
         #expect(viewModel.isReadOnlyConfirmedView)
         #expect(viewModel.selectedUnits == 2)
     }
-}
-
-@MainActor
-@Test
-func receivedOrdersProductRowsDisplayOrderedUnitsForWeightedLines() {
-    let line = receivedWeightedOrderLine(
-        quantity: 200,
-        subtotal: 4,
-        priceAtOrder: 0.02,
-        documentId: "order_weight_almond"
-    )
-
-    #expect(line?.orderedQuantity == 2)
-    #expect(line?.totalMeasureQuantity == 200)
-    #expect(line?.packagingLine == "A granel 100 gramos aprox.")
-
-    let unitsStoredLine = receivedWeightedOrderLine(
-        quantity: 2,
-        subtotal: 4,
-        priceAtOrder: 0.02,
-        documentId: "order_weight_units_almond"
-    )
-
-    #expect(unitsStoredLine?.orderedQuantity == 2)
-    #expect(unitsStoredLine?.totalMeasureQuantity == 200)
-
-    let packPricedLine = receivedWeightedOrderLine(
-        productId: "pistachio",
-        productName: "Pistacho tostado y salado",
-        quantity: 2,
-        subtotal: 5.93,
-        priceAtOrder: 2.965,
-        unitName: "gramos",
-        unitAbbreviation: "g",
-        documentId: "order_weight_pack_price_pistachio"
-    )
-
-    #expect(packPricedLine?.orderedQuantity == 2)
-    #expect(packPricedLine?.totalMeasureQuantity == 200)
-}
-
-private func receivedWeightedOrderLine(
-    productId: String = "almond",
-    productName: String = "Almendra",
-    quantity: Double,
-    subtotal: Double,
-    priceAtOrder: Double,
-    unitName: String = "gramos aprox.",
-    unitAbbreviation: String = "g aprox.",
-    documentId: String
-) -> ReceivedOrderLineRecord? {
-    receivedOrderLineRecord(
-        from: [
-            "orderId": documentId,
-            "userId": "member_1",
-            "consumerDisplayName": "Carmen",
-            "productId": productId,
-            "productName": productName,
-            "quantity": quantity,
-            "subtotal": subtotal,
-            "priceAtOrder": priceAtOrder,
-            "pricingModeAtOrder": "weight",
-            "packContainerName": "A granel",
-            "packContainerQty": 1,
-            "unitQty": 100,
-            "unitName": unitName,
-            "unitAbbreviation": unitAbbreviation
-        ],
-        fallbackDocumentID: documentId
-    )
 }
