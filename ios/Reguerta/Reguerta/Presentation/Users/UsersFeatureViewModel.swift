@@ -109,12 +109,29 @@ final class UsersFeatureViewModel {
         guard let member = sortedMembers.first(where: { $0.id == memberId }) else { return }
 
         draft = member.toDraft()
+        if draft.isCommonPurchaseManager {
+            draft.setCommonPurchaseManagerSelection(
+                true,
+                commonPurchasesCompanyName: l10n(AccessL10nKey.usersEditorCommonPurchaseCompanyName)
+            )
+        }
         editingMemberId = member.id
         isEditorOpen = true
     }
 
     func updateDraft(_ draft: MemberDraft) {
         self.draft = draft
+    }
+
+    func setProducer(_ isSelected: Bool) {
+        draft.setProducerSelection(isSelected)
+    }
+
+    func setCommonPurchaseManager(_ isSelected: Bool) {
+        draft.setCommonPurchaseManagerSelection(
+            isSelected,
+            commonPurchasesCompanyName: l10n(AccessL10nKey.usersEditorCommonPurchaseCompanyName)
+        )
     }
 
     func clearEditor() {

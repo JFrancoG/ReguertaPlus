@@ -9446,13 +9446,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Authorize"
+            "value" : "Add"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Autorizar"
+            "value" : "Añadir"
           }
         }
       }
@@ -9480,13 +9480,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Member responsible for common purchases"
+            "value" : "Common purchases manager"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Socio responsable de compras comunes"
+            "value" : "Socio encargado de compras comunes"
           }
         }
       }
@@ -9504,6 +9504,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nombre de la empresa"
+          }
+        }
+      }
+    },
+    "users.editor.common_purchase_company_name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compras Regüerta"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compras Regüerta"
           }
         }
       }
@@ -9531,13 +9548,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Authorize Regüertense"
+            "value" : "Add Regüertense"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Autorizar regüertense"
+            "value" : "Añadir regüertense"
           }
         }
       }
@@ -9565,13 +9582,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Authorize Regüertense"
+            "value" : "Add Regüertense"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Autorizar regüertense"
+            "value" : "Añadir regüertense"
           }
         }
       }

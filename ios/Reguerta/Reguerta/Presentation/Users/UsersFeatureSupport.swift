@@ -41,6 +41,25 @@ struct MemberDraftValidation: Equatable {
 }
 
 extension MemberDraft {
+    mutating func setProducerSelection(_ isSelected: Bool) {
+        isProducer = isSelected
+        if !isSelected {
+            isCommonPurchaseManager = false
+            companyName = ""
+        }
+    }
+
+    mutating func setCommonPurchaseManagerSelection(
+        _ isSelected: Bool,
+        commonPurchasesCompanyName: String
+    ) {
+        isCommonPurchaseManager = isSelected
+        if isSelected {
+            isProducer = true
+            companyName = commonPurchasesCompanyName
+        }
+    }
+
     var trimmedDisplayName: String {
         displayName.trimmingCharacters(in: .whitespacesAndNewlines)
     }

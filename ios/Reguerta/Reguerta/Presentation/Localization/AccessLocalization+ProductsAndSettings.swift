@@ -111,6 +111,7 @@ extension AccessL10nKey {
     static let usersEditorCompanyNameLabel = "users.editor.company_name.label"
     static let usersEditorPhoneLabel = "users.editor.phone.label"
     static let usersEditorCommonPurchaseManagerLabel = "users.editor.common_purchase_manager.label"
+    static let usersEditorCommonPurchaseCompanyName = "users.editor.common_purchase_company_name"
     static let usersEditorActionCreate = "users.editor.action.create"
     static let usersEditorActionUpdate = "users.editor.action.update"
     static let usersCardAdminLabel = "users.card.admin.label"
