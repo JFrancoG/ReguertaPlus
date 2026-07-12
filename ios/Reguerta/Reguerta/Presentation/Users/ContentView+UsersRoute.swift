@@ -215,10 +215,12 @@ private struct UsersEditorView: View {
                         )
                     }
 
-                    roleToggle(
-                        AccessL10nKey.usersEditorCommonPurchaseManagerLabel,
-                        isOn: commonPurchaseManagerBinding
-                    )
+                    if viewModel.draft.isProducer {
+                        roleToggle(
+                            AccessL10nKey.usersEditorCommonPurchaseManagerLabel,
+                            isOn: commonPurchaseManagerBinding
+                        )
+                    }
 
                     roleToggle(AccessL10nKey.roleProducer, isOn: producerBinding)
 
