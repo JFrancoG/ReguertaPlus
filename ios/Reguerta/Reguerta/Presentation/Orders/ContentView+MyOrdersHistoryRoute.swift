@@ -154,11 +154,25 @@ private struct OrderSummaryList: View {
                 ForEach(groups) { group in
                     PersonalOrderSummaryProducerCard(
                         tokens: tokens,
-                        group: group,
-                        locale: locale,
-                        quantitySingleLabel: l10n(AccessL10nKey.orderHistoryQuantitySingle),
-                        quantityPluralFormat: l10n(AccessL10nKey.orderHistoryQuantityPluralFormat),
-                        producerTotalKey: AccessL10nKey.orderHistoryProducerTotalFormat
+                        companyName: group.companyName,
+                        statusText: nil,
+                        lines: group.lines.map { line in
+                            PersonalOrderSummaryLineContent(
+                                id: line.id,
+                                productName: line.productName,
+                                packagingLine: line.packagingLine,
+                                quantityText: localizedGenericOrderHistoryQuantityLabel(
+                                    line.quantityLabel,
+                                    singleLabel: l10n(AccessL10nKey.orderHistoryQuantitySingle),
+                                    pluralFormat: l10n(AccessL10nKey.orderHistoryQuantityPluralFormat)
+                                ),
+                                subtotalText: line.subtotal.euroCurrencyText(locale: locale)
+                            )
+                        },
+                        totalText: l10n(
+                            AccessL10nKey.orderHistoryProducerTotalFormat,
+                            group.subtotal.euroCurrencyText(locale: locale)
+                        )
                     )
                 }
             }

@@ -16,6 +16,22 @@ import org.junit.Test
 
 class MyOrderCommitmentValidationTest {
     @Test
+    fun `keeps restored order while product feed is still empty`() {
+        val restoredQuantities = mapOf("eco" to 1)
+        val restoredOptions = mapOf("eco" to EcoBasketOptionPickup)
+
+        val result = sanitizeMyOrderSelection(
+            products = emptyList(),
+            selectedQuantities = restoredQuantities,
+            selectedEcoBasketOptions = restoredOptions,
+            seasonalCommitmentLimitsByProductId = emptyMap(),
+        )
+
+        assertEquals(restoredQuantities, result.selectedQuantities)
+        assertEquals(restoredOptions, result.selectedEcoBasketOptions)
+    }
+
+    @Test
     fun `blocks checkout when weekly eco commitment is missing`() {
         val member = member(id = "member_1", ecoCommitmentMode = EcoCommitmentMode.WEEKLY)
         val eco = ecoBasketProduct(id = "eco_even", vendorId = "producer_even")

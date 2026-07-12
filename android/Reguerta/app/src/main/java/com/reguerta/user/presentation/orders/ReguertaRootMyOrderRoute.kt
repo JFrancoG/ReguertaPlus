@@ -39,7 +39,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
@@ -106,6 +105,7 @@ import com.reguerta.user.domain.shifts.ShiftAssignment
 import com.reguerta.user.ui.components.auth.ReguertaDialog
 import com.reguerta.user.ui.components.auth.ReguertaDialogAction
 import com.reguerta.user.ui.components.auth.ReguertaDialogType
+import com.reguerta.user.ui.components.auth.ReguertaButton
 import com.reguerta.user.ui.components.auth.ReguertaFloatingActionButton
 import com.reguerta.user.ui.components.auth.ReguertaListActionIconButton
 import com.reguerta.user.ui.components.auth.ReguertaListItemCard
@@ -182,7 +182,7 @@ private sealed interface MyOrderCheckoutDialogState {
     ) : MyOrderCheckoutDialogState
 }
 
-private data class MyOrderCartSnapshot(
+internal data class MyOrderCartSnapshot(
     val selectedQuantities: Map<String, Int>,
     val selectedEcoBasketOptions: Map<String, String>,
 )
@@ -472,43 +472,27 @@ internal fun MyOrderRoute(
             previousWeekKey = displayedOrderWeekKey,
         )
     }
-    LaunchedEffect(products, seasonalCommitmentLimitsByProductId) {
-        val productsById = products.associateBy(Product::id)
-        val sanitizedQuantities = selectedQuantities.mapNotNull { (productId, qty) ->
-            val product = productsById[productId] ?: return@mapNotNull null
-            val finiteLimit = finiteStockLimit(product)
-            val commitmentLimit = seasonalCommitmentLimitsByProductId[productId]
-            val minimumQuantity = product.minimumSelectionCount
-            val normalizedQuantity = qty.coerceAtLeast(minimumQuantity)
-            val allowedByCommitment = commitmentLimit?.let { normalizedQuantity.coerceAtMost(it) } ?: normalizedQuantity
-            val allowedByWeight = product.maximumSelectionCount?.let { allowedByCommitment.coerceAtMost(it) }
-                ?: allowedByCommitment
-            val allowedQty = finiteLimit?.let { allowedByWeight.coerceAtMost(it) } ?: allowedByWeight
-            if (allowedQty > 0) {
-                productId to allowedQty
-            } else {
-                null
-            }
-        }.toMap()
+    LaunchedEffect(
+        products,
+        seasonalCommitmentLimitsByProductId,
+        hasRestoredCartState,
+        isViewingConfirmedOrder,
+    ) {
+        if (!hasRestoredCartState || isViewingConfirmedOrder) return@LaunchedEffect
+        val sanitizedSelection = sanitizeMyOrderSelection(
+            products = products,
+            selectedQuantities = selectedQuantities,
+            selectedEcoBasketOptions = selectedEcoBasketOptions,
+            seasonalCommitmentLimitsByProductId = seasonalCommitmentLimitsByProductId,
+        )
 
-        if (sanitizedQuantities != selectedQuantities) {
-            selectedQuantities = sanitizedQuantities
+        if (sanitizedSelection.selectedQuantities != selectedQuantities) {
+            selectedQuantities = sanitizedSelection.selectedQuantities
         }
-        val sanitizedOptions = sanitizedQuantities.mapNotNull { (productId, qty) ->
-            if (qty <= 0) return@mapNotNull null
-            val product = productsById[productId] ?: return@mapNotNull null
-            if (!product.isEcoBasket) return@mapNotNull null
-            val option = selectedEcoBasketOptions[productId]
-                ?.takeIf { value ->
-                    value == EcoBasketOptionPickup || value == EcoBasketOptionNoPickup
-                }
-                ?: EcoBasketOptionPickup
-            productId to option
-        }.toMap()
-        if (sanitizedOptions != selectedEcoBasketOptions) {
-            selectedEcoBasketOptions = sanitizedOptions
+        if (sanitizedSelection.selectedEcoBasketOptions != selectedEcoBasketOptions) {
+            selectedEcoBasketOptions = sanitizedSelection.selectedEcoBasketOptions
         }
-        if (sanitizedQuantities.isEmpty()) {
+        if (sanitizedSelection.selectedQuantities.isEmpty()) {
             isCartVisible = false
         }
     }
@@ -949,29 +933,21 @@ private fun MyOrderConfirmedSummary(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                ReguertaScreenTitle(
-                    title = stringResource(R.string.my_order_confirmed_title),
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                OutlinedButton(
+                ReguertaButton(
+                    label = stringResource(R.string.my_order_edit_confirmed_action),
                     onClick = onEdit,
-                    shape = RoundedCornerShape(12.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = null,
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = stringResource(R.string.my_order_edit_confirmed_action),
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
+                    fullWidth = false,
+                )
+                Text(
+                    text = stringResource(R.string.my_order_editable_until_sunday_note),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
 
             if (groups.isEmpty()) {
@@ -1011,89 +987,19 @@ private fun MyOrderConfirmedSummary(
 
 @Composable
 private fun MyOrderConfirmedProducerCard(group: MyOrderConfirmedGroup) {
-    val palette = group.producerStatus.statusPalette()
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = palette.containerColor),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    text = group.companyName,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = group.producerStatus.statusLabel(),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            MyOrderProducerDivider()
-
-            group.lines.forEach { line ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.Top,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        Text(
-                            text = line.product.name,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = line.product.packagingLine(),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Text(
-                        text = confirmedLineQuantityLabel(line = line),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        text = line.subtotal.toEuroCurrencyText(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-            }
-
-            MyOrderProducerDivider()
-
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Spacer(modifier = Modifier.weight(1f))
-                Text(
-                    text = stringResource(
-                        R.string.my_order_producer_subtotal_format,
-                        group.subtotal.toEuroCurrencyText(),
-                    ),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-        }
-    }
+    PersonalOrderSummaryProducerCard(
+        companyName = group.companyName,
+        statusLabel = group.producerStatus.statusLabel(),
+        lines = group.lines.map { line ->
+            PersonalOrderSummaryLineUi(
+                productName = line.product.name,
+                packagingLine = line.product.packagingLine(),
+                quantityLabel = confirmedLineQuantityLabel(line = line),
+                subtotal = line.subtotal,
+            )
+        },
+        subtotal = group.subtotal,
+    )
 }
 
 @Composable
@@ -1792,15 +1698,21 @@ private fun Product.matchesOrderSearchQuery(normalizedQuery: String): Boolean {
         companyName.searchNormalized().contains(normalizedQuery)
 }
 
-private fun Product.packagingLine(): String {
-    val containerName = packContainerName?.takeIf(String::isNotBlank) ?: unitName
-    val quantity = (packContainerQty ?: unitQty).toUiDecimal()
-    val unitLabel = packContainerAbbreviation
-        ?: packContainerPlural
-        ?: unitAbbreviation
-        ?: if ((packContainerQty ?: unitQty) == 1.0) unitName else unitPlural
+internal fun Product.packagingLine(): String {
+    val containerLabel = packContainerName
+        ?.takeIf(String::isNotBlank)
+        ?.let { containerName ->
+            listOfNotNull(
+                packContainerQty
+                    ?.takeUnless { quantity -> quantity.isApproximatelyOne() }
+                    ?.toUiDecimal(),
+                containerName,
+            ).joinToString(separator = " ")
+        }.orEmpty()
+    val measureLabel = unitAbbreviation?.takeIf(String::isNotBlank)
+        ?: if (unitQty.isApproximatelyOne()) unitName else unitPlural
 
-    return listOf(containerName, quantity, unitLabel)
+    return listOf(containerLabel, unitQty.toUiDecimal(), measureLabel)
         .filter { item -> item.isNotBlank() }
         .joinToString(separator = " ")
 }
@@ -1815,6 +1727,51 @@ private fun finiteStockLimit(product: Product): Int? {
     } else {
         floor(stock).toInt()
     }
+}
+
+internal fun sanitizeMyOrderSelection(
+    products: List<Product>,
+    selectedQuantities: Map<String, Int>,
+    selectedEcoBasketOptions: Map<String, String>,
+    seasonalCommitmentLimitsByProductId: Map<String, Int>,
+): MyOrderCartSnapshot {
+    if (products.isEmpty()) {
+        return MyOrderCartSnapshot(
+            selectedQuantities = selectedQuantities,
+            selectedEcoBasketOptions = selectedEcoBasketOptions,
+        )
+    }
+
+    val productsById = products.associateBy(Product::id)
+    val sanitizedQuantities = selectedQuantities.mapNotNull { (productId, qty) ->
+        val product = productsById[productId] ?: return@mapNotNull null
+        val finiteLimit = finiteStockLimit(product)
+        val commitmentLimit = seasonalCommitmentLimitsByProductId[productId]
+        val minimumQuantity = product.minimumSelectionCount
+        val normalizedQuantity = qty.coerceAtLeast(minimumQuantity)
+        val allowedByCommitment = commitmentLimit?.let { normalizedQuantity.coerceAtMost(it) }
+            ?: normalizedQuantity
+        val allowedByWeight = product.maximumSelectionCount?.let { allowedByCommitment.coerceAtMost(it) }
+            ?: allowedByCommitment
+        val allowedQty = finiteLimit?.let { allowedByWeight.coerceAtMost(it) } ?: allowedByWeight
+        if (allowedQty > 0) productId to allowedQty else null
+    }.toMap()
+    val sanitizedOptions = sanitizedQuantities.mapNotNull { (productId, qty) ->
+        if (qty <= 0) return@mapNotNull null
+        val product = productsById[productId] ?: return@mapNotNull null
+        if (!product.isEcoBasket) return@mapNotNull null
+        val option = selectedEcoBasketOptions[productId]
+            ?.takeIf { value ->
+                value == EcoBasketOptionPickup || value == EcoBasketOptionNoPickup
+            }
+            ?: EcoBasketOptionPickup
+        productId to option
+    }.toMap()
+
+    return MyOrderCartSnapshot(
+        selectedQuantities = sanitizedQuantities,
+        selectedEcoBasketOptions = sanitizedOptions,
+    )
 }
 
 private fun canIncrease(
@@ -1889,10 +1846,6 @@ private fun confirmedLineQuantityLabel(line: MyOrderConfirmedLine): String =
         stringResource(R.string.my_order_quantity_plural_format, line.unitsSelected)
     }
 
-private data class MyOrderStatusPalette(
-    val containerColor: Color,
-)
-
 @Composable
 private fun MyOrderProducerStatus.statusLabel(): String =
     when (this) {
@@ -1901,28 +1854,6 @@ private fun MyOrderProducerStatus.statusLabel(): String =
         MyOrderProducerStatus.PREPARED -> stringResource(R.string.received_orders_status_prepared)
         MyOrderProducerStatus.DELIVERED -> stringResource(R.string.received_orders_status_delivered)
     }
-
-@Composable
-private fun MyOrderProducerStatus.statusPalette(): MyOrderStatusPalette {
-    val colors = MaterialTheme.colorScheme
-    return when (this) {
-        MyOrderProducerStatus.UNREAD -> MyOrderStatusPalette(
-            containerColor = colors.surfaceVariant.copy(alpha = 0.36f),
-        )
-
-        MyOrderProducerStatus.READ -> MyOrderStatusPalette(
-            containerColor = colors.surfaceVariant.copy(alpha = 0.36f),
-        )
-
-        MyOrderProducerStatus.PREPARED -> MyOrderStatusPalette(
-            containerColor = Color(0xFFFFF2D7),
-        )
-
-        MyOrderProducerStatus.DELIVERED -> MyOrderStatusPalette(
-            containerColor = Color(0xFFE6F6E7),
-        )
-    }
-}
 
 private fun String.searchNormalized(): String =
     Normalizer.normalize(trim(), Normalizer.Form.NFD)
