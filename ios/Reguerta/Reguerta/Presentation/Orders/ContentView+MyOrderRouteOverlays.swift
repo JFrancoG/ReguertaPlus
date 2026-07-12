@@ -222,8 +222,7 @@ extension MyOrderRouteView {
                 message: noPickupEcoBaskets > 0
                     ? l10n(
                         AccessL10nKey.myOrderCheckoutSuccessWithNoPickupMessage,
-                        total.euroCurrencyText(locale: presentationLocale),
-                        noPickupEcoBaskets
+                        total.euroCurrencyText(locale: presentationLocale)
                     )
                     : l10n(
                         AccessL10nKey.myOrderCheckoutSuccessMessage,

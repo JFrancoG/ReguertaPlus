@@ -132,38 +132,53 @@ extension AccessRootRoutingView {
         switch alert {
         case .missingCommitments(let names):
             homeCheckoutErrorDialog(
-                title: "Faltan productos de compromiso",
-                message: "Necesitas incluir al menos una unidad de: \(names.joined(separator: ", "))."
+                title: l10n(AccessL10nKey.myOrderCheckoutMissingTitle),
+                message: l10n(
+                    AccessL10nKey.myOrderCheckoutMissingMessage,
+                    names.formatted(.list(type: .and))
+                )
             )
         case .exceededCommitments(let names):
             homeCheckoutErrorDialog(
-                title: "Has superado el compromiso",
-                message: "No puedes añadir más cantidad de la comprometida en: \(names.joined(separator: ", "))."
+                title: l10n(AccessL10nKey.myOrderCheckoutExceededTitle),
+                message: l10n(
+                    AccessL10nKey.myOrderCheckoutExceededMessage,
+                    names.formatted(.list(type: .and))
+                )
             )
         case .incompatibleCommitments(let names):
             homeCheckoutErrorDialog(
-                title: "Compromiso no representable",
-                message: "La cantidad comprometida de \(names.joined(separator: ", ")) no encaja con el paso de compra actual. Contacta con administración."
+                title: l10n(AccessL10nKey.myOrderCheckoutIncompatibleTitle),
+                message: l10n(
+                    AccessL10nKey.myOrderCheckoutIncompatibleMessage,
+                    names.formatted(.list(type: .and))
+                )
             )
         case .ecoBasketPriceMismatch:
             homeCheckoutErrorDialog(
-                title: "Precio de ecocesta inconsistente",
-                message: "Todas las ecocestas activas deben mantener el mismo precio para continuar."
+                title: l10n(AccessL10nKey.myOrderCheckoutEcoPriceTitle),
+                message: l10n(AccessL10nKey.myOrderCheckoutEcoPriceMessage)
             )
         case .submitFailed:
             homeCheckoutErrorDialog(
-                title: "No se pudo guardar el pedido",
-                message: "Ha ocurrido un problema al guardar tu pedido. Inténtalo de nuevo."
+                title: l10n(AccessL10nKey.myOrderCheckoutSubmitErrorTitle),
+                message: l10n(AccessL10nKey.myOrderCheckoutSubmitErrorMessage)
             )
         case .readyToSubmit(let total, let noPickupEcoBaskets):
             reguertaDialog(
                 type: .info,
-                title: "Pedido realizado con éxito",
+                title: l10n(AccessL10nKey.myOrderCheckoutSuccessTitle),
                 message: noPickupEcoBaskets > 0
-                    ? "Todo correcto. Total: \(total.euroCurrencyText()). Ecocestas marcadas como no_pickup: \(noPickupEcoBaskets). Tu pedido se ha guardado."
-                    : "Todo correcto. Total: \(total.euroCurrencyText()). Tu pedido se ha guardado.",
+                    ? l10n(
+                        AccessL10nKey.myOrderCheckoutSuccessWithNoPickupMessage,
+                        total.euroCurrencyText()
+                    )
+                    : l10n(
+                        AccessL10nKey.myOrderCheckoutSuccessMessage,
+                        total.euroCurrencyText()
+                    ),
                 primaryAction: ReguertaDialogAction(
-                    title: "Aceptar",
+                    title: l10n(AccessL10nKey.commonAccept),
                     action: handleHomeCheckoutSuccessAcknowledged
                 ),
                 dismissible: false
@@ -177,7 +192,7 @@ extension AccessRootRoutingView {
             title: title,
             message: message,
             primaryAction: ReguertaDialogAction(
-                title: "Aceptar",
+                title: l10n(AccessL10nKey.commonAccept),
                 action: rootViewModel.myOrderViewModel.dismissCheckoutAlert
             ),
             onDismiss: rootViewModel.myOrderViewModel.dismissCheckoutAlert

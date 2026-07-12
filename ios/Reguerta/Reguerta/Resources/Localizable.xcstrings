@@ -3489,13 +3489,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Eco-basket products should keep the same shared price before checkout can continue."
+            "value" : "All active eco-baskets must have the same price to continue."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Las ecocestas activas deben mantener un precio compartido para continuar."
+            "value" : "Todas las ecocestas activas deben mantener el mismo precio para continuar."
           }
         }
       }
@@ -3659,13 +3659,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Everything looks good. Total: %@. %d eco-basket unit(s) marked as no pickup. Your order has been saved."
+            "value" : "Everything looks good. Total: %@. You are not picking up the eco-basket. The order has been saved."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Todo correcto. Total: %@. %d ud(s). de ecocesta marcadas como no recoger. Tu pedido se ha guardado."
+            "value" : "Todo correcto. Total: %@. No recoges la ecocesta. El pedido se ha guardado."
           }
         }
       }
@@ -3693,13 +3693,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Order ready"
+            "value" : "Order placed successfully"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pedido listo"
+            "value" : "Pedido realizado con éxito"
           }
         }
       }

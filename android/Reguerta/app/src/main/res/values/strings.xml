@@ -417,10 +417,10 @@
     <string name="my_order_checkout_incompatible_title">Commitment quantity not representable</string>
     <string name="my_order_checkout_incompatible_message">The committed amount for %1$s does not match the current purchase step. Please contact administration.</string>
     <string name="my_order_checkout_eco_price_error_title">Eco-basket price mismatch</string>
-    <string name="my_order_checkout_eco_price_error_message">Eco-basket products should keep the same shared price before checkout can continue.</string>
-    <string name="my_order_checkout_success_title">Order ready</string>
+    <string name="my_order_checkout_eco_price_error_message">All active eco-baskets must have the same price to continue.</string>
+    <string name="my_order_checkout_success_title">Order placed successfully</string>
     <string name="my_order_checkout_success_message">Everything looks good. Total: %1$s. Your order has been saved.</string>
-    <string name="my_order_checkout_success_message_with_no_pickup">Everything looks good. Total: %1$s. %2$d eco-basket unit(s) marked as no pickup. Your order has been saved.</string>
+    <string name="my_order_checkout_success_message_with_no_pickup">Everything looks good. Total: %1$s. You are not picking up the eco-basket. The order has been saved.</string>
     <string name="my_order_checkout_submit_error_title">Order could not be saved</string>
     <string name="my_order_checkout_submit_error_message">There was a problem while saving your order. Please try again.</string>
     <string name="received_orders_title">Orders to prepare</string>

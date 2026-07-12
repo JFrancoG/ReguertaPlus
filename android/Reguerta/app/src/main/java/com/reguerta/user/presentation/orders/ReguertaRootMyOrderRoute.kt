@@ -883,7 +883,6 @@ internal fun MyOrderRoute(
                         stringResource(
                             R.string.my_order_checkout_success_message_with_no_pickup,
                             dialogState.total.toEuroCurrencyText(),
-                            dialogState.noPickupEcoBaskets,
                         )
                     } else {
                         stringResource(
