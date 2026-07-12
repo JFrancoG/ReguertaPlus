@@ -287,25 +287,23 @@ private fun UsersEditorForm(
             }
 
             RoleSwitchRow(
+                checked = draft.isCommonPurchaseManager,
+                label = stringResource(R.string.users_editor_common_purchase_manager_label),
+                onCheckedChange = {
+                    onDraftChanged(
+                        draft.withCommonPurchaseManagerSelection(
+                            isSelected = it,
+                            commonPurchasesCompanyName = commonPurchasesCompanyName,
+                        ),
+                    )
+                },
+            )
+
+            RoleSwitchRow(
                 checked = draft.isProducer,
                 label = stringResource(R.string.role_producer),
                 onCheckedChange = { onDraftChanged(draft.withProducerSelection(it)) },
             )
-
-            if (draft.isProducer) {
-                RoleSwitchRow(
-                    checked = draft.isCommonPurchaseManager,
-                    label = stringResource(R.string.users_editor_common_purchase_manager_label),
-                    onCheckedChange = {
-                        onDraftChanged(
-                            draft.withCommonPurchaseManagerSelection(
-                                isSelected = it,
-                                commonPurchasesCompanyName = commonPurchasesCompanyName,
-                            ),
-                        )
-                    },
-                )
-            }
 
             RoleSwitchRow(
                 checked = draft.isAdmin,
@@ -322,7 +320,7 @@ private fun UsersEditorForm(
                     R.string.users_editor_save_action_update
                 },
             ),
-            modifier = Modifier.padding(top = 20.dp, bottom = 24.dp),
+            modifier = Modifier.padding(top = 20.dp, bottom = 32.dp),
             variant = ReguertaButtonVariant.PRIMARY,
             onClick = {
                 focusManager.clearFocus(force = true)

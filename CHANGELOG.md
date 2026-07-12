@@ -58,6 +58,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-07-12 | 🐛 fix(users): refine member editor controls
 - 2026-07-12 | 🐛 fix(users): refine member editor layout
 - 2026-07-12 | 🐛 fix(android-orders): show product fallback image
 - 2026-07-12 | 🐛 fix(orders): stabilize editable order summary

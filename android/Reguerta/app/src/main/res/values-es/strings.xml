@@ -253,7 +253,7 @@
     <string name="users_editor_title_edit">Actualizar regüertense</string>
     <string name="users_editor_company_name_label">Nombre de la empresa</string>
     <string name="users_editor_phone_label">Teléfono</string>
-    <string name="users_editor_common_purchase_manager_label">Socio encargado de compras comunes</string>
+    <string name="users_editor_common_purchase_manager_label">Regüertense encargado de compras</string>
     <string name="users_editor_common_purchase_company_name">Compras Regüerta</string>
     <string name="users_editor_save_action_create">Añadir</string>
     <string name="users_editor_save_action_update">Actualizar</string>

@@ -215,14 +215,12 @@ private struct UsersEditorView: View {
                         )
                     }
 
-                    roleToggle(AccessL10nKey.roleProducer, isOn: producerBinding)
+                    roleToggle(
+                        AccessL10nKey.usersEditorCommonPurchaseManagerLabel,
+                        isOn: commonPurchaseManagerBinding
+                    )
 
-                    if viewModel.draft.isProducer {
-                        roleToggle(
-                            AccessL10nKey.usersEditorCommonPurchaseManagerLabel,
-                            isOn: commonPurchaseManagerBinding
-                        )
-                    }
+                    roleToggle(AccessL10nKey.roleProducer, isOn: producerBinding)
 
                     roleToggle(AccessL10nKey.roleAdmin, isOn: $viewModel.draft.isAdmin)
                 }
@@ -241,7 +239,7 @@ private struct UsersEditorView: View {
                 Task { _ = await viewModel.saveDraft() }
             }
             .padding(.top, tokens.spacing.lg)
-            .padding(.bottom, tokens.spacing.sm)
+            .padding(.bottom, tokens.spacing.xxl + tokens.spacing.sm)
         }
     }
 
