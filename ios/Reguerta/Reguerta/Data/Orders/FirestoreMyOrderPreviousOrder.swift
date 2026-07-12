@@ -371,34 +371,40 @@ func myOrderProducerStatusesByVendor(from data: [String: Any]) -> [String: Produ
     }
 }
 
-func myOrderPackagingLine(from data: [String: Any]) -> String {
+func myOrderPackagingLine(
+    from data: [String: Any],
+    locale: Locale = reguertaPresentationLocale()
+) -> String {
     let containerName = ((data["packContainerName"] as? String)?
         .trimmingCharacters(in: .whitespacesAndNewlines))
-        .flatMap { $0.isEmpty ? nil : $0 } ??
-        (((data["unitName"] as? String)?
-            .trimmingCharacters(in: .whitespacesAndNewlines))
-            .flatMap { $0.isEmpty ? nil : $0 } ?? "")
-    let quantity = ((data["packContainerQty"] as? NSNumber)?.doubleValue
-        ?? (data["unitQty"] as? NSNumber)?.doubleValue
-        ?? 1).myOrderUiDecimal
+        .flatMap { $0.isEmpty ? nil : $0 }
+    let containerQuantity = (data["packContainerQty"] as? NSNumber)?.doubleValue
+    var containerComponents: [String] = []
+    if let containerQuantity, abs(containerQuantity - 1) >= 0.000_1 {
+        containerComponents.append(containerQuantity.myOrderUiDecimal(locale: locale))
+    }
+    if let containerName {
+        containerComponents.append(containerName)
+    }
+
+    let measureQuantity = (data["unitQty"] as? NSNumber)?.doubleValue ?? 1
     let unitName = ((data["unitName"] as? String)?
         .trimmingCharacters(in: .whitespacesAndNewlines))
         .flatMap { $0.isEmpty ? nil : $0 } ?? ""
     let unitPlural = ((data["unitPlural"] as? String)?
         .trimmingCharacters(in: .whitespacesAndNewlines))
-        .flatMap { $0.isEmpty ? nil : $0 } ?? ""
-    let unit = ((data["packContainerAbbreviation"] as? String)?
-        .trimmingCharacters(in: .whitespacesAndNewlines))
-        .flatMap { $0.isEmpty ? nil : $0 } ??
-        ((data["packContainerPlural"] as? String)?
-            .trimmingCharacters(in: .whitespacesAndNewlines))
-        .flatMap { $0.isEmpty ? nil : $0 } ??
+        .flatMap { $0.isEmpty ? nil : $0 } ?? unitName
+    let unit =
         ((data["unitAbbreviation"] as? String)?
             .trimmingCharacters(in: .whitespacesAndNewlines))
         .flatMap { $0.isEmpty ? nil : $0 } ??
-        ((((data["packContainerQty"] as? NSNumber)?.doubleValue ?? 1) == 1) ? unitName : unitPlural)
+        (abs(measureQuantity - 1) < 0.000_1 ? unitName : unitPlural)
 
-    return [containerName, quantity, unit]
+    return [
+        containerComponents.joined(separator: " "),
+        measureQuantity.myOrderUiDecimal(locale: locale),
+        unit,
+    ]
         .filter { !$0.isEmpty }
         .joined(separator: " ")
 }

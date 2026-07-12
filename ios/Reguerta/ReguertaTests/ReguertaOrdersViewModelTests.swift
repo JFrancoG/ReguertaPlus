@@ -28,6 +28,74 @@ struct ReguertaOrdersViewModelTests {
     }
 
     @Test
+    func myOrderPackagingLineKeepsContainerAndMeasureQuantitiesSeparate() {
+        #expect(
+            myOrderPackagingLine(from: [
+                "packContainerName": "Caja",
+                "packContainerQty": NSNumber(value: 1),
+                "unitQty": NSNumber(value: 6),
+                "unitName": "unidad",
+                "unitPlural": "ud(s).",
+            ]) == "Caja 6 ud(s)."
+        )
+        #expect(
+            myOrderPackagingLine(from: [
+                "packContainerName": "Caja",
+                "packContainerQty": NSNumber(value: 2),
+                "unitQty": NSNumber(value: 6),
+                "unitName": "unidad",
+                "unitPlural": "ud(s).",
+            ]) == "2 Caja 6 ud(s)."
+        )
+        #expect(
+            myOrderPackagingLine(from: [
+                "packContainerName": "Paquete",
+                "packContainerQty": NSNumber(value: 1),
+                "unitQty": NSNumber(value: 500),
+                "unitName": "gramo",
+                "unitPlural": "gramos",
+                "unitAbbreviation": "g",
+            ]) == "Paquete 500 g"
+        )
+        #expect(
+            myOrderPackagingLine(from: [
+                "packContainerName": "Pieza",
+                "packContainerQty": NSNumber(value: 1),
+                "unitQty": NSNumber(value: 1),
+                "unitName": "kilo",
+                "unitPlural": "kilos",
+                "unitAbbreviation": "kg",
+            ]) == "Pieza 1 kg"
+        )
+        #expect(
+            myOrderPackagingLine(
+                from: [
+                    "packContainerName": "Pieza",
+                    "packContainerQty": NSNumber(value: 1),
+                    "unitQty": NSNumber(value: 0.5),
+                    "unitName": "kilo",
+                    "unitPlural": "kilos",
+                    "unitAbbreviation": "kg",
+                ],
+                locale: Locale(identifier: "en_US")
+            ) == "Pieza 0.5 kg"
+        )
+        #expect(
+            myOrderPackagingLine(
+                from: [
+                    "packContainerName": "Pieza",
+                    "packContainerQty": NSNumber(value: 1),
+                    "unitQty": NSNumber(value: 0.125),
+                    "unitName": "kilo",
+                    "unitPlural": "kilos",
+                    "unitAbbreviation": "kg",
+                ],
+                locale: Locale(identifier: "en_US")
+            ) == "Pieza 0.125 kg"
+        )
+    }
+
+    @Test
     func receivedOrdersCopyResolvesFromTheLocalizationCatalog() {
         let keys = [
             AccessL10nKey.receivedOrdersTitle,

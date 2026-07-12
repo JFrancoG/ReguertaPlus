@@ -3,10 +3,16 @@ import Foundation
 
 extension Double {
     var myOrderUiDecimal: String {
-        if truncatingRemainder(dividingBy: 1) == 0 {
-            return String(Int(self))
-        }
-        return String(format: "%.2f", self)
+        myOrderUiDecimal(locale: reguertaPresentationLocale())
+    }
+
+    func myOrderUiDecimal(locale: Locale) -> String {
+        formatted(
+            .number
+                .grouping(.never)
+                .precision(.fractionLength(0...3))
+                .locale(locale)
+        )
     }
 }
 

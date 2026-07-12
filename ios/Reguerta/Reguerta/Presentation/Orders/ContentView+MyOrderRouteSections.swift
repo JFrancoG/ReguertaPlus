@@ -40,7 +40,10 @@ extension MyOrderRouteView {
             }
 
             orderTotalBar(
-                l10n(AccessL10nKey.myOrderConfirmedTotalFormat, viewModel.cartTotal.euroCurrencyText())
+                l10n(
+                    AccessL10nKey.myOrderConfirmedTotalFormat,
+                    viewModel.cartTotal.euroCurrencyText(locale: presentationLocale)
+                )
             )
                 .accessibilityIdentifier("myOrder.confirmedTotalBar")
         }
@@ -104,7 +107,10 @@ extension MyOrderRouteView {
 
             if case .loaded(let snapshot) = viewModel.previousOrderState {
                 orderTotalBar(
-                    l10n(AccessL10nKey.myOrderConfirmedTotalFormat, snapshot.total.euroCurrencyText())
+                    l10n(
+                        AccessL10nKey.myOrderConfirmedTotalFormat,
+                        snapshot.total.euroCurrencyText(locale: presentationLocale)
+                    )
                 )
                     .accessibilityIdentifier("myOrder.previousTotalBar")
             }
@@ -152,7 +158,12 @@ extension MyOrderRouteView {
 
             HStack {
                 Spacer()
-                Text(l10n(AccessL10nKey.myOrderProducerSubtotalFormat, group.subtotal.euroCurrencyText()))
+                Text(
+                    l10n(
+                        AccessL10nKey.myOrderProducerSubtotalFormat,
+                        group.subtotal.euroCurrencyText(locale: presentationLocale)
+                    )
+                )
                     .font(tokens.typography.body.weight(.semibold))
                     .foregroundStyle(Color(red: 0.78, green: 0.38, blue: 0.36))
             }
@@ -175,57 +186,22 @@ extension MyOrderRouteView {
                 Text(confirmedQuantityLabel(for: line))
                     .font(tokens.typography.body.weight(.semibold))
                     .foregroundStyle(tokens.colors.textPrimary)
-                Text(line.subtotal.euroCurrencyText())
+                Text(line.subtotal.euroCurrencyText(locale: presentationLocale))
                     .font(tokens.typography.body.weight(.semibold))
                     .foregroundStyle(tokens.colors.textPrimary)
             }
         }
     }
 
-    @ViewBuilder
     func previousProducerCard(_ group: MyOrderPreviousOrderGroup) -> some View {
-        reguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                Text(group.companyName)
-                    .font(tokens.typography.titleCard.weight(.semibold))
-                    .foregroundStyle(tokens.colors.actionPrimary)
-
-                Divider()
-                    .overlay(tokens.colors.borderSubtle)
-
-                ForEach(group.lines) { line in
-                    VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                        HStack(alignment: .firstTextBaseline, spacing: tokens.spacing.sm) {
-                            VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                                Text(line.productName)
-                                    .font(tokens.typography.body.weight(.semibold))
-                                    .foregroundStyle(tokens.colors.textPrimary)
-                                Text(line.packagingLine)
-                                    .font(tokens.typography.bodySecondary)
-                                    .foregroundStyle(tokens.colors.textSecondary)
-                            }
-                            Spacer()
-                            Text(line.quantityLabel)
-                                .font(tokens.typography.body.weight(.semibold))
-                                .foregroundStyle(tokens.colors.textPrimary)
-                            Text(line.subtotal.euroCurrencyText())
-                                .font(tokens.typography.body.weight(.semibold))
-                                .foregroundStyle(tokens.colors.textPrimary)
-                        }
-                    }
-                }
-
-                Divider()
-                    .overlay(tokens.colors.borderSubtle)
-
-                HStack {
-                    Spacer()
-                    Text(l10n(AccessL10nKey.myOrderProducerSubtotalFormat, group.subtotal.euroCurrencyText()))
-                        .font(tokens.typography.body.weight(.semibold))
-                        .foregroundStyle(Color(red: 0.78, green: 0.38, blue: 0.36))
-                }
-            }
-        }
+        PersonalOrderSummaryProducerCard(
+            tokens: tokens,
+            group: group,
+            locale: presentationLocale,
+            quantitySingleLabel: l10n(AccessL10nKey.myOrderQuantitySingle),
+            quantityPluralFormat: l10n(AccessL10nKey.myOrderQuantityPluralFormat),
+            producerTotalKey: AccessL10nKey.myOrderProducerSubtotalFormat
+        )
     }
 
     func confirmedQuantityLabel(for line: MyOrderConfirmedLine) -> String {
@@ -503,7 +479,7 @@ extension MyOrderRouteView {
             product.pricingMode == .weight
                 ? AccessL10nKey.myOrderPricePerKgFormat
                 : AccessL10nKey.myOrderPricePerUnitFormat,
-            product.price.euroCurrencyText()
+            product.price.euroCurrencyText(locale: presentationLocale)
         )
     }
 
