@@ -298,6 +298,16 @@ struct ReguertaNewsNotificationsViewModelTests {
     }
 
     @Test
+    func notificationEditorBackReturnsToDashboard() {
+        let rootViewModel = ReguertaAppEnvironment.preview().accessRootViewModel
+        rootViewModel.homeDestination = .adminBroadcast
+
+        rootViewModel.handleHomePrimaryAction()
+
+        #expect(rootViewModel.homeDestination == .dashboard)
+    }
+
+    @Test
     func notificationsViewModelSendsAdminBroadcastPayloadAndClearsDraft() async {
         let admin = newsAdminMember(id: "admin_1")
         let repository = InMemoryNotificationRepository(items: [])
