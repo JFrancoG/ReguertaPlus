@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -245,71 +244,75 @@ private fun UsersEditorForm(
     val focusManager = LocalFocusManager.current
     val commonPurchasesCompanyName = stringResource(R.string.users_editor_common_purchase_company_name)
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
-    ) {
-        ReguertaInputField(
-            label = stringResource(R.string.common_input_email_label),
-            value = draft.email,
-            onValueChange = { onDraftChanged(draft.copy(email = it)) },
-            readOnly = editingMember != null,
-            keyboardType = KeyboardType.Email,
-            showClearAction = editingMember == null,
-        )
-
-        ReguertaInputField(
-            label = stringResource(R.string.admin_input_display_name_label),
-            value = draft.displayName,
-            onValueChange = { onDraftChanged(draft.copy(displayName = it)) },
-            showClearAction = true,
-        )
-
-        ReguertaInputField(
-            label = stringResource(R.string.users_editor_phone_label),
-            value = draft.phoneNumber,
-            onValueChange = { onDraftChanged(draft.copy(phoneNumber = it)) },
-            keyboardType = KeyboardType.Phone,
-            showClearAction = true,
-        )
-
-        CommonPurchaseManagerSwitchRow(
-            checked = draft.isCommonPurchaseManager,
-            label = stringResource(R.string.users_editor_common_purchase_manager_label),
-            onCheckedChange = {
-                onDraftChanged(
-                    draft.withCommonPurchaseManagerSelection(
-                        isSelected = it,
-                        commonPurchasesCompanyName = commonPurchasesCompanyName,
-                    ),
-                )
-            },
-        )
-
-        RoleCheckboxRow(
-            checked = draft.isProducer,
-            label = stringResource(R.string.role_producer),
-            onCheckedChange = { onDraftChanged(draft.withProducerSelection(it)) },
-        )
-
-        if (draft.isProducer) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
             ReguertaInputField(
-                label = stringResource(R.string.users_editor_company_name_label),
-                value = draft.companyName,
-                onValueChange = { onDraftChanged(draft.copy(companyName = it)) },
-                readOnly = draft.isCommonPurchaseManager,
-                showClearAction = !draft.isCommonPurchaseManager,
+                label = stringResource(R.string.common_input_email_label),
+                value = draft.email,
+                onValueChange = { onDraftChanged(draft.copy(email = it)) },
+                readOnly = editingMember != null,
+                keyboardType = KeyboardType.Email,
+                showClearAction = editingMember == null,
+            )
+
+            ReguertaInputField(
+                label = stringResource(R.string.admin_input_display_name_label),
+                value = draft.displayName,
+                onValueChange = { onDraftChanged(draft.copy(displayName = it)) },
+                showClearAction = true,
+            )
+
+            ReguertaInputField(
+                label = stringResource(R.string.users_editor_phone_label),
+                value = draft.phoneNumber,
+                onValueChange = { onDraftChanged(draft.copy(phoneNumber = it)) },
+                keyboardType = KeyboardType.Phone,
+                showClearAction = true,
+            )
+
+            if (draft.isProducer) {
+                ReguertaInputField(
+                    label = stringResource(R.string.users_editor_company_name_label),
+                    value = draft.companyName,
+                    onValueChange = { onDraftChanged(draft.copy(companyName = it)) },
+                    readOnly = draft.isCommonPurchaseManager,
+                    showClearAction = !draft.isCommonPurchaseManager,
+                )
+            }
+
+            RoleSwitchRow(
+                checked = draft.isProducer,
+                label = stringResource(R.string.role_producer),
+                onCheckedChange = { onDraftChanged(draft.withProducerSelection(it)) },
+            )
+
+            if (draft.isProducer) {
+                RoleSwitchRow(
+                    checked = draft.isCommonPurchaseManager,
+                    label = stringResource(R.string.users_editor_common_purchase_manager_label),
+                    onCheckedChange = {
+                        onDraftChanged(
+                            draft.withCommonPurchaseManagerSelection(
+                                isSelected = it,
+                                commonPurchasesCompanyName = commonPurchasesCompanyName,
+                            ),
+                        )
+                    },
+                )
+            }
+
+            RoleSwitchRow(
+                checked = draft.isAdmin,
+                label = stringResource(R.string.role_admin),
+                onCheckedChange = { onDraftChanged(draft.copy(isAdmin = it)) },
             )
         }
-
-        RoleCheckboxRow(
-            checked = draft.isAdmin,
-            label = stringResource(R.string.role_admin),
-            onCheckedChange = { onDraftChanged(draft.copy(isAdmin = it)) },
-        )
 
         ReguertaButton(
             label = stringResource(
@@ -319,6 +322,7 @@ private fun UsersEditorForm(
                     R.string.users_editor_save_action_update
                 },
             ),
+            modifier = Modifier.padding(top = 20.dp, bottom = 24.dp),
             variant = ReguertaButtonVariant.PRIMARY,
             onClick = {
                 focusManager.clearFocus(force = true)
@@ -405,22 +409,7 @@ private fun UserListItem(
 }
 
 @Composable
-private fun RoleCheckboxRow(
-    checked: Boolean,
-    label: String,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Checkbox(checked = checked, onCheckedChange = onCheckedChange)
-        Text(label)
-    }
-}
-
-@Composable
-private fun CommonPurchaseManagerSwitchRow(
+private fun RoleSwitchRow(
     checked: Boolean,
     label: String,
     onCheckedChange: (Boolean) -> Unit,

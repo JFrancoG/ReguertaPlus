@@ -178,65 +178,71 @@ private struct UsersEditorView: View {
     @Bindable var viewModel: UsersFeatureViewModel
 
     var body: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-                reguertaInputField(
-                    LocalizedStringKey(AccessL10nKey.emailLabel),
-                    text: $viewModel.draft.email,
-                    isReadOnly: viewModel.editingMember != nil,
-                    showsClearAction: viewModel.editingMember == nil,
-                    keyboardType: .emailAddress
-                )
-
-                reguertaInputField(
-                    LocalizedStringKey(AccessL10nKey.displayNameLabel),
-                    text: $viewModel.draft.displayName,
-                    showsClearAction: true,
-                    textInputAutocapitalization: .words,
-                    autocorrectionDisabled: false
-                )
-
-                reguertaInputField(
-                    LocalizedStringKey(AccessL10nKey.usersEditorPhoneLabel),
-                    text: $viewModel.draft.phoneNumber,
-                    showsClearAction: true,
-                    keyboardType: .phonePad
-                )
-
-                roleToggle(
-                    AccessL10nKey.usersEditorCommonPurchaseManagerLabel,
-                    isOn: commonPurchaseManagerBinding
-                )
-                roleToggle(AccessL10nKey.roleProducer, isOn: producerBinding)
-
-                if viewModel.draft.isProducer {
+        VStack(spacing: 0) {
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: tokens.spacing.lg) {
                     reguertaInputField(
-                        LocalizedStringKey(AccessL10nKey.usersEditorCompanyNameLabel),
-                        text: $viewModel.draft.companyName,
-                        isReadOnly: viewModel.draft.isCommonPurchaseManager,
-                        showsClearAction: !viewModel.draft.isCommonPurchaseManager,
+                        LocalizedStringKey(AccessL10nKey.emailLabel),
+                        text: $viewModel.draft.email,
+                        isReadOnly: viewModel.editingMember != nil,
+                        showsClearAction: viewModel.editingMember == nil,
+                        keyboardType: .emailAddress
+                    )
+
+                    reguertaInputField(
+                        LocalizedStringKey(AccessL10nKey.displayNameLabel),
+                        text: $viewModel.draft.displayName,
+                        showsClearAction: true,
                         textInputAutocapitalization: .words,
                         autocorrectionDisabled: false
                     )
-                }
 
-                roleToggle(AccessL10nKey.roleAdmin, isOn: $viewModel.draft.isAdmin)
+                    reguertaInputField(
+                        LocalizedStringKey(AccessL10nKey.usersEditorPhoneLabel),
+                        text: $viewModel.draft.phoneNumber,
+                        showsClearAction: true,
+                        keyboardType: .phonePad
+                    )
 
-                reguertaButton(
-                    LocalizedStringKey(
-                        viewModel.editingMember == nil
-                            ? AccessL10nKey.usersEditorActionCreate
-                            : AccessL10nKey.usersEditorActionUpdate
-                    ),
-                    isEnabled: !viewModel.isSavingMember,
-                    isLoading: viewModel.isSavingMember
-                ) {
-                    Task { _ = await viewModel.saveDraft() }
+                    if viewModel.draft.isProducer {
+                        reguertaInputField(
+                            LocalizedStringKey(AccessL10nKey.usersEditorCompanyNameLabel),
+                            text: $viewModel.draft.companyName,
+                            isReadOnly: viewModel.draft.isCommonPurchaseManager,
+                            showsClearAction: !viewModel.draft.isCommonPurchaseManager,
+                            textInputAutocapitalization: .words,
+                            autocorrectionDisabled: false
+                        )
+                    }
+
+                    roleToggle(AccessL10nKey.roleProducer, isOn: producerBinding)
+
+                    if viewModel.draft.isProducer {
+                        roleToggle(
+                            AccessL10nKey.usersEditorCommonPurchaseManagerLabel,
+                            isOn: commonPurchaseManagerBinding
+                        )
+                    }
+
+                    roleToggle(AccessL10nKey.roleAdmin, isOn: $viewModel.draft.isAdmin)
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
+
+            reguertaButton(
+                LocalizedStringKey(
+                    viewModel.editingMember == nil
+                        ? AccessL10nKey.usersEditorActionCreate
+                        : AccessL10nKey.usersEditorActionUpdate
+                ),
+                isEnabled: !viewModel.isSavingMember,
+                isLoading: viewModel.isSavingMember
+            ) {
+                Task { _ = await viewModel.saveDraft() }
+            }
+            .padding(.top, tokens.spacing.lg)
             .padding(.bottom, tokens.spacing.sm)
         }
-        .scrollDismissesKeyboard(.interactively)
     }
 
     private func roleToggle(_ key: String, isOn: Binding<Bool>) -> some View {
