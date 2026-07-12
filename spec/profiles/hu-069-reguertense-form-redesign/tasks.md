@@ -34,4 +34,4 @@
 - [x] Run iOS unit tests on iPhone 17; record the full UI-runner environment blocker.
 - [x] Run static diff and localization checks.
 - [x] Record validation evidence and parity status in `spec.md`.
-- [ ] Link a pull request if delivery is requested.
+- [x] Link pull request #189.

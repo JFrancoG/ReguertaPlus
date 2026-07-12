@@ -34,5 +34,6 @@ Redesign the Android and iOS member administration forms so adding and editing a
 ## Links
 
 - GitHub issue: https://github.com/JFrancoG/ReguertaPlus/issues/188
+- Pull request: https://github.com/JFrancoG/ReguertaPlus/pull/189
 - Branch: `codex/hu-069-reguertense-form-redesign`
 - Story docs: `spec/profiles/hu-069-reguertense-form-redesign/`

@@ -103,4 +103,4 @@ As an administrator, I want to add or update a regüertense using the same clear
 - [x] Android/iOS parity reviewed or temporary gap documented.
 - [x] Relevant tests and lint executed.
 - [x] Issue and branch linked.
-- [ ] Pull request linked.
+- [x] Pull request linked: #189.
