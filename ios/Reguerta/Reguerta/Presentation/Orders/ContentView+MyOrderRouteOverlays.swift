@@ -88,7 +88,12 @@ extension MyOrderRouteView {
     var cartOverlayHeader: some View {
         HStack(spacing: tokens.spacing.sm) {
             Spacer(minLength: 0)
-            Text(l10n(AccessL10nKey.myOrderProducerSubtotalFormat, viewModel.cartTotal.euroCurrencyText()))
+            Text(
+                l10n(
+                    AccessL10nKey.myOrderProducerSubtotalFormat,
+                    viewModel.cartTotal.euroCurrencyText(locale: presentationLocale)
+                )
+            )
                 .font(tokens.typography.titleCard.weight(.semibold))
                 .foregroundStyle(tokens.colors.actionPrimary)
                 .lineLimit(1)
@@ -144,7 +149,12 @@ extension MyOrderRouteView {
                             .font(tokens.typography.body.weight(.semibold))
                             .foregroundStyle(tokens.colors.textPrimary)
                             .lineLimit(2)
-                        Text(l10n(AccessL10nKey.myOrderPricePerUnitFormat, product.price.euroCurrencyText()))
+                        Text(
+                            l10n(
+                                AccessL10nKey.myOrderPricePerUnitFormat,
+                                product.price.euroCurrencyText(locale: presentationLocale)
+                            )
+                        )
                             .font(tokens.typography.bodySecondary)
                             .foregroundStyle(tokens.colors.textSecondary)
                     }
@@ -212,10 +222,13 @@ extension MyOrderRouteView {
                 message: noPickupEcoBaskets > 0
                     ? l10n(
                         AccessL10nKey.myOrderCheckoutSuccessWithNoPickupMessage,
-                        total.euroCurrencyText(),
+                        total.euroCurrencyText(locale: presentationLocale),
                         noPickupEcoBaskets
                     )
-                    : l10n(AccessL10nKey.myOrderCheckoutSuccessMessage, total.euroCurrencyText()),
+                    : l10n(
+                        AccessL10nKey.myOrderCheckoutSuccessMessage,
+                        total.euroCurrencyText(locale: presentationLocale)
+                    ),
                 primaryAction: ReguertaDialogAction(
                     title: l10n(AccessL10nKey.commonAccept),
                     action: handleCheckoutSuccessAcknowledged

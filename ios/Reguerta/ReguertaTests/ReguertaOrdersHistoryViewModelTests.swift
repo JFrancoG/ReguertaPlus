@@ -28,7 +28,7 @@ struct ReguertaOrdersHistoryViewModelTests {
     }
 
     @Test
-    func myOrdersHistoryPresentationLocalizesGenericUnitLabelsOnly() {
+    func orderSummariesLocalizeGenericUnitLabelsOnly() {
         #expect(
             localizedGenericOrderHistoryQuantityLabel(
                 "1 ud.",
@@ -42,6 +42,13 @@ struct ReguertaOrdersHistoryViewModelTests {
                 singleLabel: "1 unit",
                 pluralFormat: "%lld units"
             ) == "3 units"
+        )
+        #expect(
+            localizedGenericOrderHistoryQuantityLabel(
+                "2 ud(s).",
+                singleLabel: "1 unit",
+                pluralFormat: "%lld units"
+            ) == "2 units"
         )
         #expect(
             localizedGenericOrderHistoryQuantityLabel(

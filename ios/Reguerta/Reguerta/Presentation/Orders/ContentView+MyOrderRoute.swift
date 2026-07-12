@@ -67,6 +67,12 @@ struct MyOrderRouteView: View {
     let onReadOnlyModeChange: (Bool) -> Void
     let onCheckoutSuccessAcknowledge: () -> Void
 
+    @Environment(\.locale) var locale
+
+    var presentationLocale: Locale {
+        reguertaPresentationLocale(fallback: locale)
+    }
+
     var body: some View {
         routeContent
             .overlay(alignment: .bottom) {

@@ -69,7 +69,7 @@ class OrderHistoryWeekTest {
     }
 
     @Test
-    fun myOrdersHistoryPresentation_localizesGenericUnitLabelsOnly() {
+    fun orderSummaries_localizeGenericUnitLabelsOnly() {
         assertEquals(
             "1 unit",
             localizedGenericOrderHistoryQuantityLabel("1 ud.", Locale.US, "1 unit", "%1\$d units"),
@@ -77,6 +77,10 @@ class OrderHistoryWeekTest {
         assertEquals(
             "3 units",
             localizedGenericOrderHistoryQuantityLabel("3 uds.", Locale.US, "1 unit", "%1\$d units"),
+        )
+        assertEquals(
+            "2 units",
+            localizedGenericOrderHistoryQuantityLabel("2 ud(s).", Locale.US, "1 unit", "%1\$d units"),
         )
         assertEquals(
             "1 kg",

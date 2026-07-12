@@ -38,4 +38,16 @@ struct ReguertaCurrencyFormattingTests {
         #expect(12.5.productUIDecimal(locale: Locale(identifier: "es_ES")) == "12,5")
         #expect(12.5.productUIDecimal(locale: Locale(identifier: "en_US")) == "12.5")
     }
+
+    @Test
+    func orderQuantityUsesUpToThreeDecimalsWithoutTrailingZeros() {
+        let english = Locale(identifier: "en_US")
+        let spanish = Locale(identifier: "es_ES")
+
+        #expect(1.0.myOrderUiDecimal(locale: english) == "1")
+        #expect(0.5.myOrderUiDecimal(locale: english) == "0.5")
+        #expect(0.125.myOrderUiDecimal(locale: english) == "0.125")
+        #expect(0.1236.myOrderUiDecimal(locale: english) == "0.124")
+        #expect(0.5.myOrderUiDecimal(locale: spanish) == "0,5")
+    }
 }

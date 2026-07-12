@@ -57,6 +57,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-07-12 | 🐛 fix(orders): align last order presentation
 - 2026-07-12 | 🐛 fix(orders): polish received orders UI
 - 2026-07-11 | 🐛 fix(android-orders): align purchase group title
 - 2026-07-11 | 🐛 fix(ios-orders): shrink purchase badge text

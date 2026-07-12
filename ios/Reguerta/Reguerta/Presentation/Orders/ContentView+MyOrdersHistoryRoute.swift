@@ -152,72 +152,19 @@ private struct OrderSummaryList: View {
         ScrollView(.vertical, showsIndicators: false) {
             LazyVStack(spacing: tokens.spacing.md) {
                 ForEach(groups) { group in
-                    OrderSummaryProducerCard(tokens: tokens, group: group, locale: locale)
+                    PersonalOrderSummaryProducerCard(
+                        tokens: tokens,
+                        group: group,
+                        locale: locale,
+                        quantitySingleLabel: l10n(AccessL10nKey.orderHistoryQuantitySingle),
+                        quantityPluralFormat: l10n(AccessL10nKey.orderHistoryQuantityPluralFormat),
+                        producerTotalKey: AccessL10nKey.orderHistoryProducerTotalFormat
+                    )
                 }
             }
             .padding(.bottom, bottomPadding)
         }
         .ignoresSafeArea(.container, edges: .bottom)
-    }
-}
-
-private struct OrderSummaryProducerCard: View {
-    let tokens: ReguertaDesignTokens
-    let group: MyOrderPreviousOrderGroup
-    let locale: Locale
-
-    var body: some View {
-        reguertaCard {
-            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                Text(group.companyName)
-                    .font(tokens.typography.titleCard.weight(.semibold))
-                    .foregroundStyle(tokens.colors.actionPrimary)
-
-                Divider()
-                    .overlay(tokens.colors.borderSubtle)
-
-                ForEach(group.lines) { line in
-                    HStack(alignment: .firstTextBaseline, spacing: tokens.spacing.sm) {
-                        VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                            Text(line.productName)
-                                .font(tokens.typography.body.weight(.semibold))
-                                .foregroundStyle(tokens.colors.textPrimary)
-                            Text(line.packagingLine)
-                                .font(tokens.typography.bodySecondary)
-                                .foregroundStyle(tokens.colors.textSecondary)
-                        }
-                        Spacer()
-                        Text(
-                            localizedGenericOrderHistoryQuantityLabel(
-                                line.quantityLabel,
-                                singleLabel: l10n(AccessL10nKey.orderHistoryQuantitySingle),
-                                pluralFormat: l10n(AccessL10nKey.orderHistoryQuantityPluralFormat)
-                            )
-                        )
-                            .font(tokens.typography.body.weight(.semibold))
-                            .foregroundStyle(tokens.colors.textPrimary)
-                        Text(line.subtotal.euroCurrencyText(locale: locale))
-                            .font(tokens.typography.body.weight(.semibold))
-                            .foregroundStyle(tokens.colors.textPrimary)
-                    }
-                }
-
-                Divider()
-                    .overlay(tokens.colors.borderSubtle)
-
-                HStack {
-                    Spacer()
-                    Text(
-                        l10n(
-                            AccessL10nKey.orderHistoryProducerTotalFormat,
-                            group.subtotal.euroCurrencyText(locale: locale)
-                        )
-                    )
-                        .font(tokens.typography.body.weight(.semibold))
-                        .foregroundStyle(Color(red: 0.78, green: 0.38, blue: 0.36))
-                }
-            }
-        }
     }
 }
 

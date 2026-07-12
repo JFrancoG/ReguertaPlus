@@ -19,3 +19,10 @@ internal fun Double.toEuroCurrencyText(locale: Locale): String =
         minimumFractionDigits = 2
         maximumFractionDigits = 2
     }.format(this)
+
+internal fun Double.toQuantityText(locale: Locale = Locale.getDefault()): String =
+    NumberFormat.getNumberInstance(locale).apply {
+        isGroupingUsed = false
+        minimumFractionDigits = 0
+        maximumFractionDigits = 3
+    }.format(this)

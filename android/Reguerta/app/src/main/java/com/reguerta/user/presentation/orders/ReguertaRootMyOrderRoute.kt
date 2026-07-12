@@ -1,6 +1,7 @@
 package com.reguerta.user.presentation.orders
 
 import com.reguerta.user.presentation.formatting.toEuroCurrencyText
+import com.reguerta.user.presentation.formatting.toQuantityText
 import com.reguerta.user.presentation.shifts.toWeekKey
 import com.reguerta.user.presentation.root.normalized
 import com.reguerta.user.presentation.root.toIsoWeekStartDate
@@ -69,6 +70,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -1214,13 +1216,21 @@ private fun MyOrderSummaryTotalBar(
 
 @Composable
 private fun MyOrderPreviousProducerCard(group: MyOrderPreviousOrderGroup) {
+    val locale = LocalConfiguration.current.locales[0]
+    val singleQuantityLabel = stringResource(R.string.my_order_quantity_single)
+    val pluralQuantityFormat = stringResource(R.string.my_order_quantity_plural_format)
     PersonalOrderSummaryProducerCard(
         companyName = group.companyName,
         lines = group.lines.map { line ->
             PersonalOrderSummaryLineUi(
                 productName = line.productName,
                 packagingLine = line.packagingLine,
-                quantityLabel = line.quantityLabel,
+                quantityLabel = localizedGenericOrderHistoryQuantityLabel(
+                    rawLabel = line.quantityLabel,
+                    locale = locale,
+                    singleLabel = singleQuantityLabel,
+                    pluralFormat = pluralQuantityFormat,
+                ),
                 subtotal = line.subtotal,
             )
         },
@@ -1921,11 +1931,7 @@ private fun String.searchNormalized(): String =
         .lowercase(Locale.getDefault())
 
 private fun Double.toUiDecimal(): String =
-    if (this % 1.0 == 0.0) {
-        toLong().toString()
-    } else {
-        String.format(Locale.getDefault(), "%.2f", this)
-    }
+    toQuantityText()
 
 private fun Double.isApproximatelyOne(): Boolean =
     kotlin.math.abs(this - 1.0) < 0.0001
