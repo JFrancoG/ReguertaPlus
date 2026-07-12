@@ -12,6 +12,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -39,7 +40,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
@@ -71,6 +71,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -1292,28 +1293,29 @@ private fun ProductImage(
     product: Product,
     modifier: Modifier = Modifier,
 ) {
-    if (!product.productImageUrl.isNullOrBlank()) {
-        AsyncImage(
-            model = product.productImageUrl,
-            contentDescription = product.name,
-            modifier = modifier
-                .size(72.dp)
-                .clip(RoundedCornerShape(8.dp)),
-            contentScale = ContentScale.Crop,
-        )
-    } else {
-        Box(
-            modifier = modifier
-                .size(72.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Default.Image,
+    val unavailableProductPainter = painterResource(R.drawable.product_no_available)
+    Box(
+        modifier = modifier
+            .size(72.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (product.productImageUrl.isNullOrBlank()) {
+            Image(
+                painter = unavailableProductPainter,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(28.dp),
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            AsyncImage(
+                model = product.productImageUrl,
+                contentDescription = product.name,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                error = unavailableProductPainter,
+                fallback = unavailableProductPainter,
             )
         }
     }
