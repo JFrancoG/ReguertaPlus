@@ -286,18 +286,20 @@ private fun UsersEditorForm(
                 )
             }
 
-            RoleSwitchRow(
-                checked = draft.isCommonPurchaseManager,
-                label = stringResource(R.string.users_editor_common_purchase_manager_label),
-                onCheckedChange = {
-                    onDraftChanged(
-                        draft.withCommonPurchaseManagerSelection(
-                            isSelected = it,
-                            commonPurchasesCompanyName = commonPurchasesCompanyName,
-                        ),
-                    )
-                },
-            )
+            if (draft.isProducer) {
+                RoleSwitchRow(
+                    checked = draft.isCommonPurchaseManager,
+                    label = stringResource(R.string.users_editor_common_purchase_manager_label),
+                    onCheckedChange = {
+                        onDraftChanged(
+                            draft.withCommonPurchaseManagerSelection(
+                                isSelected = it,
+                                commonPurchasesCompanyName = commonPurchasesCompanyName,
+                            ),
+                        )
+                    },
+                )
+            }
 
             RoleSwitchRow(
                 checked = draft.isProducer,
