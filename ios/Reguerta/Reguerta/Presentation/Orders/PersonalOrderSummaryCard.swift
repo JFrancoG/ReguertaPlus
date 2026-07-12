@@ -1,43 +1,48 @@
 import SwiftUI
 
+struct PersonalOrderSummaryLineContent: Identifiable {
+    let id: String
+    let productName: String
+    let packagingLine: String
+    let quantityText: String
+    let subtotalText: String
+}
+
 struct PersonalOrderSummaryProducerCard: View {
     let tokens: ReguertaDesignTokens
-    let group: MyOrderPreviousOrderGroup
-    let locale: Locale
-    let quantitySingleLabel: String
-    let quantityPluralFormat: String
-    let producerTotalKey: String
+    let companyName: String
+    let statusText: String?
+    let lines: [PersonalOrderSummaryLineContent]
+    let totalText: String
 
     var body: some View {
         reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                Text(group.companyName)
-                    .font(tokens.typography.titleCard.weight(.semibold))
-                    .foregroundStyle(tokens.colors.actionPrimary)
+                HStack(spacing: tokens.spacing.sm) {
+                    Text(companyName)
+                        .font(tokens.typography.titleCard.weight(.semibold))
+                        .foregroundStyle(tokens.colors.actionPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    if let statusText {
+                        Text(statusText)
+                            .font(tokens.typography.label.weight(.semibold))
+                            .foregroundStyle(tokens.colors.textSecondary)
+                    }
+                }
 
                 summaryDivider
 
-                ForEach(group.lines) { line in
+                ForEach(lines) { line in
                     PersonalOrderSummaryLineRow(
                         tokens: tokens,
-                        line: line,
-                        quantityText: localizedGenericOrderHistoryQuantityLabel(
-                            line.quantityLabel,
-                            singleLabel: quantitySingleLabel,
-                            pluralFormat: quantityPluralFormat
-                        ),
-                        subtotalText: line.subtotal.euroCurrencyText(locale: locale)
+                        line: line
                     )
                 }
 
                 summaryDivider
 
-                Text(
-                    l10n(
-                        producerTotalKey,
-                        group.subtotal.euroCurrencyText(locale: locale)
-                    )
-                )
+                Text(totalText)
                     .font(tokens.typography.body.weight(.semibold))
                     .foregroundStyle(Color(red: 0.78, green: 0.38, blue: 0.36))
                     .frame(maxWidth: .infinity, alignment: .trailing)
@@ -54,9 +59,7 @@ struct PersonalOrderSummaryProducerCard: View {
 
 private struct PersonalOrderSummaryLineRow: View {
     let tokens: ReguertaDesignTokens
-    let line: MyOrderPreviousOrderLine
-    let quantityText: String
-    let subtotalText: String
+    let line: PersonalOrderSummaryLineContent
 
     var body: some View {
         HStack(spacing: 0) {
@@ -75,7 +78,7 @@ private struct PersonalOrderSummaryLineRow: View {
 
             columnDivider
 
-            Text(quantityText)
+            Text(line.quantityText)
                 .font(tokens.typography.body.weight(.semibold))
                 .foregroundStyle(tokens.colors.textPrimary)
                 .multilineTextAlignment(.center)
@@ -86,7 +89,7 @@ private struct PersonalOrderSummaryLineRow: View {
 
             columnDivider
 
-            Text(subtotalText)
+            Text(line.subtotalText)
                 .font(tokens.typography.body.weight(.semibold))
                 .foregroundStyle(tokens.colors.textPrimary)
                 .multilineTextAlignment(.trailing)

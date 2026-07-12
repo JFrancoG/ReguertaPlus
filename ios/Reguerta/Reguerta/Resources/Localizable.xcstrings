@@ -3721,23 +3721,6 @@
         }
       }
     },
-    "my_order.confirmed.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Confirmed order"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pedido confirmado"
-          }
-        }
-      }
-    },
     "my_order.confirmed.total_format" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3836,6 +3819,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Editar pedido"
+          }
+        }
+      }
+    },
+    "my_order.editable_until_sunday_note" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "* Order editable until Sunday"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "* Pedido modificable hasta el domingo"
           }
         }
       }

@@ -4,29 +4,20 @@ extension MyOrderRouteView {
     var confirmedOrderView: some View {
         ZStack(alignment: .bottom) {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                HStack(spacing: tokens.spacing.sm) {
-                    Text(LocalizedStringKey(AccessL10nKey.myOrderConfirmedTitle))
-                        .font(tokens.typography.titleCard.weight(.semibold))
-                        .foregroundStyle(tokens.colors.textPrimary)
-                    Spacer()
-                    Button {
+                VStack(alignment: .trailing, spacing: tokens.spacing.xs) {
+                    reguertaButton(
+                        LocalizedStringKey(AccessL10nKey.myOrderEditConfirmedAction),
+                        fullWidth: false,
+                        fixedWidth: tokens.button.dialogTwoButtonsWidth
+                    ) {
                         viewModel.editConfirmedOrder()
-                    } label: {
-                        HStack(spacing: tokens.spacing.xs) {
-                            Image(systemName: "pencil")
-                            Text(LocalizedStringKey(AccessL10nKey.myOrderEditConfirmedAction))
-                                .font(tokens.typography.body.weight(.semibold))
-                        }
-                        .foregroundStyle(tokens.colors.actionPrimary)
-                        .padding(.horizontal, tokens.spacing.md)
-                        .padding(.vertical, tokens.spacing.sm)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: tokens.radius.md)
-                                .stroke(tokens.colors.actionPrimary, lineWidth: 1)
-                        )
                     }
-                    .buttonStyle(.plain)
+
+                    Text(LocalizedStringKey(AccessL10nKey.myOrderEditableUntilSundayNote))
+                        .font(tokens.typography.labelRegular)
+                        .foregroundStyle(tokens.colors.textSecondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .trailing)
 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: tokens.spacing.md) {
@@ -117,90 +108,49 @@ extension MyOrderRouteView {
         }
     }
 
-    @ViewBuilder
     func confirmedProducerCard(_ group: MyOrderConfirmedGroup) -> some View {
-        let style = group.producerStatus.visualStyle
-        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-            HStack(spacing: tokens.spacing.sm) {
-                Text(group.companyName)
-                    .font(tokens.typography.titleCard.weight(.semibold))
-                    .foregroundStyle(tokens.colors.actionPrimary)
-                Spacer(minLength: 0)
-                Text(localizedProducerOrderStatusTitle(group.producerStatus))
-                    .font(tokens.typography.label.weight(.semibold))
-                    .foregroundStyle(tokens.colors.textSecondary)
-            }
-
-            Divider()
-                .overlay(tokens.colors.borderSubtle)
-
-            confirmedProducerLinesSection(group)
-        }
-        .padding(tokens.spacing.lg)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(style.container)
-        .overlay(
-            RoundedRectangle(cornerRadius: tokens.radius.md)
-                .stroke(style.border, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
-    }
-
-    @ViewBuilder
-    func confirmedProducerLinesSection(_ group: MyOrderConfirmedGroup) -> some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-            ForEach(group.lines) { line in
-                confirmedProducerLineRow(line)
-            }
-
-            Divider()
-                .overlay(tokens.colors.borderSubtle)
-
-            HStack {
-                Spacer()
-                Text(
-                    l10n(
-                        AccessL10nKey.myOrderProducerSubtotalFormat,
-                        group.subtotal.euroCurrencyText(locale: presentationLocale)
-                    )
+        PersonalOrderSummaryProducerCard(
+            tokens: tokens,
+            companyName: group.companyName,
+            statusText: localizedProducerOrderStatusTitle(group.producerStatus),
+            lines: group.lines.map { line in
+                PersonalOrderSummaryLineContent(
+                    id: line.id,
+                    productName: line.product.name,
+                    packagingLine: viewModel.packContainerLine(for: line.product),
+                    quantityText: confirmedQuantityLabel(for: line),
+                    subtotalText: line.subtotal.euroCurrencyText(locale: presentationLocale)
                 )
-                    .font(tokens.typography.body.weight(.semibold))
-                    .foregroundStyle(Color(red: 0.78, green: 0.38, blue: 0.36))
-            }
-        }
-    }
-
-    @ViewBuilder
-    func confirmedProducerLineRow(_ line: MyOrderConfirmedLine) -> some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-            HStack(alignment: .firstTextBaseline, spacing: tokens.spacing.sm) {
-                VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                    Text(line.product.name)
-                        .font(tokens.typography.body.weight(.semibold))
-                        .foregroundStyle(tokens.colors.textPrimary)
-                    Text(viewModel.packContainerLine(for: line.product))
-                        .font(tokens.typography.bodySecondary)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                }
-                Spacer()
-                Text(confirmedQuantityLabel(for: line))
-                    .font(tokens.typography.body.weight(.semibold))
-                    .foregroundStyle(tokens.colors.textPrimary)
-                Text(line.subtotal.euroCurrencyText(locale: presentationLocale))
-                    .font(tokens.typography.body.weight(.semibold))
-                    .foregroundStyle(tokens.colors.textPrimary)
-            }
-        }
+            },
+            totalText: l10n(
+                AccessL10nKey.myOrderProducerSubtotalFormat,
+                group.subtotal.euroCurrencyText(locale: presentationLocale)
+            )
+        )
     }
 
     func previousProducerCard(_ group: MyOrderPreviousOrderGroup) -> some View {
         PersonalOrderSummaryProducerCard(
             tokens: tokens,
-            group: group,
-            locale: presentationLocale,
-            quantitySingleLabel: l10n(AccessL10nKey.myOrderQuantitySingle),
-            quantityPluralFormat: l10n(AccessL10nKey.myOrderQuantityPluralFormat),
-            producerTotalKey: AccessL10nKey.myOrderProducerSubtotalFormat
+            companyName: group.companyName,
+            statusText: nil,
+            lines: group.lines.map { line in
+                PersonalOrderSummaryLineContent(
+                    id: line.id,
+                    productName: line.productName,
+                    packagingLine: line.packagingLine,
+                    quantityText: localizedGenericOrderHistoryQuantityLabel(
+                        line.quantityLabel,
+                        singleLabel: l10n(AccessL10nKey.myOrderQuantitySingle),
+                        pluralFormat: l10n(AccessL10nKey.myOrderQuantityPluralFormat)
+                    ),
+                    subtotalText: line.subtotal.euroCurrencyText(locale: presentationLocale)
+                )
+            },
+            totalText: l10n(
+                AccessL10nKey.myOrderProducerSubtotalFormat,
+                group.subtotal.euroCurrencyText(locale: presentationLocale)
+            )
         )
     }
 

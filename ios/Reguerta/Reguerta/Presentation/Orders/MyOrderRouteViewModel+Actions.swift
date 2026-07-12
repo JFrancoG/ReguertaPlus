@@ -109,16 +109,22 @@ extension MyOrderRouteViewModel {
     }
 
     func packContainerLine(for product: Product) -> String {
+        var components: [String] = []
         if let packContainerName = product.packContainerName, packContainerName.isNotEmpty {
-            let quantity = (product.packContainerQty ?? product.unitQty).myOrderUiDecimal
-            let unit = product.packContainerAbbreviation ??
-                product.packContainerPlural ??
-                product.unitAbbreviation ??
-                product.unitName
-            return "\(packContainerName) \(quantity) \(unit)".trimmingCharacters(in: .whitespaces)
+            if let packContainerQty = product.packContainerQty,
+               abs(packContainerQty - 1) >= 0.000_1 {
+                components.append(packContainerQty.myOrderUiDecimal)
+            }
+            components.append(packContainerName)
         }
-        let fallbackUnit = product.unitQty == 1 ? product.unitName : product.unitPlural
-        return "\(fallbackUnit) \(product.unitQty.myOrderUiDecimal)".trimmingCharacters(in: .whitespaces)
+
+        let measure = product.unitAbbreviation ??
+            (abs(product.unitQty - 1) < 0.000_1 ? product.unitName : product.unitPlural)
+        components.append(product.unitQty.myOrderUiDecimal)
+        if measure.isNotEmpty {
+            components.append(measure)
+        }
+        return components.joined(separator: " ")
     }
 
     func finiteStockLimit(for product: Product) -> Int? {

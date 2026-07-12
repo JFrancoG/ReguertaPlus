@@ -20,11 +20,14 @@ struct ReguertaOrdersViewModelTests {
     func myOrderDynamicCopyResolvesFromTheLocalizationCatalog() {
         let total = l10n(AccessL10nKey.myOrderConfirmedTotalFormat, "€4.63")
         let remaining = l10n(AccessL10nKey.myOrderStockRemainingFormat, "3")
+        let editableNote = l10n(AccessL10nKey.myOrderEditableUntilSundayNote)
 
         #expect(total != AccessL10nKey.myOrderConfirmedTotalFormat)
         #expect(total.contains("€4.63"))
         #expect(remaining != AccessL10nKey.myOrderStockRemainingFormat)
         #expect(remaining.contains("3"))
+        #expect(editableNote != AccessL10nKey.myOrderEditableUntilSundayNote)
+        #expect(editableNote.hasPrefix("*"))
     }
 
     @Test
@@ -97,6 +100,43 @@ struct ReguertaOrdersViewModelTests {
                 locale: Locale(identifier: "en_US")
             ) == "Pieza 0.125 kg"
         )
+    }
+
+    @Test
+    func activeProductPackagingLineKeepsContainerAndMeasureQuantitiesSeparate() {
+        let viewModel = makeMyOrderViewModel()
+        func product(packContainerQty: Double) -> Product {
+            Product(
+                id: "eggs",
+                vendorId: "producer_even",
+                companyName: "Yemaya",
+                name: "Huevos media docena",
+                description: "",
+                productImageUrl: nil,
+                price: 2.25,
+                pricingMode: .fixed,
+                unitName: "unidad",
+                unitAbbreviation: nil,
+                unitPlural: "ud(s).",
+                unitQty: 6,
+                packContainerName: "Caja",
+                packContainerAbbreviation: nil,
+                packContainerPlural: "Cajas",
+                packContainerQty: packContainerQty,
+                isAvailable: true,
+                stockMode: .infinite,
+                stockQty: nil,
+                isEcoBasket: false,
+                isCommonPurchase: false,
+                commonPurchaseType: nil,
+                archived: false,
+                createdAtMillis: 1,
+                updatedAtMillis: 1
+            )
+        }
+
+        #expect(viewModel.packContainerLine(for: product(packContainerQty: 1)) == "Caja 6 ud(s).")
+        #expect(viewModel.packContainerLine(for: product(packContainerQty: 2)) == "2 Caja 6 ud(s).")
     }
 
     @Test
