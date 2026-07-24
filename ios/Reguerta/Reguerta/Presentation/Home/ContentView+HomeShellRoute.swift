@@ -165,25 +165,29 @@ extension AccessRootRoutingView {
                 message: l10n(AccessL10nKey.myOrderCheckoutSubmitErrorMessage)
             )
         case .readyToSubmit(let total, let noPickupEcoBaskets):
-            reguertaDialog(
-                type: .info,
-                title: l10n(AccessL10nKey.myOrderCheckoutSuccessTitle),
-                message: noPickupEcoBaskets > 0
-                    ? l10n(
-                        AccessL10nKey.myOrderCheckoutSuccessWithNoPickupMessage,
-                        total.euroCurrencyText()
-                    )
-                    : l10n(
-                        AccessL10nKey.myOrderCheckoutSuccessMessage,
-                        total.euroCurrencyText()
-                    ),
-                primaryAction: ReguertaDialogAction(
-                    title: l10n(AccessL10nKey.commonAccept),
-                    action: handleHomeCheckoutSuccessAcknowledged
-                ),
-                dismissible: false
-            )
+            homeReadyToSubmitDialog(total: total, noPickupEcoBaskets: noPickupEcoBaskets)
         }
+    }
+
+    func homeReadyToSubmitDialog(total: Double, noPickupEcoBaskets: Int) -> some View {
+        reguertaDialog(
+            type: .info,
+            title: l10n(AccessL10nKey.myOrderCheckoutSuccessTitle),
+            message: noPickupEcoBaskets > 0
+                ? l10n(
+                    AccessL10nKey.myOrderCheckoutSuccessWithNoPickupMessage,
+                    total.euroCurrencyText()
+                )
+                : l10n(
+                    AccessL10nKey.myOrderCheckoutSuccessMessage,
+                    total.euroCurrencyText()
+                ),
+            primaryAction: ReguertaDialogAction(
+                title: l10n(AccessL10nKey.commonAccept),
+                action: handleHomeCheckoutSuccessAcknowledged
+            ),
+            dismissible: false
+        )
     }
 
     func homeCheckoutErrorDialog(title: String, message: String) -> some View {

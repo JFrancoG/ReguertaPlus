@@ -207,7 +207,10 @@ final class UsersFeatureViewModel {
         pendingToggleActiveMemberId = nil
     }
 
-    private func saveDraft(editingMemberId: String?, clearsEditor: Bool) async -> Bool {
+}
+
+private extension UsersFeatureViewModel {
+    func saveDraft(editingMemberId: String?, clearsEditor: Bool) async -> Bool {
         guard let session = currentSession else { return false }
 
         switch draft.validated(
@@ -241,7 +244,7 @@ final class UsersFeatureViewModel {
         }
     }
 
-    private func buildTargetMember(
+    func buildTargetMember(
         editingMemberId: String?,
         normalizedEmail: String,
         roles: Set<MemberRole>
@@ -281,7 +284,7 @@ final class UsersFeatureViewModel {
         )
     }
 
-    private func persistMember(target: Member, session: AuthorizedSession) async -> Bool {
+    func persistMember(target: Member, session: AuthorizedSession) async -> Bool {
         do {
             let updated = try await upsertMemberByAdmin.execute(
                 actorAuthUid: session.principal.uid,
@@ -302,7 +305,7 @@ final class UsersFeatureViewModel {
         return false
     }
 
-    private func applyMembers(_ members: [Member], basedOn session: AuthorizedSession) {
+    func applyMembers(_ members: [Member], basedOn session: AuthorizedSession) {
         let refreshedCurrent = members.first(where: { $0.id == session.member.id }) ?? session.member
         let refreshedAuthenticated = members.first(where: { $0.id == session.authenticatedMember.id })
             ?? session.authenticatedMember
@@ -321,7 +324,7 @@ final class UsersFeatureViewModel {
         }
     }
 
-    private func syncFromSessionViewModel() {
+    func syncFromSessionViewModel() {
         guard case .authorized(let session) = sessionViewModel.mode else {
             resetState()
             return
@@ -331,7 +334,7 @@ final class UsersFeatureViewModel {
         membersFeed = sortedMembers(from: session.members)
     }
 
-    private func resetState() {
+    func resetState() {
         currentSession = nil
         currentMember = nil
         membersFeed = []
@@ -345,13 +348,13 @@ final class UsersFeatureViewModel {
         highlightedMemberId = nil
     }
 
-    private func isCurrentSession(_ session: AuthorizedSession) -> Bool {
+    func isCurrentSession(_ session: AuthorizedSession) -> Bool {
         currentSession?.principal == session.principal &&
             currentSession?.member.id == session.member.id &&
             currentSession?.authenticatedMember.id == session.authenticatedMember.id
     }
 
-    private func sortedMembers(from members: [Member]) -> [Member] {
+    func sortedMembers(from members: [Member]) -> [Member] {
         members.sorted {
             $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
         }
