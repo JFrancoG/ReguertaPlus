@@ -1,6 +1,7 @@
 package com.reguerta.user.presentation.root
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.google.firebase.auth.FirebaseAuth
@@ -12,7 +13,7 @@ import com.reguerta.user.data.access.FirebaseAuthSessionProvider
 import com.reguerta.user.data.access.FirestoreMemberRepository
 import com.reguerta.user.data.access.InMemoryMemberRepository
 import com.reguerta.user.data.bylaws.AssetBylawsKnowledgeSource
-import com.reguerta.user.data.bylaws.BylawsCloudGateway
+import com.reguerta.user.data.bylaws.createPlatformBylawsOnDeviceAssistant
 import com.reguerta.user.data.calendar.ChainedDeliveryCalendarRepository
 import com.reguerta.user.data.calendar.FirestoreDeliveryCalendarRepository
 import com.reguerta.user.data.calendar.InMemoryDeliveryCalendarRepository
@@ -49,6 +50,7 @@ import com.reguerta.user.data.shiftswap.FirestoreShiftSwapRequestRepository
 import com.reguerta.user.data.shiftswap.InMemoryShiftSwapRequestRepository
 import com.reguerta.user.domain.access.ResolveAuthorizedSessionUseCase
 import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
+import com.reguerta.user.domain.bylaws.BylawsEvidenceRetriever
 import com.reguerta.user.domain.freshness.ResolveCriticalDataFreshnessUseCase
 
 @Composable
@@ -127,8 +129,12 @@ fun rememberSessionViewModel(): SessionViewModel {
     val bylawsKnowledgeSource = remember(context.applicationContext) {
         AssetBylawsKnowledgeSource(appContext = context.applicationContext)
     }
-    val bylawsCloudGateway = remember {
-        BylawsCloudGateway(endpointUrl = BuildConfig.BYLAWS_CLOUD_ENDPOINT)
+    val bylawsEvidenceRetriever = remember { BylawsEvidenceRetriever() }
+    val bylawsOnDeviceAssistant = remember {
+        createPlatformBylawsOnDeviceAssistant()
+    }
+    DisposableEffect(bylawsOnDeviceAssistant) {
+        onDispose { bylawsOnDeviceAssistant.close() }
     }
     val imagePipelineManager = remember(context.applicationContext) {
         FirebaseImagePipelineManager(
@@ -163,7 +169,8 @@ fun rememberSessionViewModel(): SessionViewModel {
             criticalDataFreshnessLocalRepository = freshnessLocalRepository,
             reviewerEnvironmentRouter = reviewerEnvironmentRouter,
             bylawsKnowledgeSource = bylawsKnowledgeSource,
-            bylawsCloudGateway = bylawsCloudGateway,
+            bylawsEvidenceRetriever = bylawsEvidenceRetriever,
+            bylawsOnDeviceAssistant = bylawsOnDeviceAssistant,
             nowMillisProvider = DevelopmentTimeMachine::nowMillis,
             developImpersonationEnabled = BuildConfig.DEBUG,
             initialNowOverrideMillis = DevelopmentTimeMachine.overrideNowMillis(),

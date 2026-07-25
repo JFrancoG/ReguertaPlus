@@ -1,8 +1,5 @@
 package com.reguerta.user.presentation.bylaws
 
-import com.reguerta.user.presentation.root.BylawsAnswerMode
-import com.reguerta.user.presentation.root.BylawsAnswerResult
-
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
@@ -42,6 +39,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -52,21 +50,40 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.reguerta.user.R
+import com.reguerta.user.domain.bylaws.BylawsAssistantCapability
+import com.reguerta.user.domain.bylaws.BylawsAssistantStatus
+import com.reguerta.user.presentation.root.BylawsAnswerResult
+import com.reguerta.user.presentation.root.BylawsCitation
+import com.reguerta.user.ui.components.auth.ReguertaButton
+import com.reguerta.user.ui.components.auth.ReguertaButtonVariant
 import java.io.File
 import java.io.IOException
+import java.util.Locale
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 internal fun BylawsRoute(
     queryInput: String,
     answerResult: BylawsAnswerResult?,
+    assistantCapability: BylawsAssistantCapability,
     isLoading: Boolean,
     onQueryChanged: (String) -> Unit,
     onAsk: () -> Unit,
     onClear: () -> Unit,
+    onCancel: () -> Unit,
+    onPrepareModel: () -> Unit,
+    onRetryCapability: () -> Unit,
     isDevelopBuild: Boolean,
 ) {
     var isPdfViewerVisible by rememberSaveable { mutableStateOf(false) }
+    val currentOnCancel by rememberUpdatedState(onCancel)
     val isSendEnabled = queryInput.isNotBlank() && !isLoading
+
+    DisposableEffect(Unit) {
+        onDispose { currentOnCancel() }
+    }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -77,59 +94,105 @@ internal fun BylawsRoute(
             style = MaterialTheme.typography.bodyMedium,
         )
 
-        Box(modifier = Modifier.fillMaxWidth()) {
-            OutlinedTextField(
-                value = queryInput,
-                onValueChange = onQueryChanged,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.bylaws_input_label)) },
-                placeholder = { Text(stringResource(R.string.bylaws_input_placeholder)) },
-                minLines = 3,
-                maxLines = 6,
-                enabled = !isLoading,
-                shape = RoundedCornerShape(20.dp),
-                trailingIcon = {
-                    Box(modifier = Modifier.size(48.dp))
-                },
+        ReguertaButton(
+            label = stringResource(R.string.bylaws_open_pdf_action),
+            onClick = { isPdfViewerVisible = true },
+            variant = ReguertaButtonVariant.SECONDARY,
+            enabled = !isLoading,
+        )
+
+        when (assistantCapability.status) {
+            BylawsAssistantStatus.CHECKING -> BylawsProgressStatus(
+                message = stringResource(R.string.bylaws_capability_checking),
             )
 
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 4.dp, bottom = 4.dp)
-                    .size(48.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        strokeWidth = 2.dp,
-                    )
-                } else {
-                    IconButton(
-                        onClick = onAsk,
-                        enabled = isSendEnabled,
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = stringResource(R.string.bylaws_ask_action),
-                            modifier = Modifier.size(27.dp),
-                            tint = if (isSendEnabled) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
-                            },
-                        )
+            BylawsAssistantStatus.DOWNLOADABLE -> {
+                Text(
+                    text = stringResource(R.string.bylaws_model_downloadable),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Button(onClick = onPrepareModel) {
+                    Text(stringResource(R.string.bylaws_prepare_model_action))
+                }
+            }
+
+            BylawsAssistantStatus.DOWNLOADING -> {
+                BylawsProgressStatus(
+                    message = stringResource(R.string.bylaws_model_downloading),
+                )
+                if (isDevelopBuild) {
+                    TextButton(onClick = onRetryCapability) {
+                        Text(stringResource(R.string.bylaws_retry_capability_action))
                     }
                 }
             }
-        }
 
-        TextButton(
-            onClick = { isPdfViewerVisible = true },
-            enabled = !isLoading,
-        ) {
-            Text(stringResource(R.string.bylaws_open_pdf_action))
+            BylawsAssistantStatus.UNAVAILABLE -> {
+                Text(
+                    text = stringResource(R.string.bylaws_pdf_only_subtitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                if (isDevelopBuild && assistantCapability.canRetry) {
+                    TextButton(onClick = onRetryCapability) {
+                        Text(stringResource(R.string.bylaws_retry_capability_action))
+                    }
+                }
+            }
+
+            BylawsAssistantStatus.AVAILABLE -> {
+                Text(
+                    text = stringResource(R.string.bylaws_language_notice),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = queryInput,
+                        onValueChange = onQueryChanged,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.bylaws_input_label)) },
+                        placeholder = { Text(stringResource(R.string.bylaws_input_placeholder)) },
+                        minLines = 3,
+                        maxLines = 6,
+                        enabled = !isLoading,
+                        shape = RoundedCornerShape(20.dp),
+                        trailingIcon = {
+                            Box(modifier = Modifier.size(48.dp))
+                        },
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 4.dp, bottom = 4.dp)
+                            .size(48.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            IconButton(
+                                onClick = onAsk,
+                                enabled = isSendEnabled,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Send,
+                                    contentDescription = stringResource(R.string.bylaws_ask_action),
+                                    modifier = Modifier.size(27.dp),
+                                    tint = if (isSendEnabled) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         answerResult?.let { result ->
@@ -145,6 +208,24 @@ internal fun BylawsRoute(
     if (isPdfViewerVisible) {
         BylawsPdfViewerDialog(
             onDismissRequest = { isPdfViewerVisible = false },
+        )
+    }
+}
+
+@Composable
+private fun BylawsProgressStatus(message: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(22.dp),
+            strokeWidth = 2.dp,
+        )
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
         )
     }
 }
@@ -180,37 +261,71 @@ private fun BylawsAnswerSection(
             text = result.answer,
             style = MaterialTheme.typography.bodyLarge,
         )
+        Text(
+            text = stringResource(R.string.bylaws_answer_disclaimer),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (result.citations.isNotEmpty()) {
+            Text(
+                text = stringResource(R.string.bylaws_sources_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            result.citations.forEach { citation ->
+                BylawsCitationCard(citation = citation)
+            }
+        }
         if (isDevelopBuild) {
             Text(
                 text = stringResource(R.string.bylaws_develop_details_title),
                 style = MaterialTheme.typography.labelLarge,
             )
             Text(
-                text = when (result.mode) {
-                    BylawsAnswerMode.LOCAL -> stringResource(R.string.bylaws_mode_local)
-                    BylawsAnswerMode.CLOUD -> stringResource(R.string.bylaws_mode_cloud)
-                    BylawsAnswerMode.FALLBACK -> stringResource(R.string.bylaws_mode_fallback)
-                },
-                style = MaterialTheme.typography.titleSmall,
-            )
-            Text(
                 text = stringResource(
-                    R.string.bylaws_trace_format,
-                    "%.2f".format(result.trace.localCoverage),
-                    "%.2f".format(result.trace.localConfidence),
-                    result.trace.reasons.joinToString(", ").ifBlank { "sin_escalado" },
+                    R.string.bylaws_develop_diagnostics_format,
+                    result.diagnostics.modelId
+                        ?: stringResource(R.string.bylaws_diagnostics_unknown_model),
+                    result.diagnostics.inputTokenCount,
+                    result.diagnostics.evidence.joinToString(", ") { evidence ->
+                        "${evidence.chunkId}: ${String.format(Locale.ROOT, "%.2f", evidence.score)}"
+                    }.ifBlank { "—" },
                 ),
                 style = MaterialTheme.typography.bodySmall,
             )
-            if (result.citedPages.isNotEmpty()) {
-                Text(
-                    text = stringResource(
-                        R.string.bylaws_pages_format,
-                        result.citedPages.joinToString(", ")
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
+        }
+    }
+}
+
+@Composable
+private fun BylawsCitationCard(citation: BylawsCitation) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = citation.title,
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Text(
+                text = if (citation.pageStart == citation.pageEnd) {
+                    stringResource(R.string.bylaws_citation_page_format, citation.pageStart)
+                } else {
+                    stringResource(
+                        R.string.bylaws_citation_page_range_format,
+                        citation.pageStart,
+                        citation.pageEnd,
+                    )
+                },
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = stringResource(R.string.bylaws_citation_excerpt_format, citation.excerpt),
+                style = MaterialTheme.typography.bodyMedium,
+            )
         }
     }
 }
@@ -225,11 +340,19 @@ private fun BylawsPdfViewerDialog(
         initialValue = BylawsPdfLoadState.Loading,
         key1 = context,
     ) {
-        value = runCatching { renderBylawsPdfPages(context) }
-            .fold(
-                onSuccess = { pages -> BylawsPdfLoadState.Ready(pages) },
-                onFailure = { BylawsPdfLoadState.Error },
-            )
+        value = try {
+            val pdfFile = withContext(Dispatchers.IO) {
+                ensureLocalBylawsPdfFile(context)
+            }
+            val pages = withContext(Dispatchers.Default) {
+                renderBylawsPdfPages(pdfFile)
+            }
+            BylawsPdfLoadState.Ready(pages)
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (_: Exception) {
+            BylawsPdfLoadState.Error
+        }
     }
 
     val renderedPages = (loadState as? BylawsPdfLoadState.Ready)?.pages.orEmpty()
@@ -330,7 +453,10 @@ private fun BylawsPdfViewerDialog(
                                     )
                                     Image(
                                         bitmap = page.bitmap.asImageBitmap(),
-                                        contentDescription = null,
+                                        contentDescription = stringResource(
+                                            R.string.bylaws_pdf_page_content_description,
+                                            page.number,
+                                        ),
                                         modifier = Modifier.fillMaxWidth(),
                                     )
                                 }
@@ -354,8 +480,7 @@ private data class BylawsRenderedPage(
     val bitmap: Bitmap,
 )
 
-private fun renderBylawsPdfPages(context: Context): List<BylawsRenderedPage> {
-    val pdfFile = ensureLocalBylawsPdfFile(context)
+private fun renderBylawsPdfPages(pdfFile: File): List<BylawsRenderedPage> {
     val fileDescriptor = ParcelFileDescriptor.open(pdfFile, ParcelFileDescriptor.MODE_READ_ONLY)
 
     return fileDescriptor.use { descriptor ->
@@ -384,8 +509,9 @@ private fun renderBylawsPdfPages(context: Context): List<BylawsRenderedPage> {
 }
 
 @Throws(IOException::class)
+@Synchronized
 private fun ensureLocalBylawsPdfFile(context: Context): File {
-    val bylawsDir = File(context.filesDir, "bylaws").apply { mkdirs() }
+    val bylawsDir = File(context.cacheDir, "bylaws").apply { mkdirs() }
     val pdfFile = File(bylawsDir, "reguerta-estatutos.pdf")
     if (pdfFile.exists()) {
         return pdfFile

@@ -108,7 +108,7 @@ Main capability groups:
 
 ### 4.10 AI scope
 
-- Bylaws consultation: hybrid local+cloud strategy.
+- Bylaws consultation: deterministic Spanish article retrieval plus capability-gated on-device generation. iOS summaries follow the active app language and only model unavailability is PDF-only; Android develop remains Spanish with its existing fallback pending parity. No cloud inference.
 - Shift source integration: Google Sheets for read/write.
 - MVP auditing for chatbot-driven shift changes is operational/social (global notifications), not deep technical tracing.
 

@@ -181,13 +181,17 @@ Acceptance criteria:
 
 ## 7. AI and documents
 
-### HU-019 Hybrid bylaws consultation
+### HU-019 Grounded on-device bylaws consultation
 
 As a member I want fast bylaws answers.
 
 Acceptance criteria:
-- Typical questions are resolved locally.
-- Complex questions can escalate to cloud mode.
+- The canonical PDF is always available.
+- Capable iOS devices accept Spanish questions and answer with an on-device summary in the active app language, grounded in deterministic Spanish article excerpts. Android develop remains Spanish pending parity.
+- Article and physical PDF-page evidence remains visible with every answer.
+- Unsupported devices expose only the PDF path. On iOS, unrelated questions, insufficient evidence, and generation errors publish no answer, explain the specific outcome, and keep the composer and PDF access available; Android develop retains its current fallback pending parity.
+- No question, excerpt, or answer is sent to a cloud inference service.
+- Android generation is develop-only until its provider API and audience terms are production-eligible.
 
 ### HU-020 Shift management with shared source
 

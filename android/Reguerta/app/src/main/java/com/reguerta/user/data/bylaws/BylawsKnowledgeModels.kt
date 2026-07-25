@@ -3,13 +3,13 @@ package com.reguerta.user.data.bylaws
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class BylawsKnowledgeIndex(
+internal data class BylawsKnowledgeIndexDTO(
     val metadata: BylawsKnowledgeMetadata,
     val chunks: List<BylawsKnowledgeChunk>,
 )
 
 @Serializable
-data class BylawsKnowledgeMetadata(
+internal data class BylawsKnowledgeMetadata(
     val documentId: String,
     val title: String,
     val language: String,
@@ -22,10 +22,13 @@ data class BylawsKnowledgeMetadata(
 )
 
 @Serializable
-data class BylawsKnowledgeChunk(
+internal data class BylawsKnowledgeChunk(
     val id: String,
+    val kind: String = "page",
+    val articleNumber: Int? = null,
     val pageStart: Int,
     val pageEnd: Int,
     val title: String,
     val text: String,
+    val searchAliases: List<String> = emptyList(),
 )

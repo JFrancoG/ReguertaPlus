@@ -180,13 +180,17 @@ Criterios de aceptación:
 
 ## 7. IA y documentos
 
-### HU-019 Consultar estatutos con IA híbrida
+### HU-019 Consultar estatutos con IA local fundamentada
 
 Como socio quiero consultar estatutos con respuestas rápidas para resolver dudas.
 
 Criterios de aceptación:
-- Dado pregunta habitual de estatutos, cuando consulto, entonces se responde en modo local.
-- Dado pregunta compleja, cuando se detecta mayor complejidad, entonces se puede escalar a nube.
+- El PDF canonico permanece siempre disponible.
+- En dispositivos iOS compatibles, una consulta en espanol recibe un resumen local en el idioma activo de la app, fundamentado en extractos deterministicos por articulo que permanecen en espanol. Android develop permanece en espanol hasta completar la paridad.
+- Cada respuesta muestra articulo y paginas fisicas del PDF junto con el extracto fuente.
+- En dispositivos no compatibles solo se ofrece el PDF. En iOS, una pregunta ajena, la falta de evidencia suficiente o un error de generacion no publica respuesta, explica el resultado concreto y mantiene el compositor y el PDF accesibles; Android develop conserva su fallback actual hasta completar la paridad.
+- Ninguna pregunta, extracto o respuesta se envia a un servicio de inferencia en nube.
+- La generacion Android queda limitada a develop hasta que la API y los terminos de audiencia del proveedor permitan produccion.
 
 ### HU-020 Gestionar turnos con soporte de fuente externa
 

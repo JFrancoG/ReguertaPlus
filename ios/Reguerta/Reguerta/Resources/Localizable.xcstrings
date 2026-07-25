@@ -681,23 +681,6 @@
         }
       }
     },
-    "bylaws.answer.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Answer"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Respuesta"
-          }
-        }
-      }
-    },
     "bylaws.ask.action" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -749,19 +732,104 @@
         }
       }
     },
+    "bylaws.diagnostics.model.format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Local model: %1$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modelo local: %1$@"
+          }
+        }
+      }
+    },
+    "bylaws.diagnostics.retrieval.format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retrieval: %1$@ · score %2$.1f"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recuperación: %1$@ · puntuación %2$.1f"
+          }
+        }
+      }
+    },
+    "bylaws.evidence.insufficient" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The question appears related to the bylaws, but I couldn't find enough evidence for a reliable answer. Rephrase it or read the full PDF."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La pregunta parece relacionada con los estatutos, pero no he encontrado evidencia suficiente para responder con fiabilidad. Reformúlala o consulta el PDF completo."
+          }
+        }
+      }
+    },
+    "bylaws.evidence.pages.format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Official PDF pages: %1$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Páginas del PDF oficial: %1$@"
+          }
+        }
+      }
+    },
+    "bylaws.evidence.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Official evidence"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Evidencia oficial"
+          }
+        }
+      }
+    },
     "bylaws.input.label" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "What would you like to know?"
+            "value" : "Ask your question in Spanish"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "¿Qué quieres saber?"
+            "value" : "Escribe tu pregunta en español"
           }
         }
       }
@@ -772,64 +840,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "For example: What are members’ rights?"
+            "value" : "E.g.: derechos de miembros"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Por ejemplo: ¿Cuáles son los derechos de las personas asociadas?"
-          }
-        }
-      }
-    },
-    "bylaws.mode.cloud" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cloud answer"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Respuesta en nube"
-          }
-        }
-      }
-    },
-    "bylaws.mode.fallback" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Safe fallback answer"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Respuesta de seguridad"
-          }
-        }
-      }
-    },
-    "bylaws.mode.local" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Local answer"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Respuesta local"
+            "value" : "Ej.: derechos de miembros"
           }
         }
       }
@@ -851,23 +868,6 @@
         }
       }
     },
-    "bylaws.pages.format" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pages: %1$@"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Páginas: %1$@"
-          }
-        }
-      }
-    },
     "bylaws.pdf.viewer.unavailable" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -881,6 +881,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No se pudo abrir el PDF en este dispositivo."
+          }
+        }
+      }
+    },
+    "bylaws.pdf_only.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Local bylaws Q&A requires Apple Intelligence. You can still read the full official PDF on this device."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La consulta local de los estatutos requiere Apple Intelligence. Aun así, puedes leer el PDF oficial completo en este dispositivo."
+          }
+        }
+      }
+    },
+    "bylaws.question.unrelated" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This question doesn't appear to be about the bylaws. Try asking about members' rights, duties, governing bodies, or how the association operates."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta consulta no parece estar relacionada con los estatutos. Prueba con derechos, deberes, órganos o funcionamiento de la asociación."
           }
         }
       }
@@ -908,13 +942,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Get clear answers to questions about Regüerta’s bylaws. Enter a question to find the relevant information or open the full document."
+            "value" : "Ask in Spanish; the local summary follows the app language. Every result keeps the exact official excerpt in Spanish and its PDF pages."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Resuelve tus dudas sobre los estatutos de Regüerta. Escribe una pregunta para encontrar la información que necesitas o consulta el documento completo."
+            "value" : "Pregunta en español; el resumen local sigue el idioma de la app. Cada resultado conserva el extracto oficial exacto en español y sus páginas del PDF."
           }
         }
       }
@@ -936,19 +970,53 @@
         }
       }
     },
-    "bylaws.trace.format" : {
+    "bylaws.summary.disclaimer" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trace: coverage=%1$@ · confidence=%2$@ · reasons=%3$@"
+            "value" : "Generated locally. Check the official excerpt and PDF; the wording of the bylaws prevails."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trazabilidad: cobertura=%1$@ · confianza=%2$@ · motivos=%3$@"
+            "value" : "Generado localmente. Comprueba el extracto y el PDF oficial; prevalece el texto de los estatutos."
+          }
+        }
+      }
+    },
+    "bylaws.summary.generation_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I found related information, but couldn't generate a reliable summary. Try rephrasing the question or read the PDF."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "He encontrado información relacionada, pero no he podido generar un resumen fiable. Prueba a reformular la pregunta o consulta el PDF."
+          }
+        }
+      }
+    },
+    "bylaws.summary.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Local summary"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resumen local"
           }
         }
       }
