@@ -144,9 +144,13 @@ Governance note: final policy for post-publication absence replacement remains a
 
 ### 3.10 AI scope (MVP-bounded)
 
-- RF-IA-01 Bylaws consultation uses hybrid approach:
-  - local first,
-  - cloud escalation for complex cases.
+- RF-IA-01 Bylaws consultation is private and grounded:
+  - the bundled PDF is always the canonical source and remains directly accessible,
+  - deterministic retrieval selects and displays the supporting articles and physical PDF pages,
+  - on iOS, a supported on-device model may produce a clearly labelled summary in the active app language from only those Spanish excerpts; Android develop remains Spanish pending parity,
+  - on iOS, only an unavailable model results in PDF-only consultation; an unrelated question, insufficient evidence, or generation failure publishes no answer and shows contextual guidance while PDF access remains available; Android develop retains its existing fallback pending parity,
+  - no question, excerpt, or answer is sent to a cloud inference service,
+  - Android on-device generation remains develop-only while the prerelease provider API and audience terms prevent production use.
 - RF-IA-02 Shifts can be integrated with Google Sheets (read/write).
 - RF-IA-03 MVP operational traceability for shift changes relies on global notifications.
 

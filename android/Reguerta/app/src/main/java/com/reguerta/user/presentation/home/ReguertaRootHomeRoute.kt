@@ -85,6 +85,7 @@ import com.reguerta.user.R
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.canAccessReceivedOrders
 import com.reguerta.user.domain.access.canPublishNews
+import com.reguerta.user.domain.bylaws.BylawsAssistantCapability
 import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
 import com.reguerta.user.domain.calendar.DeliveryWeekday
 import com.reguerta.user.domain.commitments.SeasonalCommitment
@@ -132,6 +133,7 @@ internal fun HomeRoute(
     dismissedShiftSwapRequestIds: Set<String>,
     shiftSwapDraft: ShiftSwapDraft,
     bylawsQueryInput: String,
+    bylawsAssistantCapability: BylawsAssistantCapability,
     bylawsAnswerResult: BylawsAnswerResult?,
     nextDeliveryShift: ShiftAssignment?,
     nextMarketShift: ShiftAssignment?,
@@ -175,6 +177,8 @@ internal fun HomeRoute(
     onStartCreatingNews: () -> Unit,
     onStartCreatingNotification: () -> Unit,
     onPrepareNotificationsRoute: () -> Unit,
+    onPrepareBylawsRoute: () -> Unit,
+    onCancelBylawsConsultation: () -> Unit,
     onMarkVisibleNotificationsReadOnExit: () -> Unit,
     onDismissPushNotificationPermissionDialog: () -> Unit,
     onOpenPushNotificationSettings: () -> Unit,
@@ -211,6 +215,7 @@ internal fun HomeRoute(
     onCancelShiftSwapRequest: (String) -> Unit,
     onConfirmShiftSwapRequest: (String, String) -> Unit,
     onAskBylawsQuestion: () -> Unit,
+    onPrepareBylawsModel: () -> Unit,
     onClearBylawsResult: () -> Unit,
     onDismissShiftSwapActivity: (String) -> Unit,
     onSaveSharedProfile: (onSuccess: () -> Unit) -> Unit,
@@ -262,6 +267,12 @@ internal fun HomeRoute(
         delay(1_600)
         if (highlightedNewsId == currentHighlightedNewsId) {
             highlightedNewsId = null
+        }
+    }
+
+    LaunchedEffect(currentDestination) {
+        if (currentDestination == HomeDestination.BYLAWS) {
+            onPrepareBylawsRoute()
         }
     }
 
@@ -803,10 +814,14 @@ internal fun HomeRoute(
                     HomeDestination.BYLAWS -> BylawsRoute(
                         queryInput = bylawsQueryInput,
                         answerResult = bylawsAnswerResult,
+                        assistantCapability = bylawsAssistantCapability,
                         isLoading = isAskingBylaws,
                         onQueryChanged = onBylawsQueryChanged,
                         onAsk = onAskBylawsQuestion,
                         onClear = onClearBylawsResult,
+                        onCancel = onCancelBylawsConsultation,
+                        onPrepareModel = onPrepareBylawsModel,
+                        onRetryCapability = onPrepareBylawsRoute,
                         isDevelopBuild = isDevelopImpersonationEnabled,
                     )
 

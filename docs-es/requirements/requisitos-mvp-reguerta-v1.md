@@ -144,9 +144,13 @@ Nota de gobierno: la política definitiva para cubrir bajas sobrevenidas tras pu
 
 ### 3.10 IA (MVP acotado)
 
-- `RF-IA-01` Consulta de estatutos con enfoque híbrido:
-  - local por defecto,
-  - nube para preguntas complejas.
+- `RF-IA-01` Consulta privada y fundamentada de estatutos:
+  - el PDF incluido es siempre la fuente canonica y permanece accesible,
+  - una recuperacion determinista selecciona y muestra los articulos y paginas fisicas del PDF que respaldan el resultado,
+  - en iOS, un modelo local compatible puede producir un resumen claramente identificado en el idioma activo de la app usando solo esos extractos en espanol; Android develop permanece en espanol hasta completar la paridad,
+  - en iOS, solo un modelo no disponible implica consulta solo mediante PDF; una pregunta ajena, evidencia insuficiente o un fallo de generacion no publica respuesta y muestra una orientacion contextual mientras el PDF sigue accesible; Android develop conserva su fallback actual hasta completar la paridad,
+  - ninguna pregunta, extracto o respuesta se envia a un servicio de inferencia en nube,
+  - la generacion local Android permanece solo en develop mientras la API prerelease y los terminos de audiencia del proveedor impidan su uso en produccion.
 - `RF-IA-02` Turnos con fuente en Google Sheets (lectura y cambios) integrable con app.
 - `RF-IA-03` Para MVP, la trazabilidad de acciones de turnos se apoya en notificación global de cambios.
 

@@ -113,12 +113,12 @@ struct ReguertaSessionFeatureViewModelTests {
         let feedbackCenter = GlobalFeedbackCenter()
         let viewModel = BylawsFeatureViewModel(
             feedbackCenter: feedbackCenter,
-            answerer: RecordingBylawsAnswerer(),
+            consultant: RecordingBylawsConsultant(),
             documentProvider: FixedBylawsDocumentProvider(pdfURL: nil)
         )
         viewModel.queryInput = "   "
 
-        viewModel.askQuestion()
+        viewModel.askQuestion(responseLanguage: .spanish)
 
         #expect(feedbackCenter.messageKey == AccessL10nKey.bylawsQueryRequired)
         #expect(viewModel.isAsking == false)
@@ -126,19 +126,21 @@ struct ReguertaSessionFeatureViewModelTests {
 
     @Test
     func bylawsValidQuestionStoresAnswerAndClearsState() async {
-        let answerer = RecordingBylawsAnswerer()
+        let consultant = RecordingBylawsConsultant()
         let viewModel = BylawsFeatureViewModel(
             feedbackCenter: GlobalFeedbackCenter(),
-            answerer: answerer,
+            consultant: consultant,
             documentProvider: FixedBylawsDocumentProvider(pdfURL: URL(string: "file:///tmp/bylaws.pdf"))
         )
+        await viewModel.prepare(responseLanguage: .english)
         viewModel.queryInput = "Cuales son las cuotas?"
 
-        viewModel.askQuestion()
+        viewModel.askQuestion(responseLanguage: .english)
         await waitForCondition { viewModel.answerResult != nil }
 
-        #expect(await answerer.questions() == ["Cuales son las cuotas?"])
-        #expect(viewModel.answerResult?.answer == "Respuesta test")
+        #expect(await consultant.questions() == ["Cuales son las cuotas?"])
+        #expect(await consultant.responseLanguages() == [.english])
+        #expect(viewModel.answerResult?.summary == "Respuesta test")
         #expect(viewModel.isAsking == false)
 
         viewModel.clearResult()
@@ -151,12 +153,12 @@ struct ReguertaSessionFeatureViewModelTests {
         let feedbackCenter = GlobalFeedbackCenter()
         let viewModel = BylawsFeatureViewModel(
             feedbackCenter: feedbackCenter,
-            answerer: RecordingBylawsAnswerer(),
+            consultant: RecordingBylawsConsultant(),
             documentProvider: FixedBylawsDocumentProvider(pdfURL: nil)
         )
 
-        #expect(viewModel.pdfURL() == nil)
-        viewModel.reportPdfUnavailable()
+        #expect(viewModel.pdfPresentation == nil)
+        viewModel.openPdf()
 
         #expect(feedbackCenter.messageKey == AccessL10nKey.bylawsPdfViewerUnavailable)
     }
@@ -165,13 +167,15 @@ struct ReguertaSessionFeatureViewModelTests {
     func previewBylawsDependenciesAnswerWithoutLiveServices() async {
         let environment = ReguertaAppEnvironment.preview()
         let viewModel = environment.accessRootViewModel.bylawsViewModel
+        await viewModel.prepare(responseLanguage: .spanish)
         viewModel.queryInput = "Que dice el reglamento?"
 
-        viewModel.askQuestion()
+        viewModel.askQuestion(responseLanguage: .spanish)
         await waitForCondition { viewModel.answerResult != nil }
 
-        #expect(viewModel.answerResult?.mode == .local)
-        #expect(viewModel.pdfURL() == nil)
+        #expect(viewModel.answerResult?.summary.isEmpty == false)
+        viewModel.openPdf()
+        #expect(viewModel.pdfPresentation != nil)
     }
 }
 
@@ -266,26 +270,47 @@ private struct SlowCriticalDataFreshnessRemoteRepository: CriticalDataFreshnessR
     }
 }
 
-private actor RecordingBylawsAnswerer: BylawsAnswering {
+private actor RecordingBylawsConsultant: BylawsConsulting {
     private var recordedQuestions: [String] = []
+    private var recordedResponseLanguages: [BylawsResponseLanguage] = []
 
-    func ask(question: String) async -> BylawsAnswerResult {
+    func capability(for _: BylawsResponseLanguage) -> BylawsConsultationCapability {
+        .localModel
+    }
+
+    func consult(
+        question: String,
+        responseLanguage: BylawsResponseLanguage
+    ) async throws -> BylawsConsultationResult {
         recordedQuestions.append(question)
-        return BylawsAnswerResult(
-            mode: .local,
-            answer: "Respuesta test",
-            citedPages: [1],
-            trace: BylawsDecisionTrace(
-                shouldEscalate: false,
-                reasons: ["test"],
-                localCoverage: 1,
-                localConfidence: 1
+        recordedResponseLanguages.append(responseLanguage)
+        return BylawsConsultationResult(
+            summary: "Respuesta test",
+            evidence: [
+                BylawsSourceEvidence(
+                    sourceID: "article-6",
+                    articleNumber: 6,
+                    title: "Artículo 6",
+                    pageStart: 6,
+                    pageEnd: 6,
+                    excerpt: "Abonar las cuotas."
+                )
+            ],
+            diagnostics: BylawsConsultationDiagnostics(
+                modelIdentifier: "test/local-model",
+                retrieval: [
+                    BylawsRetrievalDiagnostic(sourceID: "article-6", score: 100)
+                ]
             )
         )
     }
 
     func questions() -> [String] {
         recordedQuestions
+    }
+
+    func responseLanguages() -> [BylawsResponseLanguage] {
+        recordedResponseLanguages
     }
 }
 

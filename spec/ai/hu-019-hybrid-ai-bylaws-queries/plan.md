@@ -1,66 +1,71 @@
-# Plan - HU-019 (Hybrid AI bylaws queries)
+# Plan - HU-019 (Grounded on-device bylaws queries)
 
 ## 1. Technical approach
 
-Implement local-first bylaws Q&A with a deterministic escalation policy to cloud mode when local confidence or coverage is insufficient.
-
-### Hybrid policy baseline
-- Local mode first for all requests.
-- Escalate to cloud when any of the following applies:
-  - low confidence in local retrieval/answer,
-  - question spans multiple rules with ambiguous intent,
-  - explicit user request for deeper explanation.
-- Cloud path must have timeout and fallback to local guidance response.
+Build a deterministic article retriever shared in behavior across platforms,
+then allow a capability-gated on-device model to summarize only the selected
+evidence. The canonical PDF and exact excerpt remain the authority. There is no
+cloud inference path.
 
 ## 2. Layer impact
-- UI: Screen, state, and user action updates required by HU-019.
-- Domain: Decision policy for local-vs-cloud routing and confidence thresholds.
-- Data: Local bylaws knowledge source + cloud adapter + telemetry hooks.
-- Backend: Minimal cloud endpoint/config support if required by selected provider.
-- Docs: Spec/tasks and issue evidence updates.
+- UI: capability, preparation, local generation, evidence, and PDF-only states.
+- Domain: article/evidence/citation values and deterministic retrieval policy.
+- Data: bundled schema-v2 index and platform on-device model adapters.
+- Backend: no changes; remove bylaws cloud endpoint wiring.
+- Docs: ADR, requirements, spec/tasks, and issue evidence.
 
 ## 3. Platform-specific changes
 ### Android
-- Implement local retrieval + policy evaluator in ViewModel/domain.
-- Add cloud adapter with timeout/fallback contract.
-- Ensure UI states cover local answer, cloud answer, and fallback message.
+- Compile ML Kit Prompt only in develop/debug while provider terms are unresolved.
+- Map `AVAILABLE`, `DOWNLOADABLE`, `DOWNLOADING`, and `UNAVAILABLE` explicitly.
+- Keep Release and unsupported devices PDF-only.
+- Show model/retrieval diagnostics only in develop.
 
 ### iOS
-- Mirror Android architecture and policy thresholds.
-- Ensure equivalent UI states and fallback behavior.
+- Check Foundation Models availability plus Spanish input/evidence and active Spanish or English output locale support.
+- Use a fresh, cancellable session with static instructions and deterministic sampling.
+- Distinguish clearly unrelated input, insufficient evidence, generation failure, and actual model unavailability.
+- Keep generated summaries subordinate to exact article evidence.
 
 ### Functions/Backend
-- Add/adjust cloud gateway only if needed.
-- Keep provider credentials/config isolated by environment.
+- Remove/ignore inference endpoint configuration; no function is required.
 
 ## 4. Test strategy
-- Unit tests for routing policy (local-only vs cloud escalation triggers).
-- Integration tests for local answer flow, cloud flow, and timeout fallback.
-- Manual tests with representative FAQs and complex multi-rule questions.
+- Parser/index tests for articles 1-22, page ranges, and synchronized assets.
+- Retrieval tests for the canonical questions plus unknown and adversarial input.
+- State tests for capability, preparation, cancellation, insufficient evidence,
+  unrelated input, refusal, generation failure, and output language.
+- UI tests proving the composer is absent in PDF-only state and evidence is
+  visible outside develop.
+- Manual prompt evaluation per supported Apple/Gemini Nano model family.
 
 ## 5. Rollout and functional validation
-- Validate changes in develop environment.
-- Run cross-story regression for related stories in the same domain.
-- Confirm role-based behavior (member/producer/admin/reviewer when applicable).
+- Validate both apps in develop before any production rollout.
+- Restrict Android Prompt evaluation builds to confirmed testers aged 18 or older.
+- Verify airplane-mode generation after required models are downloaded.
+- Verify unsupported physical devices expose only the embedded PDF.
+- Revisit Android production only after provider terms and audience eligibility permit it.
 
 ## 6. Phased implementation sequence
-### Phase 1 - Preparation
-- Define local bylaws source format and indexing strategy.
-- Define escalation thresholds and timeout/fallback behavior.
-- Define test set of canonical FAQ and complex questions.
+### Phase 1 - Grounding
+- Replace page chunks with a versioned article index and canonical expected results.
+- Implement and test deterministic retrieval on both platforms.
 
-### Phase 2 - Implementation
-- Implement Android/iOS local-first pipeline and shared behavior contract.
-- Implement cloud escalation path and observability hooks.
+### Phase 2 - Capability-gated generation
+- Implement Foundation Models on iOS.
+- Implement ML Kit Prompt in Android develop/debug only.
+- Implement PDF-only, preparation, evidence, error, and cancellation states.
 
-### Phase 3 - Closure
-- Execute tests and validate acceptance criteria.
-- Update issue, completion checklist, and documentation.
+### Phase 3 - Evaluation and closure
+- Execute platform test/lint/build suites and unsupported-device checks.
+- Run the canonical prompt evaluation on compatible hardware.
+- Perform independent iOS architecture and SwiftUI/accessibility audits.
+- Update issue evidence and completion checklists.
 
 ## 7. Technical risks and mitigation
+- Risk: plausible but unsupported generated prose.
+  - Mitigation: deterministic support threshold, exact evidence, fixed citations, and recurring evaluations.
 - Risk: platform behavior drift.
-  - Mitigation: parity checklist per acceptance criterion.
-- Risk: Firestore data inconsistencies.
-  - Mitigation: domain validations plus security rules.
-- Risk: expensive cloud usage due to over-escalation.
-  - Mitigation: strict local-first policy and escalation telemetry review.
+  - Mitigation: shared canonical dataset and parity checklist.
+- Risk: provider/API eligibility changes.
+  - Mitigation: capability adapters and explicit Android release gate.

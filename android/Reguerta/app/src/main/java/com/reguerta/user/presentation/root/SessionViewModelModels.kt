@@ -6,6 +6,7 @@ import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.UnauthorizedReason
 import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
 import com.reguerta.user.domain.calendar.DeliveryWeekday
+import com.reguerta.user.domain.bylaws.BylawsAssistantCapability
 import com.reguerta.user.domain.commitments.SeasonalCommitment
 import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.notifications.NotificationAudience
@@ -87,24 +88,29 @@ data class ShiftSwapDraft(
     val reason: String = "",
 )
 
-enum class BylawsAnswerMode {
-    LOCAL,
-    CLOUD,
-    FALLBACK,
-}
+data class BylawsCitation(
+    val articleNumber: Int?,
+    val title: String,
+    val pageStart: Int,
+    val pageEnd: Int,
+    val excerpt: String,
+)
 
-data class BylawsDecisionTrace(
-    val shouldEscalate: Boolean,
-    val reasons: List<String>,
-    val localCoverage: Float,
-    val localConfidence: Float,
+data class BylawsEvidenceDiagnostic(
+    val chunkId: String,
+    val score: Float,
+)
+
+data class BylawsAnswerDiagnostics(
+    val modelId: String?,
+    val inputTokenCount: Int,
+    val evidence: List<BylawsEvidenceDiagnostic>,
 )
 
 data class BylawsAnswerResult(
-    val mode: BylawsAnswerMode,
     val answer: String,
-    val citedPages: List<Int>,
-    val trace: BylawsDecisionTrace,
+    val citations: List<BylawsCitation>,
+    val diagnostics: BylawsAnswerDiagnostics,
 )
 
 sealed interface SessionMode {
@@ -164,6 +170,7 @@ data class SessionUiState(
     val dismissedShiftSwapRequestIds: Set<String> = emptySet(),
     val shiftSwapDraft: ShiftSwapDraft = ShiftSwapDraft(),
     val bylawsQueryInput: String = "",
+    val bylawsAssistantCapability: BylawsAssistantCapability = BylawsAssistantCapability.Checking,
     val bylawsAnswerResult: BylawsAnswerResult? = null,
     val nextDeliveryShift: ShiftAssignment? = null,
     val nextMarketShift: ShiftAssignment? = null,

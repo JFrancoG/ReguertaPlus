@@ -58,6 +58,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-07-25 | 🐛 fix(bylaws): ground local answers in article evidence
 - 2026-07-12 | 🐛 fix(navigation): return broadcast editor home
 - 2026-07-12 | 🐛 fix(users): gate purchase manager by producer
 - 2026-07-12 | 🐛 fix(users): refine member editor controls

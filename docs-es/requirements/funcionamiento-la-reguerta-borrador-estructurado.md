@@ -506,10 +506,13 @@ Fecha de consolidación: 2026-03-06 (zona horaria Europa/Madrid).
 
 - `Q28` Resuelta:
   - Se confirman tres avisos push en domingo: 20:00, 22:00 y 23:00.
-- `Q33` Resuelta:
-  - Consulta de estatutos con enfoque híbrido:
-    - Prioridad a modelo local para preguntas habituales sobre documento corto.
-    - Escalado a nube para preguntas más complejas.
+- `Q33` Resuelta y revisada el 2026-07-24:
+  - Consulta de estatutos privada y fundamentada:
+    - Recuperacion determinista por articulo antes de cualquier generacion.
+    - En iOS, resumen en el idioma activo de la app solo con modelo local disponible, mostrando siempre en espanol el extracto fuente; Android develop permanece en espanol hasta completar la paridad.
+    - En iOS, sin modelo compatible se ofrece solo el PDF; una pregunta ajena, evidencia insuficiente o generacion fallida no publica respuesta y muestra una orientacion contextual sin ocultar el compositor ni el PDF. Android develop conserva su fallback actual hasta completar la paridad.
+    - No existe escalado ni inferencia en nube.
+    - En Android, la generacion se prueba solo en develop hasta que la API prerelease y sus terminos permitan produccion.
   - Para turnos:
     - Migrar/asegurar fuente en Google Sheets (si aún está en Excel).
     - Leer turnos para mostrarlos en app.
@@ -525,7 +528,8 @@ Fecha de consolidación: 2026-03-06 (zona horaria Europa/Madrid).
 ## 21. Implicaciones directas para requisitos (Ronda 7)
 
 - IA estatutos:
-  - Diseñar estrategia híbrida local+nube con criterio de escalado por complejidad.
+  - Implementar recuperación determinista por artículo y resumen local condicionado a capacidad.
+  - Mantener el PDF integrado como única alternativa, sin inferencia ni escalado a nube.
 - Turnos con fuente externa:
   - Definir integración con Google Sheets para lectura y actualización de turnos.
   - Mantener coherencia entre cambios ejecutados y notificaciones globales.

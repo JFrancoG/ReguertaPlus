@@ -133,6 +133,7 @@
 				E03FA03F2F353C1A0038B8EB /* Frameworks */,
 				E0A1F0012FC0AA110038B8EB /* SwiftLint */,
 				E03FA0402F353C1A0038B8EB /* Resources */,
+				E0F1B0012FE512340038B8EB /* Select Firebase Configuration */,
 			);
 			buildRules = (
 			);
@@ -296,6 +297,26 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "SWIFTLINT_BIN=\"/opt/homebrew/bin/swiftlint\"\nif [ ! -x \"${SWIFTLINT_BIN}\" ]; then\n  SWIFTLINT_BIN=\"/usr/local/bin/swiftlint\"\nfi\n\nif [ -x \"${SWIFTLINT_BIN}\" ]; then\n  cd \"${SRCROOT}\" || exit 1\n  \"${SWIFTLINT_BIN}\" lint --config \"${SRCROOT}/.swiftlint.yml\" --reporter xcode\nelse\n  echo \"warning: SwiftLint not installed. Install via Homebrew: brew install swiftlint\"\nfi\n";
+		};
+		E0F1B0012FE512340038B8EB /* Select Firebase Configuration */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(FIREBASE_CONFIG_PATH)",
+			);
+			name = "Select Firebase Configuration";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/GoogleService-Info.plist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -eu\n\nSOURCE_PLIST=\"${FIREBASE_CONFIG_PATH}\"\nDESTINATION_PLIST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleService-Info.plist\"\n\nif [ ! -f \"${SOURCE_PLIST}\" ]; then\n  echo \"error: Missing Firebase configuration for ${CONFIGURATION}: ${SOURCE_PLIST}\" >&2\n  exit 1\nfi\n\nCONFIGURED_BUNDLE_ID=$(/usr/libexec/PlistBuddy -c \"Print :BUNDLE_ID\" \"${SOURCE_PLIST}\")\nif [ \"${CONFIGURED_BUNDLE_ID}\" != \"${PRODUCT_BUNDLE_IDENTIFIER}\" ]; then\n  echo \"error: Firebase configuration bundle ID ${CONFIGURED_BUNDLE_ID} does not match ${PRODUCT_BUNDLE_IDENTIFIER}\" >&2\n  exit 1\nfi\n\n/bin/mkdir -p \"$(/usr/bin/dirname \"${DESTINATION_PLIST}\")\"\n/bin/cp \"${SOURCE_PLIST}\" \"${DESTINATION_PLIST}\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -473,9 +494,10 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
+				FIREBASE_CONFIG_PATH = "$(SRCROOT)/Firebase/Debug/GoogleService-Info.plist";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Reguerta/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "La RegÜerta";
+				INFOPLIST_KEY_CFBundleDisplayName = "La RegÜerta Dev";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.food-and-drink";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Take photos to upload product, news, and profile images.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Select photos from your library to upload images.";
@@ -494,7 +516,7 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 0.3.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.plusprojects.Reguerta;
+				PRODUCT_BUNDLE_IDENTIFIER = com.plusprojects.Reguerta.debug;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -525,6 +547,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
+				FIREBASE_CONFIG_PATH = "$(SRCROOT)/Firebase/Release/GoogleService-Info.plist";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Reguerta/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "La RegÜerta";

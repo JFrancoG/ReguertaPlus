@@ -4,8 +4,6 @@ import android.net.Uri
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.reguerta.user.data.bylaws.BylawsKnowledgeSource
-import com.reguerta.user.data.bylaws.BylawsCloudGateway
 import com.reguerta.user.data.bylaws.InMemoryBylawsKnowledgeSource
 import com.reguerta.user.data.media.ImagePipelineManager
 import com.reguerta.user.domain.access.AuthSessionProvider
@@ -16,6 +14,10 @@ import com.reguerta.user.domain.access.SessionRefreshTrigger
 import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
 import com.reguerta.user.domain.calendar.DeliveryCalendarRepository
 import com.reguerta.user.domain.calendar.DeliveryWeekday
+import com.reguerta.user.domain.bylaws.BylawsEvidenceRetriever
+import com.reguerta.user.domain.bylaws.BylawsKnowledgeSource
+import com.reguerta.user.domain.bylaws.BylawsOnDeviceAssistant
+import com.reguerta.user.domain.bylaws.PdfOnlyBylawsOnDeviceAssistant
 import com.reguerta.user.domain.commitments.SeasonalCommitmentRepository
 import com.reguerta.user.domain.devices.AuthorizedDeviceRegistrar
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessLocalRepository
@@ -72,7 +74,8 @@ class SessionViewModel(
     private val criticalDataFreshnessLocalRepository: CriticalDataFreshnessLocalRepository,
     private val reviewerEnvironmentRouter: ReviewerEnvironmentRouter = NoOpReviewerEnvironmentRouter,
     private val bylawsKnowledgeSource: BylawsKnowledgeSource = InMemoryBylawsKnowledgeSource(),
-    private val bylawsCloudGateway: BylawsCloudGateway = BylawsCloudGateway(endpointUrl = ""),
+    private val bylawsEvidenceRetriever: BylawsEvidenceRetriever = BylawsEvidenceRetriever(),
+    private val bylawsOnDeviceAssistant: BylawsOnDeviceAssistant = PdfOnlyBylawsOnDeviceAssistant,
     private val sessionRefreshPolicy: SessionRefreshPolicy = SessionRefreshPolicy(),
     private val nowMillisProvider: () -> Long = { System.currentTimeMillis() },
     private val developImpersonationEnabled: Boolean = false,
@@ -177,7 +180,8 @@ class SessionViewModel(
             uiState = _uiState,
             scope = viewModelScope,
             knowledgeSource = bylawsKnowledgeSource,
-            cloudGateway = bylawsCloudGateway,
+            evidenceRetriever = bylawsEvidenceRetriever,
+            onDeviceAssistant = bylawsOnDeviceAssistant,
             emitMessage = ::emitMessage,
         )
     }
@@ -317,6 +321,12 @@ class SessionViewModel(
     fun onShiftSwapDraftChanged(draft: ShiftSwapDraft) = formActions.onShiftSwapDraftChanged(draft)
 
     fun onBylawsQueryChanged(value: String) = bylawsActions.onBylawsQueryChanged(value)
+
+    fun prepareBylawsRoute() = bylawsActions.prepareBylawsRoute()
+
+    fun prepareBylawsModel() = bylawsActions.prepareBylawsModel()
+
+    fun cancelBylawsConsultation() = bylawsActions.cancelBylawsConsultation()
 
     fun clearBylawsResult() = bylawsActions.clearBylawsResult()
 
