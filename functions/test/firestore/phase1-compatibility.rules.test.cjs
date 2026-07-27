@@ -1,0 +1,97 @@
+const fs = require("node:fs");
+const path = require("node:path");
+const {after, before, beforeEach, test} = require("node:test");
+const {
+  assertFails,
+  assertSucceeds,
+  initializeTestEnvironment,
+} = require("@firebase/rules-unit-testing");
+
+const PROJECT_ID = "demo-reguerta-phase1-compatibility";
+const EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080";
+const [host, portText] = EMULATOR_HOST.split(":");
+const port = Number(portText || 8080);
+const rules = fs.readFileSync(
+  path.resolve(__dirname, "../../../firestore.phase1.rules"),
+  "utf8",
+);
+const envs = ["develop", "production"];
+const legacyCollections = [
+  "config",
+  "containers",
+  "measures",
+  "news",
+  "orderLines",
+  "orders",
+  "products",
+  "users",
+];
+
+let testEnv;
+
+before(async () => {
+  testEnv = await initializeTestEnvironment({
+    projectId: PROJECT_ID,
+    firestore: {host, port, rules},
+  });
+});
+
+after(async () => {
+  await testEnv.cleanup();
+});
+
+beforeEach(async () => {
+  await testEnv.clearFirestore();
+});
+
+test("phase 1 preserves every known authenticated legacy collection", async () => {
+  const authenticatedDb = testEnv.authenticatedContext("legacy-user").firestore();
+  const unauthenticatedDb = testEnv.unauthenticatedContext().firestore();
+
+  for (const env of envs) {
+    for (const collection of legacyCollections) {
+      const path = `${env}/collections/${collection}/compat-smoke`;
+      await assertSucceeds(authenticatedDb.doc(path).set({value: collection}));
+      await assertSucceeds(authenticatedDb.doc(path).get());
+      await assertFails(unauthenticatedDb.doc(path).get());
+    }
+    await assertFails(
+      authenticatedDb.doc(`${env}/collections/authLinks/forged`).set({
+        memberId: "admin",
+      }),
+    );
+    await assertFails(
+      authenticatedDb.doc(`${env}/collections/unknown/forged`).set({
+        value: true,
+      }),
+    );
+  }
+});
+
+test("phase 1 leaves the previously deployed plus contract unchanged", async () => {
+  const db = testEnv.authenticatedContext("plus-user").firestore();
+  const unauthenticatedDb = testEnv.unauthenticatedContext().firestore();
+
+  for (const env of envs) {
+    const product = `${env}/plus-collections/products/product`;
+    const validOrder = `${env}/plus-collections/orders/valid-order`;
+    const invalidOrder = `${env}/plus-collections/orders/invalid-order`;
+
+    await assertSucceeds(db.doc(product).set({name: "Compatible"}));
+    await assertSucceeds(db.doc(product).get());
+    await assertFails(unauthenticatedDb.doc(product).get());
+    await assertSucceeds(db.doc(validOrder).set({userId: "plus-user"}));
+    await assertFails(db.doc(invalidOrder).set({
+      userId: "plus-user",
+      producerStatus: "prepared",
+    }));
+  }
+});
+
+test("phase 1 rejects unsupported environments and unrelated roots", async () => {
+  const db = testEnv.authenticatedContext("tester").firestore();
+  await assertFails(
+    db.doc("preview/collections/users/user").set({value: true}),
+  );
+  await assertFails(db.doc("unrelated/root/document/value").set({value: true}));
+});

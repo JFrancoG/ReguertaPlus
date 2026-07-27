@@ -14,6 +14,19 @@ service cloud.firestore {
       return dataset == "plus-collections";
     }
 
+    function isLegacyCollection(collectionId) {
+      return collectionId in [
+        "config",
+        "containers",
+        "measures",
+        "news",
+        "orderLines",
+        "orders",
+        "products",
+        "users",
+      ];
+    }
+
     function isValidProducerStatus(status) {
       return status in ["unread", "read", "prepared", "delivered"];
     }
@@ -131,6 +144,12 @@ service cloud.firestore {
           producerCanUpdateOwnStatus(env, dataset, actorId) ||
           adminCanApplyStatusCorrection(env, dataset, actorId)
         );
+    }
+
+    match /{env}/collections/{collectionId}/{document=**} {
+      allow read, write: if isSignedIn() &&
+        isSupportedEnv(env) &&
+        isLegacyCollection(collectionId);
     }
 
     match /{env}/{dataset}/orders/{orderId} {

@@ -1,0 +1,132 @@
+// Candidate least-privilege rules. Deploy only through firebase.strict.json
+// after the Firestore identity-link migration and strict Rules cutover.
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSupportedEnv(env) {
+      return env in ["develop", "production"];
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function authLinkData(env) {
+      return firestore.get(
+        /databases/(default)/documents/$(env)/plus-collections/authLinks/$(request.auth.uid)
+      ).data;
+    }
+
+    function hasAuthLink(env) {
+      return firestore.exists(
+        /databases/(default)/documents/$(env)/plus-collections/authLinks/$(request.auth.uid)
+      );
+    }
+
+    function actorId(env) {
+      return authLinkData(env).memberId;
+    }
+
+    function actorData(env) {
+      return firestore.get(
+        /databases/(default)/documents/$(env)/plus-collections/users/$(actorId(env))
+      ).data;
+    }
+
+    function isActiveMemberData(member) {
+      let roles = member.get("roles", []);
+      return member.get("authUid", "") == request.auth.uid &&
+        member.get("isActive", false) == true &&
+        roles is list &&
+        roles.hasAny(["member"]);
+    }
+
+    function hasActiveRole(member, role) {
+      let roles = member.get("roles", []);
+      return member.get("authUid", "") == request.auth.uid &&
+        member.get("isActive", false) == true &&
+        roles is list &&
+        roles.hasAll(["member", role]);
+    }
+
+    function canManageCatalogData(member) {
+      let roles = member.get("roles", []);
+      return member.get("authUid", "") == request.auth.uid &&
+        member.get("isActive", false) == true &&
+        roles is list &&
+        roles.hasAny(["member"]) &&
+        (
+          roles.hasAny(["producer"]) ||
+          member.get("isCommonPurchaseManager", false) == true
+        );
+    }
+
+    function isActiveMember(env) {
+      return isSupportedEnv(env) &&
+        isSignedIn() &&
+        hasAuthLink(env) &&
+        isActiveMemberData(actorData(env));
+    }
+
+    function isAdmin(env) {
+      return isSupportedEnv(env) &&
+        isSignedIn() &&
+        hasAuthLink(env) &&
+        hasActiveRole(actorData(env), "admin");
+    }
+
+    function canManageCatalog(env) {
+      return isSupportedEnv(env) &&
+        isSignedIn() &&
+        hasAuthLink(env) &&
+        canManageCatalogData(actorData(env));
+    }
+
+    function isValidJpegUpload() {
+      return request.resource.size > 0 &&
+        request.resource.size <= 2 * 1024 * 1024 &&
+        request.resource.contentType == "image/jpeg";
+    }
+
+    // Published legacy clients store product images without an environment
+    // prefix and do not send reliable content metadata. Keep that exact
+    // namespace on its existing authenticated contract while Reguerta+ uses
+    // the stricter, disjoint `{env}/images/**` paths below.
+    match /products/{legacyOwner}/{filePath=**} {
+      allow get, create, update: if isSignedIn();
+      allow list, delete: if false;
+    }
+
+    match /{env}/images/products/{ownerId}/{filePath=**} {
+      allow get: if isActiveMember(env);
+      allow list: if false;
+      allow create, update: if canManageCatalog(env) &&
+        actorId(env) == ownerId &&
+        isValidJpegUpload();
+      allow delete: if canManageCatalog(env) && actorId(env) == ownerId;
+    }
+
+    match /{env}/images/news/{ownerId}/{filePath=**} {
+      allow get: if isActiveMember(env);
+      allow list: if false;
+      allow create, update: if isAdmin(env) &&
+        actorId(env) == ownerId &&
+        isValidJpegUpload();
+      allow delete: if isAdmin(env) && actorId(env) == ownerId;
+    }
+
+    match /{env}/images/shared_profiles/{ownerId}/{filePath=**} {
+      allow get: if isActiveMember(env);
+      allow list: if false;
+      allow create, update: if isActiveMember(env) &&
+        actorId(env) == ownerId &&
+        isValidJpegUpload();
+      allow delete: if isActiveMember(env) && actorId(env) == ownerId;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

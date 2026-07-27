@@ -13,7 +13,7 @@ const EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080";
 const [host, portText] = EMULATOR_HOST.split(":");
 const port = Number(portText || 8080);
 const rules = fs.readFileSync(
-  path.resolve(__dirname, "../../../firestore.rules"),
+  path.resolve(__dirname, "../../../firestore.strict.rules"),
   "utf8",
 );
 
@@ -73,6 +73,10 @@ function actorPath(env, dataset, actorId) {
   return `${env}/${dataset}/users/${actorId}`;
 }
 
+function authLinkPath(env, dataset, uid) {
+  return `${env}/${dataset}/authLinks/${uid}`;
+}
+
 function producerUpdatePayload(actorId, status) {
   return {
     producerStatus: status,
@@ -93,6 +97,9 @@ async function seedBaseFixtures() {
             authUid: actor.uid,
             roles: actor.roles,
             isActive: true,
+          });
+          await db.doc(authLinkPath(env, dataset, actor.uid)).set({
+            memberId: actor.memberId,
           });
         }
 

@@ -1,13 +1,48 @@
 import {setGlobalOptions} from "firebase-functions/v2";
-import {onRequest} from "firebase-functions/v2/https";
+import {onRequest, Request} from "firebase-functions/v2/https";
 import {
-  onDocumentCreated,
+  onDocumentCreatedWithAuthContext,
   onDocumentWritten,
+  onDocumentWrittenWithAuthContext,
 } from "firebase-functions/v2/firestore";
 import {onSchedule} from "firebase-functions/v2/scheduler";
 import {logger} from "firebase-functions";
 import * as admin from "firebase-admin";
+import {Response} from "express";
 import {google} from "googleapis";
+import {
+  AppEnvironment,
+  assertMemberIdCompatible,
+  buildMemberId as buildSecureMemberId,
+  canProcessPrivilegedFirestoreEvent,
+  HttpRequestError,
+  isAdminMember,
+  isOperationallyLinkedAdmin,
+  isVerifiedLinkedAdminActor,
+  LinkedMember,
+  parseAppEnvironment,
+  parseMemberUpsertInput,
+  resolveReviewerEnvironment,
+  resolveMemberBusinessFields,
+  resolveLinkedMember,
+  requirePostMethod,
+  verifyBearerIdentity,
+  VerifiedIdentity,
+} from "./backend-security.js";
+import {
+  applyMemberSwap,
+  assertActiveShiftSwapParticipants,
+  assertShiftSwapTimingEligible,
+  buildShiftSwapCandidates,
+  parseShiftSwapTransitionInput,
+  recomputeDeliveryHelpers,
+  ShiftLike,
+  ShiftSwapCandidateLike,
+  ShiftSwapResponseLike,
+  upsertShiftSwapResponse,
+} from "./shift-swap-security.js";
+import {buildNotificationInboxDocument} from "./notification-inbox.js";
+import {buildMemberDirectoryDocument} from "./member-directory.js";
 
 admin.initializeApp();
 
@@ -60,14 +95,16 @@ const firestore = admin.firestore();
 
 const updateTimestamp = async (env: string, collectionName: string) => {
   const now = admin.firestore.Timestamp.now();
-  await firestore
-    .collection(`${env}/plus-collections/config`)
-    .doc("global")
-    .set({
-      lastTimestamps: {
-        [collectionName]: now,
-      },
-    }, {merge: true});
+  const config = firestore.collection(`${env}/plus-collections/config`);
+  const update = {
+    lastTimestamps: {
+      [collectionName]: now,
+    },
+  };
+  const batch = firestore.batch();
+  batch.set(config.doc("global"), update, {merge: true});
+  batch.set(config.doc("member"), update, {merge: true});
+  await batch.commit();
 };
 
 const parseBody = (value: unknown): Record<string, unknown> => {
@@ -80,6 +117,9 @@ const parseBody = (value: unknown): Record<string, unknown> => {
 const usersCollection = (env: string) =>
   firestore.collection(`${env}/plus-collections/users`);
 
+const authLinksCollection = (env: AppEnvironment) =>
+  firestore.collection(`${env}/plus-collections/authLinks`);
+
 const plusUsersCollection = (env: string) =>
   firestore.collection(`${env}/plus-collections/users`);
 
@@ -90,10 +130,204 @@ const globalConfigDocRefs = (env: string) => [
   firestore.collection(`${env}/plus-collections/config`).doc("global"),
 ];
 
-const normalizeEmail = (email: string): string => email.trim().toLowerCase();
-
 const parseString = (value: unknown): string | null =>
   typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+
+const verifyRequestIdentity = async (
+  request: Request,
+): Promise<VerifiedIdentity> => verifyBearerIdentity(
+  request.headers.authorization,
+  (token, checkRevoked) =>
+    admin.auth().verifyIdToken(token, checkRevoked),
+);
+
+const parseRequestEnvironment = (request: Request): AppEnvironment => {
+  const body = parseBody(request.body);
+  return parseAppEnvironment(
+    body.environment ?? body.env ?? request.query.environment ??
+    request.query.env ?? ENV,
+  );
+};
+
+const resolveRequestEnvironmentForIdentity = async (
+  requestedEnvironment: AppEnvironment,
+  identity: VerifiedIdentity,
+): Promise<AppEnvironment> => {
+  if (requestedEnvironment !== "production") {
+    return requestedEnvironment;
+  }
+  const globalConfigSnapshot = await globalConfigDocRefs("production")[0]
+    .get();
+  return resolveReviewerEnvironment(
+    requestedEnvironment,
+    identity,
+    globalConfigSnapshot.exists ? globalConfigSnapshot.data() : {},
+  );
+};
+
+const readLinkedMember = async (
+  environment: AppEnvironment,
+  identity: VerifiedIdentity,
+): Promise<LinkedMember | null> => {
+  const linkSnapshot = await authLinksCollection(environment)
+    .doc(identity.uid)
+    .get();
+  if (!linkSnapshot.exists) {
+    return null;
+  }
+  const linkData = parseBody(linkSnapshot.data());
+  const memberId = parseString(linkData.memberId);
+  if (!memberId || memberId.includes("/")) {
+    throw new HttpRequestError(403, "invalid_link", "Account link is invalid");
+  }
+  const memberSnapshot = await usersCollection(environment).doc(memberId).get();
+  if (!memberSnapshot.exists) {
+    throw new HttpRequestError(403, "invalid_link", "Account link is invalid");
+  }
+  return resolveLinkedMember(identity.uid, linkData, memberSnapshot.data());
+};
+
+const requireLinkedMember = async (
+  environment: AppEnvironment,
+  identity: VerifiedIdentity,
+): Promise<LinkedMember> => {
+  const member = await readLinkedMember(environment, identity);
+  if (!member) {
+    throw new HttpRequestError(
+      403,
+      "unlinked_account",
+      "Account is not linked",
+    );
+  }
+  return member;
+};
+
+const requireAdminInEnvironment = async (
+  environment: AppEnvironment,
+  identity: VerifiedIdentity,
+): Promise<LinkedMember> => {
+  const member = await requireLinkedMember(environment, identity);
+  if (!isAdminMember(member)) {
+    throw new HttpRequestError(
+      403,
+      "admin_required",
+      "An active admin is required",
+    );
+  }
+  return member;
+};
+
+const resolveVerifiedLinkedAdminActor = async (
+  environment: AppEnvironment,
+  uid: string,
+): Promise<boolean> => {
+  try {
+    const linkSnapshot = await authLinksCollection(environment).doc(uid).get();
+    if (!linkSnapshot.exists) {
+      return false;
+    }
+    const linkValue = linkSnapshot.data();
+    const memberId = parseString(parseBody(linkValue).memberId);
+    if (!memberId || memberId.includes("/")) {
+      return false;
+    }
+    const [authUser, memberSnapshot] = await Promise.all([
+      admin.auth().getUser(uid),
+      usersCollection(environment).doc(memberId).get(),
+    ]);
+    return memberSnapshot.exists && isVerifiedLinkedAdminActor(
+      uid,
+      authUser,
+      linkValue,
+      memberSnapshot.data(),
+    );
+  } catch {
+    return false;
+  }
+};
+
+const authorizePrivilegedFirestoreEvent = async (
+  functionName: string,
+  environmentValue: string,
+  authType: "service_account" | "api_key" | "system" |
+    "unauthenticated" | "unknown",
+  authId?: string,
+): Promise<boolean> => {
+  if (
+    environmentValue !== "develop" &&
+    environmentValue !== "production"
+  ) {
+    logger.warn("Skipping privileged Firestore event for unknown environment", {
+      functionName,
+      environment: environmentValue,
+    });
+    return false;
+  }
+  const environment = environmentValue as AppEnvironment;
+  const authorized = await canProcessPrivilegedFirestoreEvent(
+    {authType, authId},
+    (uid) => resolveVerifiedLinkedAdminActor(environment, uid),
+  );
+  if (!authorized) {
+    logger.warn("Skipping unauthorized privileged Firestore event", {
+      functionName,
+      environment,
+      authType,
+      hasAuthId: typeof authId === "string" && authId.length > 0,
+    });
+  }
+  return authorized;
+};
+
+const sendHttpError = (response: Response, error: unknown): void => {
+  if (error instanceof HttpRequestError) {
+    response.status(error.status).json({
+      error: {
+        code: error.code,
+        message: error.message,
+      },
+    });
+    return;
+  }
+  logger.error("HTTP operation failed", {
+    error: error instanceof Error ? error.message : "Unknown error",
+  });
+  response.status(500).json({
+    error: {
+      code: "internal",
+      message: "Internal server error",
+    },
+  });
+};
+
+const parseAdminTargetEnvironments = (
+  request: Request,
+): AppEnvironment[] => {
+  const body = parseBody(request.body);
+  const raw = body.environments ?? body.envs ?? body.environment ?? body.env ??
+    request.query.environments ?? request.query.envs ??
+    request.query.environment ?? request.query.env;
+  const values = (Array.isArray(raw) ? raw : [raw])
+    .flatMap((entry) => typeof entry === "string" ? entry.split(",") : [])
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+  if (values.length === 0) {
+    return ["develop", "production"];
+  }
+  return Array.from(new Set(values.map(parseAppEnvironment)));
+};
+
+const requireAdminForTargets = async (
+  request: Request,
+  environments: AppEnvironment[],
+): Promise<VerifiedIdentity> => {
+  requirePostMethod(request.method);
+  const identity = await verifyRequestIdentity(request);
+  await Promise.all(environments.map((environment) =>
+    requireAdminInEnvironment(environment, identity)
+  ));
+  return identity;
+};
 
 const parseBoolean = (value: unknown, fallback: boolean): boolean =>
   typeof value === "boolean" ? value : fallback;
@@ -125,20 +359,6 @@ const parseStringArray = (value: unknown): string[] => {
   ));
 };
 
-const isAdminRecord = (data: Record<string, unknown>): boolean => {
-  const isActive = data.isActive !== false;
-  const roles = parseRoles(data.roles);
-  return isActive && roles.includes("admin");
-};
-
-const buildMemberId = (normalizedEmail: string): string => {
-  const sanitized = normalizedEmail
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-  const suffix = sanitized.length > 0 ? sanitized.slice(0, 40) : "member";
-  return `member_${suffix}`;
-};
-
 type VersionPlatformKey = "android" | "ios";
 
 type VersionPolicy = {
@@ -151,7 +371,6 @@ type VersionPolicy = {
 type DeliveryCalendarOverrideMap = Map<string, admin.firestore.Timestamp>;
 
 const VERSION_STRING_REGEX = /^\d+(?:\.\d+)*$/;
-const DEFAULT_VERSION_POLICY_ENVS = ["local", "develop", "production"];
 const DEFAULT_ORDER_REMINDER_ENVS = ["develop", "production"];
 const DEFAULT_CACHE_EXPIRATION_MINUTES = 15;
 const REQUIRED_FRESHNESS_COLLECTIONS = [
@@ -272,6 +491,42 @@ const sanitizeLastTimestamps = (
   );
 };
 
+const sanitizeDeliveryDayOfWeek = (value: unknown): string => {
+  const source = parseBody(value);
+  const otherConfig = parseBody(source.otherConfig);
+  const candidates = [
+    source.deliveryDayOfWeek,
+    otherConfig.deliveryDayOfWeek,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string") continue;
+    const normalized = candidate.trim().toUpperCase();
+    if (["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
+      .includes(normalized)) {
+      return normalized;
+    }
+  }
+  return "WED";
+};
+
+const buildMemberConfigProjection = (
+  value: unknown,
+  fallbackTimestamp: admin.firestore.Timestamp,
+) => {
+  const source = parseBody(value);
+  return {
+    cacheExpirationMinutes: parsePositiveInteger(
+      source.cacheExpirationMinutes,
+      DEFAULT_CACHE_EXPIRATION_MINUTES,
+    ),
+    lastTimestamps: sanitizeLastTimestamps(
+      source.lastTimestamps,
+      fallbackTimestamp,
+    ),
+    deliveryDayOfWeek: sanitizeDeliveryDayOfWeek(source),
+  };
+};
+
 const sanitizeVersionPolicy = (
   value: unknown,
   fallback: VersionPolicy,
@@ -370,7 +625,7 @@ const resolveTargetUserIds = async (
 
     return snapshots
       .filter(
-        (snapshot) => snapshot.exists && snapshot.get("isActive") !== false
+        (snapshot) => snapshot.exists && snapshot.get("isActive") === true
       )
       .map((snapshot) => snapshot.id);
   }
@@ -388,6 +643,37 @@ const resolveTargetUserIds = async (
   default:
     return [];
   }
+};
+
+const fanOutNotificationInbox = async (
+  env: string,
+  eventId: string,
+  eventData: Record<string, unknown>,
+  targetUserIds: string[],
+): Promise<number> => {
+  const uniqueUserIds = Array.from(new Set(targetUserIds));
+  for (const userIdChunk of chunkArray(uniqueUserIds, 400)) {
+    const batch = firestore.batch();
+    userIdChunk.forEach((userId) => {
+      const inboxDocument = buildNotificationInboxDocument(
+        eventId,
+        eventData,
+        userId,
+      );
+      if (!inboxDocument) {
+        throw new Error(
+          "Notification event cannot be copied to member inboxes",
+        );
+      }
+      const inboxRef = plusUsersCollection(env)
+        .doc(userId)
+        .collection("notificationInbox")
+        .doc(eventId);
+      batch.set(inboxRef, inboxDocument, {merge: false});
+    });
+    await batch.commit();
+  }
+  return uniqueUserIds.length;
 };
 
 const resolveDeviceTokens = async (
@@ -1426,8 +1712,8 @@ const dispatchNotificationEventGeneric = async (
   eventId: string,
   payload: NotificationDispatchPayload,
   eventRef: admin.firestore.DocumentReference,
+  targetUserIds: string[],
 ): Promise<void> => {
-  const targetUserIds = await resolveTargetUserIds(env, payload);
   const tokens = await resolveDeviceTokens(env, targetUserIds);
 
   if (tokens.length === 0) {
@@ -1501,6 +1787,7 @@ const dispatchOrderReminderEvent = async (
   eventData: Record<string, unknown>,
   payload: NotificationDispatchPayload,
   eventRef: admin.firestore.DocumentReference,
+  targetUserIds: string[],
 ): Promise<boolean> => {
   const reminderContext = parseOrderReminderEventContext(eventId, eventData);
   if (!reminderContext) {
@@ -1511,7 +1798,6 @@ const dispatchOrderReminderEvent = async (
     return false;
   }
 
-  const targetUserIds = await resolveTargetUserIds(env, payload);
   const telemetry = emptyOrderReminderRunTelemetry();
   for (const userId of targetUserIds) {
     try {
@@ -3285,11 +3571,6 @@ const hasRelevantShiftChange = (
       JSON.stringify(after.assignedUserIds);
 };
 
-const parseEnvParam = (
-  value: unknown,
-  fallback: string = ENV,
-): string => parseString(value) || fallback;
-
 const readAllShifts = async (
   env: string,
 ): Promise<FirestoreShiftRecord[]> => {
@@ -3429,15 +3710,23 @@ export const retryPendingOrderReminderDispatches = onSchedule(
   }
 );
 
-export const onNotificationEventCreated = onDocumentCreated(
+export const onNotificationEventCreated = onDocumentCreatedWithAuthContext(
   "{env}/plus-collections/notificationEvents/{eventId}",
   async (event) => {
+    const env = event.params.env;
+    if (!await authorizePrivilegedFirestoreEvent(
+      "onNotificationEventCreated",
+      env,
+      event.authType,
+      event.authId,
+    )) {
+      return;
+    }
     const snapshot = event.data;
     if (!snapshot) {
       return;
     }
 
-    const env = event.params.env;
     const eventId = event.params.eventId;
     const eventData = parseBody(snapshot.data());
     const payload = parseNotificationDispatchPayload(
@@ -3452,27 +3741,48 @@ export const onNotificationEventCreated = onDocumentCreated(
     }
 
     const eventRef = snapshot.ref;
+    const targetUserIds = await resolveTargetUserIds(env, payload);
+    const inboxWrites = await fanOutNotificationInbox(
+      env,
+      eventId,
+      eventData,
+      targetUserIds,
+    );
+    logger.info("Notification event copied to member inboxes", {
+      env,
+      eventId,
+      inboxWrites,
+    });
     if (payload.type === ORDER_REMINDER_TYPE) {
       const handledAsOrderReminder = await dispatchOrderReminderEvent(
         env,
         eventId,
         eventData,
         payload,
-        eventRef
+        eventRef,
+        targetUserIds,
       );
       if (handledAsOrderReminder) {
         return;
       }
     }
 
-    await dispatchNotificationEventGeneric(env, eventId, payload, eventRef);
+    await dispatchNotificationEventGeneric(
+      env,
+      eventId,
+      payload,
+      eventRef,
+      targetUserIds,
+    );
   }
 );
 
 export const syncShiftsFromGoogleSheets = onRequest(async (req, res) => {
-  const env = parseEnvParam(req.query.env);
-
   try {
+    requirePostMethod(req.method);
+    const env = parseRequestEnvironment(req);
+    const identity = await verifyRequestIdentity(req);
+    await requireAdminInEnvironment(env, identity);
     const summary = await syncShiftsFromGoogleSheetsInternal(env);
     logger.info("✅ Shifts synced from Google Sheets", {env, ...summary});
     res.status(200).json({
@@ -3481,22 +3791,16 @@ export const syncShiftsFromGoogleSheets = onRequest(async (req, res) => {
       ...summary,
     });
   } catch (error) {
-    logger.error("❌ Failed to sync shifts from Google Sheets", {
-      env,
-      error,
-    });
-    res.status(500).json({
-      ok: false,
-      env,
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
+    sendHttpError(res, error);
   }
 });
 
 export const exportShiftsToGoogleSheets = onRequest(async (req, res) => {
-  const env = parseEnvParam(req.query.env);
-
   try {
+    requirePostMethod(req.method);
+    const env = parseRequestEnvironment(req);
+    const identity = await verifyRequestIdentity(req);
+    await requireAdminInEnvironment(env, identity);
     const summary = await exportAllShiftsToGoogleSheets(env);
     logger.info("✅ Shifts exported to Google Sheets", {env, ...summary});
     res.status(200).json({
@@ -3505,15 +3809,7 @@ export const exportShiftsToGoogleSheets = onRequest(async (req, res) => {
       ...summary,
     });
   } catch (error) {
-    logger.error("❌ Failed to export shifts to Google Sheets", {
-      env,
-      error,
-    });
-    res.status(500).json({
-      ok: false,
-      env,
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
+    sendHttpError(res, error);
   }
 });
 
@@ -3595,15 +3891,23 @@ const processShiftPlanningRequest = async (
   };
 };
 
-export const onShiftPlanningRequestCreated = onDocumentCreated(
+export const onShiftPlanningRequestCreated = onDocumentCreatedWithAuthContext(
   "{env}/plus-collections/shiftPlanningRequests/{requestId}",
   async (event) => {
+    const env = event.params.env;
+    if (!await authorizePrivilegedFirestoreEvent(
+      "onShiftPlanningRequestCreated",
+      env,
+      event.authType,
+      event.authId,
+    )) {
+      return;
+    }
     const snapshot = event.data;
     if (!snapshot) {
       return;
     }
 
-    const env = event.params.env;
     const request = parseShiftPlanningRequest(snapshot);
     if (!request || request.status !== "requested") {
       logger.warn("Skipping malformed shift planning request", {
@@ -3650,15 +3954,23 @@ export const onShiftPlanningRequestCreated = onDocumentCreated(
   }
 );
 
-export const onShiftWritten = onDocumentWritten(
+export const onShiftWritten = onDocumentWrittenWithAuthContext(
   "{env}/plus-collections/shifts/{shiftId}",
   async (event) => {
+    const env = event.params.env;
+    if (!await authorizePrivilegedFirestoreEvent(
+      "onShiftWritten",
+      env,
+      event.authType,
+      event.authId,
+    )) {
+      return;
+    }
     const afterSnapshot = event.data?.after;
     if (!afterSnapshot?.exists) {
       return;
     }
 
-    const env = event.params.env;
     const beforeSnapshot = event.data?.before;
     const after = toShiftRecord(afterSnapshot);
     const before = beforeSnapshot?.exists ?
@@ -3737,10 +4049,19 @@ export const onShiftWritten = onDocumentWritten(
   }
 );
 
-export const onDeliveryCalendarOverrideWritten = onDocumentWritten(
+export const onDeliveryCalendarOverrideWritten =
+onDocumentWrittenWithAuthContext(
   "{env}/plus-collections/deliveryCalendar/{weekKey}",
   async (event) => {
     const env = event.params.env;
+    if (!await authorizePrivilegedFirestoreEvent(
+      "onDeliveryCalendarOverrideWritten",
+      env,
+      event.authType,
+      event.authId,
+    )) {
+      return;
+    }
     const weekKey = event.params.weekKey;
     const beforeSnapshot = event.data?.before;
     const afterSnapshot = event.data?.after;
@@ -3823,324 +4144,961 @@ export const onDeliveryCalendarOverrideWritten = onDocumentWritten(
   }
 );
 
-export const onProductWrite = onRequest(async (req, res) => {
-  const env = (req.query.env as string) || ENV;
-  const collectionName = (req.query.collectionName ?? "products") as string;
-  await updateTimestamp(env, collectionName);
-  logger.info(
-    `🟢 HTTP timestamp updated for: ${collectionName}, env: ${env}`
-  );
-  res.status(200).send(`Timestamp updated for: ${collectionName}, env: ${env}`);
-});
-
-export const onContainerWrite = onRequest(async (req, res) => {
-  const env = (req.query.env as string) || ENV;
-  await updateTimestamp(env, "containers");
-  logger.info(`🟢 HTTP timestamp updated for: containers, env: ${env}`);
-  res.status(200).send(`Timestamp updated for: containers, env: ${env}`);
-});
-
-export const onMeasureWrite = onRequest(async (req, res) => {
-  const env = (req.query.env as string) || ENV;
-  await updateTimestamp(env, "measures");
-  logger.info(`🟢 HTTP timestamp updated for: measures, env: ${env}`);
-  res.status(200).send(`Timestamp updated for: measures, env: ${env}`);
-});
-
-export const onUserWrite = onRequest(async (req, res) => {
-  const env = (req.query.env as string) || ENV;
-  await updateTimestamp(env, "users");
-  logger.info(`🟢 HTTP timestamp updated for: users in env: ${env}`);
-  res.status(200).send(`Timestamp updated for: users in env: ${env}`);
-});
-
-export const onOrderWrite = onRequest(async (req, res) => {
-  const env = (req.query.env as string) || ENV;
-  await updateTimestamp(env, "orders");
-  logger.info(`🟢 HTTP timestamp updated for: orders in env: ${env}`);
-  res.status(200).send(`Timestamp updated for: orders in env: ${env}`);
-});
-
-export const resolveAuthorizedMember = onRequest(async (req, res) => {
-  if (req.method !== "POST") {
-    res.status(405).json({error: "Method Not Allowed"});
-    return;
-  }
-
-  const body = parseBody(req.body);
-  const env = parseString(body.env) || parseString(req.query.env) || ENV;
-  const authUid = parseString(body.authUid);
-  const rawEmail = parseString(body.email);
-  const emailInput = rawEmail || parseString(body.normalizedEmail);
-
-  if (!authUid || !emailInput) {
-    res.status(400).json({error: "authUid and email are required"});
-    return;
-  }
-
-  const normalizedEmail = normalizeEmail(emailInput);
-  const collection = usersCollection(env);
-
-  let memberQuery = await collection
-    .where("normalizedEmail", "==", normalizedEmail)
-    .limit(1)
-    .get();
-
-  if (memberQuery.empty) {
-    memberQuery = await collection
-      .where("emailNormalized", "==", normalizedEmail)
-      .limit(1)
-      .get();
-  }
-
-  if (memberQuery.empty && rawEmail) {
-    memberQuery = await collection
-      .where("email", "==", rawEmail)
-      .limit(1)
-      .get();
-  }
-
-  if (memberQuery.empty) {
-    res.status(403).json({authorized: false, message: "Unauthorized user"});
-    return;
-  }
-
-  const memberDoc = memberQuery.docs[0];
-  const memberData = parseBody(memberDoc.data());
-
-  if (memberData.isActive === false) {
-    res.status(403).json({authorized: false, message: "Unauthorized user"});
-    return;
-  }
-
-  const existingAuthUid = parseString(memberData.authUid);
-  if (existingAuthUid && existingAuthUid !== authUid) {
-    res.status(403).json({authorized: false, message: "Unauthorized user"});
-    return;
-  }
-
-  const firstLoginLinked = !existingAuthUid;
-  if (firstLoginLinked) {
-    await memberDoc.ref.set({
-      authUid,
-      normalizedEmail,
-      email: admin.firestore.FieldValue.delete(),
-      emailNormalized: admin.firestore.FieldValue.delete(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, {merge: true});
-  }
-
-  const roles = parseRoles(memberData.roles);
-  res.status(200).json({
-    authorized: true,
-    memberId: memberDoc.id,
-    roles,
-    isActive: true,
-    firstLoginLinked,
-  });
-});
-
-export const upsertMemberByAdmin = onRequest(async (req, res) => {
-  if (req.method !== "POST") {
-    res.status(405).json({error: "Method Not Allowed"});
-    return;
-  }
-
-  const body = parseBody(req.body);
-  const env = parseString(body.env) || parseString(req.query.env) || ENV;
-  const actorAuthUid = parseString(body.actorAuthUid);
-  const displayName = parseString(body.displayName);
-  const normalizedEmailInput = parseString(body.normalizedEmail) ||
-    parseString(body.email);
-
-  if (!actorAuthUid || !displayName || !normalizedEmailInput) {
-    res.status(400).json({
-      error: "actorAuthUid, displayName and normalizedEmail are required",
-    });
-    return;
-  }
-
-  const normalizedEmail = normalizeEmail(normalizedEmailInput);
-  const roles = parseRoles(body.roles);
-  const isActive = parseBoolean(body.isActive, true);
-  const producerCatalogEnabled = parseBoolean(
-    body.producerCatalogEnabled,
-    true
-  );
-  const requestedMemberId = parseString(body.memberId);
-
-  const collection = usersCollection(env);
-  const actorQuery = await collection
-    .where("authUid", "==", actorAuthUid)
-    .limit(1)
-    .get();
-
-  if (
-    actorQuery.empty ||
-    !isAdminRecord(parseBody(actorQuery.docs[0].data()))
-  ) {
-    res.status(403).json({error: "Only active admins can manage members"});
-    return;
-  }
-
-  const memberId = requestedMemberId || buildMemberId(normalizedEmail);
-  const memberRef = collection.doc(memberId);
-  const memberSnapshot = await memberRef.get();
-  const currentData = parseBody(memberSnapshot.data());
-
-  const wasActiveAdmin = memberSnapshot.exists && isAdminRecord(currentData);
-  const willBeActiveAdmin = isActive && roles.includes("admin");
-
-  if (wasActiveAdmin && !willBeActiveAdmin) {
-    const activeAdmins = await collection
-      .where("isActive", "==", true)
-      .where("roles", "array-contains", "admin")
-      .get();
-
-    if (activeAdmins.size <= 1) {
-      res.status(409).json({
-        error: "Cannot leave the app without active admins",
+export const onMemberDirectorySourceWritten = onDocumentWritten(
+  "{env}/plus-collections/users/{memberId}",
+  async (event) => {
+    const environment = event.params.env;
+    const memberId = event.params.memberId;
+    if (
+      (environment !== "develop" && environment !== "production") ||
+      typeof memberId !== "string" ||
+      memberId.length === 0
+    ) {
+      logger.warn("Ignored unsupported member directory source path", {
+        environment,
       });
       return;
     }
-  }
+    const directoryRef = firestore
+      .collection(`${environment}/plus-collections/memberDirectory`)
+      .doc(memberId);
+    const after = event.data?.after;
+    const projection = after?.exists ?
+      buildMemberDirectoryDocument(memberId, after.data()) :
+      null;
+    if (projection) {
+      await directoryRef.set(projection, {merge: false});
+    } else {
+      await directoryRef.delete();
+    }
+    logger.info("Member directory projection synchronized", {environment});
+  },
+);
 
-  const payload: Record<string, unknown> = {
-    displayName,
-    normalizedEmail,
-    email: admin.firestore.FieldValue.delete(),
-    emailNormalized: admin.firestore.FieldValue.delete(),
-    roles,
-    isActive,
-    producerCatalogEnabled,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+const ALLOWED_TIMESTAMP_COLLECTIONS = new Set([
+  "products",
+  "orderlines",
+  "containers",
+  "measures",
+  "users",
+  "orders",
+]);
+
+const handleTimestampWrite = async (
+  request: Request,
+  response: Response,
+  forcedCollectionName?: string,
+): Promise<void> => {
+  try {
+    requirePostMethod(request.method);
+    const environment = parseRequestEnvironment(request);
+    const identity = await verifyRequestIdentity(request);
+    await requireAdminInEnvironment(environment, identity);
+    const body = parseBody(request.body);
+    const collectionName = forcedCollectionName ||
+      parseString(body.collectionName) ||
+      parseString(request.query.collectionName) ||
+      "products";
+    if (!ALLOWED_TIMESTAMP_COLLECTIONS.has(collectionName)) {
+      throw new HttpRequestError(
+        400,
+        "invalid_collection",
+        "collectionName is not supported",
+      );
+    }
+    await updateTimestamp(environment, collectionName);
+    logger.info("HTTP freshness timestamp updated", {
+      environment,
+      collectionName,
+    });
+    response.status(200).json({
+      ok: true,
+      environment,
+      collectionName,
+    });
+  } catch (error) {
+    sendHttpError(response, error);
+  }
+};
+
+export const onProductWrite = onRequest((req, res) =>
+  handleTimestampWrite(req, res)
+);
+
+export const onContainerWrite = onRequest((req, res) =>
+  handleTimestampWrite(req, res, "containers")
+);
+
+export const onMeasureWrite = onRequest((req, res) =>
+  handleTimestampWrite(req, res, "measures")
+);
+
+export const onUserWrite = onRequest((req, res) =>
+  handleTimestampWrite(req, res, "users")
+);
+
+export const onOrderWrite = onRequest((req, res) =>
+  handleTimestampWrite(req, res, "orders")
+);
+
+export const resolveAuthorizedMember = onRequest(async (req, res) => {
+  try {
+    requirePostMethod(req.method);
+    const requestedEnvironment = parseRequestEnvironment(req);
+    const identity = await verifyRequestIdentity(req);
+    const environment = await resolveRequestEnvironmentForIdentity(
+      requestedEnvironment,
+      identity,
+    );
+    const linkedMember = await readLinkedMember(environment, identity);
+    if (linkedMember) {
+      res.status(200).json({
+        authorized: true,
+        memberId: linkedMember.memberId,
+        roles: linkedMember.roles,
+        isActive: linkedMember.isActive,
+        environment,
+        firstLoginLinked: false,
+      });
+      return;
+    }
+    if (!identity.email || !identity.emailVerified) {
+      throw new HttpRequestError(
+        403,
+        "verified_email_required",
+        "A verified email is required for the first link",
+      );
+    }
+
+    const collection = usersCollection(environment);
+    const linkRef = authLinksCollection(environment).doc(identity.uid);
+    const result = await firestore.runTransaction(async (transaction) => {
+      const linkSnapshot = await transaction.get(linkRef);
+      if (linkSnapshot.exists) {
+        const linkData = parseBody(linkSnapshot.data());
+        const linkedMemberId = parseString(linkData.memberId);
+        if (!linkedMemberId || linkedMemberId.includes("/")) {
+          throw new HttpRequestError(
+            403,
+            "invalid_link",
+            "Account link is invalid",
+          );
+        }
+        const linkedSnapshot = await transaction.get(
+          collection.doc(linkedMemberId),
+        );
+        if (!linkedSnapshot.exists) {
+          throw new HttpRequestError(
+            403,
+            "invalid_link",
+            "Account link is invalid",
+          );
+        }
+        return {
+          member: resolveLinkedMember(
+            identity.uid,
+            linkData,
+            linkedSnapshot.data(),
+          ),
+          firstLoginLinked: false,
+        };
+      }
+
+      const [canonicalQuery, legacyQuery, uidQuery] = await Promise.all([
+        transaction.get(collection
+          .where("normalizedEmail", "==", identity.email)
+          .limit(2)),
+        transaction.get(collection
+          .where("emailNormalized", "==", identity.email)
+          .limit(2)),
+        transaction.get(collection
+          .where("authUid", "==", identity.uid)
+          .limit(2)),
+      ]);
+      const matches = new Map<string, admin.firestore.QueryDocumentSnapshot>();
+      [...canonicalQuery.docs, ...legacyQuery.docs].forEach((document) => {
+        matches.set(document.id, document);
+      });
+      if (matches.size !== 1) {
+        throw new HttpRequestError(
+          403,
+          matches.size === 0 ? "member_not_found" : "duplicate_member_email",
+          "Unable to link this account",
+        );
+      }
+      const memberDocument = [...matches.values()][0];
+      if (uidQuery.docs.some((document) =>
+        document.id !== memberDocument.id
+      )) {
+        throw new HttpRequestError(
+          409,
+          "auth_uid_conflict",
+          "Account is already linked to another member",
+        );
+      }
+      const memberData = parseBody(memberDocument.data());
+      const existingAuthUid = parseString(memberData.authUid);
+      if (existingAuthUid && existingAuthUid !== identity.uid) {
+        throw new HttpRequestError(
+          409,
+          "auth_uid_conflict",
+          "Member is already linked to another account",
+        );
+      }
+      const member = resolveLinkedMember(
+        identity.uid,
+        {memberId: memberDocument.id},
+        {...memberData, authUid: identity.uid},
+      );
+      const firstLoginLinked = !existingAuthUid;
+      if (firstLoginLinked) {
+        transaction.set(memberDocument.ref, {
+          authUid: identity.uid,
+          normalizedEmail: identity.email,
+          email: admin.firestore.FieldValue.delete(),
+          emailNormalized: admin.firestore.FieldValue.delete(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, {merge: true});
+      }
+      transaction.create(linkRef, {
+        memberId: memberDocument.id,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      return {member, firstLoginLinked};
+    });
+
+    res.status(200).json({
+      authorized: true,
+      memberId: result.member.memberId,
+      roles: result.member.roles,
+      isActive: result.member.isActive,
+      environment,
+      firstLoginLinked: result.firstLoginLinked,
+    });
+  } catch (error) {
+    sendHttpError(res, error);
+  }
+});
+
+export const upsertMemberByAdmin = onRequest(async (req, res) => {
+  try {
+    requirePostMethod(req.method);
+    const environment = parseRequestEnvironment(req);
+    const identity = await verifyRequestIdentity(req);
+    await requireAdminInEnvironment(environment, identity);
+    const input = parseMemberUpsertInput(req.body);
+    const collection = usersCollection(environment);
+    const memberId = input.memberId ||
+      buildSecureMemberId(input.normalizedEmail);
+    const memberRef = collection.doc(memberId);
+
+    await firestore.runTransaction(async (transaction) => {
+      const [memberSnapshot, canonicalQuery, legacyQuery, adminQuery] =
+        await Promise.all([
+          transaction.get(memberRef),
+          transaction.get(collection
+            .where("normalizedEmail", "==", input.normalizedEmail)
+            .limit(2)),
+          transaction.get(collection
+            .where("emailNormalized", "==", input.normalizedEmail)
+            .limit(2)),
+          transaction.get(collection
+            .where("roles", "array-contains", "admin")),
+        ]);
+      const duplicates = new Set(
+        [...canonicalQuery.docs, ...legacyQuery.docs]
+          .map((document) => document.id)
+          .filter((documentId) => documentId !== memberId),
+      );
+      if (duplicates.size > 0) {
+        throw new HttpRequestError(
+          409,
+          "duplicate_member_email",
+          "Another member already uses this email",
+        );
+      }
+
+      const currentData = parseBody(memberSnapshot.data());
+      assertMemberIdCompatible(
+        memberSnapshot.exists,
+        currentData,
+        input.normalizedEmail,
+      );
+      const businessFields = resolveMemberBusinessFields(input, currentData);
+      const currentRoles = Array.isArray(currentData.roles) ?
+        currentData.roles :
+        [];
+      const wasActiveAdmin = memberSnapshot.exists &&
+        currentData.isActive === true &&
+        currentRoles.includes("admin");
+      const willBeActiveAdmin = input.isActive &&
+        input.roles.includes("admin");
+      if (wasActiveAdmin && !willBeActiveAdmin) {
+        const otherAdminCandidates = adminQuery.docs.flatMap((document) => {
+          const authUid = parseString(document.get("authUid"));
+          return document.id !== memberId &&
+            document.get("isActive") === true &&
+            authUid &&
+            !authUid.includes("/") ?
+            [{document, authUid}] :
+            [];
+        });
+        const linkSnapshots = otherAdminCandidates.length > 0 ?
+          await transaction.getAll(...otherAdminCandidates.map((candidate) =>
+            authLinksCollection(environment).doc(candidate.authUid)
+          )) :
+          [];
+        const hasOtherOperationalAdmin = otherAdminCandidates.some(
+          (candidate, index) => isOperationallyLinkedAdmin(
+            candidate.document.id,
+            candidate.document.data(),
+            linkSnapshots[index]?.data(),
+          ),
+        );
+        if (!hasOtherOperationalAdmin) {
+          throw new HttpRequestError(
+            409,
+            "last_active_admin",
+            "Cannot remove the last active admin",
+          );
+        }
+      }
+
+      const payload: Record<string, unknown> = {
+        displayName: input.displayName,
+        normalizedEmail: input.normalizedEmail,
+        email: admin.firestore.FieldValue.delete(),
+        emailNormalized: admin.firestore.FieldValue.delete(),
+        roles: input.roles,
+        isActive: input.isActive,
+        producerCatalogEnabled: input.producerCatalogEnabled,
+        isCommonPurchaseManager: input.isCommonPurchaseManager,
+        companyName: businessFields.companyName ||
+          admin.firestore.FieldValue.delete(),
+        company_name: admin.firestore.FieldValue.delete(),
+        company: admin.firestore.FieldValue.delete(),
+        phoneNumber: businessFields.phoneNumber ||
+          admin.firestore.FieldValue.delete(),
+        phone: admin.firestore.FieldValue.delete(),
+        telephone: admin.firestore.FieldValue.delete(),
+        telefono: admin.firestore.FieldValue.delete(),
+        producerParity: businessFields.producerParity,
+        ecoCommitment: businessFields.ecoCommitment,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+      if (!memberSnapshot.exists) {
+        payload.authUid = null;
+        payload.createdAt = admin.firestore.FieldValue.serverTimestamp();
+      }
+      transaction.set(memberRef, payload, {merge: true});
+    });
+
+    logger.info("Member upserted by an authenticated admin", {environment});
+    res.status(200).json({
+      ok: true,
+      memberId,
+      roles: input.roles,
+      isActive: input.isActive,
+      environment,
+    });
+  } catch (error) {
+    sendHttpError(res, error);
+  }
+});
+
+type ShiftSwapStoredShift = ShiftLike & {
+  status: "planned" | "swap_pending" | "confirmed";
+  source: string;
+  ref: admin.firestore.DocumentReference;
+};
+
+type StoredShiftSwapRequest = {
+  id: string;
+  requestedShiftId: string;
+  requesterUserId: string;
+  status: "open" | "cancelled" | "applied";
+  candidates: ShiftSwapCandidateLike[];
+  responses: ShiftSwapResponseLike[];
+};
+
+const toShiftSwapStoredShift = (
+  snapshot: admin.firestore.DocumentSnapshot,
+): ShiftSwapStoredShift | null => {
+  const record = toShiftRecord(snapshot);
+  if (!record) {
+    return null;
+  }
+  return {
+    id: record.id,
+    type: record.type,
+    dateMillis: record.date.toMillis(),
+    assignedUserIds: record.assignedUserIds,
+    helperUserId: record.helperUserId,
+    status: record.status,
+    source: record.source,
+    ref: snapshot.ref,
   };
+};
 
-  if (!memberSnapshot.exists) {
-    payload.createdAt = admin.firestore.FieldValue.serverTimestamp();
-    payload.authUid = null;
-  } else if (currentData.authUid !== undefined) {
-    payload.authUid = currentData.authUid;
+const parseShiftSwapCandidates = (
+  value: unknown,
+): ShiftSwapCandidateLike[] => {
+  if (!Array.isArray(value)) {
+    return [];
   }
-
-  await memberRef.set(payload, {merge: true});
-
-  logger.info(`✅ Member ${memberId} upserted by admin`, {env, actorAuthUid});
-  res.status(200).json({
-    ok: true,
-    memberId,
-    roles,
-    isActive,
+  return value.flatMap((item) => {
+    const candidate = parseBody(item);
+    const userId = parseString(candidate.userId);
+    const shiftId = parseString(candidate.shiftId);
+    return userId && shiftId ? [{userId, shiftId}] : [];
   });
+};
+
+const parseShiftSwapResponses = (
+  value: unknown,
+): ShiftSwapResponseLike[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item) => {
+    const response = parseBody(item);
+    const userId = parseString(response.userId);
+    const shiftId = parseString(response.shiftId);
+    const status = parseString(response.status)?.toLowerCase();
+    const respondedAt = response.respondedAt;
+    if (
+      !userId ||
+      !shiftId ||
+      (status !== "available" && status !== "unavailable") ||
+      !(respondedAt instanceof admin.firestore.Timestamp)
+    ) {
+      return [];
+    }
+    return [{
+      userId,
+      shiftId,
+      status,
+      respondedAtMillis: respondedAt.toMillis(),
+    }];
+  });
+};
+
+const toStoredShiftSwapRequest = (
+  snapshot: admin.firestore.DocumentSnapshot,
+): StoredShiftSwapRequest | null => {
+  if (!snapshot.exists) {
+    return null;
+  }
+  const data = parseBody(snapshot.data());
+  const requestedShiftId = parseString(data.requestedShiftId);
+  const requesterUserId = parseString(data.requesterUserId);
+  const status = parseString(data.status)?.toLowerCase();
+  if (
+    !requestedShiftId ||
+    !requesterUserId ||
+    (status !== "open" && status !== "cancelled" && status !== "applied")
+  ) {
+    return null;
+  }
+  return {
+    id: snapshot.id,
+    requestedShiftId,
+    requesterUserId,
+    status,
+    candidates: parseShiftSwapCandidates(data.candidates),
+    responses: parseShiftSwapResponses(data.responses),
+  };
+};
+
+const serializeShiftSwapResponses = (
+  responses: ShiftSwapResponseLike[],
+): Record<string, unknown>[] => responses.map((response) => ({
+  userId: response.userId,
+  shiftId: response.shiftId,
+  status: response.status,
+  respondedAt: admin.firestore.Timestamp.fromMillis(
+    response.respondedAtMillis,
+  ),
+}));
+
+const setShiftSwapNotification = (
+  transaction: admin.firestore.Transaction,
+  environment: AppEnvironment,
+  payload: {
+    title: string;
+    body: string;
+    type: string;
+    target: "all" | "users";
+    userIds?: string[];
+    createdBy: string;
+    sentAt: admin.firestore.Timestamp;
+  },
+): void => {
+  const eventRef = firestore
+    .collection(`${environment}/plus-collections/notificationEvents`)
+    .doc();
+  transaction.create(eventRef, {
+    title: payload.title,
+    body: payload.body,
+    type: payload.type,
+    target: payload.target,
+    targetPayload: payload.target === "users" ? {
+      userIds: payload.userIds || [],
+    } : {},
+    createdBy: payload.createdBy,
+    sentAt: payload.sentAt,
+  });
+};
+
+const requireOpenShiftSwapRequest = (
+  snapshot: admin.firestore.DocumentSnapshot,
+): StoredShiftSwapRequest => {
+  const request = toStoredShiftSwapRequest(snapshot);
+  if (!request) {
+    throw new HttpRequestError(
+      404,
+      "shift_swap_not_found",
+      "Shift swap request was not found",
+    );
+  }
+  if (request.status !== "open") {
+    throw new HttpRequestError(
+      409,
+      "shift_swap_closed",
+      "Shift swap request is already closed",
+    );
+  }
+  return request;
+};
+
+export const transitionShiftSwap = onRequest(async (req, res) => {
+  try {
+    requirePostMethod(req.method);
+    const input = parseShiftSwapTransitionInput(req.body);
+    const identity = await verifyRequestIdentity(req);
+    const actor = await requireLinkedMember(input.environment, identity);
+    const requests = firestore.collection(
+      `${input.environment}/plus-collections/shiftSwapRequests`,
+    );
+    const shifts = shiftsCollection(input.environment);
+    const now = admin.firestore.Timestamp.now();
+    const requestId = input.action === "create" ?
+      requests.doc().id :
+      input.requestId;
+    let candidateCount: number | undefined;
+
+    if (input.action === "create") {
+      const requestRef = requests.doc(requestId);
+      await firestore.runTransaction(async (transaction) => {
+        const [shiftSnapshot, activeUsersSnapshot] = await Promise.all([
+          transaction.get(shifts),
+          transaction.get(usersCollection(input.environment)
+            .where("isActive", "==", true)),
+        ]);
+        const storedShifts = shiftSnapshot.docs
+          .map(toShiftSwapStoredShift)
+          .filter((shift): shift is ShiftSwapStoredShift => Boolean(shift));
+        if (storedShifts.length !== shiftSnapshot.size) {
+          throw new HttpRequestError(
+            409,
+            "invalid_shift_data",
+            "Shift data must be repaired before creating a swap",
+          );
+        }
+        const requestedShift = storedShifts.find((shift) =>
+          shift.id === input.requestedShiftId
+        );
+        if (!requestedShift || (
+          !requestedShift.assignedUserIds.includes(actor.memberId) &&
+          requestedShift.helperUserId !== actor.memberId
+        )) {
+          throw new HttpRequestError(
+            403,
+            "shift_not_owned",
+            "Only an assigned member can request a swap",
+          );
+        }
+        if (requestedShift.dateMillis < now.toMillis()) {
+          throw new HttpRequestError(
+            409,
+            "shift_in_past",
+            "Past shifts cannot be swapped",
+          );
+        }
+        const activeMemberIds = new Set(
+          activeUsersSnapshot.docs.map((document) => document.id),
+        );
+        const candidates = buildShiftSwapCandidates(
+          requestedShift,
+          storedShifts,
+          actor.memberId,
+          now.toMillis(),
+        ).filter((candidate) => activeMemberIds.has(candidate.userId));
+        if (candidates.length === 0) {
+          throw new HttpRequestError(
+            409,
+            "no_shift_swap_candidates",
+            "No eligible shift-swap candidates are available",
+          );
+        }
+        candidateCount = candidates.length;
+        transaction.create(requestRef, {
+          requestedShiftId: requestedShift.id,
+          requesterUserId: actor.memberId,
+          reason: input.reason || "",
+          status: "open",
+          candidates,
+          responses: [],
+          selectedCandidateUserId: null,
+          selectedCandidateShiftId: null,
+          requestedAt: now,
+          confirmedAt: null,
+          appliedAt: null,
+        });
+        setShiftSwapNotification(transaction, input.environment, {
+          title: "Solicitud de cambio de turno",
+          body: "Hay una nueva solicitud de cambio de turno.",
+          type: "shift_swap_requested",
+          target: "users",
+          userIds: candidates.map((candidate) => candidate.userId),
+          createdBy: actor.memberId,
+          sentAt: now,
+        });
+      });
+    } else if (input.action === "respond") {
+      const requestRef = requests.doc(requestId);
+      const candidateShiftRef = shifts.doc(input.candidateShiftId);
+      await firestore.runTransaction(async (transaction) => {
+        const [requestSnapshot, candidateShiftSnapshot] = await Promise.all([
+          transaction.get(requestRef),
+          transaction.get(candidateShiftRef),
+        ]);
+        const swapRequest = requireOpenShiftSwapRequest(requestSnapshot);
+        const candidate = swapRequest.candidates.find((item) =>
+          item.userId === actor.memberId &&
+          item.shiftId === input.candidateShiftId
+        );
+        const candidateShift = toShiftSwapStoredShift(candidateShiftSnapshot);
+        if (!candidate || !candidateShift ||
+            !candidateShift.assignedUserIds.includes(actor.memberId)) {
+          throw new HttpRequestError(
+            403,
+            "invalid_shift_swap_candidate",
+            "Actor is not an eligible candidate",
+          );
+        }
+        const responses = upsertShiftSwapResponse(swapRequest.responses, {
+          userId: actor.memberId,
+          shiftId: candidate.shiftId,
+          status: input.response,
+          respondedAtMillis: now.toMillis(),
+        });
+        transaction.update(requestRef, {
+          responses: serializeShiftSwapResponses(responses),
+        });
+        setShiftSwapNotification(transaction, input.environment, {
+          title: input.response === "available" ?
+            "Socio disponible para cambio" :
+            "Socio no disponible para cambio",
+          body: input.response === "available" ?
+            "Un socio puede realizar el cambio solicitado." :
+            "Un socio no puede realizar el cambio solicitado.",
+          type: input.response === "available" ?
+            "shift_swap_available" :
+            "shift_swap_unavailable",
+          target: "users",
+          userIds: [swapRequest.requesterUserId],
+          createdBy: actor.memberId,
+          sentAt: now,
+        });
+      });
+    } else if (input.action === "cancel") {
+      const requestRef = requests.doc(requestId);
+      await firestore.runTransaction(async (transaction) => {
+        const requestSnapshot = await transaction.get(requestRef);
+        const swapRequest = requireOpenShiftSwapRequest(requestSnapshot);
+        if (swapRequest.requesterUserId !== actor.memberId) {
+          throw new HttpRequestError(
+            403,
+            "shift_swap_requester_required",
+            "Only the requester can cancel this swap",
+          );
+        }
+        transaction.update(requestRef, {status: "cancelled"});
+      });
+    } else {
+      const requestRef = requests.doc(requestId);
+      await firestore.runTransaction(async (transaction) => {
+        const [requestSnapshot, shiftSnapshot] = await Promise.all([
+          transaction.get(requestRef),
+          transaction.get(shifts),
+        ]);
+        const swapRequest = requireOpenShiftSwapRequest(requestSnapshot);
+        if (swapRequest.requesterUserId !== actor.memberId) {
+          throw new HttpRequestError(
+            403,
+            "shift_swap_requester_required",
+            "Only the requester can apply this swap",
+          );
+        }
+        const candidate = swapRequest.candidates.find((item) =>
+          item.shiftId === input.candidateShiftId
+        );
+        if (!candidate || !swapRequest.responses.some((response) =>
+          response.userId === candidate.userId &&
+          response.shiftId === candidate.shiftId &&
+          response.status === "available"
+        )) {
+          throw new HttpRequestError(
+            409,
+            "available_response_required",
+            "The selected candidate has not accepted this swap",
+          );
+        }
+        const storedShifts = shiftSnapshot.docs
+          .map(toShiftSwapStoredShift)
+          .filter((shift): shift is ShiftSwapStoredShift => Boolean(shift));
+        if (storedShifts.length !== shiftSnapshot.size) {
+          throw new HttpRequestError(
+            409,
+            "invalid_shift_data",
+            "Shift data must be repaired before applying a swap",
+          );
+        }
+        const requestedShift = storedShifts.find((shift) =>
+          shift.id === swapRequest.requestedShiftId
+        );
+        const candidateShift = storedShifts.find((shift) =>
+          shift.id === candidate.shiftId
+        );
+        if (!requestedShift || !candidateShift) {
+          throw new HttpRequestError(
+            409,
+            "shift_not_found",
+            "A shift in this request no longer exists",
+          );
+        }
+        const [requesterSnapshot, candidateMemberSnapshot] =
+          await transaction.getAll(
+            usersCollection(input.environment)
+              .doc(swapRequest.requesterUserId),
+            usersCollection(input.environment).doc(candidate.userId),
+          );
+        assertActiveShiftSwapParticipants(
+          requesterSnapshot.data(),
+          candidateMemberSnapshot.data(),
+        );
+        const applyNow = admin.firestore.Timestamp.now();
+        assertShiftSwapTimingEligible(
+          requestedShift,
+          candidateShift,
+          applyNow.toMillis(),
+        );
+        const [swappedRequested, swappedCandidate] = applyMemberSwap(
+          requestedShift,
+          candidateShift,
+          swapRequest.requesterUserId,
+          candidate.userId,
+        );
+        const replaced = storedShifts.map((shift) => {
+          if (shift.id === swappedRequested.id) {
+            return swappedRequested;
+          }
+          if (shift.id === swappedCandidate.id) {
+            return swappedCandidate;
+          }
+          return shift;
+        });
+        const recomputed = recomputeDeliveryHelpers(replaced);
+        recomputed.forEach((shift, index) => {
+          const original = storedShifts[index];
+          const assignmentsChanged =
+            shift.assignedUserIds.length !== original.assignedUserIds.length ||
+            shift.assignedUserIds.some((userId, assignmentIndex) =>
+              userId !== original.assignedUserIds[assignmentIndex]
+            );
+          const helperChanged = shift.helperUserId !== original.helperUserId;
+          if (assignmentsChanged || helperChanged) {
+            transaction.update(shift.ref, {
+              assignedUserIds: shift.assignedUserIds,
+              helperUserId: shift.helperUserId,
+              status: "confirmed",
+              source: "app",
+              updatedAt: applyNow,
+            });
+          }
+        });
+        transaction.update(requestRef, {
+          status: "applied",
+          selectedCandidateUserId: candidate.userId,
+          selectedCandidateShiftId: candidate.shiftId,
+          confirmedAt: applyNow,
+          appliedAt: applyNow,
+        });
+        setShiftSwapNotification(transaction, input.environment, {
+          title: "Cambio de turno confirmado",
+          body: "Se ha aplicado un cambio de turno.",
+          type: "shift_swap_applied",
+          target: "all",
+          createdBy: actor.memberId,
+          sentAt: applyNow,
+        });
+      });
+    }
+
+    logger.info("Authenticated shift-swap transition completed", {
+      environment: input.environment,
+      action: input.action,
+    });
+    res.status(200).json({
+      ok: true,
+      environment: input.environment,
+      action: input.action,
+      requestId,
+      ...(candidateCount === undefined ? {} : {candidateCount}),
+    });
+  } catch (error) {
+    sendHttpError(res, error);
+  }
 });
 
 export const validateGlobalVersionPolicy = onRequest(async (req, res) => {
-  const envs = parseEnvList(req.query.envs ?? req.query.env);
-  const targetEnvs = envs.length > 0 ? envs : DEFAULT_VERSION_POLICY_ENVS;
-  const summary: {env: string; existed: boolean}[] = [];
+  try {
+    const targetEnvs = parseAdminTargetEnvironments(req);
+    await requireAdminForTargets(req, targetEnvs);
+    const summary: {environment: AppEnvironment; existed: boolean}[] = [];
 
-  for (const env of targetEnvs) {
-    const docRefs = globalConfigDocRefs(env);
-    let existed = false;
-
-    for (const globalDoc of docRefs) {
+    for (const environment of targetEnvs) {
+      const globalDoc = firestore
+        .collection(`${environment}/plus-collections/config`)
+        .doc("global");
+      const publicDoc = firestore
+        .collection(`${environment}/plus-collections/config`)
+        .doc("public");
       const snapshot = await globalDoc.get();
       const current = parseBody(snapshot.data());
       const versions = sanitizeVersionPolicies(current.versions);
-
-      await globalDoc.set({versions}, {merge: true});
-      existed = existed || snapshot.exists;
+      const batch = firestore.batch();
+      batch.set(globalDoc, {versions}, {merge: true});
+      batch.set(publicDoc, {versions}, {merge: false});
+      await batch.commit();
+      summary.push({environment, existed: snapshot.exists});
     }
 
-    summary.push({env, existed});
+    logger.info("Global and public version policies validated", {summary});
+    res.status(200).json({ok: true, summary});
+  } catch (error) {
+    sendHttpError(res, error);
   }
-
-  logger.info("✅ Global version policy validated", {summary});
-  res.status(200).json({
-    ok: true,
-    summary,
-  });
 });
 
 export const validateGlobalFreshnessConfig = onRequest(async (req, res) => {
-  const envs = parseEnvList(req.query.envs ?? req.query.env);
-  const targetEnvs = envs.length > 0 ? envs : DEFAULT_VERSION_POLICY_ENVS;
-  const summary: {env: string; existed: boolean}[] = [];
-  const fallbackTimestamp = admin.firestore.Timestamp.fromDate(
-    new Date("2025-01-01T00:00:00Z")
-  );
+  try {
+    const targetEnvs = parseAdminTargetEnvironments(req);
+    await requireAdminForTargets(req, targetEnvs);
+    const summary: {environment: AppEnvironment; existed: boolean}[] = [];
+    const fallbackTimestamp = admin.firestore.Timestamp.fromDate(
+      new Date("2025-01-01T00:00:00Z"),
+    );
 
-  for (const env of targetEnvs) {
-    const docRefs = globalConfigDocRefs(env);
-    let existed = false;
-
-    for (const globalDoc of docRefs) {
+    for (const environment of targetEnvs) {
+      const globalDoc = firestore
+        .collection(`${environment}/plus-collections/config`)
+        .doc("global");
       const snapshot = await globalDoc.get();
       const current = parseBody(snapshot.data());
-
-      await globalDoc.set({
+      const memberProjection = buildMemberConfigProjection(
+        current,
+        fallbackTimestamp,
+      );
+      const batch = firestore.batch();
+      batch.set(globalDoc, {
         cacheExpirationMinutes: parsePositiveInteger(
           current.cacheExpirationMinutes,
-          DEFAULT_CACHE_EXPIRATION_MINUTES
+          DEFAULT_CACHE_EXPIRATION_MINUTES,
         ),
         lastTimestamps: sanitizeLastTimestamps(
           current.lastTimestamps,
-          fallbackTimestamp
+          fallbackTimestamp,
         ),
       }, {merge: true});
-
-      existed = existed || snapshot.exists;
+      batch.set(
+        globalDoc.parent.doc("member"),
+        memberProjection,
+        {merge: false},
+      );
+      await batch.commit();
+      summary.push({environment, existed: snapshot.exists});
     }
 
-    summary.push({env, existed});
+    logger.info("Global freshness config validated", {summary});
+    res.status(200).json({
+      ok: true,
+      summary,
+      requiredCollections: REQUIRED_FRESHNESS_COLLECTIONS,
+    });
+  } catch (error) {
+    sendHttpError(res, error);
   }
-
-  logger.info("✅ Global freshness config validated", {summary});
-  res.status(200).json({
-    ok: true,
-    summary,
-    requiredCollections: REQUIRED_FRESHNESS_COLLECTIONS,
-  });
 });
 
-export const cloneGlobalConfig = onRequest(async (_req, res) => {
-  const sourceDoc = firestore
-    .collection("develop/plus-collections/config")
-    .doc("global");
-
-  const targetDoc = firestore
-    .collection("production/plus-collections/config")
-    .doc("global");
-
-  const baseTimestamp = admin.firestore.Timestamp.fromDate(
-    new Date("2025-01-01T00:00:00Z")
-  );
-
-  const snapshot = await sourceDoc.get();
-
-  if (!snapshot.exists) {
-    res.status(404).send("⚠️ Source config/global (develop) does not exist");
-    return;
+export const cloneGlobalConfig = onRequest(async (req, res) => {
+  try {
+    await requireAdminForTargets(req, ["develop", "production"]);
+    const sourceDoc = firestore
+      .collection("develop/plus-collections/config")
+      .doc("global");
+    const targetDoc = firestore
+      .collection("production/plus-collections/config")
+      .doc("global");
+    const targetPublicDoc = firestore
+      .collection("production/plus-collections/config")
+      .doc("public");
+    const targetMemberDoc = firestore
+      .collection("production/plus-collections/config")
+      .doc("member");
+    const baseTimestamp = admin.firestore.Timestamp.fromDate(
+      new Date("2025-01-01T00:00:00Z"),
+    );
+    const snapshot = await sourceDoc.get();
+    if (!snapshot.exists || !snapshot.data()) {
+      throw new HttpRequestError(
+        404,
+        "source_config_not_found",
+        "Develop config/global does not exist",
+      );
+    }
+    const data = snapshot.data() as Record<string, unknown>;
+    const versions = sanitizeVersionPolicies(data.versions);
+    const overridden = {
+      ...data,
+      cacheExpirationMinutes: parsePositiveInteger(
+        data.cacheExpirationMinutes,
+        DEFAULT_CACHE_EXPIRATION_MINUTES,
+      ),
+      versions,
+      lastTimestamps: sanitizeLastTimestamps(
+        data.lastTimestamps,
+        baseTimestamp,
+      ),
+    };
+    const batch = firestore.batch();
+    batch.set(targetDoc, overridden, {merge: true});
+    batch.set(targetPublicDoc, {versions}, {merge: false});
+    batch.set(
+      targetMemberDoc,
+      buildMemberConfigProjection(overridden, baseTimestamp),
+      {merge: false},
+    );
+    await batch.commit();
+    logger.info("Develop global config copied to production");
+    res.status(200).json({
+      ok: true,
+      sourceEnvironment: "develop",
+      targetEnvironment: "production",
+    });
+  } catch (error) {
+    sendHttpError(res, error);
   }
-
-  const data = snapshot.data();
-  if (!data) {
-    res.status(500).send("❌ No data found in source document");
-    return;
-  }
-
-  const overridden = {
-    ...data,
-    cacheExpirationMinutes: parsePositiveInteger(
-      data.cacheExpirationMinutes,
-      DEFAULT_CACHE_EXPIRATION_MINUTES
-    ),
-    versions: sanitizeVersionPolicies(data.versions),
-    lastTimestamps: sanitizeLastTimestamps(data.lastTimestamps, baseTimestamp),
-  };
-
-  await targetDoc.set(overridden, {merge: true});
-
-  logger.info("✅ config/global copied to prod");
-  res.status(200).send("✅ config/global copied");
 });

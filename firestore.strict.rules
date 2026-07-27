@@ -1,0 +1,550 @@
+// Candidate least-privilege rules. Deploy only through firebase.strict.json
+// after the identity-link migration guard succeeds in both environments.
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSupportedEnv(env) {
+      return env in ["develop", "production"];
+    }
+
+    function isLegacyCollection(collectionId) {
+      return collectionId in [
+        "config",
+        "containers",
+        "measures",
+        "news",
+        "orderLines",
+        "orders",
+        "products",
+        "users",
+      ];
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function authLinkPath(env) {
+      return /databases/$(database)/documents/$(env)/plus-collections/authLinks/$(request.auth.uid);
+    }
+
+    function actorId(env) {
+      return get(authLinkPath(env)).data.memberId;
+    }
+
+    function userPath(env, userId) {
+      return /databases/$(database)/documents/$(env)/plus-collections/users/$(userId);
+    }
+
+    function devicePath(env, userId, deviceId) {
+      return /databases/$(database)/documents/$(env)/plus-collections/users/$(userId)/devices/$(deviceId);
+    }
+
+    function actorData(env) {
+      return get(userPath(env, actorId(env))).data;
+    }
+
+    function isActiveMemberData(member) {
+      let roles = member.get("roles", []);
+      return member.get("authUid", "") == request.auth.uid &&
+        member.get("isActive", false) == true &&
+        roles is list &&
+        roles.hasAny(["member"]);
+    }
+
+    function hasActiveRole(member, role) {
+      let roles = member.get("roles", []);
+      return member.get("authUid", "") == request.auth.uid &&
+        member.get("isActive", false) == true &&
+        roles is list &&
+        roles.hasAll(["member", role]);
+    }
+
+    function canManageCatalogData(member) {
+      let roles = member.get("roles", []);
+      return member.get("authUid", "") == request.auth.uid &&
+        member.get("isActive", false) == true &&
+        roles is list &&
+        roles.hasAny(["member"]) &&
+        (
+          roles.hasAny(["producer"]) ||
+          member.get("isCommonPurchaseManager", false) == true
+        );
+    }
+
+    function isActiveMember(env) {
+      return isSupportedEnv(env) &&
+        isSignedIn() &&
+        isActiveMemberData(actorData(env));
+    }
+
+    function hasRole(env, role) {
+      return isSupportedEnv(env) &&
+        isSignedIn() &&
+        hasActiveRole(actorData(env), role);
+    }
+
+    function isAdmin(env) {
+      return hasRole(env, "admin");
+    }
+
+    function isProducer(env) {
+      return hasRole(env, "producer");
+    }
+
+    function canManageCatalog(env) {
+      return isSupportedEnv(env) &&
+        isSignedIn() &&
+        canManageCatalogData(actorData(env));
+    }
+
+    function isActor(env, userId) {
+      return isSupportedEnv(env) &&
+        isSignedIn() &&
+        actorId(env) == userId &&
+        isActiveMemberData(get(userPath(env, userId)).data);
+    }
+
+    function isOwnLinkedUser(env, userId) {
+      return isSupportedEnv(env) &&
+        isSignedIn() &&
+        actorId(env) == userId &&
+        get(userPath(env, userId)).data.get("authUid", "") == request.auth.uid;
+    }
+
+    function changedOnly(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+
+    function validLastDeviceReference(env, userId) {
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      let deviceId = request.resource.data.get("lastDeviceId", "");
+      return !affected.hasAny(["lastDeviceId"]) ||
+        (
+          deviceId is string &&
+          deviceId != "" &&
+          existsAfter(devicePath(env, userId, deviceId))
+        );
+    }
+
+    function isValidDeviceData(deviceId, data) {
+      let platform = data.get("platform", "");
+      let apiLevel = data.get("apiLevel", null);
+      let firstSeenAt = data.get("firstSeenAt", null);
+      let lastSeenAt = data.get("lastSeenAt", null);
+      let fcmToken = data.get("fcmToken", null);
+      let tokenUpdatedAt = data.get("tokenUpdatedAt", null);
+      return data.get("deviceId", "") == deviceId &&
+        platform in ["android", "ios"] &&
+        data.get("appVersion", "") is string &&
+        data.get("appVersion", "") != "" &&
+        data.get("osVersion", "") is string &&
+        data.get("osVersion", "") != "" &&
+        firstSeenAt is timestamp &&
+        lastSeenAt is timestamp &&
+        firstSeenAt <= lastSeenAt &&
+        (platform != "ios" || apiLevel == null) &&
+        (platform != "android" || (apiLevel is int && apiLevel >= 0)) &&
+        (fcmToken == null || fcmToken is string) &&
+        (tokenUpdatedAt == null || tokenUpdatedAt is timestamp);
+    }
+
+    function isValidProducerStatus(status) {
+      return status in ["unread", "read", "prepared", "delivered"];
+    }
+
+    function isValidConsumerStatus(status) {
+      return status in ["sin_hacer", "en_carrito", "confirmado"];
+    }
+
+    function isAllowedProducerTransition(previousStatus, nextStatus) {
+      return (previousStatus == "unread" && nextStatus in ["read", "prepared", "delivered"]) ||
+        (previousStatus == "read" && nextStatus in ["read", "prepared", "delivered"]) ||
+        (previousStatus == "prepared" && nextStatus in ["read", "prepared", "delivered"]) ||
+        (previousStatus == "delivered" && nextStatus == "delivered");
+    }
+
+    function isOrderOwner(env, data) {
+      return isActiveMember(env) &&
+        (data.get("userId", "") == actorId(env) ||
+          data.get("memberId", "") == actorId(env));
+    }
+
+    function isOrderProducer(env, data) {
+      let totals = data.get("totalsByVendor", {});
+      return isProducer(env) &&
+        totals is map &&
+        totals.keys().hasAny([actorId(env)]);
+    }
+
+    function isOrderReader(env, data) {
+      return isOrderOwner(env, data) || isOrderProducer(env, data) || isAdmin(env);
+    }
+
+    function hasSafeInitialProducerStatus(data) {
+      let keys = data.keys();
+      return !keys.hasAny([
+        "producerStatus",
+        "producerStatusesByVendor",
+        "producerStatusUpdatedBy",
+      ]) ||
+        (
+          data.get("producerStatus", "") == "unread" &&
+          !keys.hasAny(["producerStatusesByVendor", "producerStatusUpdatedBy"])
+        );
+    }
+
+    function isValidOwnedOrderCreate(env) {
+      return isActiveMember(env) &&
+        request.resource.data.get("userId", "") == actorId(env) &&
+        (
+          !request.resource.data.keys().hasAny(["memberId"]) ||
+          request.resource.data.get("memberId", "") == actorId(env)
+        ) &&
+        request.resource.data.get("weekKey", "") is string &&
+        isValidConsumerStatus(request.resource.data.get("consumerStatus", "")) &&
+        request.resource.data.get("total", -1) is number &&
+        request.resource.data.get("total", -1) >= 0 &&
+        request.resource.data.get("totalsByVendor", {}) is map &&
+        hasSafeInitialProducerStatus(request.resource.data);
+    }
+
+    function isValidOwnedOrderUpdate(env) {
+      return isOrderOwner(env, resource.data) &&
+        isOrderOwner(env, request.resource.data) &&
+        request.resource.data.get("userId", "") == resource.data.get("userId", "") &&
+        isValidConsumerStatus(request.resource.data.get("consumerStatus", "")) &&
+        request.resource.data.get("total", -1) is number &&
+        request.resource.data.get("total", -1) >= 0 &&
+        request.resource.data.get("totalsByVendor", {}) is map &&
+        changedOnly([
+          "consumerDisplayName",
+          "week",
+          "weekKey",
+          "deliveryDate",
+          "consumerStatus",
+          "total",
+          "totalsByVendor",
+          "isAutoGenerated",
+          "autoGeneratedReason",
+          "updatedAt",
+          "confirmedAt",
+        ]);
+    }
+
+    function producerCanUpdateOwnStatus(env) {
+      let producerId = actorId(env);
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      let beforeByVendor = resource.data.get("producerStatusesByVendor", {});
+      let afterByVendor = request.resource.data.get("producerStatusesByVendor", {});
+      let previousStatus = beforeByVendor.get(
+        producerId,
+        resource.data.get("producerStatus", "unread")
+      );
+      let nextStatus = afterByVendor.get(producerId, null);
+      return isOrderProducer(env, resource.data) &&
+        affected.hasOnly([
+          "producerStatus",
+          "producerStatusesByVendor",
+          "producerStatusUpdatedBy",
+          "updatedAt",
+        ]) &&
+        beforeByVendor is map &&
+        afterByVendor is map &&
+        afterByVendor.diff(beforeByVendor).affectedKeys().hasOnly([producerId]) &&
+        request.resource.data.get("producerStatusUpdatedBy", "") == producerId &&
+        nextStatus is string &&
+        isValidProducerStatus(nextStatus) &&
+        request.resource.data.get("producerStatus", "") == nextStatus &&
+        isAllowedProducerTransition(previousStatus, nextStatus);
+    }
+
+    function adminCanCorrectProducerStatus(env) {
+      return isAdmin(env) &&
+        changedOnly([
+          "producerStatus",
+          "producerStatusUpdatedBy",
+          "updatedAt",
+        ]) &&
+        request.resource.data.get("producerStatusUpdatedBy", "") == actorId(env) &&
+        isValidProducerStatus(request.resource.data.get("producerStatus", "")) &&
+        request.resource.data.get("producerStatusesByVendor", {}) ==
+          resource.data.get("producerStatusesByVendor", {});
+    }
+
+    function isOrderLineOwner(env, data) {
+      return isActiveMember(env) &&
+        (data.get("userId", "") == actorId(env) ||
+          data.get("memberId", "") == actorId(env));
+    }
+
+    function isOrderLineProducer(env, data) {
+      return isProducer(env) && data.get("vendorId", "") == actorId(env);
+    }
+
+    function isValidOwnedOrderLineCreate(env) {
+      return isActiveMember(env) &&
+        request.resource.data.get("userId", "") == actorId(env) &&
+        (
+          !request.resource.data.keys().hasAny(["memberId"]) ||
+          request.resource.data.get("memberId", "") == actorId(env)
+        ) &&
+        request.resource.data.get("orderId", "") is string &&
+        request.resource.data.get("productId", "") is string &&
+        request.resource.data.get("vendorId", "") is string &&
+        request.resource.data.get("quantity", 0) is number &&
+        request.resource.data.get("quantity", 0) > 0 &&
+        request.resource.data.get("subtotal", -1) is number &&
+        request.resource.data.get("subtotal", -1) >= 0;
+    }
+
+    function isValidOwnedOrderLineUpdate(env) {
+      return isOrderLineOwner(env, resource.data) &&
+        isOrderLineOwner(env, request.resource.data) &&
+        request.resource.data.get("userId", "") == resource.data.get("userId", "") &&
+        request.resource.data.get("memberId", "") ==
+          resource.data.get("memberId", "") &&
+        request.resource.data.get("orderId", "") == resource.data.get("orderId", "") &&
+        request.resource.data.get("productId", "") == resource.data.get("productId", "") &&
+        request.resource.data.get("vendorId", "") == resource.data.get("vendorId", "") &&
+        request.resource.data.get("quantity", 0) is number &&
+        request.resource.data.get("quantity", 0) > 0 &&
+        request.resource.data.get("subtotal", -1) is number &&
+        request.resource.data.get("subtotal", -1) >= 0;
+    }
+
+    function commitmentValueMatchesActor(env, value) {
+      let member = actorData(env);
+      return value == actorId(env) ||
+        value == request.auth.uid ||
+        value == member.get("normalizedEmail", "") ||
+        value == userPath(env, actorId(env)) ||
+        value == userPath(env, request.auth.uid);
+    }
+
+    function isCommitmentOwner(env, data) {
+      return isActiveMember(env) &&
+        (
+          commitmentValueMatchesActor(env, data.get("userId", null)) ||
+          commitmentValueMatchesActor(env, data.get("memberId", null)) ||
+          commitmentValueMatchesActor(env, data.get("uid", null)) ||
+          commitmentValueMatchesActor(env, data.get("user", null)) ||
+          commitmentValueMatchesActor(env, data.get("member", null)) ||
+          commitmentValueMatchesActor(env, data.get("userRef", null)) ||
+          commitmentValueMatchesActor(env, data.get("memberRef", null)) ||
+          commitmentValueMatchesActor(env, data.get("userID", null)) ||
+          commitmentValueMatchesActor(env, data.get("memberID", null))
+        );
+    }
+
+    function isValidNotificationAudience(data) {
+      let target = data.get("target", "");
+      let payload = data.get("targetPayload", {});
+      return (
+          (
+            target == "all" &&
+            payload.keys().size() == 0
+          ) ||
+          (
+            target == "users" &&
+            payload.get("userIds", []) is list &&
+            payload.get("userIds", []).size() > 0
+          ) ||
+          (
+            target == "segment" &&
+            payload.get("segmentType", "") == "role" &&
+            payload.get("role", "") in ["member", "producer", "admin"]
+          )
+        );
+    }
+
+    function isValidAdminNotificationCreate(env, data) {
+      return isAdmin(env) &&
+        data.get("createdBy", "") == actorId(env) &&
+        data.get("title", "") is string &&
+        data.get("title", "").size() > 0 &&
+        data.get("body", "") is string &&
+        data.get("body", "").size() > 0 &&
+        data.get("type", "") is string &&
+        data.get("type", "").size() > 0 &&
+        data.get("sentAt", null) is timestamp &&
+        isValidNotificationAudience(data);
+    }
+
+    function isValidAdminNewsWrite(env, data) {
+      return isAdmin(env) &&
+        data.get("title", "") is string &&
+        data.get("title", "").size() > 0 &&
+        data.get("body", "") is string &&
+        data.get("body", "").size() > 0 &&
+        data.get("publishedBy", "") is string &&
+        data.get("publishedBy", "").size() > 0 &&
+        data.get("publishedByUserId", "") == actorId(env) &&
+        data.get("publishedAt", null) is timestamp &&
+        data.get("active", false) is bool;
+    }
+
+    // Compatibility boundary for the currently published legacy apps.
+    // Their schema has no server-verifiable reciprocal identity yet, so this
+    // namespace keeps the prior authenticated access contract. It is isolated
+    // from the role-enforced Reguerta+ dataset below.
+    match /{env}/collections/{collectionId}/{document=**} {
+      allow read, write: if isSupportedEnv(env) &&
+        isLegacyCollection(collectionId) &&
+        isSignedIn();
+    }
+
+    match /{env}/plus-collections/authLinks/{uid} {
+      allow get: if isSupportedEnv(env) && isSignedIn() && request.auth.uid == uid;
+      allow list, create, update, delete: if false;
+    }
+
+    match /{env}/plus-collections/users/{userId} {
+      allow get: if isOwnLinkedUser(env, userId) || isAdmin(env);
+      allow list: if isAdmin(env);
+      allow create, delete: if false;
+      allow update: if isActor(env, userId) &&
+        changedOnly(["producerCatalogEnabled", "lastDeviceId", "updatedAt"]) &&
+        validLastDeviceReference(env, userId) &&
+        (
+          !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(["producerCatalogEnabled"]) ||
+          canManageCatalog(env)
+        );
+
+      match /devices/{deviceId} {
+        allow read, delete: if isActor(env, userId);
+        allow create, update: if isActor(env, userId) &&
+          isValidDeviceData(deviceId, request.resource.data);
+      }
+
+      match /notificationReads/{eventId} {
+        allow read, delete: if isActor(env, userId);
+        allow create, update: if isActor(env, userId) &&
+          request.resource.data.keys().hasOnly([
+            "notificationEventId",
+            "readAt",
+          ]) &&
+          request.resource.data.get("notificationEventId", "") == eventId &&
+          request.resource.data.get("readAt", null) is timestamp;
+      }
+
+      match /notificationInbox/{eventId} {
+        allow read: if isActor(env, userId);
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /{env}/plus-collections/memberDirectory/{userId} {
+      allow read: if isActiveMember(env) &&
+        resource.data.get("isActive", false) == true;
+      allow create, update, delete: if false;
+    }
+
+    match /{env}/plus-collections/sharedProfiles/{userId} {
+      allow read: if isActiveMember(env);
+      allow create, update: if isActor(env, userId) &&
+        request.resource.data.get("userId", "") == userId;
+      allow delete: if isActor(env, userId) || isAdmin(env);
+    }
+
+    match /{env}/plus-collections/products/{productId} {
+      allow read: if isActiveMember(env);
+      allow create: if canManageCatalog(env) &&
+        request.resource.data.get("vendorId", "") == actorId(env) &&
+        request.resource.data.get("name", "") is string &&
+        request.resource.data.get("price", -1) is number &&
+        request.resource.data.get("price", -1) >= 0;
+      allow update: if canManageCatalog(env) &&
+        resource.data.get("vendorId", "") == actorId(env) &&
+        request.resource.data.get("vendorId", "") == actorId(env) &&
+        request.resource.data.get("name", "") is string &&
+        request.resource.data.get("price", -1) is number &&
+        request.resource.data.get("price", -1) >= 0;
+      allow delete: if false;
+    }
+
+    match /{env}/plus-collections/orders/{orderId} {
+      allow read: if isOrderReader(env, resource.data);
+      allow create: if isValidOwnedOrderCreate(env);
+      allow update: if isValidOwnedOrderUpdate(env) ||
+        producerCanUpdateOwnStatus(env) ||
+        adminCanCorrectProducerStatus(env);
+      allow delete: if isOrderOwner(env, resource.data) || isAdmin(env);
+    }
+
+    match /{env}/plus-collections/orderlines/{orderLineId} {
+      allow read: if isOrderLineOwner(env, resource.data) ||
+        isOrderLineProducer(env, resource.data) ||
+        isAdmin(env);
+      allow create: if isValidOwnedOrderLineCreate(env);
+      allow update: if isValidOwnedOrderLineUpdate(env);
+      allow delete: if isOrderLineOwner(env, resource.data) || isAdmin(env);
+    }
+
+    match /{env}/plus-collections/seasonalCommitments/{commitmentId} {
+      allow read: if isCommitmentOwner(env, resource.data) || isAdmin(env);
+      allow create, update, delete: if isAdmin(env);
+    }
+
+    match /{env}/plus-collections/config/{configId} {
+      allow get: if isSupportedEnv(env) &&
+        (configId == "public" ||
+          (configId == "member" && isActiveMember(env)) ||
+          (configId == "global" && isAdmin(env)));
+      allow list, create, update, delete: if false;
+    }
+
+    match /{env}/plus-collections/deliveryCalendar/{weekKey} {
+      allow read: if isActiveMember(env);
+      allow create, update: if isAdmin(env) &&
+        request.resource.data.get("weekKey", "") == weekKey &&
+        request.resource.data.get("updatedBy", "") == actorId(env);
+      allow delete: if isAdmin(env);
+    }
+
+    match /{env}/plus-collections/shifts/{shiftId} {
+      allow read: if isActiveMember(env);
+      allow create, update, delete: if isAdmin(env);
+    }
+
+    match /{env}/plus-collections/shiftPlanningRequests/{requestId} {
+      allow read: if isAdmin(env);
+      allow create: if isAdmin(env) &&
+        request.resource.data.get("requestedByUserId", "") == actorId(env) &&
+        request.resource.data.get("status", "") == "requested" &&
+        request.resource.data.get("type", "") in ["delivery", "market"];
+      allow update, delete: if false;
+    }
+
+    match /{env}/plus-collections/shiftSwapRequests/{requestId} {
+      allow read: if isActiveMember(env);
+      allow create, update, delete: if false;
+    }
+
+    match /{env}/plus-collections/news/{newsId} {
+      allow read: if isActiveMember(env) &&
+        (resource.data.get("active", false) == true || isAdmin(env));
+      allow create, update: if isValidAdminNewsWrite(env, request.resource.data);
+      allow delete: if isAdmin(env);
+    }
+
+    match /{env}/plus-collections/notificationEvents/{eventId} {
+      allow read: if isAdmin(env);
+      allow create: if isValidAdminNotificationCreate(
+        env,
+        request.resource.data
+      );
+      allow update, delete: if false;
+    }
+
+    match /{env}/plus-collections/{systemCollection}/{document=**} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
