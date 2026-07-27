@@ -75,10 +75,10 @@ internal fun ProductDraft.normalized(): ProductDraft =
     )
 
 internal fun String.toPositiveDoubleOrNull(): Double? =
-    replace(",", ".").toDoubleOrNull()?.takeIf { it > 0.0 }
+    replace(",", ".").toDoubleOrNull()?.takeIf { it.isFinite() && it > 0.0 }
 
 internal fun String.toNonNegativeDoubleOrNull(): Double? =
-    replace(",", ".").toDoubleOrNull()?.takeIf { it >= 0.0 }
+    replace(",", ".").toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 }
 
 internal val Member.isSessionProducer: Boolean
     get() = isProducer
@@ -87,7 +87,9 @@ internal val Member.canManageSessionProductCatalog: Boolean
     get() = canManageProductCatalog
 
 internal fun Double.toSessionUiDecimal(locale: Locale = Locale.getDefault()): String =
-    if (this % 1.0 == 0.0) {
+    if (!isFinite()) {
+        ""
+    } else if (this % 1.0 == 0.0 && this >= Long.MIN_VALUE.toDouble() && this <= Long.MAX_VALUE.toDouble()) {
         toLong().toString()
     } else {
         toString().replace('.', DecimalFormatSymbols.getInstance(locale).decimalSeparator)

@@ -130,6 +130,7 @@ sealed interface SessionMode {
 }
 
 data class SessionUiState(
+    val sessionEpoch: Long = 0L,
     val emailInput: String = "",
     val passwordInput: String = "",
     @param:StringRes val emailErrorRes: Int? = null,
@@ -175,6 +176,8 @@ data class SessionUiState(
     val nextDeliveryShift: ShiftAssignment? = null,
     val nextMarketShift: ShiftAssignment? = null,
     val editingProductId: String? = null,
+    val pendingNewProductId: String? = null,
+    val productEditorRevision: Long = 0L,
     val editingNewsId: String? = null,
     val isLoadingNews: Boolean = false,
     val isSavingNews: Boolean = false,

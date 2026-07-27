@@ -6,6 +6,9 @@ import com.google.firebase.firestore.DocumentReference
 import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
 import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
 import com.reguerta.user.data.firestore.ReguertaFirestorePath
+import com.reguerta.user.data.firestore.toRepositoryException
+import com.reguerta.user.domain.RepositoryErrorKind
+import com.reguerta.user.domain.RepositoryException
 import com.reguerta.user.domain.commitments.SeasonalCommitment
 import com.reguerta.user.domain.commitments.SeasonalCommitmentRepository
 import kotlinx.coroutines.Dispatchers
@@ -61,29 +64,35 @@ class FirestoreSeasonalCommitmentRepository(
 
     override suspend fun getActiveCommitmentsForUser(userId: String): List<SeasonalCommitment> = withContext(Dispatchers.IO) {
         val normalizedLookup = userId.trim().ifBlank { return@withContext emptyList() }
-        val docsById = linkedMapOf<String, com.google.firebase.firestore.DocumentSnapshot>()
+        try {
+            val docsById = linkedMapOf<String, com.google.firebase.firestore.DocumentSnapshot>()
 
-        queryByFields(
-            fields = SeasonalCommitmentQueryUserFields,
-            lookupValue = normalizedLookup,
-            includeReferenceTarget = !normalizedLookup.contains('@'),
-            output = docsById,
-        )
-
-        if (docsById.isEmpty()) {
             queryByFields(
-                fields = SeasonalCommitmentLegacyUserFields,
+                fields = SeasonalCommitmentQueryUserFields,
                 lookupValue = normalizedLookup,
                 includeReferenceTarget = !normalizedLookup.contains('@'),
                 output = docsById,
             )
-        }
 
-        docsById.values
-            .mapNotNull { it.toSeasonalCommitment() }
-            .filter { commitment -> commitment.userId.matchesLookupUserId(normalizedLookup) }
-            .filter(SeasonalCommitment::active)
-            .sortedWith(compareBy<SeasonalCommitment> { it.seasonKey }.thenBy { it.productId })
+            if (docsById.isEmpty()) {
+                queryByFields(
+                    fields = SeasonalCommitmentLegacyUserFields,
+                    lookupValue = normalizedLookup,
+                    includeReferenceTarget = !normalizedLookup.contains('@'),
+                    output = docsById,
+                )
+            }
+
+            docsById.values
+                .map { document ->
+                    document.toSeasonalCommitment()
+                }
+                .filter { commitment -> commitment.userId.matchesLookupUserId(normalizedLookup) }
+                .filter(SeasonalCommitment::active)
+                .sortedWith(compareBy<SeasonalCommitment> { it.seasonKey }.thenBy { it.productId })
+        } catch (error: Exception) {
+            throw error.toRepositoryException(resource = "seasonalCommitments")
+        }
     }
 
     private fun queryByFields(
@@ -114,38 +123,52 @@ class FirestoreSeasonalCommitmentRepository(
     }
 }
 
-private fun com.google.firebase.firestore.DocumentSnapshot.toSeasonalCommitment(): SeasonalCommitment? {
-    if (!exists()) return null
-    val userId = firstNormalizedId(SeasonalCommitmentUserReadFields) ?: return null
-    val productId = firstNormalizedId(SeasonalCommitmentProductFields) ?: return null
-    val seasonKey = firstNormalizedId(SeasonalCommitmentSeasonFields) ?: return null
-    val fixedQty = firstPositiveDouble(SeasonalCommitmentQtyFields) ?: return null
+private fun com.google.firebase.firestore.DocumentSnapshot.toSeasonalCommitment(): SeasonalCommitment {
+    if (!exists()) invalidCommitmentDocument()
+    return decodeSeasonalCommitmentDocument(id, data ?: invalidCommitmentDocument())
+}
+
+internal fun decodeSeasonalCommitmentDocument(
+    documentId: String,
+    data: Map<String, Any?>,
+): SeasonalCommitment {
+    val userId = data.firstNormalizedId(SeasonalCommitmentUserReadFields) ?: invalidCommitmentDocument()
+    val productId = data.firstNormalizedId(SeasonalCommitmentProductFields) ?: invalidCommitmentDocument()
+    val seasonKey = data.firstNormalizedId(SeasonalCommitmentSeasonFields) ?: invalidCommitmentDocument()
+    val fixedQty = data.firstPositiveDouble(SeasonalCommitmentQtyFields) ?: invalidCommitmentDocument()
     return SeasonalCommitment(
-        id = id,
+        id = documentId,
         userId = userId,
         productId = productId,
-        productNameHint = get("productName").asNormalizedText()
-            ?: get("productDisplayName").asNormalizedText()
-            ?: get("name").asNormalizedText(),
+        productNameHint = data.optionalNormalizedText("productName")
+            ?: data.optionalNormalizedText("productDisplayName")
+            ?: data.optionalNormalizedText("name"),
         seasonKey = seasonKey,
         fixedQtyPerOfferedWeek = fixedQty,
-        active = getBoolean("active") ?: true,
-        createdAtMillis = getTimestamp("createdAt")?.toDate()?.time ?: 0L,
-        updatedAtMillis = getTimestamp("updatedAt")?.toDate()?.time ?: 0L,
+        active = data.optionalBoolean("active", default = true),
+        createdAtMillis = data.optionalTimestampMillis("createdAt"),
+        updatedAtMillis = data.optionalTimestampMillis("updatedAt"),
     )
 }
 
-private fun com.google.firebase.firestore.DocumentSnapshot.firstNormalizedId(fields: List<String>): String? =
-    fields.firstNotNullOfOrNull { field -> get(field).asNormalizedId() }
+private fun Map<String, Any?>.firstNormalizedId(fields: List<String>): String? =
+    fields.firstNotNullOfOrNull { field ->
+        val value = this[field] ?: return@firstNotNullOfOrNull null
+        value.asNormalizedId() ?: invalidCommitmentDocument()
+    }
 
-private fun com.google.firebase.firestore.DocumentSnapshot.firstPositiveDouble(fields: List<String>): Double? =
-    fields.firstNotNullOfOrNull { field -> get(field).toPositiveDoubleOrNull() }
+private fun Map<String, Any?>.firstPositiveDouble(fields: List<String>): Double? =
+    fields.firstNotNullOfOrNull { field ->
+        val value = this[field] ?: return@firstNotNullOfOrNull null
+        value.toPositiveDoubleOrNull() ?: invalidCommitmentDocument()
+    }
 
 private fun Any?.toPositiveDoubleOrNull(): Double? = when (this) {
     is Number -> this.toDouble()
     is String -> this.replace(",", ".").trim().toDoubleOrNull()
     else -> null
 }?.takeIf { it > 0.0 }
+    ?.takeIf(Double::isFinite)
 
 private fun Any?.asNormalizedId(): String? = when (this) {
     is String -> this.trim().ifBlank { null }?.let(::normalizePathLikeIdentifier)
@@ -170,6 +193,28 @@ private fun Any?.asNormalizedText(): String? = when (this) {
         .asNormalizedText()
     else -> null
 }
+
+private fun Map<String, Any?>.optionalNormalizedText(field: String): String? {
+    val value = this[field] ?: return null
+    return value.asNormalizedText() ?: invalidCommitmentDocument()
+}
+
+private fun Map<String, Any?>.optionalBoolean(field: String, default: Boolean): Boolean {
+    val value = this[field] ?: return default
+    if (value !is Boolean) invalidCommitmentDocument()
+    return value
+}
+
+private fun Map<String, Any?>.optionalTimestampMillis(field: String): Long {
+    val value = this[field] ?: return 0L
+    if (value !is com.google.firebase.Timestamp) invalidCommitmentDocument()
+    return value.toDate().time
+}
+
+private fun invalidCommitmentDocument(): Nothing = throw RepositoryException(
+    kind = RepositoryErrorKind.INVALID_DATA,
+    resource = "seasonalCommitments.document",
+)
 
 private fun normalizePathLikeIdentifier(raw: String): String {
     if (!raw.contains("/")) return raw

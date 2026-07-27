@@ -2,11 +2,15 @@ package com.reguerta.user.data.products
 
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
 import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
 import com.reguerta.user.data.firestore.ReguertaFirestorePath
+import com.reguerta.user.data.firestore.toRepositoryException
+import com.reguerta.user.domain.RepositoryErrorKind
+import com.reguerta.user.domain.RepositoryException
 import com.reguerta.user.domain.products.CommonPurchaseType
 import com.reguerta.user.domain.products.Product
 import com.reguerta.user.domain.products.ProductPricingMode
@@ -25,23 +29,33 @@ class FirestoreProductRepository(
         get() = firestorePath.collectionPath(ReguertaFirestoreCollection.PRODUCTS)
 
     override suspend fun getAllProducts(): List<Product> = withContext(Dispatchers.IO) {
-        val snapshot = Tasks.await(
-            firestore.collection(productsCollectionPath).get(),
-        )
-        snapshot.documents
-            .mapNotNull { it.toProduct() }
-            .sortedWith(compareBy<Product> { it.archived }.thenBy { it.name.lowercase() })
+        try {
+            val snapshot = Tasks.await(
+                firestore.collection(productsCollectionPath).get(),
+            )
+            decodeProductDocuments(snapshot.documents.map { document ->
+                val data: Map<String, Any> = document.data ?: invalidProductDocument()
+                document.id to data
+            })
+        } catch (error: Exception) {
+            throw error.toRepositoryException(resource = "products")
+        }
     }
 
     override suspend fun getProductsForVendor(vendorId: String): List<Product> = withContext(Dispatchers.IO) {
-        val snapshot = Tasks.await(
-            firestore.collection(productsCollectionPath)
-                .whereEqualTo("vendorId", vendorId)
-                .get(),
-        )
-        snapshot.documents
-            .mapNotNull { it.toProduct() }
-            .sortedWith(compareBy<Product> { it.archived }.thenBy { it.name.lowercase() })
+        try {
+            val snapshot = Tasks.await(
+                firestore.collection(productsCollectionPath)
+                    .whereEqualTo("vendorId", vendorId)
+                    .get(),
+            )
+            decodeProductDocuments(snapshot.documents.map { document ->
+                val data: Map<String, Any> = document.data ?: invalidProductDocument()
+                document.id to data
+            })
+        } catch (error: Exception) {
+            throw error.toRepositoryException(resource = "products.vendor")
+        }
     }
 
     override suspend fun upsertProduct(product: Product): Product = withContext(Dispatchers.IO) {
@@ -49,101 +63,188 @@ class FirestoreProductRepository(
             firestore.collection(productsCollectionPath).document().id
         }
         val persisted = product.copy(id = documentId)
-        val payload = mutableMapOf<String, Any>(
-            "vendorId" to persisted.vendorId,
-            "companyName" to persisted.companyName,
-            "name" to persisted.name,
-            "description" to persisted.description,
-            "price" to persisted.price,
-            "pricingMode" to persisted.pricingMode.toWireValue(),
-            "unitName" to persisted.unitName,
-            "unitPlural" to persisted.unitPlural,
-            "unitQty" to persisted.unitQty,
-            "isAvailable" to persisted.isAvailable,
-            "stockMode" to persisted.stockMode.toWireValue(),
-            "isEcoBasket" to persisted.isEcoBasket,
-            "isCommonPurchase" to persisted.isCommonPurchase,
-            "archived" to persisted.archived,
-            "createdAt" to Timestamp(persisted.createdAtMillis / 1_000, ((persisted.createdAtMillis % 1_000) * 1_000_000).toInt()),
-            "updatedAt" to Timestamp(persisted.updatedAtMillis / 1_000, ((persisted.updatedAtMillis % 1_000) * 1_000_000).toInt()),
-        )
-        persisted.productImageUrl?.let { payload["productImageUrl"] = it }
-        persisted.unitAbbreviation?.let { payload["unitAbbreviation"] = it }
-        persisted.packContainerName?.let { payload["packContainerName"] = it }
-        persisted.packContainerAbbreviation?.let { payload["packContainerAbbreviation"] = it }
-        persisted.packContainerPlural?.let { payload["packContainerPlural"] = it }
-        persisted.packContainerQty?.let { payload["packContainerQty"] = it }
-        persisted.stockQty?.let { payload["stockQty"] = it }
-        persisted.weightStep?.let { payload["weightStep"] = it }
-        persisted.minWeight?.let { payload["minWeight"] = it }
-        persisted.maxWeight?.let { payload["maxWeight"] = it }
-        persisted.commonPurchaseType?.toWireValue()?.let { payload["commonPurchaseType"] = it }
+        val payload = productUpsertPayload(persisted)
 
-        Tasks.await(
-            firestore.collection(productsCollectionPath)
-                .document(documentId)
-                .set(payload, SetOptions.merge()),
-        )
-        persisted
+        try {
+            Tasks.await(
+                firestore.collection(productsCollectionPath)
+                    .document(documentId)
+                    .set(payload, SetOptions.merge()),
+            )
+            persisted
+        } catch (error: Exception) {
+            throw error.toRepositoryException(resource = "products.write")
+        }
     }
 }
 
-private fun com.google.firebase.firestore.DocumentSnapshot.toProduct(): Product? {
-    if (!exists()) return null
-    val vendorId = getString("vendorId")?.trim()?.ifBlank { null } ?: return null
-    val companyName = getString("companyName")?.trim()?.ifBlank { null } ?: return null
-    val name = getString("name")?.trim()?.ifBlank { null } ?: return null
-    val unitName = getString("unitName")?.trim()?.ifBlank { null } ?: return null
-    val unitPlural = getString("unitPlural")?.trim()?.ifBlank { null } ?: return null
-    val price = getDouble("price") ?: return null
-    val unitQty = getDouble("unitQty") ?: return null
-    return Product(
-        id = id,
-        vendorId = vendorId,
-        companyName = companyName,
-        name = name,
-        description = getString("description")?.trim().orEmpty(),
-        productImageUrl = getString("productImageUrl")?.trim()?.ifBlank { null },
-        price = price,
-        pricingMode = getString("pricingMode").toProductPricingMode(),
-        unitName = unitName,
-        unitAbbreviation = getString("unitAbbreviation")?.trim()?.ifBlank { null },
-        unitPlural = unitPlural,
-        unitQty = unitQty,
-        packContainerName = getString("packContainerName")?.trim()?.ifBlank { null },
-        packContainerAbbreviation = getString("packContainerAbbreviation")?.trim()?.ifBlank { null },
-        packContainerPlural = getString("packContainerPlural")?.trim()?.ifBlank { null },
-        packContainerQty = getDouble("packContainerQty"),
-        isAvailable = getBoolean("isAvailable") ?: true,
-        stockMode = getString("stockMode").toProductStockMode(),
-        stockQty = getDouble("stockQty"),
-        isEcoBasket = getBoolean("isEcoBasket") ?: false,
-        isCommonPurchase = getBoolean("isCommonPurchase") ?: false,
-        commonPurchaseType = getString("commonPurchaseType").toCommonPurchaseType(),
-        archived = getBoolean("archived") ?: false,
-        createdAtMillis = getTimestamp("createdAt")?.toDate()?.time ?: 0L,
-        updatedAtMillis = getTimestamp("updatedAt")?.toDate()?.time ?: 0L,
-        weightStep = getDouble("weightStep"),
-        minWeight = getDouble("minWeight"),
-        maxWeight = getDouble("maxWeight"),
+internal fun productUpsertPayload(product: Product): Map<String, Any> = mutableMapOf<String, Any>(
+    "vendorId" to product.vendorId,
+    "companyName" to product.companyName,
+    "name" to product.name,
+    "description" to product.description,
+    "productImageUrl" to (product.productImageUrl ?: FieldValue.delete()),
+    "price" to product.price,
+    "pricingMode" to product.pricingMode.toWireValue(),
+    "unitName" to product.unitName,
+    "unitAbbreviation" to (product.unitAbbreviation ?: FieldValue.delete()),
+    "unitPlural" to product.unitPlural,
+    "unitQty" to product.unitQty,
+    "packContainerName" to (product.packContainerName ?: FieldValue.delete()),
+    "packContainerAbbreviation" to (product.packContainerAbbreviation ?: FieldValue.delete()),
+    "packContainerPlural" to (product.packContainerPlural ?: FieldValue.delete()),
+    "packContainerQty" to (product.packContainerQty ?: FieldValue.delete()),
+    "isAvailable" to product.isAvailable,
+    "stockMode" to product.stockMode.toWireValue(),
+    "stockQty" to (product.stockQty ?: FieldValue.delete()),
+    "isEcoBasket" to product.isEcoBasket,
+    "isCommonPurchase" to product.isCommonPurchase,
+    "commonPurchaseType" to (product.commonPurchaseType?.toWireValue() ?: FieldValue.delete()),
+    "archived" to product.archived,
+    "createdAt" to product.createdAtMillis.toTimestamp(),
+    "updatedAt" to product.updatedAtMillis.toTimestamp(),
+    "weightStep" to (product.weightStep ?: FieldValue.delete()),
+    "minWeight" to (product.minWeight ?: FieldValue.delete()),
+    "maxWeight" to (product.maxWeight ?: FieldValue.delete()),
+)
+
+private fun Long.toTimestamp() = Timestamp(this / 1_000, ((this % 1_000) * 1_000_000).toInt())
+
+internal fun decodeProductDocuments(documents: List<Pair<String, Map<String, Any>>>): List<Product> =
+    documents
+        .map { (documentId, data) -> decodeProductDocument(documentId, data) }
+        .sortedWith(compareBy<Product> { it.archived }.thenBy { it.name.lowercase() })
+
+internal fun decodeProductDocument(documentId: String, data: Map<String, Any?>): Product {
+    val product = Product(
+        id = documentId,
+        vendorId = data.requiredString("vendorId"),
+        companyName = data.requiredString("companyName"),
+        name = data.requiredString("name"),
+        description = data.optionalString("description").orEmpty(),
+        productImageUrl = data.optionalString("productImageUrl"),
+        price = data.requiredPositiveDouble("price"),
+        pricingMode = data.optionalEnumString("pricingMode").toProductPricingMode(),
+        unitName = data.requiredString("unitName"),
+        unitAbbreviation = data.optionalString("unitAbbreviation"),
+        unitPlural = data.requiredString("unitPlural"),
+        unitQty = data.requiredPositiveDouble("unitQty"),
+        packContainerName = data.optionalString("packContainerName"),
+        packContainerAbbreviation = data.optionalString("packContainerAbbreviation"),
+        packContainerPlural = data.optionalString("packContainerPlural"),
+        packContainerQty = data.optionalPositiveDouble("packContainerQty"),
+        isAvailable = data.optionalBoolean("isAvailable", default = true),
+        stockMode = data.optionalEnumString("stockMode").toProductStockMode(),
+        stockQty = data.optionalNonNegativeDouble("stockQty"),
+        isEcoBasket = data.optionalBoolean("isEcoBasket", default = false),
+        isCommonPurchase = data.optionalBoolean("isCommonPurchase", default = false),
+        commonPurchaseType = data.optionalEnumString("commonPurchaseType").toCommonPurchaseType(),
+        archived = data.optionalBoolean("archived", default = false),
+        createdAtMillis = data.optionalTimestampMillis("createdAt"),
+        updatedAtMillis = data.optionalTimestampMillis("updatedAt"),
+        weightStep = data.optionalPositiveDouble("weightStep"),
+        minWeight = data.optionalPositiveDouble("minWeight"),
+        maxWeight = data.optionalPositiveDouble("maxWeight"),
     )
+    validateSelectionRange(product)
+    return product
 }
 
-private fun String?.toProductPricingMode(): ProductPricingMode = when (this?.trim()?.lowercase()) {
+private fun validateSelectionRange(product: Product) {
+    if (product.pricingMode != ProductPricingMode.WEIGHT) return
+    val step = product.weightStep ?: product.unitQty
+    val minimumCount = kotlin.math.ceil((product.minWeight ?: step) / step)
+    if (!minimumCount.isFinite() || minimumCount < 1.0 || minimumCount > Int.MAX_VALUE.toDouble()) {
+        invalidProductDocument()
+    }
+    val maxWeight = product.maxWeight ?: return
+    val maximumCount = kotlin.math.floor(maxWeight / step)
+    if (!maximumCount.isFinite() ||
+        maximumCount < minimumCount ||
+        maximumCount > Int.MAX_VALUE.toDouble()
+    ) {
+        invalidProductDocument()
+    }
+}
+
+private fun String?.toProductPricingMode(): ProductPricingMode = when (this?.trim()) {
+    null -> ProductPricingMode.FIXED
+    "fixed" -> ProductPricingMode.FIXED
     "weight" -> ProductPricingMode.WEIGHT
-    else -> ProductPricingMode.FIXED
+    else -> invalidProductDocument()
 }
 
-private fun String?.toProductStockMode(): ProductStockMode = when (this?.trim()?.lowercase()) {
+private fun String?.toProductStockMode(): ProductStockMode = when (this?.trim()) {
+    null -> ProductStockMode.INFINITE
+    "infinite" -> ProductStockMode.INFINITE
     "finite" -> ProductStockMode.FINITE
-    else -> ProductStockMode.INFINITE
+    else -> invalidProductDocument()
 }
 
-private fun String?.toCommonPurchaseType(): CommonPurchaseType? = when (this?.trim()?.lowercase()) {
+private fun String?.toCommonPurchaseType(): CommonPurchaseType? = when (this?.trim()) {
     "seasonal" -> CommonPurchaseType.SEASONAL
     "spot" -> CommonPurchaseType.SPOT
-    else -> null
+    null -> null
+    else -> invalidProductDocument()
 }
+
+private fun Map<String, Any?>.requiredString(field: String): String =
+    optionalString(field) ?: invalidProductDocument()
+
+private fun Map<String, Any?>.optionalString(field: String): String? {
+    val value = this[field] ?: return null
+    if (value !is String) invalidProductDocument()
+    return value.trim().ifBlank { null }
+}
+
+private fun Map<String, Any?>.optionalEnumString(field: String): String? {
+    val value = this[field] ?: return null
+    if (value !is String) invalidProductDocument()
+    return value.trim().ifBlank { invalidProductDocument() }
+}
+
+private fun Map<String, Any?>.requiredDouble(field: String): Double =
+    optionalDouble(field) ?: invalidProductDocument()
+
+private fun Map<String, Any?>.requiredPositiveDouble(field: String): Double =
+    requiredDouble(field).takeIf { it > 0.0 } ?: invalidProductDocument()
+
+private fun Map<String, Any?>.optionalDouble(field: String): Double? {
+    val value = this[field] ?: return null
+    if (value !is Number) invalidProductDocument()
+    return value.toDouble().takeIf(Double::isFinite) ?: invalidProductDocument()
+}
+
+private fun Map<String, Any?>.optionalPositiveDouble(field: String): Double? =
+    optionalDouble(field)?.takeIf { it > 0.0 } ?: if (containsKey(field) && this[field] != null) {
+        invalidProductDocument()
+    } else {
+        null
+    }
+
+private fun Map<String, Any?>.optionalNonNegativeDouble(field: String): Double? =
+    optionalDouble(field)?.takeIf { it >= 0.0 } ?: if (containsKey(field) && this[field] != null) {
+        invalidProductDocument()
+    } else {
+        null
+    }
+
+private fun Map<String, Any?>.optionalBoolean(field: String, default: Boolean): Boolean {
+    val value = this[field] ?: return default
+    if (value !is Boolean) invalidProductDocument()
+    return value
+}
+
+private fun Map<String, Any?>.optionalTimestampMillis(field: String): Long {
+    val value = this[field] ?: return 0L
+    if (value !is Timestamp) invalidProductDocument()
+    return value.toDate().time
+}
+
+private fun invalidProductDocument(): Nothing = throw RepositoryException(
+    kind = RepositoryErrorKind.INVALID_DATA,
+    resource = "products.document",
+)
 
 private fun ProductPricingMode.toWireValue(): String = when (this) {
     ProductPricingMode.FIXED -> "fixed"

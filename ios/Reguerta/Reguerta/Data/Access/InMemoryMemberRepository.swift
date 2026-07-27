@@ -56,8 +56,8 @@ actor InMemoryMemberRepository: LocalMemberRepository {
             }
     }
 
-    func updateOwnProducerCatalogEnabled(memberId: String, enabled: Bool) async throws -> Member {
-        guard let existing = members[memberId] else {
+    func updateOwnProducerCatalogEnabled(member: Member, enabled: Bool) async throws -> Member {
+        guard let existing = members[member.id] else {
             throw InMemoryMemberRepositoryError.memberNotFound
         }
         let updated = Member(
@@ -75,7 +75,7 @@ actor InMemoryMemberRepository: LocalMemberRepository {
             ecoCommitmentMode: existing.ecoCommitmentMode,
             ecoCommitmentParity: existing.ecoCommitmentParity
         )
-        members[memberId] = updated
+        members[member.id] = updated
         return updated
     }
 

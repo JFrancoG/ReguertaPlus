@@ -122,7 +122,7 @@ private class RecordingMemberRepository(
 
     override suspend fun getMembersVisibleTo(member: Member): List<Member> = listOfNotNull(memberByUid)
 
-    override suspend fun updateOwnProducerCatalogEnabled(memberId: String, isEnabled: Boolean): Member =
+    override suspend fun updateOwnProducerCatalogEnabled(member: Member, isEnabled: Boolean): Member =
         checkNotNull(memberByUid).copy(producerCatalogEnabled = isEnabled)
 }
 

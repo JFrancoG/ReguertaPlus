@@ -373,8 +373,8 @@ func makeProductsViewModel(
     currentMember: Member,
     members: [Member],
     productRepository: (any ProductRepository)? = nil,
-    memberRepository: InMemoryMemberRepository? = nil,
-    seasonalCommitmentRepository: InMemorySeasonalCommitmentRepository? = nil,
+    memberRepository: (any MemberRepository)? = nil,
+    seasonalCommitmentRepository: (any SeasonalCommitmentRepository)? = nil,
     imagePipelineManager: any ImagePipelineManager = MockImagePipelineManager(result: .success("https://cdn.reguerta.test/image.jpg")),
     nowMillis: Int64? = nil
 ) async -> ProductsRouteViewModel {
@@ -382,8 +382,10 @@ func makeProductsViewModel(
     let memberRepository = memberRepository ?? InMemoryMemberRepository()
     let seasonalCommitmentRepository = seasonalCommitmentRepository ?? InMemorySeasonalCommitmentRepository()
     let nowMillis = nowMillis ?? testMillis(year: 2026, month: 5, day: 14)
-    for member in members {
-        _ = await memberRepository.upsert(member: member)
+    if let inMemoryMemberRepository = memberRepository as? InMemoryMemberRepository {
+        for member in members {
+            _ = await inMemoryMemberRepository.upsert(member: member)
+        }
     }
     let sessionViewModel = SessionViewModel(dependencies: .preview())
     let session = AuthorizedSession(

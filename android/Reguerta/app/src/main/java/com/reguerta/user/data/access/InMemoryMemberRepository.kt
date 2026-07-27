@@ -70,12 +70,12 @@ class InMemoryMemberRepository : MemberRepository {
     }
 
     override suspend fun updateOwnProducerCatalogEnabled(
-        memberId: String,
+        member: Member,
         isEnabled: Boolean,
     ): Member = mutex.withLock {
-        val member = checkNotNull(members[memberId]) { "Member not found" }
-        val updated = member.copy(producerCatalogEnabled = isEnabled)
-        members[memberId] = updated
+        val existing = checkNotNull(members[member.id]) { "Member not found" }
+        val updated = existing.copy(producerCatalogEnabled = isEnabled)
+        members[member.id] = updated
         updated
     }
 

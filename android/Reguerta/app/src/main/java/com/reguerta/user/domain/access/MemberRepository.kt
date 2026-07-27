@@ -6,7 +6,7 @@ interface MemberRepository {
     suspend fun getMembersVisibleTo(member: Member): List<Member>
 
     suspend fun updateOwnProducerCatalogEnabled(
-        memberId: String,
+        member: Member,
         isEnabled: Boolean,
     ): Member
 }

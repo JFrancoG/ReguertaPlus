@@ -201,6 +201,7 @@ enum AccessL10nKey {
     static let feedbackCameraUnavailable = "feedback.camera_unavailable"
     static let feedbackOnlyAdminManageMembers = "feedback.only_admin_manage_members"
     static let feedbackCannotRemoveLastAdmin = "feedback.cannot_remove_last_admin"
+    static let feedbackUnableLoadData = "feedback.unable_load_data"
     static let feedbackUnableSaveChanges = "feedback.unable_save_changes"
     static let feedbackShiftSwapNoCandidates = "feedback.shift_swap_no_candidates"
     static let feedbackOnlyAdminPublishNews = "feedback.only_admin_publish_news"

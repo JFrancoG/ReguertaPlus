@@ -37,6 +37,11 @@ struct ReguertaCurrencyFormattingTests {
     func productUIDecimalUsesLocaleDecimalSeparator() {
         #expect(12.5.productUIDecimal(locale: Locale(identifier: "es_ES")) == "12,5")
         #expect(12.5.productUIDecimal(locale: Locale(identifier: "en_US")) == "12.5")
+        #expect(1e300.productUIDecimal(locale: Locale(identifier: "en_US")) == "1e+300")
+        #expect(
+            Double(Int.max).productUIDecimal(locale: Locale(identifier: "en_US")) ==
+                String(Double(Int.max))
+        )
     }
 
     @Test

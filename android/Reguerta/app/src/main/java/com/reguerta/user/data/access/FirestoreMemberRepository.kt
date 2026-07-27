@@ -71,10 +71,10 @@ class FirestoreMemberRepository(
     }
 
     override suspend fun updateOwnProducerCatalogEnabled(
-        memberId: String,
+        member: Member,
         isEnabled: Boolean,
     ): Member = withContext(Dispatchers.IO) {
-        val document = firestore.collection(usersCollectionPath).document(memberId)
+        val document = firestore.collection(usersCollectionPath).document(member.id)
         Tasks.await(
             document.update(
                 mapOf(
@@ -82,8 +82,7 @@ class FirestoreMemberRepository(
                 ),
             ),
         )
-        val snapshot = Tasks.await(document.get())
-        checkNotNull(snapshot.toMember()) { "Updated member $memberId could not be loaded" }
+        member.copy(producerCatalogEnabled = isEnabled)
     }
 }
 

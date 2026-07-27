@@ -55,14 +55,10 @@ final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
         }
     }
 
-    func updateOwnProducerCatalogEnabled(memberId: String, enabled: Bool) async throws -> Member {
-        let document = usersCollection.document(memberId)
+    func updateOwnProducerCatalogEnabled(member: Member, enabled: Bool) async throws -> Member {
+        let document = usersCollection.document(member.id)
         try await document.updateData(["producerCatalogEnabled": enabled])
-        let snapshot = try await document.getDocument()
-        guard let member = Self.toMember(snapshot) else {
-            throw FirestoreMemberRepositoryError.invalidMemberDocument
-        }
-        return member
+        return member.copy(producerCatalogEnabled: enabled)
     }
 
     private static func toMember(_ document: QueryDocumentSnapshot) -> Member? {

@@ -8,12 +8,14 @@ import com.reguerta.user.presentation.root.ProductDraft
 import com.reguerta.user.presentation.root.SessionMode
 import com.reguerta.user.presentation.root.SessionUiState
 import com.reguerta.user.presentation.root.SharedProfileDraft
+import com.reguerta.user.presentation.root.canManageSessionProductCatalog
 
 import com.reguerta.user.domain.access.UnauthorizedReason
 
 internal fun SessionUiState.toSignedOutSessionState(
     showSessionExpiredDialog: Boolean,
 ): SessionUiState = copy(
+    sessionEpoch = sessionEpoch + 1,
     mode = SessionMode.SignedOut,
     passwordInput = "",
     emailErrorRes = null,
@@ -44,6 +46,9 @@ internal fun SessionUiState.toSignedOutSessionState(
     myOrderProductsFeed = emptyList(),
     myOrderSeasonalCommitmentsFeed = emptyList(),
     productDraft = ProductDraft(),
+    editingProductId = null,
+    pendingNewProductId = null,
+    productEditorRevision = productEditorRevision + 1,
     sharedProfiles = emptyList(),
     sharedProfileDraft = SharedProfileDraft(),
     shiftsFeed = emptyList(),
@@ -69,11 +74,32 @@ internal fun SessionUiState.toSignedOutSessionState(
     isLoadingShifts = false,
 )
 
+internal fun SessionUiState.resetProductEditorUnlessAuthorizedRefreshCanPreserve(
+    principalUid: String,
+    member: com.reguerta.user.domain.access.Member,
+): SessionUiState {
+    val currentMode = mode as? SessionMode.Authorized
+    val canPreserve = currentMode?.principal?.uid == principalUid &&
+        currentMode.member.id == member.id &&
+        member.canManageSessionProductCatalog
+    if (canPreserve) return this
+    return copy(
+        productDraft = ProductDraft(),
+        editingProductId = null,
+        pendingNewProductId = null,
+        productEditorRevision = productEditorRevision + 1,
+        isSavingProduct = false,
+        isUploadingProductImage = false,
+        isUpdatingProducerCatalogVisibility = false,
+    )
+}
+
 internal fun SessionUiState.toUnauthorizedSessionState(
     email: String,
     reason: UnauthorizedReason,
     showUnauthorizedDialog: Boolean,
 ): SessionUiState = copy(
+    sessionEpoch = sessionEpoch + 1,
     mode = SessionMode.Unauthorized(
         email = email,
         reason = reason,
@@ -91,6 +117,9 @@ internal fun SessionUiState.toUnauthorizedSessionState(
     myOrderProductsFeed = emptyList(),
     myOrderSeasonalCommitmentsFeed = emptyList(),
     productDraft = ProductDraft(),
+    editingProductId = null,
+    pendingNewProductId = null,
+    productEditorRevision = productEditorRevision + 1,
     sharedProfiles = emptyList(),
     sharedProfileDraft = SharedProfileDraft(),
     shiftsFeed = emptyList(),
@@ -121,6 +150,7 @@ internal fun SessionUiState.toUnauthorizedAfterAuthAttemptState(
     showUnauthorizedDialog: Boolean,
     clearRegisterInputs: Boolean,
 ): SessionUiState = copy(
+    sessionEpoch = sessionEpoch + 1,
     isAuthenticating = false,
     isRegistering = false,
     registerEmailInput = if (clearRegisterInputs) "" else registerEmailInput,
@@ -136,6 +166,10 @@ internal fun SessionUiState.toUnauthorizedAfterAuthAttemptState(
     readNotificationIds = emptySet(),
     notificationDraft = NotificationDraft(),
     newsDraft = NewsDraft(),
+    productDraft = ProductDraft(),
+    editingProductId = null,
+    pendingNewProductId = null,
+    productEditorRevision = productEditorRevision + 1,
     sharedProfileDraft = SharedProfileDraft(),
     myOrderProductsFeed = emptyList(),
     myOrderSeasonalCommitmentsFeed = emptyList(),
@@ -146,4 +180,7 @@ internal fun SessionUiState.toUnauthorizedAfterAuthAttemptState(
     isUploadingNewsImage = false,
     isUploadingSharedProfileImage = false,
     isLoadingMyOrderProducts = false,
+    isSavingProduct = false,
+    isUploadingProductImage = false,
+    isUpdatingProducerCatalogVisibility = false,
 )

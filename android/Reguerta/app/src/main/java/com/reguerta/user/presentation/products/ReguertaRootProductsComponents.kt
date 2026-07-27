@@ -31,13 +31,14 @@ import com.reguerta.user.domain.products.ProductStockMode
 import com.reguerta.user.ui.components.auth.ReguertaDeleteListActionButton
 import com.reguerta.user.ui.components.auth.ReguertaEditListActionButton
 import com.reguerta.user.ui.components.auth.ReguertaListItemCard
+import java.text.DecimalFormatSymbols
 import java.util.Locale
 
 private fun Double.toUiDecimal(): String =
-    if (this % 1.0 == 0.0) {
-        toInt().toString()
+    if (isFinite() && this % 1.0 == 0.0 && this >= Long.MIN_VALUE.toDouble() && this <= Long.MAX_VALUE.toDouble()) {
+        toLong().toString()
     } else {
-        String.format(Locale.getDefault(), "%.2f", this)
+        toString().replace('.', DecimalFormatSymbols.getInstance(Locale.getDefault()).decimalSeparator)
     }
 
 @Composable

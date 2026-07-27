@@ -455,7 +455,7 @@ private final class EnvironmentRecordingMemberRepository: MemberRepository {
         memberValue.map { [$0] } ?? []
     }
 
-    func updateOwnProducerCatalogEnabled(memberId: String, enabled: Bool) async throws -> Member {
+    func updateOwnProducerCatalogEnabled(member: Member, enabled: Bool) async throws -> Member {
         guard let memberValue else {
             throw FirebaseFunctionClientError.invalidResponse
         }

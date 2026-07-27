@@ -48,6 +48,24 @@ nonisolated struct Member: Identifiable, Equatable, Sendable {
     var isAdmin: Bool {
         roles.contains(.admin)
     }
+
+    func copy(producerCatalogEnabled: Bool) -> Member {
+        Member(
+            id: id,
+            displayName: displayName,
+            companyName: companyName,
+            phoneNumber: phoneNumber,
+            normalizedEmail: normalizedEmail,
+            authUid: authUid,
+            roles: roles,
+            isActive: isActive,
+            producerCatalogEnabled: producerCatalogEnabled,
+            isCommonPurchaseManager: isCommonPurchaseManager,
+            producerParity: producerParity,
+            ecoCommitmentMode: ecoCommitmentMode,
+            ecoCommitmentParity: ecoCommitmentParity
+        )
+    }
 }
 
 nonisolated enum ProducerParity: String, Codable, Equatable, Sendable {

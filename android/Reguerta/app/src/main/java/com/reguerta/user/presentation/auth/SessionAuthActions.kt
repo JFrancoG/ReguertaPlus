@@ -352,7 +352,21 @@ internal class SessionAuthActions(
                 val allShifts = shiftRepository.getAllShifts()
                 val ownSharedProfile = sharedProfiles.firstOrNull { it.userId == result.member.id }
                 uiState.update {
-                    it.copy(
+                    val currentMode = it.mode as? SessionMode.Authorized
+                    val sameProductIdentity = currentMode?.principal?.uid == principal.uid &&
+                        currentMode.member.id == result.member.id
+                    val productAccessRevoked = currentMode?.member?.canManageSessionProductCatalog == true &&
+                        !result.member.canManageSessionProductCatalog
+                    val productState = it.resetProductEditorUnlessAuthorizedRefreshCanPreserve(
+                        principalUid = principal.uid,
+                        member = result.member,
+                    )
+                    productState.copy(
+                        sessionEpoch = if (sameProductIdentity && !productAccessRevoked) {
+                            it.sessionEpoch
+                        } else {
+                            it.sessionEpoch + 1
+                        },
                         isAuthenticating = false,
                         isRegistering = false,
                         mode = SessionMode.Authorized(
@@ -372,9 +386,7 @@ internal class SessionAuthActions(
                         isLoadingNotifications = true,
                         isLoadingProducts = result.member.canManageSessionProductCatalog,
                         isLoadingMyOrderProducts = false,
-                        isUpdatingProducerCatalogVisibility = false,
                         isUploadingNewsImage = false,
-                        isUploadingProductImage = false,
                         isUploadingSharedProfileImage = false,
                         isLoadingSharedProfiles = true,
                         isLoadingShifts = true,
@@ -398,7 +410,6 @@ internal class SessionAuthActions(
                             productsFeed = products,
                             myOrderProductsFeed = emptyList(),
                             myOrderSeasonalCommitmentsFeed = emptyList(),
-                            productDraft = ProductDraft(),
                             sharedProfiles = sharedProfiles.filter { profile -> profile.hasVisibleContent },
                             sharedProfileDraft = ownSharedProfile?.toDraft() ?: SharedProfileDraft(),
                             shiftsFeed = allShifts,
@@ -419,7 +430,6 @@ internal class SessionAuthActions(
                             isLoadingSharedProfiles = false,
                             isLoadingShifts = false,
                             isUploadingNewsImage = false,
-                            isUploadingProductImage = false,
                             isUploadingSharedProfileImage = false,
                         )
                     }
