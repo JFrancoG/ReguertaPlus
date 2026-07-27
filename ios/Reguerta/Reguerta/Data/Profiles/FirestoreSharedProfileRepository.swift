@@ -17,72 +17,105 @@ final class FirestoreSharedProfileRepository: @unchecked Sendable, SharedProfile
         db.reguertaCollection(.sharedProfiles, environment: environment)
     }
 
-    func allSharedProfiles() async -> [SharedProfile] {
+    func allSharedProfiles() async throws -> [SharedProfile] {
         do {
             let snapshot = try await profilesCollection.getDocuments()
-            return snapshot.documents
-                .compactMap(Self.toSharedProfile)
+            return try snapshot.documents
+                .map { document in
+                    try Self.sharedProfile(
+                        documentID: document.documentID,
+                        data: document.data()
+                    )
+                }
                 .sorted { $0.updatedAtMillis > $1.updatedAtMillis }
         } catch {
-            return []
+            throw FirestoreRepositoryErrorMapper.map(error, resource: "sharedProfiles")
         }
     }
 
-    func sharedProfile(userId: String) async -> SharedProfile? {
+    func sharedProfile(userId: String) async throws -> SharedProfile? {
         do {
             let document = try await profilesCollection.document(userId).getDocument()
-            return Self.toSharedProfile(document)
+            guard document.exists else { return nil }
+            guard let data = document.data() else {
+                throw Self.invalidDocumentError
+            }
+            return try Self.sharedProfile(documentID: document.documentID, data: data)
         } catch {
-            return nil
+            throw FirestoreRepositoryErrorMapper.map(error, resource: "sharedProfiles.document")
         }
     }
 
     func upsert(profile: SharedProfile) async throws -> SharedProfile {
-        var payload: [String: Any] = [
-            "userId": profile.userId,
-            "familyNames": profile.familyNames,
-            "about": profile.about,
-            "updatedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(profile.updatedAtMillis) / 1_000))
-        ]
-        if let photoUrl = profile.photoUrl {
-            payload["photoUrl"] = photoUrl
+        do {
+            try await profilesCollection.document(profile.userId).setData(
+                Self.upsertPayload(for: profile),
+                merge: true
+            )
+        } catch {
+            throw FirestoreRepositoryErrorMapper.map(error, resource: "sharedProfiles.write")
         }
-
-        try await profilesCollection.document(profile.userId).setData(payload, merge: true)
         return profile
     }
 
     func deleteSharedProfile(userId: String) async throws -> Bool {
-        try await profilesCollection.document(userId).delete()
+        do {
+            try await profilesCollection.document(userId).delete()
+        } catch {
+            throw FirestoreRepositoryErrorMapper.map(error, resource: "sharedProfiles.write")
+        }
         return true
     }
 
-    private static func toSharedProfile(_ document: DocumentSnapshot) -> SharedProfile? {
-        guard let data = document.data() else {
-            return nil
+    static func upsertPayload(for profile: SharedProfile) -> [String: Any] {
+        [
+            "userId": profile.userId,
+            "familyNames": profile.familyNames,
+            "photoUrl": firestoreValue(profile.photoUrl),
+            "about": profile.about,
+            "updatedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(profile.updatedAtMillis) / 1_000))
+        ]
+    }
+
+    static func sharedProfile(documentID: String, data: [String: Any]) throws -> SharedProfile {
+        let normalizedDocumentID = documentID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedDocumentID.isEmpty,
+              try requiredString(data, field: "userId") == normalizedDocumentID,
+              let updatedAt = data["updatedAt"] as? Timestamp else {
+            throw invalidDocumentError
         }
-        let userId = ((data["userId"] as? String)?
-            .trimmingCharacters(in: .whitespacesAndNewlines))
-            .flatMap { $0.isEmpty ? nil : $0 } ?? document.documentID
-        let familyNames = ((data["familyNames"] as? String)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)) ?? ""
-        let about = ((data["about"] as? String)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)) ?? ""
-        let photoUrl = ((data["photoUrl"] as? String)?
-            .trimmingCharacters(in: .whitespacesAndNewlines))
-            .flatMap { $0.isEmpty ? nil : $0 }
-        let updatedAtMillis: Int64
-        if let timestamp = data["updatedAt"] as? Timestamp {
-            updatedAtMillis = Int64(timestamp.dateValue().timeIntervalSince1970 * 1_000)
-        } else {
-            updatedAtMillis = 0
-        }
+
         return SharedProfile(
-            userId: userId,
-            familyNames: familyNames,
-            photoUrl: photoUrl,
-            about: about,
-            updatedAtMillis: updatedAtMillis
+            userId: normalizedDocumentID,
+            familyNames: try optionalString(data, field: "familyNames") ?? "",
+            photoUrl: try optionalString(data, field: "photoUrl"),
+            about: try optionalString(data, field: "about") ?? "",
+            updatedAtMillis: Int64(updatedAt.dateValue().timeIntervalSince1970 * 1_000)
         )
+    }
+
+    private static func requiredString(_ data: [String: Any], field: String) throws -> String {
+        guard let value = try optionalString(data, field: field) else {
+            throw invalidDocumentError
+        }
+        return value
+    }
+
+    private static func optionalString(_ data: [String: Any], field: String) throws -> String? {
+        guard let rawValue = data[field], !(rawValue is NSNull) else { return nil }
+        guard let value = rawValue as? String else { throw invalidDocumentError }
+        let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return normalized.isEmpty ? nil : normalized
+    }
+
+    private static func firestoreValue<Value>(_ value: Value?) -> Any {
+        if let value {
+            return value
+        }
+        return FieldValue.delete()
+    }
+
+    private static var invalidDocumentError: RepositoryError {
+        .invalidData(resource: "sharedProfiles.document")
     }
 }

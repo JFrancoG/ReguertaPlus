@@ -24,9 +24,9 @@ actor ChainedMemberRepository: LocalMemberRepository {
         return try await fallback.members(visibleTo: member)
     }
 
-    func updateOwnProducerCatalogEnabled(memberId: String, enabled: Bool) async throws -> Member {
-        let updated = try await primary.updateOwnProducerCatalogEnabled(memberId: memberId, enabled: enabled)
-        _ = try? await fallback.updateOwnProducerCatalogEnabled(memberId: memberId, enabled: enabled)
+    func updateOwnProducerCatalogEnabled(member: Member, enabled: Bool) async throws -> Member {
+        let updated = try await primary.updateOwnProducerCatalogEnabled(member: member, enabled: enabled)
+        _ = try? await fallback.updateOwnProducerCatalogEnabled(member: member, enabled: enabled)
         return updated
     }
 

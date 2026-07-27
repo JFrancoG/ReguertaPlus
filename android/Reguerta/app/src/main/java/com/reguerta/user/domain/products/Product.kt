@@ -35,11 +35,13 @@ data class Product(
 }
 
 val Product.effectiveWeightStep: Double
-    get() = weightStep?.takeIf { it > 0.0 } ?: unitQty.takeIf { it > 0.0 } ?: 1.0
+    get() = weightStep?.takeIf { it.isFinite() && it > 0.0 }
+        ?: unitQty.takeIf { it.isFinite() && it > 0.0 }
+        ?: 1.0
 
 val Product.minimumSelectionCount: Int
     get() = if (pricingMode == ProductPricingMode.WEIGHT) {
-        kotlin.math.ceil((minWeight ?: effectiveWeightStep) / effectiveWeightStep).toInt().coerceAtLeast(1)
+        boundedSelectionCount(kotlin.math.ceil((minWeight ?: effectiveWeightStep) / effectiveWeightStep))
     } else {
         1
     }
@@ -47,7 +49,8 @@ val Product.minimumSelectionCount: Int
 val Product.maximumSelectionCount: Int?
     get() = if (pricingMode == ProductPricingMode.WEIGHT) {
         maxWeight?.let {
-            kotlin.math.floor(it / effectiveWeightStep).toInt().coerceAtLeast(minimumSelectionCount)
+            boundedSelectionCount(kotlin.math.floor(it / effectiveWeightStep))
+                .coerceAtLeast(minimumSelectionCount)
         }
     } else {
         null
@@ -59,6 +62,12 @@ fun Product.selectedQuantity(selectionCount: Int): Double =
     } else {
         selectionCount.toDouble()
     }
+
+private fun boundedSelectionCount(value: Double): Int = when {
+    !value.isFinite() || value <= 1.0 -> 1
+    value >= Int.MAX_VALUE.toDouble() -> Int.MAX_VALUE
+    else -> value.toInt()
+}
 
 enum class ProductPricingMode {
     FIXED,

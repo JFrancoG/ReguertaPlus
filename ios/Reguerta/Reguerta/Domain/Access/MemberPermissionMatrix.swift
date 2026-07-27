@@ -82,11 +82,11 @@ extension Member {
     }
 
     var canManageMembers: Bool {
-        MemberPermissionMatrix.hasCapability(.manageMembers, for: self)
+        isActive && MemberPermissionMatrix.hasCapability(.manageMembers, for: self)
     }
 
     var canGrantAdminRole: Bool {
-        MemberPermissionMatrix.hasCapability(.grantAdminRole, for: self)
+        isActive && MemberPermissionMatrix.hasCapability(.grantAdminRole, for: self)
     }
 
     var canPublishNews: Bool {

@@ -92,7 +92,7 @@ func seasonalCommitmentUnitLimitsByProductID(
         .reduce(into: [String: Int]()) { partialResult, requirement in
             guard requirement.isRepresentableBySelectionStep else { return }
             let expectedUnits = requirement.requiredQuantity / requirement.selectionStep
-            let requiredUnits = Int(expectedUnits.rounded())
+            let requiredUnits = boundedProductUnitCount(expectedUnits.rounded())
             if requiredUnits > 0 {
                 partialResult[requirement.product.id] = requiredUnits
             }
@@ -276,8 +276,8 @@ private func deduplicatePreservingOrder(_ values: [String]) -> [String] {
 }
 
 private extension Product {
-    var normalizedEcoBasketPriceKey: Int {
-        Int((price * 10_000).rounded())
+    var normalizedEcoBasketPriceKey: String {
+        String(format: "%.4f", locale: Locale(identifier: "en_US_POSIX"), price)
     }
 
     var commitmentSelectionStep: Double {

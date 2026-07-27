@@ -9,11 +9,11 @@ actor ChainedSeasonalCommitmentRepository: SeasonalCommitmentRepository {
         self.fallback = fallback
     }
 
-    func activeCommitments(userId: String) async -> [SeasonalCommitment] {
-        let primaryItems = await primary.activeCommitments(userId: userId)
+    func activeCommitments(userId: String) async throws -> [SeasonalCommitment] {
+        let primaryItems = try await primary.activeCommitments(userId: userId)
         if !primaryItems.isEmpty {
             return primaryItems
         }
-        return await fallback.activeCommitments(userId: userId)
+        return try await fallback.activeCommitments(userId: userId)
     }
 }

@@ -99,10 +99,10 @@ val Member.canAccessReceivedOrders: Boolean
     get() = MemberPermissionMatrix.hasCapability(this, AccessCapability.ACCESS_RECEIVED_ORDERS)
 
 val Member.canManageMembers: Boolean
-    get() = MemberPermissionMatrix.hasCapability(this, AccessCapability.MANAGE_MEMBERS)
+    get() = isActive && MemberPermissionMatrix.hasCapability(this, AccessCapability.MANAGE_MEMBERS)
 
 val Member.canGrantAdminRole: Boolean
-    get() = MemberPermissionMatrix.hasCapability(this, AccessCapability.GRANT_ADMIN_ROLE)
+    get() = isActive && MemberPermissionMatrix.hasCapability(this, AccessCapability.GRANT_ADMIN_ROLE)
 
 val Member.canPublishNews: Boolean
     get() = MemberPermissionMatrix.hasCapability(this, AccessCapability.PUBLISH_NEWS)

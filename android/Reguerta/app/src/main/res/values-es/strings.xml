@@ -515,6 +515,7 @@
     <string name="feedback_only_admin_toggle_active">Solo los admins pueden activar o desactivar</string>
     <string name="feedback_only_admin_manage_members">Solo los admins pueden gestionar miembros</string>
     <string name="feedback_cannot_remove_last_admin">No se puede dejar la app sin admins activos</string>
+    <string name="feedback_unable_load_data">No se pudieron cargar los datos más recientes. Inténtalo de nuevo.</string>
     <string name="feedback_unable_save_changes">No se pudieron guardar los cambios</string>
     <string name="feedback_only_admin_publish_news">Solo los admins pueden publicar noticias</string>
     <string name="feedback_only_admin_edit_news">Solo los admins pueden editar noticias</string>

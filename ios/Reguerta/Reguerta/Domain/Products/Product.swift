@@ -37,23 +37,34 @@ struct Product: Identifiable, Equatable, Sendable {
 
 extension Product {
     var effectiveWeightStep: Double {
-        if let weightStep, weightStep > 0 { return weightStep }
-        return unitQty > 0 ? unitQty : 1
+        if let weightStep, weightStep.isFinite, weightStep > 0 { return weightStep }
+        return unitQty.isFinite && unitQty > 0 ? unitQty : 1
     }
 
     var minimumSelectionCount: Int {
         guard pricingMode == .weight else { return 1 }
-        return max(1, Int(ceil((minWeight ?? effectiveWeightStep) / effectiveWeightStep)))
+        return max(1, boundedProductUnitCount(
+            ceil((minWeight ?? effectiveWeightStep) / effectiveWeightStep)
+        ))
     }
 
     var maximumSelectionCount: Int? {
         guard pricingMode == .weight, let maxWeight else { return nil }
-        return max(minimumSelectionCount, Int(floor(maxWeight / effectiveWeightStep)))
+        return max(
+            minimumSelectionCount,
+            boundedProductUnitCount(floor(maxWeight / effectiveWeightStep))
+        )
     }
 
     func selectedQuantity(selectionCount: Int) -> Double {
         pricingMode == .weight ? Double(selectionCount) * effectiveWeightStep : Double(selectionCount)
     }
+}
+
+func boundedProductUnitCount(_ value: Double) -> Int {
+    guard value.isFinite, value > 0 else { return 0 }
+    guard value < Double(Int32.max) else { return Int(Int32.max) }
+    return Int(value)
 }
 
 enum ProductPricingMode: String, Equatable, Sendable {

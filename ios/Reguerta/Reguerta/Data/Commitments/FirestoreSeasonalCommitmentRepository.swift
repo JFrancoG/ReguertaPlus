@@ -57,7 +57,7 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
         db.reguertaCollection(.users, environment: environment)
     }
 
-    func activeCommitments(userId: String) async -> [SeasonalCommitment] {
+    func activeCommitments(userId: String) async throws -> [SeasonalCommitment] {
         let normalizedLookup = userId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedLookup.isEmpty else {
             return []
@@ -65,24 +65,30 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
 
         var documentsById: [String: QueryDocumentSnapshot] = [:]
 
-        await queryByFields(
-            seasonalCommitmentQueryUserFields,
-            lookupValue: normalizedLookup,
-            includeReferenceTarget: !normalizedLookup.contains("@"),
-            output: &documentsById
-        )
-
-        if documentsById.isEmpty {
-            await queryByFields(
-                seasonalCommitmentLegacyUserFields,
+        do {
+            try await queryByFields(
+                seasonalCommitmentQueryUserFields,
                 lookupValue: normalizedLookup,
                 includeReferenceTarget: !normalizedLookup.contains("@"),
                 output: &documentsById
             )
+
+            if documentsById.isEmpty {
+                try await queryByFields(
+                    seasonalCommitmentLegacyUserFields,
+                    lookupValue: normalizedLookup,
+                    includeReferenceTarget: !normalizedLookup.contains("@"),
+                    output: &documentsById
+                )
+            }
+        } catch {
+            throw FirestoreRepositoryErrorMapper.map(error, resource: "seasonalCommitments")
         }
 
-        return documentsById.values
-            .compactMap(Self.toSeasonalCommitment)
+        return try documentsById.values
+            .map { document in
+                try Self.commitment(documentID: document.documentID, data: document.data())
+            }
             .filter { $0.userId.matchesLookupUserId(normalizedLookup) }
             .filter(\.active)
             .sorted(by: Self.sortCommitments)
@@ -93,7 +99,7 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
         lookupValue: String,
         includeReferenceTarget: Bool,
         output: inout [String: QueryDocumentSnapshot]
-    ) async {
+    ) async throws {
         let userReference = usersCollection.document(lookupValue)
         var targets: [Any] = [lookupValue]
         if includeReferenceTarget {
@@ -102,15 +108,11 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
 
         for field in fields {
             for target in targets {
-                do {
-                    let snapshot = try await commitmentsCollection
-                        .whereField(field, isEqualTo: target)
-                        .getDocuments()
-                    for document in snapshot.documents {
-                        output[document.documentID] = document
-                    }
-                } catch {
-                    continue
+                let snapshot = try await commitmentsCollection
+                    .whereField(field, isEqualTo: target)
+                    .getDocuments()
+                for document in snapshot.documents {
+                    output[document.documentID] = document
                 }
             }
         }
@@ -123,39 +125,46 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
         return lhs.productId.localizedCaseInsensitiveCompare(rhs.productId) == .orderedAscending
     }
 
-    private static func toSeasonalCommitment(_ document: QueryDocumentSnapshot) -> SeasonalCommitment? {
-        let data = document.data()
-        guard let userId = firstNormalizedID(in: data, fields: seasonalCommitmentUserReadFields),
-              let productId = firstNormalizedID(in: data, fields: seasonalCommitmentProductFields),
-              let seasonKey = firstNormalizedID(in: data, fields: seasonalCommitmentSeasonFields),
-              let fixedQtyPerOfferedWeek = firstPositiveDouble(in: data, fields: seasonalCommitmentQtyFields) else {
-            return nil
+    static func commitment(documentID: String, data: [String: Any]) throws -> SeasonalCommitment {
+        guard let userId = try firstNormalizedID(in: data, fields: seasonalCommitmentUserReadFields),
+              let productId = try firstNormalizedID(in: data, fields: seasonalCommitmentProductFields),
+              let seasonKey = try firstNormalizedID(in: data, fields: seasonalCommitmentSeasonFields),
+              let fixedQtyPerOfferedWeek = try firstPositiveDouble(in: data, fields: seasonalCommitmentQtyFields) else {
+            throw invalidDocumentError
         }
-
-        let createdAtMillis = ((data["createdAt"] as? Timestamp)?.dateValue().timeIntervalSince1970 ?? 0) * 1_000
-        let updatedAtMillis = ((data["updatedAt"] as? Timestamp)?.dateValue().timeIntervalSince1970 ?? 0) * 1_000
-
         return SeasonalCommitment(
-            id: document.documentID,
+            id: documentID,
             userId: userId,
             productId: productId,
-            productNameHint: normalizedText(data["productName"]) ??
-                normalizedText(data["productDisplayName"]) ??
-                normalizedText(data["name"]),
+            productNameHint: try optionalNormalizedText(data, field: "productName") ??
+                optionalNormalizedText(data, field: "productDisplayName") ??
+                optionalNormalizedText(data, field: "name"),
             seasonKey: seasonKey,
             fixedQtyPerOfferedWeek: fixedQtyPerOfferedWeek,
-            active: (data["active"] as? Bool) ?? true,
-            createdAtMillis: Int64(createdAtMillis),
-            updatedAtMillis: Int64(updatedAtMillis)
+            active: try optionalBool(data, field: "active", default: true),
+            createdAtMillis: try optionalTimestampMillis(data, field: "createdAt"),
+            updatedAtMillis: try optionalTimestampMillis(data, field: "updatedAt")
         )
     }
 
-    private static func firstNormalizedID(in data: [String: Any], fields: [String]) -> String? {
-        fields.compactMap { field in normalizedID(data[field]) }.first
+    private static func firstNormalizedID(in data: [String: Any], fields: [String]) throws -> String? {
+        for field in fields {
+            guard let value = data[field] else { continue }
+            if value is NSNull { continue }
+            guard let identifier = normalizedID(value) else { throw invalidDocumentError }
+            return identifier
+        }
+        return nil
     }
 
-    private static func firstPositiveDouble(in data: [String: Any], fields: [String]) -> Double? {
-        fields.compactMap { field in positiveDouble(data[field]) }.first
+    private static func firstPositiveDouble(in data: [String: Any], fields: [String]) throws -> Double? {
+        for field in fields {
+            guard let value = data[field] else { continue }
+            if value is NSNull { continue }
+            guard let number = positiveDouble(value) else { throw invalidDocumentError }
+            return number
+        }
+        return nil
     }
 
     private static func normalizedString(_ value: Any?) -> String? {
@@ -174,6 +183,13 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
                 normalizedText(dictionary["title"])
         }
         return nil
+    }
+
+    private static func optionalNormalizedText(_ data: [String: Any], field: String) throws -> String? {
+        guard let value = data[field] else { return nil }
+        if value is NSNull { return nil }
+        guard let text = normalizedText(value) else { throw invalidDocumentError }
+        return text
     }
 
     private static func normalizedID(_ value: Any?) -> String? {
@@ -200,19 +216,42 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
     }
 
     private static func positiveDouble(_ value: Any?) -> Double? {
+        if value is Bool { return nil }
         if let number = value as? NSNumber {
             let double = number.doubleValue
-            return double > 0 ? double : nil
+            return double.isFinite && double > 0 ? double : nil
         }
         if let string = value as? String {
             let normalized = string
                 .replacingOccurrences(of: ",", with: ".")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            if let double = Double(normalized), double > 0 {
+            if let double = Double(normalized), double.isFinite, double > 0 {
                 return double
             }
         }
         return nil
+    }
+
+    private static func optionalBool(
+        _ data: [String: Any],
+        field: String,
+        default defaultValue: Bool
+    ) throws -> Bool {
+        guard let value = data[field] else { return defaultValue }
+        if value is NSNull { return defaultValue }
+        guard let bool = value as? Bool else { throw invalidDocumentError }
+        return bool
+    }
+
+    private static func optionalTimestampMillis(_ data: [String: Any], field: String) throws -> Int64 {
+        guard let value = data[field] else { return 0 }
+        if value is NSNull { return 0 }
+        guard let timestamp = value as? Timestamp else { throw invalidDocumentError }
+        return Int64(timestamp.dateValue().timeIntervalSince1970 * 1_000)
+    }
+
+    private static var invalidDocumentError: RepositoryError {
+        .invalidData(resource: "seasonalCommitments.document")
     }
 }
 

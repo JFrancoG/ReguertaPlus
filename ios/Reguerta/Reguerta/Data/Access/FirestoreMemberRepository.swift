@@ -1,5 +1,5 @@
-import Foundation
 import FirebaseFirestore
+import Foundation
 
 final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
     private let db: Firestore
@@ -24,129 +24,116 @@ final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
     func member(id: String) async throws -> Member? {
         let normalizedID = id.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedID.isEmpty, !normalizedID.contains("/") else {
-            throw FirestoreMemberRepositoryError.invalidMemberID
+            throw RepositoryError.invalidData(resource: "members.id")
         }
-        let snapshot = try await usersCollection.document(normalizedID).getDocument()
-        guard snapshot.exists else { return nil }
-        guard let member = Self.toMember(snapshot) else {
-            throw FirestoreMemberRepositoryError.invalidMemberDocument
+
+        do {
+            let snapshot = try await usersCollection.document(normalizedID).getDocument()
+            guard snapshot.exists else { return nil }
+            guard let data = snapshot.data() else { throw Self.invalidMemberDocumentError }
+            return try Self.member(documentID: snapshot.documentID, data: data)
+        } catch {
+            throw FirestoreRepositoryErrorMapper.map(error, resource: "members.document")
         }
-        return member
     }
 
     func members(visibleTo member: Member) async throws -> [Member] {
-        let members: [Member]
-        if member.isAdmin {
-            let snapshot = try await usersCollection.getDocuments()
-            members = snapshot.documents.compactMap(Self.toMember)
-        } else {
-            let snapshot = try await memberDirectoryCollection
-                .whereField("isActive", isEqualTo: true)
-                .getDocuments()
-            members = Self.mergingAuthenticatedMember(
-                member,
-                into: snapshot.documents.compactMap { document in
-                    Self.mapDirectoryMember(id: document.documentID, data: document.data())
+        do {
+            let members: [Member]
+            if member.canManageMembers {
+                let snapshot = try await usersCollection.getDocuments()
+                members = try snapshot.documents.map { document in
+                    try Self.member(documentID: document.documentID, data: document.data())
                 }
-            )
-        }
-        return members.sorted { lhs, rhs in
-            lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+            } else {
+                let snapshot = try await memberDirectoryCollection
+                    .whereField("isActive", isEqualTo: true)
+                    .getDocuments()
+                let directoryMembers = try snapshot.documents.map { document in
+                    try Self.directoryMember(documentID: document.documentID, data: document.data())
+                }
+                members = Self.mergingAuthenticatedMember(member, into: directoryMembers)
+            }
+            return members.sorted { lhs, rhs in
+                lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+            }
+        } catch {
+            throw FirestoreRepositoryErrorMapper.map(error, resource: "members")
         }
     }
 
-    func updateOwnProducerCatalogEnabled(memberId: String, enabled: Bool) async throws -> Member {
-        let document = usersCollection.document(memberId)
-        try await document.updateData(["producerCatalogEnabled": enabled])
-        let snapshot = try await document.getDocument()
-        guard let member = Self.toMember(snapshot) else {
-            throw FirestoreMemberRepositoryError.invalidMemberDocument
+    func updateOwnProducerCatalogEnabled(member: Member, enabled: Bool) async throws -> Member {
+        do {
+            try await usersCollection.document(member.id).updateData([
+                "producerCatalogEnabled": enabled
+            ])
+        } catch {
+            throw FirestoreRepositoryErrorMapper.map(error, resource: "members.write")
         }
-        return member
+        return member.copy(producerCatalogEnabled: enabled)
     }
+}
 
-    private static func toMember(_ document: QueryDocumentSnapshot) -> Member? {
-        let data = document.data()
-        return mapMember(id: document.documentID, data: data)
-    }
-
-    private static func toMember(_ document: DocumentSnapshot) -> Member? {
-        guard let data = document.data() else {
-            return nil
-        }
-        return mapMember(id: document.documentID, data: data)
-    }
-
-    private static func mapMember(id: String, data: [String: Any]) -> Member? {
-        let displayName = normalizedOptionalString(
-            data,
-            keys: ["displayName"]
-        ) ?? combinedName(
-            firstName: normalizedOptionalString(data, keys: ["name"]),
-            lastName: normalizedOptionalString(data, keys: ["surname"])
-        )
-        guard let displayName else { return nil }
-
-        let normalizedEmail = normalizedOptionalString(
-            data,
-            keys: ["normalizedEmail", "emailNormalized", "email"]
-        )?.lowercased()
-        guard let normalizedEmail else { return nil }
-        let authUid = normalizedOptionalString(data, keys: ["authUid"])
-        let companyName = normalizedOptionalString(data, keys: ["companyName", "company_name", "company"])
-        let phoneNumber = normalizedOptionalString(data, keys: ["phoneNumber", "phone", "telephone", "telefono"])
-        let isActive = (data["isActive"] as? Bool) ?? (data["available"] as? Bool) ?? true
-        let producerCatalogEnabled = (data["producerCatalogEnabled"] as? Bool) ?? true
-        let isCommonPurchaseManager = (data["isCommonPurchaseManager"] as? Bool) ?? false
-        let producerParity = normalizedOptionalString(data, keys: ["producerParity"])
-            .flatMap(ProducerParity.init(rawValue:))
-        let ecoCommitment = data["ecoCommitment"] as? [String: Any]
-        let ecoCommitmentMode = normalizedOptionalString(ecoCommitment, keys: ["mode"])
-            .flatMap(EcoCommitmentMode.init(rawValue:)) ?? .weekly
-        let ecoCommitmentParity = normalizedOptionalString(ecoCommitment, keys: ["parity"])
-            .flatMap(ProducerParity.init(rawValue:))
-        let rawRoles = (data["roles"] as? [String]) ?? []
-        let parsedRoles = Set(rawRoles.compactMap(legacyCompatibleRole(from:)))
-        let roles = parsedRoles.isEmpty
-            ? legacyRoles(isProducer: (data["isProducer"] as? Bool) ?? false, isAdmin: (data["isAdmin"] as? Bool) ?? false)
-            : parsedRoles
+extension FirestoreMemberRepository {
+    static func member(documentID: String, data: [String: Any]) throws -> Member {
+        let id = try requiredDocumentID(documentID, resource: "members.document")
+        let contact = try fullMemberContact(data)
+        let access = try fullMemberAccess(data)
+        let commitment = try fullMemberCommitment(data)
 
         return Member(
             id: id,
-            displayName: displayName,
-            companyName: companyName,
-            phoneNumber: phoneNumber,
-            normalizedEmail: normalizedEmail,
-            authUid: authUid,
-            roles: roles,
-            isActive: isActive,
-            producerCatalogEnabled: producerCatalogEnabled,
-            isCommonPurchaseManager: isCommonPurchaseManager,
-            producerParity: producerParity,
-            ecoCommitmentMode: ecoCommitmentMode,
-            ecoCommitmentParity: ecoCommitmentParity
+            displayName: contact.displayName,
+            companyName: contact.companyName,
+            phoneNumber: contact.phoneNumber,
+            normalizedEmail: contact.normalizedEmail,
+            authUid: contact.authUid,
+            roles: access.roles,
+            isActive: access.isActive,
+            producerCatalogEnabled: access.producerCatalogEnabled,
+            isCommonPurchaseManager: access.isCommonPurchaseManager,
+            producerParity: commitment.producerParity,
+            ecoCommitmentMode: commitment.mode,
+            ecoCommitmentParity: commitment.parity
         )
     }
 
-    static func mapDirectoryMember(id: String, data: [String: Any]) -> Member? {
-        guard let displayName = normalizedOptionalString(data, keys: ["displayName"]) else {
-            return nil
+    static func directoryMember(documentID: String, data: [String: Any]) throws -> Member {
+        let resource = "members.directory.document"
+        let id = try requiredDocumentID(documentID, resource: resource)
+        guard try requiredString(data, field: "userId", resource: resource) == id else {
+            throw RepositoryError.invalidData(resource: resource)
         }
-        let companyName = normalizedOptionalString(data, keys: ["companyName"])
-        let isActive = (data["isActive"] as? Bool) ?? false
-        let producerCatalogEnabled = (data["producerCatalogEnabled"] as? Bool) ?? true
-        let isCommonPurchaseManager = (data["isCommonPurchaseManager"] as? Bool) ?? false
-        let producerParity = normalizedOptionalString(data, keys: ["producerParity"])
-            .flatMap(ProducerParity.init(rawValue:))
-        let ecoCommitment = data["ecoCommitment"] as? [String: Any]
-        let ecoCommitmentMode = normalizedOptionalString(ecoCommitment, keys: ["mode"])
-            .flatMap(EcoCommitmentMode.init(rawValue:)) ?? .weekly
-        let ecoCommitmentParity = normalizedOptionalString(ecoCommitment, keys: ["parity"])
-            .flatMap(ProducerParity.init(rawValue:))
-        let parsedRoles = Set(
-            ((data["roles"] as? [String]) ?? []).compactMap(legacyCompatibleRole(from:))
+        let displayName = try requiredString(data, field: "displayName", resource: resource)
+        let companyName = try optionalString(data, keys: ["companyName"], resource: resource)
+        let roles = try directoryRoles(data, resource: resource)
+        guard try requiredBool(data, field: "isActive", resource: resource) else {
+            throw RepositoryError.invalidData(resource: resource)
+        }
+        let producerCatalogEnabled = try requiredBool(
+            data,
+            field: "producerCatalogEnabled",
+            resource: resource
         )
-        let roles = parsedRoles.union([.member])
+        let isCommonPurchaseManager = try requiredBool(
+            data,
+            field: "isCommonPurchaseManager",
+            resource: resource
+        )
+        let producerParity = try optionalParity(
+            data["producerParity"],
+            resource: resource,
+            acceptsLegacyCasing: false
+        )
+        guard let ecoCommitment = try optionalMap(data, field: "ecoCommitment", resource: resource) else {
+            throw RepositoryError.invalidData(resource: resource)
+        }
+        let ecoCommitmentMode = try requiredEcoMode(ecoCommitment["mode"], resource: resource)
+        let ecoCommitmentParity = try optionalParity(
+            ecoCommitment["parity"],
+            resource: resource,
+            acceptsLegacyCasing: false
+        )
 
         return Member(
             id: id,
@@ -156,7 +143,7 @@ final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
             normalizedEmail: "",
             authUid: nil,
             roles: roles,
-            isActive: isActive,
+            isActive: true,
             producerCatalogEnabled: producerCatalogEnabled,
             isCommonPurchaseManager: isCommonPurchaseManager,
             producerParity: producerParity,
@@ -171,57 +158,300 @@ final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
     ) -> [Member] {
         directoryMembers.filter { $0.id != authenticatedMember.id } + [authenticatedMember]
     }
+}
 
-    private static func normalizedOptionalString(_ data: [String: Any]?, keys: [String]) -> String? {
-        guard let data else { return nil }
+private extension FirestoreMemberRepository {
+    static func fullMemberContact(_ data: [String: Any]) throws -> FullMemberContact {
+        let resource = "members.document"
+        let displayName = try optionalString(data, keys: ["displayName"], resource: resource)
+            ?? combinedName(
+                firstName: try optionalString(data, keys: ["name"], resource: resource),
+                lastName: try optionalString(data, keys: ["surname"], resource: resource)
+            )
+        guard let displayName,
+              let normalizedEmail = try optionalString(
+                data,
+                keys: ["normalizedEmail", "emailNormalized", "email"],
+                resource: resource
+              )?.lowercased() else {
+            throw invalidMemberDocumentError
+        }
+        return FullMemberContact(
+            displayName: displayName,
+            companyName: try optionalString(
+                data,
+                keys: ["companyName", "company_name", "company"],
+                resource: resource
+            ),
+            phoneNumber: try optionalString(
+                data,
+                keys: ["phoneNumber", "phone", "telephone", "telefono"],
+                resource: resource
+            ),
+            normalizedEmail: normalizedEmail,
+            authUid: try optionalString(data, keys: ["authUid"], resource: resource)
+        )
+    }
+
+    static func fullMemberAccess(_ data: [String: Any]) throws -> FullMemberAccess {
+        let resource = "members.document"
+        return FullMemberAccess(
+            roles: try fullMemberRoles(data),
+            isActive: try optionalBool(
+                data,
+                keys: ["isActive", "available"],
+                default: true,
+                resource: resource
+            ),
+            producerCatalogEnabled: try optionalBool(
+                data,
+                keys: ["producerCatalogEnabled"],
+                default: true,
+                resource: resource
+            ),
+            isCommonPurchaseManager: try optionalBool(
+                data,
+                keys: ["isCommonPurchaseManager"],
+                default: false,
+                resource: resource
+            )
+        )
+    }
+
+    static func fullMemberCommitment(_ data: [String: Any]) throws -> FullMemberCommitment {
+        let resource = "members.document"
+        let ecoCommitment = try optionalMap(data, field: "ecoCommitment", resource: resource)
+        return FullMemberCommitment(
+            producerParity: try optionalParity(
+                data["producerParity"],
+                resource: resource,
+                acceptsLegacyCasing: true
+            ),
+            mode: try optionalEcoMode(
+                ecoCommitment?["mode"],
+                default: .weekly,
+                resource: resource,
+                acceptsLegacyCasing: true
+            ),
+            parity: try optionalParity(
+                ecoCommitment?["parity"],
+                resource: resource,
+                acceptsLegacyCasing: true
+            )
+        )
+    }
+
+    private static func fullMemberRoles(_ data: [String: Any]) throws -> Set<MemberRole> {
+        let resource = "members.document"
+        let parsedRoles: Set<MemberRole>
+        if let rawRoles = data["roles"], !(rawRoles is NSNull) {
+            guard let values = rawRoles as? [Any] else {
+                throw RepositoryError.invalidData(resource: resource)
+            }
+            parsedRoles = try Set(values.map { value in
+                guard let value = value as? String,
+                      let role = legacyCompatibleRole(from: value) else {
+                    throw RepositoryError.invalidData(resource: resource)
+                }
+                return role
+            })
+        } else {
+            parsedRoles = []
+        }
+        if !parsedRoles.isEmpty { return parsedRoles }
+        return legacyRoles(
+            isProducer: try optionalBool(
+                data,
+                keys: ["isProducer"],
+                default: false,
+                resource: resource
+            ),
+            isAdmin: try optionalBool(
+                data,
+                keys: ["isAdmin"],
+                default: false,
+                resource: resource
+            )
+        )
+    }
+
+    private static func directoryRoles(_ data: [String: Any], resource: String) throws -> Set<MemberRole> {
+        guard let rawRoles = data["roles"] as? [Any], !rawRoles.isEmpty else {
+            throw RepositoryError.invalidData(resource: resource)
+        }
+        let roles = try Set(rawRoles.map { value in
+            guard let value = value as? String,
+                  value == value.trimmingCharacters(in: .whitespacesAndNewlines),
+                  let role = MemberRole(rawValue: value) else {
+                throw RepositoryError.invalidData(resource: resource)
+            }
+            return role
+        })
+        guard roles.contains(.member) else { throw RepositoryError.invalidData(resource: resource) }
+        return roles
+    }
+
+    private static func requiredDocumentID(_ documentID: String, resource: String) throws -> String {
+        let normalized = documentID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty, !normalized.contains("/") else {
+            throw RepositoryError.invalidData(resource: resource)
+        }
+        return normalized
+    }
+
+    private static func requiredString(
+        _ data: [String: Any],
+        field: String,
+        resource: String
+    ) throws -> String {
+        guard let value = try optionalString(data, keys: [field], resource: resource) else {
+            throw RepositoryError.invalidData(resource: resource)
+        }
+        return value
+    }
+
+    private static func optionalString(
+        _ data: [String: Any],
+        keys: [String],
+        resource: String
+    ) throws -> String? {
         for key in keys {
-            guard let string = data[key] as? String else {
-                continue
+            guard let rawValue = data[key], !(rawValue is NSNull) else { continue }
+            guard let value = rawValue as? String else {
+                throw RepositoryError.invalidData(resource: resource)
             }
-            let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty {
-                return trimmed
-            }
+            let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !normalized.isEmpty { return normalized }
         }
         return nil
     }
 
+    private static func requiredBool(
+        _ data: [String: Any],
+        field: String,
+        resource: String
+    ) throws -> Bool {
+        guard let rawValue = data[field], let value = rawValue as? Bool else {
+            throw RepositoryError.invalidData(resource: resource)
+        }
+        return value
+    }
+
+    private static func optionalBool(
+        _ data: [String: Any],
+        keys: [String],
+        default defaultValue: Bool,
+        resource: String
+    ) throws -> Bool {
+        for key in keys {
+            guard let rawValue = data[key], !(rawValue is NSNull) else { continue }
+            guard let value = rawValue as? Bool else {
+                throw RepositoryError.invalidData(resource: resource)
+            }
+            return value
+        }
+        return defaultValue
+    }
+
+    private static func optionalMap(
+        _ data: [String: Any],
+        field: String,
+        resource: String
+    ) throws -> [String: Any]? {
+        guard let rawValue = data[field], !(rawValue is NSNull) else { return nil }
+        guard let value = rawValue as? [String: Any] else {
+            throw RepositoryError.invalidData(resource: resource)
+        }
+        return value
+    }
+
+    private static func optionalParity(
+        _ rawValue: Any?,
+        resource: String,
+        acceptsLegacyCasing: Bool
+    ) throws -> ProducerParity? {
+        guard let rawValue, !(rawValue is NSNull) else { return nil }
+        guard let value = rawValue as? String else {
+            throw RepositoryError.invalidData(resource: resource)
+        }
+        let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let candidate = acceptsLegacyCasing ? normalized.lowercased() : normalized
+        guard let parity = ProducerParity(rawValue: candidate) else {
+            throw RepositoryError.invalidData(resource: resource)
+        }
+        return parity
+    }
+
+    private static func requiredEcoMode(_ rawValue: Any?, resource: String) throws -> EcoCommitmentMode {
+        guard let rawValue, let value = rawValue as? String,
+              value == value.trimmingCharacters(in: .whitespacesAndNewlines),
+              let mode = EcoCommitmentMode(rawValue: value) else {
+            throw RepositoryError.invalidData(resource: resource)
+        }
+        return mode
+    }
+
+    private static func optionalEcoMode(
+        _ rawValue: Any?,
+        default defaultValue: EcoCommitmentMode,
+        resource: String,
+        acceptsLegacyCasing: Bool
+    ) throws -> EcoCommitmentMode {
+        guard let rawValue, !(rawValue is NSNull) else { return defaultValue }
+        guard let value = rawValue as? String else {
+            throw RepositoryError.invalidData(resource: resource)
+        }
+        let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let candidate = acceptsLegacyCasing ? normalized.lowercased() : normalized
+        guard let mode = EcoCommitmentMode(rawValue: candidate) else {
+            throw RepositoryError.invalidData(resource: resource)
+        }
+        return mode
+    }
+
     private static func legacyCompatibleRole(from rawValue: String) -> MemberRole? {
-        let normalized = rawValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        switch normalized {
-        case "member", "socio":
-            return .member
-        case "producer", "productor":
-            return .producer
-        case "admin", "administrador":
-            return .admin
-        default:
-            return nil
+        switch rawValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "member", "socio": .member
+        case "producer", "productor": .producer
+        case "admin", "administrador": .admin
+        default: nil
         }
     }
 
     private static func legacyRoles(isProducer: Bool, isAdmin: Bool) -> Set<MemberRole> {
         var roles: Set<MemberRole> = [.member]
-        if isProducer {
-            roles.insert(.producer)
-        }
-        if isAdmin {
-            roles.insert(.admin)
-        }
+        if isProducer { roles.insert(.producer) }
+        if isAdmin { roles.insert(.admin) }
         return roles
     }
 
     private static func combinedName(firstName: String?, lastName: String?) -> String? {
-        let nameParts: [String] = [firstName, lastName].compactMap { (part: String?) -> String? in
-            guard let part, !part.isEmpty else { return nil }
-            return part
-        }
-        let combined = nameParts.joined(separator: " ")
+        let combined = [firstName, lastName].compactMap { $0 }.joined(separator: " ")
         return combined.isEmpty ? nil : combined
+    }
+
+    private static var invalidMemberDocumentError: RepositoryError {
+        .invalidData(resource: "members.document")
     }
 }
 
-private enum FirestoreMemberRepositoryError: Error {
-    case invalidMemberID
-    case invalidMemberDocument
+private struct FullMemberContact {
+    let displayName: String
+    let companyName: String?
+    let phoneNumber: String?
+    let normalizedEmail: String
+    let authUid: String?
+}
+
+private struct FullMemberAccess {
+    let roles: Set<MemberRole>
+    let isActive: Bool
+    let producerCatalogEnabled: Bool
+    let isCommonPurchaseManager: Bool
+}
+
+private struct FullMemberCommitment {
+    let producerParity: ProducerParity?
+    let mode: EcoCommitmentMode
+    let parity: ProducerParity?
 }

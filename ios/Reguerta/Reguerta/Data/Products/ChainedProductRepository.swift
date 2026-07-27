@@ -9,20 +9,20 @@ actor ChainedProductRepository: ProductRepository {
         self.fallback = fallback
     }
 
-    func allProducts() async -> [Product] {
-        let primaryProducts = await primary.allProducts()
+    func allProducts() async throws -> [Product] {
+        let primaryProducts = try await primary.allProducts()
         if !primaryProducts.isEmpty {
             return primaryProducts
         }
-        return await fallback.allProducts()
+        return try await fallback.allProducts()
     }
 
-    func products(vendorId: String) async -> [Product] {
-        let primaryProducts = await primary.products(vendorId: vendorId)
+    func products(vendorId: String) async throws -> [Product] {
+        let primaryProducts = try await primary.products(vendorId: vendorId)
         if !primaryProducts.isEmpty {
             return primaryProducts
         }
-        return await fallback.products(vendorId: vendorId)
+        return try await fallback.products(vendorId: vendorId)
     }
 
     func upsert(product: Product) async throws -> Product {

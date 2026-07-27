@@ -5,6 +5,7 @@ import com.reguerta.user.domain.access.MemberRepository
 import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.EcoCommitmentMode
 import com.reguerta.user.domain.access.ProducerParity
+import com.reguerta.user.domain.access.canManageMembers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -59,8 +60,16 @@ class InMemoryMemberRepository : MemberRepository {
     }
 
     override suspend fun getMembersVisibleTo(member: Member): List<Member> = mutex.withLock {
+        val canReadPrivateMembers = member.canManageMembers
         members.values
-            .filter { candidate -> candidate.isActive || member.isAdmin }
+            .filter { candidate -> candidate.isActive || canReadPrivateMembers }
+            .map { candidate ->
+                when {
+                    canReadPrivateMembers -> candidate
+                    candidate.id == member.id -> member
+                    else -> candidate.copy(phoneNumber = null, normalizedEmail = "", authUid = null)
+                }
+            }
             .sortedBy { it.displayName.lowercase() }
     }
 
@@ -70,12 +79,12 @@ class InMemoryMemberRepository : MemberRepository {
     }
 
     override suspend fun updateOwnProducerCatalogEnabled(
-        memberId: String,
+        member: Member,
         isEnabled: Boolean,
     ): Member = mutex.withLock {
-        val member = checkNotNull(members[memberId]) { "Member not found" }
-        val updated = member.copy(producerCatalogEnabled = isEnabled)
-        members[memberId] = updated
+        val existing = checkNotNull(members[member.id]) { "Member not found" }
+        val updated = existing.copy(producerCatalogEnabled = isEnabled)
+        members[member.id] = updated
         updated
     }
 

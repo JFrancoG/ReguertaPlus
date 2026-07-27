@@ -130,6 +130,7 @@ sealed interface SessionMode {
 }
 
 data class SessionUiState(
+    val sessionEpoch: Long = 0L,
     val emailInput: String = "",
     val passwordInput: String = "",
     @param:StringRes val emailErrorRes: Int? = null,
@@ -163,6 +164,8 @@ data class SessionUiState(
     val productDraft: ProductDraft = ProductDraft(),
     val sharedProfiles: List<SharedProfile> = emptyList(),
     val sharedProfileDraft: SharedProfileDraft = SharedProfileDraft(),
+    val sharedProfileEditorRevision: Long = 0L,
+    val sharedProfilesRevision: Long = 0L,
     val shiftsFeed: List<ShiftAssignment> = emptyList(),
     val deliveryCalendarOverrides: List<DeliveryCalendarOverride> = emptyList(),
     val defaultDeliveryDayOfWeek: DeliveryWeekday? = null,
@@ -175,6 +178,8 @@ data class SessionUiState(
     val nextDeliveryShift: ShiftAssignment? = null,
     val nextMarketShift: ShiftAssignment? = null,
     val editingProductId: String? = null,
+    val pendingNewProductId: String? = null,
+    val productEditorRevision: Long = 0L,
     val editingNewsId: String? = null,
     val isLoadingNews: Boolean = false,
     val isSavingNews: Boolean = false,

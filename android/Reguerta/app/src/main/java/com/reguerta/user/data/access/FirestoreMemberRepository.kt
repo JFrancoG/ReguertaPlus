@@ -2,15 +2,18 @@ package com.reguerta.user.data.access
 
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.QuerySnapshot
 import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
 import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
 import com.reguerta.user.data.firestore.ReguertaFirestorePath
+import com.reguerta.user.data.firestore.toRepositoryException
+import com.reguerta.user.domain.RepositoryErrorKind
+import com.reguerta.user.domain.RepositoryException
 import com.reguerta.user.domain.access.EcoCommitmentMode
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRepository
 import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.ProducerParity
+import com.reguerta.user.domain.access.canManageMembers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -30,71 +33,106 @@ class FirestoreMemberRepository(
         get() = firestorePath.collectionPath(ReguertaFirestoreCollection.MEMBER_DIRECTORY)
 
     override suspend fun findByAuthUid(authUid: String): Member? = withContext(Dispatchers.IO) {
-        val authLink = Tasks.await(
-            firestore.collection(authLinksCollectionPath)
-                .document(authUid)
-                .get(),
-        )
-        if (!authLink.exists()) return@withContext null
-        val memberId = authLink.getString("memberId")
-            ?.trim()
-            ?.takeIf(String::isNotBlank)
-            ?: return@withContext null
-        val memberSnapshot = Tasks.await(
-            firestore.collection(usersCollectionPath)
-                .document(memberId)
-                .get(),
-        )
-        memberSnapshot.toMember()
+        try {
+            val authLink = Tasks.await(
+                firestore.collection(authLinksCollectionPath)
+                    .document(authUid)
+                    .get(),
+            )
+            if (!authLink.exists()) return@withContext null
+            val authLinkData: Map<String, Any> = authLink.data ?: invalidDocument("authLinks.document")
+            val memberId = authLinkData.requiredString(
+                keys = arrayOf("memberId"),
+                resource = "authLinks.document",
+            )
+            val memberSnapshot = Tasks.await(
+                firestore.collection(usersCollectionPath)
+                    .document(memberId)
+                    .get(),
+            )
+            if (!memberSnapshot.exists()) {
+                null
+            } else {
+                val memberData: Map<String, Any> = memberSnapshot.data ?: invalidDocument("members.document")
+                decodeMemberDocument(memberSnapshot.id, memberData)
+            }
+        } catch (error: Exception) {
+            throw error.toRepositoryException(resource = "members.authLink")
+        }
     }
 
     override suspend fun getMembersVisibleTo(member: Member): List<Member> = withContext(Dispatchers.IO) {
-        val snapshot: QuerySnapshot = Tasks.await(
-            if (member.isAdmin) {
-                firestore.collection(usersCollectionPath).get()
-            } else {
-                firestore.collection(memberDirectoryCollectionPath)
-                    .whereEqualTo("isActive", true)
-                    .get()
-            },
-        )
-        val visible = snapshot.documents.mapNotNull { document ->
-            if (member.isAdmin) document.toMember() else document.toDirectoryMember()
-        }.map { candidate ->
-            if (candidate.id == member.id) member else candidate
-        }.toMutableList()
-        if (visible.none { it.id == member.id }) {
-            visible += member
+        try {
+            val canReadPrivateMembers = member.canManageMembers
+            val snapshot = Tasks.await(
+                if (canReadPrivateMembers) {
+                    firestore.collection(usersCollectionPath).get()
+                } else {
+                    firestore.collection(memberDirectoryCollectionPath)
+                        .whereEqualTo("isActive", true)
+                        .get()
+                },
+            )
+            val visible = snapshot.documents.map { document ->
+                val data: Map<String, Any> = document.data ?: invalidDocument(
+                    if (canReadPrivateMembers) "members.document" else "members.directory.document",
+                )
+                if (canReadPrivateMembers) {
+                    decodeMemberDocument(document.id, data)
+                } else {
+                    decodeDirectoryMemberDocument(document.id, data)
+                }
+            }.map { candidate ->
+                if (candidate.id == member.id) member else candidate
+            }.toMutableList()
+            if (visible.none { it.id == member.id }) {
+                visible += member
+            }
+            visible.sortedBy { it.displayName.lowercase() }
+        } catch (error: Exception) {
+            throw error.toRepositoryException(resource = "members")
         }
-        visible
-            .sortedBy { it.displayName.lowercase() }
     }
 
     override suspend fun updateOwnProducerCatalogEnabled(
-        memberId: String,
+        member: Member,
         isEnabled: Boolean,
     ): Member = withContext(Dispatchers.IO) {
-        val document = firestore.collection(usersCollectionPath).document(memberId)
-        Tasks.await(
-            document.update(
-                mapOf(
-                    "producerCatalogEnabled" to isEnabled,
-                ),
-            ),
-        )
-        val snapshot = Tasks.await(document.get())
-        checkNotNull(snapshot.toMember()) { "Updated member $memberId could not be loaded" }
+        try {
+            Tasks.await(
+                firestore.collection(usersCollectionPath)
+                    .document(member.id)
+                    .update(mapOf("producerCatalogEnabled" to isEnabled)),
+            )
+            member.copy(producerCatalogEnabled = isEnabled)
+        } catch (error: Exception) {
+            throw error.toRepositoryException(resource = "members.write")
+        }
     }
 }
 
-private fun com.google.firebase.firestore.DocumentSnapshot.toDirectoryMember(): Member? {
-    val displayName = readFirstNonBlankString("displayName") ?: return null
-    val companyName = readFirstNonBlankString("companyName")
-    val roles = ((get("roles") as? List<*>)
-        ?.mapNotNull { (it as? String)?.trim()?.lowercase()?.toMemberRoleOrNull() }
-        ?.toSet()
-        ?: emptySet()).ifEmpty { setOf(MemberRole.MEMBER) }
-    val ecoCommitment = get("ecoCommitment") as? Map<*, *>
+internal fun decodeDirectoryMemberDocument(
+    documentId: String,
+    data: Map<String, Any?>,
+): Member {
+    val resource = "members.directory.document"
+    val id = requiredDocumentId(documentId, resource)
+    if (data.requiredString(arrayOf("userId"), resource) != id) invalidDocument(resource)
+    val displayName = data.requiredString(arrayOf("displayName"), resource)
+    val companyName = data.optionalString(arrayOf("companyName"), resource)
+    val roles = data.directoryRoles(resource)
+    if (!data.requiredBoolean("isActive", resource)) invalidDocument(resource)
+    val producerCatalogEnabled = data.requiredBoolean("producerCatalogEnabled", resource)
+    val isCommonPurchaseManager = data.requiredBoolean("isCommonPurchaseManager", resource)
+    val producerParity = optionalParity(data["producerParity"], resource, acceptsLegacyCasing = false)
+    val ecoCommitment = data.optionalMap("ecoCommitment", resource) ?: invalidDocument(resource)
+    val ecoCommitmentMode = requiredEcoMode(ecoCommitment["mode"], resource)
+    val ecoCommitmentParity = optionalParity(
+        ecoCommitment["parity"],
+        resource,
+        acceptsLegacyCasing = false,
+    )
+
     return Member(
         id = id,
         displayName = displayName,
@@ -103,51 +141,58 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toDirectoryMember(): 
         normalizedEmail = "",
         authUid = null,
         roles = roles,
-        isActive = getBoolean("isActive") == true,
-        producerCatalogEnabled = getBoolean("producerCatalogEnabled") ?: true,
-        isCommonPurchaseManager = getBoolean("isCommonPurchaseManager") ?: false,
-        producerParity = getString("producerParity").toProducerParityOrNull(),
-        ecoCommitmentMode = (ecoCommitment?.get("mode") as? String)
-            .toEcoCommitmentModeOrDefault(),
-        ecoCommitmentParity = (ecoCommitment?.get("parity") as? String)
-            .toProducerParityOrNull(),
+        isActive = true,
+        producerCatalogEnabled = producerCatalogEnabled,
+        isCommonPurchaseManager = isCommonPurchaseManager,
+        producerParity = producerParity,
+        ecoCommitmentMode = ecoCommitmentMode,
+        ecoCommitmentParity = ecoCommitmentParity,
     )
 }
 
-private fun com.google.firebase.firestore.DocumentSnapshot.toMember(): Member? {
-    val id = id
-    val displayName = readFirstNonBlankString("displayName")
-        ?: listOf(
-            readFirstNonBlankString("name"),
-            readFirstNonBlankString("surname"),
-        ).filterNotNull().joinToString(" ").trim().takeIf { it.isNotEmpty() }
-        ?: return null
-    val companyName = readFirstNonBlankString("companyName", "company_name", "company")
-    val phoneNumber = readFirstNonBlankString("phoneNumber", "phone", "telephone", "telefono")
-    val normalizedEmail = readFirstNonBlankString("normalizedEmail", "emailNormalized", "email")
-        ?.lowercase()
-        ?: return null
-    val authUid = getString("authUid")?.trim()?.takeIf { it.isNotEmpty() }
-    val isActive = getBoolean("isActive") ?: getBoolean("available") ?: true
-    val producerCatalogEnabled = getBoolean("producerCatalogEnabled") ?: true
-    val isCommonPurchaseManager = getBoolean("isCommonPurchaseManager") ?: false
-    val producerParity = getString("producerParity").toProducerParityOrNull()
-    val ecoCommitment = get("ecoCommitment") as? Map<*, *>
-    val ecoCommitmentMode = (ecoCommitment?.get("mode") as? String).toEcoCommitmentModeOrDefault()
-    val ecoCommitmentParity = (ecoCommitment?.get("parity") as? String).toProducerParityOrNull()
-
-    val rawRoles = get("roles") as? List<*>
-    val parsedRoles = rawRoles
-        ?.mapNotNull { value ->
-            (value as? String)?.trim()?.lowercase()?.toMemberRoleOrNull()
-        }
-        ?.toSet()
-        ?: emptySet()
-
-    val roles = parsedRoles.withLegacyRoles(
-        isProducer = getBoolean("isProducer") ?: false,
-        isAdmin = getBoolean("isAdmin") ?: false,
+internal fun decodeMemberDocument(
+    documentId: String,
+    data: Map<String, Any?>,
+): Member {
+    val resource = "members.document"
+    val id = requiredDocumentId(documentId, resource)
+    val displayName = data.optionalString(arrayOf("displayName"), resource)
+        ?: listOfNotNull(
+            data.optionalString(arrayOf("name"), resource),
+            data.optionalString(arrayOf("surname"), resource),
+        ).joinToString(" ").ifBlank { null }
+        ?: invalidDocument(resource)
+    val normalizedEmail = data.optionalString(
+        arrayOf("normalizedEmail", "emailNormalized", "email"),
+        resource,
+    )?.lowercase() ?: invalidDocument(resource)
+    val authUid = data.optionalString(arrayOf("authUid"), resource)
+    val companyName = data.optionalString(arrayOf("companyName", "company_name", "company"), resource)
+    val phoneNumber = data.optionalString(
+        arrayOf("phoneNumber", "phone", "telephone", "telefono"),
+        resource,
     )
+    val isActive = data.optionalBoolean(arrayOf("isActive", "available"), true, resource)
+    val producerCatalogEnabled = data.optionalBoolean(arrayOf("producerCatalogEnabled"), true, resource)
+    val isCommonPurchaseManager = data.optionalBoolean(
+        arrayOf("isCommonPurchaseManager"),
+        false,
+        resource,
+    )
+    val producerParity = optionalParity(data["producerParity"], resource, acceptsLegacyCasing = true)
+    val ecoCommitment = data.optionalMap("ecoCommitment", resource)
+    val ecoCommitmentMode = optionalEcoMode(
+        ecoCommitment?.get("mode"),
+        EcoCommitmentMode.WEEKLY,
+        resource,
+        acceptsLegacyCasing = true,
+    )
+    val ecoCommitmentParity = optionalParity(
+        ecoCommitment?.get("parity"),
+        resource,
+        acceptsLegacyCasing = true,
+    )
+    val roles = data.fullMemberRoles(resource)
 
     return Member(
         id = id,
@@ -166,49 +211,127 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toMember(): Member? {
     )
 }
 
-private fun String.toMemberRoleOrNull(): MemberRole? = when (this) {
-    "member" -> MemberRole.MEMBER
-    "socio" -> MemberRole.MEMBER
-    "producer" -> MemberRole.PRODUCER
-    "productor" -> MemberRole.PRODUCER
-    "admin" -> MemberRole.ADMIN
-    "administrador" -> MemberRole.ADMIN
-    else -> null
+private fun requiredDocumentId(documentId: String, resource: String): String {
+    val normalized = documentId.trim()
+    if (normalized.isBlank() || normalized.contains('/')) invalidDocument(resource)
+    return normalized
 }
 
-private fun Set<MemberRole>.withLegacyRoles(
-    isProducer: Boolean,
-    isAdmin: Boolean,
-): Set<MemberRole> {
-    if (isNotEmpty()) {
-        return this
-    }
-    val roles = mutableSetOf(MemberRole.MEMBER)
-    if (isProducer) roles.add(MemberRole.PRODUCER)
-    if (isAdmin) roles.add(MemberRole.ADMIN)
-    return roles
-}
+private fun Map<String, Any?>.requiredString(keys: Array<String>, resource: String): String =
+    optionalString(keys, resource) ?: invalidDocument(resource)
 
-private fun com.google.firebase.firestore.DocumentSnapshot.readFirstNonBlankString(
-    vararg fieldNames: String,
-): String? {
-    fieldNames.forEach { key ->
-        val value = get(key) as? String
-        val normalized = value?.trim()?.takeIf { it.isNotEmpty() }
-        if (normalized != null) {
-            return normalized
-        }
+private fun Map<String, Any?>.optionalString(keys: Array<String>, resource: String): String? {
+    keys.forEach { key ->
+        val rawValue = this[key] ?: return@forEach
+        val value = rawValue as? String ?: invalidDocument(resource)
+        value.trim().ifBlank { null }?.let { return it }
     }
     return null
 }
 
-private fun String?.toProducerParityOrNull(): ProducerParity? = when (this?.trim()?.lowercase()) {
-    "even" -> ProducerParity.EVEN
-    "odd" -> ProducerParity.ODD
+private fun Map<String, Any?>.requiredBoolean(field: String, resource: String): Boolean =
+    this[field] as? Boolean ?: invalidDocument(resource)
+
+private fun Map<String, Any?>.optionalBoolean(
+    keys: Array<String>,
+    default: Boolean,
+    resource: String,
+): Boolean {
+    keys.forEach { key ->
+        val rawValue = this[key] ?: return@forEach
+        return rawValue as? Boolean ?: invalidDocument(resource)
+    }
+    return default
+}
+
+private fun Map<String, Any?>.optionalMap(field: String, resource: String): Map<String, Any?>? {
+    val rawValue = this[field] ?: return null
+    @Suppress("UNCHECKED_CAST")
+    return rawValue as? Map<String, Any?> ?: invalidDocument(resource)
+}
+
+private fun Map<String, Any?>.fullMemberRoles(resource: String): Set<MemberRole> {
+    val rawRoles = this["roles"]
+    val parsedRoles = if (rawRoles == null) {
+        emptySet()
+    } else {
+        val values = rawRoles as? List<*> ?: invalidDocument(resource)
+        values.map { value ->
+            (value as? String)?.toLegacyMemberRoleOrNull() ?: invalidDocument(resource)
+        }.toSet()
+    }
+    if (parsedRoles.isNotEmpty()) return parsedRoles
+    return buildSet {
+        add(MemberRole.MEMBER)
+        if (optionalBoolean(arrayOf("isProducer"), false, resource)) add(MemberRole.PRODUCER)
+        if (optionalBoolean(arrayOf("isAdmin"), false, resource)) add(MemberRole.ADMIN)
+    }
+}
+
+private fun Map<String, Any?>.directoryRoles(resource: String): Set<MemberRole> {
+    val values = this["roles"] as? List<*> ?: invalidDocument(resource)
+    if (values.isEmpty()) invalidDocument(resource)
+    val roles = values.map { value ->
+        when (value) {
+            "member" -> MemberRole.MEMBER
+            "producer" -> MemberRole.PRODUCER
+            "admin" -> MemberRole.ADMIN
+            else -> invalidDocument(resource)
+        }
+    }.toSet()
+    if (!roles.contains(MemberRole.MEMBER)) invalidDocument(resource)
+    return roles
+}
+
+private fun optionalParity(
+    rawValue: Any?,
+    resource: String,
+    acceptsLegacyCasing: Boolean,
+): ProducerParity? {
+    val value = rawValue ?: return null
+    val string = value as? String ?: invalidDocument(resource)
+    val normalized = string.trim().let { if (acceptsLegacyCasing) it.lowercase() else it }
+    return when (normalized) {
+        "even" -> ProducerParity.EVEN
+        "odd" -> ProducerParity.ODD
+        else -> invalidDocument(resource)
+    }
+}
+
+private fun requiredEcoMode(rawValue: Any?, resource: String): EcoCommitmentMode {
+    val value = rawValue as? String ?: invalidDocument(resource)
+    if (value != value.trim()) invalidDocument(resource)
+    return when (value) {
+        "weekly" -> EcoCommitmentMode.WEEKLY
+        "biweekly" -> EcoCommitmentMode.BIWEEKLY
+        else -> invalidDocument(resource)
+    }
+}
+
+private fun optionalEcoMode(
+    rawValue: Any?,
+    default: EcoCommitmentMode,
+    resource: String,
+    acceptsLegacyCasing: Boolean,
+): EcoCommitmentMode {
+    val value = rawValue ?: return default
+    val string = value as? String ?: invalidDocument(resource)
+    val normalized = string.trim().let { if (acceptsLegacyCasing) it.lowercase() else it }
+    return when (normalized) {
+        "weekly" -> EcoCommitmentMode.WEEKLY
+        "biweekly" -> EcoCommitmentMode.BIWEEKLY
+        else -> invalidDocument(resource)
+    }
+}
+
+private fun String.toLegacyMemberRoleOrNull(): MemberRole? = when (trim().lowercase()) {
+    "member", "socio" -> MemberRole.MEMBER
+    "producer", "productor" -> MemberRole.PRODUCER
+    "admin", "administrador" -> MemberRole.ADMIN
     else -> null
 }
 
-private fun String?.toEcoCommitmentModeOrDefault(): EcoCommitmentMode = when (this?.trim()?.lowercase()) {
-    "biweekly" -> EcoCommitmentMode.BIWEEKLY
-    else -> EcoCommitmentMode.WEEKLY
-}
+private fun invalidDocument(resource: String): Nothing = throw RepositoryException(
+    kind = RepositoryErrorKind.INVALID_DATA,
+    resource = resource,
+)

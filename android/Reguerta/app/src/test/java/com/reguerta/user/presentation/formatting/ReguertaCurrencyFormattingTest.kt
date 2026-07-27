@@ -27,6 +27,7 @@ class ReguertaCurrencyFormattingTest {
     fun sessionDecimalTextUsesLocaleDecimalSeparator() {
         assertTrue(12.5.toSessionUiDecimal(Locale.forLanguageTag("es-ES")).contains("12,5"))
         assertTrue(12.5.toSessionUiDecimal(Locale.US).contains("12.5"))
+        assertTrue(1e300.toSessionUiDecimal(Locale.US).contains("1.0E300"))
     }
 
     @Test

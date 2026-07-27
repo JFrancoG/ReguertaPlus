@@ -397,7 +397,7 @@ nonisolated private struct FixedSessionMemberRepository: MemberRepository {
         [member]
     }
 
-    func updateOwnProducerCatalogEnabled(memberId _: String, enabled _: Bool) async throws -> Member {
+    func updateOwnProducerCatalogEnabled(member _: Member, enabled _: Bool) async throws -> Member {
         member
     }
 }

@@ -5,6 +5,7 @@ import com.reguerta.user.domain.access.canPublishNews
 import com.reguerta.user.domain.access.canSendAdminNotifications
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import java.util.UUID
 
 internal class SessionFormActions(
     private val uiState: MutableStateFlow<SessionUiState>,
@@ -125,7 +126,12 @@ internal class SessionFormActions(
     }
 
     fun onProductDraftChanged(newDraft: ProductDraft) {
-        uiState.update { it.copy(productDraft = newDraft) }
+        uiState.update {
+            it.copy(
+                productDraft = newDraft,
+                productEditorRevision = it.productEditorRevision + 1,
+            )
+        }
     }
 
     fun startCreatingNews() {
@@ -210,6 +216,8 @@ internal class SessionFormActions(
             it.copy(
                 productDraft = ProductDraft(),
                 editingProductId = "",
+                pendingNewProductId = UUID.randomUUID().toString(),
+                productEditorRevision = it.productEditorRevision + 1,
                 isUploadingProductImage = false,
             )
         }
@@ -226,6 +234,8 @@ internal class SessionFormActions(
             it.copy(
                 productDraft = product.toDraft(),
                 editingProductId = product.id,
+                pendingNewProductId = null,
+                productEditorRevision = it.productEditorRevision + 1,
                 isUploadingProductImage = false,
             )
         }
@@ -236,14 +246,20 @@ internal class SessionFormActions(
             it.copy(
                 productDraft = ProductDraft(),
                 editingProductId = null,
-                isSavingProduct = false,
+                pendingNewProductId = null,
+                productEditorRevision = it.productEditorRevision + 1,
                 isUploadingProductImage = false,
             )
         }
     }
 
     fun onSharedProfileDraftChanged(draft: SharedProfileDraft) {
-        uiState.update { it.copy(sharedProfileDraft = draft) }
+        uiState.update {
+            it.copy(
+                sharedProfileDraft = draft,
+                sharedProfileEditorRevision = it.sharedProfileEditorRevision + 1,
+            )
+        }
     }
 
     fun onShiftSwapDraftChanged(draft: ShiftSwapDraft) {

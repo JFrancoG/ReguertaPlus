@@ -109,13 +109,17 @@ func resolveProductSaveInput(
     )
 }
 
-func buildProductToSave(sessionMember: Member, input: ProductSaveInput) -> Product {
+func buildProductToSave(
+    sessionMember: Member,
+    input: ProductSaveInput,
+    newProductId: String = ""
+) -> Product {
     let canManageCommonPurchase = sessionMember.isCommonPurchaseManager && !sessionMember.isProducer
     let container = ProductContainerOption.matching(name: input.draft.packContainerName)
     let isBulk = container == .bulk
     let isEcoBasket = sessionMember.isProducer && sessionMember.producerParity != nil && container == .ecoBasket
     return Product(
-        id: input.existing?.id ?? "",
+        id: input.existing?.id ?? newProductId,
         vendorId: input.existing?.vendorId ?? sessionMember.id,
         companyName: input.existing?.companyName ?? sessionMember.displayName,
         name: input.draft.name,
@@ -213,7 +217,9 @@ extension Double {
     }
 
     func productUIDecimal(locale: Locale) -> String {
-        truncatingRemainder(dividingBy: 1) == 0
+        guard isFinite else { return "" }
+        return truncatingRemainder(dividingBy: 1) == 0 &&
+            self >= Double(Int.min) && self < Double(Int.max)
             ? String(Int(self))
             : String(self).replacingOccurrences(of: ".", with: locale.decimalSeparator ?? ".")
     }
@@ -223,7 +229,7 @@ private extension String {
     var productPositiveDouble: Double? {
         let normalized = replacingOccurrences(of: ",", with: ".")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !normalized.isEmpty, let value = Double(normalized), value > 0 else {
+        guard !normalized.isEmpty, let value = Double(normalized), value.isFinite, value > 0 else {
             return nil
         }
         return value
@@ -232,7 +238,7 @@ private extension String {
     var productNonNegativeDouble: Double? {
         let normalized = replacingOccurrences(of: ",", with: ".")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !normalized.isEmpty, let value = Double(normalized), value >= 0 else {
+        guard !normalized.isEmpty, let value = Double(normalized), value.isFinite, value >= 0 else {
             return nil
         }
         return value
@@ -241,6 +247,15 @@ private extension String {
 
 private func validWeightRange(minimum: Double?, maximum: Double?, step: Double?) -> Bool {
     guard let minimum, let maximum, let step, minimum <= maximum else { return false }
+    let minimumCount = ceil(minimum / step)
+    let maximumCount = floor(maximum / step)
+    guard minimumCount.isFinite,
+          maximumCount.isFinite,
+          minimumCount >= 1,
+          maximumCount >= minimumCount,
+          maximumCount <= Double(Int32.max) else {
+        return false
+    }
     let intervals = (maximum - minimum) / step
-    return abs(intervals - intervals.rounded()) < 0.000_001
+    return intervals.isFinite && abs(intervals - intervals.rounded()) < 0.000_001
 }

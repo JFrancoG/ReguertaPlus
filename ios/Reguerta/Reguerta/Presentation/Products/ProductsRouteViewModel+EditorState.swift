@@ -104,7 +104,7 @@ private extension ProductsRouteViewModel {
         let normalized = rawValue
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: ",", with: ".")
-        return max(0, Int(Double(normalized) ?? 0))
+        return boundedProductUnitCount(Double(normalized) ?? 0)
     }
 
     func adjustFiniteStock(by delta: Int) {

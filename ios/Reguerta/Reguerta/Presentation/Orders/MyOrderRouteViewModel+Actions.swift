@@ -131,8 +131,8 @@ extension MyOrderRouteViewModel {
         guard product.stockMode == .finite else { return nil }
         let stock = max(0, product.stockQty ?? 0)
         return product.pricingMode == .weight
-            ? Int((stock / product.effectiveWeightStep).rounded(.down))
-            : Int(stock.rounded(.down))
+            ? boundedProductUnitCount((stock / product.effectiveWeightStep).rounded(.down))
+            : boundedProductUnitCount(stock.rounded(.down))
     }
 
     func canIncrease(product: Product, currentQuantity: Int) -> Bool {
