@@ -30,6 +30,8 @@ import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.MarkEmailRead
+import androidx.compose.material.icons.filled.MarkEmailUnread
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -70,7 +72,6 @@ import com.reguerta.user.ui.components.auth.ReguertaDeleteListActionButton
 import com.reguerta.user.ui.components.auth.ReguertaEditListActionButton
 import com.reguerta.user.ui.components.auth.ReguertaFloatingActionButton
 import com.reguerta.user.ui.components.auth.ReguertaListItemCard
-import com.reguerta.user.ui.theme.ColorFeedbackWarningDefault
 
 @Composable
 fun NewsFeedRoute(
@@ -387,10 +388,13 @@ private fun NotificationFeedItemCard(
     modifier: Modifier = Modifier,
 ) {
     val event = item.notification
+    val readStateDescription = stringResource(
+        if (item.isRead) R.string.notifications_status_read else R.string.notifications_status_unread,
+    )
     val containerColor = if (item.isRead) {
         MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
     } else {
-        ColorFeedbackWarningDefault.copy(alpha = 0.15f)
+        MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f)
     }
 
     Column(
@@ -428,6 +432,17 @@ private fun NotificationFeedItemCard(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Icon(
+                        imageVector = if (item.isRead) Icons.Filled.MarkEmailRead else Icons.Filled.MarkEmailUnread,
+                        contentDescription = readStateDescription,
+                        tint = if (item.isRead) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.tertiary
+                        },
+                        modifier = Modifier.size(20.dp),
                     )
                 }
                 Text(

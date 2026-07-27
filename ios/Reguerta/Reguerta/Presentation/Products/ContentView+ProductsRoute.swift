@@ -165,6 +165,7 @@ private struct ProductCardRowView: View {
                             systemImageName: "pencil",
                             accessibilityLabel: "Editar producto",
                             backgroundColor: tokens.colors.actionPrimary,
+                            foregroundColor: tokens.colors.actionOnPrimary,
                             action: onEdit
                         )
 
@@ -173,6 +174,7 @@ private struct ProductCardRowView: View {
                                 systemImageName: "trash",
                                 accessibilityLabel: "Archivar producto",
                                 backgroundColor: tokens.colors.feedbackError,
+                                foregroundColor: tokens.colors.feedbackOnError,
                                 action: onArchive
                             )
                         }

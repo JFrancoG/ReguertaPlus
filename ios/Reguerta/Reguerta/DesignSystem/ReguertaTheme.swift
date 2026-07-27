@@ -22,16 +22,35 @@ enum AppAppearance: String, CaseIterable, Identifiable, Sendable {
 }
 import UIKit
 
+struct ReguertaButtonInteractionVisualState: Equatable, Sendable {
+    let scale: CGFloat
+    let opacity: Double
+}
+
+enum ReguertaContrastContract {
+    static let maximumActionTintOpacity = 0.16
+    static let maximumModeledPressedStateLayerOpacity = 0.12
+
+    static func buttonVisualState(isPressed: Bool) -> ReguertaButtonInteractionVisualState {
+        ReguertaButtonInteractionVisualState(
+            scale: isPressed ? 0.98 : 1,
+            opacity: 1
+        )
+    }
+}
+
 struct ReguertaDesignTokens {
     struct Colors {
         let actionPrimary: Color
         let actionOnPrimary: Color
+        let controlAccent: Color
         let surfacePrimary: Color
         let surfaceSecondary: Color
         let borderSubtle: Color
         let textPrimary: Color
         let textSecondary: Color
         let feedbackError: Color
+        let feedbackOnError: Color
         let feedbackWarning: Color
     }
 
@@ -71,15 +90,17 @@ struct ReguertaDesignTokens {
     static var light: ReguertaDesignTokens {
         ReguertaDesignTokens(
             colors: Colors(
-                actionPrimary: Color.reguertaAsset("actionPrimary", fallback: Color(hex: 0x6DA539)),
-                actionOnPrimary: Color.reguertaAsset("mainBack", fallback: .white),
+                actionPrimary: Color.reguertaAsset("actionPrimary", fallback: Color(hex: 0x3D681E)),
+                actionOnPrimary: Color.reguertaAsset("mainBack", fallback: Color(hex: 0xF2F8E1)),
+                controlAccent: Color.reguertaAsset("controlAccent", fallback: Color(hex: 0x3D681E)),
                 surfacePrimary: Color.reguertaAsset("mainBack", fallback: Color(hex: 0xF2F8E1)),
                 surfaceSecondary: Color.reguertaAsset("secBack", fallback: Color(hex: 0xDDE5C0)),
                 borderSubtle: Color(hex: 0xB9C8A2),
                 textPrimary: Color.reguertaAsset("textColor", fallback: Color(hex: 0x2A3B2A)),
                 textSecondary: Color(hex: 0x4E5D4D),
-                feedbackError: Color.reguertaAsset("error", fallback: Color(hex: 0xB04B4B)),
-                feedbackWarning: Color.reguertaAsset("warning", fallback: Color(hex: 0xEB6200))
+                feedbackError: Color.reguertaAsset("error", fallback: Color(hex: 0x8D3434)),
+                feedbackOnError: Color.reguertaAsset("mainBack", fallback: Color(hex: 0xF2F8E1)),
+                feedbackWarning: Color.reguertaAsset("warning", fallback: Color(hex: 0x843800))
             ),
             spacing: Spacing(),
             radius: Radius(),
@@ -91,15 +112,17 @@ struct ReguertaDesignTokens {
     static var dark: ReguertaDesignTokens {
         ReguertaDesignTokens(
             colors: Colors(
-                actionPrimary: Color.reguertaAsset("actionPrimary", fallback: Color(hex: 0x8BBF5A)),
-                actionOnPrimary: Color.reguertaAsset("mainBack", fallback: .white),
+                actionPrimary: Color.reguertaAsset("actionPrimary", fallback: Color(hex: 0x6DA239)),
+                actionOnPrimary: Color.reguertaAsset("mainBack", fallback: Color(hex: 0x0F1D0D)),
+                controlAccent: Color.reguertaAsset("controlAccent", fallback: Color(hex: 0x6DA239)),
                 surfacePrimary: Color.reguertaAsset("mainBack", fallback: Color(hex: 0x0F1D0D)),
                 surfaceSecondary: Color.reguertaAsset("secBack", fallback: Color(hex: 0x1A2B1B)),
                 borderSubtle: Color(hex: 0x37513B),
                 textPrimary: Color.reguertaAsset("textColor", fallback: Color(hex: 0xD1E1D1)),
                 textSecondary: Color(hex: 0xB5C5B3),
-                feedbackError: Color.reguertaAsset("error", fallback: Color(hex: 0xD86B6B)),
-                feedbackWarning: Color.reguertaAsset("warning", fallback: Color(hex: 0xF08D43))
+                feedbackError: Color.reguertaAsset("error", fallback: Color(hex: 0xF48787)),
+                feedbackOnError: Color.reguertaAsset("mainBack", fallback: Color(hex: 0x0F1D0D)),
+                feedbackWarning: Color.reguertaAsset("warning", fallback: Color(hex: 0xFFAA70))
             ),
             spacing: Spacing(),
             radius: Radius(),

@@ -61,6 +61,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-07-27 | 🐛 fix(mobile-ui): enforce WCAG AA contrast
 - 2026-07-27 | 🐛 fix(ios-freshness): make refresh tasks deterministic
 - 2026-07-27 | 🐛 fix(ios-auth): invalidate stale session tasks
 - 2026-07-27 | 🐛 fix(ios): stop logging FCM tokens

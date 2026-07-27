@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -20,7 +20,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -34,7 +33,7 @@ fun ReguertaFloatingActionButton(
     val shape = RoundedCornerShape(28.dp)
     val isInteractive = enabled && !loading
     val containerColor = if (isInteractive) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.82f)
+        MaterialTheme.colorScheme.primary
     } else {
         MaterialTheme.colorScheme.surfaceContainerHigh
     }
@@ -51,7 +50,7 @@ fun ReguertaFloatingActionButton(
             .padding(horizontal = 28.dp)
             .navigationBarsPadding()
             .padding(bottom = 8.dp)
-            .height(52.dp)
+            .heightIn(min = 52.dp)
             .shadow(
                 elevation = 8.dp,
                 shape = shape,
@@ -66,7 +65,7 @@ fun ReguertaFloatingActionButton(
             disabledContentColor = contentColor,
         ),
         border = BorderStroke(1.dp, contentColor.copy(alpha = if (isInteractive) 0.42f else 0.24f)),
-        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 0.dp),
+        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -82,8 +81,6 @@ fun ReguertaFloatingActionButton(
             Text(
                 text = label,
                 fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
         }
     }

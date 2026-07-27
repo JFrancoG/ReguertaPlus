@@ -37,6 +37,15 @@ struct ReguertaDialogViewModel {
         }
     }
 
+    func contentColor(tokens: ReguertaDesignTokens) -> Color {
+        switch type {
+        case .info:
+            tokens.colors.actionOnPrimary
+        case .error:
+            tokens.colors.feedbackOnError
+        }
+    }
+
     var primaryButtonVariant: ReguertaButtonVariant {
         switch type {
         case .info:

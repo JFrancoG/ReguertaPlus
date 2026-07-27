@@ -97,6 +97,7 @@ private struct ProductEditorHeroView: View {
                     .font(tokens.typography.body)
                     .foregroundStyle(tokens.colors.textPrimary)
             }
+            .tint(tokens.colors.controlAccent)
             .padding(.bottom, 24.resize)
 
             if viewModel.draft.stockMode == .finite {
@@ -114,6 +115,7 @@ private struct ProductEditorHeroView: View {
                     .font(tokens.typography.body)
                     .foregroundStyle(tokens.colors.textPrimary)
             }
+            .tint(tokens.colors.controlAccent)
         }
     }
 
@@ -455,6 +457,7 @@ private struct ProductEditorOptionsView: View {
                     localizedKey(AccessL10nKey.productsEditorToggleCommonPurchase),
                     isOn: $viewModel.isCommonPurchaseEnabled
                 )
+                .tint(tokens.colors.controlAccent)
 
                 if viewModel.draft.isCommonPurchase {
                     Picker(

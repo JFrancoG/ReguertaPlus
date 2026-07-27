@@ -356,20 +356,24 @@ private extension View {
         let shape = RoundedRectangle(cornerRadius: tokens.radius.md)
         let isDarkMode = colorScheme == .dark
         let neutralTint = isDarkMode ? Color.black.opacity(0.32) : Color.white.opacity(0.40)
-        let primaryTint = tokens.colors.actionPrimary.opacity(isDarkMode ? 0.26 : 0.20)
+        let primaryTint = tokens.colors.actionPrimary.opacity(
+            ReguertaContrastContract.maximumActionTintOpacity
+        )
         let tint = primary ? primaryTint : neutralTint
 
         if #available(iOS 26.0, *) {
-            self.glassEffect(
-                .regular
-                    .tint(tint)
-                    .interactive(enabled),
-                in: shape
-            )
+            self
+                .background(tokens.colors.surfacePrimary, in: shape)
+                .glassEffect(
+                    .regular
+                        .tint(tint)
+                        .interactive(enabled),
+                    in: shape
+                )
         } else {
             self
-                .background(.ultraThinMaterial, in: shape)
                 .background(tint, in: shape)
+                .background(tokens.colors.surfacePrimary, in: shape)
         }
     }
 }

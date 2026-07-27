@@ -151,7 +151,7 @@ private struct ReguertaHeaderCountBadgeView: View {
     var body: some View {
         Text(text)
             .font(tokens.typography.labelRegular)
-            .foregroundStyle(tokens.colors.actionOnPrimary)
+            .foregroundStyle(tokens.colors.feedbackOnError)
             .frame(minWidth: 17.resize, minHeight: 17.resize)
             .padding(.horizontal, 4.resize)
             .background(tokens.colors.feedbackError, in: Capsule())

@@ -40,8 +40,10 @@ struct ReguertaButtonViewModel {
         }
 
         return switch variant {
-        case .primary, .destructive:
+        case .primary:
             tokens.colors.actionOnPrimary
+        case .destructive:
+            tokens.colors.feedbackOnError
         case .secondary:
             tokens.colors.textPrimary
         case .text:

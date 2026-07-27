@@ -221,12 +221,18 @@ private extension View {
         if #available(iOS 26.0, *) {
             if isEnabled {
                 self
+                    .background(tokens.colors.surfacePrimary, in: shape)
                     .glassEffect(
-                        .regular.tint(tokens.colors.actionPrimary.opacity(0.16)).interactive(),
+                        .regular.tint(
+                            tokens.colors.actionPrimary.opacity(
+                                ReguertaContrastContract.maximumActionTintOpacity
+                            )
+                        ).interactive(),
                         in: shape
                     )
             } else {
                 self
+                    .background(tokens.colors.surfacePrimary, in: shape)
                     .glassEffect(
                         .regular.tint(tokens.colors.actionPrimary.opacity(0.05)),
                         in: shape
@@ -234,12 +240,26 @@ private extension View {
             }
         } else {
             self
-                .background(
-                    shape.fill(tokens.colors.actionPrimary.opacity(isEnabled ? 0.14 : 0.06))
-                )
+                .background(tokens.colors.actionPrimary.opacity(isEnabled ? 0.14 : 0.06), in: shape)
+                .background(tokens.colors.surfacePrimary, in: shape)
                 .overlay(
                     shape.stroke(tokens.colors.borderSubtle.opacity(isEnabled ? 0.75 : 0.35), lineWidth: 1.resize)
                 )
         }
     }
+}
+
+#Preview("Week header", traits: .modifier(ReguertaDesignSystemPreviewModifier())) {
+    @Previewable @Environment(\.reguertaTokens) var tokens
+
+    OrderHistoryWeekHeader(
+        tokens: tokens,
+        selectedWeek: nil,
+        canGoPrevious: true,
+        canGoNext: false,
+        onPrevious: {},
+        onNext: {},
+        onPickWeek: {}
+    )
+    .padding()
 }

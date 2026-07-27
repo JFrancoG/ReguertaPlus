@@ -36,26 +36,43 @@ No incluye patrones legacy ni APIs deprecadas como fuente de verdad.
 
 ### 3.1.1 Brand tokens
 
-- `primary6DA539 = #6DA539`
-- `secondary4C774C = #4C774C`
-- `tertiary4A9184 = #4A9184`
-- `errorColor = #B04B4B`
-- `mainBackLight = #F2F8E1`
-- `mainBackDark = #0F1D0D`
-- `secondBackLight = #DDE5C0`
-- `secondBackDark = #1A2B1B`
-- `LowStock = #EB6200` (estado funcional para stock bajo)
+- `ColorActionPrimaryDefaultLight = #3D681E`
+- `ColorActionPrimaryDefaultDark = #6DA239`
+- `ColorActionOnPrimaryLight = #F2F8E1`
+- `ColorActionOnPrimaryDark = #0F1D0D`
+- `ColorSurfacePrimaryDefaultLight = #F2F8E1`
+- `ColorSurfacePrimaryDefaultDark = #0F1D0D`
+- `ColorSurfaceSecondaryDefaultLight = #DDE5C0`
+- `ColorSurfaceSecondaryDefaultDark = #1A2B1B`
+- `ColorTextPrimaryDefaultLight = #2A3B2A`
+- `ColorTextPrimaryDefaultDark = #D1E1D1`
+- `ColorFeedbackErrorDefaultLight = #8D3434`
+- `ColorFeedbackErrorDefaultDark = #F48787`
+- `ColorFeedbackWarningDefaultLight = #843800`
+- `ColorFeedbackWarningDefaultDark = #FFAA70`
+
+El estado funcional de stock bajo consume `MaterialTheme.colorScheme.tertiary`; no debe depender de un color raw como `LowStock`.
 
 ### 3.1.2 Material 3 color schemes
 
-- `LightColorScheme`: configura `primary`, `secondary`, `tertiary`, `background`, `surface`, `error`, `outline`, etc.
-- `DarkColorScheme`: equivalente en dark.
+- `LightColorScheme`: empareja `primary`/`onPrimary` con `#3D681E`/`#F2F8E1`, `tertiary` con `#843800` y `error`/`onError` con `#8D3434`/`#F2F8E1`.
+- `DarkColorScheme`: empareja `primary`/`onPrimary` con `#6DA239`/`#0F1D0D`, `tertiary` con `#FFAA70` y `error`/`onError` con `#F48787`/`#0F1D0D`.
 
 ### 3.1.3 Política de tema
 
 - Composable raíz: `ReguertaTheme`.
 - `dynamicColor` está desactivado de facto (aunque el parámetro existe).
 - Control de iconos de system bars vía `WindowInsetsControllerCompat`.
+
+### 3.1.4 Contrato de contraste y estados
+
+- Texto normal: ratio mínimo `4.5:1` contra el fondo renderizado.
+- Controles no textuales e indicadores esenciales: ratio mínimo `3:1` contra colores adyacentes.
+- El estado pressed se verifica también con un overlay estándar del `12%` sobre el par semántico.
+- Superficies tintadas con acción limitan el self-tint a `0.16` y usan un backing `surface`/`surfacePrimary` explícito.
+- Floating action buttons y barras de totales usan contenedores opacos con `onPrimary`.
+- Contenido destructivo usa `error`/`onError`; no se hardcodea blanco o negro.
+- Estados seleccionado y leído/no leído añaden icono, texto, forma o semántica accesible; el color no es la única señal.
 
 ## 3.2 Typography (`Typography.kt`)
 

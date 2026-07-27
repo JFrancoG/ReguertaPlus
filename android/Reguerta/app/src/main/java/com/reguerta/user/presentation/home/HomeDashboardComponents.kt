@@ -33,7 +33,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.reguerta.user.R
-import com.reguerta.user.ui.theme.ColorFeedbackWarningDefault
 import com.reguerta.user.ui.theme.ReguertaThemeTokens
 
 private val HomeSummaryGridRowHeight = 76.dp
@@ -416,6 +415,6 @@ private fun HomeOrderStateDisplay.myOrderSubtitleRes(isConsultaPhase: Boolean): 
 private fun HomeOrderStateDisplay.color(): Color = when (this) {
     HomeOrderStateDisplay.CONSULTATION -> MaterialTheme.colorScheme.onSurface
     HomeOrderStateDisplay.NOT_STARTED -> MaterialTheme.colorScheme.error
-    HomeOrderStateDisplay.UNCONFIRMED -> ColorFeedbackWarningDefault
+    HomeOrderStateDisplay.UNCONFIRMED -> MaterialTheme.colorScheme.tertiary
     HomeOrderStateDisplay.COMPLETED -> MaterialTheme.colorScheme.primary
 }

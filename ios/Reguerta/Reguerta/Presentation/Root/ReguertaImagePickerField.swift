@@ -200,6 +200,7 @@ struct ReguertaImagePickerField: View {
                     systemImageName: "pencil",
                     accessibilityLabel: l10n(AccessL10nKey.commonActionSelect),
                     backgroundColor: tokens.colors.actionPrimary,
+                    foregroundColor: tokens.colors.actionOnPrimary,
                     size: controlSize,
                     isEnabled: !isUploading
                 ) {
@@ -211,6 +212,7 @@ struct ReguertaImagePickerField: View {
                         systemImageName: "trash",
                         accessibilityLabel: l10n(AccessL10nKey.commonClear),
                         backgroundColor: tokens.colors.feedbackError,
+                        foregroundColor: tokens.colors.feedbackOnError,
                         size: controlSize,
                         isEnabled: !isUploading,
                         action: onClearImage

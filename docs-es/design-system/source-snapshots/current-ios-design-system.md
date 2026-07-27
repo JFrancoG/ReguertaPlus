@@ -41,14 +41,28 @@ Este documento excluye explícitamente piezas sin uso real en flujo actual (se l
 
 | Token | Light | Dark | Uso principal |
 |---|---|---|---|
-| `accentColor` | `#6DA539` | `#6DA539` | CTA primario, acentos, bordes activos |
-| `mainBackF2F8E10F1D0D` | `#F2F8E1` | `#0F1D0D` | fondo principal de pantallas |
-| `secBackDDE5C01A2B1B` | `#DDE5C0` | `#1A2B1B` | fondo secundario, paneles, side menu |
-| `textColor2A3B2AD1E1D1` | `#2A3B2A` | `#D1E1D1` | texto principal |
-| `errorB04B4B` | `#B04B4B` | `#B04B4B` | error/destructivo |
-| `warningEB6200` | `#EB6200` | `#EB6200` | warning / stock bajo |
+| `AccentColor` / `actionPrimary` | `#3D681E` | `#6DA239` | CTA primario, acentos, bordes activos |
+| `actionOnPrimary` | `#F2F8E1` | `#0F1D0D` | contenido sobre `actionPrimary` |
+| `controlAccent` | `#3D681E` | `#6DA239` | tint de controles nativos con contraste no textual |
+| `mainBack` / `surfacePrimary` | `#F2F8E1` | `#0F1D0D` | fondo principal de pantallas |
+| `secBack` / `surfaceSecondary` | `#DDE5C0` | `#1A2B1B` | fondo secundario, paneles, side menu |
+| `textColor` / `textPrimary` | `#2A3B2A` | `#D1E1D1` | texto principal |
+| `error` / `feedbackError` | `#8D3434` | `#F48787` | error/destructivo |
+| `feedbackOnError` | `#F2F8E1` | `#0F1D0D` | contenido sobre `feedbackError` |
+| `warning` / `feedbackWarning` | `#843800` | `#FFAA70` | warning / stock bajo |
 | `dialogBack` | `rgba(147,142,142,0.40)` | `rgba(254,255,255,0.13)` | scrim/overlay de diálogo |
 | `slimShadow` | `rgba(0,0,0,0.20)` | `rgba(255,255,255,0.20)` | sombras ligeras |
+
+Variantes activas cuando iOS tiene Increased Contrast habilitado:
+
+| Token | Light Increased | Dark Increased |
+|---|---|---|
+| `AccentColor` / `actionPrimary` | `#315815` | `#A8DD75` |
+| `controlAccent` | `#315815` | `#5B8B2D` |
+| `warning` / `feedbackWarning` | `#6D2B00` | `#FFC093` |
+| `error` / `feedbackError` | `#742222` | `#FFA5A5` |
+
+`AccentColor` y `actionPrimary` deben permanecer equivalentes. `controlAccent` es deliberadamente independiente para conservar el contraste del thumb/track de controles nativos en todas las variantes.
 
 ## 3.2 Color token no activo (no usar)
 
@@ -302,9 +316,10 @@ Este documento excluye explícitamente piezas sin uso real en flujo actual (se l
 ## 7) Patrones de interacción y estados
 
 ## 7.1 Estados visuales comunes
-- `disabled`: desatura color + bloquea hit-testing en botones.
-- `error`: fondo/borde rojo (`errorB04B4B`) en botones y diálogos.
-- `focus`: color de label/divider de input cambia a `accentColor`.
+- `disabled`: mantiene una diferencia visual y bloquea la interacción.
+- `pressed`: no debe reducir el contraste del par semántico; los tests modelan también un overlay de estado del `12%`.
+- `error`: usa `feedbackError` con `feedbackOnError` para contenido destructivo.
+- `focus`: el color de label/divider de input usa el acento semántico.
 
 ## 7.2 Stock semantic state
 - `stock == 0`: error rojo.
@@ -314,9 +329,18 @@ Este documento excluye explícitamente piezas sin uso real en flujo actual (se l
 
 ## 7.3 Jerarquía visual
 - Fondo principal claro/oscuro de alto contraste suave.
-- CTA principal siempre filled (`FullStyle`).
+- CTA principal siempre filled (`FullStyle`) con `actionPrimary` + `actionOnPrimary`.
 - Acciones secundarias y cancelar con `FlatStyle`.
-- Acciones destructivas con icono rojo y confirmación dialog.
+- Acciones destructivas con `feedbackError` + `feedbackOnError` y confirmación dialog.
+- Floating action buttons y barras de totales usan contenedores opacos.
+- Glass o superficies con tint de acción limitan el self-tint a `0.16` y declaran un backing `surfacePrimary` explícito.
+
+## 7.4 Contrato de contraste y semántica de estado
+
+- Texto normal: ratio mínimo `4.5:1` contra el fondo renderizado.
+- Controles no textuales e indicadores esenciales: ratio mínimo `3:1` contra colores adyacentes.
+- Contenido de acción/destructivo: usar `actionOnPrimary`/`feedbackOnError`; no hardcodear blanco o negro.
+- Selección y estado leído/no leído incluyen icono, texto, forma o semántica accesible; el color no es la única señal.
 
 ## 8) Guía de portabilidad a nuevo repo
 

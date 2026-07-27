@@ -64,7 +64,7 @@ private struct ReguertaDialogIconView: View {
             Image(systemName: viewModel.symbolName)
                 .font(.system(size: 18, weight: .bold))
                 .symbolRenderingMode(.monochrome)
-                .foregroundStyle(tokens.colors.actionOnPrimary)
+                .foregroundStyle(viewModel.contentColor(tokens: tokens))
         }
     }
 }

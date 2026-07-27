@@ -30,13 +30,16 @@ Examples:
 
 Avoid encoding hex values in token names for new tokens.
 
-## 3. Legacy-to-Canonical Mapping (starting point)
+## 3. Legacy-to-Canonical Mapping
 
-- Android `primary6DA539` / iOS `accentColor` -> `color-action-primary-default`
+- Android `ColorActionPrimaryDefaultLight|Dark` / iOS `AccentColor` and `actionPrimary` -> `color-action-primary-default`
+- Android `onPrimary` / iOS `actionOnPrimary` -> `color-action-on-primary-default`
+- iOS `controlAccent` -> `color-control-accent-default`
 - Android `mainBackLight|Dark` / iOS `mainBackF2F8E10F1D0D` -> `color-surface-primary-default`
 - Android `secondBackLight|Dark` / iOS `secBackDDE5C01A2B1B` -> `color-surface-secondary-default`
-- Android `errorColor` / iOS `errorB04B4B` -> `color-feedback-error-default`
-- Android `LowStock` / iOS `warningEB6200` -> `color-feedback-warning-default`
+- Android `ColorFeedbackErrorDefaultLight|Dark` / iOS `error` -> `color-feedback-error-default`
+- Android `onError` / iOS `feedbackOnError` -> `color-feedback-on-error-default`
+- Android `ColorFeedbackWarningDefaultLight|Dark` / iOS `warning` -> `color-feedback-warning-default`
 
 These aliases are transitional and can evolve.
 
@@ -58,9 +61,33 @@ Guideline:
 
 ## 6. Accessibility Baseline
 
-- Minimum contrast target: WCAG AA for text and interactive controls.
-- Do not use color as the only state signal.
+### 6.1 Canonical contrast palette (P1-09)
+
+| Semantic token | iOS Light | iOS Dark | iOS Increased Contrast Light | iOS Increased Contrast Dark | Android Light | Android Dark |
+|---|---|---|---|---|---|---|
+| `color-action-primary-default` (`AccentColor` on iOS) | `#3D681E` | `#6DA239` | `#315815` | `#A8DD75` | `#3D681E` | `#6DA239` |
+| `color-action-on-primary-default` | `#F2F8E1` | `#0F1D0D` | `#F2F8E1` | `#0F1D0D` | `#F2F8E1` | `#0F1D0D` |
+| `color-control-accent-default` | `#3D681E` | `#6DA239` | `#315815` | `#5B8B2D` | Uses the Material 3 `primary`/`onPrimary` pair | Uses the Material 3 `primary`/`onPrimary` pair |
+| `color-feedback-warning-default` | `#843800` | `#FFAA70` | `#6D2B00` | `#FFC093` | `#843800` | `#FFAA70` |
+| `color-feedback-error-default` | `#8D3434` | `#F48787` | `#742222` | `#FFA5A5` | `#8D3434` | `#F48787` |
+| `color-feedback-on-error-default` | `#F2F8E1` | `#0F1D0D` | `#F2F8E1` | `#0F1D0D` | `#F2F8E1` | `#0F1D0D` |
+
+`AccentColor` and `actionPrimary` must resolve to the same iOS values. `controlAccent` remains separate so native controls retain non-text contrast, including with Increased Contrast enabled.
+
+### 6.2 Contrast and state contract
+
+| Use case | Required contract |
+|---|---|
+| Normal text | Contrast ratio of at least `4.5:1` against its rendered background. |
+| Essential non-text controls and state indicators | Contrast ratio of at least `3:1` against adjacent colors. |
+| Pressed state | Revalidate the semantic foreground/background pair after applying the standard `12%` state overlay. |
+| Liquid Glass control tinted with the action color | Limit the Glass self-tint to `0.16` and render it over an explicit `surfacePrimary` backing. Other semantic state surfaces must validate their rendered foreground/background pair independently. |
+| Floating action buttons and total bars | Use opaque semantic containers with their paired semantic content color. |
+| Action and destructive content | Use `actionOnPrimary` and `feedbackOnError`, respectively; do not hardcode white or black. |
+| Selection and read/unread state | Add an icon, text, shape, or accessibility semantics; color cannot be the only signal. |
+
 - Preserve touch target minimums in component contracts.
+- Treat the rendered state, rather than an isolated token, as the unit of contrast verification.
 
 ## 7. Platform Flexibility
 

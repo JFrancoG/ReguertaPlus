@@ -12,6 +12,7 @@ Prioritized tasks to move from current state to a cleaner cross-platform design-
 
 - [x] Normalize button variants and naming across Android/iOS.
 - [x] Normalize input state model (`error`, `focus`, `disabled`, helper text).
+- [x] Enforce the P1-09 semantic WCAG AA color contract in Android and iOS with automated checks.
 - Normalize dialog API and action model.
 - Remove or isolate explicitly deprecated/unused elements.
 
@@ -19,7 +20,7 @@ Prioritized tasks to move from current state to a cleaner cross-platform design-
 
 - [x] Build splash/welcome/auth screens only with stable/candidate design-system primitives.
 - Validate responsive behavior in compact and large devices.
-- Add UI catalog/sandbox screen for visual regression checks.
+- Add a generated color/contrast catalog plus a native UI sandbox for visual regression checks.
 
 ## P3 (Continuous)
 

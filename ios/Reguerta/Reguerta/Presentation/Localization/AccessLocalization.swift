@@ -251,6 +251,8 @@ enum AccessL10nKey {
     static let notificationsRefreshAction = "notifications.refresh.action"
     static let notificationsLoading = "notifications.loading"
     static let notificationsMetaFormat = "notifications.meta_format"
+    static let notificationsStatusRead = "notifications.status.read"
+    static let notificationsStatusUnread = "notifications.status.unread"
     static let notificationsCreateAction = "notifications.create.action"
     static let notificationsEditorTitle = "notifications.editor.title"
     static let notificationsEditorSubtitle = "notifications.editor.subtitle"
