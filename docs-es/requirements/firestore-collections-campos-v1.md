@@ -18,12 +18,18 @@ Definir de forma cerrada las colecciones Firestore y los campos de cada una para
 - Nombres de campos: `camelCase`.
 - Entornos runtime: `local`, `develop`, `production`.
 - Namespaces cloud Firestore actualmente usados:
-  - `develop/plus-collections/...`
-  - `production/plus-collections/...`
+  - `develop/collections/...` y `production/collections/...` son los arboles
+    legacy vivos que consumen las apps actualmente publicadas.
+  - `develop/plus-collections/...` y `production/plus-collections/...` son los
+    arboles de Reguerta+.
   - `local` se considera runtime/emulador, no namespace cloud obligatorio.
+- `develop` y `production` conviven intencionadamente en el mismo proyecto
+  Firebase y se mantienen cercanos para los flujos de testers. El namespace es
+  contexto de enrutado, nunca prueba de identidad, rol, propiedad o autorizacion.
 - IDs de documentos:
   - `users/{userId}`: ID interno estable del socio (no tiene que coincidir con Firebase Auth UID).
   - `users.authUid`: Firebase Auth UID tras primer login autorizado (nullable antes de ese primer acceso).
+  - `authLinks/{firebaseUid}`: enlace determinista, propiedad del servidor, a `users/{memberId}`.
   - `users/{userId}/devices/{deviceId}`: metadatos por dispositivo para notificaciones push y diagnostico.
   - `users/{userId}/notificationReads/{eventId}`: marcas de lectura por usuario para notificaciones in-app.
   - `orders/{orderId}`: recomendado `order_{userId}_{weekKey}`.
@@ -98,12 +104,13 @@ Definir de forma cerrada las colecciones Firestore y los campos de cada una para
 - `google_sheets`
 
 ### 3.11 Estado de solicitud de intercambio (`shiftSwapRequests.status`)
-- `pending`
-- `accepted`
-- `requester_confirmed`
-- `rejected`
+- `open`
 - `cancelled`
 - `applied`
+
+### 3.11.b Estado de respuesta de intercambio (`shiftSwapRequests.responses.status`)
+- `available`
+- `unavailable`
 
 ### 3.12 Plataforma de dispositivo (`users/{userId}/devices.platform`)
 - `android`
@@ -113,6 +120,8 @@ Definir de forma cerrada las colecciones Firestore y los campos de cada una para
 - `order_reminder`
 - `order_auto_generated`
 - `shift_swap_requested`
+- `shift_swap_available`
+- `shift_swap_unavailable`
 - `shift_swap_accepted`
 - `shift_swap_applied`
 - `shift_updated`
@@ -125,9 +134,6 @@ Definir de forma cerrada las colecciones Firestore y los campos de cada una para
 - `segment`
 
 ### 3.15 Tipo de segmento (`notificationEvents.targetPayload.segmentType`)
-- `members_with_pending_order`
-- `users_with_shift`
-- `producers_by_vendor`
 - `role`
 
 ## 4. Colecciones canonicas MVP
@@ -140,11 +146,11 @@ Prefijos de ruta para cada coleccion descrita abajo:
 
 | Campo | Tipo | Req | Editable | Notas |
 |---|---|---|---|---|
-| `displayName` | string | si | si | Nombre visible del socio |
-| `email` | string | si | no | Fuente Auth |
-| `emailNormalized` | string | si | no | Email normalizado (`trim().lowercase()`) para lookup de autorización |
-| `authUid` | string\|null | no | sistema/admin | `null` hasta primer login autorizado |
-| `phone` | string | no | si | Telefono de contacto |
+| `displayName` | string | si | admin | Nombre visible del socio |
+| `normalizedEmail` | string | si | admin | Email canonico normalizado (`trim().lowercase()`) para lookup de autorizacion |
+| `email` / `emailNormalized` | string | no | no | Aliases legacy aceptados solo durante migracion; las escrituras confiables los eliminan |
+| `authUid` | string\|null | no | sistema | `null` hasta primer login autorizado |
+| `phoneNumber` | string | no | admin | Telefono de contacto; los lectores aceptan aliases legacy como `phone` |
 | `roles` | array<string> | si | admin | `member`, `producer`, `admin` |
 | `isActive` | bool | si | admin | Alta/baja operativa |
 | `producerCatalogEnabled` | bool | si | productor/admin | Flag de negocio del productor para visibilidad de su catalogo (por defecto `true`) |
@@ -152,11 +158,11 @@ Prefijos de ruta para cada coleccion descrita abajo:
 | `isCommonPurchaseManager` | bool | si | admin | Marca si el socio gestiona compras comunes |
 | `ecoCommitment.mode` | string | si | admin | `weekly` o `biweekly` |
 | `ecoCommitment.parity` | string\|null | no | admin | `even` / `odd` si biweekly |
-| `settings.theme` | string | si | usuario | `light`/`dark`/`system` |
+| `settings.theme` | string | no | no | Campo legacy/reservado; las preferencias actuales son locales |
 | `createdAt` | timestamp | si | no | Alta doc |
 | `updatedAt` | timestamp | si | sistema | Ultima modificacion |
 | `archivedAt` | timestamp\|null | no | admin | Borrado logico opcional |
-| `lastDeviceId` | string\|null | no | sistema | Ultimo dispositivo activo del socio |
+| `lastDeviceId` | string\|null | no | propietario | Debe referenciar un dispositivo propio existente |
 
 Subcoleccion `users/{userId}/devices/{deviceId}`:
 
@@ -166,9 +172,9 @@ Subcoleccion `users/{userId}/devices/{deviceId}`:
 | `platform` | string | si | sistema/usuario | `android` o `ios` |
 | `appVersion` | string | si | sistema/usuario | Version app instalada |
 | `osVersion` | string | si | sistema/usuario | Version sistema operativo |
-| `apiLevel` | number\|null | no | sistema/usuario | Android: numero; iOS: `null` |
-| `manufacturer` | string\|null | no | sistema/usuario | Requerido en Android, nullable en iOS |
-| `model` | string\|null | no | sistema/usuario | Requerido en Android, nullable en iOS |
+| `apiLevel` | integer\|null | no | sistema/usuario | Android: entero no negativo y obligatorio; iOS: `null` |
+| `manufacturer` | string\|null | no | sistema/usuario | Metadato opcional |
+| `model` | string\|null | no | sistema/usuario | Metadato opcional |
 | `fcmToken` | string\|null | no | sistema | Ultimo token FCM conocido del dispositivo |
 | `tokenUpdatedAt` | timestamp\|null | no | sistema | Ultima actualizacion del token FCM |
 | `firstSeenAt` | timestamp | si | sistema | Primera vez detectado |
@@ -180,6 +186,48 @@ Subcoleccion `users/{userId}/notificationReads/{eventId}`:
 |---|---|---|---|---|
 | `notificationEventId` | string | si | no | Debe coincidir con docId y con `notificationEvents/{eventId}` cuando exista |
 | `readAt` | timestamp | si | sistema | Momento en que el usuario salio de la pantalla de notificaciones con el evento visible |
+
+## 4.1.b `authLinks/{firebaseUid}`
+
+| Campo | Tipo | Req | Editable | Notas |
+|---|---|---|---|---|
+| `memberId` | string | si | sistema | Referencia el documento canonico `users/{memberId}` |
+
+Contrato de autorizacion:
+
+- Solo backend confiable y scripts de migracion controlados crean o modifican
+  estos documentos.
+- Un cliente solo puede obtener `authLinks/{request.auth.uid}` y nunca puede
+  listar, crear, actualizar ni borrar enlaces de identidad.
+- El acceso operativo exige que `users.authUid == request.auth.uid`, que el
+  socio enlazado tenga `isActive == true` y que contenga el rol canonico
+  `member`. Ambas direcciones del enlace deben coincidir.
+- El primer enlace verifica en backend el Firebase ID token y su email
+  verificado, y escribe `users.authUid` y `authLinks/{uid}` en una transaccion.
+
+## 4.1.c `memberDirectory/{memberId}`
+
+Proyeccion sin PII, propiedad del backend, para descubrir socios:
+
+| Campo | Tipo | Req | Editable | Notas |
+|---|---|---|---|---|
+| `userId` | string | si | sistema | Coincide con el ID canonico del documento `users` |
+| `displayName` | string | si | sistema | Nombre visible |
+| `companyName` | string\|null | no | sistema | Nombre de empresa visible |
+| `roles` | array<string> | si | sistema | Solo roles canonicos |
+| `isActive` | bool | si | sistema | Solo se proyectan documentos con valor `true` |
+| `producerCatalogEnabled` | bool | si | sistema | Capacidad visible de catalogo |
+| `isCommonPurchaseManager` | bool | si | sistema | Capacidad visible de compra comun |
+| `producerParity` | string\|null | no | sistema | `even` / `odd` / `null` |
+| `ecoCommitment` | map | si | sistema | `mode` y `parity` canonicos |
+
+La proyeccion nunca puede contener `normalizedEmail`, aliases legacy de email,
+`phoneNumber`, aliases legacy de telefono, `authUid`, datos de dispositivos ni
+configuracion reviewer. Solo backend confiable la escribe. En
+`plus-collections` estricto, un socio activo puede consultar el directorio,
+mientras que los documentos `users` completos solo los leen su propietario o
+admin. Las apps legacy publicadas siguen usando el arbol separado `collections`
+durante la migracion.
 
 ## 4.2 `sharedProfiles/{userId}`
 
@@ -358,12 +406,15 @@ Estrategia canonica de calendario:
 
 | Campo | Tipo | Req | Editable | Notas |
 |---|---|---|---|---|
-| `shiftId` | string | si | no | |
+| `requestedShiftId` | string | si | no | |
 | `requesterUserId` | string | si | no | |
-| `targetUserId` | string | si | no | |
-| `status` | string | si | sistema/flujo | Enum swaps |
+| `reason` | string | si | no | Puede estar vacio |
+| `status` | string | si | sistema/flujo | `open` / `cancelled` / `applied` |
+| `candidates` | array | si | sistema | Elementos `{ userId, shiftId }` |
+| `responses` | array | si | sistema/flujo | Elementos `{ userId, shiftId, status, respondedAt }`, con estado `available` / `unavailable` |
+| `selectedCandidateUserId` | string\|null | no | sistema | |
+| `selectedCandidateShiftId` | string\|null | no | sistema | |
 | `requestedAt` | timestamp | si | no | |
-| `respondedAt` | timestamp\|null | no | sistema | |
 | `confirmedAt` | timestamp\|null | no | sistema | |
 | `appliedAt` | timestamp\|null | no | sistema | |
 
@@ -373,7 +424,8 @@ Estrategia canonica de calendario:
 |---|---|---|---|---|
 | `title` | string | si | admin | |
 | `body` | string | si | admin | |
-| `publishedBy` | string | si | sistema/admin | |
+| `publishedBy` | string | si | sistema/admin | Nombre visible del autor |
+| `publishedByUserId` | string | si | sistema/admin | Identidad canonica del admin que realiza la escritura actual |
 | `publishedAt` | timestamp | si | sistema/admin | |
 | `active` | bool | si | admin | |
 | `urlImage` | string\|null | no | admin | URL opcional de imagen para enriquecer la noticia |
@@ -384,7 +436,7 @@ Estrategia canonica de calendario:
 |---|---|---|---|---|
 | `title` | string | si | sistema/admin | titulo mostrado en push y listado |
 | `body` | string | si | sistema/admin | cuerpo mostrado en push y listado |
-| `type` | string | si | sistema/admin | `order_reminder`/`order_auto_generated`/`shift_swap_requested`/`shift_swap_accepted`/`shift_swap_applied`/`shift_updated`/`news_published`/`admin_broadcast` |
+| `type` | string | si | sistema/admin | `order_reminder`/`order_auto_generated`/`shift_swap_requested`/`shift_swap_available`/`shift_swap_unavailable`/`shift_swap_accepted`/`shift_swap_applied`/`shift_updated`/`news_published`/`admin_broadcast` |
 | `target` | string | si | sistema/admin | `all`/`segment`/`users` |
 | `targetPayload` | map | no | sistema/admin | Contrato segun `target` |
 | `sentAt` | timestamp | si | sistema | |
@@ -395,16 +447,53 @@ El estado de lectura por usuario se guarda fuera de los eventos inmutables en
 `users/{userId}/notificationReads/{eventId}`. Las apps marcan como leidas las
 notificaciones visibles al salir de la pantalla de notificaciones.
 
+El backend materializa una copia inmutable del feed para cada destinatario
+resuelto en `users/{userId}/notificationInbox/{eventId}`. Incluye
+`notificationEventId` y los campos de presentacion y audiencia del evento
+origen. Los clientes solo listan su propia bandeja; solo el backend escribe o
+elimina estos documentos. La coleccion global `notificationEvents` conserva el
+dispatch y la auditoria admin, pero no se consulta como feed de socio de
+Reguerta+ estricto. El arbol separado `collections` conserva el contrato de feed
+legacy de las apps publicadas.
+
 Contrato de `targetPayload`:
-- Para `target == all`: mapa vacio o `null`.
+- Para `target == all`: mapa vacio.
 - Para `target == users`: `{ userIds: string[] }` obligatorio y no vacio.
 - Para `target == segment`: `{ segmentType: string, ... }` con estas formas:
-  - `segmentType == members_with_pending_order`: requiere `weekKey`.
-  - `segmentType == users_with_shift`: requiere `shiftId`.
-  - `segmentType == producers_by_vendor`: requiere `vendorId`.
   - `segmentType == role`: requiere `role` (`member`/`producer`/`admin`).
 
-## 4.12 `config/global` (configuracion operativa por entorno)
+## 4.12 `config/public` (configuracion anonima de arranque)
+
+Rutas por entorno:
+
+- `develop/plus-collections/config/public`
+- `production/plus-collections/config/public`
+
+Este documento solo contiene el mapa `versions` descrito abajo. En el objetivo
+estricto es la unica lectura Firestore anonima del dataset de la aplicacion. No
+debe contener allowlists de reviewer, timestamps de frescura, calendario ni
+otros valores operativos.
+
+## 4.12.b `config/member` (proyeccion operativa para socio activo)
+
+Rutas por entorno:
+
+- `develop/plus-collections/config/member`
+- `production/plus-collections/config/member`
+
+Campos propiedad del backend, copiados de la configuracion global autoritativa:
+
+| Campo | Tipo | Req | Editable | Notas |
+|---|---|---|---|---|
+| `cacheExpirationMinutes` | number | si | sistema | Mayor que cero |
+| `lastTimestamps` | map | si | sistema | Solo timestamps de frescura necesarios por cliente |
+| `deliveryDayOfWeek` | string | si | sistema | Codigo normalizado de dia de la semana |
+
+La proyeccion no puede contener politica de versiones, allowlists reviewer,
+secretos ni ajustes globales ajenos. En fase estricta la puede leer cualquier
+socio activo enlazado y ningun cliente puede escribirla.
+
+## 4.12.c `config/global` (configuracion autoritativa por entorno)
 
 Ruta actual en produccion/desarrollo:
 - `develop/plus-collections/config/global`
@@ -432,10 +521,46 @@ Nota de normalizacion para `plus-collections`:
 - Debe mantenerse compatibilidad de lectura con `otherConfig.deliveryDayOfWeek`.
 - `deliveryDayOfWeek` se mantiene obligatorio mientras `deliveryCalendar` siga estrategia de solo excepciones.
 
-## 4.13 Dataset legacy retirado
+En `plus-collections` estricto, el acceso a `config/global` queda limitado a
+backend confiable y admin. Las apps publicadas mantienen su contrato de config
+existente bajo el arbol separado `collections` hasta migrarlas.
 
-El dataset anterior no-plus ya no se lee ni se escribe desde runtime de app o backend.
-Nombres historicos:
+## 4.12.d Compatibilidad del despliegue de autorizacion
+
+El proyecto Firebase es compartido, pero las apps publicadas y Reguerta+ usan
+arboles Firestore distintos. Un unico fichero de Rules debe implementar ambas
+matrices de forma explicita:
+
+0. Se restauro el breve despliegue de transicion tras detectar la dependencia de
+   clientes vivos.
+1. Firestore Fase 1 ya esta desplegado y releido. Mantiene lectura/escritura
+   autenticada para los ocho prefijos legacy y conserva el contrato autenticado
+   anterior de `plus-collections`; plus estricto no esta desplegado. Storage live
+   sigue global autenticado y `storage.phase1.rules` es solo su snapshot de
+   rollback semantico.
+2. El dry-run de identidad bloquea el avance: develop tiene 7 admins activos y
+   production 3, pero ambos tienen cero admins operativamente enlazados porque
+   las cuentas Auth coincidentes no estan verificadas. No se permite desplegar
+   Functions, aplicar backfills ni desplegar Rules strict antes de una decision
+   del owner.
+3. Tras esa decision y un dry-run seguro de enlaces admin, desplegar una
+   allowlist revisada de Functions, aplicar proyecciones aditivas y desplegar y
+   releer Firestore/Storage strict por separado con `firebase.strict.json`.
+4. Publicar y medir adopcion, y despues migrar y retirar acceso legacy.
+
+Storage live aun permite lectura/escritura global autenticada, incluidos listado
+y borrado. El candidato strict no desplegado cambia legacy `products/**` a
+`get`/`create`/`update` para autenticados y deniega `list`/`delete`. Reguerta+
+`{env}/images/{products|news|shared_profiles}/...` permite `get` a socio enlazado
+y `create`/`update`/`delete` por rol/owner; create/update solo JPEG <= 2 MiB y
+`list` denegado. Las URLs tokenizadas ya emitidas no se reevaluan con Rules y
+exigen inventario y rotacion/revocacion aparte.
+
+## 4.13 Dataset legacy vivo de compatibilidad (`collections`)
+
+Las apps actualmente publicadas siguen leyendo y escribiendo rutas no-plus bajo
+`develop/collections/**` y `production/collections/**`. Su allowlist top-level
+completa observada para compatibilidad es:
 - `config` (documento `global`)
 - `containers`
 - `measures`
@@ -448,7 +573,7 @@ Nombres historicos:
 Nota de nomenclatura canonica:
 - En specs/docs se usa `orderlines`; la migracion/adaptadores deben mapear `orderLines` <-> `orderlines` sin riesgo.
 
-## 4.13.1 Campos legacy confirmados en el dataset retirado
+## 4.13.1 Campos confirmados en el dataset legacy vivo
 
 `containers/{containerId}`:
 - `name`
@@ -506,24 +631,43 @@ Nota de nomenclatura canonica:
 - `userId`
 - `week`
 
-Nota de migracion:
-- Antes de ejecutar migraciones en produccion, hacer inventario completo de esquema para `users`, `products`, `orders` y `orderLines` en el dataset no-plus retirado.
+Notas de migracion y autorizacion:
+
+- Antes de cambiar Rules legacy o ejecutar migraciones, inventariar el esquema y
+  payloads reales completos de `users`, `products`, `orders` y `orderLines` en
+  ambos entornos.
+- Hasta poder enlazar deterministamente cada cuenta Firebase legitima con un
+  socio legacy, mantener lecturas y escrituras con `request.auth != null` solo
+  en los ocho prefijos vivos enumerados y denegar cualquier prefijo legacy
+  desconocido. No inferir roles desde `develop`/`production`, email no
+  verificado ni datos enviados por cliente.
+- La regla autenticada amplia es deuda temporal de compatibilidad. La matriz
+  estricta de `plus-collections` y el catch-all final deben impedir que autorice
+  cualquier ruta de Reguerta+ o desconocida.
 
 ## 5. Reglas de validacion de negocio (obligatorias)
 
+Salvo que una regla nombre expresamente el dataset legacy vivo, las validaciones
+siguientes aplican al contrato canonico `plus-collections`.
+
 - `users.roles` debe contener siempre al menos `member` para socios activos.
-- `users.emailNormalized` debe ser unico entre socios activos.
+- `users.normalizedEmail` debe ser unico entre socios activos.
 - `users.producerCatalogEnabled` debe ser booleano y no debe guardarse dentro de `users.settings`.
 - `users.producerParity` debe ser `even`, `odd` o `null`.
 - `users.isCommonPurchaseManager` debe ser booleano.
-- Un usuario autenticado solo tiene acceso operativo si existe `users` con `emailNormalized` coincidente e `isActive == true`.
-- En primer login autorizado, si `users.authUid` es `null`, se enlaza con UID autenticado; si ya existe, debe coincidir.
+- Un usuario autenticado solo tiene acceso operativo si
+  `authLinks/{request.auth.uid}` resuelve un `users` con `isActive == true` y el
+  rol canonico `member`.
+- En el primer login autorizado, el backend exige un email verificado en el
+  token. Si `users.authUid` es `null`, escribe transaccionalmente el UID y
+  `authLinks/{uid}`; si ya existe, debe coincidir.
 - Si no existe socio preautorizado para el email autenticado, la app debe mostrar alerta de no autorizado y bloquear acciones operativas.
 - Si `users.lastDeviceId` tiene valor, debe existir `users/{userId}/devices/{lastDeviceId}`.
 - En `users/{userId}/devices`, `platform` solo admite `android` o `ios`.
 - En iOS, `apiLevel` debe ser `null`; en Android debe ser numero >= 0.
 - Consistencia temporal de dispositivo: `firstSeenAt <= lastSeenAt`.
-- `config/global.versions.android` y `config/global.versions.ios` deben incluir `current`, `min`, `forceUpdate` y `storeUrl` antes del gate de arranque.
+- `config/public.versions.android` y `config/public.versions.ios` deben incluir
+  `current`, `min`, `forceUpdate` y `storeUrl` antes del gate de arranque.
 - `config/global.cacheExpirationMinutes` debe ser > 0.
 - El dia de reparto debe poder leerse de `config/global.deliveryDayOfWeek` (preferido) o `config/global.otherConfig.deliveryDayOfWeek` (compatibilidad).
 - Los documentos `deliveryCalendar/{weekKey}` son solo excepciones; si no existe documento de semana, aplica el calendario por defecto de `deliveryDayOfWeek`.
@@ -552,10 +696,13 @@ Nota de migracion:
   - recordatorios por olvido,
   - auto-generacion de pedido por olvido,
   - planificacion de turnos.
+- Las consultas de directorio de un socio no admin usan solo `memberDirectory`
+  y devuelven proyecciones activas; admin usa registros completos `users` para
+  gobernanza y reactivacion.
 - En mercado (`shifts.type == market`) debe haber minimo 3 asignados.
 - `shifts.source` solo admite `app` o `google_sheets` (sin otros valores).
 - `notificationEvents.targetPayload` debe respetar `target`:
-  - `all`: payload vacio o `null`.
+  - `all`: mapa vacio.
   - `users`: `userIds` no vacio.
   - `segment`: `segmentType` valido y claves obligatorias segun el tipo de segmento.
 - Si `products.pricingMode == weight`, `price`, `weightStep`, `minWeight` y `maxWeight` son requeridos y > 0; `minWeight <= maxWeight` y el maximo debe alcanzarse desde el minimo mediante incrementos enteros de `weightStep`.
@@ -568,7 +715,9 @@ Nota de migracion:
 - `orderlines`: `(orderId ASC, companyName ASC)`
 - `orderlines`: `(vendorId ASC, weekKey DESC)`
 - `products`: `(vendorId ASC, archived ASC, isAvailable ASC)`
-- `users`: `(emailNormalized ASC, isActive ASC)`
+- `users`: `(normalizedEmail ASC, isActive ASC)`
+- `memberDirectory`: `(isActive ASC, displayName ASC)` cuando se introduzcan
+  consultas de directorio ordenadas
 - `users/{userId}/devices`: `(lastSeenAt DESC)` (si se consulta historial por recencia)
 - `shifts`: `(date ASC, type ASC)`
 - `shiftSwapRequests`: `(targetUserId ASC, status ASC, requestedAt DESC)`
