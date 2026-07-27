@@ -12,16 +12,16 @@ final class ChainedSharedProfileRepository: @unchecked Sendable, SharedProfileRe
         self.fallback = fallback
     }
 
-    func allSharedProfiles() async -> [SharedProfile] {
-        let primaryProfiles = await primary.allSharedProfiles()
-        return primaryProfiles.isEmpty ? await fallback.allSharedProfiles() : primaryProfiles
+    func allSharedProfiles() async throws -> [SharedProfile] {
+        let primaryProfiles = try await primary.allSharedProfiles()
+        return primaryProfiles.isEmpty ? try await fallback.allSharedProfiles() : primaryProfiles
     }
 
-    func sharedProfile(userId: String) async -> SharedProfile? {
-        if let profile = await primary.sharedProfile(userId: userId) {
+    func sharedProfile(userId: String) async throws -> SharedProfile? {
+        if let profile = try await primary.sharedProfile(userId: userId) {
             return profile
         }
-        return await fallback.sharedProfile(userId: userId)
+        return try await fallback.sharedProfile(userId: userId)
     }
 
     func upsert(profile: SharedProfile) async throws -> SharedProfile {

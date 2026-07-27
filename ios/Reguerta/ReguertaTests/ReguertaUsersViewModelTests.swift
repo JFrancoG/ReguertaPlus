@@ -301,6 +301,7 @@ struct ReguertaUsersViewModelTests {
         )
         #expect(usersRepository === sessionRepository)
     }
+
 }
 
 private struct UsersScenario {

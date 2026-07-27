@@ -330,13 +330,13 @@ struct FirebaseFunctionsSecurityBoundaryTests {
 
     @Test
     func publicMemberDirectoryMappingDropsSensitiveIdentityFields() throws {
-        let member = try #require(
-            FirestoreMemberRepository.mapDirectoryMember(
-                id: "producer_1",
-                data: [
+        let member = try FirestoreMemberRepository.directoryMember(
+            documentID: "producer_1",
+            data: [
+                    "userId": "producer_1",
                     "displayName": "Producer",
                     "companyName": "Farm",
-                    "roles": ["producer"],
+                    "roles": ["member", "producer"],
                     "isActive": true,
                     "producerCatalogEnabled": false,
                     "isCommonPurchaseManager": true,
@@ -346,7 +346,6 @@ struct FirebaseFunctionsSecurityBoundaryTests {
                     "phoneNumber": "600000000",
                     "authUid": "must-not-leak"
                 ]
-            )
         )
 
         #expect(member.normalizedEmail.isEmpty)
@@ -369,17 +368,13 @@ struct FirebaseFunctionsSecurityBoundaryTests {
             isActive: true,
             producerCatalogEnabled: true
         )
-        let sanitizedSelf = try #require(
-            FirestoreMemberRepository.mapDirectoryMember(
-                id: authenticatedMember.id,
-                data: ["displayName": "Own profile", "roles": ["member"], "isActive": true]
-            )
+        let sanitizedSelf = try FirestoreMemberRepository.directoryMember(
+            documentID: authenticatedMember.id,
+            data: directoryData(id: authenticatedMember.id, displayName: "Own profile")
         )
-        let sanitizedOther = try #require(
-            FirestoreMemberRepository.mapDirectoryMember(
-                id: "member_2",
-                data: ["displayName": "Other", "roles": ["member"], "isActive": true]
-            )
+        let sanitizedOther = try FirestoreMemberRepository.directoryMember(
+            documentID: "member_2",
+            data: directoryData(id: "member_2", displayName: "Other")
         )
 
         let merged = FirestoreMemberRepository.mergingAuthenticatedMember(
@@ -391,6 +386,20 @@ struct FirebaseFunctionsSecurityBoundaryTests {
         #expect(merged.first { $0.id == authenticatedMember.id }?.normalizedEmail == "own@example.com")
         #expect(merged.first { $0.id == authenticatedMember.id }?.authUid == "auth_1")
         #expect(merged.first { $0.id == "member_2" }?.normalizedEmail.isEmpty == true)
+    }
+
+    private func directoryData(id: String, displayName: String) -> [String: Any] {
+        [
+            "userId": id,
+            "displayName": displayName,
+            "companyName": NSNull(),
+            "roles": ["member"],
+            "isActive": true,
+            "producerCatalogEnabled": true,
+            "isCommonPurchaseManager": false,
+            "producerParity": NSNull(),
+            "ecoCommitment": ["mode": "weekly", "parity": NSNull()]
+        ]
     }
 }
 

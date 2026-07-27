@@ -254,7 +254,12 @@ internal class SessionFormActions(
     }
 
     fun onSharedProfileDraftChanged(draft: SharedProfileDraft) {
-        uiState.update { it.copy(sharedProfileDraft = draft) }
+        uiState.update {
+            it.copy(
+                sharedProfileDraft = draft,
+                sharedProfileEditorRevision = it.sharedProfileEditorRevision + 1,
+            )
+        }
     }
 
     fun onShiftSwapDraftChanged(draft: ShiftSwapDraft) {

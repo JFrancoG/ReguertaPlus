@@ -19,14 +19,17 @@ class FirestoreSecurityBoundarySourceTest {
     }
 
     @Test
-    fun `only admins list inactive members`() {
+    fun `only active admins list inactive members`() {
         val source = readMainSource("data/access/FirestoreMemberRepository.kt")
+        val permissions = readMainSource("domain/access/MemberPermissionMatrix.kt")
 
         assertTrue(source.contains("getMembersVisibleTo(member: Member)"))
-        assertTrue(source.contains("if (member.isAdmin)"))
+        assertTrue(source.contains("val canReadPrivateMembers = member.canManageMembers"))
+        assertTrue(source.contains("if (canReadPrivateMembers)"))
         assertTrue(source.contains("ReguertaFirestoreCollection.MEMBER_DIRECTORY"))
         assertTrue(source.contains("whereEqualTo(\"isActive\", true)"))
         assertTrue(source.contains("if (candidate.id == member.id) member"))
+        assertTrue(permissions.contains("get() = isActive && MemberPermissionMatrix.hasCapability"))
     }
 
     @Test

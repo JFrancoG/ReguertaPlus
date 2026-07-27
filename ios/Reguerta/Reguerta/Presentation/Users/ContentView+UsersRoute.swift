@@ -185,7 +185,7 @@ private struct UsersEditorView: View {
                 VStack(alignment: .leading, spacing: tokens.spacing.lg) {
                     reguertaInputField(
                         LocalizedStringKey(AccessL10nKey.emailLabel),
-                        text: $viewModel.draft.email,
+                        text: draftBinding(\.email),
                         isReadOnly: viewModel.editingMember != nil,
                         showsClearAction: viewModel.editingMember == nil,
                         keyboardType: .emailAddress
@@ -193,7 +193,7 @@ private struct UsersEditorView: View {
 
                     reguertaInputField(
                         LocalizedStringKey(AccessL10nKey.displayNameLabel),
-                        text: $viewModel.draft.displayName,
+                        text: draftBinding(\.displayName),
                         showsClearAction: true,
                         textInputAutocapitalization: .words,
                         autocorrectionDisabled: false
@@ -201,7 +201,7 @@ private struct UsersEditorView: View {
 
                     reguertaInputField(
                         LocalizedStringKey(AccessL10nKey.usersEditorPhoneLabel),
-                        text: $viewModel.draft.phoneNumber,
+                        text: draftBinding(\.phoneNumber),
                         showsClearAction: true,
                         keyboardType: .phonePad
                     )
@@ -209,7 +209,7 @@ private struct UsersEditorView: View {
                     if viewModel.draft.isProducer {
                         reguertaInputField(
                             LocalizedStringKey(AccessL10nKey.usersEditorCompanyNameLabel),
-                            text: $viewModel.draft.companyName,
+                            text: draftBinding(\.companyName),
                             isReadOnly: viewModel.draft.isCommonPurchaseManager,
                             showsClearAction: !viewModel.draft.isCommonPurchaseManager,
                             textInputAutocapitalization: .words,
@@ -226,7 +226,7 @@ private struct UsersEditorView: View {
 
                     roleToggle(AccessL10nKey.roleProducer, isOn: producerBinding)
 
-                    roleToggle(AccessL10nKey.roleAdmin, isOn: $viewModel.draft.isAdmin)
+                    roleToggle(AccessL10nKey.roleAdmin, isOn: draftBinding(\.isAdmin))
                 }
             }
             .scrollDismissesKeyboard(.interactively)
@@ -254,6 +254,17 @@ private struct UsersEditorView: View {
                 .foregroundStyle(tokens.colors.textPrimary)
         }
         .tint(tokens.colors.controlAccent)
+    }
+
+    private func draftBinding<Value>(_ keyPath: WritableKeyPath<MemberDraft, Value>) -> Binding<Value> {
+        Binding(
+            get: { viewModel.draft[keyPath: keyPath] },
+            set: { value in
+                var updatedDraft = viewModel.draft
+                updatedDraft[keyPath: keyPath] = value
+                viewModel.updateDraft(updatedDraft)
+            }
+        )
     }
 
     private var producerBinding: Binding<Bool> {

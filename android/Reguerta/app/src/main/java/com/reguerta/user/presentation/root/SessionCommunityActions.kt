@@ -13,7 +13,10 @@ import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.profiles.SharedProfileRepository
 import com.reguerta.user.domain.access.canPublishNews
 import com.reguerta.user.domain.access.canSendAdminNotifications
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -30,82 +33,164 @@ internal class SessionCommunityActions(
     private val emitEvent: (SessionUiEvent) -> Unit,
     private val pushNotificationPermissionProvider: PushNotificationPermissionProvider,
 ) {
+    private var nextProfileMutationToken = 0L
+    private var activeProfileMutation: ActiveProfileMutation? = null
+    private var nextProfileUploadToken = 0L
+    private var activeProfileUpload: ActiveProfileUpload? = null
+
     fun refreshSharedProfiles() {
-        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
+        val initialState = uiState.value
+        val mode = initialState.mode as? SessionMode.Authorized ?: return
+        val context = ProfileSessionContext.from(initialState, mode)
+        val editorRevision = initialState.sharedProfileEditorRevision
+        val profilesRevision = initialState.sharedProfilesRevision
         scope.launch {
-            uiState.update { it.copy(isLoadingSharedProfiles = true) }
-            val profiles = sharedProfileRepository.getAllSharedProfiles()
-            val ownProfile = profiles.firstOrNull { it.userId == mode.member.id }
-            uiState.update {
-                val currentMode = it.mode as? SessionMode.Authorized
-                if (currentMode?.principal?.uid != mode.principal.uid) {
-                    it
-                } else {
-                    it.copy(
-                        sharedProfiles = profiles.filter { profile -> profile.hasVisibleContent },
-                        sharedProfileDraft = ownProfile?.toDraft() ?: SharedProfileDraft(),
+            if (!updateProfileStateIfCurrent(context) { it.copy(isLoadingSharedProfiles = true) }) return@launch
+            try {
+                val profiles = sharedProfileRepository.getAllSharedProfiles()
+                currentCoroutineContext().ensureActive()
+                updateProfileStateIfCurrent(context) { state ->
+                    val canApplyProfiles = state.sharedProfilesRevision == profilesRevision
+                    val canApplyDraft = canApplyProfiles &&
+                        state.sharedProfileEditorRevision == editorRevision
+                    val ownProfile = profiles.firstOrNull { it.userId == mode.member.id }
+                    state.copy(
+                        sharedProfiles = if (canApplyProfiles) {
+                            profiles.filter(SharedProfile::hasVisibleContent)
+                        } else {
+                            state.sharedProfiles
+                        },
+                        sharedProfileDraft = if (canApplyDraft) {
+                            ownProfile?.toDraft() ?: SharedProfileDraft()
+                        } else {
+                            state.sharedProfileDraft
+                        },
+                        sharedProfileEditorRevision = if (canApplyDraft) {
+                            state.sharedProfileEditorRevision + 1
+                        } else {
+                            state.sharedProfileEditorRevision
+                        },
                         isLoadingSharedProfiles = false,
-                        isUploadingSharedProfileImage = false,
                     )
+                }
+            } catch (cancellation: CancellationException) {
+                updateProfileStateIfCurrent(context) { it.copy(isLoadingSharedProfiles = false) }
+                throw cancellation
+            } catch (_: Exception) {
+                if (updateProfileStateIfCurrent(context) { it.copy(isLoadingSharedProfiles = false) }) {
+                    emitMessage(R.string.feedback_unable_load_data)
                 }
             }
         }
     }
 
     fun saveSharedProfile(onSuccess: () -> Unit = {}) {
-        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
-        val draft = uiState.value.sharedProfileDraft.normalized()
-        if (uiState.value.isUploadingSharedProfileImage) {
-            return
-        }
+        val initialState = uiState.value
+        val mode = initialState.mode as? SessionMode.Authorized ?: return
+        val context = ProfileSessionContext.from(initialState, mode)
+        if (initialState.isUploadingSharedProfileImage ||
+            initialState.isSavingSharedProfile ||
+            initialState.isDeletingSharedProfile
+        ) return
+        val draft = initialState.sharedProfileDraft.normalized()
         if (!draft.hasVisibleContent) {
             emitMessage(R.string.feedback_shared_profile_content_required)
             return
         }
+        val editorRevision = initialState.sharedProfileEditorRevision
 
         scope.launch {
-            uiState.update { it.copy(isSavingSharedProfile = true) }
-            val saved = sharedProfileRepository.upsertSharedProfile(
-                SharedProfile(
-                    userId = mode.member.id,
-                    familyNames = draft.familyNames,
-                    photoUrl = draft.photoUrl.ifBlank { null },
-                    about = draft.about,
-                    updatedAtMillis = nowMillisProvider(),
-                ),
-            )
-            val profiles = sharedProfileRepository.getAllSharedProfiles()
-            uiState.update {
-                it.copy(
-                    sharedProfiles = profiles.filter { profile -> profile.hasVisibleContent },
-                    sharedProfileDraft = saved.toDraft(),
-                    isSavingSharedProfile = false,
+            val token = beginProfileMutation(context, isDelete = false) ?: return@launch
+            val saved = try {
+                sharedProfileRepository.upsertSharedProfile(
+                    SharedProfile(
+                        userId = mode.member.id,
+                        familyNames = draft.familyNames,
+                        photoUrl = draft.photoUrl.ifBlank { null },
+                        about = draft.about,
+                        updatedAtMillis = nowMillisProvider(),
+                    ),
+                )
+                    .also { currentCoroutineContext().ensureActive() }
+            } catch (cancellation: CancellationException) {
+                finishProfileMutation(context, token)
+                throw cancellation
+            } catch (_: Exception) {
+                if (isCurrentProfileEditor(context, editorRevision)) {
+                    emitMessage(R.string.feedback_unable_save_changes)
+                }
+                finishProfileMutation(context, token)
+                return@launch
+            }
+            if (!isCurrentProfileMutation(context, token)) return@launch
+            val editorIsCurrent = isCurrentProfileEditor(context, editorRevision)
+            updateProfileStateIfCurrent(context) { state ->
+                val updatedProfiles = buildList {
+                    addAll(state.sharedProfiles.filterNot { it.userId == saved.userId })
+                    if (saved.hasVisibleContent) add(saved)
+                }.sortedByDescending(SharedProfile::updatedAtMillis)
+                state.copy(
+                    sharedProfiles = updatedProfiles,
+                    sharedProfileDraft = if (editorIsCurrent) saved.toDraft() else state.sharedProfileDraft,
+                    sharedProfileEditorRevision = if (editorIsCurrent) {
+                        state.sharedProfileEditorRevision + 1
+                    } else {
+                        state.sharedProfileEditorRevision
+                    },
+                    sharedProfilesRevision = state.sharedProfilesRevision + 1,
                 )
             }
-            onSuccess()
+            finishProfileMutation(context, token)
+            if (editorIsCurrent) onSuccess()
         }
     }
 
     fun deleteSharedProfile(onSuccess: () -> Unit = {}) {
-        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
+        val initialState = uiState.value
+        val mode = initialState.mode as? SessionMode.Authorized ?: return
+        val context = ProfileSessionContext.from(initialState, mode)
+        if (initialState.isUploadingSharedProfileImage ||
+            initialState.isSavingSharedProfile ||
+            initialState.isDeletingSharedProfile
+        ) return
+        val editorRevision = initialState.sharedProfileEditorRevision
         scope.launch {
-            uiState.update { it.copy(isDeletingSharedProfile = true) }
-            val deleted = sharedProfileRepository.deleteSharedProfile(mode.member.id)
-            val profiles = sharedProfileRepository.getAllSharedProfiles()
-            uiState.update {
-                it.copy(
-                    sharedProfiles = profiles.filter { profile -> profile.hasVisibleContent },
-                    sharedProfileDraft = SharedProfileDraft(),
-                    isDeletingSharedProfile = false,
+            val token = beginProfileMutation(context, isDelete = true) ?: return@launch
+            val deleted = try {
+                sharedProfileRepository.deleteSharedProfile(mode.member.id)
+                    .also { currentCoroutineContext().ensureActive() }
+            } catch (cancellation: CancellationException) {
+                finishProfileMutation(context, token)
+                throw cancellation
+            } catch (_: Exception) {
+                if (isCurrentProfileMutation(context, token)) {
+                    emitMessage(R.string.feedback_shared_profile_delete_failed)
+                }
+                finishProfileMutation(context, token)
+                return@launch
+            }
+            if (!deleted || !isCurrentProfileMutation(context, token)) {
+                if (!deleted && isCurrentProfileMutation(context, token)) {
+                    emitMessage(R.string.feedback_shared_profile_delete_failed)
+                }
+                finishProfileMutation(context, token)
+                return@launch
+            }
+            val editorIsCurrent = isCurrentProfileEditor(context, editorRevision)
+            updateProfileStateIfCurrent(context) { state ->
+                state.copy(
+                    sharedProfiles = state.sharedProfiles.filterNot { it.userId == mode.member.id },
+                    sharedProfileDraft = if (editorIsCurrent) SharedProfileDraft() else state.sharedProfileDraft,
+                    sharedProfileEditorRevision = if (editorIsCurrent) {
+                        state.sharedProfileEditorRevision + 1
+                    } else {
+                        state.sharedProfileEditorRevision
+                    },
+                    sharedProfilesRevision = state.sharedProfilesRevision + 1,
                 )
             }
-            emitMessage(
-                if (deleted) {
-                    R.string.feedback_shared_profile_deleted
-                } else {
-                    R.string.feedback_shared_profile_delete_failed
-                },
-            )
+            emitMessage(R.string.feedback_shared_profile_deleted)
+            finishProfileMutation(context, token)
             onSuccess()
         }
     }
@@ -315,27 +400,48 @@ internal class SessionCommunityActions(
     }
 
     fun uploadSharedProfileImageFromUri(sourceUri: Uri) {
-        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
+        val initialState = uiState.value
+        val mode = initialState.mode as? SessionMode.Authorized ?: return
+        val context = ProfileSessionContext.from(initialState, mode)
+        if (initialState.isUploadingSharedProfileImage ||
+            initialState.isSavingSharedProfile ||
+            initialState.isDeletingSharedProfile
+        ) return
+        val editorRevision = initialState.sharedProfileEditorRevision
         scope.launch {
-            uiState.update { it.copy(isUploadingSharedProfileImage = true) }
-            val uploaded = imagePipelineManager.processAndUpload(
-                sourceUri = sourceUri,
-                ownerId = mode.member.id,
-                namespace = ImageUploadNamespace.SHARED_PROFILES,
-                entityId = mode.member.id,
-                nameHint = mode.member.displayName,
-            )
-            if (uploaded == null) {
-                uiState.update { it.copy(isUploadingSharedProfileImage = false) }
-                emitMessage(R.string.feedback_shared_profile_image_upload_failed)
+            val token = beginProfileUpload(context) ?: return@launch
+            val uploaded = try {
+                imagePipelineManager.processAndUpload(
+                    sourceUri = sourceUri,
+                    ownerId = mode.member.id,
+                    namespace = ImageUploadNamespace.SHARED_PROFILES,
+                    entityId = mode.member.id,
+                    nameHint = mode.member.displayName,
+                ).also { currentCoroutineContext().ensureActive() }
+            } catch (cancellation: CancellationException) {
+                finishProfileUpload(context, token)
+                throw cancellation
+            } catch (_: Exception) {
+                if (isCurrentProfileEditor(context, editorRevision)) {
+                    emitMessage(R.string.feedback_shared_profile_image_upload_failed)
+                }
+                finishProfileUpload(context, token)
                 return@launch
             }
-            uiState.update {
+            if (uploaded == null || !isCurrentProfileUpload(context, token, editorRevision)) {
+                if (uploaded == null && isCurrentProfileEditor(context, editorRevision)) {
+                    emitMessage(R.string.feedback_shared_profile_image_upload_failed)
+                }
+                finishProfileUpload(context, token)
+                return@launch
+            }
+            updateProfileStateIfCurrent(context) {
                 it.copy(
                     sharedProfileDraft = it.sharedProfileDraft.copy(photoUrl = uploaded.downloadUrl),
-                    isUploadingSharedProfileImage = false,
+                    sharedProfileEditorRevision = it.sharedProfileEditorRevision + 1,
                 )
             }
+            finishProfileUpload(context, token)
             emitMessage(R.string.feedback_shared_profile_image_uploaded)
         }
     }
@@ -344,6 +450,7 @@ internal class SessionCommunityActions(
         uiState.update {
             it.copy(
                 sharedProfileDraft = it.sharedProfileDraft.copy(photoUrl = ""),
+                sharedProfileEditorRevision = it.sharedProfileEditorRevision + 1,
             )
         }
     }
@@ -421,4 +528,133 @@ internal class SessionCommunityActions(
             onSuccess()
         }
     }
+
+    private fun isCurrentProfileSession(
+        context: ProfileSessionContext,
+        state: SessionUiState = uiState.value,
+    ): Boolean {
+        val currentMode = state.mode as? SessionMode.Authorized ?: return false
+        return state.sessionEpoch == context.epoch &&
+            currentMode.principal.uid == context.principalUid &&
+            currentMode.member.id == context.memberId
+    }
+
+    private fun isCurrentProfileEditor(
+        context: ProfileSessionContext,
+        editorRevision: Long,
+        state: SessionUiState = uiState.value,
+    ): Boolean = isCurrentProfileSession(context, state) &&
+        state.sharedProfileEditorRevision == editorRevision
+
+    private fun updateProfileStateIfCurrent(
+        context: ProfileSessionContext,
+        transform: (SessionUiState) -> SessionUiState,
+    ): Boolean {
+        if (!isCurrentProfileSession(context)) return false
+        var didUpdate = false
+        uiState.update { state ->
+            if (isCurrentProfileSession(context, state)) {
+                didUpdate = true
+                transform(state)
+            } else {
+                state
+            }
+        }
+        return didUpdate
+    }
+
+    private fun beginProfileMutation(context: ProfileSessionContext, isDelete: Boolean): Long? {
+        if (!isCurrentProfileSession(context)) return null
+        val activeMutation = activeProfileMutation
+        if (activeMutation?.context == context ||
+            (activeMutation == null &&
+                (uiState.value.isSavingSharedProfile || uiState.value.isDeletingSharedProfile))
+        ) return null
+        if (uiState.value.isUploadingSharedProfileImage) return null
+
+        nextProfileMutationToken += 1
+        val token = nextProfileMutationToken
+        activeProfileMutation = ActiveProfileMutation(context, token)
+        val updated = updateProfileStateIfCurrent(context) {
+            if (isDelete) {
+                it.copy(isDeletingSharedProfile = true)
+            } else {
+                it.copy(isSavingSharedProfile = true)
+            }
+        }
+        if (!updated) {
+            activeProfileMutation = null
+            return null
+        }
+        return token
+    }
+
+    private fun isCurrentProfileMutation(context: ProfileSessionContext, token: Long): Boolean =
+        activeProfileMutation == ActiveProfileMutation(context, token) && isCurrentProfileSession(context)
+
+    private fun finishProfileMutation(context: ProfileSessionContext, token: Long) {
+        if (activeProfileMutation != ActiveProfileMutation(context, token)) return
+        activeProfileMutation = null
+        updateProfileStateIfCurrent(context) {
+            it.copy(
+                isSavingSharedProfile = false,
+                isDeletingSharedProfile = false,
+            )
+        }
+    }
+
+    private fun beginProfileUpload(context: ProfileSessionContext): Long? {
+        if (!isCurrentProfileSession(context)) return null
+        val activeUpload = activeProfileUpload
+        if (activeUpload?.context == context ||
+            (activeUpload == null && uiState.value.isUploadingSharedProfileImage)
+        ) return null
+        if (uiState.value.isSavingSharedProfile || uiState.value.isDeletingSharedProfile) return null
+
+        nextProfileUploadToken += 1
+        val token = nextProfileUploadToken
+        activeProfileUpload = ActiveProfileUpload(context, token)
+        if (!updateProfileStateIfCurrent(context) { it.copy(isUploadingSharedProfileImage = true) }) {
+            activeProfileUpload = null
+            return null
+        }
+        return token
+    }
+
+    private fun isCurrentProfileUpload(
+        context: ProfileSessionContext,
+        token: Long,
+        editorRevision: Long,
+    ): Boolean = activeProfileUpload == ActiveProfileUpload(context, token) &&
+        isCurrentProfileEditor(context, editorRevision)
+
+    private fun finishProfileUpload(context: ProfileSessionContext, token: Long) {
+        if (activeProfileUpload != ActiveProfileUpload(context, token)) return
+        activeProfileUpload = null
+        updateProfileStateIfCurrent(context) { it.copy(isUploadingSharedProfileImage = false) }
+    }
 }
+
+private data class ProfileSessionContext(
+    val epoch: Long,
+    val principalUid: String,
+    val memberId: String,
+) {
+    companion object {
+        fun from(state: SessionUiState, mode: SessionMode.Authorized) = ProfileSessionContext(
+            epoch = state.sessionEpoch,
+            principalUid = mode.principal.uid,
+            memberId = mode.member.id,
+        )
+    }
+}
+
+private data class ActiveProfileMutation(
+    val context: ProfileSessionContext,
+    val token: Long,
+)
+
+private data class ActiveProfileUpload(
+    val context: ProfileSessionContext,
+    val token: Long,
+)

@@ -164,6 +164,8 @@ data class SessionUiState(
     val productDraft: ProductDraft = ProductDraft(),
     val sharedProfiles: List<SharedProfile> = emptyList(),
     val sharedProfileDraft: SharedProfileDraft = SharedProfileDraft(),
+    val sharedProfileEditorRevision: Long = 0L,
+    val sharedProfilesRevision: Long = 0L,
     val shiftsFeed: List<ShiftAssignment> = emptyList(),
     val deliveryCalendarOverrides: List<DeliveryCalendarOverride> = emptyList(),
     val defaultDeliveryDayOfWeek: DeliveryWeekday? = null,

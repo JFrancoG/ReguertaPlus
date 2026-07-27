@@ -48,9 +48,13 @@ actor InMemoryMemberRepository: LocalMemberRepository {
     }
 
     func members(visibleTo member: Member) async throws -> [Member] {
-        let canReadAll = await MainActor.run { member.isAdmin }
+        let canReadAll = await MainActor.run { member.canManageMembers }
         return members.values
             .filter { canReadAll || $0.isActive }
+            .map { candidate in
+                guard !canReadAll else { return candidate }
+                return candidate.id == member.id ? member : candidate.publicDirectoryProjection()
+            }
             .sorted { lhs, rhs in
                 lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
             }
@@ -125,4 +129,23 @@ actor InMemoryMemberRepository: LocalMemberRepository {
 
 private enum InMemoryMemberRepositoryError: Error {
     case memberNotFound
+}
+
+private extension Member {
+    nonisolated func publicDirectoryProjection() -> Member {
+        Member(
+            id: id,
+            displayName: displayName,
+            companyName: companyName,
+            normalizedEmail: "",
+            authUid: nil,
+            roles: roles,
+            isActive: isActive,
+            producerCatalogEnabled: producerCatalogEnabled,
+            isCommonPurchaseManager: isCommonPurchaseManager,
+            producerParity: producerParity,
+            ecoCommitmentMode: ecoCommitmentMode,
+            ecoCommitmentParity: ecoCommitmentParity
+        )
+    }
 }

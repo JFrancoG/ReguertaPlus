@@ -412,6 +412,8 @@ internal class SessionAuthActions(
                             myOrderSeasonalCommitmentsFeed = emptyList(),
                             sharedProfiles = sharedProfiles.filter { profile -> profile.hasVisibleContent },
                             sharedProfileDraft = ownSharedProfile?.toDraft() ?: SharedProfileDraft(),
+                            sharedProfileEditorRevision = it.sharedProfileEditorRevision + 1,
+                            sharedProfilesRevision = it.sharedProfilesRevision + 1,
                             shiftsFeed = allShifts,
                             nextDeliveryShift = allShifts.nextAssignedShift(
                                 memberId = result.member.id,

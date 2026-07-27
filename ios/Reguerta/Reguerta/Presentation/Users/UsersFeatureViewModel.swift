@@ -20,6 +20,12 @@ final class UsersFeatureViewModel {
     var isSavingMember = false
     var isTogglingMember = false
     var highlightedMemberId: String?
+    var editorRevision: UInt64 = 0
+    var sessionIdentityEpoch: UInt64 = 0
+    var activeRefreshOperationId: UInt64?
+    var nextRefreshOperationId: UInt64 = 0
+    var activeMutationOperationId: UInt64?
+    var nextMutationOperationId: UInt64 = 0
 
     var sortedMembers: [Member] {
         membersFeed.sorted { lhs, rhs in
@@ -60,41 +66,41 @@ final class UsersFeatureViewModel {
     func handleSessionModeChange(_ mode: SessionMode) {
         switch mode {
         case .authorized(let session):
-            let previousMemberId = currentSession?.member.id
-            currentSession = session
-            currentMember = session.member
-            membersFeed = sortedMembers(from: session.members)
-            if previousMemberId != session.member.id {
-                clearEditor()
-                pendingToggleActiveMemberId = nil
-            }
+            adoptAuthorizedSession(session, sourceMayContainPrivateMembers: true)
             Task { await refreshMembers() }
         case .signedOut, .unauthorized:
+            sessionIdentityEpoch += 1
             resetState()
         }
     }
 
     func refreshMembers() async {
-        guard let session = currentSession else {
+        guard let context = authorizedSessionContext else {
             resetState()
             return
         }
+        let session = context.session
+        let refreshOperationId = beginRefreshOperation()
+        defer { finishRefreshOperation(refreshOperationId) }
 
-        isLoadingMembers = true
         let members: [Member]
         do {
             members = try await memberRepository.members(visibleTo: session.member)
+            try Task.checkCancellation()
+        } catch is CancellationError {
+            return
         } catch {
-            feedbackCenter.show(AccessL10nKey.authErrorNetwork)
-            isLoadingMembers = false
+            if isCurrentRefresh(refreshOperationId, context: context) {
+                feedbackCenter.show(AccessL10nKey.feedbackUnableLoadData)
+            }
             return
         }
-        guard isCurrentSession(session) else {
-            isLoadingMembers = false
-            return
+        guard isCurrentRefresh(refreshOperationId, context: context) else { return }
+        let requiresDirectoryRefresh = applyMembers(members, basedOn: session)
+        if requiresDirectoryRefresh {
+            finishRefreshOperation(refreshOperationId)
+            await refreshMembers()
         }
-        applyMembers(members, basedOn: session)
-        isLoadingMembers = false
     }
 
     func startCreating() {
@@ -106,6 +112,7 @@ final class UsersFeatureViewModel {
         draft = MemberDraft()
         editingMemberId = nil
         isEditorOpen = true
+        editorRevision += 1
     }
 
     func startEditing(memberId: String) {
@@ -124,14 +131,17 @@ final class UsersFeatureViewModel {
         }
         editingMemberId = member.id
         isEditorOpen = true
+        editorRevision += 1
     }
 
     func updateDraft(_ draft: MemberDraft) {
         self.draft = draft
+        editorRevision += 1
     }
 
     func setProducer(_ isSelected: Bool) {
         draft.setProducerSelection(isSelected)
+        editorRevision += 1
     }
 
     func setCommonPurchaseManager(_ isSelected: Bool) {
@@ -139,12 +149,14 @@ final class UsersFeatureViewModel {
             isSelected,
             commonPurchasesCompanyName: l10n(AccessL10nKey.usersEditorCommonPurchaseCompanyName)
         )
+        editorRevision += 1
     }
 
     func clearEditor() {
         draft = MemberDraft()
         editingMemberId = nil
         isEditorOpen = false
+        editorRevision += 1
     }
 
     func saveDraft() async -> Bool {
@@ -158,6 +170,7 @@ final class UsersFeatureViewModel {
 
     func toggleAdmin(memberId: String) async -> Bool {
         guard let session = currentSession else { return false }
+        guard activeMutationOperationId == nil, !isSavingMember, !isTogglingMember else { return false }
         guard canGrantAdminRole else {
             feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminEditRoles)
             return false
@@ -174,25 +187,24 @@ final class UsersFeatureViewModel {
             roles.insert(.member)
         }
 
-        isTogglingMember = true
         let updated = target.replacing(roles: roles)
-        let saved = await persistMember(target: updated, session: session)
-        isTogglingMember = false
-        return saved
+        return await persistMember(target: updated, session: session, kind: .toggle)
     }
 
     func toggleActive(memberId: String) async -> Bool {
         guard let session = currentSession else { return false }
+        guard activeMutationOperationId == nil, !isSavingMember, !isTogglingMember else { return false }
         guard canManageMembers else {
             feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminToggleActive)
             return false
         }
         guard let target = sortedMembers.first(where: { $0.id == memberId }) else { return false }
 
-        isTogglingMember = true
-        let saved = await persistMember(target: target.replacing(isActive: !target.isActive), session: session)
-        isTogglingMember = false
-        return saved
+        return await persistMember(
+            target: target.replacing(isActive: !target.isActive),
+            session: session,
+            kind: .toggle
+        )
     }
 
     func requestToggleActive(memberId: String) {
@@ -205,9 +217,8 @@ final class UsersFeatureViewModel {
 
     func confirmToggleActive() async -> Bool {
         guard let pendingToggleActiveMemberId else { return false }
-        let saved = await toggleActive(memberId: pendingToggleActiveMemberId)
         self.pendingToggleActiveMemberId = nil
-        return saved
+        return await toggleActive(memberId: pendingToggleActiveMemberId)
     }
 
     func dismissToggleActive() {
@@ -219,6 +230,7 @@ final class UsersFeatureViewModel {
 private extension UsersFeatureViewModel {
     func saveDraft(editingMemberId: String?, clearsEditor: Bool) async -> Bool {
         guard let session = currentSession else { return false }
+        guard activeMutationOperationId == nil, !isSavingMember, !isTogglingMember else { return false }
 
         switch draft.validated(
             editingMemberId: editingMemberId,
@@ -229,6 +241,8 @@ private extension UsersFeatureViewModel {
             feedbackCenter.show(error.feedbackKey)
             return false
         case .success(let validation):
+            let saveEditorRevision = editorRevision
+            let saveEditingMemberId = self.editingMemberId
             guard let target = buildTargetMember(
                 editingMemberId: editingMemberId,
                 normalizedEmail: validation.normalizedEmail,
@@ -237,11 +251,12 @@ private extension UsersFeatureViewModel {
                 return false
             }
 
-            isSavingMember = true
-            let saved = await persistMember(target: target, session: session)
-            isSavingMember = false
-            if saved {
+            let saved = await persistMember(target: target, session: session, kind: .save)
+            if saved,
+               editorRevision == saveEditorRevision,
+               self.editingMemberId == saveEditingMemberId {
                 draft = MemberDraft()
+                editorRevision += 1
                 if clearsEditor {
                     self.editingMemberId = nil
                     isEditorOpen = false
@@ -291,27 +306,48 @@ private extension UsersFeatureViewModel {
         )
     }
 
-    func persistMember(target: Member, session: AuthorizedSession) async -> Bool {
+    func persistMember(
+        target: Member,
+        session: AuthorizedSession,
+        kind: MemberMutationKind
+    ) async -> Bool {
+        let context = SessionContext(session: session, generation: sessionIdentityEpoch)
+        guard isCurrentSession(context), activeMutationOperationId == nil else { return false }
         do {
-            let updated = try await upsertMemberByAdmin.execute(target: target)
-            let members = try await memberRepository.members(visibleTo: session.member)
-            sessionViewModel.applyUpdatedAuthorizedMember(updated, members: members)
-            syncFromSessionViewModel()
-            highlightMember(updated.id)
-            return true
-        } catch MemberManagementError.accessDenied {
-            feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminManageMembers)
-        } catch MemberManagementError.lastAdminRemoval {
-            feedbackCenter.show(AccessL10nKey.feedbackCannotRemoveLastAdmin)
-        } catch MemberManagementError.conflict {
-            feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
+            try Task.checkCancellation()
         } catch {
-            feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
+            return false
         }
-        return false
+        let operationId = beginMutation(kind: kind)
+        defer { finishMutation(operationId) }
+
+        let updated: Member
+        do {
+            updated = try await upsertMemberByAdmin.execute(target: target)
+        } catch is CancellationError {
+            return false
+        } catch {
+            if isCurrentMutation(operationId, context: context) {
+                showMemberMutationFailure(error)
+            }
+            return false
+        }
+        guard isCurrentMutation(operationId, context: context) else { return false }
+
+        let baseMembers = currentSession?.members ?? session.members
+        var locallyUpdatedMembers = baseMembers.map { member in
+            member.id == updated.id ? updated : member
+        }
+        if !locallyUpdatedMembers.contains(where: { $0.id == updated.id }) {
+            locallyUpdatedMembers.append(updated)
+        }
+        sessionViewModel.applyUpdatedAuthorizedMember(updated, members: locallyUpdatedMembers)
+        syncFromSessionViewModel()
+        highlightMember(updated.id)
+        return true
     }
 
-    func applyMembers(_ members: [Member], basedOn session: AuthorizedSession) {
+    func applyMembers(_ members: [Member], basedOn session: AuthorizedSession) -> Bool {
         let refreshedCurrent = members.first(where: { $0.id == session.member.id }) ?? session.member
         let refreshedAuthenticated = members.first(where: { $0.id == session.authenticatedMember.id })
             ?? session.authenticatedMember
@@ -322,12 +358,10 @@ private extension UsersFeatureViewModel {
             members: members
         )
 
-        currentSession = refreshedSession
-        currentMember = refreshedCurrent
-        membersFeed = sortedMembers(from: members)
-        if sessionViewModel.mode != .authorized(refreshedSession) {
-            sessionViewModel.mode = .authorized(refreshedSession)
-        }
+        return adoptAuthorizedSession(
+            refreshedSession,
+            sourceMayContainPrivateMembers: canExposePrivateMemberData(in: session)
+        )
     }
 
     func syncFromSessionViewModel() {
@@ -335,9 +369,13 @@ private extension UsersFeatureViewModel {
             resetState()
             return
         }
-        currentSession = session
-        currentMember = session.member
-        membersFeed = sortedMembers(from: session.members)
+        let requiresDirectoryRefresh = adoptAuthorizedSession(
+            session,
+            sourceMayContainPrivateMembers: true
+        )
+        if requiresDirectoryRefresh {
+            Task { await refreshMembers() }
+        }
     }
 
     func resetState() {
@@ -352,12 +390,24 @@ private extension UsersFeatureViewModel {
         isSavingMember = false
         isTogglingMember = false
         highlightedMemberId = nil
+        editorRevision += 1
+        activeRefreshOperationId = nil
+        activeMutationOperationId = nil
     }
 
-    func isCurrentSession(_ session: AuthorizedSession) -> Bool {
-        currentSession?.principal == session.principal &&
-            currentSession?.member.id == session.member.id &&
-            currentSession?.authenticatedMember.id == session.authenticatedMember.id
+    func showMemberMutationFailure(_ error: any Error) {
+        guard let managementError = error as? MemberManagementError else {
+            feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
+            return
+        }
+        switch managementError {
+        case .accessDenied:
+            feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminManageMembers)
+        case .lastAdminRemoval:
+            feedbackCenter.show(AccessL10nKey.feedbackCannotRemoveLastAdmin)
+        case .conflict:
+            feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
+        }
     }
 
     func sortedMembers(from members: [Member]) -> [Member] {
