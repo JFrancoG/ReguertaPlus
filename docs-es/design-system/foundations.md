@@ -63,14 +63,9 @@ Guia:
 
 ### 6.1 Paleta canonica de contraste (P1-09)
 
-| Token semantico | iOS Light | iOS Dark | iOS Increased Contrast Light | iOS Increased Contrast Dark | Android Light | Android Dark |
-|---|---|---|---|---|---|---|
-| `color-action-primary-default` (`AccentColor` en iOS) | `#3D681E` | `#6DA239` | `#315815` | `#A8DD75` | `#3D681E` | `#6DA239` |
-| `color-action-on-primary-default` | `#F2F8E1` | `#0F1D0D` | `#F2F8E1` | `#0F1D0D` | `#F2F8E1` | `#0F1D0D` |
-| `color-control-accent-default` | `#3D681E` | `#6DA239` | `#315815` | `#5B8B2D` | Usa el par `primary`/`onPrimary` de Material 3 | Usa el par `primary`/`onPrimary` de Material 3 |
-| `color-feedback-warning-default` | `#843800` | `#FFAA70` | `#6D2B00` | `#FFC093` | `#843800` | `#FFAA70` |
-| `color-feedback-error-default` | `#8D3434` | `#F48787` | `#742222` | `#FFA5A5` | `#8D3434` | `#F48787` |
-| `color-feedback-on-error-default` | `#F2F8E1` | `#0F1D0D` | `#F2F8E1` | `#0F1D0D` | `#F2F8E1` | `#0F1D0D` |
+El contrato canonico legible por maquina es [`color-tokens.json`](../../docs/design-system/color-tokens.json). Su vista generada para personas es [`color-catalog.html`](../../docs/design-system/color-catalog.html), que incluye todos los colores semanticos mapeados, cuatro contextos visuales, procedencia por plataforma y la matriz WCAG calculada.
+
+No duplicar tablas de hexadecimales en documentacion mantenida a mano. Ejecutar `python3 scripts/design-system/generate_color_catalog.py --check` para verificar que contrato, fuentes de produccion y catalogo coinciden.
 
 `AccentColor` y `actionPrimary` deben resolver a los mismos valores en iOS. `controlAccent` se mantiene separado para que los controles nativos conserven el contraste no textual, tambien con Increased Contrast activado.
 

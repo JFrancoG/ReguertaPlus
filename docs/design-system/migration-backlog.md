@@ -20,7 +20,8 @@ Prioritized tasks to move from current state to a cleaner cross-platform design-
 
 - [x] Build splash/welcome/auth screens only with stable/candidate design-system primitives.
 - Validate responsive behavior in compact and large devices.
-- Add a generated color/contrast catalog plus a native UI sandbox for visual regression checks.
+- [x] Add a generated color/contrast catalog backed by production-source validation.
+- Add a native UI sandbox for visual regression checks.
 
 ## P3 (Continuous)
 
