@@ -185,6 +185,9 @@ enum AccessL10nKey {
     static let authErrorNetwork = "auth_error.network"
     static let authErrorUnknown = "auth_error.unknown"
     static let authInfoPasswordResetSent = "auth_info.password_reset_sent"
+    static let authInfoVerificationSent = "auth_info.verification_sent"
+    static let authInfoVerificationResent = "auth_info.verification_resent"
+    static let authInfoVerificationPending = "auth_info.verification_pending"
     static let feedbackPasswordRepeatRequired = "feedback.password_repeat_required"
     static let feedbackPasswordMismatch = "feedback.password_mismatch"
     static let feedbackOnlyAdminCreate = "feedback.only_admin_create"
@@ -328,7 +331,7 @@ func l10n(_ key: String, _ arguments: CVarArg...) -> String {
 
 func localizedUnauthorizedReason(_ reason: UnauthorizedReason) -> String {
     switch reason {
-    case .userNotFoundInAuthorizedUsers, .userAccessRestricted:
+    case .userNotFoundInAuthorizedUsers, .userAccessRestricted, .emailVerificationRequired:
         return l10n(AccessL10nKey.unauthorized)
     }
 }

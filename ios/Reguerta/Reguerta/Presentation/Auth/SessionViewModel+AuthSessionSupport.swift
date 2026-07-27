@@ -77,30 +77,91 @@ extension SessionViewModel {
     }
 
     func applyAuthorizedSession(principal: AuthPrincipal) async {
-        await reviewerEnvironmentRouter.applyRouting(for: principal)
-        let result = await resolveAuthorizedSession.execute(authPrincipal: principal)
-        switch result {
-        case .authorized(let member):
-            await applyAuthorizedSession(
-                principal: principal,
-                member: member
+        do {
+            let result = try await resolveAuthorizedSession.execute(authPrincipal: principal)
+            switch result {
+            case .authorized(let member):
+                await applyAuthorizedSession(
+                    principal: principal,
+                    member: member
+                )
+            case .unauthorized(let reason):
+                if reason == .emailVerificationRequired {
+                    let resent = await authSessionProvider.sendCurrentUserEmailVerification()
+                    let signedOut = authSessionProvider.signOut()
+                    feedbackCenter.show(
+                        resent
+                            ? AccessL10nKey.authInfoVerificationResent
+                            : AccessL10nKey.authInfoVerificationPending
+                    )
+                    if signedOut {
+                        environmentRouter.resetToBaseEnvironment()
+                        mode = .signedOut
+                    } else {
+                        applyUnauthorizedSession(
+                            principalEmail: principal.email,
+                            reason: .emailVerificationRequired
+                        )
+                    }
+                } else {
+                    applyUnauthorizedSession(principalEmail: principal.email, reason: reason)
+                }
+            }
+        } catch FirebaseFunctionClientError.unauthorized {
+            await handleExpiredSession()
+        } catch {
+            feedbackCenter.show(AccessL10nKey.authErrorNetwork)
+            applyUnauthorizedSession(
+                principalEmail: principal.email,
+                reason: .userAccessRestricted
             )
-        case .unauthorized(let reason):
-            applyUnauthorizedSession(principalEmail: principal.email, reason: reason)
         }
     }
 
     func handleExpiredSession() async {
+        applyLocalSessionTermination(
+            firebaseSignOutSucceeded: authSessionProvider.signOut(),
+            showsExpiredDialog: true
+        )
+    }
+
+    func applyLocalSessionTermination(
+        firebaseSignOutSucceeded: Bool,
+        showsExpiredDialog: Bool
+    ) {
+        let principalEmail = currentPrincipalEmail
         clearSessionRefreshTracking()
-        reviewerEnvironmentRouter.resetToBaseEnvironment()
+        environmentRouter.resetToBaseEnvironment()
+        Task {
+            await KeyManager.shared.remove(.authorizedMemberId)
+        }
         resetAccessCredentialsAndErrors()
         isAuthenticating = false
         isRegistering = false
         isRecoveringPassword = false
         feedbackCenter.clear()
-        mode = .signedOut
-        showSessionExpiredDialog = true
-        showUnauthorizedDialog = false
+        if firebaseSignOutSucceeded {
+            mode = .signedOut
+        } else {
+            mode = .unauthorized(
+                email: principalEmail,
+                reason: .userAccessRestricted
+            )
+            feedbackCenter.show(AccessL10nKey.authErrorUnknown)
+        }
+        showSessionExpiredDialog = showsExpiredDialog
+        showUnauthorizedDialog = !firebaseSignOutSucceeded && !showsExpiredDialog
+    }
+
+    private var currentPrincipalEmail: String {
+        switch mode {
+        case .authorized(let session):
+            return session.principal.email
+        case .unauthorized(let email, _):
+            return email
+        case .signedOut:
+            return normalizeAccessEmail(emailInput)
+        }
     }
 
     func resetAccessCredentialsAndErrors() {
@@ -127,7 +188,17 @@ extension SessionViewModel {
         principal: AuthPrincipal,
         member: Member
     ) async {
-        let members = await repository.allMembers()
+        let members: [Member]
+        do {
+            members = try await repository.members(visibleTo: member)
+        } catch {
+            feedbackCenter.show(AccessL10nKey.authErrorNetwork)
+            applyUnauthorizedSession(
+                principalEmail: principal.email,
+                reason: .userAccessRestricted
+            )
+            return
+        }
         mode = .authorized(
             AuthorizedSession(
                 principal: principal,
@@ -138,7 +209,17 @@ extension SessionViewModel {
         )
         showSessionExpiredDialog = false
         showUnauthorizedDialog = false
-        await authorizedDeviceRegistrar.register(member: member)
+        await registerAuthorizedDeviceBestEffort(member)
+    }
+
+    private func registerAuthorizedDeviceBestEffort(_ member: Member) async {
+        switch await authorizedDeviceRegistrar.register(member: member) {
+        case .registered, .skipped:
+            break
+        case .failed:
+            // Push registration is non-critical. The live registrar records the failure for diagnosis.
+            break
+        }
     }
 
     private func applyUnauthorizedSession(principalEmail: String, reason: UnauthorizedReason) {

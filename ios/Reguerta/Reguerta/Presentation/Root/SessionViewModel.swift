@@ -8,16 +8,6 @@ struct AuthorizedSession: Equatable, Sendable {
     var members: [Member]
 }
 
-protocol ReviewerEnvironmentRouter: Sendable {
-    func applyRouting(for principal: AuthPrincipal) async
-    func resetToBaseEnvironment()
-}
-
-struct NoOpReviewerEnvironmentRouter: ReviewerEnvironmentRouter {
-    func applyRouting(for principal: AuthPrincipal) async {}
-    func resetToBaseEnvironment() {}
-}
-
 enum SessionMode: Equatable, Sendable {
     case signedOut
     case unauthorized(email: String, reason: UnauthorizedReason)
@@ -86,7 +76,7 @@ final class SessionViewModel {
     let authSessionProvider: any AuthSessionProvider
     let resolveAuthorizedSession: ResolveAuthorizedSessionUseCase
     let authorizedDeviceRegistrar: any AuthorizedDeviceRegistrar
-    let reviewerEnvironmentRouter: any ReviewerEnvironmentRouter
+    let environmentRouter: any SessionEnvironmentRouting
     let sessionRefreshPolicy: SessionRefreshPolicy
     let nowMillisProvider: @MainActor @Sendable () -> Int64
     let developImpersonationEnabled: Bool
@@ -134,7 +124,7 @@ final class SessionViewModel {
         self.authSessionProvider = dependencies.authSessionProvider
         self.resolveAuthorizedSession = dependencies.resolveAuthorizedSession
         self.authorizedDeviceRegistrar = dependencies.authorizedDeviceRegistrar
-        self.reviewerEnvironmentRouter = dependencies.reviewerEnvironmentRouter
+        self.environmentRouter = dependencies.environmentRouter
         self.sessionRefreshPolicy = dependencies.sessionRefreshPolicy
         self.nowMillisProvider = dependencies.nowMillisProvider
         self.developImpersonationEnabled = dependencies.developImpersonationEnabled
@@ -145,8 +135,9 @@ final class SessionViewModel {
         feedbackCenter: GlobalFeedbackCenter = GlobalFeedbackCenter(),
         authSessionProvider: (any AuthSessionProvider)? = nil,
         resolveAuthorizedSession: ResolveAuthorizedSessionUseCase? = nil,
+        authorizedMemberResolver: (any AuthorizedMemberResolving)? = nil,
         authorizedDeviceRegistrar: (any AuthorizedDeviceRegistrar)? = nil,
-        reviewerEnvironmentRouter: (any ReviewerEnvironmentRouter)? = nil,
+        environmentRouter: (any SessionEnvironmentRouting)? = nil,
         developImpersonationEnabled: Bool = false,
         sessionRefreshPolicy: SessionRefreshPolicy = SessionRefreshPolicy(),
         nowMillisProvider: @escaping @MainActor @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1_000) }
@@ -157,8 +148,9 @@ final class SessionViewModel {
                 feedbackCenter: feedbackCenter,
                 authSessionProvider: authSessionProvider,
                 resolveAuthorizedSession: resolveAuthorizedSession,
+                authorizedMemberResolver: authorizedMemberResolver,
                 authorizedDeviceRegistrar: authorizedDeviceRegistrar,
-                reviewerEnvironmentRouter: reviewerEnvironmentRouter,
+                environmentRouter: environmentRouter,
                 developImpersonationEnabled: developImpersonationEnabled,
                 sessionRefreshPolicy: sessionRefreshPolicy,
                 nowMillisProvider: nowMillisProvider

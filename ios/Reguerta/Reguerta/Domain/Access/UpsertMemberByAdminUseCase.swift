@@ -1,47 +1,45 @@
 import Foundation
 
-enum MemberManagementError: Error, Equatable {
+enum MemberManagementError: Error, Equatable, Sendable {
     case accessDenied
     case lastAdminRemoval
+    case conflict(code: String)
+}
+
+protocol MemberAdministrationRepository: Sendable {
+    func upsertMember(_ member: Member) async throws -> Member
 }
 
 protocol MemberAdminUpserting: Sendable {
-    func execute(actorAuthUid: String, target: Member) async throws -> Member
+    func execute(target: Member) async throws -> Member
 }
 
 struct UpsertMemberByAdminUseCase: MemberAdminUpserting {
-    private let repository: any MemberRepository
+    private let repository: any MemberAdministrationRepository
 
-    init(repository: any MemberRepository) {
+    init(repository: any MemberAdministrationRepository) {
         self.repository = repository
     }
 
-    func execute(actorAuthUid: String, target: Member) async throws -> Member {
-        guard let actor = await repository.findByAuthUid(actorAuthUid), actor.isAdmin, actor.isActive else {
-            throw MemberManagementError.accessDenied
-        }
+    func execute(target: Member) async throws -> Member {
+        try await repository.upsertMember(target.withCanonicalIdentity)
+    }
+}
 
-        let allMembers = await repository.allMembers()
-        let current = allMembers.first { $0.id == target.id }
-        let normalized = target.withNormalizedEmail
+struct LocalMemberAdministrationRepository: MemberAdministrationRepository {
+    private let repository: any LocalMemberRepository
 
-        if wouldLeaveWithoutActiveAdmins(allMembers: allMembers, current: current, target: normalized) {
-            throw MemberManagementError.lastAdminRemoval
-        }
-
-        return await repository.upsert(member: normalized)
+    init(repository: any LocalMemberRepository) {
+        self.repository = repository
     }
 
-    private func wouldLeaveWithoutActiveAdmins(allMembers: [Member], current: Member?, target: Member) -> Bool {
-        let activeAdminCount = allMembers.count { $0.isActive && $0.roles.contains(.admin) }
-        let wasActiveAdmin = current?.isActive == true && current?.roles.contains(.admin) == true
-        let willBeActiveAdmin = target.isActive && target.roles.contains(.admin)
-        return wasActiveAdmin && !willBeActiveAdmin && activeAdminCount <= 1
+    func upsertMember(_ member: Member) async throws -> Member {
+        await repository.upsert(member: member)
     }
 }
 
 private extension Member {
-    var withNormalizedEmail: Member {
+    var withCanonicalIdentity: Member {
         Member(
             id: id,
             displayName: displayName,
@@ -49,7 +47,7 @@ private extension Member {
             phoneNumber: phoneNumber,
             normalizedEmail: normalizedEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
             authUid: authUid,
-            roles: roles,
+            roles: roles.union([.member]),
             isActive: isActive,
             producerCatalogEnabled: producerCatalogEnabled,
             isCommonPurchaseManager: isCommonPurchaseManager,

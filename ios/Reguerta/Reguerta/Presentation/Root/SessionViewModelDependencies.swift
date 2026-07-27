@@ -1,3 +1,4 @@
+import FirebaseCore
 import FirebaseFirestore
 import Foundation
 
@@ -7,7 +8,7 @@ struct SessionViewModelDependencies {
     let authSessionProvider: any AuthSessionProvider
     let resolveAuthorizedSession: ResolveAuthorizedSessionUseCase
     let authorizedDeviceRegistrar: any AuthorizedDeviceRegistrar
-    let reviewerEnvironmentRouter: any ReviewerEnvironmentRouter
+    let environmentRouter: any SessionEnvironmentRouting
     let sessionRefreshPolicy: SessionRefreshPolicy
     let nowMillisProvider: @MainActor @Sendable () -> Int64
     let developImpersonationEnabled: Bool
@@ -18,22 +19,52 @@ struct SessionViewModelDependencies {
         feedbackCenter: GlobalFeedbackCenter = GlobalFeedbackCenter(),
         authSessionProvider: (any AuthSessionProvider)? = nil,
         resolveAuthorizedSession: ResolveAuthorizedSessionUseCase? = nil,
+        authorizedMemberResolver: (any AuthorizedMemberResolving)? = nil,
         authorizedDeviceRegistrar: (any AuthorizedDeviceRegistrar)? = nil,
-        reviewerEnvironmentRouter: (any ReviewerEnvironmentRouter)? = nil,
+        environmentRouter: (any SessionEnvironmentRouting)? = nil,
         developImpersonationEnabled: Bool = false,
         sessionRefreshPolicy: SessionRefreshPolicy = SessionRefreshPolicy(),
         nowMillisProvider: @escaping @MainActor @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1_000) }
     ) -> SessionViewModelDependencies {
         let useMockAuth = ProcessInfo.processInfo.arguments.contains("-useMockAuth")
-        let selectedRepository = liveMemberRepository(db: db, override: repository)
+        let selectedRepository: any MemberRepository = repository ?? (useMockAuth
+            ? InMemoryMemberRepository()
+            : FirestoreMemberRepository(db: db))
+        let selectedAuthProvider: any AuthSessionProvider = authSessionProvider
+            ?? (useMockAuth ? MockAuthSessionProvider() : FirebaseAuthSessionProvider())
+        let selectedEnvironmentRouter: any SessionEnvironmentRouting = environmentRouter
+            ?? (useMockAuth ? FixedSessionEnvironmentRouter() : RuntimeSessionEnvironmentRouter())
+        let selectedResolver: any AuthorizedMemberResolving
+        if let authorizedMemberResolver {
+            selectedResolver = authorizedMemberResolver
+        } else if let localRepository = selectedRepository as? any LocalMemberRepository {
+            selectedResolver = InMemoryAuthorizedMemberResolver(repository: localRepository)
+        } else {
+            guard let projectID = FirebaseApp.app()?.options.projectID else {
+                preconditionFailure("Firebase projectID is required for authenticated Functions")
+            }
+            let baseURL = URL(
+                string: "https://europe-west1-\(projectID).cloudfunctions.net"
+            )!
+            selectedResolver = FirebaseAuthorizedMemberResolver(
+                client: AuthenticatedFirebaseFunctionsClient(
+                    baseURL: baseURL,
+                    tokenProvider: selectedAuthProvider
+                )
+            )
+        }
 
         return SessionViewModelDependencies(
             feedbackCenter: feedbackCenter,
             repository: selectedRepository,
-            authSessionProvider: authSessionProvider ?? (useMockAuth ? MockAuthSessionProvider() : FirebaseAuthSessionProvider()),
-            resolveAuthorizedSession: resolveAuthorizedSession ?? ResolveAuthorizedSessionUseCase(repository: selectedRepository),
+            authSessionProvider: selectedAuthProvider,
+            resolveAuthorizedSession: resolveAuthorizedSession ?? ResolveAuthorizedSessionUseCase(
+                repository: selectedRepository,
+                resolver: selectedResolver,
+                environmentRouter: selectedEnvironmentRouter
+            ),
             authorizedDeviceRegistrar: authorizedDeviceRegistrar ?? NoOpAuthorizedDeviceRegistrar(),
-            reviewerEnvironmentRouter: reviewerEnvironmentRouter ?? NoOpReviewerEnvironmentRouter(),
+            environmentRouter: selectedEnvironmentRouter,
             sessionRefreshPolicy: sessionRefreshPolicy,
             nowMillisProvider: nowMillisProvider,
             developImpersonationEnabled: developImpersonationEnabled
@@ -41,33 +72,31 @@ struct SessionViewModelDependencies {
     }
 
     static func preview(
-        repository: any MemberRepository = InMemoryMemberRepository(),
+        repository: any LocalMemberRepository = InMemoryMemberRepository(),
         feedbackCenter: GlobalFeedbackCenter = GlobalFeedbackCenter()
     ) -> SessionViewModelDependencies {
+        let environmentRouter = FixedSessionEnvironmentRouter()
         return SessionViewModelDependencies(
             feedbackCenter: feedbackCenter,
             repository: repository,
             authSessionProvider: MockAuthSessionProvider(),
-            resolveAuthorizedSession: ResolveAuthorizedSessionUseCase(repository: repository),
+            resolveAuthorizedSession: ResolveAuthorizedSessionUseCase(
+                repository: repository,
+                resolver: InMemoryAuthorizedMemberResolver(repository: repository),
+                environmentRouter: environmentRouter
+            ),
             authorizedDeviceRegistrar: NoOpAuthorizedDeviceRegistrar(),
-            reviewerEnvironmentRouter: NoOpReviewerEnvironmentRouter(),
+            environmentRouter: environmentRouter,
             sessionRefreshPolicy: SessionRefreshPolicy(),
             nowMillisProvider: { Int64(Date().timeIntervalSince1970 * 1_000) },
             developImpersonationEnabled: false
         )
     }
 
-    private static func liveMemberRepository(
-        db: Firestore,
-        override: (any MemberRepository)?
-    ) -> any MemberRepository {
-        override ?? ChainedMemberRepository(
-            primary: FirestoreMemberRepository(db: db),
-            fallback: InMemoryMemberRepository()
-        )
-    }
 }
 
 private struct NoOpAuthorizedDeviceRegistrar: AuthorizedDeviceRegistrar {
-    func register(member: Member) async {}
+    func register(member: Member) async -> AuthorizedDeviceRegistrationResult {
+        .skipped
+    }
 }

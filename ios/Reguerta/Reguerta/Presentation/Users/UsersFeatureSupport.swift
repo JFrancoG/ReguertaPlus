@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 struct MemberDraft: Equatable, Sendable {
@@ -133,11 +134,15 @@ extension Member {
 }
 
 func buildMemberId(from normalizedEmail: String) -> String {
-    let sanitized = normalizedEmail
+    let canonicalEmail = normalizeMemberEmail(normalizedEmail)
+    let sanitized = canonicalEmail
         .replacingOccurrences(of: "[^a-z0-9]+", with: "_", options: .regularExpression)
         .trimmingCharacters(in: CharacterSet(charactersIn: "_"))
     let suffix = sanitized.isEmpty ? "member" : String(sanitized.prefix(40))
-    return "member_\(suffix)"
+    let digest = SHA256.hash(data: Data(canonicalEmail.utf8))
+        .map { String(format: "%02x", $0) }
+        .joined()
+    return "member_\(suffix)_\(digest.prefix(10))"
 }
 
 func normalizeMemberEmail(_ email: String) -> String {

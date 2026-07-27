@@ -1,6 +1,6 @@
 import Foundation
 
-struct Member: Identifiable, Equatable, Sendable {
+nonisolated struct Member: Identifiable, Equatable, Sendable {
     let id: String
     let displayName: String
     let companyName: String?
@@ -50,12 +50,12 @@ struct Member: Identifiable, Equatable, Sendable {
     }
 }
 
-enum ProducerParity: String, Equatable, Sendable {
+nonisolated enum ProducerParity: String, Codable, Equatable, Sendable {
     case even
     case odd
 }
 
-enum EcoCommitmentMode: String, Equatable, Sendable {
+nonisolated enum EcoCommitmentMode: String, Codable, Equatable, Sendable {
     case weekly
     case biweekly
 }

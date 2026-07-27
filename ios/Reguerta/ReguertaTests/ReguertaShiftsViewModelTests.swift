@@ -165,7 +165,7 @@ struct ReguertaShiftsViewModelTests {
     }
 
     @Test
-    func shiftsViewModelCreatesSwapRequestAndNotifiesCandidates() async {
+    func shiftsViewModelCreatesSwapThroughBackendBoundary() async {
         let requester = shiftMember(id: "requester", displayName: "Rosa")
         let candidate = shiftMember(id: "candidate", displayName: "Luis")
         let requestedShift = shift(
@@ -202,8 +202,7 @@ struct ReguertaShiftsViewModelTests {
         #expect(requests.first?.requestedShiftId == requestedShift.id)
         #expect(requests.first?.reason == "No puedo ir")
         #expect(requests.first?.candidates == [ShiftSwapCandidate(userId: candidate.id, shiftId: candidateShift.id)])
-        #expect(events.first?.type == "shift_swap_requested")
-        #expect(events.first?.userIds == [candidate.id])
+        #expect(events.isEmpty)
         #expect(viewModel.shiftSwapDraft == ShiftSwapDraft())
     }
 

@@ -37,7 +37,7 @@ final class FirestoreSharedProfileRepository: @unchecked Sendable, SharedProfile
         }
     }
 
-    func upsert(profile: SharedProfile) async -> SharedProfile {
+    func upsert(profile: SharedProfile) async throws -> SharedProfile {
         var payload: [String: Any] = [
             "userId": profile.userId,
             "familyNames": profile.familyNames,
@@ -48,21 +48,13 @@ final class FirestoreSharedProfileRepository: @unchecked Sendable, SharedProfile
             payload["photoUrl"] = photoUrl
         }
 
-        do {
-            try await profilesCollection.document(profile.userId).setData(payload, merge: true)
-            return profile
-        } catch {
-            return profile
-        }
+        try await profilesCollection.document(profile.userId).setData(payload, merge: true)
+        return profile
     }
 
-    func deleteSharedProfile(userId: String) async -> Bool {
-        do {
-            try await profilesCollection.document(userId).delete()
-            return true
-        } catch {
-            return false
-        }
+    func deleteSharedProfile(userId: String) async throws -> Bool {
+        try await profilesCollection.document(userId).delete()
+        return true
     }
 
     private static func toSharedProfile(_ document: DocumentSnapshot) -> SharedProfile? {

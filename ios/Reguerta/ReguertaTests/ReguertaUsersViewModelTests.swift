@@ -85,7 +85,7 @@ struct ReguertaUsersViewModelTests {
         #expect(await scenario.viewModel.createAuthorizedMember())
 
         let created = await scenario.repository.findByEmailNormalized("nuevo@reguerta.app")
-        #expect(created?.id == "member_nuevo_reguerta_app")
+        #expect(created?.id == buildMemberId(from: "nuevo@reguerta.app"))
         #expect(created?.displayName == "Nuevo Socio")
         #expect(created?.companyName == "Huerta Nueva")
         #expect(created?.phoneNumber == "600 111 222")
@@ -93,6 +93,50 @@ struct ReguertaUsersViewModelTests {
         #expect(created?.isCommonPurchaseManager == true)
         #expect(created?.producerCatalogEnabled == true)
         #expect(scenario.viewModel.draft == MemberDraft())
+    }
+
+    @Test
+    func specializedDraftsAlwaysPersistCanonicalMemberRole() async {
+        let admin = usersAdminMember()
+        let scenario = makeUsersScenario(currentMember: admin, members: [admin])
+        scenario.viewModel.draft = MemberDraft(
+            displayName: "Producer",
+            email: "producer-only@reguerta.app",
+            companyName: "Farm",
+            isMember: false,
+            isProducer: true
+        )
+
+        #expect(await scenario.viewModel.createAuthorizedMember())
+        let producer = await scenario.repository.findByEmailNormalized("producer-only@reguerta.app")
+        #expect(producer?.roles == [.member, .producer])
+
+        scenario.viewModel.draft = MemberDraft(
+            displayName: "Admin Two",
+            email: "admin-only@reguerta.app",
+            isMember: false,
+            isAdmin: true
+        )
+
+        #expect(await scenario.viewModel.createAuthorizedMember())
+        let createdAdmin = await scenario.repository.findByEmailNormalized("admin-only@reguerta.app")
+        #expect(createdAdmin?.roles == [.member, .admin])
+    }
+
+    @Test
+    func memberIdsRemainDistinctWhenLongEmailSlugsShareFirstFortyCharacters() {
+        let sharedPrefix = String(repeating: "a", count: 45)
+        let firstEmail = "\(sharedPrefix)one@example.com"
+        let secondEmail = "\(sharedPrefix)two@example.com"
+
+        let firstId = buildMemberId(from: firstEmail)
+        let secondId = buildMemberId(from: secondEmail)
+
+        #expect(buildMemberId(from: "nuevo@reguerta.app") == "member_nuevo_reguerta_app_0a249db66c")
+        #expect(firstId.hasPrefix("member_\(String(repeating: "a", count: 40))_"))
+        #expect(secondId.hasPrefix("member_\(String(repeating: "a", count: 40))_"))
+        #expect(firstId != secondId)
+        #expect(firstId == buildMemberId(from: firstEmail.uppercased()))
     }
 
     @Test
@@ -210,18 +254,21 @@ struct ReguertaUsersViewModelTests {
     @Test
     func usersViewModelMapsPersistenceFailuresToFeedback() async {
         let sessionAdmin = usersAdminMember()
-        let repositoryAdmin = usersAdminMember(authUid: nil)
         let accessDeniedScenario = makeUsersScenario(
             currentMember: sessionAdmin,
             members: [sessionAdmin],
-            repositoryMembers: [repositoryAdmin]
+            upsertMemberByAdmin: FailingMemberAdminUpserter(error: MemberManagementError.accessDenied)
         )
         accessDeniedScenario.viewModel.draft = validMemberDraft(email: "new@reguerta.app")
 
         #expect(await accessDeniedScenario.viewModel.createAuthorizedMember() == false)
         #expect(accessDeniedScenario.viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackOnlyAdminManageMembers)
 
-        let lastAdminScenario = makeUsersScenario(currentMember: sessionAdmin, members: [sessionAdmin])
+        let lastAdminScenario = makeUsersScenario(
+            currentMember: sessionAdmin,
+            members: [sessionAdmin],
+            upsertMemberByAdmin: FailingMemberAdminUpserter(error: MemberManagementError.lastAdminRemoval)
+        )
         lastAdminScenario.viewModel.startEditing(memberId: sessionAdmin.id)
         var draft = lastAdminScenario.viewModel.draft
         draft.isAdmin = false
@@ -287,7 +334,9 @@ private func makeUsersScenario(
     let viewModel = UsersFeatureViewModel(
         sessionViewModel: sessionViewModel,
         memberRepository: repository,
-        upsertMemberByAdmin: upsertMemberByAdmin ?? UpsertMemberByAdminUseCase(repository: repository)
+        upsertMemberByAdmin: upsertMemberByAdmin ?? UpsertMemberByAdminUseCase(
+            repository: LocalMemberAdministrationRepository(repository: repository)
+        )
     )
     if startsAuthorized {
         sessionViewModel.mode = .authorized(session)
@@ -374,7 +423,7 @@ private struct UsersGenericPersistenceError: Error {}
 private struct FailingMemberAdminUpserter: MemberAdminUpserting {
     let error: any Error
 
-    func execute(actorAuthUid _: String, target _: Member) async throws -> Member {
+    func execute(target _: Member) async throws -> Member {
         throw error
     }
 }

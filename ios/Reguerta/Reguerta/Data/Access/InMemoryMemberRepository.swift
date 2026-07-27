@@ -1,6 +1,6 @@
 import Foundation
 
-actor InMemoryMemberRepository: MemberRepository {
+actor InMemoryMemberRepository: LocalMemberRepository {
     private var members: [String: Member]
 
     init(items: [Member]? = nil) {
@@ -42,6 +42,42 @@ actor InMemoryMemberRepository: MemberRepository {
             ecoCommitmentParity: .even
         )
     ]
+
+    func member(id: String) async throws -> Member? {
+        members[id]
+    }
+
+    func members(visibleTo member: Member) async throws -> [Member] {
+        let canReadAll = await MainActor.run { member.isAdmin }
+        return members.values
+            .filter { canReadAll || $0.isActive }
+            .sorted { lhs, rhs in
+                lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+            }
+    }
+
+    func updateOwnProducerCatalogEnabled(memberId: String, enabled: Bool) async throws -> Member {
+        guard let existing = members[memberId] else {
+            throw InMemoryMemberRepositoryError.memberNotFound
+        }
+        let updated = Member(
+            id: existing.id,
+            displayName: existing.displayName,
+            companyName: existing.companyName,
+            phoneNumber: existing.phoneNumber,
+            normalizedEmail: existing.normalizedEmail,
+            authUid: existing.authUid,
+            roles: existing.roles,
+            isActive: existing.isActive,
+            producerCatalogEnabled: enabled,
+            isCommonPurchaseManager: existing.isCommonPurchaseManager,
+            producerParity: existing.producerParity,
+            ecoCommitmentMode: existing.ecoCommitmentMode,
+            ecoCommitmentParity: existing.ecoCommitmentParity
+        )
+        members[memberId] = updated
+        return updated
+    }
 
     func findByEmailNormalized(_ emailNormalized: String) async -> Member? {
         members.values.first { $0.normalizedEmail == emailNormalized }
@@ -85,4 +121,8 @@ actor InMemoryMemberRepository: MemberRepository {
         members[member.id] = member
         return member
     }
+}
+
+private enum InMemoryMemberRepositoryError: Error {
+    case memberNotFound
 }

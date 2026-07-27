@@ -125,6 +125,13 @@ final class TestNowProvider {
 actor RecordingNotificationRepository: NotificationRepository {
     private var events: [NotificationEvent] = []
 
+    func notifications(visibleTo member: Member) async -> [NotificationEvent] {
+        let events = events
+        return await MainActor.run {
+            events.filter { $0.isVisible(to: member) }
+        }
+    }
+
     func allNotifications() async -> [NotificationEvent] {
         events
     }

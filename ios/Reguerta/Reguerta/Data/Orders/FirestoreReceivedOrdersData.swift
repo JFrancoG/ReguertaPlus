@@ -168,30 +168,16 @@ private func fetchReceivedOrderStatusesByOrderId(
         firestorePath.collectionPath(.orders)
     ]
     var statusesByOrderId: [String: ProducerOrderStatus] = [:]
-    var hasSuccessfulRead = false
-    var lastError: Error?
-
     for ordersPath in readTargets {
-        for chunk in dedupedOrderIds.chunked(into: 10) {
-            do {
-                let snapshot = try await db.collection(ordersPath)
-                    .whereField(FieldPath.documentID(), in: chunk)
-                    .getDocuments()
-                hasSuccessfulRead = true
-                for document in snapshot.documents {
-                    statusesByOrderId[document.documentID] = receivedOrderStatus(
-                        from: document.data(),
-                        producerId: producerId
-                    )
-                }
-            } catch {
-                lastError = error
+        for orderId in dedupedOrderIds {
+            let document = try await db.document("\(ordersPath)/\(orderId)").getDocument()
+            if document.exists {
+                statusesByOrderId[document.documentID] = receivedOrderStatus(
+                    from: document.data() ?? [:],
+                    producerId: producerId
+                )
             }
         }
-    }
-
-    if !hasSuccessfulRead, let lastError {
-        throw lastError
     }
     return statusesByOrderId
 }

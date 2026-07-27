@@ -15,9 +15,14 @@ struct FirebaseAuthSessionProvider: AuthSessionProvider {
 
         do {
             let result = try await auth.signIn(withEmail: trimmedEmail, password: password)
+            try await result.user.reload()
+            guard let refreshedUser = auth.currentUser else {
+                return .failure(.unknown)
+            }
+            _ = try await refreshedUser.getIDTokenResult(forcingRefresh: true)
             let principal = AuthPrincipal(
-                uid: result.user.uid,
-                email: (result.user.email ?? trimmedEmail).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                uid: refreshedUser.uid,
+                email: normalizedEmail(refreshedUser.email ?? trimmedEmail)
             )
             return .success(principal)
         } catch {
@@ -25,16 +30,18 @@ struct FirebaseAuthSessionProvider: AuthSessionProvider {
         }
     }
 
-    func signUp(email: String, password: String) async -> AuthSignInResult {
+    func signUp(email: String, password: String) async -> AuthSignUpResult {
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
 
         do {
             let result = try await auth.createUser(withEmail: trimmedEmail, password: password)
-            let principal = AuthPrincipal(
-                uid: result.user.uid,
-                email: (result.user.email ?? trimmedEmail).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let verificationSent = await sendVerificationEmail(to: result.user)
+            let signedOut = signOut()
+            return .verificationRequired(
+                email: normalizedEmail(result.user.email ?? trimmedEmail),
+                verificationSent: verificationSent,
+                signedOut: signedOut
             )
-            return .success(principal)
         } catch {
             return .failure(mapFirebaseAuthError(error))
         }
@@ -51,42 +58,74 @@ struct FirebaseAuthSessionProvider: AuthSessionProvider {
         }
     }
 
+    func sendCurrentUserEmailVerification() async -> Bool {
+        guard let user = auth.currentUser else { return false }
+        return await sendVerificationEmail(to: user)
+    }
+
     func refreshCurrentSession() async -> AuthSessionRefreshResult {
         guard let user = auth.currentUser else {
             return .noSession
         }
-
-        let fallbackPrincipal = AuthPrincipal(
-            uid: user.uid,
-            email: (user.email ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        )
 
         do {
             try await user.reload()
             guard let refreshedUser = auth.currentUser else {
                 return .expired
             }
-            _ = try await refreshedUser.getIDTokenResult(forcingRefresh: false)
+            _ = try await refreshedUser.getIDTokenResult(forcingRefresh: true)
 
             let principal = AuthPrincipal(
                 uid: refreshedUser.uid,
-                email: (refreshedUser.email ?? fallbackPrincipal.email)
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                    .lowercased()
+                email: normalizedEmail(refreshedUser.email ?? "")
             )
             return .active(principal)
         } catch {
             if isExpiredSessionError(error) {
-                try? auth.signOut()
                 return .expired
             }
-            return .active(fallbackPrincipal)
+            return .failure(mapFirebaseAuthError(error))
         }
     }
 
-    func signOut() {
-        try? auth.signOut()
+    func validIDToken(forcingRefresh: Bool) async throws -> String {
+        guard let user = auth.currentUser else {
+            throw FirebaseIDTokenError.noAuthenticatedUser
+        }
+        try await user.reload()
+        guard let refreshedUser = auth.currentUser else {
+            throw FirebaseIDTokenError.noAuthenticatedUser
+        }
+        return try await refreshedUser.getIDTokenResult(forcingRefresh: forcingRefresh).token
     }
+
+    @discardableResult
+    func signOut() -> Bool {
+        do {
+            try auth.signOut()
+            return true
+        } catch {
+            return false
+        }
+    }
+}
+
+private enum FirebaseIDTokenError: Error {
+    case noAuthenticatedUser
+}
+
+@MainActor
+private func sendVerificationEmail(to user: User) async -> Bool {
+    do {
+        try await user.sendEmailVerification()
+        return true
+    } catch {
+        return false
+    }
+}
+
+private func normalizedEmail(_ email: String) -> String {
+    email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 }
 
 @MainActor

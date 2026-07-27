@@ -211,7 +211,9 @@ struct ReguertaStartupAndOrderTests {
         )
 
         viewModel.refreshSession(trigger: .startup)
-        await waitForCondition { viewModel.mode.isAuthenticatedSession }
+        await waitForCondition(timeoutNanoseconds: 2_000_000_000) {
+            viewModel.mode.isAuthenticatedSession
+        }
 
         guard case .authorized(let session) = viewModel.mode else {
             Issue.record("Expected restored authorized session")
@@ -238,12 +240,16 @@ struct ReguertaStartupAndOrderTests {
         viewModel.emailInput = "ana.admin@reguerta.app"
         viewModel.passwordInput = "test1234"
         viewModel.signIn()
-        await waitForCondition { viewModel.mode.isAuthenticatedSession }
+        await waitForCondition(timeoutNanoseconds: 2_000_000_000) {
+            viewModel.mode.isAuthenticatedSession
+        }
 
         #expect(viewModel.mode.isAuthenticatedSession)
 
         viewModel.refreshSession(trigger: .foreground)
-        await waitForCondition { viewModel.mode == .signedOut && viewModel.showSessionExpiredDialog }
+        await waitForCondition(timeoutNanoseconds: 2_000_000_000) {
+            viewModel.mode == .signedOut && viewModel.showSessionExpiredDialog
+        }
 
         #expect(viewModel.mode == .signedOut)
         #expect(viewModel.showSessionExpiredDialog)

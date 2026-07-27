@@ -85,22 +85,28 @@ final class SharedProfileFeatureViewModel {
         }
 
         isSaving = true
-        let savedProfile = await sharedProfileRepository.upsert(
-            profile: SharedProfile(
-                userId: session.member.id,
-                familyNames: normalizedDraft.familyNames,
-                photoUrl: normalizedDraft.persistedPhotoUrl,
-                about: normalizedDraft.about,
-                updatedAtMillis: nowMillisProvider()
+        defer { isSaving = false }
+        let savedProfile: SharedProfile
+        do {
+            savedProfile = try await sharedProfileRepository.upsert(
+                profile: SharedProfile(
+                    userId: session.member.id,
+                    familyNames: normalizedDraft.familyNames,
+                    photoUrl: normalizedDraft.persistedPhotoUrl,
+                    about: normalizedDraft.about,
+                    updatedAtMillis: nowMillisProvider()
+                )
             )
-        )
+        } catch {
+            feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
+            return false
+        }
         let fetchedProfiles = await sharedProfileRepository.allSharedProfiles()
         guard isCurrentSession(session) else {
             return false
         }
         applyProfiles(fetchedProfiles, currentMemberId: session.member.id)
         draft = savedProfile.toDraft()
-        isSaving = false
         return true
     }
 
@@ -108,20 +114,26 @@ final class SharedProfileFeatureViewModel {
         guard let session = currentSession else { return false }
 
         isDeleting = true
-        let deleted = await sharedProfileRepository.deleteSharedProfile(userId: session.member.id)
+        defer { isDeleting = false }
+        let deleted: Bool
+        do {
+            deleted = try await sharedProfileRepository.deleteSharedProfile(userId: session.member.id)
+        } catch {
+            feedbackCenter.show(AccessL10nKey.feedbackSharedProfileDeleteFailed)
+            return false
+        }
+        guard deleted else {
+            feedbackCenter.show(AccessL10nKey.feedbackSharedProfileDeleteFailed)
+            return false
+        }
         let fetchedProfiles = await sharedProfileRepository.allSharedProfiles()
         guard isCurrentSession(session) else {
             return false
         }
         applyProfiles(fetchedProfiles, currentMemberId: session.member.id)
         draft = SharedProfileDraft()
-        isDeleting = false
-        feedbackCenter.show(
-            deleted
-                ? AccessL10nKey.feedbackSharedProfileDeleted
-                : AccessL10nKey.feedbackSharedProfileDeleteFailed
-        )
-        return deleted
+        feedbackCenter.show(AccessL10nKey.feedbackSharedProfileDeleted)
+        return true
     }
 
     func uploadImage(_ imageData: Data) async {

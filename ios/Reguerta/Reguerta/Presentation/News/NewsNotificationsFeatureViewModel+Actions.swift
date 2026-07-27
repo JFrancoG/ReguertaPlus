@@ -118,18 +118,26 @@ extension NewsNotificationsFeatureViewModel {
         defer { isSavingNews = false }
 
         let existing = newsFeed.first(where: { $0.id == editingNewsId })
-        let saved = await newsRepository.upsert(
-            article: NewsArticle(
-                id: editingNewsId ?? "",
-                title: normalizedDraft.title,
-                body: normalizedDraft.body,
-                active: normalizedDraft.active,
-                publishedBy: existing?.publishedBy ?? session.member.displayName,
-                publishedAtMillis: existing?.publishedAtMillis ?? nowMillisProvider(),
-                urlImage: normalizedDraft.normalizedImageURL
+        let saved: NewsArticle
+        let allNews: [NewsArticle]
+        do {
+            saved = try await newsRepository.upsert(
+                article: NewsArticle(
+                    id: editingNewsId ?? "",
+                    title: normalizedDraft.title,
+                    body: normalizedDraft.body,
+                    active: normalizedDraft.active,
+                    publishedBy: session.member.displayName,
+                    publishedByUserId: session.member.id,
+                    publishedAtMillis: existing?.publishedAtMillis ?? nowMillisProvider(),
+                    urlImage: normalizedDraft.normalizedImageURL
+                )
             )
-        )
-        let allNews = await newsRepository.allNews()
+            allNews = try await newsRepository.news(visibleTo: session.member)
+        } catch {
+            feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
+            return false
+        }
         guard isCurrentSession(session) else { return false }
         applyNewsSnapshot(allNews, member: session.member)
         newsDraft = saved.toDraft()
@@ -149,12 +157,19 @@ extension NewsNotificationsFeatureViewModel {
         }
         guard let newsId = pendingNewsDeletionId else { return }
 
-        let deleted = await newsRepository.delete(newsId: newsId)
+        let deleted: Bool
+        let allNews: [NewsArticle]
+        do {
+            deleted = try await newsRepository.delete(newsId: newsId)
+            allNews = try await newsRepository.news(visibleTo: session.member)
+        } catch {
+            feedbackCenter.show(AccessL10nKey.feedbackNewsDeleteFailed)
+            return
+        }
         guard deleted else {
             feedbackCenter.show(AccessL10nKey.feedbackNewsDeleteFailed)
             return
         }
-        let allNews = await newsRepository.allNews()
         guard isCurrentSession(session) else { return }
         applyNewsSnapshot(allNews, member: session.member)
         if editingNewsId == newsId {
@@ -179,23 +194,30 @@ extension NewsNotificationsFeatureViewModel {
         isSendingNotification = true
         defer { isSendingNotification = false }
 
-        _ = await notificationRepository.send(
-            event: NotificationEvent(
-                id: "",
-                title: normalizedDraft.title,
-                body: normalizedDraft.body,
-                type: "admin_broadcast",
-                target: normalizedDraft.audience.targetValue,
-                userIds: [],
-                segmentType: normalizedDraft.audience.segmentType,
-                targetRole: normalizedDraft.audience.targetRole,
-                createdBy: session.member.id,
-                sentAtMillis: nowMillisProvider(),
-                weekKey: nil
+        let allNotifications: [NotificationEvent]
+        let readIds: Set<String>
+        do {
+            _ = try await notificationRepository.send(
+                event: NotificationEvent(
+                    id: "",
+                    title: normalizedDraft.title,
+                    body: normalizedDraft.body,
+                    type: "admin_broadcast",
+                    target: normalizedDraft.audience.targetValue,
+                    userIds: [],
+                    segmentType: normalizedDraft.audience.segmentType,
+                    targetRole: normalizedDraft.audience.targetRole,
+                    createdBy: session.member.id,
+                    sentAtMillis: nowMillisProvider(),
+                    weekKey: nil
+                )
             )
-        )
-        let allNotifications = await notificationRepository.allNotifications()
-        let readIds = await notificationRepository.readNotificationIds(memberId: session.member.id)
+            allNotifications = try await notificationRepository.notifications(visibleTo: session.member)
+            readIds = try await notificationRepository.readNotificationIds(memberId: session.member.id)
+        } catch {
+            feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
+            return false
+        }
         guard isCurrentSession(session) else { return false }
         notificationsFeed = allNotifications.filter { $0.isVisible(to: session.member) }
         readNotificationIds = readIds

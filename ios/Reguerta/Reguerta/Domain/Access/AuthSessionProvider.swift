@@ -14,6 +14,12 @@ enum AuthSignInFailureReason: Equatable, Sendable {
 
 enum AuthSignInResult: Equatable, Sendable {
     case success(AuthPrincipal)
+    case emailVerificationRequired(email: String, verificationResent: Bool, signedOut: Bool)
+    case failure(AuthSignInFailureReason)
+}
+
+enum AuthSignUpResult: Equatable, Sendable {
+    case verificationRequired(email: String, verificationSent: Bool, signedOut: Bool)
     case failure(AuthSignInFailureReason)
 }
 
@@ -25,14 +31,22 @@ enum AuthPasswordResetResult: Equatable, Sendable {
 enum AuthSessionRefreshResult: Equatable, Sendable {
     case noSession
     case active(AuthPrincipal)
+    case emailVerificationRequired(email: String)
+    case failure(AuthSignInFailureReason)
     case expired
 }
 
 @MainActor
-protocol AuthSessionProvider {
+protocol FirebaseIDTokenProviding {
+    func validIDToken(forcingRefresh: Bool) async throws -> String
+}
+
+@MainActor
+protocol AuthSessionProvider: FirebaseIDTokenProviding {
     func signIn(email: String, password: String) async -> AuthSignInResult
-    func signUp(email: String, password: String) async -> AuthSignInResult
+    func signUp(email: String, password: String) async -> AuthSignUpResult
     func sendPasswordReset(email: String) async -> AuthPasswordResetResult
+    func sendCurrentUserEmailVerification() async -> Bool
     func refreshCurrentSession() async -> AuthSessionRefreshResult
-    func signOut()
+    @discardableResult func signOut() -> Bool
 }

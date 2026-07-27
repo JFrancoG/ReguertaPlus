@@ -1,13 +1,25 @@
 import FirebaseMessaging
+import OSLog
 import UIKit
 import UserNotifications
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
+    private static let logger = Logger(subsystem: "com.reguerta.app", category: "PushRegistration")
+    private static var usesMockAuth: Bool {
+        ProcessInfo.processInfo.arguments.contains("-useMockAuth")
+    }
+
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         ReguertaFontRegistrar.registerDesignFonts()
+        guard !Self.usesMockAuth else {
+            Task {
+                await KeyManager.shared.remove(.authorizedMemberId)
+            }
+            return true
+        }
         FirebaseBootstrapper.configureIfNeeded()
         Messaging.messaging().delegate = self
         UNUserNotificationCenter.current().delegate = self
@@ -16,6 +28,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        guard !Self.usesMockAuth else {
+            return
+        }
         Messaging.messaging().apnsToken = deviceToken
         Messaging.messaging().token { token, error in
             if let error {
@@ -27,6 +42,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: any Error) {
+        guard !Self.usesMockAuth else {
+            return
+        }
         print("APNs registration failed: \(error.localizedDescription)")
     }
 
@@ -49,6 +67,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
 extension AppDelegate: MessagingDelegate {
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+        guard !Self.usesMockAuth else {
+            return
+        }
         print("FCM registration token received: \(fcmToken ?? "nil")")
         Task {
             await KeyManager.shared.save(fcmToken, for: .fcmToken)
@@ -63,22 +84,26 @@ extension AppDelegate: MessagingDelegate {
 
             let repository = FirestoreDeviceRegistrationRepository()
             let nowMillis = Int64(Date().timeIntervalSince1970 * 1_000)
-            _ = await repository.register(
-                memberId: memberId,
-                device: RegisteredDevice(
-                    deviceId: UIDevice.current.identifierForVendor?.uuidString ?? "ios-\(UIDevice.current.model)",
-                    platform: "ios",
-                    appVersion: resolveInstalledAppVersion(),
-                    osVersion: UIDevice.current.systemVersion,
-                    apiLevel: nil,
-                    manufacturer: "Apple",
-                    model: UIDevice.current.model,
-                    fcmToken: token,
-                    firstSeenAtMillis: nowMillis,
-                    lastSeenAtMillis: nowMillis,
-                    tokenUpdatedAtMillis: nowMillis
+            do {
+                _ = try await repository.register(
+                    memberId: memberId,
+                    device: RegisteredDevice(
+                        deviceId: UIDevice.current.identifierForVendor?.uuidString ?? "ios-\(UIDevice.current.model)",
+                        platform: "ios",
+                        appVersion: resolveInstalledAppVersion(),
+                        osVersion: UIDevice.current.systemVersion,
+                        apiLevel: nil,
+                        manufacturer: "Apple",
+                        model: UIDevice.current.model,
+                        fcmToken: token,
+                        firstSeenAtMillis: nowMillis,
+                        lastSeenAtMillis: nowMillis,
+                        tokenUpdatedAtMillis: nowMillis
+                    )
                 )
-            )
+            } catch {
+                Self.logger.error("FCM token persistence failed: \(String(describing: error), privacy: .public)")
+            }
         }
     }
 }

@@ -49,6 +49,16 @@ struct MyOrderCheckoutContext {
     let totalsByVendor: [String: Double]
 }
 
+nonisolated struct MyOrderOwnedWeekQueryScope: Equatable, Sendable {
+    let ownerField: String
+    let ownerId: String
+    let weekKey: String
+}
+
+nonisolated enum MyOrderCheckoutResolutionError: Error, Equatable, Sendable {
+    case ambiguousExistingOrders
+}
+
 func submitCheckoutOrderToFirestore(
     currentMember: Member?,
     weekKey: String,
@@ -58,7 +68,7 @@ func submitCheckoutOrderToFirestore(
     db: Firestore = Firestore.firestore(),
     environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment,
     nowMillis: Int64 = Int64(Date().timeIntervalSince1970 * 1_000)
-) async -> Bool {
+) async throws -> Bool {
     guard let member = currentMember else {
         return false
     }
@@ -83,19 +93,14 @@ func submitCheckoutOrderToFirestore(
         lineSnapshots: lineSnapshots
     )
 
-    for target in writeTargets {
-        if let written = try? await submitMyOrderCheckout(
-            target: target,
-            context: checkoutContext,
-            member: member,
-            lineSnapshots: lineSnapshots,
-            db: db
-        ), written {
-            return true
-        }
-    }
-
-    return false
+    guard let target = writeTargets.first else { return false }
+    return try await submitMyOrderCheckout(
+        target: target,
+        context: checkoutContext,
+        member: member,
+        lineSnapshots: lineSnapshots,
+        db: db
+    )
 }
 
 func buildMyOrderCheckoutLineSnapshots(
@@ -164,19 +169,41 @@ func submitMyOrderCheckout(
     lineSnapshots: [MyOrderCheckoutLineSnapshot],
     db: Firestore
 ) async throws -> Bool {
-    let orderRef = db.document("\(target.orders)/\(context.orderId)")
-    let existingData = try? await orderRef.getDocument().data()
+    let existingOrderDocuments = try await fetchMyOrderOwnedWeekDocuments(
+        collectionPath: target.orders,
+        memberId: member.id,
+        weekKey: context.weekKey,
+        db: db
+    )
+    let effectiveOrderId = try resolveMyOrderCheckoutDocumentId(
+        newOrderId: context.orderId,
+        existingOrderIds: Array(existingOrderDocuments.keys)
+    )
+    let effectiveContext = MyOrderCheckoutContext(
+        orderId: effectiveOrderId,
+        weekKey: context.weekKey,
+        weekNumber: context.weekNumber,
+        nowTimestamp: context.nowTimestamp,
+        total: context.total,
+        totalsByVendor: context.totalsByVendor
+    )
+    let orderRef = db.document("\(target.orders)/\(effectiveOrderId)")
+    let existingData = existingOrderDocuments[effectiveOrderId]
     let createdAt = (existingData?["createdAt"] as? Timestamp) ?? context.nowTimestamp
     let deliveryDate = (existingData?["deliveryDate"] as? Timestamp) ?? context.nowTimestamp
-    let existingLinesSnapshot = try? await db.collection(target.orderlines)
-        .whereField("orderId", isEqualTo: context.orderId)
-        .getDocuments()
+    let existingLineDocuments = try await fetchMyOrderOwnedLineDocuments(
+        collectionPath: target.orderlines,
+        orderIds: [effectiveOrderId],
+        memberId: member.id,
+        weekKey: nil,
+        db: db
+    )
 
     let batch = db.batch()
     batch.setData(
         myOrderCheckoutOrderPayload(
             member: member,
-            context: context,
+            context: effectiveContext,
             createdAt: createdAt,
             deliveryDate: deliveryDate
         ),
@@ -184,17 +211,111 @@ func submitMyOrderCheckout(
         merge: true
     )
 
-    for document in existingLinesSnapshot?.documents ?? [] {
-        batch.deleteDocument(document.reference)
+    for documentId in existingLineDocuments.keys {
+        batch.deleteDocument(db.document("\(target.orderlines)/\(documentId)"))
     }
     for line in lineSnapshots {
-        let lineRef = db.document("\(target.orderlines)/\(context.orderId)_\(line.product.id)")
-        batch.setData(myOrderCheckoutLinePayload(line: line, member: member, context: context), forDocument: lineRef, merge: true)
+        let lineRef = db.document("\(target.orderlines)/\(effectiveOrderId)_\(line.product.id)")
+        batch.setData(
+            myOrderCheckoutLinePayload(line: line, member: member, context: effectiveContext),
+            forDocument: lineRef,
+            merge: true
+        )
     }
 
     try await batch.commit()
     let serverOrderSnapshot = try await orderRef.getDocument(source: .server)
     return serverOrderSnapshot.exists
+}
+
+nonisolated func myOrderOwnedWeekQueryScopes(
+    memberId: String,
+    weekKey: String
+) -> [MyOrderOwnedWeekQueryScope] {
+    ["userId", "memberId"].map { ownerField in
+        MyOrderOwnedWeekQueryScope(
+            ownerField: ownerField,
+            ownerId: memberId,
+            weekKey: weekKey
+        )
+    }
+}
+
+nonisolated func resolveMyOrderCheckoutDocumentId(
+    newOrderId: String,
+    existingOrderIds: [String]
+) throws -> String {
+    let normalizedExistingIds = normalizedUniqueMyOrderIds(existingOrderIds)
+    switch normalizedExistingIds.count {
+    case 0:
+        return newOrderId
+    case 1:
+        return normalizedExistingIds[0]
+    default:
+        throw MyOrderCheckoutResolutionError.ambiguousExistingOrders
+    }
+}
+
+func fetchMyOrderOwnedWeekDocuments(
+    collectionPath: String,
+    memberId: String,
+    weekKey: String,
+    db: Firestore
+) async throws -> [String: [String: Any]] {
+    var documents: [String: [String: Any]] = [:]
+    for scope in myOrderOwnedWeekQueryScopes(memberId: memberId, weekKey: weekKey) {
+        let snapshot = try await db.collection(collectionPath)
+            .whereField(scope.ownerField, isEqualTo: scope.ownerId)
+            .whereField("weekKey", isEqualTo: scope.weekKey)
+            .getDocuments()
+        for document in snapshot.documents {
+            documents[document.documentID] = document.data()
+        }
+    }
+    return documents
+}
+
+func fetchMyOrderOwnedLineDocuments(
+    collectionPath: String,
+    orderIds: [String],
+    memberId: String,
+    weekKey: String?,
+    db: Firestore
+) async throws -> [String: [String: Any]] {
+    var documents: [String: [String: Any]] = [:]
+    for orderId in normalizedUniqueMyOrderIds(orderIds) {
+        for ownerField in ["userId", "memberId"] {
+            let snapshot = try await db.collection(collectionPath)
+                .whereField("orderId", isEqualTo: orderId)
+                .whereField(ownerField, isEqualTo: memberId)
+                .getDocuments()
+            for document in snapshot.documents {
+                documents[document.documentID] = document.data()
+            }
+        }
+    }
+
+    if let weekKey {
+        for scope in myOrderOwnedWeekQueryScopes(memberId: memberId, weekKey: weekKey) {
+            let snapshot = try await db.collection(collectionPath)
+                .whereField(scope.ownerField, isEqualTo: scope.ownerId)
+                .whereField("weekKey", isEqualTo: scope.weekKey)
+                .getDocuments()
+            for document in snapshot.documents {
+                documents[document.documentID] = document.data()
+            }
+        }
+    }
+    return documents
+}
+
+nonisolated func normalizedUniqueMyOrderIds(_ orderIds: [String]) -> [String] {
+    var seen = Set<String>()
+    return orderIds.compactMap { orderId in
+        let normalized = orderId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty, seen.insert(normalized).inserted else { return nil }
+        return normalized
+    }
 }
 
 func myOrderCheckoutOrderPayload(

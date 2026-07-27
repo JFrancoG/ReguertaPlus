@@ -25,4 +25,24 @@ actor InMemoryShiftSwapRequestRepository: ShiftSwapRequestRepository {
         requests[persisted.id] = persisted
         return persisted
     }
+
+    func transition(_ transition: ShiftSwapTransition) async throws -> ShiftSwapTransitionResult {
+        let request: ShiftSwapRequest
+        switch transition {
+        case .create(let value), .respond(let value, _, _), .cancel(let value), .apply(let value, _):
+            request = value
+        }
+        let persisted = await upsert(request: request)
+        return ShiftSwapTransitionResult(
+            requestId: persisted.id,
+            candidateCount: transition.candidateCount
+        )
+    }
+}
+
+private extension ShiftSwapTransition {
+    nonisolated var candidateCount: Int? {
+        guard case .create(let request) = self else { return nil }
+        return request.candidates.count
+    }
 }

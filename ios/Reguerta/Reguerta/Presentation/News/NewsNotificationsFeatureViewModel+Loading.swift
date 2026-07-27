@@ -28,7 +28,14 @@ extension NewsNotificationsFeatureViewModel {
         }
 
         isLoadingNews = true
-        let allNews = await newsRepository.allNews()
+        let allNews: [NewsArticle]
+        do {
+            allNews = try await newsRepository.news(visibleTo: session.member)
+        } catch {
+            feedbackCenter.show(AccessL10nKey.authErrorNetwork)
+            isLoadingNews = false
+            return
+        }
         guard isCurrentSession(session) else {
             isLoadingNews = false
             return
@@ -45,10 +52,20 @@ extension NewsNotificationsFeatureViewModel {
         }
 
         isLoadingNotifications = true
-        async let allNotificationsResult = notificationRepository.allNotifications()
-        async let readNotificationIdsResult = notificationRepository.readNotificationIds(memberId: session.member.id)
-        let allNotifications = await allNotificationsResult
-        let readNotificationIds = await readNotificationIdsResult
+        let allNotifications: [NotificationEvent]
+        let readNotificationIds: Set<String>
+        do {
+            async let allNotificationsResult = notificationRepository.notifications(visibleTo: session.member)
+            async let readNotificationIdsResult = notificationRepository.readNotificationIds(memberId: session.member.id)
+            (allNotifications, readNotificationIds) = try await (
+                allNotificationsResult,
+                readNotificationIdsResult
+            )
+        } catch {
+            feedbackCenter.show(AccessL10nKey.authErrorNetwork)
+            isLoadingNotifications = false
+            return
+        }
         guard isCurrentSession(session) else {
             isLoadingNotifications = false
             return
@@ -79,11 +96,16 @@ extension NewsNotificationsFeatureViewModel {
             .filter { !readNotificationIds.contains($0) }
         guard !unreadIds.isEmpty else { return }
 
-        await notificationRepository.markNotificationsRead(
-            memberId: session.member.id,
-            notificationIds: unreadIds,
-            readAtMillis: nowMillisProvider()
-        )
+        do {
+            try await notificationRepository.markNotificationsRead(
+                memberId: session.member.id,
+                notificationIds: unreadIds,
+                readAtMillis: nowMillisProvider()
+            )
+        } catch {
+            feedbackCenter.show(AccessL10nKey.authErrorNetwork)
+            return
+        }
         guard isCurrentSession(session) else { return }
         readNotificationIds.formUnion(unreadIds)
     }

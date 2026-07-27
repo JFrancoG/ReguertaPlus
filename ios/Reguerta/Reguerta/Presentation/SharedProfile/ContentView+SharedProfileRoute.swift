@@ -192,7 +192,7 @@ struct SharedProfileHubRoute: View {
                         isEnabled: !viewModel.isDeleting
                     ) {
                         Task {
-                            _ = await viewModel.deleteProfile()
+                            guard await viewModel.deleteProfile() else { return }
                             selectedProfileUserId = nil
                             carouselStartProfileUserId = nil
                         }

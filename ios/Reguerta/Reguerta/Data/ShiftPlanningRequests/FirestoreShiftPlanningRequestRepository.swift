@@ -17,7 +17,7 @@ final class FirestoreShiftPlanningRequestRepository: @unchecked Sendable, ShiftP
         db.reguertaCollection(.shiftPlanningRequests, environment: environment)
     }
 
-    func submit(request: ShiftPlanningRequest) async -> ShiftPlanningRequest {
+    func submit(request: ShiftPlanningRequest) async throws -> ShiftPlanningRequest {
         let documentId = request.id.isEmpty ? requestsCollection.document().documentID : request.id
         let persisted = ShiftPlanningRequest(
             id: documentId,
@@ -27,16 +27,12 @@ final class FirestoreShiftPlanningRequestRepository: @unchecked Sendable, ShiftP
             status: request.status
         )
 
-        do {
-            try await requestsCollection.document(documentId).setData([
-                "type": persisted.type.rawValue,
-                "requestedByUserId": persisted.requestedByUserId,
-                "requestedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(persisted.requestedAtMillis) / 1_000)),
-                "status": persisted.status.rawValue
-            ], merge: true)
-            return persisted
-        } catch {
-            return persisted
-        }
+        try await requestsCollection.document(documentId).setData([
+            "type": persisted.type.rawValue,
+            "requestedByUserId": persisted.requestedByUserId,
+            "requestedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(persisted.requestedAtMillis) / 1_000)),
+            "status": persisted.status.rawValue
+        ], merge: true)
+        return persisted
     }
 }

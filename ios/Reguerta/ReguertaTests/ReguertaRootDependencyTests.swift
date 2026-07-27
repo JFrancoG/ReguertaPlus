@@ -24,6 +24,18 @@ struct ReguertaRootDependencyTests {
     }
 
     @Test
+    func uiTestingEnvironmentUsesLocalFixturesWithoutLiveBootstrap() {
+        let environment = ReguertaAppEnvironment.uiTesting()
+
+        #expect(environment.accessRootViewModel.feedbackCenter === environment.feedbackCenter)
+        #expect(environment.sessionViewModel.feedbackCenter === environment.feedbackCenter)
+        #expect(environment.accessRootViewModel.sessionViewModel === environment.sessionViewModel)
+        #expect(environment.accessRootViewModel.installedVersion == "0.0.0-ui-testing")
+        #expect(environment.sessionViewModel.mode == .signedOut)
+        #expect(environment.sessionViewModel.isDevelopImpersonationEnabled == false)
+    }
+
+    @Test
     func rootCoordinatorSkipsSplashToWelcomeWhenLaunchArgumentRequestsIt() async {
         let rootViewModel = makeRootViewModel(shouldSkipSplash: true)
 

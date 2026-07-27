@@ -19,6 +19,11 @@ actor InMemoryNewsRepository: NewsRepository {
         )
     ]
 
+    func news(visibleTo member: Member) async throws -> [NewsArticle] {
+        let canPublishNews = await MainActor.run { member.canPublishNews }
+        return await allNews().filter { canPublishNews || $0.active }
+    }
+
     func allNews() async -> [NewsArticle] {
         var localized: [NewsArticle] = []
         localized.reserveCapacity(articles.count)
@@ -36,6 +41,7 @@ actor InMemoryNewsRepository: NewsRepository {
             body: article.body,
             active: article.active,
             publishedBy: article.publishedBy,
+            publishedByUserId: article.publishedByUserId,
             publishedAtMillis: article.publishedAtMillis,
             urlImage: article.urlImage
         )
@@ -61,6 +67,7 @@ private func localizedSeedNews(_ article: NewsArticle) async -> NewsArticle {
         body: body,
         active: article.active,
         publishedBy: article.publishedBy,
+        publishedByUserId: article.publishedByUserId,
         publishedAtMillis: article.publishedAtMillis,
         urlImage: article.urlImage
     )

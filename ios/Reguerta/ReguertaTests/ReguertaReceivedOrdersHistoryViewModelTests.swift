@@ -94,7 +94,7 @@ struct ReguertaReceivedOrdersHistoryViewModelTests {
     }
 
     @Test
-    func receivedOrdersHistoryUsesOldestGlobalOrderWhenProducerHasNoOrders() async {
+    func receivedOrdersHistoryDoesNotUseGlobalOrderFallbackWhenProducerHasNoOrders() async {
         let repository = InMemoryOrdersRepository()
         await repository.setOldestOrderHistoryWeekKey("2025-W01")
         let viewModel = makeReceivedOrdersHistoryViewModel(repository: repository)
@@ -103,7 +103,7 @@ struct ReguertaReceivedOrdersHistoryViewModelTests {
             context: receivedOrdersHistoryContext(nowMillis: testMillis(year: 2026, month: 7, day: 11))
         )
 
-        #expect(viewModel.availableWeeks.first?.weekKey == "2025-W01")
+        #expect(viewModel.availableWeeks.first?.weekKey == "2026-W01")
         #expect(viewModel.availableWeeks.last?.weekKey == "2026-W27")
         #expect(viewModel.selectedWeekKey == "2026-W27")
         #expect(viewModel.canGoPrevious)

@@ -9,7 +9,7 @@ struct ChainedShiftSwapRequestRepository: ShiftSwapRequestRepository {
         return primaryResult.isEmpty ? await fallback.allShiftSwapRequests() : primaryResult
     }
 
-    func upsert(request: ShiftSwapRequest) async -> ShiftSwapRequest {
-        await primary.upsert(request: request)
+    func transition(_ transition: ShiftSwapTransition) async throws -> ShiftSwapTransitionResult {
+        try await primary.transition(transition)
     }
 }

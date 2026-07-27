@@ -118,11 +118,6 @@ extension MyOrderRouteViewModel {
         "member_\(currentMember?.id ?? "")_week_\(currentWeekKey)"
     }
 
-    var currentOrderId: String? {
-        guard let memberId = currentMember?.id, memberId.isNotEmpty else { return nil }
-        return "\(memberId)_\(currentWeekKey)"
-    }
-
     var groupedProducts: [MyOrderProducerGroup] {
         let filteredProducts = products.filter { product in
             guard normalizedQuery.isNotEmpty else { return true }

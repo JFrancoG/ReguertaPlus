@@ -16,14 +16,11 @@ struct ChainedDeliveryCalendarRepository: DeliveryCalendarRepository {
         return primaryOverrides.isEmpty ? await fallback.allOverrides() : primaryOverrides
     }
 
-    func upsertOverride(_ override: DeliveryCalendarOverride) async -> DeliveryCalendarOverride {
-        let persisted = await primary.upsertOverride(override)
-        _ = await fallback.upsertOverride(persisted)
-        return persisted
+    func upsertOverride(_ override: DeliveryCalendarOverride) async throws -> DeliveryCalendarOverride {
+        try await primary.upsertOverride(override)
     }
 
-    func deleteOverride(weekKey: String) async {
-        await primary.deleteOverride(weekKey: weekKey)
-        await fallback.deleteOverride(weekKey: weekKey)
+    func deleteOverride(weekKey: String) async throws {
+        try await primary.deleteOverride(weekKey: weekKey)
     }
 }

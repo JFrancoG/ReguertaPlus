@@ -23,27 +23,32 @@ final class FirestoreNotificationRepository: @unchecked Sendable, NotificationRe
             .collection("notificationReads")
     }
 
-    func allNotifications() async -> [NotificationEvent] {
-        do {
-            let snapshot = try await notificationsCollection.getDocuments()
-            return snapshot.documents
-                .compactMap(Self.toNotificationEvent)
-                .sorted { $0.sentAtMillis > $1.sentAtMillis }
-        } catch {
-            return []
-        }
+    private func notificationInboxCollection(memberId: String) -> CollectionReference {
+        db.reguertaCollection(.users, environment: environment)
+            .document(memberId)
+            .collection("notificationInbox")
     }
 
-    func readNotificationIds(memberId: String) async -> Set<String> {
-        do {
-            let snapshot = try await notificationReadsCollection(memberId: memberId).getDocuments()
-            return Set(snapshot.documents.map(\.documentID))
-        } catch {
-            return []
-        }
+    func notifications(visibleTo member: Member) async throws -> [NotificationEvent] {
+        let snapshot = try await notificationInboxCollection(memberId: member.id).getDocuments()
+        return snapshot.documents
+            .compactMap(Self.toNotificationEvent)
+            .sorted { $0.sentAtMillis > $1.sentAtMillis }
     }
 
-    func markNotificationsRead(memberId: String, notificationIds: [String], readAtMillis: Int64) async {
+    func allNotifications() async throws -> [NotificationEvent] {
+        let snapshot = try await notificationsCollection.getDocuments()
+        return snapshot.documents
+            .compactMap(Self.toNotificationEvent)
+            .sorted { $0.sentAtMillis > $1.sentAtMillis }
+    }
+
+    func readNotificationIds(memberId: String) async throws -> Set<String> {
+        let snapshot = try await notificationReadsCollection(memberId: memberId).getDocuments()
+        return Set(snapshot.documents.map(\.documentID))
+    }
+
+    func markNotificationsRead(memberId: String, notificationIds: [String], readAtMillis: Int64) async throws {
         let normalizedIds = Set(notificationIds.map {
             $0.trimmingCharacters(in: .whitespacesAndNewlines)
         }.filter { !$0.isEmpty })
@@ -62,10 +67,10 @@ final class FirestoreNotificationRepository: @unchecked Sendable, NotificationRe
                 merge: true
             )
         }
-        try? await batch.commit()
+        try await batch.commit()
     }
 
-    func send(event: NotificationEvent) async -> NotificationEvent {
+    func send(event: NotificationEvent) async throws -> NotificationEvent {
         let documentId = event.id.isEmpty ? notificationsCollection.document().documentID : event.id
         let persisted = NotificationEvent(
             id: documentId,
@@ -94,24 +99,20 @@ final class FirestoreNotificationRepository: @unchecked Sendable, NotificationRe
             targetPayload = [:]
         }
 
-        do {
-            var payload: [String: Any] = [
-                "title": persisted.title,
-                "body": persisted.body,
-                "type": persisted.type,
-                "target": persisted.target,
-                "targetPayload": targetPayload,
-                "sentAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(persisted.sentAtMillis) / 1_000)),
-                "createdBy": persisted.createdBy
-            ]
-            if let weekKey = persisted.weekKey {
-                payload["weekKey"] = weekKey
-            }
-            try await notificationsCollection.document(documentId).setData(payload, merge: true)
-            return persisted
-        } catch {
-            return persisted
+        var payload: [String: Any] = [
+            "title": persisted.title,
+            "body": persisted.body,
+            "type": persisted.type,
+            "target": persisted.target,
+            "targetPayload": targetPayload,
+            "sentAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(persisted.sentAtMillis) / 1_000)),
+            "createdBy": persisted.createdBy
+        ]
+        if let weekKey = persisted.weekKey {
+            payload["weekKey"] = weekKey
         }
+        try await notificationsCollection.document(documentId).setData(payload, merge: true)
+        return persisted
     }
 
     private static func toNotificationEvent(_ document: QueryDocumentSnapshot) -> NotificationEvent? {

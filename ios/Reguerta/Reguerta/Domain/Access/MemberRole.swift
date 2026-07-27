@@ -1,6 +1,6 @@
 import Foundation
 
-enum MemberRole: String, CaseIterable, Sendable {
+nonisolated enum MemberRole: String, CaseIterable, Codable, Sendable {
     case member
     case producer
     case admin

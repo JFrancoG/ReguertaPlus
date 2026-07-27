@@ -19,6 +19,15 @@ extension SessionViewModel {
             switch authResult {
             case .success(let principal):
                 await applyAuthorizedSession(principal: principal)
+            case .emailVerificationRequired(let email, let verificationResent, let signedOut):
+                feedbackCenter.show(
+                    verificationResent
+                        ? AccessL10nKey.authInfoVerificationResent
+                        : AccessL10nKey.authInfoVerificationPending
+                )
+                mode = signedOut
+                    ? .signedOut
+                    : .unauthorized(email: email, reason: .emailVerificationRequired)
             case .failure(let reason):
                 applySignInFailure(reason)
             }
@@ -45,8 +54,15 @@ extension SessionViewModel {
             let authResult = await authSessionProvider.signUp(email: email, password: password)
 
             switch authResult {
-            case .success(let principal):
-                await applyAuthorizedSession(principal: principal)
+            case .verificationRequired(let email, let verificationSent, let signedOut):
+                feedbackCenter.show(
+                    verificationSent
+                        ? AccessL10nKey.authInfoVerificationSent
+                        : AccessL10nKey.authInfoVerificationPending
+                )
+                mode = signedOut
+                    ? .signedOut
+                    : .unauthorized(email: email, reason: .emailVerificationRequired)
                 registerEmailInput = ""
                 registerPasswordInput = ""
                 registerRepeatPasswordInput = ""
@@ -59,20 +75,10 @@ extension SessionViewModel {
     }
 
     func signOut() {
-        authSessionProvider.signOut()
-        clearSessionRefreshTracking()
-        reviewerEnvironmentRouter.resetToBaseEnvironment()
-        Task {
-            await KeyManager.shared.remove(.authorizedMemberId)
-        }
-        resetAccessCredentialsAndErrors()
-        isAuthenticating = false
-        isRegistering = false
-        isRecoveringPassword = false
-        feedbackCenter.clear()
-        mode = .signedOut
-        showSessionExpiredDialog = false
-        showUnauthorizedDialog = false
+        applyLocalSessionTermination(
+            firebaseSignOutSucceeded: authSessionProvider.signOut(),
+            showsExpiredDialog: false
+        )
     }
 
     func dismissSessionExpiredDialog() {
@@ -140,6 +146,14 @@ extension SessionViewModel {
                 }
             case .active(let principal):
                 await applyAuthorizedSession(principal: principal)
+            case .emailVerificationRequired(let email):
+                feedbackCenter.show(AccessL10nKey.authInfoVerificationPending)
+                mode = authSessionProvider.signOut()
+                    ? .signedOut
+                    : .unauthorized(email: email, reason: .emailVerificationRequired)
+            case .failure(let reason):
+                let mapped = mapAuthFailure(reason, flow: .signIn)
+                feedbackCenter.show(mapped.globalMessageKey)
             case .expired:
                 await handleExpiredSession()
             }

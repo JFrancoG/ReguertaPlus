@@ -24,18 +24,9 @@ struct ProductsFeatureDependencies {
         }
 
         return ProductsFeatureDependencies(
-            productRepository: ChainedProductRepository(
-                primary: FirestoreProductRepository(db: db),
-                fallback: InMemoryProductRepository()
-            ),
-            memberRepository: ChainedMemberRepository(
-                primary: FirestoreMemberRepository(db: db),
-                fallback: InMemoryMemberRepository()
-            ),
-            seasonalCommitmentRepository: ChainedSeasonalCommitmentRepository(
-                primary: FirestoreSeasonalCommitmentRepository(db: db),
-                fallback: InMemorySeasonalCommitmentRepository()
-            ),
+            productRepository: FirestoreProductRepository(db: db),
+            memberRepository: FirestoreMemberRepository(db: db),
+            seasonalCommitmentRepository: FirestoreSeasonalCommitmentRepository(db: db),
             imagePipelineManager: imagePipelineManager,
             nowMillisProvider: nowMillisProvider
         )
@@ -53,6 +44,21 @@ struct ProductsFeatureDependencies {
             memberRepository: memberRepository,
             seasonalCommitmentRepository: seasonalCommitmentRepository,
             imagePipelineManager: imagePipelineManager,
+            nowMillisProvider: nowMillisProvider
+        )
+    }
+
+    static func uiTesting(
+        memberRepository: InMemoryMemberRepository,
+        nowMillisProvider: @escaping @MainActor () -> Int64
+    ) -> ProductsFeatureDependencies {
+        ProductsFeatureDependencies(
+            productRepository: InMemoryProductRepository(
+                items: mockProductData
+            ),
+            memberRepository: memberRepository,
+            seasonalCommitmentRepository: InMemorySeasonalCommitmentRepository(),
+            imagePipelineManager: NoOpImagePipelineManager(),
             nowMillisProvider: nowMillisProvider
         )
     }

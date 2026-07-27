@@ -81,7 +81,14 @@ final class UsersFeatureViewModel {
         }
 
         isLoadingMembers = true
-        let members = await memberRepository.allMembers()
+        let members: [Member]
+        do {
+            members = try await memberRepository.members(visibleTo: session.member)
+        } catch {
+            feedbackCenter.show(AccessL10nKey.authErrorNetwork)
+            isLoadingMembers = false
+            return
+        }
         guard isCurrentSession(session) else {
             isLoadingMembers = false
             return
@@ -286,11 +293,8 @@ private extension UsersFeatureViewModel {
 
     func persistMember(target: Member, session: AuthorizedSession) async -> Bool {
         do {
-            let updated = try await upsertMemberByAdmin.execute(
-                actorAuthUid: session.principal.uid,
-                target: target
-            )
-            let members = await memberRepository.allMembers()
+            let updated = try await upsertMemberByAdmin.execute(target: target)
+            let members = try await memberRepository.members(visibleTo: session.member)
             sessionViewModel.applyUpdatedAuthorizedMember(updated, members: members)
             syncFromSessionViewModel()
             highlightMember(updated.id)
@@ -299,6 +303,8 @@ private extension UsersFeatureViewModel {
             feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminManageMembers)
         } catch MemberManagementError.lastAdminRemoval {
             feedbackCenter.show(AccessL10nKey.feedbackCannotRemoveLastAdmin)
+        } catch MemberManagementError.conflict {
+            feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
         } catch {
             feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
         }

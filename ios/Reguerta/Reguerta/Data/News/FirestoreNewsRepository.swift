@@ -17,20 +17,24 @@ final class FirestoreNewsRepository: @unchecked Sendable, NewsRepository {
         db.reguertaCollection(.news, environment: environment)
     }
 
-    func allNews() async -> [NewsArticle] {
-        do {
-            let snapshot = try await newsCollection.getDocuments()
-            return snapshot.documents
-                .compactMap(Self.toNewsArticle)
-                .sorted { lhs, rhs in
-                    lhs.publishedAtMillis > rhs.publishedAtMillis
-                }
-        } catch {
-            return []
-        }
+    func news(visibleTo member: Member) async throws -> [NewsArticle] {
+        let query = member.canPublishNews
+            ? newsCollection
+            : newsCollection.whereField("active", isEqualTo: true)
+        let snapshot = try await query.getDocuments()
+        return snapshot.documents
+            .compactMap(Self.toNewsArticle)
+            .sorted { $0.publishedAtMillis > $1.publishedAtMillis }
     }
 
-    func upsert(article: NewsArticle) async -> NewsArticle {
+    func allNews() async throws -> [NewsArticle] {
+        let snapshot = try await newsCollection.getDocuments()
+        return snapshot.documents
+            .compactMap(Self.toNewsArticle)
+            .sorted { $0.publishedAtMillis > $1.publishedAtMillis }
+    }
+
+    func upsert(article: NewsArticle) async throws -> NewsArticle {
         let documentId = article.id.isEmpty ? newsCollection.document().documentID : article.id
         let persisted = NewsArticle(
             id: documentId,
@@ -38,32 +42,26 @@ final class FirestoreNewsRepository: @unchecked Sendable, NewsRepository {
             body: article.body,
             active: article.active,
             publishedBy: article.publishedBy,
+            publishedByUserId: article.publishedByUserId,
             publishedAtMillis: article.publishedAtMillis,
             urlImage: article.urlImage
         )
 
-        do {
-            try await newsCollection.document(documentId).setData([
-                "title": persisted.title,
-                "body": persisted.body,
-                "active": persisted.active,
-                "publishedBy": persisted.publishedBy,
-                "publishedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(persisted.publishedAtMillis) / 1_000)),
-                "urlImage": persisted.urlImage as Any
-            ], merge: true)
-            return persisted
-        } catch {
-            return persisted
-        }
+        try await newsCollection.document(documentId).setData([
+            "title": persisted.title,
+            "body": persisted.body,
+            "active": persisted.active,
+            "publishedBy": persisted.publishedBy,
+            "publishedByUserId": persisted.publishedByUserId as Any,
+            "publishedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(persisted.publishedAtMillis) / 1_000)),
+            "urlImage": persisted.urlImage as Any
+        ], merge: true)
+        return persisted
     }
 
-    func delete(newsId: String) async -> Bool {
-        do {
-            try await newsCollection.document(newsId).delete()
-            return true
-        } catch {
-            return false
-        }
+    func delete(newsId: String) async throws -> Bool {
+        try await newsCollection.document(newsId).delete()
+        return true
     }
 
     private static func toNewsArticle(_ document: QueryDocumentSnapshot) -> NewsArticle? {
@@ -78,6 +76,9 @@ final class FirestoreNewsRepository: @unchecked Sendable, NewsRepository {
         let publishedBy = ((data["publishedBy"] as? String)?
             .trimmingCharacters(in: .whitespacesAndNewlines))
             .flatMap { $0.isEmpty ? nil : $0 } ?? "La Reguerta"
+        let publishedByUserId = (data["publishedByUserId"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nilIfEmpty
         let active = (data["active"] as? Bool) ?? true
         let publishedAtMillis: Int64
         if let timestamp = data["publishedAt"] as? Timestamp {
@@ -95,6 +96,7 @@ final class FirestoreNewsRepository: @unchecked Sendable, NewsRepository {
             body: body,
             active: active,
             publishedBy: publishedBy,
+            publishedByUserId: publishedByUserId,
             publishedAtMillis: publishedAtMillis,
             urlImage: urlImage
         )

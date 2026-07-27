@@ -41,19 +41,15 @@ final class FirestoreProductRepository: @unchecked Sendable, ProductRepository {
         }
     }
 
-    func upsert(product: Product) async -> Product {
+    func upsert(product: Product) async throws -> Product {
         let documentId = product.id.isEmpty ? productsCollection.document().documentID : product.id
         let persisted = persistedProduct(from: product, with: documentId)
 
-        do {
-            try await productsCollection.document(documentId).setData(
-                upsertPayload(for: persisted),
-                merge: true
-            )
-            return persisted
-        } catch {
-            return persisted
-        }
+        try await productsCollection.document(documentId).setData(
+            upsertPayload(for: persisted),
+            merge: true
+        )
+        return persisted
     }
 
     private func persistedProduct(from product: Product, with documentId: String) -> Product {

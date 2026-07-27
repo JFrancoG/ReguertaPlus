@@ -1,6 +1,6 @@
 import Foundation
 
-final class DevelopmentTimeMachine: @unchecked Sendable {
+nonisolated final class DevelopmentTimeMachine: @unchecked Sendable {
     static let shared = DevelopmentTimeMachine()
 
     private let defaults: UserDefaults

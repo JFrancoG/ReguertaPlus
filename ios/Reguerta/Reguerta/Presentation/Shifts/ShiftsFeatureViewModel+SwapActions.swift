@@ -38,8 +38,8 @@ extension ShiftsFeatureViewModel {
         }
 
         isSavingShiftSwapRequest = true
-        let saved = await shiftSwapRequestRepository.upsert(
-            request: ShiftSwapRequest(
+        defer { isSavingShiftSwapRequest = false }
+        let request = ShiftSwapRequest(
                 id: "",
                 requestedShiftId: shift.id,
                 requesterUserId: session.member.id,
@@ -52,22 +52,15 @@ extension ShiftsFeatureViewModel {
                 requestedAtMillis: nowMillisProvider(),
                 confirmedAtMillis: nil,
                 appliedAtMillis: nil
-            )
         )
-        await sendShiftSwapNotification(
-            title: l10n(AccessL10nKey.shiftSwapNotificationRequestedTitle),
-            body: l10n(
-                AccessL10nKey.shiftSwapNotificationRequestedBody,
-                session.member.displayName,
-                localizedShiftNotificationDateTime(shift.dateMillis)
-            ),
-            type: "shift_swap_requested",
-            targetUserIds: Array(Set(saved.candidates.map(\.userId))),
-            createdBy: session.member.id
-        )
+        do {
+            _ = try await shiftSwapRequestRepository.transition(.create(request: request))
+        } catch {
+            feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
+            return false
+        }
         await refreshShiftSwapState(for: session)
         shiftSwapDraft = ShiftSwapDraft()
-        isSavingShiftSwapRequest = false
         return true
     }
 
@@ -80,8 +73,9 @@ extension ShiftsFeatureViewModel {
     }
 
     func cancelShiftSwapRequest(requestId: String) {
-        updateShiftSwapRequest(requestId: requestId) { request, _, _ in
-            ShiftSwapRequest(
+        guard let session = authorizedSession,
+              let request = shiftSwapRequests.first(where: { $0.id == requestId }) else { return }
+        let cancelled = ShiftSwapRequest(
                 id: request.id,
                 requestedShiftId: request.requestedShiftId,
                 requesterUserId: request.requesterUserId,
@@ -94,7 +88,16 @@ extension ShiftsFeatureViewModel {
                 requestedAtMillis: request.requestedAtMillis,
                 confirmedAtMillis: request.confirmedAtMillis,
                 appliedAtMillis: request.appliedAtMillis
-            )
+        )
+        isUpdatingShiftSwapRequest = true
+        Task { @MainActor in
+            defer { isUpdatingShiftSwapRequest = false }
+            do {
+                _ = try await shiftSwapRequestRepository.transition(.cancel(request: cancelled))
+                await refreshShiftSwapState(for: session)
+            } catch {
+                feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
+            }
         }
     }
 
@@ -106,49 +109,22 @@ extension ShiftsFeatureViewModel {
 
         isUpdatingShiftSwapRequest = true
         Task { @MainActor in
+            defer { isUpdatingShiftSwapRequest = false }
             let now = nowMillisProvider()
             let updatedRequest = appliedShiftSwapRequest(from: context.request, candidate: context.candidate, now: now)
-            let swapped = context.requestedShift.swappingMember(
-                with: context.candidateShift,
-                requesterUserId: context.request.requesterUserId,
-                responderUserId: context.candidate.userId,
-                nowMillis: now
-            )
-            _ = await shiftSwapRequestRepository.upsert(request: updatedRequest)
-            let existingShifts = await shiftRepository.allShifts()
-            let shiftsToPersist = existingShifts.applyingConfirmedSwap(
-                updatedRequestedShift: swapped.0,
-                updatedCandidateShift: swapped.1,
-                nowMillis: now
-            )
-            for shift in shiftsToPersist {
-                _ = await shiftRepository.upsert(shift: shift)
+            do {
+                _ = try await shiftSwapRequestRepository.transition(
+                    .apply(request: updatedRequest, candidateShiftId: candidateShiftId)
+                )
+                await refreshShiftSwapState(for: context.session)
+            } catch {
+                feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
             }
-            await sendShiftSwapAppliedNotification(context: context)
-            await refreshShiftSwapState(for: context.session)
-            isUpdatingShiftSwapRequest = false
         }
     }
 }
 
 private extension ShiftsFeatureViewModel {
-    func updateShiftSwapRequest(
-        requestId: String,
-        transform: @escaping (ShiftSwapRequest, AuthorizedSession, Int64) -> ShiftSwapRequest
-    ) {
-        guard let session = authorizedSession else { return }
-        guard let request = shiftSwapRequests.first(where: { $0.id == requestId }) else { return }
-
-        isUpdatingShiftSwapRequest = true
-        Task { @MainActor in
-            let now = nowMillisProvider()
-            let updatedRequest = transform(request, session, now)
-            _ = await shiftSwapRequestRepository.upsert(request: updatedRequest)
-            await refreshShiftSwapState(for: session)
-            isUpdatingShiftSwapRequest = false
-        }
-    }
-
     func respondToShiftSwapRequest(
         requestId: String,
         candidateShiftId: String,
@@ -157,9 +133,6 @@ private extension ShiftsFeatureViewModel {
         guard let session = authorizedSession else { return }
         guard let request = shiftSwapRequests.first(where: { $0.id == requestId }) else { return }
         guard let candidate = request.candidates.first(where: { $0.userId == session.member.id && $0.shiftId == candidateShiftId }) else { return }
-        guard let requestedShift = shiftsFeed.first(where: { $0.id == request.requestedShiftId }) else { return }
-        let candidateShift = shiftsFeed.first(where: { $0.id == candidate.shiftId })
-
         isUpdatingShiftSwapRequest = true
         Task { @MainActor in
             let now = nowMillisProvider()
@@ -185,21 +158,19 @@ private extension ShiftsFeatureViewModel {
                 confirmedAtMillis: request.confirmedAtMillis,
                 appliedAtMillis: request.appliedAtMillis
             )
-            _ = await shiftSwapRequestRepository.upsert(request: updatedRequest)
-            await sendShiftSwapNotification(
-                title: shiftSwapResponseNotificationTitle(for: responseStatus),
-                body: shiftSwapResponseNotificationBody(
-                    for: responseStatus,
-                    memberDisplayName: session.member.displayName,
-                    requestedShiftDate: localizedShiftNotificationDateTime(requestedShift.dateMillis),
-                    candidateShiftDate: candidateShift.map { localizedShiftNotificationDateTime($0.dateMillis) }
-                ),
-                type: responseStatus == .available ? "shift_swap_available" : "shift_swap_unavailable",
-                targetUserIds: [request.requesterUserId],
-                createdBy: session.member.id
-            )
-            let allRequests = await shiftSwapRequestRepository.allShiftSwapRequests()
-            shiftSwapRequests = allRequests.visible(to: session.member.id)
+            do {
+                _ = try await shiftSwapRequestRepository.transition(
+                    .respond(
+                        request: updatedRequest,
+                        candidateShiftId: candidateShiftId,
+                        response: responseStatus
+                    )
+                )
+                let allRequests = await shiftSwapRequestRepository.allShiftSwapRequests()
+                shiftSwapRequests = allRequests.visible(to: session.member.id)
+            } catch {
+                feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
+            }
             isUpdatingShiftSwapRequest = false
         }
     }
@@ -252,88 +223,4 @@ private extension ShiftsFeatureViewModel {
         )
     }
 
-    func sendShiftSwapAppliedNotification(context: ConfirmShiftSwapContext) async {
-        await sendShiftSwapNotification(
-            title: l10n(AccessL10nKey.shiftSwapNotificationAppliedTitle),
-            body: l10n(
-                AccessL10nKey.shiftSwapNotificationAppliedBody,
-                context.session.member.displayName,
-                displayName(for: context.candidate.userId, in: context.session),
-                localizedShiftNotificationDateTime(context.requestedShift.dateMillis),
-                localizedShiftNotificationDateTime(context.candidateShift.dateMillis)
-            ),
-            type: "shift_swap_applied",
-            targetUserIds: Array(Set(context.session.members.filter(\.isActive).map(\.id))),
-            createdBy: context.session.member.id
-        )
-    }
-
-    func sendShiftSwapNotification(
-        title: String,
-        body: String,
-        type: String,
-        targetUserIds: [String],
-        createdBy: String
-    ) async {
-        _ = await notificationRepository.send(
-            event: NotificationEvent(
-                id: "",
-                title: title,
-                body: body,
-                type: type,
-                target: "users",
-                userIds: targetUserIds,
-                segmentType: nil,
-                targetRole: nil,
-                createdBy: createdBy,
-                sentAtMillis: nowMillisProvider(),
-                weekKey: nil
-            )
-        )
-    }
-
-    func shiftSwapResponseNotificationTitle(for status: ShiftSwapResponseStatus) -> String {
-        switch status {
-        case .available:
-            return l10n(AccessL10nKey.shiftSwapNotificationResponseAvailableTitle)
-        case .unavailable:
-            return l10n(AccessL10nKey.shiftSwapNotificationResponseUnavailableTitle)
-        }
-    }
-
-    func shiftSwapResponseNotificationBody(
-        for status: ShiftSwapResponseStatus,
-        memberDisplayName: String,
-        requestedShiftDate: String,
-        candidateShiftDate: String?
-    ) -> String {
-        switch (status, candidateShiftDate) {
-        case (.available, .some(let sourceDate)):
-            return l10n(
-                AccessL10nKey.shiftSwapNotificationResponseAvailableBodyWithSource,
-                memberDisplayName,
-                requestedShiftDate,
-                sourceDate
-            )
-        case (.available, .none):
-            return l10n(
-                AccessL10nKey.shiftSwapNotificationResponseAvailableBody,
-                memberDisplayName,
-                requestedShiftDate
-            )
-        case (.unavailable, .some(let sourceDate)):
-            return l10n(
-                AccessL10nKey.shiftSwapNotificationResponseUnavailableBodyWithSource,
-                memberDisplayName,
-                requestedShiftDate,
-                sourceDate
-            )
-        case (.unavailable, .none):
-            return l10n(
-                AccessL10nKey.shiftSwapNotificationResponseUnavailableBody,
-                memberDisplayName,
-                requestedShiftDate
-            )
-        }
-    }
 }
