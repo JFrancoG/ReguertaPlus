@@ -25,14 +25,12 @@ class FirestoreShiftRepository(
         get() = firestorePath.collectionPath(ReguertaFirestoreCollection.SHIFTS)
 
     override suspend fun getAllShifts(): List<ShiftAssignment> = withContext(Dispatchers.IO) {
-        runCatching {
-            val snapshot = Tasks.await(
-                firestore.collection(shiftsCollectionPath).get(),
-            )
-            snapshot.documents
-                .mapNotNull { document -> (document as? QueryDocumentSnapshot)?.toShiftAssignment() }
-                .sortedBy { it.dateMillis }
-        }.getOrDefault(emptyList())
+        val snapshot = Tasks.await(
+            firestore.collection(shiftsCollectionPath).get(),
+        )
+        snapshot.documents
+            .mapNotNull { document -> (document as? QueryDocumentSnapshot)?.toShiftAssignment() }
+            .sortedBy { it.dateMillis }
     }
 
     override suspend fun upsertShift(shift: ShiftAssignment): ShiftAssignment = withContext(Dispatchers.IO) {
@@ -46,14 +44,12 @@ class FirestoreShiftRepository(
             "createdAt" to Timestamp(shift.createdAtMillis / 1_000, ((shift.createdAtMillis % 1_000) * 1_000_000).toInt()),
             "updatedAt" to Timestamp(shift.updatedAtMillis / 1_000, ((shift.updatedAtMillis % 1_000) * 1_000_000).toInt()),
         )
-        runCatching {
-            Tasks.await(
-                firestore.collection(shiftsCollectionPath)
-                    .document(shift.id)
-                    .set(payload, SetOptions.merge()),
-            )
-            shift
-        }.getOrDefault(shift)
+        Tasks.await(
+            firestore.collection(shiftsCollectionPath)
+                .document(shift.id)
+                .set(payload, SetOptions.merge()),
+        )
+        shift
     }
 }
 

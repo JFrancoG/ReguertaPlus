@@ -122,6 +122,37 @@ struct ReguertaProductsViewModelTests {
     }
 
     @Test
+    func productsViewModelRetainsEditorStateWhenRepositoryRejectsSave() async {
+        let currentProducer = producer(id: "producer_even", parity: .even)
+        let originalProduct = regularProduct(
+            id: "tomato",
+            vendorId: currentProducer.id,
+            name: "Tomates"
+        )
+        let repository = RejectingProductRepository(items: [originalProduct])
+        let viewModel = await makeProductsViewModel(
+            currentMember: currentProducer,
+            members: [currentProducer],
+            productRepository: repository
+        )
+        await viewModel.refreshCatalog()
+        viewModel.startEditing(productId: originalProduct.id)
+        viewModel.updateDraft { draft in
+            draft.name = "Tomates cherry"
+        }
+        let rejectedDraft = viewModel.draft
+
+        let saved = await viewModel.save()
+
+        #expect(saved == false)
+        #expect(viewModel.editingProductId == originalProduct.id)
+        #expect(viewModel.draft == rejectedDraft)
+        #expect(viewModel.catalogProducts.map(\.id) == [originalProduct.id])
+        #expect(viewModel.isSaving == false)
+        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
+    }
+
+    @Test
     func productsViewModelSavesProducerProductWithEcoBasketRules() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let repository = InMemoryProductRepository()
@@ -341,7 +372,7 @@ struct ReguertaProductsViewModelTests {
 func makeProductsViewModel(
     currentMember: Member,
     members: [Member],
-    productRepository: InMemoryProductRepository? = nil,
+    productRepository: (any ProductRepository)? = nil,
     memberRepository: InMemoryMemberRepository? = nil,
     seasonalCommitmentRepository: InMemorySeasonalCommitmentRepository? = nil,
     imagePipelineManager: any ImagePipelineManager = MockImagePipelineManager(result: .success("https://cdn.reguerta.test/image.jpg")),
@@ -373,6 +404,31 @@ func makeProductsViewModel(
     viewModel.currentSession = session
     viewModel.currentMember = currentMember
     return viewModel
+}
+
+@MainActor
+private final class RejectingProductRepository: ProductRepository {
+    private let items: [Product]
+
+    init(items: [Product]) {
+        self.items = items
+    }
+
+    func allProducts() async -> [Product] {
+        items
+    }
+
+    func products(vendorId: String) async -> [Product] {
+        items.filter { $0.vendorId == vendorId }
+    }
+
+    func upsert(product _: Product) async throws -> Product {
+        throw ProductMutationTestError.rejected
+    }
+}
+
+private enum ProductMutationTestError: Error {
+    case rejected
 }
 
 private actor MockImagePipelineManager: ImagePipelineManager {

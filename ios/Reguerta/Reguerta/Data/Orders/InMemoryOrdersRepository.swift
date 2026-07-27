@@ -26,7 +26,7 @@ actor InMemoryOrdersRepository: OrdersRepository {
     private var submittedOrders: [SubmittedOrder] = []
     private var previousOrdersByWeekKey: [String: MyOrderPreviousOrderSnapshot] = [:]
     private var orderHistoryWeekKeysByMemberId: [String: Set<String>] = [:]
-    private var producerStatusesByOrderId: [String: MyOrderProducerStatusSnapshot] = [:]
+    private var producerStatusesByMemberWeek: [String: MyOrderProducerStatusSnapshot] = [:]
     private var receivedSnapshotsByProducerWeek: [String: ReceivedOrdersSnapshot] = [:]
     private var receivedHistoryWeekKeysByProducerId: [String: Set<String>] = [:]
     private var storedOldestOrderHistoryWeekKey: String?
@@ -81,8 +81,15 @@ actor InMemoryOrdersRepository: OrdersRepository {
         return previousOrdersByWeekKey[weekKey]
     }
 
-    func myOrderProducerStatuses(orderId: String) async -> MyOrderProducerStatusSnapshot {
-        producerStatusesByOrderId[orderId] ?? MyOrderProducerStatusSnapshot(byVendor: [:], legacyStatus: .unread)
+    func myOrderProducerStatuses(
+        currentMember: Member?,
+        weekKey: String
+    ) async -> MyOrderProducerStatusSnapshot {
+        guard let memberId = currentMember?.id else {
+            return MyOrderProducerStatusSnapshot(byVendor: [:], legacyStatus: .unread)
+        }
+        return producerStatusesByMemberWeek[producerStatusKey(memberId: memberId, weekKey: weekKey)]
+            ?? MyOrderProducerStatusSnapshot(byVendor: [:], legacyStatus: .unread)
     }
 
     func receivedOrdersSnapshot(
@@ -106,13 +113,6 @@ actor InMemoryOrdersRepository: OrdersRepository {
             return parts[1]
         }
         return Array(explicitKeys.union(seededKeys)).sorted()
-    }
-
-    func oldestOrderHistoryWeekKey() async throws -> String? {
-        if let receivedOrdersError {
-            throw receivedOrdersError
-        }
-        return storedOldestOrderHistoryWeekKey
     }
 
     func receivedOrdersHistorySnapshot(
@@ -146,8 +146,12 @@ actor InMemoryOrdersRepository: OrdersRepository {
         previousOrderError = error
     }
 
-    func setProducerStatuses(_ snapshot: MyOrderProducerStatusSnapshot, forOrderId orderId: String) {
-        producerStatusesByOrderId[orderId] = snapshot
+    func setProducerStatuses(
+        _ snapshot: MyOrderProducerStatusSnapshot,
+        memberId: String,
+        weekKey: String
+    ) {
+        producerStatusesByMemberWeek[producerStatusKey(memberId: memberId, weekKey: weekKey)] = snapshot
     }
 
     func setSubmitResult(_ result: Bool) {
@@ -188,5 +192,9 @@ actor InMemoryOrdersRepository: OrdersRepository {
 
     private func receivedKey(producerId: String, weekKey: String) -> String {
         "\(producerId)|\(weekKey)"
+    }
+
+    private func producerStatusKey(memberId: String, weekKey: String) -> String {
+        "\(memberId)|\(weekKey)"
     }
 }

@@ -17,94 +17,52 @@ final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
         db.reguertaCollection(.users, environment: environment)
     }
 
-    func findByEmailNormalized(_ emailNormalized: String) async -> Member? {
-        do {
-            var snapshot = try await usersCollection
-                .whereField("normalizedEmail", isEqualTo: emailNormalized)
-                .limit(to: 1)
-                .getDocuments()
-            if snapshot.documents.isEmpty {
-                snapshot = try await usersCollection
-                    .whereField("emailNormalized", isEqualTo: emailNormalized)
-                    .limit(to: 1)
-                    .getDocuments()
-            }
-            return snapshot.documents.first.flatMap(Self.toMember)
-        } catch {
-            return nil
-        }
+    private var memberDirectoryCollection: CollectionReference {
+        db.reguertaCollection(.memberDirectory, environment: environment)
     }
 
-    func findByAuthUid(_ authUid: String) async -> Member? {
-        do {
-            let snapshot = try await usersCollection
-                .whereField("authUid", isEqualTo: authUid)
-                .limit(to: 1)
-                .getDocuments()
-            return snapshot.documents.first.flatMap(Self.toMember)
-        } catch {
-            return nil
+    func member(id: String) async throws -> Member? {
+        let normalizedID = id.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedID.isEmpty, !normalizedID.contains("/") else {
+            throw FirestoreMemberRepositoryError.invalidMemberID
         }
+        let snapshot = try await usersCollection.document(normalizedID).getDocument()
+        guard snapshot.exists else { return nil }
+        guard let member = Self.toMember(snapshot) else {
+            throw FirestoreMemberRepositoryError.invalidMemberDocument
+        }
+        return member
     }
 
-    func linkAuthUid(memberId: String, authUid: String) async -> Member? {
-        let docRef = usersCollection.document(memberId)
-
-        do {
-            try await docRef.setData(["authUid": authUid], merge: true)
-            let snapshot = try await docRef.getDocument()
-            return Self.toMember(snapshot)
-        } catch {
-            return Member(
-                id: memberId,
-                displayName: "",
-                normalizedEmail: "",
-                authUid: authUid,
-                roles: [.member],
-                isActive: true,
-                producerCatalogEnabled: true,
-                isCommonPurchaseManager: false
+    func members(visibleTo member: Member) async throws -> [Member] {
+        let members: [Member]
+        if member.isAdmin {
+            let snapshot = try await usersCollection.getDocuments()
+            members = snapshot.documents.compactMap(Self.toMember)
+        } else {
+            let snapshot = try await memberDirectoryCollection
+                .whereField("isActive", isEqualTo: true)
+                .getDocuments()
+            members = Self.mergingAuthenticatedMember(
+                member,
+                into: snapshot.documents.compactMap { document in
+                    Self.mapDirectoryMember(id: document.documentID, data: document.data())
+                }
             )
         }
-    }
-
-    func allMembers() async -> [Member] {
-        do {
-            let snapshot = try await usersCollection.getDocuments()
-            return snapshot.documents
-                .compactMap(Self.toMember)
-                .sorted { lhs, rhs in
-                    lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
-                }
-        } catch {
-            return []
+        return members.sorted { lhs, rhs in
+            lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
         }
     }
 
-    func upsert(member: Member) async -> Member {
-        let payload: [String: Any] = [
-            "displayName": member.displayName,
-            "companyName": member.companyName ?? FieldValue.delete(),
-            "phoneNumber": member.phoneNumber ?? FieldValue.delete(),
-            "normalizedEmail": member.normalizedEmail,
-            "email": FieldValue.delete(),
-            "emailNormalized": FieldValue.delete(),
-            "authUid": member.authUid as Any,
-            "roles": member.roles.map(\.rawValue),
-            "isProducer": member.roles.contains(.producer),
-            "isAdmin": member.roles.contains(.admin),
-            "isActive": member.isActive,
-            "available": member.isActive,
-            "producerCatalogEnabled": member.producerCatalogEnabled,
-            "isCommonPurchaseManager": member.isCommonPurchaseManager
-        ]
-
-        do {
-            try await usersCollection.document(member.id).setData(payload, merge: true)
-            return member
-        } catch {
-            return member
+    func updateOwnProducerCatalogEnabled(memberId: String, enabled: Bool) async throws -> Member {
+        let document = usersCollection.document(memberId)
+        try await document.updateData(["producerCatalogEnabled": enabled])
+        let snapshot = try await document.getDocument()
+        guard let member = Self.toMember(snapshot) else {
+            throw FirestoreMemberRepositoryError.invalidMemberDocument
         }
+        return member
     }
 
     private static func toMember(_ document: QueryDocumentSnapshot) -> Member? {
@@ -170,6 +128,50 @@ final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
         )
     }
 
+    static func mapDirectoryMember(id: String, data: [String: Any]) -> Member? {
+        guard let displayName = normalizedOptionalString(data, keys: ["displayName"]) else {
+            return nil
+        }
+        let companyName = normalizedOptionalString(data, keys: ["companyName"])
+        let isActive = (data["isActive"] as? Bool) ?? false
+        let producerCatalogEnabled = (data["producerCatalogEnabled"] as? Bool) ?? true
+        let isCommonPurchaseManager = (data["isCommonPurchaseManager"] as? Bool) ?? false
+        let producerParity = normalizedOptionalString(data, keys: ["producerParity"])
+            .flatMap(ProducerParity.init(rawValue:))
+        let ecoCommitment = data["ecoCommitment"] as? [String: Any]
+        let ecoCommitmentMode = normalizedOptionalString(ecoCommitment, keys: ["mode"])
+            .flatMap(EcoCommitmentMode.init(rawValue:)) ?? .weekly
+        let ecoCommitmentParity = normalizedOptionalString(ecoCommitment, keys: ["parity"])
+            .flatMap(ProducerParity.init(rawValue:))
+        let parsedRoles = Set(
+            ((data["roles"] as? [String]) ?? []).compactMap(legacyCompatibleRole(from:))
+        )
+        let roles = parsedRoles.union([.member])
+
+        return Member(
+            id: id,
+            displayName: displayName,
+            companyName: companyName,
+            phoneNumber: nil,
+            normalizedEmail: "",
+            authUid: nil,
+            roles: roles,
+            isActive: isActive,
+            producerCatalogEnabled: producerCatalogEnabled,
+            isCommonPurchaseManager: isCommonPurchaseManager,
+            producerParity: producerParity,
+            ecoCommitmentMode: ecoCommitmentMode,
+            ecoCommitmentParity: ecoCommitmentParity
+        )
+    }
+
+    static func mergingAuthenticatedMember(
+        _ authenticatedMember: Member,
+        into directoryMembers: [Member]
+    ) -> [Member] {
+        directoryMembers.filter { $0.id != authenticatedMember.id } + [authenticatedMember]
+    }
+
     private static func normalizedOptionalString(_ data: [String: Any]?, keys: [String]) -> String? {
         guard let data else { return nil }
         for key in keys {
@@ -217,4 +219,9 @@ final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
         let combined = nameParts.joined(separator: " ")
         return combined.isEmpty ? nil : combined
     }
+}
+
+private enum FirestoreMemberRepositoryError: Error {
+    case invalidMemberID
+    case invalidMemberDocument
 }

@@ -4,13 +4,16 @@ import Foundation
 final class FirestoreShiftSwapRequestRepository: @unchecked Sendable, ShiftSwapRequestRepository {
     private let db: Firestore
     private let environment: ReguertaFirestoreEnvironment?
+    private let functionsClient: AuthenticatedFirebaseFunctionsClient
 
     init(
         db: Firestore = Firestore.firestore(),
-        environment: ReguertaFirestoreEnvironment? = nil
+        environment: ReguertaFirestoreEnvironment? = nil,
+        functionsClient: AuthenticatedFirebaseFunctionsClient
     ) {
         self.db = db
         self.environment = environment
+        self.functionsClient = functionsClient
     }
 
     private var requestsCollection: CollectionReference {
@@ -28,55 +31,28 @@ final class FirestoreShiftSwapRequestRepository: @unchecked Sendable, ShiftSwapR
         }
     }
 
-    func upsert(request: ShiftSwapRequest) async -> ShiftSwapRequest {
-        let documentId = request.id.isEmpty ? requestsCollection.document().documentID : request.id
-        let persisted = ShiftSwapRequest(
-            id: documentId,
-            requestedShiftId: request.requestedShiftId,
-            requesterUserId: request.requesterUserId,
-            reason: request.reason,
-            status: request.status,
-            candidates: request.candidates,
-            responses: request.responses,
-            selectedCandidateUserId: request.selectedCandidateUserId,
-            selectedCandidateShiftId: request.selectedCandidateShiftId,
-            requestedAtMillis: request.requestedAtMillis,
-            confirmedAtMillis: request.confirmedAtMillis,
-            appliedAtMillis: request.appliedAtMillis
+    func transition(_ transition: ShiftSwapTransition) async throws -> ShiftSwapTransitionResult {
+        let request = ShiftSwapTransitionRequest(
+            environment: environment ?? ReguertaRuntimeEnvironment.currentFirestoreEnvironment,
+            transition: transition
         )
-
-        var payload: [String: Any] = [
-            "requestedShiftId": persisted.requestedShiftId,
-            "requesterUserId": persisted.requesterUserId,
-            "reason": persisted.reason,
-            "status": persisted.status.rawValue,
-            "candidates": persisted.candidates.map { candidate in
-                [
-                    "userId": candidate.userId,
-                    "shiftId": candidate.shiftId
-                ]
-            },
-            "responses": persisted.responses.map { response in
-                [
-                    "userId": response.userId,
-                    "shiftId": response.shiftId,
-                    "status": response.status.rawValue,
-                    "respondedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(response.respondedAtMillis) / 1_000))
-                ]
-            },
-            "selectedCandidateUserId": persisted.selectedCandidateUserId as Any,
-            "selectedCandidateShiftId": persisted.selectedCandidateShiftId as Any,
-            "requestedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(persisted.requestedAtMillis) / 1_000))
-        ]
-        payload["confirmedAt"] = persisted.confirmedAtMillis.map { Timestamp(date: Date(timeIntervalSince1970: TimeInterval($0) / 1_000)) }
-        payload["appliedAt"] = persisted.appliedAtMillis.map { Timestamp(date: Date(timeIntervalSince1970: TimeInterval($0) / 1_000)) }
-
-        do {
-            try await requestsCollection.document(documentId).setData(payload, merge: true)
-            return persisted
-        } catch {
-            return persisted
+        let response = try await functionsClient.post(
+            function: .transitionShiftSwap,
+            body: request,
+            response: ShiftSwapTransitionResponse.self
+        )
+        let responseRequestId = response.requestId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard response.ok,
+              response.environment == request.environment,
+              response.action == request.action,
+              !responseRequestId.isEmpty,
+              request.requestId == nil || request.requestId == responseRequestId else {
+            throw FirebaseFunctionClientError.invalidResponse
         }
+        return ShiftSwapTransitionResult(
+            requestId: responseRequestId,
+            candidateCount: response.candidateCount
+        )
     }
 
     private static func toShiftSwapRequest(_ document: QueryDocumentSnapshot) -> ShiftSwapRequest? {
@@ -136,5 +112,57 @@ final class FirestoreShiftSwapRequestRepository: @unchecked Sendable, ShiftSwapR
         guard let text = value as? String else { return nil }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+}
+
+nonisolated private struct ShiftSwapTransitionResponse: Decodable, Sendable {
+    let ok: Bool
+    let environment: SessionEnvironment
+    let action: String
+    let requestId: String
+    let candidateCount: Int?
+}
+
+nonisolated private struct ShiftSwapTransitionRequest: Encodable, Sendable {
+    let environment: SessionEnvironment
+    let action: String
+    let requestedShiftId: String?
+    let reason: String?
+    let requestId: String?
+    let candidateShiftId: String?
+    let response: String?
+
+    init(environment: SessionEnvironment, transition: ShiftSwapTransition) {
+        self.environment = environment
+        switch transition {
+        case .create(let request):
+            action = "create"
+            requestedShiftId = request.requestedShiftId
+            reason = request.reason
+            requestId = nil
+            candidateShiftId = nil
+            response = nil
+        case .respond(let request, let candidateShiftId, let responseStatus):
+            action = "respond"
+            requestedShiftId = nil
+            reason = nil
+            requestId = request.id
+            self.candidateShiftId = candidateShiftId
+            response = responseStatus.rawValue
+        case .cancel(let request):
+            action = "cancel"
+            requestedShiftId = nil
+            reason = nil
+            requestId = request.id
+            candidateShiftId = nil
+            response = nil
+        case .apply(let request, let candidateShiftId):
+            action = "apply"
+            requestedShiftId = nil
+            reason = nil
+            requestId = request.id
+            self.candidateShiftId = candidateShiftId
+            response = nil
+        }
     }
 }

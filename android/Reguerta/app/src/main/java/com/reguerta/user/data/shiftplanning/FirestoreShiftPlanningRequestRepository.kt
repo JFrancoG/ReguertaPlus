@@ -37,14 +37,12 @@ class FirestoreShiftPlanningRequestRepository(
             ),
             "status" to persisted.status.wireValue(),
         )
-        runCatching {
-            Tasks.await(
-                firestore.collection(requestsCollectionPath)
-                    .document(documentId)
-                    .set(payload, SetOptions.merge()),
-            )
-            persisted
-        }.getOrDefault(persisted)
+        Tasks.await(
+            firestore.collection(requestsCollectionPath)
+                .document(documentId)
+                .set(payload, SetOptions.merge()),
+        )
+        persisted
     }
 }
 

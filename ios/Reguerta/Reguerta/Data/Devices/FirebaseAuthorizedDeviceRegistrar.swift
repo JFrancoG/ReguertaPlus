@@ -1,8 +1,10 @@
 import FirebaseMessaging
 import Foundation
+import OSLog
 import UIKit
 
 final class FirebaseAuthorizedDeviceRegistrar: @unchecked Sendable, AuthorizedDeviceRegistrar {
+    private static let logger = Logger(subsystem: "com.reguerta.app", category: "DeviceRegistration")
     private let repository: any DeviceRegistrationRepository
     private let nowMillisProvider: @Sendable () -> Int64
     private let keyManager: KeyManager
@@ -17,27 +19,33 @@ final class FirebaseAuthorizedDeviceRegistrar: @unchecked Sendable, AuthorizedDe
         self.nowMillisProvider = nowMillisProvider
     }
 
-    func register(member: Member) async {
+    func register(member: Member) async -> AuthorizedDeviceRegistrationResult {
         await keyManager.save(member.id, for: .authorizedMemberId)
         let nowMillis = nowMillisProvider()
         let token = await fetchFcmTokenWithRetry()?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank
 
-        _ = await repository.register(
-            memberId: member.id,
-            device: RegisteredDevice(
-                deviceId: UIDevice.current.identifierForVendor?.uuidString ?? "ios-\(UIDevice.current.model)",
-                platform: "ios",
-                appVersion: resolveInstalledAppVersion(),
-                osVersion: UIDevice.current.systemVersion,
-                apiLevel: nil,
-                manufacturer: "Apple",
-                model: UIDevice.current.model.nilIfBlank,
-                fcmToken: token,
-                firstSeenAtMillis: nowMillis,
-                lastSeenAtMillis: nowMillis,
-                tokenUpdatedAtMillis: token == nil ? nil : nowMillis
+        do {
+            _ = try await repository.register(
+                memberId: member.id,
+                device: RegisteredDevice(
+                    deviceId: UIDevice.current.identifierForVendor?.uuidString ?? "ios-\(UIDevice.current.model)",
+                    platform: "ios",
+                    appVersion: resolveInstalledAppVersion(),
+                    osVersion: UIDevice.current.systemVersion,
+                    apiLevel: nil,
+                    manufacturer: "Apple",
+                    model: UIDevice.current.model.nilIfBlank,
+                    fcmToken: token,
+                    firstSeenAtMillis: nowMillis,
+                    lastSeenAtMillis: nowMillis,
+                    tokenUpdatedAtMillis: token == nil ? nil : nowMillis
+                )
             )
-        )
+            return .registered
+        } catch {
+            Self.logger.error("Authorized device registration failed: \(String(describing: error), privacy: .public)")
+            return .failed
+        }
     }
 
     private func fetchFcmToken() async -> String? {

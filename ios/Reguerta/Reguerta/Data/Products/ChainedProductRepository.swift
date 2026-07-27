@@ -25,8 +25,7 @@ actor ChainedProductRepository: ProductRepository {
         return await fallback.products(vendorId: vendorId)
     }
 
-    func upsert(product: Product) async -> Product {
-        _ = await fallback.upsert(product: product)
-        return await primary.upsert(product: product)
+    func upsert(product: Product) async throws -> Product {
+        try await primary.upsert(product: product)
     }
 }

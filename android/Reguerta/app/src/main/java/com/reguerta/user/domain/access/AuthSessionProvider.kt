@@ -7,6 +7,7 @@ enum class AuthSignInFailureReason {
     WEAK_PASSWORD,
     USER_NOT_FOUND,
     USER_DISABLED,
+    EMAIL_NOT_VERIFIED,
     TOO_MANY_REQUESTS,
     NETWORK,
     UNKNOWN,

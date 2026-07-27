@@ -1,6 +1,7 @@
 package com.reguerta.user.data.notifications
 
 import com.reguerta.user.domain.access.MemberRole
+import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.notifications.NotificationEvent
 import com.reguerta.user.domain.notifications.NotificationRepository
 import kotlinx.coroutines.sync.Mutex
@@ -38,8 +39,10 @@ class InMemoryNotificationRepository : NotificationRepository {
     )
     private val readNotificationIdsByMember = mutableMapOf<String, MutableSet<String>>()
 
-    override suspend fun getAllNotifications(): List<NotificationEvent> = mutex.withLock {
-        notifications.values.sortedByDescending { it.sentAtMillis }
+    override suspend fun getNotificationsFor(member: Member): List<NotificationEvent> = mutex.withLock {
+        notifications.values
+            .filter { event -> event.isVisibleTo(member) }
+            .sortedByDescending { it.sentAtMillis }
     }
 
     override suspend fun getReadNotificationIds(memberId: String): Set<String> = mutex.withLock {

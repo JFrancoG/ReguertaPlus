@@ -98,14 +98,19 @@ extension ShiftsFeatureViewModel {
         guard shouldDeleteOverride || override != nil else { return }
 
         isSavingDeliveryCalendar = true
-        if shouldDeleteOverride {
-            await deliveryCalendarRepository.deleteOverride(weekKey: weekKey)
-        } else if let override {
-            _ = await deliveryCalendarRepository.upsertOverride(override)
+        defer { isSavingDeliveryCalendar = false }
+        do {
+            if shouldDeleteOverride {
+                try await deliveryCalendarRepository.deleteOverride(weekKey: weekKey)
+            } else if let override {
+                _ = try await deliveryCalendarRepository.upsertOverride(override)
+            }
+        } catch {
+            feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
+            return
         }
         defaultDeliveryDayOfWeek = await deliveryCalendarRepository.defaultDeliveryDayOfWeek()
         deliveryCalendarOverrides = await deliveryCalendarRepository.allOverrides()
-        isSavingDeliveryCalendar = false
         isDeliveryCalendarWeekPickerPresented = false
         dismissCalendarEditor()
     }
@@ -123,16 +128,21 @@ extension ShiftsFeatureViewModel {
         guard let session = authorizedSession, session.member.isAdmin else { return }
 
         isSubmittingShiftPlanningRequest = true
-        _ = await shiftPlanningRequestRepository.submit(
-            request: ShiftPlanningRequest(
-                id: "",
-                type: type,
-                requestedByUserId: session.member.id,
-                requestedAtMillis: nowMillisProvider(),
-                status: .requested
+        defer { isSubmittingShiftPlanningRequest = false }
+        do {
+            _ = try await shiftPlanningRequestRepository.submit(
+                request: ShiftPlanningRequest(
+                    id: "",
+                    type: type,
+                    requestedByUserId: session.member.id,
+                    requestedAtMillis: nowMillisProvider(),
+                    status: .requested
+                )
             )
-        )
-        isSubmittingShiftPlanningRequest = false
+        } catch {
+            feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
+            return
+        }
         pendingShiftPlanningType = nil
     }
 }

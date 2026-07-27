@@ -4,9 +4,7 @@ struct ChainedShiftPlanningRequestRepository: ShiftPlanningRequestRepository {
     let primary: any ShiftPlanningRequestRepository
     let fallback: any ShiftPlanningRequestRepository
 
-    func submit(request: ShiftPlanningRequest) async -> ShiftPlanningRequest {
-        let fallbackSaved = await fallback.submit(request: request)
-        let primarySaved = await primary.submit(request: fallbackSaved)
-        return primarySaved
+    func submit(request: ShiftPlanningRequest) async throws -> ShiftPlanningRequest {
+        try await primary.submit(request: request)
     }
 }

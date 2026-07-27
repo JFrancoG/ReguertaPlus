@@ -3,25 +3,29 @@ import Foundation
 
 struct FirestoreOrdersRepository: OrdersRepository {
     private let db: Firestore
-    private let environment: ReguertaFirestoreEnvironment
+    private let environment: ReguertaFirestoreEnvironment?
 
     init(
         db: Firestore,
-        environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment
+        environment: ReguertaFirestoreEnvironment? = nil
     ) {
         self.db = db
         self.environment = environment
     }
 
-    func submitMyOrder(_ request: MyOrderCheckoutRequest) async -> Bool {
-        await submitCheckoutOrderToFirestore(
+    private var resolvedEnvironment: ReguertaFirestoreEnvironment {
+        environment ?? ReguertaRuntimeEnvironment.currentFirestoreEnvironment
+    }
+
+    func submitMyOrder(_ request: MyOrderCheckoutRequest) async throws -> Bool {
+        try await submitCheckoutOrderToFirestore(
             currentMember: request.currentMember,
             weekKey: request.weekKey,
             products: request.products,
             selectedQuantities: request.selectedQuantities,
             selectedEcoBasketOptions: request.selectedEcoBasketOptions,
             db: db,
-            environment: environment,
+            environment: resolvedEnvironment,
             nowMillis: request.nowMillis
         )
     }
@@ -40,7 +44,7 @@ struct FirestoreOrdersRepository: OrdersRepository {
         try await fetchOrderHistoryWeekKeys(
             currentMember: currentMember,
             db: db,
-            environment: environment
+            environment: resolvedEnvironment
         )
     }
 
@@ -52,12 +56,20 @@ struct FirestoreOrdersRepository: OrdersRepository {
             currentMember: currentMember,
             weekKey: weekKey,
             db: db,
-            environment: environment
+            environment: resolvedEnvironment
         )
     }
 
-    func myOrderProducerStatuses(orderId: String) async -> MyOrderProducerStatusSnapshot {
-        await loadMyOrderProducerStatuses(orderId: orderId, db: db, environment: environment)
+    func myOrderProducerStatuses(
+        currentMember: Member?,
+        weekKey: String
+    ) async -> MyOrderProducerStatusSnapshot {
+        await loadMyOrderProducerStatuses(
+            currentMember: currentMember,
+            weekKey: weekKey,
+            db: db,
+            environment: resolvedEnvironment
+        )
     }
 
     func receivedOrdersSnapshot(
@@ -68,7 +80,7 @@ struct FirestoreOrdersRepository: OrdersRepository {
             producerId: producerId,
             targetWeekKey: targetWeekKey,
             db: db,
-            environment: environment
+            environment: resolvedEnvironment
         )
     }
 
@@ -76,14 +88,7 @@ struct FirestoreOrdersRepository: OrdersRepository {
         try await fetchReceivedOrderHistoryWeekKeys(
             producerId: producerId,
             db: db,
-            environment: environment
-        )
-    }
-
-    func oldestOrderHistoryWeekKey() async throws -> String? {
-        try await fetchOldestOrderHistoryWeekKey(
-            db: db,
-            environment: environment
+            environment: resolvedEnvironment
         )
     }
 
@@ -96,7 +101,7 @@ struct FirestoreOrdersRepository: OrdersRepository {
             targetWeekKey: weekKey,
             synchronizesUnreadStatuses: false,
             db: db,
-            environment: environment
+            environment: resolvedEnvironment
         )
     }
 
@@ -111,7 +116,7 @@ struct FirestoreOrdersRepository: OrdersRepository {
             producerId: producerId,
             status: status,
             db: db,
-            environment: environment,
+            environment: resolvedEnvironment,
             nowMillis: nowMillis
         )
     }

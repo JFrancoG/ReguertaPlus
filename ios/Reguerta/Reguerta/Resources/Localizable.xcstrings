@@ -664,6 +664,57 @@
         }
       }
     },
+    "auth_info.verification_pending" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verify your email before signing in. If no message arrived, try signing in again to resend it."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verifica tu email antes de iniciar sesión. Si no te llegó el mensaje, vuelve a intentarlo para reenviarlo."
+          }
+        }
+      }
+    },
+    "auth_info.verification_resent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We resent the verification email. Verify your address, then sign in again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hemos reenviado el email de verificación. Verifica tu dirección y vuelve a iniciar sesión."
+          }
+        }
+      }
+    },
+    "auth_info.verification_sent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account created. Verify the email we sent you, then sign in."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuenta creada. Verifica el email que te hemos enviado y después inicia sesión."
+          }
+        }
+      }
+    },
     "auth_shell.splash.loading" : {
       "extractionState" : "manual",
       "localizations" : {

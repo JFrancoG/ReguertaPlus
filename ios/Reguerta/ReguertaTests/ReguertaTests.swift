@@ -16,11 +16,11 @@ struct ReguertaTests {
     }
 
     @Test
-    func unauthorizedEmailStaysRestricted() async {
+    func unauthorizedEmailStaysRestricted() async throws {
         let repository = InMemoryMemberRepository()
-        let useCase = ResolveAuthorizedSessionUseCase(repository: repository)
+        let useCase = makeInMemoryResolveUseCase(repository: repository)
 
-        let result = await useCase.execute(
+        let result = try await useCase.execute(
             authPrincipal: AuthPrincipal(uid: "uid_unknown", email: "unknown@reguerta.app")
         )
 
@@ -28,9 +28,9 @@ struct ReguertaTests {
     }
 
     @Test
-    func existingInactiveMemberDoesNotUseMissingUsersReason() async {
+    func existingInactiveMemberDoesNotUseMissingUsersReason() async throws {
         let repository = InMemoryMemberRepository()
-        let useCase = ResolveAuthorizedSessionUseCase(repository: repository)
+        let useCase = makeInMemoryResolveUseCase(repository: repository)
 
         _ = await repository.upsert(
             member: Member(
@@ -44,7 +44,7 @@ struct ReguertaTests {
             )
         )
 
-        let result = await useCase.execute(
+        let result = try await useCase.execute(
             authPrincipal: AuthPrincipal(uid: "uid_inactive", email: "inactive@reguerta.app")
         )
 
@@ -52,11 +52,11 @@ struct ReguertaTests {
     }
 
     @Test
-    func firstAuthorizedLoginLinksAuthUid() async {
+    func firstAuthorizedLoginLinksAuthUid() async throws {
         let repository = InMemoryMemberRepository()
-        let useCase = ResolveAuthorizedSessionUseCase(repository: repository)
+        let useCase = makeInMemoryResolveUseCase(repository: repository)
 
-        let result = await useCase.execute(
+        let result = try await useCase.execute(
             authPrincipal: AuthPrincipal(uid: "uid_admin_1", email: "ana.admin@reguerta.app")
         )
 
@@ -70,22 +70,21 @@ struct ReguertaTests {
 
     @Test
     func preventRemovingLastActiveAdmin() async {
-        let repository = InMemoryMemberRepository()
-        let resolveUseCase = ResolveAuthorizedSessionUseCase(repository: repository)
-        let upsertUseCase = UpsertMemberByAdminUseCase(repository: repository)
-
-        _ = await resolveUseCase.execute(
-            authPrincipal: AuthPrincipal(uid: "uid_admin_2", email: "ana.admin@reguerta.app")
+        let upsertUseCase = UpsertMemberByAdminUseCase(
+            repository: RejectingMemberAdministrationRepository(error: .lastAdminRemoval)
         )
-
-        guard let admin = await repository.findByEmailNormalized("ana.admin@reguerta.app") else {
-            Issue.record("Expected seeded admin")
-            return
-        }
+        let admin = Member(
+            id: "member_admin_001",
+            displayName: "Ana Admin",
+            normalizedEmail: "ana.admin@reguerta.app",
+            authUid: "uid_admin_2",
+            roles: [.member, .admin],
+            isActive: true,
+            producerCatalogEnabled: true
+        )
 
         do {
             _ = try await upsertUseCase.execute(
-                actorAuthUid: "uid_admin_2",
                 target: Member(
                     id: admin.id,
                     displayName: admin.displayName,
@@ -107,15 +106,16 @@ struct ReguertaTests {
     @Test
     func adminCanCreatePreAuthorizedMember() async throws {
         let repository = InMemoryMemberRepository()
-        let resolveUseCase = ResolveAuthorizedSessionUseCase(repository: repository)
-        let upsertUseCase = UpsertMemberByAdminUseCase(repository: repository)
+        let resolveUseCase = makeInMemoryResolveUseCase(repository: repository)
+        let upsertUseCase = UpsertMemberByAdminUseCase(
+            repository: LocalMemberAdministrationRepository(repository: repository)
+        )
 
-        _ = await resolveUseCase.execute(
+        _ = try await resolveUseCase.execute(
             authPrincipal: AuthPrincipal(uid: "uid_admin_3", email: "ana.admin@reguerta.app")
         )
 
         let created = try await upsertUseCase.execute(
-            actorAuthUid: "uid_admin_3",
             target: Member(
                 id: "member_new_001",
                 displayName: "Nuevo Miembro",
@@ -132,11 +132,11 @@ struct ReguertaTests {
     }
 
     @Test
-    func authUidMatchWinsOverEmailDuplicate() async {
+    func authUidMatchWinsOverEmailDuplicate() async throws {
         let repository = InMemoryMemberRepository()
-        let useCase = ResolveAuthorizedSessionUseCase(repository: repository)
+        let useCase = makeInMemoryResolveUseCase(repository: repository)
 
-        _ = await useCase.execute(
+        _ = try await useCase.execute(
             authPrincipal: AuthPrincipal(uid: "uid_admin_linked", email: "ana.admin@reguerta.app")
         )
 
@@ -152,7 +152,7 @@ struct ReguertaTests {
             )
         )
 
-        let result = await useCase.execute(
+        let result = try await useCase.execute(
             authPrincipal: AuthPrincipal(uid: "uid_admin_linked", email: "ana.admin@reguerta.app")
         )
 
@@ -333,4 +333,102 @@ struct ReguertaTests {
         #expect(SemanticVersionComparator.compare("0.3-beta", "0.3.0") == nil)
     }
 
+    @Test
+    func orderReadsUseBothOwnerAliasesWithinTheRequestedWeek() {
+        let scopes = myOrderOwnedWeekQueryScopes(
+            memberId: "member_1",
+            weekKey: "2026-W30"
+        )
+
+        #expect(
+            scopes == [
+                MyOrderOwnedWeekQueryScope(
+                    ownerField: "userId",
+                    ownerId: "member_1",
+                    weekKey: "2026-W30"
+                ),
+                MyOrderOwnedWeekQueryScope(
+                    ownerField: "memberId",
+                    ownerId: "member_1",
+                    weekKey: "2026-W30"
+                )
+            ]
+        )
+    }
+
+    @Test
+    func previousOrderCandidatesKeepTheDeterministicIdAndDeduplicateDiscoveredOrders() {
+        let candidateIds = myOrderCandidateOrderIds(
+            deterministicOrderId: "member_1_2026-W30",
+            discoveredOrderIds: [
+                "legacy_member_1_2026-W30",
+                "member_1_2026-W30",
+                " ",
+                "legacy_member_1_2026-W30"
+            ]
+        )
+
+        #expect(candidateIds == ["member_1_2026-W30", "legacy_member_1_2026-W30"])
+    }
+
+    @Test
+    func checkoutUsesTheSingleHistoricalOrderIdInsteadOfCreatingADuplicate() throws {
+        let resolvedOrderId = try resolveMyOrderCheckoutDocumentId(
+            newOrderId: "member_1_2026-W30",
+            existingOrderIds: ["-O-historical-order"]
+        )
+
+        #expect(resolvedOrderId == "-O-historical-order")
+    }
+
+    @Test
+    func checkoutUsesTheNewIdOnlyWhenTheOwnedWeekHasNoOrder() throws {
+        let resolvedOrderId = try resolveMyOrderCheckoutDocumentId(
+            newOrderId: "member_1_2026-W30",
+            existingOrderIds: []
+        )
+
+        #expect(resolvedOrderId == "member_1_2026-W30")
+    }
+
+    @Test
+    func checkoutRejectsAnAmbiguousOwnedWeekBeforeSelectingAnOrder() {
+        #expect(throws: MyOrderCheckoutResolutionError.ambiguousExistingOrders) {
+            try resolveMyOrderCheckoutDocumentId(
+                newOrderId: "member_1_2026-W30",
+                existingOrderIds: ["-O-order-one", "-O-order-two"]
+            )
+        }
+    }
+
+    @Test
+    func memberVisibleFirestorePathsUseSanitizedDirectoryAndConfig() {
+        let path = ReguertaFirestorePath(environment: .develop)
+
+        #expect(path.collectionPath(.memberDirectory) == "develop/plus-collections/memberDirectory")
+        #expect(
+            path.documentPath(in: .config, documentId: ReguertaFirestoreDocument.memberConfiguration.rawValue)
+                == "develop/plus-collections/config/member"
+        )
+    }
+
+}
+
+@MainActor
+private func makeInMemoryResolveUseCase(
+    repository: any LocalMemberRepository
+) -> ResolveAuthorizedSessionUseCase {
+    ResolveAuthorizedSessionUseCase(
+        repository: repository,
+        resolver: InMemoryAuthorizedMemberResolver(repository: repository),
+        environmentRouter: FixedSessionEnvironmentRouter()
+    )
+}
+
+private struct RejectingMemberAdministrationRepository: MemberAdministrationRepository {
+    let error: MemberManagementError
+
+    func upsertMember(_ member: Member) async throws -> Member {
+        throw error
+    }
 }

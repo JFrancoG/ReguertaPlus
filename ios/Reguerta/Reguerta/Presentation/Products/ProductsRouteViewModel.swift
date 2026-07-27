@@ -125,7 +125,7 @@ extension ProductsRouteViewModel {
         }
 
         isLoadingOrderingProducts = true
-        let refreshedMembers = await memberRepository.allMembers()
+        let refreshedMembers = (try? await memberRepository.members(visibleTo: session.member)) ?? []
         let effectiveMembers = refreshedMembers.isEmpty ? session.members : refreshedMembers
         let membersById = Dictionary(uniqueKeysWithValues: effectiveMembers.map { ($0.id, $0) })
         let refreshedCurrentMember = membersById[session.member.id] ?? session.member
@@ -251,9 +251,15 @@ extension ProductsRouteViewModel {
             return false
         }
 
-        let saved = await productRepository.upsert(
-            product: buildProductToSave(sessionMember: session.member, input: input)
-        )
+        let saved: Product
+        do {
+            saved = try await productRepository.upsert(
+                product: buildProductToSave(sessionMember: session.member, input: input)
+            )
+        } catch {
+            showUnableSaveFeedback()
+            return false
+        }
         let products = await productRepository.products(vendorId: session.member.id)
         guard isCurrentSession(session) else { return false }
         catalogProducts = products
@@ -270,9 +276,14 @@ extension ProductsRouteViewModel {
 
         isSaving = true
         defer { isSaving = false }
-        _ = await productRepository.upsert(
-            product: product.archivedCopy(nowMillis: nowMillisProvider())
-        )
+        do {
+            _ = try await productRepository.upsert(
+                product: product.archivedCopy(nowMillis: nowMillisProvider())
+            )
+        } catch {
+            showUnableSaveFeedback()
+            return
+        }
         let products = await productRepository.products(vendorId: session.member.id)
         guard isCurrentSession(session) else { return }
         catalogProducts = products
@@ -290,10 +301,18 @@ extension ProductsRouteViewModel {
 
         isUpdatingCatalogVisibility = true
         defer { isUpdatingCatalogVisibility = false }
-        let updatedMember = await memberRepository.upsert(
-            member: session.member.copy(producerCatalogEnabled: catalogEnabled)
-        )
-        let members = await memberRepository.allMembers()
+        let updatedMember: Member
+        let members: [Member]
+        do {
+            updatedMember = try await memberRepository.updateOwnProducerCatalogEnabled(
+                memberId: session.member.id,
+                enabled: catalogEnabled
+            )
+            members = try await memberRepository.members(visibleTo: updatedMember)
+        } catch {
+            feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
+            return
+        }
         sessionViewModel.applyUpdatedAuthorizedMember(updatedMember, members: members)
         syncCurrentSessionFromSessionViewModel()
         catalogProducts = await productRepository.products(vendorId: updatedMember.id)

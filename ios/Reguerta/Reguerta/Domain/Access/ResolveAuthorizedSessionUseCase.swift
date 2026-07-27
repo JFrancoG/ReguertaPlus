@@ -2,47 +2,53 @@ import Foundation
 
 struct ResolveAuthorizedSessionUseCase: Sendable {
     private let repository: any MemberRepository
+    private let resolver: any AuthorizedMemberResolving
+    private let environmentRouter: any SessionEnvironmentRouting
 
-    init(repository: any MemberRepository) {
+    init(
+        repository: any MemberRepository,
+        resolver: any AuthorizedMemberResolving,
+        environmentRouter: any SessionEnvironmentRouting
+    ) {
         self.repository = repository
+        self.resolver = resolver
+        self.environmentRouter = environmentRouter
     }
 
-    func execute(authPrincipal: AuthPrincipal) async -> AccessResolutionResult {
-        let normalizedEmail = normalizeEmail(authPrincipal.email)
-
-        if let linkedMember = await repository.findByAuthUid(authPrincipal.uid) {
-            guard linkedMember.isActive else {
-                return .unauthorized(.userAccessRestricted)
+    func execute(authPrincipal: AuthPrincipal) async throws -> AccessResolutionResult {
+        let resolution: AuthorizedMemberResolution
+        do {
+            resolution = try await resolver.resolve(
+                authPrincipal: authPrincipal,
+                requestedEnvironment: environmentRouter.baseEnvironment
+            )
+        } catch let error as AuthorizedMemberResolutionError {
+            switch error {
+            case .unauthorized(let reason):
+                return .unauthorized(reason)
             }
-            return .authorized(linkedMember)
+        }
+        guard resolution.isActive else {
+            return .unauthorized(.userAccessRestricted)
+        }
+        environmentRouter.applyResolvedEnvironment(resolution.environment)
+        var keepsResolvedEnvironment = false
+        defer {
+            if !keepsResolvedEnvironment {
+                environmentRouter.resetToBaseEnvironment()
+            }
         }
 
-        guard let member = await repository.findByEmailNormalized(normalizedEmail) else {
+        guard let member = try await repository.member(id: resolution.memberId) else {
             return .unauthorized(.userNotFoundInAuthorizedUsers)
         }
-
-        guard member.isActive else {
+        guard member.isActive,
+              member.id == resolution.memberId,
+              member.authUid == authPrincipal.uid,
+              member.roles == resolution.roles else {
             return .unauthorized(.userAccessRestricted)
         }
-
-        let linkedMember: Member?
-        if let authUid = member.authUid {
-            guard authUid == authPrincipal.uid else {
-                return .unauthorized(.userAccessRestricted)
-            }
-            linkedMember = member
-        } else {
-            linkedMember = await repository.linkAuthUid(memberId: member.id, authUid: authPrincipal.uid)
-        }
-
-        guard let linkedMember else {
-            return .unauthorized(.userAccessRestricted)
-        }
-
-        return .authorized(linkedMember)
-    }
-
-    private func normalizeEmail(_ email: String) -> String {
-        email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        keepsResolvedEnvironment = true
+        return .authorized(member)
     }
 }

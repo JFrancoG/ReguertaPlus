@@ -16,7 +16,7 @@ final class FirestoreStartupVersionPolicyRepository: @unchecked Sendable, Startu
     func policy(for platform: StartupPlatform) async -> StartupVersionPolicy? {
         do {
             let snapshot = try await db
-                .reguertaDocument(.global, in: .config, environment: environment)
+                .reguertaDocument(.publicConfiguration, in: .config, environment: environment)
                 .getDocument()
 
             guard let data = snapshot.data(),

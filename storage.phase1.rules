@@ -1,0 +1,11 @@
+rules_version = '2';
+
+// Exact rollback snapshot of the authenticated Storage contract that remains
+// deployed while the Reguerta+ identity-link migration is pending.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

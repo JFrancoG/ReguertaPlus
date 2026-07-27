@@ -56,16 +56,19 @@ extension MyOrderRouteViewModel {
     }
 
     func loadProducerStatusesIfNeeded() async {
-        guard !isConsultaPhase, hasConfirmedOrder, let orderId = currentOrderId else {
+        guard !isConsultaPhase, hasConfirmedOrder, let currentMember else {
             loadedStatusTaskID = nil
             confirmedProducerStatusesByVendor = [:]
             confirmedLegacyProducerStatus = .unread
             return
         }
-        let taskID = "\(orderId)-\(hasConfirmedOrder)-\(isConsultaPhase)"
+        let taskID = "\(currentMember.id)-\(currentWeekKey)-\(hasConfirmedOrder)-\(isConsultaPhase)"
         guard loadedStatusTaskID != taskID else { return }
         loadedStatusTaskID = taskID
-        let statusSnapshot = await ordersRepository.myOrderProducerStatuses(orderId: orderId)
+        let statusSnapshot = await ordersRepository.myOrderProducerStatuses(
+            currentMember: currentMember,
+            weekKey: currentWeekKey
+        )
         confirmedProducerStatusesByVendor = statusSnapshot.byVendor
         confirmedLegacyProducerStatus = statusSnapshot.legacyStatus
     }
@@ -80,7 +83,12 @@ extension MyOrderRouteViewModel {
             selectedEcoBasketOptions: selectedEcoBasketOptions,
             nowMillis: nowMillisProvider()
         )
-        let didPersist = await ordersRepository.submitMyOrder(request)
+        let didPersist: Bool
+        do {
+            didPersist = try await ordersRepository.submitMyOrder(request)
+        } catch {
+            didPersist = false
+        }
         isSubmittingCheckout = false
 
         guard didPersist else {

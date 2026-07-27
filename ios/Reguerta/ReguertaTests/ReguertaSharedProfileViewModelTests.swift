@@ -104,6 +104,35 @@ struct ReguertaSharedProfileViewModelTests {
     }
 
     @Test
+    func sharedProfileViewModelRetainsDraftWhenRepositoryRejectsSave() async {
+        let currentMember = sharedProfileMember(id: "member_1", displayName: "Member One")
+        let existingProfile = sharedProfile(
+            userId: currentMember.id,
+            familyNames: "Familia original",
+            about: "Perfil original"
+        )
+        let repository = RejectingSharedProfileRepository(items: [existingProfile])
+        let viewModel = makeSharedProfileViewModel(
+            currentMember: currentMember,
+            repository: repository
+        )
+        await viewModel.refreshProfiles()
+        let rejectedDraft = SharedProfileDraft(
+            familyNames: "Familia editada",
+            about: "Cambios pendientes"
+        )
+        viewModel.draft = rejectedDraft
+
+        let saved = await viewModel.saveProfile()
+
+        #expect(saved == false)
+        #expect(viewModel.draft == rejectedDraft)
+        #expect(viewModel.profiles == [existingProfile])
+        #expect(viewModel.isSaving == false)
+        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
+    }
+
+    @Test
     func sharedProfileViewModelDeletesOwnProfileAndClearsDraft() async {
         let currentMember = sharedProfileMember(id: "member_1", displayName: "Member One")
         let repository = InMemorySharedProfileRepository(
@@ -119,6 +148,31 @@ struct ReguertaSharedProfileViewModelTests {
         #expect(viewModel.profiles.isEmpty)
         #expect(viewModel.draft == SharedProfileDraft())
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackSharedProfileDeleted)
+    }
+
+    @Test
+    func sharedProfileViewModelRetainsProfileWhenRepositoryRejectsDelete() async {
+        let currentMember = sharedProfileMember(id: "member_1", displayName: "Member One")
+        let existingProfile = sharedProfile(
+            userId: currentMember.id,
+            familyNames: "Familia",
+            about: "Perfil que debe conservarse"
+        )
+        let repository = RejectingSharedProfileRepository(items: [existingProfile])
+        let viewModel = makeSharedProfileViewModel(
+            currentMember: currentMember,
+            repository: repository
+        )
+        await viewModel.refreshProfiles()
+        let existingDraft = viewModel.draft
+
+        let deleted = await viewModel.deleteProfile()
+
+        #expect(deleted == false)
+        #expect(viewModel.profiles == [existingProfile])
+        #expect(viewModel.draft == existingDraft)
+        #expect(viewModel.isDeleting == false)
+        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackSharedProfileDeleteFailed)
     }
 
     @Test
@@ -176,7 +230,7 @@ struct ReguertaSharedProfileViewModelTests {
 private func makeSharedProfileViewModel(
     currentMember: Member,
     members: [Member]? = nil,
-    repository: InMemorySharedProfileRepository? = nil,
+    repository: (any SharedProfileRepository)? = nil,
     imagePipelineManager: any ImagePipelineManager = SharedProfileMockImagePipelineManager(
         result: .success("https://cdn.test/profile.jpg")
     ),
@@ -200,6 +254,35 @@ private func makeSharedProfileViewModel(
     viewModel.currentSession = session
     viewModel.currentMember = currentMember
     return viewModel
+}
+
+@MainActor
+private final class RejectingSharedProfileRepository: SharedProfileRepository {
+    private let items: [SharedProfile]
+
+    init(items: [SharedProfile]) {
+        self.items = items
+    }
+
+    func allSharedProfiles() async -> [SharedProfile] {
+        items.sorted { $0.updatedAtMillis > $1.updatedAtMillis }
+    }
+
+    func sharedProfile(userId: String) async -> SharedProfile? {
+        items.first { $0.userId == userId }
+    }
+
+    func upsert(profile _: SharedProfile) async throws -> SharedProfile {
+        throw SharedProfileMutationTestError.rejected
+    }
+
+    func deleteSharedProfile(userId _: String) async throws -> Bool {
+        throw SharedProfileMutationTestError.rejected
+    }
+}
+
+private enum SharedProfileMutationTestError: Error {
+    case rejected
 }
 
 @MainActor

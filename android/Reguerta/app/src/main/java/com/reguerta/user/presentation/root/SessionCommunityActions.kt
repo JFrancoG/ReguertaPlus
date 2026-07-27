@@ -114,7 +114,7 @@ internal class SessionCommunityActions(
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
         scope.launch {
             uiState.update { it.copy(isLoadingNews = true) }
-            val allNews = newsRepository.getAllNews()
+            val allNews = newsRepository.getNewsFor(mode.member)
             val visibleNews = if (mode.member.canPublishNews) {
                 allNews
             } else {
@@ -141,16 +141,15 @@ internal class SessionCommunityActions(
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
         scope.launch {
             uiState.update { it.copy(isLoadingNotifications = true) }
-            val allNotifications = notificationRepository.getAllNotifications()
+            val allNotifications = notificationRepository.getNotificationsFor(mode.member)
             val readNotificationIds = notificationRepository.getReadNotificationIds(mode.member.id)
-            val visibleNotifications = allNotifications.filter { event -> event.isVisibleTo(mode.member) }
             uiState.update {
                 val currentMode = it.mode as? SessionMode.Authorized
                 if (currentMode?.principal?.uid != mode.principal.uid) {
                     it
                 } else {
                     it.copy(
-                        notificationsFeed = visibleNotifications,
+                        notificationsFeed = allNotifications,
                         readNotificationIds = readNotificationIds,
                         isLoadingNotifications = false,
                     )
@@ -168,17 +167,16 @@ internal class SessionCommunityActions(
                     showPushNotificationPermissionDialog = false,
                 )
             }
-            val allNotifications = notificationRepository.getAllNotifications()
+            val allNotifications = notificationRepository.getNotificationsFor(mode.member)
             val readNotificationIds = notificationRepository.getReadNotificationIds(mode.member.id)
             val isPermissionActive = pushNotificationPermissionProvider.isPushNotificationPermissionActive()
-            val visibleNotifications = allNotifications.filter { event -> event.isVisibleTo(mode.member) }
             uiState.update {
                 val currentMode = it.mode as? SessionMode.Authorized
                 if (currentMode?.principal?.uid != mode.principal.uid) {
                     it
                 } else {
                     it.copy(
-                        notificationsFeed = visibleNotifications,
+                        notificationsFeed = allNotifications,
                         readNotificationIds = readNotificationIds,
                         isLoadingNotifications = false,
                         isPushNotificationPermissionActive = isPermissionActive,
@@ -252,9 +250,10 @@ internal class SessionCommunityActions(
                     publishedBy = existing?.publishedBy ?: mode.member.displayName,
                     publishedAtMillis = existing?.publishedAtMillis ?: nowMillis,
                     urlImage = draft.urlImage.trim().ifBlank { null },
+                    publishedByUserId = mode.member.id,
                 ),
             )
-            val allNews = newsRepository.getAllNews()
+            val allNews = newsRepository.getNewsFor(mode.member)
             val visibleNews = allNews
             val latestActiveNews = allNews.filter { it.active }.take(3)
             val isNew = existing == null
@@ -365,7 +364,7 @@ internal class SessionCommunityActions(
                 emitMessage(R.string.feedback_news_delete_failed)
                 return@launch
             }
-            val allNews = newsRepository.getAllNews()
+            val allNews = newsRepository.getNewsFor(mode.member)
             uiState.update {
                 it.copy(
                     latestNews = allNews.filter { article -> article.active }.take(3),
@@ -409,11 +408,11 @@ internal class SessionCommunityActions(
                     weekKey = null,
                 ),
             )
-            val allNotifications = notificationRepository.getAllNotifications()
+            val allNotifications = notificationRepository.getNotificationsFor(mode.member)
             val readNotificationIds = notificationRepository.getReadNotificationIds(mode.member.id)
             uiState.update {
                 it.copy(
-                    notificationsFeed = allNotifications.filter { event -> event.isVisibleTo(mode.member) },
+                    notificationsFeed = allNotifications,
                     readNotificationIds = readNotificationIds,
                     notificationDraft = NotificationDraft(),
                     isSendingNotification = false,

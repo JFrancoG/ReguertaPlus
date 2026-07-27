@@ -168,10 +168,9 @@ class ReceivedOrdersHistoryViewModel(
         loadedWeekKey = null
         runCatching {
             val realWeekKeys = ordersRepository.receivedOrdersHistoryWeekKeys(context.producerId)
-            val oldestOrderWeekKey = ordersRepository.oldestOrderHistoryWeekKey()
             val options = orderHistoryBrowsableWeekOptions(
                 realWeekKeys = realWeekKeys,
-                oldestOrderWeekKey = oldestOrderWeekKey,
+                oldestOrderWeekKey = realWeekKeys.minOrNull(),
                 preferredWeekKey = preferredWeekKey,
             ).ifEmpty {
                 orderHistoryWeekOption(preferredWeekKey)?.let(::listOf).orEmpty()

@@ -14,7 +14,7 @@ final class MockAuthSessionProvider: AuthSessionProvider {
         return .success(principal)
     }
 
-    func signUp(email: String, password: String) async -> AuthSignInResult {
+    func signUp(email: String, password: String) async -> AuthSignUpResult {
         if !(6...16).contains(password.count) {
             return .failure(.weakPassword)
         }
@@ -24,9 +24,7 @@ final class MockAuthSessionProvider: AuthSessionProvider {
             return .failure(.emailAlreadyInUse)
         }
 
-        let principal = buildPrincipal(from: email)
-        currentPrincipal = principal
-        return .success(principal)
+        return .verificationRequired(email: normalizedEmail, verificationSent: true, signedOut: true)
     }
 
     func sendPasswordReset(email: String) async -> AuthPasswordResetResult {
@@ -37,6 +35,10 @@ final class MockAuthSessionProvider: AuthSessionProvider {
         return .success
     }
 
+    func sendCurrentUserEmailVerification() async -> Bool {
+        currentPrincipal != nil
+    }
+
     func refreshCurrentSession() async -> AuthSessionRefreshResult {
         guard let currentPrincipal else {
             return .noSession
@@ -44,8 +46,17 @@ final class MockAuthSessionProvider: AuthSessionProvider {
         return .active(currentPrincipal)
     }
 
-    func signOut() {
+    func validIDToken(forcingRefresh _: Bool) async throws -> String {
+        guard let currentPrincipal else {
+            throw MockAuthTokenError.noSession
+        }
+        return "mock-token-\(currentPrincipal.uid)"
+    }
+
+    @discardableResult
+    func signOut() -> Bool {
         currentPrincipal = nil
+        return true
     }
 
     private func buildPrincipal(from email: String) -> AuthPrincipal {
@@ -56,4 +67,8 @@ final class MockAuthSessionProvider: AuthSessionProvider {
         let uid = "mock_\(uidSuffix.isEmpty ? "user" : uidSuffix)"
         return AuthPrincipal(uid: uid, email: normalizedEmail)
     }
+}
+
+private enum MockAuthTokenError: Error {
+    case noSession
 }

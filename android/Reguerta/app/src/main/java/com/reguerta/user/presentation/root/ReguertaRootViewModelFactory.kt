@@ -4,50 +4,35 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
-import com.reguerta.user.BuildConfig
-import com.reguerta.user.data.access.ChainedMemberRepository
+import com.reguerta.user.data.access.AuthenticatedFirebaseFunctionsClient
+import com.reguerta.user.data.access.FirebaseAuthorizedMemberResolver
 import com.reguerta.user.data.access.FirebaseAuthSessionProvider
+import com.reguerta.user.data.access.FirebaseMemberAdministrationRepository
 import com.reguerta.user.data.access.FirestoreMemberRepository
-import com.reguerta.user.data.access.InMemoryMemberRepository
 import com.reguerta.user.data.bylaws.AssetBylawsKnowledgeSource
 import com.reguerta.user.data.bylaws.createPlatformBylawsOnDeviceAssistant
-import com.reguerta.user.data.calendar.ChainedDeliveryCalendarRepository
 import com.reguerta.user.data.calendar.FirestoreDeliveryCalendarRepository
-import com.reguerta.user.data.calendar.InMemoryDeliveryCalendarRepository
-import com.reguerta.user.data.commitments.ChainedSeasonalCommitmentRepository
 import com.reguerta.user.data.commitments.FirestoreSeasonalCommitmentRepository
-import com.reguerta.user.data.commitments.InMemorySeasonalCommitmentRepository
 import com.reguerta.user.data.devices.FirebaseAuthorizedDeviceRegistrar
 import com.reguerta.user.data.devices.FirestoreDeviceRegistrationRepository
 import com.reguerta.user.data.freshness.DataStoreCriticalDataFreshnessLocalRepository
 import com.reguerta.user.data.freshness.FirestoreCriticalDataFreshnessRemoteRepository
-import com.reguerta.user.data.firestore.FirestoreReviewerEnvironmentRouter
+import com.reguerta.user.data.firestore.ReguertaRuntimeEnvironment
+import com.reguerta.user.data.firestore.RuntimeSessionEnvironmentRouter
 import com.reguerta.user.data.media.FirebaseImagePipelineManager
-import com.reguerta.user.data.news.ChainedNewsRepository
 import com.reguerta.user.data.news.FirestoreNewsRepository
-import com.reguerta.user.data.news.InMemoryNewsRepository
 import com.reguerta.user.data.notifications.AndroidPushNotificationPermissionProvider
-import com.reguerta.user.data.notifications.ChainedNotificationRepository
 import com.reguerta.user.data.notifications.FirestoreNotificationRepository
-import com.reguerta.user.data.notifications.InMemoryNotificationRepository
-import com.reguerta.user.data.profiles.ChainedSharedProfileRepository
 import com.reguerta.user.data.profiles.FirestoreSharedProfileRepository
-import com.reguerta.user.data.profiles.InMemorySharedProfileRepository
-import com.reguerta.user.data.products.ChainedProductRepository
 import com.reguerta.user.data.products.FirestoreProductRepository
-import com.reguerta.user.data.products.InMemoryProductRepository
-import com.reguerta.user.data.shiftplanning.ChainedShiftPlanningRequestRepository
 import com.reguerta.user.data.shiftplanning.FirestoreShiftPlanningRequestRepository
-import com.reguerta.user.data.shiftplanning.InMemoryShiftPlanningRequestRepository
-import com.reguerta.user.data.shifts.ChainedShiftRepository
 import com.reguerta.user.data.shifts.FirestoreShiftRepository
-import com.reguerta.user.data.shifts.InMemoryShiftRepository
-import com.reguerta.user.data.shiftswap.ChainedShiftSwapRequestRepository
+import com.reguerta.user.data.shiftswap.FirebaseShiftSwapTransitionClient
 import com.reguerta.user.data.shiftswap.FirestoreShiftSwapRequestRepository
-import com.reguerta.user.data.shiftswap.InMemoryShiftSwapRequestRepository
 import com.reguerta.user.domain.access.ResolveAuthorizedSessionUseCase
 import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
 import com.reguerta.user.domain.bylaws.BylawsEvidenceRetriever
@@ -58,55 +43,34 @@ fun rememberSessionViewModel(): SessionViewModel {
     val context = LocalContext.current
     DevelopmentTimeMachine.initialize(context.applicationContext)
     val firestore = remember { FirebaseFirestore.getInstance() }
+    val auth = remember { FirebaseAuth.getInstance() }
+    val firebaseApp = remember { FirebaseApp.getInstance() }
     val repository = remember {
-        val fallback = InMemoryMemberRepository()
-        val primary = FirestoreMemberRepository(firestore = firestore)
-        ChainedMemberRepository(primary = primary, fallback = fallback)
+        FirestoreMemberRepository(firestore = firestore)
     }
     val newsRepository = remember {
-        val fallback = InMemoryNewsRepository()
-        val primary = FirestoreNewsRepository(firestore = firestore)
-        ChainedNewsRepository(primary = primary, fallback = fallback)
+        FirestoreNewsRepository(firestore = firestore)
     }
     val notificationRepository = remember {
-        val fallback = InMemoryNotificationRepository()
-        val primary = FirestoreNotificationRepository(firestore = firestore)
-        ChainedNotificationRepository(primary = primary, fallback = fallback)
+        FirestoreNotificationRepository(firestore = firestore)
     }
     val sharedProfileRepository = remember {
-        val fallback = InMemorySharedProfileRepository()
-        val primary = FirestoreSharedProfileRepository(firestore = firestore)
-        ChainedSharedProfileRepository(primary = primary, fallback = fallback)
+        FirestoreSharedProfileRepository(firestore = firestore)
     }
     val productRepository = remember {
-        val fallback = InMemoryProductRepository()
-        val primary = FirestoreProductRepository(firestore = firestore)
-        ChainedProductRepository(primary = primary, fallback = fallback)
+        FirestoreProductRepository(firestore = firestore)
     }
     val seasonalCommitmentRepository = remember {
-        val fallback = InMemorySeasonalCommitmentRepository()
-        val primary = FirestoreSeasonalCommitmentRepository(firestore = firestore)
-        ChainedSeasonalCommitmentRepository(primary = primary, fallback = fallback)
+        FirestoreSeasonalCommitmentRepository(firestore = firestore)
     }
     val shiftRepository = remember {
-        val fallback = InMemoryShiftRepository()
-        val primary = FirestoreShiftRepository(firestore = firestore)
-        ChainedShiftRepository(primary = primary, fallback = fallback)
+        FirestoreShiftRepository(firestore = firestore)
     }
     val deliveryCalendarRepository = remember {
-        val fallback = InMemoryDeliveryCalendarRepository()
-        val primary = FirestoreDeliveryCalendarRepository(firestore = firestore)
-        ChainedDeliveryCalendarRepository(primary = primary, fallback = fallback)
+        FirestoreDeliveryCalendarRepository(firestore = firestore)
     }
     val shiftPlanningRequestRepository = remember {
-        val fallback = InMemoryShiftPlanningRequestRepository()
-        val primary = FirestoreShiftPlanningRequestRepository(firestore = firestore)
-        ChainedShiftPlanningRequestRepository(primary = primary, fallback = fallback)
-    }
-    val shiftSwapRequestRepository = remember {
-        val fallback = InMemoryShiftSwapRequestRepository()
-        val primary = FirestoreShiftSwapRequestRepository(firestore = firestore)
-        ChainedShiftSwapRequestRepository(primary = primary, fallback = fallback)
+        FirestoreShiftPlanningRequestRepository(firestore = firestore)
     }
     val freshnessLocalRepository = remember(context) {
         DataStoreCriticalDataFreshnessLocalRepository(context.applicationContext)
@@ -123,8 +87,42 @@ fun rememberSessionViewModel(): SessionViewModel {
     val pushNotificationPermissionProvider = remember(context.applicationContext) {
         AndroidPushNotificationPermissionProvider(context = context.applicationContext)
     }
-    val reviewerEnvironmentRouter = remember(firestore) {
-        FirestoreReviewerEnvironmentRouter(firestore = firestore)
+    val sessionEnvironmentRouter = remember {
+        RuntimeSessionEnvironmentRouter()
+    }
+    val authenticatedFunctionsClient = remember(auth, firebaseApp) {
+        AuthenticatedFirebaseFunctionsClient.create(auth = auth, firebaseApp = firebaseApp)
+    }
+    val shiftSwapTransitionClient = remember(authenticatedFunctionsClient) {
+        FirebaseShiftSwapTransitionClient(
+            functionCaller = authenticatedFunctionsClient,
+            requestedEnvironment = {
+                ReguertaRuntimeEnvironment.currentFirestoreEnvironment().wireValue
+            },
+        )
+    }
+    val shiftSwapRequestRepository = remember(firestore, shiftSwapTransitionClient) {
+        FirestoreShiftSwapRequestRepository(
+            firestore = firestore,
+            transitionClient = shiftSwapTransitionClient,
+        )
+    }
+    val authorizedMemberResolver = remember(authenticatedFunctionsClient, sessionEnvironmentRouter) {
+        FirebaseAuthorizedMemberResolver(
+            functionCaller = authenticatedFunctionsClient,
+            requestedEnvironment = {
+                ReguertaRuntimeEnvironment.currentFirestoreEnvironment().wireValue
+            },
+            environmentRouter = sessionEnvironmentRouter,
+        )
+    }
+    val memberAdministrationRepository = remember(authenticatedFunctionsClient) {
+        FirebaseMemberAdministrationRepository(
+            functionCaller = authenticatedFunctionsClient,
+            requestedEnvironment = {
+                ReguertaRuntimeEnvironment.currentFirestoreEnvironment().wireValue
+            },
+        )
     }
     val bylawsKnowledgeSource = remember(context.applicationContext) {
         AssetBylawsKnowledgeSource(appContext = context.applicationContext)
@@ -155,9 +153,14 @@ fun rememberSessionViewModel(): SessionViewModel {
             deliveryCalendarRepository = deliveryCalendarRepository,
             shiftPlanningRequestRepository = shiftPlanningRequestRepository,
             shiftSwapRequestRepository = shiftSwapRequestRepository,
-            authSessionProvider = FirebaseAuthSessionProvider(auth = FirebaseAuth.getInstance()),
-            resolveAuthorizedSession = ResolveAuthorizedSessionUseCase(memberRepository = repository),
-            upsertMemberByAdmin = UpsertMemberByAdminUseCase(memberRepository = repository),
+            authSessionProvider = FirebaseAuthSessionProvider(auth = auth),
+            resolveAuthorizedSession = ResolveAuthorizedSessionUseCase(
+                memberRepository = repository,
+                authorizedMemberResolver = authorizedMemberResolver,
+            ),
+            upsertMemberByAdmin = UpsertMemberByAdminUseCase(
+                administrationRepository = memberAdministrationRepository,
+            ),
             authorizedDeviceRegistrar = authorizedDeviceRegistrar,
             pushNotificationPermissionProvider = pushNotificationPermissionProvider,
             resolveCriticalDataFreshness = ResolveCriticalDataFreshnessUseCase(
@@ -167,12 +170,12 @@ fun rememberSessionViewModel(): SessionViewModel {
                 localRepository = freshnessLocalRepository,
             ),
             criticalDataFreshnessLocalRepository = freshnessLocalRepository,
-            reviewerEnvironmentRouter = reviewerEnvironmentRouter,
+            sessionEnvironmentRouter = sessionEnvironmentRouter,
             bylawsKnowledgeSource = bylawsKnowledgeSource,
             bylawsEvidenceRetriever = bylawsEvidenceRetriever,
             bylawsOnDeviceAssistant = bylawsOnDeviceAssistant,
             nowMillisProvider = DevelopmentTimeMachine::nowMillis,
-            developImpersonationEnabled = BuildConfig.DEBUG,
+            developImpersonationEnabled = false,
             initialNowOverrideMillis = DevelopmentTimeMachine.overrideNowMillis(),
         )
     }

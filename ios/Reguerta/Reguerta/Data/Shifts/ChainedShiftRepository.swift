@@ -9,7 +9,7 @@ struct ChainedShiftRepository: ShiftRepository {
         return primaryResult.isEmpty ? await fallback.allShifts() : primaryResult
     }
 
-    func upsert(shift: ShiftAssignment) async -> ShiftAssignment {
-        await primary.upsert(shift: shift)
+    func upsert(shift: ShiftAssignment) async throws -> ShiftAssignment {
+        try await primary.upsert(shift: shift)
     }
 }

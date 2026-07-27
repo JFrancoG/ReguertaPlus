@@ -45,32 +45,32 @@ func resolveMyOrderConsultaWindow(
 }
 
 func loadMyOrderProducerStatuses(
-    orderId: String,
+    currentMember: Member?,
+    weekKey: String,
     db: Firestore = Firestore.firestore(),
     environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment
 ) async -> MyOrderProducerStatusSnapshot {
-    let firestorePath = ReguertaFirestorePath(environment: environment)
-    let readTargets = [
-        firestorePath.collectionPath(.orders)
-    ]
-
-    for ordersPath in readTargets {
-        do {
-            let orderSnapshot = try await db.document("\(ordersPath)/\(orderId)").getDocument()
-            guard orderSnapshot.exists else { continue }
-            let payload = orderSnapshot.data() ?? [:]
-            let legacyStatus = ProducerOrderStatus.from(payload["producerStatus"] as? String)
-            let byVendor = myOrderProducerStatusesByVendor(from: payload)
-            return MyOrderProducerStatusSnapshot(
-                byVendor: byVendor,
-                legacyStatus: legacyStatus
-            )
-        } catch {
-            continue
-        }
+    guard let member = currentMember else {
+        return MyOrderProducerStatusSnapshot(byVendor: [:], legacyStatus: .unread)
     }
-
-    return MyOrderProducerStatusSnapshot(byVendor: [:], legacyStatus: .unread)
+    let firestorePath = ReguertaFirestorePath(environment: environment)
+    do {
+        let orderDocuments = try await fetchMyOrderOwnedWeekDocuments(
+            collectionPath: firestorePath.collectionPath(.orders),
+            memberId: member.id,
+            weekKey: weekKey,
+            db: db
+        )
+        guard orderDocuments.count == 1, let payload = orderDocuments.values.first else {
+            return MyOrderProducerStatusSnapshot(byVendor: [:], legacyStatus: .unread)
+        }
+        return MyOrderProducerStatusSnapshot(
+            byVendor: myOrderProducerStatusesByVendor(from: payload),
+            legacyStatus: ProducerOrderStatus.from(payload["producerStatus"] as? String)
+        )
+    } catch {
+        return MyOrderProducerStatusSnapshot(byVendor: [:], legacyStatus: .unread)
+    }
 }
 
 func fetchPreviousWeekOrderSnapshot(
@@ -149,17 +149,15 @@ func fetchPreviousWeekOrderSnapshot(
 ) async throws -> MyOrderPreviousOrderSnapshot? {
     let orderDocuments = try await fetchPreviousOrderDocuments(
         target: target,
-        deterministicOrderId: deterministicOrderId,
         memberId: memberId,
         weekKey: previousWeekKey,
         db: db
     )
 
-    let candidateOrderIds = Array(([deterministicOrderId] + Array(orderDocuments.keys))
-        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-        .filter { !$0.isEmpty })
-        .uniquePreservingOrder()
-
+    let candidateOrderIds = myOrderCandidateOrderIds(
+        deterministicOrderId: deterministicOrderId,
+        discoveredOrderIds: Array(orderDocuments.keys)
+    )
     let lineDocuments = try await fetchPreviousOrderLineDocuments(
         target: target,
         candidateOrderIds: candidateOrderIds,
@@ -176,10 +174,12 @@ func fetchPreviousWeekOrderSnapshot(
         return nil
     }
 
-    let total = orderDocuments.values.compactMap { data in
+    let documentedTotals = orderDocuments.values.compactMap { data in
         (data["total"] as? NSNumber)?.doubleValue
-    }.first ??
-        groups.reduce(0) { $0 + $1.subtotal }
+    }
+    let total = documentedTotals.isEmpty
+        ? groups.reduce(0) { $0 + $1.subtotal }
+        : documentedTotals.reduce(0, +)
 
     return MyOrderPreviousOrderSnapshot(
         weekKey: previousWeekKey,
@@ -190,29 +190,16 @@ func fetchPreviousWeekOrderSnapshot(
 
 private func fetchPreviousOrderDocuments(
     target: MyOrderCheckoutWriteTarget,
-    deterministicOrderId: String,
     memberId: String,
     weekKey: String,
     db: Firestore
 ) async throws -> [String: [String: Any]] {
-    var orderDocuments: [String: [String: Any]] = [:]
-    let deterministicOrderSnapshot = try await db.document("\(target.orders)/\(deterministicOrderId)").getDocument()
-    if deterministicOrderSnapshot.exists {
-        orderDocuments[deterministicOrderSnapshot.documentID] = deterministicOrderSnapshot.data() ?? [:]
-    }
-
-    let weekOrdersSnapshot = try await db.collection(target.orders)
-        .whereField("weekKey", isEqualTo: weekKey)
-        .getDocuments()
-    for document in weekOrdersSnapshot.documents where document.matchesMemberOrder(
+    try await fetchMyOrderOwnedWeekDocuments(
+        collectionPath: target.orders,
         memberId: memberId,
         weekKey: weekKey,
-        deterministicOrderId: deterministicOrderId
-    ) {
-        orderDocuments[document.documentID] = document.data()
-    }
-
-    return orderDocuments
+        db: db
+    )
 }
 
 private func fetchPreviousOrderLineDocuments(
@@ -222,82 +209,20 @@ private func fetchPreviousOrderLineDocuments(
     weekKey: String,
     db: Firestore
 ) async throws -> [String: [String: Any]] {
-    var lineDocuments: [String: [String: Any]] = [:]
-    for orderId in candidateOrderIds {
-        let linesSnapshot = try await db.collection(target.orderlines)
-            .whereField("orderId", isEqualTo: orderId)
-            .getDocuments()
-        for document in linesSnapshot.documents {
-            lineDocuments[document.documentID] = document.data()
-        }
-    }
-
-    let weekLinesSnapshot = try await db.collection(target.orderlines)
-        .whereField("weekKey", isEqualTo: weekKey)
-        .getDocuments()
-    for document in weekLinesSnapshot.documents {
-        let data = document.data()
-        if data.matchesPreviousOrderLine(
-            memberId: memberId,
-            weekKey: weekKey,
-            candidateOrderIds: candidateOrderIds
-        ) {
-            lineDocuments[document.documentID] = data
-        }
-    }
-
-    return lineDocuments
+    try await fetchMyOrderOwnedLineDocuments(
+        collectionPath: target.orderlines,
+        orderIds: candidateOrderIds,
+        memberId: memberId,
+        weekKey: weekKey,
+        db: db
+    )
 }
 
-private extension QueryDocumentSnapshot {
-    func matchesMemberOrder(
-        memberId: String,
-        weekKey: String,
-        deterministicOrderId: String
-    ) -> Bool {
-        if documentID == deterministicOrderId {
-            return true
-        }
-        let data = data()
-        let payloadWeekKey = (data["weekKey"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let payloadUserId = (data["userId"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let parsedUserId = parseOrderUserIdFromDocumentId(documentID, weekKey: weekKey)
-        let matchesWeek = payloadWeekKey == weekKey || documentID.hasSuffix("_\(weekKey)")
-        let matchesMember = payloadUserId == memberId || parsedUserId == memberId
-        return matchesWeek && matchesMember
-    }
-}
-
-private extension Dictionary where Key == String, Value == Any {
-    func matchesPreviousOrderLine(
-        memberId: String,
-        weekKey: String,
-        candidateOrderIds: [String]
-    ) -> Bool {
-        let orderId = (self["orderId"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let payloadWeekKey = (self["weekKey"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let payloadUserId = (self["userId"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let matchesOrderId = orderId.map(candidateOrderIds.contains) ?? false
-        let matchesWeek = payloadWeekKey == weekKey || matchesOrderId
-        let matchesMember = payloadUserId == memberId || matchesOrderId
-        return matchesWeek && matchesMember
-    }
-}
-
-private func parseOrderUserIdFromDocumentId(_ documentID: String, weekKey: String) -> String? {
-    let suffix = "_\(weekKey)"
-    guard documentID.hasSuffix(suffix), documentID.count > suffix.count else {
-        return nil
-    }
-    let userId = String(documentID.dropLast(suffix.count))
-    return userId.isEmpty ? nil : userId
-}
-
-private extension Array where Element: Hashable {
-    func uniquePreservingOrder() -> [Element] {
-        var seen = Set<Element>()
-        return filter { seen.insert($0).inserted }
-    }
+nonisolated func myOrderCandidateOrderIds(
+    deterministicOrderId: String,
+    discoveredOrderIds: [String]
+) -> [String] {
+    normalizedUniqueMyOrderIds([deterministicOrderId] + discoveredOrderIds)
 }
 
 func buildMyOrderPreviousGroups(from lines: [MyOrderPreviousOrderLine]) -> [MyOrderPreviousOrderGroup] {

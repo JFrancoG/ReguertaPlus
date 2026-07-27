@@ -33,7 +33,7 @@ As an admin I want strict Firestore rules for producer status updates so only au
 - [x] Documentation
 
 ## Implementation notes (2026-04-17)
-- Added `firestore.rules` with producer/admin producer-status mutation contract for both `develop` and `production` roots.
+- Added `firestore.phase1.rules` with the deployed producer/admin producer-status mutation contract for both `develop` and `production` roots; the stricter rollout candidate lives in `firestore.strict.rules`.
 - Added emulator security tests: `functions/test/firestore/producer-order-status.rules.test.cjs`.
 - Added explicit producer-status denied-write UX feedback in Android and iOS received-orders flows.
 - Producer status updates now write `producerStatusUpdatedBy`.

@@ -24,11 +24,11 @@ final class ChainedSharedProfileRepository: @unchecked Sendable, SharedProfileRe
         return await fallback.sharedProfile(userId: userId)
     }
 
-    func upsert(profile: SharedProfile) async -> SharedProfile {
-        await primary.upsert(profile: profile)
+    func upsert(profile: SharedProfile) async throws -> SharedProfile {
+        try await primary.upsert(profile: profile)
     }
 
-    func deleteSharedProfile(userId: String) async -> Bool {
-        await primary.deleteSharedProfile(userId: userId)
+    func deleteSharedProfile(userId: String) async throws -> Bool {
+        try await primary.deleteSharedProfile(userId: userId)
     }
 }

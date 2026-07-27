@@ -16,7 +16,7 @@ struct FirestoreCriticalDataFreshnessRemoteRepository: CriticalDataFreshnessRemo
     func getConfig() async -> CriticalDataFreshnessConfig? {
         do {
             let snapshot = try await db
-                .reguertaDocument(.global, in: .config, environment: environment)
+                .reguertaDocument(.memberConfiguration, in: .config, environment: environment)
                 .getDocument()
 
             guard let data = snapshot.data(),

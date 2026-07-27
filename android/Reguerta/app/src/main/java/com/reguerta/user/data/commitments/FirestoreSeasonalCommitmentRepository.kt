@@ -60,32 +60,30 @@ class FirestoreSeasonalCommitmentRepository(
         get() = firestorePath.collectionPath(ReguertaFirestoreCollection.USERS)
 
     override suspend fun getActiveCommitmentsForUser(userId: String): List<SeasonalCommitment> = withContext(Dispatchers.IO) {
-        runCatching {
-            val normalizedLookup = userId.trim().ifBlank { return@runCatching emptyList() }
-            val docsById = linkedMapOf<String, com.google.firebase.firestore.DocumentSnapshot>()
+        val normalizedLookup = userId.trim().ifBlank { return@withContext emptyList() }
+        val docsById = linkedMapOf<String, com.google.firebase.firestore.DocumentSnapshot>()
 
+        queryByFields(
+            fields = SeasonalCommitmentQueryUserFields,
+            lookupValue = normalizedLookup,
+            includeReferenceTarget = !normalizedLookup.contains('@'),
+            output = docsById,
+        )
+
+        if (docsById.isEmpty()) {
             queryByFields(
-                fields = SeasonalCommitmentQueryUserFields,
+                fields = SeasonalCommitmentLegacyUserFields,
                 lookupValue = normalizedLookup,
                 includeReferenceTarget = !normalizedLookup.contains('@'),
                 output = docsById,
             )
+        }
 
-            if (docsById.isEmpty()) {
-                queryByFields(
-                    fields = SeasonalCommitmentLegacyUserFields,
-                    lookupValue = normalizedLookup,
-                    includeReferenceTarget = !normalizedLookup.contains('@'),
-                    output = docsById,
-                )
-            }
-
-            docsById.values
-                .mapNotNull { it.toSeasonalCommitment() }
-                .filter { commitment -> commitment.userId.matchesLookupUserId(normalizedLookup) }
-                .filter(SeasonalCommitment::active)
-                .sortedWith(compareBy<SeasonalCommitment> { it.seasonKey }.thenBy { it.productId })
-        }.getOrDefault(emptyList())
+        docsById.values
+            .mapNotNull { it.toSeasonalCommitment() }
+            .filter { commitment -> commitment.userId.matchesLookupUserId(normalizedLookup) }
+            .filter(SeasonalCommitment::active)
+            .sortedWith(compareBy<SeasonalCommitment> { it.seasonKey }.thenBy { it.productId })
     }
 
     private fun queryByFields(

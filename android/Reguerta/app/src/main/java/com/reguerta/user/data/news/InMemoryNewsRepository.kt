@@ -1,5 +1,6 @@
 package com.reguerta.user.data.news
 
+import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.news.NewsRepository
 import kotlinx.coroutines.sync.Mutex
@@ -19,8 +20,10 @@ class InMemoryNewsRepository : NewsRepository {
         ),
     )
 
-    override suspend fun getAllNews(): List<NewsArticle> = mutex.withLock {
-        news.values.sortedByDescending { it.publishedAtMillis }
+    override suspend fun getNewsFor(member: Member): List<NewsArticle> = mutex.withLock {
+        news.values
+            .filter { article -> article.active || member.isAdmin }
+            .sortedByDescending { it.publishedAtMillis }
     }
 
     override suspend fun upsertNews(article: NewsArticle): NewsArticle = mutex.withLock {

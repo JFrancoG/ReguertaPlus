@@ -8,4 +8,5 @@ data class NewsArticle(
     val publishedBy: String,
     val publishedAtMillis: Long,
     val urlImage: String?,
+    val publishedByUserId: String? = null,
 )

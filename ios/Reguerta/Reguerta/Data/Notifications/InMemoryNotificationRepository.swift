@@ -45,6 +45,13 @@ actor InMemoryNotificationRepository: NotificationRepository {
         )
     ]
 
+    func notifications(visibleTo member: Member) async throws -> [NotificationEvent] {
+        let allNotifications = await allNotifications()
+        return await MainActor.run {
+            allNotifications.filter { $0.isVisible(to: member) }
+        }
+    }
+
     func allNotifications() async -> [NotificationEvent] {
         var localized: [NotificationEvent] = []
         localized.reserveCapacity(notifications.count)

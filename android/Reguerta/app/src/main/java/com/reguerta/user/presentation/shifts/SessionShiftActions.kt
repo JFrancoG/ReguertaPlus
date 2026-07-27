@@ -3,20 +3,14 @@ package com.reguerta.user.presentation.shifts
 import com.reguerta.user.presentation.root.SessionMode
 import com.reguerta.user.presentation.root.SessionUiState
 import com.reguerta.user.presentation.root.ShiftSwapDraft
-import com.reguerta.user.presentation.root.applyConfirmedSwap
 import com.reguerta.user.presentation.root.buildDeliveryCalendarOverride
 import com.reguerta.user.presentation.root.nextAssignedShift
-import com.reguerta.user.presentation.root.sessionDisplayNameFor
 import com.reguerta.user.presentation.root.swapCandidates
-import com.reguerta.user.presentation.root.swapMemberWith
-import com.reguerta.user.presentation.root.toShiftNotificationDateTime
 import com.reguerta.user.presentation.root.visibleTo
 
 import com.reguerta.user.R
 import com.reguerta.user.domain.calendar.DeliveryCalendarRepository
 import com.reguerta.user.domain.calendar.DeliveryWeekday
-import com.reguerta.user.domain.notifications.NotificationEvent
-import com.reguerta.user.domain.notifications.NotificationRepository
 import com.reguerta.user.domain.shifts.ShiftAssignment
 import com.reguerta.user.domain.shifts.ShiftPlanningRequest
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestRepository
@@ -25,8 +19,6 @@ import com.reguerta.user.domain.shifts.ShiftPlanningRequestType
 import com.reguerta.user.domain.shifts.ShiftRepository
 import com.reguerta.user.domain.shifts.ShiftSwapRequest
 import com.reguerta.user.domain.shifts.ShiftSwapRequestRepository
-import com.reguerta.user.domain.shifts.ShiftSwapRequestStatus
-import com.reguerta.user.domain.shifts.ShiftSwapResponse
 import com.reguerta.user.domain.shifts.ShiftSwapResponseStatus
 import com.reguerta.user.domain.shifts.ShiftType
 import kotlinx.coroutines.CoroutineScope
@@ -41,7 +33,6 @@ internal class SessionShiftActions(
     private val deliveryCalendarRepository: DeliveryCalendarRepository,
     private val shiftPlanningRequestRepository: ShiftPlanningRequestRepository,
     private val shiftSwapRequestRepository: ShiftSwapRequestRepository,
-    private val notificationRepository: NotificationRepository,
     private val nowMillisProvider: () -> Long,
     private val emitMessage: (Int) -> Unit,
 ) {
@@ -182,38 +173,25 @@ internal class SessionShiftActions(
 
         scope.launch {
             uiState.update { it.copy(isSavingShiftSwapRequest = true) }
-            val persisted = shiftSwapRequestRepository.upsertShiftSwapRequest(
-                ShiftSwapRequest(
-                    id = "",
+            runCatching {
+                shiftSwapRequestRepository.createShiftSwapRequest(
                     requestedShiftId = shift.id,
-                    requesterUserId = mode.member.id,
-                    reason = draft.reason.trim(),
-                    status = ShiftSwapRequestStatus.OPEN,
-                    candidates = candidates,
-                    responses = emptyList(),
-                    selectedCandidateUserId = null,
-                    selectedCandidateShiftId = null,
-                    requestedAtMillis = nowMillisProvider(),
-                    confirmedAtMillis = null,
-                    appliedAtMillis = null,
-                ),
-            )
-            sendShiftSwapNotification(
-                title = "Solicitud de cambio de turno",
-                body = "${mode.member.displayName} solicita cambio para el turno del ${shift.dateMillis.toShiftNotificationDateTime()}",
-                type = "shift_swap_requested",
-                targetUserIds = persisted.candidates.map { it.userId }.distinct(),
-                createdBy = mode.member.id,
-            )
-            val allRequests = shiftSwapRequestRepository.getAllShiftSwapRequests()
-            uiState.update {
-                it.copy(
-                    shiftSwapRequests = allRequests.visibleTo(mode.member.id),
-                    shiftSwapDraft = ShiftSwapDraft(),
-                    isSavingShiftSwapRequest = false,
+                    reason = draft.reason,
                 )
+                shiftSwapRequestRepository.getAllShiftSwapRequests()
+            }.onSuccess { allRequests ->
+                uiState.update {
+                    it.copy(
+                        shiftSwapRequests = allRequests.visibleTo(mode.member.id),
+                        shiftSwapDraft = ShiftSwapDraft(),
+                        isSavingShiftSwapRequest = false,
+                    )
+                }
+                onSuccess()
+            }.onFailure {
+                uiState.update { it.copy(isSavingShiftSwapRequest = false) }
+                emitMessage(R.string.feedback_shift_swap_update_failed)
             }
-            onSuccess()
         }
     }
 
@@ -234,87 +212,47 @@ internal class SessionShiftActions(
     }
 
     fun cancelShiftSwapRequest(requestId: String) {
-        updateShiftSwapRequest(requestId) { request, _, _ ->
-            request.copy(
-                status = ShiftSwapRequestStatus.CANCELLED,
-            )
+        updateShiftSwapRequest(requestId) { request ->
+            shiftSwapRequestRepository.cancelShiftSwapRequest(request.id)
         }
     }
 
     fun confirmShiftSwapRequest(requestId: String, candidateShiftId: String) {
-        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
         val request = uiState.value.shiftSwapRequests.firstOrNull { it.id == requestId } ?: return
-        val requestedShift = uiState.value.shiftsFeed.firstOrNull { it.id == request.requestedShiftId } ?: return
-        val candidate = request.candidates.firstOrNull { it.shiftId == candidateShiftId } ?: return
-        val candidateShift = uiState.value.shiftsFeed.firstOrNull { it.id == candidate.shiftId } ?: return
-
-        scope.launch {
-            uiState.update { it.copy(isUpdatingShiftSwapRequest = true) }
-            val now = nowMillisProvider()
-            val updatedRequest = request.copy(
-                status = ShiftSwapRequestStatus.APPLIED,
-                selectedCandidateUserId = candidate.userId,
-                selectedCandidateShiftId = candidate.shiftId,
-                confirmedAtMillis = now,
-                appliedAtMillis = now,
+        if (request.candidates.none { it.shiftId == candidateShiftId }) return
+        updateShiftSwapRequest(requestId) { currentRequest ->
+            shiftSwapRequestRepository.applyShiftSwapRequest(
+                requestId = currentRequest.id,
+                candidateShiftId = candidateShiftId,
             )
-            val (updatedRequestedShift, updatedCandidateShift) = requestedShift.swapMemberWith(
-                other = candidateShift,
-                requesterUserId = request.requesterUserId,
-                responderUserId = candidate.userId,
-                nowMillis = now,
-            )
-            shiftSwapRequestRepository.upsertShiftSwapRequest(updatedRequest)
-            val existingShifts = shiftRepository.getAllShifts()
-            val shiftsToPersist = existingShifts.applyConfirmedSwap(
-                updatedRequestedShift = updatedRequestedShift,
-                updatedCandidateShift = updatedCandidateShift,
-                nowMillis = now,
-            )
-            shiftsToPersist.forEach { shiftRepository.upsertShift(it) }
-            sendShiftSwapNotification(
-                title = "Cambio de turno aplicado",
-                body = "Se ha confirmado el cambio entre ${mode.member.displayName} y ${mode.members.sessionDisplayNameFor(candidate.userId)} para ${requestedShift.dateMillis.toShiftNotificationDateTime()} y ${candidateShift.dateMillis.toShiftNotificationDateTime()}.",
-                type = "shift_swap_applied",
-                targetUserIds = mode.members.filter { it.isActive }.map { it.id }.distinct(),
-                createdBy = mode.member.id,
-            )
-            val allRequests = shiftSwapRequestRepository.getAllShiftSwapRequests()
-            val allShifts = shiftRepository.getAllShifts()
-            uiState.update {
-                it.copy(
-                    shiftSwapRequests = allRequests.visibleTo(mode.member.id),
-                    shiftsFeed = allShifts,
-                    nextDeliveryShift = allShifts.nextAssignedShift(mode.member.id, ShiftType.DELIVERY, nowMillisProvider()),
-                    nextMarketShift = allShifts.nextAssignedShift(mode.member.id, ShiftType.MARKET, nowMillisProvider()),
-                    isUpdatingShiftSwapRequest = false,
-                )
-            }
         }
     }
 
     private fun updateShiftSwapRequest(
         requestId: String,
-        transform: (ShiftSwapRequest, SessionMode.Authorized, Long) -> ShiftSwapRequest,
+        transition: suspend (ShiftSwapRequest) -> Unit,
     ) {
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
         val request = uiState.value.shiftSwapRequests.firstOrNull { it.id == requestId } ?: return
 
         scope.launch {
             uiState.update { it.copy(isUpdatingShiftSwapRequest = true) }
-            val now = nowMillisProvider()
-            val updatedRequest = transform(request, mode, now)
-            shiftSwapRequestRepository.upsertShiftSwapRequest(updatedRequest)
-            val allRequests = shiftSwapRequestRepository.getAllShiftSwapRequests()
-            val allShifts = shiftRepository.getAllShifts()
-            uiState.update {
-                it.copy(
-                    shiftSwapRequests = allRequests.visibleTo(mode.member.id),
-                    shiftsFeed = allShifts,
-                    nextDeliveryShift = allShifts.nextAssignedShift(mode.member.id, ShiftType.DELIVERY, nowMillisProvider()),
-                    nextMarketShift = allShifts.nextAssignedShift(mode.member.id, ShiftType.MARKET, nowMillisProvider()),
-                    isUpdatingShiftSwapRequest = false,
-                )
+            runCatching {
+                transition(request)
+                shiftSwapRequestRepository.getAllShiftSwapRequests() to shiftRepository.getAllShifts()
+            }.onSuccess { (allRequests, allShifts) ->
+                uiState.update {
+                    it.copy(
+                        shiftSwapRequests = allRequests.visibleTo(mode.member.id),
+                        shiftsFeed = allShifts,
+                        nextDeliveryShift = allShifts.nextAssignedShift(mode.member.id, ShiftType.DELIVERY, nowMillisProvider()),
+                        nextMarketShift = allShifts.nextAssignedShift(mode.member.id, ShiftType.MARKET, nowMillisProvider()),
+                        isUpdatingShiftSwapRequest = false,
+                    )
+                }
+            }.onFailure {
+                uiState.update { it.copy(isUpdatingShiftSwapRequest = false) }
+                emitMessage(R.string.feedback_shift_swap_update_failed)
             }
         }
     }
@@ -327,86 +265,13 @@ internal class SessionShiftActions(
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
         val request = uiState.value.shiftSwapRequests.firstOrNull { it.id == requestId } ?: return
         val candidate = request.candidates.firstOrNull { it.userId == mode.member.id && it.shiftId == candidateShiftId } ?: return
-        val requestedShift = uiState.value.shiftsFeed.firstOrNull { it.id == request.requestedShiftId } ?: return
-        val candidateShift = uiState.value.shiftsFeed.firstOrNull { it.id == candidate.shiftId }
-
-        scope.launch {
-            uiState.update { it.copy(isUpdatingShiftSwapRequest = true) }
-            val now = nowMillisProvider()
-            val updatedResponses = request.responses
-                .filterNot { it.userId == candidate.userId && it.shiftId == candidate.shiftId }
-                .plus(
-                    ShiftSwapResponse(
-                        userId = candidate.userId,
-                        shiftId = candidate.shiftId,
-                        status = responseStatus,
-                        respondedAtMillis = now,
-                    ),
-                )
-                .sortedByDescending { it.respondedAtMillis }
-            val updatedRequest = request.copy(responses = updatedResponses)
-            shiftSwapRequestRepository.upsertShiftSwapRequest(updatedRequest)
-            sendShiftSwapNotification(
-                title = if (responseStatus == ShiftSwapResponseStatus.AVAILABLE) {
-                    "Socio disponible para cambio"
-                } else {
-                    "Socio no disponible para cambio"
-                },
-                body = buildString {
-                    append(mode.member.displayName)
-                    append(
-                        if (responseStatus == ShiftSwapResponseStatus.AVAILABLE) {
-                            " puede cubrir "
-                        } else {
-                            " no puede cubrir "
-                        },
-                    )
-                    append(requestedShift.dateMillis.toShiftNotificationDateTime())
-                    candidateShift?.let {
-                        append(" desde su turno del ")
-                        append(it.dateMillis.toShiftNotificationDateTime())
-                    }
-                },
-                type = if (responseStatus == ShiftSwapResponseStatus.AVAILABLE) {
-                    "shift_swap_available"
-                } else {
-                    "shift_swap_unavailable"
-                },
-                targetUserIds = listOf(request.requesterUserId),
-                createdBy = mode.member.id,
+        updateShiftSwapRequest(requestId) { currentRequest ->
+            shiftSwapRequestRepository.respondToShiftSwapRequest(
+                requestId = currentRequest.id,
+                candidateShiftId = candidate.shiftId,
+                response = responseStatus,
             )
-            val allRequests = shiftSwapRequestRepository.getAllShiftSwapRequests()
-            uiState.update {
-                it.copy(
-                    shiftSwapRequests = allRequests.visibleTo(mode.member.id),
-                    isUpdatingShiftSwapRequest = false,
-                )
-            }
         }
-    }
-
-    private suspend fun sendShiftSwapNotification(
-        title: String,
-        body: String,
-        type: String,
-        targetUserIds: List<String>,
-        createdBy: String,
-    ) {
-        notificationRepository.sendNotification(
-            NotificationEvent(
-                id = "",
-                title = title,
-                body = body,
-                type = type,
-                target = "users",
-                userIds = targetUserIds,
-                segmentType = null,
-                targetRole = null,
-                createdBy = createdBy,
-                sentAtMillis = nowMillisProvider(),
-                weekKey = null,
-            ),
-        )
     }
 }
 

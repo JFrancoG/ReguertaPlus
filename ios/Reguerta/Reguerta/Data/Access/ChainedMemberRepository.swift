@@ -1,12 +1,33 @@
 import Foundation
 
-actor ChainedMemberRepository: MemberRepository {
-    private let primary: any MemberRepository
-    private let fallback: any MemberRepository
+actor ChainedMemberRepository: LocalMemberRepository {
+    private let primary: any LocalMemberRepository
+    private let fallback: any LocalMemberRepository
 
-    init(primary: any MemberRepository, fallback: any MemberRepository) {
+    init(primary: any LocalMemberRepository, fallback: any LocalMemberRepository) {
         self.primary = primary
         self.fallback = fallback
+    }
+
+    func member(id: String) async throws -> Member? {
+        if let primaryMember = try await primary.member(id: id) {
+            return primaryMember
+        }
+        return try await fallback.member(id: id)
+    }
+
+    func members(visibleTo member: Member) async throws -> [Member] {
+        let primaryMembers = try await primary.members(visibleTo: member)
+        if !primaryMembers.isEmpty {
+            return primaryMembers
+        }
+        return try await fallback.members(visibleTo: member)
+    }
+
+    func updateOwnProducerCatalogEnabled(memberId: String, enabled: Bool) async throws -> Member {
+        let updated = try await primary.updateOwnProducerCatalogEnabled(memberId: memberId, enabled: enabled)
+        _ = try? await fallback.updateOwnProducerCatalogEnabled(memberId: memberId, enabled: enabled)
+        return updated
     }
 
     func findByEmailNormalized(_ emailNormalized: String) async -> Member? {

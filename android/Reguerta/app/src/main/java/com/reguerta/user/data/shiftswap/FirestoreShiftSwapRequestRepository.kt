@@ -4,7 +4,6 @@ import com.google.android.gms.tasks.Tasks
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.QueryDocumentSnapshot
-import com.google.firebase.firestore.SetOptions
 import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
 import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
 import com.reguerta.user.data.firestore.ReguertaFirestorePath
@@ -17,8 +16,9 @@ import com.reguerta.user.domain.shifts.ShiftSwapResponseStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class FirestoreShiftSwapRequestRepository(
+internal class FirestoreShiftSwapRequestRepository(
     private val firestore: FirebaseFirestore,
+    private val transitionClient: FirebaseShiftSwapTransitionClient,
     private val environment: ReguertaFirestoreEnvironment? = null,
 ) : ShiftSwapRequestRepository {
     private val firestorePath = ReguertaFirestorePath(environment = environment)
@@ -27,57 +27,33 @@ class FirestoreShiftSwapRequestRepository(
         get() = firestorePath.collectionPath(ReguertaFirestoreCollection.SHIFT_SWAP_REQUESTS)
 
     override suspend fun getAllShiftSwapRequests(): List<ShiftSwapRequest> = withContext(Dispatchers.IO) {
-        runCatching {
-            val snapshot = Tasks.await(
-                firestore.collection(requestsCollectionPath).get(),
-            )
-            snapshot.documents
-                .mapNotNull { document -> (document as? QueryDocumentSnapshot)?.toShiftSwapRequest() }
-                .sortedByDescending { it.requestedAtMillis }
-        }.getOrDefault(emptyList())
+        val snapshot = Tasks.await(
+            firestore.collection(requestsCollectionPath).get(),
+        )
+        snapshot.documents
+            .mapNotNull { document -> (document as? QueryDocumentSnapshot)?.toShiftSwapRequest() }
+            .sortedByDescending { it.requestedAtMillis }
     }
 
-    override suspend fun upsertShiftSwapRequest(request: ShiftSwapRequest): ShiftSwapRequest = withContext(Dispatchers.IO) {
-        val documentId = request.id.ifBlank {
-            firestore.collection(requestsCollectionPath).document().id
-        }
-        val persisted = request.copy(id = documentId)
-        val payload = mutableMapOf<String, Any?>(
-            "requestedShiftId" to persisted.requestedShiftId,
-            "requesterUserId" to persisted.requesterUserId,
-            "reason" to persisted.reason,
-            "status" to persisted.status.wireValue(),
-            "candidates" to persisted.candidates.map { candidate ->
-                mapOf(
-                    "userId" to candidate.userId,
-                    "shiftId" to candidate.shiftId,
-                )
-            },
-            "responses" to persisted.responses.map { response ->
-                mapOf(
-                    "userId" to response.userId,
-                    "shiftId" to response.shiftId,
-                    "status" to response.status.wireValue(),
-                    "respondedAt" to Timestamp(
-                        response.respondedAtMillis / 1_000,
-                        ((response.respondedAtMillis % 1_000) * 1_000_000).toInt(),
-                    ),
-                )
-            },
-            "selectedCandidateUserId" to persisted.selectedCandidateUserId,
-            "selectedCandidateShiftId" to persisted.selectedCandidateShiftId,
-            "requestedAt" to Timestamp(persisted.requestedAtMillis / 1_000, ((persisted.requestedAtMillis % 1_000) * 1_000_000).toInt()),
-            "confirmedAt" to persisted.confirmedAtMillis?.let { Timestamp(it / 1_000, ((it % 1_000) * 1_000_000).toInt()) },
-            "appliedAt" to persisted.appliedAtMillis?.let { Timestamp(it / 1_000, ((it % 1_000) * 1_000_000).toInt()) },
-        )
-        runCatching {
-            Tasks.await(
-                firestore.collection(requestsCollectionPath)
-                    .document(documentId)
-                    .set(payload, SetOptions.merge()),
-            )
-            persisted
-        }.getOrDefault(persisted)
+    override suspend fun createShiftSwapRequest(requestedShiftId: String, reason: String): String =
+        transitionClient.create(requestedShiftId = requestedShiftId, reason = reason)
+
+    override suspend fun respondToShiftSwapRequest(
+        requestId: String,
+        candidateShiftId: String,
+        response: ShiftSwapResponseStatus,
+    ) = transitionClient.respond(
+        requestId = requestId,
+        candidateShiftId = candidateShiftId,
+        response = response,
+    )
+
+    override suspend fun cancelShiftSwapRequest(requestId: String) {
+        transitionClient.cancel(requestId)
+    }
+
+    override suspend fun applyShiftSwapRequest(requestId: String, candidateShiftId: String) {
+        transitionClient.apply(requestId = requestId, candidateShiftId = candidateShiftId)
     }
 }
 
@@ -140,19 +116,8 @@ private fun String.toShiftSwapRequestStatus(): ShiftSwapRequestStatus? = when (t
     else -> null
 }
 
-private fun ShiftSwapRequestStatus.wireValue(): String = when (this) {
-    ShiftSwapRequestStatus.OPEN -> "open"
-    ShiftSwapRequestStatus.CANCELLED -> "cancelled"
-    ShiftSwapRequestStatus.APPLIED -> "applied"
-}
-
 private fun String.toShiftSwapResponseStatus(): ShiftSwapResponseStatus? = when (this) {
     "available" -> ShiftSwapResponseStatus.AVAILABLE
     "unavailable" -> ShiftSwapResponseStatus.UNAVAILABLE
     else -> null
-}
-
-private fun ShiftSwapResponseStatus.wireValue(): String = when (this) {
-    ShiftSwapResponseStatus.AVAILABLE -> "available"
-    ShiftSwapResponseStatus.UNAVAILABLE -> "unavailable"
 }

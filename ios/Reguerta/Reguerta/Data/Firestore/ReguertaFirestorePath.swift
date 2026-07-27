@@ -1,10 +1,7 @@
 import FirebaseFirestore
 import Foundation
 
-enum ReguertaFirestoreEnvironment: String, Sendable {
-    case develop
-    case production
-}
+typealias ReguertaFirestoreEnvironment = SessionEnvironment
 
 enum ReguertaRuntimeEnvironment {
     private static var sessionOverride: ReguertaFirestoreEnvironment?
@@ -41,6 +38,7 @@ enum ReguertaRuntimeEnvironment {
 
 enum ReguertaFirestoreCollection: String, Sendable {
     case users
+    case memberDirectory
     case products
     case orders
     case orderlines
@@ -61,6 +59,8 @@ enum ReguertaFirestoreCollection: String, Sendable {
 
 enum ReguertaFirestoreDocument: String, Sendable {
     case global
+    case memberConfiguration = "member"
+    case publicConfiguration = "public"
 }
 
 struct ReguertaFirestorePath: Sendable {

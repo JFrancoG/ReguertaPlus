@@ -1,11 +1,12 @@
 import Foundation
 
-enum UnauthorizedReason: Equatable, Sendable {
+nonisolated enum UnauthorizedReason: Equatable, Sendable {
     case userNotFoundInAuthorizedUsers
     case userAccessRestricted
+    case emailVerificationRequired
 }
 
-enum AccessResolutionResult: Equatable, Sendable {
+nonisolated enum AccessResolutionResult: Equatable, Sendable {
     case authorized(Member)
     case unauthorized(UnauthorizedReason)
 }

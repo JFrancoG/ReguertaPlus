@@ -2,38 +2,36 @@ package com.reguerta.user.domain.access
 
 class ResolveAuthorizedSessionUseCase(
     private val memberRepository: MemberRepository,
+    private val authorizedMemberResolver: AuthorizedMemberResolver,
 ) {
     suspend operator fun invoke(authPrincipal: AuthPrincipal): AccessResolutionResult {
-        val normalizedEmail = normalizeEmail(authPrincipal.email)
-        val linkedByAuthUid = memberRepository.findByAuthUid(authPrincipal.uid)
-        if (linkedByAuthUid != null) {
-            return if (linkedByAuthUid.isActive) {
-                AccessResolutionResult.Authorized(linkedByAuthUid)
-            } else {
-                AccessResolutionResult.Unauthorized(reason = UnauthorizedReason.USER_ACCESS_RESTRICTED)
-            }
+        val resolution = authorizedMemberResolver.resolve()
+        if (resolution is AuthorizedMemberResolution.Unauthorized) {
+            return AccessResolutionResult.Unauthorized(
+                reason = when {
+                    resolution.emailVerificationRequired -> UnauthorizedReason.EMAIL_NOT_VERIFIED
+                    resolution.isActive == false -> UnauthorizedReason.USER_ACCESS_RESTRICTED
+                    else -> UnauthorizedReason.USER_NOT_FOUND_IN_AUTHORIZED_USERS
+                },
+            )
         }
 
-        val member = memberRepository.findByEmailNormalized(normalizedEmail)
+        resolution as AuthorizedMemberResolution.Authorized
+        if (!resolution.isActive) {
+            return AccessResolutionResult.Unauthorized(reason = UnauthorizedReason.USER_ACCESS_RESTRICTED)
+        }
+        val linkedMember = memberRepository.findByAuthUid(authPrincipal.uid)
             ?: return AccessResolutionResult.Unauthorized(
                 reason = UnauthorizedReason.USER_NOT_FOUND_IN_AUTHORIZED_USERS,
             )
-
-        if (!member.isActive) {
+        if (
+            linkedMember.id != resolution.memberId ||
+            linkedMember.authUid != authPrincipal.uid ||
+            !linkedMember.isActive
+        ) {
             return AccessResolutionResult.Unauthorized(reason = UnauthorizedReason.USER_ACCESS_RESTRICTED)
-        }
-
-        val linkedMember = when {
-            member.authUid == null -> {
-                memberRepository.linkAuthUid(memberId = member.id, authUid = authPrincipal.uid)
-            }
-
-            member.authUid == authPrincipal.uid -> member
-            else -> return AccessResolutionResult.Unauthorized(reason = UnauthorizedReason.USER_ACCESS_RESTRICTED)
         }
 
         return AccessResolutionResult.Authorized(linkedMember)
     }
-
-    private fun normalizeEmail(email: String): String = email.trim().lowercase()
 }

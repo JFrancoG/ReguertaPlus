@@ -42,8 +42,12 @@ class MemberPermissionMatrixDriftTest {
 
     @Test
     fun `in-memory fixtures stay aligned with canonical matrix`() = runBlocking {
-        val membersById = InMemoryMemberRepository()
-            .getAllMembers()
+        val repository = InMemoryMemberRepository()
+        val visibilityAdmin = checkNotNull(
+            repository.findByEmailNormalizedForTesting("ana.admin@reguerta.app"),
+        )
+        val membersById = repository
+            .getMembersVisibleTo(visibilityAdmin)
             .associateBy(Member::id)
 
         val admin = checkNotNull(membersById["member_admin_001"])
@@ -60,6 +64,27 @@ class MemberPermissionMatrixDriftTest {
         assertTrue(member.canAccessCommonHomeModules)
         assertTrue(!member.canManageMembers)
         assertTrue(!member.canAccessReceivedOrders)
+    }
+
+    @Test
+    fun `member directory hides inactive members unless viewer is admin`() = runBlocking {
+        val repository = InMemoryMemberRepository()
+        val admin = checkNotNull(
+            repository.findByEmailNormalizedForTesting("ana.admin@reguerta.app"),
+        )
+        val member = checkNotNull(
+            repository.findByEmailNormalizedForTesting("marta.member@reguerta.app"),
+        )
+        repository.seedMemberForTesting(
+            member.copy(
+                id = "member_inactive_001",
+                normalizedEmail = "inactive@reguerta.app",
+                isActive = false,
+            ),
+        )
+
+        assertTrue(repository.getMembersVisibleTo(member).none { it.id == "member_inactive_001" })
+        assertTrue(repository.getMembersVisibleTo(admin).any { it.id == "member_inactive_001" })
     }
 
     private fun loadCanonicalMatrix(): CanonicalMatrix {

@@ -16,14 +16,8 @@ struct NewsNotificationsFeatureDependencies {
         nowMillisProvider: @escaping @MainActor () -> Int64
     ) -> NewsNotificationsFeatureDependencies {
         NewsNotificationsFeatureDependencies(
-            newsRepository: ChainedNewsRepository(
-                primary: FirestoreNewsRepository(db: db),
-                fallback: InMemoryNewsRepository()
-            ),
-            notificationRepository: notificationRepository ?? ChainedNotificationRepository(
-                primary: FirestoreNotificationRepository(db: db),
-                fallback: InMemoryNotificationRepository()
-            ),
+            newsRepository: FirestoreNewsRepository(db: db),
+            notificationRepository: notificationRepository ?? FirestoreNotificationRepository(db: db),
             pushNotificationPermissionProvider: pushNotificationPermissionProvider ?? IOSPushNotificationPermissionProvider(),
             imagePipelineManager: imagePipelineManager,
             nowMillisProvider: nowMillisProvider

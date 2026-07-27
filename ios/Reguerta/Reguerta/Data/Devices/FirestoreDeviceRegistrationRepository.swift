@@ -13,7 +13,7 @@ final class FirestoreDeviceRegistrationRepository: @unchecked Sendable, DeviceRe
         self.environment = environment
     }
 
-    func register(memberId: String, device: RegisteredDevice) async -> RegisteredDevice {
+    func register(memberId: String, device: RegisteredDevice) async throws -> RegisteredDevice {
         let userDocument = db.document(
             ReguertaFirestorePath(environment: environment)
                 .documentPath(in: .users, documentId: memberId)
@@ -37,20 +37,16 @@ final class FirestoreDeviceRegistrationRepository: @unchecked Sendable, DeviceRe
             payload["model"] = model
         }
 
-        do {
-            let existing = try await deviceDocument.getDocument()
-            if !existing.exists {
-                payload["firstSeenAt"] = Timestamp(date: Date(timeIntervalSince1970: TimeInterval(device.firstSeenAtMillis) / 1_000))
-            }
-            payload["fcmToken"] = device.fcmToken ?? NSNull()
-            payload["tokenUpdatedAt"] = device.tokenUpdatedAtMillis.map {
-                Timestamp(date: Date(timeIntervalSince1970: TimeInterval($0) / 1_000))
-            } ?? NSNull()
-            try await deviceDocument.setData(payload, merge: true)
-            try await userDocument.setData(["lastDeviceId": device.deviceId], merge: true)
-            return device
-        } catch {
-            return device
+        let existing = try await deviceDocument.getDocument()
+        if !existing.exists {
+            payload["firstSeenAt"] = Timestamp(date: Date(timeIntervalSince1970: TimeInterval(device.firstSeenAtMillis) / 1_000))
         }
+        payload["fcmToken"] = device.fcmToken ?? NSNull()
+        payload["tokenUpdatedAt"] = device.tokenUpdatedAtMillis.map {
+            Timestamp(date: Date(timeIntervalSince1970: TimeInterval($0) / 1_000))
+        } ?? NSNull()
+        try await deviceDocument.setData(payload, merge: true)
+        try await userDocument.setData(["lastDeviceId": device.deviceId], merge: true)
+        return device
     }
 }

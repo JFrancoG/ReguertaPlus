@@ -336,33 +336,55 @@ actor InMemoryCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLocalRe
 @MainActor
 final class TestAuthSessionProvider: AuthSessionProvider {
     private let signInResult: AuthSignInResult
+    private let signUpResult: AuthSignUpResult
     private let refreshResult: AuthSessionRefreshResult
+    private let verificationSent: Bool
+    private let idToken: String
+    private let signOutSucceeds: Bool
 
     init(
         signInResult: AuthSignInResult = .failure(.invalidCredentials),
-        refreshResult: AuthSessionRefreshResult = .noSession
+        signUpResult: AuthSignUpResult = .failure(.unknown),
+        refreshResult: AuthSessionRefreshResult = .noSession,
+        verificationSent: Bool = true,
+        idToken: String = "test-firebase-id-token",
+        signOutSucceeds: Bool = true
     ) {
         self.signInResult = signInResult
+        self.signUpResult = signUpResult
         self.refreshResult = refreshResult
+        self.verificationSent = verificationSent
+        self.idToken = idToken
+        self.signOutSucceeds = signOutSucceeds
     }
 
     func signIn(email: String, password: String) async -> AuthSignInResult {
         signInResult
     }
 
-    func signUp(email: String, password: String) async -> AuthSignInResult {
-        signInResult
+    func signUp(email: String, password: String) async -> AuthSignUpResult {
+        signUpResult
     }
 
     func sendPasswordReset(email: String) async -> AuthPasswordResetResult {
         .success
     }
 
+    func sendCurrentUserEmailVerification() async -> Bool {
+        verificationSent
+    }
+
+    func validIDToken(forcingRefresh: Bool) async throws -> String {
+        idToken
+    }
+
     func refreshCurrentSession() async -> AuthSessionRefreshResult {
         refreshResult
     }
 
-    func signOut() {
+    @discardableResult
+    func signOut() -> Bool {
+        signOutSucceeds
     }
 }
 

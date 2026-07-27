@@ -10,7 +10,7 @@ struct MyOrderCheckoutRequest: Sendable {
 }
 
 protocol OrdersRepository {
-    func submitMyOrder(_ request: MyOrderCheckoutRequest) async -> Bool
+    func submitMyOrder(_ request: MyOrderCheckoutRequest) async throws -> Bool
 
     func previousOrderSnapshot(
         currentMember: Member?,
@@ -24,7 +24,10 @@ protocol OrdersRepository {
         weekKey: String
     ) async throws -> MyOrderPreviousOrderSnapshot?
 
-    func myOrderProducerStatuses(orderId: String) async -> MyOrderProducerStatusSnapshot
+    func myOrderProducerStatuses(
+        currentMember: Member?,
+        weekKey: String
+    ) async -> MyOrderProducerStatusSnapshot
 
     func receivedOrdersSnapshot(
         producerId: String,
@@ -32,8 +35,6 @@ protocol OrdersRepository {
     ) async throws -> ReceivedOrdersSnapshot?
 
     func receivedOrdersHistoryWeekKeys(producerId: String) async throws -> [String]
-
-    func oldestOrderHistoryWeekKey() async throws -> String?
 
     func receivedOrdersHistorySnapshot(
         producerId: String,

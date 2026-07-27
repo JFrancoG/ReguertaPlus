@@ -100,14 +100,72 @@ npm run lint
 npm run build
 ```
 
-## Cloud Functions
+## Firebase rollout boundaries
 
-Functions are deployed from `functions/` and maintain operational timestamps for key collections.
+Firebase configuration files are intentionally separated by deployment target:
 
-Deployment:
+| Config | Purpose |
+| --- | --- |
+| `firebase.json` | Default Phase 1 Rules configuration; same Rules targets as `firebase.phase1.json` |
+| `firebase.phase1.json` | Firestore Phase 1 compatibility Rules and the semantic Storage rollback |
+| `firebase.strict.json` | Undeployed strict candidates: `firestore.strict.rules` and `storage.strict.rules` |
+| `firebase.functions.json` | Functions-only source configuration; never use it as an implicit full deployment |
+
+Current live state (2026-07-27):
+
+- Firestore Phase 1 is deployed and was read back: the eight observed legacy
+  prefixes remain authenticated read/write, while `plus-collections` keeps its
+  previous authenticated contract and HU-045 producer-status guard. Strict
+  Reguerta+ authorization is not deployed.
+- Storage still uses the previous global authenticated read/write Rules.
+  `storage.phase1.rules` is a semantic rollback copy of that live contract; the
+  strict Storage candidate is not deployed.
+- The seven Auth accounts matching active develop admins are verified; the
+  three production admins are a subset. The guarded identity backfill created
+  22 `authLinks` in develop and 16 in production; post-run verification reports
+  7 and 3 linked active admins respectively, with zero pending operations.
+- Two sparse develop documents are intentional non-Auth UI-test fixtures. The
+  applied migration retained their exact member/UID pairs, without an
+  `authLink` or Rules exception. Twenty-seven remaining Auth accounts must
+  self-verify through Reguerta+ before strict authorization can be enabled
+  without excluding legitimate testers.
+
+Always deploy one service at a time with explicit config, target, and project.
+Never run a plain `firebase deploy`.
+
 ```bash
-firebase deploy --only functions
+# Reapply/rollback Firestore to the deployed Phase 1 contract.
+firebase deploy --config firebase.phase1.json \
+  --only firestore:rules --project reguerta-9f27f
+
+# Restore Storage semantics to the current authenticated-global baseline.
+firebase deploy --config firebase.phase1.json \
+  --only storage --project reguerta-9f27f
 ```
+
+The strict commands below are documented for the later approved gate and must
+not run until the remaining accounts verify, link adoption and role canaries
+are proven, and the cutover receives explicit approval:
+
+```bash
+firebase deploy --config firebase.strict.json \
+  --only firestore:rules --project reguerta-9f27f
+
+firebase deploy --config firebase.strict.json \
+  --only storage --project reguerta-9f27f
+```
+
+Functions must never be deployed with `--only functions` from the current
+source as a blanket target. Any deployment must use `firebase.functions.json`,
+an explicitly reviewed allowlist such as
+`--only functions:<approved-function>`, and separate rollout approval; see
+`functions/README.md`.
+
+The repository `functions` serve/shell scripts are pinned to
+`demo-reguerta-functions` and fail closed. The risk is a manual Functions
+emulator or shell invocation without that demo project and without matching
+Auth, Firestore, and Storage emulators: Admin SDK calls can then reach live
+Firebase services.
 
 ## Collaboration Rules (Summary)
 

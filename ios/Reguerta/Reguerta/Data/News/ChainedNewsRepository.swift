@@ -9,22 +9,30 @@ actor ChainedNewsRepository: NewsRepository {
         self.fallback = fallback
     }
 
-    func allNews() async -> [NewsArticle] {
-        let primaryNews = await primary.allNews()
+    func news(visibleTo member: Member) async throws -> [NewsArticle] {
+        let primaryNews = try await primary.news(visibleTo: member)
         if !primaryNews.isEmpty {
             return primaryNews
         }
-        return await fallback.allNews()
+        return try await fallback.news(visibleTo: member)
     }
 
-    func upsert(article: NewsArticle) async -> NewsArticle {
-        _ = await fallback.upsert(article: article)
-        return await primary.upsert(article: article)
+    func allNews() async throws -> [NewsArticle] {
+        let primaryNews = try await primary.allNews()
+        if !primaryNews.isEmpty {
+            return primaryNews
+        }
+        return try await fallback.allNews()
     }
 
-    func delete(newsId: String) async -> Bool {
-        let fallbackDeleted = await fallback.delete(newsId: newsId)
-        let primaryDeleted = await primary.delete(newsId: newsId)
+    func upsert(article: NewsArticle) async throws -> NewsArticle {
+        _ = try await fallback.upsert(article: article)
+        return try await primary.upsert(article: article)
+    }
+
+    func delete(newsId: String) async throws -> Bool {
+        let fallbackDeleted = try await fallback.delete(newsId: newsId)
+        let primaryDeleted = try await primary.delete(newsId: newsId)
         return primaryDeleted || fallbackDeleted
     }
 }

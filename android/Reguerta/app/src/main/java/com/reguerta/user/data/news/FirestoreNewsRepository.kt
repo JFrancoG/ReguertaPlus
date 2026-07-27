@@ -6,6 +6,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
 import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
 import com.reguerta.user.data.firestore.ReguertaFirestorePath
+import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.news.NewsRepository
 import kotlinx.coroutines.Dispatchers
@@ -20,18 +21,24 @@ class FirestoreNewsRepository(
     private val newsCollectionPath: String
         get() = firestorePath.collectionPath(ReguertaFirestoreCollection.NEWS)
 
-    override suspend fun getAllNews(): List<NewsArticle> = withContext(Dispatchers.IO) {
-        runCatching {
-            val snapshot = Tasks.await(
-                firestore.collection(newsCollectionPath).get(),
-            )
-            snapshot.documents
-                .mapNotNull { it.toNewsArticle() }
-                .sortedByDescending { it.publishedAtMillis }
-        }.getOrDefault(emptyList())
+    override suspend fun getNewsFor(member: Member): List<NewsArticle> = withContext(Dispatchers.IO) {
+        val query = if (member.isAdmin) {
+            firestore.collection(newsCollectionPath)
+        } else {
+            firestore.collection(newsCollectionPath).whereEqualTo("active", true)
+        }
+        val snapshot = Tasks.await(
+            query.get(),
+        )
+        snapshot.documents
+            .mapNotNull { it.toNewsArticle() }
+            .sortedByDescending { it.publishedAtMillis }
     }
 
     override suspend fun upsertNews(article: NewsArticle): NewsArticle = withContext(Dispatchers.IO) {
+        val publishedByUserId = requireNotNull(article.publishedByUserId?.takeIf { it.isNotBlank() }) {
+            "News writes require the canonical publisher member id"
+        }
         val documentId = article.id.ifBlank {
             firestore.collection(newsCollectionPath).document().id
         }
@@ -41,29 +48,26 @@ class FirestoreNewsRepository(
             "body" to persisted.body,
             "active" to persisted.active,
             "publishedBy" to persisted.publishedBy,
+            "publishedByUserId" to publishedByUserId,
             "publishedAt" to Timestamp(persisted.publishedAtMillis / 1_000, ((persisted.publishedAtMillis % 1_000) * 1_000_000).toInt()),
             "urlImage" to persisted.urlImage,
         )
 
-        runCatching {
-            Tasks.await(
-                firestore.collection(newsCollectionPath)
-                    .document(documentId)
-                    .set(payload, com.google.firebase.firestore.SetOptions.merge()),
-            )
-            persisted
-        }.getOrDefault(persisted)
+        Tasks.await(
+            firestore.collection(newsCollectionPath)
+                .document(documentId)
+                .set(payload, com.google.firebase.firestore.SetOptions.merge()),
+        )
+        persisted
     }
 
     override suspend fun deleteNews(newsId: String): Boolean = withContext(Dispatchers.IO) {
-        runCatching {
-            Tasks.await(
-                firestore.collection(newsCollectionPath)
-                    .document(newsId)
-                    .delete(),
-            )
-            true
-        }.getOrDefault(false)
+        Tasks.await(
+            firestore.collection(newsCollectionPath)
+                .document(newsId)
+                .delete(),
+        )
+        true
     }
 }
 
@@ -75,6 +79,7 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toNewsArticle(): News
     }
 
     val publishedBy = getString("publishedBy")?.trim().orEmpty()
+    val publishedByUserId = getString("publishedByUserId")?.trim()?.ifBlank { null }
     val publishedAt = getTimestamp("publishedAt")?.toDate()?.time ?: 0L
     val urlImage = getString("urlImage")?.trim()?.ifBlank { null }
 
@@ -86,5 +91,6 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toNewsArticle(): News
         publishedBy = publishedBy.ifBlank { "La Reguerta" },
         publishedAtMillis = publishedAt,
         urlImage = urlImage,
+        publishedByUserId = publishedByUserId,
     )
 }

@@ -150,10 +150,9 @@ final class ReceivedOrdersHistoryRouteViewModel {
         do {
             let producerId = context.currentMember?.id ?? ""
             let realWeekKeys = try await ordersRepository.receivedOrdersHistoryWeekKeys(producerId: producerId)
-            let oldestOrderWeekKey = try await ordersRepository.oldestOrderHistoryWeekKey()
             availableWeeks = orderHistoryBrowsableWeekOptions(
                 realWeekKeys: realWeekKeys,
-                oldestOrderWeekKey: oldestOrderWeekKey,
+                oldestOrderWeekKey: realWeekKeys.min(),
                 preferredWeekKey: preferredWeekKey
             )
             if availableWeeks.isEmpty, let fallback = orderHistoryWeekOption(weekKey: preferredWeekKey) {

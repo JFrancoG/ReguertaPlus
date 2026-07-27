@@ -40,7 +40,7 @@ As an admin I want strict Firestore rules for producer status updates so only au
 
 ## Implemented rule contract
 
-- Rules file: `firestore.rules`.
+- Deployed Rules file: `firestore.phase1.rules`; strict rollout candidate: `firestore.strict.rules`.
 - Protected paths:
   - `{env}/plus-collections/orders/{orderId}`
   - `env`: `develop` and `production`.

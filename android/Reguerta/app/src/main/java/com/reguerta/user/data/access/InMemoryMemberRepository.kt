@@ -43,7 +43,7 @@ class InMemoryMemberRepository : MemberRepository {
         ),
     )
 
-    override suspend fun findByEmailNormalized(emailNormalized: String): Member? = mutex.withLock {
+    suspend fun findByEmailNormalizedForTesting(emailNormalized: String): Member? = mutex.withLock {
         members.values.firstOrNull { it.normalizedEmail == emailNormalized }
     }
 
@@ -51,20 +51,32 @@ class InMemoryMemberRepository : MemberRepository {
         members.values.firstOrNull { it.authUid == authUid }
     }
 
-    override suspend fun linkAuthUid(memberId: String, authUid: String): Member = mutex.withLock {
+    suspend fun linkAuthUidForTesting(memberId: String, authUid: String): Member = mutex.withLock {
         val member = checkNotNull(members[memberId]) { "Member not found" }
         val updated = member.copy(authUid = authUid)
         members[memberId] = updated
         updated
     }
 
-    override suspend fun getAllMembers(): List<Member> = mutex.withLock {
-        members.values.sortedBy { it.displayName.lowercase() }
+    override suspend fun getMembersVisibleTo(member: Member): List<Member> = mutex.withLock {
+        members.values
+            .filter { candidate -> candidate.isActive || member.isAdmin }
+            .sortedBy { it.displayName.lowercase() }
     }
 
-    override suspend fun upsertMember(member: Member): Member = mutex.withLock {
+    suspend fun seedMemberForTesting(member: Member): Member = mutex.withLock {
         members[member.id] = member
         member
+    }
+
+    override suspend fun updateOwnProducerCatalogEnabled(
+        memberId: String,
+        isEnabled: Boolean,
+    ): Member = mutex.withLock {
+        val member = checkNotNull(members[memberId]) { "Member not found" }
+        val updated = member.copy(producerCatalogEnabled = isEnabled)
+        members[memberId] = updated
+        updated
     }
 
     suspend fun nextMemberId(email: String): String {

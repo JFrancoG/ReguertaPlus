@@ -11,30 +11,19 @@ struct ShiftsFeatureDependencies {
 
     static func live(
         db: Firestore,
+        functionsClient: AuthenticatedFirebaseFunctionsClient,
         notificationRepository: (any NotificationRepository)? = nil,
         nowMillisProvider: @escaping @MainActor () -> Int64
     ) -> ShiftsFeatureDependencies {
         ShiftsFeatureDependencies(
-            shiftRepository: ChainedShiftRepository(
-                primary: FirestoreShiftRepository(db: db),
-                fallback: InMemoryShiftRepository()
+            shiftRepository: FirestoreShiftRepository(db: db),
+            shiftSwapRequestRepository: FirestoreShiftSwapRequestRepository(
+                db: db,
+                functionsClient: functionsClient
             ),
-            shiftSwapRequestRepository: ChainedShiftSwapRequestRepository(
-                primary: FirestoreShiftSwapRequestRepository(db: db),
-                fallback: InMemoryShiftSwapRequestRepository()
-            ),
-            shiftPlanningRequestRepository: ChainedShiftPlanningRequestRepository(
-                primary: FirestoreShiftPlanningRequestRepository(db: db),
-                fallback: InMemoryShiftPlanningRequestRepository()
-            ),
-            deliveryCalendarRepository: ChainedDeliveryCalendarRepository(
-                primary: FirestoreDeliveryCalendarRepository(db: db),
-                fallback: InMemoryDeliveryCalendarRepository()
-            ),
-            notificationRepository: notificationRepository ?? ChainedNotificationRepository(
-                primary: FirestoreNotificationRepository(db: db),
-                fallback: InMemoryNotificationRepository()
-            ),
+            shiftPlanningRequestRepository: FirestoreShiftPlanningRequestRepository(db: db),
+            deliveryCalendarRepository: FirestoreDeliveryCalendarRepository(db: db),
+            notificationRepository: notificationRepository ?? FirestoreNotificationRepository(db: db),
             nowMillisProvider: nowMillisProvider
         )
     }
