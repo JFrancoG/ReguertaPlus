@@ -22,25 +22,21 @@ class FirestoreSharedProfileRepository(
         get() = firestorePath.collectionPath(ReguertaFirestoreCollection.SHARED_PROFILES)
 
     override suspend fun getAllSharedProfiles(): List<SharedProfile> = withContext(Dispatchers.IO) {
-        runCatching {
-            val snapshot = Tasks.await(
-                firestore.collection(profilesCollectionPath).get(),
-            )
-            snapshot.documents
-                .mapNotNull { it.toSharedProfile() }
-                .sortedByDescending { it.updatedAtMillis }
-        }.getOrDefault(emptyList())
+        val snapshot = Tasks.await(
+            firestore.collection(profilesCollectionPath).get(),
+        )
+        snapshot.documents
+            .mapNotNull { it.toSharedProfile() }
+            .sortedByDescending { it.updatedAtMillis }
     }
 
     override suspend fun getSharedProfile(userId: String): SharedProfile? = withContext(Dispatchers.IO) {
-        runCatching {
-            val snapshot = Tasks.await(
-                firestore.collection(profilesCollectionPath)
-                    .document(userId)
-                    .get(),
-            )
-            snapshot.toSharedProfile()
-        }.getOrNull()
+        val snapshot = Tasks.await(
+            firestore.collection(profilesCollectionPath)
+                .document(userId)
+                .get(),
+        )
+        snapshot.toSharedProfile()
     }
 
     override suspend fun upsertSharedProfile(profile: SharedProfile): SharedProfile = withContext(Dispatchers.IO) {
@@ -55,25 +51,21 @@ class FirestoreSharedProfileRepository(
         )
         profile.photoUrl?.let { payload["photoUrl"] = it }
 
-        runCatching {
-            Tasks.await(
-                firestore.collection(profilesCollectionPath)
-                    .document(profile.userId)
-                    .set(payload, SetOptions.merge()),
-            )
-            profile
-        }.getOrDefault(profile)
+        Tasks.await(
+            firestore.collection(profilesCollectionPath)
+                .document(profile.userId)
+                .set(payload, SetOptions.merge()),
+        )
+        profile
     }
 
     override suspend fun deleteSharedProfile(userId: String): Boolean = withContext(Dispatchers.IO) {
-        runCatching {
-            Tasks.await(
-                firestore.collection(profilesCollectionPath)
-                    .document(userId)
-                    .delete(),
-            )
-            true
-        }.getOrDefault(false)
+        Tasks.await(
+            firestore.collection(profilesCollectionPath)
+                .document(userId)
+                .delete(),
+        )
+        true
     }
 }
 

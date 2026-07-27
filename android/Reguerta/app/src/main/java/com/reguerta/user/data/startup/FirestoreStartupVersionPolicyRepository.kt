@@ -18,33 +18,31 @@ class FirestoreStartupVersionPolicyRepository(
 ) : StartupVersionPolicyRepository {
     private val firestorePath = ReguertaFirestorePath(environment = environment)
 
-    private val globalConfigDocumentPath: String
+    private val publicConfigDocumentPath: String
         get() = firestorePath.documentPath(
             collection = ReguertaFirestoreCollection.CONFIG,
-            documentId = ReguertaFirestoreDocument.GLOBAL.wireValue,
+            documentId = ReguertaFirestoreDocument.PUBLIC.wireValue,
         )
 
     override suspend fun getPolicy(platform: StartupPlatform): StartupVersionPolicy? = withContext(Dispatchers.IO) {
-        runCatching {
-            val snapshot = Tasks.await(
-                firestore.document(globalConfigDocumentPath).get(),
-            )
+        val snapshot = Tasks.await(
+            firestore.document(publicConfigDocumentPath).get(),
+        )
 
-            val versions = snapshot.get("versions") as? Map<*, *> ?: return@runCatching null
-            val platformPolicy = versions[platform.wireKey] as? Map<*, *> ?: return@runCatching null
+        val versions = snapshot.get("versions") as? Map<*, *> ?: return@withContext null
+        val platformPolicy = versions[platform.wireKey] as? Map<*, *> ?: return@withContext null
 
-            val currentVersion = platformPolicy["current"].asRequiredString() ?: return@runCatching null
-            val minimumVersion = platformPolicy["min"].asRequiredString() ?: return@runCatching null
-            val storeUrl = platformPolicy["storeUrl"].asRequiredString() ?: return@runCatching null
-            val forceUpdate = platformPolicy["forceUpdate"] as? Boolean ?: return@runCatching null
+        val currentVersion = platformPolicy["current"].asRequiredString() ?: return@withContext null
+        val minimumVersion = platformPolicy["min"].asRequiredString() ?: return@withContext null
+        val storeUrl = platformPolicy["storeUrl"].asRequiredString() ?: return@withContext null
+        val forceUpdate = platformPolicy["forceUpdate"] as? Boolean ?: return@withContext null
 
-            StartupVersionPolicy(
-                currentVersion = currentVersion,
-                minimumVersion = minimumVersion,
-                forceUpdate = forceUpdate,
-                storeUrl = storeUrl,
-            )
-        }.getOrNull()
+        StartupVersionPolicy(
+            currentVersion = currentVersion,
+            minimumVersion = minimumVersion,
+            forceUpdate = forceUpdate,
+            storeUrl = storeUrl,
+        )
     }
 }
 

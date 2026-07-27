@@ -65,7 +65,7 @@ internal class SessionProductActions(
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
         scope.launch {
             uiState.update { it.copy(isLoadingMyOrderProducts = true) }
-            val refreshedMembers = memberRepository.getAllMembers().ifEmpty { mode.members }
+            val refreshedMembers = memberRepository.getMembersVisibleTo(mode.authenticatedMember).ifEmpty { mode.members }
             val membersById = refreshedMembers.associateBy { it.id }
             val refreshedCurrentMember = membersById[mode.member.id] ?: mode.member
             val currentWeekParity = currentIsoWeekProducerParity(nowMillis = nowMillisProvider())
@@ -301,12 +301,16 @@ internal class SessionProductActions(
         scope.launch {
             uiState.update { it.copy(isUpdatingProducerCatalogVisibility = true) }
             try {
-                val updatedMember = memberRepository.upsertMember(
-                    mode.member.copy(
-                        producerCatalogEnabled = isEnabled,
-                    ),
+                val updatedMember = memberRepository.updateOwnProducerCatalogEnabled(
+                    memberId = mode.member.id,
+                    isEnabled = isEnabled,
                 )
-                val allMembers = memberRepository.getAllMembers()
+                val visibilityActor = if (mode.authenticatedMember.id == updatedMember.id) {
+                    updatedMember
+                } else {
+                    mode.authenticatedMember
+                }
+                val allMembers = memberRepository.getMembersVisibleTo(visibilityActor)
                 val products = productRepository.getProductsForVendor(updatedMember.id)
                 uiState.update {
                     it.copy(

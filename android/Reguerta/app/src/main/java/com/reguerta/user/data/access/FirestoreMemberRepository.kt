@@ -2,7 +2,6 @@ package com.reguerta.user.data.access
 
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.QuerySnapshot
 import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
 import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
@@ -24,98 +23,95 @@ class FirestoreMemberRepository(
     private val usersCollectionPath: String
         get() = firestorePath.collectionPath(ReguertaFirestoreCollection.USERS)
 
-    override suspend fun findByEmailNormalized(emailNormalized: String): Member? = withContext(Dispatchers.IO) {
-        runCatching {
-            var snapshot = Tasks.await(
-                firestore.collection(usersCollectionPath)
-                    .whereEqualTo("normalizedEmail", emailNormalized)
-                    .limit(1)
-                    .get(),
-            )
-            if (snapshot.isEmpty) {
-                snapshot = Tasks.await(
-                    firestore.collection(usersCollectionPath)
-                        .whereEqualTo("emailNormalized", emailNormalized)
-                        .limit(1)
-                        .get(),
-                )
-            }
-            snapshot.documents.firstOrNull()?.toMember()
-        }.getOrNull()
-    }
+    private val authLinksCollectionPath: String
+        get() = firestorePath.collectionPath(ReguertaFirestoreCollection.AUTH_LINKS)
+
+    private val memberDirectoryCollectionPath: String
+        get() = firestorePath.collectionPath(ReguertaFirestoreCollection.MEMBER_DIRECTORY)
 
     override suspend fun findByAuthUid(authUid: String): Member? = withContext(Dispatchers.IO) {
-        runCatching {
-            val snapshot = Tasks.await(
-                firestore.collection(usersCollectionPath)
-                    .whereEqualTo("authUid", authUid)
-                    .limit(1)
-                    .get(),
-            )
-            snapshot.documents.firstOrNull()?.toMember()
-        }.getOrNull()
-    }
-
-    override suspend fun linkAuthUid(memberId: String, authUid: String): Member = withContext(Dispatchers.IO) {
-        val docRef = firestore.collection(usersCollectionPath).document(memberId)
-        val defaultMember = Member(
-            id = memberId,
-            displayName = "",
-            normalizedEmail = "",
-            authUid = authUid,
-            roles = setOf(MemberRole.MEMBER),
-            isActive = true,
-            producerCatalogEnabled = true,
-            isCommonPurchaseManager = false,
-            producerParity = null,
-            ecoCommitmentMode = EcoCommitmentMode.WEEKLY,
-            ecoCommitmentParity = null,
+        val authLink = Tasks.await(
+            firestore.collection(authLinksCollectionPath)
+                .document(authUid)
+                .get(),
         )
-
-        runCatching {
-            Tasks.await(docRef.set(mapOf("authUid" to authUid), com.google.firebase.firestore.SetOptions.merge()))
-            val snapshot = Tasks.await(docRef.get())
-            snapshot.toMember() ?: defaultMember
-        }.getOrDefault(defaultMember)
-    }
-
-    override suspend fun getAllMembers(): List<Member> = withContext(Dispatchers.IO) {
-        runCatching {
-            val snapshot: QuerySnapshot = Tasks.await(
-                firestore.collection(usersCollectionPath).get(),
-            )
-            snapshot.documents.mapNotNull { it.toMember() }
-                .sortedBy { it.displayName.lowercase() }
-        }.getOrDefault(emptyList())
-    }
-
-    override suspend fun upsertMember(member: Member): Member = withContext(Dispatchers.IO) {
-        val payload = mapOf(
-            "displayName" to member.displayName,
-            "companyName" to (member.companyName ?: FieldValue.delete()),
-            "phoneNumber" to (member.phoneNumber ?: FieldValue.delete()),
-            "normalizedEmail" to member.normalizedEmail,
-            "email" to FieldValue.delete(),
-            "emailNormalized" to FieldValue.delete(),
-            "authUid" to member.authUid,
-            "roles" to member.roles.map { role -> role.toWireValue() },
-            "isProducer" to member.roles.contains(MemberRole.PRODUCER),
-            "isAdmin" to member.roles.contains(MemberRole.ADMIN),
-            "isActive" to member.isActive,
-            "available" to member.isActive,
-            "producerCatalogEnabled" to member.producerCatalogEnabled,
-            "isCommonPurchaseManager" to member.isCommonPurchaseManager,
+        if (!authLink.exists()) return@withContext null
+        val memberId = authLink.getString("memberId")
+            ?.trim()
+            ?.takeIf(String::isNotBlank)
+            ?: return@withContext null
+        val memberSnapshot = Tasks.await(
+            firestore.collection(usersCollectionPath)
+                .document(memberId)
+                .get(),
         )
-
-        runCatching {
-            Tasks.await(
-                firestore.collection(usersCollectionPath)
-                    .document(member.id)
-                    .set(payload, com.google.firebase.firestore.SetOptions.merge()),
-            )
-            member
-        }.getOrDefault(member)
+        memberSnapshot.toMember()
     }
+
+    override suspend fun getMembersVisibleTo(member: Member): List<Member> = withContext(Dispatchers.IO) {
+        val snapshot: QuerySnapshot = Tasks.await(
+            if (member.isAdmin) {
+                firestore.collection(usersCollectionPath).get()
+            } else {
+                firestore.collection(memberDirectoryCollectionPath)
+                    .whereEqualTo("isActive", true)
+                    .get()
+            },
+        )
+        val visible = snapshot.documents.mapNotNull { document ->
+            if (member.isAdmin) document.toMember() else document.toDirectoryMember()
+        }.map { candidate ->
+            if (candidate.id == member.id) member else candidate
+        }.toMutableList()
+        if (visible.none { it.id == member.id }) {
+            visible += member
+        }
+        visible
+            .sortedBy { it.displayName.lowercase() }
+    }
+
+    override suspend fun updateOwnProducerCatalogEnabled(
+        memberId: String,
+        isEnabled: Boolean,
+    ): Member = withContext(Dispatchers.IO) {
+        val document = firestore.collection(usersCollectionPath).document(memberId)
+        Tasks.await(
+            document.update(
+                mapOf(
+                    "producerCatalogEnabled" to isEnabled,
+                ),
+            ),
+        )
+        val snapshot = Tasks.await(document.get())
+        checkNotNull(snapshot.toMember()) { "Updated member $memberId could not be loaded" }
+    }
+}
+
+private fun com.google.firebase.firestore.DocumentSnapshot.toDirectoryMember(): Member? {
+    val displayName = readFirstNonBlankString("displayName") ?: return null
+    val companyName = readFirstNonBlankString("companyName")
+    val roles = ((get("roles") as? List<*>)
+        ?.mapNotNull { (it as? String)?.trim()?.lowercase()?.toMemberRoleOrNull() }
+        ?.toSet()
+        ?: emptySet()).ifEmpty { setOf(MemberRole.MEMBER) }
+    val ecoCommitment = get("ecoCommitment") as? Map<*, *>
+    return Member(
+        id = id,
+        displayName = displayName,
+        companyName = companyName,
+        phoneNumber = null,
+        normalizedEmail = "",
+        authUid = null,
+        roles = roles,
+        isActive = getBoolean("isActive") == true,
+        producerCatalogEnabled = getBoolean("producerCatalogEnabled") ?: true,
+        isCommonPurchaseManager = getBoolean("isCommonPurchaseManager") ?: false,
+        producerParity = getString("producerParity").toProducerParityOrNull(),
+        ecoCommitmentMode = (ecoCommitment?.get("mode") as? String)
+            .toEcoCommitmentModeOrDefault(),
+        ecoCommitmentParity = (ecoCommitment?.get("parity") as? String)
+            .toProducerParityOrNull(),
+    )
 }
 
 private fun com.google.firebase.firestore.DocumentSnapshot.toMember(): Member? {
@@ -215,10 +211,4 @@ private fun String?.toProducerParityOrNull(): ProducerParity? = when (this?.trim
 private fun String?.toEcoCommitmentModeOrDefault(): EcoCommitmentMode = when (this?.trim()?.lowercase()) {
     "biweekly" -> EcoCommitmentMode.BIWEEKLY
     else -> EcoCommitmentMode.WEEKLY
-}
-
-private fun MemberRole.toWireValue(): String = when (this) {
-    MemberRole.MEMBER -> "member"
-    MemberRole.PRODUCER -> "producer"
-    MemberRole.ADMIN -> "admin"
 }

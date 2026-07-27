@@ -4,7 +4,6 @@ import com.reguerta.user.presentation.root.EmailPatternRegex
 import com.reguerta.user.presentation.root.MyOrderFreshnessUiState
 import com.reguerta.user.presentation.root.MY_ORDER_FRESHNESS_TIMEOUT_MILLIS
 import com.reguerta.user.presentation.root.ProductDraft
-import com.reguerta.user.presentation.root.ReviewerEnvironmentRouter
 import com.reguerta.user.presentation.root.SessionMode
 import com.reguerta.user.presentation.root.SessionUiState
 import com.reguerta.user.presentation.root.SharedProfileDraft
@@ -27,6 +26,8 @@ import com.reguerta.user.domain.access.MemberRepository
 import com.reguerta.user.domain.access.ResolveAuthorizedSessionUseCase
 import com.reguerta.user.domain.access.SessionRefreshPolicy
 import com.reguerta.user.domain.access.SessionRefreshTrigger
+import com.reguerta.user.domain.access.SessionEnvironmentRouter
+import com.reguerta.user.domain.access.UnauthorizedReason
 import com.reguerta.user.domain.devices.AuthorizedDeviceRegistrar
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessLocalRepository
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessResolution
@@ -58,7 +59,7 @@ internal class SessionAuthActions(
     private val authorizedDeviceRegistrar: AuthorizedDeviceRegistrar,
     private val resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase,
     private val criticalDataFreshnessLocalRepository: CriticalDataFreshnessLocalRepository,
-    private val reviewerEnvironmentRouter: ReviewerEnvironmentRouter,
+    private val sessionEnvironmentRouter: SessionEnvironmentRouter,
     private val sessionRefreshPolicy: SessionRefreshPolicy,
     private val isSessionRefreshInFlight: AtomicBoolean,
     private val getLastSessionRefreshAtMillis: () -> Long?,
@@ -258,7 +259,7 @@ internal class SessionAuthActions(
     fun signOut() {
         authSessionProvider.signOut()
         clearSessionRefreshTracking()
-        reviewerEnvironmentRouter.resetToBaseEnvironment()
+        sessionEnvironmentRouter.resetToBaseEnvironment()
         scope.launch {
             criticalDataFreshnessLocalRepository.clear()
         }
@@ -341,11 +342,10 @@ internal class SessionAuthActions(
         principal: AuthPrincipal,
         shouldRefreshCriticalData: Boolean,
     ) {
-        reviewerEnvironmentRouter.applyRoutingFor(principal)
         when (val result = resolveAuthorizedSession(principal)) {
             is AccessResolutionResult.Authorized -> {
-                val members = memberRepository.getAllMembers()
-                val allNotifications = notificationRepository.getAllNotifications()
+                val members = memberRepository.getMembersVisibleTo(result.member)
+                val allNotifications = notificationRepository.getNotificationsFor(result.member)
                 val readNotificationIds = notificationRepository.getReadNotificationIds(result.member.id)
                 val products = productRepository.getProductsForVendor(result.member.id)
                 val sharedProfiles = sharedProfileRepository.getAllSharedProfiles()
@@ -380,7 +380,7 @@ internal class SessionAuthActions(
                         isLoadingShifts = true,
                     )
                 }
-                val allNews = newsRepository.getAllNews()
+                val allNews = newsRepository.getNewsFor(result.member)
                 uiState.update {
                     val currentMode = it.mode as? SessionMode.Authorized
                     if (currentMode?.principal?.uid != principal.uid) {
@@ -393,7 +393,7 @@ internal class SessionAuthActions(
                             } else {
                                 allNews.filter { article -> article.active }
                             },
-                            notificationsFeed = allNotifications.filter { event -> event.isVisibleTo(result.member) },
+                            notificationsFeed = allNotifications,
                             readNotificationIds = readNotificationIds,
                             productsFeed = products,
                             myOrderProductsFeed = emptyList(),
@@ -431,6 +431,17 @@ internal class SessionAuthActions(
             }
 
             is AccessResolutionResult.Unauthorized -> {
+                if (result.reason == UnauthorizedReason.EMAIL_NOT_VERIFIED) {
+                    authSessionProvider.signOut()
+                    sessionEnvironmentRouter.resetToBaseEnvironment()
+                    uiState.update { state ->
+                        state.toSignedOutSessionState(showSessionExpiredDialog = false).copy(
+                            emailInput = principal.email,
+                            emailErrorRes = R.string.auth_error_email_not_verified,
+                        )
+                    }
+                    return
+                }
                 val showUnauthorizedDialog = shouldShowUnauthorizedDialog(
                     currentMode = uiState.value.mode,
                     email = principal.email,
@@ -449,7 +460,7 @@ internal class SessionAuthActions(
 
     private suspend fun handleExpiredSession() {
         clearSessionRefreshTracking()
-        reviewerEnvironmentRouter.resetToBaseEnvironment()
+        sessionEnvironmentRouter.resetToBaseEnvironment()
         criticalDataFreshnessLocalRepository.clear()
         uiState.update { state -> state.toSignedOutSessionState(showSessionExpiredDialog = true) }
     }

@@ -19,33 +19,31 @@ class FirestoreCriticalDataFreshnessRemoteRepository(
 ) : CriticalDataFreshnessRemoteRepository {
     private val firestorePath = ReguertaFirestorePath(environment = environment)
 
-    private val globalConfigDocumentPath: String
+    private val memberConfigDocumentPath: String
         get() = firestorePath.documentPath(
             collection = ReguertaFirestoreCollection.CONFIG,
-            documentId = ReguertaFirestoreDocument.GLOBAL.wireValue,
+            documentId = ReguertaFirestoreDocument.MEMBER.wireValue,
         )
 
     override suspend fun getConfig(): CriticalDataFreshnessConfig? = withContext(Dispatchers.IO) {
-        runCatching {
-            val snapshot = Tasks.await(
-                firestore.document(globalConfigDocumentPath).get(),
-            )
-            val cacheExpirationMinutes = snapshot.getLong("cacheExpirationMinutes")?.toInt()
-                ?: return@runCatching null
-            val timestampMap = snapshot.get("lastTimestamps") as? Map<*, *> ?: return@runCatching null
-            val remoteTimestamps = CriticalCollection.entries.associateWith { collection ->
-                val rawValue = timestampMap[collection.wireKey]
-                when (rawValue) {
-                    is Timestamp -> rawValue.toDate().time
-                    is java.util.Date -> rawValue.time
-                    else -> return@runCatching null
-                }
+        val snapshot = Tasks.await(
+            firestore.document(memberConfigDocumentPath).get(),
+        )
+        val cacheExpirationMinutes = snapshot.getLong("cacheExpirationMinutes")?.toInt()
+            ?: return@withContext null
+        val timestampMap = snapshot.get("lastTimestamps") as? Map<*, *> ?: return@withContext null
+        val remoteTimestamps = CriticalCollection.entries.associateWith { collection ->
+            val rawValue = timestampMap[collection.wireKey]
+            when (rawValue) {
+                is Timestamp -> rawValue.toDate().time
+                is java.util.Date -> rawValue.time
+                else -> return@withContext null
             }
+        }
 
-            CriticalDataFreshnessConfig(
-                cacheExpirationMinutes = cacheExpirationMinutes,
-                remoteTimestampsMillis = remoteTimestamps,
-            )
-        }.getOrNull()
+        CriticalDataFreshnessConfig(
+            cacheExpirationMinutes = cacheExpirationMinutes,
+            remoteTimestampsMillis = remoteTimestamps,
+        )
     }
 }

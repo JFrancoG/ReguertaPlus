@@ -45,7 +45,7 @@ class FirestoreDeviceRegistrationRepository(
             "lastSeenAt" to Timestamp(device.lastSeenAtMillis / 1_000, ((device.lastSeenAtMillis % 1_000) * 1_000_000).toInt()),
         )
 
-        runCatching {
+        try {
             val existing = Tasks.await(deviceDocument.get())
             if (!existing.exists()) {
                 payload["firstSeenAt"] = Timestamp(
@@ -64,12 +64,13 @@ class FirestoreDeviceRegistrationRepository(
                 "Device registration saved in Firestore for member=$memberId, deviceId=${device.deviceId}, tokenPresent=${device.fcmToken != null}, environment=$environment"
             )
             device
-        }.onFailure { error ->
+        } catch (error: Throwable) {
             Log.e(
                 TAG,
                 "Failed to save device registration in Firestore for member=$memberId, deviceId=${device.deviceId}",
                 error
             )
-        }.getOrDefault(device)
+            throw error
+        }
     }
 }

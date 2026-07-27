@@ -25,27 +25,23 @@ class FirestoreProductRepository(
         get() = firestorePath.collectionPath(ReguertaFirestoreCollection.PRODUCTS)
 
     override suspend fun getAllProducts(): List<Product> = withContext(Dispatchers.IO) {
-        runCatching {
-            val snapshot = Tasks.await(
-                firestore.collection(productsCollectionPath).get(),
-            )
-            snapshot.documents
-                .mapNotNull { it.toProduct() }
-                .sortedWith(compareBy<Product> { it.archived }.thenBy { it.name.lowercase() })
-        }.getOrDefault(emptyList())
+        val snapshot = Tasks.await(
+            firestore.collection(productsCollectionPath).get(),
+        )
+        snapshot.documents
+            .mapNotNull { it.toProduct() }
+            .sortedWith(compareBy<Product> { it.archived }.thenBy { it.name.lowercase() })
     }
 
     override suspend fun getProductsForVendor(vendorId: String): List<Product> = withContext(Dispatchers.IO) {
-        runCatching {
-            val snapshot = Tasks.await(
-                firestore.collection(productsCollectionPath)
-                    .whereEqualTo("vendorId", vendorId)
-                    .get(),
-            )
-            snapshot.documents
-                .mapNotNull { it.toProduct() }
-                .sortedWith(compareBy<Product> { it.archived }.thenBy { it.name.lowercase() })
-        }.getOrDefault(emptyList())
+        val snapshot = Tasks.await(
+            firestore.collection(productsCollectionPath)
+                .whereEqualTo("vendorId", vendorId)
+                .get(),
+        )
+        snapshot.documents
+            .mapNotNull { it.toProduct() }
+            .sortedWith(compareBy<Product> { it.archived }.thenBy { it.name.lowercase() })
     }
 
     override suspend fun upsertProduct(product: Product): Product = withContext(Dispatchers.IO) {
@@ -83,14 +79,12 @@ class FirestoreProductRepository(
         persisted.maxWeight?.let { payload["maxWeight"] = it }
         persisted.commonPurchaseType?.toWireValue()?.let { payload["commonPurchaseType"] = it }
 
-        runCatching {
-            Tasks.await(
-                firestore.collection(productsCollectionPath)
-                    .document(documentId)
-                    .set(payload, SetOptions.merge()),
-            )
-            persisted
-        }.getOrDefault(persisted)
+        Tasks.await(
+            firestore.collection(productsCollectionPath)
+                .document(documentId)
+                .set(payload, SetOptions.merge()),
+        )
+        persisted
     }
 }
 

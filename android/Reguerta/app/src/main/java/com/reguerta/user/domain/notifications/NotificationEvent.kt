@@ -20,7 +20,7 @@ data class NotificationEvent(
         when (target) {
             "all" -> true
             "users" -> userIds.contains(member.id)
-            "segment" -> when (segmentType) {
+            "segment" -> userIds.contains(member.id) || when (segmentType) {
                 "role" -> targetRole?.let { member.roles.contains(it) } ?: false
                 else -> false
             }

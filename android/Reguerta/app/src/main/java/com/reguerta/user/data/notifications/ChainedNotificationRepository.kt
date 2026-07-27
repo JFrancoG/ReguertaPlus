@@ -2,14 +2,19 @@ package com.reguerta.user.data.notifications
 
 import com.reguerta.user.domain.notifications.NotificationEvent
 import com.reguerta.user.domain.notifications.NotificationRepository
+import com.reguerta.user.domain.access.Member
 
 class ChainedNotificationRepository(
     private val primary: NotificationRepository,
     private val fallback: NotificationRepository,
 ) : NotificationRepository {
-    override suspend fun getAllNotifications(): List<NotificationEvent> {
-        val primaryNotifications = primary.getAllNotifications()
-        return if (primaryNotifications.isNotEmpty()) primaryNotifications else fallback.getAllNotifications()
+    override suspend fun getNotificationsFor(member: Member): List<NotificationEvent> {
+        val primaryNotifications = primary.getNotificationsFor(member)
+        return if (primaryNotifications.isNotEmpty()) {
+            primaryNotifications
+        } else {
+            fallback.getNotificationsFor(member)
+        }
     }
 
     override suspend fun getReadNotificationIds(memberId: String): Set<String> {

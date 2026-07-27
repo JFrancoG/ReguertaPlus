@@ -3,10 +3,12 @@ package com.reguerta.user.data.notifications
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
 import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
 import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
 import com.reguerta.user.data.firestore.ReguertaFirestorePath
+import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.notifications.NotificationEvent
 import com.reguerta.user.domain.notifications.NotificationRepository
@@ -22,27 +24,28 @@ class FirestoreNotificationRepository(
     private val notificationsCollectionPath: String
         get() = firestorePath.collectionPath(ReguertaFirestoreCollection.NOTIFICATION_EVENTS)
 
+    private fun notificationInboxCollectionPath(memberId: String): String =
+        "${firestorePath.documentPath(ReguertaFirestoreCollection.USERS, memberId)}/notificationInbox"
+
     private fun notificationReadsCollectionPath(memberId: String): String =
         "${firestorePath.documentPath(ReguertaFirestoreCollection.USERS, memberId)}/notificationReads"
 
-    override suspend fun getAllNotifications(): List<NotificationEvent> = withContext(Dispatchers.IO) {
-        runCatching {
-            val snapshot = Tasks.await(
-                firestore.collection(notificationsCollectionPath).get(),
-            )
-            snapshot.documents
-                .mapNotNull { it.toNotificationEvent() }
-                .sortedByDescending { it.sentAtMillis }
-        }.getOrDefault(emptyList())
+    override suspend fun getNotificationsFor(member: Member): List<NotificationEvent> = withContext(Dispatchers.IO) {
+        val snapshot = Tasks.await(
+            firestore.collection(notificationInboxCollectionPath(member.id))
+                .orderBy("sentAt", Query.Direction.DESCENDING)
+                .get(),
+        )
+        snapshot.documents
+            .mapNotNull { it.toNotificationEvent() }
+            .sortedByDescending { it.sentAtMillis }
     }
 
     override suspend fun getReadNotificationIds(memberId: String): Set<String> = withContext(Dispatchers.IO) {
-        runCatching {
-            val snapshot = Tasks.await(
-                firestore.collection(notificationReadsCollectionPath(memberId)).get(),
-            )
-            snapshot.documents.map { it.id }.toSet()
-        }.getOrDefault(emptySet())
+        val snapshot = Tasks.await(
+            firestore.collection(notificationReadsCollectionPath(memberId)).get(),
+        )
+        snapshot.documents.map { it.id }.toSet()
     }
 
     override suspend fun markNotificationsRead(
@@ -69,7 +72,7 @@ class FirestoreNotificationRepository(
                 SetOptions.merge(),
             )
         }
-        runCatching { Tasks.await(batch.commit()) }
+        Tasks.await(batch.commit())
         Unit
     }
 
@@ -103,14 +106,12 @@ class FirestoreNotificationRepository(
         }
         payload["targetPayload"] = targetPayload
 
-        runCatching {
-            Tasks.await(
-                firestore.collection(notificationsCollectionPath)
-                    .document(documentId)
-                    .set(payload, SetOptions.merge()),
-            )
-            persisted
-        }.getOrDefault(persisted)
+        Tasks.await(
+            firestore.collection(notificationsCollectionPath)
+                .document(documentId)
+                .set(payload, SetOptions.merge()),
+        )
+        persisted
     }
 }
 
@@ -125,8 +126,11 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toNotificationEvent()
 
     val targetPayload = get("targetPayload") as? Map<*, *>
     val userIds = (targetPayload?.get("userIds") as? List<*>)?.mapNotNull { it as? String }.orEmpty()
-    val segmentType = (targetPayload?.get("segmentType") as? String)?.trim()?.ifBlank { null }
     val targetRole = (targetPayload?.get("role") as? String)?.toMemberRole()
+    val segmentType = (targetPayload?.get("segmentType") as? String)
+        ?.trim()
+        ?.ifBlank { null }
+        ?: if (targetRole != null) "role" else null
 
     return NotificationEvent(
         id = id,

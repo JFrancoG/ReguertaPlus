@@ -10,6 +10,7 @@ import com.reguerta.user.domain.access.MemberManagementException
 import com.reguerta.user.domain.access.MemberRepository
 import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
+import com.reguerta.user.domain.access.buildSecureMemberId
 import com.reguerta.user.domain.access.canGrantAdminRole
 import com.reguerta.user.domain.access.canManageMembers
 import kotlinx.coroutines.CoroutineScope
@@ -64,7 +65,7 @@ internal class SessionMemberActions(
         }
 
         val member = if (editingMemberId == null) {
-            val memberId = buildMemberId(normalizedEmail)
+            val memberId = buildSecureMemberId(normalizedEmail)
             if (mode.members.any { it.id == memberId }) {
                 emitMessage(R.string.feedback_member_exists)
                 return
@@ -142,7 +143,7 @@ internal class SessionMemberActions(
     fun refreshMembers() {
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
         scope.launch {
-            val allMembers = memberRepository.getAllMembers()
+            val allMembers = memberRepository.getMembersVisibleTo(mode.authenticatedMember)
             val refreshedCurrentMember = allMembers.firstOrNull { it.id == mode.member.id } ?: mode.member
             val refreshedAuthenticatedMember = allMembers.firstOrNull { it.id == mode.authenticatedMember.id }
                 ?: mode.authenticatedMember
@@ -174,19 +175,29 @@ internal class SessionMemberActions(
             } catch (_: MemberManagementException.LastAdminRemoval) {
                 emitMessage(R.string.feedback_cannot_remove_last_admin)
                 return@launch
+            } catch (_: MemberManagementException.Conflict) {
+                emitMessage(R.string.feedback_member_conflict)
+                return@launch
             } catch (_: Exception) {
                 emitMessage(R.string.feedback_unable_save_changes)
                 return@launch
             }
 
-            val allMembers = memberRepository.getAllMembers()
-            val refreshedCurrentMember = if (mode.member.id == updatedMember.id) {
+            val visibilityActor = if (mode.authenticatedMember.id == updatedMember.id) {
                 updatedMember
+            } else {
+                mode.authenticatedMember
+            }
+            val allMembers = memberRepository.getMembersVisibleTo(visibilityActor)
+            val persistedMember = allMembers.firstOrNull { member -> member.id == updatedMember.id }
+                ?: updatedMember
+            val refreshedCurrentMember = if (mode.member.id == updatedMember.id) {
+                persistedMember
             } else {
                 mode.member
             }
             val refreshedAuthenticatedMember = if (mode.authenticatedMember.id == updatedMember.id) {
-                updatedMember
+                persistedMember
             } else {
                 mode.authenticatedMember
             }
@@ -213,11 +224,6 @@ internal class SessionMemberActions(
         if (draft.isProducer) roles.add(MemberRole.PRODUCER)
         if (draft.isAdmin) roles.add(MemberRole.ADMIN)
         return roles
-    }
-
-    private fun buildMemberId(normalizedEmail: String): String {
-        val suffix = normalizedEmail.replace("[^a-z0-9]+".toRegex(), "_").trim('_').ifBlank { "member" }
-        return "member_${suffix.take(40)}"
     }
 
     private fun normalizeCompanyName(

@@ -31,6 +31,8 @@ fun mapAuthFailure(reason: AuthSignInFailureReason, flow: AuthErrorFlow): AuthEr
                 AuthErrorUiMapping(emailErrorRes = R.string.auth_error_user_not_found)
             AuthSignInFailureReason.USER_DISABLED ->
                 AuthErrorUiMapping(emailErrorRes = R.string.auth_error_user_disabled)
+            AuthSignInFailureReason.EMAIL_NOT_VERIFIED ->
+                AuthErrorUiMapping(globalMessageRes = R.string.auth_error_email_not_verified)
             AuthSignInFailureReason.TOO_MANY_REQUESTS ->
                 AuthErrorUiMapping(globalMessageRes = R.string.auth_error_too_many_requests)
             AuthSignInFailureReason.NETWORK ->
@@ -52,6 +54,8 @@ fun mapAuthFailure(reason: AuthSignInFailureReason, flow: AuthErrorFlow): AuthEr
                 AuthErrorUiMapping(emailErrorRes = R.string.auth_error_user_not_found)
             AuthSignInFailureReason.USER_DISABLED ->
                 AuthErrorUiMapping(emailErrorRes = R.string.auth_error_user_disabled)
+            AuthSignInFailureReason.EMAIL_NOT_VERIFIED ->
+                AuthErrorUiMapping(globalMessageRes = R.string.auth_error_email_not_verified)
             AuthSignInFailureReason.TOO_MANY_REQUESTS ->
                 AuthErrorUiMapping(globalMessageRes = R.string.auth_error_too_many_requests)
             AuthSignInFailureReason.NETWORK ->
@@ -75,6 +79,7 @@ fun mapAuthFailure(reason: AuthSignInFailureReason, flow: AuthErrorFlow): AuthEr
             AuthSignInFailureReason.INVALID_CREDENTIALS,
             AuthSignInFailureReason.EMAIL_ALREADY_IN_USE,
             AuthSignInFailureReason.WEAK_PASSWORD,
+            AuthSignInFailureReason.EMAIL_NOT_VERIFIED,
             ->
                 AuthErrorUiMapping(globalMessageRes = R.string.auth_error_unknown)
         }

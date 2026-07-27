@@ -16,15 +16,28 @@ import com.reguerta.user.domain.access.AuthSignInResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class FirebaseAuthSessionProvider(
-    private val auth: FirebaseAuth,
+class FirebaseAuthSessionProvider internal constructor(
+    private val gateway: FirebaseAuthGateway,
 ) : AuthSessionProvider {
+    constructor(auth: FirebaseAuth) : this(DefaultFirebaseAuthGateway(auth))
+
     override suspend fun signIn(email: String, password: String): AuthSignInResult = withContext(Dispatchers.IO) {
         val trimmedEmail = email.trim()
         return@withContext try {
-            val result = Tasks.await(auth.signInWithEmailAndPassword(trimmedEmail, password))
-            val user = result.user
+            gateway.signIn(trimmedEmail, password)
+            val user = gateway.reloadCurrentUser()
                 ?: return@withContext AuthSignInResult.Failure(AuthSignInFailureReason.UNKNOWN)
+            if (!user.emailVerified) {
+                try {
+                    gateway.sendCurrentUserVerificationEmail()
+                    return@withContext AuthSignInResult.Failure(
+                        AuthSignInFailureReason.EMAIL_NOT_VERIFIED,
+                    )
+                } finally {
+                    gateway.signOut()
+                }
+            }
+            gateway.refreshCurrentUserToken(forceRefresh = true)
 
             AuthSignInResult.Success(
                 principal = AuthPrincipal(
@@ -40,16 +53,14 @@ class FirebaseAuthSessionProvider(
     override suspend fun signUp(email: String, password: String): AuthSignInResult = withContext(Dispatchers.IO) {
         val trimmedEmail = email.trim()
         return@withContext try {
-            val result = Tasks.await(auth.createUserWithEmailAndPassword(trimmedEmail, password))
-            val user = result.user
+            gateway.signUp(trimmedEmail, password)
                 ?: return@withContext AuthSignInResult.Failure(AuthSignInFailureReason.UNKNOWN)
-
-            AuthSignInResult.Success(
-                principal = AuthPrincipal(
-                    uid = user.uid,
-                    email = (user.email ?: trimmedEmail).trim().lowercase(),
-                ),
-            )
+            try {
+                gateway.sendCurrentUserVerificationEmail()
+                AuthSignInResult.Failure(AuthSignInFailureReason.EMAIL_NOT_VERIFIED)
+            } finally {
+                gateway.signOut()
+            }
         } catch (exception: Exception) {
             AuthSignInResult.Failure(exception.toFailureReason())
         }
@@ -58,7 +69,7 @@ class FirebaseAuthSessionProvider(
     override suspend fun sendPasswordReset(email: String): AuthPasswordResetResult = withContext(Dispatchers.IO) {
         val trimmedEmail = email.trim()
         return@withContext try {
-            Tasks.await(auth.sendPasswordResetEmail(trimmedEmail))
+            gateway.sendPasswordReset(trimmedEmail)
             AuthPasswordResetResult.Success
         } catch (exception: Exception) {
             AuthPasswordResetResult.Failure(exception.toFailureReason())
@@ -66,16 +77,16 @@ class FirebaseAuthSessionProvider(
     }
 
     override suspend fun refreshCurrentSession(): AuthSessionRefreshResult = withContext(Dispatchers.IO) {
-        val user = auth.currentUser ?: return@withContext AuthSessionRefreshResult.NoSession
+        val user = gateway.currentUserSnapshot() ?: return@withContext AuthSessionRefreshResult.NoSession
         val fallbackPrincipal = AuthPrincipal(
             uid = user.uid,
             email = (user.email ?: "").trim().lowercase(),
         )
 
         return@withContext try {
-            Tasks.await(user.reload())
-            val refreshedUser = auth.currentUser ?: return@withContext AuthSessionRefreshResult.Expired
-            Tasks.await(refreshedUser.getIdToken(false))
+            val refreshedUser = gateway.reloadCurrentUser()
+                ?: return@withContext AuthSessionRefreshResult.Expired
+            gateway.refreshCurrentUserToken(forceRefresh = refreshedUser.emailVerified)
 
             AuthSessionRefreshResult.Active(
                 principal = AuthPrincipal(
@@ -89,7 +100,7 @@ class FirebaseAuthSessionProvider(
                 AuthSignInFailureReason.USER_NOT_FOUND,
                 AuthSignInFailureReason.INVALID_CREDENTIALS,
                     -> {
-                        auth.signOut()
+                        gateway.signOut()
                         AuthSessionRefreshResult.Expired
                     }
 
@@ -99,15 +110,76 @@ class FirebaseAuthSessionProvider(
                 AuthSignInFailureReason.INVALID_EMAIL,
                 AuthSignInFailureReason.EMAIL_ALREADY_IN_USE,
                 AuthSignInFailureReason.WEAK_PASSWORD,
+                AuthSignInFailureReason.EMAIL_NOT_VERIFIED,
                     -> AuthSessionRefreshResult.Active(fallbackPrincipal)
             }
         }
     }
 
     override fun signOut() {
+        gateway.signOut()
+    }
+}
+
+internal data class FirebaseAuthUserSnapshot(
+    val uid: String,
+    val email: String?,
+    val emailVerified: Boolean,
+)
+
+internal interface FirebaseAuthGateway {
+    suspend fun signIn(email: String, password: String): FirebaseAuthUserSnapshot?
+    suspend fun signUp(email: String, password: String): FirebaseAuthUserSnapshot?
+    suspend fun sendCurrentUserVerificationEmail()
+    suspend fun sendPasswordReset(email: String)
+    fun currentUserSnapshot(): FirebaseAuthUserSnapshot?
+    suspend fun reloadCurrentUser(): FirebaseAuthUserSnapshot?
+    suspend fun refreshCurrentUserToken(forceRefresh: Boolean)
+    fun signOut()
+}
+
+private class DefaultFirebaseAuthGateway(
+    private val auth: FirebaseAuth,
+) : FirebaseAuthGateway {
+    override suspend fun signIn(email: String, password: String): FirebaseAuthUserSnapshot? =
+        Tasks.await(auth.signInWithEmailAndPassword(email, password)).user?.toSnapshot()
+
+    override suspend fun signUp(email: String, password: String): FirebaseAuthUserSnapshot? =
+        Tasks.await(auth.createUserWithEmailAndPassword(email, password)).user?.toSnapshot()
+
+    override suspend fun sendCurrentUserVerificationEmail() {
+        val user = checkNotNull(auth.currentUser)
+        Tasks.await(user.sendEmailVerification())
+    }
+
+    override suspend fun sendPasswordReset(email: String) {
+        Tasks.await(auth.sendPasswordResetEmail(email))
+    }
+
+    override fun currentUserSnapshot(): FirebaseAuthUserSnapshot? = auth.currentUser?.toSnapshot()
+
+    override suspend fun reloadCurrentUser(): FirebaseAuthUserSnapshot? {
+        val user = auth.currentUser ?: return null
+        Tasks.await(user.reload())
+        return auth.currentUser?.toSnapshot()
+    }
+
+    override suspend fun refreshCurrentUserToken(forceRefresh: Boolean) {
+        val user = checkNotNull(auth.currentUser)
+        Tasks.await(user.getIdToken(forceRefresh))
+    }
+
+    override fun signOut() {
         auth.signOut()
     }
 }
+
+private fun com.google.firebase.auth.FirebaseUser.toSnapshot(): FirebaseAuthUserSnapshot =
+    FirebaseAuthUserSnapshot(
+        uid = uid,
+        email = email,
+        emailVerified = isEmailVerified,
+    )
 
 private fun Exception.toFailureReason(): AuthSignInFailureReason =
     when (this) {

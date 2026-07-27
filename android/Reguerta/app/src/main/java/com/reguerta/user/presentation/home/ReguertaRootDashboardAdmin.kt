@@ -285,4 +285,5 @@ private fun UnauthorizedReason.toMessageResId(): Int =
         UnauthorizedReason.USER_NOT_FOUND_IN_AUTHORIZED_USERS,
         UnauthorizedReason.USER_ACCESS_RESTRICTED,
             -> R.string.auth_error_member_unauthorized
+        UnauthorizedReason.EMAIL_NOT_VERIFIED -> R.string.auth_error_email_not_verified
     }

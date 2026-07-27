@@ -35,6 +35,12 @@ class AuthErrorMappingTest {
             flow = AuthErrorFlow.SIGN_UP,
         )
         assertEquals(R.string.auth_error_weak_password, weakPassword.passwordErrorRes)
+
+        val emailNotVerified = mapAuthFailure(
+            reason = AuthSignInFailureReason.EMAIL_NOT_VERIFIED,
+            flow = AuthErrorFlow.SIGN_UP,
+        )
+        assertEquals(R.string.auth_error_email_not_verified, emailNotVerified.globalMessageRes)
     }
 
     @Test

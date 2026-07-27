@@ -19,6 +19,26 @@ class OrderHistoryWeekTest {
     private val zone = ZoneId.of("Europe/Madrid")
 
     @Test
+    fun documentedDuplicateOrdersAreAggregatedBeforeUsingTheLineFallback() {
+        assertEquals(
+            40.0,
+            resolveOrderSummaryTotal(
+                documentedTotals = listOf(0.0, 22.2, 17.8),
+                calculatedSubtotal = 999.0,
+            ),
+            0.0001,
+        )
+        assertEquals(
+            15.5,
+            resolveOrderSummaryTotal(
+                documentedTotals = emptyList(),
+                calculatedSubtotal = 15.5,
+            ),
+            0.0001,
+        )
+    }
+
+    @Test
     fun previousIsoWeek_isSelectedRegardlessOfWeekday() {
         val monday = LocalDate.of(2026, 5, 25).atStartOfDay(zone).toInstant().toEpochMilli()
         val thursday = LocalDate.of(2026, 5, 28).atStartOfDay(zone).toInstant().toEpochMilli()

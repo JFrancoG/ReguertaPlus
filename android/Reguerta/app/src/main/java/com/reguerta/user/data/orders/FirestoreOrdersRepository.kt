@@ -2,7 +2,6 @@ package com.reguerta.user.data.orders
 
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.Timestamp
-import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
 import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
 import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
@@ -19,11 +18,14 @@ import com.reguerta.user.domain.orders.ReceivedOrdersMemberLine
 import com.reguerta.user.domain.orders.ReceivedOrdersProductRow
 import com.reguerta.user.domain.orders.ReceivedOrdersSnapshot
 import com.reguerta.user.domain.orders.isValidIsoWeekKey
+import com.reguerta.user.domain.orders.resolveOrderSummaryTotal
 import com.reguerta.user.domain.orders.toReceivedOrderStatusWriteResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Date
 import java.util.Locale
+
+private val OrderOwnerFieldNames = listOf("userId", "memberId")
 
 class FirestoreOrdersRepository(
     private val firestore: FirebaseFirestore,
@@ -40,39 +42,25 @@ class FirestoreOrdersRepository(
     override suspend fun orderHistoryWeekKeys(currentMemberId: String?): List<String> = withContext(Dispatchers.IO) {
         val memberId = currentMemberId?.trim()?.takeIf(String::isNotBlank) ?: return@withContext emptyList()
         val weekKeys = linkedSetOf<String>()
-        var hasSuccessfulRead = false
-        var lastFailure: Throwable? = null
 
-        listOf("userId", "memberId").forEach { fieldName ->
-            runCatching {
-                Tasks.await(
-                    firestore.collection(ordersPath)
-                        .whereEqualTo(fieldName, memberId)
-                        .get(),
-                )
-            }.onSuccess { snapshot ->
-                hasSuccessfulRead = true
-                snapshot.documents.forEach { document ->
-                    orderHistoryWeekKey(document.data.orEmpty(), document.id)?.let(weekKeys::add)
-                }
-            }.onFailure { lastFailure = it }
+        OrderOwnerFieldNames.forEach { fieldName ->
+            val ordersSnapshot = Tasks.await(
+                firestore.collection(ordersPath)
+                    .whereEqualTo(fieldName, memberId)
+                    .get(),
+            )
+            ordersSnapshot.documents.forEach { document ->
+                orderHistoryWeekKey(document.data.orEmpty(), document.id)?.let(weekKeys::add)
+            }
 
-            runCatching {
-                Tasks.await(
-                    firestore.collection(orderLinesPath)
-                        .whereEqualTo(fieldName, memberId)
-                        .get(),
-                )
-            }.onSuccess { snapshot ->
-                hasSuccessfulRead = true
-                snapshot.documents.forEach { document ->
-                    orderHistoryWeekKey(document.data.orEmpty(), document.id)?.let(weekKeys::add)
-                }
-            }.onFailure { lastFailure = it }
-        }
-
-        if (!hasSuccessfulRead && lastFailure != null) {
-            throw lastFailure
+            val linesSnapshot = Tasks.await(
+                firestore.collection(orderLinesPath)
+                    .whereEqualTo(fieldName, memberId)
+                    .get(),
+            )
+            linesSnapshot.documents.forEach { document ->
+                orderHistoryWeekKey(document.data.orEmpty(), document.id)?.let(weekKeys::add)
+            }
         }
         weekKeys.sorted()
     }
@@ -87,7 +75,6 @@ class FirestoreOrdersRepository(
         val orderDocuments = fetchMemberOrderDocuments(
             memberId = memberId,
             weekKey = normalizedWeekKey,
-            deterministicOrderId = deterministicOrderId,
         )
         val candidateOrderIds = (listOf(deterministicOrderId) + orderDocuments.keys)
             .map(String::trim)
@@ -102,9 +89,13 @@ class FirestoreOrdersRepository(
         if (groups.isEmpty()) {
             null
         } else {
-            val total = orderDocuments.values.firstNotNullOfOrNull { payload ->
+            val documentedTotals = orderDocuments.values.mapNotNull { payload ->
                 (payload["total"] as? Number)?.toDouble()
-            } ?: groups.sumOf(OrderSummaryGroup::subtotal)
+            }
+            val total = resolveOrderSummaryTotal(
+                documentedTotals = documentedTotals,
+                calculatedSubtotal = groups.sumOf(OrderSummaryGroup::subtotal),
+            )
             OrderSummarySnapshot(
                 weekKey = normalizedWeekKey,
                 groups = groups,
@@ -116,43 +107,19 @@ class FirestoreOrdersRepository(
     override suspend fun receivedOrdersHistoryWeekKeys(producerId: String?): List<String> = withContext(Dispatchers.IO) {
         val resolvedProducerId = producerId?.trim()?.takeIf(String::isNotBlank) ?: return@withContext emptyList()
         val weekKeys = linkedSetOf<String>()
-        var hasSuccessfulRead = false
-        var lastFailure: Throwable? = null
 
-        runCatching {
-            Tasks.await(
-                firestore.collection(orderLinesPath)
-                    .whereEqualTo("vendorId", resolvedProducerId)
-                    .get(),
-            )
-        }.onSuccess { snapshot ->
-            hasSuccessfulRead = true
-            snapshot.documents.forEach { document ->
-                val weekKey = (document.data.orEmpty()["weekKey"] as? String)?.trim()
-                if (!weekKey.isNullOrBlank() && weekKey.isValidIsoWeekKey()) {
-                    weekKeys += weekKey
-                }
-            }
-        }.onFailure { failure ->
-            lastFailure = failure
-        }
-
-        if (!hasSuccessfulRead && lastFailure != null) {
-            throw lastFailure
-        }
-        weekKeys.sorted()
-    }
-
-    override suspend fun oldestOrderHistoryWeekKey(): String? = withContext(Dispatchers.IO) {
         val snapshot = Tasks.await(
-            firestore.collection(ordersPath)
-                .orderBy("weekKey")
-                .limit(1)
+            firestore.collection(orderLinesPath)
+                .whereEqualTo("vendorId", resolvedProducerId)
                 .get(),
         )
-        snapshot.documents.firstOrNull()?.let { document ->
-            orderHistoryWeekKey(document.data.orEmpty(), document.id)
+        snapshot.documents.forEach { document ->
+            val weekKey = (document.data.orEmpty()["weekKey"] as? String)?.trim()
+            if (!weekKey.isNullOrBlank() && weekKey.isValidIsoWeekKey()) {
+                weekKeys += weekKey
+            }
         }
+        weekKeys.sorted()
     }
 
     override suspend fun receivedOrdersSnapshot(
@@ -223,27 +190,20 @@ class FirestoreOrdersRepository(
     private fun fetchMemberOrderDocuments(
         memberId: String,
         weekKey: String,
-        deterministicOrderId: String,
     ): Map<String, Map<String, Any>> {
         val orderDocuments = linkedMapOf<String, Map<String, Any>>()
-        val deterministicOrderSnapshot = Tasks.await(firestore.document("$ordersPath/$deterministicOrderId").get())
-        if (deterministicOrderSnapshot.exists()) {
-            orderDocuments[deterministicOrderSnapshot.id] = deterministicOrderSnapshot.data.orEmpty()
-        }
 
-        val weekOrdersSnapshot = Tasks.await(
-            firestore.collection(ordersPath)
-                .whereEqualTo("weekKey", weekKey)
-                .get(),
-        )
-        weekOrdersSnapshot.documents
-            .filter { document ->
-                document.id == deterministicOrderId ||
-                    document.data.orEmpty().matchesMemberOrder(memberId, weekKey, deterministicOrderId, document.id)
-            }
-            .forEach { document ->
+        OrderOwnerFieldNames.forEach { ownerFieldName ->
+            val weekOrdersSnapshot = Tasks.await(
+                firestore.collection(ordersPath)
+                    .whereEqualTo(ownerFieldName, memberId)
+                    .whereEqualTo("weekKey", weekKey)
+                    .get(),
+            )
+            weekOrdersSnapshot.documents.forEach { document ->
                 orderDocuments[document.id] = document.data.orEmpty()
             }
+        }
         return orderDocuments
     }
 
@@ -254,28 +214,30 @@ class FirestoreOrdersRepository(
     ): Map<String, Map<String, Any>> {
         val lineDocuments = linkedMapOf<String, Map<String, Any>>()
         candidateOrderIds.forEach { orderId ->
-            val linesSnapshot = Tasks.await(
-                firestore.collection(orderLinesPath)
-                    .whereEqualTo("orderId", orderId)
-                    .get(),
-            )
-            linesSnapshot.documents.forEach { document ->
-                lineDocuments[document.id] = document.data.orEmpty()
+            OrderOwnerFieldNames.forEach { ownerFieldName ->
+                val linesSnapshot = Tasks.await(
+                    firestore.collection(orderLinesPath)
+                        .whereEqualTo("orderId", orderId)
+                        .whereEqualTo(ownerFieldName, memberId)
+                        .get(),
+                )
+                linesSnapshot.documents.forEach { document ->
+                    lineDocuments[document.id] = document.data.orEmpty()
+                }
             }
         }
 
-        val weekLinesSnapshot = Tasks.await(
-            firestore.collection(orderLinesPath)
-                .whereEqualTo("weekKey", weekKey)
-                .get(),
-        )
-        weekLinesSnapshot.documents
-            .filter { document ->
-                document.data.orEmpty().matchesOrderLine(memberId, weekKey, candidateOrderIds)
-            }
-            .forEach { document ->
+        OrderOwnerFieldNames.forEach { ownerFieldName ->
+            val weekLinesSnapshot = Tasks.await(
+                firestore.collection(orderLinesPath)
+                    .whereEqualTo(ownerFieldName, memberId)
+                    .whereEqualTo("weekKey", weekKey)
+                    .get(),
+            )
+            weekLinesSnapshot.documents.forEach { document ->
                 lineDocuments[document.id] = document.data.orEmpty()
             }
+        }
         return lineDocuments
     }
 
@@ -284,30 +246,18 @@ class FirestoreOrdersRepository(
         weekKey: String,
     ): List<ReceivedOrderLineRecord> {
         val dedupedByKey = linkedMapOf<String, ReceivedOrderLineRecord>()
-        var hasSuccessfulRead = false
-        var lastFailure: Throwable? = null
 
-        runCatching {
-            Tasks.await(
-                firestore.collection(orderLinesPath)
-                    .whereEqualTo("vendorId", producerId)
-                    .whereEqualTo("weekKey", weekKey)
-                    .get(),
-            )
-        }.onSuccess { snapshot ->
-            hasSuccessfulRead = true
-            snapshot.documents.forEach { document ->
-                val payload = document.data.orEmpty()
-                receivedOrderLineRecord(payload, fallbackDocumentId = document.id)?.let { line ->
-                    dedupedByKey[line.dedupKey] = line
-                }
+        val snapshot = Tasks.await(
+            firestore.collection(orderLinesPath)
+                .whereEqualTo("vendorId", producerId)
+                .whereEqualTo("weekKey", weekKey)
+                .get(),
+        )
+        snapshot.documents.forEach { document ->
+            val payload = document.data.orEmpty()
+            receivedOrderLineRecord(payload, fallbackDocumentId = document.id)?.let { line ->
+                dedupedByKey[line.dedupKey] = line
             }
-        }.onFailure { failure ->
-            lastFailure = failure
-        }
-
-        if (!hasSuccessfulRead && lastFailure != null) {
-            throw lastFailure
         }
 
         return dedupedByKey.values.sortedWith(
@@ -325,28 +275,11 @@ class FirestoreOrdersRepository(
         if (orderIds.isEmpty()) return emptyMap()
 
         val statusesByOrderId = mutableMapOf<String, ReceivedOrderProducerStatus>()
-        var hasSuccessfulRead = false
-        var lastFailure: Throwable? = null
-
-        orderIds.distinct().chunked(10).forEach { chunk ->
-            runCatching {
-                Tasks.await(
-                    firestore.collection(ordersPath)
-                        .whereIn(FieldPath.documentId(), chunk)
-                        .get(),
-                )
-            }.onSuccess { snapshot ->
-                hasSuccessfulRead = true
-                snapshot.documents.forEach { document ->
-                    statusesByOrderId[document.id] = document.data.orEmpty().readProducerStatusForVendor(producerId)
-                }
-            }.onFailure { failure ->
-                lastFailure = failure
+        orderIds.distinct().forEach { orderId ->
+            val document = Tasks.await(firestore.document("$ordersPath/$orderId").get())
+            if (document.exists()) {
+                statusesByOrderId[document.id] = document.data.orEmpty().readProducerStatusForVendor(producerId)
             }
-        }
-
-        if (!hasSuccessfulRead && lastFailure != null) {
-            throw lastFailure
         }
         return statusesByOrderId
     }
@@ -357,23 +290,18 @@ class FirestoreOrdersRepository(
     ): Set<String> {
         val updatedOrderIds = linkedSetOf<String>()
         orderIds.distinct().forEach { orderId ->
-            val updated = runCatching {
-                val orderReference = firestore.document("$ordersPath/$orderId")
-                Tasks.await(
-                    orderReference.update(
-                        mapOf(
-                            "producerStatus" to ReceivedOrderProducerStatus.READ.wireValue,
-                            "producerStatusesByVendor.$producerId" to ReceivedOrderProducerStatus.READ.wireValue,
-                            "producerStatusUpdatedBy" to producerId,
-                            "updatedAt" to Timestamp(Date()),
-                        ),
+            val orderReference = firestore.document("$ordersPath/$orderId")
+            Tasks.await(
+                orderReference.update(
+                    mapOf(
+                        "producerStatus" to ReceivedOrderProducerStatus.READ.wireValue,
+                        "producerStatusesByVendor.$producerId" to ReceivedOrderProducerStatus.READ.wireValue,
+                        "producerStatusUpdatedBy" to producerId,
+                        "updatedAt" to Timestamp(Date()),
                     ),
-                )
-                ReceivedOrderStatusWriteResult.SUCCESS
-            }.getOrElse { ReceivedOrderStatusWriteResult.FAILURE }
-            if (updated == ReceivedOrderStatusWriteResult.SUCCESS) {
-                updatedOrderIds += orderId
-            }
+                ),
+            )
+            updatedOrderIds += orderId
         }
         return updatedOrderIds
     }
@@ -385,45 +313,6 @@ private fun orderHistoryWeekKey(payload: Map<String, Any>, documentId: String): 
         return payloadWeekKey
     }
     return documentId.split("_").lastOrNull(String::isValidIsoWeekKey)
-}
-
-private fun Map<String, Any>.matchesMemberOrder(
-    memberId: String,
-    weekKey: String,
-    deterministicOrderId: String,
-    documentId: String,
-): Boolean {
-    val payloadWeekKey = (this["weekKey"] as? String)?.trim()
-    val payloadUserId = (this["userId"] as? String)?.trim()
-    val payloadMemberId = (this["memberId"] as? String)?.trim()
-    val parsedUserId = parseOrderUserIdFromDocumentId(documentId, weekKey)
-    val matchesWeek = payloadWeekKey == weekKey || documentId.endsWith("_$weekKey")
-    val matchesMember = payloadUserId == memberId ||
-        payloadMemberId == memberId ||
-        parsedUserId == memberId ||
-        documentId == deterministicOrderId
-    return matchesWeek && matchesMember
-}
-
-private fun Map<String, Any>.matchesOrderLine(
-    memberId: String,
-    weekKey: String,
-    candidateOrderIds: List<String>,
-): Boolean {
-    val orderId = (this["orderId"] as? String)?.trim()
-    val payloadWeekKey = (this["weekKey"] as? String)?.trim()
-    val payloadUserId = (this["userId"] as? String)?.trim()
-    val payloadMemberId = (this["memberId"] as? String)?.trim()
-    val matchesOrderId = orderId?.let(candidateOrderIds::contains) ?: false
-    val matchesWeek = payloadWeekKey == weekKey || matchesOrderId
-    val matchesMember = payloadUserId == memberId || payloadMemberId == memberId || matchesOrderId
-    return matchesWeek && matchesMember
-}
-
-private fun parseOrderUserIdFromDocumentId(documentId: String, weekKey: String): String? {
-    val suffix = "_$weekKey"
-    if (!documentId.endsWith(suffix) || documentId.length <= suffix.length) return null
-    return documentId.removeSuffix(suffix).takeIf(String::isNotBlank)
 }
 
 private fun buildOrderSummaryGroups(lines: List<OrderSummaryLine>): List<OrderSummaryGroup> =

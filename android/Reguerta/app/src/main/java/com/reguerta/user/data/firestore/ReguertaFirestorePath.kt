@@ -9,7 +9,9 @@ enum class ReguertaFirestoreEnvironment(val wireValue: String) {
 }
 
 enum class ReguertaFirestoreCollection(val pathComponent: String) {
+    AUTH_LINKS("plus-collections/authLinks"),
     USERS("plus-collections/users"),
+    MEMBER_DIRECTORY("plus-collections/memberDirectory"),
     PRODUCTS("plus-collections/products"),
     ORDERS("plus-collections/orders"),
     ORDER_LINES("plus-collections/orderlines"),
@@ -26,6 +28,8 @@ enum class ReguertaFirestoreCollection(val pathComponent: String) {
 
 enum class ReguertaFirestoreDocument(val wireValue: String) {
     GLOBAL("global"),
+    MEMBER("member"),
+    PUBLIC("public"),
 }
 
 data class ReguertaFirestorePath(

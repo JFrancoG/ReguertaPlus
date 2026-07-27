@@ -2,6 +2,8 @@ package com.reguerta.user
 
 import com.reguerta.user.data.news.InMemoryNewsRepository
 import com.reguerta.user.data.notifications.InMemoryNotificationRepository
+import com.reguerta.user.domain.access.Member
+import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.notifications.NotificationAudience
 import com.reguerta.user.domain.notifications.NotificationEvent
@@ -28,7 +30,7 @@ class ExampleUnitTest {
             ),
         )
 
-        val news = repository.getAllNews()
+        val news = repository.getNewsFor(testMember())
 
         assertEquals("news_002", news.first().id)
     }
@@ -40,7 +42,7 @@ class ExampleUnitTest {
         val deleted = repository.deleteNews("news_welcome_001")
 
         assertTrue(deleted)
-        assertTrue(repository.getAllNews().none { it.id == "news_welcome_001" })
+        assertTrue(repository.getNewsFor(testMember()).none { it.id == "news_welcome_001" })
     }
 
     @Test
@@ -63,7 +65,7 @@ class ExampleUnitTest {
             ),
         )
 
-        val notifications = repository.getAllNotifications()
+        val notifications = repository.getNotificationsFor(testMember())
 
         assertEquals("notification_002", notifications.first().id)
     }
@@ -117,6 +119,16 @@ private fun notificationEvent(
         sentAtMillis = sentAtMillis,
         weekKey = null,
     )
+
+private fun testMember(): Member = Member(
+    id = "member_test",
+    displayName = "Test Member",
+    normalizedEmail = "member@reguerta.app",
+    authUid = "uid_test",
+    roles = setOf(MemberRole.MEMBER),
+    isActive = true,
+    producerCatalogEnabled = false,
+)
 
 private fun NotificationAudience.toTarget(): String =
     when (this) {

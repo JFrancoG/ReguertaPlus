@@ -9,6 +9,8 @@ import com.reguerta.user.data.media.ImagePipelineManager
 import com.reguerta.user.domain.access.AuthSessionProvider
 import com.reguerta.user.domain.access.MemberRepository
 import com.reguerta.user.domain.access.ResolveAuthorizedSessionUseCase
+import com.reguerta.user.domain.access.NoOpSessionEnvironmentRouter
+import com.reguerta.user.domain.access.SessionEnvironmentRouter
 import com.reguerta.user.domain.access.SessionRefreshPolicy
 import com.reguerta.user.domain.access.SessionRefreshTrigger
 import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
@@ -31,8 +33,8 @@ import com.reguerta.user.domain.shifts.ShiftPlanningRequest
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestRepository
 import com.reguerta.user.domain.shifts.ShiftPlanningRequestType
 import com.reguerta.user.domain.shifts.ShiftRepository
-import com.reguerta.user.domain.shifts.ShiftSwapRequest
 import com.reguerta.user.domain.shifts.ShiftSwapRequestRepository
+import com.reguerta.user.domain.shifts.ShiftSwapResponseStatus
 import com.reguerta.user.presentation.auth.SessionAuthActions
 import com.reguerta.user.presentation.bylaws.SessionBylawsActions
 import com.reguerta.user.presentation.products.SessionProductActions
@@ -62,8 +64,15 @@ class SessionViewModel(
         override suspend fun submitShiftPlanningRequest(request: ShiftPlanningRequest): ShiftPlanningRequest = request
     },
     private val shiftSwapRequestRepository: ShiftSwapRequestRepository = object : ShiftSwapRequestRepository {
-        override suspend fun getAllShiftSwapRequests(): List<ShiftSwapRequest> = emptyList()
-        override suspend fun upsertShiftSwapRequest(request: ShiftSwapRequest): ShiftSwapRequest = request
+        override suspend fun getAllShiftSwapRequests() = emptyList<com.reguerta.user.domain.shifts.ShiftSwapRequest>()
+        override suspend fun createShiftSwapRequest(requestedShiftId: String, reason: String): String = ""
+        override suspend fun respondToShiftSwapRequest(
+            requestId: String,
+            candidateShiftId: String,
+            response: ShiftSwapResponseStatus,
+        ) = Unit
+        override suspend fun cancelShiftSwapRequest(requestId: String) = Unit
+        override suspend fun applyShiftSwapRequest(requestId: String, candidateShiftId: String) = Unit
     },
     private val authSessionProvider: AuthSessionProvider,
     private val resolveAuthorizedSession: ResolveAuthorizedSessionUseCase,
@@ -72,7 +81,7 @@ class SessionViewModel(
     private val pushNotificationPermissionProvider: PushNotificationPermissionProvider = PushNotificationPermissionProvider { true },
     private val resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase,
     private val criticalDataFreshnessLocalRepository: CriticalDataFreshnessLocalRepository,
-    private val reviewerEnvironmentRouter: ReviewerEnvironmentRouter = NoOpReviewerEnvironmentRouter,
+    private val sessionEnvironmentRouter: SessionEnvironmentRouter = NoOpSessionEnvironmentRouter,
     private val bylawsKnowledgeSource: BylawsKnowledgeSource = InMemoryBylawsKnowledgeSource(),
     private val bylawsEvidenceRetriever: BylawsEvidenceRetriever = BylawsEvidenceRetriever(),
     private val bylawsOnDeviceAssistant: BylawsOnDeviceAssistant = PdfOnlyBylawsOnDeviceAssistant,
@@ -135,7 +144,6 @@ class SessionViewModel(
             deliveryCalendarRepository = deliveryCalendarRepository,
             shiftPlanningRequestRepository = shiftPlanningRequestRepository,
             shiftSwapRequestRepository = shiftSwapRequestRepository,
-            notificationRepository = notificationRepository,
             nowMillisProvider = nowMillisProvider,
             emitMessage = ::emitMessage,
         )
@@ -156,7 +164,7 @@ class SessionViewModel(
             authorizedDeviceRegistrar = authorizedDeviceRegistrar,
             resolveCriticalDataFreshness = resolveCriticalDataFreshness,
             criticalDataFreshnessLocalRepository = criticalDataFreshnessLocalRepository,
-            reviewerEnvironmentRouter = reviewerEnvironmentRouter,
+            sessionEnvironmentRouter = sessionEnvironmentRouter,
             sessionRefreshPolicy = sessionRefreshPolicy,
             isSessionRefreshInFlight = isSessionRefreshInFlight,
             getLastSessionRefreshAtMillis = { lastSessionRefreshAtMillis },
