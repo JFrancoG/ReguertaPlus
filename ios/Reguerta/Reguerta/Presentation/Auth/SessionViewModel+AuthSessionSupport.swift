@@ -77,39 +77,47 @@ extension SessionViewModel {
     }
 
     func applyAuthorizedSession(principal: AuthPrincipal) async {
+        await applyAuthorizedSession(
+            principal: principal,
+            generation: sessionOperationGeneration
+        )
+    }
+
+    func applyAuthorizedSession(
+        principal: AuthPrincipal,
+        generation: UInt64
+    ) async {
         do {
             let result = try await resolveAuthorizedSession.execute(authPrincipal: principal)
+            guard isCurrentSessionOperation(generation) else { return }
             switch result {
             case .authorized(let member):
                 await applyAuthorizedSession(
                     principal: principal,
-                    member: member
+                    member: member,
+                    generation: generation
                 )
             case .unauthorized(let reason):
                 if reason == .emailVerificationRequired {
                     let resent = await authSessionProvider.sendCurrentUserEmailVerification()
+                    guard isCurrentSessionOperation(generation) else { return }
                     let signedOut = authSessionProvider.signOut()
-                    feedbackCenter.show(
-                        resent
+                    applyEmailVerificationRequiredSession(
+                        email: principal.email,
+                        firebaseSignOutSucceeded: signedOut,
+                        feedbackMessageKey: resent
                             ? AccessL10nKey.authInfoVerificationResent
                             : AccessL10nKey.authInfoVerificationPending
                     )
-                    if signedOut {
-                        environmentRouter.resetToBaseEnvironment()
-                        mode = .signedOut
-                    } else {
-                        applyUnauthorizedSession(
-                            principalEmail: principal.email,
-                            reason: .emailVerificationRequired
-                        )
-                    }
                 } else {
                     applyUnauthorizedSession(principalEmail: principal.email, reason: reason)
                 }
             }
         } catch FirebaseFunctionClientError.unauthorized {
+            guard isCurrentSessionOperation(generation) else { return }
             await handleExpiredSession()
         } catch {
+            guard isCurrentSessionOperation(generation) else { return }
             feedbackCenter.show(AccessL10nKey.authErrorNetwork)
             applyUnauthorizedSession(
                 principalEmail: principal.email,
@@ -130,16 +138,7 @@ extension SessionViewModel {
         showsExpiredDialog: Bool
     ) {
         let principalEmail = currentPrincipalEmail
-        clearSessionRefreshTracking()
-        environmentRouter.resetToBaseEnvironment()
-        Task {
-            await KeyManager.shared.remove(.authorizedMemberId)
-        }
-        resetAccessCredentialsAndErrors()
-        isAuthenticating = false
-        isRegistering = false
-        isRecoveringPassword = false
-        feedbackCenter.clear()
+        prepareForLocalSessionTermination()
         if firebaseSignOutSucceeded {
             mode = .signedOut
         } else {
@@ -151,6 +150,34 @@ extension SessionViewModel {
         }
         showSessionExpiredDialog = showsExpiredDialog
         showUnauthorizedDialog = !firebaseSignOutSucceeded && !showsExpiredDialog
+    }
+
+    func applyEmailVerificationRequiredSession(
+        email: String,
+        firebaseSignOutSucceeded: Bool,
+        feedbackMessageKey: String
+    ) {
+        prepareForLocalSessionTermination()
+        mode = firebaseSignOutSucceeded
+            ? .signedOut
+            : .unauthorized(email: email, reason: .emailVerificationRequired)
+        feedbackCenter.show(feedbackMessageKey)
+    }
+
+    private func prepareForLocalSessionTermination() {
+        invalidateSessionOperation()
+        clearSessionRefreshTracking()
+        environmentRouter.resetToBaseEnvironment()
+        Task {
+            await KeyManager.shared.remove(.authorizedMemberId)
+        }
+        resetAccessCredentialsAndErrors()
+        isAuthenticating = false
+        isRegistering = false
+        isRecoveringPassword = false
+        feedbackCenter.clear()
+        showSessionExpiredDialog = false
+        showUnauthorizedDialog = false
     }
 
     private var currentPrincipalEmail: String {
@@ -184,14 +211,83 @@ extension SessionViewModel {
         isSessionRefreshInFlight = false
     }
 
+    func canStartSessionRefresh(trigger: SessionRefreshTrigger) -> Bool {
+        guard !isAuthenticating, !isRegistering else { return false }
+        return sessionRefreshPolicy.shouldRefresh(
+            trigger: trigger,
+            lastRefreshAtMillis: lastSessionRefreshAtMillis,
+            nowMillis: nowMillisProvider(),
+            isRefreshInFlight: isSessionRefreshInFlight
+        )
+    }
+
+    func applySessionRefreshResult(
+        _ result: AuthSessionRefreshResult,
+        hadAuthenticatedSession: Bool,
+        generation: UInt64
+    ) async {
+        switch result {
+        case .noSession:
+            if hadAuthenticatedSession {
+                await handleExpiredSession()
+            }
+        case .active(let principal):
+            await applyAuthorizedSession(principal: principal, generation: generation)
+        case .emailVerificationRequired(let email):
+            applyEmailVerificationRequiredSession(
+                email: email,
+                firebaseSignOutSucceeded: authSessionProvider.signOut(),
+                feedbackMessageKey: AccessL10nKey.authInfoVerificationPending
+            )
+        case .failure(let reason):
+            let mapped = mapAuthFailure(reason, flow: .signIn)
+            feedbackCenter.show(mapped.globalMessageKey)
+        case .expired:
+            await handleExpiredSession()
+        }
+    }
+
+    func beginSessionOperation() -> SessionOperationContext {
+        let predecessor = invalidateSessionOperation()
+        return SessionOperationContext(
+            generation: sessionOperationGeneration,
+            predecessor: predecessor
+        )
+    }
+
+    @discardableResult
+    func invalidateSessionOperation() -> Task<Void, Never>? {
+        let invalidatedTask = sessionOperationTask
+        invalidatedTask?.cancel()
+        sessionOperationGeneration += 1
+        isAuthenticating = false
+        isRegistering = false
+        isSessionRefreshInFlight = false
+        return invalidatedTask
+    }
+
+    func isCurrentSessionOperation(_ generation: UInt64) -> Bool {
+        !Task.isCancelled && generation == sessionOperationGeneration
+    }
+
+    func finishSessionOperation(_ generation: UInt64) {
+        guard generation == sessionOperationGeneration else { return }
+        sessionOperationTask = nil
+        isAuthenticating = false
+        isRegistering = false
+        isSessionRefreshInFlight = false
+    }
+
     private func applyAuthorizedSession(
         principal: AuthPrincipal,
-        member: Member
+        member: Member,
+        generation: UInt64
     ) async {
         let members: [Member]
         do {
             members = try await repository.members(visibleTo: member)
         } catch {
+            guard isCurrentSessionOperation(generation) else { return }
             feedbackCenter.show(AccessL10nKey.authErrorNetwork)
             applyUnauthorizedSession(
                 principalEmail: principal.email,
@@ -199,6 +295,7 @@ extension SessionViewModel {
             )
             return
         }
+        guard isCurrentSessionOperation(generation) else { return }
         mode = .authorized(
             AuthorizedSession(
                 principal: principal,
@@ -209,6 +306,7 @@ extension SessionViewModel {
         )
         showSessionExpiredDialog = false
         showUnauthorizedDialog = false
+        guard isCurrentSessionOperation(generation) else { return }
         await registerAuthorizedDeviceBestEffort(member)
     }
 

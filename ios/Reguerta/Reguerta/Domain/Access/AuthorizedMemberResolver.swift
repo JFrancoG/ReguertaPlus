@@ -17,6 +17,16 @@ nonisolated enum AuthorizedMemberResolutionError: Error, Equatable, Sendable {
     case unauthorized(UnauthorizedReason)
 }
 
+nonisolated struct SessionEnvironmentLease: Equatable, Sendable {
+    private let id: UUID
+}
+
+extension SessionEnvironmentLease {
+    init() {
+        id = UUID()
+    }
+}
+
 nonisolated protocol AuthorizedMemberResolving: Sendable {
     func resolve(
         authPrincipal: AuthPrincipal,
@@ -27,6 +37,7 @@ nonisolated protocol AuthorizedMemberResolving: Sendable {
 @MainActor
 protocol SessionEnvironmentRouting: Sendable {
     var baseEnvironment: SessionEnvironment { get }
-    func applyResolvedEnvironment(_ environment: SessionEnvironment)
+    func applyResolvedEnvironment(_ environment: SessionEnvironment, lease: SessionEnvironmentLease)
+    func resetToBaseEnvironment(ifOwnedBy lease: SessionEnvironmentLease)
     func resetToBaseEnvironment()
 }
