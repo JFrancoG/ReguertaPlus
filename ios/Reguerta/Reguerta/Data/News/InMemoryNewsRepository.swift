@@ -54,6 +54,42 @@ actor InMemoryNewsRepository: NewsRepository {
     }
 }
 
+extension InMemoryNewsRepository {
+    static func uiTesting() -> InMemoryNewsRepository {
+        InMemoryNewsRepository(
+            items: [
+                NewsArticle(
+                    id: "news_ui_testing_brief",
+                    title: "Community garden update",
+                    body: "The irrigation review is complete.",
+                    active: true,
+                    publishedBy: "Ana Admin",
+                    publishedAtMillis: 1_711_849_800_000,
+                    urlImage: "reguerta-ui-test://news/brief"
+                ),
+                NewsArticle(
+                    id: "news_ui_testing_medium",
+                    title: "Saturday work group changes and updated meeting point",
+                    body: "The next work group will meet at the north gate before walking to the shared plots together.",
+                    active: true,
+                    publishedBy: "Ana Admin",
+                    publishedAtMillis: 1_711_849_700_000,
+                    urlImage: "reguerta-ui-test://news/medium"
+                ),
+                NewsArticle(
+                    id: "news_ui_testing_overflow_target",
+                    title: "Important cooperative assembly information for members and producer families",
+                    body: "Please review the agenda, accessibility notes, voting schedule, and arrival instructions before the assembly begins.",
+                    active: true,
+                    publishedBy: "Ana Admin",
+                    publishedAtMillis: 1_711_849_600_000,
+                    urlImage: "reguerta-ui-test://news/overflow-target"
+                )
+            ]
+        )
+    }
+}
+
 private func localizedSeedNews(_ article: NewsArticle) async -> NewsArticle {
     let title = await MainActor.run {
         NSLocalizedString(article.title, comment: "")

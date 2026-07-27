@@ -68,6 +68,7 @@ struct ReguertaAppEnvironment {
 
     static func uiTesting() -> ReguertaAppEnvironment {
         let memberRepository = InMemoryMemberRepository()
+        let newsRepository = InMemoryNewsRepository.uiTesting()
         let notificationRepository = InMemoryNotificationRepository()
         let feedbackCenter = GlobalFeedbackCenter()
         let nowMillisProvider: @MainActor () -> Int64 = {
@@ -102,6 +103,7 @@ struct ReguertaAppEnvironment {
                 nowMillisProvider: nowMillisProvider
             ),
             newsNotificationsFeatureDependencies: .preview(
+                newsRepository: newsRepository,
                 notificationRepository: notificationRepository,
                 nowMillisProvider: nowMillisProvider
             ),
