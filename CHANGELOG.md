@@ -125,6 +125,10 @@ All notable changes to this project will be documented in this file.
 - 2026-04-05 | 🐛 fix(shifts): refine imported schedule board and aliases
 - 2026-03-19 | 🐛 fix(firestore): use plus-collections paths
 
+### Tests
+
+- 2026-07-27 | ✅ test(ios): harden home news regression
+
 ### Documentation
 
 - 2026-07-27 | 📝 docs(firebase): record HU-070 rollout state

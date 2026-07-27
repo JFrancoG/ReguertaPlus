@@ -23,6 +23,9 @@ final class ReguertaUITests: XCTestCase {
     private let latestNewsTitleIdPrefix = "home.latestNews.article."
     private let latestNewsCardIdPrefix = "home.latestNews.articleCard."
     private let latestNewsScrollId = "home.latestNews.scroll"
+    private let latestNewsExpectedCount = 3
+    private let latestNewsOverflowTargetId = "news_ui_testing_overflow_target"
+    private let latestNewsMaxScrollAttempts = 4
     private let deterministicNowMillis = "1778760000000"
 
     override func setUpWithError() throws {
@@ -101,29 +104,50 @@ final class ReguertaUITests: XCTestCase {
             NSPredicate(format: "identifier BEGINSWITH %@", latestNewsTitleIdPrefix)
         )
         XCTAssertTrue(
-            waitForElementCount(latestNewsTitles, minimumCount: 1, timeout: 8),
-            "Latest news title not found"
+            waitForElementCount(latestNewsTitles, minimumCount: latestNewsExpectedCount, timeout: 8),
+            "Expected three deterministic latest news titles"
         )
+        XCTAssertEqual(latestNewsTitles.count, latestNewsExpectedCount)
 
         let latestNewsCards = app.otherElements.matching(
             NSPredicate(format: "identifier BEGINSWITH %@", latestNewsCardIdPrefix)
         )
         XCTAssertTrue(
-            waitForElementCount(latestNewsCards, minimumCount: 1, timeout: 3),
-            "Latest news card not found"
+            waitForElementCount(latestNewsCards, minimumCount: latestNewsExpectedCount, timeout: 3),
+            "Expected three deterministic latest news cards"
         )
+        XCTAssertEqual(latestNewsCards.count, latestNewsExpectedCount)
+
+        let targetTitle = app.staticTexts[latestNewsTitleId(for: latestNewsOverflowTargetId)]
+        let targetCard = app.otherElements[latestNewsCardId(for: latestNewsOverflowTargetId)]
+        XCTAssertTrue(targetTitle.waitForExistence(timeout: 3), "Overflow target title not found")
+        XCTAssertTrue(targetCard.waitForExistence(timeout: 3), "Overflow target card not found")
+
         let latestNewsScroll = app.scrollViews[latestNewsScrollId]
-        for _ in 0 ..< 4 {
+        XCTAssertTrue(latestNewsScroll.waitForExistence(timeout: 3), "Latest news scroll not found")
+
+        var scrollAttempts = 0
+        var keepsBottomBreathingRoom = targetCard.frame.maxY <= app.frame.maxY - 24
+        while (!targetTitle.isHittable || !keepsBottomBreathingRoom),
+              scrollAttempts < latestNewsMaxScrollAttempts {
             latestNewsScroll.swipeUp()
+            scrollAttempts += 1
+            keepsBottomBreathingRoom = targetCard.frame.maxY <= app.frame.maxY - 24
         }
 
-        let latestNewsTitle = latestNewsTitles.element(boundBy: latestNewsTitles.count - 1)
-        let latestNewsCard = latestNewsCards.element(boundBy: latestNewsCards.count - 1)
-        XCTAssertTrue(latestNewsTitle.isHittable, "Latest news title should be visible and hittable")
+        if !targetTitle.isHittable || !keepsBottomBreathingRoom {
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "P1-06 latest news overflow"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+            print(app.debugDescription)
+        }
+
+        XCTAssertTrue(targetTitle.isHittable, "Latest news overflow target should be visible and hittable")
         XCTAssertLessThanOrEqual(
-            latestNewsCard.frame.maxY,
+            targetCard.frame.maxY,
             app.frame.maxY - 24,
-            "Latest news card should keep visible bottom breathing room"
+            "Latest news overflow target should keep visible bottom breathing room"
         )
     }
 
@@ -240,6 +264,14 @@ final class ReguertaUITests: XCTestCase {
             "-reguerta_dev_time_machine.override_now_millis", deterministicNowMillis
         ]
         return app
+    }
+
+    private func latestNewsTitleId(for articleId: String) -> String {
+        "\(latestNewsTitleIdPrefix)\(articleId).title"
+    }
+
+    private func latestNewsCardId(for articleId: String) -> String {
+        "\(latestNewsCardIdPrefix)\(articleId)"
     }
 
     @MainActor
