@@ -37,3 +37,4 @@ Todo cambio no trivial de design-system debe incluir:
 - 2026-03-12: se establece estrategia semantic-first para naming y ciclo de vida.
 - 2026-03-12: se decide mantener implementacion nativa por plataforma alineando intencion compartida.
 - 2026-07-27: se establece como contrato de color estable la paleta WCAG AA de P1-09, sus pares semanticos de contenido, las variantes iOS Increased Contrast y los checks de contraste cross-platform automatizados.
+- 2026-07-27: se establece `color-tokens.json` como contrato de color revisable y `color-catalog.html` como su representacion visual generada, validada contra las fuentes de produccion iOS y Android.

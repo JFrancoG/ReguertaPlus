@@ -20,7 +20,8 @@ Trabajo priorizado para pasar del estado actual a un design-system cross-platfor
 
 - [x] Construir splash/welcome/auth solo con primitivas stable/candidate del design-system.
 - Validar responsive en dispositivos compactos y grandes.
-- Anadir un catalogo generado de color/contraste y un sandbox nativo para regresion visual.
+- [x] Anadir un catalogo generado de color/contraste respaldado por validacion de fuentes de produccion.
+- Anadir un sandbox nativo para regresion visual.
 
 ## P3 (Continuo)
 

@@ -1,0 +1,621 @@
+{
+  "schemaVersion": 1,
+  "catalog": {
+    "title": "Reguerta / Color & Contrast",
+    "subtitle": "Contrato semántico cross-platform",
+    "status": "stable",
+    "wcagVersion": "2.2",
+    "lastReviewed": "2026-07-27",
+    "issue": "https://github.com/JFrancoG/ReguertaPlus/issues/212"
+  },
+  "modes": [
+    {
+      "id": "light",
+      "label": "Light",
+      "appearance": "light",
+      "contrast": "standard"
+    },
+    {
+      "id": "dark",
+      "label": "Dark",
+      "appearance": "dark",
+      "contrast": "standard"
+    },
+    {
+      "id": "highContrastLight",
+      "label": "Increased Contrast · Light",
+      "appearance": "light",
+      "contrast": "increased"
+    },
+    {
+      "id": "highContrastDark",
+      "label": "Increased Contrast · Dark",
+      "appearance": "dark",
+      "contrast": "increased"
+    }
+  ],
+  "tokens": [
+    {
+      "id": "color-action-primary-default",
+      "label": "Action primary",
+      "category": "Action",
+      "role": "Acciones, enlaces y contenedores primarios.",
+      "platforms": {
+        "ios": {
+          "values": {
+            "light": "#3D681E",
+            "dark": "#6DA239",
+            "highContrastLight": "#315815",
+            "highContrastDark": "#A8DD75"
+          },
+          "source": {
+            "kind": "ios_assets",
+            "paths": [
+              "ios/Reguerta/Reguerta/Resources/Assets.xcassets/AccentColor.colorset/Contents.json",
+              "ios/Reguerta/Reguerta/Resources/Assets.xcassets/Colors/actionPrimary.colorset/Contents.json"
+            ]
+          }
+        },
+        "android": {
+          "values": {
+            "light": "#3D681E",
+            "dark": "#6DA239",
+            "highContrastLight": "#3D681E",
+            "highContrastDark": "#6DA239"
+          },
+          "source": {
+            "kind": "kotlin_symbols",
+            "path": "android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Color.kt",
+            "symbols": {
+              "light": "ColorActionPrimaryDefaultLight",
+              "dark": "ColorActionPrimaryDefaultDark"
+            }
+          }
+        }
+      },
+      "parity": {
+        "status": "aligned",
+        "note": "Los modos estándar coinciden; Android conserva la paleta estándar cuando iOS aumenta contraste."
+      }
+    },
+    {
+      "id": "color-action-on-primary-default",
+      "label": "On action",
+      "category": "Action",
+      "role": "Contenido sobre el contenedor de acción principal.",
+      "platforms": {
+        "ios": {
+          "values": {
+            "light": "#F2F8E1",
+            "dark": "#0F1D0D",
+            "highContrastLight": "#F2F8E1",
+            "highContrastDark": "#0F1D0D"
+          },
+          "source": {
+            "kind": "token_alias",
+            "token": "color-surface-primary-default",
+            "evidencePath": "ios/Reguerta/Reguerta/DesignSystem/ReguertaTheme.swift"
+          }
+        },
+        "android": {
+          "values": {
+            "light": "#F2F8E1",
+            "dark": "#0F1D0D",
+            "highContrastLight": "#F2F8E1",
+            "highContrastDark": "#0F1D0D"
+          },
+          "source": {
+            "kind": "kotlin_symbols",
+            "path": "android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Color.kt",
+            "symbols": {
+              "light": "ColorActionOnPrimaryLight",
+              "dark": "ColorActionOnPrimaryDark"
+            }
+          }
+        }
+      },
+      "parity": {
+        "status": "aligned",
+        "note": "Pareja explícita y opaca para contenido de acción."
+      }
+    },
+    {
+      "id": "color-control-accent-default",
+      "label": "Control accent",
+      "category": "Action",
+      "role": "Tint de controles nativos como Toggle y selección.",
+      "platforms": {
+        "ios": {
+          "values": {
+            "light": "#3D681E",
+            "dark": "#6DA239",
+            "highContrastLight": "#315815",
+            "highContrastDark": "#5B8B2D"
+          },
+          "source": {
+            "kind": "ios_assets",
+            "paths": [
+              "ios/Reguerta/Reguerta/Resources/Assets.xcassets/Colors/controlAccent.colorset/Contents.json"
+            ]
+          }
+        },
+        "android": {
+          "values": {
+            "light": "#3D681E",
+            "dark": "#6DA239",
+            "highContrastLight": "#3D681E",
+            "highContrastDark": "#6DA239"
+          },
+          "source": {
+            "kind": "token_alias",
+            "token": "color-action-primary-default",
+            "evidencePath": "android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Theme.kt"
+          }
+        }
+      },
+      "parity": {
+        "status": "platform-native",
+        "note": "iOS separa el modo HC oscuro para conservar contraste no textual; Material 3 usa primary."
+      }
+    },
+    {
+      "id": "color-surface-primary-default",
+      "label": "Surface primary",
+      "category": "Surface",
+      "role": "Lienzo y superficie principal de la aplicación.",
+      "platforms": {
+        "ios": {
+          "values": {
+            "light": "#F2F8E1",
+            "dark": "#0F1D0D",
+            "highContrastLight": "#F2F8E1",
+            "highContrastDark": "#0F1D0D"
+          },
+          "source": {
+            "kind": "ios_assets",
+            "paths": [
+              "ios/Reguerta/Reguerta/Resources/Assets.xcassets/Colors/mainBack.colorset/Contents.json"
+            ]
+          }
+        },
+        "android": {
+          "values": {
+            "light": "#F2F8E1",
+            "dark": "#0F1D0D",
+            "highContrastLight": "#F2F8E1",
+            "highContrastDark": "#0F1D0D"
+          },
+          "source": {
+            "kind": "kotlin_symbols",
+            "path": "android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Color.kt",
+            "symbols": {
+              "light": "ColorSurfacePrimaryDefaultLight",
+              "dark": "ColorSurfacePrimaryDefaultDark"
+            }
+          }
+        }
+      },
+      "parity": {
+        "status": "aligned",
+        "note": "Mismo lienzo semántico en ambas plataformas."
+      }
+    },
+    {
+      "id": "color-surface-secondary-default",
+      "label": "Surface secondary",
+      "category": "Surface",
+      "role": "Tarjetas, campos y superficies elevadas secundarias.",
+      "platforms": {
+        "ios": {
+          "values": {
+            "light": "#DDE5C0",
+            "dark": "#1A2B1B",
+            "highContrastLight": "#DDE5C0",
+            "highContrastDark": "#1A2B1B"
+          },
+          "source": {
+            "kind": "ios_assets",
+            "paths": [
+              "ios/Reguerta/Reguerta/Resources/Assets.xcassets/Colors/secBack.colorset/Contents.json"
+            ]
+          }
+        },
+        "android": {
+          "values": {
+            "light": "#DDE5C0",
+            "dark": "#1A2B1B",
+            "highContrastLight": "#DDE5C0",
+            "highContrastDark": "#1A2B1B"
+          },
+          "source": {
+            "kind": "kotlin_symbols",
+            "path": "android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Color.kt",
+            "symbols": {
+              "light": "ColorSurfaceSecondaryDefaultLight",
+              "dark": "ColorSurfaceSecondaryDefaultDark"
+            }
+          }
+        }
+      },
+      "parity": {
+        "status": "aligned",
+        "note": "Misma superficie secundaria en ambas plataformas."
+      }
+    },
+    {
+      "id": "color-text-primary-default",
+      "label": "Text primary",
+      "category": "Text",
+      "role": "Texto principal sobre superficies de la aplicación.",
+      "platforms": {
+        "ios": {
+          "values": {
+            "light": "#2A3B2A",
+            "dark": "#D1E1D1",
+            "highContrastLight": "#2A3B2A",
+            "highContrastDark": "#D1E1D1"
+          },
+          "source": {
+            "kind": "ios_assets",
+            "paths": [
+              "ios/Reguerta/Reguerta/Resources/Assets.xcassets/Colors/textColor.colorset/Contents.json"
+            ]
+          }
+        },
+        "android": {
+          "values": {
+            "light": "#2A3B2A",
+            "dark": "#D1E1D1",
+            "highContrastLight": "#2A3B2A",
+            "highContrastDark": "#D1E1D1"
+          },
+          "source": {
+            "kind": "kotlin_symbols",
+            "path": "android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Color.kt",
+            "symbols": {
+              "light": "ColorTextPrimaryDefaultLight",
+              "dark": "ColorTextPrimaryDefaultDark"
+            }
+          }
+        }
+      },
+      "parity": {
+        "status": "aligned",
+        "note": "Mismo contenido principal en ambas plataformas."
+      }
+    },
+    {
+      "id": "color-text-secondary-default",
+      "label": "Text secondary",
+      "category": "Text",
+      "role": "Contenido auxiliar, metadatos y estados deshabilitados.",
+      "platforms": {
+        "ios": {
+          "values": {
+            "light": "#4E5D4D",
+            "dark": "#B5C5B3",
+            "highContrastLight": "#4E5D4D",
+            "highContrastDark": "#B5C5B3"
+          },
+          "source": {
+            "kind": "swift_theme_hex",
+            "path": "ios/Reguerta/Reguerta/DesignSystem/ReguertaTheme.swift",
+            "property": "textSecondary"
+          }
+        },
+        "android": {
+          "values": {
+            "light": "#2A3B2A",
+            "dark": "#D1E1D1",
+            "highContrastLight": "#2A3B2A",
+            "highContrastDark": "#D1E1D1"
+          },
+          "source": {
+            "kind": "token_alias",
+            "token": "color-text-primary-default",
+            "evidencePath": "android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Theme.kt"
+          }
+        }
+      },
+      "parity": {
+        "status": "platform-native",
+        "note": "iOS usa un tono secundario dedicado; Material 3 hereda onSurface en onSurfaceVariant."
+      }
+    },
+    {
+      "id": "color-border-subtle-default",
+      "label": "Border subtle",
+      "category": "Surface",
+      "role": "Bordes auxiliares; no comunica estado por sí solo.",
+      "platforms": {
+        "ios": {
+          "values": {
+            "light": "#B9C8A2",
+            "dark": "#37513B",
+            "highContrastLight": "#B9C8A2",
+            "highContrastDark": "#37513B"
+          },
+          "source": {
+            "kind": "swift_theme_hex",
+            "path": "ios/Reguerta/Reguerta/DesignSystem/ReguertaTheme.swift",
+            "property": "borderSubtle"
+          }
+        },
+        "android": {
+          "values": {
+            "light": "#B9C8A2",
+            "dark": "#37513B",
+            "highContrastLight": "#B9C8A2",
+            "highContrastDark": "#37513B"
+          },
+          "source": {
+            "kind": "kotlin_symbols",
+            "path": "android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Color.kt",
+            "symbols": {
+              "light": "ColorBorderSubtleLight",
+              "dark": "ColorBorderSubtleDark"
+            }
+          }
+        }
+      },
+      "parity": {
+        "status": "aligned",
+        "note": "Decorativo o auxiliar; los estados esenciales añaden otra señal."
+      }
+    },
+    {
+      "id": "color-feedback-warning-default",
+      "label": "Warning",
+      "category": "Feedback",
+      "role": "Avisos que requieren atención sin ser destructivos.",
+      "platforms": {
+        "ios": {
+          "values": {
+            "light": "#843800",
+            "dark": "#FFAA70",
+            "highContrastLight": "#6D2B00",
+            "highContrastDark": "#FFC093"
+          },
+          "source": {
+            "kind": "ios_assets",
+            "paths": [
+              "ios/Reguerta/Reguerta/Resources/Assets.xcassets/Colors/warning.colorset/Contents.json"
+            ]
+          }
+        },
+        "android": {
+          "values": {
+            "light": "#843800",
+            "dark": "#FFAA70",
+            "highContrastLight": "#843800",
+            "highContrastDark": "#FFAA70"
+          },
+          "source": {
+            "kind": "kotlin_symbols",
+            "path": "android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Color.kt",
+            "symbols": {
+              "light": "ColorFeedbackWarningDefaultLight",
+              "dark": "ColorFeedbackWarningDefaultDark"
+            }
+          }
+        }
+      },
+      "parity": {
+        "status": "aligned",
+        "note": "Valores estándar alineados; iOS añade variantes de contraste aumentado."
+      }
+    },
+    {
+      "id": "color-feedback-error-default",
+      "label": "Error",
+      "category": "Feedback",
+      "role": "Errores, peligro y acciones destructivas.",
+      "platforms": {
+        "ios": {
+          "values": {
+            "light": "#8D3434",
+            "dark": "#F48787",
+            "highContrastLight": "#742222",
+            "highContrastDark": "#FFA5A5"
+          },
+          "source": {
+            "kind": "ios_assets",
+            "paths": [
+              "ios/Reguerta/Reguerta/Resources/Assets.xcassets/Colors/error.colorset/Contents.json"
+            ]
+          }
+        },
+        "android": {
+          "values": {
+            "light": "#8D3434",
+            "dark": "#F48787",
+            "highContrastLight": "#8D3434",
+            "highContrastDark": "#F48787"
+          },
+          "source": {
+            "kind": "kotlin_symbols",
+            "path": "android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Color.kt",
+            "symbols": {
+              "light": "ColorFeedbackErrorDefaultLight",
+              "dark": "ColorFeedbackErrorDefaultDark"
+            }
+          }
+        }
+      },
+      "parity": {
+        "status": "aligned",
+        "note": "Valores estándar alineados; iOS añade variantes de contraste aumentado."
+      }
+    },
+    {
+      "id": "color-feedback-on-error-default",
+      "label": "On error",
+      "category": "Feedback",
+      "role": "Contenido sobre contenedores destructivos opacos.",
+      "platforms": {
+        "ios": {
+          "values": {
+            "light": "#F2F8E1",
+            "dark": "#0F1D0D",
+            "highContrastLight": "#F2F8E1",
+            "highContrastDark": "#0F1D0D"
+          },
+          "source": {
+            "kind": "token_alias",
+            "token": "color-surface-primary-default",
+            "evidencePath": "ios/Reguerta/Reguerta/DesignSystem/ReguertaTheme.swift"
+          }
+        },
+        "android": {
+          "values": {
+            "light": "#F2F8E1",
+            "dark": "#0F1D0D",
+            "highContrastLight": "#F2F8E1",
+            "highContrastDark": "#0F1D0D"
+          },
+          "source": {
+            "kind": "token_alias",
+            "token": "color-action-on-primary-default",
+            "evidencePath": "android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Theme.kt"
+          }
+        }
+      },
+      "parity": {
+        "status": "aligned",
+        "note": "Pareja explícita para botones y superficies destructivas."
+      }
+    },
+    {
+      "id": "color-overlay-dialog-default",
+      "label": "Dialog overlay",
+      "category": "Overlay",
+      "role": "Scrim translúcido detrás de diálogos; no se usa como contenido.",
+      "platforms": {
+        "ios": {
+          "values": {
+            "light": "#938E8E66",
+            "dark": "#FEFFFF21",
+            "highContrastLight": "#938E8E66",
+            "highContrastDark": "#FEFFFF21"
+          },
+          "source": {
+            "kind": "ios_assets",
+            "paths": [
+              "ios/Reguerta/Reguerta/Resources/Assets.xcassets/Colors/dialogBack.colorset/Contents.json"
+            ]
+          }
+        },
+        "android": {
+          "values": {
+            "light": "#938E8E66",
+            "dark": "#FEFFFF21",
+            "highContrastLight": "#938E8E66",
+            "highContrastDark": "#FEFFFF21"
+          },
+          "source": {
+            "kind": "kotlin_symbols",
+            "path": "android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Color.kt",
+            "symbols": {
+              "light": "ColorDialogBackLight",
+              "dark": "ColorDialogBackDark"
+            }
+          }
+        }
+      },
+      "parity": {
+        "status": "aligned",
+        "note": "RGBA alineado; su contraste depende de la composición final."
+      }
+    }
+  ],
+  "pairs": [
+    {
+      "id": "primary-text-on-primary-surface",
+      "label": "Texto principal / superficie principal",
+      "foreground": "color-text-primary-default",
+      "background": "color-surface-primary-default",
+      "kind": "text",
+      "minimum": 4.5
+    },
+    {
+      "id": "secondary-text-on-primary-surface",
+      "label": "Texto secundario / superficie principal",
+      "foreground": "color-text-secondary-default",
+      "background": "color-surface-primary-default",
+      "kind": "text",
+      "minimum": 4.5
+    },
+    {
+      "id": "action-on-primary-surface",
+      "label": "Acción / superficie principal",
+      "foreground": "color-action-primary-default",
+      "background": "color-surface-primary-default",
+      "kind": "text",
+      "minimum": 4.5
+    },
+    {
+      "id": "action-on-secondary-surface",
+      "label": "Acción / superficie secundaria",
+      "foreground": "color-action-primary-default",
+      "background": "color-surface-secondary-default",
+      "kind": "text",
+      "minimum": 4.5
+    },
+    {
+      "id": "content-on-action",
+      "label": "Contenido / acción",
+      "foreground": "color-action-on-primary-default",
+      "background": "color-action-primary-default",
+      "kind": "text",
+      "minimum": 4.5
+    },
+    {
+      "id": "control-on-primary-surface",
+      "label": "Control / superficie principal",
+      "foreground": "color-control-accent-default",
+      "background": "color-surface-primary-default",
+      "kind": "non-text",
+      "minimum": 3.0
+    },
+    {
+      "id": "warning-on-primary-surface",
+      "label": "Warning / superficie principal",
+      "foreground": "color-feedback-warning-default",
+      "background": "color-surface-primary-default",
+      "kind": "text",
+      "minimum": 4.5
+    },
+    {
+      "id": "warning-on-secondary-surface",
+      "label": "Warning / superficie secundaria",
+      "foreground": "color-feedback-warning-default",
+      "background": "color-surface-secondary-default",
+      "kind": "text",
+      "minimum": 4.5
+    },
+    {
+      "id": "error-on-primary-surface",
+      "label": "Error / superficie principal",
+      "foreground": "color-feedback-error-default",
+      "background": "color-surface-primary-default",
+      "kind": "text",
+      "minimum": 4.5
+    },
+    {
+      "id": "error-on-secondary-surface",
+      "label": "Error / superficie secundaria",
+      "foreground": "color-feedback-error-default",
+      "background": "color-surface-secondary-default",
+      "kind": "text",
+      "minimum": 4.5
+    },
+    {
+      "id": "content-on-error",
+      "label": "Contenido / error",
+      "foreground": "color-feedback-on-error-default",
+      "background": "color-feedback-error-default",
+      "kind": "text",
+      "minimum": 4.5
+    }
+  ]
+}

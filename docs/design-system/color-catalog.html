@@ -1,0 +1,2429 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="generator" content="Reguerta color catalog 1.0.0">
+  <meta name="contract-digest" content="51d844f3757e">
+  <title>Reguerta / Color &amp; Contrast</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #182315;
+      --muted: #596654;
+      --canvas: #eef3e4;
+      --paper: #fbfdf6;
+      --line: #cbd5bd;
+      --brand: #3d681e;
+      --brand-soft: #dce9c8;
+      --danger: #8d3434;
+      --radius: 22px;
+      --shadow: 0 18px 55px rgba(33, 54, 25, .10);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--canvas); color: var(--ink); }
+    body { margin: 0; }
+    code { font: 500 .78rem ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+    .shell { width: min(1440px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 96px; }
+    .hero { display: grid; grid-template-columns: 1.5fr .9fr; gap: 32px; align-items: end; padding: 48px; border: 1px solid var(--line); border-radius: 32px; background: var(--paper); box-shadow: var(--shadow); }
+    .kicker, .section-kicker, .category, .preview-meta, .mode-card header p { text-transform: uppercase; letter-spacing: .14em; font-size: .7rem; font-weight: 800; }
+    .kicker, .section-kicker { color: var(--brand); }
+    h1 { margin: 10px 0 12px; font-size: clamp(2.5rem, 7vw, 5.8rem); line-height: .92; letter-spacing: -.055em; }
+    .lede { max-width: 760px; margin: 0; color: var(--muted); font-size: 1.08rem; line-height: 1.65; }
+    .hero-meta { display: grid; gap: 10px; }
+    .meta-card { display: flex; justify-content: space-between; gap: 20px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+    .meta-card span { color: var(--muted); }
+    .generated-note { margin: 18px 0 0; padding: 14px 18px; border-left: 4px solid var(--brand); background: var(--brand-soft); border-radius: 0 12px 12px 0; }
+    section.catalog-section { margin-top: 72px; }
+    .section-head { display: flex; align-items: end; justify-content: space-between; gap: 32px; margin-bottom: 22px; }
+    .section-head h2 { margin: 6px 0 0; font-size: clamp(1.8rem, 4vw, 3.3rem); letter-spacing: -.035em; }
+    .section-head p:last-child { max-width: 580px; color: var(--muted); line-height: 1.55; }
+    .mode-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+    .mode-card, .matrix-card, .preview-card, .provenance-card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); box-shadow: var(--shadow); overflow: hidden; }
+    .mode-card > header { display: flex; justify-content: space-between; align-items: center; padding: 22px 24px; border-bottom: 1px solid var(--line); }
+    .mode-card header p, .mode-card h3 { margin: 0; }
+    .mode-card h3 { margin-top: 5px; font-size: 1.35rem; }
+    .mode-dot { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); box-shadow: inset 0 0 0 8px rgba(255,255,255,.15); }
+    .mode-dot.light { background: #f2f8e1; }
+    .mode-dot.dark { background: #0f1d0d; }
+    .token-list { display: grid; }
+    .token-row { display: grid; grid-template-columns: minmax(190px, 1fr) minmax(220px, 1.25fr); gap: 18px; padding: 16px 24px; border-top: 1px solid color-mix(in srgb, var(--line), transparent 30%); }
+    .token-row:first-child { border-top: 0; }
+    .token-copy { display: grid; align-content: center; gap: 3px; min-width: 0; }
+    .token-copy .category { color: var(--brand); }
+    .token-copy code { color: var(--muted); }
+    .token-values { display: grid; gap: 7px; }
+    .value { display: grid; grid-template-columns: 28px 68px 1fr; gap: 9px; align-items: center; }
+    .value.aligned { grid-template-columns: 28px 100px 1fr; }
+    .chip { width: 28px; height: 28px; border-radius: 8px; background: var(--swatch); border: 1px solid rgba(20,30,18,.18); box-shadow: inset 0 0 0 1px rgba(255,255,255,.15); }
+    .platforms { color: var(--muted); font-size: .76rem; font-weight: 750; }
+    .matrix-grid { display: grid; gap: 18px; }
+    .matrix-card summary { display: flex; justify-content: space-between; gap: 24px; padding: 20px 24px; cursor: pointer; font-weight: 800; }
+    .matrix-card summary span { color: var(--muted); font-weight: 500; }
+    .table-scroll { overflow-x: auto; border-top: 1px solid var(--line); }
+    table { width: 100%; border-collapse: collapse; min-width: 760px; }
+    th, td { padding: 14px 18px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: middle; }
+    thead th { background: #eef3e5; color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; }
+    tbody tr:last-child > * { border-bottom: 0; }
+    tbody th { width: 42%; }
+    tbody th small { display: block; margin-top: 4px; color: var(--muted); font-weight: 500; }
+    .ratio-line { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+    .pair-chips { display: inline-flex; }
+    .pair-chips i { width: 17px; height: 28px; background: var(--swatch); border: 1px solid rgba(0,0,0,.16); }
+    .pair-chips i:first-child { border-radius: 7px 0 0 7px; }
+    .pair-chips i:last-child { border-radius: 0 7px 7px 0; }
+    .badge { padding: 4px 7px; border-radius: 999px; font-size: .67rem; font-weight: 900; letter-spacing: .04em; }
+    .badge.pass { background: #d9edc5; color: #315815; }
+    .badge.fail { background: #f7d4d4; color: #742222; }
+    .preview-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+    .preview-meta { display: flex; justify-content: space-between; gap: 12px; padding: 13px 16px; border-bottom: 1px solid var(--line); color: var(--muted); }
+    .preview-meta strong { color: var(--brand); text-transform: uppercase; }
+    .app-preview { min-height: 425px; padding: 22px; background: var(--surface); color: var(--text); }
+    .app-preview .eyebrow { margin: 0; color: var(--action); font-size: .74rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+    .app-preview h3 { margin: 7px 0; font-size: 1.8rem; }
+    .app-preview .secondary { min-height: 42px; color: var(--text-secondary); line-height: 1.45; }
+    .mini-card { display: flex; justify-content: space-between; gap: 14px; margin: 18px 0; padding: 15px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface-secondary); }
+    .feedback { font-size: .82rem; font-weight: 800; }
+    .feedback.warning { color: var(--warning); }
+    .feedback.error { color: var(--error); }
+    .control-row { display: flex; align-items: center; justify-content: space-between; margin: 22px 0; font-weight: 750; }
+    .toggle { width: 50px; height: 30px; padding: 3px; border-radius: 99px; background: var(--control); }
+    .toggle i { display: block; width: 24px; height: 24px; margin-left: auto; border-radius: 50%; background: var(--surface); }
+    .primary-button { padding: 13px 16px; border-radius: 14px; background: var(--action); color: var(--on-action); text-align: center; font-weight: 900; }
+    .provenance-card { overflow-x: auto; }
+    .provenance-card table { min-width: 1100px; }
+    .provenance-card tbody th { width: 20%; }
+    .provenance-card td { color: var(--muted); font-size: .82rem; line-height: 1.45; }
+    .parity { display: inline-block; margin-bottom: 4px; color: var(--ink); font-weight: 900; }
+    .parity.platform-native { color: #6d2b00; }
+    .checklist { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding: 0; list-style: none; }
+    .checklist li { position: relative; padding: 18px 18px 18px 48px; border: 1px solid var(--line); border-radius: 16px; background: var(--paper); line-height: 1.45; }
+    .checklist li::before { content: "✓"; position: absolute; left: 18px; top: 18px; width: 20px; height: 20px; border-radius: 50%; background: var(--brand); color: white; text-align: center; line-height: 20px; font-size: .72rem; font-weight: 900; }
+    footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--muted); display: flex; justify-content: space-between; gap: 24px; }
+    @media (max-width: 1100px) {
+      .preview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .checklist { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 820px) {
+      .shell { width: min(100% - 20px, 720px); padding-top: 10px; }
+      .hero { grid-template-columns: 1fr; padding: 28px; }
+      .mode-grid, .preview-grid { grid-template-columns: 1fr; }
+      .section-head { display: block; }
+      .token-row { grid-template-columns: 1fr; }
+      .checklist { grid-template-columns: 1fr; }
+      footer { display: block; }
+    }
+    @media print {
+      .shell { width: 100%; padding: 0; }
+      .hero, .mode-card, .matrix-card, .preview-card, .provenance-card { box-shadow: none; break-inside: avoid; }
+    }
+    </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <p class="kicker">Design System · Color</p>
+        <h1>Reguerta / Color &amp; Contrast</h1>
+        <p class="lede">Contrato semántico cross-platform. Paleta efectiva por plataforma, contraste WCAG 2.2 calculado y componentes en contexto.</p>
+        <p class="generated-note"><strong>Artefacto generado.</strong> No editar este HTML. Cambia <code>color-tokens.json</code> y ejecuta el generador.</p>
+      </div>
+      <div class="hero-meta">
+        <div class="meta-card"><span>Estado</span><strong>stable</strong></div>
+        <div class="meta-card"><span>Revisión</span><strong>2026-07-27</strong></div>
+        <div class="meta-card"><span>Contrato</span><strong>12 tokens · 51d844f3757e</strong></div>
+        <div class="meta-card"><span>WCAG</span><strong class="pass">Todas las parejas pasan</strong></div>
+      </div>
+    </header>
+
+    <section class="catalog-section" aria-labelledby="palette-title">
+      <div class="section-head">
+        <div><p class="section-kicker">01 — Palette</p><h2 id="palette-title">Paleta por modo</h2></div>
+        <p>Un solo nombre semántico, con el valor realmente resuelto por iOS y Android. Las diferencias nativas aparecen separadas, nunca ocultas.</p>
+      </div>
+      <div class="mode-grid">
+            <section class="mode-card">
+              <header>
+                <div>
+                  <p>standard contrast</p>
+                  <h3>Light</h3>
+                </div>
+                <span class="mode-dot light" aria-hidden="true"></span>
+              </header>
+              <div class="token-list">
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Action</span>
+                    <strong>Action primary</strong>
+                    <code>color-action-primary-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#3D681E"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#3D681E</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Action</span>
+                    <strong>On action</strong>
+                    <code>color-action-on-primary-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#F2F8E1"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#F2F8E1</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Action</span>
+                    <strong>Control accent</strong>
+                    <code>color-control-accent-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#3D681E"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#3D681E</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Surface</span>
+                    <strong>Surface primary</strong>
+                    <code>color-surface-primary-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#F2F8E1"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#F2F8E1</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Surface</span>
+                    <strong>Surface secondary</strong>
+                    <code>color-surface-secondary-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#DDE5C0"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#DDE5C0</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Text</span>
+                    <strong>Text primary</strong>
+                    <code>color-text-primary-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#2A3B2A"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#2A3B2A</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Text</span>
+                    <strong>Text secondary</strong>
+                    <code>color-text-secondary-default</code>
+                  </div>
+                  <div class="token-values">
+                    <div class="value">
+                      <span class="chip" style="--swatch:#4E5D4D"></span>
+                      <span class="platforms">iOS</span>
+                      <code>#4E5D4D</code>
+                    </div>
+                    <div class="value">
+                      <span class="chip" style="--swatch:#2A3B2A"></span>
+                      <span class="platforms">Android</span>
+                      <code>#2A3B2A</code>
+                    </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Surface</span>
+                    <strong>Border subtle</strong>
+                    <code>color-border-subtle-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#B9C8A2"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#B9C8A2</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Feedback</span>
+                    <strong>Warning</strong>
+                    <code>color-feedback-warning-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#843800"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#843800</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Feedback</span>
+                    <strong>Error</strong>
+                    <code>color-feedback-error-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#8D3434"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#8D3434</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Feedback</span>
+                    <strong>On error</strong>
+                    <code>color-feedback-on-error-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#F2F8E1"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#F2F8E1</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Overlay</span>
+                    <strong>Dialog overlay</strong>
+                    <code>color-overlay-dialog-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#938E8E66"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#938E8E66</code>
+                  </div></div>
+                </article></div>
+            </section>
+            <section class="mode-card">
+              <header>
+                <div>
+                  <p>standard contrast</p>
+                  <h3>Dark</h3>
+                </div>
+                <span class="mode-dot dark" aria-hidden="true"></span>
+              </header>
+              <div class="token-list">
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Action</span>
+                    <strong>Action primary</strong>
+                    <code>color-action-primary-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#6DA239"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#6DA239</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Action</span>
+                    <strong>On action</strong>
+                    <code>color-action-on-primary-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#0F1D0D"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#0F1D0D</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Action</span>
+                    <strong>Control accent</strong>
+                    <code>color-control-accent-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#6DA239"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#6DA239</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Surface</span>
+                    <strong>Surface primary</strong>
+                    <code>color-surface-primary-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#0F1D0D"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#0F1D0D</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Surface</span>
+                    <strong>Surface secondary</strong>
+                    <code>color-surface-secondary-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#1A2B1B"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#1A2B1B</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Text</span>
+                    <strong>Text primary</strong>
+                    <code>color-text-primary-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#D1E1D1"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#D1E1D1</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Text</span>
+                    <strong>Text secondary</strong>
+                    <code>color-text-secondary-default</code>
+                  </div>
+                  <div class="token-values">
+                    <div class="value">
+                      <span class="chip" style="--swatch:#B5C5B3"></span>
+                      <span class="platforms">iOS</span>
+                      <code>#B5C5B3</code>
+                    </div>
+                    <div class="value">
+                      <span class="chip" style="--swatch:#D1E1D1"></span>
+                      <span class="platforms">Android</span>
+                      <code>#D1E1D1</code>
+                    </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Surface</span>
+                    <strong>Border subtle</strong>
+                    <code>color-border-subtle-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#37513B"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#37513B</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Feedback</span>
+                    <strong>Warning</strong>
+                    <code>color-feedback-warning-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#FFAA70"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#FFAA70</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Feedback</span>
+                    <strong>Error</strong>
+                    <code>color-feedback-error-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#F48787"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#F48787</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Feedback</span>
+                    <strong>On error</strong>
+                    <code>color-feedback-on-error-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#0F1D0D"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#0F1D0D</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Overlay</span>
+                    <strong>Dialog overlay</strong>
+                    <code>color-overlay-dialog-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#FEFFFF21"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#FEFFFF21</code>
+                  </div></div>
+                </article></div>
+            </section>
+            <section class="mode-card">
+              <header>
+                <div>
+                  <p>increased contrast</p>
+                  <h3>Increased Contrast · Light</h3>
+                </div>
+                <span class="mode-dot light" aria-hidden="true"></span>
+              </header>
+              <div class="token-list">
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Action</span>
+                    <strong>Action primary</strong>
+                    <code>color-action-primary-default</code>
+                  </div>
+                  <div class="token-values">
+                    <div class="value">
+                      <span class="chip" style="--swatch:#315815"></span>
+                      <span class="platforms">iOS</span>
+                      <code>#315815</code>
+                    </div>
+                    <div class="value">
+                      <span class="chip" style="--swatch:#3D681E"></span>
+                      <span class="platforms">Android</span>
+                      <code>#3D681E</code>
+                    </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Action</span>
+                    <strong>On action</strong>
+                    <code>color-action-on-primary-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#F2F8E1"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#F2F8E1</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Action</span>
+                    <strong>Control accent</strong>
+                    <code>color-control-accent-default</code>
+                  </div>
+                  <div class="token-values">
+                    <div class="value">
+                      <span class="chip" style="--swatch:#315815"></span>
+                      <span class="platforms">iOS</span>
+                      <code>#315815</code>
+                    </div>
+                    <div class="value">
+                      <span class="chip" style="--swatch:#3D681E"></span>
+                      <span class="platforms">Android</span>
+                      <code>#3D681E</code>
+                    </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Surface</span>
+                    <strong>Surface primary</strong>
+                    <code>color-surface-primary-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#F2F8E1"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#F2F8E1</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Surface</span>
+                    <strong>Surface secondary</strong>
+                    <code>color-surface-secondary-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#DDE5C0"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#DDE5C0</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Text</span>
+                    <strong>Text primary</strong>
+                    <code>color-text-primary-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#2A3B2A"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#2A3B2A</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Text</span>
+                    <strong>Text secondary</strong>
+                    <code>color-text-secondary-default</code>
+                  </div>
+                  <div class="token-values">
+                    <div class="value">
+                      <span class="chip" style="--swatch:#4E5D4D"></span>
+                      <span class="platforms">iOS</span>
+                      <code>#4E5D4D</code>
+                    </div>
+                    <div class="value">
+                      <span class="chip" style="--swatch:#2A3B2A"></span>
+                      <span class="platforms">Android</span>
+                      <code>#2A3B2A</code>
+                    </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Surface</span>
+                    <strong>Border subtle</strong>
+                    <code>color-border-subtle-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#B9C8A2"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#B9C8A2</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Feedback</span>
+                    <strong>Warning</strong>
+                    <code>color-feedback-warning-default</code>
+                  </div>
+                  <div class="token-values">
+                    <div class="value">
+                      <span class="chip" style="--swatch:#6D2B00"></span>
+                      <span class="platforms">iOS</span>
+                      <code>#6D2B00</code>
+                    </div>
+                    <div class="value">
+                      <span class="chip" style="--swatch:#843800"></span>
+                      <span class="platforms">Android</span>
+                      <code>#843800</code>
+                    </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Feedback</span>
+                    <strong>Error</strong>
+                    <code>color-feedback-error-default</code>
+                  </div>
+                  <div class="token-values">
+                    <div class="value">
+                      <span class="chip" style="--swatch:#742222"></span>
+                      <span class="platforms">iOS</span>
+                      <code>#742222</code>
+                    </div>
+                    <div class="value">
+                      <span class="chip" style="--swatch:#8D3434"></span>
+                      <span class="platforms">Android</span>
+                      <code>#8D3434</code>
+                    </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Feedback</span>
+                    <strong>On error</strong>
+                    <code>color-feedback-on-error-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#F2F8E1"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#F2F8E1</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Overlay</span>
+                    <strong>Dialog overlay</strong>
+                    <code>color-overlay-dialog-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#938E8E66"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#938E8E66</code>
+                  </div></div>
+                </article></div>
+            </section>
+            <section class="mode-card">
+              <header>
+                <div>
+                  <p>increased contrast</p>
+                  <h3>Increased Contrast · Dark</h3>
+                </div>
+                <span class="mode-dot dark" aria-hidden="true"></span>
+              </header>
+              <div class="token-list">
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Action</span>
+                    <strong>Action primary</strong>
+                    <code>color-action-primary-default</code>
+                  </div>
+                  <div class="token-values">
+                    <div class="value">
+                      <span class="chip" style="--swatch:#A8DD75"></span>
+                      <span class="platforms">iOS</span>
+                      <code>#A8DD75</code>
+                    </div>
+                    <div class="value">
+                      <span class="chip" style="--swatch:#6DA239"></span>
+                      <span class="platforms">Android</span>
+                      <code>#6DA239</code>
+                    </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Action</span>
+                    <strong>On action</strong>
+                    <code>color-action-on-primary-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#0F1D0D"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#0F1D0D</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Action</span>
+                    <strong>Control accent</strong>
+                    <code>color-control-accent-default</code>
+                  </div>
+                  <div class="token-values">
+                    <div class="value">
+                      <span class="chip" style="--swatch:#5B8B2D"></span>
+                      <span class="platforms">iOS</span>
+                      <code>#5B8B2D</code>
+                    </div>
+                    <div class="value">
+                      <span class="chip" style="--swatch:#6DA239"></span>
+                      <span class="platforms">Android</span>
+                      <code>#6DA239</code>
+                    </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Surface</span>
+                    <strong>Surface primary</strong>
+                    <code>color-surface-primary-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#0F1D0D"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#0F1D0D</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Surface</span>
+                    <strong>Surface secondary</strong>
+                    <code>color-surface-secondary-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#1A2B1B"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#1A2B1B</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Text</span>
+                    <strong>Text primary</strong>
+                    <code>color-text-primary-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#D1E1D1"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#D1E1D1</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Text</span>
+                    <strong>Text secondary</strong>
+                    <code>color-text-secondary-default</code>
+                  </div>
+                  <div class="token-values">
+                    <div class="value">
+                      <span class="chip" style="--swatch:#B5C5B3"></span>
+                      <span class="platforms">iOS</span>
+                      <code>#B5C5B3</code>
+                    </div>
+                    <div class="value">
+                      <span class="chip" style="--swatch:#D1E1D1"></span>
+                      <span class="platforms">Android</span>
+                      <code>#D1E1D1</code>
+                    </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Surface</span>
+                    <strong>Border subtle</strong>
+                    <code>color-border-subtle-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#37513B"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#37513B</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Feedback</span>
+                    <strong>Warning</strong>
+                    <code>color-feedback-warning-default</code>
+                  </div>
+                  <div class="token-values">
+                    <div class="value">
+                      <span class="chip" style="--swatch:#FFC093"></span>
+                      <span class="platforms">iOS</span>
+                      <code>#FFC093</code>
+                    </div>
+                    <div class="value">
+                      <span class="chip" style="--swatch:#FFAA70"></span>
+                      <span class="platforms">Android</span>
+                      <code>#FFAA70</code>
+                    </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Feedback</span>
+                    <strong>Error</strong>
+                    <code>color-feedback-error-default</code>
+                  </div>
+                  <div class="token-values">
+                    <div class="value">
+                      <span class="chip" style="--swatch:#FFA5A5"></span>
+                      <span class="platforms">iOS</span>
+                      <code>#FFA5A5</code>
+                    </div>
+                    <div class="value">
+                      <span class="chip" style="--swatch:#F48787"></span>
+                      <span class="platforms">Android</span>
+                      <code>#F48787</code>
+                    </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Feedback</span>
+                    <strong>On error</strong>
+                    <code>color-feedback-on-error-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#0F1D0D"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#0F1D0D</code>
+                  </div></div>
+                </article>
+                <article class="token-row">
+                  <div class="token-copy">
+                    <span class="category">Overlay</span>
+                    <strong>Dialog overlay</strong>
+                    <code>color-overlay-dialog-default</code>
+                  </div>
+                  <div class="token-values">
+                  <div class="value aligned">
+                    <span class="chip" style="--swatch:#FEFFFF21"></span>
+                    <span class="platforms">iOS · Android</span>
+                    <code>#FEFFFF21</code>
+                  </div></div>
+                </article></div>
+            </section></div>
+    </section>
+
+    <section class="catalog-section" aria-labelledby="contrast-title">
+      <div class="section-head">
+        <div><p class="section-kicker">02 — WCAG 2.2</p><h2 id="contrast-title">Matriz de contraste</h2></div>
+        <p>La decisión PASS/FAIL usa el ratio completo. El valor visible se redondea únicamente para lectura.</p>
+      </div>
+      <div class="matrix-grid">
+            <details class="matrix-card" open>
+              <summary>Light<span>22 comprobaciones</span></summary>
+              <div class="table-scroll">
+                <table>
+                  <thead><tr><th>Par semántico</th><th>iOS</th><th>Android</th></tr></thead>
+                  <tbody>
+                <tr>
+                  <th scope="row">
+                    Texto principal / superficie principal
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#2A3B2A"></i>
+                          <i style="--swatch:#F2F8E1"></i>
+                        </span>
+                        <strong>10.98:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#2A3B2A"></i>
+                          <i style="--swatch:#F2F8E1"></i>
+                        </span>
+                        <strong>10.98:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Texto secundario / superficie principal
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#4E5D4D"></i>
+                          <i style="--swatch:#F2F8E1"></i>
+                        </span>
+                        <strong>6.44:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#2A3B2A"></i>
+                          <i style="--swatch:#F2F8E1"></i>
+                        </span>
+                        <strong>10.98:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Acción / superficie principal
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#3D681E"></i>
+                          <i style="--swatch:#F2F8E1"></i>
+                        </span>
+                        <strong>6.03:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#3D681E"></i>
+                          <i style="--swatch:#F2F8E1"></i>
+                        </span>
+                        <strong>6.03:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Acción / superficie secundaria
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#3D681E"></i>
+                          <i style="--swatch:#DDE5C0"></i>
+                        </span>
+                        <strong>5.02:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#3D681E"></i>
+                          <i style="--swatch:#DDE5C0"></i>
+                        </span>
+                        <strong>5.02:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Contenido / acción
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#F2F8E1"></i>
+                          <i style="--swatch:#3D681E"></i>
+                        </span>
+                        <strong>6.03:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#F2F8E1"></i>
+                          <i style="--swatch:#3D681E"></i>
+                        </span>
+                        <strong>6.03:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Control / superficie principal
+                    <small>non-text · mínimo 3.0:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#3D681E"></i>
+                          <i style="--swatch:#F2F8E1"></i>
+                        </span>
+                        <strong>6.03:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#3D681E"></i>
+                          <i style="--swatch:#F2F8E1"></i>
+                        </span>
+                        <strong>6.03:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Warning / superficie principal
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#843800"></i>
+                          <i style="--swatch:#F2F8E1"></i>
+                        </span>
+                        <strong>7.57:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#843800"></i>
+                          <i style="--swatch:#F2F8E1"></i>
+                        </span>
+                        <strong>7.57:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Warning / superficie secundaria
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#843800"></i>
+                          <i style="--swatch:#DDE5C0"></i>
+                        </span>
+                        <strong>6.30:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#843800"></i>
+                          <i style="--swatch:#DDE5C0"></i>
+                        </span>
+                        <strong>6.30:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Error / superficie principal
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#8D3434"></i>
+                          <i style="--swatch:#F2F8E1"></i>
+                        </span>
+                        <strong>7.22:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#8D3434"></i>
+                          <i style="--swatch:#F2F8E1"></i>
+                        </span>
+                        <strong>7.22:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Error / superficie secundaria
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#8D3434"></i>
+                          <i style="--swatch:#DDE5C0"></i>
+                        </span>
+                        <strong>6.00:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#8D3434"></i>
+                          <i style="--swatch:#DDE5C0"></i>
+                        </span>
+                        <strong>6.00:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Contenido / error
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#F2F8E1"></i>
+                          <i style="--swatch:#8D3434"></i>
+                        </span>
+                        <strong>7.22:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#F2F8E1"></i>
+                          <i style="--swatch:#8D3434"></i>
+                        </span>
+                        <strong>7.22:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr></tbody>
+                </table>
+              </div>
+            </details>
+            <details class="matrix-card" open>
+              <summary>Dark<span>22 comprobaciones</span></summary>
+              <div class="table-scroll">
+                <table>
+                  <thead><tr><th>Par semántico</th><th>iOS</th><th>Android</th></tr></thead>
+                  <tbody>
+                <tr>
+                  <th scope="row">
+                    Texto principal / superficie principal
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#D1E1D1"></i>
+                          <i style="--swatch:#0F1D0D"></i>
+                        </span>
+                        <strong>12.81:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#D1E1D1"></i>
+                          <i style="--swatch:#0F1D0D"></i>
+                        </span>
+                        <strong>12.81:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Texto secundario / superficie principal
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#B5C5B3"></i>
+                          <i style="--swatch:#0F1D0D"></i>
+                        </span>
+                        <strong>9.65:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#D1E1D1"></i>
+                          <i style="--swatch:#0F1D0D"></i>
+                        </span>
+                        <strong>12.81:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Acción / superficie principal
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#6DA239"></i>
+                          <i style="--swatch:#0F1D0D"></i>
+                        </span>
+                        <strong>5.72:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#6DA239"></i>
+                          <i style="--swatch:#0F1D0D"></i>
+                        </span>
+                        <strong>5.72:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Acción / superficie secundaria
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#6DA239"></i>
+                          <i style="--swatch:#1A2B1B"></i>
+                        </span>
+                        <strong>4.89:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#6DA239"></i>
+                          <i style="--swatch:#1A2B1B"></i>
+                        </span>
+                        <strong>4.89:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Contenido / acción
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#0F1D0D"></i>
+                          <i style="--swatch:#6DA239"></i>
+                        </span>
+                        <strong>5.72:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#0F1D0D"></i>
+                          <i style="--swatch:#6DA239"></i>
+                        </span>
+                        <strong>5.72:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Control / superficie principal
+                    <small>non-text · mínimo 3.0:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#6DA239"></i>
+                          <i style="--swatch:#0F1D0D"></i>
+                        </span>
+                        <strong>5.72:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#6DA239"></i>
+                          <i style="--swatch:#0F1D0D"></i>
+                        </span>
+                        <strong>5.72:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Warning / superficie principal
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#FFAA70"></i>
+                          <i style="--swatch:#0F1D0D"></i>
+                        </span>
+                        <strong>9.35:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#FFAA70"></i>
+                          <i style="--swatch:#0F1D0D"></i>
+                        </span>
+                        <strong>9.35:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Warning / superficie secundaria
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#FFAA70"></i>
+                          <i style="--swatch:#1A2B1B"></i>
+                        </span>
+                        <strong>8.00:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#FFAA70"></i>
+                          <i style="--swatch:#1A2B1B"></i>
+                        </span>
+                        <strong>8.00:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Error / superficie principal
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#F48787"></i>
+                          <i style="--swatch:#0F1D0D"></i>
+                        </span>
+                        <strong>7.21:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#F48787"></i>
+                          <i style="--swatch:#0F1D0D"></i>
+                        </span>
+                        <strong>7.21:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Error / superficie secundaria
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#F48787"></i>
+                          <i style="--swatch:#1A2B1B"></i>
+                        </span>
+                        <strong>6.16:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#F48787"></i>
+                          <i style="--swatch:#1A2B1B"></i>
+                        </span>
+                        <strong>6.16:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Contenido / error
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#0F1D0D"></i>
+                          <i style="--swatch:#F48787"></i>
+                        </span>
+                        <strong>7.21:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#0F1D0D"></i>
+                          <i style="--swatch:#F48787"></i>
+                        </span>
+                        <strong>7.21:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr></tbody>
+                </table>
+              </div>
+            </details>
+            <details class="matrix-card" open>
+              <summary>Increased Contrast · Light<span>22 comprobaciones</span></summary>
+              <div class="table-scroll">
+                <table>
+                  <thead><tr><th>Par semántico</th><th>iOS</th><th>Android</th></tr></thead>
+                  <tbody>
+                <tr>
+                  <th scope="row">
+                    Texto principal / superficie principal
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#2A3B2A"></i>
+                          <i style="--swatch:#F2F8E1"></i>
+                        </span>
+                        <strong>10.98:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#2A3B2A"></i>
+                          <i style="--swatch:#F2F8E1"></i>
+                        </span>
+                        <strong>10.98:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Texto secundario / superficie principal
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#4E5D4D"></i>
+                          <i style="--swatch:#F2F8E1"></i>
+                        </span>
+                        <strong>6.44:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#2A3B2A"></i>
+                          <i style="--swatch:#F2F8E1"></i>
+                        </span>
+                        <strong>10.98:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Acción / superficie principal
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#315815"></i>
+                          <i style="--swatch:#F2F8E1"></i>
+                        </span>
+                        <strong>7.60:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#3D681E"></i>
+                          <i style="--swatch:#F2F8E1"></i>
+                        </span>
+                        <strong>6.03:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Acción / superficie secundaria
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#315815"></i>
+                          <i style="--swatch:#DDE5C0"></i>
+                        </span>
+                        <strong>6.32:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#3D681E"></i>
+                          <i style="--swatch:#DDE5C0"></i>
+                        </span>
+                        <strong>5.02:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Contenido / acción
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#F2F8E1"></i>
+                          <i style="--swatch:#315815"></i>
+                        </span>
+                        <strong>7.60:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#F2F8E1"></i>
+                          <i style="--swatch:#3D681E"></i>
+                        </span>
+                        <strong>6.03:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Control / superficie principal
+                    <small>non-text · mínimo 3.0:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#315815"></i>
+                          <i style="--swatch:#F2F8E1"></i>
+                        </span>
+                        <strong>7.60:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#3D681E"></i>
+                          <i style="--swatch:#F2F8E1"></i>
+                        </span>
+                        <strong>6.03:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Warning / superficie principal
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#6D2B00"></i>
+                          <i style="--swatch:#F2F8E1"></i>
+                        </span>
+                        <strong>9.67:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#843800"></i>
+                          <i style="--swatch:#F2F8E1"></i>
+                        </span>
+                        <strong>7.57:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Warning / superficie secundaria
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#6D2B00"></i>
+                          <i style="--swatch:#DDE5C0"></i>
+                        </span>
+                        <strong>8.04:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#843800"></i>
+                          <i style="--swatch:#DDE5C0"></i>
+                        </span>
+                        <strong>6.30:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Error / superficie principal
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#742222"></i>
+                          <i style="--swatch:#F2F8E1"></i>
+                        </span>
+                        <strong>9.67:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#8D3434"></i>
+                          <i style="--swatch:#F2F8E1"></i>
+                        </span>
+                        <strong>7.22:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Error / superficie secundaria
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#742222"></i>
+                          <i style="--swatch:#DDE5C0"></i>
+                        </span>
+                        <strong>8.04:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#8D3434"></i>
+                          <i style="--swatch:#DDE5C0"></i>
+                        </span>
+                        <strong>6.00:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Contenido / error
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#F2F8E1"></i>
+                          <i style="--swatch:#742222"></i>
+                        </span>
+                        <strong>9.67:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#F2F8E1"></i>
+                          <i style="--swatch:#8D3434"></i>
+                        </span>
+                        <strong>7.22:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr></tbody>
+                </table>
+              </div>
+            </details>
+            <details class="matrix-card" open>
+              <summary>Increased Contrast · Dark<span>22 comprobaciones</span></summary>
+              <div class="table-scroll">
+                <table>
+                  <thead><tr><th>Par semántico</th><th>iOS</th><th>Android</th></tr></thead>
+                  <tbody>
+                <tr>
+                  <th scope="row">
+                    Texto principal / superficie principal
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#D1E1D1"></i>
+                          <i style="--swatch:#0F1D0D"></i>
+                        </span>
+                        <strong>12.81:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#D1E1D1"></i>
+                          <i style="--swatch:#0F1D0D"></i>
+                        </span>
+                        <strong>12.81:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Texto secundario / superficie principal
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#B5C5B3"></i>
+                          <i style="--swatch:#0F1D0D"></i>
+                        </span>
+                        <strong>9.65:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#D1E1D1"></i>
+                          <i style="--swatch:#0F1D0D"></i>
+                        </span>
+                        <strong>12.81:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Acción / superficie principal
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#A8DD75"></i>
+                          <i style="--swatch:#0F1D0D"></i>
+                        </span>
+                        <strong>11.04:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#6DA239"></i>
+                          <i style="--swatch:#0F1D0D"></i>
+                        </span>
+                        <strong>5.72:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Acción / superficie secundaria
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#A8DD75"></i>
+                          <i style="--swatch:#1A2B1B"></i>
+                        </span>
+                        <strong>9.44:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#6DA239"></i>
+                          <i style="--swatch:#1A2B1B"></i>
+                        </span>
+                        <strong>4.89:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Contenido / acción
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#0F1D0D"></i>
+                          <i style="--swatch:#A8DD75"></i>
+                        </span>
+                        <strong>11.04:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#0F1D0D"></i>
+                          <i style="--swatch:#6DA239"></i>
+                        </span>
+                        <strong>5.72:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Control / superficie principal
+                    <small>non-text · mínimo 3.0:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#5B8B2D"></i>
+                          <i style="--swatch:#0F1D0D"></i>
+                        </span>
+                        <strong>4.31:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#6DA239"></i>
+                          <i style="--swatch:#0F1D0D"></i>
+                        </span>
+                        <strong>5.72:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Warning / superficie principal
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#FFC093"></i>
+                          <i style="--swatch:#0F1D0D"></i>
+                        </span>
+                        <strong>10.99:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#FFAA70"></i>
+                          <i style="--swatch:#0F1D0D"></i>
+                        </span>
+                        <strong>9.35:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Warning / superficie secundaria
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#FFC093"></i>
+                          <i style="--swatch:#1A2B1B"></i>
+                        </span>
+                        <strong>9.40:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#FFAA70"></i>
+                          <i style="--swatch:#1A2B1B"></i>
+                        </span>
+                        <strong>8.00:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Error / superficie principal
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#FFA5A5"></i>
+                          <i style="--swatch:#0F1D0D"></i>
+                        </span>
+                        <strong>9.30:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#F48787"></i>
+                          <i style="--swatch:#0F1D0D"></i>
+                        </span>
+                        <strong>7.21:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Error / superficie secundaria
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#FFA5A5"></i>
+                          <i style="--swatch:#1A2B1B"></i>
+                        </span>
+                        <strong>7.95:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#F48787"></i>
+                          <i style="--swatch:#1A2B1B"></i>
+                        </span>
+                        <strong>6.16:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Contenido / error
+                    <small>text · mínimo 4.5:1</small>
+                  </th>
+                  <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#0F1D0D"></i>
+                          <i style="--swatch:#FFA5A5"></i>
+                        </span>
+                        <strong>9.30:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="ratio-line">
+                        <span class="pair-chips" aria-hidden="true">
+                          <i style="--swatch:#0F1D0D"></i>
+                          <i style="--swatch:#F48787"></i>
+                        </span>
+                        <strong>7.21:1</strong>
+                        <span class="badge pass">✓ PASS</span>
+                      </div>
+                    </td>
+                </tr></tbody>
+                </table>
+              </div>
+            </details></div>
+    </section>
+
+    <section class="catalog-section" aria-labelledby="preview-title">
+      <div class="section-head">
+        <div><p class="section-kicker">03 — Context</p><h2 id="preview-title">Componentes en contexto</h2></div>
+        <p>Ejemplos documentales para detectar combinaciones inesperadas. No sustituyen las previews ni las pruebas de cada plataforma.</p>
+      </div>
+      <div class="preview-grid">
+                <article class="preview-card" style="
+                  --surface:#F2F8E1;
+                  --surface-secondary:#DDE5C0;
+                  --text:#2A3B2A;
+                  --text-secondary:#4E5D4D;
+                  --border:#B9C8A2;
+                  --action:#3D681E;
+                  --on-action:#F2F8E1;
+                  --control:#3D681E;
+                  --warning:#843800;
+                  --error:#8D3434;
+                ">
+                  <div class="preview-meta">
+                    <span>Light</span>
+                    <strong>ios</strong>
+                  </div>
+                  <div class="app-preview">
+                    <p class="eyebrow">Pedido semanal</p>
+                    <h3>Semana 30</h3>
+                    <p class="secondary">Revisa las cantidades antes de confirmar.</p>
+                    <div class="mini-card">
+                      <span>Verduras y hortalizas</span><strong>18,40 €</strong>
+                    </div>
+                    <p class="feedback warning">▲ Quedan cambios pendientes</p>
+                    <p class="feedback error">● Hay un producto no disponible</p>
+                    <div class="control-row">
+                      <span>Pedido ecológico</span>
+                      <span class="toggle" role="img" aria-label="Control activado"><i></i></span>
+                    </div>
+                    <div class="primary-button">Confirmar pedido</div>
+                  </div>
+                </article>
+                <article class="preview-card" style="
+                  --surface:#F2F8E1;
+                  --surface-secondary:#DDE5C0;
+                  --text:#2A3B2A;
+                  --text-secondary:#2A3B2A;
+                  --border:#B9C8A2;
+                  --action:#3D681E;
+                  --on-action:#F2F8E1;
+                  --control:#3D681E;
+                  --warning:#843800;
+                  --error:#8D3434;
+                ">
+                  <div class="preview-meta">
+                    <span>Light</span>
+                    <strong>android</strong>
+                  </div>
+                  <div class="app-preview">
+                    <p class="eyebrow">Pedido semanal</p>
+                    <h3>Semana 30</h3>
+                    <p class="secondary">Revisa las cantidades antes de confirmar.</p>
+                    <div class="mini-card">
+                      <span>Verduras y hortalizas</span><strong>18,40 €</strong>
+                    </div>
+                    <p class="feedback warning">▲ Quedan cambios pendientes</p>
+                    <p class="feedback error">● Hay un producto no disponible</p>
+                    <div class="control-row">
+                      <span>Pedido ecológico</span>
+                      <span class="toggle" role="img" aria-label="Control activado"><i></i></span>
+                    </div>
+                    <div class="primary-button">Confirmar pedido</div>
+                  </div>
+                </article>
+                <article class="preview-card" style="
+                  --surface:#0F1D0D;
+                  --surface-secondary:#1A2B1B;
+                  --text:#D1E1D1;
+                  --text-secondary:#B5C5B3;
+                  --border:#37513B;
+                  --action:#6DA239;
+                  --on-action:#0F1D0D;
+                  --control:#6DA239;
+                  --warning:#FFAA70;
+                  --error:#F48787;
+                ">
+                  <div class="preview-meta">
+                    <span>Dark</span>
+                    <strong>ios</strong>
+                  </div>
+                  <div class="app-preview">
+                    <p class="eyebrow">Pedido semanal</p>
+                    <h3>Semana 30</h3>
+                    <p class="secondary">Revisa las cantidades antes de confirmar.</p>
+                    <div class="mini-card">
+                      <span>Verduras y hortalizas</span><strong>18,40 €</strong>
+                    </div>
+                    <p class="feedback warning">▲ Quedan cambios pendientes</p>
+                    <p class="feedback error">● Hay un producto no disponible</p>
+                    <div class="control-row">
+                      <span>Pedido ecológico</span>
+                      <span class="toggle" role="img" aria-label="Control activado"><i></i></span>
+                    </div>
+                    <div class="primary-button">Confirmar pedido</div>
+                  </div>
+                </article>
+                <article class="preview-card" style="
+                  --surface:#0F1D0D;
+                  --surface-secondary:#1A2B1B;
+                  --text:#D1E1D1;
+                  --text-secondary:#D1E1D1;
+                  --border:#37513B;
+                  --action:#6DA239;
+                  --on-action:#0F1D0D;
+                  --control:#6DA239;
+                  --warning:#FFAA70;
+                  --error:#F48787;
+                ">
+                  <div class="preview-meta">
+                    <span>Dark</span>
+                    <strong>android</strong>
+                  </div>
+                  <div class="app-preview">
+                    <p class="eyebrow">Pedido semanal</p>
+                    <h3>Semana 30</h3>
+                    <p class="secondary">Revisa las cantidades antes de confirmar.</p>
+                    <div class="mini-card">
+                      <span>Verduras y hortalizas</span><strong>18,40 €</strong>
+                    </div>
+                    <p class="feedback warning">▲ Quedan cambios pendientes</p>
+                    <p class="feedback error">● Hay un producto no disponible</p>
+                    <div class="control-row">
+                      <span>Pedido ecológico</span>
+                      <span class="toggle" role="img" aria-label="Control activado"><i></i></span>
+                    </div>
+                    <div class="primary-button">Confirmar pedido</div>
+                  </div>
+                </article>
+                <article class="preview-card" style="
+                  --surface:#F2F8E1;
+                  --surface-secondary:#DDE5C0;
+                  --text:#2A3B2A;
+                  --text-secondary:#4E5D4D;
+                  --border:#B9C8A2;
+                  --action:#315815;
+                  --on-action:#F2F8E1;
+                  --control:#315815;
+                  --warning:#6D2B00;
+                  --error:#742222;
+                ">
+                  <div class="preview-meta">
+                    <span>Increased Contrast · Light</span>
+                    <strong>ios</strong>
+                  </div>
+                  <div class="app-preview">
+                    <p class="eyebrow">Pedido semanal</p>
+                    <h3>Semana 30</h3>
+                    <p class="secondary">Revisa las cantidades antes de confirmar.</p>
+                    <div class="mini-card">
+                      <span>Verduras y hortalizas</span><strong>18,40 €</strong>
+                    </div>
+                    <p class="feedback warning">▲ Quedan cambios pendientes</p>
+                    <p class="feedback error">● Hay un producto no disponible</p>
+                    <div class="control-row">
+                      <span>Pedido ecológico</span>
+                      <span class="toggle" role="img" aria-label="Control activado"><i></i></span>
+                    </div>
+                    <div class="primary-button">Confirmar pedido</div>
+                  </div>
+                </article>
+                <article class="preview-card" style="
+                  --surface:#F2F8E1;
+                  --surface-secondary:#DDE5C0;
+                  --text:#2A3B2A;
+                  --text-secondary:#2A3B2A;
+                  --border:#B9C8A2;
+                  --action:#3D681E;
+                  --on-action:#F2F8E1;
+                  --control:#3D681E;
+                  --warning:#843800;
+                  --error:#8D3434;
+                ">
+                  <div class="preview-meta">
+                    <span>Increased Contrast · Light</span>
+                    <strong>android</strong>
+                  </div>
+                  <div class="app-preview">
+                    <p class="eyebrow">Pedido semanal</p>
+                    <h3>Semana 30</h3>
+                    <p class="secondary">Revisa las cantidades antes de confirmar.</p>
+                    <div class="mini-card">
+                      <span>Verduras y hortalizas</span><strong>18,40 €</strong>
+                    </div>
+                    <p class="feedback warning">▲ Quedan cambios pendientes</p>
+                    <p class="feedback error">● Hay un producto no disponible</p>
+                    <div class="control-row">
+                      <span>Pedido ecológico</span>
+                      <span class="toggle" role="img" aria-label="Control activado"><i></i></span>
+                    </div>
+                    <div class="primary-button">Confirmar pedido</div>
+                  </div>
+                </article>
+                <article class="preview-card" style="
+                  --surface:#0F1D0D;
+                  --surface-secondary:#1A2B1B;
+                  --text:#D1E1D1;
+                  --text-secondary:#B5C5B3;
+                  --border:#37513B;
+                  --action:#A8DD75;
+                  --on-action:#0F1D0D;
+                  --control:#5B8B2D;
+                  --warning:#FFC093;
+                  --error:#FFA5A5;
+                ">
+                  <div class="preview-meta">
+                    <span>Increased Contrast · Dark</span>
+                    <strong>ios</strong>
+                  </div>
+                  <div class="app-preview">
+                    <p class="eyebrow">Pedido semanal</p>
+                    <h3>Semana 30</h3>
+                    <p class="secondary">Revisa las cantidades antes de confirmar.</p>
+                    <div class="mini-card">
+                      <span>Verduras y hortalizas</span><strong>18,40 €</strong>
+                    </div>
+                    <p class="feedback warning">▲ Quedan cambios pendientes</p>
+                    <p class="feedback error">● Hay un producto no disponible</p>
+                    <div class="control-row">
+                      <span>Pedido ecológico</span>
+                      <span class="toggle" role="img" aria-label="Control activado"><i></i></span>
+                    </div>
+                    <div class="primary-button">Confirmar pedido</div>
+                  </div>
+                </article>
+                <article class="preview-card" style="
+                  --surface:#0F1D0D;
+                  --surface-secondary:#1A2B1B;
+                  --text:#D1E1D1;
+                  --text-secondary:#D1E1D1;
+                  --border:#37513B;
+                  --action:#6DA239;
+                  --on-action:#0F1D0D;
+                  --control:#6DA239;
+                  --warning:#FFAA70;
+                  --error:#F48787;
+                ">
+                  <div class="preview-meta">
+                    <span>Increased Contrast · Dark</span>
+                    <strong>android</strong>
+                  </div>
+                  <div class="app-preview">
+                    <p class="eyebrow">Pedido semanal</p>
+                    <h3>Semana 30</h3>
+                    <p class="secondary">Revisa las cantidades antes de confirmar.</p>
+                    <div class="mini-card">
+                      <span>Verduras y hortalizas</span><strong>18,40 €</strong>
+                    </div>
+                    <p class="feedback warning">▲ Quedan cambios pendientes</p>
+                    <p class="feedback error">● Hay un producto no disponible</p>
+                    <div class="control-row">
+                      <span>Pedido ecológico</span>
+                      <span class="toggle" role="img" aria-label="Control activado"><i></i></span>
+                    </div>
+                    <div class="primary-button">Confirmar pedido</div>
+                  </div>
+                </article></div>
+    </section>
+
+    <section class="catalog-section" aria-labelledby="source-title">
+      <div class="section-head">
+        <div><p class="section-kicker">04 — Sources</p><h2 id="source-title">Procedencia y paridad</h2></div>
+        <p>El generador contrasta el contrato con estas fuentes de producción antes de escribir o verificar el catálogo.</p>
+      </div>
+      <div class="provenance-card">
+        <table>
+          <thead><tr><th>Token</th><th>iOS</th><th>Android</th><th>Paridad</th></tr></thead>
+          <tbody>
+        <tr>
+          <th scope="row"><code>color-action-primary-default</code></th>
+          <td>ios/Reguerta/Reguerta/Resources/Assets.xcassets/AccentColor.colorset/Contents.json · ios/Reguerta/Reguerta/Resources/Assets.xcassets/Colors/actionPrimary.colorset/Contents.json</td>
+          <td>android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Color.kt · ColorActionPrimaryDefaultLight / ColorActionPrimaryDefaultDark</td>
+          <td><span class="parity aligned">aligned</span><br>Los modos estándar coinciden; Android conserva la paleta estándar cuando iOS aumenta contraste.</td>
+        </tr>
+        <tr>
+          <th scope="row"><code>color-action-on-primary-default</code></th>
+          <td>alias → color-surface-primary-default · ios/Reguerta/Reguerta/DesignSystem/ReguertaTheme.swift</td>
+          <td>android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Color.kt · ColorActionOnPrimaryLight / ColorActionOnPrimaryDark</td>
+          <td><span class="parity aligned">aligned</span><br>Pareja explícita y opaca para contenido de acción.</td>
+        </tr>
+        <tr>
+          <th scope="row"><code>color-control-accent-default</code></th>
+          <td>ios/Reguerta/Reguerta/Resources/Assets.xcassets/Colors/controlAccent.colorset/Contents.json</td>
+          <td>alias → color-action-primary-default · android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Theme.kt</td>
+          <td><span class="parity platform-native">platform-native</span><br>iOS separa el modo HC oscuro para conservar contraste no textual; Material 3 usa primary.</td>
+        </tr>
+        <tr>
+          <th scope="row"><code>color-surface-primary-default</code></th>
+          <td>ios/Reguerta/Reguerta/Resources/Assets.xcassets/Colors/mainBack.colorset/Contents.json</td>
+          <td>android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Color.kt · ColorSurfacePrimaryDefaultLight / ColorSurfacePrimaryDefaultDark</td>
+          <td><span class="parity aligned">aligned</span><br>Mismo lienzo semántico en ambas plataformas.</td>
+        </tr>
+        <tr>
+          <th scope="row"><code>color-surface-secondary-default</code></th>
+          <td>ios/Reguerta/Reguerta/Resources/Assets.xcassets/Colors/secBack.colorset/Contents.json</td>
+          <td>android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Color.kt · ColorSurfaceSecondaryDefaultLight / ColorSurfaceSecondaryDefaultDark</td>
+          <td><span class="parity aligned">aligned</span><br>Misma superficie secundaria en ambas plataformas.</td>
+        </tr>
+        <tr>
+          <th scope="row"><code>color-text-primary-default</code></th>
+          <td>ios/Reguerta/Reguerta/Resources/Assets.xcassets/Colors/textColor.colorset/Contents.json</td>
+          <td>android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Color.kt · ColorTextPrimaryDefaultLight / ColorTextPrimaryDefaultDark</td>
+          <td><span class="parity aligned">aligned</span><br>Mismo contenido principal en ambas plataformas.</td>
+        </tr>
+        <tr>
+          <th scope="row"><code>color-text-secondary-default</code></th>
+          <td>ios/Reguerta/Reguerta/DesignSystem/ReguertaTheme.swift · textSecondary</td>
+          <td>alias → color-text-primary-default · android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Theme.kt</td>
+          <td><span class="parity platform-native">platform-native</span><br>iOS usa un tono secundario dedicado; Material 3 hereda onSurface en onSurfaceVariant.</td>
+        </tr>
+        <tr>
+          <th scope="row"><code>color-border-subtle-default</code></th>
+          <td>ios/Reguerta/Reguerta/DesignSystem/ReguertaTheme.swift · borderSubtle</td>
+          <td>android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Color.kt · ColorBorderSubtleLight / ColorBorderSubtleDark</td>
+          <td><span class="parity aligned">aligned</span><br>Decorativo o auxiliar; los estados esenciales añaden otra señal.</td>
+        </tr>
+        <tr>
+          <th scope="row"><code>color-feedback-warning-default</code></th>
+          <td>ios/Reguerta/Reguerta/Resources/Assets.xcassets/Colors/warning.colorset/Contents.json</td>
+          <td>android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Color.kt · ColorFeedbackWarningDefaultLight / ColorFeedbackWarningDefaultDark</td>
+          <td><span class="parity aligned">aligned</span><br>Valores estándar alineados; iOS añade variantes de contraste aumentado.</td>
+        </tr>
+        <tr>
+          <th scope="row"><code>color-feedback-error-default</code></th>
+          <td>ios/Reguerta/Reguerta/Resources/Assets.xcassets/Colors/error.colorset/Contents.json</td>
+          <td>android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Color.kt · ColorFeedbackErrorDefaultLight / ColorFeedbackErrorDefaultDark</td>
+          <td><span class="parity aligned">aligned</span><br>Valores estándar alineados; iOS añade variantes de contraste aumentado.</td>
+        </tr>
+        <tr>
+          <th scope="row"><code>color-feedback-on-error-default</code></th>
+          <td>alias → color-surface-primary-default · ios/Reguerta/Reguerta/DesignSystem/ReguertaTheme.swift</td>
+          <td>alias → color-action-on-primary-default · android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Theme.kt</td>
+          <td><span class="parity aligned">aligned</span><br>Pareja explícita para botones y superficies destructivas.</td>
+        </tr>
+        <tr>
+          <th scope="row"><code>color-overlay-dialog-default</code></th>
+          <td>ios/Reguerta/Reguerta/Resources/Assets.xcassets/Colors/dialogBack.colorset/Contents.json</td>
+          <td>android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Color.kt · ColorDialogBackLight / ColorDialogBackDark</td>
+          <td><span class="parity aligned">aligned</span><br>RGBA alineado; su contraste depende de la composición final.</td>
+        </tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="catalog-section" aria-labelledby="rules-title">
+      <div class="section-head">
+        <div><p class="section-kicker">05 — Contract</p><h2 id="rules-title">Reglas de uso</h2></div>
+      </div>
+      <ul class="checklist">
+        <li>Texto normal esencial: mínimo <strong>4.5:1</strong>.</li>
+        <li>Controles e indicadores esenciales: mínimo <strong>3:1</strong>.</li>
+        <li>Estados pressed se validan tras aplicar el state layer del <strong>12 %</strong>.</li>
+        <li>Glass usa backing explícito y tint máximo del <strong>16 %</strong>.</li>
+        <li>FAB y barras de total emplean contenedores opacos.</li>
+        <li>Color nunca es la única señal de estado o selección.</li>
+      </ul>
+    </section>
+
+    <footer>
+      <span>Issue #212 · WCAG 2.2</span>
+      <span>Generator 1.0.0 · contract 51d844f3757e</span>
+    </footer>
+  </main>
+</body>
+</html>

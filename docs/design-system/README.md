@@ -15,6 +15,8 @@ Goal: provide shared direction for Android and iOS without freezing product evol
 ## Structure
 
 - `foundations.md`: canonical token model and naming policy.
+- [`color-tokens.json`](color-tokens.json): machine-readable source of truth for semantic colors and their platform mappings.
+- [`color-catalog.html`](color-catalog.html): generated, self-contained visual catalog; do not edit it by hand.
 - `components.md`: cross-platform component catalog and parity matrix.
 - `governance.md`: lifecycle (`experimental -> candidate -> stable -> deprecated`) and update process.
 - `migration-backlog.md`: prioritized work to move from current state to clean design-system.
@@ -26,6 +28,22 @@ Goal: provide shared direction for Android and iOS without freezing product evol
 2. Check `components.md` before creating new component APIs.
 3. If a change is non-trivial, update `governance.md` decision log and `migration-backlog.md`.
 4. Keep `docs` and `docs-es` aligned.
+
+## Color Catalog
+
+The catalog belongs in documentation, not in either app bundle. Production colors continue to live in iOS Assets/Swift and Android theme tokens; the generator verifies those sources against the shared contract before producing the HTML.
+
+Regenerate after changing the contract or a mapped production color:
+
+```sh
+python3 scripts/design-system/generate_color_catalog.py
+```
+
+Check source parity and detect a stale generated file without modifying it:
+
+```sh
+python3 scripts/design-system/generate_color_catalog.py --check
+```
 
 ## Scope Boundaries
 
