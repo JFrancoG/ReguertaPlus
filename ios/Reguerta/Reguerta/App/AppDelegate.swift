@@ -32,12 +32,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             return
         }
         Messaging.messaging().apnsToken = deviceToken
-        Messaging.messaging().token { token, error in
+        Messaging.messaging().token { _, error in
             if let error {
                 print("Unable to fetch FCM token after APNs registration: \(error.localizedDescription)")
                 return
             }
-            print("FCM token refreshed after APNs registration: \(token ?? "nil")")
         }
     }
 
@@ -70,7 +69,6 @@ extension AppDelegate: MessagingDelegate {
         guard !Self.usesMockAuth else {
             return
         }
-        print("FCM registration token received: \(fcmToken ?? "nil")")
         Task {
             await KeyManager.shared.save(fcmToken, for: .fcmToken)
             let token = fcmToken?.trimmingCharacters(in: .whitespacesAndNewlines)
