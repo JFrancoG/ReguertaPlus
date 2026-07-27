@@ -12,27 +12,38 @@ extension SessionViewModel {
             return
         }
 
+        let operation = beginSessionOperation()
+        let provider = authSessionProvider
         isAuthenticating = true
-        Task { @MainActor in
-            let authResult = await authSessionProvider.signIn(email: email, password: password)
+        sessionOperationTask = Task { @MainActor [weak self, provider] in
+            await operation.predecessor?.value
+            guard self?.isCurrentSessionOperation(operation.generation) == true else { return }
+
+            let authResult = await provider.signIn(email: email, password: password)
+            guard let self else {
+                _ = provider.signOut()
+                return
+            }
+            defer { self.finishSessionOperation(operation.generation) }
+            guard isCurrentSessionOperation(operation.generation) else {
+                _ = provider.signOut()
+                return
+            }
 
             switch authResult {
             case .success(let principal):
-                await applyAuthorizedSession(principal: principal)
+                await applyAuthorizedSession(principal: principal, generation: operation.generation)
             case .emailVerificationRequired(let email, let verificationResent, let signedOut):
-                feedbackCenter.show(
-                    verificationResent
+                applyEmailVerificationRequiredSession(
+                    email: email,
+                    firebaseSignOutSucceeded: signedOut,
+                    feedbackMessageKey: verificationResent
                         ? AccessL10nKey.authInfoVerificationResent
                         : AccessL10nKey.authInfoVerificationPending
                 )
-                mode = signedOut
-                    ? .signedOut
-                    : .unauthorized(email: email, reason: .emailVerificationRequired)
             case .failure(let reason):
                 applySignInFailure(reason)
             }
-
-            isAuthenticating = false
         }
     }
 
@@ -49,28 +60,36 @@ extension SessionViewModel {
             return
         }
 
+        let operation = beginSessionOperation()
+        let provider = authSessionProvider
         isRegistering = true
-        Task { @MainActor in
-            let authResult = await authSessionProvider.signUp(email: email, password: password)
+        sessionOperationTask = Task { @MainActor [weak self, provider] in
+            await operation.predecessor?.value
+            guard self?.isCurrentSessionOperation(operation.generation) == true else { return }
+
+            let authResult = await provider.signUp(email: email, password: password)
+            guard let self else {
+                _ = provider.signOut()
+                return
+            }
+            defer { self.finishSessionOperation(operation.generation) }
+            guard isCurrentSessionOperation(operation.generation) else {
+                _ = provider.signOut()
+                return
+            }
 
             switch authResult {
             case .verificationRequired(let email, let verificationSent, let signedOut):
-                feedbackCenter.show(
-                    verificationSent
+                applyEmailVerificationRequiredSession(
+                    email: email,
+                    firebaseSignOutSucceeded: signedOut,
+                    feedbackMessageKey: verificationSent
                         ? AccessL10nKey.authInfoVerificationSent
                         : AccessL10nKey.authInfoVerificationPending
                 )
-                mode = signedOut
-                    ? .signedOut
-                    : .unauthorized(email: email, reason: .emailVerificationRequired)
-                registerEmailInput = ""
-                registerPasswordInput = ""
-                registerRepeatPasswordInput = ""
             case .failure(let reason):
                 applySignUpFailure(reason)
             }
-
-            isRegistering = false
         }
     }
 
@@ -120,43 +139,36 @@ extension SessionViewModel {
     }
 
     func refreshSession(trigger: SessionRefreshTrigger) {
-        let nowMillis = nowMillisProvider()
-        guard sessionRefreshPolicy.shouldRefresh(
-            trigger: trigger,
-            lastRefreshAtMillis: lastSessionRefreshAtMillis,
-            nowMillis: nowMillis,
-            isRefreshInFlight: isSessionRefreshInFlight
-        ) else {
-            return
-        }
+        guard canStartSessionRefresh(trigger: trigger) else { return }
 
+        let operation = beginSessionOperation()
+        let provider = authSessionProvider
         isSessionRefreshInFlight = true
         let hadAuthenticatedSession = mode.isAuthenticatedSession
-        Task { @MainActor in
-            defer {
-                lastSessionRefreshAtMillis = nowMillisProvider()
-                isSessionRefreshInFlight = false
-            }
+        sessionOperationTask = Task { @MainActor [weak self, provider] in
+            await operation.predecessor?.value
+            guard self?.isCurrentSessionOperation(operation.generation) == true else { return }
 
-            let result = await authSessionProvider.refreshCurrentSession()
-            switch result {
-            case .noSession:
-                if hadAuthenticatedSession {
-                    await handleExpiredSession()
-                }
-            case .active(let principal):
-                await applyAuthorizedSession(principal: principal)
-            case .emailVerificationRequired(let email):
-                feedbackCenter.show(AccessL10nKey.authInfoVerificationPending)
-                mode = authSessionProvider.signOut()
-                    ? .signedOut
-                    : .unauthorized(email: email, reason: .emailVerificationRequired)
-            case .failure(let reason):
-                let mapped = mapAuthFailure(reason, flow: .signIn)
-                feedbackCenter.show(mapped.globalMessageKey)
-            case .expired:
-                await handleExpiredSession()
+            let result = await provider.refreshCurrentSession()
+            guard let self else {
+                _ = provider.signOut()
+                return
             }
+            defer {
+                self.finishSessionOperation(operation.generation)
+            }
+            guard isCurrentSessionOperation(operation.generation) else {
+                _ = provider.signOut()
+                return
+            }
+            await applySessionRefreshResult(
+                result,
+                hadAuthenticatedSession: hadAuthenticatedSession,
+                generation: operation.generation
+            )
+
+            guard isCurrentSessionOperation(operation.generation) else { return }
+            lastSessionRefreshAtMillis = nowMillisProvider()
         }
     }
 

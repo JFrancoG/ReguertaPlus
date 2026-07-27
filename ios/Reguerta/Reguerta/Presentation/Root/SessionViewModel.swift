@@ -8,6 +8,11 @@ struct AuthorizedSession: Equatable, Sendable {
     var members: [Member]
 }
 
+struct SessionOperationContext {
+    let generation: UInt64
+    let predecessor: Task<Void, Never>?
+}
+
 enum SessionMode: Equatable, Sendable {
     case signedOut
     case unauthorized(email: String, reason: UnauthorizedReason)
@@ -82,6 +87,8 @@ final class SessionViewModel {
     let developImpersonationEnabled: Bool
     var lastSessionRefreshAtMillis: Int64?
     var isSessionRefreshInFlight = false
+    @ObservationIgnored var sessionOperationTask: Task<Void, Never>?
+    @ObservationIgnored var sessionOperationGeneration: UInt64 = 0
 
     var isDevelopImpersonationEnabled: Bool {
         developImpersonationEnabled

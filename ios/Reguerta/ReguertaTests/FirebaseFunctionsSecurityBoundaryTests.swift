@@ -410,17 +410,25 @@ private final class RecordingSessionEnvironmentRouter: SessionEnvironmentRouting
     let baseEnvironment: SessionEnvironment
     private(set) var appliedEnvironment: SessionEnvironment?
     private(set) var resetCount = 0
+    private var activeLease: SessionEnvironmentLease?
 
     init(baseEnvironment: SessionEnvironment) {
         self.baseEnvironment = baseEnvironment
     }
 
-    func applyResolvedEnvironment(_ environment: SessionEnvironment) {
+    func applyResolvedEnvironment(_ environment: SessionEnvironment, lease: SessionEnvironmentLease) {
         appliedEnvironment = environment
+        activeLease = lease
+    }
+
+    func resetToBaseEnvironment(ifOwnedBy lease: SessionEnvironmentLease) {
+        guard activeLease == lease else { return }
+        resetToBaseEnvironment()
     }
 
     func resetToBaseEnvironment() {
         appliedEnvironment = nil
+        activeLease = nil
         resetCount += 1
     }
 }

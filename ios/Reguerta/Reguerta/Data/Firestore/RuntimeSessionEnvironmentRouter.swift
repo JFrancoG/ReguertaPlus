@@ -5,8 +5,12 @@ struct RuntimeSessionEnvironmentRouter: SessionEnvironmentRouting {
         ReguertaRuntimeEnvironment.baseFirestoreEnvironment
     }
 
-    func applyResolvedEnvironment(_ environment: SessionEnvironment) {
-        ReguertaRuntimeEnvironment.applySessionEnvironment(environment)
+    func applyResolvedEnvironment(_ environment: SessionEnvironment, lease: SessionEnvironmentLease) {
+        ReguertaRuntimeEnvironment.applySessionEnvironment(environment, lease: lease)
+    }
+
+    func resetToBaseEnvironment(ifOwnedBy lease: SessionEnvironmentLease) {
+        ReguertaRuntimeEnvironment.resetToBaseEnvironment(ifOwnedBy: lease)
     }
 
     func resetToBaseEnvironment() {
@@ -16,6 +20,7 @@ struct RuntimeSessionEnvironmentRouter: SessionEnvironmentRouting {
 
 struct FixedSessionEnvironmentRouter: SessionEnvironmentRouting {
     let baseEnvironment: SessionEnvironment
+    private let state: FixedSessionEnvironmentRouterState
     private let onApply: @MainActor @Sendable (SessionEnvironment) -> Void
     private let onReset: @MainActor @Sendable () -> Void
 
@@ -25,15 +30,28 @@ struct FixedSessionEnvironmentRouter: SessionEnvironmentRouting {
         onReset: @escaping @MainActor @Sendable () -> Void = {}
     ) {
         self.baseEnvironment = baseEnvironment
+        self.state = FixedSessionEnvironmentRouterState()
         self.onApply = onApply
         self.onReset = onReset
     }
 
-    func applyResolvedEnvironment(_ environment: SessionEnvironment) {
+    func applyResolvedEnvironment(_ environment: SessionEnvironment, lease: SessionEnvironmentLease) {
+        state.activeLease = lease
         onApply(environment)
     }
 
+    func resetToBaseEnvironment(ifOwnedBy lease: SessionEnvironmentLease) {
+        guard state.activeLease == lease else { return }
+        resetToBaseEnvironment()
+    }
+
     func resetToBaseEnvironment() {
+        state.activeLease = nil
         onReset()
     }
+}
+
+@MainActor
+private final class FixedSessionEnvironmentRouterState {
+    var activeLease: SessionEnvironmentLease?
 }

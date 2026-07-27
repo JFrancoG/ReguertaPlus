@@ -5,6 +5,7 @@ typealias ReguertaFirestoreEnvironment = SessionEnvironment
 
 enum ReguertaRuntimeEnvironment {
     private static var sessionOverride: ReguertaFirestoreEnvironment?
+    private static var sessionEnvironmentLease: SessionEnvironmentLease?
     private static var testingBaseEnvironment: ReguertaFirestoreEnvironment?
 
     static var baseFirestoreEnvironment: ReguertaFirestoreEnvironment {
@@ -22,12 +23,22 @@ enum ReguertaRuntimeEnvironment {
         sessionOverride ?? baseFirestoreEnvironment
     }
 
-    static func applySessionEnvironment(_ environment: ReguertaFirestoreEnvironment) {
+    static func applySessionEnvironment(
+        _ environment: ReguertaFirestoreEnvironment,
+        lease: SessionEnvironmentLease
+    ) {
         sessionOverride = environment == baseFirestoreEnvironment ? nil : environment
+        sessionEnvironmentLease = lease
+    }
+
+    static func resetToBaseEnvironment(ifOwnedBy lease: SessionEnvironmentLease) {
+        guard sessionEnvironmentLease == lease else { return }
+        resetToBaseEnvironment()
     }
 
     static func resetToBaseEnvironment() {
         sessionOverride = nil
+        sessionEnvironmentLease = nil
     }
 
     static func setBaseEnvironmentForTesting(_ environment: ReguertaFirestoreEnvironment?) {
