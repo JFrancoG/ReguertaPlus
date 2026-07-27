@@ -317,18 +317,19 @@ struct FixedCriticalDataFreshnessRemoteRepository: CriticalDataFreshnessRemoteRe
     }
 }
 
-actor InMemoryCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLocalRepository {
+@MainActor
+final class InMemoryCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLocalRepository {
     private var metadata: CriticalDataFreshnessMetadata?
 
-    func getMetadata() async -> CriticalDataFreshnessMetadata? {
+    func getMetadata() -> CriticalDataFreshnessMetadata? {
         metadata
     }
 
-    func saveMetadata(_ metadata: CriticalDataFreshnessMetadata) async {
+    func saveMetadata(_ metadata: CriticalDataFreshnessMetadata) {
         self.metadata = metadata
     }
 
-    func clear() async {
+    func clear() {
         metadata = nil
     }
 }

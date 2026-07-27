@@ -14,7 +14,11 @@ enum MyOrderFreshnessState: Equatable, Sendable {
 final class MyOrderFreshnessViewModel {
     @ObservationIgnored let resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase
     @ObservationIgnored let criticalDataFreshnessLocalRepository: any CriticalDataFreshnessLocalRepository
-    @ObservationIgnored private let timeoutNanoseconds: UInt64
+    @ObservationIgnored private let timeout: Duration
+    @ObservationIgnored private let sleeper: @Sendable (Duration) async throws -> Void
+    @ObservationIgnored var freshnessOperationTask: Task<Void, Never>?
+    @ObservationIgnored var freshnessTimeoutTask: Task<Void, Never>?
+    @ObservationIgnored private var freshnessGeneration: UInt64 = 0
 
     var state: MyOrderFreshnessState = .idle
 
@@ -23,11 +27,15 @@ final class MyOrderFreshnessViewModel {
     init(
         resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase,
         criticalDataFreshnessLocalRepository: any CriticalDataFreshnessLocalRepository,
-        timeoutNanoseconds: UInt64 = 2_500_000_000
+        timeout: Duration = .milliseconds(2_500),
+        sleeper: @escaping @Sendable (Duration) async throws -> Void = {
+            try await ContinuousClock().sleep(for: $0)
+        }
     ) {
         self.resolveCriticalDataFreshness = resolveCriticalDataFreshness
         self.criticalDataFreshnessLocalRepository = criticalDataFreshnessLocalRepository
-        self.timeoutNanoseconds = timeoutNanoseconds
+        self.timeout = timeout
+        self.sleeper = sleeper
     }
 
     convenience init(dependencies: MyOrderFreshnessFeatureDependencies = .preview()) {
@@ -46,7 +54,7 @@ final class MyOrderFreshnessViewModel {
             }
         case .signedOut:
             reset()
-            Task { await criticalDataFreshnessLocalRepository.clear() }
+            criticalDataFreshnessLocalRepository.clear()
         case .unauthorized:
             reset()
         }
@@ -59,23 +67,56 @@ final class MyOrderFreshnessViewModel {
     }
 
     private func refresh(for principal: AuthPrincipal) {
-        state = .checking
-        Task { @MainActor in
-            let resolution = await resolveFreshnessWithTimeout()
-            guard currentPrincipal == principal else { return }
+        invalidateFreshnessOperation()
+        let generation = freshnessGeneration
+        let resolver = resolveCriticalDataFreshness
+        let timeout = timeout
+        let sleeper = sleeper
 
-            switch resolution {
-            case .fresh:
-                state = .ready
-            case .invalidConfig:
-                state = .unavailable
-            case nil:
-                state = .timedOut
+        state = .checking
+        freshnessOperationTask = Task { @MainActor [weak self, resolver] in
+            defer { self?.finishFreshnessOperation(generation) }
+
+            guard self?.isCurrentFreshnessOperation(generation, principal: principal) == true else {
+                return
             }
+
+            do {
+                let resolution = try await resolver.execute()
+                guard let self, isCurrentFreshnessOperation(generation, principal: principal) else {
+                    return
+                }
+                publish(resolution, generation: generation)
+            } catch is CancellationError {
+                return
+            } catch {
+                guard let self, isCurrentFreshnessOperation(generation, principal: principal) else {
+                    return
+                }
+                publish(.invalidConfig, generation: generation)
+            }
+        }
+
+        freshnessTimeoutTask = Task { @MainActor [weak self, sleeper] in
+            do {
+                try await sleeper(timeout)
+                try Task.checkCancellation()
+            } catch {
+                self?.finishFreshnessTimeout(generation)
+                return
+            }
+
+            guard let self, isCurrentFreshnessOperation(generation, principal: principal) else {
+                return
+            }
+            freshnessOperationTask?.cancel()
+            freshnessTimeoutTask = nil
+            state = .timedOut
         }
     }
 
     private func reset() {
+        invalidateFreshnessOperation()
         currentPrincipal = nil
         state = .idle
     }
@@ -91,19 +132,53 @@ final class MyOrderFreshnessViewModel {
         }
     }
 
-    private func resolveFreshnessWithTimeout() async -> CriticalDataFreshnessResolution? {
-        await withTaskGroup(of: CriticalDataFreshnessResolution?.self) { group in
-            group.addTask { [resolveCriticalDataFreshness] in
-                await resolveCriticalDataFreshness.execute()
-            }
-            group.addTask { [timeoutNanoseconds] in
-                try? await Task.sleep(nanoseconds: timeoutNanoseconds)
-                return nil
-            }
+    @discardableResult
+    private func invalidateFreshnessOperation() -> Task<Void, Never>? {
+        let invalidatedOperation = freshnessOperationTask
+        invalidatedOperation?.cancel()
+        freshnessTimeoutTask?.cancel()
+        freshnessGeneration &+= 1
+        freshnessOperationTask = nil
+        freshnessTimeoutTask = nil
+        return invalidatedOperation
+    }
 
-            let first = await group.next() ?? nil
-            group.cancelAll()
-            return first
+    private func isCurrentFreshnessOperation(
+        _ generation: UInt64,
+        principal: AuthPrincipal
+    ) -> Bool {
+        !Task.isCancelled &&
+            generation == freshnessGeneration &&
+            currentPrincipal?.uid == principal.uid
+    }
+
+    private func publish(
+        _ resolution: CriticalDataFreshnessResolution,
+        generation: UInt64
+    ) {
+        guard generation == freshnessGeneration else { return }
+        freshnessTimeoutTask?.cancel()
+        freshnessTimeoutTask = nil
+
+        switch resolution {
+        case .fresh(let metadataToPersist):
+            if let metadataToPersist {
+                criticalDataFreshnessLocalRepository.saveMetadata(metadataToPersist)
+            }
+            state = .ready
+        case .invalidConfig:
+            state = .unavailable
         }
     }
+
+    private func finishFreshnessOperation(_ generation: UInt64) {
+        guard generation == freshnessGeneration else { return }
+        freshnessOperationTask = nil
+    }
+
+    private func finishFreshnessTimeout(_ generation: UInt64) {
+        guard generation == freshnessGeneration else { return }
+        freshnessTimeoutTask = nil
+    }
+
 }
