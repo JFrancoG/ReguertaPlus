@@ -567,6 +567,8 @@
     <string name="notifications_list_subtitle">Read the latest notifications in reverse publication order.</string>
     <string name="notifications_refresh_action">Refresh notifications</string>
     <string name="notifications_loading">Loading notifications…</string>
+    <string name="notifications_status_read">Read notification</string>
+    <string name="notifications_status_unread">Unread notification</string>
     <string name="notifications_meta_format">Sent on %1$s</string>
     <string name="notifications_create_action">Send notification</string>
     <string name="notifications_editor_title">Send notification</string>

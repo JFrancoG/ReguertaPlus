@@ -36,3 +36,4 @@ Any non-trivial design-system change should include:
 - 2026-03-12: imported Android/iOS current design-system references as source snapshots.
 - 2026-03-12: established semantic-first naming strategy and lifecycle governance.
 - 2026-03-12: decided to keep platform-native implementations while aligning shared intent.
+- 2026-07-27: established the P1-09 WCAG AA palette, explicit semantic content pairs, iOS Increased Contrast variants, and automated cross-platform contrast checks as the stable color contract.

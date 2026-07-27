@@ -30,7 +30,8 @@ struct ReguertaButtonView: View {
                 .foregroundStyle(viewModel.foregroundColor(tokens: tokens))
                 .clipShape(Capsule())
         case .text:
-            baseButton.buttonStyle(.plain)
+            baseButton
+                .foregroundStyle(viewModel.foregroundColor(tokens: tokens))
         }
     }
 
@@ -53,17 +54,34 @@ struct ReguertaButtonView: View {
         }
         .reguertaOptionalAccessibilityIdentifier(viewModel.accessibilityIdentifier)
         .disabled(!viewModel.isInteractive)
+        .buttonStyle(ReguertaContrastPreservingButtonStyle())
     }
 }
 
-#Preview("ReguertaButton") {
-    VStack(spacing: 12) {
-        reguertaButton("Primary") {}
-        reguertaButton("Secondary", variant: .secondary) {}
-        reguertaButton("Destructive", variant: .destructive) {}
-        reguertaButton("Text", variant: .text, fullWidth: false) {}
-        reguertaButton("Loading", isLoading: true) {}
+private struct ReguertaContrastPreservingButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        let visualState = ReguertaContrastContract.buttonVisualState(isPressed: configuration.isPressed)
+
+        configuration.label
+            .scaleEffect(visualState.scale)
+            .opacity(visualState.opacity)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
+}
+
+#Preview("Primary", traits: .modifier(ReguertaDesignSystemPreviewModifier())) {
+    ReguertaButtonView(
+        viewModel: ReguertaButtonViewModel(
+            title: LocalizedStringKey(AccessL10nKey.commonAccept),
+            variant: .primary,
+            isEnabled: true,
+            isLoading: false,
+            fullWidth: true,
+            fixedWidth: nil,
+            accessibilityIdentifier: nil,
+            action: {}
+        )
+    )
     .padding()
 }
 

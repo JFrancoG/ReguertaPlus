@@ -12,6 +12,7 @@ Trabajo priorizado para pasar del estado actual a un design-system cross-platfor
 
 - [x] Normalizar variantes y naming de botones entre Android/iOS.
 - [x] Normalizar modelo de estado de inputs (`error`, `focus`, `disabled`, helper text).
+- [x] Aplicar el contrato de color semantico WCAG AA de P1-09 en Android e iOS con checks automatizados.
 - Normalizar API de dialogs y modelo de acciones.
 - Retirar o aislar elementos explicitamente deprecated/sin uso.
 
@@ -19,7 +20,7 @@ Trabajo priorizado para pasar del estado actual a un design-system cross-platfor
 
 - [x] Construir splash/welcome/auth solo con primitivas stable/candidate del design-system.
 - Validar responsive en dispositivos compactos y grandes.
-- Anadir pantalla catalogo/sandbox para regresion visual.
+- Anadir un catalogo generado de color/contraste y un sandbox nativo para regresion visual.
 
 ## P3 (Continuo)
 

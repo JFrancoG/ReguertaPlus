@@ -171,12 +171,12 @@ extension MyOrderRouteView {
         return HStack {
             Text(text)
                 .font(tokens.typography.body.weight(.semibold))
-                .foregroundStyle(tokens.colors.textPrimary)
+                .foregroundStyle(tokens.colors.actionOnPrimary)
                 .frame(maxWidth: .infinity)
         }
         .padding(.horizontal, tokens.spacing.md)
         .frame(height: 44.resize)
-        .background(shape.fill(tokens.colors.actionPrimary.opacity(0.7)))
+        .background(shape.fill(tokens.colors.actionPrimary))
         .overlay(
             shape.stroke(tokens.colors.borderSubtle.opacity(0.65), lineWidth: 1.resize)
         )
@@ -397,6 +397,7 @@ extension MyOrderRouteView {
                 systemImageName: quantity <= product.minimumSelectionCount ? "trash" : "minus",
                 accessibilityLabel: l10n(AccessL10nKey.myOrderDecreaseAction),
                 backgroundColor: tokens.colors.feedbackError,
+                foregroundColor: tokens.colors.feedbackOnError,
                 action: { viewModel.decrease(product) }
             )
 
@@ -404,6 +405,7 @@ extension MyOrderRouteView {
                 systemImageName: "plus",
                 accessibilityLabel: l10n(AccessL10nKey.myOrderIncreaseAction),
                 backgroundColor: tokens.colors.actionPrimary,
+                foregroundColor: tokens.colors.actionOnPrimary,
                 isEnabled: canIncreaseQuantity,
                 action: { viewModel.increase(product) }
             )

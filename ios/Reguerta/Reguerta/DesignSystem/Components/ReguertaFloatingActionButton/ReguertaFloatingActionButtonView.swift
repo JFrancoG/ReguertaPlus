@@ -13,55 +13,52 @@ struct ReguertaFloatingActionButtonView: View {
     let title: Text
     let isEnabled: Bool
     let accessibilityIdentifier: String?
+    var bottomPadding: CGFloat = 8.resizeBottomSize
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
+        Button {
+            action()
+        } label: {
             title
                 .font(tokens.typography.body.weight(.semibold))
                 .foregroundStyle(isEnabled ? tokens.colors.actionOnPrimary : tokens.colors.textPrimary.opacity(0.86))
-                .lineLimit(1)
-                .minimumScaleFactor(0.78)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity)
-                .frame(height: 52.resize)
-                .background {
-                    ReguertaFloatingActionButtonBackground(isEnabled: isEnabled)
-                }
+                .padding(.vertical, tokens.spacing.sm)
+                .frame(minHeight: 52.resize)
+                .background(
+                    isEnabled ? tokens.colors.actionPrimary : tokens.colors.surfaceSecondary,
+                    in: Capsule()
+                )
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
         .padding(.horizontal, tokens.spacing.xl + tokens.spacing.sm)
-        .padding(.bottom, 8.resizeBottomSize)
+        .padding(.bottom, bottomPadding)
         .shadow(color: .black.opacity(0.18), radius: 14.resize, y: 6.resize)
         .reguertaOptionalAccessibilityIdentifier(accessibilityIdentifier)
     }
 }
 
-private struct ReguertaFloatingActionButtonBackground: View {
-    @Environment(\.reguertaTokens) private var tokens
-
-    let isEnabled: Bool
-
-    var body: some View {
-        let shape = Capsule()
-        let actionOpacity = isEnabled ? 0.42 : 0.22
-
-        if #available(iOS 26.0, *) {
-            shape
-                .fill(isEnabled ? tokens.colors.actionPrimary.opacity(actionOpacity) : tokens.colors.surfaceSecondary)
-                .glassEffect(
-                    .regular
-                        .tint(isEnabled ? tokens.colors.actionPrimary.opacity(0.32) : tokens.colors.surfaceSecondary.opacity(0.72))
-                        .interactive(isEnabled),
-                    in: shape
-                )
-        } else {
-            shape
-                .fill(.ultraThinMaterial)
-                .background(isEnabled ? tokens.colors.actionPrimary.opacity(0.72) : tokens.colors.surfaceSecondary, in: shape)
-        }
+#Preview("Floating action buttons", traits: .modifier(ReguertaDesignSystemPreviewModifier())) {
+    VStack(spacing: 16) {
+        ReguertaFloatingActionButtonView(
+            title: Text(verbatim: "Save changes"),
+            isEnabled: true,
+            accessibilityIdentifier: nil,
+            bottomPadding: 8.resize
+        ) {}
+        ReguertaFloatingActionButtonView(
+            title: Text(verbatim: "Unavailable"),
+            isEnabled: false,
+            accessibilityIdentifier: nil,
+            bottomPadding: 8.resize
+        ) {}
     }
+    .padding(.vertical)
 }
 
 @ViewBuilder

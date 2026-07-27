@@ -384,13 +384,13 @@ private extension ReceivedOrdersRouteView {
         HStack {
             Text("Suma total general: \(total.euroCurrencyText())")
                 .font(receivedOrdersGeneralTotalFont)
-                .foregroundStyle(tokens.colors.textPrimary)
+                .foregroundStyle(tokens.colors.actionOnPrimary)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .minimumScaleFactor(0.86)
         }
         .padding(.horizontal, tokens.spacing.md)
         .frame(height: 50.resize)
-        .background(shape.fill(tokens.colors.actionPrimary.opacity(0.7)))
+        .background(shape.fill(tokens.colors.actionPrimary))
         .overlay(
             shape.stroke(tokens.colors.borderSubtle.opacity(0.65), lineWidth: 1.resize)
         )

@@ -38,6 +38,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Remove
@@ -73,6 +74,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -110,7 +113,6 @@ import com.reguerta.user.ui.components.auth.ReguertaButton
 import com.reguerta.user.ui.components.auth.ReguertaFloatingActionButton
 import com.reguerta.user.ui.components.auth.ReguertaListActionIconButton
 import com.reguerta.user.ui.components.auth.ReguertaListItemCard
-import com.reguerta.user.ui.theme.ColorFeedbackWarningDefault
 import com.reguerta.user.ui.theme.ReguertaThemeTokens
 import java.text.Normalizer
 import java.time.DayOfWeek
@@ -1104,14 +1106,14 @@ private fun MyOrderSummaryTotalBar(
             .navigationBarsPadding()
             .padding(bottom = 12.dp),
         shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+        color = MaterialTheme.colorScheme.primary,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.32f)),
     ) {
         Text(
             text = text,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = MaterialTheme.colorScheme.onPrimary,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
         )
@@ -1383,7 +1385,8 @@ private fun QuantityControls(
                 icon = if (quantity <= product.minimumSelectionCount) Icons.Default.Delete else Icons.Default.Remove,
                 contentDescription = stringResource(R.string.my_order_decrease_action),
                 onClick = onDecrease,
-                containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.9f),
+                containerColor = MaterialTheme.colorScheme.error,
+                contentColor = MaterialTheme.colorScheme.onError,
             )
             QuantityActionButton(
                 icon = Icons.Default.Add,
@@ -1391,6 +1394,7 @@ private fun QuantityControls(
                 onClick = onIncrease,
                 enabled = canIncrease,
                 containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
             )
         }
     }
@@ -1402,12 +1406,14 @@ private fun QuantityActionButton(
     contentDescription: String,
     onClick: () -> Unit,
     containerColor: Color,
+    contentColor: Color,
     enabled: Boolean = true,
 ) {
     ReguertaListActionIconButton(
         icon = icon,
         contentDescription = contentDescription,
         containerColor = containerColor,
+        contentColor = contentColor,
         enabled = enabled,
         onClick = onClick,
     )
@@ -1525,7 +1531,7 @@ private fun EcoBasketOptionButton(
 ) {
     OutlinedButton(
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.semantics { selected = isSelected },
         shape = RoundedCornerShape(9.dp),
         colors = ButtonDefaults.outlinedButtonColors(
             containerColor = if (isSelected) {
@@ -1540,6 +1546,14 @@ private fun EcoBasketOptionButton(
             },
         ),
     ) {
+        if (isSelected) {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+        }
         Text(
             text = title,
             style = MaterialTheme.typography.labelLarge,
@@ -1824,11 +1838,7 @@ private fun stockLabel(product: Product): MyOrderStockLabel? {
             R.string.my_order_stock_remaining_format,
             stock.toUiDecimal(),
         ),
-        color = if (stock < 10.0) {
-            ColorFeedbackWarningDefault
-        } else {
-            MaterialTheme.colorScheme.tertiary
-        },
+        color = MaterialTheme.colorScheme.tertiary,
     )
 }
 

@@ -106,6 +106,7 @@ private struct NewsArticleCardView: View {
                             systemImageName: "pencil",
                             accessibilityLabel: l10n(AccessL10nKey.newsEditAction),
                             backgroundColor: tokens.colors.actionPrimary,
+                            foregroundColor: tokens.colors.actionOnPrimary,
                             action: { onEditNews(article.id) }
                         )
 
@@ -113,6 +114,7 @@ private struct NewsArticleCardView: View {
                             systemImageName: "trash",
                             accessibilityLabel: l10n(AccessL10nKey.newsDeleteAction),
                             backgroundColor: tokens.colors.feedbackError,
+                            foregroundColor: tokens.colors.feedbackOnError,
                             action: { onDeleteNews(article.id) }
                         )
                         Spacer().frame(width: 12.resize)
@@ -211,6 +213,7 @@ struct NewsEditorRouteView: View {
                     )
 
                     Toggle(LocalizedStringKey(AccessL10nKey.newsFieldActive), isOn: newsArchived)
+                        .tint(tokens.colors.controlAccent)
                 }
                 .padding(.bottom, ReguertaFloatingActionButtonLayout.scrollContentBottomPadding)
             }
@@ -304,6 +307,15 @@ private struct NotificationListItemView: View {
                 .font(tokens.typography.label)
                 .foregroundStyle(tokens.colors.textSecondary)
 
+            HStack(spacing: tokens.spacing.xs) {
+                Image(systemName: item.isRead ? "checkmark.circle.fill" : "circle.fill")
+                    .accessibilityHidden(true)
+                Text(LocalizedStringKey(notificationStatusKey))
+            }
+            .font(tokens.typography.label.weight(.semibold))
+            .foregroundStyle(item.isRead ? tokens.colors.actionPrimary : tokens.colors.feedbackWarning)
+            .accessibilityElement(children: .combine)
+
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 HStack(alignment: .firstTextBaseline, spacing: tokens.spacing.sm) {
                     Image(systemName: item.notification.iconSystemName)
@@ -333,6 +345,12 @@ private struct NotificationListItemView: View {
     private var notificationBackgroundColor: Color {
         (item.isRead ? tokens.colors.actionPrimary : tokens.colors.feedbackWarning)
             .opacity(0.15)
+    }
+
+    private var notificationStatusKey: String {
+        item.isRead
+            ? AccessL10nKey.notificationsStatusRead
+            : AccessL10nKey.notificationsStatusUnread
     }
 }
 

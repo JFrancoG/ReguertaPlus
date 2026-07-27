@@ -73,6 +73,7 @@ fun ReguertaListActionIconButton(
     icon: ImageVector,
     contentDescription: String,
     containerColor: Color,
+    contentColor: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     size: Dp = ReguertaListActionButtonSize,
@@ -89,7 +90,7 @@ fun ReguertaListActionIconButton(
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            tint = Color.White,
+            tint = contentColor,
         )
     }
 }
@@ -106,6 +107,7 @@ fun ReguertaEditListActionButton(
         icon = Icons.Default.Edit,
         contentDescription = contentDescription,
         containerColor = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
         onClick = onClick,
         modifier = modifier,
         size = size,
@@ -125,6 +127,7 @@ fun ReguertaDeleteListActionButton(
         icon = Icons.Default.Delete,
         contentDescription = contentDescription,
         containerColor = MaterialTheme.colorScheme.error,
+        contentColor = MaterialTheme.colorScheme.onError,
         onClick = onClick,
         modifier = modifier,
         size = size,

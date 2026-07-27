@@ -146,6 +146,7 @@ struct UsersRouteView: View {
                 systemImageName: "pencil",
                 accessibilityLabel: "Editar Regüertense",
                 backgroundColor: tokens.colors.actionPrimary,
+                foregroundColor: tokens.colors.actionOnPrimary,
                 action: { viewModel.startEditing(memberId: member.id) }
             )
 
@@ -153,6 +154,7 @@ struct UsersRouteView: View {
                 systemImageName: "trash",
                 accessibilityLabel: "Desactivar Regüertense",
                 backgroundColor: tokens.colors.feedbackError,
+                foregroundColor: tokens.colors.feedbackOnError,
                 action: { viewModel.requestToggleActive(memberId: member.id) }
             )
             Spacer().frame(width: 12.resize)
@@ -251,6 +253,7 @@ private struct UsersEditorView: View {
                 .font(tokens.typography.body)
                 .foregroundStyle(tokens.colors.textPrimary)
         }
+        .tint(tokens.colors.controlAccent)
     }
 
     private var producerBinding: Binding<Bool> {

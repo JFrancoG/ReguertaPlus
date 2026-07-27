@@ -71,6 +71,7 @@ struct SettingsVacationModeSectionView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .tint(tokens.colors.controlAccent)
         .disabled(isSaving)
     }
 }

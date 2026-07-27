@@ -640,13 +640,13 @@ private fun ReceivedOrdersHistoryTotalBar(
             .navigationBarsPadding()
             .padding(bottom = 12.dp),
         shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+        color = MaterialTheme.colorScheme.primary,
     ) {
         Text(
             text = stringResource(R.string.received_orders_general_total_format, total.toEuroCurrencyText()),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = MaterialTheme.colorScheme.onPrimary,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
         )

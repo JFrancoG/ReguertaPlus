@@ -41,6 +41,7 @@ struct ReguertaListActionIconButton: View {
     let systemImageName: String
     let accessibilityLabel: String
     let backgroundColor: Color
+    let foregroundColor: Color
     var size: CGFloat = 44.resize
     var isEnabled: Bool = true
     let action: () -> Void
@@ -49,7 +50,7 @@ struct ReguertaListActionIconButton: View {
         Button(action: action) {
             Image(systemName: systemImageName)
                 .font(.system(size: size * 0.58, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(foregroundColor.opacity(isEnabled ? 1 : 0.45))
                 .frame(width: size, height: size)
                 .background(backgroundColor.opacity(isEnabled ? 1 : 0.45))
                 .clipShape(RoundedRectangle(cornerRadius: 12.resize))

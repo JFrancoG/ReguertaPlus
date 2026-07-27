@@ -179,12 +179,18 @@ private extension View {
         if #available(iOS 26.0, *) {
             if isEnabled {
                 self
+                    .background(tokens.colors.surfacePrimary, in: shape)
                     .glassEffect(
-                        .regular.tint(tokens.colors.actionPrimary.opacity(0.16)),
+                        .regular.tint(
+                            tokens.colors.actionPrimary.opacity(
+                                ReguertaContrastContract.maximumActionTintOpacity
+                            )
+                        ),
                         in: shape
                     )
             } else {
                 self
+                    .background(tokens.colors.surfacePrimary, in: shape)
                     .glassEffect(
                         .regular.tint(tokens.colors.actionPrimary.opacity(0.05)),
                         in: shape
@@ -192,9 +198,8 @@ private extension View {
             }
         } else {
             self
-                .background(
-                    shape.fill(tokens.colors.actionPrimary.opacity(isEnabled ? 0.14 : 0.06))
-                )
+                .background(tokens.colors.actionPrimary.opacity(isEnabled ? 0.14 : 0.06), in: shape)
+                .background(tokens.colors.surfacePrimary, in: shape)
                 .overlay(
                     shape.stroke(
                         tokens.colors.borderSubtle.opacity(isEnabled ? 0.75 : 0.35),

@@ -418,7 +418,7 @@ private fun OrderSummaryTotalBar(
             .navigationBarsPadding()
             .padding(bottom = 12.dp),
         shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+        color = MaterialTheme.colorScheme.primary,
     ) {
         Text(
             text = stringResource(
@@ -427,7 +427,7 @@ private fun OrderSummaryTotalBar(
             ),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = MaterialTheme.colorScheme.onPrimary,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
         )

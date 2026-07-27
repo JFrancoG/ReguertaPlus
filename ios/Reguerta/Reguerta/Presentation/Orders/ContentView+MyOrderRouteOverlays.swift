@@ -300,7 +300,13 @@ extension MyOrderRouteView {
         onTap: @escaping () -> Void
     ) -> some View {
         Button(action: onTap) {
-            Text(title)
+            HStack(spacing: tokens.spacing.xs) {
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .accessibilityHidden(true)
+                }
+                Text(title)
+            }
                 .font(tokens.typography.bodySecondary.weight(.semibold))
                 .foregroundStyle(isSelected ? tokens.colors.actionPrimary : tokens.colors.textSecondary)
                 .frame(maxWidth: .infinity)
@@ -324,6 +330,7 @@ extension MyOrderRouteView {
                 )
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
 }

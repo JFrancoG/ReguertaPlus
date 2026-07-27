@@ -5132,6 +5132,40 @@
         }
       }
     },
+    "notifications.status.read" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leída"
+          }
+        }
+      }
+    },
+    "notifications.status.unread" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unread"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No leída"
+          }
+        }
+      }
+    },
     "notifications.target.admins" : {
       "extractionState" : "manual",
       "localizations" : {

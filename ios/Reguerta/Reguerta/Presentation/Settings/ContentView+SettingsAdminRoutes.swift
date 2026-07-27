@@ -33,9 +33,13 @@ struct AdminToolsCardView: View {
                         .textFieldStyle(.roundedBorder)
 
                     Toggle(localizedKey(AccessL10nKey.roleMember), isOn: draftBoolBinding(\.isMember))
+                        .tint(tokens.colors.controlAccent)
                     Toggle(localizedKey(AccessL10nKey.roleProducer), isOn: draftBoolBinding(\.isProducer))
+                        .tint(tokens.colors.controlAccent)
                     Toggle(localizedKey(AccessL10nKey.roleAdmin), isOn: draftBoolBinding(\.isAdmin))
+                        .tint(tokens.colors.controlAccent)
                     Toggle(localizedKey(AccessL10nKey.roleActive), isOn: draftBoolBinding(\.isActive))
+                        .tint(tokens.colors.controlAccent)
 
                     Button {
                         Task { _ = await viewModel.createAuthorizedMember() }
