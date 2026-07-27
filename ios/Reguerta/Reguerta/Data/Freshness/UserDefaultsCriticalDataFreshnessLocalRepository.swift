@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 struct UserDefaultsCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLocalRepository {
     private let userDefaults: UserDefaults
 
@@ -7,7 +8,7 @@ struct UserDefaultsCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLo
         self.userDefaults = userDefaults
     }
 
-    func getMetadata() async -> CriticalDataFreshnessMetadata? {
+    func getMetadata() -> CriticalDataFreshnessMetadata? {
         let validatedAtMillis = (userDefaults.object(forKey: Keys.validatedAt) as? NSNumber)?.int64Value
             ?? Int64(userDefaults.integer(forKey: Keys.validatedAt))
         guard validatedAtMillis > 0 else {
@@ -30,14 +31,14 @@ struct UserDefaultsCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLo
         )
     }
 
-    func saveMetadata(_ metadata: CriticalDataFreshnessMetadata) async {
+    func saveMetadata(_ metadata: CriticalDataFreshnessMetadata) {
         userDefaults.set(metadata.validatedAtMillis, forKey: Keys.validatedAt)
         for (collection, timestamp) in metadata.acknowledgedTimestampsMillis {
             userDefaults.set(timestamp, forKey: timestampKey(for: collection))
         }
     }
 
-    func clear() async {
+    func clear() {
         userDefaults.removeObject(forKey: Keys.validatedAt)
         for collection in CriticalCollection.allCases {
             userDefaults.removeObject(forKey: timestampKey(for: collection))

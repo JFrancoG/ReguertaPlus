@@ -211,9 +211,11 @@ struct ReguertaStartupAndOrderTests {
         )
 
         viewModel.refreshSession(trigger: .startup)
-        await waitForCondition(timeoutNanoseconds: 2_000_000_000) {
-            viewModel.mode.isAuthenticatedSession
+        guard let startupOperation = viewModel.sessionOperationTask else {
+            Issue.record("Expected an owned startup refresh operation")
+            return
         }
+        await startupOperation.value
 
         guard case .authorized(let session) = viewModel.mode else {
             Issue.record("Expected restored authorized session")
@@ -240,16 +242,20 @@ struct ReguertaStartupAndOrderTests {
         viewModel.emailInput = "ana.admin@reguerta.app"
         viewModel.passwordInput = "test1234"
         viewModel.signIn()
-        await waitForCondition(timeoutNanoseconds: 2_000_000_000) {
-            viewModel.mode.isAuthenticatedSession
+        guard let signInOperation = viewModel.sessionOperationTask else {
+            Issue.record("Expected an owned sign-in operation")
+            return
         }
+        await signInOperation.value
 
         #expect(viewModel.mode.isAuthenticatedSession)
 
         viewModel.refreshSession(trigger: .foreground)
-        await waitForCondition(timeoutNanoseconds: 2_000_000_000) {
-            viewModel.mode == .signedOut && viewModel.showSessionExpiredDialog
+        guard let refreshOperation = viewModel.sessionOperationTask else {
+            Issue.record("Expected an owned foreground refresh operation")
+            return
         }
+        await refreshOperation.value
 
         #expect(viewModel.mode == .signedOut)
         #expect(viewModel.showSessionExpiredDialog)

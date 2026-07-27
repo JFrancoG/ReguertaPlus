@@ -20,7 +20,7 @@ struct CriticalDataFreshnessMetadata: Equatable, Sendable {
 }
 
 enum CriticalDataFreshnessResolution: Equatable, Sendable {
-    case fresh
+    case fresh(metadataToPersist: CriticalDataFreshnessMetadata?)
     case invalidConfig
 }
 
@@ -28,8 +28,9 @@ protocol CriticalDataFreshnessRemoteRepository: Sendable {
     func getConfig() async -> CriticalDataFreshnessConfig?
 }
 
+@MainActor
 protocol CriticalDataFreshnessLocalRepository: Sendable {
-    func getMetadata() async -> CriticalDataFreshnessMetadata?
-    func saveMetadata(_ metadata: CriticalDataFreshnessMetadata) async
-    func clear() async
+    func getMetadata() -> CriticalDataFreshnessMetadata?
+    func saveMetadata(_ metadata: CriticalDataFreshnessMetadata)
+    func clear()
 }

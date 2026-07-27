@@ -66,18 +66,19 @@ private struct PreviewCriticalDataFreshnessRemoteRepository: CriticalDataFreshne
     }
 }
 
-private actor PreviewCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLocalRepository {
+@MainActor
+private final class PreviewCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLocalRepository {
     private var metadata: CriticalDataFreshnessMetadata?
 
-    func getMetadata() async -> CriticalDataFreshnessMetadata? {
+    func getMetadata() -> CriticalDataFreshnessMetadata? {
         metadata
     }
 
-    func saveMetadata(_ metadata: CriticalDataFreshnessMetadata) async {
+    func saveMetadata(_ metadata: CriticalDataFreshnessMetadata) {
         self.metadata = metadata
     }
 
-    func clear() async {
+    func clear() {
         metadata = nil
     }
 }

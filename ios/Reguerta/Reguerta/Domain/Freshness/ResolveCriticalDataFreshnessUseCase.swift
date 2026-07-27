@@ -17,26 +17,30 @@ struct ResolveCriticalDataFreshnessUseCase: Sendable {
         self.nowProvider = nowProvider
     }
 
-    func execute() async -> CriticalDataFreshnessResolution {
-        guard let config = await remoteRepository.getConfig() else {
+    func execute() async throws -> CriticalDataFreshnessResolution {
+        try Task.checkCancellation()
+        let config = await remoteRepository.getConfig()
+        try Task.checkCancellation()
+
+        guard let config else {
             return .invalidConfig
         }
 
-        let metadata = await localRepository.getMetadata()
+        try Task.checkCancellation()
+        let metadata = localRepository.getMetadata()
+        try Task.checkCancellation()
         let evaluation = evaluate(
             config: config,
             metadata: metadata,
             nowMillis: nowProvider()
         )
+        try Task.checkCancellation()
 
         switch evaluation {
         case .invalidConfig:
             return .invalidConfig
         case .accepted(let metadataToPersist):
-            if let metadataToPersist {
-                await localRepository.saveMetadata(metadataToPersist)
-            }
-            return .fresh
+            return .fresh(metadataToPersist: metadataToPersist)
         }
     }
 
