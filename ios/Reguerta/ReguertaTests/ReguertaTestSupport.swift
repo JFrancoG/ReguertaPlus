@@ -326,16 +326,22 @@ struct FixedCriticalDataFreshnessRemoteRepository: CriticalDataFreshnessRemoteRe
 @MainActor
 final class InMemoryCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLocalRepository {
     private var metadata: CriticalDataFreshnessMetadata?
+    private(set) var writeGeneration: UInt64 = 0
 
     func getMetadata() -> CriticalDataFreshnessMetadata? {
         metadata
     }
 
-    func saveMetadata(_ metadata: CriticalDataFreshnessMetadata) {
+    func saveMetadata(
+        _ metadata: CriticalDataFreshnessMetadata,
+        ifWriteGeneration expectedWriteGeneration: UInt64
+    ) {
+        guard writeGeneration == expectedWriteGeneration else { return }
         self.metadata = metadata
     }
 
-    func clear() {
+    func clear() throws {
+        writeGeneration &+= 1
         metadata = nil
     }
 }

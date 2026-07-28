@@ -39,18 +39,23 @@ import com.reguerta.user.domain.notifications.NotificationRepository
 import com.reguerta.user.domain.products.ProductRepository
 import com.reguerta.user.domain.profiles.SharedProfileRepository
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import java.util.UUID
+
+internal const val SESSION_AUTH_OPERATION_TIMEOUT_MILLIS = 30_000L
 
 internal class SessionAuthActions(
     private val uiState: MutableStateFlow<SessionUiState>,
@@ -73,7 +78,14 @@ internal class SessionAuthActions(
     private val nowMillisProvider: () -> Long,
     private val refreshShifts: () -> Unit,
     private val refreshDeliveryCalendar: () -> Unit,
+    private val sessionOperationTimeoutMillis: Long = SESSION_AUTH_OPERATION_TIMEOUT_MILLIS,
 ) {
+    init {
+        require(sessionOperationTimeoutMillis > 0L) {
+            "Session operation timeout must be positive"
+        }
+    }
+
     private val sessionOperationLock = Any()
     private var sessionOperationGeneration = 0L
     private var sessionOperationOwner: Any? = null
@@ -305,12 +317,12 @@ internal class SessionAuthActions(
     fun signOut() {
         cancelMyOrderFreshness()
         val cleanupJob = ownSessionTerminationCleanup {
-            clearAuthorizedDeviceSession()
-            criticalDataFreshnessLocalRepository.clear()
+            val authenticationAndRoutingClosed = closeAuthenticationAndRoutingSafely()
+            val privateContextClosed = clearPrivateSessionContext()
+            authenticationAndRoutingClosed && privateContextClosed
         }
-        authSessionProvider.signOut()
+        closeAuthenticationAndRoutingSafely()
         clearSessionRefreshTracking()
-        sessionEnvironmentRouter.resetToBaseEnvironment()
         uiState.update { state -> state.toSignedOutSessionState(showSessionExpiredDialog = false) }
         cleanupJob.start()
     }
@@ -337,6 +349,7 @@ internal class SessionAuthActions(
             kind = SessionAuthOperationKind.REFRESH,
             expectedPrincipalUid = expectedPrincipalUid,
         ) { operation ->
+            var completedSuccessfully = false
             try {
                 operation.providerWasInvoked.set(true)
                 val result = authSessionProvider.refreshCurrentSession()
@@ -356,7 +369,6 @@ internal class SessionAuthActions(
                             operation.expectedPrincipalUid != null &&
                             result.principal.uid != operation.expectedPrincipalUid
                         ) {
-                            closeStaleFirebaseAuthentication(operation)
                             handleExpiredSession(operation)
                             return@launchSessionOperation
                         }
@@ -382,8 +394,12 @@ internal class SessionAuthActions(
                         handleExpiredSession(operation)
                     }
                 }
+                completedSuccessfully = true
             } finally {
-                finishRefreshIfCurrent(operation)
+                finishRefreshIfCurrent(
+                    operation = operation,
+                    completedSuccessfully = completedSuccessfully,
+                )
             }
         }
         if (!didLaunch) {
@@ -538,6 +554,13 @@ internal class SessionAuthActions(
         lateinit var operation: SessionAuthOperation
         lateinit var job: Job
         synchronized(sessionOperationLock) {
+            if (sessionOperationKind == SessionAuthOperationKind.DRAINING) {
+                publishDrainingSessionOperationError(kind)
+                return false
+            }
+            if (kind in INTERACTIVE_SESSION_OPERATION_KINDS && sessionOperationJob != null) {
+                return false
+            }
             val refreshWouldSupersedeInteractive =
                 sessionOperationKind in INTERACTIVE_SESSION_OPERATION_KINDS
             val refreshWasCapturedBeforeCleanup =
@@ -567,24 +590,36 @@ internal class SessionAuthActions(
                         predecessor?.join()
                     }
                     if (!isCurrentSessionOperation(operation)) return@launch
+                    startSessionOperationDeadline(operation, job)
                     block(operation)
-                } catch (error: Exception) {
-                    if (
-                        operation.providerWasInvoked.get() &&
-                        !isCurrentSessionOperation(operation) &&
-                        !operation.terminalSessionApplied.get()
-                    ) {
-                        closeStaleFirebaseAuthentication(operation)
-                        return@launch
+                    claimSessionOperationResult(operation)
+                } catch (_: CancellationException) {
+                    // Cancellation from a successor or the deadline is stale by definition.
+                    // Definitive cleanup runs below without publishing from the cancelled owner.
+                } catch (_: Exception) {
+                    if (isCurrentSessionOperation(operation)) {
+                        recoverCurrentSessionOperation(operation, job)
                     }
-                    throw error
                 } finally {
+                    if (!operation.deadlineTriggered.get()) {
+                        operation.deadlineJob.getAndSet(null)?.cancel()
+                    }
+                    if (operation.deadlineClaim.outcome == SessionOperationDeadlineOutcome.DRAINING) {
+                        withContext(NonCancellable) {
+                            operation.drainCleanupCompleted.await()
+                        }
+                    }
+                    if (!operation.providerWasInvoked.get()) {
+                        operation.definitiveCleanupConfirmed.set(true)
+                    }
                     if (
                         operation.providerWasInvoked.get() &&
                         !isCurrentSessionOperation(operation) &&
                         !operation.terminalSessionApplied.get()
                     ) {
-                        closeStaleFirebaseAuthentication(operation)
+                        withContext(NonCancellable) {
+                            closeStaleFirebaseAuthentication(operation)
+                        }
                     }
                 }
             }
@@ -600,8 +635,150 @@ internal class SessionAuthActions(
         return true
     }
 
-    private fun ownSessionTerminationCleanup(block: suspend () -> Unit): Job {
+    private fun startSessionOperationDeadline(
+        operation: SessionAuthOperation,
+        operationJob: Job,
+    ) {
+        val deadlineJob = scope.launch {
+            delay(sessionOperationTimeoutMillis)
+            handleSessionOperationDeadline(operation, operationJob)
+        }
+        operation.deadlineJob.set(deadlineJob)
+    }
+
+    private fun claimSessionOperationResult(operation: SessionAuthOperation) {
+        synchronized(sessionOperationLock) {
+            operation.deadlineClaim.claimResult()
+        }
+    }
+
+    private suspend fun handleSessionOperationDeadline(
+        operation: SessionAuthOperation,
+        operationJob: Job,
+    ) {
+        val drainingOperation = synchronized(sessionOperationLock) {
+            val activeKind = sessionOperationKind
+            val activeJob = sessionOperationJob
+            if (
+                operationJob.isCompleted ||
+                activeKind == null ||
+                activeKind !in ACTIVE_SESSION_OPERATION_KINDS ||
+                activeJob !== operationJob ||
+                sessionOperationGeneration != operation.generation ||
+                sessionOperationOwner !== operation.owner ||
+                !operation.deadlineClaim.claimDraining()
+            ) {
+                null
+            } else {
+                operation.deadlineTriggered.set(true)
+                sessionOperationGeneration += 1
+                sessionOperationOwner = null
+                sessionOperationKind = SessionAuthOperationKind.DRAINING
+                isSessionRefreshInFlight.set(false)
+                SessionOperationDrain(
+                    kind = checkNotNull(activeKind),
+                    laneJob = activeJob,
+                )
+            }
+        } ?: return
+
+        recoverSessionUi(drainingOperation.kind)
+        drainingOperation.laneJob.cancel(
+            CancellationException("Session operation exceeded its UI deadline"),
+        )
+        performPreliminarySessionCleanup(operation)
+    }
+
+    private suspend fun recoverCurrentSessionOperation(
+        operation: SessionAuthOperation,
+        operationJob: Job,
+    ) {
+        val didBeginDraining = synchronized(sessionOperationLock) {
+            if (
+                sessionOperationGeneration != operation.generation ||
+                sessionOperationOwner !== operation.owner ||
+                sessionOperationJob !== operationJob ||
+                !operation.deadlineClaim.claimDraining()
+            ) {
+                false
+            } else {
+                sessionOperationGeneration += 1
+                sessionOperationOwner = null
+                sessionOperationKind = SessionAuthOperationKind.DRAINING
+                isSessionRefreshInFlight.set(false)
+                true
+            }
+        }
+        if (!didBeginDraining) return
+
+        recoverSessionUi(operation.kind)
+        performPreliminarySessionCleanup(operation)
+    }
+
+    private fun recoverSessionUi(kind: SessionAuthOperationKind) {
+        cancelMyOrderFreshness()
+        clearSessionRefreshTracking()
+        uiState.update { state ->
+            val knownEmail = (state.mode as? SessionMode.Authorized)
+                ?.principal
+                ?.email
+                ?.takeIf(String::isNotBlank)
+                ?: state.emailInput
+            val registrationEmail = state.registerEmailInput
+            state.toSignedOutSessionState(showSessionExpiredDialog = false).copy(
+                emailInput = knownEmail,
+                emailErrorRes = if (kind == SessionAuthOperationKind.SIGN_UP) {
+                    null
+                } else {
+                    R.string.auth_error_unknown
+                },
+                registerEmailInput = if (kind == SessionAuthOperationKind.SIGN_UP) {
+                    registrationEmail
+                } else {
+                    ""
+                },
+                registerEmailErrorRes = if (kind == SessionAuthOperationKind.SIGN_UP) {
+                    R.string.auth_error_register_generic
+                } else {
+                    null
+                },
+            )
+        }
+    }
+
+    private fun publishDrainingSessionOperationError(kind: SessionAuthOperationKind) {
+        uiState.update { state ->
+            when (kind) {
+                SessionAuthOperationKind.SIGN_IN -> state.copy(
+                    emailErrorRes = R.string.auth_error_unknown,
+                )
+
+                SessionAuthOperationKind.SIGN_UP -> state.copy(
+                    registerEmailErrorRes = R.string.auth_error_register_generic,
+                )
+
+                SessionAuthOperationKind.REFRESH,
+                SessionAuthOperationKind.DRAINING,
+                SessionAuthOperationKind.CLEANUP,
+                    -> state
+            }
+        }
+    }
+
+    private suspend fun performPreliminarySessionCleanup(operation: SessionAuthOperation) {
+        try {
+            withContext(NonCancellable) {
+                closeAuthenticationAndRoutingSafely()
+                clearPrivateSessionContext()
+            }
+        } finally {
+            operation.drainCleanupCompleted.complete(Unit)
+        }
+    }
+
+    private fun ownSessionTerminationCleanup(block: suspend () -> Boolean): Job {
         lateinit var cleanupJob: Job
+        val cleanupConfirmed = AtomicBoolean(false)
         synchronized(sessionOperationLock) {
             val predecessor = sessionOperationJob
             if (sessionOperationKind != SessionAuthOperationKind.CLEANUP) {
@@ -613,8 +790,8 @@ internal class SessionAuthActions(
             cleanupJob = scope.launch(start = CoroutineStart.LAZY) {
                 withContext(NonCancellable) {
                     predecessor?.join()
+                    cleanupConfirmed.set(block())
                 }
-                block()
             }
             sessionOperationJob = cleanupJob
             sessionOperationKind = SessionAuthOperationKind.CLEANUP
@@ -622,8 +799,12 @@ internal class SessionAuthActions(
         cleanupJob.invokeOnCompletion {
             synchronized(sessionOperationLock) {
                 if (sessionOperationJob === cleanupJob) {
-                    sessionOperationJob = null
-                    sessionOperationKind = null
+                    if (cleanupConfirmed.get()) {
+                        sessionOperationJob = null
+                        sessionOperationKind = null
+                    } else {
+                        sessionOperationKind = SessionAuthOperationKind.DRAINING
+                    }
                 }
             }
         }
@@ -632,7 +813,10 @@ internal class SessionAuthActions(
 
     private fun releaseSessionOperation(operation: SessionAuthOperation, job: Job) {
         synchronized(sessionOperationLock) {
-            if (sessionOperationJob === job) {
+            val mustRemainQuarantined =
+                sessionOperationKind == SessionAuthOperationKind.DRAINING &&
+                    !operation.definitiveCleanupConfirmed.get()
+            if (sessionOperationJob === job && !mustRemainQuarantined) {
                 sessionOperationJob = null
                 sessionOperationKind = null
             }
@@ -666,7 +850,10 @@ internal class SessionAuthActions(
         }
     }
 
-    private fun invalidateSessionOperationIfCurrent(operation: SessionAuthOperation): Boolean =
+    private fun completeTerminalSessionOperationIfCurrent(
+        operation: SessionAuthOperation,
+        cleanupConfirmed: Boolean,
+    ): Boolean =
         synchronized(sessionOperationLock) {
             if (
                 sessionOperationGeneration != operation.generation ||
@@ -675,9 +862,15 @@ internal class SessionAuthActions(
                 false
             } else {
                 operation.terminalSessionApplied.set(true)
+                operation.definitiveCleanupConfirmed.set(cleanupConfirmed)
                 sessionOperationGeneration += 1
                 sessionOperationOwner = null
                 isSessionRefreshInFlight.set(false)
+                if (!cleanupConfirmed) {
+                    operation.deadlineClaim.claimDraining()
+                    operation.drainCleanupCompleted.complete(Unit)
+                    sessionOperationKind = SessionAuthOperationKind.DRAINING
+                }
                 true
             }
         }
@@ -692,13 +885,18 @@ internal class SessionAuthActions(
         return isCurrentSessionOperation(operation)
     }
 
-    private fun finishRefreshIfCurrent(operation: SessionAuthOperation) {
+    private fun finishRefreshIfCurrent(
+        operation: SessionAuthOperation,
+        completedSuccessfully: Boolean,
+    ) {
         synchronized(sessionOperationLock) {
             if (
                 sessionOperationGeneration == operation.generation &&
                 sessionOperationOwner === operation.owner
             ) {
-                setLastSessionRefreshAtMillis(nowMillisProvider())
+                if (completedSuccessfully) {
+                    setLastSessionRefreshAtMillis(nowMillisProvider())
+                }
                 isSessionRefreshInFlight.set(false)
             }
         }
@@ -709,11 +907,92 @@ internal class SessionAuthActions(
     }
 
     private suspend fun closeStaleFirebaseAuthentication(operation: SessionAuthOperation) {
-        if (operation.staleAuthenticationClosed.compareAndSet(false, true)) {
-            clearAuthorizedDeviceSession()
-            authSessionProvider.signOut()
-            sessionEnvironmentRouter.resetToBaseEnvironment()
+        if (operation.staleAuthenticationClosed.get()) return
+        withContext(NonCancellable) {
+            if (operation.staleAuthenticationClosed.get()) return@withContext
+            val authenticationAndRoutingClosed = closeAuthenticationAndRoutingSafely()
+            val privateContextClosed = clearPrivateSessionContext()
+            val cleanupConfirmed = authenticationAndRoutingClosed && privateContextClosed
+            operation.definitiveCleanupConfirmed.set(cleanupConfirmed)
+            if (cleanupConfirmed) {
+                operation.staleAuthenticationClosed.set(true)
+            }
         }
+    }
+
+    private fun closeAuthenticationAndRoutingSafely(): Boolean {
+        val authenticationClosed = try {
+            authSessionProvider.signOut()
+            true
+        } catch (_: Exception) {
+            false
+        }
+        val routingReset = try {
+            sessionEnvironmentRouter.resetToBaseEnvironment()
+            true
+        } catch (_: Exception) {
+            false
+        }
+        return authenticationClosed && routingReset
+    }
+
+    private suspend fun clearPrivateSessionContext(): Boolean {
+        val deviceContextClosed = try {
+            authorizedDeviceRegistrar.clearAuthorizedSession()
+            true
+        } catch (_: Exception) {
+            false
+        }
+        val localFreshnessClosed = try {
+            criticalDataFreshnessLocalRepository.clear()
+            true
+        } catch (_: Exception) {
+            false
+        }
+        return deviceContextClosed && localFreshnessClosed
+    }
+
+    private fun resetSessionRoutingSafely(): Boolean =
+        try {
+            sessionEnvironmentRouter.resetToBaseEnvironment()
+            true
+        } catch (_: Exception) {
+            false
+        }
+
+    private suspend fun terminateCurrentSession(
+        operation: SessionAuthOperation,
+        closeAuthentication: Boolean,
+        transformUiState: (SessionUiState) -> SessionUiState,
+    ): AuthorizedSessionApplication {
+        if (!isCurrentSessionOperation(operation)) {
+            return abandonStaleAuthorizedSession()
+        }
+
+        cancelMyOrderFreshness()
+        clearSessionRefreshTracking()
+        if (!updateUiStateIfCurrent(operation, transformUiState)) {
+            return abandonStaleAuthorizedSession()
+        }
+
+        val cleanupConfirmed = withContext(NonCancellable) {
+            val authenticationAndRoutingClosed = if (closeAuthentication) {
+                closeAuthenticationAndRoutingSafely()
+            } else {
+                resetSessionRoutingSafely()
+            }
+            val privateContextClosed = clearPrivateSessionContext()
+            authenticationAndRoutingClosed && privateContextClosed
+        }
+
+        if (!completeTerminalSessionOperationIfCurrent(operation, cleanupConfirmed)) {
+            if (cleanupConfirmed && closeAuthentication) {
+                operation.definitiveCleanupConfirmed.set(true)
+                operation.staleAuthenticationClosed.set(true)
+            }
+            return abandonStaleAuthorizedSession()
+        }
+        return AuthorizedSessionApplication.TERMINATED
     }
 
     private suspend fun applyAuthorizedSession(
@@ -837,60 +1116,45 @@ internal class SessionAuthActions(
             }
 
             is AccessResolutionResult.Unauthorized -> {
-                if (!invalidateSessionOperationIfCurrent(operation)) {
-                    return abandonStaleAuthorizedSession()
-                }
-                cancelMyOrderFreshness()
-                clearAuthorizedDeviceSession()
-                clearSessionRefreshTracking()
-                sessionEnvironmentRouter.resetToBaseEnvironment()
                 if (result.reason == UnauthorizedReason.EMAIL_NOT_VERIFIED) {
-                    authSessionProvider.signOut()
-                    uiState.update { state ->
+                    return terminateCurrentSession(
+                        operation = operation,
+                        closeAuthentication = true,
+                    ) { state ->
                         state.toSignedOutSessionState(showSessionExpiredDialog = false).copy(
                             emailInput = principal.email,
                             emailErrorRes = R.string.auth_error_email_not_verified,
                         )
                     }
-                    return AuthorizedSessionApplication.TERMINATED
                 }
                 val showUnauthorizedDialog = shouldShowUnauthorizedDialog(
                     currentMode = uiState.value.mode,
                     email = principal.email,
                     reason = result.reason,
                 )
-                uiState.update { state ->
+                terminateCurrentSession(
+                    operation = operation,
+                    closeAuthentication = false,
+                ) { state ->
                     state.toUnauthorizedSessionState(
                         email = principal.email,
                         reason = result.reason,
                         showUnauthorizedDialog = showUnauthorizedDialog,
                     )
                 }
-                AuthorizedSessionApplication.TERMINATED
             }
         }
     }
 
     private suspend fun handleExpiredSession(operation: SessionAuthOperation) {
-        if (!isCurrentSessionOperation(operation)) {
-            closeStaleFirebaseAuthentication(operation)
-            return
+        val result = terminateCurrentSession(
+            operation = operation,
+            closeAuthentication = true,
+        ) { state ->
+            state.toSignedOutSessionState(showSessionExpiredDialog = true)
         }
-        if (!invalidateSessionOperationIfCurrent(operation)) {
+        if (result == AuthorizedSessionApplication.STALE) {
             closeStaleFirebaseAuthentication(operation)
-            return
-        }
-        cancelMyOrderFreshness()
-        clearAuthorizedDeviceSession()
-        clearSessionRefreshTracking()
-        sessionEnvironmentRouter.resetToBaseEnvironment()
-        uiState.update { state -> state.toSignedOutSessionState(showSessionExpiredDialog = true) }
-        try {
-            withContext(NonCancellable) {
-                criticalDataFreshnessLocalRepository.clear()
-            }
-        } catch (_: Exception) {
-            // Local cleanup must never delay or undo an already applied session termination.
         }
     }
 
@@ -919,15 +1183,6 @@ internal class SessionAuthActions(
         return isCurrentSessionOperation(operation)
     }
 
-    private suspend fun clearAuthorizedDeviceSession() {
-        try {
-            authorizedDeviceRegistrar.clearAuthorizedSession()
-        } catch (error: CancellationException) {
-            throw error
-        } catch (error: Exception) {
-            Log.e("SessionAuthActions", "Unable to clear authorized device state")
-        }
-    }
 }
 
 private data class SessionAuthOperation(
@@ -939,6 +1194,39 @@ private data class SessionAuthOperation(
     val providerWasInvoked: AtomicBoolean = AtomicBoolean(false),
     val staleAuthenticationClosed: AtomicBoolean = AtomicBoolean(false),
     val terminalSessionApplied: AtomicBoolean = AtomicBoolean(false),
+    val deadlineClaim: SessionOperationDeadlineClaim = SessionOperationDeadlineClaim(),
+    val deadlineTriggered: AtomicBoolean = AtomicBoolean(false),
+    val deadlineJob: AtomicReference<Job?> = AtomicReference(null),
+    val drainCleanupCompleted: CompletableDeferred<Unit> = CompletableDeferred(),
+    val definitiveCleanupConfirmed: AtomicBoolean = AtomicBoolean(false),
+)
+
+internal class SessionOperationDeadlineClaim {
+    private val state = AtomicReference(SessionOperationDeadlineOutcome.ACTIVE)
+
+    val outcome: SessionOperationDeadlineOutcome
+        get() = state.get()
+
+    fun claimResult(): Boolean = state.compareAndSet(
+        SessionOperationDeadlineOutcome.ACTIVE,
+        SessionOperationDeadlineOutcome.RESULT,
+    )
+
+    fun claimDraining(): Boolean = state.compareAndSet(
+        SessionOperationDeadlineOutcome.ACTIVE,
+        SessionOperationDeadlineOutcome.DRAINING,
+    )
+}
+
+internal enum class SessionOperationDeadlineOutcome {
+    ACTIVE,
+    RESULT,
+    DRAINING,
+}
+
+private data class SessionOperationDrain(
+    val kind: SessionAuthOperationKind,
+    val laneJob: Job,
 )
 
 private data class FreshnessOperation(
@@ -952,12 +1240,19 @@ private enum class SessionAuthOperationKind {
     SIGN_IN,
     SIGN_UP,
     REFRESH,
+    DRAINING,
     CLEANUP,
 }
 
 private val INTERACTIVE_SESSION_OPERATION_KINDS = setOf(
     SessionAuthOperationKind.SIGN_IN,
     SessionAuthOperationKind.SIGN_UP,
+)
+
+private val ACTIVE_SESSION_OPERATION_KINDS = setOf(
+    SessionAuthOperationKind.SIGN_IN,
+    SessionAuthOperationKind.SIGN_UP,
+    SessionAuthOperationKind.REFRESH,
 )
 
 private enum class AuthorizedSessionApplication {

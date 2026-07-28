@@ -13,7 +13,10 @@ import com.reguerta.user.domain.access.AuthSessionRefreshResult
 import com.reguerta.user.domain.access.AuthSessionProvider
 import com.reguerta.user.domain.access.AuthSignInFailureReason
 import com.reguerta.user.domain.access.AuthSignInResult
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 class FirebaseAuthSessionProvider internal constructor(
@@ -23,21 +26,31 @@ class FirebaseAuthSessionProvider internal constructor(
 
     override suspend fun signIn(email: String, password: String): AuthSignInResult = withContext(Dispatchers.IO) {
         val trimmedEmail = email.trim()
+        var authenticationMutated = false
         return@withContext try {
             gateway.signIn(trimmedEmail, password)
+            authenticationMutated = true
+            currentCoroutineContext().ensureActive()
             val user = gateway.reloadCurrentUser()
-                ?: return@withContext AuthSignInResult.Failure(AuthSignInFailureReason.UNKNOWN)
-            if (!user.emailVerified) {
-                try {
-                    gateway.sendCurrentUserVerificationEmail()
-                    return@withContext AuthSignInResult.Failure(
-                        AuthSignInFailureReason.EMAIL_NOT_VERIFIED,
-                    )
-                } finally {
-                    gateway.signOut()
+            currentCoroutineContext().ensureActive()
+            if (user == null) {
+                if (!gateway.signOutBestEffort()) {
+                    throw FirebaseAuthCleanupNotConfirmedException()
                 }
+                return@withContext AuthSignInResult.Failure(AuthSignInFailureReason.UNKNOWN)
+            }
+            if (!user.emailVerified) {
+                gateway.sendCurrentUserVerificationEmail()
+                currentCoroutineContext().ensureActive()
+                if (!gateway.signOutBestEffort()) {
+                    throw FirebaseAuthCleanupNotConfirmedException()
+                }
+                return@withContext AuthSignInResult.Failure(
+                    AuthSignInFailureReason.EMAIL_NOT_VERIFIED,
+                )
             }
             gateway.refreshCurrentUserToken(forceRefresh = true)
+            currentCoroutineContext().ensureActive()
 
             AuthSignInResult.Success(
                 principal = AuthPrincipal(
@@ -45,23 +58,47 @@ class FirebaseAuthSessionProvider internal constructor(
                     email = (user.email ?: trimmedEmail).trim().lowercase(),
                 ),
             )
+        } catch (exception: CancellationException) {
+            if (!gateway.signOutBestEffort()) {
+                throw FirebaseAuthCleanupNotConfirmedException(exception)
+            }
+            throw exception
         } catch (exception: Exception) {
+            if (authenticationMutated && !gateway.signOutBestEffort()) {
+                throw FirebaseAuthCleanupNotConfirmedException(exception)
+            }
             AuthSignInResult.Failure(exception.toFailureReason())
         }
     }
 
     override suspend fun signUp(email: String, password: String): AuthSignInResult = withContext(Dispatchers.IO) {
         val trimmedEmail = email.trim()
+        var authenticationMutated = false
         return@withContext try {
-            gateway.signUp(trimmedEmail, password)
-                ?: return@withContext AuthSignInResult.Failure(AuthSignInFailureReason.UNKNOWN)
-            try {
-                gateway.sendCurrentUserVerificationEmail()
-                AuthSignInResult.Failure(AuthSignInFailureReason.EMAIL_NOT_VERIFIED)
-            } finally {
-                gateway.signOut()
+            val user = gateway.signUp(trimmedEmail, password)
+            authenticationMutated = true
+            currentCoroutineContext().ensureActive()
+            if (user == null) {
+                if (!gateway.signOutBestEffort()) {
+                    throw FirebaseAuthCleanupNotConfirmedException()
+                }
+                return@withContext AuthSignInResult.Failure(AuthSignInFailureReason.UNKNOWN)
             }
+            gateway.sendCurrentUserVerificationEmail()
+            currentCoroutineContext().ensureActive()
+            if (!gateway.signOutBestEffort()) {
+                throw FirebaseAuthCleanupNotConfirmedException()
+            }
+            AuthSignInResult.Failure(AuthSignInFailureReason.EMAIL_NOT_VERIFIED)
+        } catch (exception: CancellationException) {
+            if (!gateway.signOutBestEffort()) {
+                throw FirebaseAuthCleanupNotConfirmedException(exception)
+            }
+            throw exception
         } catch (exception: Exception) {
+            if (authenticationMutated && !gateway.signOutBestEffort()) {
+                throw FirebaseAuthCleanupNotConfirmedException(exception)
+            }
             AuthSignInResult.Failure(exception.toFailureReason())
         }
     }
@@ -82,11 +119,20 @@ class FirebaseAuthSessionProvider internal constructor(
             uid = user.uid,
             email = (user.email ?: "").trim().lowercase(),
         )
+        var reloadCompleted = false
 
         return@withContext try {
             val refreshedUser = gateway.reloadCurrentUser()
-                ?: return@withContext AuthSessionRefreshResult.Expired
+            reloadCompleted = true
+            currentCoroutineContext().ensureActive()
+            if (refreshedUser == null) {
+                if (!gateway.signOutBestEffort()) {
+                    throw FirebaseAuthCleanupNotConfirmedException()
+                }
+                return@withContext AuthSessionRefreshResult.Expired
+            }
             gateway.refreshCurrentUserToken(forceRefresh = refreshedUser.emailVerified)
+            currentCoroutineContext().ensureActive()
 
             AuthSessionRefreshResult.Active(
                 principal = AuthPrincipal(
@@ -94,13 +140,26 @@ class FirebaseAuthSessionProvider internal constructor(
                     email = (refreshedUser.email ?: fallbackPrincipal.email).trim().lowercase(),
                 ),
             )
+        } catch (exception: CancellationException) {
+            if (!gateway.signOutBestEffort()) {
+                throw FirebaseAuthCleanupNotConfirmedException(exception)
+            }
+            throw exception
         } catch (exception: Exception) {
+            if (reloadCompleted) {
+                if (!gateway.signOutBestEffort()) {
+                    throw FirebaseAuthCleanupNotConfirmedException(exception)
+                }
+                throw exception
+            }
             when (exception.toFailureReason()) {
                 AuthSignInFailureReason.USER_DISABLED,
                 AuthSignInFailureReason.USER_NOT_FOUND,
                 AuthSignInFailureReason.INVALID_CREDENTIALS,
                     -> {
-                        gateway.signOut()
+                        if (!gateway.signOutBestEffort()) {
+                            throw FirebaseAuthCleanupNotConfirmedException(exception)
+                        }
                         AuthSessionRefreshResult.Expired
                     }
 
@@ -120,6 +179,19 @@ class FirebaseAuthSessionProvider internal constructor(
         gateway.signOut()
     }
 }
+
+internal class FirebaseAuthCleanupNotConfirmedException(
+    cause: Throwable? = null,
+) : IllegalStateException("Firebase Auth cleanup could not be confirmed", cause)
+
+private fun FirebaseAuthGateway.signOutBestEffort(): Boolean =
+    try {
+        signOut()
+        true
+    } catch (_: Exception) {
+        // Presentation remains fail-closed even if Firebase cannot confirm local sign-out.
+        false
+    }
 
 internal data class FirebaseAuthUserSnapshot(
     val uid: String,

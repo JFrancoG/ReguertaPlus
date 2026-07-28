@@ -93,8 +93,8 @@ struct SessionOperationInvalidationTests {
         #expect(routingRecorder.appliedEnvironments.isEmpty)
     }
 
-    @Test("Un nuevo login espera la limpieza del resultado antiguo")
-    func newerSignInWaitsForStaleProviderCleanup() async {
+    @Test("Un nuevo login se rechaza hasta limpiar el resultado antiguo")
+    func newerSignInIsRejectedUntilStaleProviderCleanup() async {
         let fixture = authenticatedMember()
         let principal = authenticatedPrincipal(for: fixture)
         let provider = ControlledSessionAuthProvider()
@@ -117,14 +117,20 @@ struct SessionOperationInvalidationTests {
         viewModel.emailInput = fixture.normalizedEmail
         viewModel.passwordInput = "secret12"
         viewModel.signIn()
-        guard let newerOperation = viewModel.sessionOperationTask else {
-            Issue.record("El segundo login no tiene propietario")
-            return
-        }
+        #expect(viewModel.canSubmitSignIn == false)
+        #expect(provider.signInRequestCount == 1)
 
         provider.completeSignIn(at: 0, with: .success(principal))
         await staleOperation.value
         #expect(provider.isAuthenticated == false)
+
+        viewModel.emailInput = fixture.normalizedEmail
+        viewModel.passwordInput = "secret12"
+        viewModel.signIn()
+        guard let newerOperation = viewModel.sessionOperationTask else {
+            Issue.record("El segundo login no tiene propietario tras el drenaje")
+            return
+        }
 
         guard await provider.waitForSignInRequestCount(2) else { return }
         #expect(provider.events == [
@@ -278,6 +284,7 @@ struct SessionOperationInvalidationTests {
         }
         #expect(session.environment == .production)
     }
+
 }
 
 @MainActor

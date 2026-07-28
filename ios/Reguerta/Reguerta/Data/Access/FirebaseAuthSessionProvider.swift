@@ -14,17 +14,35 @@ struct FirebaseAuthSessionProvider: AuthSessionProvider {
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
 
         do {
-            let result = try await auth.signIn(withEmail: trimmedEmail, password: password)
-            try await result.user.reload()
-            guard let refreshedUser = auth.currentUser else {
-                return .failure(.unknown)
+            let principal = try await awaitFirebaseAuthenticationFlow {
+                try await auth.signIn(withEmail: trimmedEmail, password: password)
+            } continuation: { result in
+                try await awaitFirebaseAuthenticationMutation {
+                    try await result.user.reload()
+                } signOut: {
+                    signOut()
+                }
+                guard let refreshedUser = auth.currentUser else {
+                    throw FirebaseIDTokenError.noAuthenticatedUser
+                }
+                _ = try await awaitFirebaseAuthenticationMutation {
+                    try await refreshedUser.getIDTokenResult(forcingRefresh: true)
+                } signOut: {
+                    signOut()
+                }
+                return AuthPrincipal(
+                    uid: refreshedUser.uid,
+                    email: normalizedEmail(refreshedUser.email ?? trimmedEmail)
+                )
+            } signOut: {
+                signOut()
             }
-            _ = try await refreshedUser.getIDTokenResult(forcingRefresh: true)
-            let principal = AuthPrincipal(
-                uid: refreshedUser.uid,
-                email: normalizedEmail(refreshedUser.email ?? trimmedEmail)
-            )
             return .success(principal)
+        } catch let failure as FirebaseAuthenticationContinuationError {
+            return .failureAfterAuthenticationMutation(
+                reason: mapFirebaseAuthError(failure.underlyingError),
+                signedOut: failure.signedOut
+            )
         } catch {
             return .failure(mapFirebaseAuthError(error))
         }
@@ -34,13 +52,27 @@ struct FirebaseAuthSessionProvider: AuthSessionProvider {
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
 
         do {
-            let result = try await auth.createUser(withEmail: trimmedEmail, password: password)
-            let verificationSent = await sendVerificationEmail(to: result.user)
-            let signedOut = signOut()
-            return .verificationRequired(
-                email: normalizedEmail(result.user.email ?? trimmedEmail),
-                verificationSent: verificationSent,
-                signedOut: signedOut
+            return try await awaitFirebaseAuthenticationFlow {
+                try await auth.createUser(withEmail: trimmedEmail, password: password)
+            } continuation: { result in
+                let verificationSent = try await awaitFirebaseAuthenticationMutation {
+                    await sendVerificationEmail(to: result.user)
+                } signOut: {
+                    signOut()
+                }
+                let signedOut = signOut()
+                return .verificationRequired(
+                    email: normalizedEmail(result.user.email ?? trimmedEmail),
+                    verificationSent: verificationSent,
+                    signedOut: signedOut
+                )
+            } signOut: {
+                signOut()
+            }
+        } catch let failure as FirebaseAuthenticationContinuationError {
+            return .failureAfterAuthenticationMutation(
+                reason: mapFirebaseAuthError(failure.underlyingError),
+                signedOut: failure.signedOut
             )
         } catch {
             return .failure(mapFirebaseAuthError(error))
@@ -69,17 +101,34 @@ struct FirebaseAuthSessionProvider: AuthSessionProvider {
         }
 
         do {
-            try await user.reload()
-            guard let refreshedUser = auth.currentUser else {
+            return try await awaitFirebaseAuthenticationFlow {
+                try await user.reload()
+            } continuation: {
+                guard let refreshedUser = auth.currentUser else {
+                    return .expired
+                }
+                _ = try await awaitFirebaseAuthenticationMutation {
+                    try await refreshedUser.getIDTokenResult(forcingRefresh: true)
+                } signOut: {
+                    signOut()
+                }
+
+                let principal = AuthPrincipal(
+                    uid: refreshedUser.uid,
+                    email: normalizedEmail(refreshedUser.email ?? "")
+                )
+                return .active(principal)
+            } signOut: {
+                signOut()
+            }
+        } catch let failure as FirebaseAuthenticationContinuationError {
+            if isExpiredSessionError(failure.underlyingError) {
                 return .expired
             }
-            _ = try await refreshedUser.getIDTokenResult(forcingRefresh: true)
-
-            let principal = AuthPrincipal(
-                uid: refreshedUser.uid,
-                email: normalizedEmail(refreshedUser.email ?? "")
+            return .failureAfterAuthenticationMutation(
+                reason: mapFirebaseAuthError(failure.underlyingError),
+                signedOut: failure.signedOut
             )
-            return .active(principal)
         } catch {
             if isExpiredSessionError(error) {
                 return .expired
@@ -107,6 +156,55 @@ struct FirebaseAuthSessionProvider: AuthSessionProvider {
         } catch {
             return false
         }
+    }
+}
+
+@MainActor
+func awaitFirebaseAuthenticationMutation<Value>(
+    _ mutation: () async throws -> Value,
+    signOut: () -> Bool
+) async throws -> Value {
+    do {
+        let value = try await mutation()
+        try Task.checkCancellation()
+        return value
+    } catch let error as CancellationError {
+        throw FirebaseAuthenticationContinuationError(
+            underlyingError: error,
+            signedOut: signOut()
+        )
+    }
+}
+
+struct FirebaseAuthenticationContinuationError: Error {
+    let underlyingError: any Error
+    let signedOut: Bool
+}
+
+@MainActor
+func awaitFirebaseAuthenticationFlow<MutationValue, ResultValue>(
+    _ mutation: () async throws -> MutationValue,
+    continuation: (MutationValue) async throws -> ResultValue,
+    signOut: () -> Bool
+) async throws -> ResultValue {
+    let mutationValue = try await awaitFirebaseAuthenticationMutation(
+        mutation,
+        signOut: signOut
+    )
+    do {
+        return try await continuation(mutationValue)
+    } catch let failure as FirebaseAuthenticationContinuationError {
+        throw failure
+    } catch let error as CancellationError {
+        throw FirebaseAuthenticationContinuationError(
+            underlyingError: error,
+            signedOut: signOut()
+        )
+    } catch {
+        throw FirebaseAuthenticationContinuationError(
+            underlyingError: error,
+            signedOut: signOut()
+        )
     }
 }
 

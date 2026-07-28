@@ -33,13 +33,13 @@ struct CriticalDataFreshnessEnvironmentTests {
     }
 
     @Test
-    func userDefaultsClearRemovesAllFreshnessMetadata() {
+    func userDefaultsClearRemovesAllFreshnessMetadata() throws {
         let (suiteName, userDefaults) = isolatedUserDefaults(suffix: "clear")
         defer { userDefaults.removePersistentDomain(forName: suiteName) }
         let repository = UserDefaultsCriticalDataFreshnessLocalRepository(userDefaults: userDefaults)
         repository.saveMetadata(freshnessMetadata(environment: .develop))
 
-        repository.clear()
+        try repository.clear()
 
         #expect(repository.getMetadata() == nil)
         #expect(userDefaults.object(forKey: freshnessValidatedAtKey) == nil)
@@ -136,6 +136,43 @@ struct CriticalDataFreshnessEnvironmentTests {
 
         #expect(viewModel.state == .ready)
         #expect(await remoteRepository.requestedEnvironments() == [.develop])
+    }
+
+    @Test("Un clear compartido cerca una escritura remota tardia")
+    func sharedClearFencesLateRemoteMetadataWrite() async throws {
+        let remoteRepository = ControlledEnvironmentFreshnessRemoteRepository()
+        let localRepository = InMemoryCriticalDataFreshnessLocalRepository()
+        localRepository.saveMetadata(
+            freshnessMetadata(environment: .develop, timestamp: 500)
+        )
+        let viewModel = MyOrderFreshnessViewModel(
+            resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase(
+                remoteRepository: remoteRepository,
+                localRepository: localRepository,
+                nowProvider: { 3_000 }
+            ),
+            criticalDataFreshnessLocalRepository: localRepository,
+            timeout: .seconds(60)
+        )
+
+        viewModel.retry(currentMode: freshnessAuthorizedMode(environment: .develop))
+        let refreshTasks = try #require(ownedFreshnessTasks(in: viewModel))
+        await remoteRepository.waitForRequestCount(1)
+        let initialWriteGeneration = localRepository.writeGeneration
+
+        try localRepository.clear()
+        #expect(localRepository.writeGeneration == initialWriteGeneration &+ 1)
+        #expect(localRepository.getMetadata() == nil)
+
+        await remoteRepository.completeRequest(
+            at: 0,
+            with: freshnessConfig(timestamp: 2_000)
+        )
+        await refreshTasks.operation.value
+        await refreshTasks.timeout.value
+
+        #expect(viewModel.state == .ready)
+        #expect(localRepository.getMetadata() == nil)
     }
 }
 
