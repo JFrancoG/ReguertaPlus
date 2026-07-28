@@ -25,6 +25,8 @@ class FirebaseAuthorizedDeviceRegistrar(
     }
 
     private val registrationGeneration = AtomicLong(0L)
+    private val processSession: AuthorizedDeviceProcessSession =
+        ReguertaAuthorizedDeviceProcessSession
     private val registrationWriter = AuthorizedDeviceRegistrationWriter(
         store = preferences,
         repository = repository,
@@ -36,6 +38,7 @@ class FirebaseAuthorizedDeviceRegistrar(
         isSessionCurrent: () -> Boolean,
     ) {
         val generation = registrationGeneration.get()
+        val processActivationGeneration = processSession.activationGeneration()
         val registrationIsCurrent = {
             registrationGeneration.get() == generation && isSessionCurrent()
         }
@@ -49,13 +52,24 @@ class FirebaseAuthorizedDeviceRegistrar(
             val authUid = requireNotNull(member.authUid?.trim()?.ifBlank { null }) {
                 "Authorized member must have an Auth UID"
             }
-            val contextSaved = preferences.saveAuthorizedSessionContext(
+            val authorizedContext = preferences.saveAuthorizedSessionContext(
                 memberId = member.id,
                 authUid = authUid,
                 environment = environment,
                 isSessionCurrent = registrationIsCurrent,
             )
-            if (!contextSaved) return
+                ?: return
+            if (!registrationIsCurrent()) return
+            if (!processSession.activate(authorizedContext, processActivationGeneration)) return
+            if (!registrationIsCurrent()) {
+                processSession.invalidateIfOwned(authorizedContext)
+                return
+            }
+            val authorizedRegistrationIsCurrent = {
+                registrationIsCurrent() &&
+                    processSession.match(authorizedContext) ==
+                    AuthorizedDeviceProcessSessionMatch.CURRENT
+            }
             Log.d(TAG, "Registering authorized device")
 
             val device = RegisteredDevice(
@@ -75,7 +89,7 @@ class FirebaseAuthorizedDeviceRegistrar(
                 memberId = member.id,
                 environment = environment,
                 device = device,
-                isSessionCurrent = registrationIsCurrent,
+                isSessionCurrent = authorizedRegistrationIsCurrent,
                 refreshedDevice = { latestToken ->
                     val refreshedAtMillis = nowMillisProvider()
                     device.copy(
@@ -97,7 +111,7 @@ class FirebaseAuthorizedDeviceRegistrar(
     }
 
     override suspend fun clearAuthorizedSession() {
-        registrationGeneration.incrementAndGet()
+        invalidateAuthorizedSession()
         try {
             preferences.clearAuthorizedSessionContext()
         } catch (error: CancellationException) {
@@ -106,6 +120,11 @@ class FirebaseAuthorizedDeviceRegistrar(
             Log.e(TAG, "Unable to clear authorized device storage")
             throw error
         }
+    }
+
+    override fun invalidateAuthorizedSession() {
+        registrationGeneration.incrementAndGet()
+        processSession.invalidate()
     }
 
     private fun resolveAppVersion(): String {

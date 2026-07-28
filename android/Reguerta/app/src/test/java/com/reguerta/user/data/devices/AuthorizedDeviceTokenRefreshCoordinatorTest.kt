@@ -57,6 +57,84 @@ class AuthorizedDeviceTokenRefreshCoordinatorTest {
     }
 
     @Test
+    fun `cold process stores token without adopting persisted authorization`() = runTest {
+        val context = authorizedContext()
+        val store = FakeAuthorizedDeviceTokenStore(context = context)
+        val repository = RecordingDeviceRegistrationRepository()
+        val processSession = FakeAuthorizedDeviceProcessSession()
+        val coordinator = coordinator(
+            store = store,
+            repository = repository,
+            processSession = processSession,
+        )
+
+        val result = coordinator.refresh("TOKEN-A")
+
+        assertEquals(AuthorizedDeviceTokenRefreshResult.STORED_ONLY, result)
+        assertEquals("TOKEN-A", store.fcmToken)
+        assertTrue(repository.registrations.isEmpty())
+    }
+
+    @Test
+    fun `different process lease rejects persisted authorization`() = runTest {
+        val context = authorizedContext(leaseId = "LEASE-A")
+        val store = FakeAuthorizedDeviceTokenStore(context = context)
+        val repository = RecordingDeviceRegistrationRepository()
+        val processSession = FakeAuthorizedDeviceProcessSession(
+            initialContext = context.copy(leaseId = "LEASE-B"),
+        )
+        val coordinator = coordinator(
+            store = store,
+            repository = repository,
+            processSession = processSession,
+        )
+
+        val result = coordinator.refresh("TOKEN-A")
+
+        assertEquals(AuthorizedDeviceTokenRefreshResult.STALE_SESSION, result)
+        assertTrue(repository.registrations.isEmpty())
+    }
+
+    @Test
+    fun `different process environment rejects persisted authorization`() = runTest {
+        val context = authorizedContext(environment = "develop")
+        val store = FakeAuthorizedDeviceTokenStore(context = context)
+        val repository = RecordingDeviceRegistrationRepository()
+        val processSession = FakeAuthorizedDeviceProcessSession(
+            initialContext = context.copy(environment = "production"),
+        )
+        val coordinator = coordinator(
+            store = store,
+            repository = repository,
+            processSession = processSession,
+        )
+
+        val result = coordinator.refresh("TOKEN-A")
+
+        assertEquals(AuthorizedDeviceTokenRefreshResult.STALE_SESSION, result)
+        assertTrue(repository.registrations.isEmpty())
+    }
+
+    @Test
+    fun `invalidation supersedes an activation permit`() {
+        ReguertaAuthorizedDeviceProcessSession.invalidate()
+        val activationGeneration =
+            ReguertaAuthorizedDeviceProcessSession.activationGeneration()
+
+        ReguertaAuthorizedDeviceProcessSession.invalidate()
+        val activated = ReguertaAuthorizedDeviceProcessSession.activate(
+            context = authorizedContext(),
+            expectedGeneration = activationGeneration,
+        )
+
+        assertFalse(activated)
+        assertEquals(
+            AuthorizedDeviceProcessSessionMatch.NOT_ESTABLISHED,
+            ReguertaAuthorizedDeviceProcessSession.match(authorizedContext()),
+        )
+    }
+
+    @Test
     fun `authorized refresh forwards persisted member environment and device`() = runTest {
         val context = authorizedContext(
             memberId = "MEMBER-A",
@@ -133,6 +211,33 @@ class AuthorizedDeviceTokenRefreshCoordinatorTest {
     }
 
     @Test
+    fun `process invalidation while repository is suspended prevents commit`() = runTest {
+        val registrationStarted = CompletableDeferred<Unit>()
+        val registrationRelease = CompletableDeferred<Unit>()
+        val context = authorizedContext()
+        val store = FakeAuthorizedDeviceTokenStore(context = context)
+        val processSession = FakeAuthorizedDeviceProcessSession(initialContext = context)
+        val repository = RecordingDeviceRegistrationRepository(
+            suspendedToken = "TOKEN-A",
+            started = registrationStarted,
+            release = registrationRelease,
+        )
+        val coordinator = coordinator(
+            store = store,
+            repository = repository,
+            processSession = processSession,
+        )
+
+        val refresh = async { runCatching { coordinator.refresh("TOKEN-A") } }
+        registrationStarted.await()
+        processSession.invalidate()
+        registrationRelease.complete(Unit)
+
+        assertTrue(refresh.await().isFailure)
+        assertTrue(repository.registrations.isEmpty())
+    }
+
+    @Test
     fun `login registration catches up token received before context was published`() = runTest {
         val store = FakeAuthorizedDeviceTokenStore(context = null)
         val repository = RecordingDeviceRegistrationRepository()
@@ -196,10 +301,13 @@ class AuthorizedDeviceTokenRefreshCoordinatorTest {
     private fun coordinator(
         store: FakeAuthorizedDeviceTokenStore,
         repository: RecordingDeviceRegistrationRepository,
+        processSession: AuthorizedDeviceProcessSession =
+            FakeAuthorizedDeviceProcessSession(initialContext = store.context),
         currentAuthUid: () -> String? = { "UID-A" },
     ) = AuthorizedDeviceTokenRefreshCoordinator(
         store = store,
         repository = repository,
+        processSession = processSession,
         currentAuthUidProvider = currentAuthUid,
         nowMillisProvider = { 1_000L },
         deviceProvider = { token, deviceId, nowMillis ->
@@ -223,11 +331,12 @@ class AuthorizedDeviceTokenRefreshCoordinatorTest {
         memberId: String = "MEMBER-A",
         authUid: String = "UID-A",
         environment: String = "develop",
+        leaseId: String = "LEASE-A",
     ) = AuthorizedDeviceSessionContext(
         memberId = memberId,
         authUid = authUid,
         environment = environment,
-        leaseId = "LEASE-A",
+        leaseId = leaseId,
     )
 
     private fun registeredDevice(token: String?) = RegisteredDevice(
@@ -248,6 +357,46 @@ class AuthorizedDeviceTokenRefreshCoordinatorTest {
         val projectRoot = generateSequence(Path.of(System.getProperty("user.dir"))) { it.parent }
             .first { Files.exists(it.resolve("app/src/main/java/com/reguerta/user")) }
         return Files.readString(projectRoot.resolve("app/src/main/java/com/reguerta/user/$relativePath"))
+    }
+}
+
+private class FakeAuthorizedDeviceProcessSession(
+    initialContext: AuthorizedDeviceSessionContext? = null,
+) : AuthorizedDeviceProcessSession {
+    private var generation = 0L
+    private var activeContext = initialContext
+
+    override fun activationGeneration(): Long = generation
+
+    override fun activate(
+        context: AuthorizedDeviceSessionContext,
+        expectedGeneration: Long,
+    ): Boolean {
+        if (generation != expectedGeneration) return false
+        activeContext = context
+        return true
+    }
+
+    override fun invalidate() {
+        generation += 1L
+        activeContext = null
+    }
+
+    override fun invalidateIfOwned(context: AuthorizedDeviceSessionContext) {
+        if (activeContext == context) {
+            activeContext = null
+        }
+    }
+
+    override fun match(
+        context: AuthorizedDeviceSessionContext,
+    ): AuthorizedDeviceProcessSessionMatch = when (val currentContext = activeContext) {
+        null -> AuthorizedDeviceProcessSessionMatch.NOT_ESTABLISHED
+        context -> AuthorizedDeviceProcessSessionMatch.CURRENT
+        else -> {
+            check(currentContext != context)
+            AuthorizedDeviceProcessSessionMatch.SUPERSEDED
+        }
     }
 }
 

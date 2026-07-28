@@ -11,6 +11,11 @@ nonisolated struct AuthorizedDeviceSessionContext: Codable, Equatable, Sendable 
     let lease: AuthorizedDeviceSessionLease
 }
 
+nonisolated private struct AuthorizedDeviceProcessAuthorization: Sendable {
+    let context: AuthorizedDeviceSessionContext
+    let sessionFence: @MainActor @Sendable () -> Bool
+}
+
 actor FirebaseAuthorizedDeviceCoordinator: AuthorizedDeviceRegistrar {
     private static let logger = Logger(
         subsystem: "com.reguerta.app",
@@ -24,7 +29,7 @@ actor FirebaseAuthorizedDeviceCoordinator: AuthorizedDeviceRegistrar {
     private let currentAuthUidProvider: @MainActor @Sendable () -> String?
     private let deviceProvider: @MainActor @Sendable (String?, Int64) -> RegisteredDevice
     private let retryDelay: @Sendable () async throws -> Void
-    private var activeContext: AuthorizedDeviceSessionContext?
+    private var activeAuthorization: AuthorizedDeviceProcessAuthorization?
     private var generation: UInt64 = 0
 
     init(
@@ -118,11 +123,15 @@ private extension FirebaseAuthorizedDeviceCoordinator {
             environment: command.environment,
             lease: command.lease
         )
-        activeContext = context
+        let authorization = AuthorizedDeviceProcessAuthorization(
+            context: context,
+            sessionFence: isSessionCurrent
+        )
+        activeAuthorization = authorization
 
         guard await isSessionCurrent() else {
-            if activeContext == context {
-                activeContext = nil
+            if isActive(authorization, generation: operationGeneration) {
+                activeAuthorization = nil
             }
             return .skipped
         }
@@ -131,67 +140,79 @@ private extension FirebaseAuthorizedDeviceCoordinator {
         try await keychainStore.remove(.legacyAuthorizedMemberId)
 
         guard try await isCurrentOrDiscardContext(
-            context,
-            generation: operationGeneration,
-            sessionFence: isSessionCurrent
+            authorization,
+            generation: operationGeneration
         ) else {
             return .skipped
         }
 
         let token = try await fetchTokenWithRetry()
-        guard try await isCurrentOrDiscardContext(
-            context,
+        guard try await isCurrentRegistration(
+            authorization,
             generation: operationGeneration,
-            sessionFence: isSessionCurrent
+            expectedToken: token
         ) else {
             return .skipped
         }
 
-        let nowMillis = nowMillisProvider()
-        let device = await deviceProvider(token, nowMillis)
-        guard try await isCurrentOrDiscardContext(
-            context,
+        guard try await writeDeviceRegistration(
+            authorization,
             generation: operationGeneration,
-            sessionFence: isSessionCurrent
-        ) else {
-            return .skipped
-        }
-
-        _ = try await repository.register(
-            memberId: context.memberId,
-            environment: context.environment,
-            device: device,
-            isRegistrationCurrent: { [weak self] in
-                guard let self else { return false }
-                return try await self.isCurrent(
-                    context,
-                    generation: operationGeneration,
-                    sessionFence: isSessionCurrent
-                )
-            }
-        )
-
-        guard try await isCurrent(
-            context,
-            generation: operationGeneration,
-            sessionFence: isSessionCurrent
+            token: token
         ) else {
             return .skipped
         }
         return .registered
     }
 
-    private func isCurrentOrDiscardContext(
-        _ context: AuthorizedDeviceSessionContext,
+    private func writeDeviceRegistration(
+        _ authorization: AuthorizedDeviceProcessAuthorization,
         generation operationGeneration: UInt64,
-        sessionFence: @escaping @MainActor @Sendable () -> Bool
+        token: String?
+    ) async throws -> Bool {
+        let nowMillis = nowMillisProvider()
+        let device = await deviceProvider(token, nowMillis)
+        guard try await isCurrentRegistration(
+            authorization,
+            generation: operationGeneration,
+            expectedToken: token
+        ) else {
+            return false
+        }
+
+        let context = authorization.context
+        _ = try await repository.register(
+            memberId: context.memberId,
+            environment: context.environment,
+            device: device,
+            isRegistrationCurrent: { [weak self] in
+                guard let self else { return false }
+                return try await self.isCurrentRegistration(
+                    authorization,
+                    generation: operationGeneration,
+                    expectedToken: token
+                )
+            }
+        )
+        return try await isCurrentRegistration(
+            authorization,
+            generation: operationGeneration,
+            expectedToken: token
+        )
+    }
+
+    private func isCurrentOrDiscardContext(
+        _ authorization: AuthorizedDeviceProcessAuthorization,
+        generation operationGeneration: UInt64
     ) async throws -> Bool {
         guard try await isCurrent(
-            context,
-            generation: operationGeneration,
-            sessionFence: sessionFence
+            authorization,
+            generation: operationGeneration
         ) else {
-            try await discardContextIfOwned(context)
+            try await discardContextIfOwned(
+                authorization.context,
+                generation: operationGeneration
+            )
             return false
         }
         return true
@@ -202,31 +223,29 @@ private extension FirebaseAuthorizedDeviceCoordinator {
         try await keychainStore.saveString(normalizedToken, for: .fcmToken)
         guard let normalizedToken else { return }
 
-        let initialGeneration = generation
-        guard let context = try await keychainStore.load(
-            AuthorizedDeviceSessionContext.self,
-            for: .authorizedDeviceContext
-        ) else {
+        guard let authorization = activeAuthorization else {
+            _ = try await keychainStore.load(
+                AuthorizedDeviceSessionContext.self,
+                for: .authorizedDeviceContext
+            )
             return
         }
-        guard generation == initialGeneration else { return }
-        if let activeContext, activeContext != context {
-            return
-        }
-        activeContext = context
+        let context = authorization.context
         let operationGeneration = generation
 
-        guard try await isCurrentPersisted(
-            context,
-            generation: operationGeneration
+        guard try await isCurrentRegistration(
+            authorization,
+            generation: operationGeneration,
+            expectedToken: normalizedToken
         ) else {
             return
         }
         let nowMillis = nowMillisProvider()
         let device = await deviceProvider(normalizedToken, nowMillis)
-        guard try await isCurrentPersisted(
-            context,
-            generation: operationGeneration
+        guard try await isCurrentRegistration(
+            authorization,
+            generation: operationGeneration,
+            expectedToken: normalizedToken
         ) else {
             return
         }
@@ -237,9 +256,10 @@ private extension FirebaseAuthorizedDeviceCoordinator {
             device: device,
             isRegistrationCurrent: { [weak self] in
                 guard let self else { return false }
-                return try await self.isCurrentPersisted(
-                    context,
-                    generation: operationGeneration
+                return try await self.isCurrentRegistration(
+                    authorization,
+                    generation: operationGeneration,
+                    expectedToken: normalizedToken
                 )
             }
         )
@@ -249,10 +269,10 @@ private extension FirebaseAuthorizedDeviceCoordinator {
         ifOwnedBy lease: AuthorizedDeviceSessionLease
     ) async throws {
         let expectedContext: AuthorizedDeviceSessionContext
-        if let activeContext {
-            guard activeContext.lease == lease else { return }
-            expectedContext = activeContext
-            self.activeContext = nil
+        if let activeAuthorization {
+            guard activeAuthorization.context.lease == lease else { return }
+            expectedContext = activeAuthorization.context
+            self.activeAuthorization = nil
             generation &+= 1
         } else {
             generation &+= 1
@@ -266,7 +286,7 @@ private extension FirebaseAuthorizedDeviceCoordinator {
             }
             guard
                 generation == clearGeneration,
-                activeContext == nil,
+                activeAuthorization == nil,
                 storedContext.lease == lease
             else {
                 return
@@ -307,42 +327,67 @@ private extension FirebaseAuthorizedDeviceCoordinator {
     }
 
     private func isCurrent(
-        _ context: AuthorizedDeviceSessionContext,
-        generation operationGeneration: UInt64,
-        sessionFence: @escaping @MainActor @Sendable () -> Bool
-    ) async throws -> Bool {
-        guard generation == operationGeneration, activeContext == context else { return false }
-        guard await sessionFence() else { return false }
-        guard generation == operationGeneration, activeContext == context else { return false }
-        return try await isCurrentPersisted(
-            context,
-            generation: operationGeneration
-        )
-    }
-
-    private func isCurrentPersisted(
-        _ context: AuthorizedDeviceSessionContext,
+        _ authorization: AuthorizedDeviceProcessAuthorization,
         generation operationGeneration: UInt64
     ) async throws -> Bool {
-        guard generation == operationGeneration, activeContext == context else { return false }
+        let context = authorization.context
+        guard isActive(authorization, generation: operationGeneration) else { return false }
+        guard await authorization.sessionFence() else { return false }
+        guard isActive(authorization, generation: operationGeneration) else { return false }
         guard await currentAuthUidProvider() == context.authUid else { return false }
-        guard generation == operationGeneration, activeContext == context else { return false }
+        guard isActive(authorization, generation: operationGeneration) else { return false }
         let persistedContext = try await keychainStore.load(
             AuthorizedDeviceSessionContext.self,
             for: .authorizedDeviceContext
         )
-        return generation == operationGeneration &&
-            activeContext == context &&
-            persistedContext == context
+        guard
+            isActive(authorization, generation: operationGeneration),
+            persistedContext == context,
+            await authorization.sessionFence()
+        else {
+            return false
+        }
+        return isActive(authorization, generation: operationGeneration)
     }
 
-    private func discardContextIfOwned(_ context: AuthorizedDeviceSessionContext) async throws {
+    private func isCurrentRegistration(
+        _ authorization: AuthorizedDeviceProcessAuthorization,
+        generation operationGeneration: UInt64,
+        expectedToken: String?
+    ) async throws -> Bool {
+        guard try await isCurrent(
+            authorization,
+            generation: operationGeneration
+        ) else {
+            return false
+        }
+        let persistedToken = try await keychainStore.loadString(for: .fcmToken)
+        guard persistedToken == expectedToken else { return false }
+        return try await isCurrent(
+            authorization,
+            generation: operationGeneration
+        )
+    }
+
+    private func isActive(
+        _ authorization: AuthorizedDeviceProcessAuthorization,
+        generation operationGeneration: UInt64
+    ) -> Bool {
+        generation == operationGeneration &&
+            activeAuthorization?.context == authorization.context
+    }
+
+    private func discardContextIfOwned(
+        _ context: AuthorizedDeviceSessionContext,
+        generation operationGeneration: UInt64
+    ) async throws {
         _ = try await keychainStore.remove(
             .authorizedDeviceContext,
             ifMatching: context
         )
-        if activeContext == context {
-            activeContext = nil
+        if generation == operationGeneration,
+           activeAuthorization?.context == context {
+            activeAuthorization = nil
         }
     }
 

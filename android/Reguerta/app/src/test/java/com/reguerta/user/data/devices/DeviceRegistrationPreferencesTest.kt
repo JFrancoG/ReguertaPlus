@@ -159,7 +159,6 @@ class DeviceRegistrationPreferencesTest {
             environment = " ProDuction ",
         )
 
-        assertTrue(saved)
         assertEquals(
             AuthorizedDeviceSessionContext(
                 memberId = "MEMBER-1",
@@ -167,8 +166,9 @@ class DeviceRegistrationPreferencesTest {
                 environment = "production",
                 leaseId = "LEASE-1",
             ),
-            preferences.getAuthorizedSessionContext(),
+            saved,
         )
+        assertEquals(saved, preferences.getAuthorizedSessionContext())
     }
 
     @Test
@@ -195,7 +195,7 @@ class DeviceRegistrationPreferencesTest {
             isSessionCurrent = { false },
         )
 
-        assertFalse(saved)
+        assertNull(saved)
         assertEquals(
             AuthorizedDeviceSessionContext(
                 memberId = "CURRENT-MEMBER",
@@ -240,14 +240,77 @@ class DeviceRegistrationPreferencesTest {
     }
 
     @Test
-    fun `partial authorized context is corruption rather than absence`() = runTest {
+    fun `legacy encrypted context without auth uid is invalidated without deleting device data`() = runTest {
+        val encryptedPreferences = FakeSharedPreferences(
+            initialValues = mapOf(
+                "device_id" to "DEVICE-1",
+                "fcm_token" to "TOKEN-1",
+                "member_id" to "MEMBER-1",
+                "environment" to "production",
+                "lease_id" to "LEASE-1",
+            ),
+        )
+        val preferences = testPreferences(
+            encrypted = encryptedPreferences,
+            raw = FakeSharedPreferences(),
+        )
+
+        assertNull(preferences.getAuthorizedSessionContext())
+        assertFalse(encryptedPreferences.contains("member_id"))
+        assertFalse(encryptedPreferences.contains("auth_uid"))
+        assertFalse(encryptedPreferences.contains("environment"))
+        assertFalse(encryptedPreferences.contains("lease_id"))
+        assertEquals("DEVICE-1", preferences.getOrCreateDeviceId())
+        assertEquals("TOKEN-1", preferences.getFcmToken())
+    }
+
+    @Test
+    fun `unknown partial authorized context is corruption rather than absence`() = runTest {
         val preferences = testPreferences(
             encrypted = FakeSharedPreferences(
                 initialValues = mapOf(
                     "member_id" to "MEMBER-1",
+                    "auth_uid" to "UID-1",
                     "environment" to "production",
-                    "lease_id" to "LEASE-1",
                 ),
+            ),
+            raw = FakeSharedPreferences(),
+        )
+
+        assertSuspendThrows<DeviceRegistrationPreferencesException.Corrupted> {
+            preferences.getAuthorizedSessionContext()
+        }
+    }
+
+    @Test
+    fun `blank stored auth uid remains corruption rather than legacy absence`() = runTest {
+        val encryptedPreferences = FakeSharedPreferences(
+            initialValues = mapOf(
+                "member_id" to "MEMBER-1",
+                "auth_uid" to "   ",
+                "environment" to "production",
+                "lease_id" to "LEASE-1",
+            ),
+        )
+        val preferences = testPreferences(
+            encrypted = encryptedPreferences,
+            raw = FakeSharedPreferences(),
+        )
+
+        assertSuspendThrows<DeviceRegistrationPreferencesException.Corrupted> {
+            preferences.getAuthorizedSessionContext()
+        }
+        assertTrue(encryptedPreferences.contains("member_id"))
+        assertTrue(encryptedPreferences.contains("auth_uid"))
+        assertTrue(encryptedPreferences.contains("environment"))
+        assertTrue(encryptedPreferences.contains("lease_id"))
+    }
+
+    @Test
+    fun `isolated blank authorized key remains corruption rather than absence`() = runTest {
+        val preferences = testPreferences(
+            encrypted = FakeSharedPreferences(
+                initialValues = mapOf("auth_uid" to "   "),
             ),
             raw = FakeSharedPreferences(),
         )

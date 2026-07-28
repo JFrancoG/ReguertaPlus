@@ -116,23 +116,34 @@ class DeviceRegistrationPreferences internal constructor(
         authUid: String,
         environment: String,
         isSessionCurrent: () -> Boolean = { true },
-    ): Boolean = withEncryptedPreferences { preferences ->
+    ): AuthorizedDeviceSessionContext? = withEncryptedPreferences { preferences ->
         if (!isSessionCurrent()) {
-            return@withEncryptedPreferences false
+            return@withEncryptedPreferences null
         }
+        val authorizedContext = AuthorizedDeviceSessionContext(
+            memberId = requireNotNull(memberId.normalizedOrNull()) {
+                "Authorized member ID must not be blank"
+            },
+            authUid = requireNotNull(authUid.normalizedOrNull()) {
+                "Authorized Auth UID must not be blank"
+            },
+            environment = requireNotNull(
+                environment.trim().lowercase(Locale.ROOT).ifBlank { null },
+            ) {
+                "Authorized environment must not be blank"
+            },
+            leaseId = leaseIdProvider(),
+        )
         writeValues(
             preferences = preferences,
             values = mapOf(
-                KEY_MEMBER_ID to memberId.normalizedOrNull(),
-                KEY_AUTH_UID to authUid.normalizedOrNull(),
-                KEY_ENVIRONMENT to environment
-                    .trim()
-                    .lowercase(Locale.ROOT)
-                    .ifBlank { null },
-                KEY_LEASE_ID to leaseIdProvider(),
+                KEY_MEMBER_ID to authorizedContext.memberId,
+                KEY_AUTH_UID to authorizedContext.authUid,
+                KEY_ENVIRONMENT to authorizedContext.environment,
+                KEY_LEASE_ID to authorizedContext.leaseId,
             ),
         )
-        true
+        authorizedContext
     }
 
     suspend fun clearAuthorizedSessionContext() {
@@ -146,15 +157,26 @@ class DeviceRegistrationPreferences internal constructor(
 
     override suspend fun getAuthorizedSessionContext(): AuthorizedDeviceSessionContext? =
         withEncryptedPreferences { preferences ->
+            val presentKeys = AUTHORIZED_SESSION_KEYS.filterTo(mutableSetOf()) { key ->
+                containsKey(preferences, key)
+            }
+            if (presentKeys.isEmpty()) {
+                return@withEncryptedPreferences null
+            }
             val values = AUTHORIZED_SESSION_KEYS.associateWith { key ->
                 readOptionalString(preferences, key)
             }
-            if (values.values.all { it == null }) {
+            val missingKeys = values.filterValues { it == null }.keys
+            if (
+                missingKeys == setOf(KEY_AUTH_UID) &&
+                presentKeys == LEGACY_AUTHORIZED_SESSION_KEYS
+            ) {
+                deleteKeys(preferences, AUTHORIZED_SESSION_KEYS)
                 return@withEncryptedPreferences null
             }
             if (values.values.any { it == null }) {
                 throw DeviceRegistrationPreferencesException.Corrupted(
-                    keys = values.filterValues { it == null }.keys,
+                    keys = missingKeys,
                 )
             }
 
@@ -199,6 +221,17 @@ class DeviceRegistrationPreferences internal constructor(
     private fun readOptionalString(preferences: SharedPreferences, key: String): String? =
         try {
             preferences.getString(key, null).normalizedOrNull()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: DeviceRegistrationPreferencesException) {
+            throw error
+        } catch (error: Exception) {
+            throw DeviceRegistrationPreferencesException.Read(key = key, cause = error)
+        }
+
+    private fun containsKey(preferences: SharedPreferences, key: String): Boolean =
+        try {
+            preferences.contains(key)
         } catch (error: CancellationException) {
             throw error
         } catch (error: DeviceRegistrationPreferencesException) {
@@ -263,6 +296,11 @@ class DeviceRegistrationPreferences internal constructor(
         val AUTHORIZED_SESSION_KEYS = setOf(
             KEY_MEMBER_ID,
             KEY_AUTH_UID,
+            KEY_ENVIRONMENT,
+            KEY_LEASE_ID,
+        )
+        val LEGACY_AUTHORIZED_SESSION_KEYS = setOf(
+            KEY_MEMBER_ID,
             KEY_ENVIRONMENT,
             KEY_LEASE_ID,
         )

@@ -825,6 +825,9 @@ class SessionAuthActionsConcurrencyTest {
     fun `environment switch forces critical freshness check for the same principal`() = runTest {
         val principal = principal("environment")
         val member = member(principal)
+        val lifecycleEvents = mutableListOf<String>()
+        val environmentRouter = RecordingSessionEnvironmentRouter(lifecycleEvents)
+        val deviceRegistrar = TestAuthorizedDeviceRegistrar(lifecycleEvents = lifecycleEvents)
         val authProvider = ControlledAuthSessionProvider(
             refreshResult = CompletableDeferred(AuthSessionRefreshResult.Active(principal)),
         )
@@ -836,6 +839,8 @@ class SessionAuthActionsConcurrencyTest {
             ),
             authProvider = authProvider,
             authorizedMemberResolver = ProductionAuthorizedMemberResolver,
+            environmentRouter = environmentRouter,
+            deviceRegistrar = deviceRegistrar,
             freshnessRemoteRepository = freshnessRemoteRepository,
         )
 
@@ -846,6 +851,10 @@ class SessionAuthActionsConcurrencyTest {
         assertEquals(MyOrderFreshnessUiState.Ready, fixture.state.value.myOrderFreshnessState)
         assertEquals(1, fixture.localFreshnessRepository.saveRequests)
         assertEquals(listOf("production"), freshnessRemoteRepository.requestedEnvironments)
+        assertTrue(
+            lifecycleEvents.indexOf("invalidate") <
+                lifecycleEvents.indexOf("apply:production"),
+        )
     }
 
     @Test
@@ -1012,10 +1021,15 @@ class SessionAuthActionsConcurrencyTest {
         fixture.actions.signIn("secret123")
         resolverStarted.await()
         fixture.actions.signOut()
+        val invalidationRequestsAfterSignOut = fixture.deviceRegistrar.invalidationRequests
         resolverRelease.complete(Unit)
         advanceUntilIdle()
 
         assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
+        assertEquals(
+            invalidationRequestsAfterSignOut,
+            fixture.deviceRegistrar.invalidationRequests,
+        )
         assertTrue(environmentRouter.appliedEnvironments.isEmpty())
         assertEquals(null, environmentRouter.currentEnvironment)
         assertEquals(0, memberRepository.findByAuthUidRequests)
@@ -1069,10 +1083,21 @@ class SessionAuthActionsConcurrencyTest {
 
         fixture.actions.signIn("secret123")
         registrationStarted.await()
+        val invalidationRequestsBeforeLogout = deviceRegistrar.invalidationRequests
+        val invalidationFenceCountBeforeLogout =
+            deviceRegistrar.sessionFenceValuesAtInvalidation.size
         fixture.actions.signOut()
+        val invalidationRequestsAtLogout =
+            deviceRegistrar.invalidationRequests - invalidationRequestsBeforeLogout
+        val sessionFenceValuesAtLogout = deviceRegistrar.sessionFenceValuesAtInvalidation
+            .drop(invalidationFenceCountBeforeLogout)
+        val clearRequestsAtLogout = deviceRegistrar.clearRequests
         registrationRelease.complete(Unit)
         advanceUntilIdle()
 
+        assertEquals(2, invalidationRequestsAtLogout)
+        assertEquals(listOf(true, false), sessionFenceValuesAtLogout)
+        assertEquals(0, clearRequestsAtLogout)
         assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
         assertEquals(listOf("develop"), deviceRegistrar.requestedEnvironments)
         assertEquals(0, deviceRegistrar.completedRegistrations)
@@ -1336,11 +1361,15 @@ private class TestAuthorizedDeviceRegistrar(
     private val started: CompletableDeferred<Unit>? = null,
     private val release: CompletableDeferred<Unit>? = null,
     private val clearErrors: List<Throwable?> = emptyList(),
+    private val lifecycleEvents: MutableList<String>? = null,
 ) : AuthorizedDeviceRegistrar {
     var registerRequests = 0
     var completedRegistrations = 0
     var clearRequests = 0
+    var invalidationRequests = 0
+    val sessionFenceValuesAtInvalidation = mutableListOf<Boolean?>()
     val requestedEnvironments = mutableListOf<String>()
+    private var currentSessionFence: (() -> Boolean)? = null
 
     override suspend fun register(
         member: Member,
@@ -1348,7 +1377,9 @@ private class TestAuthorizedDeviceRegistrar(
         isSessionCurrent: () -> Boolean,
     ) {
         registerRequests += 1
+        currentSessionFence = isSessionCurrent
         requestedEnvironments += environment
+        lifecycleEvents?.add("register:$environment")
         started?.complete(Unit)
         release?.let { gate ->
             withContext(NonCancellable) {
@@ -1364,6 +1395,12 @@ private class TestAuthorizedDeviceRegistrar(
         val error = clearErrors.getOrNull(clearRequests)
         clearRequests += 1
         error?.let { throw it }
+    }
+
+    override fun invalidateAuthorizedSession() {
+        invalidationRequests += 1
+        sessionFenceValuesAtInvalidation += currentSessionFence?.invoke()
+        lifecycleEvents?.add("invalidate")
     }
 }
 
@@ -1670,7 +1707,9 @@ private fun validFreshnessMetadata(
         .associateWith { 2_000L },
 )
 
-private class RecordingSessionEnvironmentRouter : SessionEnvironmentRouter {
+private class RecordingSessionEnvironmentRouter(
+    private val lifecycleEvents: MutableList<String>? = null,
+) : SessionEnvironmentRouter {
     var currentEnvironment: String? = null
     val appliedEnvironments = mutableListOf<String>()
     var resetRequests = 0
@@ -1678,6 +1717,7 @@ private class RecordingSessionEnvironmentRouter : SessionEnvironmentRouter {
     override fun applyResolvedEnvironment(environment: String) {
         currentEnvironment = environment
         appliedEnvironments += environment
+        lifecycleEvents?.add("apply:$environment")
     }
 
     override fun resetToBaseEnvironment() {

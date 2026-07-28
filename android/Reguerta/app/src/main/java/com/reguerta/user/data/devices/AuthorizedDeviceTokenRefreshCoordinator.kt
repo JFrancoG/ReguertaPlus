@@ -25,6 +25,8 @@ internal class AuthorizedDeviceTokenRefreshCoordinator(
     private val currentAuthUidProvider: () -> String?,
     private val nowMillisProvider: () -> Long,
     private val deviceProvider: (token: String, deviceId: String, nowMillis: Long) -> RegisteredDevice,
+    private val processSession: AuthorizedDeviceProcessSession =
+        ReguertaAuthorizedDeviceProcessSession,
 ) {
     private val refreshMutex = Mutex()
 
@@ -46,6 +48,13 @@ internal class AuthorizedDeviceTokenRefreshCoordinator(
 
         val authorizedContext = store.getAuthorizedSessionContext()
             ?: return AuthorizedDeviceTokenRefreshResult.STORED_ONLY
+        when (processSession.match(authorizedContext)) {
+            AuthorizedDeviceProcessSessionMatch.NOT_ESTABLISHED ->
+                return AuthorizedDeviceTokenRefreshResult.STORED_ONLY
+            AuthorizedDeviceProcessSessionMatch.SUPERSEDED ->
+                return AuthorizedDeviceTokenRefreshResult.STALE_SESSION
+            AuthorizedDeviceProcessSessionMatch.CURRENT -> Unit
+        }
         if (currentAuthUidProvider() != authorizedContext.authUid) {
             return AuthorizedDeviceTokenRefreshResult.STALE_SESSION
         }
@@ -63,7 +72,9 @@ internal class AuthorizedDeviceTokenRefreshCoordinator(
             isSessionCurrent = {
                 store.getAuthorizedSessionContext() == authorizedContext &&
                     store.getFcmToken() == normalizedToken &&
-                    currentAuthUidProvider() == authorizedContext.authUid
+                    currentAuthUidProvider() == authorizedContext.authUid &&
+                    processSession.match(authorizedContext) ==
+                    AuthorizedDeviceProcessSessionMatch.CURRENT
             },
         )
         return AuthorizedDeviceTokenRefreshResult.UPLOADED
