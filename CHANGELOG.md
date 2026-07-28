@@ -61,6 +61,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-07-28 | 🐛 fix(android-auth): preserve cleanup quarantine
 - 2026-07-28 | 🐛 fix(auth): bound session operations
 - 2026-07-28 | 🐛 fix(android-auth): shorten credential lifetime
 - 2026-07-28 | 🐛 fix(security): harden device credential storage

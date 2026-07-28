@@ -385,6 +385,50 @@ class SessionAuthActionsConcurrencyTest {
     }
 
     @Test
+    fun `refresh during failing sign out cleanup is ignored and quarantine remains`() = runTest {
+        val cleanupStarted = CompletableDeferred<Unit>()
+        val cleanupRelease = CompletableDeferred<Unit>()
+        val principal = principal("cleanup-refresh")
+        val authProvider = ControlledAuthSessionProvider(
+            signInResults = listOf(
+                CompletableDeferred(AuthSignInResult.Failure(AuthSignInFailureReason.NETWORK)),
+            ),
+            refreshResults = listOf(
+                CompletableDeferred(AuthSessionRefreshResult.Active(principal)),
+            ),
+            signOutErrors = listOf(
+                IOException("preliminary sign out failed"),
+                IOException("definitive sign out failed"),
+            ),
+        )
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)),
+            authProvider = authProvider,
+            localFreshnessRepository = TestCriticalDataFreshnessLocalRepository(
+                clearStarted = cleanupStarted,
+                clearRelease = cleanupRelease,
+            ),
+        )
+
+        fixture.actions.signOut()
+        cleanupStarted.await()
+        fixture.actions.refreshSession(SessionRefreshTrigger.FOREGROUND)
+        runCurrent()
+
+        assertEquals(0, authProvider.refreshRequests)
+
+        cleanupRelease.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(0, authProvider.refreshRequests)
+        assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
+        fixture.state.value = fixture.state.value.copy(emailInput = "blocked@reguerta.app")
+        assertFalse(fixture.actions.signIn("blocked-secret"))
+        assertTrue(authProvider.signInRequests.isEmpty())
+    }
+
+    @Test
     fun `valid sign in forwards the route password snapshot`() = runTest {
         val signInResult = CompletableDeferred<AuthSignInResult>()
         val authProvider = ControlledAuthSessionProvider(signInResults = listOf(signInResult))
@@ -558,9 +602,11 @@ class SessionAuthActionsConcurrencyTest {
     }
 
     @Test
-    fun `stale refresh finalizer cannot clear ownership or timestamp of newer refresh`() = runTest {
+    fun `refresh requested while sign out owns cleanup is ignored`() = runTest {
         val firstRefresh = CompletableDeferred<AuthSessionRefreshResult>()
-        val secondRefresh = CompletableDeferred<AuthSessionRefreshResult>()
+        val secondRefresh = CompletableDeferred<AuthSessionRefreshResult>(
+            AuthSessionRefreshResult.NoSession,
+        )
         val authProvider = ControlledAuthSessionProvider(refreshResults = listOf(firstRefresh, secondRefresh))
         val principal = principal("refresh-owner")
         val fixture = fixture(
@@ -574,24 +620,13 @@ class SessionAuthActionsConcurrencyTest {
         fixture.actions.signOut()
         fixture.actions.refreshSession(SessionRefreshTrigger.STARTUP)
         runCurrent()
-        val requestsBeforePredecessorCompletion = authProvider.refreshRequests
 
         firstRefresh.complete(AuthSessionRefreshResult.Active(principal))
-        runCurrent()
-
-        val requestsAfterPredecessorCompletion = authProvider.refreshRequests
-        val newerRefreshStillOwnsFlag = fixture.isRefreshInFlight
-        val timestampBeforeNewerRefreshCompletion = fixture.lastRefreshAtMillis
-
-        secondRefresh.complete(AuthSessionRefreshResult.NoSession)
         advanceUntilIdle()
 
-        assertEquals(1, requestsBeforePredecessorCompletion)
-        assertEquals(2, requestsAfterPredecessorCompletion)
-        assertTrue(newerRefreshStillOwnsFlag)
-        assertEquals(null, timestampBeforeNewerRefreshCompletion)
+        assertEquals(1, authProvider.refreshRequests)
         assertFalse(fixture.isRefreshInFlight)
-        assertEquals(1_000L, fixture.lastRefreshAtMillis)
+        assertEquals(null, fixture.lastRefreshAtMillis)
         assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
     }
 

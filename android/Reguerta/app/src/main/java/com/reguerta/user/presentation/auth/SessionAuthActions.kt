@@ -558,16 +558,9 @@ internal class SessionAuthActions(
                 publishDrainingSessionOperationError(kind)
                 return false
             }
-            if (kind in INTERACTIVE_SESSION_OPERATION_KINDS && sessionOperationJob != null) {
-                return false
-            }
-            val refreshWouldSupersedeInteractive =
-                sessionOperationKind in INTERACTIVE_SESSION_OPERATION_KINDS
-            val refreshWasCapturedBeforeCleanup =
-                sessionOperationKind == SessionAuthOperationKind.CLEANUP && expectedPrincipalUid != null
             if (
-                kind == SessionAuthOperationKind.REFRESH &&
-                (refreshWouldSupersedeInteractive || refreshWasCapturedBeforeCleanup)
+                sessionOperationJob != null &&
+                (kind in INTERACTIVE_SESSION_OPERATION_KINDS || kind == SessionAuthOperationKind.REFRESH)
             ) {
                 return false
             }
