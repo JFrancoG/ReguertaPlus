@@ -315,12 +315,14 @@ internal class SessionAuthActions(
     }
 
     fun signOut() {
+        invalidateAuthorizedDeviceSessionSafely()
         cancelMyOrderFreshness()
         val cleanupJob = ownSessionTerminationCleanup {
             val authenticationAndRoutingClosed = closeAuthenticationAndRoutingSafely()
             val privateContextClosed = clearPrivateSessionContext()
             authenticationAndRoutingClosed && privateContextClosed
         }
+        invalidateAuthorizedDeviceSessionSafely()
         closeAuthenticationAndRoutingSafely()
         clearSessionRefreshTracking()
         uiState.update { state -> state.toSignedOutSessionState(showSessionExpiredDialog = false) }
@@ -709,6 +711,7 @@ internal class SessionAuthActions(
     }
 
     private fun recoverSessionUi(kind: SessionAuthOperationKind) {
+        invalidateAuthorizedDeviceSessionSafely()
         cancelMyOrderFreshness()
         clearSessionRefreshTracking()
         uiState.update { state ->
@@ -839,6 +842,7 @@ internal class SessionAuthActions(
             ) {
                 throw CancellationException("Session operation was superseded before routing")
             }
+            invalidateAuthorizedDeviceSessionSafely()
             sessionEnvironmentRouter.applyResolvedEnvironment(environment)
         }
     }
@@ -945,6 +949,14 @@ internal class SessionAuthActions(
         return deviceContextClosed && localFreshnessClosed
     }
 
+    private fun invalidateAuthorizedDeviceSessionSafely(): Boolean =
+        try {
+            authorizedDeviceRegistrar.invalidateAuthorizedSession()
+            true
+        } catch (_: Exception) {
+            false
+        }
+
     private fun resetSessionRoutingSafely(): Boolean =
         try {
             sessionEnvironmentRouter.resetToBaseEnvironment()
@@ -962,6 +974,7 @@ internal class SessionAuthActions(
             return abandonStaleAuthorizedSession()
         }
 
+        invalidateAuthorizedDeviceSessionSafely()
         cancelMyOrderFreshness()
         clearSessionRefreshTracking()
         if (!updateUiStateIfCurrent(operation, transformUiState)) {
