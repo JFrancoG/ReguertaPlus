@@ -13,6 +13,6 @@ struct ShiftSwapTransitionResult: Equatable, Sendable {
 }
 
 protocol ShiftSwapRequestRepository: Sendable {
-    func allShiftSwapRequests() async -> [ShiftSwapRequest]
+    func allShiftSwapRequests() async throws -> [ShiftSwapRequest]
     func transition(_ transition: ShiftSwapTransition) async throws -> ShiftSwapTransitionResult
 }

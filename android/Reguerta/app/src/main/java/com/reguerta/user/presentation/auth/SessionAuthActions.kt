@@ -11,7 +11,7 @@ import com.reguerta.user.presentation.root.canManageSessionProductCatalog
 import com.reguerta.user.presentation.root.hasVisibleContent
 import com.reguerta.user.presentation.root.isAuthenticatedSession
 import com.reguerta.user.presentation.root.isValidPassword
-import com.reguerta.user.presentation.root.nextAssignedShift
+import com.reguerta.user.presentation.root.ShiftSwapDraft
 import com.reguerta.user.presentation.root.toDraft
 
 import com.reguerta.user.R
@@ -22,6 +22,7 @@ import com.reguerta.user.domain.access.AuthSessionProvider
 import com.reguerta.user.domain.access.AuthSessionRefreshResult
 import com.reguerta.user.domain.access.AuthSignInResult
 import com.reguerta.user.domain.access.Member
+import com.reguerta.user.domain.access.MemberPermissionMatrix
 import com.reguerta.user.domain.access.MemberRepository
 import com.reguerta.user.domain.access.ResolveAuthorizedSessionUseCase
 import com.reguerta.user.domain.access.SessionRefreshPolicy
@@ -36,8 +37,6 @@ import com.reguerta.user.domain.news.NewsRepository
 import com.reguerta.user.domain.notifications.NotificationRepository
 import com.reguerta.user.domain.products.ProductRepository
 import com.reguerta.user.domain.profiles.SharedProfileRepository
-import com.reguerta.user.domain.shifts.ShiftRepository
-import com.reguerta.user.domain.shifts.ShiftType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -53,7 +52,6 @@ internal class SessionAuthActions(
     private val notificationRepository: NotificationRepository,
     private val productRepository: ProductRepository,
     private val sharedProfileRepository: SharedProfileRepository,
-    private val shiftRepository: ShiftRepository,
     private val authSessionProvider: AuthSessionProvider,
     private val resolveAuthorizedSession: ResolveAuthorizedSessionUseCase,
     private val authorizedDeviceRegistrar: AuthorizedDeviceRegistrar,
@@ -65,6 +63,8 @@ internal class SessionAuthActions(
     private val getLastSessionRefreshAtMillis: () -> Long?,
     private val setLastSessionRefreshAtMillis: (Long?) -> Unit,
     private val nowMillisProvider: () -> Long,
+    private val refreshShifts: () -> Unit,
+    private val refreshDeliveryCalendar: () -> Unit,
 ) {
     fun signIn() {
         val currentState = uiState.value
@@ -349,26 +349,24 @@ internal class SessionAuthActions(
                 val readNotificationIds = notificationRepository.getReadNotificationIds(result.member.id)
                 val products = productRepository.getProductsForVendor(result.member.id)
                 val sharedProfiles = sharedProfileRepository.getAllSharedProfiles()
-                val allShifts = shiftRepository.getAllShifts()
                 val ownSharedProfile = sharedProfiles.firstOrNull { it.userId == result.member.id }
                 uiState.update {
                     val currentMode = it.mode as? SessionMode.Authorized
-                    val sameProductIdentity = currentMode?.principal?.uid == principal.uid &&
-                        currentMode.member.id == result.member.id
-                    val productAccessRevoked = currentMode?.member?.canManageSessionProductCatalog == true &&
-                        !result.member.canManageSessionProductCatalog
+                    val accessTransition = resolveAuthorizedSessionAccessTransition(
+                        currentMode = currentMode,
+                        currentEnvironment = it.sessionEnvironment,
+                        principal = principal,
+                        member = result.member,
+                        resolvedEnvironment = result.environment,
+                    )
                     val productState = it.resetProductEditorUnlessAuthorizedRefreshCanPreserve(
                         principalUid = principal.uid,
                         member = result.member,
                     )
-                    productState.copy(
-                        sessionEpoch = if (sameProductIdentity && !productAccessRevoked) {
-                            it.sessionEpoch
-                        } else {
-                            it.sessionEpoch + 1
-                        },
+                    productState.reconcileAuthorizedShiftState(accessTransition).copy(
                         isAuthenticating = false,
                         isRegistering = false,
+                        sessionEnvironment = result.environment,
                         mode = SessionMode.Authorized(
                             principal = principal,
                             authenticatedMember = result.member,
@@ -389,7 +387,6 @@ internal class SessionAuthActions(
                         isUploadingNewsImage = false,
                         isUploadingSharedProfileImage = false,
                         isLoadingSharedProfiles = true,
-                        isLoadingShifts = true,
                     )
                 }
                 val allNews = newsRepository.getNewsFor(result.member)
@@ -414,28 +411,18 @@ internal class SessionAuthActions(
                             sharedProfileDraft = ownSharedProfile?.toDraft() ?: SharedProfileDraft(),
                             sharedProfileEditorRevision = it.sharedProfileEditorRevision + 1,
                             sharedProfilesRevision = it.sharedProfilesRevision + 1,
-                            shiftsFeed = allShifts,
-                            nextDeliveryShift = allShifts.nextAssignedShift(
-                                memberId = result.member.id,
-                                type = ShiftType.DELIVERY,
-                                nowMillis = nowMillisProvider(),
-                            ),
-                            nextMarketShift = allShifts.nextAssignedShift(
-                                memberId = result.member.id,
-                                type = ShiftType.MARKET,
-                                nowMillis = nowMillisProvider(),
-                            ),
                             isLoadingNews = false,
                             isLoadingNotifications = false,
                             isLoadingProducts = false,
                             isLoadingMyOrderProducts = false,
                             isLoadingSharedProfiles = false,
-                            isLoadingShifts = false,
                             isUploadingNewsImage = false,
                             isUploadingSharedProfileImage = false,
                         )
                     }
                 }
+                refreshShifts()
+                refreshDeliveryCalendar()
                 registerAuthorizedDevice(result.member)
                 if (shouldRefreshCriticalData) {
                     refreshMyOrderFreshness()
@@ -490,3 +477,89 @@ internal class SessionAuthActions(
         }
     }
 }
+
+internal data class AuthorizedSessionAccessTransition(
+    val sameProductIdentity: Boolean,
+    val accessCapabilitiesChanged: Boolean,
+    val adminAccessChanged: Boolean,
+    val environmentChanged: Boolean,
+) {
+    val invalidatesSessionContext: Boolean
+        get() = !sameProductIdentity || accessCapabilitiesChanged || environmentChanged
+
+    val preservesShiftData: Boolean
+        get() = sameProductIdentity && !environmentChanged
+
+    val preservesDeliveryCalendar: Boolean
+        get() = preservesShiftData && !adminAccessChanged
+}
+
+internal fun resolveAuthorizedSessionAccessTransition(
+    currentMode: SessionMode.Authorized?,
+    currentEnvironment: String?,
+    principal: AuthPrincipal,
+    member: Member,
+    resolvedEnvironment: String,
+): AuthorizedSessionAccessTransition {
+    val sameProductIdentity = currentMode?.principal?.uid == principal.uid &&
+        currentMode.member.id == member.id
+    val accessCapabilitiesChanged = currentMode?.let { mode ->
+        MemberPermissionMatrix.capabilitiesFor(mode.member) != MemberPermissionMatrix.capabilitiesFor(member)
+    } ?: false
+    val adminAccessChanged = currentMode?.member?.isAdmin?.let { wasAdmin ->
+        wasAdmin != member.isAdmin
+    } ?: false
+    val environmentChanged = currentEnvironment != resolvedEnvironment
+    return AuthorizedSessionAccessTransition(
+        sameProductIdentity = sameProductIdentity,
+        accessCapabilitiesChanged = accessCapabilitiesChanged,
+        adminAccessChanged = adminAccessChanged,
+        environmentChanged = environmentChanged,
+    )
+}
+
+internal fun SessionUiState.reconcileAuthorizedShiftState(
+    transition: AuthorizedSessionAccessTransition,
+): SessionUiState = copy(
+    sessionEpoch = if (transition.invalidatesSessionContext) sessionEpoch + 1 else sessionEpoch,
+    shiftsFeed = if (transition.preservesShiftData) shiftsFeed else emptyList(),
+    deliveryCalendarOverrides = if (transition.preservesDeliveryCalendar) {
+        deliveryCalendarOverrides
+    } else {
+        emptyList()
+    },
+    defaultDeliveryDayOfWeek = if (transition.preservesDeliveryCalendar) {
+        defaultDeliveryDayOfWeek
+    } else {
+        null
+    },
+    shiftSwapRequests = if (transition.preservesShiftData) shiftSwapRequests else emptyList(),
+    dismissedShiftSwapRequestIds = if (transition.preservesShiftData) {
+        dismissedShiftSwapRequestIds
+    } else {
+        emptySet()
+    },
+    acknowledgedShiftSwapRequestIds = if (
+        transition.preservesShiftData && !transition.invalidatesSessionContext
+    ) {
+        acknowledgedShiftSwapRequestIds
+    } else {
+        emptySet()
+    },
+    acknowledgedShiftSwapCreates = if (
+        transition.preservesShiftData && !transition.invalidatesSessionContext
+    ) {
+        acknowledgedShiftSwapCreates
+    } else {
+        emptyMap()
+    },
+    shiftSwapDraft = if (transition.preservesShiftData) shiftSwapDraft else ShiftSwapDraft(),
+    nextDeliveryShift = if (transition.preservesShiftData) nextDeliveryShift else null,
+    nextMarketShift = if (transition.preservesShiftData) nextMarketShift else null,
+    isLoadingShifts = false,
+    isLoadingDeliveryCalendar = false,
+    isSavingDeliveryCalendar = false,
+    isSubmittingShiftPlanningRequest = false,
+    isSavingShiftSwapRequest = false,
+    isUpdatingShiftSwapRequest = false,
+)

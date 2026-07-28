@@ -6,6 +6,7 @@ struct AuthorizedSession: Equatable, Sendable {
     var authenticatedMember: Member
     var member: Member
     var members: [Member]
+    var environment: SessionEnvironment
 }
 
 struct SessionOperationContext {

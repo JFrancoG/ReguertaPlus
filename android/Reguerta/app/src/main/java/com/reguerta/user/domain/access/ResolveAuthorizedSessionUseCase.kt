@@ -32,6 +32,9 @@ class ResolveAuthorizedSessionUseCase(
             return AccessResolutionResult.Unauthorized(reason = UnauthorizedReason.USER_ACCESS_RESTRICTED)
         }
 
-        return AccessResolutionResult.Authorized(linkedMember)
+        return AccessResolutionResult.Authorized(
+            member = linkedMember,
+            environment = resolution.environment,
+        )
     }
 }

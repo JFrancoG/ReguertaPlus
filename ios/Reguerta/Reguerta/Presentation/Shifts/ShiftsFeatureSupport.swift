@@ -5,6 +5,45 @@ struct ShiftSwapDraft: Equatable, Sendable {
     var reason = ""
 }
 
+struct ShiftSwapCreateSubmission: Sendable {
+    let draft: ShiftSwapDraft
+    let requestedShiftId: String
+    let request: ShiftSwapRequest
+}
+
+enum ShiftSwapAcknowledgement: Equatable, Sendable {
+    case create(requestedShiftId: String)
+    case respond(
+        userId: String,
+        candidateShiftId: String,
+        response: ShiftSwapResponseStatus
+    )
+    case cancel
+    case apply
+
+    func isReflected(in request: ShiftSwapRequest) -> Bool {
+        switch self {
+        case .create(let requestedShiftId):
+            request.requestedShiftId == requestedShiftId
+        case .respond(let userId, let candidateShiftId, let response):
+            request.responses.contains {
+                $0.userId == userId &&
+                    $0.shiftId == candidateShiftId &&
+                    $0.status == response
+            }
+        case .cancel:
+            request.status == .cancelled
+        case .apply:
+            request.status == .applied
+        }
+    }
+
+    func blocksCreate(for shiftId: String) -> Bool {
+        guard case .create(let requestedShiftId) = self else { return false }
+        return requestedShiftId == shiftId
+    }
+}
+
 struct ShiftBoardWindow: Equatable, Sendable {
     let highlightedShiftId: String?
 

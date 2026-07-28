@@ -211,6 +211,37 @@ class ShiftPresentationHelpersTest {
         )
     }
 
+    @Test
+    fun blockedSwapShiftIdsCombineLocalCreateAckAndCanonicalOpenRequest() {
+        val memberId = "member_1"
+        val ownOpen = shiftSwapRequest(
+            id = "open",
+            requesterUserId = memberId,
+            requestedShiftId = "remote_shift",
+            candidates = emptyList(),
+        )
+        val ownApplied = shiftSwapRequest(
+            id = "applied",
+            requesterUserId = memberId,
+            requestedShiftId = "finished_shift",
+            candidates = emptyList(),
+            status = ShiftSwapRequestStatus.APPLIED,
+        )
+        val otherOpen = shiftSwapRequest(
+            id = "other",
+            requesterUserId = "member_2",
+            requestedShiftId = "other_shift",
+            candidates = emptyList(),
+        )
+
+        val blocked = listOf(ownOpen, ownApplied, otherOpen).blockedShiftSwapRequestShiftIds(
+            currentMemberId = memberId,
+            acknowledgedCreates = mapOf("local_request" to "local_shift"),
+        )
+
+        assertEquals(setOf("local_shift", "remote_shift"), blocked)
+    }
+
     private fun deliveryShift(
         id: String,
         date: LocalDate,

@@ -50,14 +50,38 @@ class FirestoreSecurityBoundarySourceTest {
     }
 
     @Test
-    fun `member operational config excludes private global config`() {
+    fun `delivery calendar prefers member config before legacy global fallback`() {
         val calendar = readMainSource("data/calendar/FirestoreDeliveryCalendarRepository.kt")
         val freshness = readMainSource("data/freshness/FirestoreCriticalDataFreshnessRemoteRepository.kt")
 
         assertTrue(calendar.contains("ReguertaFirestoreDocument.MEMBER"))
+        assertTrue(calendar.contains("ReguertaFirestoreDocument.GLOBAL"))
+        assertTrue(
+            calendar.indexOf("ReguertaFirestoreDocument.MEMBER") <
+                calendar.indexOf("ReguertaFirestoreDocument.GLOBAL"),
+        )
         assertTrue(freshness.contains("ReguertaFirestoreDocument.MEMBER"))
-        assertFalse(calendar.contains("ReguertaFirestoreDocument.GLOBAL"))
         assertFalse(freshness.contains("ReguertaFirestoreDocument.GLOBAL"))
+    }
+
+    @Test
+    fun `shift calendar and swap reads bypass the local firestore cache`() {
+        val sources = listOf(
+            readMainSource("data/shifts/FirestoreShiftRepository.kt"),
+            readMainSource("data/calendar/FirestoreDeliveryCalendarRepository.kt"),
+            readMainSource("data/shiftswap/FirestoreShiftSwapRequestRepository.kt"),
+        )
+
+        sources.forEach { source -> assertTrue(source.contains("get(Source.SERVER)")) }
+    }
+
+    @Test
+    fun `shift planning retry uses create if absent transaction without merge writes`() {
+        val source = readMainSource("data/shiftplanning/FirestoreShiftPlanningRequestRepository.kt")
+
+        assertTrue(source.contains("runTransaction"))
+        assertFalse(source.contains("SetOptions"))
+        assertFalse(source.contains(".set(payload, SetOptions.merge())"))
     }
 
     @Test

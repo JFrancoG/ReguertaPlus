@@ -131,6 +131,7 @@ sealed interface SessionMode {
 
 data class SessionUiState(
     val sessionEpoch: Long = 0L,
+    val sessionEnvironment: String? = null,
     val emailInput: String = "",
     val passwordInput: String = "",
     @param:StringRes val emailErrorRes: Int? = null,
@@ -171,6 +172,8 @@ data class SessionUiState(
     val defaultDeliveryDayOfWeek: DeliveryWeekday? = null,
     val shiftSwapRequests: List<ShiftSwapRequest> = emptyList(),
     val dismissedShiftSwapRequestIds: Set<String> = emptySet(),
+    val acknowledgedShiftSwapRequestIds: Set<String> = emptySet(),
+    val acknowledgedShiftSwapCreates: Map<String, String> = emptyMap(),
     val shiftSwapDraft: ShiftSwapDraft = ShiftSwapDraft(),
     val bylawsQueryInput: String = "",
     val bylawsAssistantCapability: BylawsAssistantCapability = BylawsAssistantCapability.Checking,

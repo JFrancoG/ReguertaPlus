@@ -7,7 +7,10 @@ enum class UnauthorizedReason {
 }
 
 sealed interface AccessResolutionResult {
-    data class Authorized(val member: Member) : AccessResolutionResult
+    data class Authorized(
+        val member: Member,
+        val environment: String,
+    ) : AccessResolutionResult
 
     data class Unauthorized(val reason: UnauthorizedReason) : AccessResolutionResult
 }

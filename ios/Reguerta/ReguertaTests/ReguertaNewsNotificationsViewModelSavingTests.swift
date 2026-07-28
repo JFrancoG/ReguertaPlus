@@ -71,7 +71,8 @@ private func makeSavingNewsViewModel(
         principal: AuthPrincipal(uid: "auth_\(currentMember.id)", email: currentMember.normalizedEmail),
         authenticatedMember: currentMember,
         member: currentMember,
-        members: members
+        members: members,
+        environment: .develop
     )
     sessionViewModel.mode = .authorized(session)
     let viewModel = NewsNotificationsFeatureViewModel(

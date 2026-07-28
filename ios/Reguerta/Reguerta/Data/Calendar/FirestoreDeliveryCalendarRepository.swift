@@ -13,69 +13,38 @@ final class FirestoreDeliveryCalendarRepository: @unchecked Sendable, DeliveryCa
         self.environment = environment
     }
 
-    func defaultDeliveryDayOfWeek() async -> DeliveryWeekday? {
+    func defaultDeliveryDayOfWeek() async throws -> DeliveryWeekday {
         let path = ReguertaFirestorePath(environment: environment)
         let candidatePaths = [
-            path.documentPath(in: .config, documentId: ReguertaFirestoreDocument.memberConfiguration.rawValue)
+            path.documentPath(in: .config, documentId: ReguertaFirestoreDocument.memberConfiguration.rawValue),
+            path.documentPath(in: .config, documentId: ReguertaFirestoreDocument.global.rawValue)
         ]
 
         for documentPath in candidatePaths {
             do {
-                let snapshot = try await db.document(documentPath).getDocument()
-                guard let data = snapshot.data() else { continue }
-                if let resolved = resolveDeliveryWeekday(data: data) {
-                    return resolved
-                }
+                let snapshot = try await db.document(documentPath).getDocument(source: .server)
+                guard snapshot.exists else { continue }
+                guard let data = snapshot.data() else { throw Self.invalidConfigurationError }
+                return try Self.deliveryWeekday(data: data)
             } catch {
-                continue
+                throw FirestoreRepositoryErrorMapper.map(error, resource: "config.deliveryCalendar")
             }
         }
-        return nil
+        throw RepositoryError.notFound(resource: "config.deliveryCalendar")
     }
 
-    func allOverrides() async -> [DeliveryCalendarOverride] {
+    func allOverrides() async throws -> [DeliveryCalendarOverride] {
         let path = ReguertaFirestorePath(environment: environment)
-        let candidatePaths = [
-            path.collectionPath(.deliveryCalendar)
-        ]
-
-        for collectionPath in candidatePaths {
-            do {
-                let snapshot = try await db.collection(collectionPath).getDocuments()
-                let overrides = snapshot.documents.compactMap { document -> DeliveryCalendarOverride? in
-                    let data = document.data()
-                    guard let deliveryDate = data["deliveryDate"] as? Timestamp else { return nil }
-                    let deliveryDateSeconds = deliveryDate.dateValue().timeIntervalSince1970
-                    let blockedSeconds = (data["ordersBlockedDate"] as? Timestamp)?.dateValue().timeIntervalSince1970
-                        ?? (deliveryDateSeconds + 86_400)
-                    let openSeconds = (data["ordersOpenAt"] as? Timestamp)?.dateValue().timeIntervalSince1970
-                        ?? blockedSeconds
-                    let closeSeconds = (data["ordersCloseAt"] as? Timestamp)?.dateValue().timeIntervalSince1970
-                        ?? (blockedSeconds + 86_400)
-                    let weekKey = ((data["weekKey"] as? String)?
-                        .trimmingCharacters(in: .whitespacesAndNewlines))
-                        .flatMap { $0.isEmpty ? nil : $0 } ?? document.documentID
-                    let updatedBy = (data["updatedBy"] as? String)?
-                        .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                    let updatedAt = (data["updatedAt"] as? Timestamp)?.dateValue() ?? .distantPast
-                    return DeliveryCalendarOverride(
-                        weekKey: weekKey,
-                        deliveryDateMillis: Int64(deliveryDateSeconds * 1000),
-                        ordersBlockedDateMillis: Int64(blockedSeconds * 1000),
-                        ordersOpenAtMillis: Int64(openSeconds * 1000),
-                        ordersCloseAtMillis: Int64(closeSeconds * 1000),
-                        updatedBy: updatedBy,
-                        updatedAtMillis: Int64(updatedAt.timeIntervalSince1970 * 1000)
-                    )
-                }.sorted { $0.weekKey < $1.weekKey }
-                if !overrides.isEmpty {
-                    return overrides
+        do {
+            let snapshot = try await db.collection(path.collectionPath(.deliveryCalendar)).getDocuments(source: .server)
+            return try snapshot.documents
+                .map { document in
+                    try Self.deliveryOverride(documentID: document.documentID, data: document.data())
                 }
-            } catch {
-                continue
-            }
+                .sorted { $0.weekKey < $1.weekKey }
+        } catch {
+            throw FirestoreRepositoryErrorMapper.map(error, resource: "deliveryCalendar")
         }
-        return []
     }
 
     func upsertOverride(_ override: DeliveryCalendarOverride) async throws -> DeliveryCalendarOverride {
@@ -88,32 +57,87 @@ final class FirestoreDeliveryCalendarRepository: @unchecked Sendable, DeliveryCa
             "updatedBy": override.updatedBy,
             "updatedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(override.updatedAtMillis) / 1000))
         ]
-        try await db
-            .document(ReguertaFirestorePath(environment: environment).documentPath(in: .deliveryCalendar, documentId: override.weekKey))
-            .setData(payload)
+        do {
+            try await db
+                .document(ReguertaFirestorePath(environment: environment).documentPath(in: .deliveryCalendar, documentId: override.weekKey))
+                .setData(payload)
+        } catch {
+            throw FirestoreRepositoryErrorMapper.map(error, resource: "deliveryCalendar.write")
+        }
         return override
     }
 
     func deleteOverride(weekKey: String) async throws {
-        try await db
-            .document(ReguertaFirestorePath(environment: environment).documentPath(in: .deliveryCalendar, documentId: weekKey))
-            .delete()
+        do {
+            try await db
+                .document(ReguertaFirestorePath(environment: environment).documentPath(in: .deliveryCalendar, documentId: weekKey))
+                .delete()
+        } catch {
+            throw FirestoreRepositoryErrorMapper.map(error, resource: "deliveryCalendar.write")
+        }
     }
-}
 
-private func resolveDeliveryWeekday(data: [String: Any]) -> DeliveryWeekday? {
-    let normalizedTopLevel = ((data["deliveryDayOfWeek"] as? String) ?? (data["deliveryDateOfWeek"] as? String) ?? "")
-        .trimmingCharacters(in: .whitespacesAndNewlines)
-        .uppercased()
-    if let weekday = DeliveryWeekday(rawValue: normalizedTopLevel) {
+    static func deliveryOverride(documentID: String, data: [String: Any]) throws -> DeliveryCalendarOverride {
+        guard let weekKey = requiredString(data["weekKey"]),
+              weekKey == documentID,
+              let deliveryDate = data["deliveryDate"] as? Timestamp,
+              let ordersBlockedDate = data["ordersBlockedDate"] as? Timestamp,
+              let ordersOpenAt = data["ordersOpenAt"] as? Timestamp,
+              let ordersCloseAt = data["ordersCloseAt"] as? Timestamp,
+              let updatedBy = requiredString(data["updatedBy"]),
+              let updatedAt = data["updatedAt"] as? Timestamp else {
+            throw invalidDocumentError
+        }
+
+        return DeliveryCalendarOverride(
+            weekKey: weekKey,
+            deliveryDateMillis: millis(deliveryDate),
+            ordersBlockedDateMillis: millis(ordersBlockedDate),
+            ordersOpenAtMillis: millis(ordersOpenAt),
+            ordersCloseAtMillis: millis(ordersCloseAt),
+            updatedBy: updatedBy,
+            updatedAtMillis: millis(updatedAt)
+        )
+    }
+
+    static func deliveryWeekday(data: [String: Any]) throws -> DeliveryWeekday {
+        for key in ["deliveryDayOfWeek", "deliveryDateOfWeek"] where data[key] != nil {
+            return try weekday(from: data[key])
+        }
+        if let rawOtherConfig = data["otherConfig"] {
+            guard let otherConfig = rawOtherConfig as? [String: Any] else {
+                throw invalidConfigurationError
+            }
+            for key in ["deliveryDayOfWeek", "deliveryDateOfWeek"] where otherConfig[key] != nil {
+                return try weekday(from: otherConfig[key])
+            }
+        }
+        throw invalidConfigurationError
+    }
+
+    private static func weekday(from value: Any?) throws -> DeliveryWeekday {
+        guard let rawValue = requiredString(value)?.uppercased(),
+              let weekday = DeliveryWeekday(rawValue: rawValue) else {
+            throw invalidConfigurationError
+        }
         return weekday
     }
 
-    guard let otherConfig = data["otherConfig"] as? [String: Any] else {
-        return nil
+    private static func requiredString(_ value: Any?) -> String? {
+        guard let value = value as? String else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
-    let normalizedNested = ((otherConfig["deliveryDayOfWeek"] as? String) ?? (otherConfig["deliveryDateOfWeek"] as? String) ?? "")
-        .trimmingCharacters(in: .whitespacesAndNewlines)
-        .uppercased()
-    return DeliveryWeekday(rawValue: normalizedNested)
+
+    private static func millis(_ timestamp: Timestamp) -> Int64 {
+        Int64(timestamp.dateValue().timeIntervalSince1970 * 1_000)
+    }
+
+    private static var invalidDocumentError: RepositoryError {
+        .invalidData(resource: "deliveryCalendar.document")
+    }
+
+    private static var invalidConfigurationError: RepositoryError {
+        .invalidData(resource: "config.deliveryCalendar")
+    }
 }

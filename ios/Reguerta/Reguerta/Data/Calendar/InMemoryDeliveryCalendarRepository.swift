@@ -8,7 +8,7 @@ actor InMemoryDeliveryCalendarRepository: DeliveryCalendarRepository {
         self.defaultDay = defaultDay
     }
 
-    func defaultDeliveryDayOfWeek() async -> DeliveryWeekday? {
+    func defaultDeliveryDayOfWeek() async -> DeliveryWeekday {
         defaultDay
     }
 

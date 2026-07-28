@@ -242,7 +242,8 @@ private func makeSharedProfileViewModel(
         principal: AuthPrincipal(uid: "auth_\(currentMember.id)", email: currentMember.normalizedEmail),
         authenticatedMember: currentMember,
         member: currentMember,
-        members: resolvedMembers
+        members: resolvedMembers,
+        environment: .develop
     )
     sessionViewModel.mode = .authorized(session)
     let viewModel = SharedProfileFeatureViewModel(

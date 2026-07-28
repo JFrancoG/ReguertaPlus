@@ -8,6 +8,7 @@ import com.reguerta.user.presentation.root.ProductDraft
 import com.reguerta.user.presentation.root.SessionMode
 import com.reguerta.user.presentation.root.SessionUiState
 import com.reguerta.user.presentation.root.SharedProfileDraft
+import com.reguerta.user.presentation.root.ShiftSwapDraft
 import com.reguerta.user.presentation.root.canManageSessionProductCatalog
 
 import com.reguerta.user.domain.access.UnauthorizedReason
@@ -16,6 +17,7 @@ internal fun SessionUiState.toSignedOutSessionState(
     showSessionExpiredDialog: Boolean,
 ): SessionUiState = copy(
     sessionEpoch = sessionEpoch + 1,
+    sessionEnvironment = null,
     mode = SessionMode.SignedOut,
     passwordInput = "",
     emailErrorRes = null,
@@ -54,6 +56,13 @@ internal fun SessionUiState.toSignedOutSessionState(
     sharedProfileEditorRevision = sharedProfileEditorRevision + 1,
     sharedProfilesRevision = sharedProfilesRevision + 1,
     shiftsFeed = emptyList(),
+    deliveryCalendarOverrides = emptyList(),
+    defaultDeliveryDayOfWeek = null,
+    shiftSwapRequests = emptyList(),
+    dismissedShiftSwapRequestIds = emptySet(),
+    acknowledgedShiftSwapRequestIds = emptySet(),
+    acknowledgedShiftSwapCreates = emptyMap(),
+    shiftSwapDraft = ShiftSwapDraft(),
     nextDeliveryShift = null,
     nextMarketShift = null,
     editingNewsId = null,
@@ -74,6 +83,11 @@ internal fun SessionUiState.toSignedOutSessionState(
     isUploadingSharedProfileImage = false,
     isDeletingSharedProfile = false,
     isLoadingShifts = false,
+    isLoadingDeliveryCalendar = false,
+    isSavingDeliveryCalendar = false,
+    isSubmittingShiftPlanningRequest = false,
+    isSavingShiftSwapRequest = false,
+    isUpdatingShiftSwapRequest = false,
 )
 
 internal fun SessionUiState.resetProductEditorUnlessAuthorizedRefreshCanPreserve(
@@ -102,6 +116,7 @@ internal fun SessionUiState.toUnauthorizedSessionState(
     showUnauthorizedDialog: Boolean,
 ): SessionUiState = copy(
     sessionEpoch = sessionEpoch + 1,
+    sessionEnvironment = null,
     mode = SessionMode.Unauthorized(
         email = email,
         reason = reason,
@@ -127,6 +142,13 @@ internal fun SessionUiState.toUnauthorizedSessionState(
     sharedProfileEditorRevision = sharedProfileEditorRevision + 1,
     sharedProfilesRevision = sharedProfilesRevision + 1,
     shiftsFeed = emptyList(),
+    deliveryCalendarOverrides = emptyList(),
+    defaultDeliveryDayOfWeek = null,
+    shiftSwapRequests = emptyList(),
+    dismissedShiftSwapRequestIds = emptySet(),
+    acknowledgedShiftSwapRequestIds = emptySet(),
+    acknowledgedShiftSwapCreates = emptyMap(),
+    shiftSwapDraft = ShiftSwapDraft(),
     nextDeliveryShift = null,
     nextMarketShift = null,
     editingNewsId = null,
@@ -146,6 +168,11 @@ internal fun SessionUiState.toUnauthorizedSessionState(
     isUploadingSharedProfileImage = false,
     isDeletingSharedProfile = false,
     isLoadingShifts = false,
+    isLoadingDeliveryCalendar = false,
+    isSavingDeliveryCalendar = false,
+    isSubmittingShiftPlanningRequest = false,
+    isSavingShiftSwapRequest = false,
+    isUpdatingShiftSwapRequest = false,
 )
 
 internal fun SessionUiState.toUnauthorizedAfterAuthAttemptState(
@@ -155,6 +182,7 @@ internal fun SessionUiState.toUnauthorizedAfterAuthAttemptState(
     clearRegisterInputs: Boolean,
 ): SessionUiState = copy(
     sessionEpoch = sessionEpoch + 1,
+    sessionEnvironment = null,
     isAuthenticating = false,
     isRegistering = false,
     registerEmailInput = if (clearRegisterInputs) "" else registerEmailInput,
@@ -176,6 +204,16 @@ internal fun SessionUiState.toUnauthorizedAfterAuthAttemptState(
     productEditorRevision = productEditorRevision + 1,
     sharedProfileDraft = SharedProfileDraft(),
     sharedProfileEditorRevision = sharedProfileEditorRevision + 1,
+    shiftsFeed = emptyList(),
+    deliveryCalendarOverrides = emptyList(),
+    defaultDeliveryDayOfWeek = null,
+    shiftSwapRequests = emptyList(),
+    dismissedShiftSwapRequestIds = emptySet(),
+    acknowledgedShiftSwapRequestIds = emptySet(),
+    acknowledgedShiftSwapCreates = emptyMap(),
+    shiftSwapDraft = ShiftSwapDraft(),
+    nextDeliveryShift = null,
+    nextMarketShift = null,
     myOrderProductsFeed = emptyList(),
     myOrderSeasonalCommitmentsFeed = emptyList(),
     isLoadingNotifications = false,
@@ -188,4 +226,10 @@ internal fun SessionUiState.toUnauthorizedAfterAuthAttemptState(
     isSavingProduct = false,
     isUploadingProductImage = false,
     isUpdatingProducerCatalogVisibility = false,
+    isLoadingShifts = false,
+    isLoadingDeliveryCalendar = false,
+    isSavingDeliveryCalendar = false,
+    isSubmittingShiftPlanningRequest = false,
+    isSavingShiftSwapRequest = false,
+    isUpdatingShiftSwapRequest = false,
 )

@@ -83,7 +83,8 @@ struct ReguertaRootDependencyTests {
                 principal: AuthPrincipal(uid: "auth_root", email: "root@reguerta.test"),
                 authenticatedMember: currentMember,
                 member: currentMember,
-                members: [currentMember]
+                members: [currentMember],
+                environment: .develop
             )
         )
 
@@ -176,7 +177,8 @@ struct ReguertaRootDependencyTests {
             principal: AuthPrincipal(uid: "auth_root", email: "root@reguerta.test"),
             authenticatedMember: member,
             member: member,
-            members: [member]
+            members: [member],
+            environment: .develop
         )
     }
 }

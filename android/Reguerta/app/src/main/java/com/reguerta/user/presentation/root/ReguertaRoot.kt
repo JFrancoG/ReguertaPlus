@@ -225,8 +225,11 @@ fun ReguertaRoot(
                     shiftsFeed = state.shiftsFeed,
                     deliveryCalendarOverrides = state.deliveryCalendarOverrides,
                     defaultDeliveryDayOfWeek = state.defaultDeliveryDayOfWeek,
-                    shiftSwapRequests = state.shiftSwapRequests,
+                    shiftSwapRequests = state.shiftSwapRequests.filterNot { request ->
+                        request.id in state.acknowledgedShiftSwapRequestIds
+                    },
                     dismissedShiftSwapRequestIds = state.dismissedShiftSwapRequestIds,
+                    acknowledgedShiftSwapCreates = state.acknowledgedShiftSwapCreates,
                     shiftSwapDraft = state.shiftSwapDraft,
                     bylawsQueryInput = state.bylawsQueryInput,
                     bylawsAssistantCapability = state.bylawsAssistantCapability,

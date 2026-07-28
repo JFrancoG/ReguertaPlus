@@ -61,6 +61,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-07-28 | 🐛 fix(shifts): surface remote failures
 - 2026-07-27 | 🐛 fix(community): surface profile failures
 - 2026-07-27 | 🐛 fix(products): surface repository failures
 - 2026-07-27 | 🐛 fix(mobile-ui): enforce WCAG AA contrast

@@ -159,7 +159,7 @@ struct FirebaseFunctionsSecurityBoundaryTests {
             authPrincipal: AuthPrincipal(uid: "auth_1", email: "member@example.com")
         )
 
-        #expect(result == .authorized(member))
+        #expect(result == .authorized(member: member, environment: .production))
         #expect(repository.environmentAtMemberRead == .production)
         #expect(repository.requestedMemberIds == [member.id])
     }
@@ -323,7 +323,38 @@ struct FirebaseFunctionsSecurityBoundaryTests {
             appliedAtMillis: nil
         )
 
-        await #expect(throws: FirebaseFunctionClientError.invalidResponse) {
+        await #expect(throws: RepositoryError.invalidData(resource: "shiftSwapRequests.transition")) {
+            try await repository.transition(.create(request: request))
+        }
+    }
+
+    @Test
+    func shiftSwapMapsFunctionCancellationToTaskCancellation() async {
+        let repository = FirestoreShiftSwapRequestRepository(
+            db: Firestore.firestore(),
+            environment: .develop,
+            functionsClient: AuthenticatedFirebaseFunctionsClient(
+                baseURL: URL(string: "https://example.test")!,
+                tokenProvider: RecordingFirebaseIDTokenProvider(token: "token"),
+                dataLoader: RecordingHTTPDataLoader(error: URLError(.cancelled))
+            )
+        )
+        let request = ShiftSwapRequest(
+            id: "",
+            requestedShiftId: "shift_1",
+            requesterUserId: "member_1",
+            reason: "reason",
+            status: .open,
+            candidates: [],
+            responses: [],
+            selectedCandidateUserId: nil,
+            selectedCandidateShiftId: nil,
+            requestedAtMillis: 1,
+            confirmedAtMillis: nil,
+            appliedAtMillis: nil
+        )
+
+        await #expect(throws: CancellationError.self) {
             try await repository.transition(.create(request: request))
         }
     }

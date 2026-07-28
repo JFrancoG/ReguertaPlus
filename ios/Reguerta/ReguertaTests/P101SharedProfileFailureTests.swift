@@ -118,7 +118,8 @@ struct P101SharedProfileFailureTests {
             principal: AuthPrincipal(uid: "auth_\(member.id)", email: member.normalizedEmail),
             authenticatedMember: member,
             member: member,
-            members: [member]
+            members: [member],
+            environment: .develop
         )
     }
 
