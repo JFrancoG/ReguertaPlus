@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -104,18 +105,19 @@ internal fun RecoverPasswordCard(
 @Composable
 internal fun SignInCard(
     state: SessionUiState,
-    onSignIn: () -> Unit,
+    onSignIn: (password: String) -> Boolean,
     onOpenRecover: () -> Unit,
     onEmailChanged: (String) -> Unit,
-    onPasswordChanged: (String) -> Unit,
+    onPasswordEdited: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val controlScale = ReguertaAdaptive.profile.tokenScale.controls
     val spacing = ReguertaThemeTokens.spacing
     val focusManager = LocalFocusManager.current
+    var passwordInput by remember { mutableStateOf("") }
     val canSubmit = !state.isAuthenticating &&
         isValidEmail(state.emailInput) &&
-        isValidPassword(state.passwordInput) &&
+        isValidPassword(passwordInput) &&
         state.emailErrorRes == null &&
         state.passwordErrorRes == null
 
@@ -146,9 +148,10 @@ internal fun SignInCard(
             )
             ReguertaInputField(
                 label = stringResource(R.string.common_input_password_label),
-                value = state.passwordInput,
+                value = passwordInput,
                 onValueChange = {
-                    onPasswordChanged(it)
+                    passwordInput = it
+                    onPasswordEdited()
                 },
                 placeholder = stringResource(R.string.common_input_tap_to_type),
                 keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
@@ -181,7 +184,11 @@ internal fun SignInCard(
             ),
             onClick = {
                 focusManager.clearFocus(force = true)
-                onSignIn()
+                val passwordSnapshot = passwordInput
+                passwordInput = retainedAuthSecretAfterSubmission(
+                    secret = passwordSnapshot,
+                    submissionAccepted = onSignIn(passwordSnapshot),
+                )
             },
             enabled = canSubmit,
             loading = state.isAuthenticating,
@@ -197,24 +204,26 @@ internal fun SignInCard(
 @Composable
 internal fun SignUpCard(
     state: SessionUiState,
-    onSignUp: () -> Unit,
+    onSignUp: (password: String, repeatedPassword: String) -> Boolean,
     onEmailChanged: (String) -> Unit,
-    onPasswordChanged: (String) -> Unit,
-    onRepeatPasswordChanged: (String) -> Unit,
+    onPasswordEdited: () -> Unit,
+    onRepeatPasswordEdited: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val controlScale = ReguertaAdaptive.profile.tokenScale.controls
     val spacing = ReguertaThemeTokens.spacing
     val focusManager = LocalFocusManager.current
+    var registerPasswordInput by remember { mutableStateOf("") }
+    var registerRepeatPasswordInput by remember { mutableStateOf("") }
     var registerPasswordVisible by rememberSaveable { mutableStateOf(false) }
     val repeatRequiredMessage = stringResource(R.string.feedback_password_repeat_required)
     val invalidPasswordMessage = stringResource(R.string.feedback_password_invalid_length)
     val passwordMismatchMessage = stringResource(R.string.feedback_password_mismatch)
     val canSubmit = !state.isRegistering &&
         isValidEmail(state.registerEmailInput) &&
-        isValidPassword(state.registerPasswordInput) &&
-        state.registerRepeatPasswordInput == state.registerPasswordInput &&
-        isValidPassword(state.registerRepeatPasswordInput) &&
+        isValidPassword(registerPasswordInput) &&
+        registerRepeatPasswordInput == registerPasswordInput &&
+        isValidPassword(registerRepeatPasswordInput) &&
         state.registerEmailErrorRes == null &&
         state.registerPasswordErrorRes == null &&
         state.registerRepeatPasswordErrorRes == null
@@ -244,8 +253,11 @@ internal fun SignUpCard(
             )
             ReguertaInputField(
                 label = stringResource(R.string.common_input_password_label),
-                value = state.registerPasswordInput,
-                onValueChange = onPasswordChanged,
+                value = registerPasswordInput,
+                onValueChange = {
+                    registerPasswordInput = it
+                    onPasswordEdited()
+                },
                 placeholder = stringResource(R.string.common_input_tap_to_type),
                 keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
                 isPassword = true,
@@ -258,8 +270,11 @@ internal fun SignUpCard(
             )
             ReguertaInputField(
                 label = stringResource(R.string.register_repeat_password_label),
-                value = state.registerRepeatPasswordInput,
-                onValueChange = onRepeatPasswordChanged,
+                value = registerRepeatPasswordInput,
+                onValueChange = {
+                    registerRepeatPasswordInput = it
+                    onRepeatPasswordEdited()
+                },
                 placeholder = stringResource(R.string.common_input_tap_to_type),
                 keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
                 isPassword = true,
@@ -271,7 +286,7 @@ internal fun SignUpCard(
                     when {
                         repeatedPassword.isBlank() -> repeatRequiredMessage
                         !isValidPassword(repeatedPassword) -> invalidPasswordMessage
-                        repeatedPassword != state.registerPasswordInput -> passwordMismatchMessage
+                        repeatedPassword != registerPasswordInput -> passwordMismatchMessage
                         else -> null
                     }
                 },
@@ -289,7 +304,17 @@ internal fun SignUpCard(
             ),
             onClick = {
                 focusManager.clearFocus(force = true)
-                onSignUp()
+                val passwordSnapshot = registerPasswordInput
+                val repeatedPasswordSnapshot = registerRepeatPasswordInput
+                val submissionAccepted = onSignUp(passwordSnapshot, repeatedPasswordSnapshot)
+                registerPasswordInput = retainedAuthSecretAfterSubmission(
+                    secret = passwordSnapshot,
+                    submissionAccepted = submissionAccepted,
+                )
+                registerRepeatPasswordInput = retainedAuthSecretAfterSubmission(
+                    secret = repeatedPasswordSnapshot,
+                    submissionAccepted = submissionAccepted,
+                )
             },
             enabled = canSubmit,
             loading = state.isRegistering,
@@ -307,3 +332,8 @@ private fun isValidEmail(email: String): Boolean =
 
 private fun isValidPassword(password: String): Boolean =
     password.length in PasswordMinLength..PasswordMaxLength
+
+internal fun retainedAuthSecretAfterSubmission(
+    secret: String,
+    submissionAccepted: Boolean,
+): String = if (submissionAccepted) "" else secret

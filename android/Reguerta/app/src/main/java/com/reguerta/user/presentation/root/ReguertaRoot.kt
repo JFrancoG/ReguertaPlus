@@ -384,15 +384,15 @@ fun ReguertaRoot(
                             )
                         },
                         onEmailChanged = viewModel::onEmailChanged,
-                        onPasswordChanged = viewModel::onPasswordChanged,
+                        onPasswordEdited = viewModel::onPasswordEdited,
                     )
 
                     AuthShellRoute.REGISTER -> RegisterRoute(
                         state = state,
                         onSignUp = viewModel::signUp,
                         onEmailChanged = viewModel::onRegisterEmailChanged,
-                        onPasswordChanged = viewModel::onRegisterPasswordChanged,
-                        onRepeatPasswordChanged = viewModel::onRegisterRepeatPasswordChanged,
+                        onPasswordEdited = viewModel::onRegisterPasswordEdited,
+                        onRepeatPasswordEdited = viewModel::onRegisterRepeatPasswordEdited,
                         onBack = {
                             clearRouteForm(AuthShellRoute.REGISTER)
                             shellState = reduceAuthShell(

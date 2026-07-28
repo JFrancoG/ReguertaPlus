@@ -57,6 +57,71 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class SessionAuthActionsConcurrencyTest {
     @Test
+    fun `valid sign in forwards the route password snapshot`() = runTest {
+        val signInResult = CompletableDeferred<AuthSignInResult>()
+        val authProvider = ControlledAuthSessionProvider(signInResults = listOf(signInResult))
+        val fixture = fixture(scope = this, authProvider = authProvider)
+
+        assertTrue(fixture.actions.signIn("single-pass12"))
+        runCurrent()
+
+        assertEquals(1, authProvider.signInRequests.size)
+        assertTrue(authProvider.signInRequests.single().password == "single-pass12")
+
+        signInResult.complete(AuthSignInResult.Failure(AuthSignInFailureReason.NETWORK))
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun `invalid sign in never reaches the provider`() = runTest {
+        val authProvider = ControlledAuthSessionProvider()
+        val fixture = fixture(scope = this, authProvider = authProvider)
+
+        assertFalse(fixture.actions.signIn("short"))
+
+        assertTrue(authProvider.signInRequests.isEmpty())
+        assertEquals(com.reguerta.user.R.string.feedback_password_invalid_length, fixture.state.value.passwordErrorRes)
+    }
+
+    @Test
+    fun `valid sign up forwards one password snapshot`() = runTest {
+        val signUpResult = CompletableDeferred<AuthSignInResult>()
+        val authProvider = ControlledAuthSessionProvider(signUpResults = listOf(signUpResult))
+        val fixture = fixture(
+            scope = this,
+            state = registrationState(),
+            authProvider = authProvider,
+        )
+
+        assertTrue(fixture.actions.signUp("single-pass12", "single-pass12"))
+        runCurrent()
+
+        assertEquals(1, authProvider.signUpRequests.size)
+        assertTrue(authProvider.signUpRequests.single().password == "single-pass12")
+
+        signUpResult.complete(AuthSignInResult.Failure(AuthSignInFailureReason.NETWORK))
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun `mismatched sign up never reaches the provider`() = runTest {
+        val authProvider = ControlledAuthSessionProvider()
+        val fixture = fixture(
+            scope = this,
+            state = registrationState(),
+            authProvider = authProvider,
+        )
+
+        assertFalse(fixture.actions.signUp("single-pass12", "other-pass34"))
+
+        assertTrue(authProvider.signUpRequests.isEmpty())
+        assertEquals(
+            com.reguerta.user.R.string.feedback_password_mismatch,
+            fixture.state.value.registerRepeatPasswordErrorRes,
+        )
+    }
+
+    @Test
     fun `late active refresh cannot restore authorization after sign out`() = runTest {
         val principal = principal("refresh")
         val member = member(principal)
@@ -88,7 +153,7 @@ class SessionAuthActionsConcurrencyTest {
         val authProvider = ControlledAuthSessionProvider(signInResults = listOf(signInResult))
         val fixture = fixture(scope = this, authProvider = authProvider)
 
-        fixture.actions.signIn()
+        fixture.actions.signIn("secret123")
         runCurrent()
         assertEquals(1, authProvider.signInRequests.size)
 
@@ -122,7 +187,7 @@ class SessionAuthActionsConcurrencyTest {
             memberRepository = memberRepository,
         )
 
-        fixture.actions.signIn()
+        fixture.actions.signIn("secret123")
         visibleMembersStarted.await()
         fixture.actions.signOut()
         visibleMembersRelease.complete(Unit)
@@ -141,13 +206,12 @@ class SessionAuthActionsConcurrencyTest {
         val authProvider = ControlledAuthSessionProvider(signInResults = listOf(firstResult, secondResult))
         val fixture = fixture(scope = this, authProvider = authProvider)
 
-        fixture.actions.signIn()
+        fixture.actions.signIn("secret123")
         runCurrent()
         fixture.state.value = fixture.state.value.copy(
             emailInput = "new@reguerta.app",
-            passwordInput = "new-secret",
         )
-        fixture.actions.signIn()
+        fixture.actions.signIn("new-secret")
         runCurrent()
 
         val requestsBeforePredecessorCompletion = authProvider.signInRequests.size
@@ -216,7 +280,7 @@ class SessionAuthActionsConcurrencyTest {
             authProvider = authProvider,
         )
 
-        fixture.actions.signUp()
+        fixture.actions.signUp("secret123", "secret123")
         runCurrent()
         assertEquals(1, authProvider.signUpRequests.size)
 
@@ -237,7 +301,7 @@ class SessionAuthActionsConcurrencyTest {
         val authProvider = ControlledAuthSessionProvider(signInResults = listOf(signInResult))
         val fixture = fixture(scope = this, authProvider = authProvider)
 
-        fixture.actions.signIn()
+        fixture.actions.signIn("secret123")
         runCurrent()
         fixture.actions.signOut()
         signInResult.complete(AuthSignInResult.Failure(AuthSignInFailureReason.INVALID_CREDENTIALS))
@@ -259,7 +323,7 @@ class SessionAuthActionsConcurrencyTest {
             authProvider = authProvider,
         )
 
-        fixture.actions.signUp()
+        fixture.actions.signUp("secret123", "secret123")
         runCurrent()
         fixture.actions.signOut()
         signUpResult.complete(AuthSignInResult.Failure(AuthSignInFailureReason.EMAIL_ALREADY_IN_USE))
@@ -277,7 +341,7 @@ class SessionAuthActionsConcurrencyTest {
         val authProvider = ControlledAuthSessionProvider(signInResults = listOf(signInResult))
         val fixture = fixture(scope = this, authProvider = authProvider)
 
-        fixture.actions.signIn()
+        fixture.actions.signIn("secret123")
         runCurrent()
         fixture.actions.refreshSession(SessionRefreshTrigger.STARTUP)
         runCurrent()
@@ -325,19 +389,17 @@ class SessionAuthActionsConcurrencyTest {
         val authProvider = ControlledAuthSessionProvider(signInResults = listOf(firstResult, finalResult))
         val fixture = fixture(scope = this, authProvider = authProvider)
 
-        fixture.actions.signIn()
+        fixture.actions.signIn("secret123")
         runCurrent()
         fixture.state.value = fixture.state.value.copy(
             emailInput = "middle@reguerta.app",
-            passwordInput = "middle-secret",
         )
-        fixture.actions.signIn()
+        fixture.actions.signIn("middle-secret")
         runCurrent()
         fixture.state.value = fixture.state.value.copy(
             emailInput = "final@reguerta.app",
-            passwordInput = "final-secret",
         )
-        fixture.actions.signIn()
+        fixture.actions.signIn("final-secret")
         runCurrent()
 
         assertEquals(listOf("member"), authProvider.signInRequests.map { it.email.substringBefore('@') })
@@ -589,7 +651,7 @@ class SessionAuthActionsConcurrencyTest {
             environmentRouter = environmentRouter,
         )
 
-        fixture.actions.signIn()
+        fixture.actions.signIn("secret123")
         resolverStarted.await()
         fixture.actions.signOut()
         resolverRelease.complete(Unit)
@@ -620,7 +682,7 @@ class SessionAuthActionsConcurrencyTest {
             environmentRouter = environmentRouter,
         )
 
-        fixture.actions.signIn()
+        fixture.actions.signIn("secret123")
         advanceUntilIdle()
 
         assertEquals(listOf("develop"), environmentRouter.appliedEnvironments)
@@ -647,7 +709,7 @@ class SessionAuthActionsConcurrencyTest {
             deviceRegistrar = deviceRegistrar,
         )
 
-        fixture.actions.signIn()
+        fixture.actions.signIn("secret123")
         registrationStarted.await()
         fixture.actions.signOut()
         registrationRelease.complete(Unit)
@@ -697,7 +759,7 @@ class SessionAuthActionsConcurrencyTest {
         val authProvider = ControlledAuthSessionProvider(lateSignInError = lateError)
         val fixture = fixture(scope = this, authProvider = authProvider)
 
-        fixture.actions.signIn()
+        fixture.actions.signIn("secret123")
         runCurrent()
         fixture.actions.signOut()
         lateError.complete(IOException("late provider failure"))
@@ -798,7 +860,12 @@ private class ControlledAuthSessionProvider(
     private val refreshResults: List<CompletableDeferred<AuthSessionRefreshResult>> = refreshResult?.let(::listOf)
         ?: listOf(CompletableDeferred(AuthSessionRefreshResult.NoSession)),
 ) : AuthSessionProvider {
-    data class SignInRequest(val email: String)
+    class SignInRequest(
+        val email: String,
+        val password: String,
+    ) {
+        override fun toString(): String = "SignInRequest(email=$email, password=<redacted>)"
+    }
 
     val signInRequests = mutableListOf<SignInRequest>()
     val signUpRequests = mutableListOf<SignInRequest>()
@@ -807,7 +874,7 @@ private class ControlledAuthSessionProvider(
 
     override suspend fun signIn(email: String, password: String): AuthSignInResult {
         val requestIndex = signInRequests.size
-        signInRequests += SignInRequest(email)
+        signInRequests += SignInRequest(email, password)
         lateSignInError?.let { error ->
             throw withContext(NonCancellable) { error.await() }
         }
@@ -817,7 +884,7 @@ private class ControlledAuthSessionProvider(
 
     override suspend fun signUp(email: String, password: String): AuthSignInResult {
         val result = signUpResults[signUpRequests.size]
-        signUpRequests += SignInRequest(email)
+        signUpRequests += SignInRequest(email, password)
         return withContext(NonCancellable) { result.await() }
     }
 
@@ -1179,13 +1246,10 @@ private class RecordingSessionEnvironmentRouter : SessionEnvironmentRouter {
 
 private fun signedOutState() = SessionUiState(
     emailInput = "member@reguerta.app",
-    passwordInput = "secret123",
 )
 
 private fun registrationState() = SessionUiState(
     registerEmailInput = "member@reguerta.app",
-    registerPasswordInput = "secret123",
-    registerRepeatPasswordInput = "secret123",
 )
 
 private fun authorizedState(principal: AuthPrincipal, member: Member) = SessionUiState(

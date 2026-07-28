@@ -167,11 +167,11 @@ internal fun WelcomeRoute(
 @Composable
 internal fun LoginRoute(
     state: SessionUiState,
-    onSignIn: () -> Unit,
+    onSignIn: (password: String) -> Boolean,
     onBack: () -> Unit,
     onOpenRecover: () -> Unit,
     onEmailChanged: (String) -> Unit,
-    onPasswordChanged: (String) -> Unit,
+    onPasswordEdited: () -> Unit,
 ) {
     val spacing = ReguertaThemeTokens.spacing
     val authTitleStyle = authRouteTitleStyle()
@@ -193,7 +193,7 @@ internal fun LoginRoute(
             onSignIn = onSignIn,
             onOpenRecover = onOpenRecover,
             onEmailChanged = onEmailChanged,
-            onPasswordChanged = onPasswordChanged,
+            onPasswordEdited = onPasswordEdited,
             modifier = Modifier.fillMaxSize(),
         )
     }
@@ -202,10 +202,10 @@ internal fun LoginRoute(
 @Composable
 internal fun RegisterRoute(
     state: SessionUiState,
-    onSignUp: () -> Unit,
+    onSignUp: (password: String, repeatedPassword: String) -> Boolean,
     onEmailChanged: (String) -> Unit,
-    onPasswordChanged: (String) -> Unit,
-    onRepeatPasswordChanged: (String) -> Unit,
+    onPasswordEdited: () -> Unit,
+    onRepeatPasswordEdited: () -> Unit,
     onBack: () -> Unit,
 ) {
     val spacing = ReguertaThemeTokens.spacing
@@ -225,8 +225,8 @@ internal fun RegisterRoute(
             state = state,
             onSignUp = onSignUp,
             onEmailChanged = onEmailChanged,
-            onPasswordChanged = onPasswordChanged,
-            onRepeatPasswordChanged = onRepeatPasswordChanged,
+            onPasswordEdited = onPasswordEdited,
+            onRepeatPasswordEdited = onRepeatPasswordEdited,
             modifier = Modifier.fillMaxSize(),
         )
     }

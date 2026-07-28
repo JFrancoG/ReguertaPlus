@@ -291,13 +291,13 @@ class SessionViewModel(
 
     fun onEmailChanged(value: String) = formActions.onEmailChanged(value)
 
-    fun onPasswordChanged(value: String) = formActions.onPasswordChanged(value)
+    fun onPasswordEdited() = formActions.onPasswordEdited()
 
     fun onRegisterEmailChanged(value: String) = formActions.onRegisterEmailChanged(value)
 
-    fun onRegisterPasswordChanged(value: String) = formActions.onRegisterPasswordChanged(value)
+    fun onRegisterPasswordEdited() = formActions.onRegisterPasswordEdited()
 
-    fun onRegisterRepeatPasswordChanged(value: String) = formActions.onRegisterRepeatPasswordChanged(value)
+    fun onRegisterRepeatPasswordEdited() = formActions.onRegisterRepeatPasswordEdited()
 
     fun onRecoverEmailChanged(value: String) = formActions.onRecoverEmailChanged(value)
 
@@ -440,9 +440,10 @@ class SessionViewModel(
 
     fun askBylawsQuestion() = bylawsActions.askBylawsQuestion()
 
-    fun signIn() = authActions.signIn()
+    fun signIn(password: String): Boolean = authActions.signIn(password)
 
-    fun signUp() = authActions.signUp()
+    fun signUp(password: String, repeatedPassword: String): Boolean =
+        authActions.signUp(password, repeatedPassword)
 
     fun sendPasswordReset() = authActions.sendPasswordReset()
 
