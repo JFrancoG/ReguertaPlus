@@ -119,11 +119,11 @@ extension SessionViewModel {
             await handleExpiredSession()
         } catch {
             guard isCurrentSessionOperation(generation) else { return }
-            feedbackCenter.show(AccessL10nKey.authErrorNetwork)
-            applyUnauthorizedSession(
-                principalEmail: principal.email,
-                reason: .userAccessRestricted
+            applyLocalSessionTermination(
+                firebaseSignOutSucceeded: authSessionProvider.signOut(),
+                showsExpiredDialog: false
             )
+            feedbackCenter.show(AccessL10nKey.authErrorNetwork)
         }
     }
 
@@ -134,66 +134,7 @@ extension SessionViewModel {
         )
     }
 
-    func applyLocalSessionTermination(
-        firebaseSignOutSucceeded: Bool,
-        showsExpiredDialog: Bool
-    ) {
-        let principalEmail = currentPrincipalEmail
-        prepareForLocalSessionTermination()
-        if firebaseSignOutSucceeded {
-            mode = .signedOut
-        } else {
-            mode = .unauthorized(
-                email: principalEmail,
-                reason: .userAccessRestricted
-            )
-            feedbackCenter.show(AccessL10nKey.authErrorUnknown)
-        }
-        showSessionExpiredDialog = showsExpiredDialog
-        showUnauthorizedDialog = !firebaseSignOutSucceeded && !showsExpiredDialog
-    }
-
-    func applyEmailVerificationRequiredSession(
-        email: String,
-        firebaseSignOutSucceeded: Bool,
-        feedbackMessageKey: String
-    ) {
-        prepareForLocalSessionTermination()
-        mode = firebaseSignOutSucceeded
-            ? .signedOut
-            : .unauthorized(email: email, reason: .emailVerificationRequired)
-        feedbackCenter.show(feedbackMessageKey)
-    }
-
-    private func prepareForLocalSessionTermination() {
-        let deviceSessionLease = authorizedDeviceSessionLease
-        authorizedDeviceSessionLease = nil
-        invalidateSessionOperation()
-        clearSessionRefreshTracking()
-        environmentRouter.resetToBaseEnvironment()
-        if let deviceSessionLease {
-            Task {
-                do {
-                    try await authorizedDeviceRegistrar.clearAuthorization(
-                        ifOwnedBy: deviceSessionLease
-                    )
-                } catch is CancellationError {
-                    return
-                } catch {
-                    // The live coordinator records private diagnostics; local logout must complete.
-                }
-            }
-        }
-        resetAccessCredentialsAndErrors()
-        isAuthenticating = false
-        isRegistering = false
-        isRecoveringPassword = false
-        feedbackCenter.clear()
-        showSessionExpiredDialog = false
-        showUnauthorizedDialog = false
-    }
-
-    private var currentPrincipalEmail: String {
+    var currentPrincipalEmail: String {
         switch mode {
         case .authorized(let session):
             return session.principal.email
@@ -225,7 +166,7 @@ extension SessionViewModel {
     }
 
     func canStartSessionRefresh(trigger: SessionRefreshTrigger) -> Bool {
-        guard !isAuthenticating, !isRegistering else { return false }
+        guard sessionOperationState == .idle, !isAuthenticating, !isRegistering else { return false }
         return sessionRefreshPolicy.shouldRefresh(
             trigger: trigger,
             lastRefreshAtMillis: lastSessionRefreshAtMillis,
@@ -255,40 +196,16 @@ extension SessionViewModel {
         case .failure(let reason):
             let mapped = mapAuthFailure(reason, flow: .signIn)
             feedbackCenter.show(mapped.globalMessageKey)
+        case .failureAfterAuthenticationMutation(let reason, let signedOut):
+            let mapped = mapAuthFailure(reason, flow: .signIn)
+            applyLocalSessionTermination(
+                firebaseSignOutSucceeded: signedOut,
+                showsExpiredDialog: false
+            )
+            feedbackCenter.show(mapped.globalMessageKey)
         case .expired:
             await handleExpiredSession()
         }
-    }
-
-    func beginSessionOperation() -> SessionOperationContext {
-        let predecessor = invalidateSessionOperation()
-        return SessionOperationContext(
-            generation: sessionOperationGeneration,
-            predecessor: predecessor
-        )
-    }
-
-    @discardableResult
-    func invalidateSessionOperation() -> Task<Void, Never>? {
-        let invalidatedTask = sessionOperationTask
-        invalidatedTask?.cancel()
-        sessionOperationGeneration += 1
-        isAuthenticating = false
-        isRegistering = false
-        isSessionRefreshInFlight = false
-        return invalidatedTask
-    }
-
-    func isCurrentSessionOperation(_ generation: UInt64) -> Bool {
-        !Task.isCancelled && generation == sessionOperationGeneration
-    }
-
-    func finishSessionOperation(_ generation: UInt64) {
-        guard generation == sessionOperationGeneration else { return }
-        sessionOperationTask = nil
-        isAuthenticating = false
-        isRegistering = false
-        isSessionRefreshInFlight = false
     }
 
     private func applyAuthorizedSession(
@@ -302,11 +219,11 @@ extension SessionViewModel {
             members = try await repository.members(visibleTo: member)
         } catch {
             guard isCurrentSessionOperation(generation) else { return }
-            feedbackCenter.show(AccessL10nKey.authErrorNetwork)
-            applyUnauthorizedSession(
-                principalEmail: principal.email,
-                reason: .userAccessRestricted
+            applyLocalSessionTermination(
+                firebaseSignOutSucceeded: authSessionProvider.signOut(),
+                showsExpiredDialog: false
             )
+            feedbackCenter.show(AccessL10nKey.authErrorNetwork)
             return
         }
         guard isCurrentSessionOperation(generation) else { return }

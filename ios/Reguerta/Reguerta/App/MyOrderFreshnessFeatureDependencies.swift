@@ -7,11 +7,12 @@ struct MyOrderFreshnessFeatureDependencies {
 
     static func live(
         db: Firestore = Firestore.firestore(),
+        localRepository: any CriticalDataFreshnessLocalRepository =
+            UserDefaultsCriticalDataFreshnessLocalRepository(),
         nowProvider: @escaping @Sendable () -> Int64 = {
             Int64(Date().timeIntervalSince1970 * 1_000)
         }
     ) -> MyOrderFreshnessFeatureDependencies {
-        let localRepository = UserDefaultsCriticalDataFreshnessLocalRepository()
         let remoteRepository = makeLiveRemoteRepository(db: db)
 
         return MyOrderFreshnessFeatureDependencies(
@@ -26,11 +27,12 @@ struct MyOrderFreshnessFeatureDependencies {
 
     static func preview(
         remoteConfig: CriticalDataFreshnessConfig? = nil,
+        localRepository: (any CriticalDataFreshnessLocalRepository)? = nil,
         nowProvider: @escaping @Sendable () -> Int64 = {
             Int64(Date().timeIntervalSince1970 * 1_000)
         }
     ) -> MyOrderFreshnessFeatureDependencies {
-        let localRepository = PreviewCriticalDataFreshnessLocalRepository()
+        let localRepository = localRepository ?? PreviewCriticalDataFreshnessLocalRepository()
 
         return MyOrderFreshnessFeatureDependencies(
             resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase(
@@ -72,16 +74,22 @@ private struct PreviewCriticalDataFreshnessRemoteRepository: CriticalDataFreshne
 @MainActor
 private final class PreviewCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLocalRepository {
     private var metadata: CriticalDataFreshnessMetadata?
+    private(set) var writeGeneration: UInt64 = 0
 
     func getMetadata() -> CriticalDataFreshnessMetadata? {
         metadata
     }
 
-    func saveMetadata(_ metadata: CriticalDataFreshnessMetadata) {
+    func saveMetadata(
+        _ metadata: CriticalDataFreshnessMetadata,
+        ifWriteGeneration expectedWriteGeneration: UInt64
+    ) {
+        guard writeGeneration == expectedWriteGeneration else { return }
         self.metadata = metadata
     }
 
-    func clear() {
+    func clear() throws {
+        writeGeneration &+= 1
         metadata = nil
     }
 }

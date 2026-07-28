@@ -39,11 +39,14 @@ struct ReguertaAppEnvironment {
         let notificationRepository = InMemoryNotificationRepository()
         let feedbackCenter = GlobalFeedbackCenter()
         let authorizedDeviceRegistrar = NoOpAuthorizedDeviceRegistrar()
+        let freshnessDependencies = MyOrderFreshnessFeatureDependencies.preview()
         let sessionViewModel = SessionViewModel(
             dependencies: .preview(
                 repository: memberRepository,
                 feedbackCenter: feedbackCenter,
-                authorizedDeviceRegistrar: authorizedDeviceRegistrar
+                authorizedDeviceRegistrar: authorizedDeviceRegistrar,
+                criticalDataFreshnessLocalRepository:
+                    freshnessDependencies.criticalDataFreshnessLocalRepository
             )
         )
         let accessRootViewModel = AccessRootViewModel(
@@ -55,7 +58,7 @@ struct ReguertaAppEnvironment {
             newsNotificationsFeatureDependencies: .preview(notificationRepository: notificationRepository),
             sharedProfileFeatureDependencies: .preview(),
             usersFeatureDependencies: .preview(memberRepository: memberRepository),
-            myOrderFreshnessFeatureDependencies: .preview(),
+            myOrderFreshnessFeatureDependencies: freshnessDependencies,
             bylawsFeatureDependencies: .preview(),
             startupVersionGateUseCase: ResolveStartupVersionGateUseCase(
                 repository: PreviewStartupVersionPolicyRepository()
@@ -80,19 +83,25 @@ struct ReguertaAppEnvironment {
         let nowMillisProvider: @MainActor () -> Int64 = {
             DevelopmentTimeMachine.shared.nowMillis()
         }
-        let sessionViewModel = SessionViewModel(
-            dependencies: .preview(
-                repository: memberRepository,
-                feedbackCenter: feedbackCenter,
-                authorizedDeviceRegistrar: authorizedDeviceRegistrar
-            )
-        )
         let freshnessConfig = CriticalDataFreshnessConfig(
             cacheExpirationMinutes: 15,
             remoteTimestampsMillis: Dictionary(
                 uniqueKeysWithValues: CriticalCollection.allCases.map {
                     ($0, 1_000)
                 }
+            )
+        )
+        let freshnessDependencies = MyOrderFreshnessFeatureDependencies.preview(
+            remoteConfig: freshnessConfig,
+            nowProvider: { DevelopmentTimeMachine.shared.nowMillis() }
+        )
+        let sessionViewModel = SessionViewModel(
+            dependencies: .preview(
+                repository: memberRepository,
+                feedbackCenter: feedbackCenter,
+                authorizedDeviceRegistrar: authorizedDeviceRegistrar,
+                criticalDataFreshnessLocalRepository:
+                    freshnessDependencies.criticalDataFreshnessLocalRepository
             )
         )
         let accessRootViewModel = AccessRootViewModel(
@@ -120,10 +129,7 @@ struct ReguertaAppEnvironment {
             usersFeatureDependencies: .preview(
                 memberRepository: memberRepository
             ),
-            myOrderFreshnessFeatureDependencies: .preview(
-                remoteConfig: freshnessConfig,
-                nowProvider: { DevelopmentTimeMachine.shared.nowMillis() }
-            ),
+            myOrderFreshnessFeatureDependencies: freshnessDependencies,
             bylawsFeatureDependencies: .preview(),
             startupVersionGateUseCase: ResolveStartupVersionGateUseCase(
                 repository: PreviewStartupVersionPolicyRepository()
@@ -150,6 +156,7 @@ private struct LiveRootDependencies {
     let imagePipelineManager: FirebaseImagePipelineManager
     let notificationRepository: FirestoreNotificationRepository
     let authorizedDeviceRegistrar: FirebaseAuthorizedDeviceCoordinator
+    let criticalDataFreshnessLocalRepository: UserDefaultsCriticalDataFreshnessLocalRepository
 
     init(db: Firestore = Firestore.firestore()) {
         self.db = db
@@ -170,6 +177,8 @@ private struct LiveRootDependencies {
         )
         self.imagePipelineManager = FirebaseImagePipelineManager()
         self.notificationRepository = FirestoreNotificationRepository(db: db)
+        self.criticalDataFreshnessLocalRepository =
+            UserDefaultsCriticalDataFreshnessLocalRepository()
         self.authorizedDeviceRegistrar = FirebaseAuthorizedDeviceCoordinator(
             repository: FirestoreDeviceRegistrationRepository(db: db),
             keychainStore: KeychainStore()
@@ -194,6 +203,8 @@ private func makeLiveSessionViewModel(
             dependencies: .live(
                 db: dependencies.db,
                 feedbackCenter: feedbackCenter,
+                criticalDataFreshnessLocalRepository:
+                    dependencies.criticalDataFreshnessLocalRepository,
                 developImpersonationEnabled: dependencies.developImpersonationEnabled,
                 nowMillisProvider: { DevelopmentTimeMachine.shared.nowMillis() }
             )
@@ -210,6 +221,8 @@ private func makeLiveSessionViewModel(
                 client: dependencies.functionsClient
             ),
             authorizedDeviceRegistrar: dependencies.authorizedDeviceRegistrar,
+            criticalDataFreshnessLocalRepository:
+                dependencies.criticalDataFreshnessLocalRepository,
             environmentRouter: RuntimeSessionEnvironmentRouter(),
             developImpersonationEnabled: dependencies.developImpersonationEnabled,
             nowMillisProvider: { DevelopmentTimeMachine.shared.nowMillis() }
@@ -256,7 +269,8 @@ private func makeLiveAccessRootViewModel(
             memberAdministrationRepository: dependencies.memberAdministrationRepository
         ),
         myOrderFreshnessFeatureDependencies: MyOrderFreshnessFeatureDependencies.live(
-            db: dependencies.db
+            db: dependencies.db,
+            localRepository: dependencies.criticalDataFreshnessLocalRepository
         ),
         bylawsFeatureDependencies: .live(),
         startupVersionGateUseCase: ResolveStartupVersionGateUseCase(

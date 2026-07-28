@@ -8,6 +8,10 @@ struct UserDefaultsCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLo
         self.userDefaults = userDefaults
     }
 
+    var writeGeneration: UInt64 {
+        (userDefaults.object(forKey: Keys.writeGeneration) as? NSNumber)?.uint64Value ?? 0
+    }
+
     func getMetadata() -> CriticalDataFreshnessMetadata? {
         let validatedAtMillis = (userDefaults.object(forKey: Keys.validatedAt) as? NSNumber)?.int64Value
             ?? Int64(userDefaults.integer(forKey: Keys.validatedAt))
@@ -37,7 +41,11 @@ struct UserDefaultsCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLo
         )
     }
 
-    func saveMetadata(_ metadata: CriticalDataFreshnessMetadata) {
+    func saveMetadata(
+        _ metadata: CriticalDataFreshnessMetadata,
+        ifWriteGeneration expectedWriteGeneration: UInt64
+    ) {
+        guard writeGeneration == expectedWriteGeneration else { return }
         userDefaults.set(metadata.validatedAtMillis, forKey: Keys.validatedAt)
         userDefaults.set(metadata.environment.rawValue, forKey: Keys.environment)
         for (collection, timestamp) in metadata.acknowledgedTimestampsMillis {
@@ -45,7 +53,11 @@ struct UserDefaultsCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLo
         }
     }
 
-    func clear() {
+    func clear() throws {
+        userDefaults.set(
+            NSNumber(value: writeGeneration &+ 1),
+            forKey: Keys.writeGeneration
+        )
         userDefaults.removeObject(forKey: Keys.validatedAt)
         userDefaults.removeObject(forKey: Keys.environment)
         for collection in CriticalCollection.allCases {
@@ -55,6 +67,7 @@ struct UserDefaultsCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLo
 }
 
 private enum Keys {
+    static let writeGeneration = "critical_data_freshness.write_generation"
     static let validatedAt = "critical_data_freshness.validated_at"
     static let environment = "critical_data_freshness.environment"
 }

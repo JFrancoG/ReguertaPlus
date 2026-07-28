@@ -31,7 +31,17 @@ protocol CriticalDataFreshnessRemoteRepository: Sendable {
 
 @MainActor
 protocol CriticalDataFreshnessLocalRepository: Sendable {
+    var writeGeneration: UInt64 { get }
     func getMetadata() -> CriticalDataFreshnessMetadata?
-    func saveMetadata(_ metadata: CriticalDataFreshnessMetadata)
-    func clear()
+    func saveMetadata(
+        _ metadata: CriticalDataFreshnessMetadata,
+        ifWriteGeneration writeGeneration: UInt64
+    )
+    func clear() throws
+}
+
+extension CriticalDataFreshnessLocalRepository {
+    func saveMetadata(_ metadata: CriticalDataFreshnessMetadata) {
+        saveMetadata(metadata, ifWriteGeneration: writeGeneration)
+    }
 }

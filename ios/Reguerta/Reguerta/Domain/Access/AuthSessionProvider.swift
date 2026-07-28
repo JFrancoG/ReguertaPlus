@@ -16,11 +16,13 @@ enum AuthSignInResult: Equatable, Sendable {
     case success(AuthPrincipal)
     case emailVerificationRequired(email: String, verificationResent: Bool, signedOut: Bool)
     case failure(AuthSignInFailureReason)
+    case failureAfterAuthenticationMutation(reason: AuthSignInFailureReason, signedOut: Bool)
 }
 
 enum AuthSignUpResult: Equatable, Sendable {
     case verificationRequired(email: String, verificationSent: Bool, signedOut: Bool)
     case failure(AuthSignInFailureReason)
+    case failureAfterAuthenticationMutation(reason: AuthSignInFailureReason, signedOut: Bool)
 }
 
 enum AuthPasswordResetResult: Equatable, Sendable {
@@ -33,6 +35,7 @@ enum AuthSessionRefreshResult: Equatable, Sendable {
     case active(AuthPrincipal)
     case emailVerificationRequired(email: String)
     case failure(AuthSignInFailureReason)
+    case failureAfterAuthenticationMutation(reason: AuthSignInFailureReason, signedOut: Bool)
     case expired
 }
 

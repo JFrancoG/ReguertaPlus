@@ -63,9 +63,10 @@ final class MyOrderFreshnessViewModel {
             }
         case .signedOut:
             reset()
-            criticalDataFreshnessLocalRepository.clear()
+            try? criticalDataFreshnessLocalRepository.clear()
         case .unauthorized:
             reset()
+            try? criticalDataFreshnessLocalRepository.clear()
         }
     }
 
@@ -82,6 +83,7 @@ final class MyOrderFreshnessViewModel {
     private func refresh(for identity: FreshnessSessionIdentity) {
         invalidateFreshnessOperation()
         let generation = freshnessGeneration
+        let metadataWriteGeneration = criticalDataFreshnessLocalRepository.writeGeneration
         let resolver = resolveCriticalDataFreshness
         let timeout = timeout
         let sleeper = sleeper
@@ -99,14 +101,22 @@ final class MyOrderFreshnessViewModel {
                 guard let self, isCurrentFreshnessOperation(generation, identity: identity) else {
                     return
                 }
-                publish(resolution, generation: generation)
+                publish(
+                    resolution,
+                    generation: generation,
+                    metadataWriteGeneration: metadataWriteGeneration
+                )
             } catch is CancellationError {
                 return
             } catch {
                 guard let self, isCurrentFreshnessOperation(generation, identity: identity) else {
                     return
                 }
-                publish(.invalidConfig, generation: generation)
+                publish(
+                    .invalidConfig,
+                    generation: generation,
+                    metadataWriteGeneration: metadataWriteGeneration
+                )
             }
         }
 
@@ -170,7 +180,8 @@ final class MyOrderFreshnessViewModel {
 
     private func publish(
         _ resolution: CriticalDataFreshnessResolution,
-        generation: UInt64
+        generation: UInt64,
+        metadataWriteGeneration: UInt64
     ) {
         guard generation == freshnessGeneration else { return }
         freshnessTimeoutTask?.cancel()
@@ -179,7 +190,10 @@ final class MyOrderFreshnessViewModel {
         switch resolution {
         case .fresh(let metadataToPersist):
             if let metadataToPersist {
-                criticalDataFreshnessLocalRepository.saveMetadata(metadataToPersist)
+                criticalDataFreshnessLocalRepository.saveMetadata(
+                    metadataToPersist,
+                    ifWriteGeneration: metadataWriteGeneration
+                )
             }
             state = .ready
         case .invalidConfig:

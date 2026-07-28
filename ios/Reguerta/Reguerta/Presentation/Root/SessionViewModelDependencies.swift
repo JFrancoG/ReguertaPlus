@@ -2,15 +2,22 @@ import FirebaseCore
 import FirebaseFirestore
 import Foundation
 
+enum SessionOperationConfiguration {
+    static let defaultTimeout: Duration = .seconds(30)
+}
+
 struct SessionViewModelDependencies {
     let feedbackCenter: GlobalFeedbackCenter
     let repository: any MemberRepository
     let authSessionProvider: any AuthSessionProvider
     let resolveAuthorizedSession: ResolveAuthorizedSessionUseCase
     let authorizedDeviceRegistrar: any AuthorizedDeviceRegistrar
+    let criticalDataFreshnessLocalRepository: any CriticalDataFreshnessLocalRepository
     let environmentRouter: any SessionEnvironmentRouting
     let sessionRefreshPolicy: SessionRefreshPolicy
     let nowMillisProvider: @MainActor @Sendable () -> Int64
+    let sessionOperationTimeout: Duration
+    let sessionOperationSleeper: @Sendable (Duration) async throws -> Void
     let developImpersonationEnabled: Bool
 
     static func live(
@@ -21,10 +28,15 @@ struct SessionViewModelDependencies {
         resolveAuthorizedSession: ResolveAuthorizedSessionUseCase? = nil,
         authorizedMemberResolver: (any AuthorizedMemberResolving)? = nil,
         authorizedDeviceRegistrar: (any AuthorizedDeviceRegistrar)? = nil,
+        criticalDataFreshnessLocalRepository: (any CriticalDataFreshnessLocalRepository)? = nil,
         environmentRouter: (any SessionEnvironmentRouting)? = nil,
         developImpersonationEnabled: Bool = false,
         sessionRefreshPolicy: SessionRefreshPolicy = SessionRefreshPolicy(),
-        nowMillisProvider: @escaping @MainActor @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1_000) }
+        nowMillisProvider: @escaping @MainActor @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1_000) },
+        sessionOperationTimeout: Duration = SessionOperationConfiguration.defaultTimeout,
+        sessionOperationSleeper: @escaping @Sendable (Duration) async throws -> Void = {
+            try await ContinuousClock().sleep(for: $0)
+        }
     ) -> SessionViewModelDependencies {
         let useMockAuth = ProcessInfo.processInfo.arguments.contains("-useMockAuth")
         let selectedRepository: any MemberRepository = repository ?? (useMockAuth
@@ -64,9 +76,13 @@ struct SessionViewModelDependencies {
                 environmentRouter: selectedEnvironmentRouter
             ),
             authorizedDeviceRegistrar: authorizedDeviceRegistrar ?? NoOpAuthorizedDeviceRegistrar(),
+            criticalDataFreshnessLocalRepository: criticalDataFreshnessLocalRepository
+                ?? UserDefaultsCriticalDataFreshnessLocalRepository(),
             environmentRouter: selectedEnvironmentRouter,
             sessionRefreshPolicy: sessionRefreshPolicy,
             nowMillisProvider: nowMillisProvider,
+            sessionOperationTimeout: sessionOperationTimeout,
+            sessionOperationSleeper: sessionOperationSleeper,
             developImpersonationEnabled: developImpersonationEnabled
         )
     }
@@ -74,7 +90,9 @@ struct SessionViewModelDependencies {
     static func preview(
         repository: any LocalMemberRepository = InMemoryMemberRepository(),
         feedbackCenter: GlobalFeedbackCenter = GlobalFeedbackCenter(),
-        authorizedDeviceRegistrar: any AuthorizedDeviceRegistrar = NoOpAuthorizedDeviceRegistrar()
+        authorizedDeviceRegistrar: any AuthorizedDeviceRegistrar = NoOpAuthorizedDeviceRegistrar(),
+        criticalDataFreshnessLocalRepository: any CriticalDataFreshnessLocalRepository =
+            NoOpCriticalDataFreshnessLocalRepository()
     ) -> SessionViewModelDependencies {
         let environmentRouter = FixedSessionEnvironmentRouter()
         return SessionViewModelDependencies(
@@ -87,9 +105,12 @@ struct SessionViewModelDependencies {
                 environmentRouter: environmentRouter
             ),
             authorizedDeviceRegistrar: authorizedDeviceRegistrar,
+            criticalDataFreshnessLocalRepository: criticalDataFreshnessLocalRepository,
             environmentRouter: environmentRouter,
             sessionRefreshPolicy: SessionRefreshPolicy(),
             nowMillisProvider: { Int64(Date().timeIntervalSince1970 * 1_000) },
+            sessionOperationTimeout: SessionOperationConfiguration.defaultTimeout,
+            sessionOperationSleeper: { try await ContinuousClock().sleep(for: $0) },
             developImpersonationEnabled: false
         )
     }
@@ -107,4 +128,20 @@ nonisolated struct NoOpAuthorizedDeviceRegistrar: AuthorizedDeviceRegistrar {
     func updateRegistrationToken(_ token: String?) async throws {}
 
     func clearAuthorization(ifOwnedBy lease: AuthorizedDeviceSessionLease) async throws {}
+}
+
+@MainActor
+final class NoOpCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLocalRepository {
+    private(set) var writeGeneration: UInt64 = 0
+
+    func getMetadata() -> CriticalDataFreshnessMetadata? { nil }
+
+    func saveMetadata(
+        _: CriticalDataFreshnessMetadata,
+        ifWriteGeneration _: UInt64
+    ) {}
+
+    func clear() throws {
+        writeGeneration &+= 1
+    }
 }

@@ -2,6 +2,7 @@ import Foundation
 
 extension SessionViewModel {
     func signIn() {
+        guard sessionOperationState == .idle else { return }
         let email = normalizeAccessEmail(emailInput)
         let password = passwordInput
         feedbackCenter.clear()
@@ -12,42 +13,38 @@ extension SessionViewModel {
             return
         }
 
-        let operation = beginSessionOperation()
+        guard let operation = beginSessionOperation(principalEmail: email) else { return }
         let provider = authSessionProvider
         isAuthenticating = true
         sessionOperationTask = Task { @MainActor [weak self, provider] in
+            defer {
+                self?.finishSessionOperationAfterProviderReturn(operation.generation)
+            }
             await operation.predecessor?.value
             guard self?.isCurrentSessionOperation(operation.generation) == true else { return }
+            self?.startSessionOperationTimeout(operation.generation)
 
             let authResult = await provider.signIn(email: email, password: password)
             guard let self else {
                 _ = provider.signOut()
                 return
             }
-            defer { self.finishSessionOperation(operation.generation) }
             guard isCurrentSessionOperation(operation.generation) else {
-                _ = provider.signOut()
+                if !isDrainingSessionOperation(operation.generation) {
+                    _ = provider.signOut()
+                }
                 return
             }
 
-            switch authResult {
-            case .success(let principal):
-                await applyAuthorizedSession(principal: principal, generation: operation.generation)
-            case .emailVerificationRequired(let email, let verificationResent, let signedOut):
-                applyEmailVerificationRequiredSession(
-                    email: email,
-                    firebaseSignOutSucceeded: signedOut,
-                    feedbackMessageKey: verificationResent
-                        ? AccessL10nKey.authInfoVerificationResent
-                        : AccessL10nKey.authInfoVerificationPending
-                )
-            case .failure(let reason):
-                applySignInFailure(reason)
-            }
+            await applySignInResult(
+                authResult,
+                generation: operation.generation
+            )
         }
     }
 
     func signUp() {
+        guard sessionOperationState == .idle else { return }
         let email = normalizeAccessEmail(registerEmailInput)
         let password = registerPasswordInput
         let repeatedPassword = registerRepeatPasswordInput
@@ -60,36 +57,77 @@ extension SessionViewModel {
             return
         }
 
-        let operation = beginSessionOperation()
+        guard let operation = beginSessionOperation(principalEmail: email) else { return }
         let provider = authSessionProvider
         isRegistering = true
         sessionOperationTask = Task { @MainActor [weak self, provider] in
+            defer {
+                self?.finishSessionOperationAfterProviderReturn(operation.generation)
+            }
             await operation.predecessor?.value
             guard self?.isCurrentSessionOperation(operation.generation) == true else { return }
+            self?.startSessionOperationTimeout(operation.generation)
 
             let authResult = await provider.signUp(email: email, password: password)
             guard let self else {
                 _ = provider.signOut()
                 return
             }
-            defer { self.finishSessionOperation(operation.generation) }
             guard isCurrentSessionOperation(operation.generation) else {
-                _ = provider.signOut()
+                if !isDrainingSessionOperation(operation.generation) {
+                    _ = provider.signOut()
+                }
                 return
             }
 
-            switch authResult {
-            case .verificationRequired(let email, let verificationSent, let signedOut):
-                applyEmailVerificationRequiredSession(
-                    email: email,
-                    firebaseSignOutSucceeded: signedOut,
-                    feedbackMessageKey: verificationSent
-                        ? AccessL10nKey.authInfoVerificationSent
-                        : AccessL10nKey.authInfoVerificationPending
-                )
-            case .failure(let reason):
-                applySignUpFailure(reason)
-            }
+            applySignUpResult(authResult)
+        }
+    }
+
+    private func applySignInResult(
+        _ result: AuthSignInResult,
+        generation: UInt64
+    ) async {
+        switch result {
+        case .success(let principal):
+            await applyAuthorizedSession(principal: principal, generation: generation)
+        case .emailVerificationRequired(let email, let verificationResent, let signedOut):
+            applyEmailVerificationRequiredSession(
+                email: email,
+                firebaseSignOutSucceeded: signedOut,
+                feedbackMessageKey: verificationResent
+                    ? AccessL10nKey.authInfoVerificationResent
+                    : AccessL10nKey.authInfoVerificationPending
+            )
+        case .failure(let reason):
+            applySignInFailure(reason)
+        case .failureAfterAuthenticationMutation(let reason, let signedOut):
+            applyLocalSessionTermination(
+                firebaseSignOutSucceeded: signedOut,
+                showsExpiredDialog: false
+            )
+            applySignInFailure(reason)
+        }
+    }
+
+    private func applySignUpResult(_ result: AuthSignUpResult) {
+        switch result {
+        case .verificationRequired(let email, let verificationSent, let signedOut):
+            applyEmailVerificationRequiredSession(
+                email: email,
+                firebaseSignOutSucceeded: signedOut,
+                feedbackMessageKey: verificationSent
+                    ? AccessL10nKey.authInfoVerificationSent
+                    : AccessL10nKey.authInfoVerificationPending
+            )
+        case .failure(let reason):
+            applySignUpFailure(reason)
+        case .failureAfterAuthenticationMutation(let reason, let signedOut):
+            applyLocalSessionTermination(
+                firebaseSignOutSucceeded: signedOut,
+                showsExpiredDialog: false
+            )
+            applySignUpFailure(reason)
         }
     }
 
@@ -143,24 +181,29 @@ extension SessionViewModel {
     func refreshSession(trigger: SessionRefreshTrigger) {
         guard canStartSessionRefresh(trigger: trigger) else { return }
 
-        let operation = beginSessionOperation()
+        guard let operation = beginSessionOperation(
+            principalEmail: currentPrincipalEmail
+        ) else { return }
         let provider = authSessionProvider
         isSessionRefreshInFlight = true
         let hadAuthenticatedSession = mode.isAuthenticatedSession
         sessionOperationTask = Task { @MainActor [weak self, provider] in
+            defer {
+                self?.finishSessionOperationAfterProviderReturn(operation.generation)
+            }
             await operation.predecessor?.value
             guard self?.isCurrentSessionOperation(operation.generation) == true else { return }
+            self?.startSessionOperationTimeout(operation.generation)
 
             let result = await provider.refreshCurrentSession()
             guard let self else {
                 _ = provider.signOut()
                 return
             }
-            defer {
-                self.finishSessionOperation(operation.generation)
-            }
             guard isCurrentSessionOperation(operation.generation) else {
-                _ = provider.signOut()
+                if !isDrainingSessionOperation(operation.generation) {
+                    _ = provider.signOut()
+                }
                 return
             }
             await applySessionRefreshResult(

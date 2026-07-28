@@ -11,10 +11,14 @@ final class ControlledSessionAuthProvider: AuthSessionProvider {
     }
 
     private let immediateSignInResult: AuthSignInResult?
+    private let immediateSignUpResult: AuthSignUpResult?
     private let immediateRefreshResult: AuthSessionRefreshResult?
+    private var signOutResults: [Bool]
     private var signInContinuations: [CheckedContinuation<AuthSignInResult, Never>?] = []
+    private var signUpContinuations: [CheckedContinuation<AuthSignUpResult, Never>?] = []
     private var refreshContinuations: [CheckedContinuation<AuthSessionRefreshResult, Never>?] = []
     private(set) var signInRequestCount = 0
+    private(set) var signUpRequestCount = 0
     private(set) var refreshRequestCount = 0
     private(set) var signOutCallCount = 0
     private(set) var isAuthenticated: Bool
@@ -22,12 +26,16 @@ final class ControlledSessionAuthProvider: AuthSessionProvider {
 
     init(
         signInResult: AuthSignInResult? = nil,
+        signUpResult: AuthSignUpResult? = nil,
         refreshResult: AuthSessionRefreshResult? = nil,
-        isAuthenticated: Bool = false
+        isAuthenticated: Bool = false,
+        signOutResults: [Bool] = []
     ) {
         immediateSignInResult = signInResult
+        immediateSignUpResult = signUpResult
         immediateRefreshResult = refreshResult
         self.isAuthenticated = isAuthenticated
+        self.signOutResults = signOutResults
     }
 
     func signIn(email _: String, password _: String) async -> AuthSignInResult {
@@ -48,7 +56,16 @@ final class ControlledSessionAuthProvider: AuthSessionProvider {
     }
 
     func signUp(email _: String, password _: String) async -> AuthSignUpResult {
-        .failure(.unknown)
+        signUpRequestCount += 1
+        if let immediateSignUpResult {
+            applyAuthenticationState(for: immediateSignUpResult)
+            return immediateSignUpResult
+        }
+        let result = await withCheckedContinuation { continuation in
+            signUpContinuations.append(continuation)
+        }
+        applyAuthenticationState(for: result)
+        return result
     }
 
     func sendPasswordReset(email _: String) async -> AuthPasswordResetResult {
@@ -79,9 +96,12 @@ final class ControlledSessionAuthProvider: AuthSessionProvider {
     @discardableResult
     func signOut() -> Bool {
         signOutCallCount += 1
-        isAuthenticated = false
+        let succeeded = signOutResults.isEmpty ? true : signOutResults.removeFirst()
+        if succeeded {
+            isAuthenticated = false
+        }
         events.append(.signOut)
-        return true
+        return succeeded
     }
 
     func waitForSignInRequestCount(_ expectedCount: Int) async -> Bool {
@@ -106,6 +126,17 @@ final class ControlledSessionAuthProvider: AuthSessionProvider {
         return false
     }
 
+    func waitForSignUpRequestCount(_ expectedCount: Int) async -> Bool {
+        for _ in 0 ..< 1_000 {
+            if signUpRequestCount >= expectedCount {
+                return true
+            }
+            await Task.yield()
+        }
+        Issue.record("No se iniciaron \(expectedCount) peticiones de alta")
+        return false
+    }
+
     func completeSignIn(at index: Int = 0, with result: AuthSignInResult) {
         guard signInContinuations.indices.contains(index),
               let continuation = signInContinuations[index] else {
@@ -126,11 +157,23 @@ final class ControlledSessionAuthProvider: AuthSessionProvider {
         continuation.resume(returning: result)
     }
 
+    func completeSignUp(at index: Int = 0, with result: AuthSignUpResult) {
+        guard signUpContinuations.indices.contains(index),
+              let continuation = signUpContinuations[index] else {
+            Issue.record("No existe la petición de alta \(index)")
+            return
+        }
+        signUpContinuations[index] = nil
+        continuation.resume(returning: result)
+    }
+
     private func applyAuthenticationState(for result: AuthSignInResult) {
         switch result {
         case .success:
             isAuthenticated = true
         case .emailVerificationRequired(_, _, let signedOut):
+            isAuthenticated = !signedOut
+        case .failureAfterAuthenticationMutation(_, let signedOut):
             isAuthenticated = !signedOut
         case .failure:
             break
@@ -138,8 +181,23 @@ final class ControlledSessionAuthProvider: AuthSessionProvider {
     }
 
     private func applyAuthenticationState(for result: AuthSessionRefreshResult) {
-        if case .active = result {
+        switch result {
+        case .active:
             isAuthenticated = true
+        case .failureAfterAuthenticationMutation(_, let signedOut):
+            isAuthenticated = !signedOut
+        case .noSession, .emailVerificationRequired, .failure, .expired:
+            break
+        }
+    }
+
+    private func applyAuthenticationState(for result: AuthSignUpResult) {
+        switch result {
+        case .verificationRequired(_, _, let signedOut),
+             .failureAfterAuthenticationMutation(_, let signedOut):
+            isAuthenticated = !signedOut
+        case .failure:
+            break
         }
     }
 }

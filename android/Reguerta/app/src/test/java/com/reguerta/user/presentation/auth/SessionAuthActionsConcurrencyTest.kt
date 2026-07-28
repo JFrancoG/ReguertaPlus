@@ -38,7 +38,9 @@ import com.reguerta.user.presentation.root.MY_ORDER_FRESHNESS_TIMEOUT_MILLIS
 import com.reguerta.user.presentation.root.SessionMode
 import com.reguerta.user.presentation.root.SessionUiState
 import java.io.IOException
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.concurrent.thread
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -46,6 +48,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
@@ -56,6 +59,375 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SessionAuthActionsConcurrencyTest {
+    @Test
+    fun `result and deadline claims have exactly one winner under concurrent execution`() {
+        repeat(50) {
+            val claim = SessionOperationDeadlineClaim()
+            val ready = CountDownLatch(2)
+            val start = CountDownLatch(1)
+            val resultWon = AtomicBoolean(false)
+            val deadlineWon = AtomicBoolean(false)
+            val resultThread = thread(isDaemon = true) {
+                ready.countDown()
+                start.await()
+                resultWon.set(claim.claimResult())
+            }
+            val deadlineThread = thread(isDaemon = true) {
+                ready.countDown()
+                start.await()
+                deadlineWon.set(claim.claimDraining())
+            }
+
+            ready.await()
+            start.countDown()
+            resultThread.join()
+            deadlineThread.join()
+
+            assertEquals(1, listOf(resultWon.get(), deadlineWon.get()).count { it })
+            assertEquals(
+                if (resultWon.get()) {
+                    SessionOperationDeadlineOutcome.RESULT
+                } else {
+                    SessionOperationDeadlineOutcome.DRAINING
+                },
+                claim.outcome,
+            )
+        }
+    }
+
+    @Test
+    fun `current sign in exception recovers the login instead of escaping`() = runTest {
+        val providerError = CompletableDeferred<Throwable>()
+        val authProvider = ControlledAuthSessionProvider(lateSignInError = providerError)
+        val fixture = fixture(scope = this, authProvider = authProvider)
+
+        assertTrue(fixture.actions.signIn("secret123"))
+        runCurrent()
+
+        providerError.complete(IOException("current provider failure"))
+        advanceUntilIdle()
+
+        assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
+        assertFalse(fixture.state.value.isAuthenticating)
+        assertEquals(
+            com.reguerta.user.R.string.auth_error_unknown,
+            fixture.state.value.emailErrorRes,
+        )
+        assertEquals("member@reguerta.app", fixture.state.value.emailInput)
+        assertEquals(2, authProvider.signOutRequests)
+    }
+
+    @Test
+    fun `interactive submit is rejected while another session operation owns the lane`() = runTest {
+        val predecessorResult = CompletableDeferred<AuthSignInResult>()
+        val authProvider = ControlledAuthSessionProvider(
+            signInResults = listOf(predecessorResult),
+        )
+        val fixture = fixture(scope = this, authProvider = authProvider)
+
+        assertTrue(fixture.actions.signIn("secret123"))
+        runCurrent()
+
+        fixture.state.value = fixture.state.value.copy(emailInput = "waiting@reguerta.app")
+        assertFalse(fixture.actions.signIn("waiting-secret"))
+        runCurrent()
+        assertEquals(1, authProvider.signInRequests.size)
+
+        predecessorResult.complete(AuthSignInResult.Failure(AuthSignInFailureReason.NETWORK))
+        advanceUntilIdle()
+        assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
+    }
+
+    @Test
+    fun `sign in deadline drains non cancellable work before accepting a later login`() = runTest {
+        val timedOutResult = CompletableDeferred<AuthSignInResult>()
+        val cleanupStarted = CompletableDeferred<Unit>()
+        val cleanupRelease = CompletableDeferred<Unit>()
+        val localFreshnessRepository = TestCriticalDataFreshnessLocalRepository(
+            clearStarted = cleanupStarted,
+            clearRelease = cleanupRelease,
+        )
+        val laterResult = CompletableDeferred<AuthSignInResult>(
+            AuthSignInResult.Success(principal("after-timeout")),
+        )
+        val authProvider = ControlledAuthSessionProvider(
+            signInResults = listOf(timedOutResult, laterResult),
+        )
+        val fixture = fixture(
+            scope = this,
+            authProvider = authProvider,
+            localFreshnessRepository = localFreshnessRepository,
+        )
+
+        assertTrue(fixture.actions.signIn("secret123"))
+        runCurrent()
+
+        advanceTimeBy(TEST_SESSION_OPERATION_TIMEOUT_MILLIS - 1)
+        runCurrent()
+        assertTrue(fixture.state.value.isAuthenticating)
+        assertEquals(0, authProvider.signOutRequests)
+
+        advanceTimeBy(1)
+        runCurrent()
+        cleanupStarted.await()
+
+        assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
+        assertFalse(fixture.state.value.isAuthenticating)
+        assertFalse(fixture.state.value.showSessionExpiredDialog)
+        assertEquals(
+            com.reguerta.user.R.string.auth_error_unknown,
+            fixture.state.value.emailErrorRes,
+        )
+        assertEquals(1, authProvider.signOutRequests)
+        assertEquals(1, fixture.deviceRegistrar.clearRequests)
+        assertEquals(1, fixture.localFreshnessRepository.clearRequests)
+        assertEquals(0, fixture.localFreshnessRepository.completedClearRequests)
+
+        fixture.state.value = fixture.state.value.copy(
+            emailInput = "later@reguerta.app",
+            emailErrorRes = null,
+        )
+        assertFalse(fixture.actions.signIn("later-secret"))
+        assertEquals(
+            com.reguerta.user.R.string.auth_error_unknown,
+            fixture.state.value.emailErrorRes,
+        )
+        assertEquals(1, authProvider.signInRequests.size)
+
+        timedOutResult.complete(AuthSignInResult.Success(principal("too-late")))
+        runCurrent()
+
+        assertFalse(fixture.actions.signIn("still-draining-secret"))
+        cleanupRelease.complete(Unit)
+        advanceUntilIdle()
+
+        assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
+        assertEquals(2, authProvider.signOutRequests)
+        assertEquals(2, fixture.deviceRegistrar.clearRequests)
+        assertEquals(2, fixture.localFreshnessRepository.clearRequests)
+        assertEquals(2, fixture.localFreshnessRepository.completedClearRequests)
+
+        assertTrue(fixture.actions.signIn("later-secret"))
+        advanceUntilIdle()
+
+        val mode = fixture.state.value.mode as SessionMode.Authorized
+        assertEquals("uid-after-timeout", mode.principal.uid)
+        assertEquals(listOf("member", "later"), authProvider.signInRequests.map { it.email.substringBefore('@') })
+    }
+
+    @Test
+    fun `refresh deadline fails closed without expired dialog or success timestamp`() = runTest {
+        val principal = principal("refresh-timeout")
+        val refreshResult = CompletableDeferred<AuthSessionRefreshResult>()
+        val authProvider = ControlledAuthSessionProvider(refreshResult = refreshResult)
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)).copy(emailInput = principal.email),
+            authProvider = authProvider,
+        )
+
+        fixture.actions.refreshSession(SessionRefreshTrigger.STARTUP)
+        runCurrent()
+
+        advanceTimeBy(TEST_SESSION_OPERATION_TIMEOUT_MILLIS)
+        runCurrent()
+
+        assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
+        assertFalse(fixture.state.value.showSessionExpiredDialog)
+        assertEquals(principal.email, fixture.state.value.emailInput)
+        assertEquals(
+            com.reguerta.user.R.string.auth_error_unknown,
+            fixture.state.value.emailErrorRes,
+        )
+        assertFalse(fixture.isRefreshInFlight)
+        assertEquals(null, fixture.lastRefreshAtMillis)
+
+        fixture.actions.refreshSession(SessionRefreshTrigger.STARTUP)
+        runCurrent()
+        assertEquals(1, authProvider.refreshRequests)
+
+        refreshResult.complete(AuthSessionRefreshResult.Active(principal))
+        advanceUntilIdle()
+
+        assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
+        assertEquals(null, fixture.lastRefreshAtMillis)
+        assertEquals(2, authProvider.signOutRequests)
+    }
+
+    @Test
+    fun `sign up deadline recovers registration and preserves its email`() = runTest {
+        val signUpResult = CompletableDeferred<AuthSignInResult>()
+        val authProvider = ControlledAuthSessionProvider(signUpResults = listOf(signUpResult))
+        val fixture = fixture(
+            scope = this,
+            state = registrationState(),
+            authProvider = authProvider,
+        )
+
+        assertTrue(fixture.actions.signUp("secret123", "secret123"))
+        runCurrent()
+        advanceTimeBy(TEST_SESSION_OPERATION_TIMEOUT_MILLIS)
+        runCurrent()
+
+        assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
+        assertEquals("member@reguerta.app", fixture.state.value.registerEmailInput)
+        assertEquals(
+            com.reguerta.user.R.string.auth_error_register_generic,
+            fixture.state.value.registerEmailErrorRes,
+        )
+        assertFalse(fixture.state.value.isRegistering)
+        assertEquals(1, authProvider.signOutRequests)
+
+        signUpResult.complete(AuthSignInResult.Success(principal("late-sign-up-timeout")))
+        advanceUntilIdle()
+
+        assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
+        assertEquals(2, authProvider.signOutRequests)
+    }
+
+    @Test
+    fun `failed definitive sign out keeps the completed operation quarantined`() = runTest {
+        val timedOutResult = CompletableDeferred<AuthSignInResult>()
+        val rejectedResult = CompletableDeferred<AuthSignInResult>(
+            AuthSignInResult.Failure(AuthSignInFailureReason.NETWORK),
+        )
+        val authProvider = ControlledAuthSessionProvider(
+            signInResults = listOf(timedOutResult, rejectedResult),
+            signOutErrors = listOf(
+                null,
+                IOException("definitive sign out failed"),
+                IOException("definitive sign out retry failed"),
+            ),
+        )
+        val fixture = fixture(scope = this, authProvider = authProvider)
+
+        assertTrue(fixture.actions.signIn("secret123"))
+        runCurrent()
+        advanceTimeBy(TEST_SESSION_OPERATION_TIMEOUT_MILLIS)
+        runCurrent()
+
+        timedOutResult.complete(AuthSignInResult.Success(principal("late-after-failed-cleanup")))
+        advanceUntilIdle()
+
+        assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
+        assertEquals(3, authProvider.signOutRequests)
+        fixture.state.value = fixture.state.value.copy(emailInput = "blocked@reguerta.app")
+        assertFalse(fixture.actions.signIn("blocked-secret"))
+        assertEquals(1, authProvider.signInRequests.size)
+    }
+
+    @Test
+    fun `failed definitive private cleanup keeps the completed operation quarantined`() = runTest {
+        val timedOutResult = CompletableDeferred<AuthSignInResult>()
+        val rejectedResult = CompletableDeferred<AuthSignInResult>(
+            AuthSignInResult.Failure(AuthSignInFailureReason.NETWORK),
+        )
+        val authProvider = ControlledAuthSessionProvider(
+            signInResults = listOf(timedOutResult, rejectedResult),
+        )
+        val deviceRegistrar = TestAuthorizedDeviceRegistrar(
+            clearErrors = listOf(
+                null,
+                IOException("definitive device cleanup failed"),
+                IOException("definitive device cleanup retry failed"),
+            ),
+        )
+        val fixture = fixture(
+            scope = this,
+            authProvider = authProvider,
+            deviceRegistrar = deviceRegistrar,
+        )
+
+        assertTrue(fixture.actions.signIn("secret123"))
+        runCurrent()
+        advanceTimeBy(TEST_SESSION_OPERATION_TIMEOUT_MILLIS)
+        runCurrent()
+
+        timedOutResult.complete(AuthSignInResult.Success(principal("late-after-private-cleanup")))
+        advanceUntilIdle()
+
+        assertEquals(3, authProvider.signOutRequests)
+        assertEquals(3, deviceRegistrar.clearRequests)
+        assertEquals(3, fixture.localFreshnessRepository.completedClearRequests)
+        fixture.state.value = fixture.state.value.copy(emailInput = "blocked@reguerta.app")
+        assertFalse(fixture.actions.signIn("blocked-secret"))
+        assertEquals(1, authProvider.signInRequests.size)
+    }
+
+    @Test
+    fun `sign out failure still clears local state and retains quarantine`() = runTest {
+        val principal = principal("manual-sign-out-failure")
+        val authProvider = ControlledAuthSessionProvider(
+            signInResults = listOf(
+                CompletableDeferred(AuthSignInResult.Failure(AuthSignInFailureReason.NETWORK)),
+            ),
+            signOutErrors = listOf(
+                IOException("preliminary sign out failed"),
+                IOException("definitive sign out failed"),
+            ),
+        )
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)),
+            authProvider = authProvider,
+        )
+
+        fixture.actions.signOut()
+        advanceUntilIdle()
+
+        assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
+        assertEquals(2, authProvider.signOutRequests)
+        assertTrue(fixture.deviceRegistrar.clearRequests >= 1)
+        assertTrue(fixture.localFreshnessRepository.completedClearRequests >= 1)
+        fixture.state.value = fixture.state.value.copy(emailInput = "blocked@reguerta.app")
+        assertFalse(fixture.actions.signIn("blocked-secret"))
+        assertTrue(authProvider.signInRequests.isEmpty())
+    }
+
+    @Test
+    fun `refresh during failing sign out cleanup is ignored and quarantine remains`() = runTest {
+        val cleanupStarted = CompletableDeferred<Unit>()
+        val cleanupRelease = CompletableDeferred<Unit>()
+        val principal = principal("cleanup-refresh")
+        val authProvider = ControlledAuthSessionProvider(
+            signInResults = listOf(
+                CompletableDeferred(AuthSignInResult.Failure(AuthSignInFailureReason.NETWORK)),
+            ),
+            refreshResults = listOf(
+                CompletableDeferred(AuthSessionRefreshResult.Active(principal)),
+            ),
+            signOutErrors = listOf(
+                IOException("preliminary sign out failed"),
+                IOException("definitive sign out failed"),
+            ),
+        )
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)),
+            authProvider = authProvider,
+            localFreshnessRepository = TestCriticalDataFreshnessLocalRepository(
+                clearStarted = cleanupStarted,
+                clearRelease = cleanupRelease,
+            ),
+        )
+
+        fixture.actions.signOut()
+        cleanupStarted.await()
+        fixture.actions.refreshSession(SessionRefreshTrigger.FOREGROUND)
+        runCurrent()
+
+        assertEquals(0, authProvider.refreshRequests)
+
+        cleanupRelease.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(0, authProvider.refreshRequests)
+        assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
+        fixture.state.value = fixture.state.value.copy(emailInput = "blocked@reguerta.app")
+        assertFalse(fixture.actions.signIn("blocked-secret"))
+        assertTrue(authProvider.signInRequests.isEmpty())
+    }
+
     @Test
     fun `valid sign in forwards the route password snapshot`() = runTest {
         val signInResult = CompletableDeferred<AuthSignInResult>()
@@ -162,7 +534,7 @@ class SessionAuthActionsConcurrencyTest {
         advanceUntilIdle()
 
         assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
-        assertEquals(2, authProvider.signOutRequests)
+        assertEquals(3, authProvider.signOutRequests)
         assertEquals(0, fixture.deviceRegistrations)
     }
 
@@ -194,48 +566,47 @@ class SessionAuthActionsConcurrencyTest {
         advanceUntilIdle()
 
         assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
-        assertEquals(2, authProvider.signOutRequests)
+        assertEquals(3, authProvider.signOutRequests)
         assertEquals(0, fixture.deviceRegistrations)
         assertEquals(0, fixture.shiftRefreshes)
     }
 
     @Test
-    fun `new auth operation waits for stale predecessor cleanup and is sole publisher`() = runTest {
+    fun `new auth operation is accepted only after the current owner releases the lane`() = runTest {
         val firstResult = CompletableDeferred<AuthSignInResult>()
         val secondResult = CompletableDeferred<AuthSignInResult>()
         val authProvider = ControlledAuthSessionProvider(signInResults = listOf(firstResult, secondResult))
         val fixture = fixture(scope = this, authProvider = authProvider)
 
-        fixture.actions.signIn("secret123")
+        assertTrue(fixture.actions.signIn("secret123"))
         runCurrent()
         fixture.state.value = fixture.state.value.copy(
             emailInput = "new@reguerta.app",
         )
-        fixture.actions.signIn("new-secret")
+        assertFalse(fixture.actions.signIn("new-secret"))
         runCurrent()
 
-        val requestsBeforePredecessorCompletion = authProvider.signInRequests.size
+        assertEquals(1, authProvider.signInRequests.size)
+        firstResult.complete(AuthSignInResult.Failure(AuthSignInFailureReason.NETWORK))
+        advanceUntilIdle()
 
-        firstResult.complete(AuthSignInResult.Success(principal("old")))
+        assertTrue(fixture.actions.signIn("new-secret"))
         runCurrent()
-
-        val staleCleanupSignOuts = authProvider.signOutRequests
-        val requestOrder = authProvider.signInRequests.map { it.email.substringBefore('@') }
         secondResult.complete(AuthSignInResult.Success(principal("new")))
         advanceUntilIdle()
 
         val mode = fixture.state.value.mode as SessionMode.Authorized
-        assertEquals(1, requestsBeforePredecessorCompletion)
-        assertEquals(1, staleCleanupSignOuts)
-        assertEquals(listOf("member", "new"), requestOrder)
+        assertEquals(listOf("member", "new"), authProvider.signInRequests.map { it.email.substringBefore('@') })
         assertEquals("uid-new", mode.principal.uid)
         assertEquals(1, fixture.deviceRegistrations)
     }
 
     @Test
-    fun `stale refresh finalizer cannot clear ownership or timestamp of newer refresh`() = runTest {
+    fun `refresh requested while sign out owns cleanup is ignored`() = runTest {
         val firstRefresh = CompletableDeferred<AuthSessionRefreshResult>()
-        val secondRefresh = CompletableDeferred<AuthSessionRefreshResult>()
+        val secondRefresh = CompletableDeferred<AuthSessionRefreshResult>(
+            AuthSessionRefreshResult.NoSession,
+        )
         val authProvider = ControlledAuthSessionProvider(refreshResults = listOf(firstRefresh, secondRefresh))
         val principal = principal("refresh-owner")
         val fixture = fixture(
@@ -249,24 +620,13 @@ class SessionAuthActionsConcurrencyTest {
         fixture.actions.signOut()
         fixture.actions.refreshSession(SessionRefreshTrigger.STARTUP)
         runCurrent()
-        val requestsBeforePredecessorCompletion = authProvider.refreshRequests
 
         firstRefresh.complete(AuthSessionRefreshResult.Active(principal))
-        runCurrent()
-
-        val requestsAfterPredecessorCompletion = authProvider.refreshRequests
-        val newerRefreshStillOwnsFlag = fixture.isRefreshInFlight
-        val timestampBeforeNewerRefreshCompletion = fixture.lastRefreshAtMillis
-
-        secondRefresh.complete(AuthSessionRefreshResult.NoSession)
         advanceUntilIdle()
 
-        assertEquals(1, requestsBeforePredecessorCompletion)
-        assertEquals(2, requestsAfterPredecessorCompletion)
-        assertTrue(newerRefreshStillOwnsFlag)
-        assertEquals(null, timestampBeforeNewerRefreshCompletion)
+        assertEquals(1, authProvider.refreshRequests)
         assertFalse(fixture.isRefreshInFlight)
-        assertEquals(1_000L, fixture.lastRefreshAtMillis)
+        assertEquals(null, fixture.lastRefreshAtMillis)
         assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
     }
 
@@ -289,7 +649,7 @@ class SessionAuthActionsConcurrencyTest {
         advanceUntilIdle()
 
         assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
-        assertEquals(2, authProvider.signOutRequests)
+        assertEquals(3, authProvider.signOutRequests)
         assertEquals(null, fixture.state.value.registerEmailErrorRes)
         assertEquals("", fixture.state.value.registerEmailInput)
         assertEquals(0, fixture.deviceRegistrations)
@@ -383,35 +743,33 @@ class SessionAuthActionsConcurrencyTest {
     }
 
     @Test
-    fun `three operation chain preserves predecessor cleanup before final sign in`() = runTest {
+    fun `repeated interactive submits are rejected until the current owner finishes`() = runTest {
         val firstResult = CompletableDeferred<AuthSignInResult>()
         val finalResult = CompletableDeferred<AuthSignInResult>()
         val authProvider = ControlledAuthSessionProvider(signInResults = listOf(firstResult, finalResult))
         val fixture = fixture(scope = this, authProvider = authProvider)
 
-        fixture.actions.signIn("secret123")
+        assertTrue(fixture.actions.signIn("secret123"))
         runCurrent()
         fixture.state.value = fixture.state.value.copy(
             emailInput = "middle@reguerta.app",
         )
-        fixture.actions.signIn("middle-secret")
+        assertFalse(fixture.actions.signIn("middle-secret"))
         runCurrent()
         fixture.state.value = fixture.state.value.copy(
             emailInput = "final@reguerta.app",
         )
-        fixture.actions.signIn("final-secret")
+        assertFalse(fixture.actions.signIn("final-secret"))
         runCurrent()
 
         assertEquals(listOf("member"), authProvider.signInRequests.map { it.email.substringBefore('@') })
 
-        firstResult.complete(AuthSignInResult.Success(principal("first")))
-        runCurrent()
+        firstResult.complete(AuthSignInResult.Failure(AuthSignInFailureReason.NETWORK))
+        advanceUntilIdle()
 
-        assertEquals(
-            listOf("member", "final"),
-            authProvider.signInRequests.map { it.email.substringBefore('@') },
-        )
-        assertEquals(1, authProvider.signOutRequests)
+        assertTrue(fixture.actions.signIn("final-secret"))
+        runCurrent()
+        assertEquals(listOf("member", "final"), authProvider.signInRequests.map { it.email.substringBefore('@') })
 
         finalResult.complete(AuthSignInResult.Success(principal("final")))
         advanceUntilIdle()
@@ -661,7 +1019,7 @@ class SessionAuthActionsConcurrencyTest {
         assertTrue(environmentRouter.appliedEnvironments.isEmpty())
         assertEquals(null, environmentRouter.currentEnvironment)
         assertEquals(0, memberRepository.findByAuthUidRequests)
-        assertEquals(2, authProvider.signOutRequests)
+        assertEquals(3, authProvider.signOutRequests)
     }
 
     @Test
@@ -719,7 +1077,44 @@ class SessionAuthActionsConcurrencyTest {
         assertEquals(listOf("develop"), deviceRegistrar.requestedEnvironments)
         assertEquals(0, deviceRegistrar.completedRegistrations)
         assertTrue(deviceRegistrar.clearRequests >= 1)
-        assertEquals(2, authProvider.signOutRequests)
+        assertEquals(3, authProvider.signOutRequests)
+    }
+
+    @Test
+    fun `email verification rejection stays quarantined when firebase sign out fails`() = runTest {
+        val principal = principal("verification-required")
+        val authProvider = ControlledAuthSessionProvider(
+            signInResults = listOf(
+                CompletableDeferred(AuthSignInResult.Success(principal)),
+            ),
+            signOutErrors = listOf(IOException("firebase sign out failed")),
+        )
+        val fixture = fixture(
+            scope = this,
+            authProvider = authProvider,
+            authorizedMemberResolver = EmailVerificationRequiredMemberResolver,
+        )
+
+        assertTrue(fixture.actions.signIn("secret123"))
+        advanceUntilIdle()
+
+        assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
+        assertFalse(fixture.state.value.showSessionExpiredDialog)
+        assertEquals(principal.email, fixture.state.value.emailInput)
+        assertEquals(
+            com.reguerta.user.R.string.auth_error_email_not_verified,
+            fixture.state.value.emailErrorRes,
+        )
+        assertEquals(1, authProvider.signOutRequests)
+        assertEquals(1, fixture.deviceRegistrar.clearRequests)
+        assertEquals(1, fixture.localFreshnessRepository.clearRequests)
+
+        assertFalse(fixture.actions.signIn("secret123"))
+        assertEquals(1, authProvider.signInRequests.size)
+        assertEquals(
+            com.reguerta.user.R.string.auth_error_unknown,
+            fixture.state.value.emailErrorRes,
+        )
     }
 
     @Test
@@ -754,6 +1149,34 @@ class SessionAuthActionsConcurrencyTest {
     }
 
     @Test
+    fun `expired refresh stays quarantined when private cleanup fails`() = runTest {
+        val principal = principal("expired-cleanup-failure")
+        val authProvider = ControlledAuthSessionProvider(
+            refreshResult = CompletableDeferred(AuthSessionRefreshResult.Expired),
+        )
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)).copy(emailInput = principal.email),
+            authProvider = authProvider,
+            deviceRegistrar = TestAuthorizedDeviceRegistrar(
+                clearErrors = listOf(IOException("device cleanup failed")),
+            ),
+        )
+
+        fixture.actions.refreshSession(SessionRefreshTrigger.STARTUP)
+        advanceUntilIdle()
+
+        assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
+        assertTrue(fixture.state.value.showSessionExpiredDialog)
+        assertEquals(1, authProvider.signOutRequests)
+        assertEquals(1, fixture.deviceRegistrar.clearRequests)
+        assertEquals(1, fixture.localFreshnessRepository.clearRequests)
+
+        assertFalse(fixture.actions.signIn("secret123"))
+        assertEquals(0, authProvider.signInRequests.size)
+    }
+
+    @Test
     fun `late non cancellation exception cleans stale authentication`() = runTest {
         val lateError = CompletableDeferred<Throwable>()
         val authProvider = ControlledAuthSessionProvider(lateSignInError = lateError)
@@ -766,12 +1189,14 @@ class SessionAuthActionsConcurrencyTest {
         advanceUntilIdle()
 
         assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
-        assertEquals(2, authProvider.signOutRequests)
+        assertEquals(3, authProvider.signOutRequests)
         assertEquals(null, fixture.environmentRouter.currentEnvironment)
         assertEquals(null, fixture.state.value.emailErrorRes)
         assertTrue(fixture.deviceRegistrar.clearRequests >= 1)
     }
 }
+
+private const val TEST_SESSION_OPERATION_TIMEOUT_MILLIS = 30_000L
 
 private data class AuthFixture(
     val actions: SessionAuthActions,
@@ -807,6 +1232,7 @@ private fun fixture(
     deviceRegistrar: TestAuthorizedDeviceRegistrar = TestAuthorizedDeviceRegistrar(),
     localFreshnessRepository: TestCriticalDataFreshnessLocalRepository =
         TestCriticalDataFreshnessLocalRepository(),
+    sessionOperationTimeoutMillis: Long = TEST_SESSION_OPERATION_TIMEOUT_MILLIS,
 ): AuthFixture {
     val stateFlow = MutableStateFlow(state)
     var lastRefreshAtMillis: Long? = null
@@ -839,6 +1265,7 @@ private fun fixture(
         nowMillisProvider = { 1_000L },
         refreshShifts = { shiftRefreshes += 1 },
         refreshDeliveryCalendar = {},
+        sessionOperationTimeoutMillis = sessionOperationTimeoutMillis,
     )
     return AuthFixture(
         actions = actions,
@@ -859,6 +1286,7 @@ private class ControlledAuthSessionProvider(
     refreshResult: CompletableDeferred<AuthSessionRefreshResult>? = null,
     private val refreshResults: List<CompletableDeferred<AuthSessionRefreshResult>> = refreshResult?.let(::listOf)
         ?: listOf(CompletableDeferred(AuthSessionRefreshResult.NoSession)),
+    private val signOutErrors: List<Throwable?> = emptyList(),
 ) : AuthSessionProvider {
     class SignInRequest(
         val email: String,
@@ -898,13 +1326,16 @@ private class ControlledAuthSessionProvider(
     }
 
     override fun signOut() {
+        val error = signOutErrors.getOrNull(signOutRequests)
         signOutRequests += 1
+        error?.let { throw it }
     }
 }
 
 private class TestAuthorizedDeviceRegistrar(
     private val started: CompletableDeferred<Unit>? = null,
     private val release: CompletableDeferred<Unit>? = null,
+    private val clearErrors: List<Throwable?> = emptyList(),
 ) : AuthorizedDeviceRegistrar {
     var registerRequests = 0
     var completedRegistrations = 0
@@ -930,7 +1361,9 @@ private class TestAuthorizedDeviceRegistrar(
     }
 
     override suspend fun clearAuthorizedSession() {
+        val error = clearErrors.getOrNull(clearRequests)
         clearRequests += 1
+        error?.let { throw it }
     }
 }
 
@@ -976,6 +1409,13 @@ private object ProductionAuthorizedMemberResolver : AuthorizedMemberResolver {
         isActive = true,
         environment = "production",
         firstLoginLinked = false,
+    )
+}
+
+private object EmailVerificationRequiredMemberResolver : AuthorizedMemberResolver {
+    override suspend fun resolve(): AuthorizedMemberResolution = AuthorizedMemberResolution.Unauthorized(
+        isActive = null,
+        emailVerificationRequired = true,
     )
 }
 
@@ -1092,6 +1532,7 @@ private open class TestCriticalDataFreshnessLocalRepository(
     private val clearRelease: CompletableDeferred<Unit>? = null,
 ) : CriticalDataFreshnessLocalRepository {
     var clearRequests = 0
+    var completedClearRequests = 0
     var saveRequests = 0
     var storedMetadata: CriticalDataFreshnessMetadata? = null
     private var currentWriteId: String? = null
@@ -1123,6 +1564,7 @@ private open class TestCriticalDataFreshnessLocalRepository(
                 gate.await()
             }
         }
+        completedClearRequests += 1
     }
 }
 
