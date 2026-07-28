@@ -83,10 +83,9 @@ internal class SessionAuthActions(
     private var freshnessOperationGeneration = 0L
     private var freshnessOperationJob: Job? = null
 
-    fun signIn() {
+    fun signIn(password: String): Boolean {
         val currentState = uiState.value
         val email = currentState.emailInput.trim()
-        val password = currentState.passwordInput
 
         val emailErrorRes = when {
             email.isBlank() -> R.string.feedback_email_required
@@ -106,10 +105,10 @@ internal class SessionAuthActions(
                     passwordErrorRes = passwordErrorRes,
                 )
             }
-            return
+            return false
         }
 
-        launchSessionOperation(kind = SessionAuthOperationKind.SIGN_IN) { operation ->
+        return launchSessionOperation(kind = SessionAuthOperationKind.SIGN_IN) { operation ->
             updateUiStateIfCurrent(operation) {
                 it.copy(
                     isAuthenticating = true,
@@ -164,11 +163,9 @@ internal class SessionAuthActions(
         }
     }
 
-    fun signUp() {
+    fun signUp(password: String, repeatedPassword: String): Boolean {
         val currentState = uiState.value
         val email = currentState.registerEmailInput.trim()
-        val password = currentState.registerPasswordInput
-        val repeatedPassword = currentState.registerRepeatPasswordInput
 
         val emailErrorRes = when {
             email.isBlank() -> R.string.feedback_email_required
@@ -195,10 +192,10 @@ internal class SessionAuthActions(
                     registerRepeatPasswordErrorRes = repeatedPasswordErrorRes,
                 )
             }
-            return
+            return false
         }
 
-        launchSessionOperation(kind = SessionAuthOperationKind.SIGN_UP) { operation ->
+        return launchSessionOperation(kind = SessionAuthOperationKind.SIGN_UP) { operation ->
             updateUiStateIfCurrent(operation) {
                 it.copy(
                     isAuthenticating = false,
@@ -228,8 +225,6 @@ internal class SessionAuthActions(
                         it.copy(
                             isRegistering = false,
                             registerEmailInput = "",
-                            registerPasswordInput = "",
-                            registerRepeatPasswordInput = "",
                         )
                     }
 

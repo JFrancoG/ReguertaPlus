@@ -21,10 +21,9 @@ internal class SessionFormActions(
         }
     }
 
-    fun onPasswordChanged(value: String) {
+    fun onPasswordEdited() {
         uiState.update {
             it.copy(
-                passwordInput = value,
                 emailErrorRes = null,
                 passwordErrorRes = null,
             )
@@ -42,10 +41,9 @@ internal class SessionFormActions(
         }
     }
 
-    fun onRegisterPasswordChanged(value: String) {
+    fun onRegisterPasswordEdited() {
         uiState.update {
             it.copy(
-                registerPasswordInput = value,
                 registerEmailErrorRes = null,
                 registerPasswordErrorRes = null,
                 registerRepeatPasswordErrorRes = null,
@@ -53,10 +51,9 @@ internal class SessionFormActions(
         }
     }
 
-    fun onRegisterRepeatPasswordChanged(value: String) {
+    fun onRegisterRepeatPasswordEdited() {
         uiState.update {
             it.copy(
-                registerRepeatPasswordInput = value,
                 registerEmailErrorRes = null,
                 registerPasswordErrorRes = null,
                 registerRepeatPasswordErrorRes = null,
@@ -72,7 +69,6 @@ internal class SessionFormActions(
         uiState.update {
             it.copy(
                 emailInput = "",
-                passwordInput = "",
                 emailErrorRes = null,
                 passwordErrorRes = null,
                 isAuthenticating = false,
@@ -84,8 +80,6 @@ internal class SessionFormActions(
         uiState.update {
             it.copy(
                 registerEmailInput = "",
-                registerPasswordInput = "",
-                registerRepeatPasswordInput = "",
                 registerEmailErrorRes = null,
                 registerPasswordErrorRes = null,
                 registerRepeatPasswordErrorRes = null,

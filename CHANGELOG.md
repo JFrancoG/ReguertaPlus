@@ -61,6 +61,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-07-28 | 🐛 fix(android-auth): shorten credential lifetime
 - 2026-07-28 | 🐛 fix(security): harden device credential storage
 - 2026-07-28 | 🐛 fix(app): harden startup and freshness gates
 - 2026-07-28 | 🐛 fix(android-auth): fence stale sessions
