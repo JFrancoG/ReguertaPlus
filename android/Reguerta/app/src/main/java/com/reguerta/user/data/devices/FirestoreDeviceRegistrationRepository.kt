@@ -1,7 +1,6 @@
 package com.reguerta.user.data.devices
 
 import android.util.Log
-import com.google.android.gms.tasks.Tasks
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
@@ -12,6 +11,7 @@ import com.reguerta.user.domain.devices.DeviceRegistrationRepository
 import com.reguerta.user.domain.devices.RegisteredDevice
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
 class FirestoreDeviceRegistrationRepository(
@@ -25,7 +25,7 @@ class FirestoreDeviceRegistrationRepository(
         memberId: String,
         environment: String,
         device: RegisteredDevice,
-        isSessionCurrent: () -> Boolean,
+        isSessionCurrent: suspend () -> Boolean,
     ): RegisteredDevice = withContext(Dispatchers.IO) {
         ensureSessionCurrent(isSessionCurrent)
         val resolvedEnvironment = ReguertaFirestoreEnvironment.entries.firstOrNull { candidate ->
@@ -51,7 +51,7 @@ class FirestoreDeviceRegistrationRepository(
         )
 
         try {
-            val existing = Tasks.await(deviceDocument.get())
+            val existing = deviceDocument.get().await()
             ensureSessionCurrent(isSessionCurrent)
             if (!existing.exists()) {
                 payload["firstSeenAt"] = Timestamp(
@@ -63,30 +63,27 @@ class FirestoreDeviceRegistrationRepository(
             payload["tokenUpdatedAt"] = device.tokenUpdatedAtMillis?.let {
                 Timestamp(it / 1_000, ((it % 1_000) * 1_000_000).toInt())
             }
-            ensureSessionCurrent(isSessionCurrent)
-            Tasks.await(deviceDocument.set(payload, SetOptions.merge()))
-            ensureSessionCurrent(isSessionCurrent)
-            Tasks.await(userDocument.set(mapOf("lastDeviceId" to device.deviceId), SetOptions.merge()))
-            ensureSessionCurrent(isSessionCurrent)
-            Log.d(
-                TAG,
-                "Device registration saved in Firestore for member=$memberId, deviceId=${device.deviceId}, tokenPresent=${device.fcmToken != null}, environment=$environment"
+            val batch = firestore.batch()
+            batch.set(deviceDocument, payload, SetOptions.merge())
+            batch.set(
+                userDocument,
+                mapOf("lastDeviceId" to device.deviceId),
+                SetOptions.merge(),
             )
+            ensureSessionCurrent(isSessionCurrent)
+            batch.commit().await()
+            Log.d(TAG, "Device registration saved in Firestore")
             device
         } catch (error: CancellationException) {
-            Log.d(TAG, "Device registration superseded before completion for member=$memberId")
+            Log.d(TAG, "Device registration superseded before completion")
             throw error
         } catch (error: Throwable) {
-            Log.e(
-                TAG,
-                "Failed to save device registration in Firestore for member=$memberId, deviceId=${device.deviceId}",
-                error
-            )
+            Log.e(TAG, "Failed to save device registration in Firestore")
             throw error
         }
     }
 
-    private fun ensureSessionCurrent(isSessionCurrent: () -> Boolean) {
+    private suspend fun ensureSessionCurrent(isSessionCurrent: suspend () -> Boolean) {
         if (!isSessionCurrent()) {
             throw CancellationException("Authorized device registration was superseded")
         }

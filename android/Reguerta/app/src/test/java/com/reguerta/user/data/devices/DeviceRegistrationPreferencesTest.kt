@@ -1,0 +1,371 @@
+package com.reguerta.user.data.devices
+
+import android.content.SharedPreferences
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class DeviceRegistrationPreferencesTest {
+    @Test
+    fun `absent push credential returns null`() = runTest {
+        val preferences = testPreferences(
+            encrypted = FakeSharedPreferences(),
+            raw = FakeSharedPreferences(),
+        )
+
+        assertNull(preferences.getFcmToken())
+    }
+
+    @Test
+    fun `read failure is distinct from an absent value`() = runTest {
+        val preferences = testPreferences(
+            encrypted = FakeSharedPreferences(
+                readFailure = IllegalStateException("read failed"),
+            ),
+            raw = FakeSharedPreferences(),
+        )
+
+        assertSuspendThrows<DeviceRegistrationPreferencesException.Read> {
+            preferences.getFcmToken()
+        }
+    }
+
+    @Test
+    fun `created device id is not returned when persistence fails`() = runTest {
+        val encryptedPreferences = FakeSharedPreferences(commitResult = false)
+        val preferences = testPreferences(
+            encrypted = encryptedPreferences,
+            raw = FakeSharedPreferences(),
+            deviceIdProvider = { "CREATED-ID" },
+        )
+
+        assertSuspendThrows<DeviceRegistrationPreferencesException.Write> {
+            preferences.getOrCreateDeviceId()
+        }
+        assertFalse(encryptedPreferences.contains("device_id"))
+    }
+
+    @Test
+    fun `delete failure is reported instead of looking successful`() = runTest {
+        val encryptedPreferences = FakeSharedPreferences(
+            initialValues = mapOf(
+                "member_id" to "MEMBER-1",
+                "auth_uid" to "UID-1",
+                "environment" to "production",
+                "lease_id" to "LEASE-1",
+            ),
+            commitResult = false,
+        )
+        val preferences = testPreferences(
+            encrypted = encryptedPreferences,
+            raw = FakeSharedPreferences(),
+        )
+
+        assertSuspendThrows<DeviceRegistrationPreferencesException.Delete> {
+            preferences.clearAuthorizedSessionContext()
+        }
+        assertTrue(encryptedPreferences.contains("member_id"))
+    }
+
+    @Test
+    fun `encrypted storage initialization failure is typed`() = runTest {
+        val preferences = DeviceRegistrationPreferences(
+            encryptedPreferencesFactory = DeviceRegistrationEncryptedPreferencesFactory {
+                throw IllegalStateException("keystore unavailable")
+            },
+            rawPreferencesProvider = { FakeSharedPreferences() },
+            ioDispatcher = UnconfinedTestDispatcher(testScheduler),
+            deviceIdProvider = { "CREATED-ID" },
+        )
+
+        assertSuspendThrows<DeviceRegistrationPreferencesException.Initialization> {
+            preferences.getFcmToken()
+        }
+    }
+
+    @Test
+    fun `legacy plaintext keys are removed even when encrypted initialization fails`() = runTest {
+        val rawPreferences = FakeSharedPreferences(
+            initialValues = mapOf(
+                "device_id" to "RAW-ID",
+                "fcm_token" to "RAW-TOKEN",
+                "member_id" to "RAW-MEMBER",
+                "auth_uid" to "RAW-UID",
+                "environment" to "develop",
+                "lease_id" to "RAW-LEASE",
+                "unrelated" to "KEEP-ME",
+            ),
+        )
+        val preferences = DeviceRegistrationPreferences(
+            encryptedPreferencesFactory = DeviceRegistrationEncryptedPreferencesFactory {
+                throw IllegalStateException("keystore unavailable")
+            },
+            rawPreferencesProvider = { rawPreferences },
+            ioDispatcher = UnconfinedTestDispatcher(testScheduler),
+            deviceIdProvider = { "CREATED-ID" },
+        )
+
+        assertSuspendThrows<DeviceRegistrationPreferencesException.Initialization> {
+            preferences.getFcmToken()
+        }
+
+        assertFalse(rawPreferences.contains("device_id"))
+        assertFalse(rawPreferences.contains("fcm_token"))
+        assertFalse(rawPreferences.contains("member_id"))
+        assertFalse(rawPreferences.contains("auth_uid"))
+        assertFalse(rawPreferences.contains("environment"))
+        assertFalse(rawPreferences.contains("lease_id"))
+        assertEquals("KEEP-ME", rawPreferences.getString("unrelated", null))
+    }
+
+    @Test
+    fun `created device id is committed and reused`() = runTest {
+        val encryptedPreferences = FakeSharedPreferences()
+        var generatedIds = 0
+        val preferences = testPreferences(
+            encrypted = encryptedPreferences,
+            raw = FakeSharedPreferences(),
+            deviceIdProvider = {
+                generatedIds += 1
+                "CREATED-ID-$generatedIds"
+            },
+        )
+
+        assertEquals("CREATED-ID-1", preferences.getOrCreateDeviceId())
+        assertEquals("CREATED-ID-1", preferences.getOrCreateDeviceId())
+        assertEquals("CREATED-ID-1", encryptedPreferences.getString("device_id", null))
+        assertEquals(1, generatedIds)
+        assertEquals(1, encryptedPreferences.commitCount)
+        assertEquals(0, encryptedPreferences.applyCount)
+    }
+
+    @Test
+    fun `authorized context roundtrips member environment and lease`() = runTest {
+        val preferences = testPreferences(
+            encrypted = FakeSharedPreferences(),
+            raw = FakeSharedPreferences(),
+            leaseIdProvider = { "LEASE-1" },
+        )
+
+        val saved = preferences.saveAuthorizedSessionContext(
+            memberId = " MEMBER-1 ",
+            authUid = " UID-1 ",
+            environment = " ProDuction ",
+        )
+
+        assertTrue(saved)
+        assertEquals(
+            AuthorizedDeviceSessionContext(
+                memberId = "MEMBER-1",
+                authUid = "UID-1",
+                environment = "production",
+                leaseId = "LEASE-1",
+            ),
+            preferences.getAuthorizedSessionContext(),
+        )
+    }
+
+    @Test
+    fun `superseded session cannot replace the current authorized context`() = runTest {
+        var leaseNumber = 0
+        val preferences = testPreferences(
+            encrypted = FakeSharedPreferences(),
+            raw = FakeSharedPreferences(),
+            leaseIdProvider = {
+                leaseNumber += 1
+                "LEASE-$leaseNumber"
+            },
+        )
+        preferences.saveAuthorizedSessionContext(
+            memberId = "CURRENT-MEMBER",
+            authUid = "CURRENT-UID",
+            environment = "production",
+        )
+
+        val saved = preferences.saveAuthorizedSessionContext(
+            memberId = "STALE-MEMBER",
+            authUid = "STALE-UID",
+            environment = "develop",
+            isSessionCurrent = { false },
+        )
+
+        assertFalse(saved)
+        assertEquals(
+            AuthorizedDeviceSessionContext(
+                memberId = "CURRENT-MEMBER",
+                authUid = "CURRENT-UID",
+                environment = "production",
+                leaseId = "LEASE-1",
+            ),
+            preferences.getAuthorizedSessionContext(),
+        )
+    }
+
+    @Test
+    fun `legacy raw keys are removed without deleting encrypted values`() = runTest {
+        val encryptedPreferences = FakeSharedPreferences(
+            initialValues = mapOf("device_id" to "ENCRYPTED-ID"),
+        )
+        val rawPreferences = FakeSharedPreferences(
+            initialValues = mapOf(
+                "device_id" to "RAW-ID",
+                "fcm_token" to "RAW-TOKEN",
+                "member_id" to "RAW-MEMBER",
+                "auth_uid" to "RAW-UID",
+                "environment" to "develop",
+                "lease_id" to "RAW-LEASE",
+                "unrelated" to "KEEP-ME",
+            ),
+        )
+        val preferences = testPreferences(
+            encrypted = encryptedPreferences,
+            raw = rawPreferences,
+        )
+
+        assertEquals("ENCRYPTED-ID", preferences.getOrCreateDeviceId())
+        assertFalse(rawPreferences.contains("device_id"))
+        assertFalse(rawPreferences.contains("fcm_token"))
+        assertFalse(rawPreferences.contains("member_id"))
+        assertFalse(rawPreferences.contains("auth_uid"))
+        assertFalse(rawPreferences.contains("environment"))
+        assertFalse(rawPreferences.contains("lease_id"))
+        assertEquals("KEEP-ME", rawPreferences.getString("unrelated", null))
+        assertEquals("ENCRYPTED-ID", encryptedPreferences.getString("device_id", null))
+    }
+
+    @Test
+    fun `partial authorized context is corruption rather than absence`() = runTest {
+        val preferences = testPreferences(
+            encrypted = FakeSharedPreferences(
+                initialValues = mapOf(
+                    "member_id" to "MEMBER-1",
+                    "environment" to "production",
+                    "lease_id" to "LEASE-1",
+                ),
+            ),
+            raw = FakeSharedPreferences(),
+        )
+
+        assertSuspendThrows<DeviceRegistrationPreferencesException.Corrupted> {
+            preferences.getAuthorizedSessionContext()
+        }
+    }
+
+    private fun kotlinx.coroutines.test.TestScope.testPreferences(
+        encrypted: FakeSharedPreferences,
+        raw: FakeSharedPreferences,
+        deviceIdProvider: () -> String = { "CREATED-ID" },
+        leaseIdProvider: () -> String = { "LEASE-ID" },
+    ): DeviceRegistrationPreferences = DeviceRegistrationPreferences(
+        encryptedPreferencesFactory = DeviceRegistrationEncryptedPreferencesFactory { encrypted },
+        rawPreferencesProvider = { raw },
+        ioDispatcher = UnconfinedTestDispatcher(testScheduler),
+        deviceIdProvider = deviceIdProvider,
+        leaseIdProvider = leaseIdProvider,
+    )
+
+    private suspend inline fun <reified T : Throwable> assertSuspendThrows(
+        crossinline block: suspend () -> Unit,
+    ): T {
+        var caught: Throwable? = null
+        try {
+            block()
+        } catch (error: Throwable) {
+            caught = error
+        }
+        assertTrue(
+            "Expected ${T::class.java.simpleName}, got ${caught?.javaClass?.simpleName}",
+            caught is T,
+        )
+        return caught as T
+    }
+}
+
+private class FakeSharedPreferences(
+    initialValues: Map<String, String> = emptyMap(),
+    private val commitResult: Boolean = true,
+    private val readFailure: RuntimeException? = null,
+) : SharedPreferences {
+    private val values = initialValues.toMutableMap()
+    var commitCount = 0
+        private set
+    var applyCount = 0
+        private set
+
+    override fun getAll(): Map<String, *> = values.toMap()
+
+    override fun getString(key: String, defValue: String?): String? {
+        readFailure?.let { throw it }
+        return values[key] ?: defValue
+    }
+
+    override fun getStringSet(key: String, defValues: Set<String>?): Set<String>? = defValues
+
+    override fun getInt(key: String, defValue: Int): Int = defValue
+
+    override fun getLong(key: String, defValue: Long): Long = defValue
+
+    override fun getFloat(key: String, defValue: Float): Float = defValue
+
+    override fun getBoolean(key: String, defValue: Boolean): Boolean = defValue
+
+    override fun contains(key: String): Boolean = values.containsKey(key)
+
+    override fun edit(): SharedPreferences.Editor = Editor()
+
+    override fun registerOnSharedPreferenceChangeListener(
+        listener: SharedPreferences.OnSharedPreferenceChangeListener?,
+    ) = Unit
+
+    override fun unregisterOnSharedPreferenceChangeListener(
+        listener: SharedPreferences.OnSharedPreferenceChangeListener?,
+    ) = Unit
+
+    private inner class Editor : SharedPreferences.Editor {
+        private val updates = mutableMapOf<String, String?>()
+        private var clearRequested = false
+
+        override fun putString(key: String, value: String?): SharedPreferences.Editor = apply {
+            updates[key] = value
+        }
+
+        override fun putStringSet(key: String, values: Set<String>?): SharedPreferences.Editor = this
+
+        override fun putInt(key: String, value: Int): SharedPreferences.Editor = this
+
+        override fun putLong(key: String, value: Long): SharedPreferences.Editor = this
+
+        override fun putFloat(key: String, value: Float): SharedPreferences.Editor = this
+
+        override fun putBoolean(key: String, value: Boolean): SharedPreferences.Editor = this
+
+        override fun remove(key: String): SharedPreferences.Editor = apply {
+            updates[key] = null
+        }
+
+        override fun clear(): SharedPreferences.Editor = apply {
+            clearRequested = true
+        }
+
+        override fun commit(): Boolean {
+            commitCount += 1
+            if (!commitResult) return false
+            if (clearRequested) values.clear()
+            updates.forEach { (key, value) ->
+                if (value == null) values.remove(key) else values[key] = value
+            }
+            return true
+        }
+
+        override fun apply() {
+            applyCount += 1
+            commit()
+        }
+    }
+}

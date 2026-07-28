@@ -3,17 +3,20 @@ import Foundation
 
 final class FirestoreDeviceRegistrationRepository: @unchecked Sendable, DeviceRegistrationRepository {
     private let db: Firestore
-    private let environment: ReguertaFirestoreEnvironment?
 
-    init(
-        db: Firestore = Firestore.firestore(),
-        environment: ReguertaFirestoreEnvironment? = nil
-    ) {
+    init(db: Firestore = Firestore.firestore()) {
         self.db = db
-        self.environment = environment
     }
 
-    func register(memberId: String, device: RegisteredDevice) async throws -> RegisteredDevice {
+    func register(
+        memberId: String,
+        environment: SessionEnvironment,
+        device: RegisteredDevice,
+        isRegistrationCurrent: @escaping @Sendable () async throws -> Bool
+    ) async throws -> RegisteredDevice {
+        guard try await isRegistrationCurrent() else {
+            throw DeviceRegistrationRepositoryError.staleSession
+        }
         let userDocument = db.document(
             ReguertaFirestorePath(environment: environment)
                 .documentPath(in: .users, documentId: memberId)
@@ -38,6 +41,9 @@ final class FirestoreDeviceRegistrationRepository: @unchecked Sendable, DeviceRe
         }
 
         let existing = try await deviceDocument.getDocument()
+        guard try await isRegistrationCurrent() else {
+            throw DeviceRegistrationRepositoryError.staleSession
+        }
         if !existing.exists {
             payload["firstSeenAt"] = Timestamp(date: Date(timeIntervalSince1970: TimeInterval(device.firstSeenAtMillis) / 1_000))
         }
@@ -45,8 +51,14 @@ final class FirestoreDeviceRegistrationRepository: @unchecked Sendable, DeviceRe
         payload["tokenUpdatedAt"] = device.tokenUpdatedAtMillis.map {
             Timestamp(date: Date(timeIntervalSince1970: TimeInterval($0) / 1_000))
         } ?? NSNull()
-        try await deviceDocument.setData(payload, merge: true)
-        try await userDocument.setData(["lastDeviceId": device.deviceId], merge: true)
+
+        let batch = db.batch()
+        batch.setData(payload, forDocument: deviceDocument, merge: true)
+        batch.setData(["lastDeviceId": device.deviceId], forDocument: userDocument, merge: true)
+        guard try await isRegistrationCurrent() else {
+            throw DeviceRegistrationRepositoryError.staleSession
+        }
+        try await batch.commit()
         return device
     }
 }

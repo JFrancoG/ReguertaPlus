@@ -6,6 +6,7 @@ struct ReguertaAppEnvironment {
     let feedbackCenter: GlobalFeedbackCenter
     let sessionViewModel: SessionViewModel
     let accessRootViewModel: AccessRootViewModel
+    let authorizedDeviceRegistrar: any AuthorizedDeviceRegistrar
 
     static func live() -> ReguertaAppEnvironment {
         if ProcessInfo.processInfo.arguments.contains("-useMockAuth") {
@@ -28,7 +29,8 @@ struct ReguertaAppEnvironment {
         return ReguertaAppEnvironment(
             feedbackCenter: feedbackCenter,
             sessionViewModel: sessionViewModel,
-            accessRootViewModel: accessRootViewModel
+            accessRootViewModel: accessRootViewModel,
+            authorizedDeviceRegistrar: dependencies.authorizedDeviceRegistrar
         )
     }
 
@@ -36,10 +38,12 @@ struct ReguertaAppEnvironment {
         let memberRepository = InMemoryMemberRepository()
         let notificationRepository = InMemoryNotificationRepository()
         let feedbackCenter = GlobalFeedbackCenter()
+        let authorizedDeviceRegistrar = NoOpAuthorizedDeviceRegistrar()
         let sessionViewModel = SessionViewModel(
             dependencies: .preview(
                 repository: memberRepository,
-                feedbackCenter: feedbackCenter
+                feedbackCenter: feedbackCenter,
+                authorizedDeviceRegistrar: authorizedDeviceRegistrar
             )
         )
         let accessRootViewModel = AccessRootViewModel(
@@ -62,7 +66,8 @@ struct ReguertaAppEnvironment {
         return ReguertaAppEnvironment(
             feedbackCenter: feedbackCenter,
             sessionViewModel: sessionViewModel,
-            accessRootViewModel: accessRootViewModel
+            accessRootViewModel: accessRootViewModel,
+            authorizedDeviceRegistrar: authorizedDeviceRegistrar
         )
     }
 
@@ -71,13 +76,15 @@ struct ReguertaAppEnvironment {
         let newsRepository = InMemoryNewsRepository.uiTesting()
         let notificationRepository = InMemoryNotificationRepository()
         let feedbackCenter = GlobalFeedbackCenter()
+        let authorizedDeviceRegistrar = NoOpAuthorizedDeviceRegistrar()
         let nowMillisProvider: @MainActor () -> Int64 = {
             DevelopmentTimeMachine.shared.nowMillis()
         }
         let sessionViewModel = SessionViewModel(
             dependencies: .preview(
                 repository: memberRepository,
-                feedbackCenter: feedbackCenter
+                feedbackCenter: feedbackCenter,
+                authorizedDeviceRegistrar: authorizedDeviceRegistrar
             )
         )
         let freshnessConfig = CriticalDataFreshnessConfig(
@@ -128,7 +135,8 @@ struct ReguertaAppEnvironment {
         return ReguertaAppEnvironment(
             feedbackCenter: feedbackCenter,
             sessionViewModel: sessionViewModel,
-            accessRootViewModel: accessRootViewModel
+            accessRootViewModel: accessRootViewModel,
+            authorizedDeviceRegistrar: authorizedDeviceRegistrar
         )
     }
 }
@@ -141,6 +149,7 @@ private struct LiveRootDependencies {
     let memberAdministrationRepository: FirebaseMemberAdministrationRepository
     let imagePipelineManager: FirebaseImagePipelineManager
     let notificationRepository: FirestoreNotificationRepository
+    let authorizedDeviceRegistrar: FirebaseAuthorizedDeviceCoordinator
 
     init(db: Firestore = Firestore.firestore()) {
         self.db = db
@@ -161,6 +170,10 @@ private struct LiveRootDependencies {
         )
         self.imagePipelineManager = FirebaseImagePipelineManager()
         self.notificationRepository = FirestoreNotificationRepository(db: db)
+        self.authorizedDeviceRegistrar = FirebaseAuthorizedDeviceCoordinator(
+            repository: FirestoreDeviceRegistrationRepository(db: db),
+            keychainStore: KeychainStore()
+        )
     }
 
     var developImpersonationEnabled: Bool {
@@ -196,9 +209,7 @@ private func makeLiveSessionViewModel(
             authorizedMemberResolver: FirebaseAuthorizedMemberResolver(
                 client: dependencies.functionsClient
             ),
-            authorizedDeviceRegistrar: FirebaseAuthorizedDeviceRegistrar(
-                repository: FirestoreDeviceRegistrationRepository(db: dependencies.db)
-            ),
+            authorizedDeviceRegistrar: dependencies.authorizedDeviceRegistrar,
             environmentRouter: RuntimeSessionEnvironmentRouter(),
             developImpersonationEnabled: dependencies.developImpersonationEnabled,
             nowMillisProvider: { DevelopmentTimeMachine.shared.nowMillis() }

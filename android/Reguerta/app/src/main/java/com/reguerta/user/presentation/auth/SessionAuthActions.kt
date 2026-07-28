@@ -1,5 +1,6 @@
 package com.reguerta.user.presentation.auth
 
+import android.util.Log
 import com.reguerta.user.presentation.root.EmailPatternRegex
 import com.reguerta.user.presentation.root.MyOrderFreshnessUiState
 import com.reguerta.user.presentation.root.MY_ORDER_FRESHNESS_TIMEOUT_MILLIS
@@ -309,9 +310,9 @@ internal class SessionAuthActions(
     fun signOut() {
         cancelMyOrderFreshness()
         val cleanupJob = ownSessionTerminationCleanup {
+            clearAuthorizedDeviceSession()
             criticalDataFreshnessLocalRepository.clear()
         }
-        authorizedDeviceRegistrar.clearAuthorizedSession()
         authSessionProvider.signOut()
         clearSessionRefreshTracking()
         sessionEnvironmentRouter.resetToBaseEnvironment()
@@ -712,9 +713,9 @@ internal class SessionAuthActions(
         return AuthorizedSessionApplication.STALE
     }
 
-    private fun closeStaleFirebaseAuthentication(operation: SessionAuthOperation) {
+    private suspend fun closeStaleFirebaseAuthentication(operation: SessionAuthOperation) {
         if (operation.staleAuthenticationClosed.compareAndSet(false, true)) {
-            authorizedDeviceRegistrar.clearAuthorizedSession()
+            clearAuthorizedDeviceSession()
             authSessionProvider.signOut()
             sessionEnvironmentRouter.resetToBaseEnvironment()
         }
@@ -845,7 +846,7 @@ internal class SessionAuthActions(
                     return abandonStaleAuthorizedSession()
                 }
                 cancelMyOrderFreshness()
-                authorizedDeviceRegistrar.clearAuthorizedSession()
+                clearAuthorizedDeviceSession()
                 clearSessionRefreshTracking()
                 sessionEnvironmentRouter.resetToBaseEnvironment()
                 if (result.reason == UnauthorizedReason.EMAIL_NOT_VERIFIED) {
@@ -885,7 +886,7 @@ internal class SessionAuthActions(
             return
         }
         cancelMyOrderFreshness()
-        authorizedDeviceRegistrar.clearAuthorizedSession()
+        clearAuthorizedDeviceSession()
         clearSessionRefreshTracking()
         sessionEnvironmentRouter.resetToBaseEnvironment()
         uiState.update { state -> state.toSignedOutSessionState(showSessionExpiredDialog = true) }
@@ -918,9 +919,19 @@ internal class SessionAuthActions(
         } catch (error: CancellationException) {
             throw error
         } catch (_: Exception) {
-            // Device registration is best-effort and must not fail authorization.
+            Log.e("SessionAuthActions", "Authorized device registration failed")
         }
         return isCurrentSessionOperation(operation)
+    }
+
+    private suspend fun clearAuthorizedDeviceSession() {
+        try {
+            authorizedDeviceRegistrar.clearAuthorizedSession()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            Log.e("SessionAuthActions", "Unable to clear authorized device state")
+        }
     }
 }
 

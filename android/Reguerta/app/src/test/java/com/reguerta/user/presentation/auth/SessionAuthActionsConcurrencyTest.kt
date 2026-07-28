@@ -862,7 +862,7 @@ private class TestAuthorizedDeviceRegistrar(
         }
     }
 
-    override fun clearAuthorizedSession() {
+    override suspend fun clearAuthorizedSession() {
         clearRequests += 1
     }
 }

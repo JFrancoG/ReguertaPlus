@@ -9,5 +9,5 @@ fun interface AuthorizedDeviceRegistrar {
         isSessionCurrent: () -> Boolean,
     )
 
-    fun clearAuthorizedSession() = Unit
+    suspend fun clearAuthorizedSession() = Unit
 }
