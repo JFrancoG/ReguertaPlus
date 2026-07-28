@@ -4,7 +4,6 @@ import com.reguerta.user.domain.access.AuthorizedMemberResolution
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberManagementException
 import com.reguerta.user.domain.access.MemberRole
-import com.reguerta.user.domain.access.SessionEnvironmentRouter
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -19,7 +18,7 @@ import org.junit.Test
 
 class FirebaseAccessSecurityBoundaryTest {
     @Test
-    fun `authorized resolver sends only environment and applies backend environment`() = runBlocking {
+    fun `authorized resolver sends only environment and reports backend environment`() = runBlocking {
         val caller = RecordingFunctionCaller(
             response = JsonObject(
                 mapOf(
@@ -34,11 +33,9 @@ class FirebaseAccessSecurityBoundaryTest {
                 ),
             ),
         )
-        val environmentRouter = RecordingEnvironmentRouter()
         val resolver = FirebaseAuthorizedMemberResolver(
             functionCaller = caller,
             requestedEnvironment = { "production" },
-            environmentRouter = environmentRouter,
         )
 
         val result = resolver.resolve()
@@ -46,6 +43,7 @@ class FirebaseAccessSecurityBoundaryTest {
         assertTrue(result is AuthorizedMemberResolution.Authorized)
         result as AuthorizedMemberResolution.Authorized
         assertEquals("member_001", result.memberId)
+        assertEquals("develop", result.environment)
         assertEquals(setOf(MemberRole.MEMBER, MemberRole.PRODUCER), result.roles)
         assertTrue(result.firstLoginLinked)
         assertEquals("resolveAuthorizedMember", caller.functionName)
@@ -53,7 +51,6 @@ class FirebaseAccessSecurityBoundaryTest {
         assertEquals("production", caller.body.getValue("env").jsonPrimitive.content)
         assertFalse(caller.body.containsKey("authUid"))
         assertFalse(caller.body.containsKey("email"))
-        assertEquals("develop", environmentRouter.appliedEnvironment)
     }
 
     @Test
@@ -134,7 +131,6 @@ class FirebaseAccessSecurityBoundaryTest {
                 responseBody = """{"error":{"code":"verified_email_required"}}""",
             ),
             requestedEnvironment = { "develop" },
-            environmentRouter = RecordingEnvironmentRouter(),
         )
 
         val result = resolver.resolve() as AuthorizedMemberResolution.Unauthorized
@@ -150,7 +146,6 @@ class FirebaseAccessSecurityBoundaryTest {
                 responseBody = """{"error":{"code":"inactive_member"}}""",
             ),
             requestedEnvironment = { "develop" },
-            environmentRouter = RecordingEnvironmentRouter(),
         )
 
         val result = resolver.resolve() as AuthorizedMemberResolution.Unauthorized
@@ -180,16 +175,6 @@ private class ThrowingFunctionCaller(
     override suspend fun post(functionName: String, body: JsonObject): JsonObject {
         throw AuthenticatedFunctionException(statusCode = statusCode, responseBody = responseBody)
     }
-}
-
-private class RecordingEnvironmentRouter : SessionEnvironmentRouter {
-    var appliedEnvironment: String? = null
-
-    override fun applyResolvedEnvironment(environment: String) {
-        appliedEnvironment = environment
-    }
-
-    override fun resetToBaseEnvironment() = Unit
 }
 
 private fun member(

@@ -107,13 +107,12 @@ fun rememberSessionViewModel(): SessionViewModel {
             transitionClient = shiftSwapTransitionClient,
         )
     }
-    val authorizedMemberResolver = remember(authenticatedFunctionsClient, sessionEnvironmentRouter) {
+    val authorizedMemberResolver = remember(authenticatedFunctionsClient) {
         FirebaseAuthorizedMemberResolver(
             functionCaller = authenticatedFunctionsClient,
             requestedEnvironment = {
                 ReguertaRuntimeEnvironment.currentFirestoreEnvironment().wireValue
             },
-            environmentRouter = sessionEnvironmentRouter,
         )
     }
     val memberAdministrationRepository = remember(authenticatedFunctionsClient) {

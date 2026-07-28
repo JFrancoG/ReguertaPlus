@@ -9,7 +9,6 @@ import com.reguerta.user.presentation.root.SessionUiState
 import com.reguerta.user.presentation.root.SharedProfileDraft
 import com.reguerta.user.presentation.root.canManageSessionProductCatalog
 import com.reguerta.user.presentation.root.hasVisibleContent
-import com.reguerta.user.presentation.root.isAuthenticatedSession
 import com.reguerta.user.presentation.root.isValidPassword
 import com.reguerta.user.presentation.root.ShiftSwapDraft
 import com.reguerta.user.presentation.root.toDraft
@@ -37,10 +36,15 @@ import com.reguerta.user.domain.news.NewsRepository
 import com.reguerta.user.domain.notifications.NotificationRepository
 import com.reguerta.user.domain.products.ProductRepository
 import com.reguerta.user.domain.profiles.SharedProfileRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -66,6 +70,12 @@ internal class SessionAuthActions(
     private val refreshShifts: () -> Unit,
     private val refreshDeliveryCalendar: () -> Unit,
 ) {
+    private val sessionOperationLock = Any()
+    private var sessionOperationGeneration = 0L
+    private var sessionOperationOwner: Any? = null
+    private var sessionOperationJob: Job? = null
+    private var sessionOperationKind: SessionAuthOperationKind? = null
+
     fun signIn() {
         val currentState = uiState.value
         val email = currentState.emailInput.trim()
@@ -92,16 +102,35 @@ internal class SessionAuthActions(
             return
         }
 
-        scope.launch {
-            uiState.update { it.copy(isAuthenticating = true, emailErrorRes = null, passwordErrorRes = null) }
+        launchSessionOperation(kind = SessionAuthOperationKind.SIGN_IN) { operation ->
+            updateUiStateIfCurrent(operation) {
+                it.copy(
+                    isAuthenticating = true,
+                    isRegistering = false,
+                    emailErrorRes = null,
+                    passwordErrorRes = null,
+                )
+            }
 
-            when (val authResult = authSessionProvider.signIn(email = email, password = password)) {
-                is AuthSignInResult.Success -> {
+            operation.providerWasInvoked.set(true)
+            val authResult = authSessionProvider.signIn(email = email, password = password)
+            if (!isCurrentSessionOperation(operation)) {
+                closeStaleFirebaseAuthentication(operation)
+                return@launchSessionOperation
+            }
+
+            when (authResult) {
+                is AuthSignInResult.Success -> when (
                     applyAuthorizedSession(
                         principal = authResult.principal,
                         shouldRefreshCriticalData = true,
+                        operation = operation,
                     )
-                    uiState.update { it.copy(isAuthenticating = false) }
+                ) {
+                    AuthorizedSessionApplication.STALE -> closeStaleFirebaseAuthentication(operation)
+                    AuthorizedSessionApplication.APPLIED,
+                    AuthorizedSessionApplication.TERMINATED,
+                        -> Unit
                 }
 
                 is AuthSignInResult.Failure -> {
@@ -115,7 +144,7 @@ internal class SessionAuthActions(
                         mappedError.globalMessageRes != null -> mappedError.globalMessageRes
                         else -> R.string.auth_error_unknown
                     }
-                    uiState.update {
+                    updateUiStateIfCurrent(operation) {
                         it.copy(
                             isAuthenticating = false,
                             emailErrorRes = mappedError.emailErrorRes ?: fallbackEmailErrorRes,
@@ -124,6 +153,7 @@ internal class SessionAuthActions(
                     }
                 }
             }
+            updateUiStateIfCurrent(operation) { it.copy(isAuthenticating = false) }
         }
     }
 
@@ -161,9 +191,10 @@ internal class SessionAuthActions(
             return
         }
 
-        scope.launch {
-            uiState.update {
+        launchSessionOperation(kind = SessionAuthOperationKind.SIGN_UP) { operation ->
+            updateUiStateIfCurrent(operation) {
                 it.copy(
+                    isAuthenticating = false,
                     isRegistering = true,
                     registerEmailErrorRes = null,
                     registerPasswordErrorRes = null,
@@ -171,13 +202,22 @@ internal class SessionAuthActions(
                 )
             }
 
-            when (val authResult = authSessionProvider.signUp(email = email, password = password)) {
-                is AuthSignInResult.Success -> {
+            operation.providerWasInvoked.set(true)
+            val authResult = authSessionProvider.signUp(email = email, password = password)
+            if (!isCurrentSessionOperation(operation)) {
+                closeStaleFirebaseAuthentication(operation)
+                return@launchSessionOperation
+            }
+
+            when (authResult) {
+                is AuthSignInResult.Success -> when (
                     applyAuthorizedSession(
                         principal = authResult.principal,
                         shouldRefreshCriticalData = true,
+                        operation = operation,
                     )
-                    uiState.update {
+                ) {
+                    AuthorizedSessionApplication.APPLIED -> updateUiStateIfCurrent(operation) {
                         it.copy(
                             isRegistering = false,
                             registerEmailInput = "",
@@ -185,6 +225,9 @@ internal class SessionAuthActions(
                             registerRepeatPasswordInput = "",
                         )
                     }
+
+                    AuthorizedSessionApplication.STALE -> closeStaleFirebaseAuthentication(operation)
+                    AuthorizedSessionApplication.TERMINATED -> Unit
                 }
 
                 is AuthSignInResult.Failure -> {
@@ -198,7 +241,7 @@ internal class SessionAuthActions(
                         mappedError.globalMessageRes != null -> mappedError.globalMessageRes
                         else -> R.string.auth_error_register_generic
                     }
-                    uiState.update {
+                    updateUiStateIfCurrent(operation) {
                         it.copy(
                             isRegistering = false,
                             registerEmailErrorRes = mappedError.emailErrorRes ?: fallbackEmailErrorRes,
@@ -207,6 +250,7 @@ internal class SessionAuthActions(
                     }
                 }
             }
+            updateUiStateIfCurrent(operation) { it.copy(isRegistering = false) }
         }
     }
 
@@ -257,17 +301,22 @@ internal class SessionAuthActions(
     }
 
     fun signOut() {
+        val cleanupJob = ownSessionTerminationCleanup {
+            criticalDataFreshnessLocalRepository.clear()
+        }
+        authorizedDeviceRegistrar.clearAuthorizedSession()
         authSessionProvider.signOut()
         clearSessionRefreshTracking()
         sessionEnvironmentRouter.resetToBaseEnvironment()
-        scope.launch {
-            criticalDataFreshnessLocalRepository.clear()
-        }
         uiState.update { state -> state.toSignedOutSessionState(showSessionExpiredDialog = false) }
+        cleanupJob.start()
     }
 
     fun refreshSession(trigger: SessionRefreshTrigger) {
         val nowMillis = nowMillisProvider()
+        val currentAuthorizedSession = uiState.value.mode as? SessionMode.Authorized
+        val hadAuthenticatedSession = currentAuthorizedSession != null
+        val expectedPrincipalUid = currentAuthorizedSession?.principal?.uid
         if (!sessionRefreshPolicy.shouldRefresh(
                 trigger = trigger,
                 lastRefreshAtMillis = getLastSessionRefreshAtMillis(),
@@ -281,40 +330,67 @@ internal class SessionAuthActions(
             return
         }
 
-        scope.launch {
-            val hadAuthenticatedSession = uiState.value.mode.isAuthenticatedSession()
+        val didLaunch = launchSessionOperation(
+            kind = SessionAuthOperationKind.REFRESH,
+            expectedPrincipalUid = expectedPrincipalUid,
+        ) { operation ->
             try {
-                when (val result = authSessionProvider.refreshCurrentSession()) {
+                operation.providerWasInvoked.set(true)
+                val result = authSessionProvider.refreshCurrentSession()
+                if (!isCurrentSessionOperation(operation)) {
+                    closeStaleFirebaseAuthentication(operation)
+                    return@launchSessionOperation
+                }
+                when (result) {
                     AuthSessionRefreshResult.NoSession -> {
                         if (hadAuthenticatedSession) {
-                            handleExpiredSession()
+                            handleExpiredSession(operation)
                         }
                     }
 
                     is AuthSessionRefreshResult.Active -> {
+                        if (
+                            operation.expectedPrincipalUid != null &&
+                            result.principal.uid != operation.expectedPrincipalUid
+                        ) {
+                            closeStaleFirebaseAuthentication(operation)
+                            handleExpiredSession(operation)
+                            return@launchSessionOperation
+                        }
                         val shouldRefreshCriticalData = !hadAuthenticatedSession || shouldRefreshCriticalDataFor(
                             currentMode = uiState.value.mode,
                             principal = result.principal,
                         )
-                        applyAuthorizedSession(
-                            principal = result.principal,
-                            shouldRefreshCriticalData = shouldRefreshCriticalData,
-                        )
+                        when (
+                            applyAuthorizedSession(
+                                principal = result.principal,
+                                shouldRefreshCriticalData = shouldRefreshCriticalData,
+                                operation = operation,
+                            )
+                        ) {
+                            AuthorizedSessionApplication.STALE -> closeStaleFirebaseAuthentication(operation)
+                            AuthorizedSessionApplication.APPLIED,
+                            AuthorizedSessionApplication.TERMINATED,
+                                -> Unit
+                        }
                     }
 
                     AuthSessionRefreshResult.Expired -> {
-                        handleExpiredSession()
+                        handleExpiredSession(operation)
                     }
                 }
             } finally {
-                setLastSessionRefreshAtMillis(nowMillisProvider())
-                isSessionRefreshInFlight.set(false)
+                finishRefreshIfCurrent(operation)
             }
+        }
+        if (!didLaunch) {
+            isSessionRefreshInFlight.set(false)
         }
     }
 
     fun refreshMyOrderFreshness() {
         val currentMode = uiState.value.mode as? SessionMode.Authorized ?: return
+        val currentSessionEpoch = uiState.value.sessionEpoch
         uiState.update { it.copy(myOrderFreshnessState = MyOrderFreshnessUiState.Checking) }
 
         scope.launch {
@@ -329,7 +405,7 @@ internal class SessionAuthActions(
             }
 
             uiState.update { state ->
-                if (state.mode != currentMode) {
+                if (state.mode != currentMode || state.sessionEpoch != currentSessionEpoch) {
                     state
                 } else {
                     state.copy(myOrderFreshnessState = nextState)
@@ -338,19 +414,217 @@ internal class SessionAuthActions(
         }
     }
 
+    private fun launchSessionOperation(
+        kind: SessionAuthOperationKind,
+        expectedPrincipalUid: String? = null,
+        block: suspend (SessionAuthOperation) -> Unit,
+    ): Boolean {
+        lateinit var operation: SessionAuthOperation
+        lateinit var job: Job
+        synchronized(sessionOperationLock) {
+            val refreshWouldSupersedeInteractive =
+                sessionOperationKind in INTERACTIVE_SESSION_OPERATION_KINDS
+            val refreshWasCapturedBeforeCleanup =
+                sessionOperationKind == SessionAuthOperationKind.CLEANUP && expectedPrincipalUid != null
+            if (
+                kind == SessionAuthOperationKind.REFRESH &&
+                (refreshWouldSupersedeInteractive || refreshWasCapturedBeforeCleanup)
+            ) {
+                return false
+            }
+            val owner = Any()
+            val predecessor = sessionOperationJob
+            if (sessionOperationKind != SessionAuthOperationKind.CLEANUP) {
+                predecessor?.cancel()
+            }
+            sessionOperationGeneration += 1
+            operation = SessionAuthOperation(
+                generation = sessionOperationGeneration,
+                owner = owner,
+                predecessor = predecessor,
+                kind = kind,
+                expectedPrincipalUid = expectedPrincipalUid,
+            )
+            job = scope.launch(start = CoroutineStart.LAZY) {
+                try {
+                    withContext(NonCancellable) {
+                        predecessor?.join()
+                    }
+                    if (!isCurrentSessionOperation(operation)) return@launch
+                    block(operation)
+                } catch (error: Exception) {
+                    if (
+                        operation.providerWasInvoked.get() &&
+                        !isCurrentSessionOperation(operation) &&
+                        !operation.terminalSessionApplied.get()
+                    ) {
+                        closeStaleFirebaseAuthentication(operation)
+                        return@launch
+                    }
+                    throw error
+                } finally {
+                    if (
+                        operation.providerWasInvoked.get() &&
+                        !isCurrentSessionOperation(operation) &&
+                        !operation.terminalSessionApplied.get()
+                    ) {
+                        closeStaleFirebaseAuthentication(operation)
+                    }
+                }
+            }
+            sessionOperationOwner = owner
+            sessionOperationJob = job
+            sessionOperationKind = kind
+            isSessionRefreshInFlight.set(kind == SessionAuthOperationKind.REFRESH)
+        }
+        job.invokeOnCompletion {
+            releaseSessionOperation(operation, job)
+        }
+        job.start()
+        return true
+    }
+
+    private fun ownSessionTerminationCleanup(block: suspend () -> Unit): Job {
+        lateinit var cleanupJob: Job
+        synchronized(sessionOperationLock) {
+            val predecessor = sessionOperationJob
+            if (sessionOperationKind != SessionAuthOperationKind.CLEANUP) {
+                predecessor?.cancel()
+            }
+            sessionOperationGeneration += 1
+            sessionOperationOwner = null
+            isSessionRefreshInFlight.set(false)
+            cleanupJob = scope.launch(start = CoroutineStart.LAZY) {
+                withContext(NonCancellable) {
+                    predecessor?.join()
+                }
+                block()
+            }
+            sessionOperationJob = cleanupJob
+            sessionOperationKind = SessionAuthOperationKind.CLEANUP
+        }
+        cleanupJob.invokeOnCompletion {
+            synchronized(sessionOperationLock) {
+                if (sessionOperationJob === cleanupJob) {
+                    sessionOperationJob = null
+                    sessionOperationKind = null
+                }
+            }
+        }
+        return cleanupJob
+    }
+
+    private fun releaseSessionOperation(operation: SessionAuthOperation, job: Job) {
+        synchronized(sessionOperationLock) {
+            if (sessionOperationJob === job) {
+                sessionOperationJob = null
+                sessionOperationKind = null
+            }
+            if (
+                sessionOperationGeneration == operation.generation &&
+                sessionOperationOwner === operation.owner
+            ) {
+                sessionOperationOwner = null
+            }
+        }
+    }
+
+    private fun isCurrentSessionOperation(operation: SessionAuthOperation): Boolean =
+        synchronized(sessionOperationLock) {
+            sessionOperationGeneration == operation.generation &&
+                sessionOperationOwner === operation.owner
+        }
+
+    private fun applyResolvedEnvironmentIfCurrent(
+        operation: SessionAuthOperation,
+        environment: String,
+    ) {
+        synchronized(sessionOperationLock) {
+            if (
+                sessionOperationGeneration != operation.generation ||
+                sessionOperationOwner !== operation.owner
+            ) {
+                throw CancellationException("Session operation was superseded before routing")
+            }
+            sessionEnvironmentRouter.applyResolvedEnvironment(environment)
+        }
+    }
+
+    private fun invalidateSessionOperationIfCurrent(operation: SessionAuthOperation): Boolean =
+        synchronized(sessionOperationLock) {
+            if (
+                sessionOperationGeneration != operation.generation ||
+                sessionOperationOwner !== operation.owner
+            ) {
+                false
+            } else {
+                operation.terminalSessionApplied.set(true)
+                sessionOperationGeneration += 1
+                sessionOperationOwner = null
+                isSessionRefreshInFlight.set(false)
+                true
+            }
+        }
+
+    private fun updateUiStateIfCurrent(
+        operation: SessionAuthOperation,
+        transform: (SessionUiState) -> SessionUiState,
+    ): Boolean {
+        uiState.update { state ->
+            if (isCurrentSessionOperation(operation)) transform(state) else state
+        }
+        return isCurrentSessionOperation(operation)
+    }
+
+    private fun finishRefreshIfCurrent(operation: SessionAuthOperation) {
+        synchronized(sessionOperationLock) {
+            if (
+                sessionOperationGeneration == operation.generation &&
+                sessionOperationOwner === operation.owner
+            ) {
+                setLastSessionRefreshAtMillis(nowMillisProvider())
+                isSessionRefreshInFlight.set(false)
+            }
+        }
+    }
+
+    private fun abandonStaleAuthorizedSession(): AuthorizedSessionApplication {
+        return AuthorizedSessionApplication.STALE
+    }
+
+    private fun closeStaleFirebaseAuthentication(operation: SessionAuthOperation) {
+        if (operation.staleAuthenticationClosed.compareAndSet(false, true)) {
+            authorizedDeviceRegistrar.clearAuthorizedSession()
+            authSessionProvider.signOut()
+            sessionEnvironmentRouter.resetToBaseEnvironment()
+        }
+    }
+
     private suspend fun applyAuthorizedSession(
         principal: AuthPrincipal,
         shouldRefreshCriticalData: Boolean,
-    ) {
-        when (val result = resolveAuthorizedSession(principal)) {
+        operation: SessionAuthOperation,
+    ): AuthorizedSessionApplication {
+        val result = resolveAuthorizedSession(principal) { environment ->
+            applyResolvedEnvironmentIfCurrent(operation, environment)
+        }
+        if (!isCurrentSessionOperation(operation)) {
+            return abandonStaleAuthorizedSession()
+        }
+        return when (result) {
             is AccessResolutionResult.Authorized -> {
                 val members = memberRepository.getMembersVisibleTo(result.member)
+                if (!isCurrentSessionOperation(operation)) return abandonStaleAuthorizedSession()
                 val allNotifications = notificationRepository.getNotificationsFor(result.member)
+                if (!isCurrentSessionOperation(operation)) return abandonStaleAuthorizedSession()
                 val readNotificationIds = notificationRepository.getReadNotificationIds(result.member.id)
+                if (!isCurrentSessionOperation(operation)) return abandonStaleAuthorizedSession()
                 val products = productRepository.getProductsForVendor(result.member.id)
+                if (!isCurrentSessionOperation(operation)) return abandonStaleAuthorizedSession()
                 val sharedProfiles = sharedProfileRepository.getAllSharedProfiles()
+                if (!isCurrentSessionOperation(operation)) return abandonStaleAuthorizedSession()
                 val ownSharedProfile = sharedProfiles.firstOrNull { it.userId == result.member.id }
-                uiState.update {
+                if (!updateUiStateIfCurrent(operation) {
                     val currentMode = it.mode as? SessionMode.Authorized
                     val accessTransition = resolveAuthorizedSessionAccessTransition(
                         currentMode = currentMode,
@@ -388,9 +662,10 @@ internal class SessionAuthActions(
                         isUploadingSharedProfileImage = false,
                         isLoadingSharedProfiles = true,
                     )
-                }
+                }) return abandonStaleAuthorizedSession()
                 val allNews = newsRepository.getNewsFor(result.member)
-                uiState.update {
+                if (!isCurrentSessionOperation(operation)) return abandonStaleAuthorizedSession()
+                if (!updateUiStateIfCurrent(operation) {
                     val currentMode = it.mode as? SessionMode.Authorized
                     if (currentMode?.principal?.uid != principal.uid) {
                         it
@@ -420,26 +695,41 @@ internal class SessionAuthActions(
                             isUploadingSharedProfileImage = false,
                         )
                     }
-                }
+                }) return abandonStaleAuthorizedSession()
+                if (!isCurrentSessionOperation(operation)) return abandonStaleAuthorizedSession()
                 refreshShifts()
+                if (!isCurrentSessionOperation(operation)) return abandonStaleAuthorizedSession()
                 refreshDeliveryCalendar()
-                registerAuthorizedDevice(result.member)
+                if (!registerAuthorizedDevice(result.member, result.environment, operation)) {
+                    return abandonStaleAuthorizedSession()
+                }
                 if (shouldRefreshCriticalData) {
+                    if (!isCurrentSessionOperation(operation)) return abandonStaleAuthorizedSession()
                     refreshMyOrderFreshness()
+                }
+                if (isCurrentSessionOperation(operation)) {
+                    AuthorizedSessionApplication.APPLIED
+                } else {
+                    abandonStaleAuthorizedSession()
                 }
             }
 
             is AccessResolutionResult.Unauthorized -> {
+                if (!invalidateSessionOperationIfCurrent(operation)) {
+                    return abandonStaleAuthorizedSession()
+                }
+                authorizedDeviceRegistrar.clearAuthorizedSession()
+                clearSessionRefreshTracking()
+                sessionEnvironmentRouter.resetToBaseEnvironment()
                 if (result.reason == UnauthorizedReason.EMAIL_NOT_VERIFIED) {
                     authSessionProvider.signOut()
-                    sessionEnvironmentRouter.resetToBaseEnvironment()
                     uiState.update { state ->
                         state.toSignedOutSessionState(showSessionExpiredDialog = false).copy(
                             emailInput = principal.email,
                             emailErrorRes = R.string.auth_error_email_not_verified,
                         )
                     }
-                    return
+                    return AuthorizedSessionApplication.TERMINATED
                 }
                 val showUnauthorizedDialog = shouldShowUnauthorizedDialog(
                     currentMode = uiState.value.mode,
@@ -453,15 +743,31 @@ internal class SessionAuthActions(
                         showUnauthorizedDialog = showUnauthorizedDialog,
                     )
                 }
+                AuthorizedSessionApplication.TERMINATED
             }
         }
     }
 
-    private suspend fun handleExpiredSession() {
+    private suspend fun handleExpiredSession(operation: SessionAuthOperation) {
+        if (!isCurrentSessionOperation(operation)) {
+            closeStaleFirebaseAuthentication(operation)
+            return
+        }
+        if (!invalidateSessionOperationIfCurrent(operation)) {
+            closeStaleFirebaseAuthentication(operation)
+            return
+        }
+        authorizedDeviceRegistrar.clearAuthorizedSession()
         clearSessionRefreshTracking()
         sessionEnvironmentRouter.resetToBaseEnvironment()
-        criticalDataFreshnessLocalRepository.clear()
         uiState.update { state -> state.toSignedOutSessionState(showSessionExpiredDialog = true) }
+        try {
+            withContext(NonCancellable) {
+                criticalDataFreshnessLocalRepository.clear()
+            }
+        } catch (_: Exception) {
+            // Local cleanup must never delay or undo an already applied session termination.
+        }
     }
 
     private fun clearSessionRefreshTracking() {
@@ -469,13 +775,54 @@ internal class SessionAuthActions(
         isSessionRefreshInFlight.set(false)
     }
 
-    private fun registerAuthorizedDevice(member: Member) {
-        scope.launch {
-            runCatching {
-                authorizedDeviceRegistrar.register(member)
-            }
+    private suspend fun registerAuthorizedDevice(
+        member: Member,
+        environment: String,
+        operation: SessionAuthOperation,
+    ): Boolean {
+        if (!isCurrentSessionOperation(operation)) return false
+        try {
+            authorizedDeviceRegistrar.register(
+                member = member,
+                environment = environment,
+                isSessionCurrent = { isCurrentSessionOperation(operation) },
+            )
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            // Device registration is best-effort and must not fail authorization.
         }
+        return isCurrentSessionOperation(operation)
     }
+}
+
+private data class SessionAuthOperation(
+    val generation: Long,
+    val owner: Any,
+    val predecessor: Job?,
+    val kind: SessionAuthOperationKind,
+    val expectedPrincipalUid: String?,
+    val providerWasInvoked: AtomicBoolean = AtomicBoolean(false),
+    val staleAuthenticationClosed: AtomicBoolean = AtomicBoolean(false),
+    val terminalSessionApplied: AtomicBoolean = AtomicBoolean(false),
+)
+
+private enum class SessionAuthOperationKind {
+    SIGN_IN,
+    SIGN_UP,
+    REFRESH,
+    CLEANUP,
+}
+
+private val INTERACTIVE_SESSION_OPERATION_KINDS = setOf(
+    SessionAuthOperationKind.SIGN_IN,
+    SessionAuthOperationKind.SIGN_UP,
+)
+
+private enum class AuthorizedSessionApplication {
+    APPLIED,
+    TERMINATED,
+    STALE,
 }
 
 internal data class AuthorizedSessionAccessTransition(

@@ -4,7 +4,10 @@ class ResolveAuthorizedSessionUseCase(
     private val memberRepository: MemberRepository,
     private val authorizedMemberResolver: AuthorizedMemberResolver,
 ) {
-    suspend operator fun invoke(authPrincipal: AuthPrincipal): AccessResolutionResult {
+    suspend operator fun invoke(
+        authPrincipal: AuthPrincipal,
+        onAuthorizedEnvironmentResolved: (String) -> Unit = {},
+    ): AccessResolutionResult {
         val resolution = authorizedMemberResolver.resolve()
         if (resolution is AuthorizedMemberResolution.Unauthorized) {
             return AccessResolutionResult.Unauthorized(
@@ -20,6 +23,7 @@ class ResolveAuthorizedSessionUseCase(
         if (!resolution.isActive) {
             return AccessResolutionResult.Unauthorized(reason = UnauthorizedReason.USER_ACCESS_RESTRICTED)
         }
+        onAuthorizedEnvironmentResolved(resolution.environment)
         val linkedMember = memberRepository.findByAuthUid(authPrincipal.uid)
             ?: return AccessResolutionResult.Unauthorized(
                 reason = UnauthorizedReason.USER_NOT_FOUND_IN_AUTHORIZED_USERS,

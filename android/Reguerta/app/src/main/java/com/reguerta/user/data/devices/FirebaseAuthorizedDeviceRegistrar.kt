@@ -24,11 +24,23 @@ class FirebaseAuthorizedDeviceRegistrar(
     }
 
     private val preferences = DeviceRegistrationPreferences(context)
+    private val registrationLock = Any()
+    private var registrationGeneration = 0L
 
-    override suspend fun register(member: Member) {
-        preferences.saveAuthorizedMemberId(member.id)
+    override suspend fun register(
+        member: Member,
+        environment: String,
+        isSessionCurrent: () -> Boolean,
+    ) {
+        val generation = synchronized(registrationLock) { registrationGeneration }
+        val registrationIsCurrent = {
+            synchronized(registrationLock) {
+                registrationGeneration == generation
+            } && isSessionCurrent()
+        }
         val nowMillis = nowMillisProvider()
         val token = fetchFcmTokenWithRetry()
+        if (!registrationIsCurrent()) return
         Log.d(
             TAG,
             "Registering authorized device for member=${member.id}, deviceId=${preferences.getOrCreateDeviceId()}, tokenPresent=${token != null}"
@@ -36,6 +48,7 @@ class FirebaseAuthorizedDeviceRegistrar(
 
         repository.registerDevice(
             memberId = member.id,
+            environment = environment,
             device = RegisteredDevice(
                 deviceId = preferences.getOrCreateDeviceId(),
                 platform = "android",
@@ -49,7 +62,23 @@ class FirebaseAuthorizedDeviceRegistrar(
                 lastSeenAtMillis = nowMillis,
                 tokenUpdatedAtMillis = if (token == null) null else nowMillis,
             ),
+            isSessionCurrent = registrationIsCurrent,
         )
+        synchronized(registrationLock) {
+            if (registrationGeneration == generation && isSessionCurrent()) {
+                preferences.saveAuthorizedSessionContext(
+                    memberId = member.id,
+                    environment = environment,
+                )
+            }
+        }
+    }
+
+    override fun clearAuthorizedSession() {
+        synchronized(registrationLock) {
+            registrationGeneration += 1
+            preferences.clearAuthorizedSessionContext()
+        }
     }
 
     private fun resolveAppVersion(): String {
