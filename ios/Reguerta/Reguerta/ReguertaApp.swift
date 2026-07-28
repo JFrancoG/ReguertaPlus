@@ -12,7 +12,7 @@ struct ReguertaApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @AppStorage(AppAppearance.storageKey) private var appAppearanceRawValue = AppAppearance.system.rawValue
 
-    private let appEnvironment = ReguertaAppEnvironment.live()
+    private let appEnvironment: ReguertaAppEnvironment
 
     private var appAppearance: AppAppearance {
         AppAppearance(rawValue: appAppearanceRawValue) ?? .system
@@ -26,5 +26,15 @@ struct ReguertaApp: App {
             }
             .preferredColorScheme(appAppearance.preferredColorScheme)
         }
+    }
+}
+
+extension ReguertaApp {
+    init() {
+        let appEnvironment = ReguertaAppEnvironment.live()
+        self.appEnvironment = appEnvironment
+        appDelegate.configure(
+            authorizedDeviceRegistrar: appEnvironment.authorizedDeviceRegistrar
+        )
     }
 }

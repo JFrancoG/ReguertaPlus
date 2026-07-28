@@ -5,8 +5,17 @@ import UserNotifications
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
     private static let logger = Logger(subsystem: "com.reguerta.app", category: "PushRegistration")
+    private var authorizedDeviceRegistrar: (any AuthorizedDeviceRegistrar)?
+    private var pendingRegistrationToken: PendingRegistrationToken?
     private static var usesMockAuth: Bool {
         ProcessInfo.processInfo.arguments.contains("-useMockAuth")
+    }
+
+    func configure(authorizedDeviceRegistrar: any AuthorizedDeviceRegistrar) {
+        self.authorizedDeviceRegistrar = authorizedDeviceRegistrar
+        guard case .received(let token) = pendingRegistrationToken else { return }
+        pendingRegistrationToken = nil
+        forwardRegistrationToken(token, to: authorizedDeviceRegistrar)
     }
 
     func application(
@@ -15,9 +24,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     ) -> Bool {
         ReguertaFontRegistrar.registerDesignFonts()
         guard !Self.usesMockAuth else {
-            Task {
-                await KeyManager.shared.remove(.authorizedMemberId)
-            }
             return true
         }
         FirebaseBootstrapper.configureIfNeeded()
@@ -34,7 +40,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         Messaging.messaging().apnsToken = deviceToken
         Messaging.messaging().token { _, error in
             if let error {
-                print("Unable to fetch FCM token after APNs registration: \(error.localizedDescription)")
+                Self.logger.error(
+                    "Unable to fetch FCM token after APNs registration: \(String(describing: error), privacy: .private)"
+                )
                 return
             }
         }
@@ -69,44 +77,34 @@ extension AppDelegate: MessagingDelegate {
         guard !Self.usesMockAuth else {
             return
         }
-        Task {
-            await KeyManager.shared.save(fcmToken, for: .fcmToken)
-            let token = fcmToken?.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard let token, !token.isEmpty else {
-                return
-            }
-            let memberId = await KeyManager.shared.load(.authorizedMemberId)
-            guard let memberId else {
-                return
-            }
+        guard let authorizedDeviceRegistrar else {
+            pendingRegistrationToken = .received(fcmToken)
+            return
+        }
+        forwardRegistrationToken(fcmToken, to: authorizedDeviceRegistrar)
+    }
 
-            let repository = FirestoreDeviceRegistrationRepository()
-            let nowMillis = Int64(Date().timeIntervalSince1970 * 1_000)
+    private func forwardRegistrationToken(
+        _ token: String?,
+        to authorizedDeviceRegistrar: any AuthorizedDeviceRegistrar
+    ) {
+        Task {
             do {
-                _ = try await repository.register(
-                    memberId: memberId,
-                    device: RegisteredDevice(
-                        deviceId: UIDevice.current.identifierForVendor?.uuidString ?? "ios-\(UIDevice.current.model)",
-                        platform: "ios",
-                        appVersion: resolveInstalledAppVersion(),
-                        osVersion: UIDevice.current.systemVersion,
-                        apiLevel: nil,
-                        manufacturer: "Apple",
-                        model: UIDevice.current.model,
-                        fcmToken: token,
-                        firstSeenAtMillis: nowMillis,
-                        lastSeenAtMillis: nowMillis,
-                        tokenUpdatedAtMillis: nowMillis
-                    )
-                )
+                try await authorizedDeviceRegistrar.updateRegistrationToken(token)
+            } catch is CancellationError {
+                return
             } catch {
-                Self.logger.error("FCM token persistence failed: \(String(describing: error), privacy: .public)")
+                // The coordinator records private diagnostics; push registration remains best-effort.
             }
         }
     }
 }
 
 extension AppDelegate: UNUserNotificationCenterDelegate {}
+
+private enum PendingRegistrationToken {
+    case received(String?)
+}
 
 extension AppDelegate {
     nonisolated func userNotificationCenter(

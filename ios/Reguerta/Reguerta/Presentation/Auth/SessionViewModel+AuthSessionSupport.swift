@@ -166,11 +166,23 @@ extension SessionViewModel {
     }
 
     private func prepareForLocalSessionTermination() {
+        let deviceSessionLease = authorizedDeviceSessionLease
+        authorizedDeviceSessionLease = nil
         invalidateSessionOperation()
         clearSessionRefreshTracking()
         environmentRouter.resetToBaseEnvironment()
-        Task {
-            await KeyManager.shared.remove(.authorizedMemberId)
+        if let deviceSessionLease {
+            Task {
+                do {
+                    try await authorizedDeviceRegistrar.clearAuthorization(
+                        ifOwnedBy: deviceSessionLease
+                    )
+                } catch is CancellationError {
+                    return
+                } catch {
+                    // The live coordinator records private diagnostics; local logout must complete.
+                }
+            }
         }
         resetAccessCredentialsAndErrors()
         isAuthenticating = false
@@ -307,19 +319,45 @@ extension SessionViewModel {
                 environment: environment
             )
         )
+        let deviceSessionLease = AuthorizedDeviceSessionLease()
+        authorizedDeviceSessionLease = deviceSessionLease
         showSessionExpiredDialog = false
         showUnauthorizedDialog = false
         guard isCurrentSessionOperation(generation) else { return }
-        await registerAuthorizedDeviceBestEffort(member)
+        await registerAuthorizedDeviceBestEffort(
+            principal: principal,
+            member: member,
+            environment: environment,
+            lease: deviceSessionLease,
+            generation: generation
+        )
     }
 
-    private func registerAuthorizedDeviceBestEffort(_ member: Member) async {
-        switch await authorizedDeviceRegistrar.register(member: member) {
-        case .registered, .skipped:
-            break
-        case .failed:
-            // Push registration is non-critical. The live registrar records the failure for diagnosis.
-            break
+    private func registerAuthorizedDeviceBestEffort(
+        principal: AuthPrincipal,
+        member: Member,
+        environment: SessionEnvironment,
+        lease: AuthorizedDeviceSessionLease,
+        generation: UInt64
+    ) async {
+        do {
+            _ = try await authorizedDeviceRegistrar.register(
+                command: AuthorizedDeviceRegistrationCommand(
+                    memberId: member.id,
+                    authUid: principal.uid,
+                    environment: environment,
+                    lease: lease
+                ),
+                isSessionCurrent: { [weak self] in
+                    guard let self else { return false }
+                    return self.isCurrentSessionOperation(generation) &&
+                        self.authorizedDeviceSessionLease == lease
+                }
+            )
+        } catch is CancellationError {
+            return
+        } catch {
+            // Push registration is non-critical. The live coordinator records private diagnostics.
         }
     }
 

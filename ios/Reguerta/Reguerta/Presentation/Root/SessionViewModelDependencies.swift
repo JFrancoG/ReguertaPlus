@@ -73,7 +73,8 @@ struct SessionViewModelDependencies {
 
     static func preview(
         repository: any LocalMemberRepository = InMemoryMemberRepository(),
-        feedbackCenter: GlobalFeedbackCenter = GlobalFeedbackCenter()
+        feedbackCenter: GlobalFeedbackCenter = GlobalFeedbackCenter(),
+        authorizedDeviceRegistrar: any AuthorizedDeviceRegistrar = NoOpAuthorizedDeviceRegistrar()
     ) -> SessionViewModelDependencies {
         let environmentRouter = FixedSessionEnvironmentRouter()
         return SessionViewModelDependencies(
@@ -85,7 +86,7 @@ struct SessionViewModelDependencies {
                 resolver: InMemoryAuthorizedMemberResolver(repository: repository),
                 environmentRouter: environmentRouter
             ),
-            authorizedDeviceRegistrar: NoOpAuthorizedDeviceRegistrar(),
+            authorizedDeviceRegistrar: authorizedDeviceRegistrar,
             environmentRouter: environmentRouter,
             sessionRefreshPolicy: SessionRefreshPolicy(),
             nowMillisProvider: { Int64(Date().timeIntervalSince1970 * 1_000) },
@@ -95,8 +96,15 @@ struct SessionViewModelDependencies {
 
 }
 
-private struct NoOpAuthorizedDeviceRegistrar: AuthorizedDeviceRegistrar {
-    func register(member: Member) async -> AuthorizedDeviceRegistrationResult {
+nonisolated struct NoOpAuthorizedDeviceRegistrar: AuthorizedDeviceRegistrar {
+    func register(
+        command: AuthorizedDeviceRegistrationCommand,
+        isSessionCurrent: @escaping @MainActor @Sendable () -> Bool
+    ) async throws -> AuthorizedDeviceRegistrationResult {
         .skipped
     }
+
+    func updateRegistrationToken(_ token: String?) async throws {}
+
+    func clearAuthorization(ifOwnedBy lease: AuthorizedDeviceSessionLease) async throws {}
 }

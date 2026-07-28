@@ -194,7 +194,14 @@ nonisolated private struct SuccessfulAuthorizedMemberResolver: AuthorizedMemberR
 }
 
 nonisolated private struct FailingAuthorizedDeviceRegistrar: AuthorizedDeviceRegistrar {
-    func register(member _: Member) async -> AuthorizedDeviceRegistrationResult {
+    func register(
+        command: AuthorizedDeviceRegistrationCommand,
+        isSessionCurrent: @escaping @MainActor @Sendable () -> Bool
+    ) async throws -> AuthorizedDeviceRegistrationResult {
         .failed
     }
+
+    func updateRegistrationToken(_ token: String?) async throws {}
+
+    func clearAuthorization(ifOwnedBy lease: AuthorizedDeviceSessionLease) async throws {}
 }

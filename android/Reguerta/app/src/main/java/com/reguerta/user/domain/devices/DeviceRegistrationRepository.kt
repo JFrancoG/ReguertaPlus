@@ -5,6 +5,6 @@ interface DeviceRegistrationRepository {
         memberId: String,
         environment: String,
         device: RegisteredDevice,
-        isSessionCurrent: () -> Boolean = { true },
+        isSessionCurrent: suspend () -> Boolean = { true },
     ): RegisteredDevice
 }

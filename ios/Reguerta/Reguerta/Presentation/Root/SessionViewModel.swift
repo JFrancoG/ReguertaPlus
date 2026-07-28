@@ -90,6 +90,7 @@ final class SessionViewModel {
     var isSessionRefreshInFlight = false
     @ObservationIgnored var sessionOperationTask: Task<Void, Never>?
     @ObservationIgnored var sessionOperationGeneration: UInt64 = 0
+    @ObservationIgnored var authorizedDeviceSessionLease: AuthorizedDeviceSessionLease?
 
     var isDevelopImpersonationEnabled: Bool {
         developImpersonationEnabled
