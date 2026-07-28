@@ -170,7 +170,7 @@ struct MainView: AccessRootRoutingView {
             await rootViewModel.handleSplashIfNeeded()
         }
         .task {
-            await rootViewModel.refreshSessionAndEvaluateStartupGate()
+            rootViewModel.refreshSessionAndEvaluateStartupGate()
         }
         .onChange(of: viewModel.mode) { previousMode, mode in
             rootViewModel.handleSessionModeChange(from: previousMode, to: mode)

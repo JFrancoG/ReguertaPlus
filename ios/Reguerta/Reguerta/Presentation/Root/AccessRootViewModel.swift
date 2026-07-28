@@ -25,6 +25,7 @@ private struct RootFeatureDependencies {
     let bylaws: BylawsFeatureDependencies
 }
 
+@MainActor
 @Observable
 final class AccessRootViewModel {
     @ObservationIgnored let sessionViewModel: SessionViewModel
@@ -40,9 +41,14 @@ final class AccessRootViewModel {
     @ObservationIgnored let receivedOrdersHistoryViewModel: ReceivedOrdersHistoryRouteViewModel
     @ObservationIgnored let myOrderFreshnessViewModel: MyOrderFreshnessViewModel
     @ObservationIgnored let bylawsViewModel: BylawsFeatureViewModel
-    @ObservationIgnored private let startupVersionGateUseCase: ResolveStartupVersionGateUseCase
+    @ObservationIgnored let startupVersionGateUseCase: ResolveStartupVersionGateUseCase
     @ObservationIgnored private let shouldSkipSplashProvider: () -> Bool
     @ObservationIgnored private let installedVersionProvider: () -> String
+    @ObservationIgnored let startupGateTimeout: Duration
+    @ObservationIgnored let startupGateSleeper: @Sendable (Duration) async throws -> Void
+    @ObservationIgnored var startupGateOperationTask: Task<Void, Never>?
+    @ObservationIgnored var startupGateTimeoutTask: Task<Void, Never>?
+    @ObservationIgnored var startupGateGeneration: UInt64 = 0
 
     var shellState = AuthShellState()
     var splashScale: CGFloat = SplashAnimationContract.initialScale
@@ -102,6 +108,10 @@ final class AccessRootViewModel {
         installedVersionProvider: @escaping () -> String = {
             resolveInstalledAppVersion()
         },
+        startupGateTimeout: Duration = .milliseconds(2_500),
+        startupGateSleeper: @escaping @Sendable (Duration) async throws -> Void = {
+            try await ContinuousClock().sleep(for: $0)
+        },
         initialNowOverrideMillis: Int64? = nil
     ) {
         self.sessionViewModel = sessionViewModel
@@ -135,6 +145,8 @@ final class AccessRootViewModel {
         self.startupVersionGateUseCase = startupVersionGateUseCase
         self.shouldSkipSplashProvider = shouldSkipSplashProvider
         self.installedVersionProvider = installedVersionProvider
+        self.startupGateTimeout = startupGateTimeout
+        self.startupGateSleeper = startupGateSleeper
         self.nowOverrideMillis = initialNowOverrideMillis
     }
 
@@ -281,76 +293,6 @@ extension AccessRootViewModel {
         shellState = reduceAuthShell(state: shellState, action: action)
     }
 
-    func handleSplashIfNeeded() async {
-        guard shellState.currentRoute == .splash else { return }
-
-        if shouldSkipSplash {
-            splashDelayCompleted = true
-            startupGateState = .optionalDismissed
-            continueFromSplashIfAllowed()
-            return
-        }
-
-        try? await Task.sleep(nanoseconds: SplashAnimationContract.durationNanoseconds)
-        guard shellState.currentRoute == .splash else { return }
-        splashDelayCompleted = true
-        continueFromSplashIfAllowed()
-    }
-
-    func refreshSessionAndEvaluateStartupGate() async {
-        sessionViewModel.refreshSession(trigger: .startup)
-        await evaluateStartupGateIfNeeded()
-    }
-
-    func evaluateStartupGateIfNeeded() async {
-        guard !didEvaluateStartupGate else { return }
-        didEvaluateStartupGate = true
-
-        if shouldSkipSplash {
-            startupGateState = .optionalDismissed
-            return
-        }
-
-        let decision = await resolveStartupGateDecision(installedVersion: installedVersion)
-
-        switch decision {
-        case .allow:
-            startupGateState = .ready
-        case .optionalUpdate(let storeURL):
-            startupGateState = .optionalUpdate(storeURL: storeURL)
-        case .forcedUpdate(let storeURL):
-            startupGateState = .forcedUpdate(storeURL: storeURL)
-        }
-
-        continueFromSplashIfAllowed()
-    }
-
-    func resolveStartupGateDecision(installedVersion: String) async -> StartupVersionGateDecision {
-        await withTaskGroup(of: StartupVersionGateDecision.self) { group in
-            group.addTask { [startupVersionGateUseCase] in
-                await startupVersionGateUseCase.execute(
-                    platform: .ios,
-                    installedVersion: installedVersion
-                )
-            }
-            group.addTask {
-                try? await Task.sleep(nanoseconds: StartupGateContract.fetchTimeoutNanoseconds)
-                return .allow
-            }
-
-            let firstResult = await group.next() ?? .allow
-            group.cancelAll()
-            return firstResult
-        }
-    }
-
-    func continueFromSplashIfAllowed() {
-        guard shellState.currentRoute == .splash else { return }
-        guard splashDelayCompleted else { return }
-        guard startupGateState.allowsContinuation else { return }
-        dispatchShell(.splashCompleted(isAuthenticated: sessionViewModel.mode.isAuthenticatedSession))
-    }
-
     func startSplashAnimationIfNeeded() {
         guard shellState.currentRoute == .splash else { return }
         guard !shouldSkipSplash else { return }
@@ -444,10 +386,6 @@ extension AccessRootViewModel {
         homeDestination = .dashboard
         sessionViewModel.signOut()
         dispatchShell(.signedOut)
-    }
-
-    func dismissOptionalStartupUpdate() {
-        startupGateState = .optionalDismissed
     }
 
     func handleAuthRouteExit(from previousRoute: AuthShellRoute, to newRoute: AuthShellRoute) {

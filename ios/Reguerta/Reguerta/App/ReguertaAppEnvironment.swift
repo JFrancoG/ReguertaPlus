@@ -260,7 +260,7 @@ extension EnvironmentValues {
 }
 
 private struct PreviewStartupVersionPolicyRepository: StartupVersionPolicyRepository {
-    func policy(for platform: StartupPlatform) async -> StartupVersionPolicy? {
-        nil
+    func policy(for platform: StartupPlatform) async throws -> StartupVersionPolicy {
+        throw RepositoryError.notFound(resource: "config.public")
     }
 }

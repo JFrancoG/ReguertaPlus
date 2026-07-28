@@ -7,6 +7,7 @@ private struct StartupVersionGateCardContent {
     let secondaryActionTitleKey: String?
     let onPrimaryAction: () -> Void
     let onSecondaryAction: (() -> Void)?
+    var isDismissible = true
 }
 
 extension AccessRootRoutingView {
@@ -138,6 +139,30 @@ extension AccessRootRoutingView {
                     onSecondaryAction: nil
                 )
             )
+        case .timedOut:
+            startupVersionGateCard(
+                StartupVersionGateCardContent(
+                    titleKey: AccessL10nKey.startupValidationTimedOutTitle,
+                    messageKey: AccessL10nKey.startupValidationTimedOutMessage,
+                    primaryActionTitleKey: AccessL10nKey.startupValidationActionRetry,
+                    secondaryActionTitleKey: AccessL10nKey.startupValidationActionContinue,
+                    onPrimaryAction: rootViewModel.retryStartupGate,
+                    onSecondaryAction: rootViewModel.continueAfterStartupGateFailure,
+                    isDismissible: false
+                )
+            )
+        case .unavailable:
+            startupVersionGateCard(
+                StartupVersionGateCardContent(
+                    titleKey: AccessL10nKey.startupValidationUnavailableTitle,
+                    messageKey: AccessL10nKey.startupValidationUnavailableMessage,
+                    primaryActionTitleKey: AccessL10nKey.startupValidationActionRetry,
+                    secondaryActionTitleKey: AccessL10nKey.startupValidationActionContinue,
+                    onPrimaryAction: rootViewModel.retryStartupGate,
+                    onSecondaryAction: rootViewModel.continueAfterStartupGateFailure,
+                    isDismissible: false
+                )
+            )
         case .checking, .ready, .optionalDismissed:
             EmptyView()
         }
@@ -161,7 +186,8 @@ extension AccessRootRoutingView {
                     action: onSecondaryAction
                 )
             }(),
-            onDismiss: content.onSecondaryAction
+            dismissible: content.isDismissible,
+            onDismiss: content.isDismissible ? content.onSecondaryAction : nil
         )
     }
 
@@ -197,4 +223,29 @@ extension AccessRootRoutingView {
     func handleRecoverSuccessDialogDismiss() {
         rootViewModel.handleRecoverSuccessDialogDismiss()
     }
+}
+
+private struct StartupGateUnavailablePreview: AccessRootRoutingView {
+    let appEnvironment: ReguertaAppEnvironment
+    @Environment(\.openURL) var openURL
+    @Environment(\.reguertaTokens) var tokens
+
+    var body: some View {
+        ZStack {
+            Color(.systemBackground).ignoresSafeArea()
+            startupVersionGateOverlay
+        }
+    }
+}
+
+#Preview("Startup version unavailable", traits: .modifier(ReguertaDesignSystemPreviewModifier())) {
+    let environment = ReguertaAppEnvironment.preview()
+    environment.accessRootViewModel.startupGateState = .unavailable
+    return StartupGateUnavailablePreview(appEnvironment: environment)
+}
+
+#Preview("Startup version timed out", traits: .modifier(ReguertaDesignSystemPreviewModifier())) {
+    let environment = ReguertaAppEnvironment.preview()
+    environment.accessRootViewModel.startupGateState = .timedOut
+    return StartupGateUnavailablePreview(appEnvironment: environment)
 }

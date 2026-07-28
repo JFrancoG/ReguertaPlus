@@ -46,6 +46,8 @@ class FirestoreSecurityBoundarySourceTest {
         val source = readMainSource("data/startup/FirestoreStartupVersionPolicyRepository.kt")
 
         assertTrue(source.contains("ReguertaFirestoreDocument.PUBLIC"))
+        assertTrue(source.contains("get(Source.SERVER).await()"))
+        assertFalse(source.contains("Tasks.await"))
         assertFalse(source.contains("ReguertaFirestoreDocument.GLOBAL"))
     }
 
@@ -61,6 +63,8 @@ class FirestoreSecurityBoundarySourceTest {
                 calendar.indexOf("ReguertaFirestoreDocument.GLOBAL"),
         )
         assertTrue(freshness.contains("ReguertaFirestoreDocument.MEMBER"))
+        assertTrue(freshness.contains("get(Source.SERVER).await()"))
+        assertFalse(freshness.contains("Tasks.await"))
         assertFalse(freshness.contains("ReguertaFirestoreDocument.GLOBAL"))
     }
 

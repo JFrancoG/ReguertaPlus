@@ -207,6 +207,7 @@ struct MyOrderFreshnessViewModelConcurrencyTests {
         #expect(await remoteRepository.requestCount() == 1)
         #expect(viewModel.state == .ready)
     }
+
 }
 
 private typealias OwnedFreshnessTasks = (operation: Task<Void, Never>, timeout: Task<Void, Never>)
@@ -288,7 +289,8 @@ private func makeControlledFreshnessViewModel(
 @MainActor
 private func freshnessAuthorizedMode(
     uid: String,
-    email: String? = nil
+    email: String? = nil,
+    environment: SessionEnvironment = .develop
 ) -> SessionMode {
     let currentMember = member(id: uid, ecoCommitmentMode: .weekly)
     return .authorized(
@@ -297,7 +299,7 @@ private func freshnessAuthorizedMode(
             authenticatedMember: currentMember,
             member: currentMember,
             members: [currentMember],
-            environment: .develop
+            environment: environment
         )
     )
 }
@@ -323,7 +325,8 @@ private func concurrencyFreshnessMetadata(
 ) -> CriticalDataFreshnessMetadata {
     CriticalDataFreshnessMetadata(
         validatedAtMillis: 1_000,
-        acknowledgedTimestampsMillis: concurrencyFreshnessTimestamps(timestamp: timestamp)
+        acknowledgedTimestampsMillis: concurrencyFreshnessTimestamps(timestamp: timestamp),
+        environment: .develop
     )
 }
 
@@ -344,15 +347,19 @@ private actor ControlledCriticalDataFreshnessRemoteRepository: CriticalDataFresh
         Int: (count: Int, continuation: CheckedContinuation<Void, any Error>)
     ] = [:]
 
-    func getConfig() async -> CriticalDataFreshnessConfig? {
+    func getConfig(environment: SessionEnvironment) async throws -> CriticalDataFreshnessConfig {
         let requestIndex = nextRequestIndex
         nextRequestIndex += 1
 
-        return await withCheckedContinuation { continuation in
+        let config = await withCheckedContinuation { continuation in
             requestContinuations[requestIndex] = continuation
             registeredRequestCount += 1
             resumeSatisfiedRequestCountWaiters()
         }
+        guard let config else {
+            throw RepositoryError.notFound(resource: "config.member")
+        }
+        return config
     }
 
     func waitForRequestCount(_ expectedCount: Int) async throws {

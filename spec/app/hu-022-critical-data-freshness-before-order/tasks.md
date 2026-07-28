@@ -13,17 +13,17 @@
 - [x] Implement timeout and retry states.
 
 ## 4. Backend / Firestore
-- [x] Validate required keys in `config/global.lastTimestamps`.
-- [x] Ensure critical collections are included in remote timestamp updates.
+- [ ] Seed and validate required keys in `config/member.lastTimestamps`.
+- [ ] Ensure critical collections are included in remote timestamp updates.
 
 ## 5. Testing
 - [x] Unit tests for freshness calculations.
-- [x] Integration tests for selective sync triggers.
+- [ ] Integration tests for selective sync and post-refresh acknowledgement.
 - [ ] Manual validation of blocked, timeout, and recovered flows.
 
 ## 6. Documentation
 - [x] Record thresholds, timeout, and retry decisions.
-- [ ] Update issue evidence.
+- [x] Update issue evidence.
 
 ## 7. Closure
 - [ ] Link issue and PR.

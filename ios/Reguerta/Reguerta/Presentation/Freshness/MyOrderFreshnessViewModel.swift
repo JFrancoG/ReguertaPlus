@@ -9,6 +9,11 @@ enum MyOrderFreshnessState: Equatable, Sendable {
     case unavailable
 }
 
+private struct FreshnessSessionIdentity: Equatable, Sendable {
+    let uid: String
+    let environment: SessionEnvironment
+}
+
 @MainActor
 @Observable
 final class MyOrderFreshnessViewModel {
@@ -22,7 +27,7 @@ final class MyOrderFreshnessViewModel {
 
     var state: MyOrderFreshnessState = .idle
 
-    private var currentPrincipal: AuthPrincipal?
+    private var currentIdentity: FreshnessSessionIdentity?
 
     init(
         resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase,
@@ -48,9 +53,13 @@ final class MyOrderFreshnessViewModel {
     func handleSessionModeChange(from previousMode: SessionMode, to mode: SessionMode) {
         switch mode {
         case .authorized(let session):
-            currentPrincipal = session.principal
-            if shouldRefresh(from: previousMode, principal: session.principal) {
-                refresh(for: session.principal)
+            let identity = FreshnessSessionIdentity(
+                uid: session.principal.uid,
+                environment: session.environment
+            )
+            currentIdentity = identity
+            if shouldRefresh(from: previousMode, identity: identity) {
+                refresh(for: identity)
             }
         case .signedOut:
             reset()
@@ -62,11 +71,15 @@ final class MyOrderFreshnessViewModel {
 
     func retry(currentMode: SessionMode) {
         guard case .authorized(let session) = currentMode else { return }
-        currentPrincipal = session.principal
-        refresh(for: session.principal)
+        let identity = FreshnessSessionIdentity(
+            uid: session.principal.uid,
+            environment: session.environment
+        )
+        currentIdentity = identity
+        refresh(for: identity)
     }
 
-    private func refresh(for principal: AuthPrincipal) {
+    private func refresh(for identity: FreshnessSessionIdentity) {
         invalidateFreshnessOperation()
         let generation = freshnessGeneration
         let resolver = resolveCriticalDataFreshness
@@ -77,20 +90,20 @@ final class MyOrderFreshnessViewModel {
         freshnessOperationTask = Task { @MainActor [weak self, resolver] in
             defer { self?.finishFreshnessOperation(generation) }
 
-            guard self?.isCurrentFreshnessOperation(generation, principal: principal) == true else {
+            guard self?.isCurrentFreshnessOperation(generation, identity: identity) == true else {
                 return
             }
 
             do {
-                let resolution = try await resolver.execute()
-                guard let self, isCurrentFreshnessOperation(generation, principal: principal) else {
+                let resolution = try await resolver.execute(environment: identity.environment)
+                guard let self, isCurrentFreshnessOperation(generation, identity: identity) else {
                     return
                 }
                 publish(resolution, generation: generation)
             } catch is CancellationError {
                 return
             } catch {
-                guard let self, isCurrentFreshnessOperation(generation, principal: principal) else {
+                guard let self, isCurrentFreshnessOperation(generation, identity: identity) else {
                     return
                 }
                 publish(.invalidConfig, generation: generation)
@@ -106,7 +119,7 @@ final class MyOrderFreshnessViewModel {
                 return
             }
 
-            guard let self, isCurrentFreshnessOperation(generation, principal: principal) else {
+            guard let self, isCurrentFreshnessOperation(generation, identity: identity) else {
                 return
             }
             freshnessOperationTask?.cancel()
@@ -117,18 +130,21 @@ final class MyOrderFreshnessViewModel {
 
     private func reset() {
         invalidateFreshnessOperation()
-        currentPrincipal = nil
+        currentIdentity = nil
         state = .idle
     }
 
-    private func shouldRefresh(from previousMode: SessionMode, principal: AuthPrincipal) -> Bool {
+    private func shouldRefresh(
+        from previousMode: SessionMode,
+        identity: FreshnessSessionIdentity
+    ) -> Bool {
         switch previousMode {
         case .signedOut:
             return true
-        case .unauthorized(let email, _):
-            return email != principal.email
+        case .unauthorized:
+            return true
         case .authorized(let session):
-            return session.principal.uid != principal.uid
+            return session.principal.uid != identity.uid || session.environment != identity.environment
         }
     }
 
@@ -145,11 +161,11 @@ final class MyOrderFreshnessViewModel {
 
     private func isCurrentFreshnessOperation(
         _ generation: UInt64,
-        principal: AuthPrincipal
+        identity: FreshnessSessionIdentity
     ) -> Bool {
         !Task.isCancelled &&
             generation == freshnessGeneration &&
-            currentPrincipal?.uid == principal.uid
+            currentIdentity == identity
     }
 
     private func publish(

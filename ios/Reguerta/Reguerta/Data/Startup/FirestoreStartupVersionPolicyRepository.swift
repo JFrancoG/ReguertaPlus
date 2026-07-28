@@ -13,36 +13,48 @@ final class FirestoreStartupVersionPolicyRepository: @unchecked Sendable, Startu
         self.environment = environment
     }
 
-    func policy(for platform: StartupPlatform) async -> StartupVersionPolicy? {
+    func policy(for platform: StartupPlatform) async throws -> StartupVersionPolicy {
         do {
             let snapshot = try await db
                 .reguertaDocument(.publicConfiguration, in: .config, environment: environment)
-                .getDocument()
+                .getDocument(source: .server)
 
-            guard let data = snapshot.data(),
-                  let versions = data["versions"] as? [String: Any],
-                  let platformPolicy = versions[platform.rawValue] as? [String: Any],
-                  let currentVersion = platformPolicy.requiredString(for: "current"),
-                  let minimumVersion = platformPolicy.requiredString(for: "min"),
-                  let storeURL = platformPolicy.requiredString(for: "storeUrl"),
-                  let forceUpdate = platformPolicy["forceUpdate"] as? Bool
-            else {
-                return nil
+            guard snapshot.exists else {
+                throw RepositoryError.notFound(resource: "config.public")
             }
-
-            return StartupVersionPolicy(
-                currentVersion: currentVersion,
-                minimumVersion: minimumVersion,
-                forceUpdate: forceUpdate,
-                storeURL: storeURL
-            )
+            guard let data = snapshot.data() else {
+                throw RepositoryError.invalidData(resource: "config.public.versions.\(platform.rawValue)")
+            }
+            return try Self.policy(for: platform, data: data)
         } catch {
-            return nil
+            throw FirestoreRepositoryErrorMapper.map(error, resource: "config.public")
         }
+    }
+
+    nonisolated static func policy(
+        for platform: StartupPlatform,
+        data: [String: Any]
+    ) throws -> StartupVersionPolicy {
+        guard let versions = data["versions"] as? [String: Any],
+              let platformPolicy = versions[platform.rawValue] as? [String: Any],
+              let currentVersion = platformPolicy.requiredString(for: "current"),
+              let minimumVersion = platformPolicy.requiredString(for: "min"),
+              let storeURL = platformPolicy.requiredString(for: "storeUrl"),
+              let forceUpdate = platformPolicy["forceUpdate"] as? Bool
+        else {
+            throw RepositoryError.invalidData(resource: "config.public.versions.\(platform.rawValue)")
+        }
+
+        return StartupVersionPolicy(
+            currentVersion: currentVersion,
+            minimumVersion: minimumVersion,
+            forceUpdate: forceUpdate,
+            storeURL: storeURL
+        )
     }
 }
 
-private extension Dictionary where Key == String, Value == Any {
+nonisolated private extension Dictionary where Key == String, Value == Any {
     func requiredString(for key: String) -> String? {
         guard let value = self[key] as? String else {
             return nil

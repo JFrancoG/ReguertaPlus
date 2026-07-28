@@ -14,6 +14,11 @@ struct UserDefaultsCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLo
         guard validatedAtMillis > 0 else {
             return nil
         }
+        guard let environmentRawValue = userDefaults.string(forKey: Keys.environment),
+              let environment = SessionEnvironment(rawValue: environmentRawValue)
+        else {
+            return nil
+        }
 
         var timestamps: [CriticalCollection: Int64] = [:]
         for collection in CriticalCollection.allCases {
@@ -27,12 +32,14 @@ struct UserDefaultsCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLo
 
         return CriticalDataFreshnessMetadata(
             validatedAtMillis: validatedAtMillis,
-            acknowledgedTimestampsMillis: timestamps
+            acknowledgedTimestampsMillis: timestamps,
+            environment: environment
         )
     }
 
     func saveMetadata(_ metadata: CriticalDataFreshnessMetadata) {
         userDefaults.set(metadata.validatedAtMillis, forKey: Keys.validatedAt)
+        userDefaults.set(metadata.environment.rawValue, forKey: Keys.environment)
         for (collection, timestamp) in metadata.acknowledgedTimestampsMillis {
             userDefaults.set(timestamp, forKey: timestampKey(for: collection))
         }
@@ -40,6 +47,7 @@ struct UserDefaultsCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLo
 
     func clear() {
         userDefaults.removeObject(forKey: Keys.validatedAt)
+        userDefaults.removeObject(forKey: Keys.environment)
         for collection in CriticalCollection.allCases {
             userDefaults.removeObject(forKey: timestampKey(for: collection))
         }
@@ -48,6 +56,7 @@ struct UserDefaultsCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLo
 
 private enum Keys {
     static let validatedAt = "critical_data_freshness.validated_at"
+    static let environment = "critical_data_freshness.environment"
 }
 
 private func timestampKey(for collection: CriticalCollection) -> String {

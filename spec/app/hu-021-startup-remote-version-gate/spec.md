@@ -4,7 +4,7 @@
 - issue_id: #21
 - priority: P1
 - platform: both
-- status: ready
+- status: in_progress
 
 ## Context and problem
 
@@ -41,12 +41,12 @@ As a member I want app version policy to be validated at startup so unsupported 
 ## Risks
 
 - Risk: malformed remote version policy can block valid users.
-  - Mitigation: safe defaults and robust parsing/validation.
+  - Mitigation: strict parsing, an explicit recoverable state during the Phase 1 standby, and no bypass in the coordinated strict cutover.
 
 ## Definition of Done (DoD)
 
-- [x] Story acceptance criteria validated.
+- [ ] Story acceptance criteria validated in the coordinated strict client/backend cutover.
 - [x] Android/iOS parity reviewed or temporary gap documented.
-- [x] Tests executed.
+- [ ] Full integration and manual startup tests executed against the deployed public projection.
 - [x] Documentation updated.
-- [x] Issue and PR linked.
+- [ ] Issue and final PR linked.

@@ -17,6 +17,7 @@ struct CriticalDataFreshnessConfig: Equatable, Sendable {
 struct CriticalDataFreshnessMetadata: Equatable, Sendable {
     let validatedAtMillis: Int64
     let acknowledgedTimestampsMillis: [CriticalCollection: Int64]
+    let environment: SessionEnvironment
 }
 
 enum CriticalDataFreshnessResolution: Equatable, Sendable {
@@ -25,7 +26,7 @@ enum CriticalDataFreshnessResolution: Equatable, Sendable {
 }
 
 protocol CriticalDataFreshnessRemoteRepository: Sendable {
-    func getConfig() async -> CriticalDataFreshnessConfig?
+    func getConfig(environment: SessionEnvironment) async throws -> CriticalDataFreshnessConfig
 }
 
 @MainActor

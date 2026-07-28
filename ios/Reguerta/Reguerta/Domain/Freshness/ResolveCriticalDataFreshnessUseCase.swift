@@ -17,14 +17,10 @@ struct ResolveCriticalDataFreshnessUseCase: Sendable {
         self.nowProvider = nowProvider
     }
 
-    func execute() async throws -> CriticalDataFreshnessResolution {
+    func execute(environment: SessionEnvironment) async throws -> CriticalDataFreshnessResolution {
         try Task.checkCancellation()
-        let config = await remoteRepository.getConfig()
+        let config = try await remoteRepository.getConfig(environment: environment)
         try Task.checkCancellation()
-
-        guard let config else {
-            return .invalidConfig
-        }
 
         try Task.checkCancellation()
         let metadata = localRepository.getMetadata()
@@ -32,7 +28,8 @@ struct ResolveCriticalDataFreshnessUseCase: Sendable {
         let evaluation = evaluate(
             config: config,
             metadata: metadata,
-            nowMillis: nowProvider()
+            nowMillis: nowProvider(),
+            environment: environment
         )
         try Task.checkCancellation()
 
@@ -47,7 +44,8 @@ struct ResolveCriticalDataFreshnessUseCase: Sendable {
     func evaluate(
         config: CriticalDataFreshnessConfig,
         metadata: CriticalDataFreshnessMetadata?,
-        nowMillis: Int64
+        nowMillis: Int64,
+        environment: SessionEnvironment
     ) -> FreshnessEvaluation {
         guard config.cacheExpirationMinutes > 0 else {
             return .invalidConfig
@@ -63,16 +61,22 @@ struct ResolveCriticalDataFreshnessUseCase: Sendable {
             return .invalidConfig
         }
 
+        guard config.cacheExpirationMinutes <= Int(Int64.max / 60_000) else {
+            return .invalidConfig
+        }
+
         let ttlMillis = Int64(config.cacheExpirationMinutes) * 60_000
-        let isExpired = metadata == nil || nowMillis - metadata!.validatedAtMillis >= ttlMillis
-        let hasRemoteUpdates = metadata == nil || CriticalCollection.allCases.contains { collection in
-            metadata!.acknowledgedTimestampsMillis[collection] != remoteTimestamps[collection]
+        let scopedMetadata = metadata?.environment == environment ? metadata : nil
+        let isExpired = scopedMetadata == nil || nowMillis - scopedMetadata!.validatedAtMillis >= ttlMillis
+        let hasRemoteUpdates = scopedMetadata == nil || CriticalCollection.allCases.contains { collection in
+            scopedMetadata!.acknowledgedTimestampsMillis[collection] != remoteTimestamps[collection]
         }
 
         let metadataToPersist: CriticalDataFreshnessMetadata? = if isExpired || hasRemoteUpdates {
             CriticalDataFreshnessMetadata(
                 validatedAtMillis: nowMillis,
-                acknowledgedTimestampsMillis: remoteTimestamps
+                acknowledgedTimestampsMillis: remoteTimestamps,
+                environment: environment
             )
         } else {
             nil

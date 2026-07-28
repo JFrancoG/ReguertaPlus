@@ -21,5 +21,5 @@ sealed interface StartupVersionGateDecision {
 }
 
 interface StartupVersionPolicyRepository {
-    suspend fun getPolicy(platform: StartupPlatform): StartupVersionPolicy?
+    suspend fun getPolicy(platform: StartupPlatform): StartupVersionPolicy
 }

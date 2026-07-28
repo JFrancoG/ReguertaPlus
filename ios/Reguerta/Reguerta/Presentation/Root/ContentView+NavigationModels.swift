@@ -66,6 +66,8 @@ enum StartupGateUIState: Equatable {
     case ready
     case optionalUpdate(storeURL: String)
     case forcedUpdate(storeURL: String)
+    case timedOut
+    case unavailable
     case optionalDismissed
 
     var allowsContinuation: Bool {

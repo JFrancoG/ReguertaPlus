@@ -312,16 +312,16 @@ struct P101ShiftsFailureTests {
         )
         viewModel.shiftSwapRequests = [request]
 
-        viewModel.cancelShiftSwapRequest(requestId: request.id)
-        await waitForCondition { !viewModel.isUpdatingShiftSwapRequest }
+        await viewModel.cancelShiftSwapRequest(requestId: request.id)
 
         #expect(viewModel.shiftSwapRequests == [request])
         #expect(viewModel.acknowledgedShiftSwapRequestIds == [request.id])
         #expect(viewModel.hasVisibleShiftSwapActivity == false)
+        #expect(viewModel.isUpdatingShiftSwapRequest == false)
         #expect(repository.transitionCount == 1)
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableLoadData)
 
-        viewModel.cancelShiftSwapRequest(requestId: request.id)
+        await viewModel.cancelShiftSwapRequest(requestId: request.id)
         #expect(repository.transitionCount == 1)
     }
 
