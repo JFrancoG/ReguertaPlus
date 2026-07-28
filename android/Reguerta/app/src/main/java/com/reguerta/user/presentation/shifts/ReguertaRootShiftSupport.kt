@@ -293,6 +293,21 @@ internal fun List<ShiftSwapRequest>.hasVisibleShiftSwapActivity(
         dismissedRequestIds = dismissedRequestIds,
     ).hasContent
 
+internal fun List<ShiftSwapRequest>.blockedShiftSwapRequestShiftIds(
+    currentMemberId: String?,
+    acknowledgedCreates: Map<String, String>,
+): Set<String> = buildSet {
+    addAll(acknowledgedCreates.values)
+    if (currentMemberId != null) {
+        this@blockedShiftSwapRequestShiftIds
+            .filter { request ->
+                request.requesterUserId == currentMemberId &&
+                    request.status == ShiftSwapRequestStatus.OPEN
+            }
+            .mapTo(this) { request -> request.requestedShiftId }
+    }
+}
+
 internal fun ShiftSwapRequest.shiftSwapAvailableResponses(): List<ShiftSwapResponse> =
     responses.filter { it.status == ShiftSwapResponseStatus.AVAILABLE }
 

@@ -330,7 +330,8 @@ private func makeUsersScenario(
         ),
         authenticatedMember: resolvedAuthenticatedMember,
         member: currentMember,
-        members: members
+        members: members,
+        environment: .develop
     )
     let viewModel = UsersFeatureViewModel(
         sessionViewModel: sessionViewModel,

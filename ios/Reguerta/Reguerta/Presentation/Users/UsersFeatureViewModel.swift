@@ -355,7 +355,8 @@ private extension UsersFeatureViewModel {
             principal: session.principal,
             authenticatedMember: refreshedAuthenticated,
             member: refreshedCurrent,
-            members: members
+            members: members,
+            environment: session.environment
         )
 
         return adoptAuthorizedSession(

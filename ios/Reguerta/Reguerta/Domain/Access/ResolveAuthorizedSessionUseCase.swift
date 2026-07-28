@@ -56,6 +56,6 @@ struct ResolveAuthorizedSessionUseCase: Sendable {
             return .unauthorized(.userAccessRestricted)
         }
         keepsResolvedEnvironment = true
-        return .authorized(member)
+        return .authorized(member: member, environment: resolution.environment)
     }
 }

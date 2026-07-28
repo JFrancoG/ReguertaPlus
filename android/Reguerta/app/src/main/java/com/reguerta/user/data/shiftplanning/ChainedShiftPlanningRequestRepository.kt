@@ -5,10 +5,8 @@ import com.reguerta.user.domain.shifts.ShiftPlanningRequestRepository
 
 class ChainedShiftPlanningRequestRepository(
     private val primary: ShiftPlanningRequestRepository,
-    private val fallback: ShiftPlanningRequestRepository,
+    @Suppress("UNUSED_PARAMETER") fallback: ShiftPlanningRequestRepository,
 ) : ShiftPlanningRequestRepository {
-    override suspend fun submitShiftPlanningRequest(request: ShiftPlanningRequest): ShiftPlanningRequest {
-        val fallbackSaved = fallback.submitShiftPlanningRequest(request)
-        return runCatching { primary.submitShiftPlanningRequest(fallbackSaved) }.getOrDefault(fallbackSaved)
-    }
+    override suspend fun submitShiftPlanningRequest(request: ShiftPlanningRequest): ShiftPlanningRequest =
+        primary.submitShiftPlanningRequest(request)
 }

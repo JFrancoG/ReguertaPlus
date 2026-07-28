@@ -1,18 +1,18 @@
 import Foundation
 
-enum ShiftPlanningRequestType: String, Equatable, Sendable {
+nonisolated enum ShiftPlanningRequestType: String, Equatable, Sendable {
     case delivery
     case market
 }
 
-enum ShiftPlanningRequestStatus: String, Equatable, Sendable {
+nonisolated enum ShiftPlanningRequestStatus: String, Equatable, Sendable {
     case requested
     case processing
     case completed
     case failed
 }
 
-struct ShiftPlanningRequest: Identifiable, Equatable, Sendable {
+nonisolated struct ShiftPlanningRequest: Identifiable, Equatable, Sendable {
     let id: String
     let type: ShiftPlanningRequestType
     let requestedByUserId: String

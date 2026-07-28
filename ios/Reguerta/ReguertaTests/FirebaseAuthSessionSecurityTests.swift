@@ -160,7 +160,8 @@ struct FirebaseAuthSessionSecurityTests {
                 principal: AuthPrincipal(uid: "auth_1", email: member.normalizedEmail),
                 authenticatedMember: member,
                 member: member,
-                members: [member]
+                members: [member],
+                environment: .develop
             )
         )
     }

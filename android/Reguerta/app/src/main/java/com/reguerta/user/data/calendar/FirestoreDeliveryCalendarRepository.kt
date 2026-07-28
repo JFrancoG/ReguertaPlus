@@ -3,10 +3,14 @@ package com.reguerta.user.data.calendar
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Source
 import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
 import com.reguerta.user.data.firestore.ReguertaFirestoreDocument
 import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
 import com.reguerta.user.data.firestore.ReguertaFirestorePath
+import com.reguerta.user.data.firestore.toRepositoryException
+import com.reguerta.user.domain.RepositoryErrorKind
+import com.reguerta.user.domain.RepositoryException
 import com.reguerta.user.domain.calendar.DeliveryCalendarOverride
 import com.reguerta.user.domain.calendar.DeliveryCalendarRepository
 import com.reguerta.user.domain.calendar.DeliveryWeekday
@@ -29,34 +33,38 @@ class FirestoreDeliveryCalendarRepository(
             documentId = ReguertaFirestoreDocument.MEMBER.wireValue,
         )
 
+    private val globalConfigDocumentPath: String
+        get() = firestorePath.documentPath(
+            collection = ReguertaFirestoreCollection.CONFIG,
+            documentId = ReguertaFirestoreDocument.GLOBAL.wireValue,
+        )
+
     override suspend fun getDefaultDeliveryDayOfWeek(): DeliveryWeekday? = withContext(Dispatchers.IO) {
-        val snapshot = Tasks.await(firestore.document(memberConfigDocumentPath).get())
-        resolveDeliveryWeekday(snapshot.getData() ?: emptyMap())
+        try {
+            val candidates = mutableListOf<Pair<Boolean, Map<String, Any?>>>()
+            for (documentPath in listOf(memberConfigDocumentPath, globalConfigDocumentPath)) {
+                val snapshot = Tasks.await(firestore.document(documentPath).get(Source.SERVER))
+                val exists = snapshot.exists()
+                candidates += exists to (snapshot.data ?: emptyMap())
+                if (exists) break
+            }
+            decodeDefaultDeliveryWeekdayCandidates(candidates)
+        } catch (error: Exception) {
+            throw error.toRepositoryException(resource = "deliveryCalendar.default")
+        }
     }
 
     override suspend fun getAllOverrides(): List<DeliveryCalendarOverride> = withContext(Dispatchers.IO) {
-        val snapshot = Tasks.await(firestore.collection(calendarCollectionPath).get())
-        snapshot.documents.mapNotNull { document ->
-            val weekKey = document.getString("weekKey")?.trim()?.ifBlank { document.id } ?: document.id
-            val deliveryDate = document.getTimestamp("deliveryDate")?.toDate()?.time ?: return@mapNotNull null
-            val ordersBlockedDate = document.getTimestamp("ordersBlockedDate")?.toDate()?.time
-                ?: (deliveryDate + 24L * 60L * 60L * 1_000L)
-            val ordersOpenAt = document.getTimestamp("ordersOpenAt")?.toDate()?.time
-                ?: ordersBlockedDate
-            val ordersCloseAt = document.getTimestamp("ordersCloseAt")?.toDate()?.time
-                ?: (ordersBlockedDate + 24L * 60L * 60L * 1_000L)
-            val updatedBy = document.getString("updatedBy")?.trim().orEmpty()
-            val updatedAt = document.getTimestamp("updatedAt")?.toDate()?.time ?: 0L
-            DeliveryCalendarOverride(
-                weekKey = weekKey,
-                deliveryDateMillis = deliveryDate,
-                ordersBlockedDateMillis = ordersBlockedDate,
-                ordersOpenAtMillis = ordersOpenAt,
-                ordersCloseAtMillis = ordersCloseAt,
-                updatedBy = updatedBy,
-                updatedAtMillis = updatedAt,
+        try {
+            val snapshot = Tasks.await(firestore.collection(calendarCollectionPath).get(Source.SERVER))
+            decodeDeliveryCalendarOverrideDocuments(
+                snapshot.documents.map { document ->
+                    document.id to (document.data ?: invalidDeliveryCalendarDocument())
+                },
             )
-        }.sortedBy { it.weekKey }
+        } catch (error: Exception) {
+            throw error.toRepositoryException(resource = "deliveryCalendar.overrides")
+        }
     }
 
     override suspend fun upsertOverride(override: DeliveryCalendarOverride): DeliveryCalendarOverride = withContext(Dispatchers.IO) {
@@ -69,26 +77,118 @@ class FirestoreDeliveryCalendarRepository(
             "updatedBy" to override.updatedBy,
             "updatedAt" to Timestamp(Date(override.updatedAtMillis)),
         )
-        Tasks.await(
-            firestore.document("$calendarCollectionPath/${override.weekKey}").set(payload),
-        )
-        override
+        try {
+            Tasks.await(
+                firestore.document("$calendarCollectionPath/${override.weekKey}").set(payload),
+            )
+            override
+        } catch (error: Exception) {
+            throw error.toRepositoryException(resource = "deliveryCalendar.write")
+        }
     }
 
     override suspend fun deleteOverride(weekKey: String) {
         withContext(Dispatchers.IO) {
-            Tasks.await(
-                firestore.document("$calendarCollectionPath/$weekKey").delete(),
-            )
+            try {
+                Tasks.await(
+                    firestore.document("$calendarCollectionPath/$weekKey").delete(),
+                )
+            } catch (error: Exception) {
+                throw error.toRepositoryException(resource = "deliveryCalendar.write")
+            }
         }
     }
 }
 
-private fun resolveDeliveryWeekday(data: Map<String, Any>): DeliveryWeekday? {
-    val topLevel = DeliveryWeekday.fromWireValue(data["deliveryDayOfWeek"] as? String)
-        ?: DeliveryWeekday.fromWireValue(data["deliveryDateOfWeek"] as? String)
-    if (topLevel != null) return topLevel
-    val otherConfig = data["otherConfig"] as? Map<*, *> ?: return null
-    return DeliveryWeekday.fromWireValue(otherConfig["deliveryDayOfWeek"] as? String)
-        ?: DeliveryWeekday.fromWireValue(otherConfig["deliveryDateOfWeek"] as? String)
+internal fun decodeDefaultDeliveryWeekday(
+    documentExists: Boolean,
+    data: Map<String, Any?>,
+): DeliveryWeekday? {
+    if (!documentExists) return null
+    deliveryWeekdayKeys.forEach { key ->
+        if (data.containsKey(key)) return data.requiredDeliveryWeekday(key)
+    }
+    if (data.containsKey("otherConfig")) {
+        val otherConfig = data["otherConfig"].toConfigStringKeyedMap()
+        deliveryWeekdayKeys.forEach { key ->
+            if (otherConfig.containsKey(key)) return otherConfig.requiredDeliveryWeekday(key)
+        }
+    }
+    return invalidDeliveryCalendarConfiguration()
 }
+
+internal fun decodeDefaultDeliveryWeekdayCandidates(
+    candidates: List<Pair<Boolean, Map<String, Any?>>>,
+): DeliveryWeekday {
+    candidates.forEach { (documentExists, data) ->
+        decodeDefaultDeliveryWeekday(documentExists, data)?.let { return it }
+    }
+    throw RepositoryException(
+        kind = RepositoryErrorKind.NOT_FOUND,
+        resource = "deliveryCalendar.default",
+    )
+}
+
+internal fun decodeDeliveryCalendarOverrideDocuments(
+    documents: List<Pair<String, Map<String, Any?>>>,
+): List<DeliveryCalendarOverride> = documents
+    .map { (documentId, data) -> decodeDeliveryCalendarOverrideDocument(documentId, data) }
+    .sortedBy { it.weekKey }
+
+private fun decodeDeliveryCalendarOverrideDocument(
+    documentId: String,
+    data: Map<String, Any?>,
+): DeliveryCalendarOverride {
+    val weekKey = data.requiredString("weekKey")
+    if (weekKey != documentId) invalidDeliveryCalendarDocument()
+    return DeliveryCalendarOverride(
+        weekKey = weekKey,
+        deliveryDateMillis = data.requiredTimestampMillis("deliveryDate"),
+        ordersBlockedDateMillis = data.requiredTimestampMillis("ordersBlockedDate"),
+        ordersOpenAtMillis = data.requiredTimestampMillis("ordersOpenAt"),
+        ordersCloseAtMillis = data.requiredTimestampMillis("ordersCloseAt"),
+        updatedBy = data.requiredString("updatedBy"),
+        updatedAtMillis = data.requiredTimestampMillis("updatedAt"),
+    )
+}
+
+private fun Map<String, Any?>.requiredDeliveryWeekday(field: String): DeliveryWeekday {
+    val raw = this[field] as? String ?: invalidDeliveryCalendarConfiguration()
+    return DeliveryWeekday.fromWireValue(raw) ?: invalidDeliveryCalendarConfiguration()
+}
+
+private fun Map<String, Any?>.requiredString(field: String): String =
+    optionalString(field) ?: invalidDeliveryCalendarDocument()
+
+private fun Map<String, Any?>.optionalString(field: String): String? {
+    if (!containsKey(field) || this[field] == null) return null
+    val value = this[field] as? String ?: invalidDeliveryCalendarDocument()
+    return value.trim().ifBlank { null }
+}
+
+private fun Map<String, Any?>.requiredTimestampMillis(field: String): Long =
+    optionalTimestampMillis(field) ?: invalidDeliveryCalendarDocument()
+
+private fun Map<String, Any?>.optionalTimestampMillis(field: String): Long? {
+    if (!containsKey(field) || this[field] == null) return null
+    return (this[field] as? Timestamp)?.toDate()?.time ?: invalidDeliveryCalendarDocument()
+}
+
+private fun Any?.toConfigStringKeyedMap(): Map<String, Any?> {
+    val raw = this as? Map<*, *> ?: invalidDeliveryCalendarConfiguration()
+    return raw.entries.associate { (key, value) ->
+        (key as? String ?: invalidDeliveryCalendarConfiguration()) to value
+    }
+}
+
+private fun invalidDeliveryCalendarDocument(): Nothing = throw RepositoryException(
+    kind = RepositoryErrorKind.INVALID_DATA,
+    resource = "deliveryCalendar.document",
+)
+
+private fun invalidDeliveryCalendarConfiguration(): Nothing = throw RepositoryException(
+    kind = RepositoryErrorKind.INVALID_DATA,
+    resource = "deliveryCalendar.default",
+)
+
+private val deliveryWeekdayKeys = listOf("deliveryDayOfWeek", "deliveryDateOfWeek")

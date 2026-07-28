@@ -237,7 +237,12 @@ struct SessionOperationInvalidationTests {
         guard await repository.waitForMemberRequestCount(2) else { return }
         repository.completeMemberRead(at: 1, with: fixture)
 
-        #expect(try await newerOperation.value == .authorized(fixture))
+        #expect(
+            try await newerOperation.value == .authorized(
+                member: fixture,
+                environment: .production
+            )
+        )
         #expect(routingRecorder.currentEnvironment == .production)
 
         repository.completeMemberRead(at: 0, with: fixture)
@@ -246,6 +251,32 @@ struct SessionOperationInvalidationTests {
         }
         #expect(routingRecorder.currentEnvironment == .production)
         #expect(routingRecorder.resetCount == 1)
+    }
+
+    @Test("El entorno resuelto forma parte de la identidad de la sesión autorizada")
+    func resolvedEnvironmentChangesAuthorizedSessionIdentity() async {
+        let fixture = authenticatedMember()
+        let principal = authenticatedPrincipal(for: fixture)
+        let viewModel = makeViewModel(
+            member: fixture,
+            provider: ControlledSessionAuthProvider(isAuthenticated: true),
+            resolver: SequencedEnvironmentAuthorizedMemberResolver(
+                member: fixture,
+                environments: [.develop, .production]
+            )
+        )
+
+        await viewModel.applyAuthorizedSession(principal: principal)
+        let previousMode = viewModel.mode
+
+        await viewModel.applyAuthorizedSession(principal: principal)
+
+        #expect(viewModel.mode != previousMode)
+        guard case .authorized(let session) = viewModel.mode else {
+            Issue.record("La sesión debería seguir autorizada")
+            return
+        }
+        #expect(session.environment == .production)
     }
 }
 
@@ -309,7 +340,8 @@ private func authorizedMode(member: Member, principal: AuthPrincipal) -> Session
             principal: principal,
             authenticatedMember: member,
             member: member,
-            members: [member]
+            members: [member],
+            environment: .develop
         )
     )
 }
@@ -374,6 +406,32 @@ nonisolated private struct FixedAuthorizedMemberResolver: AuthorizedMemberResolv
             roles: member.roles,
             isActive: member.isActive,
             environment: environment ?? requestedEnvironment,
+            firstLoginLinked: false
+        )
+    }
+}
+
+private actor SequencedEnvironmentAuthorizedMemberResolver: AuthorizedMemberResolving {
+    let member: Member
+    var environments: [SessionEnvironment]
+
+    init(member: Member, environments: [SessionEnvironment]) {
+        self.member = member
+        self.environments = environments
+    }
+
+    func resolve(
+        authPrincipal _: AuthPrincipal,
+        requestedEnvironment: SessionEnvironment
+    ) async throws -> AuthorizedMemberResolution {
+        let environment = environments.isEmpty
+            ? requestedEnvironment
+            : environments.removeFirst()
+        return AuthorizedMemberResolution(
+            memberId: member.id,
+            roles: member.roles,
+            isActive: member.isActive,
+            environment: environment,
             firstLoginLinked: false
         )
     }

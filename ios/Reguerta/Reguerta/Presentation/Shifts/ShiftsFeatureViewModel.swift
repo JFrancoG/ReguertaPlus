@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 
 @MainActor
@@ -11,12 +12,16 @@ final class ShiftsFeatureViewModel {
     @ObservationIgnored let deliveryCalendarRepository: any DeliveryCalendarRepository
     @ObservationIgnored let notificationRepository: any NotificationRepository
     @ObservationIgnored let nowMillisProvider: @MainActor () -> Int64
+    @ObservationIgnored let planningRequestIDProvider: @MainActor () -> String
+    @ObservationIgnored let environmentProvider: @MainActor () -> ReguertaFirestoreEnvironment
 
     var currentSession: AuthorizedSession?
     var currentMember: Member?
+    var currentEnvironment: ReguertaFirestoreEnvironment?
     var shiftsFeed: [ShiftAssignment] = []
     var shiftSwapRequests: [ShiftSwapRequest] = []
     var dismissedShiftSwapRequestIds = Set<String>()
+    var shiftSwapAcknowledgements: [String: ShiftSwapAcknowledgement] = [:]
     var shiftSwapDraft = ShiftSwapDraft()
     var selectedShiftSegment: ShiftBoardSegment = .delivery
     var nextDeliveryShift: ShiftAssignment?
@@ -34,6 +39,19 @@ final class ShiftsFeatureViewModel {
     var selectedDeliveryCalendarWeekday: DeliveryWeekday = .wednesday
     var originalDeliveryCalendarWeekday: DeliveryWeekday = .wednesday
     var pendingShiftPlanningType: ShiftPlanningRequestType?
+    var pendingShiftPlanningRequestId: String?
+    var pendingShiftPlanningRequestedAtMillis: Int64?
+    var sessionIdentityEpoch: UInt64 = 0
+    var activeShiftsRefreshOperationId: UInt64?
+    var nextShiftsRefreshOperationId: UInt64 = 0
+    var activeCalendarRefreshOperationId: UInt64?
+    var nextCalendarRefreshOperationId: UInt64 = 0
+    var activeSwapMutationOperationId: UInt64?
+    var nextSwapMutationOperationId: UInt64 = 0
+
+    var acknowledgedShiftSwapRequestIds: Set<String> {
+        Set(shiftSwapAcknowledgements.keys)
+    }
 
     var deliveryShifts: [ShiftAssignment] {
         shiftsFeed
@@ -76,7 +94,13 @@ final class ShiftsFeatureViewModel {
         shiftPlanningRequestRepository: any ShiftPlanningRequestRepository,
         deliveryCalendarRepository: any DeliveryCalendarRepository,
         notificationRepository: any NotificationRepository,
-        nowMillisProvider: @escaping @MainActor () -> Int64
+        nowMillisProvider: @escaping @MainActor () -> Int64,
+        planningRequestIDProvider: @escaping @MainActor () -> String = {
+            UUID().uuidString.lowercased()
+        },
+        environmentProvider: @escaping @MainActor () -> ReguertaFirestoreEnvironment = {
+            ReguertaRuntimeEnvironment.currentFirestoreEnvironment
+        }
     ) {
         self.sessionViewModel = sessionViewModel
         self.feedbackCenter = feedbackCenter
@@ -86,5 +110,13 @@ final class ShiftsFeatureViewModel {
         self.deliveryCalendarRepository = deliveryCalendarRepository
         self.notificationRepository = notificationRepository
         self.nowMillisProvider = nowMillisProvider
+        self.planningRequestIDProvider = planningRequestIDProvider
+        self.environmentProvider = environmentProvider
+    }
+
+    struct SessionContext {
+        let session: AuthorizedSession
+        let generation: UInt64
+        let environment: ReguertaFirestoreEnvironment
     }
 }

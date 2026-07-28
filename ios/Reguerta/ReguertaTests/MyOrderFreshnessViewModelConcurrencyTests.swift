@@ -296,7 +296,8 @@ private func freshnessAuthorizedMode(
             principal: AuthPrincipal(uid: uid, email: email ?? currentMember.normalizedEmail),
             authenticatedMember: currentMember,
             member: currentMember,
-            members: [currentMember]
+            members: [currentMember],
+            environment: .develop
         )
     )
 }

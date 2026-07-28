@@ -9,14 +9,16 @@ func makeShiftsViewModel(
     shiftPlanningRequestRepository: (any ShiftPlanningRequestRepository)? = nil,
     deliveryCalendarRepository: (any DeliveryCalendarRepository)? = nil,
     notificationRepository: (any NotificationRepository)? = nil,
-    nowMillisProvider: @escaping @MainActor () -> Int64 = { 0 }
+    nowMillisProvider: @escaping @MainActor () -> Int64 = { 0 },
+    environmentProvider: @escaping @MainActor () -> ReguertaFirestoreEnvironment = { .develop }
 ) -> ShiftsFeatureViewModel {
     let sessionViewModel = SessionViewModel(dependencies: .preview())
     let session = AuthorizedSession(
         principal: AuthPrincipal(uid: "auth_\(currentMember.id)", email: currentMember.normalizedEmail),
         authenticatedMember: currentMember,
         member: currentMember,
-        members: members
+        members: members,
+        environment: environmentProvider()
     )
     sessionViewModel.mode = .authorized(session)
     let viewModel = ShiftsFeatureViewModel(
@@ -26,10 +28,12 @@ func makeShiftsViewModel(
         shiftPlanningRequestRepository: shiftPlanningRequestRepository ?? RecordingShiftPlanningRequestRepository(),
         deliveryCalendarRepository: deliveryCalendarRepository ?? InMemoryDeliveryCalendarRepository(),
         notificationRepository: notificationRepository ?? RecordingNotificationRepository(),
-        nowMillisProvider: nowMillisProvider
+        nowMillisProvider: nowMillisProvider,
+        environmentProvider: environmentProvider
     )
     viewModel.currentSession = session
     viewModel.currentMember = currentMember
+    viewModel.currentEnvironment = session.environment
     return viewModel
 }
 

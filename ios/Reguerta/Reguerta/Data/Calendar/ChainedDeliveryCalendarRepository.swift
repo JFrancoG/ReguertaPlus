@@ -4,16 +4,12 @@ struct ChainedDeliveryCalendarRepository: DeliveryCalendarRepository {
     let primary: any DeliveryCalendarRepository
     let fallback: any DeliveryCalendarRepository
 
-    func defaultDeliveryDayOfWeek() async -> DeliveryWeekday? {
-        if let primaryValue = await primary.defaultDeliveryDayOfWeek() {
-            return primaryValue
-        }
-        return await fallback.defaultDeliveryDayOfWeek()
+    func defaultDeliveryDayOfWeek() async throws -> DeliveryWeekday {
+        try await primary.defaultDeliveryDayOfWeek()
     }
 
-    func allOverrides() async -> [DeliveryCalendarOverride] {
-        let primaryOverrides = await primary.allOverrides()
-        return primaryOverrides.isEmpty ? await fallback.allOverrides() : primaryOverrides
+    func allOverrides() async throws -> [DeliveryCalendarOverride] {
+        try await primary.allOverrides()
     }
 
     func upsertOverride(_ override: DeliveryCalendarOverride) async throws -> DeliveryCalendarOverride {

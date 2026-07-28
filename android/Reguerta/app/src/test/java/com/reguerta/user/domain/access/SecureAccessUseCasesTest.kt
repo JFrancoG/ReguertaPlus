@@ -27,6 +27,7 @@ class SecureAccessUseCasesTest {
         assertEquals(listOf("uid_001"), repository.requestedAuthUids)
         assertTrue(result is AccessResolutionResult.Authorized)
         assertEquals(expected, (result as AccessResolutionResult.Authorized).member)
+        assertEquals("develop", result.environment)
     }
 
     @Test

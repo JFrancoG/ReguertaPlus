@@ -284,7 +284,8 @@ struct P101MemberFailureTests {
             principal: AuthPrincipal(uid: member.authUid ?? "auth_\(member.id)", email: member.normalizedEmail),
             authenticatedMember: member,
             member: member,
-            members: members
+            members: members,
+            environment: .develop
         )
     }
 

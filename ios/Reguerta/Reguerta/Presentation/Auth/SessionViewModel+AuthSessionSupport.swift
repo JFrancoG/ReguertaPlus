@@ -91,10 +91,11 @@ extension SessionViewModel {
             let result = try await resolveAuthorizedSession.execute(authPrincipal: principal)
             guard isCurrentSessionOperation(generation) else { return }
             switch result {
-            case .authorized(let member):
+            case .authorized(let member, let environment):
                 await applyAuthorizedSession(
                     principal: principal,
                     member: member,
+                    environment: environment,
                     generation: generation
                 )
             case .unauthorized(let reason):
@@ -281,6 +282,7 @@ extension SessionViewModel {
     private func applyAuthorizedSession(
         principal: AuthPrincipal,
         member: Member,
+        environment: SessionEnvironment,
         generation: UInt64
     ) async {
         let members: [Member]
@@ -301,7 +303,8 @@ extension SessionViewModel {
                 principal: principal,
                 authenticatedMember: member,
                 member: member,
-                members: members
+                members: members,
+                environment: environment
             )
         )
         showSessionExpiredDialog = false
@@ -340,7 +343,8 @@ extension SessionViewModel {
                     ? updatedMember
                     : session.authenticatedMember,
                 member: session.member.id == updatedMember.id ? updatedMember : session.member,
-                members: members
+                members: members,
+                environment: session.environment
             )
         )
     }
@@ -354,7 +358,8 @@ extension SessionViewModel {
                 authenticatedMember: refreshedMembers.first { $0.id == session.authenticatedMember.id }
                     ?? session.authenticatedMember,
                 member: refreshedMembers.first { $0.id == session.member.id } ?? session.member,
-                members: refreshedMembers
+                members: refreshedMembers,
+                environment: session.environment
             )
         )
     }

@@ -3,7 +3,6 @@ package com.reguerta.user.data.access
 import com.reguerta.user.domain.access.AuthorizedMemberResolution
 import com.reguerta.user.domain.access.AuthorizedMemberResolver
 import com.reguerta.user.domain.access.MemberRole
-import com.reguerta.user.domain.access.SessionEnvironmentRouter
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
@@ -16,7 +15,6 @@ import kotlinx.serialization.json.put
 internal class FirebaseAuthorizedMemberResolver(
     private val functionCaller: AuthenticatedFunctionCaller,
     private val requestedEnvironment: () -> String,
-    private val environmentRouter: SessionEnvironmentRouter,
 ) : AuthorizedMemberResolver {
     override suspend fun resolve(): AuthorizedMemberResolution {
         val response = try {
@@ -54,7 +52,6 @@ internal class FirebaseAuthorizedMemberResolver(
             ?.mapNotNull { element -> element.jsonPrimitive.contentOrNull.toMemberRoleOrNull() }
             ?.toSet()
             .orEmpty()
-        environmentRouter.applyResolvedEnvironment(environment)
         return AuthorizedMemberResolution.Authorized(
             memberId = memberId,
             roles = roles,

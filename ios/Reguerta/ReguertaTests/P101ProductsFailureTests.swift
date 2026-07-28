@@ -210,7 +210,8 @@ struct P101ProductsFailureTests {
             ),
             authenticatedMember: currentProducer,
             member: currentProducer,
-            members: [currentProducer]
+            members: [currentProducer],
+            environment: .develop
         )
         viewModel.sessionViewModel.mode = .authorized(reloggedSession)
         viewModel.handleSessionModeChange(.authorized(reloggedSession))
@@ -394,7 +395,8 @@ struct P101ProductsFailureTests {
             principal: AuthPrincipal(uid: "auth_\(newProducer.id)", email: newProducer.normalizedEmail),
             authenticatedMember: newProducer,
             member: newProducer,
-            members: [newProducer]
+            members: [newProducer],
+            environment: .develop
         )
         viewModel.sessionViewModel.mode = .authorized(newSession)
         viewModel.handleSessionModeChange(.authorized(newSession))

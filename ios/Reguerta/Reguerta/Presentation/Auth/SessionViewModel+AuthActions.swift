@@ -118,7 +118,8 @@ extension SessionViewModel {
                 principal: session.principal,
                 authenticatedMember: session.authenticatedMember,
                 member: target,
-                members: session.members
+                members: session.members,
+                environment: session.environment
             )
         )
     }
@@ -133,7 +134,8 @@ extension SessionViewModel {
                 principal: session.principal,
                 authenticatedMember: session.authenticatedMember,
                 member: session.authenticatedMember,
-                members: session.members
+                members: session.members,
+                environment: session.environment
             )
         )
     }

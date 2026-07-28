@@ -77,7 +77,7 @@ class SessionViewModel(
     private val authSessionProvider: AuthSessionProvider,
     private val resolveAuthorizedSession: ResolveAuthorizedSessionUseCase,
     private val upsertMemberByAdmin: UpsertMemberByAdminUseCase,
-    private val authorizedDeviceRegistrar: AuthorizedDeviceRegistrar = AuthorizedDeviceRegistrar { },
+    private val authorizedDeviceRegistrar: AuthorizedDeviceRegistrar = AuthorizedDeviceRegistrar { _, _, _ -> },
     private val pushNotificationPermissionProvider: PushNotificationPermissionProvider = PushNotificationPermissionProvider { true },
     private val resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase,
     private val criticalDataFreshnessLocalRepository: CriticalDataFreshnessLocalRepository,
@@ -158,7 +158,6 @@ class SessionViewModel(
             notificationRepository = notificationRepository,
             productRepository = productRepository,
             sharedProfileRepository = sharedProfileRepository,
-            shiftRepository = shiftRepository,
             authSessionProvider = authSessionProvider,
             resolveAuthorizedSession = resolveAuthorizedSession,
             authorizedDeviceRegistrar = authorizedDeviceRegistrar,
@@ -170,6 +169,8 @@ class SessionViewModel(
             getLastSessionRefreshAtMillis = { lastSessionRefreshAtMillis },
             setLastSessionRefreshAtMillis = { lastSessionRefreshAtMillis = it },
             nowMillisProvider = nowMillisProvider,
+            refreshShifts = { shiftActions.refreshShifts() },
+            refreshDeliveryCalendar = { shiftActions.refreshDeliveryCalendar() },
         )
     }
 
@@ -203,9 +204,24 @@ class SessionViewModel(
         val target = mode.members.firstOrNull { it.id == memberId && it.isActive } ?: return
         _uiState.update {
             it.copy(
+                sessionEpoch = it.sessionEpoch + 1,
                 mode = mode.copy(member = target),
+                shiftsFeed = emptyList(),
+                deliveryCalendarOverrides = emptyList(),
+                defaultDeliveryDayOfWeek = null,
+                shiftSwapRequests = emptyList(),
                 dismissedShiftSwapRequestIds = emptySet(),
+                acknowledgedShiftSwapRequestIds = emptySet(),
+                acknowledgedShiftSwapCreates = emptyMap(),
                 shiftSwapDraft = ShiftSwapDraft(),
+                nextDeliveryShift = null,
+                nextMarketShift = null,
+                isLoadingShifts = false,
+                isLoadingDeliveryCalendar = false,
+                isSavingDeliveryCalendar = false,
+                isSubmittingShiftPlanningRequest = false,
+                isSavingShiftSwapRequest = false,
+                isUpdatingShiftSwapRequest = false,
             )
         }
         refreshNews()
@@ -223,9 +239,24 @@ class SessionViewModel(
         if (mode.member.id == mode.authenticatedMember.id) return
         _uiState.update {
             it.copy(
+                sessionEpoch = it.sessionEpoch + 1,
                 mode = mode.copy(member = mode.authenticatedMember),
+                shiftsFeed = emptyList(),
+                deliveryCalendarOverrides = emptyList(),
+                defaultDeliveryDayOfWeek = null,
+                shiftSwapRequests = emptyList(),
                 dismissedShiftSwapRequestIds = emptySet(),
+                acknowledgedShiftSwapRequestIds = emptySet(),
+                acknowledgedShiftSwapCreates = emptyMap(),
                 shiftSwapDraft = ShiftSwapDraft(),
+                nextDeliveryShift = null,
+                nextMarketShift = null,
+                isLoadingShifts = false,
+                isLoadingDeliveryCalendar = false,
+                isSavingDeliveryCalendar = false,
+                isSubmittingShiftPlanningRequest = false,
+                isSavingShiftSwapRequest = false,
+                isUpdatingShiftSwapRequest = false,
             )
         }
         refreshNews()

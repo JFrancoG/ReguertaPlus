@@ -60,7 +60,7 @@ struct ReguertaTests {
             authPrincipal: AuthPrincipal(uid: "uid_admin_1", email: "ana.admin@reguerta.app")
         )
 
-        guard case .authorized(let member) = result else {
+        guard case .authorized(let member, _) = result else {
             Issue.record("Expected authorized session")
             return
         }
@@ -156,7 +156,7 @@ struct ReguertaTests {
             authPrincipal: AuthPrincipal(uid: "uid_admin_linked", email: "ana.admin@reguerta.app")
         )
 
-        guard case .authorized(let member) = result else {
+        guard case .authorized(let member, _) = result else {
             Issue.record("Expected linked authorization to succeed")
             return
         }

@@ -38,7 +38,9 @@ extension ShiftsFeatureViewModel {
     }
 
     var visibleShiftSwapActivity: VisibleShiftSwapActivity {
-        shiftSwapRequests.visibleShiftSwapActivity(
+        shiftSwapRequests
+            .filter { !acknowledgedShiftSwapRequestIds.contains($0.id) }
+            .visibleShiftSwapActivity(
             currentMemberId: currentMember?.id,
             dismissedRequestIds: dismissedShiftSwapRequestIds
         )
@@ -183,6 +185,15 @@ extension ShiftsFeatureViewModel {
     }
 
     func canRequestSwapForShift(_ shift: ShiftAssignment, currentMemberId: String) -> Bool {
+        let hasCanonicalOpenRequest = shiftSwapRequests.contains {
+            $0.requesterUserId == currentMemberId &&
+                $0.requestedShiftId == shift.id &&
+                $0.status == .open
+        }
+        let hasUnreconciledCreate = shiftSwapAcknowledgements.values.contains {
+            $0.blocksCreate(for: shift.id)
+        }
+        guard !hasCanonicalOpenRequest, !hasUnreconciledCreate else { return false }
         let effectiveMillis = effectiveDateMillis(for: shift)
         switch shift.type {
         case .delivery:

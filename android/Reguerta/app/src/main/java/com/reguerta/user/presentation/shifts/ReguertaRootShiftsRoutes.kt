@@ -58,6 +58,7 @@ fun ShiftsRoute(
     shifts: List<ShiftAssignment>,
     shiftSwapRequests: List<ShiftSwapRequest>,
     dismissedShiftSwapRequestIds: Set<String>,
+    acknowledgedShiftSwapCreates: Map<String, String>,
     deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
     currentMember: Member?,
     members: List<Member>,
@@ -87,6 +88,16 @@ fun ShiftsRoute(
         shiftSwapRequests.hasVisibleShiftSwapActivity(
             currentMemberId = currentMemberId,
             dismissedRequestIds = dismissedShiftSwapRequestIds,
+        )
+    }
+    val blockedShiftSwapShiftIds = remember(
+        shiftSwapRequests,
+        acknowledgedShiftSwapCreates,
+        currentMemberId,
+    ) {
+        shiftSwapRequests.blockedShiftSwapRequestShiftIds(
+            currentMemberId = currentMemberId,
+            acknowledgedCreates = acknowledgedShiftSwapCreates,
         )
     }
 
@@ -130,6 +141,7 @@ fun ShiftsRoute(
             currentMemberId = currentMemberId,
             nowMillis = nowMillis,
             isLoading = isLoading,
+            blockedShiftSwapShiftIds = blockedShiftSwapShiftIds,
             onRequestShiftSwap = onRequestShiftSwap,
         )
     }
@@ -296,6 +308,7 @@ private fun ShiftBoardSection(
     currentMemberId: String?,
     nowMillis: Long,
     isLoading: Boolean,
+    blockedShiftSwapShiftIds: Set<String>,
     onRequestShiftSwap: (String) -> Unit,
 ) {
     val boardShifts = when (selectedSegment) {
@@ -363,6 +376,7 @@ private fun ShiftBoardSection(
                             deliveryCalendarOverrides = deliveryCalendarOverrides,
                             members = members,
                             currentMemberId = currentMemberId,
+                            blockedShiftSwapShiftIds = blockedShiftSwapShiftIds,
                             containerColor = shift.boardCardContainerColor(boardWindow),
                             onRequestShiftSwap = onRequestShiftSwap,
                         )
@@ -426,6 +440,7 @@ private fun ShiftBoardCard(
     deliveryCalendarOverrides: List<DeliveryCalendarOverride>,
     members: List<Member>,
     currentMemberId: String?,
+    blockedShiftSwapShiftIds: Set<String>,
     containerColor: Color,
     onRequestShiftSwap: (String) -> Unit,
 ) {
@@ -435,8 +450,15 @@ private fun ShiftBoardCard(
     val primaryNames = shift.primaryBoardNames(members, resolvedHelperUserId)
     val leftLines = shift.leftBoardLines(deliveryCalendarOverrides)
     val leftAlignment = if (shift.type == ShiftType.MARKET) Alignment.CenterHorizontally else Alignment.Start
-    val canRequestShiftSwap = remember(shift, currentMemberId, deliveryCalendarOverrides) {
-        currentMemberId != null && shift.canBeRequestedBy(currentMemberId, deliveryCalendarOverrides)
+    val canRequestShiftSwap = remember(
+        shift,
+        currentMemberId,
+        deliveryCalendarOverrides,
+        blockedShiftSwapShiftIds,
+    ) {
+        currentMemberId != null &&
+            shift.id !in blockedShiftSwapShiftIds &&
+            shift.canBeRequestedBy(currentMemberId, deliveryCalendarOverrides)
     }
     val highlightedIndex = remember(shift, currentMemberId, resolvedHelperUserId) {
         currentMemberId?.let { shift.highlightedBoardNameIndex(it, resolvedHelperUserId) }

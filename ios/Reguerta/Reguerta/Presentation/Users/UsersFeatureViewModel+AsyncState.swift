@@ -120,7 +120,8 @@ extension UsersFeatureViewModel {
             principal: session.principal,
             authenticatedMember: publicAuthenticatedMember,
             member: publicCurrentMember,
-            members: publicMembers
+            members: publicMembers,
+            environment: session.environment
         )
     }
 

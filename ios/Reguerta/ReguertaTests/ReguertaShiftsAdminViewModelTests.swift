@@ -231,7 +231,7 @@ private final class RejectingDeliveryCalendarRepository: DeliveryCalendarReposit
         self.items = items
     }
 
-    func defaultDeliveryDayOfWeek() async -> DeliveryWeekday? {
+    func defaultDeliveryDayOfWeek() async -> DeliveryWeekday {
         .wednesday
     }
 
