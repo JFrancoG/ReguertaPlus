@@ -1,5 +1,7 @@
 package com.reguerta.user.presentation.auth
 
+import com.reguerta.user.domain.RepositoryErrorKind
+import com.reguerta.user.domain.RepositoryException
 import com.reguerta.user.domain.access.AuthPasswordResetResult
 import com.reguerta.user.domain.access.AuthPrincipal
 import com.reguerta.user.domain.access.AuthSessionProvider
@@ -16,9 +18,11 @@ import com.reguerta.user.domain.access.SessionEnvironmentRouter
 import com.reguerta.user.domain.access.SessionRefreshPolicy
 import com.reguerta.user.domain.access.SessionRefreshTrigger
 import com.reguerta.user.domain.devices.AuthorizedDeviceRegistrar
+import com.reguerta.user.domain.freshness.CriticalCollection
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessConfig
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessLocalRepository
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessMetadata
+import com.reguerta.user.domain.freshness.CriticalDataFreshnessMetadataWrite
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessRemoteRepository
 import com.reguerta.user.domain.freshness.ResolveCriticalDataFreshnessUseCase
 import com.reguerta.user.domain.news.NewsArticle
@@ -30,12 +34,14 @@ import com.reguerta.user.domain.products.ProductRepository
 import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.profiles.SharedProfileRepository
 import com.reguerta.user.presentation.root.MyOrderFreshnessUiState
+import com.reguerta.user.presentation.root.MY_ORDER_FRESHNESS_TIMEOUT_MILLIS
 import com.reguerta.user.presentation.root.SessionMode
 import com.reguerta.user.presentation.root.SessionUiState
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -381,6 +387,184 @@ class SessionAuthActionsConcurrencyTest {
         advanceUntilIdle()
 
         assertEquals(MyOrderFreshnessUiState.Ready, fixture.state.value.myOrderFreshnessState)
+        assertEquals(0, fixture.localFreshnessRepository.saveRequests)
+    }
+
+    @Test
+    fun `same email unauthorized session still refreshes critical data after authorization`() {
+        val principal = principal("same-email")
+        val currentMode = SessionMode.Unauthorized(
+            email = principal.email,
+            reason = com.reguerta.user.domain.access.UnauthorizedReason.USER_NOT_FOUND_IN_AUTHORIZED_USERS,
+        )
+
+        assertTrue(shouldRefreshCriticalDataFor(currentMode = currentMode, principal = principal))
+    }
+
+    @Test
+    fun `environment switch forces critical freshness check for the same principal`() = runTest {
+        val principal = principal("environment")
+        val member = member(principal)
+        val authProvider = ControlledAuthSessionProvider(
+            refreshResult = CompletableDeferred(AuthSessionRefreshResult.Active(principal)),
+        )
+        val freshnessRemoteRepository = RecordingCriticalDataFreshnessRemoteRepository()
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member).copy(
+                myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
+            ),
+            authProvider = authProvider,
+            authorizedMemberResolver = ProductionAuthorizedMemberResolver,
+            freshnessRemoteRepository = freshnessRemoteRepository,
+        )
+
+        fixture.actions.refreshSession(SessionRefreshTrigger.STARTUP)
+        advanceUntilIdle()
+
+        assertEquals("production", fixture.state.value.sessionEnvironment)
+        assertEquals(MyOrderFreshnessUiState.Ready, fixture.state.value.myOrderFreshnessState)
+        assertEquals(1, fixture.localFreshnessRepository.saveRequests)
+        assertEquals(listOf("production"), freshnessRemoteRepository.requestedEnvironments)
+    }
+
+    @Test
+    fun `freshness failure is unavailable and retry can recover`() = runTest {
+        val principal = principal("retry")
+        val repository = RecoveringCriticalDataFreshnessRemoteRepository()
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)),
+            authProvider = ControlledAuthSessionProvider(),
+            freshnessRemoteRepository = repository,
+        )
+
+        fixture.actions.refreshMyOrderFreshness()
+        advanceUntilIdle()
+        assertEquals(MyOrderFreshnessUiState.Unavailable, fixture.state.value.myOrderFreshnessState)
+        assertEquals(0, fixture.localFreshnessRepository.saveRequests)
+
+        fixture.actions.refreshMyOrderFreshness()
+        advanceUntilIdle()
+        assertEquals(MyOrderFreshnessUiState.Ready, fixture.state.value.myOrderFreshnessState)
+        assertEquals(1, fixture.localFreshnessRepository.saveRequests)
+        assertEquals(listOf("develop", "develop"), repository.requestedEnvironments)
+    }
+
+    @Test
+    fun `freshness timeout is explicit and does not persist metadata`() = runTest {
+        val principal = principal("timeout")
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)),
+            authProvider = ControlledAuthSessionProvider(),
+            freshnessRemoteRepository = DelayedCriticalDataFreshnessRemoteRepository,
+        )
+
+        fixture.actions.refreshMyOrderFreshness()
+        advanceUntilIdle()
+
+        assertEquals(MyOrderFreshnessUiState.TimedOut, fixture.state.value.myOrderFreshnessState)
+        assertEquals(0, fixture.localFreshnessRepository.saveRequests)
+    }
+
+    @Test
+    fun `session invalidation during a non cancellable metadata write rolls the stale write back`() = runTest {
+        val saveStarted = CompletableDeferred<Unit>()
+        val saveRelease = CompletableDeferred<Unit>()
+        val principal = principal("write-fence")
+        val localRepository = SuspendedCriticalDataFreshnessLocalRepository(
+            saveStarted = saveStarted,
+            saveRelease = saveRelease,
+            writeBeforeSuspension = false,
+        )
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)),
+            authProvider = ControlledAuthSessionProvider(),
+            localFreshnessRepository = localRepository,
+        )
+
+        fixture.actions.refreshMyOrderFreshness()
+        saveStarted.await()
+        fixture.state.value = fixture.state.value.copy(
+            sessionEpoch = fixture.state.value.sessionEpoch + 1,
+            myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
+        )
+        saveRelease.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(null, localRepository.storedMetadata)
+        assertEquals(1, localRepository.rollbackRequests)
+        assertEquals(MyOrderFreshnessUiState.Idle, fixture.state.value.myOrderFreshnessState)
+    }
+
+    @Test
+    fun `stale rollback never removes metadata written by a newer operation`() = runTest {
+        val saveStarted = CompletableDeferred<Unit>()
+        val saveRelease = CompletableDeferred<Unit>()
+        val principal = principal("write-replacement")
+        val localRepository = SuspendedCriticalDataFreshnessLocalRepository(
+            saveStarted = saveStarted,
+            saveRelease = saveRelease,
+            writeBeforeSuspension = true,
+        )
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)),
+            authProvider = ControlledAuthSessionProvider(),
+            localFreshnessRepository = localRepository,
+        )
+
+        fixture.actions.refreshMyOrderFreshness()
+        saveStarted.await()
+        fixture.state.value = fixture.state.value.copy(
+            sessionEpoch = fixture.state.value.sessionEpoch + 1,
+        )
+        val newerMetadata = validFreshnessMetadata(
+            environment = "develop",
+            validatedAtMillis = 9_000L,
+        )
+        localRepository.replaceWithNewerMetadata(newerMetadata)
+        saveRelease.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(newerMetadata, localRepository.storedMetadata)
+        assertEquals(1, localRepository.rollbackRequests)
+    }
+
+    @Test
+    fun `retry generation can commit while an older non cancellable write unwinds`() = runTest {
+        val firstSaveStarted = CompletableDeferred<Unit>()
+        val firstSaveRelease = CompletableDeferred<Unit>()
+        val secondSaveCompleted = CompletableDeferred<Unit>()
+        val principal = principal("write-generation")
+        val localRepository = SupersededWriteCriticalDataFreshnessLocalRepository(
+            firstSaveStarted = firstSaveStarted,
+            firstSaveRelease = firstSaveRelease,
+            secondSaveCompleted = secondSaveCompleted,
+        )
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)),
+            authProvider = ControlledAuthSessionProvider(),
+            freshnessRemoteRepository = ChangingCriticalDataFreshnessRemoteRepository(),
+            localFreshnessRepository = localRepository,
+        )
+
+        fixture.actions.refreshMyOrderFreshness()
+        firstSaveStarted.await()
+        fixture.actions.refreshMyOrderFreshness()
+        secondSaveCompleted.await()
+        firstSaveRelease.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(
+            CriticalCollection.entries.associateWith { 3_000L },
+            localRepository.storedMetadata?.acknowledgedTimestampsMillis,
+        )
+        assertEquals(1, localRepository.rollbackRequests)
+        assertEquals(MyOrderFreshnessUiState.Ready, fixture.state.value.myOrderFreshnessState)
     }
 
     @Test
@@ -532,6 +716,7 @@ private data class AuthFixture(
     val state: MutableStateFlow<SessionUiState>,
     val environmentRouter: RecordingSessionEnvironmentRouter,
     val deviceRegistrar: TestAuthorizedDeviceRegistrar,
+    val localFreshnessRepository: TestCriticalDataFreshnessLocalRepository,
     val shiftRefreshesProvider: () -> Int,
     val isRefreshInFlightProvider: () -> Boolean,
     val lastRefreshAtMillisProvider: () -> Long?,
@@ -598,6 +783,7 @@ private fun fixture(
         state = stateFlow,
         environmentRouter = environmentRouter,
         deviceRegistrar = deviceRegistrar,
+        localFreshnessRepository = localFreshnessRepository,
         shiftRefreshesProvider = { shiftRefreshes },
         isRefreshInFlightProvider = isSessionRefreshInFlight::get,
         lastRefreshAtMillisProvider = { lastRefreshAtMillis },
@@ -716,6 +902,16 @@ private object AlwaysAuthorizedMemberResolver : AuthorizedMemberResolver {
     )
 }
 
+private object ProductionAuthorizedMemberResolver : AuthorizedMemberResolver {
+    override suspend fun resolve(): AuthorizedMemberResolution = AuthorizedMemberResolution.Authorized(
+        memberId = "member",
+        roles = setOf(MemberRole.MEMBER),
+        isActive = true,
+        environment = "production",
+        firstLoginLinked = false,
+    )
+}
+
 private class ControlledAuthorizedMemberResolver(
     private val started: CompletableDeferred<Unit>,
     private val release: CompletableDeferred<Unit>,
@@ -763,32 +959,97 @@ private object EmptySharedProfileRepository : SharedProfileRepository {
 }
 
 private object EmptyCriticalDataFreshnessRemoteRepository : CriticalDataFreshnessRemoteRepository {
-    override suspend fun getConfig(): CriticalDataFreshnessConfig? = null
+    override suspend fun getConfig(environment: String): CriticalDataFreshnessConfig = validFreshnessConfig()
+}
+
+private class RecordingCriticalDataFreshnessRemoteRepository : CriticalDataFreshnessRemoteRepository {
+    val requestedEnvironments = mutableListOf<String>()
+
+    override suspend fun getConfig(environment: String): CriticalDataFreshnessConfig {
+        requestedEnvironments += environment
+        return validFreshnessConfig()
+    }
+}
+
+private class ChangingCriticalDataFreshnessRemoteRepository : CriticalDataFreshnessRemoteRepository {
+    private var requestCount = 0
+
+    override suspend fun getConfig(environment: String): CriticalDataFreshnessConfig {
+        requestCount += 1
+        return CriticalDataFreshnessConfig(
+            cacheExpirationMinutes = 15,
+            remoteTimestampsMillis = CriticalCollection.entries.associateWith {
+                if (requestCount == 1) 2_000L else 3_000L
+            },
+        )
+    }
+}
+
+private class RecoveringCriticalDataFreshnessRemoteRepository : CriticalDataFreshnessRemoteRepository {
+    val requestedEnvironments = mutableListOf<String>()
+
+    override suspend fun getConfig(environment: String): CriticalDataFreshnessConfig {
+        requestedEnvironments += environment
+        if (requestedEnvironments.size == 1) {
+            throw RepositoryException(
+                kind = RepositoryErrorKind.UNAVAILABLE,
+                resource = "criticalDataFreshness.config",
+            )
+        }
+        return validFreshnessConfig()
+    }
+}
+
+private object DelayedCriticalDataFreshnessRemoteRepository : CriticalDataFreshnessRemoteRepository {
+    override suspend fun getConfig(environment: String): CriticalDataFreshnessConfig {
+        delay(MY_ORDER_FRESHNESS_TIMEOUT_MILLIS + 1)
+        return validFreshnessConfig()
+    }
 }
 
 private class ControlledCriticalDataFreshnessRemoteRepository(
     private val started: CompletableDeferred<Unit>,
     private val release: CompletableDeferred<Unit>,
 ) : CriticalDataFreshnessRemoteRepository {
-    override suspend fun getConfig(): CriticalDataFreshnessConfig? {
+    override suspend fun getConfig(environment: String): CriticalDataFreshnessConfig {
         started.complete(Unit)
         withContext(NonCancellable) {
             release.await()
         }
-        return null
+        return validFreshnessConfig()
     }
 }
 
-private class TestCriticalDataFreshnessLocalRepository(
+private open class TestCriticalDataFreshnessLocalRepository(
     private val clearStarted: CompletableDeferred<Unit>? = null,
     private val clearRelease: CompletableDeferred<Unit>? = null,
 ) : CriticalDataFreshnessLocalRepository {
     var clearRequests = 0
+    var saveRequests = 0
+    var storedMetadata: CriticalDataFreshnessMetadata? = null
+    private var currentWriteId: String? = null
 
-    override suspend fun getMetadata(): CriticalDataFreshnessMetadata? = null
-    override suspend fun saveMetadata(metadata: CriticalDataFreshnessMetadata) = Unit
+    override suspend fun getMetadata(): CriticalDataFreshnessMetadata? = storedMetadata
+    override suspend fun saveMetadataIfCurrent(
+        write: CriticalDataFreshnessMetadataWrite,
+        isCurrent: () -> Boolean,
+    ): Boolean {
+        if (!isCurrent()) return false
+        saveRequests += 1
+        currentWriteId = write.id
+        storedMetadata = write.metadata
+        return true
+    }
+    override suspend fun rollbackMetadata(write: CriticalDataFreshnessMetadataWrite) {
+        if (currentWriteId == write.id) {
+            currentWriteId = null
+            storedMetadata = null
+        }
+    }
     override suspend fun clear() {
         clearRequests += 1
+        currentWriteId = null
+        storedMetadata = null
         clearStarted?.complete(Unit)
         clearRelease?.let { gate ->
             withContext(NonCancellable) {
@@ -797,6 +1058,108 @@ private class TestCriticalDataFreshnessLocalRepository(
         }
     }
 }
+
+private class SuspendedCriticalDataFreshnessLocalRepository(
+    private val saveStarted: CompletableDeferred<Unit>,
+    private val saveRelease: CompletableDeferred<Unit>,
+    private val writeBeforeSuspension: Boolean,
+) : TestCriticalDataFreshnessLocalRepository() {
+    var rollbackRequests = 0
+        private set
+    private var suspendedWriteId: String? = null
+
+    override suspend fun saveMetadataIfCurrent(
+        write: CriticalDataFreshnessMetadataWrite,
+        isCurrent: () -> Boolean,
+    ): Boolean {
+        if (!isCurrent()) return false
+        if (writeBeforeSuspension) {
+            suspendedWriteId = write.id
+            storedMetadata = write.metadata
+        }
+        saveStarted.complete(Unit)
+        withContext(NonCancellable) {
+            saveRelease.await()
+        }
+        if (!writeBeforeSuspension) {
+            suspendedWriteId = write.id
+            storedMetadata = write.metadata
+        }
+        return true
+    }
+
+    override suspend fun rollbackMetadata(write: CriticalDataFreshnessMetadataWrite) {
+        rollbackRequests += 1
+        if (suspendedWriteId == write.id) {
+            suspendedWriteId = null
+            storedMetadata = null
+        }
+    }
+
+    override suspend fun clear() {
+        suspendedWriteId = null
+        storedMetadata = null
+    }
+
+    fun replaceWithNewerMetadata(metadata: CriticalDataFreshnessMetadata) {
+        suspendedWriteId = "newer-write"
+        storedMetadata = metadata
+    }
+}
+
+private class SupersededWriteCriticalDataFreshnessLocalRepository(
+    private val firstSaveStarted: CompletableDeferred<Unit>,
+    private val firstSaveRelease: CompletableDeferred<Unit>,
+    private val secondSaveCompleted: CompletableDeferred<Unit>,
+) : TestCriticalDataFreshnessLocalRepository() {
+    var rollbackRequests = 0
+        private set
+    private var saveCount = 0
+    private var currentWriteId: String? = null
+
+    override suspend fun saveMetadataIfCurrent(
+        write: CriticalDataFreshnessMetadataWrite,
+        isCurrent: () -> Boolean,
+    ): Boolean {
+        if (!isCurrent()) return false
+        saveCount += 1
+        currentWriteId = write.id
+        storedMetadata = write.metadata
+        if (saveCount == 1) {
+            firstSaveStarted.complete(Unit)
+            withContext(NonCancellable) {
+                firstSaveRelease.await()
+            }
+        } else {
+            secondSaveCompleted.complete(Unit)
+        }
+        return true
+    }
+
+    override suspend fun rollbackMetadata(write: CriticalDataFreshnessMetadataWrite) {
+        rollbackRequests += 1
+        if (currentWriteId == write.id) {
+            currentWriteId = null
+            storedMetadata = null
+        }
+    }
+}
+
+private fun validFreshnessConfig() = CriticalDataFreshnessConfig(
+    cacheExpirationMinutes = 15,
+    remoteTimestampsMillis = com.reguerta.user.domain.freshness.CriticalCollection.entries
+        .associateWith { 2_000L },
+)
+
+private fun validFreshnessMetadata(
+    environment: String,
+    validatedAtMillis: Long,
+) = CriticalDataFreshnessMetadata(
+    environment = environment,
+    validatedAtMillis = validatedAtMillis,
+    acknowledgedTimestampsMillis = com.reguerta.user.domain.freshness.CriticalCollection.entries
+        .associateWith { 2_000L },
+)
 
 private class RecordingSessionEnvironmentRouter : SessionEnvironmentRouter {
     var currentEnvironment: String? = null

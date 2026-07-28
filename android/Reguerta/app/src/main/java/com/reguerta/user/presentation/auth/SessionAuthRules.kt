@@ -10,7 +10,7 @@ internal fun shouldRefreshCriticalDataFor(
     principal: AuthPrincipal,
 ): Boolean = when (currentMode) {
     SessionMode.SignedOut -> true
-    is SessionMode.Unauthorized -> currentMode.email != principal.email
+    is SessionMode.Unauthorized -> true
     is SessionMode.Authorized -> currentMode.principal.uid != principal.uid
 }
 

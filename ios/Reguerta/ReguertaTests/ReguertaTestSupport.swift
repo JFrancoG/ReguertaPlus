@@ -304,16 +304,22 @@ let may2026HomeSummaryMembers = [
 struct FixedStartupVersionPolicyRepository: StartupVersionPolicyRepository {
     let policy: StartupVersionPolicy?
 
-    func policy(for platform: StartupPlatform) async -> StartupVersionPolicy? {
-        policy
+    func policy(for platform: StartupPlatform) async throws -> StartupVersionPolicy {
+        guard let policy else {
+            throw RepositoryError.notFound(resource: "config.public")
+        }
+        return policy
     }
 }
 
 struct FixedCriticalDataFreshnessRemoteRepository: CriticalDataFreshnessRemoteRepository {
     let config: CriticalDataFreshnessConfig?
 
-    func getConfig() async -> CriticalDataFreshnessConfig? {
-        config
+    func getConfig(environment: SessionEnvironment) async throws -> CriticalDataFreshnessConfig {
+        guard let config else {
+            throw RepositoryError.notFound(resource: "config.member")
+        }
+        return config
     }
 }
 

@@ -65,7 +65,7 @@ extension ShiftsFeatureViewModel {
         respondToShiftSwapRequest(requestId: requestId, candidateShiftId: candidateShiftId, responseStatus: .unavailable)
     }
 
-    func cancelShiftSwapRequest(requestId: String) {
+    func cancelShiftSwapRequest(requestId: String) async {
         guard let context = authorizedSessionContext,
               !acknowledgedShiftSwapRequestIds.contains(requestId),
               let request = shiftSwapRequests.first(where: { $0.id == requestId }) else { return }
@@ -84,23 +84,21 @@ extension ShiftsFeatureViewModel {
                 confirmedAtMillis: request.confirmedAtMillis,
                 appliedAtMillis: request.appliedAtMillis
         )
-        Task { @MainActor in
-            defer { finishSwapMutation(mutationOperationId, context: context) }
-            let result: ShiftSwapTransitionResult
-            do {
-                result = try await shiftSwapRequestRepository.transition(.cancel(request: cancelled))
-            } catch is CancellationError {
-                return
-            } catch {
-                if isCurrentSwapMutation(mutationOperationId, context: context) {
-                    feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
-                }
-                return
+        defer { finishSwapMutation(mutationOperationId, context: context) }
+        let result: ShiftSwapTransitionResult
+        do {
+            result = try await shiftSwapRequestRepository.transition(.cancel(request: cancelled))
+        } catch is CancellationError {
+            return
+        } catch {
+            if isCurrentSwapMutation(mutationOperationId, context: context) {
+                feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
             }
-            guard isCurrentSwapMutation(mutationOperationId, context: context) else { return }
-            shiftSwapAcknowledgements[result.requestId] = .cancel
-            await refreshShiftSwapState(for: context)
+            return
         }
+        guard isCurrentSwapMutation(mutationOperationId, context: context) else { return }
+        shiftSwapAcknowledgements[result.requestId] = .cancel
+        await refreshShiftSwapState(for: context)
     }
 
     func confirmShiftSwapRequest(requestId: String, candidateShiftId: String) {

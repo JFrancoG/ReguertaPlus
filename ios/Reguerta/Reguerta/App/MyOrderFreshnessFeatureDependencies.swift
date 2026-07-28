@@ -61,8 +61,11 @@ struct MyOrderFreshnessFeatureDependencies {
 private struct PreviewCriticalDataFreshnessRemoteRepository: CriticalDataFreshnessRemoteRepository {
     let config: CriticalDataFreshnessConfig?
 
-    func getConfig() async -> CriticalDataFreshnessConfig? {
-        config
+    func getConfig(environment: SessionEnvironment) async throws -> CriticalDataFreshnessConfig {
+        guard let config else {
+            throw RepositoryError.notFound(resource: "config.member")
+        }
+        return config
     }
 }
 

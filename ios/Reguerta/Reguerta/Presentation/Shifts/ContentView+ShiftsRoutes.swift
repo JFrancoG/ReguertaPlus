@@ -347,7 +347,9 @@ private struct ShiftSwapRequestsCardView: View {
                         .font(tokens.typography.label)
                         .foregroundStyle(tokens.colors.textSecondary)
                     reguertaButton(LocalizedStringKey(shiftSwapCopy.cancel), variant: .text, fullWidth: false) {
-                        viewModel.cancelShiftSwapRequest(requestId: request.id)
+                        Task {
+                            await viewModel.cancelShiftSwapRequest(requestId: request.id)
+                        }
                     }
                 }
                 .padding(tokens.spacing.sm)

@@ -31,7 +31,6 @@ import com.reguerta.user.data.startup.FirestoreStartupVersionPolicyRepository
 import com.reguerta.user.domain.access.SessionRefreshTrigger
 import com.reguerta.user.domain.startup.ResolveStartupVersionGateUseCase
 import com.reguerta.user.domain.startup.StartupPlatform
-import com.reguerta.user.domain.startup.StartupVersionGateDecision
 import com.reguerta.user.presentation.auth.AuthShellAction
 import com.reguerta.user.presentation.auth.AuthShellRoute
 import com.reguerta.user.presentation.auth.AuthShellState
@@ -46,7 +45,6 @@ import com.reguerta.user.ui.components.auth.ReguertaDialogAction
 import com.reguerta.user.ui.components.auth.ReguertaDialogType
 import com.reguerta.user.ui.theme.AppAppearance
 import com.reguerta.user.ui.theme.ReguertaThemeTokens
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration.Companion.milliseconds
 
 private val StartupPolicyFetchTimeout = 2_500.milliseconds
@@ -78,26 +76,17 @@ fun ReguertaRoot(
     var startupGateState by remember {
         mutableStateOf<StartupGateUiState>(StartupGateUiState.Checking)
     }
+    var startupGateRetryGeneration by remember { mutableStateOf(0) }
     val isAuthenticatedSession = (
         state.mode is SessionMode.Authorized || state.mode is SessionMode.Unauthorized
     )
 
-    LaunchedEffect(startupVersionGateResolver) {
-        val decision = withTimeoutOrNull(StartupPolicyFetchTimeout) {
+    LaunchedEffect(startupVersionGateResolver, startupGateRetryGeneration) {
+        startupGateState = StartupGateUiState.Checking
+        startupGateState = resolveStartupGateUiState(timeout = StartupPolicyFetchTimeout) {
             startupVersionGateResolver(
                 platform = StartupPlatform.ANDROID,
                 installedVersion = installedVersion,
-            )
-        } ?: StartupVersionGateDecision.Allow
-
-        startupGateState = when (decision) {
-            StartupVersionGateDecision.Allow -> StartupGateUiState.Ready
-            is StartupVersionGateDecision.OptionalUpdate -> StartupGateUiState.OptionalUpdate(
-                storeUrl = decision.storeUrl,
-            )
-
-            is StartupVersionGateDecision.ForcedUpdate -> StartupGateUiState.ForcedUpdate(
-                storeUrl = decision.storeUrl,
             )
         }
     }
@@ -441,7 +430,13 @@ fun ReguertaRoot(
                             openStoreUrl(context = context, storeUrl = storeUrl)
                         },
                         onDismissOptional = {
-                            startupGateState = StartupGateUiState.OptionalDismissed
+                            startupGateState = StartupGateUiState.Ready
+                        },
+                        onRetry = {
+                            startupGateRetryGeneration += 1
+                        },
+                        onContinue = {
+                            startupGateState = StartupGateUiState.Ready
                         },
                     )
                 }

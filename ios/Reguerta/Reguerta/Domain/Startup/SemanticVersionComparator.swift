@@ -28,6 +28,13 @@ enum SemanticVersionComparator {
             return nil
         }
 
-        return value.split(separator: ".").compactMap { Int($0) }
+        var components: [Int] = []
+        for component in value.split(separator: ".") {
+            guard let parsed = Int(component) else {
+                return nil
+            }
+            components.append(parsed)
+        }
+        return components
     }
 }

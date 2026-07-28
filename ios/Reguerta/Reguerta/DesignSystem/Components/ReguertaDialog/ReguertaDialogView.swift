@@ -2,6 +2,8 @@ import SwiftUI
 
 struct ReguertaDialogView: View {
     @Environment(\.reguertaTokens) private var tokens
+    @AccessibilityFocusState private var isTitleFocused: Bool
+    @State private var cardFrame = CGRect.infinite
 
     let viewModel: ReguertaDialogViewModel
 
@@ -9,40 +11,87 @@ struct ReguertaDialogView: View {
         ZStack {
             Color("dialogBack")
                 .ignoresSafeArea()
-                .onTapGesture(perform: dismissIfAllowed)
+                .accessibilityHidden(true)
 
-            VStack(spacing: tokens.spacing.md) {
-                ReguertaDialogIconView(viewModel: viewModel)
+            ScrollView {
+                VStack(spacing: tokens.spacing.md) {
+                    ReguertaDialogIconView(viewModel: viewModel)
+                        .accessibilityHidden(true)
 
-                Text(viewModel.title)
-                    .font(tokens.typography.titleDialog)
-                    .foregroundStyle(tokens.colors.textPrimary)
-                    .multilineTextAlignment(.center)
+                    Text(viewModel.title)
+                        .font(tokens.typography.titleDialog)
+                        .foregroundStyle(tokens.colors.textPrimary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityFocused($isTitleFocused)
 
-                Text(viewModel.message)
-                    .font(tokens.typography.bodyDialog)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                    .multilineTextAlignment(.center)
+                    Text(viewModel.message)
+                        .font(tokens.typography.bodyDialog)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
 
-                ReguertaDialogActionsView(viewModel: viewModel)
-                    .padding(.top, tokens.spacing.sm)
+                    ReguertaDialogActionsView(viewModel: viewModel)
+                        .padding(.top, tokens.spacing.sm)
+                }
+                .padding(tokens.spacing.lg)
+                .frame(maxWidth: 360)
+                .background(tokens.colors.surfacePrimary)
+                .overlay(
+                    RoundedRectangle(cornerRadius: tokens.radius.lg)
+                        .stroke(tokens.colors.borderSubtle, lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: tokens.radius.lg))
+                .background {
+                    GeometryReader { proxy in
+                        Color.clear.preference(
+                            key: ReguertaDialogCardFramePreferenceKey.self,
+                            value: proxy.frame(in: .named(ReguertaDialogCoordinateSpace.name))
+                        )
+                    }
+                }
+                .padding(tokens.spacing.lg)
             }
-            .padding(tokens.spacing.lg)
-            .frame(maxWidth: 360)
-            .background(tokens.colors.surfacePrimary)
-            .overlay(
-                RoundedRectangle(cornerRadius: tokens.radius.lg)
-                    .stroke(tokens.colors.borderSubtle, lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: tokens.radius.lg))
-            .padding(tokens.spacing.lg)
+            .scrollBounceBehavior(.basedOnSize)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .coordinateSpace(name: ReguertaDialogCoordinateSpace.name)
+        .onPreferenceChange(ReguertaDialogCardFramePreferenceKey.self) {
+            cardFrame = $0
+        }
+        .simultaneousGesture(
+            SpatialTapGesture(coordinateSpace: .named(ReguertaDialogCoordinateSpace.name))
+                .onEnded { event in
+                    guard !cardFrame.contains(event.location) else { return }
+                    dismissIfAllowed()
+                }
+        )
+        .accessibilityElement(children: .contain)
+        .accessibilityAddTraits(.isModal)
+        .onAppear {
+            isTitleFocused = true
+        }
+        .onChange(of: viewModel.title) {
+            isTitleFocused = true
+        }
     }
 
     private func dismissIfAllowed() {
         guard viewModel.dismissible else { return }
         viewModel.onDismiss?()
+    }
+}
+
+private enum ReguertaDialogCoordinateSpace {
+    static let name = "reguerta-dialog-overlay"
+}
+
+private struct ReguertaDialogCardFramePreferenceKey: PreferenceKey {
+    static let defaultValue = CGRect.infinite
+
+    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
+        value = nextValue()
     }
 }
 
@@ -71,28 +120,36 @@ private struct ReguertaDialogIconView: View {
 
 private struct ReguertaDialogActionsView: View {
     @Environment(\.reguertaTokens) private var tokens
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let viewModel: ReguertaDialogViewModel
 
     var body: some View {
         if let secondaryAction = viewModel.secondaryAction {
-            HStack(spacing: tokens.spacing.sm) {
-                reguertaButton(
-                    LocalizedStringKey(secondaryAction.title),
-                    variant: .secondary,
-                    fullWidth: false,
-                    fixedWidth: tokens.button.dialogTwoButtonsWidth
-                ) {
-                    secondaryAction.action()
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(spacing: tokens.spacing.sm) {
+                    dialogActionButton(viewModel.primaryAction, variant: viewModel.primaryButtonVariant)
+                    dialogActionButton(secondaryAction, variant: .secondary)
                 }
+            } else {
+                HStack(spacing: tokens.spacing.sm) {
+                    reguertaButton(
+                        LocalizedStringKey(secondaryAction.title),
+                        variant: .secondary,
+                        fullWidth: false,
+                        fixedWidth: tokens.button.dialogTwoButtonsWidth
+                    ) {
+                        secondaryAction.action()
+                    }
 
-                reguertaButton(
-                    LocalizedStringKey(viewModel.primaryAction.title),
-                    variant: viewModel.primaryButtonVariant,
-                    fullWidth: false,
-                    fixedWidth: tokens.button.dialogTwoButtonsWidth
-                ) {
-                    viewModel.primaryAction.action()
+                    reguertaButton(
+                        LocalizedStringKey(viewModel.primaryAction.title),
+                        variant: viewModel.primaryButtonVariant,
+                        fullWidth: false,
+                        fixedWidth: tokens.button.dialogTwoButtonsWidth
+                    ) {
+                        viewModel.primaryAction.action()
+                    }
                 }
             }
         } else {
@@ -106,9 +163,23 @@ private struct ReguertaDialogActionsView: View {
             }
         }
     }
+
+    private func dialogActionButton(
+        _ action: ReguertaDialogAction,
+        variant: ReguertaButtonVariant
+    ) -> some View {
+        reguertaButton(
+            LocalizedStringKey(action.title),
+            variant: variant,
+            fullWidth: true,
+            fixedWidth: nil
+        ) {
+            action.action()
+        }
+    }
 }
 
-#Preview("ReguertaDialog") {
+#Preview("ReguertaDialog", traits: .modifier(ReguertaDesignSystemPreviewModifier())) {
     reguertaDialog(
         type: .info,
         title: "Dialog title",

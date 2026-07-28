@@ -30,6 +30,7 @@ import com.reguerta.user.domain.access.SessionEnvironmentRouter
 import com.reguerta.user.domain.access.UnauthorizedReason
 import com.reguerta.user.domain.devices.AuthorizedDeviceRegistrar
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessLocalRepository
+import com.reguerta.user.domain.freshness.CriticalDataFreshnessMetadataWrite
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessResolution
 import com.reguerta.user.domain.freshness.ResolveCriticalDataFreshnessUseCase
 import com.reguerta.user.domain.news.NewsRepository
@@ -41,12 +42,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withTimeout
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.UUID
 
 internal class SessionAuthActions(
     private val uiState: MutableStateFlow<SessionUiState>,
@@ -75,6 +78,9 @@ internal class SessionAuthActions(
     private var sessionOperationOwner: Any? = null
     private var sessionOperationJob: Job? = null
     private var sessionOperationKind: SessionAuthOperationKind? = null
+    private val freshnessOperationLock = Any()
+    private var freshnessOperationGeneration = 0L
+    private var freshnessOperationJob: Job? = null
 
     fun signIn() {
         val currentState = uiState.value
@@ -301,6 +307,7 @@ internal class SessionAuthActions(
     }
 
     fun signOut() {
+        cancelMyOrderFreshness()
         val cleanupJob = ownSessionTerminationCleanup {
             criticalDataFreshnessLocalRepository.clear()
         }
@@ -389,27 +396,140 @@ internal class SessionAuthActions(
     }
 
     fun refreshMyOrderFreshness() {
-        val currentMode = uiState.value.mode as? SessionMode.Authorized ?: return
-        val currentSessionEpoch = uiState.value.sessionEpoch
-        uiState.update { it.copy(myOrderFreshnessState = MyOrderFreshnessUiState.Checking) }
-
-        scope.launch {
-            val resolution = withTimeoutOrNull(MY_ORDER_FRESHNESS_TIMEOUT_MILLIS) {
-                resolveCriticalDataFreshness()
-            }
-
-            val nextState = when (resolution) {
-                null -> MyOrderFreshnessUiState.TimedOut
-                CriticalDataFreshnessResolution.Fresh -> MyOrderFreshnessUiState.Ready
-                CriticalDataFreshnessResolution.InvalidConfig -> MyOrderFreshnessUiState.Unavailable
-            }
-
-            uiState.update { state ->
-                if (state.mode != currentMode || state.sessionEpoch != currentSessionEpoch) {
-                    state
+        val state = uiState.value
+        val currentMode = state.mode as? SessionMode.Authorized ?: return
+        val sessionEnvironment = state.sessionEnvironment ?: run {
+            cancelMyOrderFreshness()
+            uiState.update { current ->
+                if (current.mode is SessionMode.Authorized) {
+                    current.copy(myOrderFreshnessState = MyOrderFreshnessUiState.Unavailable)
                 } else {
-                    state.copy(myOrderFreshnessState = nextState)
+                    current
                 }
+            }
+            return
+        }
+        lateinit var operation: FreshnessOperation
+        lateinit var job: Job
+        synchronized(freshnessOperationLock) {
+            freshnessOperationJob?.cancel()
+            freshnessOperationGeneration += 1
+            operation = FreshnessOperation(
+                generation = freshnessOperationGeneration,
+                principalUid = currentMode.principal.uid,
+                sessionEnvironment = sessionEnvironment,
+                sessionEpoch = state.sessionEpoch,
+            )
+            job = scope.launch(start = CoroutineStart.LAZY) {
+                runMyOrderFreshness(operation)
+            }
+            freshnessOperationJob = job
+        }
+        updateMyOrderFreshnessIfCurrent(operation, MyOrderFreshnessUiState.Checking)
+        job.invokeOnCompletion { releaseFreshnessOperation(operation, job) }
+        job.start()
+    }
+
+    private suspend fun runMyOrderFreshness(operation: FreshnessOperation) {
+        if (!isCurrentFreshnessOperation(operation)) return
+        var pendingWrite: CriticalDataFreshnessMetadataWrite? = null
+        try {
+            val completedForCurrentSession = withTimeout(MY_ORDER_FRESHNESS_TIMEOUT_MILLIS) {
+                val resolution = resolveCriticalDataFreshness(
+                    environment = operation.sessionEnvironment,
+                )
+                if (!isCurrentFreshnessOperation(operation)) {
+                    return@withTimeout false
+                }
+                when (resolution) {
+                    is CriticalDataFreshnessResolution.Fresh -> {
+                        resolution.metadataToPersist?.let { metadata ->
+                            val write = CriticalDataFreshnessMetadataWrite(
+                                id = UUID.randomUUID().toString(),
+                                metadata = metadata,
+                            )
+                            pendingWrite = write
+                            val didSave = criticalDataFreshnessLocalRepository.saveMetadataIfCurrent(
+                                write = write,
+                                isCurrent = { isCurrentFreshnessOperation(operation) },
+                            )
+                            if (!didSave) {
+                                pendingWrite = null
+                                return@withTimeout false
+                            }
+                        }
+                    }
+                }
+                isCurrentFreshnessOperation(operation)
+            }
+            if (completedForCurrentSession) {
+                if (updateMyOrderFreshnessIfCurrent(operation, MyOrderFreshnessUiState.Ready)) {
+                    pendingWrite = null
+                }
+            }
+        } catch (_: TimeoutCancellationException) {
+            updateMyOrderFreshnessIfCurrent(operation, MyOrderFreshnessUiState.TimedOut)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            updateMyOrderFreshnessIfCurrent(operation, MyOrderFreshnessUiState.Unavailable)
+        } finally {
+            pendingWrite?.let { write ->
+                try {
+                    withContext(NonCancellable) {
+                        criticalDataFreshnessLocalRepository.rollbackMetadata(write)
+                    }
+                } catch (_: Exception) {
+                    // A failed conditional rollback must not replace the original operation outcome.
+                }
+            }
+        }
+    }
+
+    private fun updateMyOrderFreshnessIfCurrent(
+        operation: FreshnessOperation,
+        nextState: MyOrderFreshnessUiState,
+    ): Boolean {
+        uiState.update { state ->
+            if (isCurrentFreshnessOperation(operation, state)) {
+                state.copy(myOrderFreshnessState = nextState)
+            } else {
+                state
+            }
+        }
+        return isCurrentFreshnessOperation(operation) &&
+            uiState.value.myOrderFreshnessState == nextState
+    }
+
+    private fun isCurrentFreshnessOperation(
+        operation: FreshnessOperation,
+        state: SessionUiState = uiState.value,
+    ): Boolean {
+        val currentMode = state.mode as? SessionMode.Authorized ?: return false
+        val isCurrentGeneration = synchronized(freshnessOperationLock) {
+            freshnessOperationGeneration == operation.generation
+        }
+        return isCurrentGeneration &&
+            state.sessionEpoch == operation.sessionEpoch &&
+            currentMode.principal.uid == operation.principalUid &&
+            state.sessionEnvironment == operation.sessionEnvironment
+    }
+
+    private fun cancelMyOrderFreshness() {
+        synchronized(freshnessOperationLock) {
+            freshnessOperationGeneration += 1
+            freshnessOperationJob?.cancel()
+            freshnessOperationJob = null
+        }
+    }
+
+    private fun releaseFreshnessOperation(operation: FreshnessOperation, job: Job) {
+        synchronized(freshnessOperationLock) {
+            if (
+                freshnessOperationGeneration == operation.generation &&
+                freshnessOperationJob === job
+            ) {
+                freshnessOperationJob = null
             }
         }
     }
@@ -624,6 +744,7 @@ internal class SessionAuthActions(
                 val sharedProfiles = sharedProfileRepository.getAllSharedProfiles()
                 if (!isCurrentSessionOperation(operation)) return abandonStaleAuthorizedSession()
                 val ownSharedProfile = sharedProfiles.firstOrNull { it.userId == result.member.id }
+                var refreshCriticalDataForAppliedSession = shouldRefreshCriticalData
                 if (!updateUiStateIfCurrent(operation) {
                     val currentMode = it.mode as? SessionMode.Authorized
                     val accessTransition = resolveAuthorizedSessionAccessTransition(
@@ -633,6 +754,8 @@ internal class SessionAuthActions(
                         member = result.member,
                         resolvedEnvironment = result.environment,
                     )
+                    refreshCriticalDataForAppliedSession =
+                        refreshCriticalDataForAppliedSession || accessTransition.invalidatesSessionContext
                     val productState = it.resetProductEditorUnlessAuthorizedRefreshCanPreserve(
                         principalUid = principal.uid,
                         member = result.member,
@@ -649,7 +772,7 @@ internal class SessionAuthActions(
                         ),
                         showSessionExpiredDialog = false,
                         showUnauthorizedDialog = false,
-                        myOrderFreshnessState = if (shouldRefreshCriticalData) {
+                        myOrderFreshnessState = if (refreshCriticalDataForAppliedSession) {
                             MyOrderFreshnessUiState.Checking
                         } else {
                             it.myOrderFreshnessState
@@ -663,6 +786,9 @@ internal class SessionAuthActions(
                         isLoadingSharedProfiles = true,
                     )
                 }) return abandonStaleAuthorizedSession()
+                if (refreshCriticalDataForAppliedSession) {
+                    cancelMyOrderFreshness()
+                }
                 val allNews = newsRepository.getNewsFor(result.member)
                 if (!isCurrentSessionOperation(operation)) return abandonStaleAuthorizedSession()
                 if (!updateUiStateIfCurrent(operation) {
@@ -703,7 +829,7 @@ internal class SessionAuthActions(
                 if (!registerAuthorizedDevice(result.member, result.environment, operation)) {
                     return abandonStaleAuthorizedSession()
                 }
-                if (shouldRefreshCriticalData) {
+                if (refreshCriticalDataForAppliedSession) {
                     if (!isCurrentSessionOperation(operation)) return abandonStaleAuthorizedSession()
                     refreshMyOrderFreshness()
                 }
@@ -718,6 +844,7 @@ internal class SessionAuthActions(
                 if (!invalidateSessionOperationIfCurrent(operation)) {
                     return abandonStaleAuthorizedSession()
                 }
+                cancelMyOrderFreshness()
                 authorizedDeviceRegistrar.clearAuthorizedSession()
                 clearSessionRefreshTracking()
                 sessionEnvironmentRouter.resetToBaseEnvironment()
@@ -757,6 +884,7 @@ internal class SessionAuthActions(
             closeStaleFirebaseAuthentication(operation)
             return
         }
+        cancelMyOrderFreshness()
         authorizedDeviceRegistrar.clearAuthorizedSession()
         clearSessionRefreshTracking()
         sessionEnvironmentRouter.resetToBaseEnvironment()
@@ -805,6 +933,13 @@ private data class SessionAuthOperation(
     val providerWasInvoked: AtomicBoolean = AtomicBoolean(false),
     val staleAuthenticationClosed: AtomicBoolean = AtomicBoolean(false),
     val terminalSessionApplied: AtomicBoolean = AtomicBoolean(false),
+)
+
+private data class FreshnessOperation(
+    val generation: Long,
+    val principalUid: String,
+    val sessionEnvironment: String,
+    val sessionEpoch: Long,
 )
 
 private enum class SessionAuthOperationKind {

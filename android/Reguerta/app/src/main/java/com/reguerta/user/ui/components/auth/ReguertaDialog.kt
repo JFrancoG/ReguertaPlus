@@ -4,16 +4,21 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Info
@@ -28,6 +33,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -76,6 +83,10 @@ fun ReguertaDialog(
     }
     val dialogShape = RoundedCornerShape(26.dp)
     val dialogTextSecondary = MaterialTheme.colorScheme.onSurfaceVariant
+    val density = LocalDensity.current
+    val maxDialogHeight = with(density) {
+        LocalWindowInfo.current.containerSize.height.toDp() * 0.9f
+    }
 
     Dialog(
         onDismissRequest = onDismissRequest,
@@ -85,77 +96,161 @@ fun ReguertaDialog(
             usePlatformDefaultWidth = false,
         ),
     ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.86f)
-                .widthIn(max = 336.dp),
-            shape = dialogShape,
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.65f)),
-            tonalElevation = 0.dp,
-            shadowElevation = 8.dp,
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
         ) {
-            Column(
+            Surface(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = spacing.xxl, vertical = 28.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(spacing.lg),
+                    .fillMaxWidth(0.86f)
+                    .widthIn(max = 336.dp)
+                    .heightIn(max = maxDialogHeight),
+                shape = dialogShape,
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.65f)),
+                tonalElevation = 0.dp,
+                shadowElevation = 8.dp,
             ) {
-                DialogIcon(type = type, accentColor = accentColor)
-
-                Text(
-                    text = title,
-                    style = dialogTitleStyle,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
-                )
-
-                Text(
-                    text = message,
-                    style = dialogBodyStyle,
-                    modifier = Modifier.padding(bottom = spacing.sm),
-                    color = dialogTextSecondary,
-                    textAlign = TextAlign.Center,
-                )
-
-                if (secondaryAction != null) {
-                    Row(
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = spacing.xxl, vertical = 28.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = spacing.xs),
-                        horizontalArrangement = Arrangement.spacedBy(spacing.md, Alignment.CenterHorizontally),
+                            .weight(weight = 1f, fill = false)
+                            .verticalScroll(rememberScrollState()),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(spacing.lg),
                     ) {
-                        DialogActionButton(
-                            label = secondaryAction.label,
-                            onClick = secondaryAction.onClick,
-                            accentColor = accentColor,
-                            primaryContentColor = primaryActionTextColor,
-                            isPrimary = false,
-                            modifier = Modifier.weight(1f),
+                        DialogIcon(type = type, accentColor = accentColor)
+
+                        Text(
+                            text = title,
+                            style = dialogTitleStyle,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center,
                         )
 
-                        DialogActionButton(
-                            label = primaryAction.label,
-                            onClick = primaryAction.onClick,
-                            accentColor = accentColor,
-                            primaryContentColor = primaryActionTextColor,
-                            isPrimary = true,
-                            modifier = Modifier.weight(1f),
+                        Text(
+                            text = message,
+                            style = dialogBodyStyle,
+                            modifier = Modifier.padding(bottom = spacing.sm),
+                            color = dialogTextSecondary,
+                            textAlign = TextAlign.Center,
                         )
                     }
-                } else {
-                    DialogActionButton(
-                        label = primaryAction.label,
-                        onClick = primaryAction.onClick,
-                        modifier = Modifier.padding(top = 8.dp),
+
+                    DialogActions(
+                        primaryAction = primaryAction,
+                        secondaryAction = secondaryAction,
                         accentColor = accentColor,
                         primaryContentColor = primaryActionTextColor,
-                        isPrimary = true,
+                        modifier = Modifier.padding(top = spacing.lg),
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun DialogActions(
+    primaryAction: ReguertaDialogAction,
+    secondaryAction: ReguertaDialogAction?,
+    accentColor: Color,
+    primaryContentColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    if (secondaryAction == null) {
+        DialogActionButton(
+            label = primaryAction.label,
+            onClick = primaryAction.onClick,
+            modifier = modifier,
+            accentColor = accentColor,
+            primaryContentColor = primaryContentColor,
+            isPrimary = true,
+        )
+        return
+    }
+
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val actionLayout = resolveReguertaDialogActionLayout(
+            availableWidthDp = maxWidth.value,
+            fontScale = LocalDensity.current.fontScale,
+            primaryLabelLength = primaryAction.label.length,
+            secondaryLabelLength = secondaryAction.label.length,
+        )
+        when (actionLayout) {
+            ReguertaDialogActionLayout.Horizontal -> Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                DialogActionButton(
+                    label = secondaryAction.label,
+                    onClick = secondaryAction.onClick,
+                    accentColor = accentColor,
+                    primaryContentColor = primaryContentColor,
+                    isPrimary = false,
+                    modifier = Modifier.weight(1f),
+                )
+                DialogActionButton(
+                    label = primaryAction.label,
+                    onClick = primaryAction.onClick,
+                    accentColor = accentColor,
+                    primaryContentColor = primaryContentColor,
+                    isPrimary = true,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+
+            ReguertaDialogActionLayout.Stacked -> Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                DialogActionButton(
+                    label = secondaryAction.label,
+                    onClick = secondaryAction.onClick,
+                    accentColor = accentColor,
+                    primaryContentColor = primaryContentColor,
+                    isPrimary = false,
+                )
+                DialogActionButton(
+                    label = primaryAction.label,
+                    onClick = primaryAction.onClick,
+                    accentColor = accentColor,
+                    primaryContentColor = primaryContentColor,
+                    isPrimary = true,
+                )
+            }
+        }
+    }
+}
+
+internal enum class ReguertaDialogActionLayout {
+    Horizontal,
+    Stacked,
+}
+
+internal fun resolveReguertaDialogActionLayout(
+    availableWidthDp: Float,
+    fontScale: Float,
+    primaryLabelLength: Int,
+    secondaryLabelLength: Int,
+): ReguertaDialogActionLayout {
+    val longestLabelLength = maxOf(primaryLabelLength, secondaryLabelLength)
+    val estimatedLabelWidthDp = longestLabelLength * 11f * fontScale + 32f
+    val availableWidthPerButtonDp = (availableWidthDp - 12f) / 2f
+    return if (
+        fontScale >= 1.3f ||
+        availableWidthDp < 280f ||
+        estimatedLabelWidthDp > availableWidthPerButtonDp
+    ) {
+        ReguertaDialogActionLayout.Stacked
+    } else {
+        ReguertaDialogActionLayout.Horizontal
     }
 }
 

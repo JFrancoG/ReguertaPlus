@@ -2,6 +2,8 @@ package com.reguerta.user.domain.startup
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
+import com.reguerta.user.domain.RepositoryException
 import org.junit.Test
 
 class ResolveStartupVersionGateUseCaseTest {
@@ -56,7 +58,7 @@ class ResolveStartupVersionGateUseCaseTest {
     }
 
     @Test
-    fun `malformed policy falls back to allow`() {
+    fun `malformed policy is rejected`() {
         val useCase = ResolveStartupVersionGateUseCase(FakePolicyRepository(
             policy = StartupVersionPolicy(
                 currentVersion = "invalid",
@@ -66,9 +68,48 @@ class ResolveStartupVersionGateUseCaseTest {
             ),
         ))
 
-        val decision = runBlockingDecision(useCase, "0.2.9")
+        assertThrows(RepositoryException::class.java) {
+            useCase.evaluate(
+                installedVersion = "0.2.9",
+                policy = StartupVersionPolicy(
+                    currentVersion = "invalid",
+                    minimumVersion = "0.3.0",
+                    forceUpdate = true,
+                    storeUrl = "https://play.google.com/store/apps/details?id=com.reguerta.user",
+                ),
+            )
+        }
+    }
 
-        assertEquals(StartupVersionGateDecision.Allow, decision)
+    @Test
+    fun `semantic comparator rejects overflowing components`() {
+        val overflowingComponent = "9".repeat(100)
+
+        assertNull(SemanticVersionComparator.compare("1.$overflowingComponent.0", "1.0.0"))
+    }
+
+    @Test
+    fun `policy rejects non http store URL`() {
+        val useCase = ResolveStartupVersionGateUseCase(FakePolicyRepository(validPolicy()))
+
+        assertThrows(RepositoryException::class.java) {
+            useCase.evaluate(
+                installedVersion = "0.3.0",
+                policy = validPolicy().copy(storeUrl = "market://details?id=com.reguerta.user"),
+            )
+        }
+    }
+
+    @Test
+    fun `policy rejects minimum above current version`() {
+        val useCase = ResolveStartupVersionGateUseCase(FakePolicyRepository(validPolicy()))
+
+        assertThrows(RepositoryException::class.java) {
+            useCase.evaluate(
+                installedVersion = "0.3.0",
+                policy = validPolicy().copy(currentVersion = "0.3.0", minimumVersion = "0.4.0"),
+            )
+        }
     }
 
     private fun runBlockingDecision(
@@ -82,8 +123,15 @@ class ResolveStartupVersionGateUseCaseTest {
     }
 
     private class FakePolicyRepository(
-        private val policy: StartupVersionPolicy?,
+        private val policy: StartupVersionPolicy,
     ) : StartupVersionPolicyRepository {
-        override suspend fun getPolicy(platform: StartupPlatform): StartupVersionPolicy? = policy
+        override suspend fun getPolicy(platform: StartupPlatform): StartupVersionPolicy = policy
     }
+
+    private fun validPolicy() = StartupVersionPolicy(
+        currentVersion = "0.3.1",
+        minimumVersion = "0.3.0",
+        forceUpdate = false,
+        storeUrl = "https://play.google.com/store/apps/details?id=com.reguerta.user",
+    )
 }

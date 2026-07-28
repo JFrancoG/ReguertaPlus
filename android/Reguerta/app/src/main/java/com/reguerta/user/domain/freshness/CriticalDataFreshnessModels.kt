@@ -15,24 +15,35 @@ data class CriticalDataFreshnessConfig(
 )
 
 data class CriticalDataFreshnessMetadata(
+    val environment: String,
     val validatedAtMillis: Long,
     val acknowledgedTimestampsMillis: Map<CriticalCollection, Long>,
 )
 
-sealed interface CriticalDataFreshnessResolution {
-    data object Fresh : CriticalDataFreshnessResolution
+data class CriticalDataFreshnessMetadataWrite(
+    val id: String,
+    val metadata: CriticalDataFreshnessMetadata,
+)
 
-    data object InvalidConfig : CriticalDataFreshnessResolution
+sealed interface CriticalDataFreshnessResolution {
+    data class Fresh(
+        val metadataToPersist: CriticalDataFreshnessMetadata?,
+    ) : CriticalDataFreshnessResolution
 }
 
 interface CriticalDataFreshnessRemoteRepository {
-    suspend fun getConfig(): CriticalDataFreshnessConfig?
+    suspend fun getConfig(environment: String): CriticalDataFreshnessConfig
 }
 
 interface CriticalDataFreshnessLocalRepository {
     suspend fun getMetadata(): CriticalDataFreshnessMetadata?
 
-    suspend fun saveMetadata(metadata: CriticalDataFreshnessMetadata)
+    suspend fun saveMetadataIfCurrent(
+        write: CriticalDataFreshnessMetadataWrite,
+        isCurrent: () -> Boolean,
+    ): Boolean
+
+    suspend fun rollbackMetadata(write: CriticalDataFreshnessMetadataWrite)
 
     suspend fun clear()
 }

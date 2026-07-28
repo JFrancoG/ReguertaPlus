@@ -19,6 +19,12 @@
     <string name="startup_update_message">Hay una versión más reciente de la app para una experiencia más segura y estable.</string>
     <string name="startup_update_action_update">Actualizar ahora</string>
     <string name="startup_update_action_later">Más tarde</string>
+    <string name="startup_version_timeout_title">La comprobación de versión ha agotado el tiempo</string>
+    <string name="startup_version_timeout_message">La app no pudo confirmar a tiempo la política de versiones. Reintenta o continúa de forma explícita si necesitas acceder ahora.</string>
+    <string name="startup_version_unavailable_title">Comprobación de versión no disponible</string>
+    <string name="startup_version_unavailable_message">La app no pudo confirmar la política de versiones. Reintenta o continúa de forma explícita si necesitas acceder ahora.</string>
+    <string name="startup_version_action_retry">Reintentar</string>
+    <string name="startup_version_action_continue">Continuar</string>
     <string name="welcome_title_prefix">Bienvenido a</string>
     <string name="welcome_title_brand">La RegÜerta</string>
     <string name="welcome_subtitle">Usa el mismo flujo de auth en ambas plataformas.</string>

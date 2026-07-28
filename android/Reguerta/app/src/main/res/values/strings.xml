@@ -19,6 +19,12 @@
     <string name="startup_update_message">A newer app version is available for a safer and more stable experience.</string>
     <string name="startup_update_action_update">Update now</string>
     <string name="startup_update_action_later">Later</string>
+    <string name="startup_version_timeout_title">Version check timed out</string>
+    <string name="startup_version_timeout_message">The app could not confirm the current version policy in time. Retry, or explicitly continue if you need access now.</string>
+    <string name="startup_version_unavailable_title">Version check unavailable</string>
+    <string name="startup_version_unavailable_message">The app could not confirm the current version policy. Retry, or explicitly continue if you need access now.</string>
+    <string name="startup_version_action_retry">Retry</string>
+    <string name="startup_version_action_continue">Continue</string>
     <string name="welcome_title_prefix">Welcome to</string>
     <string name="welcome_title_brand">La RegÜerta</string>
     <string name="welcome_subtitle">Use one consistent auth flow in both platforms.</string>

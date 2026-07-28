@@ -7,7 +7,7 @@ import Testing
 @MainActor
 struct ReguertaStartupAndOrderTests {
     @Test
-    func startupGateBlocksOutdatedVersionWhenForceUpdateIsActive() {
+    func startupGateBlocksOutdatedVersionWhenForceUpdateIsActive() throws {
         let useCase = ResolveStartupVersionGateUseCase(
             repository: FixedStartupVersionPolicyRepository(
                 policy: StartupVersionPolicy(
@@ -19,7 +19,7 @@ struct ReguertaStartupAndOrderTests {
             )
         )
 
-        let decision = useCase.evaluate(
+        let decision = try useCase.evaluate(
             installedVersion: "0.2.9",
             policy: StartupVersionPolicy(
                 currentVersion: "0.3.1",
@@ -33,7 +33,7 @@ struct ReguertaStartupAndOrderTests {
     }
 
     @Test
-    func startupGateWarnsWhenVersionIsBelowCurrent() {
+    func startupGateWarnsWhenVersionIsBelowCurrent() throws {
         let useCase = ResolveStartupVersionGateUseCase(
             repository: FixedStartupVersionPolicyRepository(
                 policy: StartupVersionPolicy(
@@ -45,7 +45,7 @@ struct ReguertaStartupAndOrderTests {
             )
         )
 
-        let decision = useCase.evaluate(
+        let decision = try useCase.evaluate(
             installedVersion: "0.3.0",
             policy: StartupVersionPolicy(
                 currentVersion: "0.3.1",
@@ -56,32 +56,6 @@ struct ReguertaStartupAndOrderTests {
         )
 
         #expect(decision == .optionalUpdate(storeURL: "https://apps.apple.com"))
-    }
-
-    @Test
-    func startupGateFallsBackToAllowWhenPolicyIsMalformed() {
-        let useCase = ResolveStartupVersionGateUseCase(
-            repository: FixedStartupVersionPolicyRepository(
-                policy: StartupVersionPolicy(
-                    currentVersion: "invalid",
-                    minimumVersion: "0.3.0",
-                    forceUpdate: true,
-                    storeURL: "https://apps.apple.com"
-                )
-            )
-        )
-
-        let decision = useCase.evaluate(
-            installedVersion: "0.2.9",
-            policy: StartupVersionPolicy(
-                currentVersion: "invalid",
-                minimumVersion: "0.3.0",
-                forceUpdate: true,
-                storeURL: "https://apps.apple.com"
-            )
-        )
-
-        #expect(decision == .allow)
     }
 
     @Test
@@ -103,7 +77,8 @@ struct ReguertaStartupAndOrderTests {
                 ]
             ),
             metadata: nil,
-            nowMillis: 10_000
+            nowMillis: 10_000,
+            environment: .develop
         )
 
         #expect(evaluation == .invalidConfig)
@@ -128,16 +103,19 @@ struct ReguertaStartupAndOrderTests {
                 validatedAtMillis: 5_000,
                 acknowledgedTimestampsMillis: Dictionary(
                     uniqueKeysWithValues: CriticalCollection.allCases.map { ($0, Int64(1_000)) }
-                )
+                ),
+                environment: .develop
             ),
-            nowMillis: 6_000
+            nowMillis: 6_000,
+            environment: .develop
         )
 
         #expect(
             evaluation == .accepted(
                 metadataToPersist: CriticalDataFreshnessMetadata(
                     validatedAtMillis: 6_000,
-                    acknowledgedTimestampsMillis: remoteTimestamps
+                    acknowledgedTimestampsMillis: remoteTimestamps,
+                    environment: .develop
                 )
             )
         )
@@ -160,9 +138,11 @@ struct ReguertaStartupAndOrderTests {
             ),
             metadata: CriticalDataFreshnessMetadata(
                 validatedAtMillis: 10_000,
-                acknowledgedTimestampsMillis: remoteTimestamps
+                acknowledgedTimestampsMillis: remoteTimestamps,
+                environment: .develop
             ),
-            nowMillis: 20_000
+            nowMillis: 20_000,
+            environment: .develop
         )
 
         #expect(evaluation == .accepted(metadataToPersist: nil))

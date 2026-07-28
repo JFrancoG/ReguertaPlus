@@ -9,12 +9,12 @@ extension AccessRootRoutingView {
         await rootViewModel.handleSplashIfNeeded()
     }
 
-    func evaluateStartupGateIfNeeded() async {
-        await rootViewModel.evaluateStartupGateIfNeeded()
+    func evaluateStartupGateIfNeeded() {
+        rootViewModel.evaluateStartupGateIfNeeded()
     }
 
-    func resolveStartupGateDecision(installedVersion: String) async -> StartupVersionGateDecision {
-        await rootViewModel.resolveStartupGateDecision(installedVersion: installedVersion)
+    func resolveStartupGateDecision(installedVersion: String) async throws -> StartupVersionGateDecision {
+        try await rootViewModel.resolveStartupGateDecision(installedVersion: installedVersion)
     }
 
     func continueFromSplashIfAllowed() {
@@ -39,8 +39,4 @@ enum SplashAnimationContract {
     static let finalRotation: Double = 720.0
     static let initialOpacity: Double = 1.0
     static let finalOpacity: Double = 0.0
-}
-
-enum StartupGateContract {
-    static let fetchTimeoutNanoseconds: UInt64 = 2_500_000_000
 }
