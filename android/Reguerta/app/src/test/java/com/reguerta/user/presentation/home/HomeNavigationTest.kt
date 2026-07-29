@@ -4,6 +4,7 @@ import com.reguerta.user.domain.access.AuthPrincipal
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.presentation.root.CriticalDataRefreshConsumerReceipt
+import com.reguerta.user.presentation.root.EditorConfirmationIdentity
 import com.reguerta.user.presentation.root.MyOrderFreshnessUiState
 import com.reguerta.user.presentation.root.SessionMode
 import com.reguerta.user.presentation.root.SessionUiState
@@ -12,8 +13,75 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import java.nio.file.Files
+import java.nio.file.Path
 
 class HomeNavigationTest {
+    @Test
+    fun `editor confirmations are transient and cannot be restored into another process`() {
+        val source = homeRouteSource()
+        val transientConfirmationFields = listOf(
+            "pendingSavedNewsId",
+            "pendingSavedNewsWasNew",
+            "pendingSavedNewsEditorGeneration",
+            "pendingSavedNewsDraftRevision",
+            "pendingNotificationEditorGeneration",
+            "pendingNotificationDraftRevision",
+        )
+
+        transientConfirmationFields.forEach { field ->
+            assertTrue(
+                "$field must use remember instead of rememberSaveable",
+                Regex("var $field by remember \\{").containsMatchIn(source),
+            )
+            assertFalse(
+                "$field must not survive recreation or process restoration",
+                Regex("var $field by rememberSaveable \\{").containsMatchIn(source),
+            )
+        }
+    }
+
+    @Test
+    fun `save confirmation only owns the exact editor draft acknowledged by the backend`() {
+        val confirmation = EditorConfirmationIdentity(
+            editorGeneration = 4L,
+            draftRevision = 9L,
+        )
+
+        assertTrue(editorConfirmationMatches(confirmation, 4L, 9L))
+        assertFalse(editorConfirmationMatches(confirmation, 4L, 10L))
+        assertFalse(editorConfirmationMatches(confirmation, 5L, 9L))
+        assertTrue(editorConfirmationIsSuperseded(confirmation, 4L, 10L))
+        assertTrue(editorConfirmationIsSuperseded(confirmation, 5L, 0L))
+    }
+
+    @Test
+    fun `confirmation waits for its ACK revision instead of being discarded by an older frame`() {
+        val confirmation = EditorConfirmationIdentity(
+            editorGeneration = 4L,
+            draftRevision = 9L,
+        )
+
+        assertFalse(editorConfirmationMatches(confirmation, 4L, 8L))
+        assertFalse(editorConfirmationIsSuperseded(confirmation, 4L, 8L))
+    }
+
+    private fun homeRouteSource(): String {
+        val projectRoot = generateSequence(Path.of("").toAbsolutePath()) { it.parent }
+            .first { candidate ->
+                Files.exists(
+                    candidate.resolve(
+                        "app/src/main/java/com/reguerta/user/presentation/home/ReguertaRootHomeRoute.kt",
+                    ),
+                )
+            }
+        return Files.readString(
+            projectRoot.resolve(
+                "app/src/main/java/com/reguerta/user/presentation/home/ReguertaRootHomeRoute.kt",
+            ),
+        )
+    }
+
     @Test
     fun adminBroadcastBackReturnsToDashboard() {
         assertEquals(

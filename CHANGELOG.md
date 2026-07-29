@@ -62,6 +62,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-07-29 | 🐛 fix(community): enforce feed integrity
 - 2026-07-29 | 🐛 fix(android): preserve device identity across secure-store migration
 - 2026-07-28 | 🐛 fix(push): fence registration to live sessions
 - 2026-07-28 | 🐛 fix(android-auth): preserve cleanup quarantine

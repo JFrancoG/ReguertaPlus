@@ -176,12 +176,14 @@ class FirestoreSecurityBoundarySourceTest {
     }
 
     @Test
-    fun `notification feed reads only the member inbox`() {
+    fun `notification feed reads the complete member inbox and sorts after strict decoding`() {
         val source = readMainSource("data/notifications/FirestoreNotificationRepository.kt")
 
         assertTrue(source.contains("notificationInboxCollectionPath(member.id)"))
         assertTrue(source.contains("/notificationInbox"))
-        assertTrue(source.contains("orderBy(\"sentAt\", Query.Direction.DESCENDING)"))
+        assertFalse(source.contains("orderBy(\"sentAt\""))
+        assertTrue(source.contains("decodeNotificationDocuments("))
+        assertTrue(source.contains(".sortedByDescending(NotificationEvent::sentAtMillis)"))
         assertFalse(source.contains("firestore.collection(notificationsCollectionPath).get()"))
         assertFalse(source.contains("whereArrayContains(\"recipientUserIds\""))
     }

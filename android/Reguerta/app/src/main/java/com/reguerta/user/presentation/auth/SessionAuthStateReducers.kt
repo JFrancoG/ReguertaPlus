@@ -40,9 +40,19 @@ internal fun SessionUiState.toSignedOutSessionState(
     latestNews = emptyList(),
     newsFeed = emptyList(),
     newsDraft = NewsDraft(),
+    newsEditorRevision = newsEditorRevision + 1,
+    newsDraftRevision = newsDraftRevision + 1,
+    newsImageRevision = newsImageRevision + 1,
+    pendingNewsDeletionId = null,
+    newsDeletionRequestRevision = newsDeletionRequestRevision + 1,
     notificationsFeed = emptyList(),
     readNotificationIds = emptySet(),
+    pendingNotificationAcknowledgements = emptyList(),
+    pendingReadNotificationIds = emptySet(),
+    notificationReadRevision = notificationReadRevision + 1,
     notificationDraft = NotificationDraft(),
+    notificationEditorRevision = notificationEditorRevision + 1,
+    notificationDraftRevision = notificationDraftRevision + 1,
     productsFeed = emptyList(),
     myOrderProductsFeed = emptyList(),
     myOrderSeasonalCommitmentsFeed = emptyList(),
@@ -67,6 +77,7 @@ internal fun SessionUiState.toSignedOutSessionState(
     editingNewsId = null,
     isLoadingNews = false,
     isSavingNews = false,
+    isDeletingNews = false,
     isUploadingNewsImage = false,
     isLoadingNotifications = false,
     isSendingNotification = false,
@@ -109,6 +120,42 @@ internal fun SessionUiState.resetProductEditorUnlessAuthorizedRefreshCanPreserve
     )
 }
 
+internal fun SessionUiState.clearCommunitySessionState(): SessionUiState = copy(
+    latestNews = emptyList(),
+    newsFeed = emptyList(),
+    newsDraft = NewsDraft(),
+    editingNewsId = null,
+    newsEditorRevision = newsEditorRevision + 1,
+    newsDraftRevision = newsDraftRevision + 1,
+    newsImageRevision = newsImageRevision + 1,
+    pendingNewsDeletionId = null,
+    newsDeletionRequestRevision = newsDeletionRequestRevision + 1,
+    isLoadingNews = false,
+    isSavingNews = false,
+    isDeletingNews = false,
+    isUploadingNewsImage = false,
+    notificationsFeed = emptyList(),
+    readNotificationIds = emptySet(),
+    pendingNotificationAcknowledgements = emptyList(),
+    pendingReadNotificationIds = emptySet(),
+    notificationReadRevision = notificationReadRevision + 1,
+    notificationDraft = NotificationDraft(),
+    notificationEditorRevision = notificationEditorRevision + 1,
+    notificationDraftRevision = notificationDraftRevision + 1,
+    isLoadingNotifications = false,
+    isSendingNotification = false,
+    isPushNotificationPermissionActive = true,
+    showPushNotificationPermissionDialog = false,
+)
+
+internal fun SessionUiState.clearCommunitySessionStateIfInvalidated(
+    transition: AuthorizedSessionAccessTransition,
+): SessionUiState = if (transition.invalidatesSessionContext) {
+    clearCommunitySessionState()
+} else {
+    this
+}
+
 internal fun SessionUiState.toUnauthorizedSessionState(
     email: String,
     reason: UnauthorizedReason,
@@ -128,9 +175,19 @@ internal fun SessionUiState.toUnauthorizedSessionState(
     latestNews = emptyList(),
     newsFeed = emptyList(),
     newsDraft = NewsDraft(),
+    newsEditorRevision = newsEditorRevision + 1,
+    newsDraftRevision = newsDraftRevision + 1,
+    newsImageRevision = newsImageRevision + 1,
+    pendingNewsDeletionId = null,
+    newsDeletionRequestRevision = newsDeletionRequestRevision + 1,
     notificationsFeed = emptyList(),
     readNotificationIds = emptySet(),
+    pendingNotificationAcknowledgements = emptyList(),
+    pendingReadNotificationIds = emptySet(),
+    notificationReadRevision = notificationReadRevision + 1,
     notificationDraft = NotificationDraft(),
+    notificationEditorRevision = notificationEditorRevision + 1,
+    notificationDraftRevision = notificationDraftRevision + 1,
     productsFeed = emptyList(),
     myOrderProductsFeed = emptyList(),
     myOrderSeasonalCommitmentsFeed = emptyList(),
@@ -155,6 +212,7 @@ internal fun SessionUiState.toUnauthorizedSessionState(
     editingNewsId = null,
     isLoadingNews = false,
     isSavingNews = false,
+    isDeletingNews = false,
     isUploadingNewsImage = false,
     isLoadingNotifications = false,
     isSendingNotification = false,

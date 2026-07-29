@@ -293,7 +293,9 @@ private extension AccessRootViewModel {
             notificationRepository: dependencies.notificationRepository,
             pushNotificationPermissionProvider: dependencies.pushNotificationPermissionProvider,
             imagePipelineManager: dependencies.imagePipelineManager,
-            nowMillisProvider: dependencies.nowMillisProvider
+            nowMillisProvider: dependencies.nowMillisProvider,
+            environmentProvider: dependencies.environmentProvider,
+            environmentRoutingSignal: sessionViewModel.environmentRouter.transitionSignal
         )
     }
 

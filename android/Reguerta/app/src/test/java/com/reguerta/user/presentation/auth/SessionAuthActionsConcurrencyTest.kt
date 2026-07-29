@@ -39,6 +39,8 @@ import com.reguerta.user.domain.products.ProductRepository
 import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.profiles.SharedProfileRepository
 import com.reguerta.user.presentation.root.MyOrderFreshnessUiState
+import com.reguerta.user.presentation.root.NewsDraft
+import com.reguerta.user.presentation.root.NotificationDraft
 import com.reguerta.user.presentation.root.MY_ORDER_FRESHNESS_TIMEOUT_MILLIS
 import com.reguerta.user.presentation.root.CriticalDataRefreshConsumerReceipt
 import com.reguerta.user.presentation.root.SessionMode
@@ -865,6 +867,102 @@ class SessionAuthActionsConcurrencyTest {
     }
 
     @Test
+    fun `environment routing clears community state before authorization hydration completes`() = runTest {
+        val hydrationStarted = CompletableDeferred<Unit>()
+        val hydrationRelease = CompletableDeferred<Unit>()
+        val principal = principal("environment-boundary")
+        val member = member(principal)
+        val article = NewsArticle(
+            id = "news-1",
+            title = "News",
+            body = "Body",
+            active = true,
+            publishedBy = "Publisher",
+            publishedAtMillis = 1L,
+            urlImage = null,
+            publishedByUserId = member.id,
+        )
+        val notification = NotificationEvent(
+            id = "notification-1",
+            title = "Notification",
+            body = "Body",
+            type = "admin_broadcast",
+            target = "all",
+            userIds = emptyList(),
+            segmentType = null,
+            targetRole = null,
+            createdBy = member.id,
+            sentAtMillis = 1L,
+            weekKey = null,
+        )
+        val initialState = authorizedState(principal, member).copy(
+            latestNews = listOf(article),
+            newsFeed = listOf(article),
+            newsDraft = NewsDraft(title = "Draft", body = "Body"),
+            editingNewsId = article.id,
+            isLoadingNews = true,
+            isSavingNews = true,
+            isUploadingNewsImage = true,
+            notificationsFeed = listOf(notification),
+            readNotificationIds = setOf(notification.id),
+            pendingNotificationAcknowledgements = listOf(notification),
+            pendingReadNotificationIds = setOf(notification.id),
+            notificationDraft = NotificationDraft(title = "Draft", body = "Body"),
+            isLoadingNotifications = true,
+            isSendingNotification = true,
+        )
+        val environmentRouter = RecordingSessionEnvironmentRouter().also { router ->
+            router.currentEnvironment = "develop"
+        }
+        val fixture = fixture(
+            scope = this,
+            state = initialState,
+            authProvider = ControlledAuthSessionProvider(
+                refreshResult = CompletableDeferred(AuthSessionRefreshResult.Active(principal)),
+            ),
+            memberRepository = TestMemberRepository(
+                visibleMembersStarted = hydrationStarted,
+                visibleMembersRelease = hydrationRelease,
+            ),
+            authorizedMemberResolver = ProductionAuthorizedMemberResolver,
+            environmentRouter = environmentRouter,
+        )
+
+        fixture.actions.refreshSession(SessionRefreshTrigger.STARTUP)
+        hydrationStarted.await()
+        try {
+            val stateWhileHydrationIsPending = fixture.state.value
+            assertEquals("production", environmentRouter.currentEnvironment)
+            assertEquals(listOf("production"), environmentRouter.appliedEnvironments)
+            assertEquals("develop", stateWhileHydrationIsPending.sessionEnvironment)
+            assertEquals(initialState.sessionEpoch + 1, stateWhileHydrationIsPending.sessionEpoch)
+            assertTrue(stateWhileHydrationIsPending.mode is SessionMode.Authorized)
+            assertTrue(stateWhileHydrationIsPending.latestNews.isEmpty())
+            assertTrue(stateWhileHydrationIsPending.newsFeed.isEmpty())
+            assertEquals(NewsDraft(), stateWhileHydrationIsPending.newsDraft)
+            assertEquals(null, stateWhileHydrationIsPending.editingNewsId)
+            assertFalse(stateWhileHydrationIsPending.isLoadingNews)
+            assertFalse(stateWhileHydrationIsPending.isSavingNews)
+            assertFalse(stateWhileHydrationIsPending.isUploadingNewsImage)
+            assertTrue(stateWhileHydrationIsPending.notificationsFeed.isEmpty())
+            assertTrue(stateWhileHydrationIsPending.readNotificationIds.isEmpty())
+            assertTrue(stateWhileHydrationIsPending.pendingNotificationAcknowledgements.isEmpty())
+            assertTrue(stateWhileHydrationIsPending.pendingReadNotificationIds.isEmpty())
+            assertEquals(NotificationDraft(), stateWhileHydrationIsPending.notificationDraft)
+            assertFalse(stateWhileHydrationIsPending.isLoadingNotifications)
+            assertFalse(stateWhileHydrationIsPending.isSendingNotification)
+            assertEquals(0, fixture.newsRefreshes)
+            assertEquals(0, fixture.notificationRefreshes)
+        } finally {
+            hydrationRelease.complete(Unit)
+        }
+        advanceUntilIdle()
+
+        assertEquals("production", fixture.state.value.sessionEnvironment)
+        assertTrue(fixture.state.value.mode is SessionMode.Authorized)
+    }
+
+    @Test
     fun `freshness failure is unavailable and retry can recover`() = runTest {
         val principal = principal("retry")
         val repository = RecoveringCriticalDataFreshnessRemoteRepository()
@@ -1652,6 +1750,115 @@ class SessionAuthActionsConcurrencyTest {
         assertEquals(null, fixture.state.value.emailErrorRes)
         assertTrue(fixture.deviceRegistrar.clearRequests >= 1)
     }
+
+    @Test
+    fun `authorized session remains valid when non critical community refresh scheduling fails`() = runTest {
+        val principal = principal("community-failure")
+        val authProvider = ControlledAuthSessionProvider(
+            signInResults = listOf(
+                CompletableDeferred(AuthSignInResult.Success(principal)),
+            ),
+        )
+        val fixture = fixture(
+            scope = this,
+            authProvider = authProvider,
+            refreshNews = { throw IOException("news refresh failed") },
+            refreshNotifications = { throw IOException("notifications refresh failed") },
+        )
+
+        assertTrue(fixture.actions.signIn("secret123"))
+        advanceUntilIdle()
+
+        val mode = fixture.state.value.mode as SessionMode.Authorized
+        assertEquals(principal.uid, mode.principal.uid)
+        assertFalse(fixture.state.value.isAuthenticating)
+        assertEquals(1, fixture.newsRefreshes)
+        assertEquals(1, fixture.notificationRefreshes)
+        assertEquals(1, fixture.deviceRegistrations)
+        assertEquals(0, authProvider.signOutRequests)
+    }
+
+    @Test
+    fun `capability boundary clears community snapshot editors and spinners synchronously`() {
+        val principal = principal("capability-boundary")
+        val member = member(principal)
+        val article = NewsArticle(
+            id = "news-1",
+            title = "News",
+            body = "Body",
+            active = true,
+            publishedBy = "Publisher",
+            publishedAtMillis = 1L,
+            urlImage = null,
+            publishedByUserId = "publisher-1",
+        )
+        val notification = NotificationEvent(
+            id = "notification-1",
+            title = "Notification",
+            body = "Body",
+            type = "admin_broadcast",
+            target = "all",
+            userIds = emptyList(),
+            segmentType = null,
+            targetRole = null,
+            createdBy = "admin-1",
+            sentAtMillis = 1L,
+            weekKey = null,
+        )
+        val dirtyState = authorizedState(principal, member).copy(
+            latestNews = listOf(article),
+            newsFeed = listOf(article),
+            newsDraft = NewsDraft(title = "Draft"),
+            newsEditorRevision = 4L,
+            editingNewsId = article.id,
+            isLoadingNews = true,
+            isSavingNews = true,
+            isDeletingNews = true,
+            isUploadingNewsImage = true,
+            notificationsFeed = listOf(notification),
+            readNotificationIds = setOf(notification.id),
+            pendingNotificationAcknowledgements = listOf(notification),
+            pendingReadNotificationIds = setOf(notification.id),
+            notificationReadRevision = 4L,
+            notificationDraft = NotificationDraft(title = "Draft"),
+            notificationEditorRevision = 4L,
+            isLoadingNotifications = true,
+            isSendingNotification = true,
+            isPushNotificationPermissionActive = false,
+            showPushNotificationPermissionDialog = true,
+        )
+
+        val cleared = dirtyState.clearCommunitySessionStateIfInvalidated(
+            AuthorizedSessionAccessTransition(
+                sameProductIdentity = true,
+                accessCapabilitiesChanged = true,
+                rolesChanged = false,
+                adminAccessChanged = true,
+                environmentChanged = false,
+            ),
+        )
+
+        assertTrue(cleared.latestNews.isEmpty())
+        assertTrue(cleared.newsFeed.isEmpty())
+        assertEquals(NewsDraft(), cleared.newsDraft)
+        assertEquals(null, cleared.editingNewsId)
+        assertEquals(5L, cleared.newsEditorRevision)
+        assertFalse(cleared.isLoadingNews)
+        assertFalse(cleared.isSavingNews)
+        assertFalse(cleared.isDeletingNews)
+        assertFalse(cleared.isUploadingNewsImage)
+        assertTrue(cleared.notificationsFeed.isEmpty())
+        assertTrue(cleared.readNotificationIds.isEmpty())
+        assertTrue(cleared.pendingNotificationAcknowledgements.isEmpty())
+        assertTrue(cleared.pendingReadNotificationIds.isEmpty())
+        assertEquals(5L, cleared.notificationReadRevision)
+        assertEquals(NotificationDraft(), cleared.notificationDraft)
+        assertEquals(5L, cleared.notificationEditorRevision)
+        assertFalse(cleared.isLoadingNotifications)
+        assertFalse(cleared.isSendingNotification)
+        assertTrue(cleared.isPushNotificationPermissionActive)
+        assertFalse(cleared.showPushNotificationPermissionDialog)
+    }
 }
 
 private const val TEST_SESSION_OPERATION_TIMEOUT_MILLIS = 30_000L
@@ -1662,6 +1869,8 @@ private data class AuthFixture(
     val environmentRouter: RecordingSessionEnvironmentRouter,
     val deviceRegistrar: TestAuthorizedDeviceRegistrar,
     val localFreshnessRepository: TestCriticalDataFreshnessLocalRepository,
+    val newsRefreshesProvider: () -> Int,
+    val notificationRefreshesProvider: () -> Int,
     val shiftRefreshesProvider: () -> Int,
     val isRefreshInFlightProvider: () -> Boolean,
     val lastRefreshAtMillisProvider: () -> Long?,
@@ -1677,6 +1886,12 @@ private data class AuthFixture(
 
     val lastRefreshAtMillis: Long?
         get() = lastRefreshAtMillisProvider()
+
+    val newsRefreshes: Int
+        get() = newsRefreshesProvider()
+
+    val notificationRefreshes: Int
+        get() = notificationRefreshesProvider()
 }
 
 private fun fixture(
@@ -1700,17 +1915,19 @@ private fun fixture(
         CriticalDataRefreshPayload,
         () -> Boolean,
     ) -> CriticalDataRefreshConsumerReceipt?)? = null,
+    refreshNews: () -> Unit = {},
+    refreshNotifications: () -> Unit = {},
 ): AuthFixture {
     val stateFlow = MutableStateFlow(state)
     var lastRefreshAtMillis: Long? = null
     var shiftRefreshes = 0
+    var newsRefreshes = 0
+    var notificationRefreshes = 0
     val isSessionRefreshInFlight = AtomicBoolean(false)
     val actions = SessionAuthActions(
         uiState = stateFlow,
         scope = scope,
         memberRepository = memberRepository,
-        newsRepository = EmptyNewsRepository,
-        notificationRepository = EmptyNotificationRepository,
         productRepository = EmptyProductRepository,
         sharedProfileRepository = EmptySharedProfileRepository,
         authSessionProvider = authProvider,
@@ -1732,6 +1949,14 @@ private fun fixture(
         getLastSessionRefreshAtMillis = { lastRefreshAtMillis },
         setLastSessionRefreshAtMillis = { lastRefreshAtMillis = it },
         nowMillisProvider = { 1_000L },
+        refreshNews = {
+            newsRefreshes += 1
+            refreshNews()
+        },
+        refreshNotifications = {
+            notificationRefreshes += 1
+            refreshNotifications()
+        },
         refreshShifts = { shiftRefreshes += 1 },
         refreshDeliveryCalendar = {},
         refreshMyOrderConsumer = refreshMyOrderConsumerWithReceipt ?: { payload, fence ->
@@ -1749,6 +1974,8 @@ private fun fixture(
         environmentRouter = environmentRouter,
         deviceRegistrar = deviceRegistrar,
         localFreshnessRepository = localFreshnessRepository,
+        newsRefreshesProvider = { newsRefreshes },
+        notificationRefreshesProvider = { notificationRefreshes },
         shiftRefreshesProvider = { shiftRefreshes },
         isRefreshInFlightProvider = isSessionRefreshInFlight::get,
         lastRefreshAtMillisProvider = { lastRefreshAtMillis },

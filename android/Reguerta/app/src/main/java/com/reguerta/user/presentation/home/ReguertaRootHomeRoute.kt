@@ -19,12 +19,14 @@ import com.reguerta.user.presentation.shifts.ShiftsRoute
 import com.reguerta.user.presentation.users.UsersRoute
 import com.reguerta.user.presentation.users.usersEditorTitleRes
 import com.reguerta.user.presentation.root.BylawsAnswerResult
+import com.reguerta.user.presentation.root.EditorConfirmationIdentity
 import com.reguerta.user.presentation.root.MemberDraft
 import com.reguerta.user.presentation.root.MyOrderFreshnessUiState
 import com.reguerta.user.presentation.root.NewsDraft
 import com.reguerta.user.presentation.root.NewsSaveResult
 import com.reguerta.user.presentation.root.NotificationDraft
 import com.reguerta.user.presentation.root.NotificationFeedItem
+import com.reguerta.user.presentation.root.NotificationSendResult
 import com.reguerta.user.presentation.root.ProductDraft
 import com.reguerta.user.presentation.root.SessionMode
 import com.reguerta.user.presentation.root.SharedProfileDraft
@@ -125,9 +127,15 @@ internal fun HomeRoute(
     latestNews: List<NewsArticle>,
     newsFeed: List<NewsArticle>,
     newsDraft: NewsDraft,
+    newsEditorRevision: Long,
+    newsDraftRevision: Long,
+    pendingNewsDeletionId: String?,
+    newsDeletionRequestRevision: Long,
     notificationFeedItems: List<NotificationFeedItem>,
     hasUnreadNotifications: Boolean,
     notificationDraft: NotificationDraft,
+    notificationEditorRevision: Long,
+    notificationDraftRevision: Long,
     productsFeed: List<Product>,
     myOrderProductsFeed: List<Product>,
     myOrderSeasonalCommitmentsFeed: List<SeasonalCommitment>,
@@ -203,8 +211,10 @@ internal fun HomeRoute(
     onSaveNews: (onSuccess: (NewsSaveResult) -> Unit) -> Unit,
     onSaveProduct: (onSuccess: (String) -> Unit) -> Unit,
     onSetProducerCatalogVisibility: (Boolean, onSuccess: () -> Unit) -> Unit,
-    onSendNotification: (onSuccess: () -> Unit) -> Unit,
-    onDeleteNews: (String, () -> Unit) -> Unit,
+    onSendNotification: (onSuccess: (NotificationSendResult) -> Unit) -> Unit,
+    onRequestDeleteNews: (String) -> Unit,
+    onClearNewsDeletionRequest: (Long) -> Unit,
+    onDeleteNews: (String, Long, () -> Unit) -> Unit,
     onArchiveProduct: (String, onSuccess: () -> Unit) -> Unit,
     onRefreshNews: () -> Unit,
     onRefreshProducts: () -> Unit,
@@ -215,6 +225,8 @@ internal fun HomeRoute(
     onRefreshDeliveryCalendar: () -> Unit,
     onClearNewsEditor: () -> Unit,
     onClearNotificationEditor: () -> Unit,
+    onClearNewsEditorIfCurrent: (EditorConfirmationIdentity) -> Boolean,
+    onClearNotificationEditorIfCurrent: (EditorConfirmationIdentity) -> Boolean,
     onClearProductEditor: () -> Unit,
     onStartCreatingShiftSwap: (String) -> Unit,
     onClearShiftSwapDraft: () -> Unit,
@@ -251,10 +263,12 @@ internal fun HomeRoute(
     var currentDestination by rememberSaveable(stateSaver = HomeDestinationSaver) {
         mutableStateOf(HomeDestination.DASHBOARD)
     }
-    var newsPendingDeletionId by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingSavedNewsId by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingSavedNewsWasNew by rememberSaveable { mutableStateOf(false) }
-    var isNotificationSentDialogVisible by rememberSaveable { mutableStateOf(false) }
+    var pendingSavedNewsId by remember { mutableStateOf<String?>(null) }
+    var pendingSavedNewsWasNew by remember { mutableStateOf(false) }
+    var pendingSavedNewsEditorGeneration by remember { mutableStateOf<Long?>(null) }
+    var pendingSavedNewsDraftRevision by remember { mutableStateOf<Long?>(null) }
+    var pendingNotificationEditorGeneration by remember { mutableStateOf<Long?>(null) }
+    var pendingNotificationDraftRevision by remember { mutableStateOf<Long?>(null) }
     var highlightedNewsId by rememberSaveable { mutableStateOf<String?>(null) }
     var myOrderCartUnits by rememberSaveable { mutableIntStateOf(0) }
     var myOrderCartOpenRequests by rememberSaveable { mutableIntStateOf(0) }
@@ -275,11 +289,65 @@ internal fun HomeRoute(
     val currentSharedProfile = sharedProfiles.firstOrNull { profile -> profile.userId == member?.id }
     val effectiveNowMillis = nowOverrideMillis ?: System.currentTimeMillis()
 
+    fun clearPendingNewsConfirmation() {
+        pendingSavedNewsId = null
+        pendingSavedNewsWasNew = false
+        pendingSavedNewsEditorGeneration = null
+        pendingSavedNewsDraftRevision = null
+    }
+
+    fun clearPendingNotificationConfirmation() {
+        pendingNotificationEditorGeneration = null
+        pendingNotificationDraftRevision = null
+    }
+
+    fun pendingNewsConfirmationIdentity(): EditorConfirmationIdentity? {
+        val editorGeneration = pendingSavedNewsEditorGeneration ?: return null
+        val draftRevision = pendingSavedNewsDraftRevision ?: return null
+        return EditorConfirmationIdentity(editorGeneration, draftRevision)
+    }
+
+    fun pendingNotificationConfirmationIdentity(): EditorConfirmationIdentity? {
+        val editorGeneration = pendingNotificationEditorGeneration ?: return null
+        val draftRevision = pendingNotificationDraftRevision ?: return null
+        return EditorConfirmationIdentity(editorGeneration, draftRevision)
+    }
+
     LaunchedEffect(highlightedNewsId) {
         val currentHighlightedNewsId = highlightedNewsId ?: return@LaunchedEffect
         delay(1_600)
         if (highlightedNewsId == currentHighlightedNewsId) {
             highlightedNewsId = null
+        }
+    }
+
+    LaunchedEffect(
+        newsEditorRevision,
+        newsDraftRevision,
+        pendingSavedNewsEditorGeneration,
+        pendingSavedNewsDraftRevision,
+    ) {
+        val identity = pendingNewsConfirmationIdentity() ?: return@LaunchedEffect
+        if (editorConfirmationIsSuperseded(identity, newsEditorRevision, newsDraftRevision)) {
+            clearPendingNewsConfirmation()
+        }
+    }
+
+    LaunchedEffect(
+        notificationEditorRevision,
+        notificationDraftRevision,
+        pendingNotificationEditorGeneration,
+        pendingNotificationDraftRevision,
+    ) {
+        val identity = pendingNotificationConfirmationIdentity() ?: return@LaunchedEffect
+        if (
+            editorConfirmationIsSuperseded(
+                identity,
+                notificationEditorRevision,
+                notificationDraftRevision,
+            )
+        ) {
+            clearPendingNotificationConfirmation()
         }
     }
 
@@ -374,11 +442,26 @@ internal fun HomeRoute(
 
     fun closeNewsSaveDialog() {
         val savedNewsId = pendingSavedNewsId ?: return
-        pendingSavedNewsId = null
-        pendingSavedNewsWasNew = false
-        onClearNewsEditor()
+        val identity = pendingNewsConfirmationIdentity() ?: return
+        clearPendingNewsConfirmation()
+        if (!editorConfirmationMatches(identity, newsEditorRevision, newsDraftRevision)) return
+        if (!onClearNewsEditorIfCurrent(identity)) return
         highlightedNewsId = savedNewsId
         navigateHome(HomeDestination.NEWS)
+    }
+
+    fun closeNotificationSentDialog() {
+        val identity = pendingNotificationConfirmationIdentity() ?: return
+        clearPendingNotificationConfirmation()
+        if (
+            !editorConfirmationMatches(
+                identity,
+                notificationEditorRevision,
+                notificationDraftRevision,
+            )
+        ) return
+        if (!onClearNotificationEditorIfCurrent(identity)) return
+        navigateHome(HomeDestination.NOTIFICATIONS)
     }
 
     fun handleDrawerNavigation(destination: HomeDestination) {
@@ -644,7 +727,7 @@ internal fun HomeRoute(
                         navigateHome(HomeDestination.PUBLISH_NEWS)
                     },
                     onRequestDeleteNews = { newsId ->
-                        newsPendingDeletionId = newsId
+                        onRequestDeleteNews(newsId)
                     },
                     )
 
@@ -660,6 +743,10 @@ internal fun HomeRoute(
                         onSaveNews { result ->
                             pendingSavedNewsId = result.newsId
                             pendingSavedNewsWasNew = result.isNew
+                            pendingSavedNewsEditorGeneration =
+                                result.confirmationIdentity.editorGeneration
+                            pendingSavedNewsDraftRevision =
+                                result.confirmationIdentity.draftRevision
                         }
                     },
                     )
@@ -674,8 +761,11 @@ internal fun HomeRoute(
                     isSending = isSendingNotification,
                     onDraftChanged = onNotificationDraftChanged,
                     onSend = {
-                        onSendNotification {
-                            isNotificationSentDialogVisible = true
+                        onSendNotification { result ->
+                            pendingNotificationEditorGeneration =
+                                result.confirmationIdentity.editorGeneration
+                            pendingNotificationDraftRevision =
+                                result.confirmationIdentity.draftRevision
                         }
                     },
                     )
@@ -885,7 +975,13 @@ internal fun HomeRoute(
         }
 
     }
-    pendingSavedNewsId?.let {
+    val savedNewsId = pendingSavedNewsId
+    val savedNewsIdentity = pendingNewsConfirmationIdentity()
+    if (
+        savedNewsId != null &&
+        savedNewsIdentity != null &&
+        editorConfirmationMatches(savedNewsIdentity, newsEditorRevision, newsDraftRevision)
+    ) {
         ReguertaDialog(
             type = ReguertaDialogType.INFO,
             title = stringResource(
@@ -910,7 +1006,8 @@ internal fun HomeRoute(
         )
     }
 
-    newsPendingDeletionId?.let { pendingId ->
+    pendingNewsDeletionId?.let { pendingId ->
+        val pendingRequestRevision = newsDeletionRequestRevision
         val title = newsFeed.firstOrNull { it.id == pendingId }?.title.orEmpty()
         ReguertaDialog(
             type = ReguertaDialogType.ERROR,
@@ -919,37 +1016,35 @@ internal fun HomeRoute(
             primaryAction = ReguertaDialogAction(
                 label = stringResource(R.string.news_delete_action_confirm),
                 onClick = {
-                    onDeleteNews(pendingId) {
-                        newsPendingDeletionId = null
-                    }
+                    onDeleteNews(pendingId, pendingRequestRevision) {}
                 },
             ),
             secondaryAction = ReguertaDialogAction(
                 label = stringResource(R.string.news_delete_action_cancel),
-                onClick = { newsPendingDeletionId = null },
+                onClick = { onClearNewsDeletionRequest(pendingRequestRevision) },
             ),
-            onDismissRequest = { newsPendingDeletionId = null },
+            onDismissRequest = { onClearNewsDeletionRequest(pendingRequestRevision) },
         )
     }
 
-    if (isNotificationSentDialogVisible) {
+    val notificationConfirmationIdentity = pendingNotificationConfirmationIdentity()
+    if (
+        notificationConfirmationIdentity != null &&
+        editorConfirmationMatches(
+            notificationConfirmationIdentity,
+            notificationEditorRevision,
+            notificationDraftRevision,
+        )
+    ) {
         ReguertaDialog(
             type = ReguertaDialogType.INFO,
             title = stringResource(R.string.notifications_send_success_dialog_title),
             message = stringResource(R.string.notifications_send_success_dialog_message),
             primaryAction = ReguertaDialogAction(
                 label = stringResource(R.string.common_action_close),
-                onClick = {
-                    isNotificationSentDialogVisible = false
-                    onClearNotificationEditor()
-                    navigateHome(HomeDestination.NOTIFICATIONS)
-                },
+                onClick = ::closeNotificationSentDialog,
             ),
-            onDismissRequest = {
-                isNotificationSentDialogVisible = false
-                onClearNotificationEditor()
-                navigateHome(HomeDestination.NOTIFICATIONS)
-            },
+            onDismissRequest = ::closeNotificationSentDialog,
         )
     }
 
@@ -971,6 +1066,23 @@ internal fun HomeRoute(
     }
 }
 }
+
+internal fun editorConfirmationMatches(
+    identity: EditorConfirmationIdentity,
+    editorGeneration: Long,
+    draftRevision: Long,
+): Boolean = identity.editorGeneration == editorGeneration &&
+    identity.draftRevision == draftRevision
+
+internal fun editorConfirmationIsSuperseded(
+    identity: EditorConfirmationIdentity,
+    editorGeneration: Long,
+    draftRevision: Long,
+): Boolean = editorGeneration > identity.editorGeneration ||
+    (
+        editorGeneration == identity.editorGeneration &&
+            draftRevision > identity.draftRevision
+        )
 
 @Composable
 fun HomeDrawerContentWithLogoutConfirmation(

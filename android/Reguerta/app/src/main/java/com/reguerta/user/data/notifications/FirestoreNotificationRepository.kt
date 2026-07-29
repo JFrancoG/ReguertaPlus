@@ -1,18 +1,21 @@
 package com.reguerta.user.data.notifications
 
-import com.google.android.gms.tasks.Tasks
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
 import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
 import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
 import com.reguerta.user.data.firestore.ReguertaFirestorePath
+import com.reguerta.user.data.firestore.toRepositoryException
+import com.reguerta.user.domain.RepositoryErrorKind
+import com.reguerta.user.domain.RepositoryException
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.notifications.NotificationEvent
 import com.reguerta.user.domain.notifications.NotificationRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
 class FirestoreNotificationRepository(
@@ -31,21 +34,32 @@ class FirestoreNotificationRepository(
         "${firestorePath.documentPath(ReguertaFirestoreCollection.USERS, memberId)}/notificationReads"
 
     override suspend fun getNotificationsFor(member: Member): List<NotificationEvent> = withContext(Dispatchers.IO) {
-        val snapshot = Tasks.await(
-            firestore.collection(notificationInboxCollectionPath(member.id))
-                .orderBy("sentAt", Query.Direction.DESCENDING)
-                .get(),
-        )
-        snapshot.documents
-            .mapNotNull { it.toNotificationEvent() }
-            .sortedByDescending { it.sentAtMillis }
+        try {
+            val snapshot = firestore.collection(notificationInboxCollectionPath(member.id))
+                .get()
+                .await()
+            decodeNotificationDocuments(
+                documents = snapshot.documents.map { document ->
+                    document.id to document.data.orEmpty()
+                },
+                source = NotificationDocumentSource.INBOX,
+            )
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (error: Exception) {
+            throw error.toRepositoryException(resource = "notificationInbox")
+        }
     }
 
     override suspend fun getReadNotificationIds(memberId: String): Set<String> = withContext(Dispatchers.IO) {
-        val snapshot = Tasks.await(
-            firestore.collection(notificationReadsCollectionPath(memberId)).get(),
-        )
-        snapshot.documents.map { it.id }.toSet()
+        try {
+            val snapshot = firestore.collection(notificationReadsCollectionPath(memberId)).get().await()
+            snapshot.documents.map { it.id }.toSet()
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (error: Exception) {
+            throw error.toRepositoryException(resource = "notificationReads")
+        }
     }
 
     override suspend fun markNotificationsRead(
@@ -72,8 +86,14 @@ class FirestoreNotificationRepository(
                 SetOptions.merge(),
             )
         }
-        Tasks.await(batch.commit())
-        Unit
+        try {
+            batch.commit().await()
+            Unit
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (error: Exception) {
+            throw error.toRepositoryException(resource = "notificationReads")
+        }
     }
 
     override suspend fun sendNotification(event: NotificationEvent): NotificationEvent = withContext(Dispatchers.IO) {
@@ -106,33 +126,52 @@ class FirestoreNotificationRepository(
         }
         payload["targetPayload"] = targetPayload
 
-        Tasks.await(
+        try {
             firestore.collection(notificationsCollectionPath)
                 .document(documentId)
-                .set(payload, SetOptions.merge()),
-        )
-        persisted
+                .set(payload, SetOptions.merge())
+                .await()
+            persisted
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (error: Exception) {
+            throw error.toRepositoryException(resource = "notificationEvents/$documentId")
+        }
     }
 }
 
-private fun com.google.firebase.firestore.DocumentSnapshot.toNotificationEvent(): NotificationEvent? {
-    val title = getString("title")?.trim().orEmpty()
-    val body = getString("body")?.trim().orEmpty()
-    val type = getString("type")?.trim().orEmpty()
-    val target = getString("target")?.trim().orEmpty()
-    if (title.isBlank() || body.isBlank() || type.isBlank() || target.isBlank()) {
-        return null
-    }
+internal enum class NotificationDocumentSource(val resourceCollection: String) {
+    EVENT("notificationEvents"),
+    INBOX("notificationInbox"),
+}
 
-    val targetPayload = get("targetPayload") as? Map<*, *>
-    val userIds = (targetPayload?.get("userIds") as? List<*>)?.mapNotNull { it as? String }.orEmpty()
-    val targetRole = (targetPayload?.get("role") as? String)?.toMemberRole()
-    val segmentType = (targetPayload?.get("segmentType") as? String)
-        ?.trim()
-        ?.ifBlank { null }
-        ?: if (targetRole != null) "role" else null
+internal fun decodeNotificationDocuments(
+    documents: List<Pair<String, Map<String, Any?>>>,
+    source: NotificationDocumentSource,
+): List<NotificationEvent> = documents
+    .map { (documentId, data) -> decodeNotificationDocument(documentId, data, source) }
+    .sortedByDescending(NotificationEvent::sentAtMillis)
 
-    return NotificationEvent(
+internal fun decodeNotificationDocument(
+    documentId: String,
+    data: Map<String, Any?>,
+    source: NotificationDocumentSource,
+): NotificationEvent = NotificationDocumentDto.decode(documentId, data, source).toDomain()
+
+internal data class NotificationDocumentDto(
+    val id: String,
+    val title: String,
+    val body: String,
+    val type: String,
+    val target: String,
+    val userIds: List<String>,
+    val segmentType: String?,
+    val targetRole: MemberRole?,
+    val createdBy: String,
+    val sentAtMillis: Long,
+    val weekKey: String?,
+) {
+    fun toDomain(): NotificationEvent = NotificationEvent(
         id = id,
         title = title,
         body = body,
@@ -141,19 +180,151 @@ private fun com.google.firebase.firestore.DocumentSnapshot.toNotificationEvent()
         userIds = userIds,
         segmentType = segmentType,
         targetRole = targetRole,
-        createdBy = getString("createdBy")?.trim().orEmpty(),
-        sentAtMillis = getTimestamp("sentAt")?.toDate()?.time ?: 0L,
-        weekKey = getString("weekKey")?.trim()?.ifBlank { null },
+        createdBy = createdBy,
+        sentAtMillis = sentAtMillis,
+        weekKey = weekKey,
     )
+
+    companion object {
+        fun decode(
+            documentId: String,
+            data: Map<String, Any?>,
+            source: NotificationDocumentSource,
+        ): NotificationDocumentDto {
+            if (documentId.isBlank() || documentId != documentId.trim()) {
+                invalidNotificationDocument(source, documentId)
+            }
+            if (source == NotificationDocumentSource.INBOX &&
+                data.requiredExactNotificationString("notificationEventId", source, documentId) != documentId
+            ) {
+                invalidNotificationDocument(source, documentId)
+            }
+            val type = data.requiredExactNotificationString("type", source, documentId)
+            if (type !in CANONICAL_NOTIFICATION_TYPES) {
+                invalidNotificationDocument(source, documentId)
+            }
+            val target = data.requiredExactNotificationString("target", source, documentId)
+            val audience = data.requiredNotificationAudience(target, source, documentId)
+            return NotificationDocumentDto(
+                id = documentId,
+                title = data.requiredNotificationString("title", source, documentId),
+                body = data.requiredNotificationString("body", source, documentId),
+                type = type,
+                target = target,
+                userIds = audience.userIds,
+                segmentType = audience.segmentType,
+                targetRole = audience.targetRole,
+                createdBy = data.requiredNotificationString("createdBy", source, documentId),
+                sentAtMillis = data.requiredNotificationTimestampMillis("sentAt", source, documentId),
+                weekKey = data.optionalNotificationString("weekKey", source, documentId),
+            )
+        }
+    }
 }
 
-private fun String.toMemberRole(): MemberRole? =
-    when (this.lowercase()) {
-        "member" -> MemberRole.MEMBER
-        "producer" -> MemberRole.PRODUCER
-        "admin" -> MemberRole.ADMIN
-        else -> null
+private data class DecodedNotificationAudience(
+    val userIds: List<String> = emptyList(),
+    val segmentType: String? = null,
+    val targetRole: MemberRole? = null,
+)
+
+private fun Map<String, Any?>.requiredNotificationAudience(
+    target: String,
+    source: NotificationDocumentSource,
+    documentId: String,
+): DecodedNotificationAudience {
+    val payload = this["targetPayload"] as? Map<*, *>
+        ?: invalidNotificationDocument(source, documentId)
+    return when (target) {
+        "all" -> {
+            if (payload.isNotEmpty()) invalidNotificationDocument(source, documentId)
+            DecodedNotificationAudience()
+        }
+        "users" -> {
+            if (payload.keys != setOf("userIds")) invalidNotificationDocument(source, documentId)
+            val rawUserIds = payload["userIds"] as? List<*>
+                ?: invalidNotificationDocument(source, documentId)
+            val userIds = rawUserIds.map { value ->
+                (value as? String)?.trim()?.ifEmpty {
+                    invalidNotificationDocument(source, documentId)
+                } ?: invalidNotificationDocument(source, documentId)
+            }
+            if (userIds.isEmpty()) invalidNotificationDocument(source, documentId)
+            DecodedNotificationAudience(userIds = userIds)
+        }
+        "segment" -> {
+            if (payload.keys != setOf("segmentType", "role")) {
+                invalidNotificationDocument(source, documentId)
+            }
+            if (payload["segmentType"] != "role") {
+                invalidNotificationDocument(source, documentId)
+            }
+            val role = when (payload["role"]) {
+                "member" -> MemberRole.MEMBER
+                "producer" -> MemberRole.PRODUCER
+                "admin" -> MemberRole.ADMIN
+                else -> invalidNotificationDocument(source, documentId)
+            }
+            DecodedNotificationAudience(segmentType = "role", targetRole = role)
+        }
+        else -> invalidNotificationDocument(source, documentId)
     }
+}
+
+private fun Map<String, Any?>.requiredNotificationString(
+    field: String,
+    source: NotificationDocumentSource,
+    documentId: String,
+): String = optionalNotificationString(field, source, documentId)
+    ?: invalidNotificationDocument(source, documentId)
+
+private fun Map<String, Any?>.requiredExactNotificationString(
+    field: String,
+    source: NotificationDocumentSource,
+    documentId: String,
+): String {
+    val value = this[field] as? String ?: invalidNotificationDocument(source, documentId)
+    if (value.isEmpty() || value != value.trim()) invalidNotificationDocument(source, documentId)
+    return value
+}
+
+private fun Map<String, Any?>.optionalNotificationString(
+    field: String,
+    source: NotificationDocumentSource,
+    documentId: String,
+): String? {
+    val value = this[field] ?: return null
+    if (value !is String) invalidNotificationDocument(source, documentId)
+    return value.trim().ifEmpty { invalidNotificationDocument(source, documentId) }
+}
+
+private fun Map<String, Any?>.requiredNotificationTimestampMillis(
+    field: String,
+    source: NotificationDocumentSource,
+    documentId: String,
+): Long = (this[field] as? Timestamp)?.toDate()?.time
+    ?: invalidNotificationDocument(source, documentId)
+
+private fun invalidNotificationDocument(
+    source: NotificationDocumentSource,
+    documentId: String,
+): Nothing = throw RepositoryException(
+    kind = RepositoryErrorKind.INVALID_DATA,
+    resource = "${source.resourceCollection}/$documentId",
+)
+
+private val CANONICAL_NOTIFICATION_TYPES = setOf(
+    "order_reminder",
+    "order_auto_generated",
+    "shift_swap_requested",
+    "shift_swap_available",
+    "shift_swap_unavailable",
+    "shift_swap_accepted",
+    "shift_swap_applied",
+    "shift_updated",
+    "news_published",
+    "admin_broadcast",
+)
 
 private fun MemberRole.wireValue(): String =
     when (this) {

@@ -40,6 +40,16 @@ data class NewsDraft(
 data class NewsSaveResult(
     val newsId: String,
     val isNew: Boolean,
+    val confirmationIdentity: EditorConfirmationIdentity,
+)
+
+data class NotificationSendResult(
+    val confirmationIdentity: EditorConfirmationIdentity,
+)
+
+data class EditorConfirmationIdentity(
+    val editorGeneration: Long,
+    val draftRevision: Long,
 )
 
 data class NotificationDraft(
@@ -176,9 +186,19 @@ data class SessionUiState(
     val latestNews: List<NewsArticle> = emptyList(),
     val newsFeed: List<NewsArticle> = emptyList(),
     val newsDraft: NewsDraft = NewsDraft(),
+    val newsEditorRevision: Long = 0L,
+    val newsDraftRevision: Long = 0L,
+    val newsImageRevision: Long = 0L,
+    val pendingNewsDeletionId: String? = null,
+    val newsDeletionRequestRevision: Long = 0L,
     val notificationsFeed: List<NotificationEvent> = emptyList(),
     val readNotificationIds: Set<String> = emptySet(),
+    val pendingNotificationAcknowledgements: List<NotificationEvent> = emptyList(),
+    val pendingReadNotificationIds: Set<String> = emptySet(),
+    val notificationReadRevision: Long = 0L,
     val notificationDraft: NotificationDraft = NotificationDraft(),
+    val notificationEditorRevision: Long = 0L,
+    val notificationDraftRevision: Long = 0L,
     val productsFeed: List<Product> = emptyList(),
     val myOrderProductsFeed: List<Product> = emptyList(),
     val myOrderSeasonalCommitmentsFeed: List<SeasonalCommitment> = emptyList(),
@@ -206,6 +226,7 @@ data class SessionUiState(
     val editingNewsId: String? = null,
     val isLoadingNews: Boolean = false,
     val isSavingNews: Boolean = false,
+    val isDeletingNews: Boolean = false,
     val isUploadingNewsImage: Boolean = false,
     val isLoadingNotifications: Boolean = false,
     val isSendingNotification: Boolean = false,

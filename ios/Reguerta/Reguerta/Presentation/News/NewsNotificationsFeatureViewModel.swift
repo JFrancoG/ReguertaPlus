@@ -16,15 +16,20 @@ final class NewsNotificationsFeatureViewModel {
     @ObservationIgnored let pushNotificationPermissionProvider: any PushNotificationPermissionProvider
     @ObservationIgnored let imagePipelineManager: any ImagePipelineManager
     @ObservationIgnored let nowMillisProvider: @MainActor () -> Int64
+    @ObservationIgnored let environmentProvider: @MainActor () -> SessionEnvironment
+    @ObservationIgnored let environmentRoutingSignal: SessionEnvironmentRoutingSignal
 
     var currentSession: AuthorizedSession?
     var currentMember: Member?
+    var currentEnvironment: SessionEnvironment?
     var latestNews: [NewsArticle] = []
     var newsFeed: [NewsArticle] = []
     var newsDraft = NewsDraft()
     var notificationDraft = NotificationDraft()
     var notificationsFeed: [NotificationEvent] = []
     var readNotificationIds: Set<String> = []
+    @ObservationIgnored var pendingConfirmedNotifications: [String: NotificationEvent] = [:]
+    @ObservationIgnored var pendingConfirmedReadNotificationIds: Set<String> = []
     var editingNewsId: String?
     var pendingNewsDeletionId: String?
     var pendingNewsSaveConfirmation: NewsSaveConfirmation?
@@ -38,6 +43,32 @@ final class NewsNotificationsFeatureViewModel {
     var isPushNotificationPermissionActive = true
     var showsPushNotificationPermissionDialog = false
     var didDismissPushNotificationPermissionDialogForVisit = false
+    @ObservationIgnored var sessionIdentityEpoch: UInt64 = 0
+    @ObservationIgnored var environmentRoutingGeneration: UInt64 = 0
+    @ObservationIgnored var activeCommunityHydrationTask: Task<Void, Never>?
+    @ObservationIgnored var communityHydrationGeneration: UInt64 = 0
+    @ObservationIgnored var activeNewsRefreshOperationId: UInt64?
+    @ObservationIgnored var nextNewsRefreshOperationId: UInt64 = 0
+    @ObservationIgnored var activeNotificationsRefreshOperationId: UInt64?
+    @ObservationIgnored var nextNotificationsRefreshOperationId: UInt64 = 0
+    @ObservationIgnored var activeNotificationsRouteOperationId: UInt64?
+    @ObservationIgnored var nextNotificationsRouteOperationId: UInt64 = 0
+    @ObservationIgnored var activePermissionRefreshOperationId: UInt64?
+    @ObservationIgnored var nextPermissionRefreshOperationId: UInt64 = 0
+    @ObservationIgnored var activeMarkReadOperationId: UInt64?
+    @ObservationIgnored var nextMarkReadOperationId: UInt64 = 0
+    @ObservationIgnored var activeNewsMutationOperationId: UInt64?
+    @ObservationIgnored var nextNewsMutationOperationId: UInt64 = 0
+    @ObservationIgnored var activeNotificationMutationOperationId: UInt64?
+    @ObservationIgnored var nextNotificationMutationOperationId: UInt64 = 0
+    @ObservationIgnored var activeNewsImageUploadOperationId: UInt64?
+    @ObservationIgnored var nextNewsImageUploadOperationId: UInt64 = 0
+    @ObservationIgnored var newsEditorRevision: UInt64 = 0
+    @ObservationIgnored var newsDraftRevision: UInt64 = 0
+    @ObservationIgnored var notificationEditorRevision: UInt64 = 0
+    @ObservationIgnored var notificationDraftRevision: UInt64 = 0
+    @ObservationIgnored var newsDeletionRevision: UInt64 = 0
+    @ObservationIgnored var notificationsStateRevision: UInt64 = 0
 
     var pendingNewsDeletionArticle: NewsArticle? {
         guard let pendingNewsDeletionId else { return nil }
@@ -68,7 +99,9 @@ final class NewsNotificationsFeatureViewModel {
         newsRepository: any NewsRepository,
         notificationRepository: any NotificationRepository,
         imagePipelineManager: any ImagePipelineManager,
-        nowMillisProvider: @escaping @MainActor () -> Int64
+        nowMillisProvider: @escaping @MainActor () -> Int64,
+        environmentProvider: @escaping @MainActor () -> SessionEnvironment = { .develop },
+        environmentRoutingSignal: SessionEnvironmentRoutingSignal? = nil
     ) {
         self.init(
             sessionViewModel: sessionViewModel,
@@ -77,7 +110,9 @@ final class NewsNotificationsFeatureViewModel {
             notificationRepository: notificationRepository,
             pushNotificationPermissionProvider: FixedPushNotificationPermissionProvider(isActive: true),
             imagePipelineManager: imagePipelineManager,
-            nowMillisProvider: nowMillisProvider
+            nowMillisProvider: nowMillisProvider,
+            environmentProvider: environmentProvider,
+            environmentRoutingSignal: environmentRoutingSignal
         )
     }
 
@@ -88,7 +123,9 @@ final class NewsNotificationsFeatureViewModel {
         notificationRepository: any NotificationRepository,
         pushNotificationPermissionProvider: any PushNotificationPermissionProvider,
         imagePipelineManager: any ImagePipelineManager,
-        nowMillisProvider: @escaping @MainActor () -> Int64
+        nowMillisProvider: @escaping @MainActor () -> Int64,
+        environmentProvider: @escaping @MainActor () -> SessionEnvironment = { .develop },
+        environmentRoutingSignal: SessionEnvironmentRoutingSignal? = nil
     ) {
         self.sessionViewModel = sessionViewModel
         self.feedbackCenter = feedbackCenter
@@ -97,5 +134,46 @@ final class NewsNotificationsFeatureViewModel {
         self.pushNotificationPermissionProvider = pushNotificationPermissionProvider
         self.imagePipelineManager = imagePipelineManager
         self.nowMillisProvider = nowMillisProvider
+        self.environmentProvider = environmentProvider
+        let resolvedRoutingSignal = environmentRoutingSignal
+            ?? sessionViewModel.environmentRouter.transitionSignal
+        self.environmentRoutingSignal = resolvedRoutingSignal
+        self.environmentRoutingGeneration = resolvedRoutingSignal.currentTransition.generation
+        resolvedRoutingSignal.observe { [weak self] transition in
+            self?.handleEnvironmentRoutingTransition(transition)
+        }
+    }
+
+    struct SessionContext: Equatable {
+        let session: AuthorizedSession
+        let epoch: UInt64
+        let principalUID: String
+        let memberID: String
+        let memberRoles: Set<MemberRole>
+        let canPublishNews: Bool
+        let canSendAdminNotifications: Bool
+        let environment: SessionEnvironment
+        let environmentRoutingGeneration: UInt64
+    }
+
+    struct NewsMutationEditorOwnership: Equatable {
+        let editorRevision: UInt64
+        let draftRevision: UInt64
+        let newsID: String?
+    }
+
+    struct NotificationMutationEditorOwnership: Equatable {
+        let editorRevision: UInt64
+        let draftRevision: UInt64
+    }
+
+    struct NewsDeletionOwnership: Equatable {
+        let revision: UInt64
+        let newsID: String
+    }
+
+    enum NewsConvergenceFeedbackOwnership: Equatable {
+        case editor(NewsMutationEditorOwnership)
+        case deletion(NewsDeletionOwnership)
     }
 }

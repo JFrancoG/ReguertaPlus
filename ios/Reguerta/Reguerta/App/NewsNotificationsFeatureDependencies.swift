@@ -7,6 +7,7 @@ struct NewsNotificationsFeatureDependencies {
     let pushNotificationPermissionProvider: any PushNotificationPermissionProvider
     let imagePipelineManager: any ImagePipelineManager
     let nowMillisProvider: @MainActor () -> Int64
+    let environmentProvider: @MainActor () -> SessionEnvironment
 
     static func live(
         db: Firestore,
@@ -20,7 +21,10 @@ struct NewsNotificationsFeatureDependencies {
             notificationRepository: notificationRepository ?? FirestoreNotificationRepository(db: db),
             pushNotificationPermissionProvider: pushNotificationPermissionProvider ?? IOSPushNotificationPermissionProvider(),
             imagePipelineManager: imagePipelineManager,
-            nowMillisProvider: nowMillisProvider
+            nowMillisProvider: nowMillisProvider,
+            environmentProvider: {
+                ReguertaRuntimeEnvironment.currentFirestoreEnvironment
+            }
         )
     }
 
@@ -29,14 +33,16 @@ struct NewsNotificationsFeatureDependencies {
         notificationRepository: InMemoryNotificationRepository = InMemoryNotificationRepository(),
         pushNotificationPermissionProvider: any PushNotificationPermissionProvider = FixedPushNotificationPermissionProvider(isActive: true),
         imagePipelineManager: any ImagePipelineManager = NoOpImagePipelineManager(),
-        nowMillisProvider: @escaping @MainActor () -> Int64 = { 0 }
+        nowMillisProvider: @escaping @MainActor () -> Int64 = { 0 },
+        environmentProvider: @escaping @MainActor () -> SessionEnvironment = { .develop }
     ) -> NewsNotificationsFeatureDependencies {
         NewsNotificationsFeatureDependencies(
             newsRepository: newsRepository,
             notificationRepository: notificationRepository,
             pushNotificationPermissionProvider: pushNotificationPermissionProvider,
             imagePipelineManager: imagePipelineManager,
-            nowMillisProvider: nowMillisProvider
+            nowMillisProvider: nowMillisProvider,
+            environmentProvider: environmentProvider
         )
     }
 }

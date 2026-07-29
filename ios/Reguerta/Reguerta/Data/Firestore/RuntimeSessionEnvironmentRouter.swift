@@ -1,25 +1,43 @@
 import Foundation
 
 struct RuntimeSessionEnvironmentRouter: SessionEnvironmentRouting {
+    let transitionSignal: SessionEnvironmentRoutingSignal
+
+    init(transitionSignal: SessionEnvironmentRoutingSignal? = nil) {
+        self.transitionSignal = transitionSignal ?? SessionEnvironmentRoutingSignal(
+            environment: ReguertaRuntimeEnvironment.currentFirestoreEnvironment
+        )
+    }
+
     var baseEnvironment: SessionEnvironment {
         ReguertaRuntimeEnvironment.baseFirestoreEnvironment
     }
 
     func applyResolvedEnvironment(_ environment: SessionEnvironment, lease: SessionEnvironmentLease) {
         ReguertaRuntimeEnvironment.applySessionEnvironment(environment, lease: lease)
+        transitionSignal.publish(
+            environment: ReguertaRuntimeEnvironment.currentFirestoreEnvironment
+        )
     }
 
     func resetToBaseEnvironment(ifOwnedBy lease: SessionEnvironmentLease) {
         ReguertaRuntimeEnvironment.resetToBaseEnvironment(ifOwnedBy: lease)
+        transitionSignal.publish(
+            environment: ReguertaRuntimeEnvironment.currentFirestoreEnvironment
+        )
     }
 
     func resetToBaseEnvironment() {
         ReguertaRuntimeEnvironment.resetToBaseEnvironment()
+        transitionSignal.publish(
+            environment: ReguertaRuntimeEnvironment.currentFirestoreEnvironment
+        )
     }
 }
 
 struct FixedSessionEnvironmentRouter: SessionEnvironmentRouting {
     let baseEnvironment: SessionEnvironment
+    let transitionSignal: SessionEnvironmentRoutingSignal
     private let state: FixedSessionEnvironmentRouterState
     private let onApply: @MainActor @Sendable (SessionEnvironment) -> Void
     private let onReset: @MainActor @Sendable () -> Void
@@ -30,6 +48,7 @@ struct FixedSessionEnvironmentRouter: SessionEnvironmentRouting {
         onReset: @escaping @MainActor @Sendable () -> Void = {}
     ) {
         self.baseEnvironment = baseEnvironment
+        self.transitionSignal = SessionEnvironmentRoutingSignal(environment: baseEnvironment)
         self.state = FixedSessionEnvironmentRouterState()
         self.onApply = onApply
         self.onReset = onReset
@@ -38,6 +57,7 @@ struct FixedSessionEnvironmentRouter: SessionEnvironmentRouting {
     func applyResolvedEnvironment(_ environment: SessionEnvironment, lease: SessionEnvironmentLease) {
         state.activeLease = lease
         onApply(environment)
+        transitionSignal.publish(environment: environment)
     }
 
     func resetToBaseEnvironment(ifOwnedBy lease: SessionEnvironmentLease) {
@@ -48,6 +68,7 @@ struct FixedSessionEnvironmentRouter: SessionEnvironmentRouting {
     func resetToBaseEnvironment() {
         state.activeLease = nil
         onReset()
+        transitionSignal.publish(environment: baseEnvironment)
     }
 }
 

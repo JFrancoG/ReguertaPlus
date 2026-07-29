@@ -36,6 +36,7 @@ import com.reguerta.user.domain.shifts.ShiftRepository
 import com.reguerta.user.domain.shifts.ShiftSwapRequestRepository
 import com.reguerta.user.domain.shifts.ShiftSwapResponseStatus
 import com.reguerta.user.presentation.auth.SessionAuthActions
+import com.reguerta.user.presentation.auth.clearCommunitySessionState
 import com.reguerta.user.presentation.bylaws.SessionBylawsActions
 import com.reguerta.user.presentation.products.SessionProductActions
 import com.reguerta.user.presentation.shifts.SessionShiftActions
@@ -87,6 +88,7 @@ class SessionViewModel(
     private val bylawsOnDeviceAssistant: BylawsOnDeviceAssistant = PdfOnlyBylawsOnDeviceAssistant,
     private val sessionRefreshPolicy: SessionRefreshPolicy = SessionRefreshPolicy(),
     private val nowMillisProvider: () -> Long = { System.currentTimeMillis() },
+    private val runtimeEnvironmentProvider: () -> String? = { null },
     private val developImpersonationEnabled: Boolean = false,
     initialNowOverrideMillis: Long? = null,
 ) : ViewModel() {
@@ -133,6 +135,7 @@ class SessionViewModel(
             emitMessage = ::emitMessage,
             emitEvent = ::emitEvent,
             pushNotificationPermissionProvider = pushNotificationPermissionProvider,
+            runtimeEnvironmentProvider = runtimeEnvironmentProvider,
         )
     }
 
@@ -154,8 +157,6 @@ class SessionViewModel(
             uiState = _uiState,
             scope = viewModelScope,
             memberRepository = repository,
-            newsRepository = newsRepository,
-            notificationRepository = notificationRepository,
             productRepository = productRepository,
             sharedProfileRepository = sharedProfileRepository,
             authSessionProvider = authSessionProvider,
@@ -169,6 +170,8 @@ class SessionViewModel(
             getLastSessionRefreshAtMillis = { lastSessionRefreshAtMillis },
             setLastSessionRefreshAtMillis = { lastSessionRefreshAtMillis = it },
             nowMillisProvider = nowMillisProvider,
+            refreshNews = { communityActions.refreshNews() },
+            refreshNotifications = { communityActions.refreshNotifications() },
             refreshShifts = { shiftActions.refreshShifts() },
             refreshDeliveryCalendar = { shiftActions.refreshDeliveryCalendar() },
             refreshMyOrderConsumer = { payload, additionalFence ->
@@ -209,7 +212,7 @@ class SessionViewModel(
         val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
         val target = mode.members.firstOrNull { it.id == memberId && it.isActive } ?: return
         _uiState.update {
-            it.copy(
+            it.clearCommunitySessionState().copy(
                 sessionEpoch = it.sessionEpoch + 1,
                 mode = mode.copy(member = target),
                 shiftsFeed = emptyList(),
@@ -244,7 +247,7 @@ class SessionViewModel(
         val mode = _uiState.value.mode as? SessionMode.Authorized ?: return
         if (mode.member.id == mode.authenticatedMember.id) return
         _uiState.update {
-            it.copy(
+            it.clearCommunitySessionState().copy(
                 sessionEpoch = it.sessionEpoch + 1,
                 mode = mode.copy(member = mode.authenticatedMember),
                 shiftsFeed = emptyList(),
@@ -331,9 +334,20 @@ class SessionViewModel(
 
     fun clearNewsEditor() = formActions.clearNewsEditor()
 
+    fun clearNewsEditorIfCurrent(identity: EditorConfirmationIdentity): Boolean =
+        formActions.clearNewsEditorIfCurrent(identity)
+
     fun startCreatingNotification() = formActions.startCreatingNotification()
 
     fun clearNotificationEditor() = formActions.clearNotificationEditor()
+
+    fun clearNotificationEditorIfCurrent(identity: EditorConfirmationIdentity): Boolean =
+        formActions.clearNotificationEditorIfCurrent(identity)
+
+    fun requestNewsDeletion(newsId: String) = formActions.requestNewsDeletion(newsId)
+
+    fun clearNewsDeletionRequest(requestRevision: Long) =
+        formActions.clearNewsDeletionRequest(requestRevision)
 
     fun refreshProducts() = productActions.refreshProducts()
 
@@ -426,10 +440,12 @@ class SessionViewModel(
 
     fun deleteNews(
         newsId: String,
+        requestRevision: Long,
         onSuccess: () -> Unit = {},
-    ) = communityActions.deleteNews(newsId, onSuccess)
+    ) = communityActions.deleteNews(newsId, requestRevision, onSuccess)
 
-    fun sendNotification(onSuccess: () -> Unit = {}) = communityActions.sendNotification(onSuccess)
+    fun sendNotification(onSuccess: (NotificationSendResult) -> Unit = {}) =
+        communityActions.sendNotification(onSuccess)
 
     fun saveShiftSwapRequest(onSuccess: () -> Unit = {}) = shiftActions.saveShiftSwapRequest(onSuccess)
 

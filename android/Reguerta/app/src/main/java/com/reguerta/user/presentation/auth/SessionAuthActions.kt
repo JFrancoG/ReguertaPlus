@@ -41,8 +41,6 @@ import com.reguerta.user.domain.freshness.CriticalDataFreshnessLocalRepository
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessMetadataWrite
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessResolution
 import com.reguerta.user.domain.freshness.ResolveCriticalDataFreshnessUseCase
-import com.reguerta.user.domain.news.NewsRepository
-import com.reguerta.user.domain.notifications.NotificationRepository
 import com.reguerta.user.domain.products.ProductRepository
 import com.reguerta.user.domain.profiles.SharedProfileRepository
 import kotlinx.coroutines.CancellationException
@@ -68,8 +66,6 @@ internal class SessionAuthActions(
     private val uiState: MutableStateFlow<SessionUiState>,
     private val scope: CoroutineScope,
     private val memberRepository: MemberRepository,
-    private val newsRepository: NewsRepository,
-    private val notificationRepository: NotificationRepository,
     private val productRepository: ProductRepository,
     private val sharedProfileRepository: SharedProfileRepository,
     private val authSessionProvider: AuthSessionProvider,
@@ -83,6 +79,8 @@ internal class SessionAuthActions(
     private val getLastSessionRefreshAtMillis: () -> Long?,
     private val setLastSessionRefreshAtMillis: (Long?) -> Unit,
     private val nowMillisProvider: () -> Long,
+    private val refreshNews: () -> Unit,
+    private val refreshNotifications: () -> Unit,
     private val refreshShifts: () -> Unit,
     private val refreshDeliveryCalendar: () -> Unit,
     private val refreshMyOrderConsumer: suspend (
@@ -1020,6 +1018,21 @@ internal class SessionAuthActions(
             }
             invalidateAuthorizedDeviceSessionSafely()
             sessionEnvironmentRouter.applyResolvedEnvironment(environment)
+            if (
+                sessionOperationGeneration != operation.generation ||
+                sessionOperationOwner !== operation.owner
+            ) {
+                throw CancellationException("Session operation was superseded during routing")
+            }
+            uiState.update { state ->
+                if (state.sessionEnvironment != environment) {
+                    state.clearCommunitySessionState().copy(
+                        sessionEpoch = state.sessionEpoch + 1,
+                    )
+                } else {
+                    state
+                }
+            }
         }
     }
 
@@ -1192,10 +1205,6 @@ internal class SessionAuthActions(
             is AccessResolutionResult.Authorized -> {
                 val members = memberRepository.getMembersVisibleTo(result.member)
                 if (!isCurrentSessionOperation(operation)) return abandonStaleAuthorizedSession()
-                val allNotifications = notificationRepository.getNotificationsFor(result.member)
-                if (!isCurrentSessionOperation(operation)) return abandonStaleAuthorizedSession()
-                val readNotificationIds = notificationRepository.getReadNotificationIds(result.member.id)
-                if (!isCurrentSessionOperation(operation)) return abandonStaleAuthorizedSession()
                 val products = productRepository.getProductsForVendor(result.member.id)
                 if (!isCurrentSessionOperation(operation)) return abandonStaleAuthorizedSession()
                 val sharedProfiles = sharedProfileRepository.getAllSharedProfiles()
@@ -1217,61 +1226,36 @@ internal class SessionAuthActions(
                         principalUid = principal.uid,
                         member = result.member,
                     )
-                    productState.reconcileAuthorizedShiftState(accessTransition).copy(
-                        isAuthenticating = false,
-                        isRegistering = false,
-                        sessionEnvironment = result.environment,
-                        mode = SessionMode.Authorized(
-                            principal = principal,
-                            authenticatedMember = result.member,
-                            member = result.member,
-                            members = members,
-                        ),
-                        showSessionExpiredDialog = false,
-                        showUnauthorizedDialog = false,
-                        myOrderFreshnessState = if (refreshCriticalDataForAppliedSession) {
-                            MyOrderFreshnessUiState.Checking
-                        } else {
-                            it.myOrderFreshnessState
-                        },
-                        myOrderFreshnessGeneration = if (refreshCriticalDataForAppliedSession) {
-                            null
-                        } else {
-                            it.myOrderFreshnessGeneration
-                        },
-                        myOrderFreshnessConsumerReceipt = if (refreshCriticalDataForAppliedSession) {
-                            null
-                        } else {
-                            it.myOrderFreshnessConsumerReceipt
-                        },
-                        isLoadingNews = true,
-                        isLoadingNotifications = true,
-                        isLoadingProducts = result.member.canManageSessionProductCatalog,
-                        isLoadingMyOrderProducts = false,
-                        isUploadingNewsImage = false,
-                        isUploadingSharedProfileImage = false,
-                        isLoadingSharedProfiles = true,
-                    )
-                }) return abandonStaleAuthorizedSession()
-                if (refreshCriticalDataForAppliedSession) {
-                    cancelMyOrderFreshness()
-                }
-                val allNews = newsRepository.getNewsFor(result.member)
-                if (!isCurrentSessionOperation(operation)) return abandonStaleAuthorizedSession()
-                if (!updateUiStateIfCurrent(operation) {
-                    val currentMode = it.mode as? SessionMode.Authorized
-                    if (currentMode?.principal?.uid != principal.uid) {
-                        it
-                    } else {
-                        it.copy(
-                            latestNews = allNews.filter { article -> article.active }.take(3),
-                            newsFeed = if (result.member.isAdmin) {
-                                allNews
+                    productState
+                        .reconcileAuthorizedShiftState(accessTransition)
+                        .clearCommunitySessionStateIfInvalidated(accessTransition)
+                        .copy(
+                            isAuthenticating = false,
+                            isRegistering = false,
+                            sessionEnvironment = result.environment,
+                            mode = SessionMode.Authorized(
+                                principal = principal,
+                                authenticatedMember = result.member,
+                                member = result.member,
+                                members = members,
+                            ),
+                            showSessionExpiredDialog = false,
+                            showUnauthorizedDialog = false,
+                            myOrderFreshnessState = if (refreshCriticalDataForAppliedSession) {
+                                MyOrderFreshnessUiState.Checking
                             } else {
-                                allNews.filter { article -> article.active }
+                                it.myOrderFreshnessState
                             },
-                            notificationsFeed = allNotifications,
-                            readNotificationIds = readNotificationIds,
+                            myOrderFreshnessGeneration = if (refreshCriticalDataForAppliedSession) {
+                                null
+                            } else {
+                                it.myOrderFreshnessGeneration
+                            },
+                            myOrderFreshnessConsumerReceipt = if (refreshCriticalDataForAppliedSession) {
+                                null
+                            } else {
+                                it.myOrderFreshnessConsumerReceipt
+                            },
                             productsFeed = products,
                             myOrderProductsFeed = emptyList(),
                             myOrderSeasonalCommitmentsFeed = emptyList(),
@@ -1283,12 +1267,16 @@ internal class SessionAuthActions(
                             isLoadingNotifications = false,
                             isLoadingProducts = false,
                             isLoadingMyOrderProducts = false,
-                            isLoadingSharedProfiles = false,
                             isUploadingNewsImage = false,
                             isUploadingSharedProfileImage = false,
+                            isLoadingSharedProfiles = false,
                         )
-                    }
                 }) return abandonStaleAuthorizedSession()
+                if (refreshCriticalDataForAppliedSession) {
+                    cancelMyOrderFreshness()
+                }
+                if (!isCurrentSessionOperation(operation)) return abandonStaleAuthorizedSession()
+                launchCommunityRefreshes()
                 if (!isCurrentSessionOperation(operation)) return abandonStaleAuthorizedSession()
                 refreshShifts()
                 if (!isCurrentSessionOperation(operation)) return abandonStaleAuthorizedSession()
@@ -1335,6 +1323,23 @@ internal class SessionAuthActions(
                     )
                 }
             }
+        }
+    }
+
+    private fun launchCommunityRefreshes() {
+        try {
+            refreshNews()
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            // Community feeds are recoverable and must not revoke an authorized session.
+        }
+        try {
+            refreshNotifications()
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            // The fenced feed action owns user feedback and retry.
         }
     }
 
@@ -1460,11 +1465,12 @@ private enum class AuthorizedSessionApplication {
 internal data class AuthorizedSessionAccessTransition(
     val sameProductIdentity: Boolean,
     val accessCapabilitiesChanged: Boolean,
+    val rolesChanged: Boolean,
     val adminAccessChanged: Boolean,
     val environmentChanged: Boolean,
 ) {
     val invalidatesSessionContext: Boolean
-        get() = !sameProductIdentity || accessCapabilitiesChanged || environmentChanged
+        get() = !sameProductIdentity || accessCapabilitiesChanged || rolesChanged || environmentChanged
 
     val preservesShiftData: Boolean
         get() = sameProductIdentity && !environmentChanged
@@ -1485,6 +1491,9 @@ internal fun resolveAuthorizedSessionAccessTransition(
     val accessCapabilitiesChanged = currentMode?.let { mode ->
         MemberPermissionMatrix.capabilitiesFor(mode.member) != MemberPermissionMatrix.capabilitiesFor(member)
     } ?: false
+    val rolesChanged = currentMode?.member?.roles?.let { previousRoles ->
+        previousRoles != member.roles
+    } ?: false
     val adminAccessChanged = currentMode?.member?.isAdmin?.let { wasAdmin ->
         wasAdmin != member.isAdmin
     } ?: false
@@ -1492,6 +1501,7 @@ internal fun resolveAuthorizedSessionAccessTransition(
     return AuthorizedSessionAccessTransition(
         sameProductIdentity = sameProductIdentity,
         accessCapabilitiesChanged = accessCapabilitiesChanged,
+        rolesChanged = rolesChanged,
         adminAccessChanged = adminAccessChanged,
         environmentChanged = environmentChanged,
     )

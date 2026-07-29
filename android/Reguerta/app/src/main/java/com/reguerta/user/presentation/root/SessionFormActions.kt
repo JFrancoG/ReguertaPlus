@@ -112,11 +112,21 @@ internal class SessionFormActions(
     }
 
     fun onNewsDraftChanged(newDraft: NewsDraft) {
-        uiState.update { it.copy(newsDraft = newDraft) }
+        uiState.update {
+            it.copy(
+                newsDraft = newDraft,
+                newsDraftRevision = it.newsDraftRevision + 1,
+            )
+        }
     }
 
     fun onNotificationDraftChanged(newDraft: NotificationDraft) {
-        uiState.update { it.copy(notificationDraft = newDraft) }
+        uiState.update {
+            it.copy(
+                notificationDraft = newDraft,
+                notificationDraftRevision = it.notificationDraftRevision + 1,
+            )
+        }
     }
 
     fun onProductDraftChanged(newDraft: ProductDraft) {
@@ -139,6 +149,9 @@ internal class SessionFormActions(
             it.copy(
                 newsDraft = NewsDraft(active = true),
                 editingNewsId = null,
+                newsEditorRevision = it.newsEditorRevision + 1,
+                newsDraftRevision = it.newsDraftRevision + 1,
+                newsImageRevision = it.newsImageRevision + 1,
                 isUploadingNewsImage = false,
             )
         }
@@ -160,19 +173,23 @@ internal class SessionFormActions(
                     active = article.active,
                 ),
                 editingNewsId = article.id,
+                newsEditorRevision = it.newsEditorRevision + 1,
+                newsDraftRevision = it.newsDraftRevision + 1,
+                newsImageRevision = it.newsImageRevision + 1,
                 isUploadingNewsImage = false,
             )
         }
     }
 
     fun clearNewsEditor() {
-        uiState.update {
-            it.copy(
-                newsDraft = NewsDraft(),
-                editingNewsId = null,
-                isSavingNews = false,
-                isUploadingNewsImage = false,
-            )
+        uiState.update { it.clearedNewsEditor() }
+    }
+
+    fun clearNewsEditorIfCurrent(identity: EditorConfirmationIdentity): Boolean {
+        while (true) {
+            val state = uiState.value
+            if (!state.matchesNewsEditor(identity)) return false
+            if (uiState.compareAndSet(state, state.clearedNewsEditor())) return true
         }
     }
 
@@ -186,19 +203,74 @@ internal class SessionFormActions(
         uiState.update {
             it.copy(
                 notificationDraft = NotificationDraft(),
-                isSendingNotification = false,
+                notificationEditorRevision = it.notificationEditorRevision + 1,
+                notificationDraftRevision = it.notificationDraftRevision + 1,
             )
         }
     }
 
     fun clearNotificationEditor() {
+        uiState.update { it.clearedNotificationEditor() }
+    }
+
+    fun clearNotificationEditorIfCurrent(identity: EditorConfirmationIdentity): Boolean {
+        while (true) {
+            val state = uiState.value
+            if (!state.matchesNotificationEditor(identity)) return false
+            if (uiState.compareAndSet(state, state.clearedNotificationEditor())) return true
+        }
+    }
+
+    fun requestNewsDeletion(newsId: String) {
+        val mode = uiState.value.mode as? SessionMode.Authorized ?: return
+        if (!mode.member.canPublishNews) {
+            emitMessage(R.string.feedback_only_admin_delete_news)
+            return
+        }
+        if (uiState.value.newsFeed.none { article -> article.id == newsId }) return
         uiState.update {
             it.copy(
-                notificationDraft = NotificationDraft(),
-                isSendingNotification = false,
+                pendingNewsDeletionId = newsId,
+                newsDeletionRequestRevision = it.newsDeletionRequestRevision + 1,
             )
         }
     }
+
+    fun clearNewsDeletionRequest(requestRevision: Long) {
+        uiState.update {
+            if (it.newsDeletionRequestRevision != requestRevision) {
+                it
+            } else {
+                it.copy(
+                    pendingNewsDeletionId = null,
+                    newsDeletionRequestRevision = it.newsDeletionRequestRevision + 1,
+                )
+            }
+        }
+    }
+
+    private fun SessionUiState.clearedNewsEditor(): SessionUiState = copy(
+        newsDraft = NewsDraft(),
+        editingNewsId = null,
+        newsEditorRevision = newsEditorRevision + 1,
+        newsDraftRevision = newsDraftRevision + 1,
+        newsImageRevision = newsImageRevision + 1,
+        isUploadingNewsImage = false,
+    )
+
+    private fun SessionUiState.clearedNotificationEditor(): SessionUiState = copy(
+        notificationDraft = NotificationDraft(),
+        notificationEditorRevision = notificationEditorRevision + 1,
+        notificationDraftRevision = notificationDraftRevision + 1,
+    )
+
+    private fun SessionUiState.matchesNewsEditor(identity: EditorConfirmationIdentity): Boolean =
+        newsEditorRevision == identity.editorGeneration &&
+            newsDraftRevision == identity.draftRevision
+
+    private fun SessionUiState.matchesNotificationEditor(identity: EditorConfirmationIdentity): Boolean =
+        notificationEditorRevision == identity.editorGeneration &&
+            notificationDraftRevision == identity.draftRevision
 
     fun startCreatingProduct() {
         val mode = uiState.value.mode as? SessionMode.Authorized ?: return
