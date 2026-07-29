@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
-const admin = require("firebase-admin");
+const {deleteApp, initializeApp} = require("firebase-admin/app");
+const {getAuth} = require("firebase-admin/auth");
+const {FieldValue, getFirestore} = require("firebase-admin/firestore");
 
 const ALLOWED_ENVIRONMENTS = new Set(["develop", "production"]);
 const MAX_BATCH_OPERATIONS = 400;
@@ -680,7 +682,7 @@ async function commitAuthLinkWrites(firestore, root, items) {
         }
         const userPayload = {
           ...(item.userPatch || {}),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
         };
         if (item.writeAuthUid) {
           userPayload.authUid = item.authUid;
@@ -697,8 +699,8 @@ async function commitAuthLinkWrites(firestore, root, items) {
           firestore.collection(`${root}/authLinks`).doc(item.authUid),
           {
             memberId: item.memberId,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            createdAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
           },
         );
         appliedLinkWrites += 1;
@@ -753,10 +755,10 @@ function assertSafeAuthLinkApply(counts, environment) {
 }
 
 async function runAuthLinkBackfill(options) {
-  const app = admin.initializeApp({projectId: options.projectId});
+  const app = initializeApp({projectId: options.projectId});
   try {
-    const firestore = app.firestore();
-    const authUsers = await listAllAuthUsers(app.auth());
+    const firestore = getFirestore(app);
+    const authUsers = await listAllAuthUsers(getAuth(app));
     const summary = {};
     const environmentPlans = [];
 
@@ -810,7 +812,7 @@ async function runAuthLinkBackfill(options) {
     }
     return summary;
   } finally {
-    await app.delete();
+    await deleteApp(app);
   }
 }
 

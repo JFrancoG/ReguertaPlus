@@ -2,7 +2,7 @@
 
 ## 1. Technical approach
 
-Implement this story incrementally, following Clean Architecture and reusing the documented `notificationEvents` contract and existing app-shell routes. The MVP scope covers listing notifications for authorized members, sending immutable notifications from admin entry points, registering the current device plus latest known `fcmToken` after an authorized session is established, and dispatching backend FCM pushes when new notification events are created, while explicitly deferring read/unread state and unread badge behavior.
+Implement this story incrementally, following Clean Architecture and reusing the documented `notificationEvents` contract and existing app-shell routes. The MVP scope covers listing notifications for authorized members, sending immutable notifications from admin entry points, registering the current device plus its platform registration credential after an authorized session is established, and dispatching backend FCM pushes when new notification events are created, while explicitly deferring read/unread state and unread badge behavior. During the FID transition, `fcmToken` remains the legacy/iOS field and Android writes `firebaseInstallationId`; Functions dispatches both target types separately.
 
 ## 2. Layer impact
 - UI: Screen, state, and user action updates required by HU-013.
@@ -11,7 +11,7 @@ Implement this story incrementally, following Clean Architecture and reusing the
 - Backend: Firestore trigger on `plus-collections/notificationEvents` with target resolution and FCM dispatch.
 - Backend: Firestore/rules/functions/job updates for real push dispatch remain deferred.
 - Data read model: `notificationEvents` feed ordered by `sentAt` descending for in-app consultation.
-- Device write model: upsert device metadata and latest known token on authorized-session bootstrap/refresh.
+- Device write model: upsert device metadata and the latest known platform registration credential on authorized-session bootstrap/refresh.
 - Docs: Spec/tasks and issue evidence updates.
 
 ## 3. Platform-specific changes

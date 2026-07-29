@@ -11,7 +11,7 @@ internal enum class AuthorizedDeviceRegistrationWriteResult {
 }
 
 internal class AuthorizedDeviceRegistrationWriter(
-    private val store: AuthorizedDeviceTokenStore,
+    private val store: AuthorizedDeviceRegistrationStore,
     private val repository: DeviceRegistrationRepository,
 ) {
     suspend fun registerLatest(
@@ -37,7 +37,7 @@ internal class AuthorizedDeviceRegistrationWriter(
         return register(
             memberId = memberId,
             environment = environment,
-            device = refreshedDevice(store.getFcmToken()),
+            device = refreshedDevice(store.getFirebaseInstallationId()),
             isSessionCurrent = isSessionCurrent,
         )
     }
@@ -48,7 +48,7 @@ internal class AuthorizedDeviceRegistrationWriter(
         device: RegisteredDevice,
         isSessionCurrent: () -> Boolean,
     ): AuthorizedDeviceRegistrationWriteResult {
-        val expectedToken = device.fcmToken?.trim()?.ifBlank { null }
+        val expectedRegistrationId = device.firebaseInstallationId?.trim()?.ifBlank { null }
         val tokenWasSuperseded = AtomicBoolean(false)
         return try {
             repository.registerDevice(
@@ -59,11 +59,12 @@ internal class AuthorizedDeviceRegistrationWriter(
                     if (!isSessionCurrent()) {
                         false
                     } else {
-                        val tokenMatches = store.getFcmToken() == expectedToken
-                        if (!tokenMatches) {
+                        val registrationMatches =
+                            store.getFirebaseInstallationId() == expectedRegistrationId
+                        if (!registrationMatches) {
                             tokenWasSuperseded.set(true)
                         }
-                        tokenMatches
+                        registrationMatches
                     }
                 },
             )

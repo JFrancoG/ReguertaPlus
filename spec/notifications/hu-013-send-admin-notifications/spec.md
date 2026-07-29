@@ -24,7 +24,7 @@ As an admin I want to send notifications through the enabled MVP mode so that I 
 - Order notifications by `sentAt` descending.
 - Reuse the documented `notificationEvents` contract already defined in requirements docs.
 - Persist notification events from the apps using `title`, `body`, `type`, `target`, `targetPayload`, `sentAt`, `createdBy` (`userId`), and `weekKey` only when the notification is week-scoped.
-- Register/update `users/{userId}/devices/{deviceId}` after an authorized session is established, including `lastDeviceId` and the latest known `fcmToken` when available.
+- Register/update `users/{userId}/devices/{deviceId}` after an authorized session is established, including `lastDeviceId` and the platform registration credential: legacy/iOS `fcmToken` or Android `firebaseInstallationId`.
 - Dispatch real FCM push from backend when a new `notificationEvents/{eventId}` document is created.
 
 ### Out of Scope
@@ -48,8 +48,8 @@ As an admin I want to send notifications through the enabled MVP mode so that I 
 - Notifications are immutable from the app once created in this first iteration.
 - In this iteration, the apps persist and consume `notificationEvents` correctly for in-app consultation.
 - Authorized sessions refresh device metadata and keep `users.lastDeviceId` aligned with the active device.
-- Authorized sessions persist the latest known `fcmToken` when Firebase provides one.
-- New `notificationEvents` are dispatched through backend FCM delivery using the registered device tokens for the resolved audience.
+- Authorized sessions persist the latest platform registration credential when Firebase provides one.
+- New `notificationEvents` are dispatched through backend FCM delivery using legacy/iOS tokens and Android FIDs as separate target sets for the resolved audience.
 
 ## Dependencies
 

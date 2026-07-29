@@ -135,6 +135,8 @@ service cloud.firestore {
       let lastSeenAt = data.get("lastSeenAt", null);
       let fcmToken = data.get("fcmToken", null);
       let tokenUpdatedAt = data.get("tokenUpdatedAt", null);
+      let firebaseInstallationId = data.get("firebaseInstallationId", null);
+      let registrationUpdatedAt = data.get("registrationUpdatedAt", null);
       return data.get("deviceId", "") == deviceId &&
         platform in ["android", "ios"] &&
         data.get("appVersion", "") is string &&
@@ -147,7 +149,9 @@ service cloud.firestore {
         (platform != "ios" || apiLevel == null) &&
         (platform != "android" || (apiLevel is int && apiLevel >= 0)) &&
         (fcmToken == null || fcmToken is string) &&
-        (tokenUpdatedAt == null || tokenUpdatedAt is timestamp);
+        (tokenUpdatedAt == null || tokenUpdatedAt is timestamp) &&
+        (firebaseInstallationId == null || firebaseInstallationId is string) &&
+        (registrationUpdatedAt == null || registrationUpdatedAt is timestamp);
     }
 
     function isValidProducerStatus(status) {

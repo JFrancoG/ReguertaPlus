@@ -61,6 +61,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-07-29 | 🐛 fix(android): preserve device identity across secure-store migration
 - 2026-07-28 | 🐛 fix(push): fence registration to live sessions
 - 2026-07-28 | 🐛 fix(android-auth): preserve cleanup quarantine
 - 2026-07-28 | 🐛 fix(auth): bound session operations
@@ -165,6 +166,8 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
+- 2026-07-29 | 🔧 chore(android): adopt modern platform APIs
+- 2026-07-29 | 🔧 chore(push): separate legacy tokens from Android FIDs
 - 2026-07-27 | 📦 build(ios): enable Swift 6 for test targets
 - 2026-07-25 | 📦 build(android): update Gradle, AGP, and Kotlin
 - 2026-07-25 | 📦 build(android): refresh Gradle wrapper

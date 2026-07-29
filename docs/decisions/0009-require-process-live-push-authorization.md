@@ -128,10 +128,41 @@ may still hold a previously registered token, and FCM may already have accepted
 messages for delivery. Therefore the product must not promise zero late
 notifications after logout.
 
-Remote unlink, durable retry, sender TTL policy, Android auto-init policy, and
-the migration from deprecated token APIs to Firebase Installation ID
-`register`/`unregister` remain deferred until the shared Firebase clients can be
-coordinated safely.
+Remote unlink, durable retry, sender TTL policy, and Android unregister policy
+remain deferred. The registration API migration is now covered by the
+transitional amendment below.
+
+## 2026-07-29 Transitional FID Amendment
+
+Issue #227 coordinates the first supported Firebase Installation ID (FID) cut
+without reinterpreting existing credentials. Android uses `register()` and
+`onRegistered`, persists the FID in `firebaseInstallationId`, and clears the
+legacy token fields on its own device document. iOS and already-published
+Android documents continue to use `fcmToken` during the transition.
+
+The sender reads both fields independently and dispatches them through the
+matching Firebase Admin 14 target: `tokens` for legacy/iOS registrations and
+`fids` for Android FIDs. The two target sets are never interchanged. Strict
+Firestore Rules validate both representations, and the English and Spanish
+device contracts document their coexistence.
+
+Android also replaces the deprecated AndroidX Security preferences API with a
+versioned Android Keystore AES-GCM store. A migration-only reader built on the
+current Tink 1.23 primitives atomically copies the compatible identity and
+session fields before the new store is used. The legacy `fcm_token` is
+deliberately not copied into the FID slot because the two identifiers are not
+interchangeable. The migration does not overwrite an initialized v2 store,
+does not delete the encrypted legacy source needed for rollback, and fails
+closed instead of rotating `device_id` when legacy decryption is unavailable.
+Known plaintext fallback entries are re-encrypted before those plaintext keys
+are removed. Tink must remain in the upgrade path for as long as a direct
+upgrade from a pre-#227 build is supported.
+No deprecation suppression is part of this compatibility boundary. Issue #228
+tracks release evidence and an upgrade-install canary from a prior build.
+
+Merging the source does not authorize a Firebase deployment or mobile release.
+Functions deployment and Android distribution remain a coordinated operational
+gate; iOS migration and remote unlink remain follow-up work.
 
 ## Implementation and Verification
 
@@ -142,7 +173,9 @@ coordinated safely.
   after live registration, and session-fence invalidation during a suspended
   repository write.
 - Tests use controllable gates and no real sleeps.
-- No Functions, Firestore Rules, Storage Rules, or live Firebase data change.
+- Issue #217 made no Functions, Firestore Rules, Storage Rules, or live Firebase
+  data change. The #227 amendment changes Functions and strict Rules source but
+  performs no Firebase deployment or live-data mutation.
 
 ## Related Decisions and Work
 
@@ -150,9 +183,12 @@ coordinated safely.
 - ADR-0007: phased Firebase role-based authorization.
 - ADR-0008: bounded mobile session operations and cleanup barriers.
 - GitHub issue [#217](https://github.com/JFrancoG/ReguertaPlus/issues/217).
+- GitHub issue [#227](https://github.com/JFrancoG/ReguertaPlus/issues/227).
+- GitHub issue [#228](https://github.com/JFrancoG/ReguertaPlus/issues/228).
 
 ## References
 
 - [Swift Evolution SE-0306: Actors](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0306-actors.md)
 - [Firebase: Manage FCM registration tokens](https://firebase.google.com/docs/cloud-messaging/manage-tokens)
 - [Firebase Android: `FirebaseMessaging`](https://firebase.google.com/docs/reference/android/com/google/firebase/messaging/FirebaseMessaging)
+- [Tink Java setup](https://developers.google.com/tink/setup/java)

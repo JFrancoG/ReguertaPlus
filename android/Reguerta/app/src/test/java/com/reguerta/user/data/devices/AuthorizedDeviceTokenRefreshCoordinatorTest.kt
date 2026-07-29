@@ -52,7 +52,7 @@ class AuthorizedDeviceTokenRefreshCoordinatorTest {
         val result = coordinator.refresh(" TOKEN-A ")
 
         assertEquals(AuthorizedDeviceTokenRefreshResult.STALE_SESSION, result)
-        assertEquals("TOKEN-A", store.fcmToken)
+        assertEquals("TOKEN-A", store.firebaseInstallationId)
         assertTrue(repository.registrations.isEmpty())
     }
 
@@ -71,7 +71,7 @@ class AuthorizedDeviceTokenRefreshCoordinatorTest {
         val result = coordinator.refresh("TOKEN-A")
 
         assertEquals(AuthorizedDeviceTokenRefreshResult.STORED_ONLY, result)
-        assertEquals("TOKEN-A", store.fcmToken)
+        assertEquals("TOKEN-A", store.firebaseInstallationId)
         assertTrue(repository.registrations.isEmpty())
     }
 
@@ -158,7 +158,7 @@ class AuthorizedDeviceTokenRefreshCoordinatorTest {
                     memberId = "MEMBER-A",
                     environment = "production",
                     deviceId = "DEVICE-A",
-                    token = "TOKEN-A",
+                    registrationId = "TOKEN-A",
                 ),
             ),
             repository.registrations,
@@ -185,8 +185,11 @@ class AuthorizedDeviceTokenRefreshCoordinatorTest {
         releaseFirst.complete(Unit)
         assertEquals(AuthorizedDeviceTokenRefreshResult.UPLOADED, first.await())
         assertEquals(AuthorizedDeviceTokenRefreshResult.UPLOADED, second.await())
-        assertEquals(listOf("TOKEN-A", "TOKEN-B"), repository.registrations.map { it.token })
-        assertEquals("TOKEN-B", store.fcmToken)
+        assertEquals(
+            listOf("TOKEN-A", "TOKEN-B"),
+            repository.registrations.map { it.registrationId },
+        )
+        assertEquals("TOKEN-B", store.firebaseInstallationId)
     }
 
     @Test
@@ -203,7 +206,7 @@ class AuthorizedDeviceTokenRefreshCoordinatorTest {
 
         val first = async { runCatching { coordinator.refresh("TOKEN-A") } }
         firstStarted.await()
-        store.saveFcmToken("TOKEN-B")
+        store.saveFirebaseInstallationId("TOKEN-B")
         releaseFirst.complete(Unit)
 
         assertTrue(first.await().isFailure)
@@ -263,7 +266,7 @@ class AuthorizedDeviceTokenRefreshCoordinatorTest {
         )
 
         assertEquals(AuthorizedDeviceRegistrationWriteResult.REGISTERED, result)
-        assertEquals(listOf("TOKEN-B"), repository.registrations.map { it.token })
+        assertEquals(listOf("TOKEN-B"), repository.registrations.map { it.registrationId })
     }
 
     @Test
@@ -271,8 +274,11 @@ class AuthorizedDeviceTokenRefreshCoordinatorTest {
         val serviceSource = source("data/devices/ReguertaFirebaseMessagingService.kt")
         val repositorySource = source("data/devices/FirestoreDeviceRegistrationRepository.kt")
         val registrarSource = source("data/devices/FirebaseAuthorizedDeviceRegistrar.kt")
+        val manifestSource = appSource("src/main/AndroidManifest.xml")
 
-        assertTrue(serviceSource.contains("tokenCallbackRunner.handle(token)"))
+        assertTrue(serviceSource.contains("override fun onRegistered(installationId: String)"))
+        assertTrue(serviceSource.contains("registrationCallbackRunner.handle(installationId)"))
+        assertFalse(serviceSource.contains("override fun onNewToken"))
         assertFalse(serviceSource.contains("serviceScope.launch"))
         assertFalse(serviceSource.contains("override fun onDestroy()"))
 
@@ -290,8 +296,18 @@ class AuthorizedDeviceTokenRefreshCoordinatorTest {
         assertFalse(repositorySource.contains("userDocument.set("))
         assertFalse(repositorySource.contains("Tasks.await"))
         assertTrue(repositorySource.contains("deviceDocument.get().await()"))
+        assertTrue(repositorySource.contains("payload[\"fcmToken\"] = null"))
+        assertTrue(
+            repositorySource.contains(
+                "payload[\"firebaseInstallationId\"] = device.firebaseInstallationId",
+            ),
+        )
         assertFalse(registrarSource.contains("Tasks.await"))
-        assertTrue(registrarSource.contains("FirebaseMessaging.getInstance().token.await()"))
+        assertTrue(registrarSource.contains("FirebaseMessaging.getInstance().register().await()"))
+        assertTrue(registrarSource.contains("FirebaseInstallations.getInstance().id.await()"))
+        assertFalse(registrarSource.contains("FirebaseMessaging.getInstance().token"))
+        assertTrue(manifestSource.contains("firebase_messaging_installation_id_enabled"))
+        assertTrue(manifestSource.contains("android:value=\"true\""))
         assertTrue(
             registrarSource.indexOf("preferences.saveAuthorizedSessionContext(") <
                 registrarSource.indexOf("registrationWriter.registerLatest("),
@@ -319,10 +335,10 @@ class AuthorizedDeviceTokenRefreshCoordinatorTest {
                 apiLevel = 29,
                 manufacturer = "test",
                 model = "test",
-                fcmToken = token,
+                firebaseInstallationId = token,
                 firstSeenAtMillis = nowMillis,
                 lastSeenAtMillis = nowMillis,
-                tokenUpdatedAtMillis = nowMillis,
+                registrationUpdatedAtMillis = nowMillis,
             )
         },
     )
@@ -347,16 +363,22 @@ class AuthorizedDeviceTokenRefreshCoordinatorTest {
         apiLevel = 29,
         manufacturer = "test",
         model = "test",
-        fcmToken = token,
+        firebaseInstallationId = token,
         firstSeenAtMillis = 1_000L,
         lastSeenAtMillis = 1_000L,
-        tokenUpdatedAtMillis = token?.let { 1_000L },
+        registrationUpdatedAtMillis = token?.let { 1_000L },
     )
 
     private fun source(relativePath: String): String {
         val projectRoot = generateSequence(Path.of(System.getProperty("user.dir"))) { it.parent }
             .first { Files.exists(it.resolve("app/src/main/java/com/reguerta/user")) }
         return Files.readString(projectRoot.resolve("app/src/main/java/com/reguerta/user/$relativePath"))
+    }
+
+    private fun appSource(relativePath: String): String {
+        val projectRoot = generateSequence(Path.of(System.getProperty("user.dir"))) { it.parent }
+            .first { Files.exists(it.resolve("app/src/main")) }
+        return Files.readString(projectRoot.resolve("app/$relativePath"))
     }
 }
 
@@ -402,14 +424,14 @@ private class FakeAuthorizedDeviceProcessSession(
 
 private class FakeAuthorizedDeviceTokenStore(
     var context: AuthorizedDeviceSessionContext?,
-) : AuthorizedDeviceTokenStore {
-    var fcmToken: String? = null
+) : AuthorizedDeviceRegistrationStore {
+    var firebaseInstallationId: String? = null
 
-    override suspend fun saveFcmToken(token: String?) {
-        fcmToken = token?.trim()?.ifBlank { null }
+    override suspend fun saveFirebaseInstallationId(installationId: String?) {
+        firebaseInstallationId = installationId?.trim()?.ifBlank { null }
     }
 
-    override suspend fun getFcmToken(): String? = fcmToken
+    override suspend fun getFirebaseInstallationId(): String? = firebaseInstallationId
 
     override suspend fun getAuthorizedSessionContext(): AuthorizedDeviceSessionContext? = context
 
@@ -420,7 +442,7 @@ private data class RecordedRegistration(
     val memberId: String,
     val environment: String,
     val deviceId: String,
-    val token: String?,
+    val registrationId: String?,
 )
 
 private class RecordingDeviceRegistrationRepository(
@@ -439,7 +461,7 @@ private class RecordingDeviceRegistrationRepository(
         if (!isSessionCurrent()) {
             throw CancellationException("Registration superseded before test write")
         }
-        if (device.fcmToken == suspendedToken) {
+        if (device.firebaseInstallationId == suspendedToken) {
             started?.complete(Unit)
             release?.await()
         }
@@ -450,7 +472,7 @@ private class RecordingDeviceRegistrationRepository(
             memberId = memberId,
             environment = environment,
             deviceId = device.deviceId,
-            token = device.fcmToken,
+            registrationId = device.firebaseInstallationId,
         )
         return device
     }

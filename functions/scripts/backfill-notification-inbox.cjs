@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-const admin = require("firebase-admin");
+const {deleteApp, initializeApp} = require("firebase-admin/app");
+const {getFirestore} = require("firebase-admin/firestore");
 const {
   parseMigrationArgs,
 } = require("./backfill-auth-links.cjs");
@@ -100,8 +101,8 @@ function buildInboxDocument(eventId, event, recipientMemberId) {
 }
 
 async function runNotificationInboxBackfill(options) {
-  const app = admin.initializeApp({projectId: options.projectId});
-  const firestore = app.firestore();
+  const app = initializeApp({projectId: options.projectId});
+  const firestore = getFirestore(app);
   const summary = {};
   for (const environment of options.environments) {
     const root = `${environment}/plus-collections`;
@@ -177,7 +178,7 @@ async function runNotificationInboxBackfill(options) {
       appliedWrites,
     };
   }
-  await app.delete();
+  await deleteApp(app);
   return summary;
 }
 

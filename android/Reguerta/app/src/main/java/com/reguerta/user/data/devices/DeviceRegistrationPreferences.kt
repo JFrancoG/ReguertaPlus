@@ -2,8 +2,6 @@ package com.reguerta.user.data.devices
 
 import android.content.Context
 import android.content.SharedPreferences
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKeys
 import java.util.Locale
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
@@ -20,8 +18,8 @@ data class AuthorizedDeviceSessionContext(
     val leaseId: String,
 )
 
-internal fun interface DeviceRegistrationEncryptedPreferencesFactory {
-    fun create(): SharedPreferences
+internal fun interface DeviceRegistrationEncryptedStoreFactory {
+    fun create(): DeviceRegistrationEncryptedStore
 }
 
 sealed class DeviceRegistrationPreferencesException(
@@ -65,50 +63,58 @@ sealed class DeviceRegistrationPreferencesException(
 }
 
 class DeviceRegistrationPreferences internal constructor(
-    private val encryptedPreferencesFactory: DeviceRegistrationEncryptedPreferencesFactory,
+    private val encryptedStoreFactory: DeviceRegistrationEncryptedStoreFactory,
     private val rawPreferencesProvider: () -> SharedPreferences,
+    private val legacyValuesReader: LegacyDeviceRegistrationValuesReader =
+        LegacyDeviceRegistrationValuesReader { emptyMap() },
     private val ioDispatcher: CoroutineDispatcher,
     private val deviceIdProvider: () -> String,
     private val leaseIdProvider: () -> String = { UUID.randomUUID().toString() },
-) : AuthorizedDeviceTokenStore {
+) : AuthorizedDeviceRegistrationStore {
     constructor(context: Context) : this(
-        encryptedPreferencesFactory = AndroidDeviceRegistrationEncryptedPreferencesFactory(
+        encryptedStoreFactory = AndroidDeviceRegistrationEncryptedStoreFactory(
             context = context.applicationContext,
         ),
         rawPreferencesProvider = {
             context.applicationContext.getSharedPreferences(
-                PREFERENCES_NAME,
+                LEGACY_PREFERENCES_NAME,
                 Context.MODE_PRIVATE,
             )
         },
+        legacyValuesReader = LegacyEncryptedDeviceRegistrationValuesReader(
+            context = context.applicationContext,
+        ),
         ioDispatcher = Dispatchers.IO,
         deviceIdProvider = { UUID.randomUUID().toString().uppercase(Locale.ROOT) },
     )
 
     private val operationMutex = Mutex()
-    private var initializedPreferences: SharedPreferences? = null
+    private var initializedStore: DeviceRegistrationEncryptedStore? = null
 
-    override suspend fun getOrCreateDeviceId(): String = withEncryptedPreferences { preferences ->
-        readOptionalString(preferences, KEY_DEVICE_ID)?.let { return@withEncryptedPreferences it }
+    override suspend fun getOrCreateDeviceId(): String = withEncryptedStore { store ->
+        readOptionalString(store, KEY_DEVICE_ID)?.let { return@withEncryptedStore it }
 
         val created = deviceIdProvider()
-        writeValues(preferences, mapOf(KEY_DEVICE_ID to created))
+        writeValues(store, mapOf(KEY_DEVICE_ID to created))
         created
     }
 
-    override suspend fun saveFcmToken(token: String?) {
-        withEncryptedPreferences { preferences ->
-            val normalizedToken = token.normalizedOrNull()
-            if (normalizedToken == null) {
-                deleteKeys(preferences, setOf(KEY_FCM_TOKEN))
+    override suspend fun saveFirebaseInstallationId(installationId: String?) {
+        withEncryptedStore { store ->
+            val normalizedInstallationId = installationId.normalizedOrNull()
+            if (normalizedInstallationId == null) {
+                deleteKeys(store, setOf(KEY_FIREBASE_INSTALLATION_ID))
             } else {
-                writeValues(preferences, mapOf(KEY_FCM_TOKEN to normalizedToken))
+                writeValues(
+                    store,
+                    mapOf(KEY_FIREBASE_INSTALLATION_ID to normalizedInstallationId),
+                )
             }
         }
     }
 
-    override suspend fun getFcmToken(): String? = withEncryptedPreferences { preferences ->
-        readOptionalString(preferences, KEY_FCM_TOKEN)
+    override suspend fun getFirebaseInstallationId(): String? = withEncryptedStore { store ->
+        readOptionalString(store, KEY_FIREBASE_INSTALLATION_ID)
     }
 
     suspend fun saveAuthorizedSessionContext(
@@ -116,9 +122,9 @@ class DeviceRegistrationPreferences internal constructor(
         authUid: String,
         environment: String,
         isSessionCurrent: () -> Boolean = { true },
-    ): AuthorizedDeviceSessionContext? = withEncryptedPreferences { preferences ->
+    ): AuthorizedDeviceSessionContext? = withEncryptedStore { store ->
         if (!isSessionCurrent()) {
-            return@withEncryptedPreferences null
+            return@withEncryptedStore null
         }
         val authorizedContext = AuthorizedDeviceSessionContext(
             memberId = requireNotNull(memberId.normalizedOrNull()) {
@@ -135,7 +141,7 @@ class DeviceRegistrationPreferences internal constructor(
             leaseId = leaseIdProvider(),
         )
         writeValues(
-            preferences = preferences,
+            store = store,
             values = mapOf(
                 KEY_MEMBER_ID to authorizedContext.memberId,
                 KEY_AUTH_UID to authorizedContext.authUid,
@@ -147,32 +153,32 @@ class DeviceRegistrationPreferences internal constructor(
     }
 
     suspend fun clearAuthorizedSessionContext() {
-        withEncryptedPreferences { preferences ->
+        withEncryptedStore { store ->
             deleteKeys(
-                preferences = preferences,
+                store = store,
                 keys = AUTHORIZED_SESSION_KEYS,
             )
         }
     }
 
     override suspend fun getAuthorizedSessionContext(): AuthorizedDeviceSessionContext? =
-        withEncryptedPreferences { preferences ->
+        withEncryptedStore { store ->
             val presentKeys = AUTHORIZED_SESSION_KEYS.filterTo(mutableSetOf()) { key ->
-                containsKey(preferences, key)
+                containsKey(store, key)
             }
             if (presentKeys.isEmpty()) {
-                return@withEncryptedPreferences null
+                return@withEncryptedStore null
             }
             val values = AUTHORIZED_SESSION_KEYS.associateWith { key ->
-                readOptionalString(preferences, key)
+                readOptionalString(store, key)
             }
             val missingKeys = values.filterValues { it == null }.keys
             if (
                 missingKeys == setOf(KEY_AUTH_UID) &&
                 presentKeys == LEGACY_AUTHORIZED_SESSION_KEYS
             ) {
-                deleteKeys(preferences, AUTHORIZED_SESSION_KEYS)
-                return@withEncryptedPreferences null
+                deleteKeys(store, AUTHORIZED_SESSION_KEYS)
+                return@withEncryptedStore null
             }
             if (values.values.any { it == null }) {
                 throw DeviceRegistrationPreferencesException.Corrupted(
@@ -188,16 +194,16 @@ class DeviceRegistrationPreferences internal constructor(
             )
         }
 
-    private suspend fun <T> withEncryptedPreferences(
-        block: (SharedPreferences) -> T,
+    private suspend fun <T> withEncryptedStore(
+        block: (DeviceRegistrationEncryptedStore) -> T,
     ): T = withContext(ioDispatcher) {
         operationMutex.withLock {
-            block(initializePreferencesIfNeeded())
+            block(initializeStoreIfNeeded())
         }
     }
 
-    private fun initializePreferencesIfNeeded(): SharedPreferences {
-        initializedPreferences?.let { return it }
+    private fun initializeStoreIfNeeded(): DeviceRegistrationEncryptedStore {
+        initializedStore?.let { return it }
 
         val rawPreferences = try {
             rawPreferencesProvider()
@@ -206,21 +212,72 @@ class DeviceRegistrationPreferences internal constructor(
         } catch (error: Exception) {
             throw DeviceRegistrationPreferencesException.Initialization(error)
         }
-        deleteKeys(rawPreferences, LEGACY_RAW_KEYS)
-
-        val encryptedPreferences = try {
-            encryptedPreferencesFactory.create()
+        val encryptedStore = try {
+            encryptedStoreFactory.create()
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
             throw DeviceRegistrationPreferencesException.Initialization(error)
         }
-        return encryptedPreferences.also { initializedPreferences = it }
+        migrateLegacyValuesIfNeeded(
+            rawPreferences = rawPreferences,
+            encryptedStore = encryptedStore,
+        )
+        return encryptedStore.also { initializedStore = it }
     }
 
-    private fun readOptionalString(preferences: SharedPreferences, key: String): String? =
+    private fun migrateLegacyValuesIfNeeded(
+        rawPreferences: SharedPreferences,
+        encryptedStore: DeviceRegistrationEncryptedStore,
+    ) {
+        val newStoreAlreadyInitialized = CURRENT_STORAGE_KEYS.any { key ->
+            containsKey(encryptedStore, key)
+        }
+        if (!newStoreAlreadyInitialized) {
+            val plaintextValues = readLegacyPlaintextValues(rawPreferences)
+            val encryptedValues = readLegacyEncryptedValues()
+            val valuesToMigrate = plaintextValues + encryptedValues
+            if (valuesToMigrate.isNotEmpty()) {
+                writeValues(encryptedStore, valuesToMigrate)
+            }
+        }
+
+        // Only plaintext fallback entries are removed. Tink keysets and encrypted entries remain
+        // untouched so a controlled rollback can still read the legacy store.
+        deleteKeys(
+            store = SharedPreferencesDeviceRegistrationEncryptedStore(rawPreferences),
+            keys = LEGACY_RAW_KEYS,
+        )
+    }
+
+    private fun readLegacyPlaintextValues(
+        rawPreferences: SharedPreferences,
+    ): Map<String, String> = try {
+        MIGRATABLE_LEGACY_KEYS.mapNotNull { key ->
+            rawPreferences.getString(key, null).normalizedOrNull()?.let { key to it }
+        }.toMap()
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Exception) {
+        throw DeviceRegistrationPreferencesException.Initialization(error)
+    }
+
+    private fun readLegacyEncryptedValues(): Map<String, String> = try {
+        legacyValuesReader.readValues(MIGRATABLE_LEGACY_KEYS)
+            .filterKeys(MIGRATABLE_LEGACY_KEYS::contains)
+            .mapNotNull { (key, value) -> value.normalizedOrNull()?.let { key to it } }
+            .toMap()
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: DeviceRegistrationPreferencesException) {
+        throw error
+    } catch (error: Exception) {
+        throw DeviceRegistrationPreferencesException.Initialization(error)
+    }
+
+    private fun readOptionalString(store: DeviceRegistrationEncryptedStore, key: String): String? =
         try {
-            preferences.getString(key, null).normalizedOrNull()
+            store.getString(key).normalizedOrNull()
         } catch (error: CancellationException) {
             throw error
         } catch (error: DeviceRegistrationPreferencesException) {
@@ -229,9 +286,9 @@ class DeviceRegistrationPreferences internal constructor(
             throw DeviceRegistrationPreferencesException.Read(key = key, cause = error)
         }
 
-    private fun containsKey(preferences: SharedPreferences, key: String): Boolean =
+    private fun containsKey(store: DeviceRegistrationEncryptedStore, key: String): Boolean =
         try {
-            preferences.contains(key)
+            store.contains(key)
         } catch (error: CancellationException) {
             throw error
         } catch (error: DeviceRegistrationPreferencesException) {
@@ -241,20 +298,12 @@ class DeviceRegistrationPreferences internal constructor(
         }
 
     private fun writeValues(
-        preferences: SharedPreferences,
+        store: DeviceRegistrationEncryptedStore,
         values: Map<String, String?>,
     ) {
         val keys = values.keys
         try {
-            val editor = preferences.edit()
-            values.forEach { (key, value) ->
-                if (value == null) {
-                    editor.remove(key)
-                } else {
-                    editor.putString(key, value)
-                }
-            }
-            if (!editor.commit()) {
+            if (!store.write(values)) {
                 throw DeviceRegistrationPreferencesException.Write(keys = keys)
             }
         } catch (error: CancellationException) {
@@ -266,11 +315,9 @@ class DeviceRegistrationPreferences internal constructor(
         }
     }
 
-    private fun deleteKeys(preferences: SharedPreferences, keys: Set<String>) {
+    private fun deleteKeys(store: DeviceRegistrationEncryptedStore, keys: Set<String>) {
         try {
-            val editor = preferences.edit()
-            keys.forEach(editor::remove)
-            if (!editor.commit()) {
+            if (!store.remove(keys)) {
                 throw DeviceRegistrationPreferencesException.Delete(keys = keys)
             }
         } catch (error: CancellationException) {
@@ -285,8 +332,10 @@ class DeviceRegistrationPreferences internal constructor(
     private fun String?.normalizedOrNull(): String? = this?.trim()?.ifBlank { null }
 
     internal companion object {
-        const val PREFERENCES_NAME = "device_registration"
+        const val SECURE_PREFERENCES_NAME = "device_registration_secure_v2"
+        const val LEGACY_PREFERENCES_NAME = "device_registration"
         const val KEY_DEVICE_ID = "device_id"
+        const val KEY_FIREBASE_INSTALLATION_ID = "firebase_installation_id"
         const val KEY_FCM_TOKEN = "fcm_token"
         const val KEY_MEMBER_ID = "member_id"
         const val KEY_AUTH_UID = "auth_uid"
@@ -312,20 +361,14 @@ class DeviceRegistrationPreferences internal constructor(
             KEY_ENVIRONMENT,
             KEY_LEASE_ID,
         )
-    }
-}
-
-private class AndroidDeviceRegistrationEncryptedPreferencesFactory(
-    private val context: Context,
-) : DeviceRegistrationEncryptedPreferencesFactory {
-    override fun create(): SharedPreferences {
-        val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
-        return EncryptedSharedPreferences.create(
-            DeviceRegistrationPreferences.PREFERENCES_NAME,
-            masterKeyAlias,
-            context,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+        val MIGRATABLE_LEGACY_KEYS = LEGACY_RAW_KEYS - KEY_FCM_TOKEN
+        val CURRENT_STORAGE_KEYS = setOf(
+            KEY_DEVICE_ID,
+            KEY_FIREBASE_INSTALLATION_ID,
+            KEY_MEMBER_ID,
+            KEY_AUTH_UID,
+            KEY_ENVIRONMENT,
+            KEY_LEASE_ID,
         )
     }
 }

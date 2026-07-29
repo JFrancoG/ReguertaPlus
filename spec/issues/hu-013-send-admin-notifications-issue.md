@@ -15,7 +15,7 @@ As an admin I want to send notifications through the enabled MVP mode so that I 
 - Admin can send notifications from the admin drawer entry and from the notifications screen.
 - Notifications remain immutable in this MVP iteration.
 - App clients persist and consult `notificationEvents` correctly for in-app usage.
-- App clients upsert `users/{userId}/devices/{deviceId}` and `users.lastDeviceId` after an authorized session, including the latest known `fcmToken` when available.
+- App clients upsert `users/{userId}/devices/{deviceId}` and `users.lastDeviceId` after an authorized session, including the latest platform registration credential (`fcmToken` for legacy/iOS or `firebaseInstallationId` for Android).
 - Real push delivery is dispatched from backend when a new `notificationEvents` document is created.
 
 ## Scope

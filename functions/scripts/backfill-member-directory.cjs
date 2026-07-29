@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-const admin = require("firebase-admin");
+const {deleteApp, initializeApp} = require("firebase-admin/app");
+const {getFirestore} = require("firebase-admin/firestore");
 const {
   buildMemberDirectoryDocument,
 } = require("../lib/member-directory.js");
@@ -79,9 +80,9 @@ async function applyMemberDirectoryPlan(firestore, root, plan) {
 }
 
 async function runMemberDirectoryBackfill(options) {
-  const app = admin.initializeApp({projectId: options.projectId});
+  const app = initializeApp({projectId: options.projectId});
   try {
-    const firestore = app.firestore();
+    const firestore = getFirestore(app);
     const plans = [];
     for (const environment of options.environments) {
       const root = `${environment}/plus-collections`;
@@ -111,7 +112,7 @@ async function runMemberDirectoryBackfill(options) {
     }
     return summary;
   } finally {
-    await app.delete();
+    await deleteApp(app);
   }
 }
 
