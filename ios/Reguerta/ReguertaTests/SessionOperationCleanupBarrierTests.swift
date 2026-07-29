@@ -314,9 +314,10 @@ private final class ControlledSessionFreshnessRepository: CriticalDataFreshnessL
     func saveMetadata(
         _ metadata: CriticalDataFreshnessMetadata,
         ifWriteGeneration expectedWriteGeneration: UInt64
-    ) {
-        guard writeGeneration == expectedWriteGeneration else { return }
+    ) -> Bool {
+        guard writeGeneration == expectedWriteGeneration else { return false }
         self.metadata = metadata
+        return true
     }
 
     func clear() throws {
@@ -336,7 +337,9 @@ private func sessionCleanupFreshnessMetadata() -> CriticalDataFreshnessMetadata 
         acknowledgedTimestampsMillis: Dictionary(
             uniqueKeysWithValues: CriticalCollection.allCases.map { ($0, 1_000) }
         ),
-        environment: .develop
+        environment: .develop,
+        principalUID: "uid_cleanup",
+        memberID: "member_cleanup"
     )
 }
 

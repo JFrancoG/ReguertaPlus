@@ -175,9 +175,16 @@ extension AccessRootViewModel {
     }
 
     func handleHomeDashboardMyOrderAction() {
-        myOrderViewModel.resetCartOverlayForRouteEntry()
-        homeDestination = .myOrder
-        Task { await productsViewModel.refreshOrderingProducts() }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            await myOrderFreshnessViewModel.revalidateForEntry(
+                currentMode: sessionViewModel.mode
+            ) { [weak self] in
+                guard let self else { return }
+                myOrderViewModel.resetCartOverlayForRouteEntry()
+                homeDestination = .myOrder
+            }
+        }
     }
 
     func handleHomeDashboardReceivedOrdersAction() {
@@ -409,6 +416,10 @@ private extension AccessRootViewModel {
     }
 
     func navigateHome(to destination: HomeDestination) {
+        if destination == .myOrder {
+            handleHomeDashboardMyOrderAction()
+            return
+        }
         refreshBeforeOpeningHomeDestination(destination)
         homeDestination = destination
     }
@@ -443,7 +454,6 @@ private extension AccessRootViewModel {
             .myOrder: { [weak self] in
                 guard let self else { return }
                 self.myOrderViewModel.resetCartOverlayForRouteEntry()
-                Task { await self.productsViewModel.refreshOrderingProducts() }
             },
             .profile: { [weak self] in
                 guard let self else { return }

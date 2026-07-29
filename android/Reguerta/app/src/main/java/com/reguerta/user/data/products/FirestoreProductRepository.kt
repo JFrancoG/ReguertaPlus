@@ -1,6 +1,5 @@
 package com.reguerta.user.data.products
 
-import com.google.android.gms.tasks.Tasks
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -17,6 +16,7 @@ import com.reguerta.user.domain.products.ProductPricingMode
 import com.reguerta.user.domain.products.ProductRepository
 import com.reguerta.user.domain.products.ProductStockMode
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
 class FirestoreProductRepository(
@@ -30,9 +30,7 @@ class FirestoreProductRepository(
 
     override suspend fun getAllProducts(): List<Product> = withContext(Dispatchers.IO) {
         try {
-            val snapshot = Tasks.await(
-                firestore.collection(productsCollectionPath).get(),
-            )
+            val snapshot = firestore.collection(productsCollectionPath).get().await()
             decodeProductDocuments(snapshot.documents.map { document ->
                 val data: Map<String, Any> = document.data ?: invalidProductDocument()
                 document.id to data
@@ -44,11 +42,10 @@ class FirestoreProductRepository(
 
     override suspend fun getProductsForVendor(vendorId: String): List<Product> = withContext(Dispatchers.IO) {
         try {
-            val snapshot = Tasks.await(
-                firestore.collection(productsCollectionPath)
-                    .whereEqualTo("vendorId", vendorId)
-                    .get(),
-            )
+            val snapshot = firestore.collection(productsCollectionPath)
+                .whereEqualTo("vendorId", vendorId)
+                .get()
+                .await()
             decodeProductDocuments(snapshot.documents.map { document ->
                 val data: Map<String, Any> = document.data ?: invalidProductDocument()
                 document.id to data
@@ -66,11 +63,10 @@ class FirestoreProductRepository(
         val payload = productUpsertPayload(persisted)
 
         try {
-            Tasks.await(
-                firestore.collection(productsCollectionPath)
-                    .document(documentId)
-                    .set(payload, SetOptions.merge()),
-            )
+            firestore.collection(productsCollectionPath)
+                .document(documentId)
+                .set(payload, SetOptions.merge())
+                .await()
             persisted
         } catch (error: Exception) {
             throw error.toRepositoryException(resource = "products.write")

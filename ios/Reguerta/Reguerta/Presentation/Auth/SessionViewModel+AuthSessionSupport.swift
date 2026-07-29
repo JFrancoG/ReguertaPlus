@@ -307,12 +307,19 @@ extension SessionViewModel {
     func applyRefreshedAuthorizedMembers(_ members: [Member]) {
         guard case .authorized(let session) = mode else { return }
         let refreshedMembers = members.isEmpty ? session.members : members
+        let authenticatedMember = refreshedMembers.first {
+            $0.id == session.authenticatedMember.id
+        } ?? session.authenticatedMember
+        let refreshedSelectedMember = refreshedMembers.first {
+            $0.id == session.member.id
+        } ?? session.member
         mode = .authorized(
             AuthorizedSession(
                 principal: session.principal,
-                authenticatedMember: refreshedMembers.first { $0.id == session.authenticatedMember.id }
-                    ?? session.authenticatedMember,
-                member: refreshedMembers.first { $0.id == session.member.id } ?? session.member,
+                authenticatedMember: authenticatedMember,
+                member: authenticatedMember.canManageMembers
+                    ? refreshedSelectedMember
+                    : authenticatedMember,
                 members: refreshedMembers,
                 environment: session.environment
             )

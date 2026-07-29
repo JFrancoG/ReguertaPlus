@@ -1,5 +1,6 @@
 package com.reguerta.user.presentation.auth
 
+import com.reguerta.user.data.freshness.requiringPrincipal
 import com.reguerta.user.domain.RepositoryErrorKind
 import com.reguerta.user.domain.RepositoryException
 import com.reguerta.user.domain.access.AuthPasswordResetResult
@@ -13,12 +14,16 @@ import com.reguerta.user.domain.access.AuthorizedMemberResolver
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRepository
 import com.reguerta.user.domain.access.MemberRole
+import com.reguerta.user.domain.access.canManageMembers
 import com.reguerta.user.domain.access.ResolveAuthorizedSessionUseCase
 import com.reguerta.user.domain.access.SessionEnvironmentRouter
 import com.reguerta.user.domain.access.SessionRefreshPolicy
 import com.reguerta.user.domain.access.SessionRefreshTrigger
 import com.reguerta.user.domain.devices.AuthorizedDeviceRegistrar
 import com.reguerta.user.domain.freshness.CriticalCollection
+import com.reguerta.user.domain.freshness.CriticalDataRefreshPayload
+import com.reguerta.user.domain.freshness.CriticalDataRefreshScope
+import com.reguerta.user.domain.freshness.CriticalDataRefresher
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessConfig
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessLocalRepository
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessMetadata
@@ -35,8 +40,10 @@ import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.profiles.SharedProfileRepository
 import com.reguerta.user.presentation.root.MyOrderFreshnessUiState
 import com.reguerta.user.presentation.root.MY_ORDER_FRESHNESS_TIMEOUT_MILLIS
+import com.reguerta.user.presentation.root.CriticalDataRefreshConsumerReceipt
 import com.reguerta.user.presentation.root.SessionMode
 import com.reguerta.user.presentation.root.SessionUiState
+import com.reguerta.user.presentation.root.criticalDataRefreshConsumerReceipt
 import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
@@ -881,6 +888,432 @@ class SessionAuthActionsConcurrencyTest {
     }
 
     @Test
+    fun `authenticated member relink is unavailable without consumer or acknowledgement`() = runTest {
+        val principal = principal("relinked")
+        var consumerRefreshes = 0
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)),
+            authProvider = ControlledAuthSessionProvider(),
+            freshnessRefresher = CriticalDataRefresher { refreshScope, _ ->
+                member(principal).copy(authUid = "uid-new-owner")
+                    .requiringPrincipal(refreshScope.principalUid)
+                error("Relinked identity must fail before payload creation")
+            },
+            refreshMyOrderConsumer = { _, _ ->
+                consumerRefreshes += 1
+                true
+            },
+        )
+
+        fixture.actions.refreshMyOrderFreshness()
+        advanceUntilIdle()
+
+        assertEquals(MyOrderFreshnessUiState.Unavailable, fixture.state.value.myOrderFreshnessState)
+        assertEquals(0, consumerRefreshes)
+        assertEquals(0, fixture.localFreshnessRepository.saveRequests)
+    }
+
+    @Test
+    fun `partial critical refresh never acknowledges and retry completes consumer before save`() = runTest {
+        val principal = principal("partial-refresh")
+        val refresher = PartiallyFailingThenRecoveringCriticalDataRefresher()
+        val localRepository = TestCriticalDataFreshnessLocalRepository()
+        var consumerRefreshes = 0
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)),
+            authProvider = ControlledAuthSessionProvider(),
+            freshnessRefresher = refresher,
+            localFreshnessRepository = localRepository,
+            refreshMyOrderConsumer = { _, fence ->
+                assertEquals(0, localRepository.saveRequests)
+                consumerRefreshes += 1
+                fence()
+            },
+        )
+
+        fixture.actions.refreshMyOrderFreshness()
+        advanceUntilIdle()
+
+        assertEquals(MyOrderFreshnessUiState.Unavailable, fixture.state.value.myOrderFreshnessState)
+        assertEquals(0, localRepository.saveRequests)
+        assertEquals(0, consumerRefreshes)
+
+        fixture.actions.refreshMyOrderFreshness()
+        advanceUntilIdle()
+
+        assertEquals(MyOrderFreshnessUiState.Ready, fixture.state.value.myOrderFreshnessState)
+        assertEquals(1, localRepository.saveRequests)
+        assertEquals(1, consumerRefreshes)
+        assertEquals(
+            listOf(CriticalCollection.entries.toSet(), CriticalCollection.entries.toSet()),
+            refresher.requestedCollections,
+        )
+    }
+
+    @Test
+    fun `seasonal commitment ancillary failure blocks ready with unchanged timestamps`() = runTest {
+        val principal = principal("member")
+        val previousMetadata = validFreshnessMetadata(
+            environment = "develop",
+            validatedAtMillis = 1_000L,
+        )
+        val localRepository = TestCriticalDataFreshnessLocalRepository().apply {
+            storedMetadata = previousMetadata
+        }
+        val requestedCollections = mutableListOf<Set<CriticalCollection>>()
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)),
+            authProvider = ControlledAuthSessionProvider(),
+            localFreshnessRepository = localRepository,
+            freshnessNowProvider = { 1_000L },
+            freshnessRefresher = CriticalDataRefresher { _, collections ->
+                requestedCollections += collections
+                throw RepositoryException(
+                    kind = RepositoryErrorKind.UNAVAILABLE,
+                    resource = "seasonalCommitments.server",
+                )
+            },
+        )
+
+        fixture.actions.refreshMyOrderFreshness()
+        advanceUntilIdle()
+
+        assertEquals(listOf(emptySet<CriticalCollection>()), requestedCollections)
+        assertEquals(MyOrderFreshnessUiState.Unavailable, fixture.state.value.myOrderFreshnessState)
+        assertEquals(0, localRepository.saveRequests)
+        assertEquals(previousMetadata, localRepository.storedMetadata)
+    }
+
+    @Test
+    fun `critical refresher timeout is explicit and cannot apply consumer or metadata`() = runTest {
+        val principal = principal("refresh-timeout")
+        var consumerRefreshes = 0
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)),
+            authProvider = ControlledAuthSessionProvider(),
+            freshnessRefresher = DelayedCriticalDataRefresher,
+            refreshMyOrderConsumer = { _, fence ->
+                consumerRefreshes += 1
+                fence()
+            },
+        )
+
+        fixture.actions.refreshMyOrderFreshness()
+        advanceUntilIdle()
+
+        assertEquals(MyOrderFreshnessUiState.TimedOut, fixture.state.value.myOrderFreshnessState)
+        assertEquals(0, fixture.localFreshnessRepository.saveRequests)
+        assertEquals(0, consumerRefreshes)
+    }
+
+    @Test
+    fun `consumer refresh failure blocks acknowledgement after firestore refresh`() = runTest {
+        val principal = principal("consumer-failure")
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)),
+            authProvider = ControlledAuthSessionProvider(),
+            refreshMyOrderConsumer = { _, _ ->
+                throw RepositoryException(
+                    kind = RepositoryErrorKind.UNAVAILABLE,
+                    resource = "myOrder.consumer",
+                )
+            },
+        )
+
+        fixture.actions.refreshMyOrderFreshness()
+        advanceUntilIdle()
+
+        assertEquals(MyOrderFreshnessUiState.Unavailable, fixture.state.value.myOrderFreshnessState)
+        assertEquals(0, fixture.localFreshnessRepository.saveRequests)
+    }
+
+    @Test
+    fun `same scope stale writer after consumer invalidates receipt until retry`() = runTest {
+        val principal = principal("stale-receipt")
+        val originalMember = member(principal)
+        val refreshedMember = originalMember.copy(displayName = "Refreshed member")
+        val staleMember = originalMember.copy(displayName = "Stale member")
+        var injectStaleWriter = true
+        lateinit var fixture: AuthFixture
+        fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, originalMember),
+            authProvider = ControlledAuthSessionProvider(),
+            freshnessRefresher = CriticalDataRefresher { refreshScope, _ ->
+                criticalRefreshPayload(
+                    scope = refreshScope,
+                    selectedMember = refreshedMember,
+                    authenticatedMember = refreshedMember,
+                )
+            },
+            refreshMyOrderConsumerWithReceipt = { payload, fence ->
+                if (!fence()) {
+                    null
+                } else {
+                    val selectedMember = requireNotNull(payload.selectedMember)
+                    val currentMode = fixture.state.value.mode as SessionMode.Authorized
+                    fixture.state.value = fixture.state.value.copy(
+                        mode = currentMode.copy(
+                            authenticatedMember = payload.authenticatedMember,
+                            member = selectedMember,
+                            members = listOf(payload.authenticatedMember),
+                        ),
+                    )
+                    val receipt = requireNotNull(
+                        fixture.state.value.criticalDataRefreshConsumerReceipt(),
+                    )
+                    if (injectStaleWriter) {
+                        injectStaleWriter = false
+                        val refreshedMode = fixture.state.value.mode as SessionMode.Authorized
+                        fixture.state.value = fixture.state.value.copy(
+                            mode = refreshedMode.copy(
+                                authenticatedMember = staleMember,
+                                member = staleMember,
+                                members = listOf(staleMember),
+                            ),
+                        )
+                    }
+                    receipt
+                }
+            },
+        )
+
+        fixture.actions.refreshMyOrderFreshness()
+        advanceUntilIdle()
+
+        assertEquals(MyOrderFreshnessUiState.Unavailable, fixture.state.value.myOrderFreshnessState)
+        assertEquals(staleMember, (fixture.state.value.mode as SessionMode.Authorized).member)
+        assertEquals(0, fixture.localFreshnessRepository.saveRequests)
+
+        fixture.actions.refreshMyOrderFreshness()
+        advanceUntilIdle()
+
+        assertEquals(MyOrderFreshnessUiState.Ready, fixture.state.value.myOrderFreshnessState)
+        assertEquals(refreshedMember, (fixture.state.value.mode as SessionMode.Authorized).member)
+        assertEquals(1, fixture.localFreshnessRepository.saveRequests)
+    }
+
+    @Test
+    fun `late refresh cannot cross an authenticated access scope change`() = runTest {
+        val refreshStarted = CompletableDeferred<Unit>()
+        val refreshRelease = CompletableDeferred<Unit>()
+        val principal = principal("access-scope")
+        val originalMember = member(principal)
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, originalMember),
+            authProvider = ControlledAuthSessionProvider(),
+            freshnessRefresher = ControlledCriticalDataRefresher(
+                started = refreshStarted,
+                release = refreshRelease,
+            ),
+        )
+
+        fixture.actions.refreshMyOrderFreshness()
+        refreshStarted.await()
+        val adminMember = originalMember.copy(roles = setOf(MemberRole.ADMIN))
+        fixture.state.value = fixture.state.value.copy(
+            mode = (fixture.state.value.mode as SessionMode.Authorized).copy(
+                authenticatedMember = adminMember,
+                member = adminMember,
+                members = listOf(adminMember),
+            ),
+            myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
+        )
+        refreshRelease.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(MyOrderFreshnessUiState.Idle, fixture.state.value.myOrderFreshnessState)
+        assertEquals(0, fixture.localFreshnessRepository.saveRequests)
+    }
+
+    @Test
+    fun `late refresh cannot cross an authenticated member relink`() = runTest {
+        val refreshStarted = CompletableDeferred<Unit>()
+        val refreshRelease = CompletableDeferred<Unit>()
+        val principal = principal("auth-relink")
+        val originalMember = member(principal)
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, originalMember),
+            authProvider = ControlledAuthSessionProvider(),
+            freshnessRefresher = ControlledCriticalDataRefresher(
+                started = refreshStarted,
+                release = refreshRelease,
+            ),
+        )
+
+        fixture.actions.refreshMyOrderFreshness()
+        refreshStarted.await()
+        val relinkedMember = originalMember.copy(authUid = "uid-relinked")
+        fixture.state.value = fixture.state.value.copy(
+            mode = (fixture.state.value.mode as SessionMode.Authorized).copy(
+                authenticatedMember = relinkedMember,
+                member = relinkedMember,
+                members = listOf(relinkedMember),
+            ),
+            myOrderFreshnessState = MyOrderFreshnessUiState.Idle,
+        )
+        refreshRelease.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(MyOrderFreshnessUiState.Idle, fixture.state.value.myOrderFreshnessState)
+        assertEquals(0, fixture.localFreshnessRepository.saveRequests)
+    }
+
+    @Test
+    fun `users refresh capability change becomes retryable with the new scope`() = runTest {
+        val principal = principal("capability-refresh")
+        val requestedAccessScopes = mutableListOf<Boolean>()
+        var consumerRefreshes = 0
+        lateinit var fixture: AuthFixture
+        fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)),
+            authProvider = ControlledAuthSessionProvider(),
+            freshnessRefresher = CriticalDataRefresher { scope, _ ->
+                requestedAccessScopes += scope.canManageMembers
+                criticalRefreshPayload(
+                    scope = scope,
+                    selectedMember = member(principal).copy(
+                        roles = setOf(MemberRole.MEMBER, MemberRole.ADMIN),
+                    ),
+                )
+            },
+            refreshMyOrderConsumer = { payload, _ ->
+                consumerRefreshes += 1
+                if (consumerRefreshes == 1) {
+                    val currentMode = fixture.state.value.mode as SessionMode.Authorized
+                    val promoted = requireNotNull(payload.selectedMember)
+                    fixture.state.value = fixture.state.value.copy(
+                        mode = currentMode.copy(
+                            authenticatedMember = promoted,
+                            member = promoted,
+                            members = listOf(promoted),
+                        ),
+                    )
+                }
+                true
+            },
+        )
+
+        fixture.actions.refreshMyOrderFreshness()
+        advanceUntilIdle()
+
+        assertEquals(listOf(false), requestedAccessScopes)
+        assertEquals(1, consumerRefreshes)
+        assertEquals(0, fixture.localFreshnessRepository.saveRequests)
+        assertEquals(MyOrderFreshnessUiState.Unavailable, fixture.state.value.myOrderFreshnessState)
+
+        fixture.actions.refreshMyOrderFreshness()
+        advanceUntilIdle()
+
+        assertEquals(listOf(false, true), requestedAccessScopes)
+        assertEquals(2, consumerRefreshes)
+        assertEquals(1, fixture.localFreshnessRepository.saveRequests)
+        assertEquals(MyOrderFreshnessUiState.Ready, fixture.state.value.myOrderFreshnessState)
+    }
+
+    @Test
+    fun `revoked admin impersonation retries without attempting the old full users query`() = runTest {
+        val principal = principal("revoked-admin")
+        val authenticatedAdmin = member(principal).copy(
+            id = "admin",
+            roles = setOf(MemberRole.MEMBER, MemberRole.ADMIN),
+        )
+        val selectedMember = member(principal("selected")).copy(id = "selected")
+        val demotedAuthenticatedMember = authenticatedAdmin.copy(
+            roles = setOf(MemberRole.MEMBER),
+        )
+        val requestedScopes = mutableListOf<Triple<String, String, Boolean>>()
+        var fullUsersQueryAttempts = 0
+        lateinit var fixture: AuthFixture
+        fixture = fixture(
+            scope = this,
+            state = SessionUiState(
+                sessionEnvironment = "develop",
+                mode = SessionMode.Authorized(
+                    principal = principal,
+                    authenticatedMember = authenticatedAdmin,
+                    member = selectedMember,
+                    members = listOf(authenticatedAdmin, selectedMember),
+                ),
+            ),
+            authProvider = ControlledAuthSessionProvider(),
+            freshnessRefresher = CriticalDataRefresher { refreshScope, _ ->
+                requestedScopes += Triple(
+                    refreshScope.authenticatedMemberId,
+                    refreshScope.memberId,
+                    refreshScope.canManageMembers,
+                )
+                if (demotedAuthenticatedMember.canManageMembers != refreshScope.canManageMembers) {
+                    CriticalDataRefreshPayload(
+                        authenticatedMemberId = demotedAuthenticatedMember.id,
+                        authenticatedMember = demotedAuthenticatedMember,
+                        selectedMember = null,
+                        seasonalCommitments = null,
+                        requiresAccessScopeRetry = true,
+                    )
+                } else {
+                    if (refreshScope.canManageMembers) fullUsersQueryAttempts += 1
+                    criticalRefreshPayload(
+                        scope = refreshScope,
+                        selectedMember = demotedAuthenticatedMember,
+                        authenticatedMember = demotedAuthenticatedMember,
+                    )
+                }
+            },
+            refreshMyOrderConsumer = { payload, fence ->
+                if (!fence()) {
+                    false
+                } else {
+                    if (payload.requiresAccessScopeRetry) {
+                        val currentMode = fixture.state.value.mode as SessionMode.Authorized
+                        fixture.state.value = fixture.state.value.copy(
+                            mode = currentMode.copy(
+                                authenticatedMember = payload.authenticatedMember,
+                                member = payload.authenticatedMember,
+                                members = listOf(payload.authenticatedMember),
+                            ),
+                        )
+                    }
+                    true
+                }
+            },
+        )
+
+        fixture.actions.refreshMyOrderFreshness()
+        advanceUntilIdle()
+
+        val firstMode = fixture.state.value.mode as SessionMode.Authorized
+        assertEquals(MyOrderFreshnessUiState.Unavailable, fixture.state.value.myOrderFreshnessState)
+        assertEquals(demotedAuthenticatedMember, firstMode.authenticatedMember)
+        assertEquals("admin", firstMode.member.id)
+        assertEquals(0, fixture.localFreshnessRepository.saveRequests)
+        assertEquals(0, fullUsersQueryAttempts)
+
+        fixture.actions.refreshMyOrderFreshness()
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(
+                Triple("admin", "selected", true),
+                Triple("admin", "admin", false),
+            ),
+            requestedScopes,
+        )
+        assertEquals(6, CriticalCollection.entries.size)
+        assertEquals(0, fullUsersQueryAttempts)
+        assertEquals(1, fixture.localFreshnessRepository.saveRequests)
+        assertEquals(MyOrderFreshnessUiState.Ready, fixture.state.value.myOrderFreshnessState)
+    }
+
+    @Test
     fun `freshness timeout is explicit and does not persist metadata`() = runTest {
         val principal = principal("timeout")
         val fixture = fixture(
@@ -1252,12 +1685,21 @@ private fun fixture(
     authProvider: ControlledAuthSessionProvider,
     memberRepository: TestMemberRepository = TestMemberRepository(),
     freshnessRemoteRepository: CriticalDataFreshnessRemoteRepository = EmptyCriticalDataFreshnessRemoteRepository,
+    freshnessRefresher: CriticalDataRefresher = CriticalDataRefresher { scope, _ ->
+        criticalRefreshPayload(scope)
+    },
     authorizedMemberResolver: AuthorizedMemberResolver = AlwaysAuthorizedMemberResolver,
     environmentRouter: RecordingSessionEnvironmentRouter = RecordingSessionEnvironmentRouter(),
     deviceRegistrar: TestAuthorizedDeviceRegistrar = TestAuthorizedDeviceRegistrar(),
     localFreshnessRepository: TestCriticalDataFreshnessLocalRepository =
         TestCriticalDataFreshnessLocalRepository(),
+    freshnessNowProvider: () -> Long = { System.currentTimeMillis() },
     sessionOperationTimeoutMillis: Long = TEST_SESSION_OPERATION_TIMEOUT_MILLIS,
+    refreshMyOrderConsumer: suspend (CriticalDataRefreshPayload, () -> Boolean) -> Boolean = { _, fence -> fence() },
+    refreshMyOrderConsumerWithReceipt: (suspend (
+        CriticalDataRefreshPayload,
+        () -> Boolean,
+    ) -> CriticalDataRefreshConsumerReceipt?)? = null,
 ): AuthFixture {
     val stateFlow = MutableStateFlow(state)
     var lastRefreshAtMillis: Long? = null
@@ -1280,6 +1722,8 @@ private fun fixture(
         resolveCriticalDataFreshness = ResolveCriticalDataFreshnessUseCase(
             remoteRepository = freshnessRemoteRepository,
             localRepository = localFreshnessRepository,
+            refresher = freshnessRefresher,
+            nowProvider = freshnessNowProvider,
         ),
         criticalDataFreshnessLocalRepository = localFreshnessRepository,
         sessionEnvironmentRouter = environmentRouter,
@@ -1290,6 +1734,13 @@ private fun fixture(
         nowMillisProvider = { 1_000L },
         refreshShifts = { shiftRefreshes += 1 },
         refreshDeliveryCalendar = {},
+        refreshMyOrderConsumer = refreshMyOrderConsumerWithReceipt ?: { payload, fence ->
+            if (refreshMyOrderConsumer(payload, fence)) {
+                stateFlow.value.criticalDataRefreshConsumerReceipt()
+            } else {
+                null
+            }
+        },
         sessionOperationTimeoutMillis = sessionOperationTimeoutMillis,
     )
     return AuthFixture(
@@ -1529,6 +1980,50 @@ private class ChangingCriticalDataFreshnessRemoteRepository : CriticalDataFreshn
     }
 }
 
+private class PartiallyFailingThenRecoveringCriticalDataRefresher : CriticalDataRefresher {
+    val requestedCollections = mutableListOf<Set<CriticalCollection>>()
+
+    override suspend fun refresh(
+        scope: CriticalDataRefreshScope,
+        collections: Set<CriticalCollection>,
+    ): CriticalDataRefreshPayload {
+        requestedCollections += collections
+        if (requestedCollections.size == 1) {
+            throw RepositoryException(
+                kind = RepositoryErrorKind.UNAVAILABLE,
+                resource = "criticalDataRefresh.products",
+            )
+        }
+        return criticalRefreshPayload(scope)
+    }
+}
+
+private object DelayedCriticalDataRefresher : CriticalDataRefresher {
+    override suspend fun refresh(
+        scope: CriticalDataRefreshScope,
+        collections: Set<CriticalCollection>,
+    ): CriticalDataRefreshPayload {
+        delay(MY_ORDER_FRESHNESS_TIMEOUT_MILLIS + 1)
+        return criticalRefreshPayload(scope)
+    }
+}
+
+private class ControlledCriticalDataRefresher(
+    private val started: CompletableDeferred<Unit>,
+    private val release: CompletableDeferred<Unit>,
+) : CriticalDataRefresher {
+    override suspend fun refresh(
+        scope: CriticalDataRefreshScope,
+        collections: Set<CriticalCollection>,
+    ): CriticalDataRefreshPayload {
+        started.complete(Unit)
+        withContext(NonCancellable) {
+            release.await()
+        }
+        return criticalRefreshPayload(scope)
+    }
+}
+
 private class RecoveringCriticalDataFreshnessRemoteRepository : CriticalDataFreshnessRemoteRepository {
     val requestedEnvironments = mutableListOf<String>()
 
@@ -1702,6 +2197,10 @@ private fun validFreshnessMetadata(
     validatedAtMillis: Long,
 ) = CriticalDataFreshnessMetadata(
     environment = environment,
+    principalUid = "uid-member",
+    authenticatedMemberId = "member",
+    memberId = "member",
+    canManageMembers = false,
     validatedAtMillis = validatedAtMillis,
     acknowledgedTimestampsMillis = com.reguerta.user.domain.freshness.CriticalCollection.entries
         .associateWith { 2_000L },
@@ -1762,4 +2261,19 @@ private fun member(principal: AuthPrincipal) = Member(
     roles = setOf(MemberRole.MEMBER),
     isActive = true,
     producerCatalogEnabled = false,
+)
+
+private fun criticalRefreshPayload(
+    scope: CriticalDataRefreshScope,
+    selectedMember: Member = member(principalFromUid(scope.principalUid)).copy(id = scope.memberId),
+    authenticatedMember: Member = if (selectedMember.id == scope.authenticatedMemberId) {
+        selectedMember
+    } else {
+        member(principalFromUid(scope.principalUid)).copy(id = scope.authenticatedMemberId)
+    },
+) = CriticalDataRefreshPayload(
+    authenticatedMemberId = authenticatedMember.id,
+    authenticatedMember = authenticatedMember,
+    selectedMember = selectedMember,
+    seasonalCommitments = emptyList(),
 )

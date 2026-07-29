@@ -1,17 +1,22 @@
 package com.reguerta.user.data.commitments
 
-import com.google.android.gms.tasks.Tasks
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.DocumentReference
+import com.google.firebase.firestore.Source
 import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
 import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
 import com.reguerta.user.data.firestore.ReguertaFirestorePath
 import com.reguerta.user.data.firestore.toRepositoryException
 import com.reguerta.user.domain.RepositoryErrorKind
 import com.reguerta.user.domain.RepositoryException
+import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.commitments.SeasonalCommitment
 import com.reguerta.user.domain.commitments.SeasonalCommitmentRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
 private val SeasonalCommitmentQueryUserFields = listOf(
@@ -65,42 +70,74 @@ class FirestoreSeasonalCommitmentRepository(
     override suspend fun getActiveCommitmentsForUser(userId: String): List<SeasonalCommitment> = withContext(Dispatchers.IO) {
         val normalizedLookup = userId.trim().ifBlank { return@withContext emptyList() }
         try {
-            val docsById = linkedMapOf<String, com.google.firebase.firestore.DocumentSnapshot>()
-
-            queryByFields(
-                fields = SeasonalCommitmentQueryUserFields,
-                lookupValue = normalizedLookup,
-                includeReferenceTarget = !normalizedLookup.contains('@'),
-                output = docsById,
+            getActiveCommitments(
+                lookupKeys = listOf(normalizedLookup),
+                serverOnly = false,
             )
-
-            if (docsById.isEmpty()) {
-                queryByFields(
-                    fields = SeasonalCommitmentLegacyUserFields,
-                    lookupValue = normalizedLookup,
-                    includeReferenceTarget = !normalizedLookup.contains('@'),
-                    output = docsById,
-                )
-            }
-
-            docsById.values
-                .map { document ->
-                    document.toSeasonalCommitment()
-                }
-                .filter { commitment -> commitment.userId.matchesLookupUserId(normalizedLookup) }
-                .filter(SeasonalCommitment::active)
-                .sortedWith(compareBy<SeasonalCommitment> { it.seasonKey }.thenBy { it.productId })
         } catch (error: Exception) {
             throw error.toRepositoryException(resource = "seasonalCommitments")
         }
     }
 
-    private fun queryByFields(
+    internal suspend fun getActiveCommitmentsForMemberFromServer(
+        member: Member,
+    ): List<SeasonalCommitment> = withContext(Dispatchers.IO) {
+        try {
+            getActiveCommitments(
+                lookupKeys = criticalSeasonalCommitmentLookupKeys(member),
+                serverOnly = true,
+            )
+        } catch (error: Exception) {
+            throw error.toRepositoryException(resource = "seasonalCommitments.server")
+        }
+    }
+
+    private suspend fun getActiveCommitments(
+        lookupKeys: List<String>,
+        serverOnly: Boolean,
+    ): List<SeasonalCommitment> = coroutineScope {
+        val documentsById = linkedMapOf<String, com.google.firebase.firestore.DocumentSnapshot>()
+        lookupKeys.map { lookupKey ->
+            async {
+                val lookupDocuments = linkedMapOf<String, com.google.firebase.firestore.DocumentSnapshot>()
+                queryByFields(
+                    fields = SeasonalCommitmentQueryUserFields,
+                    lookupValue = lookupKey,
+                    includeReferenceTarget = !lookupKey.contains('@'),
+                    serverOnly = serverOnly,
+                    output = lookupDocuments,
+                )
+                if (lookupDocuments.isEmpty()) {
+                    queryByFields(
+                        fields = SeasonalCommitmentLegacyUserFields,
+                        lookupValue = lookupKey,
+                        includeReferenceTarget = !lookupKey.contains('@'),
+                        serverOnly = serverOnly,
+                        output = lookupDocuments,
+                    )
+                }
+                lookupDocuments
+            }
+        }.awaitAll().forEach { lookupDocuments ->
+            documentsById.putAll(lookupDocuments)
+        }
+
+        documentsById.values
+            .map { document -> document.toSeasonalCommitment() }
+            .filter { commitment ->
+                lookupKeys.any { lookupKey -> commitment.userId.matchesLookupUserId(lookupKey) }
+            }
+            .filter(SeasonalCommitment::active)
+            .sortedWith(compareBy<SeasonalCommitment> { it.seasonKey }.thenBy { it.productId })
+    }
+
+    private suspend fun queryByFields(
         fields: List<String>,
         lookupValue: String,
         includeReferenceTarget: Boolean,
+        serverOnly: Boolean,
         output: MutableMap<String, com.google.firebase.firestore.DocumentSnapshot>,
-    ) {
+    ) = coroutineScope {
         val referenceTarget = firestore.document("$usersCollectionPath/$lookupValue")
         val targets = buildList<Any> {
             add(lookupValue)
@@ -108,20 +145,34 @@ class FirestoreSeasonalCommitmentRepository(
                 add(referenceTarget)
             }
         }
-        fields.forEach { field ->
-            targets.forEach { target ->
-                val snapshot = Tasks.await(
-                    firestore.collection(commitmentsCollectionPath)
+        fields.flatMap { field ->
+            targets.map { target ->
+                async {
+                    val query = firestore.collection(commitmentsCollectionPath)
                         .whereEqualTo(field, target)
-                        .get(),
-                )
-                snapshot.documents.forEach { document ->
-                    output[document.id] = document
+                    if (serverOnly) {
+                        query.get(Source.SERVER).await()
+                    } else {
+                        query.get().await()
+                    }
                 }
+            }
+        }.awaitAll().forEach { snapshot ->
+            snapshot.documents.forEach { document ->
+                output[document.id] = document
             }
         }
     }
 }
+
+internal fun criticalSeasonalCommitmentLookupKeys(member: Member): List<String> = listOfNotNull(
+    member.id,
+    member.authUid,
+    member.normalizedEmail,
+)
+    .map(String::trim)
+    .filter(String::isNotBlank)
+    .distinct()
 
 private fun com.google.firebase.firestore.DocumentSnapshot.toSeasonalCommitment(): SeasonalCommitment {
     if (!exists()) invalidCommitmentDocument()

@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-07-29 | ✨ feat(order): refresh critical data before entry
 - 2026-07-27 | ✨ feat(ios): adopt linked authorization
 - 2026-07-27 | ✨ feat(android): adopt linked authorization
 - 2026-07-27 | ✨ feat(firebase): add phased role authorization

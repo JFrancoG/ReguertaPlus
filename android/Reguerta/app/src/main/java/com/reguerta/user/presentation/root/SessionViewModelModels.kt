@@ -129,6 +129,27 @@ sealed interface SessionMode {
     ) : SessionMode
 }
 
+data class CriticalDataRefreshConsumerReceipt(
+    val mode: SessionMode.Authorized,
+    val myOrderProductsFeed: List<Product>,
+    val myOrderSeasonalCommitmentsFeed: List<SeasonalCommitment>,
+)
+
+internal fun SessionUiState.criticalDataRefreshConsumerReceipt(): CriticalDataRefreshConsumerReceipt? {
+    val authorizedMode = mode as? SessionMode.Authorized ?: return null
+    return CriticalDataRefreshConsumerReceipt(
+        mode = authorizedMode.copy(members = authorizedMode.members.toList()),
+        myOrderProductsFeed = myOrderProductsFeed.toList(),
+        myOrderSeasonalCommitmentsFeed = myOrderSeasonalCommitmentsFeed.toList(),
+    )
+}
+
+internal fun SessionUiState.matchesCriticalDataRefreshConsumerReceipt(
+    receipt: CriticalDataRefreshConsumerReceipt,
+): Boolean = mode == receipt.mode &&
+    myOrderProductsFeed == receipt.myOrderProductsFeed &&
+    myOrderSeasonalCommitmentsFeed == receipt.myOrderSeasonalCommitmentsFeed
+
 data class SessionUiState(
     val sessionEpoch: Long = 0L,
     val sessionEnvironment: String? = null,
@@ -150,6 +171,8 @@ data class SessionUiState(
     val mode: SessionMode = SessionMode.SignedOut,
     val memberDraft: MemberDraft = MemberDraft(),
     val myOrderFreshnessState: MyOrderFreshnessUiState = MyOrderFreshnessUiState.Idle,
+    val myOrderFreshnessGeneration: Long? = null,
+    val myOrderFreshnessConsumerReceipt: CriticalDataRefreshConsumerReceipt? = null,
     val latestNews: List<NewsArticle> = emptyList(),
     val newsFeed: List<NewsArticle> = emptyList(),
     val newsDraft: NewsDraft = NewsDraft(),

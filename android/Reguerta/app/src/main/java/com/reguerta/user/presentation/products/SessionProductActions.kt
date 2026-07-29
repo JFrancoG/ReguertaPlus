@@ -1,9 +1,11 @@
 package com.reguerta.user.presentation.products
 
 import com.reguerta.user.presentation.root.ProductDraft
+import com.reguerta.user.presentation.root.CriticalDataRefreshConsumerReceipt
 import com.reguerta.user.presentation.root.SessionMode
 import com.reguerta.user.presentation.root.SessionUiState
 import com.reguerta.user.presentation.root.canManageSessionProductCatalog
+import com.reguerta.user.presentation.root.criticalDataRefreshConsumerReceipt
 import com.reguerta.user.presentation.root.isSessionProducer
 import com.reguerta.user.presentation.root.normalized
 import com.reguerta.user.presentation.root.toDraft
@@ -14,8 +16,12 @@ import android.net.Uri
 import com.reguerta.user.R
 import com.reguerta.user.data.media.ImagePipelineManager
 import com.reguerta.user.data.media.ImageUploadNamespace
+import com.reguerta.user.domain.RepositoryErrorKind
+import com.reguerta.user.domain.RepositoryException
 import com.reguerta.user.domain.access.MemberRepository
+import com.reguerta.user.domain.access.canManageMembers
 import com.reguerta.user.domain.commitments.SeasonalCommitmentRepository
+import com.reguerta.user.domain.freshness.CriticalDataRefreshPayload
 import com.reguerta.user.domain.products.Product
 import com.reguerta.user.domain.products.ProductContainerOption
 import com.reguerta.user.domain.products.ProductPricingMode
@@ -51,6 +57,8 @@ internal class SessionProductActions(
     private var activeProductMutation: ActiveProductMutation? = null
     private var nextProductUploadToken = 0L
     private var activeProductUpload: ActiveProductUpload? = null
+    private val myOrderRefreshLock = Any()
+    private var myOrderRefreshGeneration = 0L
 
     fun refreshProducts() {
         val initialState = uiState.value
@@ -80,13 +88,124 @@ internal class SessionProductActions(
         val mode = initialState.mode as? SessionMode.Authorized ?: return
         val context = ProductSessionContext.from(initialState, mode)
         scope.launch {
-            if (!updateIfCurrent(context) { it.copy(isLoadingMyOrderProducts = true) }) return@launch
             try {
-                val refreshedMembers = memberRepository.getMembersVisibleTo(mode.authenticatedMember).ifEmpty { mode.members }
-                val membersById = refreshedMembers.associateBy { it.id }
-                val refreshedCurrentMember = membersById[mode.member.id] ?: mode.member
-                val currentWeekParity = currentIsoWeekProducerParity(nowMillis = nowMillisProvider())
-                val seasonalCommitments = linkedMapOf<String, com.reguerta.user.domain.commitments.SeasonalCommitment>()
+                refreshMyOrderProductsForFreshness(
+                    additionalFence = { isCurrent(context) },
+                )
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                if (isCurrent(context)) {
+                    emitMessage(R.string.feedback_unable_load_data)
+                }
+            }
+        }
+    }
+
+    internal suspend fun refreshMyOrderProductsForFreshness(
+        prefetchedPayload: CriticalDataRefreshPayload? = null,
+        additionalFence: () -> Boolean = { true },
+    ): CriticalDataRefreshConsumerReceipt? {
+        val initialState = uiState.value
+        val mode = initialState.mode as? SessionMode.Authorized ?: return null
+        val context = ProductSessionContext.from(initialState, mode)
+        val refreshGeneration = synchronized(myOrderRefreshLock) {
+            myOrderRefreshGeneration += 1
+            myOrderRefreshGeneration
+        }
+        if (!updateMyOrderIfCurrent(context, refreshGeneration, additionalFence) {
+                it.copy(isLoadingMyOrderProducts = true)
+            }
+        ) return null
+
+        try {
+            if (
+                prefetchedPayload != null &&
+                (
+                    prefetchedPayload.authenticatedMemberId != mode.authenticatedMember.id ||
+                        prefetchedPayload.authenticatedMember.authUid != mode.principal.uid
+                )
+            ) {
+                throw RepositoryException(
+                    kind = RepositoryErrorKind.PERMISSION_DENIED,
+                    resource = "criticalDataRefresh.consumer.authenticatedMember",
+                )
+            }
+            if (prefetchedPayload?.requiresAccessScopeRetry == true) {
+                return updateMyOrderWithReceiptIfCurrent(
+                    context = context,
+                    refreshGeneration = refreshGeneration,
+                    additionalFence = additionalFence,
+                ) { state ->
+                    val currentMode = state.mode as SessionMode.Authorized
+                    val refreshedAuthenticatedMember = prefetchedPayload.authenticatedMember
+                    val revokedMemberManagement = currentMode.authenticatedMember.canManageMembers &&
+                        !refreshedAuthenticatedMember.canManageMembers
+                    val refreshedMembers = if (revokedMemberManagement) {
+                        listOf(refreshedAuthenticatedMember)
+                    } else {
+                        (
+                            currentMode.members.filterNot { member ->
+                                member.id == refreshedAuthenticatedMember.id
+                            } + refreshedAuthenticatedMember
+                        ).sortedBy { member -> member.displayName.lowercase() }
+                    }
+                    state.copy(
+                        mode = currentMode.copy(
+                            authenticatedMember = refreshedAuthenticatedMember,
+                            member = if (
+                                currentMode.member.id == refreshedAuthenticatedMember.id ||
+                                !refreshedAuthenticatedMember.canManageMembers
+                            ) {
+                                refreshedAuthenticatedMember
+                            } else {
+                                currentMode.member
+                            },
+                            members = refreshedMembers,
+                        ),
+                        isLoadingMyOrderProducts = false,
+                    )
+                }
+            }
+
+            val payloadSelectedMember = prefetchedPayload?.selectedMember
+            if (payloadSelectedMember != null && payloadSelectedMember.id != mode.member.id) {
+                throw RepositoryException(
+                    kind = RepositoryErrorKind.INVALID_DATA,
+                    resource = "criticalDataRefresh.consumer.selectedMember",
+                )
+            }
+            val loadedMembers = prefetchedPayload?.members
+                ?: memberRepository.getMembersVisibleTo(
+                    prefetchedPayload?.authenticatedMember ?: mode.authenticatedMember,
+                ).ifEmpty { mode.members }
+            val refreshedMembers = if (prefetchedPayload != null) {
+                loadedMembers
+                    .filterNot { member ->
+                        member.id == prefetchedPayload.authenticatedMemberId ||
+                            member.id == payloadSelectedMember?.id
+                    }
+                    .plus(prefetchedPayload.authenticatedMember)
+                    .let { members ->
+                        if (payloadSelectedMember?.id == prefetchedPayload.authenticatedMemberId) {
+                            members
+                        } else {
+                            members + requireNotNull(payloadSelectedMember)
+                        }
+                    }
+                    .sortedBy { member -> member.displayName.lowercase() }
+            } else {
+                loadedMembers
+            }
+            val membersById = refreshedMembers.associateBy { it.id }
+            val refreshedCurrentMember = payloadSelectedMember ?: membersById[mode.member.id] ?: mode.member
+            val currentWeekParity = currentIsoWeekProducerParity(nowMillis = nowMillisProvider())
+            val seasonalCommitments = linkedMapOf<String, com.reguerta.user.domain.commitments.SeasonalCommitment>()
+            if (prefetchedPayload != null) {
+                requireNotNull(prefetchedPayload.seasonalCommitments).forEach { commitment ->
+                    seasonalCommitments[commitment.id] = commitment
+                }
+            } else {
                 coroutineScope {
                     refreshedCurrentMember.seasonalCommitmentLookupKeys()
                         .map { lookupKey ->
@@ -100,41 +219,53 @@ internal class SessionProductActions(
                             seasonalCommitments[it.id] = it
                         }
                 }
-                val visibleProducts = productRepository.getAllProducts()
-                    .filter { product ->
-                        product.isVisibleInOrdering &&
-                            membersById[product.vendorId].isVisibleForOrdering() &&
-                            product.matchesCurrentProducerWeek(
-                                membersById = membersById,
-                                currentWeekParity = currentWeekParity,
-                            )
-                    }
-                    .sortedWith(
-                        compareBy<Product> { it.companyName.lowercase() }
-                            .thenBy { it.name.lowercase() },
-                    )
-                updateIfCurrent(context) {
-                    val currentMode = it.mode as SessionMode.Authorized
-                    it.copy(
-                        mode = currentMode.copy(
-                            authenticatedMember = membersById[currentMode.authenticatedMember.id]
-                                ?: currentMode.authenticatedMember,
-                            member = membersById[currentMode.member.id] ?: currentMode.member,
-                            members = refreshedMembers,
-                        ),
-                        myOrderProductsFeed = visibleProducts,
-                        myOrderSeasonalCommitmentsFeed = seasonalCommitments.values.toList(),
-                        isLoadingMyOrderProducts = false,
-                    )
-                }
-            } catch (cancellation: CancellationException) {
-                updateIfCurrent(context) { it.copy(isLoadingMyOrderProducts = false) }
-                throw cancellation
-            } catch (_: Exception) {
-                if (updateIfCurrent(context) { it.copy(isLoadingMyOrderProducts = false) }) {
-                    emitMessage(R.string.feedback_unable_load_data)
-                }
             }
+            val allProducts = prefetchedPayload?.products ?: productRepository.getAllProducts()
+            val visibleProducts = allProducts
+                .filter { product ->
+                    product.isVisibleInOrdering &&
+                        membersById[product.vendorId].isVisibleForOrdering() &&
+                        product.matchesCurrentProducerWeek(
+                            membersById = membersById,
+                            currentWeekParity = currentWeekParity,
+                        )
+                }
+                .sortedWith(
+                    compareBy<Product> { it.companyName.lowercase() }
+                        .thenBy { it.name.lowercase() },
+                )
+            return updateMyOrderWithReceiptIfCurrent(
+                context = context,
+                refreshGeneration = refreshGeneration,
+                additionalFence = additionalFence,
+            ) {
+                val currentMode = it.mode as SessionMode.Authorized
+                it.copy(
+                    mode = currentMode.copy(
+                        authenticatedMember = prefetchedPayload?.authenticatedMember
+                            ?: membersById[currentMode.authenticatedMember.id]
+                            ?: currentMode.authenticatedMember,
+                        member = membersById[currentMode.member.id] ?: currentMode.member,
+                        members = refreshedMembers,
+                    ),
+                    myOrderProductsFeed = visibleProducts,
+                    myOrderSeasonalCommitmentsFeed = seasonalCommitments.values.toList(),
+                    isLoadingMyOrderProducts = false,
+                )
+            }
+        } catch (cancellation: CancellationException) {
+            updateMyOrderIfCurrent(context, refreshGeneration, additionalFence) {
+                it.copy(isLoadingMyOrderProducts = false)
+            }
+            throw cancellation
+        } catch (error: Exception) {
+            if (updateMyOrderIfCurrent(context, refreshGeneration, additionalFence) {
+                    it.copy(isLoadingMyOrderProducts = false)
+                }
+            ) {
+                throw error
+            }
+            return null
         }
     }
 
@@ -539,11 +670,17 @@ internal class SessionProductActions(
     private fun updateIfCurrent(
         context: ProductSessionContext,
         transform: (SessionUiState) -> SessionUiState,
+    ): Boolean = updateIfCurrent(context = context, additionalFence = { true }, transform = transform)
+
+    private fun updateIfCurrent(
+        context: ProductSessionContext,
+        additionalFence: () -> Boolean,
+        transform: (SessionUiState) -> SessionUiState,
     ): Boolean {
-        if (!isCurrent(context)) return false
+        if (!additionalFence() || !isCurrent(context)) return false
         var didUpdate = false
         uiState.update { state ->
-            if (isCurrent(context, state)) {
+            if (additionalFence() && isCurrent(context, state)) {
                 didUpdate = true
                 transform(state)
             } else {
@@ -552,6 +689,60 @@ internal class SessionProductActions(
         }
         return didUpdate
     }
+
+    private fun updateMyOrderIfCurrent(
+        context: ProductSessionContext,
+        refreshGeneration: Long,
+        additionalFence: () -> Boolean,
+        transform: (SessionUiState) -> SessionUiState,
+    ): Boolean {
+        if (!isCurrentMyOrderRefresh(context, refreshGeneration, additionalFence)) return false
+        var didUpdate = false
+        uiState.update { state ->
+            if (
+                isCurrentMyOrderRefresh(
+                    context = context,
+                    refreshGeneration = refreshGeneration,
+                    additionalFence = additionalFence,
+                    state = state,
+                )
+            ) {
+                didUpdate = true
+                transform(state)
+            } else {
+                state
+            }
+        }
+        return didUpdate
+    }
+
+    private fun updateMyOrderWithReceiptIfCurrent(
+        context: ProductSessionContext,
+        refreshGeneration: Long,
+        additionalFence: () -> Boolean,
+        transform: (SessionUiState) -> SessionUiState,
+    ): CriticalDataRefreshConsumerReceipt? {
+        var receipt: CriticalDataRefreshConsumerReceipt? = null
+        val didUpdate = updateMyOrderIfCurrent(
+            context = context,
+            refreshGeneration = refreshGeneration,
+            additionalFence = additionalFence,
+        ) { state ->
+            transform(state).also { updatedState ->
+                receipt = updatedState.criticalDataRefreshConsumerReceipt()
+            }
+        }
+        return receipt.takeIf { didUpdate }
+    }
+
+    private fun isCurrentMyOrderRefresh(
+        context: ProductSessionContext,
+        refreshGeneration: Long,
+        additionalFence: () -> Boolean,
+        state: SessionUiState = uiState.value,
+    ): Boolean = synchronized(myOrderRefreshLock) {
+        myOrderRefreshGeneration == refreshGeneration
+    } && additionalFence() && isCurrent(context, state)
 
     private fun updateEditorIfCurrent(
         context: ProductSessionContext,

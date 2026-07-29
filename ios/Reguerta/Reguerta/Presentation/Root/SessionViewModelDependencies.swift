@@ -139,7 +139,7 @@ final class NoOpCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLocal
     func saveMetadata(
         _: CriticalDataFreshnessMetadata,
         ifWriteGeneration _: UInt64
-    ) {}
+    ) -> Bool { true }
 
     func clear() throws {
         writeGeneration &+= 1

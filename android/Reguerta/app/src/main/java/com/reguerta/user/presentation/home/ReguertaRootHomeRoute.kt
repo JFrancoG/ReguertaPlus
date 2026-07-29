@@ -67,6 +67,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -106,6 +108,10 @@ private const val HomeDrawerAnimationMillis = 400
 private const val HomeDrawerWidthFraction = 304f / 390f
 private const val HomeDrawerScrimAlpha = 0.15f
 private const val HomeLogoutConfirmationDelayMillis = 80L
+private val HomeDestinationSaver = Saver<HomeDestination, String>(
+    save = { destination -> restoredHomeDestination(destination.name).name },
+    restore = ::restoredHomeDestination,
+)
 
 @Composable
 internal fun HomeRoute(
@@ -113,6 +119,8 @@ internal fun HomeRoute(
     mode: SessionMode,
     appAppearance: AppAppearance,
     myOrderFreshnessState: MyOrderFreshnessUiState,
+    myOrderFreshnessGeneration: Long?,
+    myOrderFreshnessReceiptIsCurrent: Boolean,
     draft: MemberDraft,
     latestNews: List<NewsArticle>,
     newsFeed: List<NewsArticle>,
@@ -223,7 +231,8 @@ internal fun HomeRoute(
     onDeleteSharedProfile: (onSuccess: () -> Unit) -> Unit,
     onSaveDeliveryCalendarOverride: (String, DeliveryWeekday, String, onSuccess: () -> Unit) -> Unit,
     onSubmitShiftPlanningRequest: (ShiftPlanningRequestType, onSuccess: () -> Unit) -> Unit,
-    onRetryMyOrderFreshness: () -> Unit,
+    onRetryMyOrderFreshness: () -> Long?,
+    onValidateMyOrderFreshnessReceipt: (Long?) -> Boolean,
     onOpenProducts: () -> Unit,
     onOpenShifts: () -> Unit,
     onImpersonateMember: (String) -> Unit,
@@ -239,7 +248,9 @@ internal fun HomeRoute(
     val homeWeekLabel = stringResource(R.string.home_dashboard_week)
     val homePendingLabel = stringResource(R.string.home_dashboard_pending)
     var isDrawerOpen by rememberSaveable { mutableStateOf(false) }
-    var currentDestination by rememberSaveable { mutableStateOf(HomeDestination.DASHBOARD) }
+    var currentDestination by rememberSaveable(stateSaver = HomeDestinationSaver) {
+        mutableStateOf(HomeDestination.DASHBOARD)
+    }
     var newsPendingDeletionId by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingSavedNewsId by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingSavedNewsWasNew by rememberSaveable { mutableStateOf(false) }
@@ -248,6 +259,7 @@ internal fun HomeRoute(
     var myOrderCartUnits by rememberSaveable { mutableIntStateOf(0) }
     var myOrderCartOpenRequests by rememberSaveable { mutableIntStateOf(0) }
     var myOrderRouteEntryRequests by rememberSaveable { mutableIntStateOf(0) }
+    var pendingMyOrderEntryGeneration by remember { mutableStateOf<Long?>(null) }
     var isMyOrderReadOnlyMode by rememberSaveable { mutableStateOf(false) }
     var isMyOrderCartVisible by rememberSaveable { mutableStateOf(false) }
     var sharedProfileTitleOverride by rememberSaveable { mutableStateOf<String?>(null) }
@@ -310,8 +322,6 @@ internal fun HomeRoute(
             onRefreshNews()
         } else if (destination == HomeDestination.NOTIFICATIONS) {
             onPrepareNotificationsRoute()
-        } else if (destination == HomeDestination.MY_ORDER) {
-            onRefreshMyOrderProducts()
         } else if (destination == HomeDestination.PRODUCTS) {
             onRefreshProducts()
         } else if (destination == HomeDestination.PROFILE) {
@@ -326,6 +336,39 @@ internal fun HomeRoute(
             onStartCreatingNotification()
         } else if (destination == HomeDestination.SETTINGS) {
             onRefreshDeliveryCalendar()
+        }
+    }
+
+    fun requestMyOrderEntry() {
+        onRetryMyOrderFreshness()?.let { generation ->
+            pendingMyOrderEntryGeneration = generation
+        }
+    }
+
+    fun retryMyOrderFreshness() {
+        val generation = onRetryMyOrderFreshness() ?: return
+        if (pendingMyOrderEntryGeneration != null) {
+            pendingMyOrderEntryGeneration = generation
+        }
+    }
+
+    LaunchedEffect(
+        myOrderFreshnessState,
+        myOrderFreshnessGeneration,
+        myOrderFreshnessReceiptIsCurrent,
+        pendingMyOrderEntryGeneration,
+    ) {
+        if (
+            shouldNavigateToMyOrder(
+                pendingGeneration = pendingMyOrderEntryGeneration,
+                completedGeneration = myOrderFreshnessGeneration,
+                freshnessState = myOrderFreshnessState,
+                receiptIsCurrent = myOrderFreshnessReceiptIsCurrent &&
+                    onValidateMyOrderFreshnessReceipt(myOrderFreshnessGeneration),
+            )
+        ) {
+            pendingMyOrderEntryGeneration = null
+            navigateHome(HomeDestination.MY_ORDER)
         }
     }
 
@@ -551,10 +594,8 @@ internal fun HomeRoute(
                                 mode = mode,
                                 myOrderFreshnessState = myOrderFreshnessState,
                                 weeklySummaryDisplay = weeklySummary,
-                                onRetryMyOrderFreshness = onRetryMyOrderFreshness,
-                                onOpenMyOrder = {
-                                    navigateHome(HomeDestination.MY_ORDER)
-                                },
+                                onRetryMyOrderFreshness = ::retryMyOrderFreshness,
+                                onOpenMyOrder = ::requestMyOrderEntry,
                                 onOpenReceivedOrders = {
                                     navigateHome(HomeDestination.RECEIVED_ORDERS)
                                 },

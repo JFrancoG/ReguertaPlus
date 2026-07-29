@@ -198,6 +198,9 @@ fun ReguertaRoot(
                     mode = state.mode,
                     appAppearance = appAppearance,
                     myOrderFreshnessState = state.myOrderFreshnessState,
+                    myOrderFreshnessGeneration = state.myOrderFreshnessGeneration,
+                    myOrderFreshnessReceiptIsCurrent = state.myOrderFreshnessConsumerReceipt
+                        ?.let(state::matchesCriticalDataRefreshConsumerReceipt) == true,
                     draft = state.memberDraft,
                     latestNews = state.latestNews,
                     newsFeed = state.newsFeed,
@@ -311,6 +314,7 @@ fun ReguertaRoot(
                     onSaveDeliveryCalendarOverride = viewModel::saveDeliveryCalendarOverride,
                     onSubmitShiftPlanningRequest = viewModel::submitShiftPlanningRequest,
                     onRetryMyOrderFreshness = viewModel::refreshMyOrderFreshness,
+                    onValidateMyOrderFreshnessReceipt = viewModel::isMyOrderFreshnessReceiptCurrent,
                     onOpenProducts = viewModel::refreshProducts,
                     onOpenShifts = viewModel::refreshShifts,
                     onImpersonateMember = viewModel::impersonateMember,

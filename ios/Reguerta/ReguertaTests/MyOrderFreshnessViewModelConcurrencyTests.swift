@@ -326,7 +326,9 @@ private func concurrencyFreshnessMetadata(
     CriticalDataFreshnessMetadata(
         validatedAtMillis: 1_000,
         acknowledgedTimestampsMillis: concurrencyFreshnessTimestamps(timestamp: timestamp),
-        environment: .develop
+        environment: .develop,
+        principalUID: "uid_seed",
+        memberID: "uid_seed"
     )
 }
 

@@ -58,63 +58,97 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
     }
 
     func activeCommitments(userId: String) async throws -> [SeasonalCommitment] {
+        try await activeCommitments(userId: userId, source: .defaultSource)
+    }
+
+    func activeCommitmentsFromServer(userId: String) async throws -> [SeasonalCommitment] {
+        try await activeCommitments(userId: userId, source: .server)
+    }
+
+    private func activeCommitments(
+        userId: String,
+        source: SeasonalCommitmentReadSource
+    ) async throws -> [SeasonalCommitment] {
         let normalizedLookup = userId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedLookup.isEmpty else {
             return []
         }
 
-        var documentsById: [String: QueryDocumentSnapshot] = [:]
-
         do {
-            try await queryByFields(
-                seasonalCommitmentQueryUserFields,
-                lookupValue: normalizedLookup,
-                includeReferenceTarget: !normalizedLookup.contains("@"),
-                output: &documentsById
+            var documentsById = Dictionary(
+                try await queryByFields(
+                    seasonalCommitmentQueryUserFields,
+                    lookupValue: normalizedLookup,
+                    includeReferenceTarget: !normalizedLookup.contains("@"),
+                    source: source
+                ).map { ($0.documentID, $0) },
+                uniquingKeysWith: { current, _ in current }
             )
 
             if documentsById.isEmpty {
-                try await queryByFields(
-                    seasonalCommitmentLegacyUserFields,
-                    lookupValue: normalizedLookup,
-                    includeReferenceTarget: !normalizedLookup.contains("@"),
-                    output: &documentsById
+                documentsById = Dictionary(
+                    try await queryByFields(
+                        seasonalCommitmentLegacyUserFields,
+                        lookupValue: normalizedLookup,
+                        includeReferenceTarget: !normalizedLookup.contains("@"),
+                        source: source
+                    ).map { ($0.documentID, $0) },
+                    uniquingKeysWith: { current, _ in current }
                 )
             }
+
+            return try documentsById.values
+                .map { document in
+                    try Self.commitment(documentID: document.documentID, data: document.data())
+                }
+                .filter { $0.userId.matchesLookupUserId(normalizedLookup) }
+                .filter(\.active)
+                .sorted(by: Self.sortCommitments)
         } catch {
             throw FirestoreRepositoryErrorMapper.map(error, resource: "seasonalCommitments")
         }
-
-        return try documentsById.values
-            .map { document in
-                try Self.commitment(documentID: document.documentID, data: document.data())
-            }
-            .filter { $0.userId.matchesLookupUserId(normalizedLookup) }
-            .filter(\.active)
-            .sorted(by: Self.sortCommitments)
     }
 
     private func queryByFields(
         _ fields: [String],
         lookupValue: String,
         includeReferenceTarget: Bool,
-        output: inout [String: QueryDocumentSnapshot]
-    ) async throws {
-        let userReference = usersCollection.document(lookupValue)
-        var targets: [Any] = [lookupValue]
+        source: SeasonalCommitmentReadSource
+    ) async throws -> [QueryDocumentSnapshot] {
+        var targets: [SeasonalCommitmentQueryTarget] = [.value(lookupValue)]
         if includeReferenceTarget {
-            targets.append(userReference)
+            targets.append(.userReference(documentID: lookupValue))
         }
 
-        for field in fields {
-            for target in targets {
-                let snapshot = try await commitmentsCollection
-                    .whereField(field, isEqualTo: target)
-                    .getDocuments()
-                for document in snapshot.documents {
-                    output[document.documentID] = document
+        return try await withThrowingTaskGroup(of: [QueryDocumentSnapshot].self) { group in
+            for field in fields {
+                for target in targets {
+                    group.addTask { [commitmentsCollection, usersCollection] in
+                        let lookupTarget: Any = switch target {
+                        case .value(let value):
+                            value
+                        case .userReference(let documentID):
+                            usersCollection.document(documentID)
+                        }
+                        let query = commitmentsCollection.whereField(
+                            field,
+                            isEqualTo: lookupTarget
+                        )
+                        let snapshot = switch source {
+                        case .defaultSource:
+                            try await query.getDocuments()
+                        case .server:
+                            try await query.getDocuments(source: .server)
+                        }
+                        return snapshot.documents
+                    }
                 }
             }
+            var documents: [QueryDocumentSnapshot] = []
+            for try await queryDocuments in group {
+                documents.append(contentsOf: queryDocuments)
+            }
+            return documents
         }
     }
 
@@ -253,6 +287,16 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
     private static var invalidDocumentError: RepositoryError {
         .invalidData(resource: "seasonalCommitments.document")
     }
+}
+
+private nonisolated enum SeasonalCommitmentReadSource: Sendable {
+    case defaultSource
+    case server
+}
+
+private nonisolated enum SeasonalCommitmentQueryTarget: Sendable {
+    case value(String)
+    case userReference(documentID: String)
 }
 
 private extension String {

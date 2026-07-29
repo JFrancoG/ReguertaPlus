@@ -1,6 +1,5 @@
 package com.reguerta.user.data.access
 
-import com.google.android.gms.tasks.Tasks
 import com.google.firebase.firestore.FirebaseFirestore
 import com.reguerta.user.data.firestore.ReguertaFirestoreCollection
 import com.reguerta.user.data.firestore.ReguertaFirestoreEnvironment
@@ -15,6 +14,7 @@ import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.ProducerParity
 import com.reguerta.user.domain.access.canManageMembers
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
 class FirestoreMemberRepository(
@@ -34,22 +34,20 @@ class FirestoreMemberRepository(
 
     override suspend fun findByAuthUid(authUid: String): Member? = withContext(Dispatchers.IO) {
         try {
-            val authLink = Tasks.await(
-                firestore.collection(authLinksCollectionPath)
-                    .document(authUid)
-                    .get(),
-            )
+            val authLink = firestore.collection(authLinksCollectionPath)
+                .document(authUid)
+                .get()
+                .await()
             if (!authLink.exists()) return@withContext null
             val authLinkData: Map<String, Any> = authLink.data ?: invalidDocument("authLinks.document")
             val memberId = authLinkData.requiredString(
                 keys = arrayOf("memberId"),
                 resource = "authLinks.document",
             )
-            val memberSnapshot = Tasks.await(
-                firestore.collection(usersCollectionPath)
-                    .document(memberId)
-                    .get(),
-            )
+            val memberSnapshot = firestore.collection(usersCollectionPath)
+                .document(memberId)
+                .get()
+                .await()
             if (!memberSnapshot.exists()) {
                 null
             } else {
@@ -64,15 +62,13 @@ class FirestoreMemberRepository(
     override suspend fun getMembersVisibleTo(member: Member): List<Member> = withContext(Dispatchers.IO) {
         try {
             val canReadPrivateMembers = member.canManageMembers
-            val snapshot = Tasks.await(
-                if (canReadPrivateMembers) {
-                    firestore.collection(usersCollectionPath).get()
-                } else {
-                    firestore.collection(memberDirectoryCollectionPath)
-                        .whereEqualTo("isActive", true)
-                        .get()
-                },
-            )
+            val snapshot = if (canReadPrivateMembers) {
+                firestore.collection(usersCollectionPath).get()
+            } else {
+                firestore.collection(memberDirectoryCollectionPath)
+                    .whereEqualTo("isActive", true)
+                    .get()
+            }.await()
             val visible = snapshot.documents.map { document ->
                 val data: Map<String, Any> = document.data ?: invalidDocument(
                     if (canReadPrivateMembers) "members.document" else "members.directory.document",
@@ -99,11 +95,10 @@ class FirestoreMemberRepository(
         isEnabled: Boolean,
     ): Member = withContext(Dispatchers.IO) {
         try {
-            Tasks.await(
-                firestore.collection(usersCollectionPath)
-                    .document(member.id)
-                    .update(mapOf("producerCatalogEnabled" to isEnabled)),
-            )
+            firestore.collection(usersCollectionPath)
+                .document(member.id)
+                .update(mapOf("producerCatalogEnabled" to isEnabled))
+                .await()
             member.copy(producerCatalogEnabled = isEnabled)
         } catch (error: Exception) {
             throw error.toRepositoryException(resource = "members.write")
