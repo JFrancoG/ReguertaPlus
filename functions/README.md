@@ -66,6 +66,8 @@ dry-run, allowlist y despliegue/aplicacion explicitos.
 ## 🔧 Tecnologías
 
 - Firebase Functions (2ª generación)
+- Firebase Admin SDK 14.2.0 (entrypoints modulares)
+- Firebase Functions SDK 7.3.2
 - Node.js 22
 - TypeScript
 - Firestore
@@ -83,7 +85,9 @@ El trigger:
 - materializa una copia privada y acotada en
   `{env}/plus-collections/users/{userId}/notificationInbox/{eventId}`
 - busca destinatarios en `{env}/plus-collections/users/{userId}/devices/{deviceId}`
-- usa `fcmToken` como destino de FCM
+- mantiene `fcmToken` para tokens legacy/iOS y envia el nuevo
+  `firebaseInstallationId` de Android a FCM mediante `fids`; ambos destinos se
+  leen y despachan por separado durante la migracion
 - deja trazabilidad mínima en `notificationEvents.dispatch`
 
 Otro trigger candidato proyecta cada socio activo de `plus-collections/users` en

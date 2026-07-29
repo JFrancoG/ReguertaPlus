@@ -6,18 +6,32 @@ plugins {
     alias(libs.plugins.firebase.crashlytics)
 }
 
+private object MyConfig {
+    const val GROUP_ID = "com.reguerta"
+    const val APPLICATION_ID = "$GROUP_ID.user"
+    const val VERSION_NAME = "0.3.0.1"
+    const val VERSION_CODE = 36
+    const val COMPILE_SDK_VERSION = 37
+    const val TARGET_SDK_VERSION = 37
+    const val MIN_SDK_VERSION = 29
+}
+
 android {
-    namespace = "com.reguerta.user"
+    namespace = MyConfig.APPLICATION_ID
     compileSdk {
-        version = release(37)
+        version = release(MyConfig.COMPILE_SDK_VERSION)
     }
 
     defaultConfig {
-        applicationId = "com.reguerta.user"
-        minSdk = 29
-        targetSdk = 36
-        versionCode = 31
-        versionName = "0.3.0.1"
+        applicationId = MyConfig.APPLICATION_ID
+        minSdk {
+            version = release(MyConfig.MIN_SDK_VERSION)
+        }
+        targetSdk {
+            version = release(MyConfig.TARGET_SDK_VERSION)
+        }
+        versionCode = MyConfig.VERSION_CODE
+        versionName = MyConfig.VERSION_NAME
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -65,14 +79,15 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
-    implementation(libs.androidx.security.crypto)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage)
     implementation(libs.firebase.messaging)
+    implementation(libs.firebase.installations)
     implementation(libs.firebase.crashlytics)
+    implementation(libs.tink.android)
     debugImplementation(libs.mlkit.genai.prompt)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

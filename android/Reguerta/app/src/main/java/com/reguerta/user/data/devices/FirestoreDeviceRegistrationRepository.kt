@@ -59,8 +59,12 @@ class FirestoreDeviceRegistrationRepository(
                     ((device.firstSeenAtMillis % 1_000) * 1_000_000).toInt(),
                 )
             }
-            payload["fcmToken"] = device.fcmToken
-            payload["tokenUpdatedAt"] = device.tokenUpdatedAtMillis?.let {
+            // Keep legacy token fields explicitly empty on modern Android registrations.
+            // iOS and pre-migration Android documents continue to use them during rollout.
+            payload["fcmToken"] = null
+            payload["tokenUpdatedAt"] = null
+            payload["firebaseInstallationId"] = device.firebaseInstallationId
+            payload["registrationUpdatedAt"] = device.registrationUpdatedAtMillis?.let {
                 Timestamp(it / 1_000, ((it % 1_000) * 1_000_000).toInt())
             }
             val batch = firestore.batch()

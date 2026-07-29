@@ -37,6 +37,7 @@ Agents may modify any part of this monorepo when needed:
 
 - Prefer using available skills for platform-specific and UI implementation guidance.
 - Android CLI is installed and available; prefer the `android-cli` skill/tooling for Android SDK, emulator, device, and Android Studio-oriented workflows when applicable.
+- In Android/Kotlin, resolve deprecation warnings by migrating to the supported modern API whenever one exists. Do not use `@Suppress("DEPRECATION")` as the default fix; any unavoidable compatibility suppression must be narrowly scoped, documented, and reported.
 - Do not duplicate detailed UI design rules here; those are handled by skills and future design-system docs.
 - Canonical stack definitions live in:
   - `/docs/tech-stack/README.md`

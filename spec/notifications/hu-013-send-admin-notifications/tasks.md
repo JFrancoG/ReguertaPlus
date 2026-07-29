@@ -6,6 +6,7 @@
 - [x] Define test scenarios (happy path and edge cases).
 - [x] Align device contract: `users.lastDeviceId` and `users/{userId}/devices/{deviceId}`.
 - [x] Add `fcmToken` and `tokenUpdatedAt` to the documented device contract.
+- [x] Add the transitional Android `firebaseInstallationId` and `registrationUpdatedAt` fields while preserving legacy/iOS token delivery.
 - [x] Record MVP deferrals: no read/unread state, no unread badge, no edit flow.
 
 ## 2. Android implementation

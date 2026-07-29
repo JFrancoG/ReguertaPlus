@@ -137,11 +137,43 @@ emisor puede conservar un token registrado anteriormente y FCM puede haber
 aceptado ya mensajes para entregar. Por tanto, el producto no debe prometer
 cero notificaciones tardías después del logout.
 
-La desvinculación remota, el retry durable, la política TTL del emisor, la
-política de auto-init de Android y la migración desde las APIs de token
-deprecadas hacia `register`/`unregister` de Firebase Installation ID permanecen
-aplazadas hasta poder coordinar con seguridad todos los clientes Firebase
-compartidos.
+La desvinculación remota, el retry durable, la política TTL del emisor y la
+política de `unregister` de Android siguen aplazadas. La migración de la API de
+registro queda cubierta por la enmienda transitoria siguiente.
+
+## Enmienda transitoria FID de 2026-07-29
+
+La issue #227 coordina el primer corte compatible con Firebase Installation ID
+(FID) sin reinterpretar las credenciales existentes. Android usa `register()`
+y `onRegistered`, guarda el FID en `firebaseInstallationId` y limpia los campos
+legacy de token en su propio documento de dispositivo. iOS y los documentos
+Android ya publicados continúan usando `fcmToken` durante la transición.
+
+El emisor lee ambos campos de forma independiente y los despacha mediante el
+destino correspondiente de Firebase Admin 14: `tokens` para registros
+legacy/iOS y `fids` para FIDs de Android. Los dos conjuntos nunca se
+intercambian. Las Firestore Rules estrictas validan ambas representaciones y
+los contratos de dispositivo en inglés y español documentan su convivencia.
+
+Android también sustituye la API de preferencias de AndroidX Security
+deprecada por un almacén versionado Android Keystore AES-GCM. Un lector usado
+solo para la migración y construido con las primitivas actuales de Tink 1.23
+copia atómicamente los campos de identidad y sesión compatibles antes de usar
+el almacén nuevo. El `fcm_token` legacy no se copia deliberadamente en el slot
+FID porque ambos identificadores no son intercambiables. La migración no
+sobrescribe un almacén v2 ya inicializado, no borra el origen cifrado necesario
+para rollback y falla de forma cerrada en vez de rotar `device_id` si no puede
+descifrar el formato legacy. Las entradas conocidas del fallback en texto plano
+se vuelven a cifrar antes de eliminar esas claves planas. Tink debe permanecer
+en la ruta de actualización mientras se admita actualizar directamente desde
+una build anterior a #227. Esta frontera de compatibilidad no usa supresiones de
+deprecación. La issue #228 controla la evidencia de release y un canary de
+actualización desde una build anterior.
+
+Integrar el código fuente no autoriza un despliegue Firebase ni una publicación
+móvil. El despliegue de Functions y la distribución Android siguen siendo un
+gate operativo coordinado; la migración de iOS y la desvinculación remota siguen
+como trabajo posterior.
 
 ## Implementación y verificación
 
@@ -153,7 +185,9 @@ compartidos.
   callback válido después del registro vivo y la invalidación del fence durante
   una escritura suspendida en el repositorio.
 - Las pruebas usan gates controlables y ningún sleep real.
-- No cambian Functions, Firestore Rules, Storage Rules ni datos Firebase live.
+- La issue #217 no cambió Functions, Firestore Rules, Storage Rules ni datos
+  Firebase live. La enmienda #227 cambia el código fuente de Functions y Rules
+  estrictas, pero no despliega Firebase ni modifica datos live.
 
 ## Decisiones y trabajo relacionados
 
@@ -161,9 +195,12 @@ compartidos.
 - ADR-0007: autorización Firebase por roles y despliegue por fases.
 - ADR-0008: operaciones móviles de sesión acotadas y barreras de cleanup.
 - Issue de GitHub [#217](https://github.com/JFrancoG/ReguertaPlus/issues/217).
+- Issue de GitHub [#227](https://github.com/JFrancoG/ReguertaPlus/issues/227).
+- Issue de GitHub [#228](https://github.com/JFrancoG/ReguertaPlus/issues/228).
 
 ## Referencias
 
 - [Swift Evolution SE-0306: Actors](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0306-actors.md)
 - [Firebase: gestionar tokens de registro FCM](https://firebase.google.com/docs/cloud-messaging/manage-tokens)
 - [Firebase Android: `FirebaseMessaging`](https://firebase.google.com/docs/reference/android/com/google/firebase/messaging/FirebaseMessaging)
+- [Configuración de Tink Java](https://developers.google.com/tink/setup/java)

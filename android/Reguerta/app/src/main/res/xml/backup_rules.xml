@@ -3,4 +3,7 @@
     <exclude
         domain="sharedpref"
         path="device_registration.xml" />
+    <exclude
+        domain="sharedpref"
+        path="device_registration_secure_v2.xml" />
 </full-backup-content>

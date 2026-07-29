@@ -1,14 +1,18 @@
 package com.reguerta.user.data.devices
 
+import android.annotation.SuppressLint
 import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.reguerta.user.BuildConfig
 import com.reguerta.user.domain.devices.RegisteredDevice
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 
+// AGP 9.3 lint still requires the deprecated onNewToken callback instead of onRegistered.
+@SuppressLint("MissingFirebaseInstanceTokenRefresh")
 class ReguertaFirebaseMessagingService : FirebaseMessagingService() {
     private companion object {
         const val TAG = "ReguertaPush"
@@ -26,39 +30,36 @@ class ReguertaFirebaseMessagingService : FirebaseMessagingService() {
             ),
             currentAuthUidProvider = { FirebaseAuth.getInstance().currentUser?.uid },
             nowMillisProvider = { System.currentTimeMillis() },
-            deviceProvider = { token, deviceId, nowMillis ->
+            deviceProvider = { installationId, deviceId, nowMillis ->
                 RegisteredDevice(
                     deviceId = deviceId,
                     platform = "android",
-                    appVersion = applicationContext.packageManager
-                        .getPackageInfo(applicationContext.packageName, 0)
-                        .versionName ?: "0.0.0",
+                    appVersion = BuildConfig.VERSION_NAME,
                     osVersion = android.os.Build.VERSION.RELEASE
                         ?: android.os.Build.VERSION.SDK_INT.toString(),
                     apiLevel = android.os.Build.VERSION.SDK_INT,
                     manufacturer = android.os.Build.MANUFACTURER?.ifBlank { null },
                     model = android.os.Build.MODEL?.ifBlank { null },
-                    fcmToken = token,
+                    firebaseInstallationId = installationId,
                     firstSeenAtMillis = nowMillis,
                     lastSeenAtMillis = nowMillis,
-                    tokenUpdatedAtMillis = nowMillis,
+                    registrationUpdatedAtMillis = nowMillis,
                 )
             },
         )
     }
-    private val tokenCallbackRunner: FirebaseTokenCallbackRunner by lazy {
+    private val registrationCallbackRunner: FirebaseTokenCallbackRunner by lazy {
         FirebaseTokenCallbackRunner(
             timeoutMillis = TOKEN_CALLBACK_TIMEOUT_MILLIS,
             refresh = tokenRefreshCoordinator::refresh,
         )
     }
 
-    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
-    override fun onNewToken(token: String) {
-        super.onNewToken(token)
-        Log.d(TAG, "FirebaseMessagingService received a refreshed push credential")
+    override fun onRegistered(installationId: String) {
+        super.onRegistered(installationId)
+        Log.d(TAG, "FirebaseMessagingService received a refreshed installation registration")
         try {
-            when (tokenCallbackRunner.handle(token)) {
+            when (registrationCallbackRunner.handle(installationId)) {
                 AuthorizedDeviceTokenRefreshResult.STORED_ONLY ->
                     Log.d(TAG, "Push credential stored without an authorized upload")
                 AuthorizedDeviceTokenRefreshResult.STALE_SESSION ->

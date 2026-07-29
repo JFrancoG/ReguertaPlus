@@ -49,4 +49,4 @@ As a member I want `My order` enabled only when critical data is fresh so orderi
 - [x] Android/iOS parity reviewed or temporary gap documented.
 - [x] Tests executed.
 - [x] Documentation updated.
-- [ ] Issue and PR linked.
+- [x] Issue and PR linked.

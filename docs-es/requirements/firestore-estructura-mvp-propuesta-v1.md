@@ -52,7 +52,7 @@ Conclusión: ya existe base útil para pedidos e histórico; no conviene redise�
 ## 3. Principios de diseño para MVP
 
 - Mantener colecciones `users`, `products`, `orders`, `orderlines`.
-- Reutilizar registro de dispositivos por socio para entrega push (`users/{userId}/devices`), incluyendo el ultimo `fcmToken` conocido.
+- Reutilizar el registro de dispositivos por socio para entrega push (`users/{userId}/devices`), incluyendo `fcmToken` para legacy/iOS y `firebaseInstallationId` para Android durante la transicion a FID.
 - Soportar alta preautorizada por email y enlace de UID en primer login autorizado.
 - Formalizar politica remota de version en arranque y sincronizacion selectiva guiada por frescura.
 - Borrado lógico para entidades históricas (productos/usuarios) en vez de borrado físico.
@@ -98,7 +98,7 @@ Notas:
 - `lastDeviceId` referencia `users/{userId}/devices/{deviceId}` para acceso rápido al dispositivo reciente.
 
 Subcoleccion asociada:
-- `users/{userId}/devices/{deviceId}` con metadatos del dispositivo (`platform`, `appVersion`, `osVersion`, `apiLevel`, `manufacturer`, `model`, `fcmToken`, `tokenUpdatedAt`, `firstSeenAt`, `lastSeenAt`).
+- `users/{userId}/devices/{deviceId}` con metadatos del dispositivo (`platform`, `appVersion`, `osVersion`, `apiLevel`, `manufacturer`, `model`, `fcmToken`, `tokenUpdatedAt`, `firebaseInstallationId`, `registrationUpdatedAt`, `firstSeenAt`, `lastSeenAt`).
 - Regla conocida: en iOS `apiLevel` se guarda como `null`.
 
 ### `products/{productId}`

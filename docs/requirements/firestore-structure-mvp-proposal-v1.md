@@ -50,7 +50,7 @@ Legacy-rich `orderlines` fields are already present and should be preserved unti
 ## 3. MVP design principles
 
 - Keep `users`, `products`, `orders`, `orderlines` as core.
-- Reuse existing per-user device registry for push delivery (`users/{userId}/devices`), including the latest known `fcmToken`.
+- Reuse the per-user device registry for push delivery (`users/{userId}/devices`), including legacy/iOS `fcmToken` values and Android `firebaseInstallationId` values during the FID transition.
 - Support pre-authorized onboarding by email with first-login UID linking.
 - Formalize startup remote version policy and freshness-driven selective sync.
 - Use logical delete for historical entities.

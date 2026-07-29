@@ -46,5 +46,5 @@
 - [x] Record the client refresh/ACK contract and the deferred Firebase gate.
 
 ## 7. Closure
-- [ ] Link issue and PR.
+- [x] Link issue and PR.
 - [ ] Complete DoD checklist.

@@ -7,7 +7,18 @@ import {
 } from "firebase-functions/v2/firestore";
 import {onSchedule} from "firebase-functions/v2/scheduler";
 import {logger} from "firebase-functions";
-import * as admin from "firebase-admin";
+import {initializeApp} from "firebase-admin/app";
+import {getAuth} from "firebase-admin/auth";
+import {
+  DocumentReference,
+  DocumentSnapshot,
+  FieldValue,
+  getFirestore,
+  QueryDocumentSnapshot,
+  Timestamp,
+  Transaction,
+} from "firebase-admin/firestore";
+import {getMessaging, SendResponse} from "firebase-admin/messaging";
 import {Response} from "express";
 import {google} from "googleapis";
 import {
@@ -44,7 +55,10 @@ import {
 import {buildNotificationInboxDocument} from "./notification-inbox.js";
 import {buildMemberDirectoryDocument} from "./member-directory.js";
 
-admin.initializeApp();
+const firebaseApp = initializeApp();
+const auth = getAuth(firebaseApp);
+const firestore = getFirestore(firebaseApp);
+const messaging = getMessaging(firebaseApp);
 
 setGlobalOptions({
   region: "europe-west1",
@@ -91,10 +105,8 @@ ENV = parseOptionalEnvString(process.env.APP_ENV) ||
   parseOptionalEnvString(appConfig.env) ||
   "develop";
 
-const firestore = admin.firestore();
-
 const updateTimestamp = async (env: string, collectionName: string) => {
-  const now = admin.firestore.Timestamp.now();
+  const now = Timestamp.now();
   const config = firestore.collection(`${env}/plus-collections/config`);
   const update = {
     lastTimestamps: {
@@ -138,7 +150,7 @@ const verifyRequestIdentity = async (
 ): Promise<VerifiedIdentity> => verifyBearerIdentity(
   request.headers.authorization,
   (token, checkRevoked) =>
-    admin.auth().verifyIdToken(token, checkRevoked),
+    auth.verifyIdToken(token, checkRevoked),
 );
 
 const parseRequestEnvironment = (request: Request): AppEnvironment => {
@@ -232,7 +244,7 @@ const resolveVerifiedLinkedAdminActor = async (
       return false;
     }
     const [authUser, memberSnapshot] = await Promise.all([
-      admin.auth().getUser(uid),
+      auth.getUser(uid),
       usersCollection(environment).doc(memberId).get(),
     ]);
     return memberSnapshot.exists && isVerifiedLinkedAdminActor(
@@ -368,7 +380,7 @@ type VersionPolicy = {
   storeUrl: string;
 };
 
-type DeliveryCalendarOverrideMap = Map<string, admin.firestore.Timestamp>;
+type DeliveryCalendarOverrideMap = Map<string, Timestamp>;
 
 const VERSION_STRING_REGEX = /^\d+(?:\.\d+)*$/;
 const DEFAULT_ORDER_REMINDER_ENVS = ["develop", "production"];
@@ -476,14 +488,14 @@ const parseNonNegativeInteger = (value: unknown, fallback: number): number => {
 
 const sanitizeLastTimestamps = (
   value: unknown,
-  fallback: admin.firestore.Timestamp,
-): Record<string, admin.firestore.Timestamp> => {
+  fallback: Timestamp,
+): Record<string, Timestamp> => {
   const source = parseBody(value);
 
   return Object.fromEntries(
     REQUIRED_FRESHNESS_COLLECTIONS.map((collection) => {
       const rawValue = source[collection];
-      const timestamp = rawValue instanceof admin.firestore.Timestamp ?
+      const timestamp = rawValue instanceof Timestamp ?
         rawValue :
         fallback;
       return [collection, timestamp];
@@ -511,7 +523,7 @@ const sanitizeDeliveryDayOfWeek = (value: unknown): string => {
 
 const buildMemberConfigProjection = (
   value: unknown,
-  fallbackTimestamp: admin.firestore.Timestamp,
+  fallbackTimestamp: Timestamp,
 ) => {
   const source = parseBody(value);
   return {
@@ -676,10 +688,16 @@ const fanOutNotificationInbox = async (
   return uniqueUserIds.length;
 };
 
-const resolveDeviceTokens = async (
+type DeviceMessagingTargets = {
+  fids: string[];
+  tokens: string[];
+};
+
+const resolveDeviceMessagingTargets = async (
   env: string,
   userIds: string[],
-): Promise<string[]> => {
+): Promise<DeviceMessagingTargets> => {
+  const uniqueFids = new Set<string>();
   const uniqueTokens = new Set<string>();
   const collection = plusUsersCollection(env);
 
@@ -689,35 +707,67 @@ const resolveDeviceTokens = async (
       .collection("devices")
       .get();
     for (const deviceDoc of devicesSnapshot.docs) {
+      const fid = parseString(deviceDoc.get("firebaseInstallationId"));
       const token = parseString(deviceDoc.get("fcmToken"));
+      if (fid) {
+        uniqueFids.add(fid);
+      }
       if (token) {
         uniqueTokens.add(token);
       }
     }
   }
 
-  return Array.from(uniqueTokens);
+  return {
+    fids: Array.from(uniqueFids),
+    tokens: Array.from(uniqueTokens),
+  };
 };
 
-const resolveDeviceTokensByUser = async (
-  env: string,
-  userId: string,
-): Promise<string[]> => {
-  const uniqueTokens = new Set<string>();
-  const devicesSnapshot = await plusUsersCollection(env)
-    .doc(userId)
-    .collection("devices")
-    .get();
+type MessagingDispatchResult = {
+  failureCount: number;
+  responses: SendResponse[];
+  successCount: number;
+};
 
-  for (const deviceDoc of devicesSnapshot.docs) {
-    const token = parseString(deviceDoc.get("fcmToken"));
-    if (token) {
-      uniqueTokens.add(token);
-    }
+const sendEachForMessagingTargets = async (
+  targets: DeviceMessagingTargets,
+  notification: {title: string; body: string},
+  data: Record<string, string>,
+): Promise<MessagingDispatchResult> => {
+  const result: MessagingDispatchResult = {
+    failureCount: 0,
+    responses: [],
+    successCount: 0,
+  };
+
+  for (const tokenChunk of chunkArray(targets.tokens, 500)) {
+    const response = await messaging.sendEachForMulticast({
+      tokens: tokenChunk,
+      notification,
+      data,
+    });
+    result.successCount += response.successCount;
+    result.failureCount += response.failureCount;
+    result.responses.push(...response.responses);
+  }
+  for (const fidChunk of chunkArray(targets.fids, 500)) {
+    const response = await messaging.sendEachForMulticast({
+      fids: fidChunk,
+      notification,
+      data,
+    });
+    result.successCount += response.successCount;
+    result.failureCount += response.failureCount;
+    result.responses.push(...response.responses);
   }
 
-  return Array.from(uniqueTokens);
+  return result;
 };
+
+const hasDeviceMessagingTargets = (
+  targets: DeviceMessagingTargets,
+): boolean => targets.fids.length > 0 || targets.tokens.length > 0;
 
 const ORDER_REMINDER_TYPE = "order_reminder";
 const ORDER_REMINDER_USER_FIELDS = [
@@ -796,7 +846,7 @@ type PendingOrderReminderRunSummary = {
 };
 
 type PendingOrderReminderRunOptions = {
-  referenceNow?: admin.firestore.Timestamp;
+  referenceNow?: Timestamp;
   weekKey?: string;
   envs?: string[];
   dryRun?: boolean;
@@ -812,7 +862,7 @@ type OrderReminderDispatchClaimResult =
   | {
     action: "dispatch";
     markerId: string;
-    markerRef: admin.firestore.DocumentReference;
+    markerRef: DocumentReference;
     attemptNumber: number;
   }
   | {
@@ -965,7 +1015,7 @@ const parseMessagingErrorMessage = (error: unknown): string | null => {
 };
 
 const summarizeMessagingFailureResponses = (
-  responses: admin.messaging.SendResponse[],
+  responses: SendResponse[],
 ): {
   hasTransientFailure: boolean;
   failureCodes: string[];
@@ -1001,12 +1051,12 @@ const summarizeMessagingFailureResponses = (
 
 const computeOrderReminderNextRetryAt = (
   attemptNumber: number,
-  referenceNow: admin.firestore.Timestamp = admin.firestore.Timestamp.now(),
-): admin.firestore.Timestamp => {
+  referenceNow: Timestamp = Timestamp.now(),
+): Timestamp => {
   const baseDelayMinutes = parseOrderReminderRetryBaseDelayMinutes();
   const backoffMultiplier = 2 ** Math.max(0, attemptNumber - 1);
   const delayMs = baseDelayMinutes * backoffMultiplier * 60 * 1000;
-  return admin.firestore.Timestamp.fromMillis(
+  return Timestamp.fromMillis(
     referenceNow.toMillis() + delayMs
   );
 };
@@ -1073,7 +1123,7 @@ const claimOrderReminderDispatchAttempt = async (
   weekKey: string,
   reminderHour: number,
   eventId: string,
-  referenceNow: admin.firestore.Timestamp = admin.firestore.Timestamp.now(),
+  referenceNow: Timestamp = Timestamp.now(),
 ): Promise<OrderReminderDispatchClaimResult> => {
   const markerId = buildOrderReminderDispatchMarkerId(
     weekKey,
@@ -1096,10 +1146,10 @@ const claimOrderReminderDispatchAttempt = async (
       const markerData = parseBody(markerSnapshot.data());
       const status = parseOrderReminderDispatchMarkerStatus(markerData.status);
       const attempts = parseNonNegativeInteger(markerData.attempts, 0);
-      const nextRetryAt = markerData.nextRetryAt instanceof admin
-        .firestore.Timestamp ? markerData.nextRetryAt : null;
-      const lastAttemptAt = markerData.lastAttemptAt instanceof admin
-        .firestore.Timestamp ? markerData.lastAttemptAt : null;
+      const nextRetryAt = markerData.nextRetryAt instanceof Timestamp ?
+        markerData.nextRetryAt : null;
+      const lastAttemptAt = markerData.lastAttemptAt instanceof Timestamp ?
+        markerData.lastAttemptAt : null;
 
       if (status === "sent" || status === "failed" || status === "no_tokens") {
         claim = {
@@ -1130,7 +1180,7 @@ const claimOrderReminderDispatchAttempt = async (
         transaction.set(markerRef, {
           status: "failed",
           failureReason: "max_attempts_reached",
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
         }, {merge: true});
         claim = {
           action: "skip",
@@ -1159,9 +1209,9 @@ const claimOrderReminderDispatchAttempt = async (
         attempts: nextAttempt,
         maxAttempts,
         lastEventId: eventId,
-        lastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastAttemptAt: FieldValue.serverTimestamp(),
         nextRetryAt: null,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
       claim = {
         action: "dispatch",
@@ -1180,9 +1230,9 @@ const claimOrderReminderDispatchAttempt = async (
       attempts: 1,
       maxAttempts,
       lastEventId: eventId,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      lastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+      lastAttemptAt: FieldValue.serverTimestamp(),
       nextRetryAt: null,
     }, {merge: true});
     claim = {
@@ -1197,12 +1247,12 @@ const claimOrderReminderDispatchAttempt = async (
 };
 
 const finalizeOrderReminderDispatchMarker = async (
-  markerRef: admin.firestore.DocumentReference,
+  markerRef: DocumentReference,
   patch: Record<string, unknown>,
 ): Promise<void> => {
   await markerRef.set({
     ...patch,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   }, {merge: true});
 };
 
@@ -1213,7 +1263,7 @@ const dispatchOrderReminderToUser = async (
   context: OrderReminderEventContext,
   userId: string,
   triggerSource: "event" | "retry_scheduler",
-  referenceNow: admin.firestore.Timestamp = admin.firestore.Timestamp.now(),
+  referenceNow: Timestamp = Timestamp.now(),
 ): Promise<OrderReminderDispatchOutcome> => {
   const dispatchClaim = await claimOrderReminderDispatchAttempt(
     env,
@@ -1236,8 +1286,8 @@ const dispatchOrderReminderToUser = async (
     };
   }
 
-  const tokens = await resolveDeviceTokensByUser(env, userId);
-  if (tokens.length === 0) {
+  const targets = await resolveDeviceMessagingTargets(env, [userId]);
+  if (!hasDeviceMessagingTargets(targets)) {
     await finalizeOrderReminderDispatchMarker(dispatchClaim.markerRef, {
       status: "no_tokens",
       failureReason: "no_tokens",
@@ -1259,36 +1309,31 @@ const dispatchOrderReminderToUser = async (
     };
   }
 
-  let deliveredTokensCount = 0;
-  let failedTokensCount = 0;
-  const tokenResponses: admin.messaging.SendResponse[] = [];
-  for (const tokenChunk of chunkArray(tokens, 500)) {
-    const response = await admin.messaging().sendEachForMulticast({
-      tokens: tokenChunk,
-      notification: {
-        title: payload.title,
-        body: payload.body,
-      },
-      data: {
-        eventId,
-        type: payload.type,
-        target: payload.target,
-        userId,
-        weekKey: context.weekKey,
-        reminderSlotHour: String(context.reminderHour),
-        triggerSource,
-      },
-    });
-    deliveredTokensCount += response.successCount;
-    failedTokensCount += response.failureCount;
-    tokenResponses.push(...response.responses);
-  }
-
-  const failureSummary = summarizeMessagingFailureResponses(tokenResponses);
+  const dispatchResult = await sendEachForMessagingTargets(
+    targets,
+    {
+      title: payload.title,
+      body: payload.body,
+    },
+    {
+      eventId,
+      type: payload.type,
+      target: payload.target,
+      userId,
+      weekKey: context.weekKey,
+      reminderSlotHour: String(context.reminderHour),
+      triggerSource,
+    },
+  );
+  const deliveredTokensCount = dispatchResult.successCount;
+  const failedTokensCount = dispatchResult.failureCount;
+  const failureSummary = summarizeMessagingFailureResponses(
+    dispatchResult.responses,
+  );
   if (deliveredTokensCount > 0) {
     await finalizeOrderReminderDispatchMarker(dispatchClaim.markerRef, {
       status: "sent",
-      sentAt: admin.firestore.FieldValue.serverTimestamp(),
+      sentAt: FieldValue.serverTimestamp(),
       nextRetryAt: null,
       deliveredTokensCount,
       failedTokensCount,
@@ -1371,7 +1416,7 @@ const parseUserIdCandidate = (value: unknown): string | null => {
     return parsed ? normalizePathLikeIdentifier(parsed) : null;
   }
 
-  if (value instanceof admin.firestore.DocumentReference) {
+  if (value instanceof DocumentReference) {
     return parseString(value.id);
   }
 
@@ -1482,7 +1527,7 @@ const isConfirmedOrderRecord = (
   if (consumerStatus === "confirmado") {
     return true;
   }
-  return data.confirmedAt instanceof admin.firestore.Timestamp;
+  return data.confirmedAt instanceof Timestamp;
 };
 
 const parseOrderUserId = (
@@ -1520,7 +1565,7 @@ const listConfirmedOrderUserIds = async (
       collection.where("week", "==", weekNumber).get(),
     ]);
 
-    const docsById = new Map<string, admin.firestore.QueryDocumentSnapshot>();
+    const docsById = new Map<string, QueryDocumentSnapshot>();
     [...byWeekKeySnapshot.docs, ...byWeekNumberSnapshot.docs]
       .forEach((doc) => docsById.set(doc.id, doc));
 
@@ -1579,7 +1624,7 @@ const createOrderReminderEvent = async (
       weekKey,
       reminderSlotHour: reminderHour,
       createdBy: "system",
-      sentAt: admin.firestore.FieldValue.serverTimestamp(),
+      sentAt: FieldValue.serverTimestamp(),
     });
     return "created";
   } catch (error) {
@@ -1594,7 +1639,7 @@ const runPendingOrderReminderForHour = async (
   reminderHour: number,
   options: PendingOrderReminderRunOptions = {},
 ): Promise<PendingOrderReminderRunSummary> => {
-  const referenceNow = options.referenceNow || admin.firestore.Timestamp.now();
+  const referenceNow = options.referenceNow || Timestamp.now();
   const weekKey = options.weekKey || timestampToIsoWeekKey(referenceNow);
   const weekNumber = parseIsoWeekNumberFromWeekKey(weekKey);
   if (!weekNumber) {
@@ -1711,15 +1756,15 @@ const dispatchNotificationEventGeneric = async (
   env: string,
   eventId: string,
   payload: NotificationDispatchPayload,
-  eventRef: admin.firestore.DocumentReference,
+  eventRef: DocumentReference,
   targetUserIds: string[],
 ): Promise<void> => {
-  const tokens = await resolveDeviceTokens(env, targetUserIds);
+  const targets = await resolveDeviceMessagingTargets(env, targetUserIds);
 
-  if (tokens.length === 0) {
+  if (!hasDeviceMessagingTargets(targets)) {
     await eventRef.set({
       dispatch: {
-        attemptedAt: admin.firestore.FieldValue.serverTimestamp(),
+        attemptedAt: FieldValue.serverTimestamp(),
         dispatchedAt: null,
         resolvedUsersCount: targetUserIds.length,
         deliveredTokensCount: 0,
@@ -1728,7 +1773,7 @@ const dispatchNotificationEventGeneric = async (
       },
     }, {merge: true});
     logger.warn(
-      "Notification dispatch skipped because no device tokens were found",
+      "Notification dispatch skipped because no device targets were found",
       {
         env,
         eventId,
@@ -1739,31 +1784,25 @@ const dispatchNotificationEventGeneric = async (
     return;
   }
 
-  let deliveredTokensCount = 0;
-  let failedTokensCount = 0;
-
-  for (const tokenChunk of chunkArray(tokens, 500)) {
-    const response = await admin.messaging().sendEachForMulticast({
-      tokens: tokenChunk,
-      notification: {
-        title: payload.title,
-        body: payload.body,
-      },
-      data: {
-        eventId,
-        type: payload.type,
-        target: payload.target,
-      },
-    });
-
-    deliveredTokensCount += response.successCount;
-    failedTokensCount += response.failureCount;
-  }
+  const dispatchResult = await sendEachForMessagingTargets(
+    targets,
+    {
+      title: payload.title,
+      body: payload.body,
+    },
+    {
+      eventId,
+      type: payload.type,
+      target: payload.target,
+    },
+  );
+  const deliveredTokensCount = dispatchResult.successCount;
+  const failedTokensCount = dispatchResult.failureCount;
 
   await eventRef.set({
     dispatch: {
-      attemptedAt: admin.firestore.FieldValue.serverTimestamp(),
-      dispatchedAt: admin.firestore.FieldValue.serverTimestamp(),
+      attemptedAt: FieldValue.serverTimestamp(),
+      dispatchedAt: FieldValue.serverTimestamp(),
       resolvedUsersCount: targetUserIds.length,
       deliveredTokensCount,
       failedTokensCount,
@@ -1786,7 +1825,7 @@ const dispatchOrderReminderEvent = async (
   eventId: string,
   eventData: Record<string, unknown>,
   payload: NotificationDispatchPayload,
-  eventRef: admin.firestore.DocumentReference,
+  eventRef: DocumentReference,
   targetUserIds: string[],
 ): Promise<boolean> => {
   const reminderContext = parseOrderReminderEventContext(eventId, eventData);
@@ -1827,8 +1866,8 @@ const dispatchOrderReminderEvent = async (
   const dispatchStatus = resolveOrderReminderRunStatus(telemetry);
   await eventRef.set({
     dispatch: {
-      attemptedAt: admin.firestore.FieldValue.serverTimestamp(),
-      dispatchedAt: admin.firestore.FieldValue.serverTimestamp(),
+      attemptedAt: FieldValue.serverTimestamp(),
+      dispatchedAt: FieldValue.serverTimestamp(),
       resolvedUsersCount: targetUserIds.length,
       processedUsersCount: telemetry.processedUsersCount,
       sentUsersCount: telemetry.sentUsersCount,
@@ -1873,7 +1912,7 @@ const runOrderReminderRetryCycle = async (): Promise<{
   referenceNowIso: string;
   envSummaries: OrderReminderRetryRunEnvSummary[];
 }> => {
-  const referenceNow = admin.firestore.Timestamp.now();
+  const referenceNow = Timestamp.now();
   const runId = `order_reminder_retry_${referenceNow.toMillis()}`;
   const envs = Array.from(new Set(
     parseOrderReminderEnvs()
@@ -1896,7 +1935,7 @@ const runOrderReminderRetryCycle = async (): Promise<{
       const weekKey = parseString(markerData.weekKey);
       const reminderHour = parseReminderHour(markerData.reminderSlotHour);
       const nextRetryAt = markerData.nextRetryAt instanceof
-        admin.firestore.Timestamp ? markerData.nextRetryAt : null;
+        Timestamp ? markerData.nextRetryAt : null;
 
       if (!userId || !weekKey || reminderHour === null) {
         errorsCount += 1;
@@ -1973,7 +2012,7 @@ const runOrderReminderRetryCycle = async (): Promise<{
       retryBatchSize: parseOrderReminderRetryBatchSize(),
       retryMaxAttempts: parseOrderReminderRetryMaxAttempts(),
       retryBaseDelayMinutes: parseOrderReminderRetryBaseDelayMinutes(),
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     });
 
     logger.info("Order reminder retry run completed", {
@@ -2028,7 +2067,7 @@ type MarketParticipantRow = {
 type NormalizedShiftSheetRow = {
   shiftId: string;
   type: ShiftType;
-  date: admin.firestore.Timestamp;
+  date: Timestamp;
   assignedUserIds: string[];
   helperUserId: string | null;
   status: ShiftStatus;
@@ -2041,7 +2080,7 @@ type NormalizedShiftSheetRow = {
 type FirestoreShiftRecord = {
   id: string;
   type: ShiftType;
-  date: admin.firestore.Timestamp;
+  date: Timestamp;
   assignedUserIds: string[];
   helperUserId: string | null;
   status: ShiftStatus;
@@ -2061,7 +2100,7 @@ type ShiftPlanningRequestRecord = {
   id: string;
   type: ShiftPlanningRequestType;
   requestedByUserId: string;
-  requestedAt: admin.firestore.Timestamp;
+  requestedAt: Timestamp;
   status: ShiftPlanningRequestStatus;
 };
 
@@ -2218,7 +2257,7 @@ const isShiftStatus = (value: string): value is ShiftStatus =>
 const SHEET_TIME_ZONE = "Europe/Madrid";
 
 const timestampToZonedDateParts = (
-  timestamp: admin.firestore.Timestamp,
+  timestamp: Timestamp,
   timeZone: string = SHEET_TIME_ZONE,
 ): {year: number; month: number; day: number} => {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -2236,7 +2275,7 @@ const timestampToZonedDateParts = (
   };
 };
 
-const timestampToSheetDate = (timestamp: admin.firestore.Timestamp): string => {
+const timestampToSheetDate = (timestamp: Timestamp): string => {
   const {year, month, day} = timestampToZonedDateParts(timestamp);
   const paddedMonth = String(month).padStart(2, "0");
   const paddedDay = String(day).padStart(2, "0");
@@ -2245,16 +2284,16 @@ const timestampToSheetDate = (timestamp: admin.firestore.Timestamp): string => {
 
 const buildShiftId = (
   type: ShiftType,
-  timestamp: admin.firestore.Timestamp,
+  timestamp: Timestamp,
 ): string =>
   `shift_${type}_${timestampToSheetDate(timestamp).replace(/-/g, "")}`;
 
 const buildShiftRowKey = (
   type: ShiftType,
-  timestamp: admin.firestore.Timestamp,
+  timestamp: Timestamp,
 ): string => `${type}:${timestampToSheetDate(timestamp)}`;
 
-const parseDateInput = (value: unknown): admin.firestore.Timestamp | null => {
+const parseDateInput = (value: unknown): Timestamp | null => {
   const text = parseString(value);
   if (!text) {
     return null;
@@ -2264,7 +2303,7 @@ const parseDateInput = (value: unknown): admin.firestore.Timestamp | null => {
   if (dayMonthYear) {
     const [, day, month, year] = dayMonthYear;
     const millis = Date.UTC(Number(year), Number(month) - 1, Number(day));
-    return admin.firestore.Timestamp.fromMillis(millis);
+    return Timestamp.fromMillis(millis);
   }
 
   const normalizedText = text
@@ -2283,7 +2322,7 @@ const parseDateInput = (value: unknown): admin.firestore.Timestamp | null => {
     const monthIndex = MONTH_INDEX_BY_NAME[monthName];
     if (monthIndex !== undefined) {
       const millis = Date.UTC(Number(year), monthIndex, Number(day));
-      return admin.firestore.Timestamp.fromMillis(millis);
+      return Timestamp.fromMillis(millis);
     }
   }
 
@@ -2464,7 +2503,7 @@ const toDeliveryShiftSheetRow = (
 };
 
 const buildMarketShiftSheetRow = (
-  date: admin.firestore.Timestamp,
+  date: Timestamp,
   participants: MarketParticipantRow[],
   rowNumber: number,
   definition: SheetRangeDefinition,
@@ -2545,7 +2584,7 @@ const fetchSheetRows = async (
   }
 
   const marketRows: NormalizedShiftSheetRow[] = [];
-  let currentDate: admin.firestore.Timestamp | null = null;
+  let currentDate: Timestamp | null = null;
   let currentDateRowNumber = 0;
   let participants: MarketParticipantRow[] = [];
 
@@ -2631,7 +2670,7 @@ const syncShiftRowsIntoFirestore = async (
   rows: NormalizedShiftSheetRow[],
 ): Promise<number> => {
   const collection = firestore.collection(`${env}/plus-collections/shifts`);
-  const importedAt = admin.firestore.FieldValue.serverTimestamp();
+  const importedAt = FieldValue.serverTimestamp();
   const importedIds = rows.map((row) => row.shiftId);
   let writes = 0;
 
@@ -2646,10 +2685,10 @@ const syncShiftRowsIntoFirestore = async (
       helperUserId: row.helperUserId,
       status: row.status,
       source: row.source,
-      createdAt: existingCreatedAt instanceof admin.firestore.Timestamp ?
+      createdAt: existingCreatedAt instanceof Timestamp ?
         existingCreatedAt :
-        admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
       syncMeta: {
         origin: "google_sheets",
         rowKey: row.rowKey,
@@ -2677,7 +2716,7 @@ const syncShiftRowsIntoFirestore = async (
 };
 
 const toShiftRecord = (
-  snapshot: admin.firestore.DocumentSnapshot,
+  snapshot: DocumentSnapshot,
 ): FirestoreShiftRecord | null => {
   if (!snapshot.exists) {
     return null;
@@ -2693,7 +2732,7 @@ const toShiftRecord = (
     !isShiftType(type) ||
     !status ||
     !isShiftStatus(status) ||
-    !(date instanceof admin.firestore.Timestamp) ||
+    !(date instanceof Timestamp) ||
     !Array.isArray(assignedUserIds)
   ) {
     return null;
@@ -2715,14 +2754,14 @@ const toShiftRecord = (
 };
 
 const formatHumanShortDate = (
-  timestamp: admin.firestore.Timestamp,
+  timestamp: Timestamp,
 ): string => {
   const {year, month, day} = timestampToZonedDateParts(timestamp);
   return `${day}/${month}/${year}`;
 };
 
 const formatHumanLongDate = (
-  timestamp: admin.firestore.Timestamp,
+  timestamp: Timestamp,
 ): string => {
   const formatter = new Intl.DateTimeFormat("es-ES", {
     day: "numeric",
@@ -2734,7 +2773,7 @@ const formatHumanLongDate = (
 };
 
 const formatHumanMonthHeading = (
-  timestamp: admin.firestore.Timestamp,
+  timestamp: Timestamp,
 ): string => {
   const formatter = new Intl.DateTimeFormat("es-ES", {
     month: "long",
@@ -2745,7 +2784,7 @@ const formatHumanMonthHeading = (
 };
 
 const isoWeekNumber = (
-  timestamp: admin.firestore.Timestamp,
+  timestamp: Timestamp,
 ): number => {
   const {year, month, day: localDay} = timestampToZonedDateParts(timestamp);
   const utcDate = new Date(Date.UTC(
@@ -2762,7 +2801,7 @@ const isoWeekNumber = (
 };
 
 const timestampToIsoWeekKey = (
-  timestamp: admin.firestore.Timestamp,
+  timestamp: Timestamp,
 ): string => {
   const {
     year: localYear,
@@ -2787,7 +2826,7 @@ const timestampToIsoWeekKey = (
 const resolveEffectiveDeliveryDate = (
   shift: FirestoreShiftRecord,
   overrides: DeliveryCalendarOverrideMap,
-): admin.firestore.Timestamp => {
+): Timestamp => {
   if (shift.type !== "delivery") {
     return shift.date;
   }
@@ -2798,10 +2837,10 @@ const readDeliveryCalendarOverrideMap = async (
   env: string,
 ): Promise<DeliveryCalendarOverrideMap> => {
   const snapshot = await deliveryCalendarCollection(env).get();
-  const overrides = new Map<string, admin.firestore.Timestamp>();
+  const overrides = new Map<string, Timestamp>();
   snapshot.docs.forEach((doc) => {
     const deliveryDate = doc.get("deliveryDate");
-    if (deliveryDate instanceof admin.firestore.Timestamp) {
+    if (deliveryDate instanceof Timestamp) {
       overrides.set(doc.id, deliveryDate);
     }
   });
@@ -2811,7 +2850,7 @@ const readDeliveryCalendarOverrideMap = async (
 const toDeliveryHumanRow = (
   shift: FirestoreShiftRecord,
   membersById: Map<string, MemberSheetRef>,
-  effectiveDate: admin.firestore.Timestamp,
+  effectiveDate: Timestamp,
   existingRow: string[] = [],
 ): string[] => {
   const responsible = shift.assignedUserIds
@@ -2991,7 +3030,7 @@ const isShiftPlanningRequestType = (
   value === "delivery" || value === "market";
 
 const parseShiftPlanningRequest = (
-  snapshot: admin.firestore.DocumentSnapshot,
+  snapshot: DocumentSnapshot,
 ): ShiftPlanningRequestRecord | null => {
   if (!snapshot.exists) {
     return null;
@@ -3007,7 +3046,7 @@ const parseShiftPlanningRequest = (
     !type ||
     !isShiftPlanningRequestType(type) ||
     !requestedByUserId ||
-    !(requestedAt instanceof admin.firestore.Timestamp) ||
+    !(requestedAt instanceof Timestamp) ||
     !status
   ) {
     return null;
@@ -3071,8 +3110,8 @@ const addUtcDays = (date: Date, days: number): Date => {
   return result;
 };
 
-const timestampFromUtcDate = (date: Date): admin.firestore.Timestamp =>
-  admin.firestore.Timestamp.fromDate(new Date(Date.UTC(
+const timestampFromUtcDate = (date: Date): Timestamp =>
+  Timestamp.fromDate(new Date(Date.UTC(
     date.getUTCFullYear(),
     date.getUTCMonth(),
     date.getUTCDate(),
@@ -3121,10 +3160,10 @@ const listActivePlanningMembers = async (
         roles: parseRoles(doc.get("roles")),
         producerCatalogEnabled:
           doc.get("producerCatalogEnabled") !== false,
-        createdAtMillis: createdAt instanceof admin.firestore.Timestamp ?
+        createdAtMillis: createdAt instanceof Timestamp ?
           createdAt.toMillis() :
           0,
-        updatedAtMillis: updatedAt instanceof admin.firestore.Timestamp ?
+        updatedAtMillis: updatedAt instanceof Timestamp ?
           updatedAt.toMillis() :
           0,
       };
@@ -3185,13 +3224,13 @@ const existingRotationUserIdsForType = (
 const buildDeliverySeasonDates = (
   seasonStartYear: number,
   deliveryWeekdayWireValue: string,
-): admin.firestore.Timestamp[] => {
+): Timestamp[] => {
   const start = new Date(Date.UTC(seasonStartYear, 8, 1));
   const end = new Date(Date.UTC(seasonStartYear + 1, 5, 30));
   const targetDay = weekdayWireValueToUtcDay(deliveryWeekdayWireValue);
   const offset = (targetDay - start.getUTCDay() + 7) % 7;
   const firstDate = addUtcDays(start, offset);
-  const results: admin.firestore.Timestamp[] = [];
+  const results: Timestamp[] = [];
 
   for (
     let current = firstDate;
@@ -3207,7 +3246,7 @@ const buildDeliverySeasonDates = (
 const thirdSaturdayOfMonth = (
   year: number,
   monthIndex: number,
-): admin.firestore.Timestamp => {
+): Timestamp => {
   const firstDay = new Date(Date.UTC(year, monthIndex, 1));
   const firstSaturdayOffset = (6 - firstDay.getUTCDay() + 7) % 7;
   const thirdSaturday = addUtcDays(firstDay, firstSaturdayOffset + 14);
@@ -3216,7 +3255,7 @@ const thirdSaturdayOfMonth = (
 
 const buildMarketSeasonDates = (
   seasonStartYear: number,
-): admin.firestore.Timestamp[] => {
+): Timestamp[] => {
   const months = [8, 9, 10, 11, 0, 1, 2, 3, 4, 5];
   return months.map((monthIndex) => {
     const year = monthIndex >= 8 ? seasonStartYear : seasonStartYear + 1;
@@ -3446,10 +3485,10 @@ const persistPlannedShifts = async (
       helperUserId: shift.helperUserId,
       status: shift.status,
       source: shift.source,
-      createdAt: existingCreatedAt instanceof admin.firestore.Timestamp ?
+      createdAt: existingCreatedAt instanceof Timestamp ?
         existingCreatedAt :
-        admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
       planningMeta: {
         requestId,
         seasonLabel:
@@ -3489,7 +3528,7 @@ const createShiftPlanningNotification = async (
       userIds: uniqueUserIds,
     },
     createdBy: requestedByUserId,
-    sentAt: admin.firestore.FieldValue.serverTimestamp(),
+    sentAt: FieldValue.serverTimestamp(),
   });
 };
 
@@ -3505,12 +3544,12 @@ const dispatchShiftUpdatedNotification = async (
     target: "all",
     targetPayload: {},
     createdBy: "system",
-    sentAt: admin.firestore.FieldValue.serverTimestamp(),
+    sentAt: FieldValue.serverTimestamp(),
   });
 };
 
 const formatNotificationDate = (
-  timestamp: admin.firestore.Timestamp,
+  timestamp: Timestamp,
 ): string => {
   const formatter = new Intl.DateTimeFormat("es-ES", {
     day: "numeric",
@@ -3525,8 +3564,8 @@ const createDeliveryCalendarNotification = async (
   env: string,
   weekKey: string,
   updatedByUserId: string | null,
-  nextDate: admin.firestore.Timestamp | null,
-  previousDate: admin.firestore.Timestamp | null,
+  nextDate: Timestamp | null,
+  previousDate: Timestamp | null,
 ): Promise<void> => {
   if (!nextDate && !previousDate) {
     return;
@@ -3551,7 +3590,7 @@ const createDeliveryCalendarNotification = async (
     target: "all",
     targetPayload: {},
     createdBy: updatedByUserId || "system",
-    sentAt: admin.firestore.FieldValue.serverTimestamp(),
+    sentAt: FieldValue.serverTimestamp(),
   });
 };
 
@@ -3919,14 +3958,14 @@ export const onShiftPlanningRequestCreated = onDocumentCreatedWithAuthContext(
 
     await snapshot.ref.set({
       status: "processing",
-      processingStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+      processingStartedAt: FieldValue.serverTimestamp(),
     }, {merge: true});
 
     try {
       const summary = await processShiftPlanningRequest(env, request);
       await snapshot.ref.set({
         status: "completed",
-        completedAt: admin.firestore.FieldValue.serverTimestamp(),
+        completedAt: FieldValue.serverTimestamp(),
         seasonLabel: summary.seasonLabel,
         sheetName: summary.sheetName,
         generatedCount: summary.generatedCount,
@@ -3940,7 +3979,7 @@ export const onShiftPlanningRequestCreated = onDocumentCreatedWithAuthContext(
     } catch (error) {
       await snapshot.ref.set({
         status: "failed",
-        failedAt: admin.firestore.FieldValue.serverTimestamp(),
+        failedAt: FieldValue.serverTimestamp(),
         errorMessage:
           error instanceof Error ? error.message : "Unknown planning error",
       }, {merge: true});
@@ -4033,7 +4072,7 @@ export const onShiftWritten = onDocumentWrittenWithAuthContext(
       syncMeta: {
         origin: "app",
         sheetName: parseSheetName(targetRange),
-        exportedAt: admin.firestore.FieldValue.serverTimestamp(),
+        exportedAt: FieldValue.serverTimestamp(),
         exportMode: result,
       },
     }, {merge: true});
@@ -4066,12 +4105,12 @@ onDocumentWrittenWithAuthContext(
     const beforeSnapshot = event.data?.before;
     const afterSnapshot = event.data?.after;
     const previousDate = beforeSnapshot?.exists &&
-      beforeSnapshot.get("deliveryDate") instanceof admin.firestore.Timestamp ?
-      beforeSnapshot.get("deliveryDate") as admin.firestore.Timestamp :
+      beforeSnapshot.get("deliveryDate") instanceof Timestamp ?
+      beforeSnapshot.get("deliveryDate") as Timestamp :
       null;
     const nextDate = afterSnapshot?.exists &&
-      afterSnapshot.get("deliveryDate") instanceof admin.firestore.Timestamp ?
-      afterSnapshot.get("deliveryDate") as admin.firestore.Timestamp :
+      afterSnapshot.get("deliveryDate") instanceof Timestamp ?
+      afterSnapshot.get("deliveryDate") as Timestamp :
       null;
     const updatedByUserId = parseString(
       afterSnapshot?.get("updatedBy") ?? beforeSnapshot?.get("updatedBy"),
@@ -4315,7 +4354,7 @@ export const resolveAuthorizedMember = onRequest(async (req, res) => {
           .where("authUid", "==", identity.uid)
           .limit(2)),
       ]);
-      const matches = new Map<string, admin.firestore.QueryDocumentSnapshot>();
+      const matches = new Map<string, QueryDocumentSnapshot>();
       [...canonicalQuery.docs, ...legacyQuery.docs].forEach((document) => {
         matches.set(document.id, document);
       });
@@ -4355,15 +4394,15 @@ export const resolveAuthorizedMember = onRequest(async (req, res) => {
         transaction.set(memberDocument.ref, {
           authUid: identity.uid,
           normalizedEmail: identity.email,
-          email: admin.firestore.FieldValue.delete(),
-          emailNormalized: admin.firestore.FieldValue.delete(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          email: FieldValue.delete(),
+          emailNormalized: FieldValue.delete(),
+          updatedAt: FieldValue.serverTimestamp(),
         }, {merge: true});
       }
       transaction.create(linkRef, {
         memberId: memberDocument.id,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
       return {member, firstLoginLinked};
     });
@@ -4468,28 +4507,28 @@ export const upsertMemberByAdmin = onRequest(async (req, res) => {
       const payload: Record<string, unknown> = {
         displayName: input.displayName,
         normalizedEmail: input.normalizedEmail,
-        email: admin.firestore.FieldValue.delete(),
-        emailNormalized: admin.firestore.FieldValue.delete(),
+        email: FieldValue.delete(),
+        emailNormalized: FieldValue.delete(),
         roles: input.roles,
         isActive: input.isActive,
         producerCatalogEnabled: input.producerCatalogEnabled,
         isCommonPurchaseManager: input.isCommonPurchaseManager,
         companyName: businessFields.companyName ||
-          admin.firestore.FieldValue.delete(),
-        company_name: admin.firestore.FieldValue.delete(),
-        company: admin.firestore.FieldValue.delete(),
+          FieldValue.delete(),
+        company_name: FieldValue.delete(),
+        company: FieldValue.delete(),
         phoneNumber: businessFields.phoneNumber ||
-          admin.firestore.FieldValue.delete(),
-        phone: admin.firestore.FieldValue.delete(),
-        telephone: admin.firestore.FieldValue.delete(),
-        telefono: admin.firestore.FieldValue.delete(),
+          FieldValue.delete(),
+        phone: FieldValue.delete(),
+        telephone: FieldValue.delete(),
+        telefono: FieldValue.delete(),
         producerParity: businessFields.producerParity,
         ecoCommitment: businessFields.ecoCommitment,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       };
       if (!memberSnapshot.exists) {
         payload.authUid = null;
-        payload.createdAt = admin.firestore.FieldValue.serverTimestamp();
+        payload.createdAt = FieldValue.serverTimestamp();
       }
       transaction.set(memberRef, payload, {merge: true});
     });
@@ -4510,7 +4549,7 @@ export const upsertMemberByAdmin = onRequest(async (req, res) => {
 type ShiftSwapStoredShift = ShiftLike & {
   status: "planned" | "swap_pending" | "confirmed";
   source: string;
-  ref: admin.firestore.DocumentReference;
+  ref: DocumentReference;
 };
 
 type StoredShiftSwapRequest = {
@@ -4523,7 +4562,7 @@ type StoredShiftSwapRequest = {
 };
 
 const toShiftSwapStoredShift = (
-  snapshot: admin.firestore.DocumentSnapshot,
+  snapshot: DocumentSnapshot,
 ): ShiftSwapStoredShift | null => {
   const record = toShiftRecord(snapshot);
   if (!record) {
@@ -4571,7 +4610,7 @@ const parseShiftSwapResponses = (
       !userId ||
       !shiftId ||
       (status !== "available" && status !== "unavailable") ||
-      !(respondedAt instanceof admin.firestore.Timestamp)
+      !(respondedAt instanceof Timestamp)
     ) {
       return [];
     }
@@ -4585,7 +4624,7 @@ const parseShiftSwapResponses = (
 };
 
 const toStoredShiftSwapRequest = (
-  snapshot: admin.firestore.DocumentSnapshot,
+  snapshot: DocumentSnapshot,
 ): StoredShiftSwapRequest | null => {
   if (!snapshot.exists) {
     return null;
@@ -4617,13 +4656,13 @@ const serializeShiftSwapResponses = (
   userId: response.userId,
   shiftId: response.shiftId,
   status: response.status,
-  respondedAt: admin.firestore.Timestamp.fromMillis(
+  respondedAt: Timestamp.fromMillis(
     response.respondedAtMillis,
   ),
 }));
 
 const setShiftSwapNotification = (
-  transaction: admin.firestore.Transaction,
+  transaction: Transaction,
   environment: AppEnvironment,
   payload: {
     title: string;
@@ -4632,7 +4671,7 @@ const setShiftSwapNotification = (
     target: "all" | "users";
     userIds?: string[];
     createdBy: string;
-    sentAt: admin.firestore.Timestamp;
+    sentAt: Timestamp;
   },
 ): void => {
   const eventRef = firestore
@@ -4652,7 +4691,7 @@ const setShiftSwapNotification = (
 };
 
 const requireOpenShiftSwapRequest = (
-  snapshot: admin.firestore.DocumentSnapshot,
+  snapshot: DocumentSnapshot,
 ): StoredShiftSwapRequest => {
   const request = toStoredShiftSwapRequest(snapshot);
   if (!request) {
@@ -4682,7 +4721,7 @@ export const transitionShiftSwap = onRequest(async (req, res) => {
       `${input.environment}/plus-collections/shiftSwapRequests`,
     );
     const shifts = shiftsCollection(input.environment);
-    const now = admin.firestore.Timestamp.now();
+    const now = Timestamp.now();
     const requestId = input.action === "create" ?
       requests.doc().id :
       input.requestId;
@@ -4889,7 +4928,7 @@ export const transitionShiftSwap = onRequest(async (req, res) => {
           requesterSnapshot.data(),
           candidateMemberSnapshot.data(),
         );
-        const applyNow = admin.firestore.Timestamp.now();
+        const applyNow = Timestamp.now();
         assertShiftSwapTimingEligible(
           requestedShift,
           candidateShift,
@@ -4998,7 +5037,7 @@ export const validateGlobalFreshnessConfig = onRequest(async (req, res) => {
     const targetEnvs = parseAdminTargetEnvironments(req);
     await requireAdminForTargets(req, targetEnvs);
     const summary: {environment: AppEnvironment; existed: boolean}[] = [];
-    const fallbackTimestamp = admin.firestore.Timestamp.fromDate(
+    const fallbackTimestamp = Timestamp.fromDate(
       new Date("2025-01-01T00:00:00Z"),
     );
 
@@ -5058,7 +5097,7 @@ export const cloneGlobalConfig = onRequest(async (req, res) => {
     const targetMemberDoc = firestore
       .collection("production/plus-collections/config")
       .doc("member");
-    const baseTimestamp = admin.firestore.Timestamp.fromDate(
+    const baseTimestamp = Timestamp.fromDate(
       new Date("2025-01-01T00:00:00Z"),
     );
     const snapshot = await sourceDoc.get();

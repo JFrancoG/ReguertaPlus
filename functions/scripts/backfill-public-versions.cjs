@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-const admin = require("firebase-admin");
+const {deleteApp, initializeApp} = require("firebase-admin/app");
+const {getFirestore, Timestamp} = require("firebase-admin/firestore");
 const {
   parseMigrationArgs,
 } = require("./backfill-auth-links.cjs");
@@ -109,7 +110,7 @@ function extractMemberConfig(globalConfig, fallbackTimestamp) {
   const lastTimestamps = Object.fromEntries(
     REQUIRED_FRESHNESS_COLLECTIONS.map((collection) => [
       collection,
-      sourceTimestamps[collection] instanceof admin.firestore.Timestamp ?
+      sourceTimestamps[collection] instanceof Timestamp ?
         sourceTimestamps[collection] :
         fallbackTimestamp,
     ]),
@@ -118,10 +119,10 @@ function extractMemberConfig(globalConfig, fallbackTimestamp) {
 }
 
 async function runPublicVersionsBackfill(options) {
-  const app = admin.initializeApp({projectId: options.projectId});
-  const firestore = app.firestore();
+  const app = initializeApp({projectId: options.projectId});
+  const firestore = getFirestore(app);
   const summary = {};
-  const fallbackTimestamp = admin.firestore.Timestamp.fromDate(
+  const fallbackTimestamp = Timestamp.fromDate(
     new Date("2025-01-01T00:00:00Z"),
   );
   for (const environment of options.environments) {
@@ -154,7 +155,7 @@ async function runPublicVersionsBackfill(options) {
       appliedWrites: options.apply ? 2 : 0,
     };
   }
-  await app.delete();
+  await deleteApp(app);
   return summary;
 }
 

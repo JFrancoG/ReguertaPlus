@@ -499,6 +499,8 @@ test("device registration validates platform metadata and timestamps", async () 
       lastSeenAt: new Date("2026-07-02T00:00:00Z"),
       fcmToken: null,
       tokenUpdatedAt: null,
+      firebaseInstallationId: null,
+      registrationUpdatedAt: null,
     };
 
     await assertSucceeds(memberDb.doc(`${devices}/ios-valid`).set({
@@ -516,6 +518,21 @@ test("device registration validates platform metadata and timestamps", async () 
       ...base,
       deviceId: "android-missing-api",
       platform: "android",
+    }));
+    await assertSucceeds(memberDb.doc(`${devices}/android-fid-valid`).set({
+      ...base,
+      deviceId: "android-fid-valid",
+      platform: "android",
+      apiLevel: 37,
+      firebaseInstallationId: "FID-A",
+      registrationUpdatedAt: new Date("2026-07-02T00:00:00Z"),
+    }));
+    await assertFails(memberDb.doc(`${devices}/android-fid-invalid`).set({
+      ...base,
+      deviceId: "android-fid-invalid",
+      platform: "android",
+      apiLevel: 37,
+      firebaseInstallationId: 42,
     }));
     await assertFails(memberDb.doc(`${devices}/backdated`).set({
       ...base,

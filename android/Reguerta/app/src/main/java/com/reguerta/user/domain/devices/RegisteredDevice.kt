@@ -8,8 +8,8 @@ data class RegisteredDevice(
     val apiLevel: Int?,
     val manufacturer: String?,
     val model: String?,
-    val fcmToken: String?,
+    val firebaseInstallationId: String?,
     val firstSeenAtMillis: Long,
     val lastSeenAtMillis: Long,
-    val tokenUpdatedAtMillis: Long?,
+    val registrationUpdatedAtMillis: Long?,
 )

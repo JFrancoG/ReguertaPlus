@@ -26,6 +26,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.firebase.firestore.FirebaseFirestore
+import com.reguerta.user.BuildConfig
 import com.reguerta.user.R
 import com.reguerta.user.data.startup.FirestoreStartupVersionPolicyRepository
 import com.reguerta.user.domain.access.SessionRefreshTrigger
@@ -62,9 +63,7 @@ fun ReguertaRoot(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val spacing = ReguertaThemeTokens.spacing
-    val installedVersion = remember(context) {
-        resolveInstalledVersionName(context)
-    }
+    val installedVersion = remember { BuildConfig.VERSION_NAME }
     val startupVersionGateResolver = remember {
         ResolveStartupVersionGateUseCase(
             repository = FirestoreStartupVersionPolicyRepository(firestore = FirebaseFirestore.getInstance()),
