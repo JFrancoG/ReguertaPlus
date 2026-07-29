@@ -34,9 +34,44 @@ nonisolated protocol AuthorizedMemberResolving: Sendable {
     ) async throws -> AuthorizedMemberResolution
 }
 
+nonisolated struct SessionEnvironmentRoutingTransition: Equatable, Sendable {
+    let generation: UInt64
+    let environment: SessionEnvironment
+}
+
+@MainActor
+final class SessionEnvironmentRoutingSignal {
+    private(set) var currentTransition: SessionEnvironmentRoutingTransition
+    private var observers: [@MainActor @Sendable (SessionEnvironmentRoutingTransition) -> Void] = []
+
+    init(environment: SessionEnvironment) {
+        currentTransition = SessionEnvironmentRoutingTransition(
+            generation: 0,
+            environment: environment
+        )
+    }
+
+    func observe(
+        _ observer: @escaping @MainActor @Sendable (SessionEnvironmentRoutingTransition) -> Void
+    ) {
+        observers.append(observer)
+    }
+
+    func publish(environment: SessionEnvironment) {
+        guard currentTransition.environment != environment else { return }
+        currentTransition = SessionEnvironmentRoutingTransition(
+            generation: currentTransition.generation &+ 1,
+            environment: environment
+        )
+        let transition = currentTransition
+        observers.forEach { $0(transition) }
+    }
+}
+
 @MainActor
 protocol SessionEnvironmentRouting: Sendable {
     var baseEnvironment: SessionEnvironment { get }
+    var transitionSignal: SessionEnvironmentRoutingSignal { get }
     func applyResolvedEnvironment(_ environment: SessionEnvironment, lease: SessionEnvironmentLease)
     func resetToBaseEnvironment(ifOwnedBy lease: SessionEnvironmentLease)
     func resetToBaseEnvironment()

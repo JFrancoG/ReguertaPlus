@@ -448,17 +448,20 @@ nonisolated private struct FixedAuthorizedMemberResolver: AuthorizedMemberResolv
 @MainActor
 private final class RecordingSessionEnvironmentRouter: SessionEnvironmentRouting {
     let baseEnvironment: SessionEnvironment
+    let transitionSignal: SessionEnvironmentRoutingSignal
     private(set) var appliedEnvironment: SessionEnvironment?
     private(set) var resetCount = 0
     private var activeLease: SessionEnvironmentLease?
 
     init(baseEnvironment: SessionEnvironment) {
         self.baseEnvironment = baseEnvironment
+        self.transitionSignal = SessionEnvironmentRoutingSignal(environment: baseEnvironment)
     }
 
     func applyResolvedEnvironment(_ environment: SessionEnvironment, lease: SessionEnvironmentLease) {
         appliedEnvironment = environment
         activeLease = lease
+        transitionSignal.publish(environment: environment)
     }
 
     func resetToBaseEnvironment(ifOwnedBy lease: SessionEnvironmentLease) {
@@ -470,6 +473,7 @@ private final class RecordingSessionEnvironmentRouter: SessionEnvironmentRouting
         appliedEnvironment = nil
         activeLease = nil
         resetCount += 1
+        transitionSignal.publish(environment: baseEnvironment)
     }
 }
 

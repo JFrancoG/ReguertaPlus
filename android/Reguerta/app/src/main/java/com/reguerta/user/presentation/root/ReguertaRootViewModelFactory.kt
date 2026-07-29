@@ -176,6 +176,9 @@ fun rememberSessionViewModel(): SessionViewModel {
             bylawsEvidenceRetriever = bylawsEvidenceRetriever,
             bylawsOnDeviceAssistant = bylawsOnDeviceAssistant,
             nowMillisProvider = DevelopmentTimeMachine::nowMillis,
+            runtimeEnvironmentProvider = {
+                ReguertaRuntimeEnvironment.currentFirestoreEnvironment().wireValue
+            },
             developImpersonationEnabled = false,
             initialNowOverrideMillis = DevelopmentTimeMachine.overrideNowMillis(),
         )

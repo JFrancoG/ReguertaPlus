@@ -1,3 +1,4 @@
+import CoreFoundation
 import FirebaseFirestore
 import Foundation
 
@@ -21,17 +22,29 @@ final class FirestoreNewsRepository: @unchecked Sendable, NewsRepository {
         let query = member.canPublishNews
             ? newsCollection
             : newsCollection.whereField("active", isEqualTo: true)
-        let snapshot = try await query.getDocuments()
-        return snapshot.documents
-            .compactMap(Self.toNewsArticle)
-            .sorted { $0.publishedAtMillis > $1.publishedAtMillis }
+        do {
+            let snapshot = try await query.getDocuments()
+            return try Self.newsArticles(
+                documents: snapshot.documents.map {
+                    (documentID: $0.documentID, data: $0.data())
+                }
+            )
+        } catch {
+            throw FirestoreRepositoryErrorMapper.map(error, resource: "news")
+        }
     }
 
     func allNews() async throws -> [NewsArticle] {
-        let snapshot = try await newsCollection.getDocuments()
-        return snapshot.documents
-            .compactMap(Self.toNewsArticle)
-            .sorted { $0.publishedAtMillis > $1.publishedAtMillis }
+        do {
+            let snapshot = try await newsCollection.getDocuments()
+            return try Self.newsArticles(
+                documents: snapshot.documents.map {
+                    (documentID: $0.documentID, data: $0.data())
+                }
+            )
+        } catch {
+            throw FirestoreRepositoryErrorMapper.map(error, resource: "news")
+        }
     }
 
     func upsert(article: NewsArticle) async throws -> NewsArticle {
@@ -47,64 +60,139 @@ final class FirestoreNewsRepository: @unchecked Sendable, NewsRepository {
             urlImage: article.urlImage
         )
 
-        try await newsCollection.document(documentId).setData([
-            "title": persisted.title,
-            "body": persisted.body,
-            "active": persisted.active,
-            "publishedBy": persisted.publishedBy,
-            "publishedByUserId": persisted.publishedByUserId as Any,
-            "publishedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(persisted.publishedAtMillis) / 1_000)),
-            "urlImage": persisted.urlImage as Any
-        ], merge: true)
+        do {
+            try await newsCollection.document(documentId).setData([
+                "title": persisted.title,
+                "body": persisted.body,
+                "active": persisted.active,
+                "publishedBy": persisted.publishedBy,
+                "publishedByUserId": persisted.publishedByUserId as Any,
+                "publishedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(persisted.publishedAtMillis) / 1_000)),
+                "urlImage": persisted.urlImage as Any
+            ], merge: true)
+        } catch {
+            throw FirestoreRepositoryErrorMapper.map(error, resource: "news/\(documentId)")
+        }
         return persisted
     }
 
     func delete(newsId: String) async throws -> Bool {
-        try await newsCollection.document(newsId).delete()
-        return true
+        do {
+            try await newsCollection.document(newsId).delete()
+            return true
+        } catch {
+            throw FirestoreRepositoryErrorMapper.map(error, resource: "news/\(newsId)")
+        }
     }
 
-    private static func toNewsArticle(_ document: QueryDocumentSnapshot) -> NewsArticle? {
-        let data = document.data()
-        guard let title = (data["title"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
-              let body = (data["body"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !title.isEmpty,
-              !body.isEmpty else {
-            return nil
-        }
+    static func newsArticles(
+        documents: [(documentID: String, data: [String: Any])]
+    ) throws -> [NewsArticle] {
+        try documents
+            .map { try newsArticle(documentID: $0.documentID, data: $0.data) }
+            .sorted { $0.publishedAtMillis > $1.publishedAtMillis }
+    }
 
-        let publishedBy = ((data["publishedBy"] as? String)?
-            .trimmingCharacters(in: .whitespacesAndNewlines))
-            .flatMap { $0.isEmpty ? nil : $0 } ?? "La Reguerta"
-        let publishedByUserId = (data["publishedByUserId"] as? String)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .nilIfEmpty
-        let active = (data["active"] as? Bool) ?? true
-        let publishedAtMillis: Int64
-        if let timestamp = data["publishedAt"] as? Timestamp {
-            publishedAtMillis = Int64(timestamp.dateValue().timeIntervalSince1970 * 1_000)
-        } else {
-            publishedAtMillis = 0
-        }
-        let urlImage = (data["urlImage"] as? String)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .nilIfEmpty
-
-        return NewsArticle(
-            id: document.documentID,
-            title: title,
-            body: body,
-            active: active,
-            publishedBy: publishedBy,
-            publishedByUserId: publishedByUserId,
-            publishedAtMillis: publishedAtMillis,
-            urlImage: urlImage
-        )
+    static func newsArticle(documentID: String, data: [String: Any]) throws -> NewsArticle {
+        let dto = try FirestoreNewsDocumentDecoder.decode(documentID: documentID, data: data)
+        return FirestoreNewsDocumentMapper.toDomain(dto)
     }
 }
 
-private extension String {
-    var nilIfEmpty: String? {
-        isEmpty ? nil : self
+private struct FirestoreNewsDocumentDTO {
+    let documentID: String
+    let title: String
+    let body: String
+    let publishedBy: String
+    let publishedByUserID: String
+    let publishedAtMillis: Int64
+    let active: Bool
+    let imageURL: String?
+}
+
+private enum FirestoreNewsDocumentDecoder {
+    static func decode(documentID: String, data: [String: Any]) throws -> FirestoreNewsDocumentDTO {
+        let normalizedDocumentID = documentID.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resource = "news/\(documentID)"
+        guard !documentID.isEmpty, documentID == normalizedDocumentID else {
+            throw RepositoryError.invalidData(resource: resource)
+        }
+
+        return try FirestoreNewsDocumentDTO(
+            documentID: documentID,
+            title: requiredString(data, field: "title", resource: resource),
+            body: requiredString(data, field: "body", resource: resource),
+            publishedBy: requiredString(data, field: "publishedBy", resource: resource),
+            publishedByUserID: requiredString(data, field: "publishedByUserId", resource: resource),
+            publishedAtMillis: requiredTimestampMillis(data, field: "publishedAt", resource: resource),
+            active: requiredBool(data, field: "active", resource: resource),
+            imageURL: optionalString(data, field: "urlImage", resource: resource)
+        )
+    }
+
+    private static func requiredString(
+        _ data: [String: Any],
+        field: String,
+        resource: String
+    ) throws -> String {
+        guard let value = try optionalString(data, field: field, resource: resource) else {
+            throw RepositoryError.invalidData(resource: resource)
+        }
+        return value
+    }
+
+    private static func optionalString(
+        _ data: [String: Any],
+        field: String,
+        resource: String
+    ) throws -> String? {
+        guard let value = data[field] else { return nil }
+        if value is NSNull { return nil }
+        guard let string = value as? String else {
+            throw RepositoryError.invalidData(resource: resource)
+        }
+        let normalized = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else {
+            throw RepositoryError.invalidData(resource: resource)
+        }
+        return normalized
+    }
+
+    private static func requiredBool(
+        _ data: [String: Any],
+        field: String,
+        resource: String
+    ) throws -> Bool {
+        guard let number = data[field] as? NSNumber,
+              CFGetTypeID(number) == CFBooleanGetTypeID() else {
+            throw RepositoryError.invalidData(resource: resource)
+        }
+        return number.boolValue
+    }
+
+    private static func requiredTimestampMillis(
+        _ data: [String: Any],
+        field: String,
+        resource: String
+    ) throws -> Int64 {
+        guard let timestamp = data[field] as? Timestamp else {
+            throw RepositoryError.invalidData(resource: resource)
+        }
+        return Int64(timestamp.dateValue().timeIntervalSince1970 * 1_000)
+    }
+}
+
+private enum FirestoreNewsDocumentMapper {
+    static func toDomain(_ dto: FirestoreNewsDocumentDTO) -> NewsArticle {
+        NewsArticle(
+            id: dto.documentID,
+            title: dto.title,
+            body: dto.body,
+            active: dto.active,
+            publishedBy: dto.publishedBy,
+            publishedByUserId: dto.publishedByUserID,
+            publishedAtMillis: dto.publishedAtMillis,
+            urlImage: dto.imageURL
+        )
     }
 }
