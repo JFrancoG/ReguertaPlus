@@ -97,6 +97,11 @@ Subcollection `users/{userId}/devices/{deviceId}`:
 - `model`: string|null
 - `fcmToken`: string|null (latest FCM token known for this device)
 - `tokenUpdatedAt`: timestamp|null (last refresh time for `fcmToken`)
+- `firebaseInstallationId`: string|null (Android Firebase Installation ID used
+  by the current FCM registration API; dispatched separately from legacy/iOS
+  tokens)
+- `registrationUpdatedAt`: timestamp|null (last refresh time for
+  `firebaseInstallationId`)
 - `firstSeenAt`: timestamp (required)
 - `lastSeenAt`: timestamp (required)
 

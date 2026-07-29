@@ -12,37 +12,40 @@ internal enum class AuthorizedDeviceTokenRefreshResult {
     UPLOADED,
 }
 
-internal interface AuthorizedDeviceTokenStore {
-    suspend fun saveFcmToken(token: String?)
-    suspend fun getFcmToken(): String?
+internal interface AuthorizedDeviceRegistrationStore {
+    suspend fun saveFirebaseInstallationId(installationId: String?)
+    suspend fun getFirebaseInstallationId(): String?
     suspend fun getAuthorizedSessionContext(): AuthorizedDeviceSessionContext?
     suspend fun getOrCreateDeviceId(): String
 }
 
 internal class AuthorizedDeviceTokenRefreshCoordinator(
-    private val store: AuthorizedDeviceTokenStore,
+    private val store: AuthorizedDeviceRegistrationStore,
     private val repository: DeviceRegistrationRepository,
     private val currentAuthUidProvider: () -> String?,
     private val nowMillisProvider: () -> Long,
-    private val deviceProvider: (token: String, deviceId: String, nowMillis: Long) -> RegisteredDevice,
+    private val deviceProvider:
+        (installationId: String, deviceId: String, nowMillis: Long) -> RegisteredDevice,
     private val processSession: AuthorizedDeviceProcessSession =
         ReguertaAuthorizedDeviceProcessSession,
 ) {
     private val refreshMutex = Mutex()
 
-    suspend fun refresh(token: String): AuthorizedDeviceTokenRefreshResult {
+    suspend fun refresh(installationId: String): AuthorizedDeviceTokenRefreshResult {
         refreshMutex.lock()
         return try {
-            performRefresh(token)
+            performRefresh(installationId)
         } finally {
             refreshMutex.unlock()
         }
     }
 
-    private suspend fun performRefresh(token: String): AuthorizedDeviceTokenRefreshResult {
-        val normalizedToken = token.trim().ifBlank { null }
-        store.saveFcmToken(normalizedToken)
-        if (normalizedToken == null) {
+    private suspend fun performRefresh(
+        installationId: String,
+    ): AuthorizedDeviceTokenRefreshResult {
+        val normalizedInstallationId = installationId.trim().ifBlank { null }
+        store.saveFirebaseInstallationId(normalizedInstallationId)
+        if (normalizedInstallationId == null) {
             return AuthorizedDeviceTokenRefreshResult.STORED_ONLY
         }
 
@@ -61,7 +64,7 @@ internal class AuthorizedDeviceTokenRefreshCoordinator(
 
         val nowMillis = nowMillisProvider()
         val device = deviceProvider(
-            normalizedToken,
+            normalizedInstallationId,
             store.getOrCreateDeviceId(),
             nowMillis,
         )
@@ -71,7 +74,7 @@ internal class AuthorizedDeviceTokenRefreshCoordinator(
             device = device,
             isSessionCurrent = {
                 store.getAuthorizedSessionContext() == authorizedContext &&
-                    store.getFcmToken() == normalizedToken &&
+                    store.getFirebaseInstallationId() == normalizedInstallationId &&
                     currentAuthUidProvider() == authorizedContext.authUid &&
                     processSession.match(authorizedContext) ==
                     AuthorizedDeviceProcessSessionMatch.CURRENT

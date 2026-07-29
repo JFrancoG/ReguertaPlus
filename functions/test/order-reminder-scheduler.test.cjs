@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const admin = require("firebase-admin");
+const {Timestamp} = require("firebase-admin/firestore");
 
 const {__testOnly} = require("../lib/index.js");
 
@@ -47,7 +47,7 @@ test("computes exponential backoff retry timestamps", () => {
   process.env.ORDER_REMINDER_RETRY_BASE_DELAY_MINUTES = "5";
 
   try {
-    const now = admin.firestore.Timestamp.fromMillis(1_000);
+    const now = Timestamp.fromMillis(1_000);
     const firstRetry = __testOnly.computeOrderReminderNextRetryAt(1, now);
     const secondRetry = __testOnly.computeOrderReminderNextRetryAt(2, now);
     const thirdRetry = __testOnly.computeOrderReminderNextRetryAt(3, now);

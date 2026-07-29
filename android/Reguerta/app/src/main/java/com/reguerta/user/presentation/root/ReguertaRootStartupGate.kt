@@ -188,12 +188,6 @@ internal fun openStoreUrl(
     runCatching { context.startActivity(intent) }
 }
 
-internal fun resolveInstalledVersionName(context: Context): String =
-    runCatching {
-        @Suppress("DEPRECATION")
-        context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
-    }.getOrDefault("")
-
 internal sealed interface StartupGateUiState {
     data object Checking : StartupGateUiState
 

@@ -119,7 +119,7 @@ As an admin I want to send notifications through enabled delivery modes.
 
 Acceptance criteria:
 - Admin can send notifications using enabled MVP segments/modes.
-- Delivery targets are resolved from registered user devices (`users/{userId}/devices`) and their stored `fcmToken` when available.
+- Delivery targets are resolved from registered user devices (`users/{userId}/devices`) using legacy/iOS `fcmToken` values and Android `firebaseInstallationId` values as separate FCM target sets.
 - `users.lastDeviceId` points to the latest active device used by each member.
 
 ## 4. Member shared profile

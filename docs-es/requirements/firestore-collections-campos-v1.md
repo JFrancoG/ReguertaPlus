@@ -177,6 +177,8 @@ Subcoleccion `users/{userId}/devices/{deviceId}`:
 | `model` | string\|null | no | sistema/usuario | Metadato opcional |
 | `fcmToken` | string\|null | no | sistema | Ultimo token FCM conocido del dispositivo |
 | `tokenUpdatedAt` | timestamp\|null | no | sistema | Ultima actualizacion del token FCM |
+| `firebaseInstallationId` | string\|null | no | sistema | Firebase Installation ID de Android para la API de registro FCM actual; se envia separado de los tokens legacy/iOS |
+| `registrationUpdatedAt` | timestamp\|null | no | sistema | Ultima actualizacion de `firebaseInstallationId` |
 | `firstSeenAt` | timestamp | si | sistema | Primera vez detectado |
 | `lastSeenAt` | timestamp | si | sistema | Ultima actividad detectada |
 

@@ -1,11 +1,13 @@
 package com.reguerta.user.data.devices
 
 import android.content.SharedPreferences
+import javax.crypto.spec.SecretKeySpec
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -13,13 +15,57 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class DeviceRegistrationPreferencesTest {
     @Test
+    fun `keystore store encrypts values and roundtrips them`() {
+        val rawPreferences = FakeSharedPreferences()
+        val store = AndroidKeystoreDeviceRegistrationEncryptedStore(
+            preferences = rawPreferences,
+            valueCipher = testValueCipher(),
+        )
+
+        assertTrue(store.write(mapOf("member_id" to "MEMBER-1")))
+
+        val persisted = checkNotNull(rawPreferences.getString("member_id", null))
+        assertFalse(persisted.contains("MEMBER-1"))
+        assertTrue(persisted.startsWith("v1."))
+        assertEquals("MEMBER-1", store.getString("member_id"))
+
+        assertTrue(store.write(mapOf("member_id" to "MEMBER-1")))
+        val rewritten = checkNotNull(rawPreferences.getString("member_id", null))
+        assertNotEquals(persisted, rewritten)
+        assertEquals("MEMBER-1", store.getString("member_id"))
+    }
+
+    @Test
+    fun `keystore store binds ciphertext to its preference key`() {
+        val rawPreferences = FakeSharedPreferences()
+        val store = AndroidKeystoreDeviceRegistrationEncryptedStore(
+            preferences = rawPreferences,
+            valueCipher = testValueCipher(),
+        )
+        assertTrue(
+            store.write(
+                mapOf(
+                    "member_id" to "MEMBER-1",
+                    "auth_uid" to "UID-1",
+                ),
+            ),
+        )
+        val memberCiphertext = checkNotNull(rawPreferences.getString("member_id", null))
+        assertTrue(rawPreferences.edit().putString("auth_uid", memberCiphertext).commit())
+
+        val result = runCatching { store.getString("auth_uid") }
+
+        assertTrue(result.isFailure)
+    }
+
+    @Test
     fun `absent push credential returns null`() = runTest {
         val preferences = testPreferences(
             encrypted = FakeSharedPreferences(),
             raw = FakeSharedPreferences(),
         )
 
-        assertNull(preferences.getFcmToken())
+        assertNull(preferences.getFirebaseInstallationId())
     }
 
     @Test
@@ -32,7 +78,7 @@ class DeviceRegistrationPreferencesTest {
         )
 
         assertSuspendThrows<DeviceRegistrationPreferencesException.Read> {
-            preferences.getFcmToken()
+            preferences.getFirebaseInstallationId()
         }
     }
 
@@ -76,7 +122,7 @@ class DeviceRegistrationPreferencesTest {
     @Test
     fun `encrypted storage initialization failure is typed`() = runTest {
         val preferences = DeviceRegistrationPreferences(
-            encryptedPreferencesFactory = DeviceRegistrationEncryptedPreferencesFactory {
+            encryptedStoreFactory = DeviceRegistrationEncryptedStoreFactory {
                 throw IllegalStateException("keystore unavailable")
             },
             rawPreferencesProvider = { FakeSharedPreferences() },
@@ -85,12 +131,12 @@ class DeviceRegistrationPreferencesTest {
         )
 
         assertSuspendThrows<DeviceRegistrationPreferencesException.Initialization> {
-            preferences.getFcmToken()
+            preferences.getFirebaseInstallationId()
         }
     }
 
     @Test
-    fun `legacy plaintext keys are removed even when encrypted initialization fails`() = runTest {
+    fun `legacy plaintext keys survive encrypted initialization failure for a safe retry`() = runTest {
         val rawPreferences = FakeSharedPreferences(
             initialValues = mapOf(
                 "device_id" to "RAW-ID",
@@ -103,7 +149,7 @@ class DeviceRegistrationPreferencesTest {
             ),
         )
         val preferences = DeviceRegistrationPreferences(
-            encryptedPreferencesFactory = DeviceRegistrationEncryptedPreferencesFactory {
+            encryptedStoreFactory = DeviceRegistrationEncryptedStoreFactory {
                 throw IllegalStateException("keystore unavailable")
             },
             rawPreferencesProvider = { rawPreferences },
@@ -112,16 +158,132 @@ class DeviceRegistrationPreferencesTest {
         )
 
         assertSuspendThrows<DeviceRegistrationPreferencesException.Initialization> {
-            preferences.getFcmToken()
+            preferences.getFirebaseInstallationId()
         }
 
-        assertFalse(rawPreferences.contains("device_id"))
-        assertFalse(rawPreferences.contains("fcm_token"))
-        assertFalse(rawPreferences.contains("member_id"))
-        assertFalse(rawPreferences.contains("auth_uid"))
-        assertFalse(rawPreferences.contains("environment"))
-        assertFalse(rawPreferences.contains("lease_id"))
+        assertEquals("RAW-ID", rawPreferences.getString("device_id", null))
+        assertEquals("RAW-TOKEN", rawPreferences.getString("fcm_token", null))
+        assertEquals("RAW-MEMBER", rawPreferences.getString("member_id", null))
+        assertEquals("RAW-UID", rawPreferences.getString("auth_uid", null))
+        assertEquals("develop", rawPreferences.getString("environment", null))
+        assertEquals("RAW-LEASE", rawPreferences.getString("lease_id", null))
         assertEquals("KEEP-ME", rawPreferences.getString("unrelated", null))
+    }
+
+    @Test
+    fun `legacy encrypted values migrate atomically and leave rollback material intact`() = runTest {
+        val encryptedPreferences = FakeSharedPreferences()
+        val rawPreferences = FakeSharedPreferences(
+            initialValues = mapOf(
+                "device_id" to "PLAINTEXT-ID",
+                LegacyEncryptedDeviceRegistrationValuesReader.KEY_KEYSET_ALIAS to "KEYSET",
+                LegacyEncryptedDeviceRegistrationValuesReader.VALUE_KEYSET_ALIAS to "KEYSET",
+                "unrelated" to "KEEP-ME",
+            ),
+        )
+        var legacyReads = 0
+        val preferences = DeviceRegistrationPreferences(
+            encryptedStoreFactory = DeviceRegistrationEncryptedStoreFactory {
+                SharedPreferencesDeviceRegistrationEncryptedStore(encryptedPreferences)
+            },
+            rawPreferencesProvider = { rawPreferences },
+            legacyValuesReader = LegacyDeviceRegistrationValuesReader {
+                legacyReads += 1
+                mapOf(
+                    "device_id" to "LEGACY-ID",
+                    "fcm_token" to "LEGACY-PUSH-CREDENTIAL",
+                    "member_id" to "MEMBER-1",
+                    "auth_uid" to "UID-1",
+                    "environment" to "production",
+                    "lease_id" to "LEASE-1",
+                )
+            },
+            ioDispatcher = UnconfinedTestDispatcher(testScheduler),
+            deviceIdProvider = { "CREATED-ID" },
+        )
+
+        assertEquals("LEGACY-ID", preferences.getOrCreateDeviceId())
+        assertNull(preferences.getFirebaseInstallationId())
+        assertEquals(
+            AuthorizedDeviceSessionContext(
+                memberId = "MEMBER-1",
+                authUid = "UID-1",
+                environment = "production",
+                leaseId = "LEASE-1",
+            ),
+            preferences.getAuthorizedSessionContext(),
+        )
+        assertEquals(1, legacyReads)
+        assertEquals(1, encryptedPreferences.commitCount)
+        assertFalse(rawPreferences.contains("device_id"))
+        assertEquals(
+            "KEYSET",
+            rawPreferences.getString(
+                LegacyEncryptedDeviceRegistrationValuesReader.KEY_KEYSET_ALIAS,
+                null,
+            ),
+        )
+        assertEquals(
+            "KEYSET",
+            rawPreferences.getString(
+                LegacyEncryptedDeviceRegistrationValuesReader.VALUE_KEYSET_ALIAS,
+                null,
+            ),
+        )
+        assertEquals("KEEP-ME", rawPreferences.getString("unrelated", null))
+    }
+
+    @Test
+    fun `legacy migration failure preserves source values and reports initialization`() = runTest {
+        val encryptedPreferences = FakeSharedPreferences()
+        val rawPreferences = FakeSharedPreferences(
+            initialValues = mapOf("device_id" to "LEGACY-ID"),
+        )
+        val preferences = DeviceRegistrationPreferences(
+            encryptedStoreFactory = DeviceRegistrationEncryptedStoreFactory {
+                SharedPreferencesDeviceRegistrationEncryptedStore(encryptedPreferences)
+            },
+            rawPreferencesProvider = { rawPreferences },
+            legacyValuesReader = LegacyDeviceRegistrationValuesReader {
+                throw IllegalStateException("legacy keyset unavailable")
+            },
+            ioDispatcher = UnconfinedTestDispatcher(testScheduler),
+            deviceIdProvider = { "CREATED-ID" },
+        )
+
+        assertSuspendThrows<DeviceRegistrationPreferencesException.Initialization> {
+            preferences.getOrCreateDeviceId()
+        }
+
+        assertEquals("LEGACY-ID", rawPreferences.getString("device_id", null))
+        assertFalse(encryptedPreferences.contains("device_id"))
+    }
+
+    @Test
+    fun `existing v2 identity is never overwritten by legacy migration`() = runTest {
+        val encryptedPreferences = FakeSharedPreferences(
+            initialValues = mapOf("device_id" to "V2-ID"),
+        )
+        val rawPreferences = FakeSharedPreferences(
+            initialValues = mapOf("device_id" to "LEGACY-ID"),
+        )
+        var legacyReads = 0
+        val preferences = DeviceRegistrationPreferences(
+            encryptedStoreFactory = DeviceRegistrationEncryptedStoreFactory {
+                SharedPreferencesDeviceRegistrationEncryptedStore(encryptedPreferences)
+            },
+            rawPreferencesProvider = { rawPreferences },
+            legacyValuesReader = LegacyDeviceRegistrationValuesReader {
+                legacyReads += 1
+                mapOf("device_id" to "OTHER-ID")
+            },
+            ioDispatcher = UnconfinedTestDispatcher(testScheduler),
+            deviceIdProvider = { "CREATED-ID" },
+        )
+
+        assertEquals("V2-ID", preferences.getOrCreateDeviceId())
+        assertEquals(0, legacyReads)
+        assertFalse(rawPreferences.contains("device_id"))
     }
 
     @Test
@@ -261,7 +423,7 @@ class DeviceRegistrationPreferencesTest {
         assertFalse(encryptedPreferences.contains("environment"))
         assertFalse(encryptedPreferences.contains("lease_id"))
         assertEquals("DEVICE-1", preferences.getOrCreateDeviceId())
-        assertEquals("TOKEN-1", preferences.getFcmToken())
+        assertNull(preferences.getFirebaseInstallationId())
     }
 
     @Test
@@ -326,11 +488,17 @@ class DeviceRegistrationPreferencesTest {
         deviceIdProvider: () -> String = { "CREATED-ID" },
         leaseIdProvider: () -> String = { "LEASE-ID" },
     ): DeviceRegistrationPreferences = DeviceRegistrationPreferences(
-        encryptedPreferencesFactory = DeviceRegistrationEncryptedPreferencesFactory { encrypted },
+        encryptedStoreFactory = DeviceRegistrationEncryptedStoreFactory {
+            SharedPreferencesDeviceRegistrationEncryptedStore(encrypted)
+        },
         rawPreferencesProvider = { raw },
         ioDispatcher = UnconfinedTestDispatcher(testScheduler),
         deviceIdProvider = deviceIdProvider,
         leaseIdProvider = leaseIdProvider,
+    )
+
+    private fun testValueCipher() = AesGcmDeviceRegistrationValueCipher(
+        secretKey = SecretKeySpec(ByteArray(32) { index -> index.toByte() }, "AES"),
     )
 
     private suspend inline fun <reified T : Throwable> assertSuspendThrows(

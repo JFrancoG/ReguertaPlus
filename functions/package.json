@@ -4,6 +4,7 @@
     "lint": "eslint --ext .js,.ts .",
     "build": "tsc",
     "test:order-reminder:unit": "npm run build && node --test test/order-reminder-scheduler.test.cjs",
+    "test:firebase-admin:contract": "node --test test/firebase-admin-modernization.test.cjs",
     "test:backend-security": "npm run build && node --test test/backend-security.test.cjs test/member-directory.test.cjs test/shift-swap-security.test.cjs",
     "test:migrations": "npm run build && node --test test/migration-scripts.test.cjs",
     "backfill:auth-links": "node scripts/backfill-auth-links.cjs",
@@ -35,8 +36,8 @@
   },
   "main": "lib/index.js",
   "dependencies": {
-    "firebase-admin": "^13.2.0",
-    "firebase-functions": "^6.3.2",
+    "firebase-admin": "^14.2.0",
+    "firebase-functions": "^7.3.2",
     "googleapis": "^144.0.0"
   },
   "devDependencies": {
@@ -46,7 +47,6 @@
     "eslint": "^8.9.0",
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-import": "^2.25.4",
-    "firebase-functions-test": "^3.1.0",
     "firebase-tools": "^15.15.0",
     "typescript": "^5.8.3"
   },
