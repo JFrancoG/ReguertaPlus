@@ -10,7 +10,7 @@ private object MyConfig {
     const val GROUP_ID = "com.reguerta"
     const val APPLICATION_ID = "$GROUP_ID.user"
     const val VERSION_NAME = "0.3.0.1"
-    const val VERSION_CODE = 36
+    const val VERSION_CODE = 37
     const val COMPILE_SDK_VERSION = 37
     const val TARGET_SDK_VERSION = 37
     const val MIN_SDK_VERSION = 29
@@ -50,8 +50,8 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     buildFeatures {
         compose = true
@@ -93,7 +93,8 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
+    // Instrumented tests have a separate graph; resolving the provider also avoids a false duplicate warning.
+    androidTestImplementation(platform(libs.androidx.compose.bom.get()))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
