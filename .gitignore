@@ -16,6 +16,7 @@ Secrets.swift
 keystore/
 keystore.properties
 *.jks
+*.keystore
 
 # Xcode
 DerivedData/

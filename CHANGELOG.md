@@ -168,6 +168,7 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
+- 2026-07-29 | 📦 build(android): configure release signing
 - 2026-07-29 | 📦 build(android): modernize build settings
 - 2026-07-29 | 🔧 chore(order): integrate Android updates
 - 2026-07-29 | 🔧 chore(android): adopt modern platform APIs

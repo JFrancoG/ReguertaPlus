@@ -1,3 +1,32 @@
+import java.util.Properties
+
+val releaseSigningPropertiesFile = rootProject.file("keystore.properties")
+val releaseSigningProperties = Properties().apply {
+    if (releaseSigningPropertiesFile.isFile) {
+        releaseSigningPropertiesFile.inputStream().use { load(it) }
+    }
+}
+val releaseStorePath = releaseSigningProperties.getProperty("storeFile")?.takeIf { it.isNotEmpty() }
+val releaseStorePassword = releaseSigningProperties.getProperty("storePassword")?.takeIf { it.isNotEmpty() }
+val releaseKeyAlias = releaseSigningProperties.getProperty("keyAlias")?.takeIf { it.isNotEmpty() }
+val releaseKeyPassword = releaseSigningProperties.getProperty("keyPassword")?.takeIf { it.isNotEmpty() }
+val missingReleaseSigningProperties = mapOf(
+    "storeFile" to releaseStorePath,
+    "storePassword" to releaseStorePassword,
+    "keyAlias" to releaseKeyAlias,
+    "keyPassword" to releaseKeyPassword,
+).filterValues { it == null }.keys
+val releaseStoreFile = releaseStorePath?.let { file(it) }
+
+if (releaseSigningPropertiesFile.isFile) {
+    require(missingReleaseSigningProperties.isEmpty()) {
+        "Missing release signing properties: ${missingReleaseSigningProperties.joinToString()}"
+    }
+    require(releaseStoreFile?.isFile == true) {
+        "Release keystore not found at ${releaseStoreFile?.path}"
+    }
+}
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -36,6 +65,17 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            if (releaseSigningPropertiesFile.isFile) {
+                storeFile = checkNotNull(releaseStoreFile)
+                storePassword = checkNotNull(releaseStorePassword)
+                keyAlias = checkNotNull(releaseKeyAlias)
+                keyPassword = checkNotNull(releaseKeyPassword)
+            }
+        }
+    }
+
     buildTypes {
         getByName("debug") {
             applicationIdSuffix = ".debug"
@@ -46,7 +86,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
