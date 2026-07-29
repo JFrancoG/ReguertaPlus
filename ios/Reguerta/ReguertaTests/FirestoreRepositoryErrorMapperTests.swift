@@ -36,6 +36,11 @@ struct FirestoreRepositoryErrorMapperTests {
 
     @Test
     func rejectsMalformedProductAndCommitmentDocumentsAsInvalidData() throws {
+        try assertMalformedProductsAreRejected()
+        try assertMalformedCommitmentsAreRejected()
+    }
+
+    private func assertMalformedProductsAreRejected() throws {
         var invalidProduct = validProductData()
         invalidProduct["pricingMode"] = "mystery"
         #expect(throws: RepositoryError.invalidData(resource: "products.document")) {
@@ -69,6 +74,15 @@ struct FirestoreRepositoryErrorMapperTests {
             try FirestoreProductRepository.product(documentID: "product", data: invalidProduct)
         }
 
+        var legacyNullProduct = validProductData()
+        legacyNullProduct["productImageUrl"] = NSNull()
+        #expect(try FirestoreProductRepository.product(
+            documentID: "product",
+            data: legacyNullProduct
+        ).productImageUrl == nil)
+    }
+
+    private func assertMalformedCommitmentsAreRejected() throws {
         let invalidCommitment: [String: Any] = [
             "userId": "member",
             "productId": "product",
@@ -82,7 +96,6 @@ struct FirestoreRepositoryErrorMapperTests {
                 data: invalidCommitment
             )
         }
-
 
         var infiniteQuantity = invalidCommitment
         infiniteQuantity["active"] = true
@@ -103,13 +116,6 @@ struct FirestoreRepositoryErrorMapperTests {
                 data: booleanQuantity
             )
         }
-
-        var legacyNullProduct = validProductData()
-        legacyNullProduct["productImageUrl"] = NSNull()
-        #expect(try FirestoreProductRepository.product(
-            documentID: "product",
-            data: legacyNullProduct
-        ).productImageUrl == nil)
     }
 
     @Test

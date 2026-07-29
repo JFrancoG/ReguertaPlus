@@ -188,7 +188,9 @@ struct ReguertaTests {
         #expect(backToLogin.currentRoute == .login)
         #expect(backToWelcome.currentRoute == .welcome)
     }
+}
 
+extension ReguertaTests {
     @Test
     func authShellCanOpenRegisterDirectlyFromWelcome() {
         let welcome = AuthShellState(backStack: [.welcome])

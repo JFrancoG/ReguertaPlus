@@ -193,6 +193,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- 2026-07-29 | ♻️ refactor(ios): clear SwiftLint warnings
 - 2026-07-24 | ♻️ refactor(ios): split large feature files
 - 2026-07-12 | ♻️ refactor(ios): clear SwiftLint warnings
 - 2026-07-10 | ♻️ refactor(android): organize presentation packages

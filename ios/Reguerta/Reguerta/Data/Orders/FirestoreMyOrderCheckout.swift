@@ -49,6 +49,17 @@ struct MyOrderCheckoutContext {
     let totalsByVendor: [String: Double]
 }
 
+private struct MyOrderCheckoutBatchContent {
+    let target: MyOrderCheckoutWriteTarget
+    let context: MyOrderCheckoutContext
+    let member: Member
+    let lineSnapshots: [MyOrderCheckoutLineSnapshot]
+    let existingLineDocumentIds: [String]
+    let orderRef: DocumentReference
+    let createdAt: Timestamp
+    let deliveryDate: Timestamp
+}
+
 nonisolated struct MyOrderOwnedWeekQueryScope: Equatable, Sendable {
     let ownerField: String
     let ownerId: String
@@ -199,33 +210,57 @@ func submitMyOrderCheckout(
         db: db
     )
 
-    let batch = db.batch()
-    batch.setData(
-        myOrderCheckoutOrderPayload(
-            member: member,
+    let batch = buildMyOrderCheckoutBatch(
+        MyOrderCheckoutBatchContent(
+            target: target,
             context: effectiveContext,
+            member: member,
+            lineSnapshots: lineSnapshots,
+            existingLineDocumentIds: Array(existingLineDocuments.keys),
+            orderRef: orderRef,
             createdAt: createdAt,
             deliveryDate: deliveryDate
         ),
-        forDocument: orderRef,
+        db: db
+    )
+    try await batch.commit()
+    let serverOrderSnapshot = try await orderRef.getDocument(source: .server)
+    return serverOrderSnapshot.exists
+}
+
+private func buildMyOrderCheckoutBatch(
+    _ content: MyOrderCheckoutBatchContent,
+    db: Firestore
+) -> WriteBatch {
+    let batch = db.batch()
+    batch.setData(
+        myOrderCheckoutOrderPayload(
+            member: content.member,
+            context: content.context,
+            createdAt: content.createdAt,
+            deliveryDate: content.deliveryDate
+        ),
+        forDocument: content.orderRef,
         merge: true
     )
-
-    for documentId in existingLineDocuments.keys {
-        batch.deleteDocument(db.document("\(target.orderlines)/\(documentId)"))
+    for documentId in content.existingLineDocumentIds {
+        batch.deleteDocument(db.document("\(content.target.orderlines)/\(documentId)"))
     }
-    for line in lineSnapshots {
-        let lineRef = db.document("\(target.orderlines)/\(effectiveOrderId)_\(line.product.id)")
+    for line in content.lineSnapshots {
+        let lineRef = db.document(
+            "\(content.target.orderlines)/\(content.context.orderId)_\(line.product.id)"
+        )
         batch.setData(
-            myOrderCheckoutLinePayload(line: line, member: member, context: effectiveContext),
+            myOrderCheckoutLinePayload(
+                line: line,
+                member: content.member,
+                context: content.context
+            ),
             forDocument: lineRef,
             merge: true
         )
     }
-
-    try await batch.commit()
-    let serverOrderSnapshot = try await orderRef.getDocument(source: .server)
-    return serverOrderSnapshot.exists
+    return batch
 }
 
 nonisolated func myOrderOwnedWeekQueryScopes(

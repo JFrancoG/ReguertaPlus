@@ -151,7 +151,9 @@ struct ReguertaProductsViewModelTests {
         #expect(viewModel.isSaving == false)
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
     }
+}
 
+extension ReguertaProductsViewModelTests {
     @Test
     func productsViewModelSavesProducerProductWithEcoBasketRules() async {
         let currentProducer = producer(id: "producer_even", parity: .even)

@@ -125,41 +125,6 @@ extension ProductsRouteViewModel {
         Task { await refreshOrderingProducts() }
     }
 
-    func refreshCatalog() async {
-        guard let context = authorizedSessionContext else {
-            catalogProducts = []
-            isLoadingCatalog = false
-            return
-        }
-        let session = context.session
-        guard session.member.canManageProductCatalog else {
-            catalogProducts = []
-            isLoadingCatalog = false
-            return
-        }
-
-        isLoadingCatalog = true
-        let products: [Product]
-        do {
-            products = try await productRepository.products(vendorId: session.member.id)
-            try Task.checkCancellation()
-        } catch is CancellationError {
-            if isCurrentSession(context) {
-                isLoadingCatalog = false
-            }
-            return
-        } catch {
-            if isCurrentSession(context) {
-                isLoadingCatalog = false
-                showUnableLoadFeedback()
-            }
-            return
-        }
-        guard isCurrentSession(context) else { return }
-        catalogProducts = products
-        isLoadingCatalog = false
-    }
-
     func refreshOrderingProducts() async {
         guard let context = authorizedSessionContext else {
             invalidateOrderingRefresh()
@@ -246,322 +211,9 @@ extension ProductsRouteViewModel {
             generation: appliedFreshnessOrderingGeneration
         )
     }
-
-    func startCreating() {
-        guard canManageCatalog else {
-            showUnableSaveFeedback()
-            return
-        }
-        draft = ProductDraft()
-        editingProductId = ""
-        pendingNewProductId = productIDProvider()
-        editorRevision += 1
-        isUploadingImage = false
-    }
-
-    func startEditing(productId: String) {
-        guard canManageCatalog else {
-            showUnableSaveFeedback()
-            return
-        }
-        guard let product = catalogProducts.first(where: { $0.id == productId }) else { return }
-        draft = product.toDraft()
-        editingProductId = product.id
-        pendingNewProductId = nil
-        editorRevision += 1
-        isUploadingImage = false
-    }
-
-    func updateDraft(_ update: (inout ProductDraft) -> Void) {
-        var updatedDraft = draft
-        update(&updatedDraft)
-        draft = updatedDraft
-        editorRevision += 1
-    }
-
-    func clearEditor() {
-        draft = ProductDraft()
-        editingProductId = nil
-        pendingNewProductId = nil
-        editorRevision += 1
-        isUploadingImage = false
-    }
-
-    func uploadImage(_ imageData: Data) async {
-        guard let context = authorizedSessionContext else { return }
-        let session = context.session
-        guard session.member.canManageProductCatalog else {
-            showUnableSaveFeedback()
-            return
-        }
-        guard activeUploadOperationId == nil, !isUploadingImage, !isSaving else { return }
-
-        nextUploadOperationId += 1
-        let uploadOperationId = nextUploadOperationId
-        activeUploadOperationId = uploadOperationId
-        isUploadingImage = true
-        let editorProductId = editingProductId
-        let editorPendingProductId = pendingNewProductId
-        let uploadEditorRevision = editorRevision
-        defer { finishUploadOperation(uploadOperationId, context: context) }
-        let entityId = editingProductId?.isEmpty == false ? editingProductId : nil
-
-        do {
-            let uploaded = try await imagePipelineManager.processAndUpload(
-                imageData: imageData,
-                request: ImageUploadRequest(
-                    ownerId: session.member.id,
-                    namespace: .products,
-                    entityId: entityId,
-                    nameHint: draft.name
-                )
-            )
-            try Task.checkCancellation()
-            guard isCurrentEditor(
-                context,
-                editingProductId: editorProductId,
-                pendingProductId: editorPendingProductId,
-                revision: uploadEditorRevision
-            ) else { return }
-            draft.productImageUrl = uploaded.downloadURL
-            editorRevision += 1
-        } catch is CancellationError {
-            return
-        } catch {
-            if isCurrentEditor(
-                context,
-                editingProductId: editorProductId,
-                pendingProductId: editorPendingProductId,
-                revision: uploadEditorRevision
-            ) {
-                showUnableSaveFeedback()
-            }
-        }
-    }
-
-    func clearImage() {
-        updateDraft { draft in
-            draft.productImageUrl = ""
-        }
-    }
-
-    @discardableResult
-    func save() async -> Bool {
-        guard let context = authorizedSessionContext else { return false }
-        let session = context.session
-        guard session.member.canManageProductCatalog else {
-            showUnableSaveFeedback()
-            return false
-        }
-        guard activeSaveOperationId == nil, !isSaving else { return false }
-        guard !isUploadingImage else { return false }
-        let existing = catalogProducts.first { $0.id == editingProductId }
-        guard let input = resolveProductSaveInput(
-            draft: draft,
-            existing: existing,
-            nowMillis: nowMillisProvider()
-        ) else {
-            showUnableSaveFeedback()
-            return false
-        }
-        let newProductId = input.existing == nil ? resolvePendingNewProductId() : ""
-        let editorProductId = editingProductId
-        let editorPendingProductId = pendingNewProductId
-        let saveEditorRevision = editorRevision
-
-        let saveOperationId = beginSaveOperation()
-        defer { finishSaveOperation(saveOperationId, context: context) }
-
-        do {
-            guard try await canSaveEcoBasketProduct(
-                sessionMember: session.member,
-                draft: input.draft,
-                price: input.price,
-                existingProduct: input.existing
-            ) else {
-                if isCurrentEditor(
-                    context,
-                    editingProductId: editorProductId,
-                    pendingProductId: editorPendingProductId,
-                    revision: saveEditorRevision
-                ) {
-                    showUnableSaveFeedback()
-                }
-                return false
-            }
-            try Task.checkCancellation()
-        } catch is CancellationError {
-            return false
-        } catch {
-            if isCurrentEditor(
-                context,
-                editingProductId: editorProductId,
-                pendingProductId: editorPendingProductId,
-                revision: saveEditorRevision
-            ) {
-                showUnableLoadFeedback()
-            }
-            return false
-        }
-
-        guard isCurrentEditor(
-            context,
-            editingProductId: editorProductId,
-            pendingProductId: editorPendingProductId,
-            revision: saveEditorRevision
-        ) else { return false }
-
-        let saved: Product
-        do {
-            saved = try await productRepository.upsert(
-                product: buildProductToSave(
-                    sessionMember: session.member,
-                    input: input,
-                    newProductId: newProductId
-                )
-            )
-            try Task.checkCancellation()
-        } catch is CancellationError {
-            return false
-        } catch {
-            if isCurrentEditor(
-                context,
-                editingProductId: editorProductId,
-                pendingProductId: editorPendingProductId,
-                revision: saveEditorRevision
-            ) {
-                showUnableSaveFeedback()
-            }
-            return false
-        }
-        guard isCurrentSession(context) else { return false }
-        applyConfirmedProductToCatalog(saved)
-        guard isCurrentEditor(
-            context,
-            editingProductId: editorProductId,
-            pendingProductId: editorPendingProductId,
-            revision: saveEditorRevision
-        ) else { return false }
-        draft = ProductDraft()
-        editingProductId = nil
-        pendingNewProductId = nil
-        editorRevision += 1
-        highlightProduct(saved.id)
-        return true
-    }
-
-    func archive(productId: String) async {
-        guard let context = authorizedSessionContext else { return }
-        let session = context.session
-        guard session.member.canManageProductCatalog else { return }
-        guard activeSaveOperationId == nil, !isSaving else { return }
-        guard let product = catalogProducts.first(where: { $0.id == productId }) else { return }
-
-        let saveOperationId = beginSaveOperation()
-        defer { finishSaveOperation(saveOperationId, context: context) }
-        let archivedProduct: Product
-        do {
-            archivedProduct = try await productRepository.upsert(
-                product: product.archivedCopy(nowMillis: nowMillisProvider())
-            )
-            try Task.checkCancellation()
-        } catch is CancellationError {
-            return
-        } catch {
-            if isCurrentSession(context) {
-                showUnableSaveFeedback()
-            }
-            return
-        }
-        guard isCurrentSession(context) else { return }
-        applyConfirmedProductToCatalog(archivedProduct)
-        if editingProductId == productId {
-            clearEditor()
-        }
-        highlightProduct(productId)
-    }
-
-    func setVacationModeEnabled(_ isEnabled: Bool) async {
-        guard let context = authorizedSessionContext else { return }
-        let session = context.session
-        guard session.member.isProducer else { return }
-        let catalogEnabled = !isEnabled
-        guard session.member.producerCatalogEnabled != catalogEnabled else { return }
-
-        isUpdatingCatalogVisibility = true
-        defer {
-            if isCurrentSession(context) {
-                isUpdatingCatalogVisibility = false
-            }
-        }
-        let updatedMember: Member
-        do {
-            updatedMember = try await memberRepository.updateOwnProducerCatalogEnabled(
-                member: session.member,
-                enabled: catalogEnabled
-            )
-            try Task.checkCancellation()
-        } catch is CancellationError {
-            return
-        } catch {
-            if isCurrentSession(context) {
-                feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
-            }
-            return
-        }
-        guard isCurrentSession(context) else { return }
-        let locallyUpdatedMembers = session.members.map { member in
-            member.id == updatedMember.id ? updatedMember : member
-        }
-        sessionViewModel.applyUpdatedAuthorizedMember(updatedMember, members: locallyUpdatedMembers)
-        syncCurrentSessionFromSessionViewModel()
-        await refreshOrderingProducts()
-    }
-
-    func highlightProduct(_ productId: String) {
-        highlightedProductId = productId
-        Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 1_600_000_000)
-            await MainActor.run {
-                if self?.highlightedProductId == productId {
-                    self?.highlightedProductId = nil
-                }
-            }
-        }
-    }
-
-    func showUnableSaveFeedback() {
-        feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
-    }
-
-    func showUnableLoadFeedback() {
-        feedbackCenter.show(AccessL10nKey.feedbackUnableLoadData)
-    }
-
-    func showCameraPermissionRequiredFeedback() {
-        feedbackCenter.show(AccessL10nKey.feedbackCameraPermissionRequired)
-    }
-
-    func showCameraUnavailableFeedback() {
-        feedbackCenter.show(AccessL10nKey.feedbackCameraUnavailable)
-    }
 }
 
-private extension ProductsRouteViewModel {
-    struct SessionContext {
-        let session: AuthorizedSession
-        let generation: UInt64
-
-        func matches(scope: CriticalDataRefreshScope) -> Bool {
-            session.principal.uid == scope.principalUID &&
-                session.authenticatedMember.id == scope.authenticatedMemberID &&
-                session.authenticatedMember.authUid == scope.principalUID &&
-                session.member.id == scope.memberID &&
-                session.environment == scope.environment &&
-                session.authenticatedMember.canManageMembers == scope.canManageMembers
-        }
-    }
-
+extension ProductsRouteViewModel {
     private var authorizedSession: AuthorizedSession? {
         switch sessionViewModel.mode {
         case .authorized(let session):
@@ -571,18 +223,38 @@ private extension ProductsRouteViewModel {
         }
     }
 
-    private var canManageCatalog: Bool {
-        authorizedSession?.member.canManageProductCatalog == true
-    }
-
-    private var authorizedSessionContext: SessionContext? {
+    var authorizedSessionContext: ProductsRouteSessionContext? {
         guard let session = authorizedSession else { return nil }
-        return SessionContext(
+        return ProductsRouteSessionContext(
             session: session,
             generation: sessionIdentityEpoch
         )
     }
 
+    func syncCurrentSessionFromSessionViewModel() {
+        guard let session = authorizedSession else {
+            reset()
+            return
+        }
+        resetOrderingProductsIfSessionChanged(to: session)
+        currentSession = session
+        currentMember = session.member
+    }
+
+    func isCurrentSession(_ context: ProductsRouteSessionContext) -> Bool {
+        guard let latestSession = authorizedSession else { return false }
+        return sessionIdentityEpoch == context.generation &&
+            latestSession.principal.uid == context.session.principal.uid &&
+            latestSession.authenticatedMember.id == context.session.authenticatedMember.id &&
+            latestSession.authenticatedMember.authUid == context.session.authenticatedMember.authUid &&
+            latestSession.member.id == context.session.member.id &&
+            latestSession.environment == context.session.environment &&
+            latestSession.authenticatedMember.canManageMembers ==
+                context.session.authenticatedMember.canManageMembers
+    }
+}
+
+private extension ProductsRouteViewModel {
     private func reset() {
         invalidateOrderingRefresh()
         currentSession = nil
@@ -618,16 +290,6 @@ private extension ProductsRouteViewModel {
         highlightedProductId = nil
     }
 
-    private func syncCurrentSessionFromSessionViewModel() {
-        guard let session = authorizedSession else {
-            reset()
-            return
-        }
-        resetOrderingProductsIfSessionChanged(to: session)
-        currentSession = session
-        currentMember = session.member
-    }
-
     private func resetOrderingProductsIfSessionChanged(to session: AuthorizedSession) {
         guard let currentSession else { return }
         guard currentSession.principal.uid != session.principal.uid ||
@@ -645,18 +307,6 @@ private extension ProductsRouteViewModel {
         isLoadingOrderingProducts = false
     }
 
-    private func isCurrentSession(_ context: SessionContext) -> Bool {
-        guard let latestSession = authorizedSession else { return false }
-        return sessionIdentityEpoch == context.generation &&
-            latestSession.principal.uid == context.session.principal.uid &&
-            latestSession.authenticatedMember.id == context.session.authenticatedMember.id &&
-            latestSession.authenticatedMember.authUid == context.session.authenticatedMember.authUid &&
-            latestSession.member.id == context.session.member.id &&
-            latestSession.environment == context.session.environment &&
-            latestSession.authenticatedMember.canManageMembers ==
-                context.session.authenticatedMember.canManageMembers
-    }
-
     private func beginOrderingRefresh() -> UInt64 {
         orderingRefreshGeneration &+= 1
         return orderingRefreshGeneration
@@ -669,14 +319,14 @@ private extension ProductsRouteViewModel {
     }
 
     private func isCurrentOrderingRefresh(
-        _ context: SessionContext,
+        _ context: ProductsRouteSessionContext,
         generation: UInt64
     ) -> Bool {
         generation == orderingRefreshGeneration && isCurrentSession(context)
     }
 
     private func loadAndApplyOrderingState(
-        context: SessionContext,
+        context: ProductsRouteSessionContext,
         refreshGeneration: UInt64,
         prefetchedPayload: CriticalDataRefreshPayload = CriticalDataRefreshPayload()
     ) async throws {
@@ -798,18 +448,6 @@ private extension ProductsRouteViewModel {
         }
     }
 
-    private func isCurrentEditor(
-        _ context: SessionContext,
-        editingProductId: String?,
-        pendingProductId: String?,
-        revision: UInt64
-    ) -> Bool {
-        isCurrentSession(context) &&
-            self.editingProductId == editingProductId &&
-            pendingNewProductId == pendingProductId &&
-            editorRevision == revision
-    }
-
     private func loadSeasonalCommitments(for member: Member) async throws -> [SeasonalCommitment] {
         var seasonalCommitmentsById: [String: SeasonalCommitment] = [:]
         let lookupKeys = member.seasonalCommitmentLookupKeys
@@ -844,60 +482,4 @@ private extension ProductsRouteViewModel {
         return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
     }
 
-    private func applyConfirmedProductToCatalog(_ product: Product) {
-        catalogProducts.removeAll { $0.id == product.id }
-        catalogProducts.append(product)
-        catalogProducts.sort { lhs, rhs in
-            if lhs.archived != rhs.archived {
-                return !lhs.archived && rhs.archived
-            }
-            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-        }
-    }
-
-    private func beginSaveOperation() -> UInt64 {
-        nextSaveOperationId += 1
-        activeSaveOperationId = nextSaveOperationId
-        isSaving = true
-        return nextSaveOperationId
-    }
-
-    private func finishSaveOperation(_ operationId: UInt64, context: SessionContext) {
-        guard activeSaveOperationId == operationId else { return }
-        activeSaveOperationId = nil
-        guard isCurrentSession(context) else { return }
-        isSaving = false
-    }
-
-    private func finishUploadOperation(_ operationId: UInt64, context: SessionContext) {
-        guard activeUploadOperationId == operationId else { return }
-        activeUploadOperationId = nil
-        guard isCurrentSession(context) else { return }
-        isUploadingImage = false
-    }
-
-    private func resolvePendingNewProductId() -> String {
-        if let pendingNewProductId {
-            return pendingNewProductId
-        }
-        let productId = productIDProvider()
-        pendingNewProductId = productId
-        return productId
-    }
-
-    private func canSaveEcoBasketProduct(
-        sessionMember: Member,
-        draft: ProductDraft,
-        price: Double,
-        existingProduct: Product?
-    ) async throws -> Bool {
-        guard sessionMember.isProducer, draft.isEcoBasket else {
-            return true
-        }
-        let allProducts = try await productRepository.allProducts()
-        let activeEcoBasketPrice = allProducts
-            .first(where: { $0.isEcoBasket && !$0.archived && $0.id != existingProduct?.id })?
-            .price
-        return activeEcoBasketPrice == nil || activeEcoBasketPrice == price
-    }
 }

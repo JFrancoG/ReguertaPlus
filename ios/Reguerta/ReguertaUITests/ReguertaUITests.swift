@@ -38,10 +38,6 @@ final class ReguertaUITests: XCTestCase {
         XCUIApplication().terminate()
     }
 
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
-    }
-
     @MainActor
     func testUnauthorizedUserShowsRestrictedMode() throws {
         let app = configuredApp()
@@ -128,7 +124,7 @@ final class ReguertaUITests: XCTestCase {
 
         var scrollAttempts = 0
         var keepsBottomBreathingRoom = targetCard.frame.maxY <= app.frame.maxY - 24
-        while (!targetTitle.isHittable || !keepsBottomBreathingRoom),
+        while !targetTitle.isHittable || !keepsBottomBreathingRoom,
               scrollAttempts < latestNewsMaxScrollAttempts {
             latestNewsScroll.swipeUp()
             scrollAttempts += 1

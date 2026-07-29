@@ -143,7 +143,7 @@ struct FirebaseFunctionsSecurityBoundaryTests {
         let repository = EnvironmentRecordingMemberRepository(member: member, router: router)
         let useCase = ResolveAuthorizedSessionUseCase(
             repository: repository,
-            resolver: FixedAuthorizedMemberResolver(
+            resolver: SecurityBoundaryFixedAuthorizedMemberResolver(
                 resolution: AuthorizedMemberResolution(
                     memberId: member.id,
                     roles: member.roles,
@@ -170,7 +170,7 @@ struct FirebaseFunctionsSecurityBoundaryTests {
         let repository = EnvironmentRecordingMemberRepository(member: nil, router: router)
         let useCase = ResolveAuthorizedSessionUseCase(
             repository: repository,
-            resolver: FixedAuthorizedMemberResolver(
+            resolver: SecurityBoundaryFixedAuthorizedMemberResolver(
                 resolution: AuthorizedMemberResolution(
                     memberId: "missing",
                     roles: [.member],
@@ -191,7 +191,9 @@ struct FirebaseFunctionsSecurityBoundaryTests {
         #expect(router.appliedEnvironment == nil)
         #expect(router.resetCount == 1)
     }
+}
 
+extension FirebaseFunctionsSecurityBoundaryTests {
     @Test
     func adminUpsertUsesBearerContractWithoutActorIdentityAndEncodesClears() async throws {
         let loader = RecordingHTTPDataLoader(
@@ -431,150 +433,5 @@ struct FirebaseFunctionsSecurityBoundaryTests {
             "producerParity": NSNull(),
             "ecoCommitment": ["mode": "weekly", "parity": NSNull()]
         ]
-    }
-}
-
-nonisolated private struct FixedAuthorizedMemberResolver: AuthorizedMemberResolving {
-    let resolution: AuthorizedMemberResolution
-
-    func resolve(
-        authPrincipal _: AuthPrincipal,
-        requestedEnvironment _: SessionEnvironment
-    ) async throws -> AuthorizedMemberResolution {
-        resolution
-    }
-}
-
-@MainActor
-private final class RecordingSessionEnvironmentRouter: SessionEnvironmentRouting {
-    let baseEnvironment: SessionEnvironment
-    let transitionSignal: SessionEnvironmentRoutingSignal
-    private(set) var appliedEnvironment: SessionEnvironment?
-    private(set) var resetCount = 0
-    private var activeLease: SessionEnvironmentLease?
-
-    init(baseEnvironment: SessionEnvironment) {
-        self.baseEnvironment = baseEnvironment
-        self.transitionSignal = SessionEnvironmentRoutingSignal(environment: baseEnvironment)
-    }
-
-    func applyResolvedEnvironment(_ environment: SessionEnvironment, lease: SessionEnvironmentLease) {
-        appliedEnvironment = environment
-        activeLease = lease
-        transitionSignal.publish(environment: environment)
-    }
-
-    func resetToBaseEnvironment(ifOwnedBy lease: SessionEnvironmentLease) {
-        guard activeLease == lease else { return }
-        resetToBaseEnvironment()
-    }
-
-    func resetToBaseEnvironment() {
-        appliedEnvironment = nil
-        activeLease = nil
-        resetCount += 1
-        transitionSignal.publish(environment: baseEnvironment)
-    }
-}
-
-@MainActor
-private final class EnvironmentRecordingMemberRepository: MemberRepository {
-    let memberValue: Member?
-    let router: RecordingSessionEnvironmentRouter
-    private(set) var environmentAtMemberRead: SessionEnvironment?
-    private(set) var requestedMemberIds: [String] = []
-
-    init(member: Member?, router: RecordingSessionEnvironmentRouter) {
-        memberValue = member
-        self.router = router
-    }
-
-    func member(id: String) async throws -> Member? {
-        requestedMemberIds.append(id)
-        environmentAtMemberRead = router.appliedEnvironment
-        return id == memberValue?.id ? memberValue : nil
-    }
-
-    func members(visibleTo member: Member) async throws -> [Member] {
-        memberValue.map { [$0] } ?? []
-    }
-
-    func updateOwnProducerCatalogEnabled(member: Member, enabled: Bool) async throws -> Member {
-        guard let memberValue else {
-            throw FirebaseFunctionClientError.invalidResponse
-        }
-        return memberValue
-    }
-}
-
-nonisolated private struct TestUpsertMemberResponse: Encodable {
-    let ok: Bool
-    let memberId: String
-    let roles: [MemberRole]
-    let isActive: Bool
-    let environment: SessionEnvironment
-}
-
-nonisolated private struct TestUpsertMemberRequest: Decodable {
-    let environment: SessionEnvironment
-    let memberId: String
-    let normalizedEmail: String
-    let roles: [MemberRole]
-}
-
-nonisolated private struct TestShiftSwapTransitionResponse: Encodable {
-    let ok: Bool
-    let environment: SessionEnvironment
-    let action: String
-    let requestId: String
-    let candidateCount: Int?
-}
-
-@MainActor
-private final class RecordingFirebaseIDTokenProvider: FirebaseIDTokenProviding {
-    let token: String
-    private(set) var forceRefreshValues: [Bool] = []
-
-    init(token: String) {
-        self.token = token
-    }
-
-    func validIDToken(forcingRefresh: Bool) async throws -> String {
-        forceRefreshValues.append(forcingRefresh)
-        return token
-    }
-}
-
-@MainActor
-private struct ThrowingFirebaseIDTokenProvider: FirebaseIDTokenProviding {
-    let error: any Error
-
-    func validIDToken(forcingRefresh: Bool) async throws -> String {
-        throw error
-    }
-}
-
-@MainActor
-private final class RecordingHTTPDataLoader: HTTPDataLoading {
-    private let result: Result<(Data, URLResponse), any Error>
-    private(set) var lastRequest: URLRequest?
-
-    init(data: Data, statusCode: Int) {
-        let response = HTTPURLResponse(
-            url: URL(string: "https://example.test")!,
-            statusCode: statusCode,
-            httpVersion: nil,
-            headerFields: ["Content-Type": "application/json"]
-        )!
-        result = .success((data, response))
-    }
-
-    init(error: any Error) {
-        result = .failure(error)
-    }
-
-    func data(for request: URLRequest) async throws -> (Data, URLResponse) {
-        lastRequest = request
-        return try result.get()
     }
 }

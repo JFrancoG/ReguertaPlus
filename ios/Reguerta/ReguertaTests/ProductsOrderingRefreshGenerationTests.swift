@@ -102,21 +102,7 @@ struct ProductsOrderingRefreshGenerationTests {
     @Test("El miembro server-only actualizado invalida el scope antes del ACK")
     func serverSelectedMemberCapabilityChangeRequiresNewScope() async throws {
         let currentMember = member(id: "member_promoted", ecoCommitmentMode: .weekly)
-        let promotedMember = Member(
-            id: currentMember.id,
-            displayName: currentMember.displayName,
-            companyName: currentMember.companyName,
-            phoneNumber: currentMember.phoneNumber,
-            normalizedEmail: currentMember.normalizedEmail,
-            authUid: currentMember.authUid,
-            roles: currentMember.roles.union([.admin]),
-            isActive: currentMember.isActive,
-            producerCatalogEnabled: currentMember.producerCatalogEnabled,
-            isCommonPurchaseManager: currentMember.isCommonPurchaseManager,
-            producerParity: currentMember.producerParity,
-            ecoCommitmentMode: currentMember.ecoCommitmentMode,
-            ecoCommitmentParity: currentMember.ecoCommitmentParity
-        )
+        let promotedMember = memberCopy(currentMember, roles: currentMember.roles.union([.admin]))
         let vendor = producer(id: "producer_even", parity: .even)
         let staleProduct = regularProduct(id: "stale", vendorId: vendor.id, name: "Antiguo")
         let freshProduct = regularProduct(id: "fresh", vendorId: vendor.id, name: "Fresco")
@@ -168,26 +154,11 @@ struct ProductsOrderingRefreshGenerationTests {
 
     @Test("Una democion durante impersonacion vuelve al miembro autenticado")
     func serverAuthenticatedMemberDemotionClearsImpersonationBeforeRetry() async throws {
-        let authenticatedMember = Member(
-            id: "admin_demoted",
-            displayName: "Admin",
-            normalizedEmail: "admin_demoted@reguerta.app",
-            authUid: "auth_admin_demoted",
-            roles: [.member, .admin],
-            isActive: true,
-            producerCatalogEnabled: true,
-            ecoCommitmentMode: .weekly
+        let authenticatedMember = memberCopy(
+            member(id: "admin_demoted", ecoCommitmentMode: .weekly),
+            roles: [.member, .admin]
         )
-        let demotedMember = Member(
-            id: authenticatedMember.id,
-            displayName: authenticatedMember.displayName,
-            normalizedEmail: authenticatedMember.normalizedEmail,
-            authUid: authenticatedMember.authUid,
-            roles: [.member],
-            isActive: true,
-            producerCatalogEnabled: true,
-            ecoCommitmentMode: .weekly
-        )
+        let demotedMember = memberCopy(authenticatedMember, roles: [.member])
         let impersonatedMember = member(id: "impersonated_member", ecoCommitmentMode: .weekly)
         let vendor = producer(id: "producer_even", parity: .even)
         let freshProduct = regularProduct(id: "fresh", vendorId: vendor.id, name: "Fresco")
@@ -331,6 +302,24 @@ private func refreshScope(in viewModel: ProductsRouteViewModel) -> CriticalDataR
         memberID: session.member.id,
         environment: session.environment,
         canManageMembers: session.authenticatedMember.canManageMembers
+    )
+}
+
+private func memberCopy(_ source: Member, roles: Set<MemberRole>) -> Member {
+    Member(
+        id: source.id,
+        displayName: source.displayName,
+        companyName: source.companyName,
+        phoneNumber: source.phoneNumber,
+        normalizedEmail: source.normalizedEmail,
+        authUid: source.authUid,
+        roles: roles,
+        isActive: source.isActive,
+        producerCatalogEnabled: source.producerCatalogEnabled,
+        isCommonPurchaseManager: source.isCommonPurchaseManager,
+        producerParity: source.producerParity,
+        ecoCommitmentMode: source.ecoCommitmentMode,
+        ecoCommitmentParity: source.ecoCommitmentParity
     )
 }
 

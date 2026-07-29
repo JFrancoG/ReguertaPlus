@@ -104,38 +104,16 @@ struct ReguertaAppEnvironment {
                     freshnessDependencies.criticalDataFreshnessLocalRepository
             )
         )
-        let accessRootViewModel = AccessRootViewModel(
-            sessionViewModel: sessionViewModel,
-            feedbackCenter: feedbackCenter,
-            productsFeatureDependencies: .uiTesting(
+        let accessRootViewModel = makeUITestingAccessRootViewModel(
+            UITestingAccessRootDependencies(
+                sessionViewModel: sessionViewModel,
+                feedbackCenter: feedbackCenter,
                 memberRepository: memberRepository,
-                nowMillisProvider: nowMillisProvider
-            ),
-            ordersFeatureDependencies: .preview(
-                nowMillisProvider: nowMillisProvider
-            ),
-            shiftsFeatureDependencies: .preview(
-                notificationRepository: notificationRepository,
-                nowMillisProvider: nowMillisProvider
-            ),
-            newsNotificationsFeatureDependencies: .preview(
                 newsRepository: newsRepository,
                 notificationRepository: notificationRepository,
+                freshnessDependencies: freshnessDependencies,
                 nowMillisProvider: nowMillisProvider
-            ),
-            sharedProfileFeatureDependencies: .preview(
-                nowMillisProvider: nowMillisProvider
-            ),
-            usersFeatureDependencies: .preview(
-                memberRepository: memberRepository
-            ),
-            myOrderFreshnessFeatureDependencies: freshnessDependencies,
-            bylawsFeatureDependencies: .preview(),
-            startupVersionGateUseCase: ResolveStartupVersionGateUseCase(
-                repository: PreviewStartupVersionPolicyRepository()
-            ),
-            installedVersionProvider: { "0.0.0-ui-testing" },
-            initialNowOverrideMillis: DevelopmentTimeMachine.shared.overrideNowMillis
+            )
         )
 
         return ReguertaAppEnvironment(
@@ -145,6 +123,50 @@ struct ReguertaAppEnvironment {
             authorizedDeviceRegistrar: authorizedDeviceRegistrar
         )
     }
+}
+
+private struct UITestingAccessRootDependencies {
+    let sessionViewModel: SessionViewModel
+    let feedbackCenter: GlobalFeedbackCenter
+    let memberRepository: InMemoryMemberRepository
+    let newsRepository: InMemoryNewsRepository
+    let notificationRepository: InMemoryNotificationRepository
+    let freshnessDependencies: MyOrderFreshnessFeatureDependencies
+    let nowMillisProvider: @MainActor () -> Int64
+}
+
+private func makeUITestingAccessRootViewModel(
+    _ dependencies: UITestingAccessRootDependencies
+) -> AccessRootViewModel {
+    AccessRootViewModel(
+        sessionViewModel: dependencies.sessionViewModel,
+        feedbackCenter: dependencies.feedbackCenter,
+        productsFeatureDependencies: .uiTesting(
+            memberRepository: dependencies.memberRepository,
+            nowMillisProvider: dependencies.nowMillisProvider
+        ),
+        ordersFeatureDependencies: .preview(nowMillisProvider: dependencies.nowMillisProvider),
+        shiftsFeatureDependencies: .preview(
+            notificationRepository: dependencies.notificationRepository,
+            nowMillisProvider: dependencies.nowMillisProvider
+        ),
+        newsNotificationsFeatureDependencies: .preview(
+            newsRepository: dependencies.newsRepository,
+            notificationRepository: dependencies.notificationRepository,
+            nowMillisProvider: dependencies.nowMillisProvider
+        ),
+        sharedProfileFeatureDependencies: .preview(
+            nowMillisProvider: dependencies.nowMillisProvider
+        ),
+        usersFeatureDependencies: .preview(memberRepository: dependencies.memberRepository),
+        myOrderFreshnessFeatureDependencies: dependencies.freshnessDependencies,
+        bylawsFeatureDependencies: .preview(),
+        startupVersionGateUseCase: ResolveStartupVersionGateUseCase(
+            repository: PreviewStartupVersionPolicyRepository()
+        ),
+        installedVersionProvider: { "0.0.0-ui-testing" },
+        initialNowOverrideMillis: DevelopmentTimeMachine.shared.overrideNowMillis
+    )
 }
 
 private struct LiveRootDependencies {
