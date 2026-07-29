@@ -20,6 +20,7 @@ import com.reguerta.user.data.commitments.FirestoreSeasonalCommitmentRepository
 import com.reguerta.user.data.devices.FirebaseAuthorizedDeviceRegistrar
 import com.reguerta.user.data.devices.FirestoreDeviceRegistrationRepository
 import com.reguerta.user.data.freshness.DataStoreCriticalDataFreshnessLocalRepository
+import com.reguerta.user.data.freshness.FirestoreCriticalDataRefresher
 import com.reguerta.user.data.freshness.FirestoreCriticalDataFreshnessRemoteRepository
 import com.reguerta.user.data.firestore.ReguertaRuntimeEnvironment
 import com.reguerta.user.data.firestore.RuntimeSessionEnvironmentRouter
@@ -167,6 +168,7 @@ fun rememberSessionViewModel(): SessionViewModel {
                     firestore = firestore,
                 ),
                 localRepository = freshnessLocalRepository,
+                refresher = FirestoreCriticalDataRefresher(firestore = firestore),
             ),
             criticalDataFreshnessLocalRepository = freshnessLocalRepository,
             sessionEnvironmentRouter = sessionEnvironmentRouter,

@@ -34,6 +34,9 @@ final class ProductsRouteViewModel {
     var activeUploadOperationId: UInt64?
     var nextUploadOperationId: UInt64 = 0
     var sessionIdentityEpoch: UInt64 = 0
+    @ObservationIgnored private var orderingRefreshGeneration: UInt64 = 0
+    @ObservationIgnored private var appliedFreshnessOrderingGeneration: UInt64?
+    @ObservationIgnored private var appliedFreshnessSessionRevision: UInt64?
 
     var activeProducts: [Product] {
         catalogProducts.filter { !$0.archived }
@@ -87,7 +90,12 @@ extension ProductsRouteViewModel {
         switch mode {
         case .authorized(let session):
             let identityChanged = currentSession?.principal.uid != session.principal.uid ||
-                currentSession?.member.id != session.member.id
+                currentSession?.authenticatedMember.id != session.authenticatedMember.id ||
+                currentSession?.authenticatedMember.authUid != session.authenticatedMember.authUid ||
+                currentSession?.member.id != session.member.id ||
+                currentSession?.environment != session.environment ||
+                currentSession?.authenticatedMember.canManageMembers !=
+                    session.authenticatedMember.canManageMembers
             let catalogAccessRevoked = currentMember?.canManageProductCatalog == true &&
                 !session.member.canManageProductCatalog
             let shouldInvalidateEditor = identityChanged || catalogAccessRevoked
@@ -154,50 +162,89 @@ extension ProductsRouteViewModel {
 
     func refreshOrderingProducts() async {
         guard let context = authorizedSessionContext else {
+            invalidateOrderingRefresh()
             myOrderProducts = []
             myOrderSeasonalCommitments = []
             isLoadingOrderingProducts = false
             hasLoadedOrderingProducts = false
             return
         }
-        let session = context.session
-
+        let refreshGeneration = beginOrderingRefresh()
         isLoadingOrderingProducts = true
         do {
-            let refreshedMembers = try await memberRepository.members(visibleTo: session.member)
-            let effectiveMembers = refreshedMembers.isEmpty ? session.members : refreshedMembers
-            let membersById = Dictionary(uniqueKeysWithValues: effectiveMembers.map { ($0.id, $0) })
-            let refreshedCurrentMember = membersById[session.member.id] ?? session.member
-            let currentWeekParity = producerParityForISOWeek(nowMillis: nowMillisProvider())
-            let commitments = try await loadSeasonalCommitments(for: refreshedCurrentMember)
-            let visibleProducts = try await productRepository.allProducts()
-                .filter { product in
-                    product.isVisibleInOrdering &&
-                        membersById[product.vendorId].isVisibleForOrdering &&
-                        product.matchesCurrentProducerWeek(
-                            membersById: membersById,
-                            currentWeekParity: currentWeekParity
-                        )
-                }
-                .sorted(by: sortProductsForOrdering)
-            try Task.checkCancellation()
-            guard isCurrentSession(context) else { return }
-            sessionViewModel.applyRefreshedAuthorizedMembers(effectiveMembers)
-            syncCurrentSessionFromSessionViewModel()
-            myOrderProducts = visibleProducts
-            myOrderSeasonalCommitments = commitments
-            hasLoadedOrderingProducts = true
-            isLoadingOrderingProducts = false
+            try await loadAndApplyOrderingState(
+                context: context,
+                refreshGeneration: refreshGeneration
+            )
         } catch is CancellationError {
-            if isCurrentSession(context) {
+            if isCurrentOrderingRefresh(context, generation: refreshGeneration) {
                 isLoadingOrderingProducts = false
             }
         } catch {
-            if isCurrentSession(context) {
+            if isCurrentOrderingRefresh(context, generation: refreshGeneration) {
                 isLoadingOrderingProducts = false
                 showUnableLoadFeedback()
             }
         }
+    }
+
+    func refreshOrderingProductsForFreshness(
+        scope: CriticalDataRefreshScope,
+        payload: CriticalDataRefreshPayload
+    ) async throws {
+        guard let context = authorizedSessionContext,
+              context.matches(scope: scope)
+        else {
+            throw CancellationError()
+        }
+
+        let refreshGeneration = beginOrderingRefresh()
+        isLoadingOrderingProducts = true
+        do {
+            try validateFreshnessPayload(
+                payload,
+                scope: scope,
+                session: context.session
+            )
+            try await loadAndApplyOrderingState(
+                context: context,
+                refreshGeneration: refreshGeneration,
+                prefetchedPayload: payload
+            )
+            guard isCurrentOrderingRefresh(context, generation: refreshGeneration) else {
+                throw CancellationError()
+            }
+            appliedFreshnessOrderingGeneration = refreshGeneration
+            appliedFreshnessSessionRevision = sessionViewModel.sessionStateRevision
+        } catch is CancellationError {
+            if Task.isCancelled || !isCurrentSession(context) {
+                if isCurrentOrderingRefresh(context, generation: refreshGeneration) {
+                    isLoadingOrderingProducts = false
+                }
+                throw CancellationError()
+            }
+            throw RepositoryError.unavailable(resource: "criticalData.orderingState.superseded")
+        } catch {
+            if isCurrentOrderingRefresh(context, generation: refreshGeneration) {
+                isLoadingOrderingProducts = false
+            }
+            throw error
+        }
+    }
+
+    func isOrderingStateCurrentForFreshness(scope: CriticalDataRefreshScope) -> Bool {
+        guard let context = authorizedSessionContext,
+              context.matches(scope: scope),
+              let appliedFreshnessOrderingGeneration,
+              let appliedFreshnessSessionRevision,
+              appliedFreshnessSessionRevision == sessionViewModel.sessionStateRevision
+        else {
+            return false
+        }
+        return isCurrentOrderingRefresh(
+            context,
+            generation: appliedFreshnessOrderingGeneration
+        )
     }
 
     func startCreating() {
@@ -504,6 +551,15 @@ private extension ProductsRouteViewModel {
     struct SessionContext {
         let session: AuthorizedSession
         let generation: UInt64
+
+        func matches(scope: CriticalDataRefreshScope) -> Bool {
+            session.principal.uid == scope.principalUID &&
+                session.authenticatedMember.id == scope.authenticatedMemberID &&
+                session.authenticatedMember.authUid == scope.principalUID &&
+                session.member.id == scope.memberID &&
+                session.environment == scope.environment &&
+                session.authenticatedMember.canManageMembers == scope.canManageMembers
+        }
     }
 
     private var authorizedSession: AuthorizedSession? {
@@ -528,6 +584,7 @@ private extension ProductsRouteViewModel {
     }
 
     private func reset() {
+        invalidateOrderingRefresh()
         currentSession = nil
         currentMember = nil
         catalogProducts = []
@@ -549,6 +606,7 @@ private extension ProductsRouteViewModel {
     }
 
     private func invalidateOperationsForIdentityChange() {
+        invalidateOrderingRefresh()
         activeSaveOperationId = nil
         activeUploadOperationId = nil
         isSaving = false
@@ -573,7 +631,12 @@ private extension ProductsRouteViewModel {
     private func resetOrderingProductsIfSessionChanged(to session: AuthorizedSession) {
         guard let currentSession else { return }
         guard currentSession.principal.uid != session.principal.uid ||
-            currentSession.member.id != session.member.id else {
+            currentSession.authenticatedMember.id != session.authenticatedMember.id ||
+            currentSession.authenticatedMember.authUid != session.authenticatedMember.authUid ||
+            currentSession.member.id != session.member.id ||
+            currentSession.environment != session.environment ||
+            currentSession.authenticatedMember.canManageMembers !=
+                session.authenticatedMember.canManageMembers else {
             return
         }
         myOrderProducts = []
@@ -586,7 +649,153 @@ private extension ProductsRouteViewModel {
         guard let latestSession = authorizedSession else { return false }
         return sessionIdentityEpoch == context.generation &&
             latestSession.principal.uid == context.session.principal.uid &&
-            latestSession.member.id == context.session.member.id
+            latestSession.authenticatedMember.id == context.session.authenticatedMember.id &&
+            latestSession.authenticatedMember.authUid == context.session.authenticatedMember.authUid &&
+            latestSession.member.id == context.session.member.id &&
+            latestSession.environment == context.session.environment &&
+            latestSession.authenticatedMember.canManageMembers ==
+                context.session.authenticatedMember.canManageMembers
+    }
+
+    private func beginOrderingRefresh() -> UInt64 {
+        orderingRefreshGeneration &+= 1
+        return orderingRefreshGeneration
+    }
+
+    private func invalidateOrderingRefresh() {
+        orderingRefreshGeneration &+= 1
+        appliedFreshnessOrderingGeneration = nil
+        appliedFreshnessSessionRevision = nil
+    }
+
+    private func isCurrentOrderingRefresh(
+        _ context: SessionContext,
+        generation: UInt64
+    ) -> Bool {
+        generation == orderingRefreshGeneration && isCurrentSession(context)
+    }
+
+    private func loadAndApplyOrderingState(
+        context: SessionContext,
+        refreshGeneration: UInt64,
+        prefetchedPayload: CriticalDataRefreshPayload = CriticalDataRefreshPayload()
+    ) async throws {
+        let session = context.session
+        let refreshedMembers = if let members = prefetchedPayload.members {
+            members
+        } else {
+            try await memberRepository.members(visibleTo: session.authenticatedMember)
+        }
+        let effectiveMembers = mergeOrderingMembers(
+            refreshedMembers.isEmpty ? session.members : refreshedMembers,
+            payload: prefetchedPayload
+        )
+        let membersById = Dictionary(uniqueKeysWithValues: effectiveMembers.map { ($0.id, $0) })
+        let refreshedCurrentMember = prefetchedPayload.selectedMember ??
+            membersById[session.member.id] ?? session.member
+        let currentWeekParity = producerParityForISOWeek(nowMillis: nowMillisProvider())
+
+        async let commitments = if let commitments = prefetchedPayload.seasonalCommitments {
+            commitments
+        } else {
+            try await loadSeasonalCommitments(for: refreshedCurrentMember)
+        }
+        async let products = if let products = prefetchedPayload.products {
+            products
+        } else {
+            try await productRepository.allProducts()
+        }
+        let visibleProducts = try await products
+            .filter { product in
+                product.isVisibleInOrdering &&
+                    membersById[product.vendorId].isVisibleForOrdering &&
+                    product.matchesCurrentProducerWeek(
+                        membersById: membersById,
+                        currentWeekParity: currentWeekParity
+                    )
+            }
+            .sorted(by: sortProductsForOrdering)
+        let resolvedCommitments = try await commitments
+        try Task.checkCancellation()
+        guard isCurrentOrderingRefresh(context, generation: refreshGeneration) else {
+            throw CancellationError()
+        }
+
+        sessionViewModel.applyRefreshedAuthorizedMembers(effectiveMembers)
+        syncCurrentSessionFromSessionViewModel()
+        guard isCurrentOrderingRefresh(context, generation: refreshGeneration) else {
+            throw CancellationError()
+        }
+        myOrderProducts = visibleProducts
+        myOrderSeasonalCommitments = resolvedCommitments
+        hasLoadedOrderingProducts = true
+        isLoadingOrderingProducts = false
+    }
+
+    private func mergeOrderingMembers(
+        _ members: [Member],
+        payload: CriticalDataRefreshPayload
+    ) -> [Member] {
+        var merged = members
+        if let authenticatedMember = payload.authenticatedMember {
+            merged = merged.filter { $0.id != authenticatedMember.id } + [authenticatedMember]
+        }
+        if let selectedMember = payload.selectedMember {
+            merged = merged.filter { $0.id != selectedMember.id } + [selectedMember]
+        }
+        return merged
+    }
+
+    private func applyRefreshedIdentityPayload(
+        _ payload: CriticalDataRefreshPayload,
+        to session: AuthorizedSession
+    ) {
+        if let authenticatedMember = payload.authenticatedMember,
+           session.authenticatedMember.canManageMembers,
+           !authenticatedMember.canManageMembers {
+            sessionViewModel.applyRefreshedAuthorizedMembers([authenticatedMember])
+            syncCurrentSessionFromSessionViewModel()
+            return
+        }
+        var membersByID = Dictionary(uniqueKeysWithValues: session.members.map { ($0.id, $0) })
+        if let authenticatedMember = payload.authenticatedMember {
+            membersByID[authenticatedMember.id] = authenticatedMember
+        }
+        if let selectedMember = payload.selectedMember {
+            membersByID[selectedMember.id] = selectedMember
+        }
+        sessionViewModel.applyRefreshedAuthorizedMembers(Array(membersByID.values))
+        syncCurrentSessionFromSessionViewModel()
+    }
+
+    private func validateFreshnessPayload(
+        _ payload: CriticalDataRefreshPayload,
+        scope: CriticalDataRefreshScope,
+        session: AuthorizedSession
+    ) throws {
+        if let authenticatedMember = payload.authenticatedMember {
+            guard authenticatedMember.id == scope.authenticatedMemberID,
+                  authenticatedMember.authUid == scope.principalUID,
+                  authenticatedMember.isActive else {
+                throw RepositoryError.permissionDenied(
+                    resource: "criticalData.orderingState.authenticatedMemberLink"
+                )
+            }
+            if authenticatedMember.canManageMembers != scope.canManageMembers {
+                applyRefreshedIdentityPayload(payload, to: session)
+                isLoadingOrderingProducts = false
+                throw RepositoryError.unavailable(
+                    resource: "criticalData.orderingState.accessScopeChanged"
+                )
+            }
+        }
+        if let selectedMember = payload.selectedMember {
+            guard selectedMember.id == scope.memberID, selectedMember.isActive else {
+                throw RepositoryError.permissionDenied(
+                    resource: "criticalData.orderingState.selectedMember"
+                )
+            }
+        }
     }
 
     private func isCurrentEditor(

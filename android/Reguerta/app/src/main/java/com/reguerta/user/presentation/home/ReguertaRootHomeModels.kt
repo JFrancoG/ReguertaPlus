@@ -1,6 +1,7 @@
 package com.reguerta.user.presentation.home
 
 import com.reguerta.user.R
+import com.reguerta.user.presentation.root.MyOrderFreshnessUiState
 
 enum class HomeDestination {
     DASHBOARD,
@@ -64,6 +65,22 @@ internal fun HomeDestination.backDestination(): HomeDestination = when (this) {
     HomeDestination.SHIFT_SWAP_REQUEST -> HomeDestination.SHIFTS
     else -> HomeDestination.DASHBOARD
 }
+
+internal fun restoredHomeDestination(savedName: String): HomeDestination =
+    HomeDestination.entries
+        .firstOrNull { destination -> destination.name == savedName }
+        ?.takeUnless { destination -> destination == HomeDestination.MY_ORDER }
+        ?: HomeDestination.DASHBOARD
+
+internal fun shouldNavigateToMyOrder(
+    pendingGeneration: Long?,
+    completedGeneration: Long?,
+    freshnessState: MyOrderFreshnessUiState,
+    receiptIsCurrent: Boolean,
+): Boolean = pendingGeneration != null &&
+    pendingGeneration == completedGeneration &&
+    freshnessState == MyOrderFreshnessUiState.Ready &&
+    receiptIsCurrent
 
 internal fun shouldHideHomeShellTitle(
     destination: HomeDestination,

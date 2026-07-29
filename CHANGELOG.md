@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-07-29 | ✨ feat(order): refresh critical data before entry
 - 2026-07-27 | ✨ feat(ios): adopt linked authorization
 - 2026-07-27 | ✨ feat(android): adopt linked authorization
 - 2026-07-27 | ✨ feat(firebase): add phased role authorization
@@ -166,6 +167,7 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
+- 2026-07-29 | 🔧 chore(order): integrate Android updates
 - 2026-07-29 | 🔧 chore(android): adopt modern platform APIs
 - 2026-07-29 | 🔧 chore(push): separate legacy tokens from Android FIDs
 - 2026-07-27 | 📦 build(ios): enable Swift 6 for test targets

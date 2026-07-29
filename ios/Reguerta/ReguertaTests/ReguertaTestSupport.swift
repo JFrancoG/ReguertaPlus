@@ -335,9 +335,10 @@ final class InMemoryCriticalDataFreshnessLocalRepository: CriticalDataFreshnessL
     func saveMetadata(
         _ metadata: CriticalDataFreshnessMetadata,
         ifWriteGeneration expectedWriteGeneration: UInt64
-    ) {
-        guard writeGeneration == expectedWriteGeneration else { return }
+    ) -> Bool {
+        guard writeGeneration == expectedWriteGeneration else { return false }
         self.metadata = metadata
+        return true
     }
 
     func clear() throws {

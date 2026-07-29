@@ -82,7 +82,14 @@ final class SessionViewModel {
     var isRecoveringPassword = false
     var showSessionExpiredDialog = false
     var showUnauthorizedDialog = false
-    var mode: SessionMode = .signedOut
+    var mode: SessionMode = .signedOut {
+        didSet {
+            if oldValue != mode {
+                sessionStateRevision &+= 1
+            }
+        }
+    }
+    @ObservationIgnored private(set) var sessionStateRevision: UInt64 = 0
 
     let feedbackCenter: GlobalFeedbackCenter
     let repository: any MemberRepository

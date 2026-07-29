@@ -69,6 +69,63 @@ class FirestoreSecurityBoundarySourceTest {
     }
 
     @Test
+    fun `critical data refresh uses server only strict compatible reads`() {
+        val source = readMainSource("data/freshness/FirestoreCriticalDataRefresher.kt")
+
+        assertTrue(source.contains("get(Source.SERVER)"))
+        assertFalse(source.contains("Tasks.await"))
+        assertTrue(source.contains("if (scope.canManageMembers)"))
+        assertTrue(source.contains("memberId = scope.authenticatedMemberId"))
+        assertTrue(source.contains(".requiringPrincipal(scope.principalUid)"))
+        assertTrue(source.contains("document(\"${'$'}usersPath/${'$'}memberId\")"))
+        assertTrue(source.contains("ReguertaFirestoreCollection.MEMBER_DIRECTORY"))
+        assertTrue(source.contains("whereEqualTo(\"isActive\", true)"))
+        assertTrue(source.contains("ReguertaFirestoreCollection.PRODUCTS"))
+        assertTrue(source.contains("ReguertaFirestoreCollection.ORDERS"))
+        assertTrue(source.contains("ReguertaFirestoreCollection.ORDER_LINES"))
+        assertTrue(source.contains("legacyCollectionPath(\"orders\")"))
+        assertTrue(source.contains("legacyCollectionPath(\"orderLines\")"))
+        assertTrue(source.contains("legacyCollectionPath(\"containers\")"))
+        assertTrue(source.contains("legacyCollectionPath(\"measures\")"))
+        assertTrue(source.contains("OWNER_FIELD_NAMES = listOf(\"userId\", \"memberId\")"))
+        assertTrue(source.contains("whereEqualTo(ownerField, memberId)"))
+        assertTrue(
+            source.indexOf(".requiringPrincipal(scope.principalUid)") <
+                source.indexOf("scope.requiresAccessScopeRetry(authenticatedMember)"),
+        )
+        assertTrue(
+            source.indexOf("scope.requiresAccessScopeRetry(authenticatedMember)") <
+                source.indexOf("val pendingResults"),
+        )
+    }
+
+    @Test
+    fun `my order materialization repositories use cancellable task awaits`() {
+        val sources = listOf(
+            readMainSource("data/access/FirestoreMemberRepository.kt"),
+            readMainSource("data/products/FirestoreProductRepository.kt"),
+            readMainSource("data/commitments/FirestoreSeasonalCommitmentRepository.kt"),
+        )
+
+        sources.forEach { source ->
+            assertTrue(source.contains("kotlinx.coroutines.tasks.await"))
+            assertFalse(source.contains("Tasks.await"))
+        }
+    }
+
+    @Test
+    fun `critical freshness reads seasonal commitments from server for every member lookup key`() {
+        val refresher = readMainSource("data/freshness/FirestoreCriticalDataRefresher.kt")
+        val commitments = readMainSource("data/commitments/FirestoreSeasonalCommitmentRepository.kt")
+
+        assertTrue(refresher.contains("getActiveCommitmentsForMemberFromServer"))
+        assertTrue(commitments.contains("member.id"))
+        assertTrue(commitments.contains("member.authUid"))
+        assertTrue(commitments.contains("member.normalizedEmail"))
+        assertTrue(commitments.contains("get(Source.SERVER)"))
+    }
+
+    @Test
     fun `shift calendar and swap reads bypass the local firestore cache`() {
         val sources = listOf(
             readMainSource("data/shifts/FirestoreShiftRepository.kt"),

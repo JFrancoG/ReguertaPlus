@@ -171,6 +171,12 @@ class SessionViewModel(
             nowMillisProvider = nowMillisProvider,
             refreshShifts = { shiftActions.refreshShifts() },
             refreshDeliveryCalendar = { shiftActions.refreshDeliveryCalendar() },
+            refreshMyOrderConsumer = { payload, additionalFence ->
+                productActions.refreshMyOrderProductsForFreshness(
+                    prefetchedPayload = payload,
+                    additionalFence = additionalFence,
+                )
+            },
         )
     }
 
@@ -451,7 +457,16 @@ class SessionViewModel(
 
     fun refreshSession(trigger: SessionRefreshTrigger) = authActions.refreshSession(trigger)
 
-    fun refreshMyOrderFreshness() = authActions.refreshMyOrderFreshness()
+    fun refreshMyOrderFreshness(): Long? = authActions.refreshMyOrderFreshness()
+
+    fun isMyOrderFreshnessReceiptCurrent(generation: Long?): Boolean {
+        val state = _uiState.value
+        val receipt = state.myOrderFreshnessConsumerReceipt ?: return false
+        return generation != null &&
+            state.myOrderFreshnessGeneration == generation &&
+            state.myOrderFreshnessState == MyOrderFreshnessUiState.Ready &&
+            state.matchesCriticalDataRefreshConsumerReceipt(receipt)
+    }
 
     fun onMemberDraftChanged(newDraft: MemberDraft) = formActions.onMemberDraftChanged(newDraft)
 

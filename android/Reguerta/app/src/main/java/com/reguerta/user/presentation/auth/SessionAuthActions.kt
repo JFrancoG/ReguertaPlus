@@ -1,6 +1,7 @@
 package com.reguerta.user.presentation.auth
 
 import android.util.Log
+import com.reguerta.user.presentation.root.CriticalDataRefreshConsumerReceipt
 import com.reguerta.user.presentation.root.EmailPatternRegex
 import com.reguerta.user.presentation.root.MyOrderFreshnessUiState
 import com.reguerta.user.presentation.root.MY_ORDER_FRESHNESS_TIMEOUT_MILLIS
@@ -13,8 +14,11 @@ import com.reguerta.user.presentation.root.hasVisibleContent
 import com.reguerta.user.presentation.root.isValidPassword
 import com.reguerta.user.presentation.root.ShiftSwapDraft
 import com.reguerta.user.presentation.root.toDraft
+import com.reguerta.user.presentation.root.matchesCriticalDataRefreshConsumerReceipt
 
 import com.reguerta.user.R
+import com.reguerta.user.domain.RepositoryErrorKind
+import com.reguerta.user.domain.RepositoryException
 import com.reguerta.user.domain.access.AccessResolutionResult
 import com.reguerta.user.domain.access.AuthPasswordResetResult
 import com.reguerta.user.domain.access.AuthPrincipal
@@ -29,7 +33,10 @@ import com.reguerta.user.domain.access.SessionRefreshPolicy
 import com.reguerta.user.domain.access.SessionRefreshTrigger
 import com.reguerta.user.domain.access.SessionEnvironmentRouter
 import com.reguerta.user.domain.access.UnauthorizedReason
+import com.reguerta.user.domain.access.canManageMembers
 import com.reguerta.user.domain.devices.AuthorizedDeviceRegistrar
+import com.reguerta.user.domain.freshness.CriticalDataRefreshPayload
+import com.reguerta.user.domain.freshness.CriticalDataRefreshScope
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessLocalRepository
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessMetadataWrite
 import com.reguerta.user.domain.freshness.CriticalDataFreshnessResolution
@@ -78,6 +85,10 @@ internal class SessionAuthActions(
     private val nowMillisProvider: () -> Long,
     private val refreshShifts: () -> Unit,
     private val refreshDeliveryCalendar: () -> Unit,
+    private val refreshMyOrderConsumer: suspend (
+        CriticalDataRefreshPayload,
+        () -> Boolean,
+    ) -> CriticalDataRefreshConsumerReceipt?,
     private val sessionOperationTimeoutMillis: Long = SESSION_AUTH_OPERATION_TIMEOUT_MILLIS,
 ) {
     init {
@@ -409,19 +420,23 @@ internal class SessionAuthActions(
         }
     }
 
-    fun refreshMyOrderFreshness() {
+    fun refreshMyOrderFreshness(): Long? {
         val state = uiState.value
-        val currentMode = state.mode as? SessionMode.Authorized ?: return
+        val currentMode = state.mode as? SessionMode.Authorized ?: return null
         val sessionEnvironment = state.sessionEnvironment ?: run {
             cancelMyOrderFreshness()
             uiState.update { current ->
                 if (current.mode is SessionMode.Authorized) {
-                    current.copy(myOrderFreshnessState = MyOrderFreshnessUiState.Unavailable)
+                    current.copy(
+                        myOrderFreshnessState = MyOrderFreshnessUiState.Unavailable,
+                        myOrderFreshnessGeneration = null,
+                        myOrderFreshnessConsumerReceipt = null,
+                    )
                 } else {
                     current
                 }
             }
-            return
+            return null
         }
         lateinit var operation: FreshnessOperation
         lateinit var job: Job
@@ -431,6 +446,10 @@ internal class SessionAuthActions(
             operation = FreshnessOperation(
                 generation = freshnessOperationGeneration,
                 principalUid = currentMode.principal.uid,
+                authenticatedMemberId = currentMode.authenticatedMember.id,
+                authenticatedMemberAuthUid = currentMode.authenticatedMember.authUid,
+                memberId = currentMode.member.id,
+                canManageMembers = currentMode.authenticatedMember.canManageMembers,
                 sessionEnvironment = sessionEnvironment,
                 sessionEpoch = state.sessionEpoch,
             )
@@ -442,21 +461,61 @@ internal class SessionAuthActions(
         updateMyOrderFreshnessIfCurrent(operation, MyOrderFreshnessUiState.Checking)
         job.invokeOnCompletion { releaseFreshnessOperation(operation, job) }
         job.start()
+        return operation.generation
     }
 
     private suspend fun runMyOrderFreshness(operation: FreshnessOperation) {
         if (!isCurrentFreshnessOperation(operation)) return
         var pendingWrite: CriticalDataFreshnessMetadataWrite? = null
+        var completedReceipt: CriticalDataRefreshConsumerReceipt? = null
         try {
             val completedForCurrentSession = withTimeout(MY_ORDER_FRESHNESS_TIMEOUT_MILLIS) {
                 val resolution = resolveCriticalDataFreshness(
-                    environment = operation.sessionEnvironment,
+                    scope = CriticalDataRefreshScope(
+                        environment = operation.sessionEnvironment,
+                        principalUid = operation.principalUid,
+                        authenticatedMemberId = operation.authenticatedMemberId,
+                        memberId = operation.memberId,
+                        canManageMembers = operation.canManageMembers,
+                    ),
                 )
                 if (!isCurrentFreshnessOperation(operation)) {
                     return@withTimeout false
                 }
                 when (resolution) {
                     is CriticalDataFreshnessResolution.Fresh -> {
+                        val consumerReceipt = refreshMyOrderConsumer(
+                            resolution.refreshedPayload,
+                        ) {
+                            isCurrentFreshnessOperation(operation)
+                        }
+                        if (resolution.refreshedPayload.requiresAccessScopeRetry) {
+                            markFreshnessUnavailableAfterIdentityRefresh(operation)
+                            return@withTimeout false
+                        }
+                        if (consumerReceipt == null) {
+                            if (markFreshnessUnavailableForUpdatedAccessScope(operation)) {
+                                return@withTimeout false
+                            }
+                            if (!isCurrentFreshnessOperation(operation)) {
+                                return@withTimeout false
+                            }
+                            throw RepositoryException(
+                                kind = RepositoryErrorKind.UNAVAILABLE,
+                                resource = "criticalDataRefresh.consumer.superseded",
+                            )
+                        }
+                        if (!isCurrentFreshnessOperation(operation)) {
+                            markFreshnessUnavailableForUpdatedAccessScope(operation)
+                            return@withTimeout false
+                        }
+                        if (!uiState.value.matchesCriticalDataRefreshConsumerReceipt(consumerReceipt)) {
+                            throw RepositoryException(
+                                kind = RepositoryErrorKind.UNAVAILABLE,
+                                resource = "criticalDataRefresh.consumer.staleReceipt",
+                            )
+                        }
+                        completedReceipt = consumerReceipt
                         resolution.metadataToPersist?.let { metadata ->
                             val write = CriticalDataFreshnessMetadataWrite(
                                 id = UUID.randomUUID().toString(),
@@ -465,20 +524,39 @@ internal class SessionAuthActions(
                             pendingWrite = write
                             val didSave = criticalDataFreshnessLocalRepository.saveMetadataIfCurrent(
                                 write = write,
-                                isCurrent = { isCurrentFreshnessOperation(operation) },
+                                isCurrent = {
+                                    isCurrentFreshnessConsumerReceipt(operation, consumerReceipt)
+                                },
                             )
                             if (!didSave) {
                                 pendingWrite = null
+                                if (isCurrentFreshnessOperation(operation)) {
+                                    throw RepositoryException(
+                                        kind = RepositoryErrorKind.UNAVAILABLE,
+                                        resource = "criticalDataRefresh.consumer.staleReceipt",
+                                    )
+                                }
                                 return@withTimeout false
                             }
                         }
                     }
                 }
-                isCurrentFreshnessOperation(operation)
+                isCurrentFreshnessConsumerReceipt(operation, completedReceipt)
             }
             if (completedForCurrentSession) {
-                if (updateMyOrderFreshnessIfCurrent(operation, MyOrderFreshnessUiState.Ready)) {
+                if (
+                    updateMyOrderFreshnessIfCurrent(
+                        operation = operation,
+                        nextState = MyOrderFreshnessUiState.Ready,
+                        requiredReceipt = completedReceipt,
+                    )
+                ) {
                     pendingWrite = null
+                } else {
+                    updateMyOrderFreshnessIfCurrent(
+                        operation = operation,
+                        nextState = MyOrderFreshnessUiState.Unavailable,
+                    )
                 }
             }
         } catch (_: TimeoutCancellationException) {
@@ -503,17 +581,45 @@ internal class SessionAuthActions(
     private fun updateMyOrderFreshnessIfCurrent(
         operation: FreshnessOperation,
         nextState: MyOrderFreshnessUiState,
+        requiredReceipt: CriticalDataRefreshConsumerReceipt? = null,
     ): Boolean {
         uiState.update { state ->
-            if (isCurrentFreshnessOperation(operation, state)) {
-                state.copy(myOrderFreshnessState = nextState)
+            if (
+                isCurrentFreshnessOperation(operation, state) &&
+                (
+                    requiredReceipt == null ||
+                        state.matchesCriticalDataRefreshConsumerReceipt(requiredReceipt)
+                )
+            ) {
+                state.copy(
+                    myOrderFreshnessState = nextState,
+                    myOrderFreshnessGeneration = operation.generation,
+                    myOrderFreshnessConsumerReceipt = if (
+                        nextState == MyOrderFreshnessUiState.Ready
+                    ) {
+                        requiredReceipt
+                    } else {
+                        null
+                    },
+                )
             } else {
                 state
             }
         }
         return isCurrentFreshnessOperation(operation) &&
+            (
+                requiredReceipt == null ||
+                    uiState.value.matchesCriticalDataRefreshConsumerReceipt(requiredReceipt)
+            ) &&
             uiState.value.myOrderFreshnessState == nextState
     }
+
+    private fun isCurrentFreshnessConsumerReceipt(
+        operation: FreshnessOperation,
+        receipt: CriticalDataRefreshConsumerReceipt,
+        state: SessionUiState = uiState.value,
+    ): Boolean = isCurrentFreshnessOperation(operation, state) &&
+        state.matchesCriticalDataRefreshConsumerReceipt(receipt)
 
     private fun isCurrentFreshnessOperation(
         operation: FreshnessOperation,
@@ -526,6 +632,76 @@ internal class SessionAuthActions(
         return isCurrentGeneration &&
             state.sessionEpoch == operation.sessionEpoch &&
             currentMode.principal.uid == operation.principalUid &&
+            currentMode.authenticatedMember.id == operation.authenticatedMemberId &&
+            currentMode.authenticatedMember.authUid == operation.authenticatedMemberAuthUid &&
+            currentMode.member.id == operation.memberId &&
+            currentMode.authenticatedMember.canManageMembers == operation.canManageMembers &&
+            state.sessionEnvironment == operation.sessionEnvironment
+    }
+
+    private fun markFreshnessUnavailableForUpdatedAccessScope(
+        operation: FreshnessOperation,
+    ): Boolean {
+        var didUpdate = false
+        uiState.update { state ->
+            if (hasUpdatedAccessScopeForCurrentFreshnessOperation(operation, state)) {
+                didUpdate = true
+                state.copy(
+                    myOrderFreshnessState = MyOrderFreshnessUiState.Unavailable,
+                    myOrderFreshnessGeneration = operation.generation,
+                    myOrderFreshnessConsumerReceipt = null,
+                )
+            } else {
+                state
+            }
+        }
+        return didUpdate
+    }
+
+    private fun markFreshnessUnavailableAfterIdentityRefresh(
+        operation: FreshnessOperation,
+    ): Boolean {
+        var didUpdate = false
+        uiState.update { state ->
+            if (hasCurrentFreshnessIdentity(operation, state)) {
+                didUpdate = true
+                state.copy(
+                    myOrderFreshnessState = MyOrderFreshnessUiState.Unavailable,
+                    myOrderFreshnessGeneration = operation.generation,
+                    myOrderFreshnessConsumerReceipt = null,
+                )
+            } else {
+                state
+            }
+        }
+        return didUpdate
+    }
+
+    private fun hasUpdatedAccessScopeForCurrentFreshnessOperation(
+        operation: FreshnessOperation,
+        state: SessionUiState = uiState.value,
+    ): Boolean {
+        val currentMode = state.mode as? SessionMode.Authorized ?: return false
+        return hasCurrentFreshnessIdentity(operation, state) &&
+            (
+                currentMode.member.id != operation.memberId ||
+                    currentMode.authenticatedMember.canManageMembers != operation.canManageMembers
+            )
+    }
+
+    private fun hasCurrentFreshnessIdentity(
+        operation: FreshnessOperation,
+        state: SessionUiState = uiState.value,
+    ): Boolean {
+        val currentMode = state.mode as? SessionMode.Authorized ?: return false
+        val isCurrentGeneration = synchronized(freshnessOperationLock) {
+            freshnessOperationGeneration == operation.generation
+        }
+        return isCurrentGeneration &&
+            state.sessionEpoch == operation.sessionEpoch &&
+            currentMode.principal.uid == operation.principalUid &&
+            currentMode.authenticatedMember.id == operation.authenticatedMemberId &&
+            currentMode.authenticatedMember.authUid == operation.authenticatedMemberAuthUid &&
             state.sessionEnvironment == operation.sessionEnvironment
     }
 
@@ -1058,6 +1234,16 @@ internal class SessionAuthActions(
                         } else {
                             it.myOrderFreshnessState
                         },
+                        myOrderFreshnessGeneration = if (refreshCriticalDataForAppliedSession) {
+                            null
+                        } else {
+                            it.myOrderFreshnessGeneration
+                        },
+                        myOrderFreshnessConsumerReceipt = if (refreshCriticalDataForAppliedSession) {
+                            null
+                        } else {
+                            it.myOrderFreshnessConsumerReceipt
+                        },
                         isLoadingNews = true,
                         isLoadingNotifications = true,
                         isLoadingProducts = result.member.canManageSessionProductCatalog,
@@ -1238,6 +1424,10 @@ private data class SessionOperationDrain(
 private data class FreshnessOperation(
     val generation: Long,
     val principalUid: String,
+    val authenticatedMemberId: String,
+    val authenticatedMemberAuthUid: String?,
+    val memberId: String,
+    val canManageMembers: Boolean,
     val sessionEnvironment: String,
     val sessionEpoch: Long,
 )

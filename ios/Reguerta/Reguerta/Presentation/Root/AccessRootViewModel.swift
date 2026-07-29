@@ -158,12 +158,15 @@ private extension AccessRootViewModel {
         feedbackCenter: GlobalFeedbackCenter,
         dependencies: RootFeatureDependencies
     ) -> RootFeatureViewModels {
-        RootFeatureViewModels(
-            productsViewModel: makeProductsViewModel(
-                sessionViewModel: sessionViewModel,
-                feedbackCenter: feedbackCenter,
-                dependencies: dependencies.products
-            ),
+        let orderingViewModels = makeOrderingViewModels(
+            sessionViewModel: sessionViewModel,
+            feedbackCenter: feedbackCenter,
+            productsDependencies: dependencies.products,
+            freshnessDependencies: dependencies.myOrderFreshness
+        )
+
+        return RootFeatureViewModels(
+            productsViewModel: orderingViewModels.products,
             shiftsViewModel: makeShiftsViewModel(
                 sessionViewModel: sessionViewModel,
                 feedbackCenter: feedbackCenter,
@@ -200,13 +203,48 @@ private extension AccessRootViewModel {
                 sessionViewModel: sessionViewModel,
                 dependencies: dependencies.orders
             ),
-            myOrderFreshnessViewModel: MyOrderFreshnessViewModel(
-                dependencies: dependencies.myOrderFreshness
-            ),
+            myOrderFreshnessViewModel: orderingViewModels.freshness,
             bylawsViewModel: BylawsFeatureViewModel(
                 feedbackCenter: feedbackCenter,
                 dependencies: dependencies.bylaws
             )
+        )
+    }
+
+    static func makeOrderingViewModels(
+        sessionViewModel: SessionViewModel,
+        feedbackCenter: GlobalFeedbackCenter,
+        productsDependencies: ProductsFeatureDependencies,
+        freshnessDependencies: MyOrderFreshnessFeatureDependencies
+    ) -> (products: ProductsRouteViewModel, freshness: MyOrderFreshnessViewModel) {
+        let productsViewModel = makeProductsViewModel(
+            sessionViewModel: sessionViewModel,
+            feedbackCenter: feedbackCenter,
+            dependencies: productsDependencies
+        )
+        let freshnessViewModel = makeMyOrderFreshnessViewModel(
+            productsViewModel: productsViewModel,
+            dependencies: freshnessDependencies
+        )
+        return (productsViewModel, freshnessViewModel)
+    }
+
+    static func makeMyOrderFreshnessViewModel(
+        productsViewModel: ProductsRouteViewModel,
+        dependencies: MyOrderFreshnessFeatureDependencies
+    ) -> MyOrderFreshnessViewModel {
+        MyOrderFreshnessViewModel(
+            resolveCriticalDataFreshness: dependencies.resolveCriticalDataFreshness,
+            criticalDataFreshnessLocalRepository: dependencies.criticalDataFreshnessLocalRepository,
+            applyCriticalOrderingState: { scope, payload in
+                try await productsViewModel.refreshOrderingProductsForFreshness(
+                    scope: scope,
+                    payload: payload
+                )
+            },
+            isCriticalOrderingStateCurrent: { scope in
+                productsViewModel.isOrderingStateCurrentForFreshness(scope: scope)
+            }
         )
     }
 
@@ -319,8 +357,8 @@ extension AccessRootViewModel {
     }
 
     func handleSessionModeChange(from previousMode: SessionMode, to mode: SessionMode) {
-        myOrderFreshnessViewModel.handleSessionModeChange(from: previousMode, to: mode)
         productsViewModel.handleSessionModeChange(mode)
+        myOrderFreshnessViewModel.handleSessionModeChange(from: previousMode, to: mode)
         shiftsViewModel.handleSessionModeChange(mode)
         newsNotificationsViewModel.handleSessionModeChange(mode)
         sharedProfileViewModel.handleSessionModeChange(mode)

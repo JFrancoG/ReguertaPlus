@@ -1,6 +1,6 @@
 import Foundation
 
-enum CriticalCollection: String, CaseIterable, Sendable {
+nonisolated enum CriticalCollection: String, CaseIterable, Sendable {
     case users
     case products
     case orders
@@ -9,24 +9,109 @@ enum CriticalCollection: String, CaseIterable, Sendable {
     case measures
 }
 
-struct CriticalDataFreshnessConfig: Equatable, Sendable {
+nonisolated struct CriticalDataFreshnessConfig: Equatable, Sendable {
     let cacheExpirationMinutes: Int
     let remoteTimestampsMillis: [CriticalCollection: Int64]
 }
 
-struct CriticalDataFreshnessMetadata: Equatable, Sendable {
+nonisolated struct CriticalDataFreshnessMetadata: Equatable, Sendable {
     let validatedAtMillis: Int64
     let acknowledgedTimestampsMillis: [CriticalCollection: Int64]
     let environment: SessionEnvironment
+    let principalUID: String
+    let authenticatedMemberID: String
+    let memberID: String
+    let canManageMembers: Bool
+
+    init(
+        validatedAtMillis: Int64,
+        acknowledgedTimestampsMillis: [CriticalCollection: Int64],
+        environment: SessionEnvironment,
+        principalUID: String,
+        authenticatedMemberID: String? = nil,
+        memberID: String,
+        canManageMembers: Bool = false
+    ) {
+        self.validatedAtMillis = validatedAtMillis
+        self.acknowledgedTimestampsMillis = acknowledgedTimestampsMillis
+        self.environment = environment
+        self.principalUID = principalUID
+        self.authenticatedMemberID = authenticatedMemberID ?? memberID
+        self.memberID = memberID
+        self.canManageMembers = canManageMembers
+    }
 }
 
-enum CriticalDataFreshnessResolution: Equatable, Sendable {
-    case fresh(metadataToPersist: CriticalDataFreshnessMetadata?)
+nonisolated struct CriticalDataRefreshScope: Equatable, Sendable {
+    let principalUID: String
+    let authenticatedMemberID: String
+    let memberID: String
+    let environment: SessionEnvironment
+    let canManageMembers: Bool
+
+    init(
+        principalUID: String,
+        authenticatedMemberID: String? = nil,
+        memberID: String,
+        environment: SessionEnvironment,
+        canManageMembers: Bool
+    ) {
+        self.principalUID = principalUID
+        self.authenticatedMemberID = authenticatedMemberID ?? memberID
+        self.memberID = memberID
+        self.environment = environment
+        self.canManageMembers = canManageMembers
+    }
+}
+
+nonisolated struct CriticalDataRefreshPayload: Equatable, Sendable {
+    let authenticatedMember: Member?
+    let selectedMember: Member?
+    let members: [Member]?
+    let products: [Product]?
+    let seasonalCommitments: [SeasonalCommitment]?
+
+    init(
+        authenticatedMember: Member? = nil,
+        selectedMember: Member? = nil,
+        members: [Member]? = nil,
+        products: [Product]? = nil,
+        seasonalCommitments: [SeasonalCommitment]? = nil
+    ) {
+        self.authenticatedMember = authenticatedMember
+        self.selectedMember = selectedMember
+        self.members = members
+        self.products = products
+        self.seasonalCommitments = seasonalCommitments
+    }
+}
+
+nonisolated enum CriticalDataFreshnessResolution: Equatable, Sendable {
+    case fresh(
+        metadataToPersist: CriticalDataFreshnessMetadata?,
+        refreshedPayload: CriticalDataRefreshPayload
+    )
     case invalidConfig
 }
 
 protocol CriticalDataFreshnessRemoteRepository: Sendable {
     func getConfig(environment: SessionEnvironment) async throws -> CriticalDataFreshnessConfig
+}
+
+protocol CriticalDataRefreshing: Sendable {
+    func refresh(
+        collections: Set<CriticalCollection>,
+        scope: CriticalDataRefreshScope
+    ) async throws -> CriticalDataRefreshPayload
+}
+
+struct NoOpCriticalDataRefresher: CriticalDataRefreshing {
+    func refresh(
+        collections: Set<CriticalCollection>,
+        scope: CriticalDataRefreshScope
+    ) async throws -> CriticalDataRefreshPayload {
+        CriticalDataRefreshPayload()
+    }
 }
 
 @MainActor
@@ -36,12 +121,13 @@ protocol CriticalDataFreshnessLocalRepository: Sendable {
     func saveMetadata(
         _ metadata: CriticalDataFreshnessMetadata,
         ifWriteGeneration writeGeneration: UInt64
-    )
+    ) -> Bool
     func clear() throws
 }
 
 extension CriticalDataFreshnessLocalRepository {
-    func saveMetadata(_ metadata: CriticalDataFreshnessMetadata) {
+    @discardableResult
+    func saveMetadata(_ metadata: CriticalDataFreshnessMetadata) -> Bool {
         saveMetadata(metadata, ifWriteGeneration: writeGeneration)
     }
 }

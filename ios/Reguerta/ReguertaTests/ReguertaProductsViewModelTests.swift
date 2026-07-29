@@ -371,6 +371,7 @@ struct ReguertaProductsViewModelTests {
 @MainActor
 func makeProductsViewModel(
     currentMember: Member,
+    authenticatedMember: Member? = nil,
     members: [Member],
     productRepository: (any ProductRepository)? = nil,
     memberRepository: (any MemberRepository)? = nil,
@@ -378,6 +379,7 @@ func makeProductsViewModel(
     imagePipelineManager: any ImagePipelineManager = MockImagePipelineManager(result: .success("https://cdn.reguerta.test/image.jpg")),
     nowMillis: Int64? = nil
 ) async -> ProductsRouteViewModel {
+    let authenticatedMember = authenticatedMember ?? currentMember
     let productRepository = productRepository ?? InMemoryProductRepository()
     let memberRepository = memberRepository ?? InMemoryMemberRepository()
     let seasonalCommitmentRepository = seasonalCommitmentRepository ?? InMemorySeasonalCommitmentRepository()
@@ -389,8 +391,11 @@ func makeProductsViewModel(
     }
     let sessionViewModel = SessionViewModel(dependencies: .preview())
     let session = AuthorizedSession(
-        principal: AuthPrincipal(uid: "auth_\(currentMember.id)", email: currentMember.normalizedEmail),
-        authenticatedMember: currentMember,
+        principal: AuthPrincipal(
+            uid: "auth_\(authenticatedMember.id)",
+            email: authenticatedMember.normalizedEmail
+        ),
+        authenticatedMember: authenticatedMember,
         member: currentMember,
         members: members,
         environment: .develop

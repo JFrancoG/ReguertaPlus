@@ -19,6 +19,7 @@ struct MyOrderFreshnessFeatureDependencies {
             resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase(
                 remoteRepository: remoteRepository,
                 localRepository: localRepository,
+                refresher: FirestoreCriticalDataRefresher(db: db),
                 nowProvider: nowProvider
             ),
             criticalDataFreshnessLocalRepository: localRepository
@@ -83,9 +84,10 @@ private final class PreviewCriticalDataFreshnessLocalRepository: CriticalDataFre
     func saveMetadata(
         _ metadata: CriticalDataFreshnessMetadata,
         ifWriteGeneration expectedWriteGeneration: UInt64
-    ) {
-        guard writeGeneration == expectedWriteGeneration else { return }
+    ) -> Bool {
+        guard writeGeneration == expectedWriteGeneration else { return false }
         self.metadata = metadata
+        return true
     }
 
     func clear() throws {

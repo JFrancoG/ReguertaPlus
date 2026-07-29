@@ -7,7 +7,7 @@ import Testing
 @MainActor
 struct CriticalDataFreshnessEnvironmentTests {
     @Test
-    func userDefaultsMetadataRoundTripsItsEnvironment() {
+    func userDefaultsMetadataRoundTripsItsScope() {
         let (suiteName, userDefaults) = isolatedUserDefaults(suffix: "roundtrip")
         defer { userDefaults.removePersistentDomain(forName: suiteName) }
         let repository = UserDefaultsCriticalDataFreshnessLocalRepository(userDefaults: userDefaults)
@@ -44,6 +44,10 @@ struct CriticalDataFreshnessEnvironmentTests {
         #expect(repository.getMetadata() == nil)
         #expect(userDefaults.object(forKey: freshnessValidatedAtKey) == nil)
         #expect(userDefaults.object(forKey: freshnessEnvironmentKey) == nil)
+        #expect(userDefaults.object(forKey: freshnessPrincipalUIDKey) == nil)
+        #expect(userDefaults.object(forKey: freshnessAuthenticatedMemberIDKey) == nil)
+        #expect(userDefaults.object(forKey: freshnessMemberIDKey) == nil)
+        #expect(userDefaults.object(forKey: freshnessCanManageMembersKey) == nil)
         for collection in CriticalCollection.allCases {
             #expect(userDefaults.object(forKey: freshnessTimestampKey(for: collection)) == nil)
         }
@@ -60,14 +64,23 @@ struct CriticalDataFreshnessEnvironmentTests {
             nowProvider: { 3_000 }
         )
 
-        let resolution = try await useCase.execute(environment: .production)
+        let resolution = try await useCase.execute(
+            scope: CriticalDataRefreshScope(
+                principalUID: "uid_same",
+                memberID: "uid_same",
+                environment: .production,
+                canManageMembers: false
+            )
+        )
 
         #expect(await remoteRepository.requestedEnvironments() == [.production])
-        guard case .fresh(let metadata) = resolution else {
+        guard case .fresh(let metadata, _) = resolution else {
             Issue.record("Expected a fresh resolution")
             return
         }
         #expect(metadata?.environment == .production)
+        #expect(metadata?.principalUID == "uid_same")
+        #expect(metadata?.memberID == "uid_same")
     }
 
     @Test("El mismo UID en otro entorno invalida el refresh anterior")
@@ -171,13 +184,17 @@ struct CriticalDataFreshnessEnvironmentTests {
         await refreshTasks.operation.value
         await refreshTasks.timeout.value
 
-        #expect(viewModel.state == .ready)
+        #expect(viewModel.state == .unavailable)
         #expect(localRepository.getMetadata() == nil)
     }
 }
 
 private let freshnessValidatedAtKey = "critical_data_freshness.validated_at"
 private let freshnessEnvironmentKey = "critical_data_freshness.environment"
+private let freshnessPrincipalUIDKey = "critical_data_freshness.principal_uid"
+private let freshnessAuthenticatedMemberIDKey = "critical_data_freshness.authenticated_member_id"
+private let freshnessMemberIDKey = "critical_data_freshness.member_id"
+private let freshnessCanManageMembersKey = "critical_data_freshness.can_manage_members"
 
 private func freshnessTimestampKey(for collection: CriticalCollection) -> String {
     "critical_data_freshness.timestamp.\(collection.rawValue)"
@@ -204,7 +221,10 @@ private func freshnessMetadata(
     CriticalDataFreshnessMetadata(
         validatedAtMillis: 3_000,
         acknowledgedTimestampsMillis: freshnessTimestamps(timestamp: timestamp),
-        environment: environment
+        environment: environment,
+        principalUID: "uid_same",
+        memberID: "uid_same",
+        canManageMembers: false
     )
 }
 

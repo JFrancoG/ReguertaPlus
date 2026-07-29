@@ -12,6 +12,7 @@ import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.ProducerParity
 import com.reguerta.user.domain.commitments.SeasonalCommitment
 import com.reguerta.user.domain.commitments.SeasonalCommitmentRepository
+import com.reguerta.user.domain.freshness.CriticalDataRefreshPayload
 import com.reguerta.user.domain.products.Product
 import com.reguerta.user.domain.products.ProductPricingMode
 import com.reguerta.user.domain.products.ProductRepository
@@ -217,6 +218,201 @@ class SessionProductActionsFailureTest {
         assertEquals(listOf(commitment), state.value.myOrderSeasonalCommitmentsFeed)
         assertEquals(false, state.value.isLoadingMyOrderProducts)
         assertEquals(R.string.feedback_unable_load_data, messages.last())
+    }
+
+    @Test
+    fun `freshness materialization uses server payload and applies commitments before success`() = runTest {
+        val product = product(name = "Tomates")
+        val commitment = SeasonalCommitment(
+            id = "commitment",
+            userId = "producer",
+            productId = product.id,
+            seasonKey = "2026",
+            fixedQtyPerOfferedWeek = 1.0,
+            active = true,
+            createdAtMillis = 1L,
+            updatedAtMillis = 1L,
+        )
+        val repository = ControlledProductRepository(
+            items = listOf(product),
+            rejectsReads = true,
+        )
+        val selectedMember = producer().copy(producerParity = ProducerParity.ODD)
+        val state = MutableStateFlow(authorizedState())
+        val actions = actions(
+            state = state,
+            repository = repository,
+            seasonalCommitmentRepository = RejectingSeasonalCommitmentRepository,
+            emitMessage = {},
+        )
+
+        val didApply = actions.refreshMyOrderProductsForFreshness(
+            prefetchedPayload = CriticalDataRefreshPayload(
+                authenticatedMemberId = selectedMember.id,
+                authenticatedMember = selectedMember,
+                selectedMember = selectedMember,
+                seasonalCommitments = listOf(commitment),
+                members = listOf(selectedMember),
+                products = listOf(product),
+            ),
+        )
+
+        assertEquals(true, didApply != null)
+        assertEquals(0, repository.readCount)
+        assertEquals(listOf(product), state.value.myOrderProductsFeed)
+        assertEquals(listOf(commitment), state.value.myOrderSeasonalCommitmentsFeed)
+        assertEquals(false, state.value.isLoadingMyOrderProducts)
+    }
+
+    @Test
+    fun `identity only payload revokes admin impersonation without consumer repository reads`() = runTest {
+        val previousProduct = product(name = "Anterior")
+        val authenticatedAdmin = producer().copy(
+            id = "admin",
+            displayName = "Admin",
+            normalizedEmail = "admin@reguerta.test",
+            authUid = "auth-admin",
+            roles = setOf(MemberRole.MEMBER, MemberRole.ADMIN),
+            producerCatalogEnabled = false,
+        )
+        val selectedMember = producer()
+        val demotedAuthenticatedMember = authenticatedAdmin.copy(
+            roles = setOf(MemberRole.MEMBER),
+        )
+        val state = MutableStateFlow(
+            SessionUiState(
+                mode = SessionMode.Authorized(
+                    principal = AuthPrincipal(
+                        uid = "auth-admin",
+                        email = authenticatedAdmin.normalizedEmail,
+                    ),
+                    authenticatedMember = authenticatedAdmin,
+                    member = selectedMember,
+                    members = listOf(authenticatedAdmin, selectedMember),
+                ),
+                myOrderProductsFeed = listOf(previousProduct),
+            ),
+        )
+        val repository = ControlledProductRepository(
+            items = emptyList(),
+            rejectsReads = true,
+        )
+        val actions = actions(
+            state = state,
+            repository = repository,
+            memberRepository = ConfirmingThenRejectingMemberRepository,
+            seasonalCommitmentRepository = RejectingSeasonalCommitmentRepository,
+            emitMessage = {},
+        )
+
+        val didApply = actions.refreshMyOrderProductsForFreshness(
+            prefetchedPayload = CriticalDataRefreshPayload(
+                authenticatedMemberId = demotedAuthenticatedMember.id,
+                authenticatedMember = demotedAuthenticatedMember,
+                selectedMember = null,
+                seasonalCommitments = null,
+                requiresAccessScopeRetry = true,
+            ),
+        )
+
+        val refreshedMode = state.value.mode as SessionMode.Authorized
+        assertEquals(true, didApply != null)
+        assertEquals(0, repository.readCount)
+        assertEquals(demotedAuthenticatedMember, refreshedMode.authenticatedMember)
+        assertEquals(demotedAuthenticatedMember, refreshedMode.member)
+        assertEquals(listOf(demotedAuthenticatedMember), refreshedMode.members)
+        assertEquals(listOf(previousProduct), state.value.myOrderProductsFeed)
+        assertEquals(false, state.value.isLoadingMyOrderProducts)
+    }
+
+    @Test
+    fun `users only freshness payload rematerializes visible products`() = runTest {
+        val product = product(name = "Tomates")
+        val repository = ControlledProductRepository(
+            items = listOf(product),
+            rejectsReads = false,
+        )
+        val state = MutableStateFlow(authorizedState())
+        val selectedMember = producer().copy(producerParity = ProducerParity.ODD)
+        val actions = actions(
+            state = state,
+            repository = repository,
+            emitMessage = {},
+        )
+
+        val didApply = actions.refreshMyOrderProductsForFreshness(
+            prefetchedPayload = CriticalDataRefreshPayload(
+                authenticatedMemberId = selectedMember.id,
+                authenticatedMember = selectedMember,
+                selectedMember = selectedMember,
+                seasonalCommitments = emptyList(),
+                members = listOf(selectedMember),
+            ),
+        )
+
+        assertEquals(true, didApply != null)
+        assertEquals(1, repository.readCount)
+        assertEquals(listOf(product), state.value.myOrderProductsFeed)
+    }
+
+    @Test
+    fun `freshness generation fence prevents consumer payload from being applied`() = runTest {
+        val previousProduct = product(name = "Anterior")
+        val refreshedProduct = product(name = "Nuevo")
+        val state = MutableStateFlow(
+            authorizedState().copy(myOrderProductsFeed = listOf(previousProduct)),
+        )
+        val actions = actions(
+            state = state,
+            repository = ControlledProductRepository(listOf(refreshedProduct), rejectsReads = true),
+            emitMessage = {},
+        )
+
+        val didApply = actions.refreshMyOrderProductsForFreshness(
+            prefetchedPayload = CriticalDataRefreshPayload(
+                authenticatedMemberId = "producer",
+                authenticatedMember = producer(),
+                selectedMember = producer(),
+                seasonalCommitments = emptyList(),
+                members = listOf(producer()),
+                products = listOf(refreshedProduct),
+            ),
+            additionalFence = { false },
+        )
+
+        assertEquals(null, didApply)
+        assertEquals(listOf(previousProduct), state.value.myOrderProductsFeed)
+    }
+
+    @Test
+    fun `latest my order materialization wins over an older normal refresh`() = runTest {
+        val oldProduct = product(name = "Anterior")
+        val refreshedProduct = product(name = "Nuevo")
+        val repository = SuspendedFirstProductReadRepository(oldProduct)
+        val state = MutableStateFlow(authorizedState())
+        val actions = actions(
+            state = state,
+            repository = repository,
+            emitMessage = {},
+        )
+
+        actions.refreshMyOrderProducts()
+        repository.firstReadStarted.await()
+
+        val didApply = actions.refreshMyOrderProductsForFreshness(
+            prefetchedPayload = CriticalDataRefreshPayload(
+                authenticatedMemberId = "producer",
+                authenticatedMember = producer().copy(producerParity = ProducerParity.ODD),
+                selectedMember = producer().copy(producerParity = ProducerParity.ODD),
+                seasonalCommitments = emptyList(),
+                products = listOf(refreshedProduct),
+            ),
+        )
+        repository.releaseFirstRead.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(true, didApply != null)
+        assertEquals(listOf(refreshedProduct), state.value.myOrderProductsFeed)
     }
 
     @Test
@@ -576,6 +772,23 @@ private class ControlledProductRepository(
     }
 }
 
+private class SuspendedFirstProductReadRepository(
+    private val firstProduct: Product,
+) : ProductRepository {
+    val firstReadStarted = CompletableDeferred<Unit>()
+    val releaseFirstRead = CompletableDeferred<Unit>()
+
+    override suspend fun getAllProducts(): List<Product> {
+        firstReadStarted.complete(Unit)
+        releaseFirstRead.await()
+        return listOf(firstProduct)
+    }
+
+    override suspend fun getProductsForVendor(vendorId: String): List<Product> = emptyList()
+
+    override suspend fun upsertProduct(product: Product): Product = product
+}
+
 private object TestMemberRepository : MemberRepository {
     override suspend fun findByAuthUid(authUid: String): Member? = null
 
@@ -660,6 +873,13 @@ private object EmptySeasonalCommitmentRepository : SeasonalCommitmentRepository 
 private object RejectingSeasonalCommitmentRepository : SeasonalCommitmentRepository {
     override suspend fun getActiveCommitmentsForUser(userId: String): List<SeasonalCommitment> =
         throw IOException("rejected")
+}
+
+private class FixedSeasonalCommitmentRepository(
+    private val commitment: SeasonalCommitment,
+) : SeasonalCommitmentRepository {
+    override suspend fun getActiveCommitmentsForUser(userId: String): List<SeasonalCommitment> =
+        listOf(commitment)
 }
 
 private object NoOpImagePipelineManager : ImagePipelineManager {

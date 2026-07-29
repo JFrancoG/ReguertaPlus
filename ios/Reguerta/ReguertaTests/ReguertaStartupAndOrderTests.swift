@@ -60,6 +60,7 @@ struct ReguertaStartupAndOrderTests {
 
     @Test
     func criticalDataFreshnessRejectsMissingTimestampKeys() {
+        let scope = startupFreshnessScope()
         let useCase = ResolveCriticalDataFreshnessUseCase(
             remoteRepository: FixedCriticalDataFreshnessRemoteRepository(config: nil),
             localRepository: InMemoryCriticalDataFreshnessLocalRepository()
@@ -78,7 +79,7 @@ struct ReguertaStartupAndOrderTests {
             ),
             metadata: nil,
             nowMillis: 10_000,
-            environment: .develop
+            scope: scope
         )
 
         #expect(evaluation == .invalidConfig)
@@ -86,6 +87,7 @@ struct ReguertaStartupAndOrderTests {
 
     @Test
     func criticalDataFreshnessPersistsWhenRemoteTimestampsChange() {
+        let scope = startupFreshnessScope()
         let useCase = ResolveCriticalDataFreshnessUseCase(
             remoteRepository: FixedCriticalDataFreshnessRemoteRepository(config: nil),
             localRepository: InMemoryCriticalDataFreshnessLocalRepository()
@@ -104,18 +106,23 @@ struct ReguertaStartupAndOrderTests {
                 acknowledgedTimestampsMillis: Dictionary(
                     uniqueKeysWithValues: CriticalCollection.allCases.map { ($0, Int64(1_000)) }
                 ),
-                environment: .develop
+                environment: .develop,
+                principalUID: scope.principalUID,
+                memberID: scope.memberID
             ),
             nowMillis: 6_000,
-            environment: .develop
+            scope: scope
         )
 
         #expect(
             evaluation == .accepted(
+                collectionsToRefresh: Set(CriticalCollection.allCases),
                 metadataToPersist: CriticalDataFreshnessMetadata(
                     validatedAtMillis: 6_000,
                     acknowledgedTimestampsMillis: remoteTimestamps,
-                    environment: .develop
+                    environment: .develop,
+                    principalUID: scope.principalUID,
+                    memberID: scope.memberID
                 )
             )
         )
@@ -123,6 +130,7 @@ struct ReguertaStartupAndOrderTests {
 
     @Test
     func criticalDataFreshnessKeepsMetadataWhenTtlIsStillValid() {
+        let scope = startupFreshnessScope()
         let useCase = ResolveCriticalDataFreshnessUseCase(
             remoteRepository: FixedCriticalDataFreshnessRemoteRepository(config: nil),
             localRepository: InMemoryCriticalDataFreshnessLocalRepository()
@@ -139,13 +147,15 @@ struct ReguertaStartupAndOrderTests {
             metadata: CriticalDataFreshnessMetadata(
                 validatedAtMillis: 10_000,
                 acknowledgedTimestampsMillis: remoteTimestamps,
-                environment: .develop
+                environment: .develop,
+                principalUID: scope.principalUID,
+                memberID: scope.memberID
             ),
             nowMillis: 20_000,
-            environment: .develop
+            scope: scope
         )
 
-        #expect(evaluation == .accepted(metadataToPersist: nil))
+        #expect(evaluation == .accepted(collectionsToRefresh: [], metadataToPersist: nil))
     }
 
     @Test
@@ -303,4 +313,13 @@ struct ReguertaStartupAndOrderTests {
         #expect(result.missingCommitmentProductNames == ["Ecocesta par"])
     }
 
+}
+
+private func startupFreshnessScope() -> CriticalDataRefreshScope {
+    CriticalDataRefreshScope(
+        principalUID: "uid_startup",
+        memberID: "member_startup",
+        environment: .develop,
+        canManageMembers: false
+    )
 }
