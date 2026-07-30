@@ -15,6 +15,20 @@ struct ResolveAuthorizedSessionUseCase: Sendable {
         self.environmentRouter = environmentRouter
     }
 
+    /// Resolves and verifies the member represented by an authenticated principal.
+    ///
+    /// Resolution starts in the router's base environment. A successful backend resolution
+    /// receives a temporary environment lease so the local member is read from the resolved
+    /// environment. The lease is rolled back unless the member identity, Firebase UID, active
+    /// state, and canonical roles all match the server-owned resolution.
+    ///
+    /// Authorization failures are returned as `.unauthorized`; cancellation and non-authorization
+    /// failures from the resolver or member repository are propagated to the caller.
+    ///
+    /// - Parameter authPrincipal: The Firebase-authenticated identity to resolve.
+    /// - Returns: An authorized member and environment, or a domain authorization failure.
+    /// - Throws: `CancellationError`, a non-authorization resolver error, or an error produced
+    ///   while loading the resolved member.
     func execute(authPrincipal: AuthPrincipal) async throws -> AccessResolutionResult {
         try Task.checkCancellation()
         let resolution: AuthorizedMemberResolution

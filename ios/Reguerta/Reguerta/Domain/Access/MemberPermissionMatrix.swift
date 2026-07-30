@@ -45,6 +45,14 @@ enum MemberPermissionMatrix {
         }
     }
 
+    /// Resolves the effective capabilities granted by all of a member's roles and flags.
+    ///
+    /// Common-purchase managers receive catalog-management capability independently of
+    /// their canonical roles. This mapping deliberately does not evaluate `isActive`;
+    /// callers that expose active-only operations must enforce that requirement separately.
+    ///
+    /// - Parameter member: The member whose role and feature flags define the capability set.
+    /// - Returns: The union of capabilities granted to the member.
     static func capabilities(for member: Member) -> Set<AccessCapability> {
         var merged = member.roles.reduce(into: Set<AccessCapability>()) { partialResult, role in
             partialResult.formUnion(capabilities(for: role))

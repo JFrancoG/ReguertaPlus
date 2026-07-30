@@ -17,6 +17,24 @@ struct MyOrderCheckoutValidationResult: Equatable {
     }
 }
 
+/// Validates a cart against the member's eco-basket and seasonal commitments.
+///
+/// Weekly eco-basket obligations require a visible basket selection. A biweekly commitment with
+/// configured parity applies only in a matching week and accepts baskets from active producers
+/// with that parity; without configured parity it conservatively requires any visible basket.
+/// Seasonal commitments must match a visible product and be exactly representable by that
+/// product's selection step; under-selection, over-selection, and incompatible steps are reported
+/// separately. Visible eco baskets must also share one normalized price.
+///
+/// - Parameters:
+///   - currentMember: The member placing the order, or `nil` for an unauthenticated cart.
+///   - members: Members used to resolve eligible producers for parity-based commitments.
+///   - products: The current catalog visible to the ordering rules.
+///   - seasonalCommitments: Active fixed-quantity commitments to enforce for this order.
+///   - selectedQuantities: Selection-unit counts keyed by product ID.
+///   - selectedEcoBasketOptions: Pickup choices keyed by eco-basket product ID.
+///   - currentWeekParity: The producer parity for the week being validated.
+/// - Returns: All commitment violations detected for the cart.
 func validateMyOrderCheckout(
     currentMember: Member?,
     members: [Member],
@@ -84,6 +102,16 @@ func validateMyOrderCheckout(
     )
 }
 
+/// Converts representable seasonal commitments into exact selection-unit limits.
+///
+/// Commitments that cannot be expressed by the product's selection step are intentionally
+/// omitted; checkout validation reports those products through
+/// `incompatibleCommitmentProductNames` instead.
+///
+/// - Parameters:
+///   - products: The catalog used to match and interpret committed quantities.
+///   - seasonalCommitments: The active commitments to combine by product.
+/// - Returns: Required selection-unit counts keyed by product ID.
 func seasonalCommitmentUnitLimitsByProductID(
     products: [Product],
     seasonalCommitments: [SeasonalCommitment]
@@ -226,6 +254,11 @@ private func mergeRequiredSeasonalQuantities(
     return requiredQuantityByProductID
 }
 
+/// Resolves a commitment to a visible product using stable-to-heuristic precedence.
+///
+/// A valid product ID wins, followed by an exact normalized name hint and finally the first
+/// catalog name matching a normalized commitment or season-alias term. The heuristic fallback
+/// selects the first match in catalog company-and-name order.
 private func resolveSeasonalMatchedProductID(
     commitment: SeasonalCommitment,
     index: SeasonalVisibleProductsIndex

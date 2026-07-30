@@ -12,6 +12,18 @@ struct SessionRefreshPolicy: Sendable {
         self.minimumForegroundIntervalMillis = minimumForegroundIntervalMillis
     }
 
+    /// Decides whether the current session should be refreshed for a lifecycle trigger.
+    ///
+    /// Startup refreshes only when no successful refresh has been recorded. Foreground
+    /// refreshes occur when there is no prior timestamp or the minimum interval has elapsed.
+    /// A refresh already in flight always suppresses a second request.
+    ///
+    /// - Parameters:
+    ///   - trigger: The lifecycle event requesting the refresh.
+    ///   - lastRefreshAtMillis: The last successful refresh time in Unix milliseconds.
+    ///   - nowMillis: The current time in Unix milliseconds.
+    ///   - isRefreshInFlight: Whether another refresh currently owns the operation.
+    /// - Returns: `true` when the caller should begin a new refresh.
     func shouldRefresh(
         trigger: SessionRefreshTrigger,
         lastRefreshAtMillis: Int64?,

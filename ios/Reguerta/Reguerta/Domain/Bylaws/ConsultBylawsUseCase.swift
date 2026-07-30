@@ -12,6 +12,20 @@ nonisolated struct ConsultBylawsUseCase: BylawsConsulting {
         await summaryGenerator.capability(for: responseLanguage)
     }
 
+    /// Produces an on-device, evidence-grounded answer to a bylaws question.
+    ///
+    /// The operation requires a local model, retrieves at most three canonical articles before
+    /// classifying an unsupported question, and generates prose only from the resulting evidence.
+    /// The generated summary may not claim its own article or page references; deterministic
+    /// citations and excerpts in the returned evidence remain the source of truth.
+    ///
+    /// - Parameters:
+    ///   - question: The member's question, kept on device.
+    ///   - responseLanguage: The language requested for generated explanatory prose.
+    /// - Returns: A normalized summary with deterministic evidence and develop diagnostics.
+    /// - Throws: `BylawsConsultationError` when the model is unavailable, evidence is absent,
+    ///   the question is clearly unrelated, or generated output fails validation; cancellation
+    ///   is propagated as `CancellationError`.
     func consult(
         question: String,
         responseLanguage: BylawsResponseLanguage
@@ -111,6 +125,11 @@ nonisolated struct ConsultBylawsUseCase: BylawsConsulting {
         }
     }
 
+    /// Classifies generated text without allowing the model to author source references.
+    ///
+    /// Explicit insufficient-evidence markers produce `.noEvidence`; empty output, refusal
+    /// language, or generated article/page references are invalid. All other normalized output
+    /// is accepted for presentation alongside application-owned evidence.
     private func validationResult(for summary: String) -> SummaryValidationResult {
         guard !summary.isEmpty else { return .invalid }
 

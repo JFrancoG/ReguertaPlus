@@ -145,6 +145,7 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-07-30 | 📝 docs(ios): document domain contracts
 - 2026-07-27 | 📝 docs(design-system): add generated color catalog
 - 2026-07-27 | 📝 docs(firebase): record HU-070 rollout state
 - 2026-07-12 | 📝 docs(users): link HU-069 pull request

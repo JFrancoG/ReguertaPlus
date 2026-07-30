@@ -25,6 +25,12 @@ extension String {
     }
 }
 
+/// Returns the ISO-8601 week key immediately before the supplied instant.
+///
+/// - Parameters:
+///   - nowMillis: The reference instant in Unix milliseconds.
+///   - timeZone: The calendar time zone; Madrid is the product default.
+/// - Returns: A key in `YYYY-Www` form for the preceding ISO week.
 func orderHistoryPreviousIsoWeekKey(
     nowMillis: Int64,
     timeZone: TimeZone = TimeZone(identifier: "Europe/Madrid") ?? .current
@@ -37,6 +43,17 @@ func orderHistoryPreviousIsoWeekKey(
     return orderHistoryWeekKey(for: previousWeekStart, calendar: calendar)
 }
 
+/// Builds a gap-free sequence of ISO week options covering the known history interval.
+///
+/// Invalid keys are ignored. A valid preferred key participates in the interval even when it
+/// has no orders, and missing weeks between the earliest and latest seeds are synthesized.
+///
+/// - Parameters:
+///   - realWeekKeys: Week keys backed by order data.
+///   - preferredWeekKey: The week the UI should keep available for selection.
+///   - timeZone: The calendar time zone used to resolve week boundaries.
+///   - locale: The locale used for the displayed day-and-month range.
+/// - Returns: Chronological, continuous week options, or an empty array when no seed is valid.
 func orderHistoryContinuousWeekOptions(
     realWeekKeys: [String],
     preferredWeekKey: String,
@@ -60,6 +77,19 @@ func orderHistoryContinuousWeekOptions(
     return options
 }
 
+/// Builds the complete week range that a user may browse in order history.
+///
+/// The range begins at the earliest real or explicitly supplied order week. If neither exists,
+/// it falls back to week 1 of the preferred key's ISO week-year so that year remains browsable
+/// before its first order.
+///
+/// - Parameters:
+///   - realWeekKeys: Week keys currently returned by the repository.
+///   - oldestOrderWeekKey: An optional historical lower bound not present in the current page.
+///   - preferredWeekKey: The week the UI should keep available for selection.
+///   - timeZone: The calendar time zone used to resolve week boundaries.
+///   - locale: The locale used for the displayed day-and-month range.
+/// - Returns: Chronological, continuous options for the browsable interval.
 func orderHistoryBrowsableWeekOptions(
     realWeekKeys: [String],
     oldestOrderWeekKey: String? = nil,
@@ -87,6 +117,16 @@ func orderHistoryBrowsableWeekOptions(
     )
 }
 
+/// Converts a validated ISO week key into its localized display model.
+///
+/// The parsed date is round-tripped to the original key, rejecting impossible combinations
+/// such as week 53 in an ISO week-year that contains only 52 weeks.
+///
+/// - Parameters:
+///   - weekKey: A candidate key in `YYYY-Www` form.
+///   - timeZone: The calendar time zone used to resolve week boundaries.
+///   - locale: The locale used for the displayed day-and-month range.
+/// - Returns: A display option, or `nil` when the key is malformed or impossible.
 func orderHistoryWeekOption(
     weekKey: String,
     timeZone: TimeZone = TimeZone(identifier: "Europe/Madrid") ?? .current,

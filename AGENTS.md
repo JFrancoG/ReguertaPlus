@@ -90,6 +90,17 @@ When skipped, explicitly state why in the final handoff.
   - `/docs-es/decisions`
 - Keep English and Spanish docs aligned when updating decision-level documentation.
 
+### Selective Swift Documentation
+
+- In iOS code, use DocC comments for non-trivial APIs whose contracts, invariants,
+  side effects, operation ordering, cancellation behavior, units, edge cases,
+  errors, or return semantics are not evident from the implementation.
+- Keep documentation semantic: explain why the contract matters and what callers
+  may rely on instead of narrating the function body.
+- Skip obvious stored properties, mechanical `Codable` implementations, trivial
+  private helpers, declarative Views, and tests.
+- Update the DocC comment whenever the documented contract changes.
+
 ## Execution Style
 
 - Make progress autonomously.

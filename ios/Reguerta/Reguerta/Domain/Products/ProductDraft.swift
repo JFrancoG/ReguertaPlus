@@ -63,6 +63,18 @@ struct ProductSaveInput: Equatable, Sendable {
     let nowMillis: Int64
 }
 
+/// Normalizes and validates editable product fields before constructing a domain product.
+///
+/// Bulk products require a positive weight step and a minimum-to-maximum range aligned to that
+/// step. Fixed-stock products require a non-negative stock quantity, while named non-bulk
+/// containers require a positive container quantity. Numeric text fields accept either decimal
+/// separator.
+///
+/// - Parameters:
+///   - draft: The user-editable values to normalize and validate.
+///   - existing: The product being edited, or `nil` when creating one.
+///   - nowMillis: The creation or update time in Unix milliseconds.
+/// - Returns: Parsed values ready for product construction, or `nil` when any invariant fails.
 func resolveProductSaveInput(
     draft: ProductDraft,
     existing: Product?,
@@ -109,6 +121,17 @@ func resolveProductSaveInput(
     )
 }
 
+/// Constructs a product from validated input while applying member-derived defaults and flags.
+///
+/// Existing products retain their identity, owner, company, creation time, and archive state.
+/// New eco-baskets require a producer with configured parity and the eco-basket container;
+/// common-purchase flags are accepted only for a non-producer common-purchase manager.
+///
+/// - Parameters:
+///   - sessionMember: The member whose identity and capabilities supply defaults and flags.
+///   - input: A value produced by `resolveProductSaveInput(draft:existing:nowMillis:)`.
+///   - newProductId: The stable identifier to use only when creating a product.
+/// - Returns: A product that preserves edit identity and enforces role-derived flags.
 func buildProductToSave(
     sessionMember: Member,
     input: ProductSaveInput,
@@ -216,6 +239,13 @@ extension Double {
         productUIDecimal(locale: .current)
     }
 
+    /// Formats a finite value for round-tripping through a product editor text field.
+    ///
+    /// Whole values omit the decimal fraction. Fractional values use the locale's decimal
+    /// separator without adding grouping separators; non-finite values produce an empty string.
+    ///
+    /// - Parameter locale: The locale that supplies the decimal separator.
+    /// - Returns: An editor-compatible decimal string.
     func productUIDecimal(locale: Locale) -> String {
         guard isFinite else { return "" }
         return truncatingRemainder(dividingBy: 1) == 0 &&
@@ -245,6 +275,10 @@ private extension String {
     }
 }
 
+/// Validates that a bulk-weight range contains finite, selectable values aligned to its step.
+///
+/// The range must contain at least one positive selection, end on an exact step boundary within
+/// floating-point tolerance, and remain representable by the persisted 32-bit selection count.
 private func validWeightRange(minimum: Double?, maximum: Double?, step: Double?) -> Bool {
     guard let minimum, let maximum, let step, minimum <= maximum else { return false }
     let minimumCount = ceil(minimum / step)
