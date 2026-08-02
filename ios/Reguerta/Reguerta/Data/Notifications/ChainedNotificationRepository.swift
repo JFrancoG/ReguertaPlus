@@ -1,10 +1,11 @@
 import Foundation
 
-actor ChainedNotificationRepository: NotificationRepository {
-    private let primary: any NotificationRepository
-    private let fallback: any NotificationRepository
+actor ChainedNotificationRepository<Primary: NotificationRepository, Fallback: NotificationRepository>:
+    NotificationRepository {
+    private let primary: Primary
+    private let fallback: Fallback
 
-    init(primary: any NotificationRepository, fallback: any NotificationRepository) {
+    init(primary: Primary, fallback: Fallback) {
         self.primary = primary
         self.fallback = fallback
     }

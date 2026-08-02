@@ -1,8 +1,11 @@
 import Foundation
 
-struct ChainedShiftSwapRequestRepository: ShiftSwapRequestRepository {
-    let primary: any ShiftSwapRequestRepository
-    let fallback: any ShiftSwapRequestRepository
+struct ChainedShiftSwapRequestRepository<
+    Primary: ShiftSwapRequestRepository,
+    Fallback: ShiftSwapRequestRepository
+>: ShiftSwapRequestRepository {
+    let primary: Primary
+    let fallback: Fallback
 
     func allShiftSwapRequests() async throws -> [ShiftSwapRequest] {
         try await primary.allShiftSwapRequests()

@@ -469,7 +469,7 @@ private struct NewsImagePipelineTestError: Error {}
 private actor NewsMockImagePipelineManager: ImagePipelineManager {
     enum ResultMode {
         case success(String)
-        case failure(any Error)
+        case failure(NewsImagePipelineTestError)
     }
 
     private let result: ResultMode

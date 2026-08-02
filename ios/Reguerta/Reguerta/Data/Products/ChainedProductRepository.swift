@@ -1,10 +1,10 @@
 import Foundation
 
-actor ChainedProductRepository: ProductRepository {
-    private let primary: any ProductRepository
-    private let fallback: any ProductRepository
+actor ChainedProductRepository<Primary: ProductRepository, Fallback: ProductRepository>: ProductRepository {
+    private let primary: Primary
+    private let fallback: Fallback
 
-    init(primary: any ProductRepository, fallback: any ProductRepository) {
+    init(primary: Primary, fallback: Fallback) {
         self.primary = primary
         self.fallback = fallback
     }

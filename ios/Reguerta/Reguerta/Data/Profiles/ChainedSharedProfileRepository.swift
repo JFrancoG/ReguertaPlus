@@ -1,12 +1,13 @@
 import Foundation
 
-final class ChainedSharedProfileRepository: @unchecked Sendable, SharedProfileRepository {
-    private let primary: any SharedProfileRepository
-    private let fallback: any SharedProfileRepository
+final class ChainedSharedProfileRepository<Primary: SharedProfileRepository, Fallback: SharedProfileRepository>:
+    @unchecked Sendable, SharedProfileRepository {
+    private let primary: Primary
+    private let fallback: Fallback
 
     init(
-        primary: any SharedProfileRepository,
-        fallback: any SharedProfileRepository
+        primary: Primary,
+        fallback: Fallback
     ) {
         self.primary = primary
         self.fallback = fallback

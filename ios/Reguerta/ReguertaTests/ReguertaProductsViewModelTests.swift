@@ -444,7 +444,7 @@ private enum ProductMutationTestError: Error {
 private actor MockImagePipelineManager: ImagePipelineManager {
     enum ResultMode {
         case success(String)
-        case failure(any Error)
+        case failure(ImagePipelineError)
     }
 
     private let result: ResultMode

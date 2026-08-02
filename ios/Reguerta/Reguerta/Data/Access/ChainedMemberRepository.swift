@@ -1,10 +1,10 @@
 import Foundation
 
-actor ChainedMemberRepository: LocalMemberRepository {
-    private let primary: any LocalMemberRepository
-    private let fallback: any LocalMemberRepository
+actor ChainedMemberRepository<Primary: LocalMemberRepository, Fallback: LocalMemberRepository>: LocalMemberRepository {
+    private let primary: Primary
+    private let fallback: Fallback
 
-    init(primary: any LocalMemberRepository, fallback: any LocalMemberRepository) {
+    init(primary: Primary, fallback: Fallback) {
         self.primary = primary
         self.fallback = fallback
     }
