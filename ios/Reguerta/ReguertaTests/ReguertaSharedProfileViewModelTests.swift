@@ -320,7 +320,7 @@ private struct SharedProfileImagePipelineTestError: Error {}
 private final class SharedProfileMockImagePipelineManager: ImagePipelineManager {
     enum ResultMode {
         case success(String)
-        case failure(any Error)
+        case failure(SharedProfileImagePipelineTestError)
     }
 
     private let result: ResultMode

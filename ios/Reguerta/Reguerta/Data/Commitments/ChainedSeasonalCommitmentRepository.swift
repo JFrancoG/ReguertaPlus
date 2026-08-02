@@ -1,10 +1,13 @@
 import Foundation
 
-actor ChainedSeasonalCommitmentRepository: SeasonalCommitmentRepository {
-    private let primary: any SeasonalCommitmentRepository
-    private let fallback: any SeasonalCommitmentRepository
+actor ChainedSeasonalCommitmentRepository<
+    Primary: SeasonalCommitmentRepository,
+    Fallback: SeasonalCommitmentRepository
+>: SeasonalCommitmentRepository {
+    private let primary: Primary
+    private let fallback: Fallback
 
-    init(primary: any SeasonalCommitmentRepository, fallback: any SeasonalCommitmentRepository) {
+    init(primary: Primary, fallback: Fallback) {
         self.primary = primary
         self.fallback = fallback
     }

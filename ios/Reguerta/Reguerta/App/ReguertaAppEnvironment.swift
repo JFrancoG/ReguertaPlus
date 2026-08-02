@@ -171,7 +171,7 @@ private func makeUITestingAccessRootViewModel(
 
 private struct LiveRootDependencies {
     let db: Firestore
-    let memberRepository: any MemberRepository
+    let memberRepository: FirestoreMemberRepository
     let authSessionProvider: FirebaseAuthSessionProvider
     let functionsClient: AuthenticatedFirebaseFunctionsClient
     let memberAdministrationRepository: FirebaseMemberAdministrationRepository

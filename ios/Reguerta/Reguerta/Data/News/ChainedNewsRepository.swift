@@ -1,10 +1,10 @@
 import Foundation
 
-actor ChainedNewsRepository: NewsRepository {
-    private let primary: any NewsRepository
-    private let fallback: any NewsRepository
+actor ChainedNewsRepository<Primary: NewsRepository, Fallback: NewsRepository>: NewsRepository {
+    private let primary: Primary
+    private let fallback: Fallback
 
-    init(primary: any NewsRepository, fallback: any NewsRepository) {
+    init(primary: Primary, fallback: Fallback) {
         self.primary = primary
         self.fallback = fallback
     }

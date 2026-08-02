@@ -1,8 +1,9 @@
 import Foundation
 
-struct ChainedDeliveryCalendarRepository: DeliveryCalendarRepository {
-    let primary: any DeliveryCalendarRepository
-    let fallback: any DeliveryCalendarRepository
+struct ChainedDeliveryCalendarRepository<Primary: DeliveryCalendarRepository, Fallback: DeliveryCalendarRepository>:
+    DeliveryCalendarRepository {
+    let primary: Primary
+    let fallback: Fallback
 
     func defaultDeliveryDayOfWeek() async throws -> DeliveryWeekday {
         try await primary.defaultDeliveryDayOfWeek()
