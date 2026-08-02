@@ -169,6 +169,7 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
+- 2026-08-02 | 🔧 chore(ios): enforce Swift line width
 - 2026-07-30 | 📦 build(android): update Navigation 3 to 1.1.5
 - 2026-07-29 | 📦 build(android): configure release signing
 - 2026-07-29 | 📦 build(android): modernize build settings

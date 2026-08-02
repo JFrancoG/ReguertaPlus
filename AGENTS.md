@@ -101,6 +101,13 @@ When skipped, explicitly state why in the final handoff.
   private helpers, declarative Views, and tests.
 - Update the DocC comment whenever the documented contract changes.
 
+### Swift Signature Formatting
+
+- Use 120 columns, including indentation, as the preferred maximum Swift line width.
+- Keep a `func`, `init`, or `subscript` declaration on one line when its complete signature fits within 120 columns and has at most three simple parameters. Count attributes, `async`/`throws`, the return type, and the opening brace when present.
+- Use vertical formatting for four or more parameters or for complex signatures containing closures or function types, nested generics or tuples, closure attributes, multiline default values, or generic requirements. Put one parameter on each line, align the closing delimiter with the declaration, and avoid hybrid wrapping.
+- Apply this rule to new code and touched signatures. Keep historical formatting cleanup in separate, non-functional changes.
+
 ## Execution Style
 
 - Make progress autonomously.
