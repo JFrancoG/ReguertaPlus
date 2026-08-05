@@ -45,9 +45,7 @@ struct ProductEditorView: View {
             : AccessL10nKey.productsEditorTitleNew
     }
 
-    private func localizedKey(_ key: String) -> LocalizedStringKey {
-        LocalizedStringKey(key)
-    }
+    private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 }
 
 private struct ProductEditorHeroView: View {
@@ -176,9 +174,7 @@ private struct ProductEditorHeroView: View {
         .accessibilityLabel(Text(localizedKey(accessibilityKey)))
     }
 
-    private func localizedKey(_ key: String) -> LocalizedStringKey {
-        LocalizedStringKey(key)
-    }
+    private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 }
 
 private struct ProductEditorSalesFieldsView: View {
@@ -252,9 +248,7 @@ private struct ProductEditorSalesFieldsView: View {
         }
     }
 
-    private func localizedKey(_ key: String) -> LocalizedStringKey {
-        LocalizedStringKey(key)
-    }
+    private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 
     private var containerSelection: Binding<String> {
         Binding(
@@ -475,7 +469,5 @@ private struct ProductEditorOptionsView: View {
         }
     }
 
-    private func localizedKey(_ key: String) -> LocalizedStringKey {
-        LocalizedStringKey(key)
-    }
+    private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 }

@@ -39,17 +39,11 @@ enum DeviceScale {
         }
     }
 
-    static func resize(_ value: CGFloat) -> CGFloat {
-        value * scaleFactor
-    }
+    static func resize(_ value: CGFloat) -> CGFloat { value * scaleFactor }
 
-    static func resizeStatusBar(_ value: CGFloat) -> CGFloat {
-        resize(value) + statusBarHeight
-    }
+    static func resizeStatusBar(_ value: CGFloat) -> CGFloat { resize(value) + statusBarHeight }
 
-    static func resizeBottom(_ value: CGFloat) -> CGFloat {
-        resize(value) + bottomSafeArea
-    }
+    static func resizeBottom(_ value: CGFloat) -> CGFloat { resize(value) + bottomSafeArea }
 }
 
 private extension UIWindow {

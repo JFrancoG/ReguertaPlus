@@ -43,9 +43,7 @@ actor InMemoryMemberRepository: LocalMemberRepository {
         )
     ]
 
-    func member(id: String) async throws -> Member? {
-        members[id]
-    }
+    func member(id: String) async throws -> Member? { members[id] }
 
     func members(visibleTo member: Member) async throws -> [Member] {
         let canReadAll = await MainActor.run { member.canManageMembers }
@@ -61,9 +59,7 @@ actor InMemoryMemberRepository: LocalMemberRepository {
     }
 
     func updateOwnProducerCatalogEnabled(member: Member, enabled: Bool) async throws -> Member {
-        guard let existing = members[member.id] else {
-            throw InMemoryMemberRepositoryError.memberNotFound
-        }
+        guard let existing = members[member.id] else { throw InMemoryMemberRepositoryError.memberNotFound }
         let updated = Member(
             id: existing.id,
             displayName: existing.displayName,
@@ -92,9 +88,7 @@ actor InMemoryMemberRepository: LocalMemberRepository {
     }
 
     func linkAuthUid(memberId: String, authUid: String) async -> Member? {
-        guard let existing = members[memberId] else {
-            return nil
-        }
+        guard let existing = members[memberId] else { return nil }
 
         let updated = Member(
             id: existing.id,

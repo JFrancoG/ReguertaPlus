@@ -40,7 +40,9 @@ extension NewsNotificationsFeatureViewModel {
             feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminEditNews)
             return false
         }
-        guard let article = newsFeed.first(where: { $0.id == newsId }) else { return false }
+        guard let article = newsFeed.first(where: { $0.id == newsId }) else {
+            return false
+        }
 
         invalidateNewsImageUploadForEditorTransition()
         newsDraft = article.toDraft()
@@ -222,9 +224,7 @@ extension NewsNotificationsFeatureViewModel {
             feedbackCenter.show(AccessL10nKey.feedbackNotificationTitleBodyRequired)
             return false
         }
-        guard let mutationOperationId = beginNotificationMutationOperation() else {
-            return false
-        }
+        guard let mutationOperationId = beginNotificationMutationOperation() else { return false }
 
         let editorOwnership = captureNotificationMutationEditorOwnership()
         let event = notificationEventForSend(draft: normalizedDraft, context: context)

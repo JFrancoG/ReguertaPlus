@@ -182,8 +182,14 @@ private extension ShiftsFeatureViewModel {
         guard let context = authorizedSessionContext else { return }
         let session = context.session
         guard !acknowledgedShiftSwapRequestIds.contains(requestId) else { return }
-        guard let request = shiftSwapRequests.first(where: { $0.id == requestId }) else { return }
-        guard let candidate = request.candidates.first(where: { $0.userId == session.member.id && $0.shiftId == candidateShiftId }) else { return }
+        guard let request = shiftSwapRequests.first(where: { $0.id == requestId }) else {
+            return
+        }
+        guard let candidate = request.candidates.first(where: {
+            $0.userId == session.member.id && $0.shiftId == candidateShiftId
+        }) else {
+            return
+        }
         guard let mutationOperationId = beginSwapMutation() else { return }
         Task { @MainActor in
             defer { finishSwapMutation(mutationOperationId, context: context) }
@@ -253,10 +259,18 @@ private extension ShiftsFeatureViewModel {
 
     func confirmShiftSwapContext(requestId: String, candidateShiftId: String) -> ConfirmShiftSwapContext? {
         guard let session = authorizedSession else { return nil }
-        guard let request = shiftSwapRequests.first(where: { $0.id == requestId }) else { return nil }
-        guard let requestedShift = shiftsFeed.first(where: { $0.id == request.requestedShiftId }) else { return nil }
-        guard let candidate = request.candidates.first(where: { $0.shiftId == candidateShiftId }) else { return nil }
-        guard let candidateShift = shiftsFeed.first(where: { $0.id == candidate.shiftId }) else { return nil }
+        guard let request = shiftSwapRequests.first(where: { $0.id == requestId }) else {
+            return nil
+        }
+        guard let requestedShift = shiftsFeed.first(where: { $0.id == request.requestedShiftId }) else {
+            return nil
+        }
+        guard let candidate = request.candidates.first(where: { $0.shiftId == candidateShiftId }) else {
+            return nil
+        }
+        guard let candidateShift = shiftsFeed.first(where: { $0.id == candidate.shiftId }) else {
+            return nil
+        }
 
         return ConfirmShiftSwapContext(
             session: session,

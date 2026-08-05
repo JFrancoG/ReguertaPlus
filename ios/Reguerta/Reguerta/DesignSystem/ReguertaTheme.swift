@@ -163,9 +163,7 @@ struct ReguertaTheme<Content: View>: View {
 
 private extension Color {
     static func reguertaAsset(_ name: String, fallback: Color) -> Color {
-        guard let uiColor = UIColor(named: name) else {
-            return fallback
-        }
+        guard let uiColor = UIColor(named: name) else { return fallback }
         return Color(uiColor: uiColor)
     }
 

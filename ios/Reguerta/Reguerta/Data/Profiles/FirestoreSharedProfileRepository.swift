@@ -34,9 +34,7 @@ final class FirestoreSharedProfileRepository: @unchecked Sendable, SharedProfile
         do {
             let document = try await profilesCollection.document(userId).getDocument()
             guard document.exists else { return nil }
-            guard let data = document.data() else {
-                throw Self.invalidDocumentError
-            }
+            guard let data = document.data() else { throw Self.invalidDocumentError }
             return try Self.sharedProfile(documentID: document.documentID, data: data)
         } catch {
             throw FirestoreRepositoryErrorMapper.map(error, resource: "sharedProfiles.document")
@@ -92,9 +90,7 @@ final class FirestoreSharedProfileRepository: @unchecked Sendable, SharedProfile
     }
 
     private static func requiredString(_ data: [String: Any], field: String) throws -> String {
-        guard let value = try optionalString(data, field: field) else {
-            throw invalidDocumentError
-        }
+        guard let value = try optionalString(data, field: field) else { throw invalidDocumentError }
         return value
     }
 

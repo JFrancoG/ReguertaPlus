@@ -85,9 +85,7 @@ struct AuthenticatedFirebaseFunctionsClient {
         } catch {
             throw mapTransportError(error)
         }
-        guard !token.isEmpty else {
-            throw FirebaseFunctionClientError.missingIDToken
-        }
+        guard !token.isEmpty else { throw FirebaseFunctionClientError.missingIDToken }
 
         let endpointURL = baseURL.appendingPathComponent(function.rawValue, isDirectory: false)
         guard endpointURL.scheme == "https", endpointURL.host != nil else {

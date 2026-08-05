@@ -64,9 +64,7 @@ func orderHistoryContinuousWeekOptions(
     calendar.timeZone = timeZone
     let seedWeekKeys = Set(realWeekKeys.filter(\.isValidIsoWeekKey) + [preferredWeekKey].filter(\.isValidIsoWeekKey))
     let starts = seedWeekKeys.compactMap { orderHistoryWeekStart(forWeekKey: $0, calendar: calendar) }.sorted()
-    guard let firstStart = starts.first, let lastStart = starts.last else {
-        return []
-    }
+    guard let firstStart = starts.first, let lastStart = starts.last else { return [] }
 
     var options: [OrderHistoryWeekOption] = []
     var cursor = firstStart
@@ -134,9 +132,7 @@ func orderHistoryWeekOption(
 ) -> OrderHistoryWeekOption? {
     var calendar = Calendar(identifier: .iso8601)
     calendar.timeZone = timeZone
-    guard let start = orderHistoryWeekStart(forWeekKey: weekKey, calendar: calendar) else {
-        return nil
-    }
+    guard let start = orderHistoryWeekStart(forWeekKey: weekKey, calendar: calendar) else { return nil }
     return orderHistoryWeekOption(for: start, calendar: calendar, locale: locale)
 }
 
@@ -169,9 +165,7 @@ private func orderHistoryWeekStart(forWeekKey weekKey: String, calendar: Calenda
     components.yearForWeekOfYear = year
     components.weekOfYear = week
     components.weekday = 2
-    guard let date = calendar.date(from: components) else {
-        return nil
-    }
+    guard let date = calendar.date(from: components) else { return nil }
     let start = calendar.startOfDay(for: date)
     return orderHistoryWeekKey(for: start, calendar: calendar) == weekKey ? start : nil
 }

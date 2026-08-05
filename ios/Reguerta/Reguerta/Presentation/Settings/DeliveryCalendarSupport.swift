@@ -6,9 +6,7 @@ func buildDeliveryCalendarOverride(
     updatedByUserId: String,
     updatedAtMillis: Int64
 ) -> DeliveryCalendarOverride? {
-    guard let weekStart = isoWeekStartDate(from: weekKey) else {
-        return nil
-    }
+    guard let weekStart = isoWeekStartDate(from: weekKey) else { return nil }
     let deliveryDate = Calendar.current.date(byAdding: .day, value: weekday.dayOffset, to: weekStart) ?? weekStart
     let blockedDate = Calendar.current.date(byAdding: .day, value: 1, to: deliveryDate) ?? deliveryDate
     let openDate = Calendar.current.date(byAdding: .day, value: 2, to: deliveryDate) ?? deliveryDate

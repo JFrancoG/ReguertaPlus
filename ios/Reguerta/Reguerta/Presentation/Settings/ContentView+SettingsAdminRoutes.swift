@@ -83,9 +83,7 @@ struct AdminToolsCardView: View {
         )
     }
 
-    private func localizedKey(_ key: String) -> LocalizedStringKey {
-        LocalizedStringKey(key)
-    }
+    private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 }
 
 private struct AdminMemberRowView: View {
@@ -143,9 +141,7 @@ private struct AdminMemberRowView: View {
         .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
     }
 
-    private func localizedKey(_ key: String) -> LocalizedStringKey {
-        LocalizedStringKey(key)
-    }
+    private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 
     private func localizedFormat(_ key: String, _ argument: String) -> LocalizedStringKey {
         LocalizedStringKey("\(key) \(argument)")
@@ -292,8 +288,6 @@ struct SettingsRouteView: View {
         }
     }
 
-    private func localizedKey(_ key: String) -> LocalizedStringKey {
-        LocalizedStringKey(key)
-    }
+    private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 
 }

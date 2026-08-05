@@ -14,9 +14,7 @@ nonisolated final class DevelopmentTimeMachine: @unchecked Sendable {
     var overrideNowMillis: Int64? {
         lock.lock()
         defer { lock.unlock() }
-        guard defaults.object(forKey: overrideKey) != nil else {
-            return nil
-        }
+        guard defaults.object(forKey: overrideKey) != nil else { return nil }
         return Int64(defaults.integer(forKey: overrideKey))
     }
 

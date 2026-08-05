@@ -77,9 +77,7 @@ struct ProductSaveInput: Equatable, Sendable {
 /// - Returns: Parsed values ready for product construction, or `nil` when any invariant fails.
 func resolveProductSaveInput(draft: ProductDraft, existing: Product?, nowMillis: Int64) -> ProductSaveInput? {
     let draft = draft.normalized
-    guard let price = draft.price.productPositiveDouble, !draft.name.isEmpty else {
-        return nil
-    }
+    guard let price = draft.price.productPositiveDouble, !draft.name.isEmpty else { return nil }
     let isBulk = ProductContainerOption.matching(name: draft.packContainerName) == .bulk
     let weightStep = isBulk ? draft.weightStep.productPositiveDouble : nil
     let minWeight = isBulk ? draft.minWeight.productPositiveDouble : nil
@@ -93,15 +91,11 @@ func resolveProductSaveInput(draft: ProductDraft, existing: Product?, nowMillis:
         return nil
     }
     let stockQty = draft.stockMode == .finite ? draft.stockQty.productNonNegativeDouble : nil
-    guard draft.stockMode != .finite || stockQty != nil else {
-        return nil
-    }
+    guard draft.stockMode != .finite || stockQty != nil else { return nil }
     let packContainerQty = (draft.packContainerName.isEmpty || isBulk)
         ? nil
         : draft.packContainerQty.productPositiveDouble
-    guard draft.packContainerName.isEmpty || isBulk || packContainerQty != nil else {
-        return nil
-    }
+    guard draft.packContainerName.isEmpty || isBulk || packContainerQty != nil else { return nil }
 
     return ProductSaveInput(
         draft: draft,

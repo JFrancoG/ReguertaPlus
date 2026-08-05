@@ -77,9 +77,7 @@ private final class PreviewCriticalDataFreshnessLocalRepository: CriticalDataFre
     private var metadata: CriticalDataFreshnessMetadata?
     private(set) var writeGeneration: UInt64 = 0
 
-    func getMetadata() -> CriticalDataFreshnessMetadata? {
-        metadata
-    }
+    func getMetadata() -> CriticalDataFreshnessMetadata? { metadata }
 
     func saveMetadata(
         _ metadata: CriticalDataFreshnessMetadata,

@@ -22,7 +22,5 @@ struct ShiftAssignment: Identifiable, Equatable, Sendable {
     let createdAtMillis: Int64
     let updatedAtMillis: Int64
 
-    func isAssigned(to userId: String) -> Bool {
-        assignedUserIds.contains(userId) || helperUserId == userId
-    }
+    func isAssigned(to userId: String) -> Bool { assignedUserIds.contains(userId) || helperUserId == userId }
 }

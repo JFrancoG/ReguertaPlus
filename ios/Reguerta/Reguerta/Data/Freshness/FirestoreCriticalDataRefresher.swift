@@ -142,9 +142,7 @@ private extension FirestoreCriticalDataRefresher {
                 documentID: snapshot.documentID,
                 data: data
             )
-            guard member.isActive else {
-                throw RepositoryError.permissionDenied(resource: resource)
-            }
+            guard member.isActive else { throw RepositoryError.permissionDenied(resource: resource) }
             return member
         } catch {
             throw FirestoreRepositoryErrorMapper.map(error, resource: resource)

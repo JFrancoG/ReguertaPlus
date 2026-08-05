@@ -51,9 +51,7 @@ struct ShiftBoardWindow: Equatable, Sendable {
         highlightedShiftId
     }
 
-    func highlights(_ shift: ShiftAssignment) -> Bool {
-        shift.id == highlightedShiftId
-    }
+    func highlights(_ shift: ShiftAssignment) -> Bool { shift.id == highlightedShiftId }
 }
 
 struct ShiftSwapResponseOption: Equatable, Sendable {

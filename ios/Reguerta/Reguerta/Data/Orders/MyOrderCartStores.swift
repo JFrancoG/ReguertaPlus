@@ -46,17 +46,13 @@ actor InMemoryMyOrderCartStore: MyOrderCartStore {
 
     init() {}
 
-    func readCart(storageKey: String) async -> MyOrderCartSnapshot {
-        cartSnapshots[storageKey] ?? .empty
-    }
+    func readCart(storageKey: String) async -> MyOrderCartSnapshot { cartSnapshots[storageKey] ?? .empty }
 
     func persistCart(storageKey: String, snapshot: MyOrderCartSnapshot) async {
         cartSnapshots[storageKey] = snapshot.normalized
     }
 
-    func readConfirmed(storageKey: String) async -> MyOrderCartSnapshot {
-        confirmedSnapshots[storageKey] ?? .empty
-    }
+    func readConfirmed(storageKey: String) async -> MyOrderCartSnapshot { confirmedSnapshots[storageKey] ?? .empty }
 
     func persistConfirmed(storageKey: String, snapshot: MyOrderCartSnapshot) async {
         confirmedSnapshots[storageKey] = snapshot.normalized

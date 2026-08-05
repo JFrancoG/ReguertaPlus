@@ -12,9 +12,7 @@ struct ProductsRouteView: View {
         viewModel.archivedProducts
     }
 
-    private func localizedKey(_ key: String) -> LocalizedStringKey {
-        LocalizedStringKey(key)
-    }
+    private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -64,9 +62,7 @@ private struct ProductsListRouteView: View {
     let activeProducts: [Product]
     let archivedProducts: [Product]
 
-    private func localizedKey(_ key: String) -> LocalizedStringKey {
-        LocalizedStringKey(key)
-    }
+    private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
@@ -131,9 +127,7 @@ private struct ProductCardRowView: View {
         product.description.isEmpty ? l10n(AccessL10nKey.productsCardDescriptionEmpty) : product.description
     }
 
-    private func decimalText(_ value: Double) -> String {
-        value.productUIDecimal
-    }
+    private func decimalText(_ value: Double) -> String { value.productUIDecimal }
 
     private var priceText: String {
         product.price.euroCurrencyText()

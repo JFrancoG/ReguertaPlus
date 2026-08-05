@@ -239,9 +239,7 @@ private extension FirestoreMemberRepository {
         let resource = "members.document"
         let parsedRoles: Set<MemberRole>
         if let rawRoles = data["roles"], !(rawRoles is NSNull) {
-            guard let values = rawRoles as? [Any] else {
-                throw RepositoryError.invalidData(resource: resource)
-            }
+            guard let values = rawRoles as? [Any] else { throw RepositoryError.invalidData(resource: resource) }
             parsedRoles = try Set(values.map { value in
                 guard let value = value as? String,
                       let role = legacyCompatibleRole(from: value) else {
@@ -303,9 +301,7 @@ private extension FirestoreMemberRepository {
     private static func optionalString(_ data: [String: Any], keys: [String], resource: String) throws -> String? {
         for key in keys {
             guard let rawValue = data[key], !(rawValue is NSNull) else { continue }
-            guard let value = rawValue as? String else {
-                throw RepositoryError.invalidData(resource: resource)
-            }
+            guard let value = rawValue as? String else { throw RepositoryError.invalidData(resource: resource) }
             let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines)
             if !normalized.isEmpty { return normalized }
         }
@@ -327,9 +323,7 @@ private extension FirestoreMemberRepository {
     ) throws -> Bool {
         for key in keys {
             guard let rawValue = data[key], !(rawValue is NSNull) else { continue }
-            guard let value = rawValue as? Bool else {
-                throw RepositoryError.invalidData(resource: resource)
-            }
+            guard let value = rawValue as? Bool else { throw RepositoryError.invalidData(resource: resource) }
             return value
         }
         return defaultValue
@@ -337,9 +331,7 @@ private extension FirestoreMemberRepository {
 
     private static func optionalMap(_ data: [String: Any], field: String, resource: String) throws -> [String: Any]? {
         guard let rawValue = data[field], !(rawValue is NSNull) else { return nil }
-        guard let value = rawValue as? [String: Any] else {
-            throw RepositoryError.invalidData(resource: resource)
-        }
+        guard let value = rawValue as? [String: Any] else { throw RepositoryError.invalidData(resource: resource) }
         return value
     }
 
@@ -349,9 +341,7 @@ private extension FirestoreMemberRepository {
         acceptsLegacyCasing: Bool
     ) throws -> ProducerParity? {
         guard let rawValue, !(rawValue is NSNull) else { return nil }
-        guard let value = rawValue as? String else {
-            throw RepositoryError.invalidData(resource: resource)
-        }
+        guard let value = rawValue as? String else { throw RepositoryError.invalidData(resource: resource) }
         let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines)
         let candidate = acceptsLegacyCasing ? normalized.lowercased() : normalized
         guard let parity = ProducerParity(rawValue: candidate) else {
@@ -376,9 +366,7 @@ private extension FirestoreMemberRepository {
         acceptsLegacyCasing: Bool
     ) throws -> EcoCommitmentMode {
         guard let rawValue, !(rawValue is NSNull) else { return defaultValue }
-        guard let value = rawValue as? String else {
-            throw RepositoryError.invalidData(resource: resource)
-        }
+        guard let value = rawValue as? String else { throw RepositoryError.invalidData(resource: resource) }
         let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines)
         let candidate = acceptsLegacyCasing ? normalized.lowercased() : normalized
         guard let mode = EcoCommitmentMode(rawValue: candidate) else {

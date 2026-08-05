@@ -8,9 +8,7 @@ struct NextShiftsCardView: View {
     let nextMarketSummary: String
     let onViewAll: () -> Void
 
-    private func localizedKey(_ key: String) -> LocalizedStringKey {
-        LocalizedStringKey(key)
-    }
+    private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 
     var body: some View {
         reguertaCard {
@@ -135,9 +133,7 @@ struct LatestNewsCardView: View {
     let tokens: ReguertaDesignTokens
     let latestNews: [HomeLatestNewsItemPresentation]
 
-    private func localizedKey(_ key: String) -> LocalizedStringKey {
-        LocalizedStringKey(key)
-    }
+    private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.sm) {
@@ -282,9 +278,7 @@ struct OperationalModulesCardView: View {
     let onOpenBylaws: () -> Void
     let onRetryFreshness: () -> Void
 
-    private func localizedKey(_ key: String) -> LocalizedStringKey {
-        LocalizedStringKey(key)
-    }
+    private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 
     var body: some View {
         reguertaCard {

@@ -83,9 +83,7 @@ struct HomeWeeklySummaryCardView: View {
 
     private let compactColumnWidth: CGFloat = 96.resize
 
-    private func localizedKey(_ key: String) -> LocalizedStringKey {
-        LocalizedStringKey(key)
-    }
+    private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.md) {
@@ -252,9 +250,7 @@ struct HomeActionRowView: View {
     let onOpenReceivedOrders: () -> Void
     let onRetryFreshness: () -> Void
 
-    private func localizedKey(_ key: String) -> LocalizedStringKey {
-        LocalizedStringKey(key)
-    }
+    private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.sm) {

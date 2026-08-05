@@ -45,14 +45,7 @@ struct NotificationListItem: Identifiable, Equatable, Sendable {
 }
 
 extension NewsArticle {
-    func toDraft() -> NewsDraft {
-        NewsDraft(
-            title: title,
-            body: body,
-            urlImage: urlImage ?? "",
-            active: active
-        )
-    }
+    func toDraft() -> NewsDraft { NewsDraft(title: title, body: body, urlImage: urlImage ?? "", active: active) }
 }
 
 extension NotificationEvent {

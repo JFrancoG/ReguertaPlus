@@ -93,9 +93,7 @@ func fetchOrderSummarySnapshot(
     db: Firestore = Firestore.firestore(),
     environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment
 ) async throws -> MyOrderPreviousOrderSnapshot? {
-    guard let member = currentMember else {
-        return nil
-    }
+    guard let member = currentMember else { return nil }
     let firestorePath = ReguertaFirestorePath(environment: environment)
     let readTargets = resolvePreviousOrderReadTargets(
         firestorePath: firestorePath
@@ -168,9 +166,7 @@ func fetchPreviousWeekOrderSnapshot(
         myOrderPreviousLine(from: data)
     }
     let groups = buildMyOrderPreviousGroups(from: lines)
-    guard !groups.isEmpty else {
-        return nil
-    }
+    guard !groups.isEmpty else { return nil }
 
     let documentedTotals = orderDocuments.values.compactMap { data in
         (data["total"] as? NSNumber)?.doubleValue
@@ -281,9 +277,7 @@ func myOrderPreviousLine(from data: [String: Any]) -> MyOrderPreviousOrderLine {
 }
 
 func myOrderProducerStatusesByVendor(from data: [String: Any]) -> [String: ProducerOrderStatus] {
-    guard let rawMap = data["producerStatusesByVendor"] as? [String: Any] else {
-        return [:]
-    }
+    guard let rawMap = data["producerStatusesByVendor"] as? [String: Any] else { return [:] }
     return rawMap.reduce(into: [:]) { partialResult, entry in
         let vendorId = entry.key.trimmingCharacters(in: .whitespacesAndNewlines)
         guard vendorId.isNotEmpty else { return }

@@ -16,9 +16,7 @@ final class FirestoreStartupVersionPolicyRepository: @unchecked Sendable, Startu
                 .reguertaDocument(.publicConfiguration, in: .config, environment: environment)
                 .getDocument(source: .server)
 
-            guard snapshot.exists else {
-                throw RepositoryError.notFound(resource: "config.public")
-            }
+            guard snapshot.exists else { throw RepositoryError.notFound(resource: "config.public") }
             guard let data = snapshot.data() else {
                 throw RepositoryError.invalidData(resource: "config.public.versions.\(platform.rawValue)")
             }
@@ -50,9 +48,7 @@ final class FirestoreStartupVersionPolicyRepository: @unchecked Sendable, Startu
 
 nonisolated private extension Dictionary where Key == String, Value == Any {
     func requiredString(for key: String) -> String? {
-        guard let value = self[key] as? String else {
-            return nil
-        }
+        guard let value = self[key] as? String else { return nil }
         let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return normalized.isEmpty ? nil : normalized
     }

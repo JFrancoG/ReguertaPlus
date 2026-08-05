@@ -61,9 +61,7 @@ struct SharedProfileHubRoute: View {
         )
     }
 
-    private func localizedKey(_ key: String) -> LocalizedStringKey {
-        LocalizedStringKey(key)
-    }
+    private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 
     var body: some View {
         Group {

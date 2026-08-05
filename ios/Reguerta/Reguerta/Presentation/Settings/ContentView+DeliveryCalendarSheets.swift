@@ -82,9 +82,7 @@ struct DeliveryCalendarWeekPickerSheet: View {
         return localizedDateOnly(effectiveMillis)
     }
 
-    private func localizedKey(_ key: String) -> LocalizedStringKey {
-        LocalizedStringKey(key)
-    }
+    private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 }
 
 private struct DeliveryDayNavigationControl: View {
@@ -129,23 +127,17 @@ private struct DeliveryDayNavigationControl: View {
     }
 
     private func selectPrevious() {
-        guard let index = DeliveryWeekday.allCases.firstIndex(of: selectedWeekday), index > 0 else {
-            return
-        }
+        guard let index = DeliveryWeekday.allCases.firstIndex(of: selectedWeekday), index > 0 else { return }
         selectedWeekday = DeliveryWeekday.allCases[index - 1]
     }
 
     private func selectNext() {
         let weekdays = DeliveryWeekday.allCases
-        guard let index = weekdays.firstIndex(of: selectedWeekday), index < weekdays.count - 1 else {
-            return
-        }
+        guard let index = weekdays.firstIndex(of: selectedWeekday), index < weekdays.count - 1 else { return }
         selectedWeekday = weekdays[index + 1]
     }
 
-    private func localizedKey(_ key: String) -> LocalizedStringKey {
-        LocalizedStringKey(key)
-    }
+    private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 }
 
 private struct DeliveryDayNavigationButton: View {
@@ -288,7 +280,5 @@ struct SettingsDeliveryCalendarSectionView: View {
         Task { await shiftsViewModel.saveDeliveryCalendarOverride() }
     }
 
-    private func localizedKey(_ key: String) -> LocalizedStringKey {
-        LocalizedStringKey(key)
-    }
+    private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 }

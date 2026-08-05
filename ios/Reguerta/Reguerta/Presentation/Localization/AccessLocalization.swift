@@ -330,9 +330,7 @@ extension AccessL10nKey {
     static let bylawsPdfViewerUnavailable = "bylaws.pdf.viewer.unavailable"
 }
 
-func l10n(_ key: String) -> String {
-    NSLocalizedString(key, comment: "")
-}
+func l10n(_ key: String) -> String { NSLocalizedString(key, comment: "") }
 
 func l10n(_ key: String, _ arguments: CVarArg...) -> String {
     String(format: NSLocalizedString(key, comment: ""), locale: Locale.current, arguments: arguments)

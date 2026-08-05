@@ -223,9 +223,7 @@ private func resolveHomeNextScheduledMarketDate(onOrAfter today: Date, calendar:
                 return thirdSaturday
             }
         }
-        guard let nextMonth = calendar.date(byAdding: .month, value: 1, to: monthStart) else {
-            return nil
-        }
+        guard let nextMonth = calendar.date(byAdding: .month, value: 1, to: monthStart) else { return nil }
         monthStart = nextMonth
     }
     return nil

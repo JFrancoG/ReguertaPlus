@@ -102,9 +102,7 @@ final class FirestoreDeliveryCalendarRepository: @unchecked Sendable, DeliveryCa
             return try weekday(from: data[key])
         }
         if let rawOtherConfig = data["otherConfig"] {
-            guard let otherConfig = rawOtherConfig as? [String: Any] else {
-                throw invalidConfigurationError
-            }
+            guard let otherConfig = rawOtherConfig as? [String: Any] else { throw invalidConfigurationError }
             for key in ["deliveryDayOfWeek", "deliveryDateOfWeek"] where otherConfig[key] != nil {
                 return try weekday(from: otherConfig[key])
             }

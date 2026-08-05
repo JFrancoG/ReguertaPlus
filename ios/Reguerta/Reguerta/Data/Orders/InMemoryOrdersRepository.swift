@@ -162,19 +162,11 @@ actor InMemoryOrdersRepository: OrdersRepository {
         updateResultsByOrderId[orderId] = result
     }
 
-    func submissions() -> [SubmittedOrder] {
-        submittedOrders
-    }
+    func submissions() -> [SubmittedOrder] { submittedOrders }
 
-    func receivedStatusUpdates() -> [ReceivedStatusUpdate] {
-        receivedStatusUpdateRequests
-    }
+    func receivedStatusUpdates() -> [ReceivedStatusUpdate] { receivedStatusUpdateRequests }
 
-    private func receivedKey(producerId: String, weekKey: String) -> String {
-        "\(producerId)|\(weekKey)"
-    }
+    private func receivedKey(producerId: String, weekKey: String) -> String { "\(producerId)|\(weekKey)" }
 
-    private func producerStatusKey(memberId: String, weekKey: String) -> String {
-        "\(memberId)|\(weekKey)"
-    }
+    private func producerStatusKey(memberId: String, weekKey: String) -> String { "\(memberId)|\(weekKey)" }
 }

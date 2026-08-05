@@ -45,15 +45,9 @@ struct NewsImageDataLoader: Sendable {
             timeoutInterval: 30
         )
         let response = try await fetcher.data(for: request)
-        guard let statusCode = response.statusCode else {
-            throw NewsImageDataLoaderError.invalidResponse
-        }
-        guard (200 ..< 300).contains(statusCode) else {
-            throw NewsImageDataLoaderError.httpStatus(statusCode)
-        }
-        guard !response.data.isEmpty else {
-            throw NewsImageDataLoaderError.emptyData
-        }
+        guard let statusCode = response.statusCode else { throw NewsImageDataLoaderError.invalidResponse }
+        guard (200 ..< 300).contains(statusCode) else { throw NewsImageDataLoaderError.httpStatus(statusCode) }
+        guard !response.data.isEmpty else { throw NewsImageDataLoaderError.emptyData }
         return response.data
     }
 }

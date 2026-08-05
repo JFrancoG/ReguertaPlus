@@ -37,9 +37,7 @@ struct BylawsFeatureDependencies {
 private struct PreviewBylawsConsultant: BylawsConsulting {
     let configuredCapability: BylawsConsultationCapability
 
-    func capability(for _: BylawsResponseLanguage) async -> BylawsConsultationCapability {
-        configuredCapability
-    }
+    func capability(for _: BylawsResponseLanguage) async -> BylawsConsultationCapability { configuredCapability }
 
     func consult(question: String, responseLanguage: BylawsResponseLanguage) async throws -> BylawsConsultationResult {
         BylawsConsultationResult(

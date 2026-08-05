@@ -14,9 +14,7 @@ func producerParityForISOWeek(nowMillis: Int64) -> ProducerParity {
 
 extension Product {
     func matchesCurrentProducerWeek(membersById: [String: Member], currentWeekParity: ProducerParity) -> Bool {
-        guard let producerParity = membersById[vendorId]?.producerParity else {
-            return true
-        }
+        guard let producerParity = membersById[vendorId]?.producerParity else { return true }
         return producerParity == currentWeekParity
     }
 }

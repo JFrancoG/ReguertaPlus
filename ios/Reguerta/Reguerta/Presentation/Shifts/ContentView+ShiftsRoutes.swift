@@ -48,9 +48,7 @@ private struct MyNextShiftsSectionView: View {
     let tokens: ReguertaDesignTokens
     let viewModel: ShiftsFeatureViewModel
 
-    private func localizedKey(_ key: String) -> LocalizedStringKey {
-        LocalizedStringKey(key)
-    }
+    private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 
     var body: some View {
         VStack(alignment: .center, spacing: tokens.spacing.sm) {
@@ -141,9 +139,7 @@ private struct ShiftBoardSectionView: View {
     let shiftSwapCopy: ShiftSwapCopy
     let onStartSwapRequestForShift: (String) -> Void
 
-    private func localizedKey(_ key: String) -> LocalizedStringKey {
-        LocalizedStringKey(key)
-    }
+    private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.md) {

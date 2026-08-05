@@ -13,9 +13,7 @@ struct CropSquare: Equatable, Sendable {
 
 enum ImagePipelineSizingContract {
     static func scaledDimensions(sourceWidth: Int, sourceHeight: Int, targetShortSidePx: Int) -> PixelSize? {
-        guard sourceWidth > 0, sourceHeight > 0, targetShortSidePx > 0 else {
-            return nil
-        }
+        guard sourceWidth > 0, sourceHeight > 0, targetShortSidePx > 0 else { return nil }
         let shortSide = Double(min(sourceWidth, sourceHeight))
         let scale = Double(targetShortSidePx) / shortSide
         let scaledWidth = max(targetShortSidePx, Int((Double(sourceWidth) * scale).rounded()))

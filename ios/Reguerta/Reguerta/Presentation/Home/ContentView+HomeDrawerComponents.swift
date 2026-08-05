@@ -20,9 +20,7 @@ struct HomeDrawerContentView: View {
         currentMember?.canAccessReceivedOrders == true
     }
 
-    private func localizedKey(_ key: String) -> LocalizedStringKey {
-        LocalizedStringKey(key)
-    }
+    private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 
     private var homeDrawerVersionText: String {
         let version = l10n(AccessL10nKey.homeShellVersion, installedVersion).lowercased()

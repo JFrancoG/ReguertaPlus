@@ -65,9 +65,7 @@ final class FirestoreShiftRepository: @unchecked Sendable, ShiftRepository {
 
         let helperUserId: String?
         if let rawHelper = data["helperUserId"], !(rawHelper is NSNull) {
-            guard let parsedHelper = requiredTrimmedString(rawHelper) else {
-                throw invalidDocumentError
-            }
+            guard let parsedHelper = requiredTrimmedString(rawHelper) else { throw invalidDocumentError }
             helperUserId = parsedHelper
         } else {
             helperUserId = nil

@@ -8,9 +8,7 @@ protocol PushNotificationPermissionProvider: Sendable {
 struct FixedPushNotificationPermissionProvider: PushNotificationPermissionProvider {
     let isActive: Bool
 
-    func isPushNotificationPermissionActive() async -> Bool {
-        isActive
-    }
+    func isPushNotificationPermissionActive() async -> Bool { isActive }
 
     @MainActor func openSettings() {}
 }
