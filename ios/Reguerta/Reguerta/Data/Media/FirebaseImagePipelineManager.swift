@@ -41,7 +41,8 @@ final class FirebaseImagePipelineManager: @unchecked Sendable, ImagePipelineMana
             throw ImagePipelineError.processingFailed
         }
         let finalImage = UIImage(cgImage: croppedCgImage)
-        guard let outputData = finalImage.jpegData(compressionQuality: jpegCompressionQuality), !outputData.isEmpty else {
+        guard let outputData = finalImage.jpegData(compressionQuality: jpegCompressionQuality),
+              !outputData.isEmpty else {
             throw ImagePipelineError.processingFailed
         }
         let reference = storage.reference(withPath: buildStoragePath(request: request))
@@ -77,6 +78,7 @@ final class FirebaseImagePipelineManager: @unchecked Sendable, ImagePipelineMana
             nameHint: request.nameHint,
             namespace: request.namespace
         )
+        // swiftlint:disable:next line_length
         return "\(environment)/images/\(request.namespace.rawValue)/\(ownerId)/\(namePrefix)_\(entityId)_\(UUID().uuidString).jpg"
     }
 

@@ -47,16 +47,29 @@ final class FirestoreDeliveryCalendarRepository: @unchecked Sendable, DeliveryCa
     func upsertOverride(_ override: DeliveryCalendarOverride) async throws -> DeliveryCalendarOverride {
         let payload: [String: Any] = [
             "weekKey": override.weekKey,
-            "deliveryDate": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(override.deliveryDateMillis) / 1000)),
-            "ordersBlockedDate": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(override.ordersBlockedDateMillis) / 1000)),
-            "ordersOpenAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(override.ordersOpenAtMillis) / 1000)),
-            "ordersCloseAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(override.ordersCloseAtMillis) / 1000)),
+            "deliveryDate": Timestamp(
+                date: Date(timeIntervalSince1970: TimeInterval(override.deliveryDateMillis) / 1000)
+            ),
+            "ordersBlockedDate": Timestamp(
+                date: Date(timeIntervalSince1970: TimeInterval(override.ordersBlockedDateMillis) / 1000)
+            ),
+            "ordersOpenAt": Timestamp(
+                date: Date(timeIntervalSince1970: TimeInterval(override.ordersOpenAtMillis) / 1000)
+            ),
+            "ordersCloseAt": Timestamp(
+                date: Date(timeIntervalSince1970: TimeInterval(override.ordersCloseAtMillis) / 1000)
+            ),
             "updatedBy": override.updatedBy,
-            "updatedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(override.updatedAtMillis) / 1000))
+            "updatedAt": Timestamp(
+                date: Date(timeIntervalSince1970: TimeInterval(override.updatedAtMillis) / 1000)
+            )
         ]
         do {
             try await db
-                .document(ReguertaFirestorePath(environment: environment).documentPath(in: .deliveryCalendar, documentId: override.weekKey))
+                .document(
+                    ReguertaFirestorePath(environment: environment)
+                        .documentPath(in: .deliveryCalendar, documentId: override.weekKey)
+                )
                 .setData(payload)
         } catch {
             throw FirestoreRepositoryErrorMapper.map(error, resource: "deliveryCalendar.write")
@@ -67,7 +80,10 @@ final class FirestoreDeliveryCalendarRepository: @unchecked Sendable, DeliveryCa
     func deleteOverride(weekKey: String) async throws {
         do {
             try await db
-                .document(ReguertaFirestorePath(environment: environment).documentPath(in: .deliveryCalendar, documentId: weekKey))
+                .document(
+                    ReguertaFirestorePath(environment: environment)
+                        .documentPath(in: .deliveryCalendar, documentId: weekKey)
+                )
                 .delete()
         } catch {
             throw FirestoreRepositoryErrorMapper.map(error, resource: "deliveryCalendar.write")

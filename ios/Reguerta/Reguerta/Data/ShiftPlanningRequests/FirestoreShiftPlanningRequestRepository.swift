@@ -39,7 +39,10 @@ final class FirestoreShiftPlanningRequestRepository: @unchecked Sendable, ShiftP
         request: ShiftPlanningRequest
     ) async throws -> ShiftPlanningRequestTransactionResult {
         let document = requestsCollection.document(request.id)
-        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ShiftPlanningRequestTransactionResult, any Error>) in
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<
+            ShiftPlanningRequestTransactionResult,
+            any Error
+        >) in
             db.runTransaction { transaction, errorPointer -> Any? in
                 Self.transactionValue(
                     transaction: transaction,

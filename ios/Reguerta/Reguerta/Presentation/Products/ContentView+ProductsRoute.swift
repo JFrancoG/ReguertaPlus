@@ -19,7 +19,12 @@ struct ProductsRouteView: View {
             ScrollViewReader { proxy in
                 ScrollView(.vertical, showsIndicators: false) {
                     routeContent
-                        .padding(.bottom, viewModel.isEditing ? tokens.spacing.sm : ReguertaFloatingActionButtonLayout.scrollContentBottomPadding)
+                        .padding(
+                            .bottom,
+                            viewModel.isEditing
+                                ? tokens.spacing.sm
+                                : ReguertaFloatingActionButtonLayout.scrollContentBottomPadding
+                        )
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .onChange(of: viewModel.highlightedProductId) { _, productId in

@@ -93,7 +93,8 @@ extension ShiftsFeatureViewModel {
 
     func selectCalendarWeekForEditing(_ weekKey: String) {
         selectedDeliveryCalendarWeekKey = weekKey
-        let effectiveWeekday = deliveryCalendarOverrides.first { $0.weekKey == weekKey }?.deliveryDateMillis.deliveryWeekday ??
+        let effectiveWeekday =
+            deliveryCalendarOverrides.first { $0.weekKey == weekKey }?.deliveryDateMillis.deliveryWeekday ??
             defaultDeliveryDayOfWeek ??
             .wednesday
         selectedDeliveryCalendarWeekday = effectiveWeekday

@@ -41,11 +41,15 @@ final class FirestoreDeviceRegistrationRepository: @unchecked Sendable, DeviceRe
         let existing = try await deviceDocument.getDocument()
         guard try await isRegistrationCurrent() else { throw DeviceRegistrationRepositoryError.staleSession }
         if !existing.exists {
-            payload["firstSeenAt"] = Timestamp(date: Date(timeIntervalSince1970: TimeInterval(device.firstSeenAtMillis) / 1_000))
+            payload["firstSeenAt"] = Timestamp(
+                date: Date(timeIntervalSince1970: TimeInterval(device.firstSeenAtMillis) / 1_000)
+            )
         }
         payload["fcmToken"] = device.fcmToken ?? NSNull()
         payload["tokenUpdatedAt"] = device.tokenUpdatedAtMillis.map {
-            Timestamp(date: Date(timeIntervalSince1970: TimeInterval($0) / 1_000))
+            Timestamp(
+                date: Date(timeIntervalSince1970: TimeInterval($0) / 1_000)
+            )
         } ?? NSNull()
 
         let batch = db.batch()

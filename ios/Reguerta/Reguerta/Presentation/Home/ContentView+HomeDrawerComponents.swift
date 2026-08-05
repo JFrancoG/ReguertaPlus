@@ -74,9 +74,15 @@ struct HomeDrawerContentView: View {
             homeDrawerAvatar
 
             if let currentMember {
-                Text(sharedProfile?.familyNames.isEmpty == false ? sharedProfile!.familyNames : currentMember.displayName)
+                Text(
+                    sharedProfile?.familyNames.isEmpty == false
+                        ? sharedProfile!.familyNames
+                        : currentMember.displayName
+                )
                     .font(tokens.typography.titleCard)
-                    .foregroundStyle(tokens.colors.textPrimary)
+                    .foregroundStyle(
+                        tokens.colors.textPrimary
+                    )
                     .multilineTextAlignment(.center)
                     .lineLimit(1)
                 Text(currentMember.normalizedEmail)
@@ -149,7 +155,11 @@ struct HomeDrawerContentView: View {
                 homeDrawerItem("person.3.fill", titleKey: AccessL10nKey.homeShellActionUsers, destination: .users)
             }
             if currentMember?.canSendAdminNotifications == true {
-                homeDrawerItem("megaphone.fill", titleKey: AccessL10nKey.homeShellActionAdminBroadcast, destination: .adminBroadcast)
+                homeDrawerItem(
+                    "megaphone.fill",
+                    titleKey: AccessL10nKey.homeShellActionAdminBroadcast,
+                    destination: .adminBroadcast
+                )
             }
         }
     }

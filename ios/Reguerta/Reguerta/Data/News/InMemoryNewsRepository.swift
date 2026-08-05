@@ -70,6 +70,7 @@ extension InMemoryNewsRepository {
                 NewsArticle(
                     id: "news_ui_testing_medium",
                     title: "Saturday work group changes and updated meeting point",
+                    // swiftlint:disable:next line_length
                     body: "The next work group will meet at the north gate before walking to the shared plots together.",
                     active: true,
                     publishedBy: "Ana Admin",
@@ -79,6 +80,7 @@ extension InMemoryNewsRepository {
                 NewsArticle(
                     id: "news_ui_testing_overflow_target",
                     title: "Important cooperative assembly information for members and producer families",
+                    // swiftlint:disable:next line_length
                     body: "Please review the agenda, accessibility notes, voting schedule, and arrival instructions before the assembly begins.",
                     active: true,
                     publishedBy: "Ana Admin",

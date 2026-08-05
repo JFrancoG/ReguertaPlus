@@ -44,7 +44,9 @@ struct ReguertaInputFieldView: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(!viewModel.isEnabled)
-                    .accessibilityLabel(Text(passwordVisibility ? "common.action.hide_password" : "common.action.show_password"))
+                    .accessibilityLabel(
+                        Text(passwordVisibility ? "common.action.hide_password" : "common.action.show_password")
+                    )
                 }
 
                 if viewModel.showsClearAction && viewModel.isEnabled && !text.isEmpty {

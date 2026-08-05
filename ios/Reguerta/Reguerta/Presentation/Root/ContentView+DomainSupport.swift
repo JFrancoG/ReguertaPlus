@@ -161,7 +161,10 @@ extension Int64 {
     }
 
     var deliveryWeekday: DeliveryWeekday {
-        let weekday = Calendar.current.component(.weekday, from: Date(timeIntervalSince1970: TimeInterval(self) / 1_000))
+        let weekday = Calendar.current.component(
+            .weekday,
+            from: Date(timeIntervalSince1970: TimeInterval(self) / 1_000)
+        )
         switch weekday {
         case 2: return .monday
         case 3: return .tuesday

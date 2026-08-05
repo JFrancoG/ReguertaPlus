@@ -8,7 +8,9 @@ enum ProducerOrderStatus: String, CaseIterable, Equatable, Sendable {
 
     static func from(_ rawValue: String?) -> ProducerOrderStatus {
         guard let rawValue else { return .unread }
-        return ProducerOrderStatus(rawValue: rawValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()) ?? .unread
+        return ProducerOrderStatus(
+            rawValue: rawValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        ) ?? .unread
     }
 
     var title: String {

@@ -141,15 +141,21 @@ func buildProductToSave(sessionMember: Member, input: ProductSaveInput, newProdu
         unitPlural: isBulk ? "kilos" : input.draft.unitPlural,
         unitQty: input.unitQty,
         packContainerName: input.draft.packContainerName.isEmpty ? nil : input.draft.packContainerName,
-        packContainerAbbreviation: input.draft.packContainerAbbreviation.isEmpty ? nil : input.draft.packContainerAbbreviation,
-        packContainerPlural: input.draft.packContainerPlural.isEmpty ? nil : input.draft.packContainerPlural,
+        packContainerAbbreviation: input.draft.packContainerAbbreviation.isEmpty
+            ? nil
+            : input.draft.packContainerAbbreviation,
+        packContainerPlural: input.draft.packContainerPlural.isEmpty
+            ? nil
+            : input.draft.packContainerPlural,
         packContainerQty: input.packContainerQty,
         isAvailable: input.draft.isAvailable,
         stockMode: input.draft.stockMode,
         stockQty: input.stockQty,
         isEcoBasket: isEcoBasket,
         isCommonPurchase: canManageCommonPurchase ? input.draft.isCommonPurchase : false,
-        commonPurchaseType: (canManageCommonPurchase && input.draft.isCommonPurchase) ? input.draft.commonPurchaseType : nil,
+        commonPurchaseType: (canManageCommonPurchase && input.draft.isCommonPurchase)
+            ? input.draft.commonPurchaseType
+            : nil,
         archived: input.existing?.archived ?? false,
         createdAtMillis: input.existing?.createdAtMillis ?? input.nowMillis,
         updatedAtMillis: input.nowMillis,

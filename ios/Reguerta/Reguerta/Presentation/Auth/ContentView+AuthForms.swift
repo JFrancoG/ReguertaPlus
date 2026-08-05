@@ -111,7 +111,11 @@ extension AccessRootRoutingView {
             Spacer(minLength: 72.resize)
 
             reguertaButton(
-                localizedKey(viewModel.isRegistering ? AccessL10nKey.registerActionCreating : AccessL10nKey.registerActionCreateAccount),
+                localizedKey(
+                    viewModel.isRegistering
+                        ? AccessL10nKey.registerActionCreating
+                        : AccessL10nKey.registerActionCreateAccount
+                ),
                 isEnabled: viewModel.canSubmitSignUp,
                 isLoading: viewModel.isRegistering
             ) {
@@ -137,7 +141,11 @@ extension AccessRootRoutingView {
             Spacer(minLength: 88.resize)
 
             reguertaButton(
-                localizedKey(viewModel.isRecoveringPassword ? AccessL10nKey.recoverActionSending : AccessL10nKey.recoverActionSendEmail),
+                localizedKey(
+                    viewModel.isRecoveringPassword
+                        ? AccessL10nKey.recoverActionSending
+                        : AccessL10nKey.recoverActionSendEmail
+                ),
                 isEnabled: viewModel.canSubmitPasswordReset,
                 isLoading: viewModel.isRecoveringPassword
             ) {

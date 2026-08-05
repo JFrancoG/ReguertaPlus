@@ -64,7 +64,11 @@ extension ShiftsFeatureViewModel {
     }
 
     func rejectShiftSwapRequest(requestId: String, candidateShiftId: String) {
-        respondToShiftSwapRequest(requestId: requestId, candidateShiftId: candidateShiftId, responseStatus: .unavailable)
+        respondToShiftSwapRequest(
+            requestId: requestId,
+            candidateShiftId: candidateShiftId,
+            responseStatus: .unavailable
+        )
     }
 
     func cancelShiftSwapRequest(requestId: String) async {

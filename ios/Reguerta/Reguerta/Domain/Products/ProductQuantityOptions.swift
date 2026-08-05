@@ -48,7 +48,11 @@ enum ProductContainerOption: String, CaseIterable, Hashable, Sendable {
     var abbreviation: String { singular }
 
     static func matching(name: String) -> Self? {
-        allCases.first { $0.singular.caseInsensitiveCompare(name.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame }
+        allCases.first {
+            $0.singular.caseInsensitiveCompare(
+                name.trimmingCharacters(in: .whitespacesAndNewlines)
+            ) == .orderedSame
+        }
     }
 }
 

@@ -289,7 +289,9 @@ private func buildSeasonalRequirements(
         }
         .sorted { lhs, rhs in
             if lhs.product.companyName.localizedCaseInsensitiveCompare(rhs.product.companyName) != .orderedSame {
-                return lhs.product.companyName.localizedCaseInsensitiveCompare(rhs.product.companyName) == .orderedAscending
+                return lhs.product.companyName.localizedCaseInsensitiveCompare(
+                    rhs.product.companyName
+                ) == .orderedAscending
             }
             return lhs.product.name.localizedCaseInsensitiveCompare(rhs.product.name) == .orderedAscending
         }
@@ -297,7 +299,9 @@ private func buildSeasonalRequirements(
 
 private func deduplicatePreservingOrder(_ values: [String]) -> [String] {
     var seen = Set<String>()
-    return values.filter { seen.insert($0).inserted }
+    return values.filter {
+        seen.insert($0).inserted
+    }
 }
 
 private extension Product {

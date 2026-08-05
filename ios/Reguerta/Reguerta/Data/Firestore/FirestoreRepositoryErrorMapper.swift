@@ -46,6 +46,7 @@ nonisolated enum FirestoreRepositoryErrorMapper {
 
     private static func log(error: any Error, resource: String) {
         logger.error(
+            // swiftlint:disable:next line_length
             "Firestore operation failed for \(resource, privacy: .private): \(String(describing: error), privacy: .private)"
         )
     }

@@ -19,7 +19,8 @@ struct NewsNotificationsFeatureDependencies {
         NewsNotificationsFeatureDependencies(
             newsRepository: FirestoreNewsRepository(db: db),
             notificationRepository: notificationRepository ?? FirestoreNotificationRepository(db: db),
-            pushNotificationPermissionProvider: pushNotificationPermissionProvider ?? IOSPushNotificationPermissionProvider(),
+            pushNotificationPermissionProvider: pushNotificationPermissionProvider ??
+                IOSPushNotificationPermissionProvider(),
             imagePipelineManager: imagePipelineManager,
             nowMillisProvider: nowMillisProvider,
             environmentProvider: {
@@ -31,7 +32,8 @@ struct NewsNotificationsFeatureDependencies {
     static func preview(
         newsRepository: InMemoryNewsRepository = InMemoryNewsRepository(),
         notificationRepository: InMemoryNotificationRepository = InMemoryNotificationRepository(),
-        pushNotificationPermissionProvider: any PushNotificationPermissionProvider = FixedPushNotificationPermissionProvider(isActive: true),
+        pushNotificationPermissionProvider: any PushNotificationPermissionProvider =
+            FixedPushNotificationPermissionProvider(isActive: true),
         imagePipelineManager: any ImagePipelineManager = NoOpImagePipelineManager(),
         nowMillisProvider: @escaping @MainActor () -> Int64 = { 0 },
         environmentProvider: @escaping @MainActor () -> SessionEnvironment = { .develop }

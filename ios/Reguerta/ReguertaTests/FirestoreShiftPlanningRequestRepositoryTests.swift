@@ -40,7 +40,9 @@ struct FirestoreShiftPlanningRequestRepositoryTests {
         let invalidVariants: [[String: Any]] = [
             validData.merging(["type": "delivery"]) { _, replacement in replacement },
             validData.merging(["requestedByUserId": "admin_2"]) { _, replacement in replacement },
-            validData.merging(["requestedAt": Timestamp(seconds: 124, nanoseconds: 0)]) { _, replacement in replacement },
+            validData.merging(
+                ["requestedAt": Timestamp(seconds: 124, nanoseconds: 0)]
+            ) { _, replacement in replacement },
             validData.merging(["status": "unknown"]) { _, replacement in replacement },
             validData.filter { $0.key != "requestedAt" }
         ]

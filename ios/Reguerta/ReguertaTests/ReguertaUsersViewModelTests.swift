@@ -251,7 +251,9 @@ struct ReguertaUsersViewModelTests {
         accessDeniedScenario.viewModel.draft = validMemberDraft(email: "new@reguerta.app")
 
         #expect(await accessDeniedScenario.viewModel.createAuthorizedMember() == false)
-        #expect(accessDeniedScenario.viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackOnlyAdminManageMembers)
+        #expect(
+            accessDeniedScenario.viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackOnlyAdminManageMembers
+        )
 
         let lastAdminScenario = makeUsersScenario(
             currentMember: sessionAdmin,

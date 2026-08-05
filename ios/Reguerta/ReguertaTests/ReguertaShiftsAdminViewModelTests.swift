@@ -208,10 +208,22 @@ struct ReguertaShiftsAdminViewModelTests {
 
         #expect(environment.accessRootViewModel.shiftsViewModel.sessionViewModel === environment.sessionViewModel)
         #expect(environment.accessRootViewModel.shiftsViewModel.shiftRepository is InMemoryShiftRepository)
-        #expect(environment.accessRootViewModel.shiftsViewModel.shiftSwapRequestRepository is InMemoryShiftSwapRequestRepository)
-        #expect(environment.accessRootViewModel.shiftsViewModel.shiftPlanningRequestRepository is InMemoryShiftPlanningRequestRepository)
-        #expect(environment.accessRootViewModel.shiftsViewModel.deliveryCalendarRepository is InMemoryDeliveryCalendarRepository)
-        #expect(environment.accessRootViewModel.shiftsViewModel.notificationRepository is InMemoryNotificationRepository)
+        #expect(
+            environment.accessRootViewModel.shiftsViewModel.shiftSwapRequestRepository
+                is InMemoryShiftSwapRequestRepository
+        )
+        #expect(
+            environment.accessRootViewModel.shiftsViewModel.shiftPlanningRequestRepository
+                is InMemoryShiftPlanningRequestRepository
+        )
+        #expect(
+            environment.accessRootViewModel.shiftsViewModel.deliveryCalendarRepository
+                is InMemoryDeliveryCalendarRepository
+        )
+        #expect(
+            environment.accessRootViewModel.shiftsViewModel.notificationRepository
+                is InMemoryNotificationRepository
+        )
     }
 }
 
