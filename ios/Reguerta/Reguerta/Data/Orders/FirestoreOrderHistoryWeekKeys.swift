@@ -6,9 +6,7 @@ func fetchOrderHistoryWeekKeys(
     db: Firestore = Firestore.firestore(),
     environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment
 ) async throws -> [String] {
-    guard let member = currentMember else {
-        return []
-    }
+    guard let member = currentMember else { return [] }
 
     let firestorePath = ReguertaFirestorePath(environment: environment)
     let targets = resolvePreviousOrderReadTargets(firestorePath: firestorePath)

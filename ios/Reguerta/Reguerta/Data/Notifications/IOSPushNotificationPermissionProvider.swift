@@ -15,9 +15,7 @@ struct IOSPushNotificationPermissionProvider: PushNotificationPermissionProvider
     }
 
     @MainActor func openSettings() {
-        guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else {
-            return
-        }
+        guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(settingsURL)
     }
 }

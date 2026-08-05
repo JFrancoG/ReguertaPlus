@@ -415,9 +415,7 @@ private extension ProductsRouteViewModel {
         price: Double,
         existingProduct: Product?
     ) async throws -> Bool {
-        guard sessionMember.isProducer, draft.isEcoBasket else {
-            return true
-        }
+        guard sessionMember.isProducer, draft.isEcoBasket else { return true }
         let allProducts = try await productRepository.allProducts()
         let activeEcoBasketPrice = allProducts
             .first(where: { $0.isEcoBasket && !$0.archived && $0.id != existingProduct?.id })?

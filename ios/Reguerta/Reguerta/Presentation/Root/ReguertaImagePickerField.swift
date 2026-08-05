@@ -292,9 +292,7 @@ private struct ReguertaCameraCaptureView: UIViewControllerRepresentable {
 
     func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onCapture: onCapture)
-    }
+    func makeCoordinator() -> Coordinator { Coordinator(onCapture: onCapture) }
 
     final class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
         private let onCapture: (UIImage?) -> Void

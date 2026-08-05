@@ -20,9 +20,7 @@ struct NotificationEvent: Identifiable, Equatable, Sendable {
         case "users":
             return userIds.contains(member.id)
         case "segment":
-            guard segmentType == "role", let targetRole else {
-                return false
-            }
+            guard segmentType == "role", let targetRole else { return false }
             return member.roles.contains(targetRole)
         default:
             return false

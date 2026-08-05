@@ -67,9 +67,7 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
         source: SeasonalCommitmentReadSource
     ) async throws -> [SeasonalCommitment] {
         let normalizedLookup = userId.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !normalizedLookup.isEmpty else {
-            return []
-        }
+        guard !normalizedLookup.isEmpty else { return [] }
 
         do {
             var documentsById = Dictionary(

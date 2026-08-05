@@ -14,12 +14,8 @@ struct FirestoreCriticalDataFreshnessRemoteRepository: CriticalDataFreshnessRemo
                 .reguertaDocument(.memberConfiguration, in: .config, environment: environment)
                 .getDocument(source: .server)
 
-            guard snapshot.exists else {
-                throw RepositoryError.notFound(resource: "config.member")
-            }
-            guard let data = snapshot.data() else {
-                throw RepositoryError.invalidData(resource: "config.member")
-            }
+            guard snapshot.exists else { throw RepositoryError.notFound(resource: "config.member") }
+            guard let data = snapshot.data() else { throw RepositoryError.invalidData(resource: "config.member") }
             return try Self.config(data: data)
         } catch {
             throw FirestoreRepositoryErrorMapper.map(error, resource: "config.member")
@@ -43,9 +39,7 @@ struct FirestoreCriticalDataFreshnessRemoteRepository: CriticalDataFreshnessRemo
                 throw RepositoryError.invalidData(resource: "config.member.lastTimestamps")
             }
             let milliseconds = Int64(timestamp.dateValue().timeIntervalSince1970 * 1_000)
-            guard milliseconds > 0 else {
-                throw RepositoryError.invalidData(resource: "config.member.lastTimestamps")
-            }
+            guard milliseconds > 0 else { throw RepositoryError.invalidData(resource: "config.member.lastTimestamps") }
             remoteTimestamps[collection] = milliseconds
         }
 

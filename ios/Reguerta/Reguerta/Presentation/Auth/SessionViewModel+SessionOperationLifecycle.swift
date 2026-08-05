@@ -86,9 +86,7 @@ extension SessionViewModel {
     }
 
     func isCurrentSessionOperation(_ generation: UInt64) -> Bool {
-        guard !Task.isCancelled, generation == sessionOperationGeneration else {
-            return false
-        }
+        guard !Task.isCancelled, generation == sessionOperationGeneration else { return false }
         return sessionOperationState != .draining(generation: generation)
     }
 
@@ -230,9 +228,7 @@ extension SessionViewModel {
     }
 
     private func startStandaloneSessionTerminationBarrier(firebaseSignOutSucceeded: Bool, principalEmail: String) {
-        guard !firebaseSignOutSucceeded || sessionTerminationCleanupTask != nil else {
-            return
-        }
+        guard !firebaseSignOutSucceeded || sessionTerminationCleanupTask != nil else { return }
         let generation = sessionOperationGeneration
         sessionOperationPrincipalEmail = principalEmail
         sessionOperationState = .draining(generation: generation)

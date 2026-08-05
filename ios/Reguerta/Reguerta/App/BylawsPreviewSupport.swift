@@ -109,9 +109,7 @@ extension BylawsConsultationResult {
 private struct PreviewBylawsDocumentProvider: BylawsDocumentProviding {
     let pdfURL: URL
 
-    @MainActor func bundledPdfURL() -> URL? {
-        pdfURL
-    }
+    @MainActor func bundledPdfURL() -> URL? { pdfURL }
 }
 
 @Model

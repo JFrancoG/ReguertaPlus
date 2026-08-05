@@ -22,9 +22,7 @@ struct FirebaseAuthSessionProvider: AuthSessionProvider {
                 } signOut: {
                     signOut()
                 }
-                guard let refreshedUser = auth.currentUser else {
-                    throw FirebaseIDTokenError.noAuthenticatedUser
-                }
+                guard let refreshedUser = auth.currentUser else { throw FirebaseIDTokenError.noAuthenticatedUser }
                 _ = try await awaitFirebaseAuthenticationMutation {
                     try await refreshedUser.getIDTokenResult(forcingRefresh: true)
                 } signOut: {
@@ -96,17 +94,13 @@ struct FirebaseAuthSessionProvider: AuthSessionProvider {
     }
 
     func refreshCurrentSession() async -> AuthSessionRefreshResult {
-        guard let user = auth.currentUser else {
-            return .noSession
-        }
+        guard let user = auth.currentUser else { return .noSession }
 
         do {
             return try await awaitFirebaseAuthenticationFlow {
                 try await user.reload()
             } continuation: {
-                guard let refreshedUser = auth.currentUser else {
-                    return .expired
-                }
+                guard let refreshedUser = auth.currentUser else { return .expired }
                 _ = try await awaitFirebaseAuthenticationMutation {
                     try await refreshedUser.getIDTokenResult(forcingRefresh: true)
                 } signOut: {
@@ -138,13 +132,9 @@ struct FirebaseAuthSessionProvider: AuthSessionProvider {
     }
 
     func validIDToken(forcingRefresh: Bool) async throws -> String {
-        guard let user = auth.currentUser else {
-            throw FirebaseIDTokenError.noAuthenticatedUser
-        }
+        guard let user = auth.currentUser else { throw FirebaseIDTokenError.noAuthenticatedUser }
         try await user.reload()
-        guard let refreshedUser = auth.currentUser else {
-            throw FirebaseIDTokenError.noAuthenticatedUser
-        }
+        guard let refreshedUser = auth.currentUser else { throw FirebaseIDTokenError.noAuthenticatedUser }
         return try await refreshedUser.getIDTokenResult(forcingRefresh: forcingRefresh).token
     }
 
@@ -226,9 +216,7 @@ private func normalizedEmail(_ email: String) -> String {
 
 @MainActor func mapFirebaseAuthError(_ error: Error) -> AuthSignInFailureReason {
     let nsError = error as NSError
-    guard let code = AuthErrorCode(rawValue: nsError.code) else {
-        return .unknown
-    }
+    guard let code = AuthErrorCode(rawValue: nsError.code) else { return .unknown }
 
     switch code {
     case .invalidEmail:
@@ -254,9 +242,7 @@ private func normalizedEmail(_ email: String) -> String {
 
 @MainActor private func isExpiredSessionError(_ error: Error) -> Bool {
     let nsError = error as NSError
-    guard let code = AuthErrorCode(rawValue: nsError.code) else {
-        return false
-    }
+    guard let code = AuthErrorCode(rawValue: nsError.code) else { return false }
 
     switch code {
     case .userDisabled, .userNotFound, .invalidCredential, .userTokenExpired, .invalidUserToken:

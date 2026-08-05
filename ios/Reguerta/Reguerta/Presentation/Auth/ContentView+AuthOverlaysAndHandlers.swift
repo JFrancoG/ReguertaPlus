@@ -209,9 +209,7 @@ extension AccessRootRoutingView {
     }
 
     func openStoreURL(_ rawURL: String) {
-        guard let url = URL(string: rawURL.trimmingCharacters(in: .whitespacesAndNewlines)) else {
-            return
-        }
+        guard let url = URL(string: rawURL.trimmingCharacters(in: .whitespacesAndNewlines)) else { return }
         openURL(url)
     }
 

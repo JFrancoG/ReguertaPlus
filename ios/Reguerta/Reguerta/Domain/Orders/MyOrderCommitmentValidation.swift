@@ -144,20 +144,14 @@ private func requiredEcoBasketCommitmentProducts(
         .filter(\.isEcoBasket)
         .filter(\.isVisibleInOrdering)
 
-    guard !ecoBasketProducts.isEmpty else {
-        return []
-    }
+    guard !ecoBasketProducts.isEmpty else { return [] }
 
     switch member.ecoCommitmentMode {
     case .weekly:
         return ecoBasketProducts
     case .biweekly:
-        guard let parity = member.ecoCommitmentParity else {
-            return ecoBasketProducts
-        }
-        guard parity == currentWeekParity else {
-            return []
-        }
+        guard let parity = member.ecoCommitmentParity else { return ecoBasketProducts }
+        guard parity == currentWeekParity else { return [] }
 
         let eligibleProducerIds = Set(
             members
@@ -192,9 +186,7 @@ private func requiredSeasonalCommitmentProducts(
     products: [Product],
     seasonalCommitments: [SeasonalCommitment]
 ) -> [SeasonalProductRequirement] {
-    guard !seasonalCommitments.isEmpty else {
-        return []
-    }
+    guard !seasonalCommitments.isEmpty else { return [] }
 
     let index = buildSeasonalVisibleProductsIndex(products: products)
     let requiredQuantityByProductID = mergeRequiredSeasonalQuantities(

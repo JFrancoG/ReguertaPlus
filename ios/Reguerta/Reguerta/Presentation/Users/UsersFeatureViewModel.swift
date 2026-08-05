@@ -120,7 +120,9 @@ final class UsersFeatureViewModel {
             feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminCreate)
             return
         }
-        guard let member = sortedMembers.first(where: { $0.id == memberId }) else { return }
+        guard let member = sortedMembers.first(where: { $0.id == memberId }) else {
+            return
+        }
 
         draft = member.toDraft()
         if draft.isCommonPurchaseManager {
@@ -175,7 +177,9 @@ final class UsersFeatureViewModel {
             feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminEditRoles)
             return false
         }
-        guard let target = sortedMembers.first(where: { $0.id == memberId }) else { return false }
+        guard let target = sortedMembers.first(where: { $0.id == memberId }) else {
+            return false
+        }
 
         var roles = target.roles
         if roles.contains(.admin) {
@@ -198,7 +202,9 @@ final class UsersFeatureViewModel {
             feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminToggleActive)
             return false
         }
-        guard let target = sortedMembers.first(where: { $0.id == memberId }) else { return false }
+        guard let target = sortedMembers.first(where: { $0.id == memberId }) else {
+            return false
+        }
 
         return await persistMember(
             target: target.replacing(isActive: !target.isActive),

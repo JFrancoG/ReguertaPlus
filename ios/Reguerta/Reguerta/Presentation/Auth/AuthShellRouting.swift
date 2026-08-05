@@ -62,13 +62,9 @@ private extension AuthShellState {
         return AuthShellState(backStack: backStack + [route])
     }
 
-    func resetTo(_ route: AuthShellRoute) -> AuthShellState {
-        AuthShellState(backStack: [route])
-    }
+    func resetTo(_ route: AuthShellRoute) -> AuthShellState { AuthShellState(backStack: [route]) }
 
-    func resetTo(_ routes: [AuthShellRoute]) -> AuthShellState {
-        AuthShellState(backStack: routes)
-    }
+    func resetTo(_ routes: [AuthShellRoute]) -> AuthShellState { AuthShellState(backStack: routes) }
 
     func popOrStay() -> AuthShellState {
         guard canGoBack else { return self }

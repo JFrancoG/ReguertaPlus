@@ -158,15 +158,11 @@ final class MyOrderFreshnessViewModel {
         let resolver = resolveCriticalDataFreshness
         return Task { @MainActor [weak self, resolver] in
             defer { self?.finishFreshnessOperation(generation) }
-            guard self?.isCurrentFreshnessOperation(generation, identity: identity) == true else {
-                return
-            }
+            guard self?.isCurrentFreshnessOperation(generation, identity: identity) == true else { return }
 
             do {
                 let resolution = try await resolver.execute(scope: identity.refreshScope)
-                guard let self, isCurrentFreshnessOperation(generation, identity: identity) else {
-                    return
-                }
+                guard let self, isCurrentFreshnessOperation(generation, identity: identity) else { return }
                 try await applyAndPublish(
                     resolution,
                     identity: identity,
@@ -238,9 +234,7 @@ final class MyOrderFreshnessViewModel {
                 return
             }
 
-            guard let self, isCurrentFreshnessOperation(generation, identity: identity) else {
-                return
-            }
+            guard let self, isCurrentFreshnessOperation(generation, identity: identity) else { return }
             freshnessOperationTask?.cancel()
             freshnessTimeoutTask = nil
             state = .timedOut

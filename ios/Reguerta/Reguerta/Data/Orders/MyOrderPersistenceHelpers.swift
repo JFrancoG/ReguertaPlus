@@ -145,9 +145,7 @@ extension String {
 
 extension Member {
     func committedEcoBasketProducerId(in members: [Member]) -> String? {
-        guard let parity = ecoCommitmentParity else {
-            return nil
-        }
+        guard let parity = ecoCommitmentParity else { return nil }
         return members.first { producer in
             producer.id != id &&
                 producer.isProducer &&

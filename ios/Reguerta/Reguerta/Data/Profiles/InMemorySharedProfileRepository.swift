@@ -30,9 +30,7 @@ actor InMemorySharedProfileRepository: SharedProfileRepository {
         profiles.values.sorted { $0.updatedAtMillis > $1.updatedAtMillis }
     }
 
-    func sharedProfile(userId: String) async -> SharedProfile? {
-        profiles[userId]
-    }
+    func sharedProfile(userId: String) async -> SharedProfile? { profiles[userId] }
 
     func upsert(profile: SharedProfile) async -> SharedProfile {
         profiles[profile.userId] = profile

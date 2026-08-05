@@ -61,9 +61,7 @@ actor InMemoryNotificationRepository: NotificationRepository {
         return localized.sorted { $0.sentAtMillis > $1.sentAtMillis }
     }
 
-    func readNotificationIds(memberId: String) async -> Set<String> {
-        readNotificationIdsByMember[memberId] ?? []
-    }
+    func readNotificationIds(memberId: String) async -> Set<String> { readNotificationIdsByMember[memberId] ?? [] }
 
     func markNotificationsRead(memberId: String, notificationIds: [String], readAtMillis _: Int64) async {
         guard !notificationIds.isEmpty else { return }

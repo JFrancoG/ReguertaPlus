@@ -15,9 +15,7 @@ struct UserDefaultsCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLo
     func getMetadata() -> CriticalDataFreshnessMetadata? {
         let validatedAtMillis = (userDefaults.object(forKey: Keys.validatedAt) as? NSNumber)?.int64Value
             ?? Int64(userDefaults.integer(forKey: Keys.validatedAt))
-        guard validatedAtMillis > 0 else {
-            return nil
-        }
+        guard validatedAtMillis > 0 else { return nil }
         guard let environmentRawValue = userDefaults.string(forKey: Keys.environment),
               let environment = SessionEnvironment(rawValue: environmentRawValue)
         else {
@@ -38,9 +36,7 @@ struct UserDefaultsCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLo
         for collection in CriticalCollection.allCases {
             let value = (userDefaults.object(forKey: timestampKey(for: collection)) as? NSNumber)?.int64Value
                 ?? Int64(userDefaults.integer(forKey: timestampKey(for: collection)))
-            guard value > 0 else {
-                return nil
-            }
+            guard value > 0 else { return nil }
             timestamps[collection] = value
         }
 

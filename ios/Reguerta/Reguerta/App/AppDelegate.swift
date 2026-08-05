@@ -23,9 +23,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         ReguertaFontRegistrar.registerDesignFonts()
-        guard !Self.usesMockAuth else {
-            return true
-        }
+        guard !Self.usesMockAuth else { return true }
         FirebaseBootstrapper.configureIfNeeded()
         Messaging.messaging().delegate = self
         UNUserNotificationCenter.current().delegate = self
@@ -34,9 +32,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        guard !Self.usesMockAuth else {
-            return
-        }
+        guard !Self.usesMockAuth else { return }
         Messaging.messaging().apnsToken = deviceToken
         Messaging.messaging().token { _, error in
             if let error {
@@ -49,9 +45,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: any Error) {
-        guard !Self.usesMockAuth else {
-            return
-        }
+        guard !Self.usesMockAuth else { return }
         print("APNs registration failed: \(error.localizedDescription)")
     }
 
@@ -74,9 +68,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
 extension AppDelegate: MessagingDelegate {
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
-        guard !Self.usesMockAuth else {
-            return
-        }
+        guard !Self.usesMockAuth else { return }
         guard let authorizedDeviceRegistrar else {
             pendingRegistrationToken = .received(fcmToken)
             return

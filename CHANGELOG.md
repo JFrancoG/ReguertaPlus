@@ -198,6 +198,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- 2026-08-05 | 💄 style(ios): normalize Swift declaration layout
 - 2026-08-02 | ♻️ refactor(ios): reduce existential erasure
 - 2026-07-29 | ♻️ refactor(ios): clear SwiftLint warnings
 - 2026-07-24 | ♻️ refactor(ios): split large feature files

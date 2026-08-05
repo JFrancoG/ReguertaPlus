@@ -12,9 +12,7 @@ enum ReguertaFontRegistrar {
     }
 
     private static func registerFontIfAvailable(named fileName: String) {
-        guard let fontURL = Bundle.main.url(forResource: fileName, withExtension: nil) else {
-            return
-        }
+        guard let fontURL = Bundle.main.url(forResource: fileName, withExtension: nil) else { return }
 
         CTFontManagerRegisterFontsForURL(fontURL as CFURL, .process, nil)
     }

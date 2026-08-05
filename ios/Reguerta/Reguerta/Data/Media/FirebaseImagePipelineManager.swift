@@ -37,7 +37,9 @@ final class FirebaseImagePipelineManager: @unchecked Sendable, ImagePipelineMana
             width: cropSquare.size,
             height: cropSquare.size
         )
-        guard let croppedCgImage = resizedCgImage.cropping(to: cropRect) else { throw ImagePipelineError.processingFailed }
+        guard let croppedCgImage = resizedCgImage.cropping(to: cropRect) else {
+            throw ImagePipelineError.processingFailed
+        }
         let finalImage = UIImage(cgImage: croppedCgImage)
         guard let outputData = finalImage.jpegData(compressionQuality: jpegCompressionQuality), !outputData.isEmpty else {
             throw ImagePipelineError.processingFailed

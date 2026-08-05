@@ -53,16 +53,12 @@ struct ReceivedOrderLineRecord: Identifiable, Equatable, Sendable {
     }
 
     var orderedQuantity: Double {
-        guard isWeightPricing, measureQuantityPerUnit > 0 else {
-            return quantity
-        }
+        guard isWeightPricing, measureQuantityPerUnit > 0 else { return quantity }
         return weightQuantityRepresentsMeasure ? quantity / measureQuantityPerUnit : quantity
     }
 
     private var weightQuantityRepresentsMeasure: Bool {
-        guard isWeightPricing, measureQuantityPerUnit > 0 else {
-            return true
-        }
+        guard isWeightPricing, measureQuantityPerUnit > 0 else { return true }
         return quantity >= measureQuantityPerUnit
     }
 }
@@ -142,9 +138,7 @@ struct ReceivedOrdersSnapshot: Equatable, Sendable {
     let generalTotal: Double
 }
 
-func receivedOrdersIsApproximatelyOne(_ value: Double) -> Bool {
-    abs(value - 1) < 0.000_1
-}
+func receivedOrdersIsApproximatelyOne(_ value: Double) -> Bool { abs(value - 1) < 0.000_1 }
 
 func receivedOrdersMeasureLabel(
     quantity: Double,

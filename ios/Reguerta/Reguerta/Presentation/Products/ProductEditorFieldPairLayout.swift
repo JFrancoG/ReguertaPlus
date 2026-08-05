@@ -90,7 +90,5 @@ struct ProductEditorFieldPairLayout: Layout {
         return (first, contentWidth - first)
     }
 
-    private func usesStackedLayout(width: CGFloat) -> Bool {
-        width < stackedWidthThreshold
-    }
+    private func usesStackedLayout(width: CGFloat) -> Bool { width < stackedWidthThreshold }
 }

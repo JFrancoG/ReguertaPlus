@@ -8,9 +8,7 @@ actor InMemoryDeliveryCalendarRepository: DeliveryCalendarRepository {
         self.defaultDay = defaultDay
     }
 
-    func defaultDeliveryDayOfWeek() async -> DeliveryWeekday {
-        defaultDay
-    }
+    func defaultDeliveryDayOfWeek() async -> DeliveryWeekday { defaultDay }
 
     func allOverrides() async -> [DeliveryCalendarOverride] {
         overrides.values.sorted { $0.weekKey < $1.weekKey }

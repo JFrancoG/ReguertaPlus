@@ -15,9 +15,7 @@ enum SemanticVersionComparator {
     /// - Returns: `-1` when `lhs` is older, `0` when equal, `1` when newer, or `nil` when either
     ///   value is not a supported numeric version.
     static func compare(_ lhs: String, _ rhs: String) -> Int? {
-        guard let leftParts = parse(lhs), let rightParts = parse(rhs) else {
-            return nil
-        }
+        guard let leftParts = parse(lhs), let rightParts = parse(rhs) else { return nil }
 
         let maxCount = max(leftParts.count, rightParts.count)
         for index in 0..<maxCount {
@@ -41,9 +39,7 @@ enum SemanticVersionComparator {
 
         var components: [Int] = []
         for component in value.split(separator: ".") {
-            guard let parsed = Int(component) else {
-                return nil
-            }
+            guard let parsed = Int(component) else { return nil }
             components.append(parsed)
         }
         return components

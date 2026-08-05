@@ -11,6 +11,4 @@ func isValidAccessEmail(_ email: String) -> Bool {
     ) != nil
 }
 
-func isValidAccessPassword(_ password: String) -> Bool {
-    (6...16).contains(password.count)
-}
+func isValidAccessPassword(_ password: String) -> Bool { (6...16).contains(password.count) }

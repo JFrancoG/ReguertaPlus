@@ -9,9 +9,7 @@ extension SessionViewModel {
         emailErrorKey = nil
         passwordErrorKey = nil
 
-        guard validateSignInInputs(email: email, password: password) else {
-            return
-        }
+        guard validateSignInInputs(email: email, password: password) else { return }
 
         guard let operation = beginSessionOperation(principalEmail: email) else { return }
         let provider = authSessionProvider
@@ -53,9 +51,7 @@ extension SessionViewModel {
         registerPasswordErrorKey = nil
         registerRepeatPasswordErrorKey = nil
 
-        guard validateSignUpInputs(email: email, password: password, repeatedPassword: repeatedPassword) else {
-            return
-        }
+        guard validateSignUpInputs(email: email, password: password, repeatedPassword: repeatedPassword) else { return }
 
         guard let operation = beginSessionOperation(principalEmail: email) else { return }
         let provider = authSessionProvider

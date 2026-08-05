@@ -35,21 +35,15 @@ final class MockAuthSessionProvider: AuthSessionProvider {
         return .success
     }
 
-    func sendCurrentUserEmailVerification() async -> Bool {
-        currentPrincipal != nil
-    }
+    func sendCurrentUserEmailVerification() async -> Bool { currentPrincipal != nil }
 
     func refreshCurrentSession() async -> AuthSessionRefreshResult {
-        guard let currentPrincipal else {
-            return .noSession
-        }
+        guard let currentPrincipal else { return .noSession }
         return .active(currentPrincipal)
     }
 
     func validIDToken(forcingRefresh _: Bool) async throws -> String {
-        guard let currentPrincipal else {
-            throw MockAuthTokenError.noSession
-        }
+        guard let currentPrincipal else { throw MockAuthTokenError.noSession }
         return "mock-token-\(currentPrincipal.uid)"
     }
 

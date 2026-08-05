@@ -89,9 +89,7 @@ struct ResolveCriticalDataFreshnessUseCase: Sendable {
         nowMillis: Int64,
         scope: CriticalDataRefreshScope
     ) -> FreshnessEvaluation {
-        guard config.cacheExpirationMinutes > 0 else {
-            return .invalidConfig
-        }
+        guard config.cacheExpirationMinutes > 0 else { return .invalidConfig }
 
         let remoteTimestamps = config.remoteTimestampsMillis
         guard CriticalCollection.allCases.allSatisfy({ collection in

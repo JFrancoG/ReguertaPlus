@@ -86,9 +86,7 @@ extension ShiftsFeatureViewModel {
     }
 
     func openCalendarWeekPicker() {
-        guard let weekKey = selectedDeliveryCalendarWeekKey ?? futureDeliveryWeeks.first?.weekKey else {
-            return
-        }
+        guard let weekKey = selectedDeliveryCalendarWeekKey ?? futureDeliveryWeeks.first?.weekKey else { return }
         selectCalendarWeekForEditing(weekKey)
         isDeliveryCalendarWeekPickerPresented = true
     }

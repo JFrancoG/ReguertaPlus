@@ -148,9 +148,7 @@ extension MyOrderRouteViewModel {
         return currentQuantity < finiteLimit
     }
 
-    func quantity(for product: Product) -> Int {
-        selectedQuantities[product.id, default: 0]
-    }
+    func quantity(for product: Product) -> Int { selectedQuantities[product.id, default: 0] }
 
     func selectedEcoBasketOption(for product: Product) -> String {
         selectedEcoBasketOptions[product.id] ?? ecoBasketOptionPickup

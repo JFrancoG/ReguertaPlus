@@ -189,9 +189,7 @@ private func synchronizeUnreadReceivedOrderStatuses(
     let unreadOrderIds = statusesByOrderId
         .filter { $0.value == .unread }
         .map(\.key)
-    guard !unreadOrderIds.isEmpty else {
-        return statusesByOrderId
-    }
+    guard !unreadOrderIds.isEmpty else { return statusesByOrderId }
 
     let markedAsRead = await markReceivedOrdersAsRead(
         orderIds: unreadOrderIds,
@@ -199,9 +197,7 @@ private func synchronizeUnreadReceivedOrderStatuses(
         db: db,
         environment: environment
     )
-    guard !markedAsRead.isEmpty else {
-        return statusesByOrderId
-    }
+    guard !markedAsRead.isEmpty else { return statusesByOrderId }
 
     var synchronizedStatuses = statusesByOrderId
     for orderId in markedAsRead {

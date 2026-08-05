@@ -137,13 +137,9 @@ private enum FirestoreNewsDocumentDecoder {
     private static func optionalString(_ data: [String: Any], field: String, resource: String) throws -> String? {
         guard let value = data[field] else { return nil }
         if value is NSNull { return nil }
-        guard let string = value as? String else {
-            throw RepositoryError.invalidData(resource: resource)
-        }
+        guard let string = value as? String else { throw RepositoryError.invalidData(resource: resource) }
         let normalized = string.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !normalized.isEmpty else {
-            throw RepositoryError.invalidData(resource: resource)
-        }
+        guard !normalized.isEmpty else { throw RepositoryError.invalidData(resource: resource) }
         return normalized
     }
 
@@ -160,9 +156,7 @@ private enum FirestoreNewsDocumentDecoder {
         field: String,
         resource: String
     ) throws -> Int64 {
-        guard let timestamp = data[field] as? Timestamp else {
-            throw RepositoryError.invalidData(resource: resource)
-        }
+        guard let timestamp = data[field] as? Timestamp else { throw RepositoryError.invalidData(resource: resource) }
         return Int64(timestamp.dateValue().timeIntervalSince1970 * 1_000)
     }
 }

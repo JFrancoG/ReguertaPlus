@@ -71,9 +71,7 @@ extension MemberDraft {
     }
 
     func normalizedCompanyName(roles: Set<MemberRole>) -> String? {
-        guard roles.contains(.producer) else {
-            return nil
-        }
+        guard roles.contains(.producer) else { return nil }
         let trimmed = companyName.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
     }

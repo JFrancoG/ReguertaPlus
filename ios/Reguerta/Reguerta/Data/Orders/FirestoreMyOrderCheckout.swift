@@ -80,18 +80,14 @@ func submitCheckoutOrderToFirestore(
     environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment,
     nowMillis: Int64 = Int64(Date().timeIntervalSince1970 * 1_000)
 ) async throws -> Bool {
-    guard let member = currentMember else {
-        return false
-    }
+    guard let member = currentMember else { return false }
 
     let lineSnapshots = buildMyOrderCheckoutLineSnapshots(
         products: products,
         selectedQuantities: selectedQuantities,
         selectedEcoBasketOptions: selectedEcoBasketOptions
     )
-    guard !lineSnapshots.isEmpty else {
-        return false
-    }
+    guard !lineSnapshots.isEmpty else { return false }
 
     let firestorePath = ReguertaFirestorePath(environment: environment)
     let writeTargets = resolveMyOrderCheckoutWriteTargets(
@@ -337,7 +333,9 @@ nonisolated func normalizedUniqueMyOrderIds(_ orderIds: [String]) -> [String] {
     var seen = Set<String>()
     return orderIds.compactMap { orderId in
         let normalized = orderId.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !normalized.isEmpty, seen.insert(normalized).inserted else { return nil }
+        guard !normalized.isEmpty, seen.insert(normalized).inserted else {
+            return nil
+        }
         return normalized
     }
 }

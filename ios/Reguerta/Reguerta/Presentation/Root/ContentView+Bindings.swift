@@ -8,9 +8,7 @@ extension AccessRootRoutingView {
         )
     }
 
-    func localizedKey(_ key: String) -> LocalizedStringKey {
-        LocalizedStringKey(key)
-    }
+    func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 
     var currentHomeMember: Member? {
         switch viewModel.mode {
