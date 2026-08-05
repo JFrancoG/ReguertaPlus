@@ -261,7 +261,10 @@ extension ReguertaOrdersViewModelTests {
     @Test func myOrderViewModelShowsDatabaseOrderForCurrentWeekWhenLocalConfirmationIsMissing() async {
         let repository = InMemoryOrdersRepository()
         await repository.setPreviousOrder(previousOrderSnapshot(weekKey: "2026-W20"), forWeekKey: "2026-W20")
-        let viewModel = makeMyOrderViewModel(repository: repository, nowMillis: testMillis(year: 2026, month: 5, day: 15))
+        let viewModel = makeMyOrderViewModel(
+            repository: repository,
+            nowMillis: testMillis(year: 2026, month: 5, day: 15)
+        )
 
         await viewModel.appear(context: myOrderContext(nowMillis: testMillis(year: 2026, month: 5, day: 15)))
 
@@ -277,7 +280,10 @@ extension ReguertaOrdersViewModelTests {
     @Test func myOrderViewModelShowsPreviousWeekOrderDuringDeliveryWindow() async {
         let repository = InMemoryOrdersRepository()
         await repository.setPreviousOrder(previousOrderSnapshot(weekKey: "2026-W19"), forWeekKey: "2026-W19")
-        let viewModel = makeMyOrderViewModel(repository: repository, nowMillis: testMillis(year: 2026, month: 5, day: 13))
+        let viewModel = makeMyOrderViewModel(
+            repository: repository,
+            nowMillis: testMillis(year: 2026, month: 5, day: 13)
+        )
 
         await viewModel.appear(context: myOrderContext(nowMillis: testMillis(year: 2026, month: 5, day: 13)))
 
@@ -427,7 +433,9 @@ extension ReguertaOrdersViewModelTests {
         let environment = ReguertaAppEnvironment.preview()
 
         #expect(environment.accessRootViewModel.myOrderViewModel.sessionViewModel === environment.sessionViewModel)
-        #expect(environment.accessRootViewModel.receivedOrdersViewModel.sessionViewModel === environment.sessionViewModel)
+        #expect(
+            environment.accessRootViewModel.receivedOrdersViewModel.sessionViewModel === environment.sessionViewModel
+        )
         #expect(environment.accessRootViewModel.myOrderViewModel.ordersRepository is InMemoryOrdersRepository)
         #expect(environment.accessRootViewModel.myOrderViewModel.cartStore is InMemoryMyOrderCartStore)
         #expect(environment.accessRootViewModel.receivedOrdersViewModel.ordersRepository is InMemoryOrdersRepository)

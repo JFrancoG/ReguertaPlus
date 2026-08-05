@@ -48,7 +48,10 @@ extension AccessRootRoutingView {
             .offset(x: rootViewModel.homeLayerOffset)
             .zIndex(2)
             .animation(rootViewModel.homeDrawerAnimation, value: rootViewModel.isHomeDrawerOpen)
-            .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.84), value: rootViewModel.homeDrawerDragOffset)
+            .animation(
+                .interactiveSpring(response: 0.25, dampingFraction: 0.84),
+                value: rootViewModel.homeDrawerDragOffset
+            )
 
             if !rootViewModel.isHomeDrawerOpen {
                 Color.clear

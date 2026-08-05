@@ -37,7 +37,9 @@ extension AccessL10nKey {
     static let shiftSwapNotificationResponseUnavailableTitle = "shift_swap_notification.response.unavailable.title"
     static let shiftSwapNotificationResponseAvailableBody = "shift_swap_notification.response.available.body"
     static let shiftSwapNotificationResponseUnavailableBody = "shift_swap_notification.response.unavailable.body"
+    // swiftlint:disable:next line_length
     static let shiftSwapNotificationResponseAvailableBodyWithSource = "shift_swap_notification.response.available.body_with_source"
+    // swiftlint:disable:next line_length
     static let shiftSwapNotificationResponseUnavailableBodyWithSource = "shift_swap_notification.response.unavailable.body_with_source"
     static let shiftSwapRequestActionAsk = "shift_swap_request.action.ask"
     static let shiftSwapRequestScopeDelivery = "shift_swap_request.scope.delivery"

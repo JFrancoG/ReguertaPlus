@@ -64,7 +64,9 @@ final class FirestoreNewsRepository: @unchecked Sendable, NewsRepository {
                 "active": persisted.active,
                 "publishedBy": persisted.publishedBy,
                 "publishedByUserId": persisted.publishedByUserId as Any,
-                "publishedAt": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(persisted.publishedAtMillis) / 1_000)),
+                "publishedAt": Timestamp(
+                    date: Date(timeIntervalSince1970: TimeInterval(persisted.publishedAtMillis) / 1_000)
+                ),
                 "urlImage": persisted.urlImage as Any
             ], merge: true)
         } catch {

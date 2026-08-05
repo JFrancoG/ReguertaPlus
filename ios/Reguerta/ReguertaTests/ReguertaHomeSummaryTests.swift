@@ -231,7 +231,9 @@ struct ReguertaHomeSummaryTests {
 
         #expect(resolveHomeOrderState(userDefaults: defaults, memberId: "member_1", weekKey: "2026-W19") == .notStarted)
         defaults.set(["product_1": 2], forKey: cartKey)
-        #expect(resolveHomeOrderState(userDefaults: defaults, memberId: "member_1", weekKey: "2026-W19") == .unconfirmed)
+        #expect(
+            resolveHomeOrderState(userDefaults: defaults, memberId: "member_1", weekKey: "2026-W19") == .unconfirmed
+        )
         defaults.set(["product_1": 2], forKey: confirmedKey)
         #expect(resolveHomeOrderState(userDefaults: defaults, memberId: "member_1", weekKey: "2026-W19") == .completed)
     }

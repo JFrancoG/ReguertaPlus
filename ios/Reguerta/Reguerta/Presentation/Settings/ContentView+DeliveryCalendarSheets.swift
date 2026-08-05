@@ -78,7 +78,8 @@ struct DeliveryCalendarWeekPickerSheet: View {
     }
 
     private func effectiveDateLabel(for shift: ShiftAssignment) -> String {
-        let effectiveMillis = overrides.first(where: { $0.weekKey == shift.weekKey })?.deliveryDateMillis ?? shift.dateMillis
+        let effectiveMillis = overrides.first(where: { $0.weekKey == shift.weekKey })?.deliveryDateMillis ??
+            shift.dateMillis
         return localizedDateOnly(effectiveMillis)
     }
 

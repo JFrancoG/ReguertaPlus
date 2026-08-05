@@ -140,6 +140,7 @@ private func buildHomeWeeklySummaryDisplay(
     HomeWeeklySummaryDisplay(
         weekKey: target.weekKey,
         orderWeekKey: target.orderWeekKey,
+        // swiftlint:disable:next line_length
         weekRangeLabel: "\(target.weekStart.homeShortDayMonth(locale: context.locale)) - \(target.weekEnd.homeShortDayMonth(locale: context.locale))",
         weekBadgeLabel: "\(context.weekLabel) \(target.weekNumber)",
         producerName: resolveHomeProducerName(
@@ -315,7 +316,8 @@ private func resolveHomeProducerName(
             let rhsName = rhs.companyName?.isEmpty == false ? rhs.companyName! : rhs.displayName
             return lhsName.localizedCaseInsensitiveCompare(rhsName) == .orderedAscending
         }
-    let producer = producers.first { $0.producerParity == parity } ?? producers[safe: orderWeekNumber % max(producers.count, 1)]
+    let producer = producers.first { $0.producerParity == parity } ??
+        producers[safe: orderWeekNumber % max(producers.count, 1)]
     return producer?.companyName?.isEmpty == false ? producer!.companyName! : (producer?.displayName ?? pendingLabel)
 }
 
@@ -335,7 +337,9 @@ private extension UserDefaults {
 
 private extension Int64 {
     var homeIsoWeekKey: String {
-        Date(timeIntervalSince1970: TimeInterval(self) / 1_000).homeIsoWeekKey()
+        Date(
+            timeIntervalSince1970: TimeInterval(self) / 1_000
+        ).homeIsoWeekKey()
     }
 }
 

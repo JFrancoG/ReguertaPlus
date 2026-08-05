@@ -328,12 +328,20 @@ struct ReguertaNewsNotificationsViewModelTests {
     func previewEnvironmentUsesInMemoryNewsNotificationsDependenciesAndSharesNotificationRepository() async throws {
         let environment = ReguertaAppEnvironment.preview()
 
-        #expect(environment.accessRootViewModel.newsNotificationsViewModel.sessionViewModel === environment.sessionViewModel)
-        #expect(environment.accessRootViewModel.newsNotificationsViewModel.newsRepository is InMemoryNewsRepository)
-        #expect(environment.accessRootViewModel.newsNotificationsViewModel.imagePipelineManager is NoOpImagePipelineManager)
+        #expect(
+            environment.accessRootViewModel.newsNotificationsViewModel.sessionViewModel === environment.sessionViewModel
+        )
+        #expect(
+            environment.accessRootViewModel.newsNotificationsViewModel.newsRepository is InMemoryNewsRepository
+        )
+        #expect(
+            environment.accessRootViewModel.newsNotificationsViewModel.imagePipelineManager
+                is NoOpImagePipelineManager
+        )
 
         let newsRepository = try #require(
-            environment.accessRootViewModel.newsNotificationsViewModel.notificationRepository as? InMemoryNotificationRepository
+            environment.accessRootViewModel.newsNotificationsViewModel.notificationRepository as?
+                InMemoryNotificationRepository
         )
         let shiftsRepository = try #require(
             environment.accessRootViewModel.shiftsViewModel.notificationRepository as? InMemoryNotificationRepository
@@ -348,7 +356,8 @@ private func makeNewsNotificationsViewModel(
     members: [Member],
     newsRepository: InMemoryNewsRepository? = nil,
     notificationRepository: InMemoryNotificationRepository? = nil,
-    pushNotificationPermissionProvider: any PushNotificationPermissionProvider = FixedPushNotificationPermissionProvider(isActive: true),
+    pushNotificationPermissionProvider: any PushNotificationPermissionProvider =
+        FixedPushNotificationPermissionProvider(isActive: true),
     imagePipelineManager: any ImagePipelineManager = NewsMockImagePipelineManager(result: .success("https://cdn.test/news.jpg")),
     nowMillis: Int64 = 100
 ) -> NewsNotificationsFeatureViewModel {

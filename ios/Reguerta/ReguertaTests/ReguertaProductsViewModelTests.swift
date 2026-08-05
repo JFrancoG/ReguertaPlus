@@ -351,7 +351,10 @@ extension ReguertaProductsViewModelTests {
         #expect(environment.accessRootViewModel.productsViewModel.sessionViewModel === environment.sessionViewModel)
         #expect(environment.accessRootViewModel.productsViewModel.productRepository is InMemoryProductRepository)
         #expect(environment.accessRootViewModel.productsViewModel.memberRepository is InMemoryMemberRepository)
-        #expect(environment.accessRootViewModel.productsViewModel.seasonalCommitmentRepository is InMemorySeasonalCommitmentRepository)
+        #expect(
+            environment.accessRootViewModel.productsViewModel.seasonalCommitmentRepository
+                is InMemorySeasonalCommitmentRepository
+        )
         #expect(environment.accessRootViewModel.productsViewModel.imagePipelineManager is NoOpImagePipelineManager)
     }
 }

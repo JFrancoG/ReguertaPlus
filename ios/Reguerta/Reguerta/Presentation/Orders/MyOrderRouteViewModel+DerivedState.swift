@@ -140,7 +140,8 @@ extension MyOrderRouteViewModel {
                     companyName: grouped.first?.companyName ?? vendorId,
                     products: sortedProducts,
                     hasCommonPurchase: grouped.contains(where: \.isCommonPurchase),
-                    isCommittedEcoBasketProducer: vendorId == committedProducerId && grouped.contains(where: \.isEcoBasket),
+                    isCommittedEcoBasketProducer: vendorId == committedProducerId &&
+                        grouped.contains(where: \.isEcoBasket),
                     isCommonPurchasesGroup: false
                 )
             }

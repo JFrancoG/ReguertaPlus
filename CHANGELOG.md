@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- 2026-08-05 | 💄 style(ios): clear Swift line-length baseline
+
 ### Added
 
 - 2026-07-29 | ✨ feat(order): refresh critical data before entry

@@ -291,7 +291,8 @@ func makeSafetyViewModel(
     member: Member = safetyMember(),
     newsRepository: any NewsRepository = InMemoryNewsRepository(items: []),
     notificationRepository: any NotificationRepository = InMemoryNotificationRepository(items: []),
-    pushNotificationPermissionProvider: any PushNotificationPermissionProvider = FixedPushNotificationPermissionProvider(isActive: true),
+    pushNotificationPermissionProvider: any PushNotificationPermissionProvider =
+        FixedPushNotificationPermissionProvider(isActive: true),
     imagePipelineManager: any ImagePipelineManager = NoOpImagePipelineManager(),
     environmentProvider: @escaping @MainActor () -> SessionEnvironment = { .develop },
     environmentRoutingSignal: SessionEnvironmentRoutingSignal? = nil

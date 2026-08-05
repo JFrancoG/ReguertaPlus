@@ -31,7 +31,8 @@ struct ShiftsFeatureDependencies {
     static func preview(
         shiftRepository: InMemoryShiftRepository = InMemoryShiftRepository(),
         shiftSwapRequestRepository: InMemoryShiftSwapRequestRepository = InMemoryShiftSwapRequestRepository(),
-        shiftPlanningRequestRepository: InMemoryShiftPlanningRequestRepository = InMemoryShiftPlanningRequestRepository(),
+        shiftPlanningRequestRepository: InMemoryShiftPlanningRequestRepository = InMemoryShiftPlanningRequestRepository(
+        ),
         deliveryCalendarRepository: InMemoryDeliveryCalendarRepository = InMemoryDeliveryCalendarRepository(),
         notificationRepository: InMemoryNotificationRepository = InMemoryNotificationRepository(),
         nowMillisProvider: @escaping @MainActor () -> Int64 = { 0 }

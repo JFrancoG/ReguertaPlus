@@ -18,6 +18,7 @@ final class ReguertaUITestsLaunchTests: XCTestCase {
     }
 
     @MainActor func testLaunch() throws {
+        // swiftlint:disable:next line_length
         throw XCTSkip("Flaky screenshot launch test in parallel simulator clones; launch behavior is covered by dedicated UI tests.")
     }
 }

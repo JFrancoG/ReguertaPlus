@@ -144,6 +144,7 @@ private func orderHistoryWeekOption(for weekStart: Date, calendar: Calendar, loc
         weekKey: orderHistoryWeekKey(for: weekStart, calendar: calendar),
         weekYear: weekYear,
         weekNumber: weekNumber,
+        // swiftlint:disable:next line_length
         rangeLabel: "\(orderHistoryShortDayMonth(weekStart, locale: locale)) - \(orderHistoryShortDayMonth(weekEnd, locale: locale))"
     )
 }

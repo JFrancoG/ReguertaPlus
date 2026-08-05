@@ -62,7 +62,12 @@ struct UsersRouteView: View {
                             }
                         }
                     }
-                    .padding(.bottom, viewModel.canManageMembers ? ReguertaFloatingActionButtonLayout.scrollContentBottomPadding : tokens.spacing.sm)
+                    .padding(
+                        .bottom,
+                        viewModel.canManageMembers
+                            ? ReguertaFloatingActionButtonLayout.scrollContentBottomPadding
+                            : tokens.spacing.sm
+                    )
                     .animation(.easeInOut(duration: 0.25), value: viewModel.sortedMembers.map(\.id))
                 }
                 .scrollDismissesKeyboard(.interactively)

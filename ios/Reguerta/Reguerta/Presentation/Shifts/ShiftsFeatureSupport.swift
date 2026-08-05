@@ -144,7 +144,10 @@ extension Array where Element == ShiftSwapRequest {
         let outgoing = requesterOpen.filter { $0.availableResponses.isEmpty }
         let history = filter { request in
             request.status != .open && !dismissedRequestIds.contains(request.id)
-            && (request.requesterUserId == currentMemberId || request.candidates.contains { candidate in candidate.userId == currentMemberId })
+            && (
+                request.requesterUserId == currentMemberId ||
+                    request.candidates.contains { candidate in candidate.userId == currentMemberId }
+            )
         }
         return VisibleShiftSwapActivity(
             incoming: incoming,

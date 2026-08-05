@@ -167,7 +167,9 @@ struct ShiftSwapRequestRouteView: View {
                         .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
 
                     reguertaButton(
-                        LocalizedStringKey(viewModel.isSavingShiftSwapRequest ? shiftSwapCopy.sending : shiftSwapCopy.send),
+                        LocalizedStringKey(
+                            viewModel.isSavingShiftSwapRequest ? shiftSwapCopy.sending : shiftSwapCopy.send
+                        ),
                         isEnabled: !viewModel.isSavingShiftSwapRequest && !viewModel.shiftSwapDraft.shiftId.isEmpty,
                         isLoading: viewModel.isSavingShiftSwapRequest,
                         action: onSave

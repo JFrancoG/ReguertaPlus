@@ -210,8 +210,13 @@ struct ReguertaSharedProfileViewModelTests {
     @Test func previewEnvironmentUsesInMemorySharedProfileDependencies() {
         let environment = ReguertaAppEnvironment.preview()
 
-        #expect(environment.accessRootViewModel.sharedProfileViewModel.sessionViewModel === environment.sessionViewModel)
-        #expect(environment.accessRootViewModel.sharedProfileViewModel.sharedProfileRepository is InMemorySharedProfileRepository)
+        #expect(
+            environment.accessRootViewModel.sharedProfileViewModel.sessionViewModel === environment.sessionViewModel
+        )
+        #expect(
+            environment.accessRootViewModel.sharedProfileViewModel.sharedProfileRepository
+                is InMemorySharedProfileRepository
+        )
         #expect(environment.accessRootViewModel.sharedProfileViewModel.imagePipelineManager is NoOpImagePipelineManager)
     }
 }

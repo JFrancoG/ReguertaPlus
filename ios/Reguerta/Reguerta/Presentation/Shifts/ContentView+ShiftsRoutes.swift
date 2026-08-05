@@ -277,9 +277,19 @@ private struct ShiftSwapRequestsCardView: View {
         return VStack(alignment: .leading, spacing: tokens.spacing.xs) {
             Text(shiftSwapCopy.requestedBy(viewModel.displayNameForSwap(request.requesterUserId)))
                 .font(tokens.typography.body.weight(.semibold))
-            Text(shiftSwapCopy.shift(requestedShift.map { viewModel.shiftSwapDisplayLabel($0, memberId: request.requesterUserId) } ?? request.requestedShiftId))
+            Text(
+                shiftSwapCopy.shift(
+                    requestedShift.map { viewModel.shiftSwapDisplayLabel($0, memberId: request.requesterUserId) } ??
+                        request.requestedShiftId
+                )
+            )
                 .font(tokens.typography.label)
-            Text(shiftSwapCopy.offerShift(candidateShift.map { viewModel.shiftSwapDisplayLabel($0, memberId: candidate.userId) } ?? candidate.shiftId))
+            Text(
+                shiftSwapCopy.offerShift(
+                    candidateShift.map { viewModel.shiftSwapDisplayLabel($0, memberId: candidate.userId) } ??
+                        candidate.shiftId
+                )
+            )
                 .font(tokens.typography.label)
             Text(shiftSwapCopy.reason(request.reason.isEmpty ? shiftSwapCopy.noReason : request.reason))
                 .font(tokens.typography.label)
@@ -312,10 +322,16 @@ private struct ShiftSwapRequestsCardView: View {
                 VStack(alignment: .leading, spacing: tokens.spacing.xs) {
                     Text(viewModel.displayNameForSwap(candidate.userId))
                         .font(tokens.typography.body.weight(.semibold))
-                    Text(shiftSwapCopy.confirmBeforeAfter(
-                        requestedShift.map { viewModel.shiftSwapDisplayLabel($0, memberId: request.requesterUserId) } ?? request.requestedShiftId,
-                        candidateShift.map { viewModel.shiftSwapDisplayLabel($0, memberId: candidate.userId) } ?? candidate.shiftId
-                    ))
+                    Text(
+                        shiftSwapCopy.confirmBeforeAfter(
+                            requestedShift.map {
+                                viewModel.shiftSwapDisplayLabel($0, memberId: request.requesterUserId)
+                            } ?? request.requestedShiftId,
+                            candidateShift.map {
+                                viewModel.shiftSwapDisplayLabel($0, memberId: candidate.userId)
+                            } ?? candidate.shiftId
+                        )
+                    )
                     .font(tokens.typography.label)
                     reguertaButton(LocalizedStringKey(shiftSwapCopy.confirm), fullWidth: false) {
                         viewModel.confirmShiftSwapRequest(requestId: request.id, candidateShiftId: candidate.shiftId)
@@ -337,7 +353,10 @@ private struct ShiftSwapRequestsCardView: View {
                 let shift = viewModel.shiftsFeed.first(where: { $0.id == request.requestedShiftId })
 
                 VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                    Text(shift.map { viewModel.shiftSwapDisplayLabel($0, memberId: request.requesterUserId) } ?? request.requestedShiftId)
+                    Text(
+                        shift.map { viewModel.shiftSwapDisplayLabel($0, memberId: request.requesterUserId) } ??
+                            request.requestedShiftId
+                    )
                         .font(tokens.typography.body.weight(.semibold))
                     Text(shiftSwapCopy.waitingMany(Set(request.candidates.map(\.userId)).count))
                         .font(tokens.typography.label)
@@ -364,7 +383,10 @@ private struct ShiftSwapRequestsCardView: View {
                 let shift = viewModel.shiftsFeed.first(where: { $0.id == request.requestedShiftId })
 
                 VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                    Text(shift.map { viewModel.shiftSwapDisplayLabel($0, memberId: request.requesterUserId) } ?? request.requestedShiftId)
+                    Text(
+                        shift.map { viewModel.shiftSwapDisplayLabel($0, memberId: request.requesterUserId) } ??
+                            request.requestedShiftId
+                    )
                         .font(tokens.typography.body.weight(.semibold))
                     Text(shiftSwapCopy.requestedBy(viewModel.displayNameForSwap(request.requesterUserId)))
                         .font(tokens.typography.label)
@@ -380,7 +402,11 @@ private struct ShiftSwapRequestsCardView: View {
                             .foregroundStyle(tokens.colors.textSecondary)
                     }
                     if request.status == .applied {
-                        reguertaButton(LocalizedStringKey(shiftSwapCopy.acknowledge), variant: .text, fullWidth: false) {
+                        reguertaButton(
+                            LocalizedStringKey(shiftSwapCopy.acknowledge),
+                            variant: .text,
+                            fullWidth: false
+                        ) {
                             viewModel.dismissShiftSwapActivity(requestId: request.id)
                         }
                     }
