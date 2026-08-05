@@ -4,8 +4,7 @@ import Testing
 
 @MainActor
 struct ReguertaShiftsAdminViewModelTests {
-    @Test
-    func shiftsViewModelConfirmsSwapWithoutDirectShiftWrites() async {
+    @Test func shiftsViewModelConfirmsSwapWithoutDirectShiftWrites() async {
         let scenario = await makeConfirmShiftSwapTestScenario()
 
         scenario.viewModel.confirmShiftSwapRequest(
@@ -26,8 +25,7 @@ struct ReguertaShiftsAdminViewModelTests {
         #expect(updatedCandidateShift == scenario.candidateShift)
     }
 
-    @Test
-    func shiftsViewModelLoadsAndMutatesDeliveryCalendarOnlyForAdmins() async {
+    @Test func shiftsViewModelLoadsAndMutatesDeliveryCalendarOnlyForAdmins() async {
         let regularMember = shiftMember(id: "member_1", displayName: "Carmen")
         let admin = adminMember(id: "admin_1", displayName: "Admin")
         let delivery = shift(
@@ -78,8 +76,7 @@ struct ReguertaShiftsAdminViewModelTests {
         #expect(overrides.isEmpty)
     }
 
-    @Test
-    func shiftsViewModelSubmitsAdminPlanningRequestAndClearsPendingState() async {
+    @Test func shiftsViewModelSubmitsAdminPlanningRequestAndClearsPendingState() async {
         let admin = adminMember(id: "admin_1", displayName: "Admin")
         let planningRepository = RecordingShiftPlanningRequestRepository()
         let viewModel = makeShiftsViewModel(
@@ -99,8 +96,7 @@ struct ReguertaShiftsAdminViewModelTests {
         #expect(viewModel.pendingShiftPlanningType == nil)
     }
 
-    @Test
-    func shiftsViewModelRetainsCalendarEditorWhenRepositoryRejectsMutation() async {
+    @Test func shiftsViewModelRetainsCalendarEditorWhenRepositoryRejectsMutation() async {
         let admin = adminMember(id: "admin_1", displayName: "Admin")
         let delivery = shift(
             id: "delivery",
@@ -132,8 +128,7 @@ struct ReguertaShiftsAdminViewModelTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
     }
 
-    @Test
-    func shiftsViewModelRetainsCalendarEditorWhenRepositoryRejectsDelete() async throws {
+    @Test func shiftsViewModelRetainsCalendarEditorWhenRepositoryRejectsDelete() async throws {
         let admin = adminMember(id: "admin_1", displayName: "Admin")
         let delivery = shift(
             id: "delivery",
@@ -173,8 +168,7 @@ struct ReguertaShiftsAdminViewModelTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
     }
 
-    @Test
-    func shiftsViewModelRetainsPendingPlanningRequestWhenRepositoryRejectsSubmit() async {
+    @Test func shiftsViewModelRetainsPendingPlanningRequestWhenRepositoryRejectsSubmit() async {
         let admin = adminMember(id: "admin_1", displayName: "Admin")
         let viewModel = makeShiftsViewModel(
             currentMember: admin,
@@ -190,8 +184,7 @@ struct ReguertaShiftsAdminViewModelTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
     }
 
-    @Test
-    func chainedShiftRepositoryPropagatesPrimaryRejectionWithoutMutatingFallback() async {
+    @Test func chainedShiftRepositoryPropagatesPrimaryRejectionWithoutMutatingFallback() async {
         let fallback = InMemoryShiftRepository()
         let repository = ChainedShiftRepository(
             primary: RejectingShiftRepository(),
@@ -210,8 +203,7 @@ struct ReguertaShiftsAdminViewModelTests {
         #expect(await fallback.allShifts().isEmpty)
     }
 
-    @Test
-    func previewEnvironmentUsesInMemoryShiftsDependenciesAndSharesRootSession() {
+    @Test func previewEnvironmentUsesInMemoryShiftsDependenciesAndSharesRootSession() {
         let environment = ReguertaAppEnvironment.preview()
 
         #expect(environment.accessRootViewModel.shiftsViewModel.sessionViewModel === environment.sessionViewModel)

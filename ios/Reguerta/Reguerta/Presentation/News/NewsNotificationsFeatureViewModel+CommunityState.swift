@@ -69,8 +69,7 @@ extension NewsNotificationsFeatureViewModel {
         )
     }
 
-    @discardableResult
-    func upsertConfirmedNotification(_ event: NotificationEvent, member: Member) -> Bool {
+    @discardableResult func upsertConfirmedNotification(_ event: NotificationEvent, member: Member) -> Bool {
         notificationsFeed.removeAll { $0.id == event.id }
         guard event.isVisible(to: member) else {
             pendingConfirmedNotifications[event.id] = nil

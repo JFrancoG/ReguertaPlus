@@ -4,8 +4,7 @@ import Testing
 
 @MainActor
 struct ReguertaShiftsViewModelTests {
-    @Test
-    func shiftsViewModelLoadsVisibleShiftsAndResetsWhenSignedOut() async {
+    @Test func shiftsViewModelLoadsVisibleShiftsAndResetsWhenSignedOut() async {
         let currentMember = shiftMember(id: "member_1", displayName: "Carmen")
         let otherMember = shiftMember(id: "member_2", displayName: "Javier")
         let requestedShift = shift(
@@ -55,8 +54,7 @@ struct ReguertaShiftsViewModelTests {
         #expect(viewModel.nextDeliveryShift == nil)
     }
 
-    @Test
-    func shiftsViewModelComputesNextShiftsAndRespondsToNowOverride() async {
+    @Test func shiftsViewModelComputesNextShiftsAndRespondsToNowOverride() async {
         let currentMember = shiftMember(id: "member_1", displayName: "Carmen")
         let nowProvider = TestNowProvider(nowMillis: testMillis(year: 2026, month: 5, day: 1))
         let firstDelivery = shift(
@@ -96,8 +94,7 @@ struct ReguertaShiftsViewModelTests {
         #expect(viewModel.nextMarketShift == nil)
     }
 
-    @Test
-    func shiftsViewModelFiltersBoardSegmentAndAppliesDeliveryCalendarOverrides() async {
+    @Test func shiftsViewModelFiltersBoardSegmentAndAppliesDeliveryCalendarOverrides() async {
         let currentMember = adminMember(id: "admin_1", displayName: "Admin")
         let delivery = shift(
             id: "delivery",
@@ -140,8 +137,7 @@ struct ReguertaShiftsViewModelTests {
         #expect(viewModel.visibleShifts.map(\.id) == [market.id])
     }
 
-    @Test
-    func shiftsViewModelBlocksSwapRequestWithoutCandidates() async {
+    @Test func shiftsViewModelBlocksSwapRequestWithoutCandidates() async {
         let currentMember = shiftMember(id: "member_1", displayName: "Carmen")
         let requestedShift = shift(
             id: "delivery_requested",
@@ -164,8 +160,7 @@ struct ReguertaShiftsViewModelTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackShiftSwapNoCandidates)
     }
 
-    @Test
-    func shiftsViewModelCreatesSwapThroughBackendBoundary() async {
+    @Test func shiftsViewModelCreatesSwapThroughBackendBoundary() async {
         let requester = shiftMember(id: "requester", displayName: "Rosa")
         let candidate = shiftMember(id: "candidate", displayName: "Luis")
         let requestedShift = shift(
@@ -206,8 +201,7 @@ struct ReguertaShiftsViewModelTests {
         #expect(viewModel.shiftSwapDraft == ShiftSwapDraft())
     }
 
-    @Test
-    func shiftsViewModelAcceptsCandidateResponseAndPersistsIt() async {
+    @Test func shiftsViewModelAcceptsCandidateResponseAndPersistsIt() async {
         let requester = shiftMember(id: "requester", displayName: "Rosa")
         let candidate = shiftMember(id: "candidate", displayName: "Luis")
         let requestedShift = shift(

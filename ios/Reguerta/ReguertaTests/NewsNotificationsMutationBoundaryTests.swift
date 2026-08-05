@@ -193,9 +193,7 @@ struct NewsNotificationsMutationBoundaryTests {
         safetyMember(id: id, roles: [.member, .admin])
     }
 
-    private func replaceAuthorizedContext(
-        in viewModel: NewsNotificationsFeatureViewModel
-    ) {
+    private func replaceAuthorizedContext(in viewModel: NewsNotificationsFeatureViewModel) {
         let replacement = safetySession(
             member: adminMember(id: "member_2"),
             environment: .develop
@@ -205,10 +203,7 @@ struct NewsNotificationsMutationBoundaryTests {
         #expect(viewModel.currentMember?.id == replacement.member.id)
     }
 
-    private func prepareNewsDraft(
-        _ viewModel: NewsNotificationsFeatureViewModel,
-        title: String
-    ) {
+    private func prepareNewsDraft(_ viewModel: NewsNotificationsFeatureViewModel, title: String) {
         #expect(viewModel.startCreatingNews())
         viewModel.updateNewsDraft {
             $0.title = title
@@ -216,10 +211,7 @@ struct NewsNotificationsMutationBoundaryTests {
         }
     }
 
-    private func prepareNotificationDraft(
-        _ viewModel: NewsNotificationsFeatureViewModel,
-        title: String
-    ) {
+    private func prepareNotificationDraft(_ viewModel: NewsNotificationsFeatureViewModel, title: String) {
         #expect(viewModel.startCreatingNotification())
         viewModel.updateNotificationDraft {
             $0.title = title

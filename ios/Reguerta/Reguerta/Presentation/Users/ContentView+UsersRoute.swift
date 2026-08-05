@@ -100,8 +100,7 @@ struct UsersRouteView: View {
         }
     }
 
-    @ViewBuilder
-    private func userCardTextRows(_ member: Member) -> some View {
+    @ViewBuilder private func userCardTextRows(_ member: Member) -> some View {
         Text(member.displayName)
             .font(.custom("CabinSketch-Bold", size: 18.resize, relativeTo: .body))
             .foregroundStyle(tokens.colors.textPrimary)

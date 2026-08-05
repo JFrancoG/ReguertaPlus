@@ -28,8 +28,7 @@ struct NewsNotificationsFeatureOperationSafetyTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableLoadData)
     }
 
-    @Test("A valid News retry atomically replaces the preserved snapshot")
-    func newsRetryReplacesSnapshot() async {
+    @Test("A valid News retry atomically replaces the preserved snapshot") func newsRetryReplacesSnapshot() async {
         let old = safetyNewsArticle(id: "old")
         let current = safetyNewsArticle(id: "current", publishedAtMillis: 2)
         let repository = SequencedNewsRepository(
@@ -255,8 +254,7 @@ struct NewsNotificationsFeatureOperationSafetyTests {
         #expect(viewModel.currentEnvironment == .production)
     }
 
-    @Test("A stale mark-read failure cannot publish feedback or read state")
-    func markReadIsSessionFenced() async {
+    @Test("A stale mark-read failure cannot publish feedback or read state") func markReadIsSessionFenced() async {
         let event = safetyNotification(id: "event")
         let repository = ControlledNotificationRepository()
         let viewModel = makeSafetyViewModel(notificationRepository: repository)

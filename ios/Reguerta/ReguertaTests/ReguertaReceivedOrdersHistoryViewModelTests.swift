@@ -5,8 +5,7 @@ import Testing
 
 @MainActor
 struct ReguertaReceivedOrdersHistoryViewModelTests {
-    @Test
-    func receivedOrdersHistoryPresentationUsesTheActiveEnglishLocale() throws {
+    @Test func receivedOrdersHistoryPresentationUsesTheActiveEnglishLocale() throws {
         let option = try #require(
             orderHistoryWeekOption(
                 weekKey: "2026-W27",
@@ -26,8 +25,7 @@ struct ReguertaReceivedOrdersHistoryViewModelTests {
         #expect(presentation.orderTitle == "Received orders Jun 29 - Jul 5")
     }
 
-    @Test
-    func receivedOrdersHistorySelectsPreviousIsoWeekAndFormatsTitle() async {
+    @Test func receivedOrdersHistorySelectsPreviousIsoWeekAndFormatsTitle() async {
         let repository = InMemoryOrdersRepository()
         await repository.setReceivedOrdersHistoryWeekKeys(["2026-W21"], forProducerId: "producer_even")
         await repository.setReceivedOrdersSnapshot(
@@ -52,8 +50,7 @@ struct ReguertaReceivedOrdersHistoryViewModelTests {
         #expect(snapshot.byProductRows.first?.productName == "Tomates")
     }
 
-    @Test
-    func receivedOrdersHistoryBuildsContinuousRangeAndShowsIntermediateEmptyWeek() async {
+    @Test func receivedOrdersHistoryBuildsContinuousRangeAndShowsIntermediateEmptyWeek() async {
         let repository = InMemoryOrdersRepository()
         await repository.setReceivedOrdersHistoryWeekKeys(["2026-W19", "2026-W21"], forProducerId: "producer_even")
         await repository.setReceivedOrdersSnapshot(
@@ -93,8 +90,7 @@ struct ReguertaReceivedOrdersHistoryViewModelTests {
         #expect(!viewModel.canGoNext)
     }
 
-    @Test
-    func receivedOrdersHistoryDoesNotUseGlobalOrderFallbackWhenProducerHasNoOrders() async {
+    @Test func receivedOrdersHistoryDoesNotUseGlobalOrderFallbackWhenProducerHasNoOrders() async {
         let repository = InMemoryOrdersRepository()
         await repository.setOldestOrderHistoryWeekKey("2025-W01")
         let viewModel = makeReceivedOrdersHistoryViewModel(repository: repository)
@@ -120,8 +116,7 @@ struct ReguertaReceivedOrdersHistoryViewModelTests {
         #expect(viewModel.availableWeeks.last?.weekKey == "2026-W27")
     }
 
-    @Test
-    func receivedOrdersHistoryRetryKeepsSelectedWeekAndDoesNotWriteStatus() async {
+    @Test func receivedOrdersHistoryRetryKeepsSelectedWeekAndDoesNotWriteStatus() async {
         let repository = InMemoryOrdersRepository()
         await repository.setReceivedOrdersHistoryWeekKeys(["2026-W21"], forProducerId: "producer_even")
         await repository.setReceivedOrdersSnapshot(

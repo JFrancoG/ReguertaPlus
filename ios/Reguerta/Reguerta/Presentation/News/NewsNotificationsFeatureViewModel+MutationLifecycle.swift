@@ -77,10 +77,7 @@ extension NewsNotificationsFeatureViewModel {
         )
     }
 
-    func notificationEventForSend(
-        draft: NotificationDraft,
-        context: SessionContext
-    ) -> NotificationEvent {
+    func notificationEventForSend(draft: NotificationDraft, context: SessionContext) -> NotificationEvent {
         NotificationEvent(
             id: "",
             title: draft.title,
@@ -125,17 +122,11 @@ extension NewsNotificationsFeatureViewModel {
         return nextNotificationMutationOperationId
     }
 
-    func isCurrentNotificationMutation(
-        _ operationId: UInt64,
-        context: SessionContext
-    ) -> Bool {
+    func isCurrentNotificationMutation(_ operationId: UInt64, context: SessionContext) -> Bool {
         activeNotificationMutationOperationId == operationId && isCurrentSession(context)
     }
 
-    func finishNotificationMutationOperation(
-        _ operationId: UInt64,
-        context: SessionContext
-    ) {
+    func finishNotificationMutationOperation(_ operationId: UInt64, context: SessionContext) {
         guard activeNotificationMutationOperationId == operationId else { return }
         activeNotificationMutationOperationId = nil
         guard isCurrentSession(context) else { return }
@@ -191,17 +182,13 @@ extension NewsNotificationsFeatureViewModel {
         return ownsEditor
     }
 
-    func scheduleNewsConvergence(
-        feedbackOwnership: NewsConvergenceFeedbackOwnership
-    ) {
+    func scheduleNewsConvergence(feedbackOwnership: NewsConvergenceFeedbackOwnership) {
         Task { [weak self] in
             await self?.refreshNews(failureFeedbackOwnership: feedbackOwnership)
         }
     }
 
-    func scheduleNotificationsConvergence(
-        feedbackOwnership: NotificationMutationEditorOwnership
-    ) {
+    func scheduleNotificationsConvergence(feedbackOwnership: NotificationMutationEditorOwnership) {
         Task { [weak self] in
             await self?.refreshNotifications(failureFeedbackOwnership: feedbackOwnership)
         }
@@ -226,9 +213,7 @@ extension NewsNotificationsFeatureViewModel {
         )
     }
 
-    func isCurrentNotificationMutationEditor(
-        _ ownership: NotificationMutationEditorOwnership
-    ) -> Bool {
+    func isCurrentNotificationMutationEditor(_ ownership: NotificationMutationEditorOwnership) -> Bool {
         captureNotificationMutationEditorOwnership() == ownership
     }
 
@@ -237,9 +222,7 @@ extension NewsNotificationsFeatureViewModel {
             pendingNewsDeletionId == ownership.newsID
     }
 
-    func canPublishNewsConvergenceFeedback(
-        for ownership: NewsConvergenceFeedbackOwnership
-    ) -> Bool {
+    func canPublishNewsConvergenceFeedback(for ownership: NewsConvergenceFeedbackOwnership) -> Bool {
         switch ownership {
         case .editor(let editorOwnership):
             isCurrentNewsMutationEditor(editorOwnership)

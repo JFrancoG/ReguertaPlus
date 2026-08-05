@@ -90,7 +90,10 @@ private enum ReguertaDialogCoordinateSpace {
 private struct ReguertaDialogCardFramePreferenceKey: PreferenceKey {
     static let defaultValue = CGRect.infinite
 
-    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
+    static func reduce(
+        value: inout CGRect,
+        nextValue: () -> CGRect
+    ) {
         value = nextValue()
     }
 }
@@ -164,10 +167,7 @@ private struct ReguertaDialogActionsView: View {
         }
     }
 
-    private func dialogActionButton(
-        _ action: ReguertaDialogAction,
-        variant: ReguertaButtonVariant
-    ) -> some View {
+    private func dialogActionButton(_ action: ReguertaDialogAction, variant: ReguertaButtonVariant) -> some View {
         reguertaButton(
             LocalizedStringKey(action.title),
             variant: variant,

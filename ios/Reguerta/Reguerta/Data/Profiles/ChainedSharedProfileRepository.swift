@@ -5,10 +5,7 @@ final class ChainedSharedProfileRepository<Primary: SharedProfileRepository, Fal
     private let primary: Primary
     private let fallback: Fallback
 
-    init(
-        primary: Primary,
-        fallback: Fallback
-    ) {
+    init(primary: Primary, fallback: Fallback) {
         self.primary = primary
         self.fallback = fallback
     }

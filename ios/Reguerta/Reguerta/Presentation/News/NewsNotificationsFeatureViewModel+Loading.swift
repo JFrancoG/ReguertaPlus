@@ -37,9 +37,7 @@ extension NewsNotificationsFeatureViewModel {
         }
     }
 
-    func handleEnvironmentRoutingTransition(
-        _ transition: SessionEnvironmentRoutingTransition
-    ) {
+    func handleEnvironmentRoutingTransition(_ transition: SessionEnvironmentRoutingTransition) {
         guard transition.generation > environmentRoutingGeneration else { return }
         environmentRoutingGeneration = transition.generation
         sessionIdentityEpoch &+= 1
@@ -50,9 +48,7 @@ extension NewsNotificationsFeatureViewModel {
         currentEnvironment = transition.environment
     }
 
-    func refreshNews(
-        failureFeedbackOwnership: NewsConvergenceFeedbackOwnership? = nil
-    ) async {
+    func refreshNews(failureFeedbackOwnership: NewsConvergenceFeedbackOwnership? = nil) async {
         guard let context = captureAuthorizedSessionContext() else { return }
 
         let operationId = beginNewsRefreshOperation()
@@ -75,9 +71,7 @@ extension NewsNotificationsFeatureViewModel {
         finishNewsRefreshOperation(operationId, context: context)
     }
 
-    func refreshNotifications(
-        failureFeedbackOwnership: NotificationMutationEditorOwnership? = nil
-    ) async {
+    func refreshNotifications(failureFeedbackOwnership: NotificationMutationEditorOwnership? = nil) async {
         guard let context = captureAuthorizedSessionContext() else { return }
 
         let operationId = beginNotificationsRefreshOperation()
@@ -247,10 +241,7 @@ extension NewsNotificationsFeatureViewModel {
 }
 
 private extension NewsNotificationsFeatureViewModel {
-    func storedContextMatches(
-        _ session: AuthorizedSession,
-        environment: SessionEnvironment
-    ) -> Bool {
+    func storedContextMatches(_ session: AuthorizedSession, environment: SessionEnvironment) -> Bool {
         guard let currentSession,
               let currentMember,
               let currentEnvironment else {
@@ -359,17 +350,11 @@ private extension NewsNotificationsFeatureViewModel {
         return nextNotificationsRefreshOperationId
     }
 
-    func isCurrentNotificationsRefresh(
-        _ operationId: UInt64,
-        context: SessionContext
-    ) -> Bool {
+    func isCurrentNotificationsRefresh(_ operationId: UInt64, context: SessionContext) -> Bool {
         activeNotificationsRefreshOperationId == operationId && isCurrentSession(context)
     }
 
-    func finishNotificationsRefreshOperation(
-        _ operationId: UInt64,
-        context: SessionContext
-    ) {
+    func finishNotificationsRefreshOperation(_ operationId: UInt64, context: SessionContext) {
         guard isCurrentNotificationsRefresh(operationId, context: context) else { return }
         activeNotificationsRefreshOperationId = nil
         isLoadingNotifications = false
@@ -381,25 +366,16 @@ private extension NewsNotificationsFeatureViewModel {
         return nextNotificationsRouteOperationId
     }
 
-    func isCurrentNotificationsRoute(
-        _ operationId: UInt64,
-        context: SessionContext
-    ) -> Bool {
+    func isCurrentNotificationsRoute(_ operationId: UInt64, context: SessionContext) -> Bool {
         activeNotificationsRouteOperationId == operationId && isCurrentSession(context)
     }
 
-    func finishNotificationsRouteOperation(
-        _ operationId: UInt64,
-        context: SessionContext
-    ) {
+    func finishNotificationsRouteOperation(_ operationId: UInt64, context: SessionContext) {
         guard isCurrentNotificationsRoute(operationId, context: context) else { return }
         activeNotificationsRouteOperationId = nil
     }
 
-    func refreshPushNotificationPermission(
-        showDialogIfInactive: Bool,
-        context: SessionContext
-    ) async {
+    func refreshPushNotificationPermission(showDialogIfInactive: Bool, context: SessionContext) async {
         nextPermissionRefreshOperationId &+= 1
         let operationId = nextPermissionRefreshOperationId
         activePermissionRefreshOperationId = operationId

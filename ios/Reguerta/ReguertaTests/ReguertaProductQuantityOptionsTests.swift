@@ -4,8 +4,7 @@ import Testing
 
 @MainActor
 struct ReguertaProductQuantityOptionsTests {
-    @Test
-    func editorUsesTypedOptionsAndDefaultsQuantitiesToOne() async {
+    @Test func editorUsesTypedOptionsAndDefaultsQuantitiesToOne() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let viewModel = await makeProductsViewModel(
             currentMember: currentProducer,
@@ -49,16 +48,14 @@ struct ReguertaProductQuantityOptionsTests {
         #expect(input?.maxWeight == 3)
     }
 
-    @Test
-    func stockLevelUsesErrorWarningAndNormalThresholds() {
+    @Test func stockLevelUsesErrorWarningAndNormalThresholds() {
         #expect(productStockLevel(quantity: 0) == .error)
         #expect(productStockLevel(quantity: 1) == .warning)
         #expect(productStockLevel(quantity: 10) == .warning)
         #expect(productStockLevel(quantity: 11) == .normal)
     }
 
-    @Test
-    func weightedProductUsesMinimumMaximumAndStep() {
+    @Test func weightedProductUsesMinimumMaximumAndStep() {
         let product = weightedProduct()
 
         #expect(product.minimumSelectionCount == 2)

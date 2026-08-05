@@ -6,8 +6,7 @@ import Testing
 
 @MainActor
 struct FirestoreRepositoryErrorMapperTests {
-    @Test
-    func mapsFirestoreFailuresToDomainErrors() {
+    @Test func mapsFirestoreFailuresToDomainErrors() {
         let resource = "products"
 
         #expect(
@@ -24,8 +23,7 @@ struct FirestoreRepositoryErrorMapperTests {
         )
     }
 
-    @Test
-    func preservesCancellationWithoutDomainMapping() {
+    @Test func preservesCancellationWithoutDomainMapping() {
         let mapped = FirestoreRepositoryErrorMapper.map(
             CancellationError(),
             resource: "products"
@@ -34,8 +32,7 @@ struct FirestoreRepositoryErrorMapperTests {
         #expect(mapped is CancellationError)
     }
 
-    @Test
-    func rejectsMalformedProductAndCommitmentDocumentsAsInvalidData() throws {
+    @Test func rejectsMalformedProductAndCommitmentDocumentsAsInvalidData() throws {
         try assertMalformedProductsAreRejected()
         try assertMalformedCommitmentsAreRejected()
     }
@@ -118,8 +115,7 @@ struct FirestoreRepositoryErrorMapperTests {
         }
     }
 
-    @Test
-    func productMergePayloadDeletesClearedOptionalFields() throws {
+    @Test func productMergePayloadDeletesClearedOptionalFields() throws {
         let product = try FirestoreProductRepository.product(
             documentID: "product",
             data: validProductData()
@@ -133,8 +129,7 @@ struct FirestoreRepositoryErrorMapperTests {
         #expect(payload["commonPurchaseType"] is FieldValue)
     }
 
-    @Test
-    func sharedProfileContractDistinguishesLegacyAbsenceFromCorruption() throws {
+    @Test func sharedProfileContractDistinguishesLegacyAbsenceFromCorruption() throws {
         let timestamp = Timestamp(date: Date(timeIntervalSince1970: 123))
         let minimalProfile: [String: Any] = [
             "userId": "member_1",
@@ -185,8 +180,7 @@ struct FirestoreRepositoryErrorMapperTests {
         }
     }
 
-    @Test
-    func sharedProfileMergePayloadDeletesClearedPhoto() {
+    @Test func sharedProfileMergePayloadDeletesClearedPhoto() {
         let payload = FirestoreSharedProfileRepository.upsertPayload(
             for: SharedProfile(
                 userId: "member_1",
@@ -200,8 +194,7 @@ struct FirestoreRepositoryErrorMapperTests {
         #expect(payload["photoUrl"] is FieldValue)
     }
 
-    @Test
-    func memberDirectoryContractRequiresCanonicalPublicFieldsAndIdentity() throws {
+    @Test func memberDirectoryContractRequiresCanonicalPublicFieldsAndIdentity() throws {
         let validDirectory: [String: Any] = [
             "userId": "member_1",
             "displayName": " Member One ",
@@ -254,8 +247,7 @@ struct FirestoreRepositoryErrorMapperTests {
         }
     }
 
-    @Test
-    func fullMemberContractKeepsLegacyAliasesButRejectsConflictingTypes() throws {
+    @Test func fullMemberContractKeepsLegacyAliasesButRejectsConflictingTypes() throws {
         let legacyMember: [String: Any] = [
             "name": "Ana",
             "surname": "Reguerta",

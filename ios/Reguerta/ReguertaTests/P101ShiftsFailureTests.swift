@@ -6,8 +6,7 @@ import Testing
 
 @MainActor
 struct P101ShiftsFailureTests {
-    @Test
-    func firestoreShiftContractsRejectCorruptDocuments() throws {
+    @Test func firestoreShiftContractsRejectCorruptDocuments() throws {
         let timestamp = Timestamp(date: Date(timeIntervalSince1970: 123))
         let validShift: [String: Any] = [
             "type": "delivery",
@@ -40,8 +39,7 @@ struct P101ShiftsFailureTests {
         }
     }
 
-    @Test
-    func firestoreSwapContractRejectsPartialDocuments() throws {
+    @Test func firestoreSwapContractRejectsPartialDocuments() throws {
         let timestamp = Timestamp(date: Date(timeIntervalSince1970: 123))
         let validSwap: [String: Any] = [
             "requestedShiftId": "shift_1",
@@ -69,8 +67,7 @@ struct P101ShiftsFailureTests {
         }
     }
 
-    @Test
-    func firestoreCalendarContractsRejectPartialDocuments() throws {
+    @Test func firestoreCalendarContractsRejectPartialDocuments() throws {
         let timestamp = Timestamp(date: Date(timeIntervalSince1970: 123))
         let validOverride: [String: Any] = [
             "weekKey": "2026-W20",
@@ -112,8 +109,7 @@ struct P101ShiftsFailureTests {
         }
     }
 
-    @Test
-    func refreshShiftsPreservesLastSnapshotWhenEitherReadFails() async {
+    @Test func refreshShiftsPreservesLastSnapshotWhenEitherReadFails() async {
         let member = shiftMember(id: "member_1", displayName: "Carmen")
         let previousShift = shift(
             id: "previous",
@@ -143,8 +139,7 @@ struct P101ShiftsFailureTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableLoadData)
     }
 
-    @Test
-    func legitimateEmptyShiftReadsReplaceThePreviousSnapshot() async {
+    @Test func legitimateEmptyShiftReadsReplaceThePreviousSnapshot() async {
         let member = shiftMember(id: "member_1", displayName: "Carmen")
         let previousShift = shift(
             id: "previous",
@@ -164,8 +159,7 @@ struct P101ShiftsFailureTests {
         #expect(viewModel.feedbackCenter.messageKey == nil)
     }
 
-    @Test
-    func refreshCalendarPreservesSnapshotWhenAReadFails() async throws {
+    @Test func refreshCalendarPreservesSnapshotWhenAReadFails() async throws {
         let admin = adminMember(id: "admin_1", displayName: "Admin")
         let existing = try #require(
             buildDeliveryCalendarOverride(
@@ -191,8 +185,7 @@ struct P101ShiftsFailureTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableLoadData)
     }
 
-    @Test
-    func confirmedCalendarWriteSurvivesFailedReadBack() async throws {
+    @Test func confirmedCalendarWriteSurvivesFailedReadBack() async throws {
         let admin = adminMember(id: "admin_1", displayName: "Admin")
         let repository = ConfirmingCalendarWithFailingReadsRepository()
         let viewModel = makeShiftsViewModel(
@@ -215,8 +208,7 @@ struct P101ShiftsFailureTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableLoadData)
     }
 
-    @Test
-    func confirmedSwapCreateIsNotReportedAsSaveFailureWhenReadBackFails() async {
+    @Test func confirmedSwapCreateIsNotReportedAsSaveFailureWhenReadBackFails() async {
         let requester = shiftMember(id: "requester", displayName: "Rosa")
         let candidate = shiftMember(id: "candidate", displayName: "Luis")
         let requestedShift = shift(
@@ -259,8 +251,7 @@ struct P101ShiftsFailureTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableLoadData)
     }
 
-    @Test
-    func rejectedSwapCreatePreservesTheDraftAndReportsSaveFailure() async {
+    @Test func rejectedSwapCreatePreservesTheDraftAndReportsSaveFailure() async {
         let requester = shiftMember(id: "requester", displayName: "Rosa")
         let candidate = shiftMember(id: "candidate", displayName: "Luis")
         let requestedShift = shift(
@@ -294,8 +285,7 @@ struct P101ShiftsFailureTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
     }
 
-    @Test
-    func confirmedSwapUpdateSuppressesRetryWhenReadBackFails() async {
+    @Test func confirmedSwapUpdateSuppressesRetryWhenReadBackFails() async {
         let requester = shiftMember(id: "requester", displayName: "Rosa")
         let request = shiftSwapRequest(
             id: "swap_1",

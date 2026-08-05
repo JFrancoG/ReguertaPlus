@@ -5,10 +5,7 @@ struct FirestoreOrdersRepository: OrdersRepository {
     private let db: Firestore
     private let environment: ReguertaFirestoreEnvironment?
 
-    init(
-        db: Firestore,
-        environment: ReguertaFirestoreEnvironment? = nil
-    ) {
+    init(db: Firestore, environment: ReguertaFirestoreEnvironment? = nil) {
         self.db = db
         self.environment = environment
     }
@@ -48,10 +45,7 @@ struct FirestoreOrdersRepository: OrdersRepository {
         )
     }
 
-    func orderSummarySnapshot(
-        currentMember: Member?,
-        weekKey: String
-    ) async throws -> MyOrderPreviousOrderSnapshot? {
+    func orderSummarySnapshot(currentMember: Member?, weekKey: String) async throws -> MyOrderPreviousOrderSnapshot? {
         try await fetchOrderSummarySnapshot(
             currentMember: currentMember,
             weekKey: weekKey,
@@ -60,10 +54,7 @@ struct FirestoreOrdersRepository: OrdersRepository {
         )
     }
 
-    func myOrderProducerStatuses(
-        currentMember: Member?,
-        weekKey: String
-    ) async -> MyOrderProducerStatusSnapshot {
+    func myOrderProducerStatuses(currentMember: Member?, weekKey: String) async -> MyOrderProducerStatusSnapshot {
         await loadMyOrderProducerStatuses(
             currentMember: currentMember,
             weekKey: weekKey,
@@ -72,10 +63,7 @@ struct FirestoreOrdersRepository: OrdersRepository {
         )
     }
 
-    func receivedOrdersSnapshot(
-        producerId: String,
-        targetWeekKey: String
-    ) async throws -> ReceivedOrdersSnapshot? {
+    func receivedOrdersSnapshot(producerId: String, targetWeekKey: String) async throws -> ReceivedOrdersSnapshot? {
         try await fetchReceivedOrdersSnapshotForProducer(
             producerId: producerId,
             targetWeekKey: targetWeekKey,
@@ -92,10 +80,7 @@ struct FirestoreOrdersRepository: OrdersRepository {
         )
     }
 
-    func receivedOrdersHistorySnapshot(
-        producerId: String,
-        weekKey: String
-    ) async throws -> ReceivedOrdersSnapshot? {
+    func receivedOrdersHistorySnapshot(producerId: String, weekKey: String) async throws -> ReceivedOrdersSnapshot? {
         try await fetchReceivedOrdersSnapshotForProducer(
             producerId: producerId,
             targetWeekKey: weekKey,

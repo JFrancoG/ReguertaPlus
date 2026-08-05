@@ -84,10 +84,7 @@ extension SessionViewModel {
         }
     }
 
-    private func applySignInResult(
-        _ result: AuthSignInResult,
-        generation: UInt64
-    ) async {
+    private func applySignInResult(_ result: AuthSignInResult, generation: UInt64) async {
         switch result {
         case .success(let principal):
             await applyAuthorizedSession(principal: principal, generation: generation)

@@ -5,8 +5,7 @@ import Testing
 @Suite(.timeLimit(.minutes(1)))
 @MainActor
 struct MyOrderFreshnessViewModelConcurrencyTests {
-    @Test("Una configuracion valida habilita Mi pedido")
-    func validConfigResolvesReady() async {
+    @Test("Una configuracion valida habilita Mi pedido") func validConfigResolvesReady() async {
         let viewModel = makeImmediateFreshnessViewModel(config: validConcurrencyFreshnessConfig())
         let mode = freshnessAuthorizedMode(uid: "uid_ready")
 
@@ -18,8 +17,7 @@ struct MyOrderFreshnessViewModelConcurrencyTests {
         #expect(viewModel.state == .ready)
     }
 
-    @Test("Una configuracion invalida bloquea Mi pedido")
-    func invalidConfigResolvesUnavailable() async {
+    @Test("Una configuracion invalida bloquea Mi pedido") func invalidConfigResolvesUnavailable() async {
         let viewModel = makeImmediateFreshnessViewModel(config: nil)
         let mode = freshnessAuthorizedMode(uid: "uid_unavailable")
 
@@ -31,8 +29,7 @@ struct MyOrderFreshnessViewModelConcurrencyTests {
         #expect(viewModel.state == .unavailable)
     }
 
-    @Test("La misma sesion autorizada no inicia otro refresh")
-    func samePrincipalDoesNotRefresh() async {
+    @Test("La misma sesion autorizada no inicia otro refresh") func samePrincipalDoesNotRefresh() async {
         let remoteRepository = ControlledCriticalDataFreshnessRemoteRepository()
         let viewModel = makeControlledFreshnessViewModel(remoteRepository: remoteRepository)
         let mode = freshnessAuthorizedMode(uid: "uid_same")
@@ -46,8 +43,7 @@ struct MyOrderFreshnessViewModelConcurrencyTests {
         #expect(viewModel.state == .ready)
     }
 
-    @Test("Cambiar de principal inicia un refresh nuevo")
-    func changedPrincipalRefreshes() async throws {
+    @Test("Cambiar de principal inicia un refresh nuevo") func changedPrincipalRefreshes() async throws {
         let remoteRepository = ControlledCriticalDataFreshnessRemoteRepository()
         let viewModel = makeControlledFreshnessViewModel(remoteRepository: remoteRepository)
 
@@ -212,10 +208,7 @@ struct MyOrderFreshnessViewModelConcurrencyTests {
 
 private typealias OwnedFreshnessTasks = (operation: Task<Void, Never>, timeout: Task<Void, Never>)
 
-@MainActor
-private func ownedRefreshTasks(
-    in viewModel: MyOrderFreshnessViewModel
-) -> OwnedFreshnessTasks? {
+@MainActor private func ownedRefreshTasks(in viewModel: MyOrderFreshnessViewModel) -> OwnedFreshnessTasks? {
     guard let operation = viewModel.freshnessOperationTask,
           let timeout = viewModel.freshnessTimeoutTask else {
         Issue.record("El refresh no conserva sus tareas de operacion y timeout")
@@ -225,9 +218,7 @@ private func ownedRefreshTasks(
 }
 
 @MainActor
-private func makeImmediateFreshnessViewModel(
-    config: CriticalDataFreshnessConfig?
-) -> MyOrderFreshnessViewModel {
+private func makeImmediateFreshnessViewModel(config: CriticalDataFreshnessConfig?) -> MyOrderFreshnessViewModel {
     let localRepository = InMemoryCriticalDataFreshnessLocalRepository()
     return MyOrderFreshnessViewModel(
         resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase(
@@ -304,9 +295,7 @@ private func freshnessAuthorizedMode(
     )
 }
 
-private func validConcurrencyFreshnessConfig(
-    timestamp: Int64 = 1_000
-) -> CriticalDataFreshnessConfig {
+private func validConcurrencyFreshnessConfig(timestamp: Int64 = 1_000) -> CriticalDataFreshnessConfig {
     CriticalDataFreshnessConfig(
         cacheExpirationMinutes: 15,
         remoteTimestampsMillis: concurrencyFreshnessTimestamps(timestamp: timestamp)
@@ -320,9 +309,7 @@ private func invalidConcurrencyFreshnessConfig() -> CriticalDataFreshnessConfig 
     )
 }
 
-private func concurrencyFreshnessMetadata(
-    timestamp: Int64 = 1_000
-) -> CriticalDataFreshnessMetadata {
+private func concurrencyFreshnessMetadata(timestamp: Int64 = 1_000) -> CriticalDataFreshnessMetadata {
     CriticalDataFreshnessMetadata(
         validatedAtMillis: 1_000,
         acknowledgedTimestampsMillis: concurrencyFreshnessTimestamps(timestamp: timestamp),
@@ -332,9 +319,7 @@ private func concurrencyFreshnessMetadata(
     )
 }
 
-private func concurrencyFreshnessTimestamps(
-    timestamp: Int64 = 1_000
-) -> [CriticalCollection: Int64] {
+private func concurrencyFreshnessTimestamps(timestamp: Int64 = 1_000) -> [CriticalCollection: Int64] {
     Dictionary(
         uniqueKeysWithValues: CriticalCollection.allCases.map { ($0, timestamp) }
     )
@@ -345,9 +330,7 @@ private actor ControlledCriticalDataFreshnessRemoteRepository: CriticalDataFresh
     private var registeredRequestCount = 0
     private var requestContinuations: [Int: CheckedContinuation<CriticalDataFreshnessConfig?, Never>] = [:]
     private var nextRequestCountWaiterID = 0
-    private var requestCountWaiters: [
-        Int: (count: Int, continuation: CheckedContinuation<Void, any Error>)
-    ] = [:]
+    private var requestCountWaiters: [Int: (count: Int, continuation: CheckedContinuation<Void, any Error>)] = [:]
 
     func getConfig(environment: SessionEnvironment) async throws -> CriticalDataFreshnessConfig {
         let requestIndex = nextRequestIndex
@@ -383,10 +366,7 @@ private actor ControlledCriticalDataFreshnessRemoteRepository: CriticalDataFresh
         nextRequestIndex
     }
 
-    func completeRequest(
-        at index: Int,
-        with config: CriticalDataFreshnessConfig?
-    ) {
+    func completeRequest(at index: Int, with config: CriticalDataFreshnessConfig?) {
         guard let continuation = requestContinuations.removeValue(forKey: index) else {
             Issue.record("No existe la solicitud de freshness numero \(index)")
             return
@@ -417,9 +397,7 @@ private actor ControlledFreshnessSleeper {
     private var requestContinuations: [Int: CheckedContinuation<Void, any Error>] = [:]
     private var cancelledRequests: Set<Int> = []
     private var nextRequestCountWaiterID = 0
-    private var requestCountWaiters: [
-        Int: (count: Int, continuation: CheckedContinuation<Void, any Error>)
-    ] = [:]
+    private var requestCountWaiters: [Int: (count: Int, continuation: CheckedContinuation<Void, any Error>)] = [:]
 
     func sleep(for _: Duration) async throws {
         let requestIndex = nextRequestIndex

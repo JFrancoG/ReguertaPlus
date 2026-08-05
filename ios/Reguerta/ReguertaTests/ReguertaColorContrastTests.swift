@@ -90,8 +90,7 @@ struct ReguertaColorContrastTests {
         }
     }
 
-    @Test
-    func productionButtonPressedStatePreservesOpacity() {
+    @Test func productionButtonPressedStatePreservesOpacity() {
         let normal = ReguertaContrastContract.buttonVisualState(isPressed: false)
         let pressed = ReguertaContrastContract.buttonVisualState(isPressed: true)
 
@@ -219,8 +218,7 @@ enum TextContrastCase: CaseIterable {
     case contentOnError
     case pressedContentOnError
 
-    @MainActor
-    func sample(for appearance: ContrastAppearance) throws -> ContrastSample {
+    @MainActor func sample(for appearance: ContrastAppearance) throws -> ContrastSample {
         switch self {
         case .actionOnPrimarySurface,
              .actionOnSecondarySurface,
@@ -239,8 +237,7 @@ enum TextContrastCase: CaseIterable {
         }
     }
 
-    @MainActor
-    private func actionSample(for appearance: ContrastAppearance) throws -> ContrastSample {
+    @MainActor private func actionSample(for appearance: ContrastAppearance) throws -> ContrastSample {
         let action = try ResolvedColor.asset(.actionPrimary, appearance: appearance)
         let actionContent = try ResolvedColor.asset(.mainBack, appearance: appearance)
         let primarySurface = actionContent
@@ -285,8 +282,7 @@ enum TextContrastCase: CaseIterable {
         }
     }
 
-    @MainActor
-    private func feedbackSample(for appearance: ContrastAppearance) throws -> ContrastSample {
+    @MainActor private func feedbackSample(for appearance: ContrastAppearance) throws -> ContrastSample {
         let primarySurface = try ResolvedColor.asset(.mainBack, appearance: appearance)
         let secondarySurface = try ResolvedColor.asset(.secBack, appearance: appearance)
         let warning = try ResolvedColor.asset(.warning, appearance: appearance)
@@ -327,8 +323,7 @@ enum NonTextContrastCase: CaseIterable {
     case controlTrackAgainstSecondarySurface
     case whiteThumbAgainstControlTrack
 
-    @MainActor
-    func sample(for appearance: ContrastAppearance) throws -> ContrastSample {
+    @MainActor func sample(for appearance: ContrastAppearance) throws -> ContrastSample {
         let controlAccent = try ResolvedColor.asset(.controlAccent, appearance: appearance)
 
         return switch self {
@@ -371,11 +366,7 @@ struct ResolvedColor: Equatable {
 
     static let white = ResolvedColor(red: 1, green: 1, blue: 1)
 
-    @MainActor
-    static func asset(
-        _ asset: ColorAsset,
-        appearance: ContrastAppearance
-    ) throws -> ResolvedColor {
+    @MainActor static func asset(_ asset: ColorAsset, appearance: ContrastAppearance) throws -> ResolvedColor {
         let traits = appearance.traitCollection
         guard let color = UIColor(
             named: asset.rawValue,
@@ -401,11 +392,7 @@ struct ResolvedColor: Equatable {
         )
     }
 
-    @MainActor
-    static func swiftUIColor(
-        _ color: Color,
-        appearance: ContrastAppearance
-    ) throws -> ResolvedColor {
+    @MainActor static func swiftUIColor(_ color: Color, appearance: ContrastAppearance) throws -> ResolvedColor {
         let resolved = UIColor(color).resolvedColor(with: appearance.traitCollection)
         var red: CGFloat = 0
         var green: CGFloat = 0

@@ -83,10 +83,7 @@ extension SessionViewModel {
         )
     }
 
-    func applyAuthorizedSession(
-        principal: AuthPrincipal,
-        generation: UInt64
-    ) async {
+    func applyAuthorizedSession(principal: AuthPrincipal, generation: UInt64) async {
         do {
             let result = try await resolveAuthorizedSession.execute(authPrincipal: principal)
             guard isCurrentSessionOperation(generation) else { return }

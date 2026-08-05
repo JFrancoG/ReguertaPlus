@@ -268,10 +268,7 @@ func makeSessionTimeoutScenario(
     )
 }
 
-@MainActor
-private func expireSignIn(
-    in scenario: SessionTimeoutScenario
-) async throws -> Task<Void, Never>? {
+@MainActor private func expireSignIn(in scenario: SessionTimeoutScenario) async throws -> Task<Void, Never>? {
     scenario.viewModel.emailInput = scenario.member.normalizedEmail
     scenario.viewModel.passwordInput = "secret12"
     scenario.viewModel.signIn()
@@ -288,11 +285,7 @@ private func expireSignIn(
     return operation
 }
 
-@MainActor
-private func populateValidAccessDrafts(
-    in viewModel: SessionViewModel,
-    member: Member
-) {
+@MainActor private func populateValidAccessDrafts(in viewModel: SessionViewModel, member: Member) {
     viewModel.emailInput = member.normalizedEmail
     viewModel.passwordInput = "new-secret12"
     viewModel.registerEmailInput = "new-member@example.com"
@@ -300,8 +293,7 @@ private func populateValidAccessDrafts(
     viewModel.registerRepeatPasswordInput = "new-secret12"
 }
 
-@MainActor
-private func timeoutMember() -> Member {
+@MainActor private func timeoutMember() -> Member {
     Member(
         id: "timeout_member",
         displayName: "Timeout Member",
@@ -313,10 +305,7 @@ private func timeoutMember() -> Member {
     )
 }
 
-func timeoutAuthorizedMode(
-    member: Member,
-    principal: AuthPrincipal
-) -> SessionMode {
+func timeoutAuthorizedMode(member: Member, principal: AuthPrincipal) -> SessionMode {
     .authorized(
         AuthorizedSession(
             principal: principal,

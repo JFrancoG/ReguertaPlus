@@ -4,8 +4,7 @@ import Testing
 @testable import Reguerta
 
 struct ConsultBylawsUseCaseTests {
-    @Test("No invoca el modelo cuando no esta disponible")
-    func unavailableModelStopsBeforeRetrieval() async {
+    @Test("No invoca el modelo cuando no esta disponible") func unavailableModelStopsBeforeRetrieval() async {
         let knowledge = RecordingBylawsKnowledgeProvider(index: .fixture)
         let generator = RecordingBylawsSummaryGenerator(capability: .pdfOnly)
         let useCase = ConsultBylawsUseCase(
@@ -58,8 +57,7 @@ struct ConsultBylawsUseCaseTests {
         #expect(request.evidence.first?.excerpt == BylawsKnowledgeIndex.fixture.articles[0].text)
     }
 
-    @Test("Una consulta claramente ajena no invoca el modelo")
-    func unrelatedQuestionStopsBeforeGeneration() async {
+    @Test("Una consulta claramente ajena no invoca el modelo") func unrelatedQuestionStopsBeforeGeneration() async {
         let generator = RecordingBylawsSummaryGenerator(capability: .localModel)
         let useCase = ConsultBylawsUseCase(
             knowledgeProvider: RecordingBylawsKnowledgeProvider(index: .fixture),
@@ -155,8 +153,7 @@ struct ConsultBylawsUseCaseTests {
         }
     }
 
-    @Test("El sentinel sin respaldo se presenta como evidencia insuficiente")
-    func noEvidenceSentinelIsMapped() async {
+    @Test("El sentinel sin respaldo se presenta como evidencia insuficiente") func noEvidenceSentinelIsMapped() async {
         let useCase = ConsultBylawsUseCase(
             knowledgeProvider: RecordingBylawsKnowledgeProvider(index: .fixture),
             retriever: SpanishBylawsArticleRetriever(),
@@ -220,8 +217,7 @@ struct ConsultBylawsUseCaseTests {
         }
     }
 
-    @Test("Propaga la cancelacion sin convertirla en respuesta")
-    func cancellationIsPropagated() async {
+    @Test("Propaga la cancelacion sin convertirla en respuesta") func cancellationIsPropagated() async {
         let generator = SuspendingBylawsSummaryGenerator()
         let useCase = ConsultBylawsUseCase(
             knowledgeProvider: RecordingBylawsKnowledgeProvider(index: .fixture),
@@ -267,11 +263,7 @@ private actor RecordingBylawsSummaryGenerator: BylawsSummaryGenerating {
 
     nonisolated let modelIdentifier = "test/local-model"
 
-    init(
-        capability: BylawsConsultationCapability,
-        summary: String = "Resumen de prueba",
-        error: (any Error)? = nil
-    ) {
+    init(capability: BylawsConsultationCapability, summary: String = "Resumen de prueba", error: (any Error)? = nil) {
         self.configuredCapability = capability
         self.configuredSummary = summary
         self.configuredError = error

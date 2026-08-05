@@ -5,10 +5,7 @@ final class FirestoreStartupVersionPolicyRepository: @unchecked Sendable, Startu
     private let db: Firestore
     private let environment: ReguertaFirestoreEnvironment?
 
-    init(
-        db: Firestore = Firestore.firestore(),
-        environment: ReguertaFirestoreEnvironment? = nil
-    ) {
+    init(db: Firestore = Firestore.firestore(), environment: ReguertaFirestoreEnvironment? = nil) {
         self.db = db
         self.environment = environment
     }
@@ -31,10 +28,7 @@ final class FirestoreStartupVersionPolicyRepository: @unchecked Sendable, Startu
         }
     }
 
-    nonisolated static func policy(
-        for platform: StartupPlatform,
-        data: [String: Any]
-    ) throws -> StartupVersionPolicy {
+    nonisolated static func policy(for platform: StartupPlatform, data: [String: Any]) throws -> StartupVersionPolicy {
         guard let versions = data["versions"] as? [String: Any],
               let platformPolicy = versions[platform.rawValue] as? [String: Any],
               let currentVersion = platformPolicy.requiredString(for: "current"),

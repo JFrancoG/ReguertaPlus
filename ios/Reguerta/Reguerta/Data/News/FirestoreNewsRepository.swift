@@ -6,10 +6,7 @@ final class FirestoreNewsRepository: @unchecked Sendable, NewsRepository {
     private let db: Firestore
     private let environment: ReguertaFirestoreEnvironment?
 
-    init(
-        db: Firestore = Firestore.firestore(),
-        environment: ReguertaFirestoreEnvironment? = nil
-    ) {
+    init(db: Firestore = Firestore.firestore(), environment: ReguertaFirestoreEnvironment? = nil) {
         self.db = db
         self.environment = environment
     }
@@ -130,22 +127,14 @@ private enum FirestoreNewsDocumentDecoder {
         )
     }
 
-    private static func requiredString(
-        _ data: [String: Any],
-        field: String,
-        resource: String
-    ) throws -> String {
+    private static func requiredString(_ data: [String: Any], field: String, resource: String) throws -> String {
         guard let value = try optionalString(data, field: field, resource: resource) else {
             throw RepositoryError.invalidData(resource: resource)
         }
         return value
     }
 
-    private static func optionalString(
-        _ data: [String: Any],
-        field: String,
-        resource: String
-    ) throws -> String? {
+    private static func optionalString(_ data: [String: Any], field: String, resource: String) throws -> String? {
         guard let value = data[field] else { return nil }
         if value is NSNull { return nil }
         guard let string = value as? String else {
@@ -158,11 +147,7 @@ private enum FirestoreNewsDocumentDecoder {
         return normalized
     }
 
-    private static func requiredBool(
-        _ data: [String: Any],
-        field: String,
-        resource: String
-    ) throws -> Bool {
+    private static func requiredBool(_ data: [String: Any], field: String, resource: String) throws -> Bool {
         guard let number = data[field] as? NSNumber,
               CFGetTypeID(number) == CFBooleanGetTypeID() else {
             throw RepositoryError.invalidData(resource: resource)

@@ -6,8 +6,7 @@ import Testing
 @Suite(.timeLimit(.minutes(1)))
 @MainActor
 struct CriticalDataFreshnessEnvironmentTests {
-    @Test
-    func userDefaultsMetadataRoundTripsItsScope() {
+    @Test func userDefaultsMetadataRoundTripsItsScope() {
         let (suiteName, userDefaults) = isolatedUserDefaults(suffix: "roundtrip")
         defer { userDefaults.removePersistentDomain(forName: suiteName) }
         let repository = UserDefaultsCriticalDataFreshnessLocalRepository(userDefaults: userDefaults)
@@ -18,8 +17,7 @@ struct CriticalDataFreshnessEnvironmentTests {
         #expect(repository.getMetadata() == metadata)
     }
 
-    @Test
-    func userDefaultsRejectsLegacyAndInvalidEnvironmentMetadata() {
+    @Test func userDefaultsRejectsLegacyAndInvalidEnvironmentMetadata() {
         let (suiteName, userDefaults) = isolatedUserDefaults(suffix: "invalid-environment")
         defer { userDefaults.removePersistentDomain(forName: suiteName) }
         seedFreshnessValues(in: userDefaults)
@@ -32,8 +30,7 @@ struct CriticalDataFreshnessEnvironmentTests {
         #expect(repository.getMetadata() == nil)
     }
 
-    @Test
-    func userDefaultsClearRemovesAllFreshnessMetadata() throws {
+    @Test func userDefaultsClearRemovesAllFreshnessMetadata() throws {
         let (suiteName, userDefaults) = isolatedUserDefaults(suffix: "clear")
         defer { userDefaults.removePersistentDomain(forName: suiteName) }
         let repository = UserDefaultsCriticalDataFreshnessLocalRepository(userDefaults: userDefaults)
@@ -53,8 +50,7 @@ struct CriticalDataFreshnessEnvironmentTests {
         }
     }
 
-    @Test
-    func useCaseForwardsEnvironmentAndReturnsScopedMetadata() async throws {
+    @Test func useCaseForwardsEnvironmentAndReturnsScopedMetadata() async throws {
         let remoteRepository = RecordingFreshnessRemoteRepository(
             config: freshnessConfig(timestamp: 2_000)
         )
@@ -261,10 +257,7 @@ private typealias EnvironmentFreshnessTasks = (
     timeout: Task<Void, Never>
 )
 
-@MainActor
-private func ownedFreshnessTasks(
-    in viewModel: MyOrderFreshnessViewModel
-) -> EnvironmentFreshnessTasks? {
+@MainActor private func ownedFreshnessTasks(in viewModel: MyOrderFreshnessViewModel) -> EnvironmentFreshnessTasks? {
     guard let operation = viewModel.freshnessOperationTask,
           let timeout = viewModel.freshnessTimeoutTask else {
         Issue.record("Expected owned freshness tasks")
@@ -294,9 +287,7 @@ private actor RecordingFreshnessRemoteRepository: CriticalDataFreshnessRemoteRep
 private actor ControlledEnvironmentFreshnessRemoteRepository: CriticalDataFreshnessRemoteRepository {
     private var environments: [SessionEnvironment] = []
     private var continuations: [Int: CheckedContinuation<CriticalDataFreshnessConfig, Never>] = [:]
-    private var requestCountWaiters: [
-        (count: Int, continuation: CheckedContinuation<Void, Never>)
-    ] = []
+    private var requestCountWaiters: [(count: Int, continuation: CheckedContinuation<Void, Never>)] = []
 
     func getConfig(environment: SessionEnvironment) async throws -> CriticalDataFreshnessConfig {
         let requestIndex = environments.count

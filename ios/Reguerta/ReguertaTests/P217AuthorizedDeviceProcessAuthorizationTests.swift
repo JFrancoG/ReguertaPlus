@@ -6,8 +6,7 @@ import Testing
 
 @MainActor
 struct P217AuthorizedDeviceProcessAuthorizationTests {
-    @Test
-    func coldProcessStoresTokenWithoutAdoptingPersistedAuthorization() async throws {
+    @Test func coldProcessStoresTokenWithoutAdoptingPersistedAuthorization() async throws {
         let harness = makeHarness()
         let context = AuthorizedDeviceSessionContext(
             memberId: "member-a",
@@ -23,8 +22,7 @@ struct P217AuthorizedDeviceProcessAuthorizationTests {
         #expect(harness.repository.registrations.isEmpty)
     }
 
-    @Test
-    func liveAuthorizationAllowsSubsequentTokenRefresh() async throws {
+    @Test func liveAuthorizationAllowsSubsequentTokenRefresh() async throws {
         let sessionFence = P217CurrentSessionFence(true)
         let harness = makeHarness()
 
@@ -38,8 +36,7 @@ struct P217AuthorizedDeviceProcessAuthorizationTests {
         #expect(harness.repository.registrations.map(\.fcmToken) == ["token", "token-b"])
     }
 
-    @Test
-    func sessionFenceInvalidationDuringTokenUploadPreventsCommit() async throws {
+    @Test func sessionFenceInvalidationDuringTokenUploadPreventsCommit() async throws {
         let started = P217TestSignal()
         let release = P217TestGate()
         let repository = P217RecordingDeviceRegistrationRepository(
@@ -65,8 +62,7 @@ struct P217AuthorizedDeviceProcessAuthorizationTests {
         #expect(repository.registrations.map(\.fcmToken) == ["token"])
     }
 
-    @Test
-    func supersededTokenUpdateCannotCommitAfterTheNewestToken() async throws {
+    @Test func supersededTokenUpdateCannotCommitAfterTheNewestToken() async throws {
         let started = P217TestSignal()
         let release = P217TestGate()
         let repository = P217RecordingDeviceRegistrationRepository(
@@ -158,11 +154,7 @@ private final class P217RecordingDeviceRegistrationRepository: DeviceRegistratio
     private let release: P217TestGate?
     var registrations: [P217RecordedDeviceRegistration] = []
 
-    init(
-        suspendedToken: String? = nil,
-        started: P217TestSignal? = nil,
-        release: P217TestGate? = nil
-    ) {
+    init(suspendedToken: String? = nil, started: P217TestSignal? = nil, release: P217TestGate? = nil) {
         self.suspendedToken = suspendedToken
         self.started = started
         self.release = release

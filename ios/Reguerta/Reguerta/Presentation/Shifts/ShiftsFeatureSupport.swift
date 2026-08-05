@@ -89,11 +89,7 @@ struct ConfirmShiftSwapContext {
 }
 
 extension Array where Element == ShiftAssignment {
-    func nextAssignedShift(
-        memberId: String,
-        type: ShiftType,
-        nowMillis: Int64
-    ) -> ShiftAssignment? {
+    func nextAssignedShift(memberId: String, type: ShiftType, nowMillis: Int64) -> ShiftAssignment? {
         self
             .filter { $0.type == type && $0.dateMillis >= nowMillis && $0.isAssigned(to: memberId) }
             .min { $0.dateMillis < $1.dateMillis }
@@ -108,7 +104,10 @@ extension Array where Element == ShiftSwapRequest {
             .sorted { $0.requestedAtMillis > $1.requestedAtMillis }
     }
 
-    func visibleShiftSwapActivity(currentMemberId: String?, dismissedRequestIds: Set<String>) -> VisibleShiftSwapActivity {
+    func visibleShiftSwapActivity(
+        currentMemberId: String?,
+        dismissedRequestIds: Set<String>
+    ) -> VisibleShiftSwapActivity {
         guard let currentMemberId else {
             return VisibleShiftSwapActivity(
                 incoming: [],
@@ -159,7 +158,11 @@ extension Array where Element == ShiftSwapRequest {
 }
 
 extension ShiftAssignment {
-    func swapCandidates(allShifts: [ShiftAssignment], requesterUserId: String, nowMillis: Int64) -> [ShiftSwapCandidate] {
+    func swapCandidates(
+        allShifts: [ShiftAssignment],
+        requesterUserId: String,
+        nowMillis: Int64
+    ) -> [ShiftSwapCandidate] {
         let calendar = Calendar(identifier: .iso8601)
         let thresholdDate: Date
         if type == .delivery {

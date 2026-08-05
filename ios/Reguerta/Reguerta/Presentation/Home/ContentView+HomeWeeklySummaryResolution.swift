@@ -181,10 +181,7 @@ private func resolveHomeTargetWeekStart(
         : currentWeekStart
 }
 
-private func resolveHomeTargetDeliveryShift(
-    shifts: [ShiftAssignment],
-    targetWeekKey: String
-) -> ShiftAssignment? {
+private func resolveHomeTargetDeliveryShift(shifts: [ShiftAssignment], targetWeekKey: String) -> ShiftAssignment? {
     shifts
         .filter { $0.type == .delivery }
         .first { shift in
@@ -208,10 +205,7 @@ private func resolveHomeTargetMarketShift(
         .min { $0.dateMillis < $1.dateMillis }
 }
 
-private func resolveHomeNextScheduledMarketDate(
-    onOrAfter today: Date,
-    calendar: Calendar
-) -> Date? {
+private func resolveHomeNextScheduledMarketDate(onOrAfter today: Date, calendar: Calendar) -> Date? {
     let monthComponents = calendar.dateComponents([.year, .month], from: today)
     guard var monthStart = calendar.date(from: monthComponents) else { return nil }
 
@@ -249,11 +243,7 @@ private func resolveHomeTargetDeliveryDate(
     )
 }
 
-private func homeDisplayNames(
-    for memberIds: [String],
-    members: [Member],
-    pendingLabel: String
-) -> [String] {
+private func homeDisplayNames(for memberIds: [String], members: [Member], pendingLabel: String) -> [String] {
     let names = memberIds.map { memberId in
         members.first(where: { $0.id == memberId })?.displayName ?? memberId
     }
@@ -277,17 +267,11 @@ func resolveHomeOrderState(
     return .notStarted
 }
 
-func resolveHomeDisplayedOrderState(
-    isConsultaPhase: Bool,
-    orderState: HomeOrderStateDisplay
-) -> HomeOrderStateDisplay {
+func resolveHomeDisplayedOrderState(isConsultaPhase: Bool, orderState: HomeOrderStateDisplay) -> HomeOrderStateDisplay {
     isConsultaPhase ? .consultation : orderState
 }
 
-func formatHomeTopBarDate(
-    nowMillis: Int64,
-    locale: Locale = .current
-) -> String {
+func formatHomeTopBarDate(nowMillis: Int64, locale: Locale = .current) -> String {
     let date = Date(timeIntervalSince1970: TimeInterval(nowMillis) / 1_000)
     let formatter = DateFormatter()
     formatter.locale = locale
@@ -309,10 +293,7 @@ private func resolveHomeCalendarDeliveryDate(
     return calendar.date(byAdding: .day, value: 2, to: weekStart) ?? weekStart
 }
 
-private func resolveHomeEffectiveDeliveryDate(
-    weekStart: Date,
-    context: HomeWeeklySummaryResolutionContext
-) -> Date {
+private func resolveHomeEffectiveDeliveryDate(weekStart: Date, context: HomeWeeklySummaryResolutionContext) -> Date {
     resolveHomeCalendarDeliveryDate(
         weekStart: weekStart,
         deliveryCalendarOverrides: context.deliveryCalendarOverrides,

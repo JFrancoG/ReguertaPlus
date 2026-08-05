@@ -6,10 +6,7 @@ final class FirebaseImagePipelineManager: @unchecked Sendable, ImagePipelineMana
     private let storage: Storage
     private let jpegCompressionQuality: CGFloat
 
-    init(
-        storage: Storage = Storage.storage(),
-        jpegCompressionQuality: CGFloat = 0.82
-    ) {
+    init(storage: Storage = Storage.storage(), jpegCompressionQuality: CGFloat = 0.82) {
         self.storage = storage
         self.jpegCompressionQuality = jpegCompressionQuality
     }
@@ -88,11 +85,7 @@ final class FirebaseImagePipelineManager: @unchecked Sendable, ImagePipelineMana
         return trimmed.isEmpty ? fallback : trimmed
     }
 
-    private func uploadData(
-        _ data: Data,
-        metadata: StorageMetadata,
-        to reference: StorageReference
-    ) async throws {
+    private func uploadData(_ data: Data, metadata: StorageMetadata, to reference: StorageReference) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             reference.putData(data, metadata: metadata) { _, error in
                 if let error {

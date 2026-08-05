@@ -32,10 +32,7 @@ extension ProducerOrderStatus {
     }
 }
 
-func receivedOrderLineRecord(
-    from data: [String: Any],
-    fallbackDocumentID: String
-) -> ReceivedOrderLineRecord? {
+func receivedOrderLineRecord(from data: [String: Any], fallbackDocumentID: String) -> ReceivedOrderLineRecord? {
     let orderId = receivedOrderString(from: data["orderId"]) ?? fallbackDocumentID
     let consumerId = receivedOrderString(from: data["userId"]) ?? "__consumer_unknown__"
     let consumerDisplayName = receivedOrderString(from: data["consumerDisplayName"]) ?? consumerId

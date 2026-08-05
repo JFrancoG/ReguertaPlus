@@ -39,9 +39,7 @@ nonisolated struct FoundationModelsBylawsSummaryGenerator: BylawsSummaryGenerati
         """
     }
 
-    func capability(
-        for responseLanguage: BylawsResponseLanguage
-    ) async -> BylawsConsultationCapability {
+    func capability(for responseLanguage: BylawsResponseLanguage) async -> BylawsConsultationCapability {
         let model = SystemLanguageModel.default
         guard model.availability == .available,
               model.supportsLocale(Locale(identifier: "es_ES")),
@@ -79,9 +77,7 @@ nonisolated struct FoundationModelsBylawsSummaryGenerator: BylawsSummaryGenerati
         }
     }
 
-    static func consultationError(
-        for error: LanguageModelSession.GenerationError
-    ) -> BylawsConsultationError {
+    static func consultationError(for error: LanguageModelSession.GenerationError) -> BylawsConsultationError {
         switch error {
         case .assetsUnavailable, .unsupportedLanguageOrLocale:
             .modelUnavailable

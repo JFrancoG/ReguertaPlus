@@ -6,10 +6,7 @@ let myOrderCartOptionsSuffix = ".eco_options"
 let myOrderConfirmedQuantitiesSuffix = ".confirmed_quantities"
 let myOrderConfirmedOptionsSuffix = ".confirmed_eco_options"
 
-func readMyOrderCartSnapshot(
-    userDefaults: UserDefaults = .standard,
-    storageKey: String
-) -> MyOrderCartSnapshot {
+func readMyOrderCartSnapshot(userDefaults: UserDefaults = .standard, storageKey: String) -> MyOrderCartSnapshot {
     let quantitiesKey = "\(myOrderCartStoragePrefix).\(storageKey)\(myOrderCartQuantitiesSuffix)"
     let optionsKey = "\(myOrderCartStoragePrefix).\(storageKey)\(myOrderCartOptionsSuffix)"
 
@@ -62,10 +59,7 @@ func persistMyOrderCartSnapshot(
     }
 }
 
-func readMyOrderConfirmedSnapshot(
-    userDefaults: UserDefaults = .standard,
-    storageKey: String
-) -> MyOrderCartSnapshot {
+func readMyOrderConfirmedSnapshot(userDefaults: UserDefaults = .standard, storageKey: String) -> MyOrderCartSnapshot {
     let quantitiesKey = "\(myOrderCartStoragePrefix).\(storageKey)\(myOrderConfirmedQuantitiesSuffix)"
     let optionsKey = "\(myOrderCartStoragePrefix).\(storageKey)\(myOrderConfirmedOptionsSuffix)"
 

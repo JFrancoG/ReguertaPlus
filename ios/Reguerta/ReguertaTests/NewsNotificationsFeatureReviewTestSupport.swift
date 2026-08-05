@@ -55,11 +55,7 @@ actor ReviewControlledNotificationRepository: NotificationRepository {
         }
     }
 
-    func markNotificationsRead(
-        memberId _: String,
-        notificationIds _: [String],
-        readAtMillis _: Int64
-    ) async throws {
+    func markNotificationsRead(memberId _: String, notificationIds _: [String], readAtMillis _: Int64) async throws {
         let index = markRequests
         markRequests += 1
         resumeWaiters(&markWaiters, count: markRequests)
@@ -237,10 +233,7 @@ actor ReviewControlledImagePipelineManager: ImagePipelineManager {
     private var continuations: [Int: CheckedContinuation<ImageUploadResult, any Error>] = [:]
     private var waiters: [(Int, CheckedContinuation<Void, Never>)] = []
 
-    func processAndUpload(
-        imageData _: Data,
-        request _: ImageUploadRequest
-    ) async throws -> ImageUploadResult {
+    func processAndUpload(imageData _: Data, request _: ImageUploadRequest) async throws -> ImageUploadResult {
         let index = requests
         requests += 1
         let satisfied = waiters.filter { $0.0 <= requests }
@@ -275,11 +268,7 @@ actor ReviewControlledImagePipelineManager: ImagePipelineManager {
     }
 }
 
-@MainActor
-func reviewNotification(
-    id: String,
-    targetRole: MemberRole? = nil
-) -> NotificationEvent {
+@MainActor func reviewNotification(id: String, targetRole: MemberRole? = nil) -> NotificationEvent {
     NotificationEvent(
         id: id,
         title: "Title",

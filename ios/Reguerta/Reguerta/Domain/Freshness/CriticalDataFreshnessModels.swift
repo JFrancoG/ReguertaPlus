@@ -118,16 +118,12 @@ struct NoOpCriticalDataRefresher: CriticalDataRefreshing {
 protocol CriticalDataFreshnessLocalRepository: Sendable {
     var writeGeneration: UInt64 { get }
     func getMetadata() -> CriticalDataFreshnessMetadata?
-    func saveMetadata(
-        _ metadata: CriticalDataFreshnessMetadata,
-        ifWriteGeneration writeGeneration: UInt64
-    ) -> Bool
+    func saveMetadata(_ metadata: CriticalDataFreshnessMetadata, ifWriteGeneration writeGeneration: UInt64) -> Bool
     func clear() throws
 }
 
 extension CriticalDataFreshnessLocalRepository {
-    @discardableResult
-    func saveMetadata(_ metadata: CriticalDataFreshnessMetadata) -> Bool {
+    @discardableResult func saveMetadata(_ metadata: CriticalDataFreshnessMetadata) -> Bool {
         saveMetadata(metadata, ifWriteGeneration: writeGeneration)
     }
 }

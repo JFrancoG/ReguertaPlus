@@ -153,8 +153,7 @@ struct NewsNotificationsMutationOwnershipTests {
         #expect(viewModel.latestNews == [second, third, fourth])
     }
 
-    @Test("News save and image upload serialize in both directions")
-    func newsSaveAndImageUploadAreSerialized() async {
+    @Test("News save and image upload serialize in both directions") func newsSaveAndImageUploadAreSerialized() async {
         let repository = ReviewControlledNewsWriteRepository()
         let pipeline = ReviewControlledImagePipelineManager()
         let viewModel = makeSafetyViewModel(
@@ -195,8 +194,7 @@ struct NewsNotificationsMutationOwnershipTests {
         #expect(viewModel.newsDraftRevision == revisionBeforeUpload + 1)
     }
 
-    @Test("A confirmed News save cannot close a reopened editor")
-    func newsConfirmationCannotOwnReopenedEditor() async {
+    @Test("A confirmed News save cannot close a reopened editor") func newsConfirmationCannotOwnReopenedEditor() async {
         let repository = ReviewControlledNewsWriteRepository()
         let viewModel = makeSafetyViewModel(
             member: safetyMember(roles: [.member, .admin]),
@@ -243,10 +241,7 @@ struct NewsNotificationsMutationOwnershipTests {
         #expect(viewModel.notificationsFeed == [sent])
     }
 
-    private func prepareNewsDraft(
-        _ viewModel: NewsNotificationsFeatureViewModel,
-        title: String
-    ) {
+    private func prepareNewsDraft(_ viewModel: NewsNotificationsFeatureViewModel, title: String) {
         #expect(viewModel.startCreatingNews())
         viewModel.updateNewsDraft {
             $0.title = title
@@ -254,10 +249,7 @@ struct NewsNotificationsMutationOwnershipTests {
         }
     }
 
-    private func prepareNotificationDraft(
-        _ viewModel: NewsNotificationsFeatureViewModel,
-        title: String
-    ) {
+    private func prepareNotificationDraft(_ viewModel: NewsNotificationsFeatureViewModel, title: String) {
         #expect(viewModel.startCreatingNotification())
         viewModel.updateNotificationDraft {
             $0.title = title
@@ -265,9 +257,7 @@ struct NewsNotificationsMutationOwnershipTests {
         }
     }
 
-    private func expectNewNewsEditorIsUntouched(
-        _ viewModel: NewsNotificationsFeatureViewModel
-    ) {
+    private func expectNewNewsEditorIsUntouched(_ viewModel: NewsNotificationsFeatureViewModel) {
         #expect(viewModel.newsDraft.title == "New")
         #expect(viewModel.newsDraft.body == "Body")
         #expect(viewModel.editingNewsId == nil)
@@ -277,9 +267,7 @@ struct NewsNotificationsMutationOwnershipTests {
         #expect(viewModel.activeNewsMutationOperationId == nil)
     }
 
-    private func expectNewNotificationEditorIsUntouched(
-        _ viewModel: NewsNotificationsFeatureViewModel
-    ) {
+    private func expectNewNotificationEditorIsUntouched(_ viewModel: NewsNotificationsFeatureViewModel) {
         #expect(viewModel.notificationDraft.title == "New")
         #expect(viewModel.notificationDraft.body == "Body")
         #expect(viewModel.isNotificationSendConfirmationPresented == false)

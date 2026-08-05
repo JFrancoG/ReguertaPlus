@@ -4,8 +4,7 @@ import Testing
 
 @MainActor
 struct ReguertaHomeNavigationTests {
-    @Test
-    func notificationEditorBackReturnsToDashboard() {
+    @Test func notificationEditorBackReturnsToDashboard() {
         let rootViewModel = ReguertaAppEnvironment.preview().accessRootViewModel
         rootViewModel.homeDestination = .adminBroadcast
 

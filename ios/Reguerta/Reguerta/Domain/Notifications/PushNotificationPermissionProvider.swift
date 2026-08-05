@@ -12,6 +12,5 @@ struct FixedPushNotificationPermissionProvider: PushNotificationPermissionProvid
         isActive
     }
 
-    @MainActor
-    func openSettings() {}
+    @MainActor func openSettings() {}
 }

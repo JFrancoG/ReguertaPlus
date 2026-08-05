@@ -5,8 +5,7 @@ import Testing
 
 @MainActor
 struct ReguertaProductsViewModelTests {
-    @Test
-    func productsViewModelLoadsCatalogOnlyForCatalogManagersAndSplitsArchivedProducts() async {
+    @Test func productsViewModelLoadsCatalogOnlyForCatalogManagersAndSplitsArchivedProducts() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let activeProduct = regularProduct(id: "active", vendorId: currentProducer.id, name: "Acelgas")
         let archivedProduct = regularProduct(id: "archived", vendorId: currentProducer.id, name: "Berenjenas")
@@ -33,8 +32,7 @@ struct ReguertaProductsViewModelTests {
         #expect(regularViewModel.catalogProducts.isEmpty)
     }
 
-    @Test
-    func productsViewModelInitializesEditsNormalizesDraftAndClearsEditor() async {
+    @Test func productsViewModelInitializesEditsNormalizesDraftAndClearsEditor() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let product = regularProduct(id: "tomato", vendorId: currentProducer.id, name: "Tomates")
         let viewModel = await makeProductsViewModel(
@@ -60,8 +58,7 @@ struct ReguertaProductsViewModelTests {
         #expect(viewModel.draft == ProductDraft())
     }
 
-    @Test
-    func productEditorUsesAsymmetricStockStepsWithoutGoingBelowZero() async {
+    @Test func productEditorUsesAsymmetricStockStepsWithoutGoingBelowZero() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let viewModel = await makeProductsViewModel(
             currentMember: currentProducer,
@@ -83,8 +80,7 @@ struct ReguertaProductsViewModelTests {
         #expect(viewModel.draft.stockQty == "0")
     }
 
-    @Test
-    func productsHeaderAndBackActionFollowEditorState() {
+    @Test func productsHeaderAndBackActionFollowEditorState() {
         let rootViewModel = ReguertaAppEnvironment.preview().accessRootViewModel
         rootViewModel.homeDestination = .products
         rootViewModel.productsViewModel.editingProductId = ""
@@ -104,8 +100,7 @@ struct ReguertaProductsViewModelTests {
         #expect(rootViewModel.homeDestination == .dashboard)
     }
 
-    @Test
-    func productsViewModelBlocksInvalidSaveInput() async {
+    @Test func productsViewModelBlocksInvalidSaveInput() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let viewModel = await makeProductsViewModel(currentMember: currentProducer, members: [currentProducer])
 
@@ -121,8 +116,7 @@ struct ReguertaProductsViewModelTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
     }
 
-    @Test
-    func productsViewModelRetainsEditorStateWhenRepositoryRejectsSave() async {
+    @Test func productsViewModelRetainsEditorStateWhenRepositoryRejectsSave() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let originalProduct = regularProduct(
             id: "tomato",
@@ -154,8 +148,7 @@ struct ReguertaProductsViewModelTests {
 }
 
 extension ReguertaProductsViewModelTests {
-    @Test
-    func productsViewModelSavesProducerProductWithEcoBasketRules() async {
+    @Test func productsViewModelSavesProducerProductWithEcoBasketRules() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let repository = InMemoryProductRepository()
         let viewModel = await makeProductsViewModel(
@@ -182,8 +175,7 @@ extension ReguertaProductsViewModelTests {
         #expect(products.first?.createdAtMillis == 100)
     }
 
-    @Test
-    func productsViewModelSavesCommonPurchaseOnlyForCommonPurchaseManagers() async {
+    @Test func productsViewModelSavesCommonPurchaseOnlyForCommonPurchaseManagers() async {
         let currentMember = Member(
             id: "common_manager",
             displayName: "Compra comun",
@@ -218,8 +210,7 @@ extension ReguertaProductsViewModelTests {
         #expect(products.first?.isEcoBasket == false)
     }
 
-    @Test
-    func productsViewModelBlocksEcoBasketWithIncompatiblePrice() async {
+    @Test func productsViewModelBlocksEcoBasketWithIncompatiblePrice() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let existingEcoBasket = ecoBasketProduct(id: "eco_existing", vendorId: "other_producer", price: 10)
         let repository = InMemoryProductRepository(items: [existingEcoBasket])
@@ -244,8 +235,7 @@ extension ReguertaProductsViewModelTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
     }
 
-    @Test
-    func productsViewModelArchivesProductAndUpdatesLocalSnapshot() async {
+    @Test func productsViewModelArchivesProductAndUpdatesLocalSnapshot() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let product = regularProduct(id: "tomato", vendorId: currentProducer.id, name: "Tomates")
         let repository = InMemoryProductRepository(items: [product])
@@ -262,8 +252,7 @@ extension ReguertaProductsViewModelTests {
         #expect(viewModel.archivedProducts.map(\.id) == [product.id])
     }
 
-    @Test
-    func productsViewModelUploadsImageAndShowsFeedbackOnFailure() async {
+    @Test func productsViewModelUploadsImageAndShowsFeedbackOnFailure() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let successPipeline = MockImagePipelineManager(result: .success("https://cdn.reguerta.test/product.jpg"))
         let viewModel = await makeProductsViewModel(
@@ -288,8 +277,7 @@ extension ReguertaProductsViewModelTests {
         #expect(failingViewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
     }
 
-    @Test
-    func productsViewModelEnablesVacationModeAndUpdatesSessionMember() async {
+    @Test func productsViewModelEnablesVacationModeAndUpdatesSessionMember() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let memberRepository = InMemoryMemberRepository()
         let viewModel = await makeProductsViewModel(
@@ -308,8 +296,7 @@ extension ReguertaProductsViewModelTests {
         #expect(session.member.producerCatalogEnabled == false)
     }
 
-    @Test
-    func productsViewModelLoadsMyOrderFeedWithVisibilityParityAndCommitments() async {
+    @Test func productsViewModelLoadsMyOrderFeedWithVisibilityParityAndCommitments() async {
         let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
         let evenProducer = producer(id: "producer_even", parity: .even)
         let oddProducer = producer(id: "producer_odd", parity: .odd)
@@ -358,8 +345,7 @@ extension ReguertaProductsViewModelTests {
         #expect(viewModel.myOrderSeasonalCommitments.map(\.productId) == [visibleProduct.id])
     }
 
-    @Test
-    func previewEnvironmentUsesInMemoryProductsDependenciesAndSharesRootSession() {
+    @Test func previewEnvironmentUsesInMemoryProductsDependenciesAndSharesRootSession() {
         let environment = ReguertaAppEnvironment.preview()
 
         #expect(environment.accessRootViewModel.productsViewModel.sessionViewModel === environment.sessionViewModel)
@@ -453,10 +439,7 @@ private actor MockImagePipelineManager: ImagePipelineManager {
         self.result = result
     }
 
-    func processAndUpload(
-        imageData _: Data,
-        request _: ImageUploadRequest
-    ) async throws -> ImageUploadResult {
+    func processAndUpload(imageData _: Data, request _: ImageUploadRequest) async throws -> ImageUploadResult {
         switch result {
         case .success(let downloadURL):
             ImageUploadResult(

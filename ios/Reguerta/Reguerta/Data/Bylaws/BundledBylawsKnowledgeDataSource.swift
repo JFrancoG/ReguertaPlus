@@ -89,10 +89,7 @@ nonisolated private struct BylawsKnowledgePayload: Decodable {
     }
 }
 
-nonisolated func resolveBundledBylawsURL(
-    fileName: String,
-    fileExtension: String
-) -> URL? {
+nonisolated func resolveBundledBylawsURL(fileName: String, fileExtension: String) -> URL? {
     let subdirectories = ["bylaws", "Resources/bylaws", "Resources"]
     for bundle in [Bundle.main] {
         for subdirectory in subdirectories {

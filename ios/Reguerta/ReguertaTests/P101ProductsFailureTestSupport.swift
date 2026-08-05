@@ -91,10 +91,7 @@ actor SuspendedImagePipelineManager: ImagePipelineManager {
     private var continuation: CheckedContinuation<ImageUploadResult, Never>?
     private(set) var uploadCount = 0
 
-    func processAndUpload(
-        imageData _: Data,
-        request _: ImageUploadRequest
-    ) async throws -> ImageUploadResult {
+    func processAndUpload(imageData _: Data, request _: ImageUploadRequest) async throws -> ImageUploadResult {
         uploadCount += 1
         return await withCheckedContinuation { continuation in
             self.continuation = continuation

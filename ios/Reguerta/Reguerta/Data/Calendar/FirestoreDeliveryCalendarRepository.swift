@@ -5,10 +5,7 @@ final class FirestoreDeliveryCalendarRepository: @unchecked Sendable, DeliveryCa
     private let db: Firestore
     private let environment: ReguertaFirestoreEnvironment?
 
-    init(
-        db: Firestore = Firestore.firestore(),
-        environment: ReguertaFirestoreEnvironment? = nil
-    ) {
+    init(db: Firestore = Firestore.firestore(), environment: ReguertaFirestoreEnvironment? = nil) {
         self.db = db
         self.environment = environment
     }

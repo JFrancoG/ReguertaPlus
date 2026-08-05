@@ -12,11 +12,7 @@ struct CropSquare: Equatable, Sendable {
 }
 
 enum ImagePipelineSizingContract {
-    static func scaledDimensions(
-        sourceWidth: Int,
-        sourceHeight: Int,
-        targetShortSidePx: Int
-    ) -> PixelSize? {
+    static func scaledDimensions(sourceWidth: Int, sourceHeight: Int, targetShortSidePx: Int) -> PixelSize? {
         guard sourceWidth > 0, sourceHeight > 0, targetShortSidePx > 0 else {
             return nil
         }
@@ -27,11 +23,7 @@ enum ImagePipelineSizingContract {
         return PixelSize(width: scaledWidth, height: scaledHeight)
     }
 
-    static func centerCropSquare(
-        sourceWidth: Int,
-        sourceHeight: Int,
-        targetSidePx: Int
-    ) -> CropSquare? {
+    static func centerCropSquare(sourceWidth: Int, sourceHeight: Int, targetSidePx: Int) -> CropSquare? {
         guard sourceWidth >= targetSidePx,
               sourceHeight >= targetSidePx,
               targetSidePx > 0 else {

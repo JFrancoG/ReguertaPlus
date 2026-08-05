@@ -5,8 +5,7 @@ import Testing
 
 @MainActor
 struct ReguertaPermissionMatrixTests {
-    @Test
-    func canonicalMatrixCapabilitiesMatchIOSPermissionMatrix() throws {
+    @Test func canonicalMatrixCapabilitiesMatchIOSPermissionMatrix() throws {
         let matrix = try loadCanonicalMatrix()
 
         for role in CanonicalAccessRole.allCases {
@@ -18,8 +17,7 @@ struct ReguertaPermissionMatrixTests {
         }
     }
 
-    @Test
-    func commonPurchaseManagerOverrideGrantsCatalogManagement() {
+    @Test func commonPurchaseManagerOverrideGrantsCatalogManagement() {
         let member = Member(
             id: "member_common_purchase_001",
             displayName: "Compra común",
@@ -34,8 +32,7 @@ struct ReguertaPermissionMatrixTests {
         #expect(member.canManageProductCatalog)
     }
 
-    @Test
-    func inMemoryFixturesStayAlignedWithCanonicalMatrix() async {
+    @Test func inMemoryFixturesStayAlignedWithCanonicalMatrix() async {
         let repository = InMemoryMemberRepository()
         let membersById = Dictionary(
             uniqueKeysWithValues: await repository.allMembers().map { ($0.id, $0) }
@@ -74,10 +71,7 @@ struct ReguertaPermissionMatrixTests {
             throw MatrixLoadError.invalidPayload
         }
 
-        func resolveCapabilities(
-            roleName: String,
-            visiting: inout Set<String>
-        ) throws -> Set<String> {
+        func resolveCapabilities(roleName: String, visiting: inout Set<String>) throws -> Set<String> {
             guard let role = roles[roleName] else { return [] }
             if visiting.contains(roleName) {
                 throw MatrixLoadError.inheritanceCycle(roleName)

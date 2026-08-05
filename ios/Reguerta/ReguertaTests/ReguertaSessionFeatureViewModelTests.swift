@@ -5,8 +5,7 @@ import Testing
 
 @MainActor
 struct ReguertaSessionFeatureViewModelTests {
-    @Test
-    func previewEnvironmentSharesFeedbackCenterAcrossRootSessionAndFeatures() {
+    @Test func previewEnvironmentSharesFeedbackCenterAcrossRootSessionAndFeatures() {
         let environment = ReguertaAppEnvironment.preview()
         let rootViewModel = environment.accessRootViewModel
 
@@ -20,8 +19,7 @@ struct ReguertaSessionFeatureViewModelTests {
         #expect(rootViewModel.bylawsViewModel.feedbackCenter === environment.feedbackCenter)
     }
 
-    @Test
-    func globalFeedbackCenterStoresAndClearsMessageKey() {
+    @Test func globalFeedbackCenterStoresAndClearsMessageKey() {
         let feedbackCenter = GlobalFeedbackCenter()
 
         feedbackCenter.show("feedback.test")
@@ -31,8 +29,7 @@ struct ReguertaSessionFeatureViewModelTests {
         #expect(feedbackCenter.messageKey == nil)
     }
 
-    @Test
-    func bylawsBlocksEmptyQuestionWithFeedback() {
+    @Test func bylawsBlocksEmptyQuestionWithFeedback() {
         let feedbackCenter = GlobalFeedbackCenter()
         let viewModel = BylawsFeatureViewModel(
             feedbackCenter: feedbackCenter,
@@ -47,8 +44,7 @@ struct ReguertaSessionFeatureViewModelTests {
         #expect(viewModel.isAsking == false)
     }
 
-    @Test
-    func bylawsValidQuestionStoresAnswerAndClearsState() async {
+    @Test func bylawsValidQuestionStoresAnswerAndClearsState() async {
         let consultant = RecordingBylawsConsultant()
         let viewModel = BylawsFeatureViewModel(
             feedbackCenter: GlobalFeedbackCenter(),
@@ -71,8 +67,7 @@ struct ReguertaSessionFeatureViewModelTests {
         #expect(viewModel.answerResult == nil)
     }
 
-    @Test
-    func bylawsPdfUnavailablePublishesFeedback() {
+    @Test func bylawsPdfUnavailablePublishesFeedback() {
         let feedbackCenter = GlobalFeedbackCenter()
         let viewModel = BylawsFeatureViewModel(
             feedbackCenter: feedbackCenter,
@@ -86,8 +81,7 @@ struct ReguertaSessionFeatureViewModelTests {
         #expect(feedbackCenter.messageKey == AccessL10nKey.bylawsPdfViewerUnavailable)
     }
 
-    @Test
-    func previewBylawsDependenciesAnswerWithoutLiveServices() async {
+    @Test func previewBylawsDependenciesAnswerWithoutLiveServices() async {
         let environment = ReguertaAppEnvironment.preview()
         let viewModel = environment.accessRootViewModel.bylawsViewModel
         await viewModel.prepare(responseLanguage: .spanish)
@@ -110,10 +104,7 @@ private actor RecordingBylawsConsultant: BylawsConsulting {
         .localModel
     }
 
-    func consult(
-        question: String,
-        responseLanguage: BylawsResponseLanguage
-    ) async throws -> BylawsConsultationResult {
+    func consult(question: String, responseLanguage: BylawsResponseLanguage) async throws -> BylawsConsultationResult {
         recordedQuestions.append(question)
         recordedResponseLanguages.append(responseLanguage)
         return BylawsConsultationResult(
@@ -149,8 +140,7 @@ private actor RecordingBylawsConsultant: BylawsConsulting {
 private struct FixedBylawsDocumentProvider: BylawsDocumentProviding {
     let pdfURL: URL?
 
-    @MainActor
-    func bundledPdfURL() -> URL? {
+    @MainActor func bundledPdfURL() -> URL? {
         pdfURL
     }
 }

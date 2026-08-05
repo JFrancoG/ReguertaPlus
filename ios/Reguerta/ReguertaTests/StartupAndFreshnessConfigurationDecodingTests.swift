@@ -6,8 +6,7 @@ import Testing
 
 @MainActor
 struct StartupAndFreshnessConfigurationDecodingTests {
-    @Test
-    func startupConfigurationAcceptsValidDataAndRejectsMalformedData() throws {
+    @Test func startupConfigurationAcceptsValidDataAndRejectsMalformedData() throws {
         let validData: [String: Any] = [
             "versions": [
                 "ios": [
@@ -41,8 +40,7 @@ struct StartupAndFreshnessConfigurationDecodingTests {
         }
     }
 
-    @Test
-    func freshnessConfigurationAcceptsValidDataAndRejectsMalformedData() throws {
+    @Test func freshnessConfigurationAcceptsValidDataAndRejectsMalformedData() throws {
         let timestamp = Timestamp(date: Date(timeIntervalSince1970: 1))
         let validData: [String: Any] = [
             "cacheExpirationMinutes": 15,

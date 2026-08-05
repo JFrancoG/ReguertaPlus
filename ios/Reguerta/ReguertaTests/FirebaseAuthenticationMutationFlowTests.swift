@@ -124,8 +124,7 @@ struct FirebaseAuthenticationMutationFlowTests {
         }
     }
 
-    @Test("Un fallo previo a mutar Auth no cierra una sesión ajena")
-    func initialMutationFailureDoesNotSignOut() async {
+    @Test("Un fallo previo a mutar Auth no cierra una sesión ajena") func initialMutationFailureDoesNotSignOut() async {
         var signOutCallCount = 0
         let mutation: () async throws -> String = {
             throw FirebaseAuthenticationMutationTestError.initial

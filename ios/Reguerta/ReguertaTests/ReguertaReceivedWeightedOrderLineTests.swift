@@ -2,9 +2,7 @@ import Testing
 
 @testable import Reguerta
 
-@MainActor
-@Test
-func receivedOrdersProductRowsDisplayOrderedUnitsForWeightedLines() {
+@MainActor @Test func receivedOrdersProductRowsDisplayOrderedUnitsForWeightedLines() {
     let line = receivedWeightedOrderLine(
         quantity: 200,
         subtotal: 4,

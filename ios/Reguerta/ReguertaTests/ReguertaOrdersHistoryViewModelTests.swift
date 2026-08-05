@@ -5,8 +5,7 @@ import Testing
 
 @MainActor
 struct ReguertaOrdersHistoryViewModelTests {
-    @Test
-    func myOrdersHistoryPresentationUsesTheActiveEnglishLocale() throws {
+    @Test func myOrdersHistoryPresentationUsesTheActiveEnglishLocale() throws {
         let option = try #require(
             orderHistoryWeekOption(
                 weekKey: "2026-W27",
@@ -27,8 +26,7 @@ struct ReguertaOrdersHistoryViewModelTests {
         #expect(presentation.orderTitle == "Order Jun 29 - Jul 5")
     }
 
-    @Test
-    func orderSummariesLocalizeGenericUnitLabelsOnly() {
+    @Test func orderSummariesLocalizeGenericUnitLabelsOnly() {
         #expect(
             localizedGenericOrderHistoryQuantityLabel(
                 "1 ud.",
@@ -59,8 +57,7 @@ struct ReguertaOrdersHistoryViewModelTests {
         )
     }
 
-    @Test
-    func myOrdersHistorySelectsPreviousIsoWeekAndFormatsHeader() async {
+    @Test func myOrdersHistorySelectsPreviousIsoWeekAndFormatsHeader() async {
         let repository = InMemoryOrdersRepository()
         await repository.setOrderHistoryWeekKeys(["2026-W21"], forMemberId: "member_1")
         await repository.setPreviousOrder(previousOrderSnapshot(weekKey: "2026-W21"), forWeekKey: "2026-W21")
@@ -80,8 +77,7 @@ struct ReguertaOrdersHistoryViewModelTests {
         #expect(snapshot.weekKey == "2026-W21")
     }
 
-    @Test
-    func myOrdersHistoryBuildsContinuousPickerWeeksAndShowsIntermediateEmptyWeek() async {
+    @Test func myOrdersHistoryBuildsContinuousPickerWeeksAndShowsIntermediateEmptyWeek() async {
         let repository = InMemoryOrdersRepository()
         await repository.setOrderHistoryWeekKeys(["2026-W19", "2026-W21"], forMemberId: "member_1")
         await repository.setPreviousOrder(previousOrderSnapshot(weekKey: "2026-W19"), forWeekKey: "2026-W19")
@@ -109,8 +105,7 @@ struct ReguertaOrdersHistoryViewModelTests {
         #expect(snapshot.weekKey == "2026-W19")
     }
 
-    @Test
-    func myOrdersHistoryRetryKeepsSelectedWeek() async {
+    @Test func myOrdersHistoryRetryKeepsSelectedWeek() async {
         let repository = InMemoryOrdersRepository()
         await repository.setOrderHistoryWeekKeys(["2026-W21"], forMemberId: "member_1")
         let viewModel = makeMyOrdersHistoryViewModel(repository: repository)

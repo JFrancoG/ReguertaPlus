@@ -4,8 +4,7 @@ import Testing
 
 @MainActor
 struct ReguertaRootDependencyTests {
-    @Test
-    func previewEnvironmentSharesSessionWithRootCoordinator() {
+    @Test func previewEnvironmentSharesSessionWithRootCoordinator() {
         let environment = ReguertaAppEnvironment.preview()
 
         #expect(environment.accessRootViewModel.feedbackCenter === environment.feedbackCenter)
@@ -15,16 +14,14 @@ struct ReguertaRootDependencyTests {
         #expect(environment.sessionViewModel.mode == .signedOut)
     }
 
-    @Test
-    func previewDependenciesCreateSignedOutSessionWithoutLiveBootstrap() {
+    @Test func previewDependenciesCreateSignedOutSessionWithoutLiveBootstrap() {
         let viewModel = SessionViewModel(dependencies: .preview())
 
         #expect(viewModel.mode == .signedOut)
         #expect(viewModel.isDevelopImpersonationEnabled == false)
     }
 
-    @Test
-    func uiTestingEnvironmentUsesLocalFixturesWithoutLiveBootstrap() {
+    @Test func uiTestingEnvironmentUsesLocalFixturesWithoutLiveBootstrap() {
         let environment = ReguertaAppEnvironment.uiTesting()
 
         #expect(environment.accessRootViewModel.feedbackCenter === environment.feedbackCenter)
@@ -35,8 +32,7 @@ struct ReguertaRootDependencyTests {
         #expect(environment.sessionViewModel.isDevelopImpersonationEnabled == false)
     }
 
-    @Test
-    func rootCoordinatorSkipsSplashToWelcomeWhenLaunchArgumentRequestsIt() async {
+    @Test func rootCoordinatorSkipsSplashToWelcomeWhenLaunchArgumentRequestsIt() async {
         let rootViewModel = makeRootViewModel(shouldSkipSplash: true)
 
         await rootViewModel.handleSplashIfNeeded()
@@ -46,8 +42,7 @@ struct ReguertaRootDependencyTests {
         #expect(rootViewModel.shellState.currentRoute == .welcome)
     }
 
-    @Test
-    func rootCoordinatorBlocksSplashWhenStartupGateRequiresForcedUpdate() async throws {
+    @Test func rootCoordinatorBlocksSplashWhenStartupGateRequiresForcedUpdate() async throws {
         let rootViewModel = makeRootViewModel(
             startupPolicy: StartupVersionPolicy(
                 currentVersion: "2.0.0",
@@ -67,8 +62,7 @@ struct ReguertaRootDependencyTests {
         #expect(rootViewModel.shellState.currentRoute == .splash)
     }
 
-    @Test
-    func startupTimeoutPublishesWithoutWaitingForRemoteCompletionAndRetryRecovers() async throws {
+    @Test func startupTimeoutPublishesWithoutWaitingForRemoteCompletionAndRetryRecovers() async throws {
         let repository = ControlledStartupVersionPolicyRepository()
         let sleeper = ControlledStartupGateSleeper()
         let rootViewModel = makeRootViewModel(
@@ -126,8 +120,7 @@ struct ReguertaRootDependencyTests {
         #expect(rootViewModel.startupGateState == .ready)
     }
 
-    @Test
-    func startupFailureRequiresExplicitContinuation() async throws {
+    @Test func startupFailureRequiresExplicitContinuation() async throws {
         let rootViewModel = makeRootViewModel()
         rootViewModel.splashDelayCompleted = true
 
@@ -143,8 +136,7 @@ struct ReguertaRootDependencyTests {
         #expect(rootViewModel.shellState.currentRoute == .welcome)
     }
 
-    @Test
-    func rootCoordinatorRoutesAuthenticatedSessionToHomeOutsideSplash() {
+    @Test func rootCoordinatorRoutesAuthenticatedSessionToHomeOutsideSplash() {
         let rootViewModel = makeRootViewModel()
         let currentMember = Member(
             id: "member_root",
@@ -172,8 +164,7 @@ struct ReguertaRootDependencyTests {
         #expect(rootViewModel.shellState.canGoBack == false)
     }
 
-    @Test
-    func rootCoordinatorRoutesSignedOutSessionToWelcomeOutsideSplash() {
+    @Test func rootCoordinatorRoutesSignedOutSessionToWelcomeOutsideSplash() {
         let rootViewModel = makeRootViewModel()
         rootViewModel.shellState = AuthShellState(backStack: [.home])
         rootViewModel.sessionViewModel.mode = .signedOut
@@ -184,8 +175,7 @@ struct ReguertaRootDependencyTests {
         #expect(rootViewModel.shellState.canGoBack == false)
     }
 
-    @Test
-    func homeDrawerSignOutRequestsConfirmationWithoutEndingSession() {
+    @Test func homeDrawerSignOutRequestsConfirmationWithoutEndingSession() {
         let rootViewModel = makeRootViewModel()
         rootViewModel.shellState = AuthShellState(backStack: [.home])
         rootViewModel.sessionViewModel.mode = .authorized(makeAuthorizedSession())
@@ -210,8 +200,7 @@ struct ReguertaRootDependencyTests {
         }
     }
 
-    @Test
-    func homeDrawerSignOutConfirmationSignsOutAndRoutesWelcome() {
+    @Test func homeDrawerSignOutConfirmationSignsOutAndRoutesWelcome() {
         let rootViewModel = makeRootViewModel()
         rootViewModel.shellState = AuthShellState(backStack: [.home])
         rootViewModel.sessionViewModel.mode = .authorized(makeAuthorizedSession())
@@ -280,9 +269,7 @@ private actor ControlledStartupVersionPolicyRepository: StartupVersionPolicyRepo
     private var nextRequestIndex = 0
     private var continuations: [Int: CheckedContinuation<Result<StartupVersionPolicy, RepositoryError>, Never>] = [:]
     private var nextRequestCountWaiterID = 0
-    private var requestCountWaiters: [
-        Int: (count: Int, continuation: CheckedContinuation<Void, any Error>)
-    ] = [:]
+    private var requestCountWaiters: [Int: (count: Int, continuation: CheckedContinuation<Void, any Error>)] = [:]
 
     func policy(for platform: StartupPlatform) async throws -> StartupVersionPolicy {
         let requestIndex = nextRequestIndex
@@ -309,10 +296,7 @@ private actor ControlledStartupVersionPolicyRepository: StartupVersionPolicyRepo
         }
     }
 
-    func completeRequest(
-        at index: Int,
-        with result: Result<StartupVersionPolicy, RepositoryError>
-    ) {
+    func completeRequest(at index: Int, with result: Result<StartupVersionPolicy, RepositoryError>) {
         continuations.removeValue(forKey: index)?.resume(returning: result)
     }
 
@@ -337,9 +321,7 @@ private actor ControlledStartupGateSleeper {
     private var nextRequestIndex = 0
     private var continuations: [Int: CheckedContinuation<Void, any Error>] = [:]
     private var nextRequestCountWaiterID = 0
-    private var requestCountWaiters: [
-        Int: (count: Int, continuation: CheckedContinuation<Void, any Error>)
-    ] = [:]
+    private var requestCountWaiters: [Int: (count: Int, continuation: CheckedContinuation<Void, any Error>)] = [:]
 
     func sleep(for _: Duration) async throws {
         let requestIndex = nextRequestIndex

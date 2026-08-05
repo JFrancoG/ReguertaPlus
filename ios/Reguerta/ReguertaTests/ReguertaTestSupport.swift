@@ -23,8 +23,7 @@ func member(
     )
 }
 
-@MainActor
-func producer(id: String, parity: ProducerParity) -> Member {
+@MainActor func producer(id: String, parity: ProducerParity) -> Member {
     Member(
         id: id,
         displayName: id,
@@ -73,12 +72,7 @@ func ecoBasketProduct(
     )
 }
 
-@MainActor
-func regularProduct(
-    id: String,
-    vendorId: String,
-    name: String
-) -> Product {
+@MainActor func regularProduct(id: String, vendorId: String, name: String) -> Product {
     Product(
         id: id,
         vendorId: vendorId,
@@ -128,8 +122,7 @@ func seasonalCommitment(
     )
 }
 
-@MainActor
-func testMillis(year: Int, month: Int, day: Int) -> Int64 {
+@MainActor func testMillis(year: Int, month: Int, day: Int) -> Int64 {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = TimeZone(identifier: "Europe/Madrid")!
     let date = calendar.date(from: DateComponents(year: year, month: month, day: day))!
@@ -396,8 +389,7 @@ final class TestAuthSessionProvider: AuthSessionProvider {
         refreshResult
     }
 
-    @discardableResult
-    func signOut() -> Bool {
+    @discardableResult func signOut() -> Bool {
         signOutSucceeds
     }
 }

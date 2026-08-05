@@ -5,8 +5,7 @@ import Testing
 
 @MainActor
 struct ReguertaSharedProfileViewModelTests {
-    @Test
-    func sharedProfileViewModelLoadsVisibleProfilesAndOwnDraft() async {
+    @Test func sharedProfileViewModelLoadsVisibleProfilesAndOwnDraft() async {
         let currentMember = sharedProfileMember(id: "member_1", displayName: "Member One")
         let ownProfile = sharedProfile(
             userId: currentMember.id,
@@ -32,8 +31,7 @@ struct ReguertaSharedProfileViewModelTests {
         #expect(viewModel.draft == ownProfile.toDraft())
     }
 
-    @Test
-    func sharedProfileViewModelResetsStateWhenSessionLeavesAuthorizedMode() {
+    @Test func sharedProfileViewModelResetsStateWhenSessionLeavesAuthorizedMode() {
         let currentMember = sharedProfileMember(id: "member_1", displayName: "Member One")
         let viewModel = makeSharedProfileViewModel(currentMember: currentMember)
         viewModel.profiles = [sharedProfile(userId: currentMember.id, familyNames: "Familia")]
@@ -55,8 +53,7 @@ struct ReguertaSharedProfileViewModelTests {
         #expect(viewModel.isDeleting == false)
     }
 
-    @Test
-    func sharedProfileViewModelBlocksSaveWithoutVisibleContent() async {
+    @Test func sharedProfileViewModelBlocksSaveWithoutVisibleContent() async {
         let currentMember = sharedProfileMember(id: "member_1", displayName: "Member One")
         let repository = InMemorySharedProfileRepository(items: [])
         let viewModel = makeSharedProfileViewModel(currentMember: currentMember, repository: repository)
@@ -69,8 +66,7 @@ struct ReguertaSharedProfileViewModelTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackSharedProfileContentRequired)
     }
 
-    @Test
-    func sharedProfileViewModelSavesNormalizedProfileAndRefreshesSnapshot() async {
+    @Test func sharedProfileViewModelSavesNormalizedProfileAndRefreshesSnapshot() async {
         let currentMember = sharedProfileMember(id: "member_1", displayName: "Member One")
         let repository = InMemorySharedProfileRepository(items: [])
         let viewModel = makeSharedProfileViewModel(
@@ -103,8 +99,7 @@ struct ReguertaSharedProfileViewModelTests {
         #expect(viewModel.feedbackCenter.messageKey == nil)
     }
 
-    @Test
-    func sharedProfileViewModelRetainsDraftWhenRepositoryRejectsSave() async {
+    @Test func sharedProfileViewModelRetainsDraftWhenRepositoryRejectsSave() async {
         let currentMember = sharedProfileMember(id: "member_1", displayName: "Member One")
         let existingProfile = sharedProfile(
             userId: currentMember.id,
@@ -132,8 +127,7 @@ struct ReguertaSharedProfileViewModelTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
     }
 
-    @Test
-    func sharedProfileViewModelDeletesOwnProfileAndClearsDraft() async {
+    @Test func sharedProfileViewModelDeletesOwnProfileAndClearsDraft() async {
         let currentMember = sharedProfileMember(id: "member_1", displayName: "Member One")
         let repository = InMemorySharedProfileRepository(
             items: [sharedProfile(userId: currentMember.id, familyNames: "Familia")]
@@ -150,8 +144,7 @@ struct ReguertaSharedProfileViewModelTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackSharedProfileDeleted)
     }
 
-    @Test
-    func sharedProfileViewModelRetainsProfileWhenRepositoryRejectsDelete() async {
+    @Test func sharedProfileViewModelRetainsProfileWhenRepositoryRejectsDelete() async {
         let currentMember = sharedProfileMember(id: "member_1", displayName: "Member One")
         let existingProfile = sharedProfile(
             userId: currentMember.id,
@@ -175,8 +168,7 @@ struct ReguertaSharedProfileViewModelTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackSharedProfileDeleteFailed)
     }
 
-    @Test
-    func sharedProfileViewModelUploadsImageAndShowsFeedbackOnFailure() async {
+    @Test func sharedProfileViewModelUploadsImageAndShowsFeedbackOnFailure() async {
         let currentMember = sharedProfileMember(id: "member_1", displayName: "Member One")
         let successViewModel = makeSharedProfileViewModel(
             currentMember: currentMember,
@@ -201,8 +193,7 @@ struct ReguertaSharedProfileViewModelTests {
         #expect(failureViewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
     }
 
-    @Test
-    func sharedProfileViewModelReportsImageSelectionAndCameraFailures() {
+    @Test func sharedProfileViewModelReportsImageSelectionAndCameraFailures() {
         let currentMember = sharedProfileMember(id: "member_1", displayName: "Member One")
         let viewModel = makeSharedProfileViewModel(currentMember: currentMember)
 
@@ -216,8 +207,7 @@ struct ReguertaSharedProfileViewModelTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackCameraUnavailable)
     }
 
-    @Test
-    func previewEnvironmentUsesInMemorySharedProfileDependencies() {
+    @Test func previewEnvironmentUsesInMemorySharedProfileDependencies() {
         let environment = ReguertaAppEnvironment.preview()
 
         #expect(environment.accessRootViewModel.sharedProfileViewModel.sessionViewModel === environment.sessionViewModel)
@@ -286,8 +276,7 @@ private enum SharedProfileMutationTestError: Error {
     case rejected
 }
 
-@MainActor
-private func sharedProfileMember(id: String, displayName: String) -> Member {
+@MainActor private func sharedProfileMember(id: String, displayName: String) -> Member {
     Member(
         id: id,
         displayName: displayName,
@@ -329,10 +318,7 @@ private final class SharedProfileMockImagePipelineManager: ImagePipelineManager 
         self.result = result
     }
 
-    func processAndUpload(
-        imageData _: Data,
-        request _: ImageUploadRequest
-    ) async throws -> ImageUploadResult {
+    func processAndUpload(imageData _: Data, request _: ImageUploadRequest) async throws -> ImageUploadResult {
         switch result {
         case .success(let downloadURL):
             ImageUploadResult(

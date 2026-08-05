@@ -343,8 +343,7 @@ private extension SharedProfileHubRoute {
         .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
     }
 
-    @ViewBuilder
-    func sharedProfileDetailContent(_ profile: SharedProfile) -> some View {
+    @ViewBuilder func sharedProfileDetailContent(_ profile: SharedProfile) -> some View {
         let orientation = profilePhotoOrientations[profile.userId] ?? .landscape
         let hasPhoto = profile.photoUrl?.isEmpty == false
 
@@ -367,8 +366,7 @@ private extension SharedProfileHubRoute {
         }
     }
 
-    @ViewBuilder
-    func sharedProfileDetailPhoto(_ profile: SharedProfile) -> some View {
+    @ViewBuilder func sharedProfileDetailPhoto(_ profile: SharedProfile) -> some View {
         if let rawURL = profile.photoUrl, let url = URL(string: rawURL), !rawURL.isEmpty {
             AsyncImage(url: url) { phase in
                 switch phase {

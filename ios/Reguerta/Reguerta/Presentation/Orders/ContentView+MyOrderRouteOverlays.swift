@@ -134,8 +134,7 @@ extension MyOrderRouteView {
         }
     }
 
-    @ViewBuilder
-    func selectedProductCard(_ product: Product) -> some View {
+    @ViewBuilder func selectedProductCard(_ product: Product) -> some View {
         let quantity = viewModel.quantity(for: product)
         let selectedOption = viewModel.selectedEcoBasketOption(for: product)
 
@@ -187,8 +186,7 @@ extension MyOrderRouteView {
         }
     }
 
-    @ViewBuilder
-    func checkoutDialog(_ alert: MyOrderCheckoutAlert) -> some View {
+    @ViewBuilder func checkoutDialog(_ alert: MyOrderCheckoutAlert) -> some View {
         switch alert {
         case .missingCommitments(let names):
             checkoutErrorDialog(

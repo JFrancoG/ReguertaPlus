@@ -129,8 +129,7 @@ final class MyOrderFreshnessViewModel {
         return canEnter
     }
 
-    @discardableResult
-    private func refresh(for identity: FreshnessSessionIdentity) -> FreshnessOperationHandle {
+    @discardableResult private func refresh(for identity: FreshnessSessionIdentity) -> FreshnessOperationHandle {
         invalidateFreshnessOperation()
         let generation = freshnessGeneration
         let metadataWriteGeneration = criticalDataFreshnessLocalRepository.writeGeneration
@@ -227,10 +226,7 @@ final class MyOrderFreshnessViewModel {
         )
     }
 
-    private func makeFreshnessTimeoutTask(
-        identity: FreshnessSessionIdentity,
-        generation: UInt64
-    ) -> Task<Void, Never> {
+    private func makeFreshnessTimeoutTask(identity: FreshnessSessionIdentity, generation: UInt64) -> Task<Void, Never> {
         let sleeper = sleeper
         let timeout = timeout
         return Task { @MainActor [weak self, sleeper] in
@@ -257,10 +253,7 @@ final class MyOrderFreshnessViewModel {
         state = .idle
     }
 
-    private func shouldRefresh(
-        from previousMode: SessionMode,
-        identity: FreshnessSessionIdentity
-    ) -> Bool {
+    private func shouldRefresh(from previousMode: SessionMode, identity: FreshnessSessionIdentity) -> Bool {
         switch previousMode {
         case .signedOut:
             return true
@@ -271,8 +264,7 @@ final class MyOrderFreshnessViewModel {
         }
     }
 
-    @discardableResult
-    private func invalidateFreshnessOperation() -> Task<Void, Never>? {
+    @discardableResult private func invalidateFreshnessOperation() -> Task<Void, Never>? {
         let invalidatedOperation = freshnessOperationTask
         invalidatedOperation?.cancel()
         freshnessTimeoutTask?.cancel()
@@ -282,10 +274,7 @@ final class MyOrderFreshnessViewModel {
         return invalidatedOperation
     }
 
-    private func isCurrentFreshnessOperation(
-        _ generation: UInt64,
-        identity: FreshnessSessionIdentity
-    ) -> Bool {
+    private func isCurrentFreshnessOperation(_ generation: UInt64, identity: FreshnessSessionIdentity) -> Bool {
         !Task.isCancelled &&
             generation == freshnessGeneration &&
             currentIdentity == identity

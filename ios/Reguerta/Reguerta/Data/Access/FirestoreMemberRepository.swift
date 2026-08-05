@@ -5,10 +5,7 @@ final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
     private let db: Firestore
     private let environment: ReguertaFirestoreEnvironment?
 
-    init(
-        db: Firestore = Firestore.firestore(),
-        environment: ReguertaFirestoreEnvironment? = nil
-    ) {
+    init(db: Firestore = Firestore.firestore(), environment: ReguertaFirestoreEnvironment? = nil) {
         self.db = db
         self.environment = environment
     }
@@ -152,10 +149,7 @@ extension FirestoreMemberRepository {
         )
     }
 
-    static func mergingAuthenticatedMember(
-        _ authenticatedMember: Member,
-        into directoryMembers: [Member]
-    ) -> [Member] {
+    static func mergingAuthenticatedMember(_ authenticatedMember: Member, into directoryMembers: [Member]) -> [Member] {
         directoryMembers.filter { $0.id != authenticatedMember.id } + [authenticatedMember]
     }
 }
@@ -299,22 +293,14 @@ private extension FirestoreMemberRepository {
         return normalized
     }
 
-    private static func requiredString(
-        _ data: [String: Any],
-        field: String,
-        resource: String
-    ) throws -> String {
+    private static func requiredString(_ data: [String: Any], field: String, resource: String) throws -> String {
         guard let value = try optionalString(data, keys: [field], resource: resource) else {
             throw RepositoryError.invalidData(resource: resource)
         }
         return value
     }
 
-    private static func optionalString(
-        _ data: [String: Any],
-        keys: [String],
-        resource: String
-    ) throws -> String? {
+    private static func optionalString(_ data: [String: Any], keys: [String], resource: String) throws -> String? {
         for key in keys {
             guard let rawValue = data[key], !(rawValue is NSNull) else { continue }
             guard let value = rawValue as? String else {
@@ -326,11 +312,7 @@ private extension FirestoreMemberRepository {
         return nil
     }
 
-    private static func requiredBool(
-        _ data: [String: Any],
-        field: String,
-        resource: String
-    ) throws -> Bool {
+    private static func requiredBool(_ data: [String: Any], field: String, resource: String) throws -> Bool {
         guard let rawValue = data[field], let value = rawValue as? Bool else {
             throw RepositoryError.invalidData(resource: resource)
         }
@@ -353,11 +335,7 @@ private extension FirestoreMemberRepository {
         return defaultValue
     }
 
-    private static func optionalMap(
-        _ data: [String: Any],
-        field: String,
-        resource: String
-    ) throws -> [String: Any]? {
+    private static func optionalMap(_ data: [String: Any], field: String, resource: String) throws -> [String: Any]? {
         guard let rawValue = data[field], !(rawValue is NSNull) else { return nil }
         guard let value = rawValue as? [String: Any] else {
             throw RepositoryError.invalidData(resource: resource)

@@ -130,11 +130,7 @@ struct FirestoreCriticalDataRefresher: CriticalDataRefreshing {
 }
 
 private extension FirestoreCriticalDataRefresher {
-    private func refreshMember(
-        id: String,
-        scope: CriticalDataRefreshScope,
-        resource: String
-    ) async throws -> Member {
+    private func refreshMember(id: String, scope: CriticalDataRefreshScope, resource: String) async throws -> Member {
         let users = db.reguertaCollection(.users, environment: scope.environment)
         do {
             let snapshot = try await users.document(id)
@@ -292,11 +288,7 @@ private extension FirestoreCriticalDataRefresher {
         }
     }
 
-    private func refreshOwnedQuery(
-        path: String,
-        ownerField: String,
-        memberID: String
-    ) async throws {
+    private func refreshOwnedQuery(path: String, ownerField: String, memberID: String) async throws {
         _ = try await db.collection(path)
             .whereField(ownerField, isEqualTo: memberID)
             .getDocuments(source: .server)
@@ -316,10 +308,7 @@ private extension FirestoreCriticalDataRefresher {
         }
     }
 
-    private func legacyCollectionPath(
-        named collectionName: String,
-        environment: SessionEnvironment
-    ) -> String {
+    private func legacyCollectionPath(named collectionName: String, environment: SessionEnvironment) -> String {
         "\(environment.rawValue)/collections/\(collectionName)"
     }
 }

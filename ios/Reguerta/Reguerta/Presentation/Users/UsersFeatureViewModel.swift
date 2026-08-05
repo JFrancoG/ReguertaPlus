@@ -266,11 +266,7 @@ private extension UsersFeatureViewModel {
         }
     }
 
-    func buildTargetMember(
-        editingMemberId: String?,
-        normalizedEmail: String,
-        roles: Set<MemberRole>
-    ) -> Member? {
+    func buildTargetMember(editingMemberId: String?, normalizedEmail: String, roles: Set<MemberRole>) -> Member? {
         if let editingMemberId {
             guard let existing = membersFeed.first(where: { $0.id == editingMemberId }) else {
                 return nil
@@ -306,11 +302,7 @@ private extension UsersFeatureViewModel {
         )
     }
 
-    func persistMember(
-        target: Member,
-        session: AuthorizedSession,
-        kind: MemberMutationKind
-    ) async -> Bool {
+    func persistMember(target: Member, session: AuthorizedSession, kind: MemberMutationKind) async -> Bool {
         let context = SessionContext(session: session, generation: sessionIdentityEpoch)
         guard isCurrentSession(context), activeMutationOperationId == nil else { return false }
         do {

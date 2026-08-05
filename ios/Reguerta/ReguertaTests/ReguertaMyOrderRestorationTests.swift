@@ -4,8 +4,7 @@ import Testing
 
 @MainActor
 struct ReguertaMyOrderRestorationTests {
-    @Test
-    func myOrderViewModelKeepsRestoredDraftWhileProductsLoad() async {
+    @Test func myOrderViewModelKeepsRestoredDraftWhileProductsLoad() async {
         let cartStore = InMemoryMyOrderCartStore()
         let product = regularProduct(id: "tomato", vendorId: "producer_even", name: "Tomates")
         let storageKey = "member_member_1_week_2026-W20"
@@ -28,8 +27,7 @@ struct ReguertaMyOrderRestorationTests {
         #expect(viewModel.selectedUnits == 2)
     }
 
-    @Test
-    func myOrderViewModelKeepsRestoredDraftBeforeProductRefreshStarts() async {
+    @Test func myOrderViewModelKeepsRestoredDraftBeforeProductRefreshStarts() async {
         let cartStore = InMemoryMyOrderCartStore()
         let product = regularProduct(id: "tomato", vendorId: "producer_even", name: "Tomates")
         let storageKey = "member_member_1_week_2026-W20"
@@ -52,8 +50,7 @@ struct ReguertaMyOrderRestorationTests {
         #expect(viewModel.selectedUnits == 2)
     }
 
-    @Test
-    func myOrderViewModelRestoresCartAndConfirmedOrderFromStore() async {
+    @Test func myOrderViewModelRestoresCartAndConfirmedOrderFromStore() async {
         let repository = InMemoryOrdersRepository()
         let cartStore = InMemoryMyOrderCartStore()
         let product = regularProduct(id: "tomato", vendorId: "producer_even", name: "Tomates")

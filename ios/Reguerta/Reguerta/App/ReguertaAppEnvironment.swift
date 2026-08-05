@@ -135,9 +135,7 @@ private struct UITestingAccessRootDependencies {
     let nowMillisProvider: @MainActor () -> Int64
 }
 
-private func makeUITestingAccessRootViewModel(
-    _ dependencies: UITestingAccessRootDependencies
-) -> AccessRootViewModel {
+private func makeUITestingAccessRootViewModel(_ dependencies: UITestingAccessRootDependencies) -> AccessRootViewModel {
     AccessRootViewModel(
         sessionViewModel: dependencies.sessionViewModel,
         feedbackCenter: dependencies.feedbackCenter,

@@ -1,7 +1,9 @@
 import Foundation
 
 extension NewsNotificationsFeatureViewModel {
-    func updateNewsDraft(_ update: (inout NewsDraft) -> Void) {
+    func updateNewsDraft(
+        _ update: (inout NewsDraft) -> Void
+    ) {
         var draft = newsDraft
         update(&draft)
         guard draft != newsDraft else { return }
@@ -9,7 +11,9 @@ extension NewsNotificationsFeatureViewModel {
         newsDraftRevision &+= 1
     }
 
-    func updateNotificationDraft(_ update: (inout NotificationDraft) -> Void) {
+    func updateNotificationDraft(
+        _ update: (inout NotificationDraft) -> Void
+    ) {
         var draft = notificationDraft
         update(&draft)
         guard draft != notificationDraft else { return }
@@ -17,8 +21,7 @@ extension NewsNotificationsFeatureViewModel {
         notificationDraftRevision &+= 1
     }
 
-    @discardableResult
-    func startCreatingNews() -> Bool {
+    @discardableResult func startCreatingNews() -> Bool {
         guard let context = captureAuthorizedSessionContext() else { return false }
         guard context.canPublishNews else {
             feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminPublishNews)
@@ -31,8 +34,7 @@ extension NewsNotificationsFeatureViewModel {
         return true
     }
 
-    @discardableResult
-    func startEditingNews(newsId: String) -> Bool {
+    @discardableResult func startEditingNews(newsId: String) -> Bool {
         guard let context = captureAuthorizedSessionContext() else { return false }
         guard context.canPublishNews else {
             feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminEditNews)
@@ -52,8 +54,7 @@ extension NewsNotificationsFeatureViewModel {
         editingNewsId = nil
     }
 
-    @discardableResult
-    func closeNewsSaveConfirmation() -> String? {
+    @discardableResult func closeNewsSaveConfirmation() -> String? {
         guard let confirmation = pendingNewsSaveConfirmation else { return nil }
         pendingNewsSaveConfirmation = nil
         clearNewsEditor()
@@ -61,8 +62,7 @@ extension NewsNotificationsFeatureViewModel {
         return confirmation.newsId
     }
 
-    @discardableResult
-    func startCreatingNotification() -> Bool {
+    @discardableResult func startCreatingNotification() -> Bool {
         guard let context = captureAuthorizedSessionContext() else { return false }
         guard context.canSendAdminNotifications else {
             feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminSendNotification)

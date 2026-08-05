@@ -100,10 +100,7 @@ struct BylawsRouteView: View {
             .overlay(tokens.colors.borderSubtle)
     }
 
-    private func answerSection(
-        result: BylawsConsultationResult,
-        contentScrollsIndependently: Bool
-    ) -> some View {
+    private func answerSection(result: BylawsConsultationResult, contentScrollsIndependently: Bool) -> some View {
         BylawsAnswerSectionView(
             tokens: tokens,
             result: result,

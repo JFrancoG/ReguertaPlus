@@ -299,7 +299,9 @@ private struct ReguertaCameraCaptureView: UIViewControllerRepresentable {
     final class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
         private let onCapture: (UIImage?) -> Void
 
-        init(onCapture: @escaping (UIImage?) -> Void) {
+        init(
+            onCapture: @escaping (UIImage?) -> Void
+        ) {
             self.onCapture = onCapture
         }
 

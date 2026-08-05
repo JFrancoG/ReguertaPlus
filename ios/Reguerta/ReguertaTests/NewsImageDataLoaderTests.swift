@@ -5,8 +5,7 @@ import Testing
 
 @MainActor
 struct NewsImageDataLoaderTests {
-    @Test
-    func loadsNonEmptyDataFromSuccessfulHTTPResponse() async throws {
+    @Test func loadsNonEmptyDataFromSuccessfulHTTPResponse() async throws {
         let expectedData = Data([1, 2, 3])
         let loader = NewsImageDataLoader(
             fetcher: StubNewsImageDataFetcher(
@@ -19,8 +18,7 @@ struct NewsImageDataLoaderTests {
         #expect(data == expectedData)
     }
 
-    @Test
-    func rejectsUnsuccessfulHTTPResponse() async throws {
+    @Test func rejectsUnsuccessfulHTTPResponse() async throws {
         let loader = NewsImageDataLoader(
             fetcher: StubNewsImageDataFetcher(
                 response: NewsImageDataResponse(data: Data([1]), statusCode: 404)
@@ -32,8 +30,7 @@ struct NewsImageDataLoaderTests {
         }
     }
 
-    @Test
-    func rejectsEmptyImagePayload() async throws {
+    @Test func rejectsEmptyImagePayload() async throws {
         let loader = NewsImageDataLoader(
             fetcher: StubNewsImageDataFetcher(
                 response: NewsImageDataResponse(data: Data(), statusCode: 200)

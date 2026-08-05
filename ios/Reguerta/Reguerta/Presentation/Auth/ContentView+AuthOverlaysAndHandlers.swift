@@ -168,8 +168,7 @@ extension AccessRootRoutingView {
         }
     }
 
-    @ViewBuilder
-    private func startupVersionGateCard(_ content: StartupVersionGateCardContent) -> some View {
+    @ViewBuilder private func startupVersionGateCard(_ content: StartupVersionGateCardContent) -> some View {
         reguertaDialog(
             type: content.onSecondaryAction == nil ? .error : .info,
             title: l10n(content.titleKey),

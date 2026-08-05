@@ -19,10 +19,7 @@ final class FirestoreNotificationRepository: @unchecked Sendable, NotificationRe
     private let db: Firestore
     private let environment: ReguertaFirestoreEnvironment?
 
-    init(
-        db: Firestore = Firestore.firestore(),
-        environment: ReguertaFirestoreEnvironment? = nil
-    ) {
+    init(db: Firestore = Firestore.firestore(), environment: ReguertaFirestoreEnvironment? = nil) {
         self.db = db
         self.environment = environment
     }
@@ -327,33 +324,21 @@ private enum FirestoreNotificationDocumentDecoder {
         }
     }
 
-    private static func exactRequiredString(
-        _ data: [String: Any],
-        field: String,
-        resource: String
-    ) throws -> String {
+    private static func exactRequiredString(_ data: [String: Any], field: String, resource: String) throws -> String {
         guard let string = data[field] as? String, !string.isEmpty else {
             throw RepositoryError.invalidData(resource: resource)
         }
         return string
     }
 
-    private static func requiredString(
-        _ data: [String: Any],
-        field: String,
-        resource: String
-    ) throws -> String {
+    private static func requiredString(_ data: [String: Any], field: String, resource: String) throws -> String {
         guard let value = try optionalString(data, field: field, resource: resource) else {
             throw RepositoryError.invalidData(resource: resource)
         }
         return value
     }
 
-    private static func optionalString(
-        _ data: [String: Any],
-        field: String,
-        resource: String
-    ) throws -> String? {
+    private static func optionalString(_ data: [String: Any], field: String, resource: String) throws -> String? {
         guard let value = data[field] else { return nil }
         if value is NSNull { return nil }
         guard let string = value as? String else {

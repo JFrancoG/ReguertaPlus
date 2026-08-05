@@ -5,8 +5,7 @@ import Testing
 
 @MainActor
 struct CriticalDataRefreshUseCaseTests {
-    @Test
-    func timestampDeltaRefreshesOnlyChangedCollectionsBeforeReturningAcknowledgement() async throws {
+    @Test func timestampDeltaRefreshesOnlyChangedCollectionsBeforeReturningAcknowledgement() async throws {
         let originalTimestamps = criticalTimestamps(defaultValue: 1_000)
         var remoteTimestamps = originalTimestamps
         remoteTimestamps[.products] = 2_000
@@ -54,8 +53,7 @@ struct CriticalDataRefreshUseCaseTests {
         #expect(localRepository.getMetadata()?.acknowledgedTimestampsMillis == originalTimestamps)
     }
 
-    @Test
-    func expiredTTLRefreshesAllCriticalCollections() async throws {
+    @Test func expiredTTLRefreshesAllCriticalCollections() async throws {
         let timestamps = criticalTimestamps(defaultValue: 1_000)
         let scope = criticalRefreshScope()
         let refresher = RecordingCriticalDataRefresher()
@@ -82,8 +80,7 @@ struct CriticalDataRefreshUseCaseTests {
         #expect(await refresher.recordedCollections() == Set(CriticalCollection.allCases))
     }
 
-    @Test
-    func metadataFromAnotherMemberForcesFullRefresh() async throws {
+    @Test func metadataFromAnotherMemberForcesFullRefresh() async throws {
         let timestamps = criticalTimestamps(defaultValue: 1_000)
         let scope = criticalRefreshScope(memberID: "member-new")
         let refresher = RecordingCriticalDataRefresher()
@@ -110,8 +107,7 @@ struct CriticalDataRefreshUseCaseTests {
         #expect(await refresher.recordedCollections() == Set(CriticalCollection.allCases))
     }
 
-    @Test
-    func changedMemberVisibilityScopeForcesFullRefresh() async throws {
+    @Test func changedMemberVisibilityScopeForcesFullRefresh() async throws {
         let timestamps = criticalTimestamps(defaultValue: 1_000)
         let currentScope = criticalRefreshScope(canManageMembers: true)
         let refresher = RecordingCriticalDataRefresher()
@@ -138,8 +134,7 @@ struct CriticalDataRefreshUseCaseTests {
         #expect(await refresher.recordedCollections() == Set(CriticalCollection.allCases))
     }
 
-    @Test
-    func partialRefreshFailureReturnsNoAcknowledgement() async {
+    @Test func partialRefreshFailureReturnsNoAcknowledgement() async {
         let originalTimestamps = criticalTimestamps(defaultValue: 1_000)
         var remoteTimestamps = originalTimestamps
         remoteTimestamps[.orders] = 2_000
@@ -169,8 +164,7 @@ struct CriticalDataRefreshUseCaseTests {
         #expect(localRepository.getMetadata()?.acknowledgedTimestampsMillis == originalTimestamps)
     }
 
-    @Test
-    func currentTimestampsStillRefreshAncillaryOrderingDependencies() async throws {
+    @Test func currentTimestampsStillRefreshAncillaryOrderingDependencies() async throws {
         let timestamps = criticalTimestamps(defaultValue: 1_000)
         let scope = criticalRefreshScope()
         let selectedMember = member(id: scope.memberID, ecoCommitmentMode: .weekly)
@@ -214,10 +208,7 @@ private actor RecordingCriticalDataRefresher: CriticalDataRefreshing {
     private let payload: CriticalDataRefreshPayload
     private var collections: Set<CriticalCollection> = []
 
-    init(
-        fails: Bool = false,
-        payload: CriticalDataRefreshPayload = CriticalDataRefreshPayload()
-    ) {
+    init(fails: Bool = false, payload: CriticalDataRefreshPayload = CriticalDataRefreshPayload()) {
         self.fails = fails
         self.payload = payload
     }

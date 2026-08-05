@@ -4,8 +4,7 @@ import Testing
 
 @MainActor
 struct ReguertaNewsNotificationsViewModelSavingTests {
-    @Test
-    func newsViewModelSavesNewAndEditedNewsWithExistingMetadataRules() async throws {
+    @Test func newsViewModelSavesNewAndEditedNewsWithExistingMetadataRules() async throws {
         let admin = savingTestAdminMember(displayName: "Ana Admin")
         let repository = InMemoryNewsRepository(items: [])
         let viewModel = makeSavingNewsViewModel(
@@ -88,8 +87,7 @@ private func makeSavingNewsViewModel(
     return viewModel
 }
 
-@MainActor
-private func savingTestAdminMember(displayName: String) -> Member {
+@MainActor private func savingTestAdminMember(displayName: String) -> Member {
     Member(
         id: "admin",
         displayName: displayName,

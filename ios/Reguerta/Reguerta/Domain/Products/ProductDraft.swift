@@ -75,11 +75,7 @@ struct ProductSaveInput: Equatable, Sendable {
 ///   - existing: The product being edited, or `nil` when creating one.
 ///   - nowMillis: The creation or update time in Unix milliseconds.
 /// - Returns: Parsed values ready for product construction, or `nil` when any invariant fails.
-func resolveProductSaveInput(
-    draft: ProductDraft,
-    existing: Product?,
-    nowMillis: Int64
-) -> ProductSaveInput? {
+func resolveProductSaveInput(draft: ProductDraft, existing: Product?, nowMillis: Int64) -> ProductSaveInput? {
     let draft = draft.normalized
     guard let price = draft.price.productPositiveDouble, !draft.name.isEmpty else {
         return nil
@@ -132,11 +128,7 @@ func resolveProductSaveInput(
 ///   - input: A value produced by `resolveProductSaveInput(draft:existing:nowMillis:)`.
 ///   - newProductId: The stable identifier to use only when creating a product.
 /// - Returns: A product that preserves edit identity and enforces role-derived flags.
-func buildProductToSave(
-    sessionMember: Member,
-    input: ProductSaveInput,
-    newProductId: String = ""
-) -> Product {
+func buildProductToSave(sessionMember: Member, input: ProductSaveInput, newProductId: String = "") -> Product {
     let canManageCommonPurchase = sessionMember.isCommonPurchaseManager && !sessionMember.isProducer
     let container = ProductContainerOption.matching(name: input.draft.packContainerName)
     let isBulk = container == .bulk

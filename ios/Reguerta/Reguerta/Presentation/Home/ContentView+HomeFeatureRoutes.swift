@@ -198,8 +198,7 @@ extension AccessRootRoutingView {
         )
     }
 
-    @ViewBuilder
-    func placeholderRoute(subtitleKey: String) -> some View {
+    @ViewBuilder func placeholderRoute(subtitleKey: String) -> some View {
         reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.md) {
                 Text(localizedKey(subtitleKey))
@@ -210,7 +209,9 @@ extension AccessRootRoutingView {
     }
 
     @ViewBuilder
-    func cardContainer<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+    func cardContainer<Content: View>(
+        @ViewBuilder content: () -> Content
+    ) -> some View {
         content()
             .padding(tokens.spacing.lg)
             .frame(maxWidth: .infinity, alignment: .leading)

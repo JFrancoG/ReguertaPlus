@@ -1,11 +1,7 @@
 import Foundation
 
 nonisolated struct SpanishBylawsArticleRetriever: BylawsRetrieving {
-    func retrieve(
-        question: String,
-        in articles: [BylawsArticle],
-        maxResults: Int
-    ) -> [BylawsRetrievedArticle] {
+    func retrieve(question: String, in articles: [BylawsArticle], maxResults: Int) -> [BylawsRetrievedArticle] {
         guard maxResults > 0 else { return [] }
 
         let normalizedQuestion = normalize(question)

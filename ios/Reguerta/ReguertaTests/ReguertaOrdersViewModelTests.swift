@@ -5,8 +5,7 @@ import Testing
 
 @MainActor
 struct ReguertaOrdersViewModelTests {
-    @Test
-    func myOrderViewModelUsesLocalizedOrderActions() {
+    @Test func myOrderViewModelUsesLocalizedOrderActions() {
         let viewModel = makeMyOrderViewModel()
 
         #expect(viewModel.finalizeCheckoutTitle == l10n(AccessL10nKey.myOrderFinalizeAction))
@@ -16,8 +15,7 @@ struct ReguertaOrdersViewModelTests {
         #expect(viewModel.finalizeCheckoutTitle == l10n(AccessL10nKey.myOrderFinalizeUpdateAction))
     }
 
-    @Test
-    func myOrderDynamicCopyResolvesFromTheLocalizationCatalog() {
+    @Test func myOrderDynamicCopyResolvesFromTheLocalizationCatalog() {
         let total = l10n(AccessL10nKey.myOrderConfirmedTotalFormat, "€4.63")
         let remaining = l10n(AccessL10nKey.myOrderStockRemainingFormat, "3")
         let editableNote = l10n(AccessL10nKey.myOrderEditableUntilSundayNote)
@@ -30,8 +28,7 @@ struct ReguertaOrdersViewModelTests {
         #expect(editableNote.hasPrefix("*"))
     }
 
-    @Test
-    func myOrderPackagingLineKeepsContainerAndMeasureQuantitiesSeparate() {
+    @Test func myOrderPackagingLineKeepsContainerAndMeasureQuantitiesSeparate() {
         #expect(
             myOrderPackagingLine(from: [
                 "packContainerName": "Caja",
@@ -72,8 +69,7 @@ struct ReguertaOrdersViewModelTests {
         )
     }
 
-    @Test
-    func myOrderPackagingLineUsesTheRequestedLocaleForDecimalQuantities() {
+    @Test func myOrderPackagingLineUsesTheRequestedLocaleForDecimalQuantities() {
         #expect(
             myOrderPackagingLine(
                 from: [
@@ -102,8 +98,7 @@ struct ReguertaOrdersViewModelTests {
         )
     }
 
-    @Test
-    func activeProductPackagingLineKeepsContainerAndMeasureQuantitiesSeparate() {
+    @Test func activeProductPackagingLineKeepsContainerAndMeasureQuantitiesSeparate() {
         let viewModel = makeMyOrderViewModel()
         func product(packContainerQty: Double) -> Product {
             Product(
@@ -139,8 +134,7 @@ struct ReguertaOrdersViewModelTests {
         #expect(viewModel.packContainerLine(for: product(packContainerQty: 2)) == "2 Caja 6 ud(s).")
     }
 
-    @Test
-    func receivedOrdersCopyResolvesFromTheLocalizationCatalog() {
+    @Test func receivedOrdersCopyResolvesFromTheLocalizationCatalog() {
         let keys = [
             AccessL10nKey.receivedOrdersTitle,
             AccessL10nKey.receivedOrdersTabsTitle,
@@ -162,8 +156,7 @@ struct ReguertaOrdersViewModelTests {
 }
 
 extension ReguertaOrdersViewModelTests {
-    @Test
-    func myOrderViewModelPersistsDraftImmediatelyInUserDefaultsCartStore() async {
+    @Test func myOrderViewModelPersistsDraftImmediatelyInUserDefaultsCartStore() async {
         let suiteName = "ReguertaOrdersViewModelTests.\(UUID().uuidString)"
         guard let userDefaults = UserDefaults(suiteName: suiteName) else {
             Issue.record("Expected test UserDefaults suite")
@@ -188,8 +181,7 @@ extension ReguertaOrdersViewModelTests {
         #expect(restoredDraft.selectedQuantities == [product.id: 1])
     }
 
-    @Test
-    func myOrderViewModelSanitizesQuantitiesAgainstStockAndCommitments() async {
+    @Test func myOrderViewModelSanitizesQuantitiesAgainstStockAndCommitments() async {
         let product = finiteStockProduct(
             regularProduct(id: "avocado", vendorId: "producer_even", name: "Aguacates"),
             stock: 5
@@ -210,8 +202,7 @@ extension ReguertaOrdersViewModelTests {
         #expect(viewModel.selectedQuantities == [product.id: 3])
     }
 
-    @Test
-    func myOrderViewModelBlocksCheckoutWithExistingValidation() async {
+    @Test func myOrderViewModelBlocksCheckoutWithExistingValidation() async {
         let product = regularProduct(id: "avocado", vendorId: "producer_even", name: "Aguacates")
         let viewModel = makeMyOrderViewModel()
         await viewModel.appear(
@@ -232,8 +223,7 @@ extension ReguertaOrdersViewModelTests {
         #expect(names == ["Aguacates"])
     }
 
-    @Test
-    func myOrderViewModelPersistsSuccessfulCheckoutAndConfirmedSnapshot() async {
+    @Test func myOrderViewModelPersistsSuccessfulCheckoutAndConfirmedSnapshot() async {
         let repository = InMemoryOrdersRepository()
         let cartStore = InMemoryMyOrderCartStore()
         let product = regularProduct(id: "tomato", vendorId: "producer_even", name: "Tomates")
@@ -256,8 +246,7 @@ extension ReguertaOrdersViewModelTests {
         #expect(submissions.first?.weekKey == "2026-W20")
     }
 
-    @Test
-    func myOrderViewModelLoadsEmptyAndErrorPreviousOrderStates() async {
+    @Test func myOrderViewModelLoadsEmptyAndErrorPreviousOrderStates() async {
         let repository = InMemoryOrdersRepository()
         let viewModel = makeMyOrderViewModel(repository: repository)
 
@@ -269,8 +258,7 @@ extension ReguertaOrdersViewModelTests {
         #expect(viewModel.previousOrderState == .error)
     }
 
-    @Test
-    func myOrderViewModelShowsDatabaseOrderForCurrentWeekWhenLocalConfirmationIsMissing() async {
+    @Test func myOrderViewModelShowsDatabaseOrderForCurrentWeekWhenLocalConfirmationIsMissing() async {
         let repository = InMemoryOrdersRepository()
         await repository.setPreviousOrder(previousOrderSnapshot(weekKey: "2026-W20"), forWeekKey: "2026-W20")
         let viewModel = makeMyOrderViewModel(repository: repository, nowMillis: testMillis(year: 2026, month: 5, day: 15))
@@ -286,8 +274,7 @@ extension ReguertaOrdersViewModelTests {
         #expect(snapshot.weekKey == "2026-W20")
     }
 
-    @Test
-    func myOrderViewModelShowsPreviousWeekOrderDuringDeliveryWindow() async {
+    @Test func myOrderViewModelShowsPreviousWeekOrderDuringDeliveryWindow() async {
         let repository = InMemoryOrdersRepository()
         await repository.setPreviousOrder(previousOrderSnapshot(weekKey: "2026-W19"), forWeekKey: "2026-W19")
         let viewModel = makeMyOrderViewModel(repository: repository, nowMillis: testMillis(year: 2026, month: 5, day: 13))
@@ -303,8 +290,7 @@ extension ReguertaOrdersViewModelTests {
         #expect(snapshot.weekKey == "2026-W19")
     }
 
-    @Test
-    func myOrderConsultaWindowUsesWednesdayWhenNoDeliveryCalendarOverrideEvenIfShiftIsLater() {
+    @Test func myOrderConsultaWindowUsesWednesdayWhenNoDeliveryCalendarOverrideEvenIfShiftIsLater() {
         let window = resolveMyOrderConsultaWindow(
             defaultDeliveryDayOfWeek: .wednesday,
             deliveryCalendarOverrides: [],
@@ -316,8 +302,7 @@ extension ReguertaOrdersViewModelTests {
         #expect(window.previousWeekKey == "2026-W27")
     }
 
-    @Test
-    func myOrderConsultaWindowUsesDeliveryCalendarOverrideWhenPresent() {
+    @Test func myOrderConsultaWindowUsesDeliveryCalendarOverrideWhenPresent() {
         let override = DeliveryCalendarOverride(
             weekKey: "2026-W28",
             deliveryDateMillis: testMillis(year: 2026, month: 7, day: 9),
@@ -338,8 +323,7 @@ extension ReguertaOrdersViewModelTests {
         #expect(window.previousWeekKey == "2026-W27")
     }
 
-    @Test
-    func receivedOrdersViewModelDoesNotLoadForNonProducerOrOutsideWindow() async {
+    @Test func receivedOrdersViewModelDoesNotLoadForNonProducerOrOutsideWindow() async {
         let repository = InMemoryOrdersRepository()
         let nonProducerViewModel = makeReceivedOrdersViewModel(repository: repository)
         await nonProducerViewModel.appear(
@@ -360,8 +344,7 @@ extension ReguertaOrdersViewModelTests {
         #expect(producerViewModel.loadState == .idle)
     }
 
-    @Test
-    func receivedOrdersViewModelLoadsSnapshotByProductAndMember() async {
+    @Test func receivedOrdersViewModelLoadsSnapshotByProductAndMember() async {
         let repository = InMemoryOrdersRepository()
         let snapshot = receivedOrdersSnapshot(status: .read)
         await repository.setReceivedOrdersSnapshot(
@@ -389,8 +372,7 @@ extension ReguertaOrdersViewModelTests {
         #expect(loadedSnapshot.generalTotal == 6.0)
     }
 
-    @Test
-    func receivedOrdersViewModelUpdatesProducerStatusAndMutatesLocalSnapshot() async {
+    @Test func receivedOrdersViewModelUpdatesProducerStatusAndMutatesLocalSnapshot() async {
         let repository = InMemoryOrdersRepository()
         await repository.setReceivedOrdersSnapshot(
             receivedOrdersSnapshot(status: .read),
@@ -415,8 +397,7 @@ extension ReguertaOrdersViewModelTests {
         #expect(viewModel.statusWriteFeedback == nil)
     }
 
-    @Test
-    func receivedOrdersViewModelShowsFeedbackWhenStatusUpdateFails() async {
+    @Test func receivedOrdersViewModelShowsFeedbackWhenStatusUpdateFails() async {
         let repository = InMemoryOrdersRepository()
         await repository.setReceivedOrdersSnapshot(
             receivedOrdersSnapshot(status: .read),
@@ -442,8 +423,7 @@ extension ReguertaOrdersViewModelTests {
         #expect(viewModel.statusWriteFeedback == .permissionDenied)
     }
 
-    @Test
-    func previewEnvironmentUsesInMemoryOrdersDependenciesAndSharesRootSession() {
+    @Test func previewEnvironmentUsesInMemoryOrdersDependenciesAndSharesRootSession() {
         let environment = ReguertaAppEnvironment.preview()
 
         #expect(environment.accessRootViewModel.myOrderViewModel.sessionViewModel === environment.sessionViewModel)

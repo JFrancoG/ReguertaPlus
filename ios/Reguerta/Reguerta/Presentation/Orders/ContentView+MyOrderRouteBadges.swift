@@ -1,11 +1,7 @@
 import SwiftUI
 
 extension MyOrderRouteView {
-    @ViewBuilder
-    func badge(
-        _ title: LocalizedStringKey,
-        usesCompactFont: Bool = false
-    ) -> some View {
+    @ViewBuilder func badge(_ title: LocalizedStringKey, usesCompactFont: Bool = false) -> some View {
         Text(title)
             .font(
                 usesCompactFont

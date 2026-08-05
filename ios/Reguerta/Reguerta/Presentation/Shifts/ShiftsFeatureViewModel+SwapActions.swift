@@ -1,7 +1,9 @@
 import Foundation
 
 extension ShiftsFeatureViewModel {
-    func updateShiftSwapDraft(_ update: (inout ShiftSwapDraft) -> Void) {
+    func updateShiftSwapDraft(
+        _ update: (inout ShiftSwapDraft) -> Void
+    ) {
         var draft = shiftSwapDraft
         update(&draft)
         shiftSwapDraft = draft
@@ -135,9 +137,7 @@ extension ShiftsFeatureViewModel {
 }
 
 private extension ShiftsFeatureViewModel {
-    func shiftSwapCreateSubmission(
-        for context: SessionContext
-    ) -> ShiftSwapCreateSubmission? {
+    func shiftSwapCreateSubmission(for context: SessionContext) -> ShiftSwapCreateSubmission? {
         let draft = shiftSwapDraft
         guard !draft.shiftId.isEmpty,
               let shift = shiftsFeed.first(where: { $0.id == draft.shiftId }),
@@ -251,10 +251,7 @@ private extension ShiftsFeatureViewModel {
         )
     }
 
-    func confirmShiftSwapContext(
-        requestId: String,
-        candidateShiftId: String
-    ) -> ConfirmShiftSwapContext? {
+    func confirmShiftSwapContext(requestId: String, candidateShiftId: String) -> ConfirmShiftSwapContext? {
         guard let session = authorizedSession else { return nil }
         guard let request = shiftSwapRequests.first(where: { $0.id == requestId }) else { return nil }
         guard let requestedShift = shiftsFeed.first(where: { $0.id == request.requestedShiftId }) else { return nil }

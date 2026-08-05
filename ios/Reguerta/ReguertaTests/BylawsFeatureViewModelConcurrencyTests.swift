@@ -5,8 +5,7 @@ import Testing
 
 @MainActor
 struct BylawsFeatureViewModelConcurrencyTests {
-    @Test("La ultima consulta reemplaza a una respuesta tardia")
-    func latestQuestionWins() async throws {
+    @Test("La ultima consulta reemplaza a una respuesta tardia") func latestQuestionWins() async throws {
         let consultant = ControlledBylawsConsultant()
         let viewModel = makeViewModel(consultant: consultant)
         await viewModel.prepare(responseLanguage: .spanish)
@@ -28,8 +27,7 @@ struct BylawsFeatureViewModelConcurrencyTests {
         #expect(viewModel.capability == .localModel)
     }
 
-    @Test("Limpiar cancela e invalida una respuesta tardia")
-    func clearInvalidatesInFlightAnswer() async {
+    @Test("Limpiar cancela e invalida una respuesta tardia") func clearInvalidatesInFlightAnswer() async {
         let consultant = ControlledBylawsConsultant()
         let viewModel = makeViewModel(consultant: consultant)
         await viewModel.prepare(responseLanguage: .spanish)
@@ -48,8 +46,7 @@ struct BylawsFeatureViewModelConcurrencyTests {
         #expect(viewModel.consultationMessageKey == nil)
     }
 
-    @Test("Salir de la ruta cancela e invalida una respuesta tardia")
-    func routeExitInvalidatesInFlightAnswer() async {
+    @Test("Salir de la ruta cancela e invalida una respuesta tardia") func routeExitInvalidatesInFlightAnswer() async {
         let consultant = ControlledBylawsConsultant()
         let viewModel = makeViewModel(consultant: consultant)
         await viewModel.prepare(responseLanguage: .spanish)
@@ -83,9 +80,7 @@ struct BylawsFeatureViewModelConcurrencyTests {
             )
         ]
     )
-    func contentFailureKeepsLocalConsultation(
-        expectation: BylawsFailurePresentationExpectation
-    ) async {
+    func contentFailureKeepsLocalConsultation(expectation: BylawsFailurePresentationExpectation) async {
         let consultant = ControlledBylawsConsultant()
         let viewModel = makeViewModel(consultant: consultant)
         await viewModel.prepare(responseLanguage: .spanish)
@@ -169,10 +164,7 @@ struct BylawsFeatureViewModelConcurrencyTests {
     }
 }
 
-@MainActor
-private func makeViewModel(
-    consultant: some BylawsConsulting
-) -> BylawsFeatureViewModel {
+@MainActor private func makeViewModel(consultant: some BylawsConsulting) -> BylawsFeatureViewModel {
     BylawsFeatureViewModel(
         feedbackCenter: GlobalFeedbackCenter(),
         consultant: consultant,
@@ -204,17 +196,12 @@ private actor ControlledBylawsConsultant: BylawsConsulting {
         self.configuredCapability = capability
     }
 
-    func capability(
-        for responseLanguage: BylawsResponseLanguage
-    ) -> BylawsConsultationCapability {
+    func capability(for responseLanguage: BylawsResponseLanguage) -> BylawsConsultationCapability {
         capabilityLanguages.append(responseLanguage)
         return configuredCapability
     }
 
-    func consult(
-        question: String,
-        responseLanguage: BylawsResponseLanguage
-    ) async throws -> BylawsConsultationResult {
+    func consult(question: String, responseLanguage: BylawsResponseLanguage) async throws -> BylawsConsultationResult {
         requests.append(question)
         consultationLanguages.append(responseLanguage)
         return try await withCheckedThrowingContinuation { continuation in
@@ -228,10 +215,7 @@ private actor ControlledBylawsConsultant: BylawsConsulting {
         }
     }
 
-    func completeRequest(
-        at index: Int,
-        with result: Result<BylawsConsultationResult, any Error>
-    ) {
+    func completeRequest(at index: Int, with result: Result<BylawsConsultationResult, any Error>) {
         continuations[index].resume(with: result)
     }
 }
@@ -246,8 +230,7 @@ struct BylawsFailurePresentationExpectation: Sendable, CustomTestStringConvertib
 private struct FixedConcurrencyTestBylawsDocumentProvider: BylawsDocumentProviding {
     let pdfURL: URL?
 
-    @MainActor
-    func bundledPdfURL() -> URL? {
+    @MainActor func bundledPdfURL() -> URL? {
         pdfURL
     }
 }

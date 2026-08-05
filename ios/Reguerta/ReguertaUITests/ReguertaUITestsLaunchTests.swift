@@ -17,8 +17,7 @@ final class ReguertaUITestsLaunchTests: XCTestCase {
         continueAfterFailure = false
     }
 
-    @MainActor
-    func testLaunch() throws {
+    @MainActor func testLaunch() throws {
         throw XCTSkip("Flaky screenshot launch test in parallel simulator clones; launch behavior is covered by dedicated UI tests.")
     }
 }

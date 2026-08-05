@@ -71,7 +71,9 @@ extension ProductsRouteViewModel {
         isUploadingImage = false
     }
 
-    func updateDraft(_ update: (inout ProductDraft) -> Void) {
+    func updateDraft(
+        _ update: (inout ProductDraft) -> Void
+    ) {
         var updatedDraft = draft
         update(&updatedDraft)
         draft = updatedDraft
@@ -144,8 +146,7 @@ extension ProductsRouteViewModel {
         }
     }
 
-    @discardableResult
-    func save() async -> Bool {
+    @discardableResult func save() async -> Bool {
         guard let request = prepareSaveRequest() else { return false }
         let saveOperationId = beginSaveOperation()
         defer { finishSaveOperation(saveOperationId, context: request.context) }
@@ -385,20 +386,14 @@ private extension ProductsRouteViewModel {
         return nextSaveOperationId
     }
 
-    func finishSaveOperation(
-        _ operationId: UInt64,
-        context: ProductsRouteSessionContext
-    ) {
+    func finishSaveOperation(_ operationId: UInt64, context: ProductsRouteSessionContext) {
         guard activeSaveOperationId == operationId else { return }
         activeSaveOperationId = nil
         guard isCurrentSession(context) else { return }
         isSaving = false
     }
 
-    func finishUploadOperation(
-        _ operationId: UInt64,
-        context: ProductsRouteSessionContext
-    ) {
+    func finishUploadOperation(_ operationId: UInt64, context: ProductsRouteSessionContext) {
         guard activeUploadOperationId == operationId else { return }
         activeUploadOperationId = nil
         guard isCurrentSession(context) else { return }

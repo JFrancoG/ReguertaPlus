@@ -318,10 +318,7 @@ private extension ProductsRouteViewModel {
         appliedFreshnessSessionRevision = nil
     }
 
-    private func isCurrentOrderingRefresh(
-        _ context: ProductsRouteSessionContext,
-        generation: UInt64
-    ) -> Bool {
+    private func isCurrentOrderingRefresh(_ context: ProductsRouteSessionContext, generation: UInt64) -> Bool {
         generation == orderingRefreshGeneration && isCurrentSession(context)
     }
 
@@ -382,10 +379,7 @@ private extension ProductsRouteViewModel {
         isLoadingOrderingProducts = false
     }
 
-    private func mergeOrderingMembers(
-        _ members: [Member],
-        payload: CriticalDataRefreshPayload
-    ) -> [Member] {
+    private func mergeOrderingMembers(_ members: [Member], payload: CriticalDataRefreshPayload) -> [Member] {
         var merged = members
         if let authenticatedMember = payload.authenticatedMember {
             merged = merged.filter { $0.id != authenticatedMember.id } + [authenticatedMember]
@@ -396,10 +390,7 @@ private extension ProductsRouteViewModel {
         return merged
     }
 
-    private func applyRefreshedIdentityPayload(
-        _ payload: CriticalDataRefreshPayload,
-        to session: AuthorizedSession
-    ) {
+    private func applyRefreshedIdentityPayload(_ payload: CriticalDataRefreshPayload, to session: AuthorizedSession) {
         if let authenticatedMember = payload.authenticatedMember,
            session.authenticatedMember.canManageMembers,
            !authenticatedMember.canManageMembers {

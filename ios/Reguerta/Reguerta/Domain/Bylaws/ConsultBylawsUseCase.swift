@@ -6,9 +6,7 @@ nonisolated struct ConsultBylawsUseCase: BylawsConsulting {
     private let questionScopeClassifier: any BylawsQuestionScopeClassifying
     private let summaryGenerator: any BylawsSummaryGenerating
 
-    func capability(
-        for responseLanguage: BylawsResponseLanguage
-    ) async -> BylawsConsultationCapability {
+    func capability(for responseLanguage: BylawsResponseLanguage) async -> BylawsConsultationCapability {
         await summaryGenerator.capability(for: responseLanguage)
     }
 
@@ -26,10 +24,7 @@ nonisolated struct ConsultBylawsUseCase: BylawsConsulting {
     /// - Throws: `BylawsConsultationError` when the model is unavailable, evidence is absent,
     ///   the question is clearly unrelated, or generated output fails validation; cancellation
     ///   is propagated as `CancellationError`.
-    func consult(
-        question: String,
-        responseLanguage: BylawsResponseLanguage
-    ) async throws -> BylawsConsultationResult {
+    func consult(question: String, responseLanguage: BylawsResponseLanguage) async throws -> BylawsConsultationResult {
         try Task.checkCancellation()
         guard await summaryGenerator.capability(for: responseLanguage) == .localModel else {
             throw BylawsConsultationError.modelUnavailable
@@ -88,9 +83,7 @@ nonisolated struct ConsultBylawsUseCase: BylawsConsulting {
         }
     }
 
-    private func makeEvidence(
-        from matches: [BylawsRetrievedArticle]
-    ) -> [BylawsSourceEvidence] {
+    private func makeEvidence(from matches: [BylawsRetrievedArticle]) -> [BylawsSourceEvidence] {
         matches.map { match in
             BylawsSourceEvidence(
                 sourceID: match.article.id,

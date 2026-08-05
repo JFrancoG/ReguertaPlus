@@ -258,19 +258,13 @@ struct FirestoreNewsNotificationDecodingTests {
         }
     }
 
-    private func expectInvalidNews(
-        _ data: [String: Any],
-        documentID: String = "news_1"
-    ) {
+    private func expectInvalidNews(_ data: [String: Any], documentID: String = "news_1") {
         #expect(throws: RepositoryError.invalidData(resource: "news/\(documentID)")) {
             try FirestoreNewsRepository.newsArticle(documentID: documentID, data: data)
         }
     }
 
-    private func expectInvalidNotification(
-        _ data: [String: Any],
-        documentID: String = "event_1"
-    ) {
+    private func expectInvalidNotification(_ data: [String: Any], documentID: String = "event_1") {
         #expect(throws: RepositoryError.invalidData(resource: "notificationEvents/\(documentID)")) {
             try FirestoreNotificationRepository.notificationEvent(
                 documentID: documentID,

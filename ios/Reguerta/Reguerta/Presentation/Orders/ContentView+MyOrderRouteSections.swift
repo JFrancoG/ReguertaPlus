@@ -229,8 +229,7 @@ extension MyOrderRouteView {
         .ignoresSafeArea(.container, edges: .bottom)
     }
 
-    @ViewBuilder
-    func producerHeader(_ group: MyOrderProducerGroup) -> some View {
+    @ViewBuilder func producerHeader(_ group: MyOrderProducerGroup) -> some View {
         HStack(spacing: tokens.spacing.sm) {
             Spacer(minLength: 0)
             Text(group.companyName)
@@ -256,8 +255,7 @@ extension MyOrderRouteView {
         }
     }
 
-    @ViewBuilder
-    func productCard(_ product: Product) -> some View {
+    @ViewBuilder func productCard(_ product: Product) -> some View {
         let quantity = viewModel.quantity(for: product)
         let stockLabel = stockLabel(for: product)
 
@@ -316,8 +314,7 @@ extension MyOrderRouteView {
         }
     }
 
-    @ViewBuilder
-    func productImage(_ product: Product) -> some View {
+    @ViewBuilder func productImage(_ product: Product) -> some View {
         let imageSize = CGFloat(72.resize)
         if let imageURL = product.productImageUrl, let url = URL(string: imageURL), imageURL.isNotEmpty {
             AsyncImage(url: url) { phase in
@@ -341,12 +338,7 @@ extension MyOrderRouteView {
         }
     }
 
-    @ViewBuilder
-    func quantityControls(
-        product: Product,
-        quantity: Int,
-        isEditable: Bool
-    ) -> some View {
+    @ViewBuilder func quantityControls(product: Product, quantity: Int, isEditable: Bool) -> some View {
         if !isEditable {
             readOnlyQuantityControls(product: product, quantity: quantity)
         } else if quantity == 0 {
@@ -356,8 +348,7 @@ extension MyOrderRouteView {
         }
     }
 
-    @ViewBuilder
-    func readOnlyQuantityControls(product: Product, quantity: Int) -> some View {
+    @ViewBuilder func readOnlyQuantityControls(product: Product, quantity: Int) -> some View {
         if quantity > 0 {
             Text(quantityUnitText(product: product, quantity: quantity))
                 .font(tokens.typography.body.weight(.semibold))
