@@ -92,11 +92,7 @@ struct ReguertaScreenHeaderViewModel {
 }
 
 extension View {
-    @ViewBuilder
-    func reguertaHeaderGlassButton(
-        isEnabled: Bool,
-        colorScheme: ColorScheme
-    ) -> some View {
+    @ViewBuilder func reguertaHeaderGlassButton(isEnabled: Bool, colorScheme: ColorScheme) -> some View {
         let shape = Circle()
         let isDarkMode = colorScheme == .dark
         let tint = isDarkMode ? Color.black.opacity(0.36) : Color.white.opacity(0.42)
@@ -116,8 +112,7 @@ extension View {
         }
     }
 
-    @ViewBuilder
-    func reguertaHeaderAccessibilityIdentifier(_ identifier: String?) -> some View {
+    @ViewBuilder func reguertaHeaderAccessibilityIdentifier(_ identifier: String?) -> some View {
         if let identifier {
             accessibilityIdentifier(identifier)
         } else {

@@ -4,8 +4,7 @@ import Testing
 @testable import Reguerta
 
 struct P101KeychainStoreTests {
-    @Test
-    func missingItemIsTheOnlyReadThatBecomesNil() async throws {
+    @Test func missingItemIsTheOnlyReadThatBecomesNil() async throws {
         let store = KeychainStore(
             client: StubKeychainClient(readResult: .init(status: errSecItemNotFound, data: nil))
         )
@@ -13,8 +12,7 @@ struct P101KeychainStoreTests {
         #expect(try await store.loadString(for: .fcmToken) == nil)
     }
 
-    @Test
-    func readFailureIsPropagatedWithItsOperationAndStatus() async {
+    @Test func readFailureIsPropagatedWithItsOperationAndStatus() async {
         let store = KeychainStore(
             client: StubKeychainClient(readResult: .init(status: errSecInteractionNotAllowed, data: nil))
         )
@@ -40,8 +38,7 @@ struct P101KeychainStoreTests {
         }
     }
 
-    @Test
-    func successfulUpdateConfirmsTheSave() async throws {
+    @Test func successfulUpdateConfirmsTheSave() async throws {
         let store = KeychainStore(
             client: StubKeychainClient(updateStatus: errSecSuccess)
         )
@@ -49,8 +46,7 @@ struct P101KeychainStoreTests {
         try await store.saveString(" token ", for: .fcmToken)
     }
 
-    @Test
-    func updateFailureIsNotReportedAsSuccess() async {
+    @Test func updateFailureIsNotReportedAsSuccess() async {
         let store = KeychainStore(
             client: StubKeychainClient(updateStatus: errSecAuthFailed)
         )
@@ -65,8 +61,7 @@ struct P101KeychainStoreTests {
         }
     }
 
-    @Test
-    func missingUpdateAddsAndChecksTheResult() async throws {
+    @Test func missingUpdateAddsAndChecksTheResult() async throws {
         let store = KeychainStore(
             client: StubKeychainClient(
                 updateStatus: errSecItemNotFound,
@@ -77,8 +72,7 @@ struct P101KeychainStoreTests {
         try await store.saveString("token", for: .fcmToken)
     }
 
-    @Test
-    func addFailureIsNotReportedAsSuccess() async {
+    @Test func addFailureIsNotReportedAsSuccess() async {
         let store = KeychainStore(
             client: StubKeychainClient(
                 updateStatus: errSecItemNotFound,
@@ -105,8 +99,7 @@ struct P101KeychainStoreTests {
         try await store.remove(.fcmToken)
     }
 
-    @Test
-    func deleteFailureIsNotReportedAsSuccess() async {
+    @Test func deleteFailureIsNotReportedAsSuccess() async {
         let store = KeychainStore(
             client: StubKeychainClient(deleteStatus: errSecInteractionNotAllowed)
         )
@@ -121,8 +114,7 @@ struct P101KeychainStoreTests {
         }
     }
 
-    @Test
-    func blankSaveUsesTheCheckedDeletePath() async {
+    @Test func blankSaveUsesTheCheckedDeletePath() async {
         let store = KeychainStore(
             client: StubKeychainClient(deleteStatus: errSecNotAvailable)
         )
@@ -137,8 +129,7 @@ struct P101KeychainStoreTests {
         }
     }
 
-    @Test
-    func invalidCodablePayloadIsCorruption() async {
+    @Test func invalidCodablePayloadIsCorruption() async {
         let store = KeychainStore(
             client: StubKeychainClient(
                 readResult: .init(status: errSecSuccess, data: Data("not-json".utf8))

@@ -38,8 +38,7 @@ final class ReguertaUITests: XCTestCase {
         XCUIApplication().terminate()
     }
 
-    @MainActor
-    func testUnauthorizedUserShowsRestrictedMode() throws {
+    @MainActor func testUnauthorizedUserShowsRestrictedMode() throws {
         let app = configuredApp()
         let emailField = launchAndOpenLogin(app)
 
@@ -61,8 +60,7 @@ final class ReguertaUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Enter the app"].waitForExistence(timeout: 5))
     }
 
-    @MainActor
-    func testPreAuthorizedProducerEntersHomeWithActionRowEnabled() throws {
+    @MainActor func testPreAuthorizedProducerEntersHomeWithActionRowEnabled() throws {
         let app = configuredApp()
         let emailField = launchAndOpenLogin(app)
         emailField.tap()
@@ -91,8 +89,7 @@ final class ReguertaUITests: XCTestCase {
         XCTAssertTrue(receivedOrdersButton.isEnabled, "Received orders should be enabled")
     }
 
-    @MainActor
-    func testHomeShowsLatestNewsWithoutBottomObstruction() throws {
+    @MainActor func testHomeShowsLatestNewsWithoutBottomObstruction() throws {
         let app = configuredApp()
         signInAsProducer(in: app)
 
@@ -147,8 +144,7 @@ final class ReguertaUITests: XCTestCase {
         )
     }
 
-    @MainActor
-    func testMyOrderSearchBarStaysAboveBottomSafeArea() throws {
+    @MainActor func testMyOrderSearchBarStaysAboveBottomSafeArea() throws {
         let app = configuredApp()
         signInAsProducer(in: app)
 
@@ -167,8 +163,7 @@ final class ReguertaUITests: XCTestCase {
         )
     }
 
-    @MainActor
-    func testUsersAddButtonStaysAboveBottomSafeArea() throws {
+    @MainActor func testUsersAddButtonStaysAboveBottomSafeArea() throws {
         let app = configuredApp()
         signInAsAdmin(in: app)
 
@@ -188,8 +183,7 @@ final class ReguertaUITests: XCTestCase {
         )
     }
 
-    @MainActor
-    func testDrawerNavigationOpensSelectedRoute() throws {
+    @MainActor func testDrawerNavigationOpensSelectedRoute() throws {
         let app = configuredApp()
         let emailField = launchAndOpenLogin(app)
         emailField.tap()
@@ -219,8 +213,7 @@ final class ReguertaUITests: XCTestCase {
         XCTAssertEqual(title.label, "News")
     }
 
-    @MainActor
-    func testInvalidCredentialsShowsInlineErrorWithoutCrash() throws {
+    @MainActor func testInvalidCredentialsShowsInlineErrorWithoutCrash() throws {
         let app = configuredApp()
         let emailField = launchAndOpenLogin(app)
 
@@ -241,8 +234,7 @@ final class ReguertaUITests: XCTestCase {
         XCTAssertTrue(app.buttons[signInButtonId].exists, "App should remain alive on invalid credentials")
     }
 
-    @MainActor
-    func testLaunchPerformance() throws {
+    @MainActor func testLaunchPerformance() throws {
         // This measures how long it takes to launch your application.
         measure(metrics: [XCTApplicationLaunchMetric()]) {
             configuredApp().launch()
@@ -286,22 +278,19 @@ final class ReguertaUITests: XCTestCase {
         return query.count >= minimumCount
     }
 
-    @MainActor
-    private func signInAsProducer(in app: XCUIApplication) {
+    @MainActor private func signInAsProducer(in app: XCUIApplication) {
         signIn(email: "pablo.producer@reguerta.app", in: app)
 
         XCTAssertTrue(app.buttons[myOrderButtonId].waitForExistence(timeout: 8), "Home did not load")
     }
 
-    @MainActor
-    private func signInAsAdmin(in app: XCUIApplication) {
+    @MainActor private func signInAsAdmin(in app: XCUIApplication) {
         signIn(email: "ana.admin@reguerta.app", in: app)
 
         XCTAssertTrue(app.buttons[menuButtonId].waitForExistence(timeout: 8), "Home did not load")
     }
 
-    @MainActor
-    private func signIn(email: String, in app: XCUIApplication) {
+    @MainActor private func signIn(email: String, in app: XCUIApplication) {
         let emailField = launchAndOpenLogin(app)
         emailField.tap()
         emailField.typeText(email)
@@ -315,8 +304,7 @@ final class ReguertaUITests: XCTestCase {
         dismissPasswordSavePromptIfNeeded(in: app)
     }
 
-    @MainActor
-    private func openDrawer(in app: XCUIApplication) {
+    @MainActor private func openDrawer(in app: XCUIApplication) {
         let menuButton = app.buttons[menuButtonId]
         XCTAssertTrue(menuButton.waitForExistence(timeout: 8), "Menu button not found")
         dismissPasswordSavePromptIfNeeded(in: app, timeout: 1)
@@ -324,22 +312,19 @@ final class ReguertaUITests: XCTestCase {
         menuButton.tap()
     }
 
-    @MainActor
-    private func waitForHittable(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+    @MainActor private func waitForHittable(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
         let predicate = NSPredicate(format: "isHittable == true")
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 
-    @MainActor
-    private func waitForEnabled(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+    @MainActor private func waitForEnabled(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
         let predicate = NSPredicate(format: "isEnabled == true")
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 
-    @MainActor
-    private func dismissPasswordSavePromptIfNeeded(in app: XCUIApplication, timeout: TimeInterval = 2) {
+    @MainActor private func dismissPasswordSavePromptIfNeeded(in app: XCUIApplication, timeout: TimeInterval = 2) {
         for title in ["Not Now", "Ahora no"] {
             let button = app.buttons[title]
             if button.waitForExistence(timeout: timeout) {
@@ -358,8 +343,7 @@ final class ReguertaUITests: XCTestCase {
         }
     }
 
-    @MainActor
-    private func launchAndOpenLogin(_ app: XCUIApplication) -> XCUIElement {
+    @MainActor private func launchAndOpenLogin(_ app: XCUIApplication) -> XCUIElement {
         app.launch()
 
         let enterButton = app.buttons[enterButtonId]

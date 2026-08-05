@@ -53,8 +53,7 @@ final class MockAuthSessionProvider: AuthSessionProvider {
         return "mock-token-\(currentPrincipal.uid)"
     }
 
-    @discardableResult
-    func signOut() -> Bool {
+    @discardableResult func signOut() -> Bool {
         currentPrincipal = nil
         return true
     }

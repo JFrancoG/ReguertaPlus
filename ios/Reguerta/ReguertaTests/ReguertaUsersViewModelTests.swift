@@ -5,8 +5,7 @@ import Testing
 
 @MainActor
 struct ReguertaUsersViewModelTests {
-    @Test
-    func usersViewModelLoadsMembersAndResetsWhenSignedOut() async {
+    @Test func usersViewModelLoadsMembersAndResetsWhenSignedOut() async {
         let admin = usersAdminMember()
         let member = usersRegularMember(id: "member_1", displayName: "Member One")
         let scenario = makeUsersScenario(currentMember: admin, members: [admin, member], startsAuthorized: false)
@@ -27,8 +26,7 @@ struct ReguertaUsersViewModelTests {
         #expect(scenario.viewModel.isEditorOpen == false)
     }
 
-    @Test
-    func usersViewModelBlocksUnauthorizedMemberManagementActions() async {
+    @Test func usersViewModelBlocksUnauthorizedMemberManagementActions() async {
         let member = usersRegularMember(id: "member_1", displayName: "Member One")
         let scenario = makeUsersScenario(currentMember: member, members: [member])
         scenario.viewModel.draft = validMemberDraft(email: "new@reguerta.app")
@@ -43,8 +41,7 @@ struct ReguertaUsersViewModelTests {
         #expect(scenario.viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackOnlyAdminToggleActive)
     }
 
-    @Test
-    func usersViewModelValidatesDraftBeforeSaving() async {
+    @Test func usersViewModelValidatesDraftBeforeSaving() async {
         let admin = usersAdminMember()
         let existing = usersRegularMember(id: "member_existing", email: "existing@reguerta.app")
         let scenario = makeUsersScenario(currentMember: admin, members: [admin, existing])
@@ -66,8 +63,7 @@ struct ReguertaUsersViewModelTests {
         #expect(scenario.viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackMemberExists)
     }
 
-    @Test
-    func usersViewModelCreatesPreAuthorizedMemberWithNormalizedPayload() async {
+    @Test func usersViewModelCreatesPreAuthorizedMemberWithNormalizedPayload() async {
         let admin = usersAdminMember()
         let scenario = makeUsersScenario(currentMember: admin, members: [admin])
         scenario.viewModel.draft = MemberDraft(
@@ -95,8 +91,7 @@ struct ReguertaUsersViewModelTests {
         #expect(scenario.viewModel.draft == MemberDraft())
     }
 
-    @Test
-    func specializedDraftsAlwaysPersistCanonicalMemberRole() async {
+    @Test func specializedDraftsAlwaysPersistCanonicalMemberRole() async {
         let admin = usersAdminMember()
         let scenario = makeUsersScenario(currentMember: admin, members: [admin])
         scenario.viewModel.draft = MemberDraft(
@@ -123,8 +118,7 @@ struct ReguertaUsersViewModelTests {
         #expect(createdAdmin?.roles == [.member, .admin])
     }
 
-    @Test
-    func memberIdsRemainDistinctWhenLongEmailSlugsShareFirstFortyCharacters() {
+    @Test func memberIdsRemainDistinctWhenLongEmailSlugsShareFirstFortyCharacters() {
         let sharedPrefix = String(repeating: "a", count: 45)
         let firstEmail = "\(sharedPrefix)one@example.com"
         let secondEmail = "\(sharedPrefix)two@example.com"
@@ -139,8 +133,7 @@ struct ReguertaUsersViewModelTests {
         #expect(firstId == buildMemberId(from: firstEmail.uppercased()))
     }
 
-    @Test
-    func usersViewModelEditsMemberAndPreservesExistingMetadata() async {
+    @Test func usersViewModelEditsMemberAndPreservesExistingMetadata() async {
         let admin = usersAdminMember()
         let producer = usersRegularMember(
             id: "producer_1",
@@ -178,8 +171,7 @@ struct ReguertaUsersViewModelTests {
         #expect(updated?.isCommonPurchaseManager == true)
     }
 
-    @Test
-    func usersEditorKeepsProducerAndCommonPurchasesCompanyStateConsistent() {
+    @Test func usersEditorKeepsProducerAndCommonPurchasesCompanyStateConsistent() {
         let admin = usersAdminMember()
         let scenario = makeUsersScenario(currentMember: admin, members: [admin])
 
@@ -203,8 +195,7 @@ struct ReguertaUsersViewModelTests {
         #expect(scenario.viewModel.draft.companyName.isEmpty)
     }
 
-    @Test
-    func usersHeaderAndBackActionFollowEditorState() {
+    @Test func usersHeaderAndBackActionFollowEditorState() {
         let rootViewModel = ReguertaAppEnvironment.preview().accessRootViewModel
         rootViewModel.homeDestination = .users
         rootViewModel.usersViewModel.isEditorOpen = true
@@ -225,8 +216,7 @@ struct ReguertaUsersViewModelTests {
         #expect(rootViewModel.homeDestination == .dashboard)
     }
 
-    @Test
-    func usersViewModelTogglesAdminAndActiveStatusAndUpdatesSession() async {
+    @Test func usersViewModelTogglesAdminAndActiveStatusAndUpdatesSession() async {
         let admin = usersAdminMember()
         let member = usersRegularMember(id: "member_1", displayName: "Member One")
         let scenario = makeUsersScenario(currentMember: admin, members: [admin, member])
@@ -251,8 +241,7 @@ struct ReguertaUsersViewModelTests {
         #expect(session.members.first { $0.id == member.id }?.isActive == false)
     }
 
-    @Test
-    func usersViewModelMapsPersistenceFailuresToFeedback() async {
+    @Test func usersViewModelMapsPersistenceFailuresToFeedback() async {
         let sessionAdmin = usersAdminMember()
         let accessDeniedScenario = makeUsersScenario(
             currentMember: sessionAdmin,
@@ -288,8 +277,7 @@ struct ReguertaUsersViewModelTests {
         #expect(genericScenario.viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
     }
 
-    @Test
-    func previewEnvironmentUsesSharedInMemoryUsersDependencies() throws {
+    @Test func previewEnvironmentUsesSharedInMemoryUsersDependencies() throws {
         let environment = ReguertaAppEnvironment.preview()
 
         #expect(environment.accessRootViewModel.usersViewModel.sessionViewModel === environment.sessionViewModel)

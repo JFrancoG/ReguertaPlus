@@ -265,9 +265,7 @@ private extension FirebaseAuthorizedDeviceCoordinator {
         )
     }
 
-    private func performAuthorizationClear(
-        ifOwnedBy lease: AuthorizedDeviceSessionLease
-    ) async throws {
+    private func performAuthorizationClear(ifOwnedBy lease: AuthorizedDeviceSessionLease) async throws {
         let expectedContext: AuthorizedDeviceSessionContext
         if let activeAuthorization {
             guard activeAuthorization.context.lease == lease else { return }
@@ -398,8 +396,7 @@ private extension FirebaseAuthorizedDeviceCoordinator {
     }
 }
 
-@MainActor
-private func fetchFirebaseMessagingToken() async throws -> String? {
+@MainActor private func fetchFirebaseMessagingToken() async throws -> String? {
     try await withCheckedThrowingContinuation { continuation in
         Messaging.messaging().token { token, error in
             if let error {
@@ -411,8 +408,7 @@ private func fetchFirebaseMessagingToken() async throws -> String? {
     }
 }
 
-@MainActor
-private func makeCurrentIOSDevice(token: String?, nowMillis: Int64) -> RegisteredDevice {
+@MainActor private func makeCurrentIOSDevice(token: String?, nowMillis: Int64) -> RegisteredDevice {
     RegisteredDevice(
         deviceId: UIDevice.current.identifierForVendor?.uuidString ?? "ios-\(UIDevice.current.model)",
         platform: "ios",

@@ -41,10 +41,7 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
     private let db: Firestore
     private let environment: ReguertaFirestoreEnvironment?
 
-    init(
-        db: Firestore = Firestore.firestore(),
-        environment: ReguertaFirestoreEnvironment? = nil
-    ) {
+    init(db: Firestore = Firestore.firestore(), environment: ReguertaFirestoreEnvironment? = nil) {
         self.db = db
         self.environment = environment
     }
@@ -266,11 +263,7 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
         return nil
     }
 
-    private static func optionalBool(
-        _ data: [String: Any],
-        field: String,
-        default defaultValue: Bool
-    ) throws -> Bool {
+    private static func optionalBool(_ data: [String: Any], field: String, default defaultValue: Bool) throws -> Bool {
         guard let value = data[field] else { return defaultValue }
         if value is NSNull { return defaultValue }
         guard let bool = value as? Bool else { throw invalidDocumentError }

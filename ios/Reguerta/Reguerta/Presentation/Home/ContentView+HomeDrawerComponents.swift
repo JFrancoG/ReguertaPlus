@@ -188,11 +188,7 @@ struct HomeDrawerContentView: View {
             .padding(.vertical, tokens.spacing.xs)
     }
 
-    private func homeDrawerItem(
-        _ systemImage: String,
-        titleKey: String,
-        destination: HomeDestination
-    ) -> some View {
+    private func homeDrawerItem(_ systemImage: String, titleKey: String, destination: HomeDestination) -> some View {
         Button {
             onNavigate(destination)
         } label: {

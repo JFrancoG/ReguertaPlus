@@ -6,8 +6,7 @@ import Testing
 
 @MainActor
 struct FirebaseFunctionsSecurityBoundaryTests {
-    @Test
-    func authenticatedClientPostsCodableBodyWithFreshBearerToken() async throws {
+    @Test func authenticatedClientPostsCodableBodyWithFreshBearerToken() async throws {
         let response = ResolveAuthorizedMemberResponse(
             authorized: true,
             memberId: "member_1",
@@ -128,8 +127,7 @@ struct FirebaseFunctionsSecurityBoundaryTests {
         }
     }
 
-    @Test
-    func authorizedSessionAppliesResolvedEnvironmentBeforeExactMemberRead() async throws {
+    @Test func authorizedSessionAppliesResolvedEnvironmentBeforeExactMemberRead() async throws {
         let member = Member(
             id: "member_1",
             displayName: "Member",
@@ -164,8 +162,7 @@ struct FirebaseFunctionsSecurityBoundaryTests {
         #expect(repository.requestedMemberIds == [member.id])
     }
 
-    @Test
-    func authorizedSessionRollsBackResolvedEnvironmentWhenExactMemberReadFails() async throws {
+    @Test func authorizedSessionRollsBackResolvedEnvironmentWhenExactMemberReadFails() async throws {
         let router = RecordingSessionEnvironmentRouter(baseEnvironment: .develop)
         let repository = EnvironmentRecordingMemberRepository(member: nil, router: router)
         let useCase = ResolveAuthorizedSessionUseCase(
@@ -194,8 +191,7 @@ struct FirebaseFunctionsSecurityBoundaryTests {
 }
 
 extension FirebaseFunctionsSecurityBoundaryTests {
-    @Test
-    func adminUpsertUsesBearerContractWithoutActorIdentityAndEncodesClears() async throws {
+    @Test func adminUpsertUsesBearerContractWithoutActorIdentityAndEncodesClears() async throws {
         let loader = RecordingHTTPDataLoader(
             data: try JSONEncoder().encode(
                 TestUpsertMemberResponse(
@@ -248,8 +244,7 @@ extension FirebaseFunctionsSecurityBoundaryTests {
         #expect(!json.contains("\"authUid\""))
     }
 
-    @Test
-    func adminUpsertRejectsResponseFromDifferentEnvironment() async throws {
+    @Test func adminUpsertRejectsResponseFromDifferentEnvironment() async throws {
         let loader = RecordingHTTPDataLoader(
             data: try JSONEncoder().encode(
                 TestUpsertMemberResponse(
@@ -287,8 +282,7 @@ extension FirebaseFunctionsSecurityBoundaryTests {
         }
     }
 
-    @Test
-    func shiftSwapRejectsMismatchedBackendAction() async throws {
+    @Test func shiftSwapRejectsMismatchedBackendAction() async throws {
         let loader = RecordingHTTPDataLoader(
             data: try JSONEncoder().encode(
                 TestShiftSwapTransitionResponse(
@@ -330,8 +324,7 @@ extension FirebaseFunctionsSecurityBoundaryTests {
         }
     }
 
-    @Test
-    func shiftSwapMapsFunctionCancellationToTaskCancellation() async {
+    @Test func shiftSwapMapsFunctionCancellationToTaskCancellation() async {
         let repository = FirestoreShiftSwapRequestRepository(
             db: Firestore.firestore(),
             environment: .develop,
@@ -361,8 +354,7 @@ extension FirebaseFunctionsSecurityBoundaryTests {
         }
     }
 
-    @Test
-    func publicMemberDirectoryMappingDropsSensitiveIdentityFields() throws {
+    @Test func publicMemberDirectoryMappingDropsSensitiveIdentityFields() throws {
         let member = try FirestoreMemberRepository.directoryMember(
             documentID: "producer_1",
             data: [
@@ -389,8 +381,7 @@ extension FirebaseFunctionsSecurityBoundaryTests {
         #expect(member.ecoCommitmentParity == .even)
     }
 
-    @Test
-    func publicDirectoryListPreservesAuthenticatedMembersFullIdentity() throws {
+    @Test func publicDirectoryListPreservesAuthenticatedMembersFullIdentity() throws {
         let authenticatedMember = Member(
             id: "member_1",
             displayName: "Own profile",

@@ -211,8 +211,7 @@ private struct ReguertaInputMessageView: View {
 }
 
 private extension View {
-    @ViewBuilder
-    func reguertaOptionalAccessibilityIdentifier(_ identifier: String?) -> some View {
+    @ViewBuilder func reguertaOptionalAccessibilityIdentifier(_ identifier: String?) -> some View {
         if let identifier {
             accessibilityIdentifier(identifier)
         } else {

@@ -29,17 +29,11 @@ enum ImagePipelineError: Error, Sendable {
 }
 
 protocol ImagePipelineManager: Sendable {
-    func processAndUpload(
-        imageData: Data,
-        request: ImageUploadRequest
-    ) async throws -> ImageUploadResult
+    func processAndUpload(imageData: Data, request: ImageUploadRequest) async throws -> ImageUploadResult
 }
 
 struct NoOpImagePipelineManager: ImagePipelineManager {
-    func processAndUpload(
-        imageData: Data,
-        request: ImageUploadRequest
-    ) async throws -> ImageUploadResult {
+    func processAndUpload(imageData: Data, request: ImageUploadRequest) async throws -> ImageUploadResult {
         throw ImagePipelineError.uploadFailed
     }
 }

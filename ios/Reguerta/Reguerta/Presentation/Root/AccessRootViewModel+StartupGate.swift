@@ -112,8 +112,7 @@ private extension AccessRootViewModel {
         }
     }
 
-    @discardableResult
-    func invalidateStartupGateEvaluation() -> Task<Void, Never>? {
+    @discardableResult func invalidateStartupGateEvaluation() -> Task<Void, Never>? {
         let invalidatedOperation = startupGateOperationTask
         invalidatedOperation?.cancel()
         startupGateTimeoutTask?.cancel()
@@ -127,10 +126,7 @@ private extension AccessRootViewModel {
         !Task.isCancelled && generation == startupGateGeneration
     }
 
-    func publishStartupGateDecision(
-        _ decision: StartupVersionGateDecision,
-        generation: UInt64
-    ) {
+    func publishStartupGateDecision(_ decision: StartupVersionGateDecision, generation: UInt64) {
         guard generation == startupGateGeneration else { return }
         startupGateTimeoutTask?.cancel()
         startupGateTimeoutTask = nil
@@ -146,10 +142,7 @@ private extension AccessRootViewModel {
         continueFromSplashIfAllowed()
     }
 
-    func publishStartupGateFailure(
-        _ state: StartupGateUIState,
-        generation: UInt64
-    ) {
+    func publishStartupGateFailure(_ state: StartupGateUIState, generation: UInt64) {
         guard generation == startupGateGeneration else { return }
         startupGateTimeoutTask?.cancel()
         startupGateTimeoutTask = nil

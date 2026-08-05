@@ -11,11 +11,7 @@ struct AuthErrorPresentation: Sendable {
     let passwordErrorKey: String?
     let globalMessageKey: String?
 
-    init(
-        emailErrorKey: String? = nil,
-        passwordErrorKey: String? = nil,
-        globalMessageKey: String? = nil
-    ) {
+    init(emailErrorKey: String? = nil, passwordErrorKey: String? = nil, globalMessageKey: String? = nil) {
         self.emailErrorKey = emailErrorKey
         self.passwordErrorKey = passwordErrorKey
         self.globalMessageKey = globalMessageKey

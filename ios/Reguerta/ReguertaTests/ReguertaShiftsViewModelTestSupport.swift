@@ -37,8 +37,7 @@ func makeShiftsViewModel(
     return viewModel
 }
 
-@MainActor
-func shiftMember(id: String, displayName: String) -> Member {
+@MainActor func shiftMember(id: String, displayName: String) -> Member {
     Member(
         id: id,
         displayName: displayName,
@@ -50,8 +49,7 @@ func shiftMember(id: String, displayName: String) -> Member {
     )
 }
 
-@MainActor
-func adminMember(id: String, displayName: String) -> Member {
+@MainActor func adminMember(id: String, displayName: String) -> Member {
     Member(
         id: id,
         displayName: displayName,
@@ -179,8 +177,7 @@ struct ConfirmShiftSwapTestScenario {
     let viewModel: ShiftsFeatureViewModel
 }
 
-@MainActor
-func makeConfirmShiftSwapTestScenario() async -> ConfirmShiftSwapTestScenario {
+@MainActor func makeConfirmShiftSwapTestScenario() async -> ConfirmShiftSwapTestScenario {
     let requester = shiftMember(id: "requester", displayName: "Rosa")
     let candidate = shiftMember(id: "candidate", displayName: "Luis")
     let helper = shiftMember(id: "helper", displayName: "Marta")

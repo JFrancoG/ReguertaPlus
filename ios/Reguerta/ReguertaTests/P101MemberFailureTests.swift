@@ -5,8 +5,7 @@ import Testing
 
 @MainActor
 struct P101MemberFailureTests {
-    @Test
-    func confirmedMemberMutationUpdatesSessionWithoutDirectoryReadBack() async {
+    @Test func confirmedMemberMutationUpdatesSessionWithoutDirectoryReadBack() async {
         let admin = makeAdmin()
         let target = makeMember()
         let repository = RejectingMemberRepository(members: [admin, target])
@@ -25,8 +24,7 @@ struct P101MemberFailureTests {
         #expect(viewModel.isTogglingMember == false)
     }
 
-    @Test
-    func staleMemberMutationFromPreviousSessionPublishesNothing() async {
+    @Test func staleMemberMutationFromPreviousSessionPublishesNothing() async {
         let oldAdmin = makeAdmin()
         let target = makeMember()
         let upserter = SuspendedMemberUpserter()
@@ -54,8 +52,7 @@ struct P101MemberFailureTests {
         #expect(viewModel.feedbackCenter.messageKey == nil)
     }
 
-    @Test
-    func revokedAdminReadCannotPublishFullMembersForSameIdentity() async {
+    @Test func revokedAdminReadCannotPublishFullMembersForSameIdentity() async {
         let admin = makeAdmin()
         let target = makeMember()
         let revokedAdmin = admin.replacingForTest(roles: [.member])
@@ -81,8 +78,7 @@ struct P101MemberFailureTests {
         #expect(viewModel.canManageMembers == false)
     }
 
-    @Test
-    func confirmedMemberMutationPublishesAfterTaskCancellation() async {
+    @Test func confirmedMemberMutationPublishesAfterTaskCancellation() async {
         let admin = makeAdmin()
         let target = makeMember()
         let upserter = SuspendedMemberUpserter()
@@ -103,8 +99,7 @@ struct P101MemberFailureTests {
         #expect(viewModel.isTogglingMember == false)
     }
 
-    @Test
-    func confirmedMemberSavePreservesNewerEditorRevision() async {
+    @Test func confirmedMemberSavePreservesNewerEditorRevision() async {
         let admin = makeAdmin()
         let target = makeMember()
         let upserter = SuspendedMemberUpserter()
@@ -133,8 +128,7 @@ struct P101MemberFailureTests {
         #expect(viewModel.isEditorOpen)
     }
 
-    @Test
-    func staleMutationCannotClearNewMutationProgress() async {
+    @Test func staleMutationCannotClearNewMutationProgress() async {
         let oldAdmin = makeAdmin(id: "old_admin")
         let target = makeMember()
         let upserter = MultiSuspendedMemberUpserter()
@@ -164,8 +158,7 @@ struct P101MemberFailureTests {
         #expect(viewModel.isTogglingMember == false)
     }
 
-    @Test
-    func selfRevocationImmediatelyRemovesPrivateMemberData() async {
+    @Test func selfRevocationImmediatelyRemovesPrivateMemberData() async {
         let admin = makeAdmin()
         let target = makeMember()
         let viewModel = makeViewModel(
@@ -184,8 +177,7 @@ struct P101MemberFailureTests {
         })
     }
 
-    @Test
-    func selfDeactivationImmediatelyRemovesPrivateMemberData() async {
+    @Test func selfDeactivationImmediatelyRemovesPrivateMemberData() async {
         let admin = makeAdmin()
         let otherAdmin = makeAdmin(id: "other_admin")
         let target = makeMember()
@@ -206,8 +198,7 @@ struct P101MemberFailureTests {
         })
     }
 
-    @Test
-    func refreshContainingSelfRevocationImmediatelyRemovesPrivateMemberData() async {
+    @Test func refreshContainingSelfRevocationImmediatelyRemovesPrivateMemberData() async {
         let admin = makeAdmin()
         let target = makeMember()
         let revokedAdmin = admin.replacingForTest(roles: [.member])
@@ -232,8 +223,7 @@ struct P101MemberFailureTests {
         #expect(viewModel.isLoadingMembers == false)
     }
 
-    @Test
-    func staleConfirmationCannotClearNewSessionSelection() async {
+    @Test func staleConfirmationCannotClearNewSessionSelection() async {
         let oldAdmin = makeAdmin(id: "old_admin")
         let oldTarget = makeMember(id: "old_target")
         let upserter = MultiSuspendedMemberUpserter()

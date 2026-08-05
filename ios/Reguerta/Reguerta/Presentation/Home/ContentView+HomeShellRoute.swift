@@ -127,8 +127,7 @@ extension AccessRootRoutingView {
         }
     }
 
-    @ViewBuilder
-    func homeCheckoutDialog(_ alert: MyOrderCheckoutAlert) -> some View {
+    @ViewBuilder func homeCheckoutDialog(_ alert: MyOrderCheckoutAlert) -> some View {
         switch alert {
         case .missingCommitments(let names):
             homeCheckoutErrorDialog(

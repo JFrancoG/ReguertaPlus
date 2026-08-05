@@ -7,16 +7,14 @@ import Testing
 
 @MainActor
 struct ReguertaTests {
-    @Test
-    func appAppearanceMapsSystemLightAndDarkModes() {
+    @Test func appAppearanceMapsSystemLightAndDarkModes() {
         #expect(AppAppearance(rawValue: "unexpected") == nil)
         #expect(AppAppearance.system.preferredColorScheme == nil)
         #expect(AppAppearance.light.preferredColorScheme == .light)
         #expect(AppAppearance.dark.preferredColorScheme == .dark)
     }
 
-    @Test
-    func unauthorizedEmailStaysRestricted() async throws {
+    @Test func unauthorizedEmailStaysRestricted() async throws {
         let repository = InMemoryMemberRepository()
         let useCase = makeInMemoryResolveUseCase(repository: repository)
 
@@ -27,8 +25,7 @@ struct ReguertaTests {
         #expect(result == .unauthorized(.userNotFoundInAuthorizedUsers))
     }
 
-    @Test
-    func existingInactiveMemberDoesNotUseMissingUsersReason() async throws {
+    @Test func existingInactiveMemberDoesNotUseMissingUsersReason() async throws {
         let repository = InMemoryMemberRepository()
         let useCase = makeInMemoryResolveUseCase(repository: repository)
 
@@ -51,8 +48,7 @@ struct ReguertaTests {
         #expect(result == .unauthorized(.userAccessRestricted))
     }
 
-    @Test
-    func firstAuthorizedLoginLinksAuthUid() async throws {
+    @Test func firstAuthorizedLoginLinksAuthUid() async throws {
         let repository = InMemoryMemberRepository()
         let useCase = makeInMemoryResolveUseCase(repository: repository)
 
@@ -68,8 +64,7 @@ struct ReguertaTests {
         #expect(member.authUid == "uid_admin_1")
     }
 
-    @Test
-    func preventRemovingLastActiveAdmin() async {
+    @Test func preventRemovingLastActiveAdmin() async {
         let upsertUseCase = UpsertMemberByAdminUseCase(
             repository: RejectingMemberAdministrationRepository(error: .lastAdminRemoval)
         )
@@ -103,8 +98,7 @@ struct ReguertaTests {
         }
     }
 
-    @Test
-    func adminCanCreatePreAuthorizedMember() async throws {
+    @Test func adminCanCreatePreAuthorizedMember() async throws {
         let repository = InMemoryMemberRepository()
         let resolveUseCase = makeInMemoryResolveUseCase(repository: repository)
         let upsertUseCase = UpsertMemberByAdminUseCase(
@@ -131,8 +125,7 @@ struct ReguertaTests {
         #expect(await repository.findByEmailNormalized("nuevo@reguerta.app") != nil)
     }
 
-    @Test
-    func authUidMatchWinsOverEmailDuplicate() async throws {
+    @Test func authUidMatchWinsOverEmailDuplicate() async throws {
         let repository = InMemoryMemberRepository()
         let useCase = makeInMemoryResolveUseCase(repository: repository)
 
@@ -164,8 +157,7 @@ struct ReguertaTests {
         #expect(member.roles.contains(.admin))
     }
 
-    @Test
-    func authShellRoutesSplashToWelcomeWhenNoSession() {
+    @Test func authShellRoutesSplashToWelcomeWhenNoSession() {
         let reduced = reduceAuthShell(
             state: AuthShellState(),
             action: .splashCompleted(isAuthenticated: false)
@@ -175,8 +167,7 @@ struct ReguertaTests {
         #expect(reduced.canGoBack == false)
     }
 
-    @Test
-    func authShellDeterministicBackFlowForLoginRegister() {
+    @Test func authShellDeterministicBackFlowForLoginRegister() {
         let welcome = AuthShellState(backStack: [.welcome])
         let login = reduceAuthShell(state: welcome, action: .continueFromWelcome)
         let register = reduceAuthShell(state: login, action: .openRegisterFromLogin)
@@ -191,8 +182,7 @@ struct ReguertaTests {
 }
 
 extension ReguertaTests {
-    @Test
-    func authShellCanOpenRegisterDirectlyFromWelcome() {
+    @Test func authShellCanOpenRegisterDirectlyFromWelcome() {
         let welcome = AuthShellState(backStack: [.welcome])
         let register = reduceAuthShell(state: welcome, action: .openRegisterFromWelcome)
         let backToWelcome = reduceAuthShell(state: register, action: .back)
@@ -201,8 +191,7 @@ extension ReguertaTests {
         #expect(backToWelcome.currentRoute == .welcome)
     }
 
-    @Test
-    func authShellResetsToHomeOnAuthenticatedSession() {
+    @Test func authShellResetsToHomeOnAuthenticatedSession() {
         let state = AuthShellState(backStack: [.welcome, .login, .recoverPassword])
         let reduced = reduceAuthShell(state: state, action: .sessionAuthenticated)
 
@@ -210,8 +199,7 @@ extension ReguertaTests {
         #expect(reduced.canGoBack == false)
     }
 
-    @Test
-    func authShellResetsToWelcomeOnSignOut() {
+    @Test func authShellResetsToWelcomeOnSignOut() {
         let state = AuthShellState(backStack: [.home])
         let reduced = reduceAuthShell(state: state, action: .signedOut)
 
@@ -219,8 +207,7 @@ extension ReguertaTests {
         #expect(reduced.canGoBack == false)
     }
 
-    @Test
-    func inMemoryNewsRepositoryReturnsNewestFirst() async {
+    @Test func inMemoryNewsRepositoryReturnsNewestFirst() async {
         let repository = InMemoryNewsRepository()
 
         _ = await repository.upsert(
@@ -240,8 +227,7 @@ extension ReguertaTests {
         #expect(news.first?.id == "news_002")
     }
 
-    @Test
-    func inMemoryNewsRepositoryDeletesExistingNews() async {
+    @Test func inMemoryNewsRepositoryDeletesExistingNews() async {
         let repository = InMemoryNewsRepository()
 
         let deleted = await repository.delete(newsId: "news_welcome_001")
@@ -251,8 +237,7 @@ extension ReguertaTests {
         #expect(remaining.contains(where: { $0.id == "news_welcome_001" }) == false)
     }
 
-    @Test
-    func inMemoryNotificationRepositoryReturnsNewestFirst() async {
+    @Test func inMemoryNotificationRepositoryReturnsNewestFirst() async {
         let repository = InMemoryNotificationRepository()
 
         _ = await repository.send(
@@ -276,8 +261,7 @@ extension ReguertaTests {
         #expect(notifications.first?.id == "notification_002")
     }
 
-    @Test
-    func firebaseAuthErrorMappingCoversKnownCodes() {
+    @Test func firebaseAuthErrorMappingCoversKnownCodes() {
         let invalidEmail = NSError(domain: AuthErrorDomain, code: AuthErrorCode.invalidEmail.rawValue)
         let wrongPassword = NSError(domain: AuthErrorDomain, code: AuthErrorCode.wrongPassword.rawValue)
         let emailAlreadyInUse = NSError(domain: AuthErrorDomain, code: AuthErrorCode.emailAlreadyInUse.rawValue)
@@ -297,8 +281,7 @@ extension ReguertaTests {
         #expect(mapFirebaseAuthError(network) == .network)
     }
 
-    @Test
-    func receivedOrderStatusWriteResultMapsPermissionDenied() {
+    @Test func receivedOrderStatusWriteResultMapsPermissionDenied() {
         let error = NSError(
             domain: "FIRFirestoreErrorDomain",
             code: 7
@@ -307,15 +290,13 @@ extension ReguertaTests {
         #expect(receivedOrderStatusWriteResult(from: error) == .permissionDenied)
     }
 
-    @Test
-    func receivedOrderStatusWriteResultMapsUnknownAsFailure() {
+    @Test func receivedOrderStatusWriteResultMapsUnknownAsFailure() {
         let error = NSError(domain: "example", code: -99)
 
         #expect(receivedOrderStatusWriteResult(from: error) == .failure)
     }
 
-    @Test
-    func authErrorPresentationMappingByFlow() {
+    @Test func authErrorPresentationMappingByFlow() {
         let signIn = mapAuthFailure(.invalidCredentials, flow: .signIn)
         #expect(signIn.passwordErrorKey == AccessL10nKey.authErrorInvalidCredentials)
         #expect(signIn.emailErrorKey == nil)
@@ -327,16 +308,14 @@ extension ReguertaTests {
         #expect(passwordReset.globalMessageKey == AccessL10nKey.authErrorUnknown)
     }
 
-    @Test
-    func semanticComparatorSupportsVariableVersionSegments() {
+    @Test func semanticComparatorSupportsVariableVersionSegments() {
         #expect(SemanticVersionComparator.compare("0.3", "0.3.0") == 0)
         #expect(SemanticVersionComparator.compare("0.3.0.1", "0.3.0") == 1)
         #expect(SemanticVersionComparator.compare("0.2.9", "0.3.0") == -1)
         #expect(SemanticVersionComparator.compare("0.3-beta", "0.3.0") == nil)
     }
 
-    @Test
-    func orderReadsUseBothOwnerAliasesWithinTheRequestedWeek() {
+    @Test func orderReadsUseBothOwnerAliasesWithinTheRequestedWeek() {
         let scopes = myOrderOwnedWeekQueryScopes(
             memberId: "member_1",
             weekKey: "2026-W30"
@@ -358,8 +337,7 @@ extension ReguertaTests {
         )
     }
 
-    @Test
-    func previousOrderCandidatesKeepTheDeterministicIdAndDeduplicateDiscoveredOrders() {
+    @Test func previousOrderCandidatesKeepTheDeterministicIdAndDeduplicateDiscoveredOrders() {
         let candidateIds = myOrderCandidateOrderIds(
             deterministicOrderId: "member_1_2026-W30",
             discoveredOrderIds: [
@@ -373,8 +351,7 @@ extension ReguertaTests {
         #expect(candidateIds == ["member_1_2026-W30", "legacy_member_1_2026-W30"])
     }
 
-    @Test
-    func checkoutUsesTheSingleHistoricalOrderIdInsteadOfCreatingADuplicate() throws {
+    @Test func checkoutUsesTheSingleHistoricalOrderIdInsteadOfCreatingADuplicate() throws {
         let resolvedOrderId = try resolveMyOrderCheckoutDocumentId(
             newOrderId: "member_1_2026-W30",
             existingOrderIds: ["-O-historical-order"]
@@ -383,8 +360,7 @@ extension ReguertaTests {
         #expect(resolvedOrderId == "-O-historical-order")
     }
 
-    @Test
-    func checkoutUsesTheNewIdOnlyWhenTheOwnedWeekHasNoOrder() throws {
+    @Test func checkoutUsesTheNewIdOnlyWhenTheOwnedWeekHasNoOrder() throws {
         let resolvedOrderId = try resolveMyOrderCheckoutDocumentId(
             newOrderId: "member_1_2026-W30",
             existingOrderIds: []
@@ -393,8 +369,7 @@ extension ReguertaTests {
         #expect(resolvedOrderId == "member_1_2026-W30")
     }
 
-    @Test
-    func checkoutRejectsAnAmbiguousOwnedWeekBeforeSelectingAnOrder() {
+    @Test func checkoutRejectsAnAmbiguousOwnedWeekBeforeSelectingAnOrder() {
         #expect(throws: MyOrderCheckoutResolutionError.ambiguousExistingOrders) {
             try resolveMyOrderCheckoutDocumentId(
                 newOrderId: "member_1_2026-W30",
@@ -403,8 +378,7 @@ extension ReguertaTests {
         }
     }
 
-    @Test
-    func memberVisibleFirestorePathsUseSanitizedDirectoryAndConfig() {
+    @Test func memberVisibleFirestorePathsUseSanitizedDirectoryAndConfig() {
         let path = ReguertaFirestorePath(environment: .develop)
 
         #expect(path.collectionPath(.memberDirectory) == "develop/plus-collections/memberDirectory")

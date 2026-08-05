@@ -61,18 +61,12 @@ actor ReviewControlledNewsWriteRepository: NewsRepository {
     func upsertCount() -> Int { upsertRequests.count }
     func deleteCount() -> Int { deleteRequests.count }
 
-    func completeUpsert(
-        _ index: Int,
-        with result: Result<NewsArticle, RepositoryError>
-    ) {
+    func completeUpsert(_ index: Int, with result: Result<NewsArticle, RepositoryError>) {
         guard let continuation = upsertContinuations.removeValue(forKey: index) else { return }
         continuation.resume(with: result.mapError { $0 as any Error })
     }
 
-    func completeDelete(
-        _ index: Int,
-        with result: Result<Bool, RepositoryError>
-    ) {
+    func completeDelete(_ index: Int, with result: Result<Bool, RepositoryError>) {
         guard let continuation = deleteContinuations.removeValue(forKey: index) else { return }
         continuation.resume(with: result.mapError { $0 as any Error })
     }
@@ -125,10 +119,7 @@ actor ReviewControlledNotificationWriteRepository: NotificationRepository {
 
     func sendCount() -> Int { sendRequests.count }
 
-    func completeSend(
-        _ index: Int,
-        with result: Result<NotificationEvent, RepositoryError>
-    ) {
+    func completeSend(_ index: Int, with result: Result<NotificationEvent, RepositoryError>) {
         guard let continuation = sendContinuations.removeValue(forKey: index) else { return }
         continuation.resume(with: result.mapError { $0 as any Error })
     }

@@ -60,14 +60,12 @@ extension SessionOperationInvalidationTests {
     }
 }
 
-@MainActor
-private func populateValidPreProviderSignIn(in scenario: SessionTimeoutScenario) {
+@MainActor private func populateValidPreProviderSignIn(in scenario: SessionTimeoutScenario) {
     scenario.viewModel.emailInput = scenario.member.normalizedEmail
     scenario.viewModel.passwordInput = "secret12"
 }
 
-@MainActor
-private func assertPreProviderTermination(in scenario: SessionTimeoutScenario) {
+@MainActor private func assertPreProviderTermination(in scenario: SessionTimeoutScenario) {
     #expect(scenario.viewModel.mode == .signedOut)
     #expect(scenario.viewModel.sessionOperationState == .idle)
     #expect(scenario.viewModel.sessionOperationTask == nil)

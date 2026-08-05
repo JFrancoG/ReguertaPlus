@@ -1,10 +1,7 @@
 import Foundation
 
 extension SessionViewModel {
-    func applyLocalSessionTermination(
-        firebaseSignOutSucceeded: Bool,
-        showsExpiredDialog: Bool
-    ) {
+    func applyLocalSessionTermination(firebaseSignOutSucceeded: Bool, showsExpiredDialog: Bool) {
         let principalEmail = sessionOperationState == .idle
             ? currentPrincipalEmail
             : sessionOperationPrincipalEmail
@@ -58,8 +55,7 @@ extension SessionViewModel {
         )
     }
 
-    @discardableResult
-    func invalidateSessionOperation() -> Task<Void, Never>? {
+    @discardableResult func invalidateSessionOperation() -> Task<Void, Never>? {
         let invalidatedTask = sessionOperationTask
         invalidatedTask?.cancel()
         switch sessionOperationState {
@@ -150,8 +146,7 @@ extension SessionViewModel {
         sessionOperationState == .draining(generation: generation)
     }
 
-    @discardableResult
-    private func prepareForLocalSessionTermination() -> Bool {
+    @discardableResult private func prepareForLocalSessionTermination() -> Bool {
         let deviceSessionLease = authorizedDeviceSessionLease
         let hadOwnedSessionOperation = sessionOperationState != .idle
         authorizedDeviceSessionLease = nil
@@ -234,10 +229,7 @@ extension SessionViewModel {
         showUnauthorizedDialog = false
     }
 
-    private func startStandaloneSessionTerminationBarrier(
-        firebaseSignOutSucceeded: Bool,
-        principalEmail: String
-    ) {
+    private func startStandaloneSessionTerminationBarrier(firebaseSignOutSucceeded: Bool, principalEmail: String) {
         guard !firebaseSignOutSucceeded || sessionTerminationCleanupTask != nil else {
             return
         }
@@ -292,9 +284,7 @@ extension SessionViewModel {
         }
     }
 
-    private func appendSessionTerminationCleanup(
-        _ cleanupTask: Task<Bool, Never>?
-    ) {
+    private func appendSessionTerminationCleanup(_ cleanupTask: Task<Bool, Never>?) {
         guard let cleanupTask else { return }
         sessionTerminationCleanupGeneration &+= 1
         guard let previousCleanupTask = sessionTerminationCleanupTask else {

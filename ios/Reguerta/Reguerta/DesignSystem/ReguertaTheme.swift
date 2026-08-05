@@ -147,7 +147,9 @@ struct ReguertaTheme<Content: View>: View {
     @Environment(\.colorScheme) private var colorScheme
     private let content: () -> Content
 
-    init(@ViewBuilder content: @escaping () -> Content) {
+    init(
+        @ViewBuilder content: @escaping () -> Content
+    ) {
         self.content = content
     }
 

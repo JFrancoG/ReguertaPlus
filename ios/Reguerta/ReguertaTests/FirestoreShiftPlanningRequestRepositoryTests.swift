@@ -6,8 +6,7 @@ import Testing
 
 @MainActor
 struct FirestoreShiftPlanningRequestRepositoryTests {
-    @Test
-    func createsOnlyWhenAbsentAndAcknowledgesCompatibleExistingState() throws {
+    @Test func createsOnlyWhenAbsentAndAcknowledgesCompatibleExistingState() throws {
         let request = planningRequest()
 
         #expect(
@@ -35,8 +34,7 @@ struct FirestoreShiftPlanningRequestRepositoryTests {
         }
     }
 
-    @Test
-    func rejectsAnIncompatibleOrMalformedExistingRequest() {
+    @Test func rejectsAnIncompatibleOrMalformedExistingRequest() {
         let request = planningRequest()
         let validData = firestoreData(for: requestWithStatus(.completed, basedOn: request))
         let invalidVariants: [[String: Any]] = [
@@ -88,8 +86,7 @@ struct FirestoreShiftPlanningRequestRepositoryTests {
         }
     }
 
-    @Test
-    func usesAnOnlineCreateIfAbsentTransaction() throws {
+    @Test func usesAnOnlineCreateIfAbsentTransaction() throws {
         let sourceURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()

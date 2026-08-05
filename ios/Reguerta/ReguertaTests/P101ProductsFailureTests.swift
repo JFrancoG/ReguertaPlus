@@ -5,8 +5,7 @@ import Testing
 
 @MainActor
 struct P101ProductsFailureTests {
-    @Test
-    func productsViewModelPreservesCatalogWhenRefreshFails() async {
+    @Test func productsViewModelPreservesCatalogWhenRefreshFails() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let originalProduct = regularProduct(
             id: "tomato",
@@ -31,8 +30,7 @@ struct P101ProductsFailureTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableLoadData)
     }
 
-    @Test
-    func productsViewModelDoesNotShowFailureFeedbackForCancelledRefresh() async {
+    @Test func productsViewModelDoesNotShowFailureFeedbackForCancelledRefresh() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let originalProduct = regularProduct(
             id: "tomato",
@@ -53,8 +51,7 @@ struct P101ProductsFailureTests {
         #expect(viewModel.feedbackCenter.messageKey == nil)
     }
 
-    @Test
-    func productsViewModelCompletesConfirmedSaveWithoutReadBack() async {
+    @Test func productsViewModelCompletesConfirmedSaveWithoutReadBack() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let originalProduct = regularProduct(
             id: "tomato",
@@ -83,8 +80,7 @@ struct P101ProductsFailureTests {
         #expect(repository.readCount == 0)
     }
 
-    @Test
-    func productsViewModelReusesStableIdAfterAmbiguousCreateFailure() async {
+    @Test func productsViewModelReusesStableIdAfterAmbiguousCreateFailure() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let repository = AmbiguousCreateProductRepository()
         let viewModel = await makeProductsViewModel(
@@ -115,8 +111,7 @@ struct P101ProductsFailureTests {
         #expect(pendingIdAfterFirstAttempt?.isEmpty == false)
     }
 
-    @Test
-    func productsViewModelCompletesConfirmedArchiveWithoutReadBack() async {
+    @Test func productsViewModelCompletesConfirmedArchiveWithoutReadBack() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let product = regularProduct(id: "tomato", vendorId: currentProducer.id, name: "Tomates")
         let repository = ControlledProductRepository(items: [product], rejectsReads: true)
@@ -134,8 +129,7 @@ struct P101ProductsFailureTests {
         #expect(repository.readCount == 0)
     }
 
-    @Test
-    func productsViewModelPreservesOrderingSnapshotWhenCommitmentReadFails() async {
+    @Test func productsViewModelPreservesOrderingSnapshotWhenCommitmentReadFails() async {
         let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
         let producer = producer(id: "producer_even", parity: .even)
         let product = regularProduct(id: "visible", vendorId: producer.id, name: "Visible")
@@ -160,8 +154,7 @@ struct P101ProductsFailureTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableLoadData)
     }
 
-    @Test
-    func confirmedVacationChangeSurvivesSecondaryRefreshFailure() async {
+    @Test func confirmedVacationChangeSurvivesSecondaryRefreshFailure() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let memberRepository = ConfirmingVisibilityMemberRepository(member: currentProducer)
         let viewModel = await makeProductsViewModel(
@@ -184,8 +177,7 @@ struct P101ProductsFailureTests {
 }
 
 extension P101ProductsFailureTests {
-    @Test
-    func staleSaveFromPreviousLoginPublishesNothing() async {
+    @Test func staleSaveFromPreviousLoginPublishesNothing() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let repository = SuspendedProductRepository()
         let viewModel = await makeProductsViewModel(
@@ -225,8 +217,7 @@ extension P101ProductsFailureTests {
         #expect(viewModel.feedbackCenter.messageKey == nil)
     }
 
-    @Test
-    func sameIdentityAuthRefreshDoesNotInvalidateConfirmedSave() async {
+    @Test func sameIdentityAuthRefreshDoesNotInvalidateConfirmedSave() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let repository = SuspendedProductRepository()
         let viewModel = await makeProductsViewModel(
@@ -252,8 +243,7 @@ extension P101ProductsFailureTests {
         #expect(viewModel.isSaving == false)
     }
 
-    @Test
-    func cancelledNonCooperativeSavePreservesDraftAndPublishesNothing() async {
+    @Test func cancelledNonCooperativeSavePreservesDraftAndPublishesNothing() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let repository = SuspendedProductRepository()
         let viewModel = await makeProductsViewModel(
@@ -277,8 +267,7 @@ extension P101ProductsFailureTests {
         #expect(viewModel.feedbackCenter.messageKey == nil)
     }
 
-    @Test
-    func confirmedOldEditorSaveUpdatesCatalogWithoutClobberingNewEditor() async {
+    @Test func confirmedOldEditorSaveUpdatesCatalogWithoutClobberingNewEditor() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let firstProduct = regularProduct(id: "first", vendorId: currentProducer.id, name: "Primero")
         let secondProduct = regularProduct(id: "second", vendorId: currentProducer.id, name: "Segundo")
@@ -305,8 +294,7 @@ extension P101ProductsFailureTests {
         #expect(viewModel.feedbackCenter.messageKey == nil)
     }
 
-    @Test
-    func confirmedSavePreservesNewerDraftRevisionForSameProduct() async {
+    @Test func confirmedSavePreservesNewerDraftRevisionForSameProduct() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let product = regularProduct(id: "first", vendorId: currentProducer.id, name: "Primero")
         let repository = SuspendedProductRepository()
@@ -335,8 +323,7 @@ extension P101ProductsFailureTests {
         #expect(viewModel.feedbackCenter.messageKey == nil)
     }
 
-    @Test
-    func staleUploadCleanupDoesNotClobberNewerDraftOrBlockEditor() async {
+    @Test func staleUploadCleanupDoesNotClobberNewerDraftOrBlockEditor() async {
         let currentProducer = producer(id: "producer_even", parity: .even)
         let pipeline = SuspendedImagePipelineManager()
         let repository = ControlledProductRepository(items: [], rejectsReads: false)
@@ -377,8 +364,7 @@ extension P101ProductsFailureTests {
         #expect(viewModel.feedbackCenter.messageKey == nil)
     }
 
-    @Test
-    func newIdentityCanSaveWhileOldIdentityWriteRemainsSuspended() async {
+    @Test func newIdentityCanSaveWhileOldIdentityWriteRemainsSuspended() async {
         let oldProducer = producer(id: "producer_old", parity: .even)
         let newProducer = producer(id: "producer_new", parity: .odd)
         let repository = MultiSuspendedProductRepository()

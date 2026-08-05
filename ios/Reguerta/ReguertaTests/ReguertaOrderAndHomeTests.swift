@@ -6,8 +6,7 @@ import Testing
 
 @MainActor
 struct ReguertaOrderAndHomeTests {
-    @Test
-    func myOrderValidationDoesNotRequireBiweeklyCommitmentOnOppositeWeek() {
+    @Test func myOrderValidationDoesNotRequireBiweeklyCommitmentOnOppositeWeek() {
         let currentMember = member(
             id: "member_1",
             ecoCommitmentMode: .biweekly,
@@ -30,8 +29,7 @@ struct ReguertaOrderAndHomeTests {
         #expect(result.missingCommitmentProductNames.isEmpty)
     }
 
-    @Test
-    func myOrderValidationBlocksMissingSeasonalCommitmentProduct() {
+    @Test func myOrderValidationBlocksMissingSeasonalCommitmentProduct() {
         let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
         let producerEven = producer(id: "producer_even", parity: .even)
         let avocados = regularProduct(id: "seasonal_avocado", vendorId: producerEven.id, name: "Aguacates")
@@ -50,8 +48,7 @@ struct ReguertaOrderAndHomeTests {
         #expect(result.missingCommitmentProductNames == ["Aguacates"])
     }
 
-    @Test
-    func myOrderValidationBlocksExceededSeasonalCommitmentQuantity() {
+    @Test func myOrderValidationBlocksExceededSeasonalCommitmentQuantity() {
         let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
         let producerEven = producer(id: "producer_even", parity: .even)
         let avocados = regularProduct(id: "seasonal_avocado", vendorId: producerEven.id, name: "Aguacates")
@@ -70,8 +67,7 @@ struct ReguertaOrderAndHomeTests {
         #expect(result.exceededCommitmentProductNames == ["Aguacates"])
     }
 
-    @Test
-    func myOrderValidationFlagsIncompatibleSeasonalCommitmentStep() {
+    @Test func myOrderValidationFlagsIncompatibleSeasonalCommitmentStep() {
         let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
         let producerEven = producer(id: "producer_even", parity: .even)
         var avocados = regularProduct(id: "seasonal_avocado", vendorId: producerEven.id, name: "Aguacates")
@@ -117,8 +113,7 @@ struct ReguertaOrderAndHomeTests {
         #expect(result.incompatibleCommitmentProductNames == ["Aguacates"])
     }
 
-    @Test
-    func myOrderValidationIgnoresSeasonalCommitmentWhenProductNotOffered() {
+    @Test func myOrderValidationIgnoresSeasonalCommitmentWhenProductNotOffered() {
         let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
 
         let result = validateMyOrderCheckout(
@@ -135,8 +130,7 @@ struct ReguertaOrderAndHomeTests {
         #expect(result.missingCommitmentProductNames.isEmpty)
     }
 
-    @Test
-    func myOrderValidationBlocksMissingSeasonalCommitmentUsingSeasonKeyFallback() {
+    @Test func myOrderValidationBlocksMissingSeasonalCommitmentUsingSeasonKeyFallback() {
         let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
         let avocados = regularProduct(
             id: "product_common_avocado",
@@ -164,8 +158,7 @@ struct ReguertaOrderAndHomeTests {
         #expect(result.missingCommitmentProductNames == ["Aguacates"])
     }
 
-    @Test
-    func myOrderValidationBlocksMissingSeasonalCommitmentUsingSeasonCodeFallback() {
+    @Test func myOrderValidationBlocksMissingSeasonalCommitmentUsingSeasonCodeFallback() {
         let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
         let avocados = regularProduct(
             id: "product_common_avocado",
@@ -193,8 +186,7 @@ struct ReguertaOrderAndHomeTests {
         #expect(result.missingCommitmentProductNames == ["Aguacates"])
     }
 
-    @Test
-    func myOrderValidationBlocksExceededSeasonalCommitmentUsingSeasonCodeFallback() {
+    @Test func myOrderValidationBlocksExceededSeasonalCommitmentUsingSeasonCodeFallback() {
         let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
         let avocados = regularProduct(
             id: "product_common_avocado",
@@ -222,8 +214,7 @@ struct ReguertaOrderAndHomeTests {
         #expect(result.exceededCommitmentProductNames == ["Aguacates"])
     }
 
-    @Test
-    func myOrderValidationFlagsEcoBasketPriceMismatch() {
+    @Test func myOrderValidationFlagsEcoBasketPriceMismatch() {
         let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
         let producerEven = producer(id: "producer_even", parity: .even)
         let producerOdd = producer(id: "producer_odd", parity: .odd)
@@ -241,8 +232,7 @@ struct ReguertaOrderAndHomeTests {
         #expect(result.hasEcoBasketPriceMismatch == true)
     }
 
-    @Test
-    func seasonalCommitmentLookupKeysIncludeMemberIdAuthUIDAndEmail() {
+    @Test func seasonalCommitmentLookupKeysIncludeMemberIdAuthUIDAndEmail() {
         let member = Member(
             id: "member_1",
             displayName: "Member",
@@ -256,8 +246,7 @@ struct ReguertaOrderAndHomeTests {
         #expect(member.seasonalCommitmentLookupKeys == ["member_1", "uid_member_1", "member_1@reguerta.app"])
     }
 
-    @Test
-    func seasonalCommitmentLookupKeysRemoveDuplicatesAndBlanks() {
+    @Test func seasonalCommitmentLookupKeysRemoveDuplicatesAndBlanks() {
         let member = Member(
             id: "member_1",
             displayName: "Member",

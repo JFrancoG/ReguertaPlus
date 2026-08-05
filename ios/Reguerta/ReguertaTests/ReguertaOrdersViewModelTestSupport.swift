@@ -41,9 +41,7 @@ func makeReceivedOrdersHistoryViewModel(
 }
 
 @MainActor
-func makeMyOrdersHistoryViewModel(
-    repository: InMemoryOrdersRepository? = nil
-) -> MyOrdersHistoryRouteViewModel {
+func makeMyOrdersHistoryViewModel(repository: InMemoryOrdersRepository? = nil) -> MyOrdersHistoryRouteViewModel {
     MyOrdersHistoryRouteViewModel(
         sessionViewModel: SessionViewModel(dependencies: .preview()),
         ordersRepository: repository ?? InMemoryOrdersRepository()
@@ -73,22 +71,14 @@ func myOrderContext(
     )
 }
 
-@MainActor
-func myOrdersHistoryContext(
-    nowMillis: Int64,
-    currentMember: Member? = nil
-) -> MyOrdersHistoryRouteContext {
+@MainActor func myOrdersHistoryContext(nowMillis: Int64, currentMember: Member? = nil) -> MyOrdersHistoryRouteContext {
     MyOrdersHistoryRouteContext(
         currentMember: currentMember ?? member(id: "member_1", ecoCommitmentMode: .weekly),
         nowMillis: nowMillis
     )
 }
 
-@MainActor
-func receivedOrdersContext(
-    currentMember: Member,
-    nowMillis: Int64
-) -> ReceivedOrdersRouteContext {
+@MainActor func receivedOrdersContext(currentMember: Member, nowMillis: Int64) -> ReceivedOrdersRouteContext {
     ReceivedOrdersRouteContext(
         currentMember: currentMember,
         shifts: [],
@@ -99,18 +89,14 @@ func receivedOrdersContext(
 }
 
 @MainActor
-func receivedOrdersHistoryContext(
-    nowMillis: Int64,
-    currentMember: Member? = nil
-) -> ReceivedOrdersHistoryRouteContext {
+func receivedOrdersHistoryContext(nowMillis: Int64, currentMember: Member? = nil) -> ReceivedOrdersHistoryRouteContext {
     ReceivedOrdersHistoryRouteContext(
         currentMember: currentMember ?? producer(id: "producer_even", parity: .even),
         nowMillis: nowMillis
     )
 }
 
-@MainActor
-func previousOrderSnapshot(weekKey: String) -> MyOrderPreviousOrderSnapshot {
+@MainActor func previousOrderSnapshot(weekKey: String) -> MyOrderPreviousOrderSnapshot {
     MyOrderPreviousOrderSnapshot(
         weekKey: weekKey,
         groups: [
@@ -134,8 +120,7 @@ func previousOrderSnapshot(weekKey: String) -> MyOrderPreviousOrderSnapshot {
     )
 }
 
-@MainActor
-func finiteStockProduct(_ product: Product, stock: Double) -> Product {
+@MainActor func finiteStockProduct(_ product: Product, stock: Double) -> Product {
     Product(
         id: product.id,
         vendorId: product.vendorId,
@@ -165,8 +150,7 @@ func finiteStockProduct(_ product: Product, stock: Double) -> Product {
     )
 }
 
-@MainActor
-func receivedOrdersSnapshot(status: ProducerOrderStatus) -> ReceivedOrdersSnapshot {
+@MainActor func receivedOrdersSnapshot(status: ProducerOrderStatus) -> ReceivedOrdersSnapshot {
     ReceivedOrdersSnapshot(
         byProductRows: [
             ReceivedOrdersProductRow(

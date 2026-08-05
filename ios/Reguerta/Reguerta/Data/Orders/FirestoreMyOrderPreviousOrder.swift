@@ -129,9 +129,7 @@ func fetchOrderSummarySnapshot(
     return nil
 }
 
-func resolvePreviousOrderReadTargets(
-    firestorePath: ReguertaFirestorePath
-) -> [MyOrderCheckoutWriteTarget] {
+func resolvePreviousOrderReadTargets(firestorePath: ReguertaFirestorePath) -> [MyOrderCheckoutWriteTarget] {
     [
         (
             orders: firestorePath.collectionPath(.orders),
@@ -218,10 +216,7 @@ private func fetchPreviousOrderLineDocuments(
     )
 }
 
-nonisolated func myOrderCandidateOrderIds(
-    deterministicOrderId: String,
-    discoveredOrderIds: [String]
-) -> [String] {
+nonisolated func myOrderCandidateOrderIds(deterministicOrderId: String, discoveredOrderIds: [String]) -> [String] {
     normalizedUniqueMyOrderIds([deterministicOrderId] + discoveredOrderIds)
 }
 
@@ -296,10 +291,7 @@ func myOrderProducerStatusesByVendor(from data: [String: Any]) -> [String: Produ
     }
 }
 
-func myOrderPackagingLine(
-    from data: [String: Any],
-    locale: Locale = reguertaPresentationLocale()
-) -> String {
+func myOrderPackagingLine(from data: [String: Any], locale: Locale = reguertaPresentationLocale()) -> String {
     let containerName = ((data["packContainerName"] as? String)?
         .trimmingCharacters(in: .whitespacesAndNewlines))
         .flatMap { $0.isEmpty ? nil : $0 }

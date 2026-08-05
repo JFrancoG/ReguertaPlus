@@ -164,8 +164,7 @@ struct ReceivedOrdersHistoryRouteView: View {
         }
     }
 
-    @ViewBuilder
-    private func infoCard(title: String, body: String) -> some View {
+    @ViewBuilder private func infoCard(title: String, body: String) -> some View {
         reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 Text(title)

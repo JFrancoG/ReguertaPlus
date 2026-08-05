@@ -4,8 +4,7 @@ import Testing
 
 @MainActor
 struct StartupVersionPolicyValidationTests {
-    @Test
-    func startupGateRejectsMalformedPolicy() {
+    @Test func startupGateRejectsMalformedPolicy() {
         let policy = StartupVersionPolicy(
             currentVersion: "invalid",
             minimumVersion: "0.3.0",
@@ -21,8 +20,7 @@ struct StartupVersionPolicyValidationTests {
         }
     }
 
-    @Test
-    func semanticVersionComparatorRejectsOverflowingComponents() {
+    @Test func semanticVersionComparatorRejectsOverflowingComponents() {
         let overflowingComponent = String(repeating: "9", count: 100)
 
         #expect(SemanticVersionComparator.compare("1.\(overflowingComponent).0", "1.0.0") == nil)

@@ -4,8 +4,7 @@ import Testing
 @testable import Reguerta
 
 struct FoundationModelsBylawsSummaryGeneratorTests {
-    @Test("Las instrucciones españolas fijan solo el idioma español")
-    func spanishInstructionsSelectSpanish() {
+    @Test("Las instrucciones españolas fijan solo el idioma español") func spanishInstructionsSelectSpanish() {
         let instructions = FoundationModelsBylawsSummaryGenerator.instructions(for: .spanish)
 
         #expect(instructions.contains("The person's locale is es_ES."))
@@ -13,8 +12,7 @@ struct FoundationModelsBylawsSummaryGeneratorTests {
         #expect(!instructions.contains("You MUST respond in English"))
     }
 
-    @Test("Las instrucciones inglesas fijan solo el idioma inglés")
-    func englishInstructionsSelectEnglish() {
+    @Test("Las instrucciones inglesas fijan solo el idioma inglés") func englishInstructionsSelectEnglish() {
         let instructions = FoundationModelsBylawsSummaryGenerator.instructions(for: .english)
 
         #expect(instructions.contains("The person's locale is en_US."))
@@ -46,8 +44,7 @@ struct FoundationModelsBylawsSummaryGeneratorTests {
         )
     }
 
-    @Test("Un fallo de decodificacion sigue siendo fallo de generacion")
-    func decodingFailureMapsToGenerationFailed() {
+    @Test("Un fallo de decodificacion sigue siendo fallo de generacion") func decodingFailureMapsToGenerationFailed() {
         let error = LanguageModelSession.GenerationError.decodingFailure(
             .init(debugDescription: "Test decoding failure")
         )

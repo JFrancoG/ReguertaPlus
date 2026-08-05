@@ -140,11 +140,7 @@ func orderHistoryWeekOption(
     return orderHistoryWeekOption(for: start, calendar: calendar, locale: locale)
 }
 
-private func orderHistoryWeekOption(
-    for weekStart: Date,
-    calendar: Calendar,
-    locale: Locale
-) -> OrderHistoryWeekOption {
+private func orderHistoryWeekOption(for weekStart: Date, calendar: Calendar, locale: Locale) -> OrderHistoryWeekOption {
     let weekEnd = calendar.date(byAdding: .day, value: 6, to: weekStart) ?? weekStart
     let weekNumber = calendar.component(.weekOfYear, from: weekStart)
     let weekYear = calendar.component(.yearForWeekOfYear, from: weekStart)

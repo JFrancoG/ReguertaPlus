@@ -314,8 +314,7 @@ private func makeViewModel(
     )
 }
 
-@MainActor
-private func authenticatedMember() -> Member {
+@MainActor private func authenticatedMember() -> Member {
     Member(
         id: "member_1",
         displayName: "Member",

@@ -233,8 +233,7 @@ extension SessionOperationInvalidationTests {
         #expect(scenario.provider.signInRequestCount == 0)
     }
 
-    @Test("Un cierre repetido no oculta un cleanup que ya falló")
-    func repeatedSignOutPreservesFailedCleanup() async {
+    @Test("Un cierre repetido no oculta un cleanup que ya falló") func repeatedSignOutPreservesFailedCleanup() async {
         let freshnessRepository = ControlledSessionFreshnessRepository(
             clearResults: [false, true]
         )
@@ -265,10 +264,7 @@ extension SessionOperationInvalidationTests {
     }
 }
 
-@MainActor
-private func expireRefresh(
-    in scenario: SessionTimeoutScenario
-) async throws -> Task<Void, Never>? {
+@MainActor private func expireRefresh(in scenario: SessionTimeoutScenario) async throws -> Task<Void, Never>? {
     scenario.viewModel.refreshSession(trigger: .startup)
     guard await scenario.provider.waitForRefreshRequestCount(1) else { return nil }
     try await scenario.sleeper.waitForRequestCount(1)
@@ -282,8 +278,7 @@ private func expireRefresh(
     return operation
 }
 
-@MainActor
-private func populateValidSignIn(in scenario: SessionTimeoutScenario) {
+@MainActor private func populateValidSignIn(in scenario: SessionTimeoutScenario) {
     scenario.viewModel.emailInput = scenario.member.normalizedEmail
     scenario.viewModel.passwordInput = "secret12"
 }

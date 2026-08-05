@@ -5,8 +5,7 @@ import Testing
 
 @MainActor
 struct P101SharedProfileFailureTests {
-    @Test
-    func failedRefreshPreservesProfilesAndDraftAndReportsLoadError() async {
+    @Test func failedRefreshPreservesProfilesAndDraftAndReportsLoadError() async {
         let member = makeMember()
         let existing = makeProfile(familyNames: "Familia existente", about: "Último estado válido")
         let pendingDraft = SharedProfileDraft(familyNames: "Edición pendiente", about: "No debe perderse")
@@ -23,8 +22,7 @@ struct P101SharedProfileFailureTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableLoadData)
     }
 
-    @Test
-    func confirmedSaveUpdatesLocalProfileWithoutReadBack() async {
+    @Test func confirmedSaveUpdatesLocalProfileWithoutReadBack() async {
         let member = makeMember()
         let repository = ControlledProfileRepository(items: [], rejectsReads: true)
         let viewModel = makeViewModel(member: member, repository: repository, nowMillis: 123)
@@ -40,8 +38,7 @@ struct P101SharedProfileFailureTests {
         #expect(viewModel.isSaving == false)
     }
 
-    @Test
-    func confirmedSavePreservesNewerDraftRevision() async {
+    @Test func confirmedSavePreservesNewerDraftRevision() async {
         let repository = SuspendedProfileRepository()
         let viewModel = makeViewModel(member: makeMember(), repository: repository)
         viewModel.updateDraft(SharedProfileDraft(familyNames: "Versión enviada", about: "Primera"))
@@ -58,8 +55,7 @@ struct P101SharedProfileFailureTests {
         #expect(viewModel.isSaving == false)
     }
 
-    @Test
-    func confirmedSavePublishesAfterTaskCancellation() async {
+    @Test func confirmedSavePublishesAfterTaskCancellation() async {
         let repository = SuspendedProfileRepository()
         let viewModel = makeViewModel(member: makeMember(), repository: repository)
         viewModel.updateDraft(SharedProfileDraft(familyNames: "Familia confirmada", about: "Guardado"))
@@ -74,8 +70,7 @@ struct P101SharedProfileFailureTests {
         #expect(viewModel.isSaving == false)
     }
 
-    @Test
-    func staleSaveFromPreviousLoginPublishesNothing() async {
+    @Test func staleSaveFromPreviousLoginPublishesNothing() async {
         let member = makeMember()
         let repository = SuspendedProfileRepository()
         let viewModel = makeViewModel(member: member, repository: repository)

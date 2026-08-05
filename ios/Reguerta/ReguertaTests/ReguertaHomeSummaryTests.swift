@@ -11,8 +11,7 @@ private let spanishHomeLocalization = HomeWeeklySummaryLocalization(
 
 @MainActor
 struct ReguertaHomeSummaryTests {
-    @Test
-    func homeWeeklySummaryUsesCurrentWeekBeforeDelivery() {
+    @Test func homeWeeklySummaryUsesCurrentWeekBeforeDelivery() {
         let display = resolveHomeWeeklySummaryDisplay(
             nowMillis: testMillis(year: 2026, month: 5, day: 6),
             defaultDeliveryDayOfWeek: .friday,
@@ -32,8 +31,7 @@ struct ReguertaHomeSummaryTests {
         #expect(display.helperName == "Javier")
     }
 
-    @Test
-    func homeWeeklySummaryKeepsScheduledProducerWhileVacationModeIsEnabled() {
+    @Test func homeWeeklySummaryKeepsScheduledProducerWhileVacationModeIsEnabled() {
         let vacationMembers = homeSummaryMembers.map { member in
             guard member.id == "producer_2" else { return member }
             return Member(
@@ -64,8 +62,7 @@ struct ReguertaHomeSummaryTests {
         #expect(display.producerName == "Huerta Sur")
     }
 
-    @Test
-    func homeWeeklySummaryMovesToNextWeekAfterDelivery() {
+    @Test func homeWeeklySummaryMovesToNextWeekAfterDelivery() {
         let display = resolveHomeWeeklySummaryDisplay(
             nowMillis: testMillis(year: 2026, month: 5, day: 9),
             defaultDeliveryDayOfWeek: .friday,
@@ -86,8 +83,7 @@ struct ReguertaHomeSummaryTests {
         #expect(display.myOrderSubtitleKey == AccessL10nKey.homeDashboardMyOrderSubtitleEdit)
     }
 
-    @Test
-    func homeWeeklySummaryAfterWednesdayDeliveryUsesNextDeliveryCycleAndCurrentMarket() {
+    @Test func homeWeeklySummaryAfterWednesdayDeliveryUsesNextDeliveryCycleAndCurrentMarket() {
         let display = resolveHomeWeeklySummaryDisplay(
             nowMillis: testMillis(year: 2026, month: 5, day: 14),
             defaultDeliveryDayOfWeek: .friday,
@@ -126,8 +122,7 @@ struct ReguertaHomeSummaryTests {
         #expect(display.marketResponsibleNames == ["Valle", "Angeles", "Sandra"])
     }
 
-    @Test
-    func homeWeeklySummaryMarketMovesToNextShiftTheDayAfterMarket() {
+    @Test func homeWeeklySummaryMarketMovesToNextShiftTheDayAfterMarket() {
         let display = resolveHomeWeeklySummaryDisplay(
             nowMillis: testMillis(year: 2026, month: 5, day: 17),
             defaultDeliveryDayOfWeek: .friday,
@@ -159,8 +154,7 @@ struct ReguertaHomeSummaryTests {
         #expect(display.marketResponsibleNames == ["Angeles", "Sandra", "Valle"])
     }
 
-    @Test
-    func homeWeeklySummaryUsesWednesdayWhenNoDeliveryCalendarOverrideEvenIfShiftIsLater() {
+    @Test func homeWeeklySummaryUsesWednesdayWhenNoDeliveryCalendarOverrideEvenIfShiftIsLater() {
         let display = resolveHomeWeeklySummaryDisplay(
             nowMillis: testMillis(year: 2026, month: 7, day: 7),
             defaultDeliveryDayOfWeek: .wednesday,
@@ -176,8 +170,7 @@ struct ReguertaHomeSummaryTests {
         #expect(display.helperName == "Javier")
     }
 
-    @Test
-    func homeWeeklySummaryUsesDeliveryCalendarOverrideWhenPresent() {
+    @Test func homeWeeklySummaryUsesDeliveryCalendarOverrideWhenPresent() {
         let override = DeliveryCalendarOverride(
             weekKey: "2026-W28",
             deliveryDateMillis: testMillis(year: 2026, month: 7, day: 9),
@@ -202,8 +195,7 @@ struct ReguertaHomeSummaryTests {
         #expect(display.helperName == "Javier")
     }
 
-    @Test
-    func homeWeeklySummaryUsesEnglishLocaleAndSkipsSummerMarkets() {
+    @Test func homeWeeklySummaryUsesEnglishLocaleAndSkipsSummerMarkets() {
         let nowMillis = testMillis(year: 2026, month: 7, day: 11)
         let display = resolveHomeWeeklySummaryDisplay(
             nowMillis: nowMillis,
@@ -228,8 +220,7 @@ struct ReguertaHomeSummaryTests {
         #expect(display.marketResponsibleNames == ["Pending"])
     }
 
-    @Test
-    func homeOrderStateMappingUsesConfirmedBeforeDraft() {
+    @Test func homeOrderStateMappingUsesConfirmedBeforeDraft() {
         let suiteName = "home-order-state-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer {
@@ -245,8 +236,7 @@ struct ReguertaHomeSummaryTests {
         #expect(resolveHomeOrderState(userDefaults: defaults, memberId: "member_1", weekKey: "2026-W19") == .completed)
     }
 
-    @Test
-    func homeDisplayedOrderStateUsesConsultationBeforeDelivery() {
+    @Test func homeDisplayedOrderStateUsesConsultationBeforeDelivery() {
         #expect(resolveHomeDisplayedOrderState(isConsultaPhase: true, orderState: .notStarted) == .consultation)
         #expect(resolveHomeDisplayedOrderState(isConsultaPhase: true, orderState: .unconfirmed) == .consultation)
         #expect(resolveHomeDisplayedOrderState(isConsultaPhase: false, orderState: .notStarted) == .notStarted)

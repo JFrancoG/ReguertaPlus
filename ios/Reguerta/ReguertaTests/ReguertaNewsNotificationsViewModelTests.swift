@@ -5,8 +5,7 @@ import Testing
 
 @MainActor
 struct ReguertaNewsNotificationsViewModelTests {
-    @Test
-    func newsViewModelLoadsNewsByPermissionAndComputesLatestActiveNews() async {
+    @Test func newsViewModelLoadsNewsByPermissionAndComputesLatestActiveNews() async {
         let admin = newsAdminMember()
         let regular = newsRegularMember()
         let articles = [
@@ -35,8 +34,7 @@ struct ReguertaNewsNotificationsViewModelTests {
         #expect(regularViewModel.newsFeed.map(\.id) == ["active_4", "active_3", "active_2", "active_1"])
     }
 
-    @Test
-    func newsListPresentationCarriesMetadataArchivedStateAndImagePlacement() {
+    @Test func newsListPresentationCarriesMetadataArchivedStateAndImagePlacement() {
         let article = newsArticle(
             id: "archived",
             title: "Archived",
@@ -64,8 +62,7 @@ struct ReguertaNewsNotificationsViewModelTests {
         #expect(item.cardAccessibilityIdentifier == "news.list.articleCard.archived")
     }
 
-    @Test
-    func newsNotificationsViewModelResetsStateWhenSessionLeavesAuthorizedMode() {
+    @Test func newsNotificationsViewModelResetsStateWhenSessionLeavesAuthorizedMode() {
         let admin = newsAdminMember()
         let viewModel = makeNewsNotificationsViewModel(currentMember: admin, members: [admin])
         viewModel.newsFeed = [newsArticle(id: "news")]
@@ -92,8 +89,7 @@ struct ReguertaNewsNotificationsViewModelTests {
         #expect(viewModel.isSendingNotification == false)
     }
 
-    @Test
-    func newsViewModelInitializesEditsNormalizesDraftAndClearsEditor() async {
+    @Test func newsViewModelInitializesEditsNormalizesDraftAndClearsEditor() async {
         let admin = newsAdminMember()
         let article = newsArticle(id: "news_1", title: "Title", body: "Body", urlImage: "https://cdn.test/news.jpg")
         let viewModel = makeNewsNotificationsViewModel(
@@ -119,8 +115,7 @@ struct ReguertaNewsNotificationsViewModelTests {
         #expect(viewModel.newsDraft == NewsDraft())
     }
 
-    @Test
-    func newsViewModelBlocksInvalidSaveInput() async {
+    @Test func newsViewModelBlocksInvalidSaveInput() async {
         let admin = newsAdminMember()
         let viewModel = makeNewsNotificationsViewModel(currentMember: admin, members: [admin])
 
@@ -136,8 +131,7 @@ struct ReguertaNewsNotificationsViewModelTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackNewsTitleBodyRequired)
     }
 
-    @Test
-    func newsViewModelDeletesNewsAndClearsEditorWhenEditingDeletedArticle() async {
+    @Test func newsViewModelDeletesNewsAndClearsEditorWhenEditingDeletedArticle() async {
         let admin = newsAdminMember()
         let article = newsArticle(id: "delete_me")
         let repository = InMemoryNewsRepository(items: [article])
@@ -159,8 +153,7 @@ struct ReguertaNewsNotificationsViewModelTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackNewsDeleted)
     }
 
-    @Test
-    func newsViewModelUploadsImageAndShowsFeedbackOnFailure() async {
+    @Test func newsViewModelUploadsImageAndShowsFeedbackOnFailure() async {
         let admin = newsAdminMember()
         let successViewModel = makeNewsNotificationsViewModel(
             currentMember: admin,
@@ -183,8 +176,7 @@ struct ReguertaNewsNotificationsViewModelTests {
         #expect(failureViewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
     }
 
-    @Test
-    func notificationsViewModelLoadsNotificationsVisibleToCurrentAudience() async {
+    @Test func notificationsViewModelLoadsNotificationsVisibleToCurrentAudience() async {
         let regular = newsRegularMember(id: "member_1")
         let repository = InMemoryNotificationRepository(
             items: [
@@ -206,8 +198,7 @@ struct ReguertaNewsNotificationsViewModelTests {
         #expect(viewModel.notificationsFeed.map(\.id) == ["user", "members", "all"])
     }
 
-    @Test
-    func notificationsViewModelCombinesVisibleNotificationsWithReadState() async {
+    @Test func notificationsViewModelCombinesVisibleNotificationsWithReadState() async {
         let regular = newsRegularMember(id: "member_1")
         let repository = InMemoryNotificationRepository(
             items: [
@@ -229,8 +220,7 @@ struct ReguertaNewsNotificationsViewModelTests {
         #expect(viewModel.hasUnreadNotifications)
     }
 
-    @Test
-    func notificationsViewModelMarksVisibleNotificationsReadOnExit() async {
+    @Test func notificationsViewModelMarksVisibleNotificationsReadOnExit() async {
         let regular = newsRegularMember(id: "member_1")
         let repository = InMemoryNotificationRepository(
             items: [
@@ -253,8 +243,7 @@ struct ReguertaNewsNotificationsViewModelTests {
         #expect(!viewModel.hasUnreadNotifications)
     }
 
-    @Test
-    func notificationsViewModelShowsPushPermissionDialogPerVisitWhenInactive() async {
+    @Test func notificationsViewModelShowsPushPermissionDialogPerVisitWhenInactive() async {
         let regular = newsRegularMember(id: "member_1")
         let viewModel = makeNewsNotificationsViewModel(
             currentMember: regular,
@@ -277,8 +266,7 @@ struct ReguertaNewsNotificationsViewModelTests {
         #expect(viewModel.showsPushNotificationPermissionDialog)
     }
 
-    @Test
-    func notificationsViewModelBlocksInvalidOrUnauthorizedSend() async {
+    @Test func notificationsViewModelBlocksInvalidOrUnauthorizedSend() async {
         let regular = newsRegularMember()
         let regularViewModel = makeNewsNotificationsViewModel(currentMember: regular, members: [regular])
 
@@ -297,8 +285,7 @@ struct ReguertaNewsNotificationsViewModelTests {
         #expect(adminViewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackNotificationTitleBodyRequired)
     }
 
-    @Test
-    func notificationsViewModelSendsAdminBroadcastPayloadAndClearsDraft() async {
+    @Test func notificationsViewModelSendsAdminBroadcastPayloadAndClearsDraft() async {
         let admin = newsAdminMember(id: "admin_1")
         let repository = InMemoryNotificationRepository(items: [])
         let viewModel = makeNewsNotificationsViewModel(
@@ -389,11 +376,7 @@ private func makeNewsNotificationsViewModel(
     return viewModel
 }
 
-@MainActor
-private func newsAdminMember(
-    id: String = "admin",
-    displayName: String = "Admin"
-) -> Member {
+@MainActor private func newsAdminMember(id: String = "admin", displayName: String = "Admin") -> Member {
     Member(
         id: id,
         displayName: displayName,
@@ -405,8 +388,7 @@ private func newsAdminMember(
     )
 }
 
-@MainActor
-private func newsRegularMember(id: String = "member") -> Member {
+@MainActor private func newsRegularMember(id: String = "member") -> Member {
     Member(
         id: id,
         displayName: "Member",
@@ -478,10 +460,7 @@ private actor NewsMockImagePipelineManager: ImagePipelineManager {
         self.result = result
     }
 
-    func processAndUpload(
-        imageData _: Data,
-        request _: ImageUploadRequest
-    ) async throws -> ImageUploadResult {
+    func processAndUpload(imageData _: Data, request _: ImageUploadRequest) async throws -> ImageUploadResult {
         switch result {
         case .success(let downloadURL):
             ImageUploadResult(

@@ -107,9 +107,7 @@ func updateReceivedOrderProducerStatus(
     return lastFailure
 }
 
-private func receivedOrderlineReadTargets(
-    firestorePath: ReguertaFirestorePath
-) -> [String] {
+private func receivedOrderlineReadTargets(firestorePath: ReguertaFirestorePath) -> [String] {
     [
         firestorePath.collectionPath(.orderlines)
     ]
@@ -245,9 +243,7 @@ private func buildReceivedOrdersSnapshot(
     )
 }
 
-private func buildReceivedOrdersProductRows(
-    from lines: [ReceivedOrderLineRecord]
-) -> [ReceivedOrdersProductRow] {
+private func buildReceivedOrdersProductRows(from lines: [ReceivedOrderLineRecord]) -> [ReceivedOrdersProductRow] {
     Dictionary(grouping: lines, by: \.productId)
         .compactMap { productId, grouped -> ReceivedOrdersProductRow? in
             guard let first = grouped.first else { return nil }
@@ -298,9 +294,7 @@ private func buildReceivedOrdersMemberGroups(
         }
 }
 
-private func buildReceivedOrdersMemberLines(
-    from lines: [ReceivedOrderLineRecord]
-) -> [ReceivedOrdersMemberLine] {
+private func buildReceivedOrdersMemberLines(from lines: [ReceivedOrderLineRecord]) -> [ReceivedOrdersMemberLine] {
     lines.map { line in
         ReceivedOrdersMemberLine(
             id: "\(line.orderId)|\(line.productId)",
@@ -326,10 +320,7 @@ private func receivedOrdersGeneralTotal(from lines: [ReceivedOrderLineRecord]) -
     }
 }
 
-private func receivedOrderStatus(
-    from data: [String: Any],
-    producerId: String
-) -> ProducerOrderStatus {
+private func receivedOrderStatus(from data: [String: Any], producerId: String) -> ProducerOrderStatus {
     if let statusesByVendor = data["producerStatusesByVendor"] as? [String: Any],
        let statusValue = statusesByVendor[producerId] as? String {
         return ProducerOrderStatus.from(statusValue)

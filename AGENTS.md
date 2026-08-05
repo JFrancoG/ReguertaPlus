@@ -104,9 +104,13 @@ When skipped, explicitly state why in the final handoff.
 ### Swift Signature Formatting
 
 - Use 120 columns, including indentation, as the preferred maximum Swift line width.
-- Keep a `func`, `init`, or `subscript` declaration on one line when its complete signature fits within 120 columns and has at most three simple parameters. Count attributes, `async`/`throws`, the return type, and the opening brace when present.
+- Keep a `func`, `init`, or `subscript` declaration on one line when its complete signature fits within 120 columns and has at most three simple parameters. Count attributes only when they share the declaration line; also count `async`/`throws`, the return type, and the opening brace when present.
+- Treat a declaration attribute placed on its own line, whether single-line or multiline, as a separate layout unit. Apply the 120-column and parameter-complexity rules to the declaration header after those attributes. A separated attribute does not by itself require a vertical parameter list.
 - Use vertical formatting for four or more parameters or for complex signatures containing closures or function types, nested generics or tuples, closure attributes, multiline default values, or generic requirements. Put one parameter on each line, align the closing delimiter with the declaration, and avoid hybrid wrapping.
-- Apply this rule to new code and touched signatures. Keep historical formatting cleanup in separate, non-functional changes.
+- Keep `let` and `var` declarations, including their type annotation, on one line when the complete declaration fits within 120 columns and has no multiline initializer. A function type, `@Sendable`, or a short generic does not require fragmentation by itself.
+- Keep a `guard condition else { exit }` statement on one line when it fits within 120 columns and `exit` is one simple immediate transfer such as `return`, `return nil`, `return false`, `continue`, `break`, or a simple `throw`. Retain multiline form for comments, multiline conditions, complex calls, or additional logic; do not extend this exception to `if`, loops, or effectful closures.
+- Keep a complete function on one line only when it is a genuinely trivial pure predicate, accessor, adapter, or test double whose single obvious expression fits with the signature. Keep business operations, mutations, `await`, `try`, control flow, and effectful calls multiline.
+- Apply these rules to new and touched declarations. Keep historical formatting cleanup in separate, non-functional changes.
 
 ## Execution Style
 

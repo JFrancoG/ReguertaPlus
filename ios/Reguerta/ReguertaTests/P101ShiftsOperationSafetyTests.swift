@@ -4,8 +4,7 @@ import Testing
 
 @MainActor
 struct P101ShiftsOperationSafetyTests {
-    @Test
-    func planningRetryReusesTheSameLogicalRequest() async {
+    @Test func planningRetryReusesTheSameLogicalRequest() async {
         let admin = adminMember(id: "admin_1", displayName: "Admin")
         let repository = RejectingOncePlanningRepository()
         let now = TestNowProvider(nowMillis: 111)
@@ -30,8 +29,7 @@ struct P101ShiftsOperationSafetyTests {
         #expect(viewModel.pendingShiftPlanningType == nil)
     }
 
-    @Test
-    func cancellationDoesNotPublishFailureFeedback() async {
+    @Test func cancellationDoesNotPublishFailureFeedback() async {
         let member = shiftMember(id: "member_1", displayName: "Carmen")
         let viewModel = makeShiftsViewModel(
             currentMember: member,
@@ -45,8 +43,7 @@ struct P101ShiftsOperationSafetyTests {
         #expect(viewModel.isLoadingShifts == false)
     }
 
-    @Test
-    func staleRefreshFromPreviousLoginCannotReplaceReloggedSnapshot() async {
+    @Test func staleRefreshFromPreviousLoginCannotReplaceReloggedSnapshot() async {
         let member = shiftMember(id: "member_1", displayName: "Carmen")
         let staleShift = shift(id: "stale", type: .market, dateMillis: 10, assignedUserIds: [member.id])
         let currentShift = shift(id: "current", type: .market, dateMillis: 20, assignedUserIds: [member.id])
@@ -75,8 +72,7 @@ struct P101ShiftsOperationSafetyTests {
         #expect(viewModel.feedbackCenter.messageKey == nil)
     }
 
-    @Test
-    func environmentSwitchClearsThePreviousPathAndFencesItsInFlightRead() async {
+    @Test func environmentSwitchClearsThePreviousPathAndFencesItsInFlightRead() async {
         let member = shiftMember(id: "member_1", displayName: "Carmen")
         let staleShift = shift(id: "develop", type: .market, dateMillis: 10, assignedUserIds: [member.id])
         let currentShift = shift(id: "production", type: .market, dateMillis: 20, assignedUserIds: [member.id])

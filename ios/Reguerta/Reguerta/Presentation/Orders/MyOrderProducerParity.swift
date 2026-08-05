@@ -1,8 +1,6 @@
 import Foundation
 
-func currentISOWeekProducerParity(
-    nowMillis: Int64 = Int64(Date().timeIntervalSince1970 * 1_000)
-) -> ProducerParity {
+func currentISOWeekProducerParity(nowMillis: Int64 = Int64(Date().timeIntervalSince1970 * 1_000)) -> ProducerParity {
     producerParityForISOWeek(nowMillis: nowMillis)
 }
 
@@ -15,10 +13,7 @@ func producerParityForISOWeek(nowMillis: Int64) -> ProducerParity {
 }
 
 extension Product {
-    func matchesCurrentProducerWeek(
-        membersById: [String: Member],
-        currentWeekParity: ProducerParity
-    ) -> Bool {
+    func matchesCurrentProducerWeek(membersById: [String: Member], currentWeekParity: ProducerParity) -> Bool {
         guard let producerParity = membersById[vendorId]?.producerParity else {
             return true
         }

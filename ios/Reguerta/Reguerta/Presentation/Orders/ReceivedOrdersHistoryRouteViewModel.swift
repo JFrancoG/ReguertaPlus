@@ -41,10 +41,7 @@ final class ReceivedOrdersHistoryRouteViewModel {
     private var loadedHistoryIdentity: String?
     private var loadedWeekKey: String?
 
-    init(
-        sessionViewModel: SessionViewModel,
-        ordersRepository: any OrdersRepository
-    ) {
+    init(sessionViewModel: SessionViewModel, ordersRepository: any OrdersRepository) {
         self.sessionViewModel = sessionViewModel
         self.ordersRepository = ordersRepository
     }

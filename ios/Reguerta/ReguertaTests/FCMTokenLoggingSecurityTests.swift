@@ -2,8 +2,7 @@ import Foundation
 import Testing
 
 struct FCMTokenLoggingSecurityTests {
-    @Test
-    func pushRegistrationDoesNotLogTokensOrPublicErrors() throws {
+    @Test func pushRegistrationDoesNotLogTokensOrPublicErrors() throws {
         let sources = try [appDelegateURL(), coordinatorURL()].map {
             try String(contentsOf: $0, encoding: .utf8)
         }

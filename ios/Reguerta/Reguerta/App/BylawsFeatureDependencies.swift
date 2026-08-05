@@ -41,10 +41,7 @@ private struct PreviewBylawsConsultant: BylawsConsulting {
         configuredCapability
     }
 
-    func consult(
-        question: String,
-        responseLanguage: BylawsResponseLanguage
-    ) async throws -> BylawsConsultationResult {
+    func consult(question: String, responseLanguage: BylawsResponseLanguage) async throws -> BylawsConsultationResult {
         BylawsConsultationResult(
             summary: responseLanguage == .english
                 ? "Local preview summary for: \(question)"

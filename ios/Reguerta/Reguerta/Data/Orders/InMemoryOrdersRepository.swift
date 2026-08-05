@@ -70,10 +70,7 @@ actor InMemoryOrdersRepository: OrdersRepository {
         return Array(explicitKeys.union(seededKeys)).sorted()
     }
 
-    func orderSummarySnapshot(
-        currentMember: Member?,
-        weekKey: String
-    ) async throws -> MyOrderPreviousOrderSnapshot? {
+    func orderSummarySnapshot(currentMember: Member?, weekKey: String) async throws -> MyOrderPreviousOrderSnapshot? {
         if let previousOrderError {
             throw previousOrderError
         }
@@ -81,10 +78,7 @@ actor InMemoryOrdersRepository: OrdersRepository {
         return previousOrdersByWeekKey[weekKey]
     }
 
-    func myOrderProducerStatuses(
-        currentMember: Member?,
-        weekKey: String
-    ) async -> MyOrderProducerStatusSnapshot {
+    func myOrderProducerStatuses(currentMember: Member?, weekKey: String) async -> MyOrderProducerStatusSnapshot {
         guard let memberId = currentMember?.id else {
             return MyOrderProducerStatusSnapshot(byVendor: [:], legacyStatus: .unread)
         }
@@ -92,10 +86,7 @@ actor InMemoryOrdersRepository: OrdersRepository {
             ?? MyOrderProducerStatusSnapshot(byVendor: [:], legacyStatus: .unread)
     }
 
-    func receivedOrdersSnapshot(
-        producerId: String,
-        targetWeekKey: String
-    ) async throws -> ReceivedOrdersSnapshot? {
+    func receivedOrdersSnapshot(producerId: String, targetWeekKey: String) async throws -> ReceivedOrdersSnapshot? {
         if let receivedOrdersError {
             throw receivedOrdersError
         }
@@ -115,10 +106,7 @@ actor InMemoryOrdersRepository: OrdersRepository {
         return Array(explicitKeys.union(seededKeys)).sorted()
     }
 
-    func receivedOrdersHistorySnapshot(
-        producerId: String,
-        weekKey: String
-    ) async throws -> ReceivedOrdersSnapshot? {
+    func receivedOrdersHistorySnapshot(producerId: String, weekKey: String) async throws -> ReceivedOrdersSnapshot? {
         try await receivedOrdersSnapshot(producerId: producerId, targetWeekKey: weekKey)
     }
 
@@ -146,11 +134,7 @@ actor InMemoryOrdersRepository: OrdersRepository {
         previousOrderError = error
     }
 
-    func setProducerStatuses(
-        _ snapshot: MyOrderProducerStatusSnapshot,
-        memberId: String,
-        weekKey: String
-    ) {
+    func setProducerStatuses(_ snapshot: MyOrderProducerStatusSnapshot, memberId: String, weekKey: String) {
         producerStatusesByMemberWeek[producerStatusKey(memberId: memberId, weekKey: weekKey)] = snapshot
     }
 
@@ -158,11 +142,7 @@ actor InMemoryOrdersRepository: OrdersRepository {
         submitResult = result
     }
 
-    func setReceivedOrdersSnapshot(
-        _ snapshot: ReceivedOrdersSnapshot,
-        producerId: String,
-        weekKey: String
-    ) {
+    func setReceivedOrdersSnapshot(_ snapshot: ReceivedOrdersSnapshot, producerId: String, weekKey: String) {
         receivedSnapshotsByProducerWeek[receivedKey(producerId: producerId, weekKey: weekKey)] = snapshot
     }
 

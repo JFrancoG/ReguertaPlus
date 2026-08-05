@@ -79,10 +79,7 @@ actor KeychainStore {
     private let client: any KeychainClient
     private let service: String
 
-    init(
-        client: any KeychainClient = SystemKeychainClient(),
-        service: String = "com.reguerta.app.secure-storage"
-    ) {
+    init(client: any KeychainClient = SystemKeychainClient(), service: String = "com.reguerta.app.secure-storage") {
         self.client = client
         self.service = service
     }
@@ -118,7 +115,10 @@ actor KeychainStore {
         }
     }
 
-    func save<Value: Encodable & Sendable>(_ value: Value, for key: KeychainKey) throws {
+    func save<Value: Encodable & Sendable>(
+        _ value: Value,
+        for key: KeychainKey
+    ) throws {
         let data: Data
         do {
             data = try JSONEncoder().encode(value)

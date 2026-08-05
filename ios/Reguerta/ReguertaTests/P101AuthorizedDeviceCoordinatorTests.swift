@@ -6,8 +6,7 @@ import Testing
 
 @MainActor
 struct P101AuthorizedDeviceCoordinatorTests {
-    @Test
-    func registrationPersistsUidEnvironmentAndLeaseBeforeWriting() async throws {
+    @Test func registrationPersistsUidEnvironmentAndLeaseBeforeWriting() async throws {
         let harness = makeHarness(currentAuthUid: "uid-a")
         let lease = AuthorizedDeviceSessionLease()
 
@@ -36,8 +35,7 @@ struct P101AuthorizedDeviceCoordinatorTests {
         )
     }
 
-    @Test
-    func mismatchedFirebaseUidFailsClosedBeforeFirestore() async throws {
+    @Test func mismatchedFirebaseUidFailsClosedBeforeFirestore() async throws {
         let harness = makeHarness(currentAuthUid: "uid-b")
 
         let result = try await harness.coordinator.register(
@@ -59,8 +57,7 @@ struct P101AuthorizedDeviceCoordinatorTests {
         )
     }
 
-    @Test
-    func lateClearFromSessionADoesNotDeleteSessionB() async throws {
+    @Test func lateClearFromSessionADoesNotDeleteSessionB() async throws {
         let authUid = CurrentAuthUid("uid-a")
         let harness = makeHarness(currentAuthUidProvider: { authUid.value })
         let leaseA = AuthorizedDeviceSessionLease()
@@ -97,8 +94,7 @@ struct P101AuthorizedDeviceCoordinatorTests {
         #expect(storedContext?.lease == leaseB)
     }
 
-    @Test
-    func suspendedRegistrationAIsDiscardedAfterSessionBReplacesIt() async throws {
+    @Test func suspendedRegistrationAIsDiscardedAfterSessionBReplacesIt() async throws {
         let authUid = CurrentAuthUid("uid-a")
         let tokenSource = FirstTokenRequestGate()
         let harness = makeHarness(
@@ -140,8 +136,7 @@ struct P101AuthorizedDeviceCoordinatorTests {
         #expect(harness.repository.registrations.map(\.environment) == [.production])
     }
 
-    @Test
-    func repositoryRevalidationStopsAWriteAfterItsLeaseIsCleared() async throws {
+    @Test func repositoryRevalidationStopsAWriteAfterItsLeaseIsCleared() async throws {
         let started = TestSignal()
         let release = TestGate()
         let repository = RecordingDeviceRegistrationRepository(
@@ -174,8 +169,7 @@ struct P101AuthorizedDeviceCoordinatorTests {
         #expect(repository.registrations.isEmpty)
     }
 
-    @Test
-    func corruptContextDoesNotBecomeAnAbsentSessionDuringTokenRefresh() async {
+    @Test func corruptContextDoesNotBecomeAnAbsentSessionDuringTokenRefresh() async {
         let client = InMemoryKeychainClient()
         client.setRaw(
             Data("not-json".utf8),
@@ -189,8 +183,7 @@ struct P101AuthorizedDeviceCoordinatorTests {
         #expect(harness.repository.registrations.isEmpty)
     }
 
-    @Test
-    func legacyMemberOnlyValueIsNeverUsedForTokenRefresh() async throws {
+    @Test func legacyMemberOnlyValueIsNeverUsedForTokenRefresh() async throws {
         let client = InMemoryKeychainClient()
         client.setRaw(
             Data("member-a".utf8),
@@ -285,11 +278,7 @@ private final class RecordingDeviceRegistrationRepository: DeviceRegistrationRep
     private let release: TestGate?
     var registrations: [RecordedDeviceRegistration] = []
 
-    init(
-        suspendedMemberId: String? = nil,
-        started: TestSignal? = nil,
-        release: TestGate? = nil
-    ) {
+    init(suspendedMemberId: String? = nil, started: TestSignal? = nil, release: TestGate? = nil) {
         self.suspendedMemberId = suspendedMemberId
         self.started = started
         self.release = release

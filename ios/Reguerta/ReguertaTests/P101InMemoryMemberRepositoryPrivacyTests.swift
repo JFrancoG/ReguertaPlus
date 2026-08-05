@@ -4,8 +4,7 @@ import Testing
 
 @MainActor
 struct P101InMemoryMemberRepositoryPrivacyTests {
-    @Test
-    func nonAdminReadsStablePublicProjectionAndKeepsOwnIdentity() async throws {
+    @Test func nonAdminReadsStablePublicProjectionAndKeepsOwnIdentity() async throws {
         let currentMember = Member(
             id: "member_1",
             displayName: "Current Member",

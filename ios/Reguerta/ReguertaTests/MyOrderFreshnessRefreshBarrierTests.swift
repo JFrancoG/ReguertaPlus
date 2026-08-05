@@ -236,10 +236,7 @@ private typealias BarrierFreshnessTasks = (
     timeout: Task<Void, Never>
 )
 
-@MainActor
-private func barrierOwnedTasks(
-    in viewModel: MyOrderFreshnessViewModel
-) -> BarrierFreshnessTasks? {
+@MainActor private func barrierOwnedTasks(in viewModel: MyOrderFreshnessViewModel) -> BarrierFreshnessTasks? {
     guard let operation = viewModel.freshnessOperationTask,
           let timeout = viewModel.freshnessTimeoutTask else {
         Issue.record("El refresh no conserva ambas tareas")
@@ -328,9 +325,7 @@ private func barrierFreshnessConfig() -> CriticalDataFreshnessConfig {
 }
 
 private actor ControlledCriticalDataRefresher: CriticalDataRefreshing {
-    private var continuations: [
-        Int: CheckedContinuation<CriticalDataRefreshPayload, any Error>
-    ] = [:]
+    private var continuations: [Int: CheckedContinuation<CriticalDataRefreshPayload, any Error>] = [:]
     private var registeredCount = 0
     private var countWaiters: [Int: CheckedContinuation<Void, Never>] = [:]
 

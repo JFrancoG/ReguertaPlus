@@ -259,11 +259,7 @@ extension SharedProfileFeatureViewModel {
 }
 
 private extension SharedProfileFeatureViewModel {
-    private func applyProfiles(
-        _ fetchedProfiles: [SharedProfile],
-        currentMemberId: String,
-        updatesDraft: Bool
-    ) {
+    private func applyProfiles(_ fetchedProfiles: [SharedProfile], currentMemberId: String, updatesDraft: Bool) {
         profiles = fetchedProfiles.filter(\.hasVisibleContent)
         guard updatesDraft else { return }
         draft = fetchedProfiles.first { $0.userId == currentMemberId }?.toDraft() ?? SharedProfileDraft()
@@ -351,11 +347,7 @@ private extension SharedProfileFeatureViewModel {
         return nextUploadOperationId
     }
 
-    private func isCurrentUpload(
-        _ operationId: UInt64,
-        context: SessionContext,
-        revision: UInt64
-    ) -> Bool {
+    private func isCurrentUpload(_ operationId: UInt64, context: SessionContext, revision: UInt64) -> Bool {
         activeUploadOperationId == operationId && isCurrentEditor(context, revision: revision)
     }
 

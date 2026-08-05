@@ -4,8 +4,7 @@ import Testing
 @testable import Reguerta
 
 struct BylawsRouteScrollModeTests {
-    @Test("Sin respuesta se desplaza la pagina completa")
-    func noAnswerUsesFullPageScrolling() {
+    @Test("Sin respuesta se desplaza la pagina completa") func noAnswerUsesFullPageScrolling() {
         #expect(
             BylawsRouteScrollMode.resolve(
                 hasAnswer: false,
@@ -15,8 +14,7 @@ struct BylawsRouteScrollModeTests {
         )
     }
 
-    @Test("Con altura regular la respuesta posee el scroll")
-    func regularHeightUsesAnswerScrolling() {
+    @Test("Con altura regular la respuesta posee el scroll") func regularHeightUsesAnswerScrolling() {
         #expect(
             BylawsRouteScrollMode.resolve(
                 hasAnswer: true,
@@ -26,8 +24,7 @@ struct BylawsRouteScrollModeTests {
         )
     }
 
-    @Test("XX Large conserva el scroll exclusivo de la respuesta")
-    func xxLargeUsesAnswerScrolling() {
+    @Test("XX Large conserva el scroll exclusivo de la respuesta") func xxLargeUsesAnswerScrolling() {
         #expect(
             BylawsRouteScrollMode.resolve(
                 hasAnswer: true,
@@ -37,8 +34,7 @@ struct BylawsRouteScrollModeTests {
         )
     }
 
-    @Test("XXX Large desplaza la pagina completa")
-    func xxxLargeUsesFullPageScrolling() {
+    @Test("XXX Large desplaza la pagina completa") func xxxLargeUsesFullPageScrolling() {
         #expect(
             BylawsRouteScrollMode.resolve(
                 hasAnswer: true,
@@ -48,8 +44,7 @@ struct BylawsRouteScrollModeTests {
         )
     }
 
-    @Test("Los tamanos de accesibilidad desplazan la pagina completa")
-    func accessibilitySizeUsesFullPageScrolling() {
+    @Test("Los tamanos de accesibilidad desplazan la pagina completa") func accessibilitySizeUsesFullPageScrolling() {
         #expect(
             BylawsRouteScrollMode.resolve(
                 hasAnswer: true,
@@ -59,8 +54,7 @@ struct BylawsRouteScrollModeTests {
         )
     }
 
-    @Test("La altura compacta desplaza la pagina completa")
-    func compactHeightUsesFullPageScrolling() {
+    @Test("La altura compacta desplaza la pagina completa") func compactHeightUsesFullPageScrolling() {
         #expect(
             BylawsRouteScrollMode.resolve(
                 hasAnswer: true,
@@ -70,8 +64,7 @@ struct BylawsRouteScrollModeTests {
         )
     }
 
-    @Test("Una altura indeterminada desplaza la pagina completa")
-    func unspecifiedHeightUsesFullPageScrolling() {
+    @Test("Una altura indeterminada desplaza la pagina completa") func unspecifiedHeightUsesFullPageScrolling() {
         #expect(
             BylawsRouteScrollMode.resolve(
                 hasAnswer: true,

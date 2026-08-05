@@ -148,8 +148,7 @@ struct FirebaseAuthSessionProvider: AuthSessionProvider {
         return try await refreshedUser.getIDTokenResult(forcingRefresh: forcingRefresh).token
     }
 
-    @discardableResult
-    func signOut() -> Bool {
+    @discardableResult func signOut() -> Bool {
         do {
             try auth.signOut()
             return true
@@ -212,8 +211,7 @@ private enum FirebaseIDTokenError: Error {
     case noAuthenticatedUser
 }
 
-@MainActor
-private func sendVerificationEmail(to user: User) async -> Bool {
+@MainActor private func sendVerificationEmail(to user: User) async -> Bool {
     do {
         try await user.sendEmailVerification()
         return true
@@ -226,8 +224,7 @@ private func normalizedEmail(_ email: String) -> String {
     email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 }
 
-@MainActor
-func mapFirebaseAuthError(_ error: Error) -> AuthSignInFailureReason {
+@MainActor func mapFirebaseAuthError(_ error: Error) -> AuthSignInFailureReason {
     let nsError = error as NSError
     guard let code = AuthErrorCode(rawValue: nsError.code) else {
         return .unknown
@@ -255,8 +252,7 @@ func mapFirebaseAuthError(_ error: Error) -> AuthSignInFailureReason {
     }
 }
 
-@MainActor
-private func isExpiredSessionError(_ error: Error) -> Bool {
+@MainActor private func isExpiredSessionError(_ error: Error) -> Bool {
     let nsError = error as NSError
     guard let code = AuthErrorCode(rawValue: nsError.code) else {
         return false

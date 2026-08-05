@@ -5,8 +5,7 @@ import Testing
 
 @MainActor
 struct FirebaseAuthSessionSecurityTests {
-    @Test
-    func signUpKeepsSessionLockedWhenFirebaseSignOutFails() async {
+    @Test func signUpKeepsSessionLockedWhenFirebaseSignOutFails() async {
         let feedbackCenter = GlobalFeedbackCenter()
         let viewModel = SessionViewModel(
             repository: InMemoryMemberRepository(),
@@ -35,8 +34,7 @@ struct FirebaseAuthSessionSecurityTests {
         #expect(feedbackCenter.messageKey == AccessL10nKey.authInfoVerificationSent)
     }
 
-    @Test
-    func verificationResendKeepsSessionLockedWhenFirebaseSignOutFails() async {
+    @Test func verificationResendKeepsSessionLockedWhenFirebaseSignOutFails() async {
         let repository = InMemoryMemberRepository()
         let environmentRouter = FixedSessionEnvironmentRouter()
         let provider = TestAuthSessionProvider(
@@ -72,8 +70,7 @@ struct FirebaseAuthSessionSecurityTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.authInfoVerificationResent)
     }
 
-    @Test
-    func expiredSessionFailsClosedWhenFirebaseSignOutFails() async {
+    @Test func expiredSessionFailsClosedWhenFirebaseSignOutFails() async {
         let member = authenticatedMember()
         let viewModel = SessionViewModel(
             repository: InMemoryMemberRepository(items: [member]),
@@ -93,8 +90,7 @@ struct FirebaseAuthSessionSecurityTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.authErrorUnknown)
     }
 
-    @Test
-    func manualSignOutFailsClosedWhenFirebaseSignOutFails() {
+    @Test func manualSignOutFailsClosedWhenFirebaseSignOutFails() {
         let member = authenticatedMember()
         let viewModel = SessionViewModel(
             repository: InMemoryMemberRepository(items: [member]),
@@ -114,8 +110,7 @@ struct FirebaseAuthSessionSecurityTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.authErrorUnknown)
     }
 
-    @Test
-    func deviceRegistrationFailureIsAnExplicitBestEffortPolicy() async {
+    @Test func deviceRegistrationFailureIsAnExplicitBestEffortPolicy() async {
         let member = authenticatedMember()
         let repository = InMemoryMemberRepository(items: [member])
         let environmentRouter = FixedSessionEnvironmentRouter()

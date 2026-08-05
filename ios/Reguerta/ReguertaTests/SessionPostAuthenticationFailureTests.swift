@@ -191,10 +191,7 @@ private func makePostAuthenticationViewModel(
 }
 
 @MainActor
-private func startPostAuthenticationSignIn(
-    in viewModel: SessionViewModel,
-    member: Member
-) -> Task<Void, Never>? {
+private func startPostAuthenticationSignIn(in viewModel: SessionViewModel, member: Member) -> Task<Void, Never>? {
     viewModel.emailInput = member.normalizedEmail
     viewModel.passwordInput = "secret12"
     viewModel.signIn()
@@ -206,10 +203,7 @@ private func startPostAuthenticationSignIn(
 }
 
 @MainActor
-private func assertPostAuthenticationFailure(
-    viewModel: SessionViewModel,
-    provider: ControlledSessionAuthProvider
-) {
+private func assertPostAuthenticationFailure(viewModel: SessionViewModel, provider: ControlledSessionAuthProvider) {
     #expect(viewModel.mode == .signedOut)
     #expect(viewModel.sessionOperationState == .idle)
     #expect(viewModel.sessionOperationTask == nil)
@@ -219,8 +213,7 @@ private func assertPostAuthenticationFailure(
     #expect(provider.signOutCallCount == 2)
 }
 
-@MainActor
-private func postAuthenticationMember() -> Member {
+@MainActor private func postAuthenticationMember() -> Member {
     Member(
         id: "post_auth_member",
         displayName: "Post Auth Member",

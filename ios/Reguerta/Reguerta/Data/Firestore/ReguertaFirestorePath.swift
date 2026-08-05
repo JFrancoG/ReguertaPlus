@@ -23,10 +23,7 @@ enum ReguertaRuntimeEnvironment {
         sessionOverride ?? baseFirestoreEnvironment
     }
 
-    static func applySessionEnvironment(
-        _ environment: ReguertaFirestoreEnvironment,
-        lease: SessionEnvironmentLease
-    ) {
+    static func applySessionEnvironment(_ environment: ReguertaFirestoreEnvironment, lease: SessionEnvironmentLease) {
         sessionOverride = environment == baseFirestoreEnvironment ? nil : environment
         sessionEnvironmentLease = lease
     }
@@ -89,10 +86,7 @@ struct ReguertaFirestorePath: Sendable {
         "\(resolvedEnvironment.rawValue)/\(collection.pathComponent)"
     }
 
-    func documentPath(
-        in collection: ReguertaFirestoreCollection,
-        documentId: String
-    ) -> String {
+    func documentPath(in collection: ReguertaFirestoreCollection, documentId: String) -> String {
         "\(collectionPath(collection))/\(documentId)"
     }
 }

@@ -137,9 +137,7 @@ func buildMyOrderCheckoutLineSnapshots(
     }
 }
 
-func resolveMyOrderCheckoutWriteTargets(
-    firestorePath: ReguertaFirestorePath
-) -> [MyOrderCheckoutWriteTarget] {
+func resolveMyOrderCheckoutWriteTargets(firestorePath: ReguertaFirestorePath) -> [MyOrderCheckoutWriteTarget] {
     [
         (
             orders: firestorePath.collectionPath(.orders),
@@ -228,10 +226,7 @@ func submitMyOrderCheckout(
     return serverOrderSnapshot.exists
 }
 
-private func buildMyOrderCheckoutBatch(
-    _ content: MyOrderCheckoutBatchContent,
-    db: Firestore
-) -> WriteBatch {
+private func buildMyOrderCheckoutBatch(_ content: MyOrderCheckoutBatchContent, db: Firestore) -> WriteBatch {
     let batch = db.batch()
     batch.setData(
         myOrderCheckoutOrderPayload(
@@ -263,10 +258,7 @@ private func buildMyOrderCheckoutBatch(
     return batch
 }
 
-nonisolated func myOrderOwnedWeekQueryScopes(
-    memberId: String,
-    weekKey: String
-) -> [MyOrderOwnedWeekQueryScope] {
+nonisolated func myOrderOwnedWeekQueryScopes(memberId: String, weekKey: String) -> [MyOrderOwnedWeekQueryScope] {
     ["userId", "memberId"].map { ownerField in
         MyOrderOwnedWeekQueryScope(
             ownerField: ownerField,
@@ -276,10 +268,7 @@ nonisolated func myOrderOwnedWeekQueryScopes(
     }
 }
 
-nonisolated func resolveMyOrderCheckoutDocumentId(
-    newOrderId: String,
-    existingOrderIds: [String]
-) throws -> String {
+nonisolated func resolveMyOrderCheckoutDocumentId(newOrderId: String, existingOrderIds: [String]) throws -> String {
     let normalizedExistingIds = normalizedUniqueMyOrderIds(existingOrderIds)
     switch normalizedExistingIds.count {
     case 0:
@@ -409,10 +398,7 @@ func myOrderCheckoutLinePayload(
     ]
 }
 
-func myOrderSnapshotsMatch(
-    _ lhs: MyOrderCartSnapshot,
-    _ rhs: MyOrderCartSnapshot
-) -> Bool {
+func myOrderSnapshotsMatch(_ lhs: MyOrderCartSnapshot, _ rhs: MyOrderCartSnapshot) -> Bool {
     lhs.selectedQuantities == rhs.selectedQuantities &&
         lhs.selectedEcoBasketOptions == rhs.selectedEcoBasketOptions
 }

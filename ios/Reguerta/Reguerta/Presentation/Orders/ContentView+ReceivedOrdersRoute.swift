@@ -137,8 +137,7 @@ private extension ReceivedOrdersRouteView {
         .overlay(shape.stroke(tokens.colors.actionPrimary.opacity(0.28), lineWidth: 1.resize))
     }
 
-    @ViewBuilder
-    func loadedContent(_ snapshot: ReceivedOrdersSnapshot) -> some View {
+    @ViewBuilder func loadedContent(_ snapshot: ReceivedOrdersSnapshot) -> some View {
         ReceivedOrdersSummaryContent(
             tokens: tokens,
             snapshot: snapshot,
@@ -200,8 +199,7 @@ private extension ReceivedOrdersRouteView {
         .custom("CabinSketch-Bold", size: 22.resize, relativeTo: .headline)
     }
 
-    @ViewBuilder
-    func productCard(_ row: ReceivedOrdersProductRow) -> some View {
+    @ViewBuilder func productCard(_ row: ReceivedOrdersProductRow) -> some View {
         reguertaListItemCard {
             HStack(alignment: .center, spacing: 0) {
                 receivedOrdersProductImage(urlString: row.productImageUrl)
@@ -277,8 +275,7 @@ private extension ReceivedOrdersRouteView {
         }
     }
 
-    @ViewBuilder
-    func memberLinesSection(_ group: ReceivedOrdersMemberGroup) -> some View {
+    @ViewBuilder func memberLinesSection(_ group: ReceivedOrdersMemberGroup) -> some View {
         VStack(alignment: .leading, spacing: tokens.spacing.sm) {
             ForEach(Array(group.lines.enumerated()), id: \.element.id) { _, line in
                 memberLineRow(line)
@@ -292,8 +289,7 @@ private extension ReceivedOrdersRouteView {
         }
     }
 
-    @ViewBuilder
-    func memberLineRow(_ line: ReceivedOrdersMemberLine) -> some View {
+    @ViewBuilder func memberLineRow(_ line: ReceivedOrdersMemberLine) -> some View {
         HStack(alignment: .center, spacing: tokens.spacing.sm) {
             VStack(alignment: .leading, spacing: 4.resize) {
                 Text(line.productName)
@@ -377,8 +373,7 @@ private extension ReceivedOrdersRouteView {
             .frame(width: 1.resize, height: height)
     }
 
-    @ViewBuilder
-    func totalBar(total: Double) -> some View {
+    @ViewBuilder func totalBar(total: Double) -> some View {
         let shape = RoundedRectangle(cornerRadius: 8.resize, style: .continuous)
 
         HStack {
@@ -400,8 +395,7 @@ private extension ReceivedOrdersRouteView {
         .allowsHitTesting(false)
     }
 
-    @ViewBuilder
-    func infoCard(title: String, body: String) -> some View {
+    @ViewBuilder func infoCard(title: String, body: String) -> some View {
         reguertaCard {
             VStack(alignment: .leading, spacing: tokens.spacing.sm) {
                 Text(title)
@@ -414,8 +408,7 @@ private extension ReceivedOrdersRouteView {
         }
     }
 
-    @ViewBuilder
-    func receivedOrdersProductImage(urlString: String?) -> some View {
+    @ViewBuilder func receivedOrdersProductImage(urlString: String?) -> some View {
         let imageSize = CGFloat(64.resize)
         if let urlString, let url = URL(string: urlString), urlString.isNotEmpty {
             AsyncImage(url: url) { phase in

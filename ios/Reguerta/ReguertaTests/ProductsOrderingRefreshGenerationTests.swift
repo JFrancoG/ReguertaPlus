@@ -293,8 +293,7 @@ struct ProductsOrderingRefreshGenerationTests {
     }
 }
 
-@MainActor
-private func refreshScope(in viewModel: ProductsRouteViewModel) -> CriticalDataRefreshScope? {
+@MainActor private func refreshScope(in viewModel: ProductsRouteViewModel) -> CriticalDataRefreshScope? {
     guard case .authorized(let session) = viewModel.sessionViewModel.mode else { return nil }
     return CriticalDataRefreshScope(
         principalUID: session.principal.uid,

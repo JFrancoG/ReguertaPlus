@@ -93,8 +93,7 @@ final class ControlledSessionAuthProvider: AuthSessionProvider {
         return result
     }
 
-    @discardableResult
-    func signOut() -> Bool {
+    @discardableResult func signOut() -> Bool {
         signOutCallCount += 1
         let succeeded = signOutResults.isEmpty ? true : signOutResults.removeFirst()
         if succeeded {

@@ -215,8 +215,7 @@ struct NewsNotificationsImageUploadReviewTests {
         #expect(viewModel.isUploadingNewsImage == false)
     }
 
-    @Test("A News refresh never lowers the image upload flag")
-    func refreshDoesNotFinishImageUpload() async {
+    @Test("A News refresh never lowers the image upload flag") func refreshDoesNotFinishImageUpload() async {
         let pipeline = ReviewControlledImagePipelineManager()
         let viewModel = makeSafetyViewModel(
             member: safetyMember(roles: [.member, .admin]),

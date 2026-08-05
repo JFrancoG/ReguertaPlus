@@ -55,7 +55,10 @@ actor ControlledNewsRepository: NewsRepository {
         await withCheckedContinuation { waiters.append((count, $0)) }
     }
 
-    func completeRead(_ index: Int, with result: Result<[NewsArticle], RepositoryError>) {
+    func completeRead(
+        _ index: Int,
+        with result: Result<[NewsArticle], RepositoryError>
+    ) {
         guard let continuation = continuations.removeValue(forKey: index) else { return }
         continuation.resume(with: result.mapError { $0 as any Error })
     }
@@ -81,10 +84,7 @@ actor SequencedNotificationRepository: NotificationRepository {
     private var notificationOutcomes: [NotificationReadOutcome]
     private var readOutcomes: [NotificationIDsOutcome]
 
-    init(
-        notificationOutcomes: [NotificationReadOutcome],
-        readOutcomes: [NotificationIDsOutcome]
-    ) {
+    init(notificationOutcomes: [NotificationReadOutcome], readOutcomes: [NotificationIDsOutcome]) {
         self.notificationOutcomes = notificationOutcomes
         self.readOutcomes = readOutcomes
     }
@@ -121,11 +121,7 @@ actor ControlledNotificationRepository: NotificationRepository {
     func allNotifications() async throws -> [NotificationEvent] { [] }
     func readNotificationIds(memberId _: String) async throws -> Set<String> { [] }
 
-    func markNotificationsRead(
-        memberId _: String,
-        notificationIds _: [String],
-        readAtMillis _: Int64
-    ) async throws {
+    func markNotificationsRead(memberId _: String, notificationIds _: [String], readAtMillis _: Int64) async throws {
         markCount += 1
         let satisfied = waiters.filter { $0.0 <= markCount }
         waiters.removeAll { $0.0 <= markCount }
@@ -246,8 +242,7 @@ struct ControlledSafetyPermissionProvider: PushNotificationPermissionProvider {
         await state.value()
     }
 
-    @MainActor
-    func openSettings() {}
+    @MainActor func openSettings() {}
 
     func waitForRequest() async {
         await state.waitForRequest()
@@ -320,10 +315,7 @@ func makeSafetyViewModel(
     return viewModel
 }
 
-func safetySession(
-    member: Member,
-    environment: SessionEnvironment
-) -> AuthorizedSession {
+func safetySession(member: Member, environment: SessionEnvironment) -> AuthorizedSession {
     AuthorizedSession(
         principal: AuthPrincipal(uid: "auth_\(member.id)", email: member.normalizedEmail),
         authenticatedMember: member,
@@ -333,10 +325,7 @@ func safetySession(
     )
 }
 
-func safetyMember(
-    id: String = "member_1",
-    roles: Set<MemberRole> = [.member]
-) -> Member {
+func safetyMember(id: String = "member_1", roles: Set<MemberRole> = [.member]) -> Member {
     Member(
         id: id,
         displayName: "Member",
@@ -348,10 +337,7 @@ func safetyMember(
     )
 }
 
-func safetyNewsArticle(
-    id: String,
-    publishedAtMillis: Int64 = 1
-) -> NewsArticle {
+func safetyNewsArticle(id: String, publishedAtMillis: Int64 = 1) -> NewsArticle {
     NewsArticle(
         id: id,
         title: "Title",
@@ -380,8 +366,7 @@ func safetyNotification(id: String) -> NotificationEvent {
     )
 }
 
-@MainActor
-func seedPrivateCommunityState(_ viewModel: NewsNotificationsFeatureViewModel) {
+@MainActor func seedPrivateCommunityState(_ viewModel: NewsNotificationsFeatureViewModel) {
     viewModel.latestNews = [safetyNewsArticle(id: "latest")]
     viewModel.newsFeed = [safetyNewsArticle(id: "news")]
     viewModel.notificationsFeed = [safetyNotification(id: "notification")]
@@ -392,8 +377,7 @@ func seedPrivateCommunityState(_ viewModel: NewsNotificationsFeatureViewModel) {
     viewModel.pendingNewsDeletionId = "news"
 }
 
-@MainActor
-func expectCommunityStateCleared(_ viewModel: NewsNotificationsFeatureViewModel) {
+@MainActor func expectCommunityStateCleared(_ viewModel: NewsNotificationsFeatureViewModel) {
     #expect(viewModel.latestNews.isEmpty)
     #expect(viewModel.newsFeed.isEmpty)
     #expect(viewModel.notificationsFeed.isEmpty)

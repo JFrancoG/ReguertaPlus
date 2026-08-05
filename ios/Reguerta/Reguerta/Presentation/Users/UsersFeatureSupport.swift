@@ -50,10 +50,7 @@ extension MemberDraft {
         }
     }
 
-    mutating func setCommonPurchaseManagerSelection(
-        _ isSelected: Bool,
-        commonPurchasesCompanyName: String
-    ) {
+    mutating func setCommonPurchaseManagerSelection(_ isSelected: Bool, commonPurchasesCompanyName: String) {
         isCommonPurchaseManager = isSelected
         if isSelected {
             isProducer = true

@@ -109,8 +109,7 @@ extension BylawsConsultationResult {
 private struct PreviewBylawsDocumentProvider: BylawsDocumentProviding {
     let pdfURL: URL
 
-    @MainActor
-    func bundledPdfURL() -> URL? {
+    @MainActor func bundledPdfURL() -> URL? {
         pdfURL
     }
 }
@@ -122,7 +121,12 @@ private final class BylawsPreviewSeed {
     var excerpt: String
     var pdfPath: String
 
-    init(sourceID: String, title: String, excerpt: String, pdfPath: String) {
+    init(
+        sourceID: String,
+        title: String,
+        excerpt: String,
+        pdfPath: String
+    ) {
         self.sourceID = sourceID
         self.title = title
         self.excerpt = excerpt

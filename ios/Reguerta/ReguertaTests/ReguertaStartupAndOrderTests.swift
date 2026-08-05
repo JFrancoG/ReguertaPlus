@@ -6,8 +6,7 @@ import Testing
 
 @MainActor
 struct ReguertaStartupAndOrderTests {
-    @Test
-    func startupGateBlocksOutdatedVersionWhenForceUpdateIsActive() throws {
+    @Test func startupGateBlocksOutdatedVersionWhenForceUpdateIsActive() throws {
         let useCase = ResolveStartupVersionGateUseCase(
             repository: FixedStartupVersionPolicyRepository(
                 policy: StartupVersionPolicy(
@@ -32,8 +31,7 @@ struct ReguertaStartupAndOrderTests {
         #expect(decision == .forcedUpdate(storeURL: "https://apps.apple.com"))
     }
 
-    @Test
-    func startupGateWarnsWhenVersionIsBelowCurrent() throws {
+    @Test func startupGateWarnsWhenVersionIsBelowCurrent() throws {
         let useCase = ResolveStartupVersionGateUseCase(
             repository: FixedStartupVersionPolicyRepository(
                 policy: StartupVersionPolicy(
@@ -58,8 +56,7 @@ struct ReguertaStartupAndOrderTests {
         #expect(decision == .optionalUpdate(storeURL: "https://apps.apple.com"))
     }
 
-    @Test
-    func criticalDataFreshnessRejectsMissingTimestampKeys() {
+    @Test func criticalDataFreshnessRejectsMissingTimestampKeys() {
         let scope = startupFreshnessScope()
         let useCase = ResolveCriticalDataFreshnessUseCase(
             remoteRepository: FixedCriticalDataFreshnessRemoteRepository(config: nil),
@@ -85,8 +82,7 @@ struct ReguertaStartupAndOrderTests {
         #expect(evaluation == .invalidConfig)
     }
 
-    @Test
-    func criticalDataFreshnessPersistsWhenRemoteTimestampsChange() {
+    @Test func criticalDataFreshnessPersistsWhenRemoteTimestampsChange() {
         let scope = startupFreshnessScope()
         let useCase = ResolveCriticalDataFreshnessUseCase(
             remoteRepository: FixedCriticalDataFreshnessRemoteRepository(config: nil),
@@ -128,8 +124,7 @@ struct ReguertaStartupAndOrderTests {
         )
     }
 
-    @Test
-    func criticalDataFreshnessKeepsMetadataWhenTtlIsStillValid() {
+    @Test func criticalDataFreshnessKeepsMetadataWhenTtlIsStillValid() {
         let scope = startupFreshnessScope()
         let useCase = ResolveCriticalDataFreshnessUseCase(
             remoteRepository: FixedCriticalDataFreshnessRemoteRepository(config: nil),
@@ -158,8 +153,7 @@ struct ReguertaStartupAndOrderTests {
         #expect(evaluation == .accepted(collectionsToRefresh: [], metadataToPersist: nil))
     }
 
-    @Test
-    func sessionRefreshPolicyDebouncesForegroundTransitions() {
+    @Test func sessionRefreshPolicyDebouncesForegroundTransitions() {
         let policy = SessionRefreshPolicy(minimumForegroundIntervalMillis: 15_000)
 
         #expect(policy.shouldRefresh(
@@ -188,8 +182,7 @@ struct ReguertaStartupAndOrderTests {
         ))
     }
 
-    @Test
-    func startupRefreshRestoresAuthorizedSession() async {
+    @Test func startupRefreshRestoresAuthorizedSession() async {
         let provider = TestAuthSessionProvider(
             refreshResult: .active(AuthPrincipal(uid: "uid_admin_restore", email: "ana.admin@reguerta.app"))
         )
@@ -216,8 +209,7 @@ struct ReguertaStartupAndOrderTests {
         #expect(viewModel.showSessionExpiredDialog == false)
     }
 
-    @Test
-    func expiredRefreshSignsOutAndShowsRecoveryDialog() async {
+    @Test func expiredRefreshSignsOutAndShowsRecoveryDialog() async {
         let provider = TestAuthSessionProvider(
             signInResult: .success(AuthPrincipal(uid: "uid_admin_expired", email: "ana.admin@reguerta.app")),
             refreshResult: .expired
@@ -251,8 +243,7 @@ struct ReguertaStartupAndOrderTests {
         #expect(viewModel.showSessionExpiredDialog)
     }
 
-    @Test
-    func myOrderValidationBlocksMissingWeeklyCommitment() {
+    @Test func myOrderValidationBlocksMissingWeeklyCommitment() {
         let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
         let producerEven = producer(id: "producer_even", parity: .even)
         let ecoBasket = ecoBasketProduct(id: "eco_even", vendorId: producerEven.id)
@@ -270,8 +261,7 @@ struct ReguertaStartupAndOrderTests {
         #expect(result.hasEcoBasketPriceMismatch == false)
     }
 
-    @Test
-    func myOrderValidationAcceptsNoPickupAsPaidCommitment() {
+    @Test func myOrderValidationAcceptsNoPickupAsPaidCommitment() {
         let currentMember = member(id: "member_1", ecoCommitmentMode: .weekly)
         let producerEven = producer(id: "producer_even", parity: .even)
         let ecoBasket = ecoBasketProduct(id: "eco_even", vendorId: producerEven.id)
@@ -288,8 +278,7 @@ struct ReguertaStartupAndOrderTests {
         #expect(result.missingCommitmentProductNames.isEmpty)
     }
 
-    @Test
-    func myOrderValidationRequiresParityProducerInBiweeklyMode() {
+    @Test func myOrderValidationRequiresParityProducerInBiweeklyMode() {
         let currentMember = member(
             id: "member_1",
             ecoCommitmentMode: .biweekly,

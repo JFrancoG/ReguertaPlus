@@ -4,8 +4,7 @@ import Testing
 
 @MainActor
 struct ReguertaShiftsPresentationViewModelTests {
-    @Test
-    func shiftsViewModelComputesNextShiftPresentationByRoleAndMarketAssignment() async {
+    @Test func shiftsViewModelComputesNextShiftPresentationByRoleAndMarketAssignment() async {
         let currentMember = shiftMember(id: "member_1", displayName: "Carmen")
         let leadDelivery = shift(
             id: "lead_delivery",
@@ -39,8 +38,7 @@ struct ReguertaShiftsPresentationViewModelTests {
         #expect(viewModel.nextMarketAssignedShift?.id == market.id)
     }
 
-    @Test
-    func shiftsViewModelDerivesTodayHelperFromFollowingLeadShift() async {
+    @Test func shiftsViewModelDerivesTodayHelperFromFollowingLeadShift() async {
         let currentMember = shiftMember(id: "nohemi", displayName: "Nohemi")
         let helperDelivery = shift(
             id: "delivery_2026_w28",
@@ -70,8 +68,7 @@ struct ReguertaShiftsPresentationViewModelTests {
         #expect(viewModel.highlightedBoardNameIndex(for: helperDelivery, currentMemberId: currentMember.id) == 1)
     }
 
-    @Test
-    func shiftsViewModelUsesFollowingLeadOverPersistedHelperForBoardNames() async {
+    @Test func shiftsViewModelUsesFollowingLeadOverPersistedHelperForBoardNames() async {
         let currentMember = shiftMember(id: "nohemi", displayName: "Nohemi")
         let followingLead = shiftMember(id: "pedro", displayName: "Pedro")
         let delivery = shift(
@@ -102,8 +99,7 @@ struct ReguertaShiftsPresentationViewModelTests {
         #expect(viewModel.resolvedHelperUserId(for: nextDelivery) == nil)
     }
 
-    @Test
-    func shiftsViewModelBoardWindowUsesEffectiveDeliveryDates() async {
+    @Test func shiftsViewModelBoardWindowUsesEffectiveDeliveryDates() async {
         let currentMember = adminMember(id: "admin_1", displayName: "Admin")
         let previousDelivery = shift(
             id: "previous_delivery",
@@ -174,8 +170,7 @@ struct ReguertaShiftsPresentationViewModelTests {
         #expect(!todayViewModel.shiftBoardWindow(for: .delivery).highlights(tomorrowDelivery))
     }
 
-    @Test
-    func shiftsViewModelShowsSwapActivityAcrossDeliveryAndMarket() async {
+    @Test func shiftsViewModelShowsSwapActivityAcrossDeliveryAndMarket() async {
         let currentMember = shiftMember(id: "member_1", displayName: "Carmen")
         let otherMember = shiftMember(id: "member_2", displayName: "Javier")
         let requestRepository = InMemoryShiftSwapRequestRepository()

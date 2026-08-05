@@ -84,8 +84,7 @@ struct BylawsArticleRetrieverTests {
         )
     }
 
-    @Test("El recurso incluido respeta el schema v2")
-    func bundledIndexUsesSchemaV2() async throws {
+    @Test("El recurso incluido respeta el schema v2") func bundledIndexUsesSchemaV2() async throws {
         let index = try await BundledBylawsKnowledgeDataSource().loadIndex()
 
         #expect(index.schemaVersion == 2)
@@ -95,8 +94,7 @@ struct BylawsArticleRetrieverTests {
         #expect(index.articles.allSatisfy { !$0.searchAliases.isEmpty })
     }
 
-    @Test("Las quince preguntas canonicas pasan juntas")
-    func retrievesEveryCanonicalCase() async throws {
+    @Test("Las quince preguntas canonicas pasan juntas") func retrievesEveryCanonicalCase() async throws {
         let expectations: [(question: String, articles: [Int])] = [
             ("Condiciones que deben darse para poder modificar los estatutos.", [21]),
             ("¿Cómo se sustentará económicamente la asociación?", [18]),
@@ -146,8 +144,7 @@ struct BylawsArticleRetrieverTests {
         #expect(matches.isEmpty)
     }
 
-    @Test("Consultas no fundamentadas siguen sin evidencia")
-    func otherUnrelatedQuestionsHaveNoEvidence() async throws {
+    @Test("Consultas no fundamentadas siguen sin evidencia") func otherUnrelatedQuestionsHaveNoEvidence() async throws {
         let index = try await BundledBylawsKnowledgeDataSource().loadIndex()
         let retriever = SpanishBylawsArticleRetriever()
 
@@ -195,8 +192,7 @@ struct BylawsArticleRetrieverTests {
         )
     }
 
-    @Test("Un termino raro del cuerpo recupera su articulo")
-    func rareBodyTermRetrievesArticle() async throws {
+    @Test("Un termino raro del cuerpo recupera su articulo") func rareBodyTermRetrievesArticle() async throws {
         let index = try await BundledBylawsKnowledgeDataSource().loadIndex()
 
         let matches = SpanishBylawsArticleRetriever().retrieve(
@@ -208,8 +204,7 @@ struct BylawsArticleRetrieverTests {
         #expect(matches.first?.article.articleNumber == 3)
     }
 
-    @Test("Un articulo explicito recupera texto integro")
-    func explicitArticleRetrievesFullText() async throws {
+    @Test("Un articulo explicito recupera texto integro") func explicitArticleRetrievesFullText() async throws {
         let index = try await BundledBylawsKnowledgeDataSource().loadIndex()
 
         let match = try #require(
