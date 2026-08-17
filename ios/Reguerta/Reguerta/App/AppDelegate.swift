@@ -4,7 +4,7 @@ import UIKit
 import UserNotifications
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
-    private static let logger = Logger(subsystem: "com.reguerta.app", category: "PushRegistration")
+    nonisolated private static let logger = Logger(subsystem: "com.reguerta.app", category: "PushRegistration")
     private var authorizedDeviceRegistrar: (any AuthorizedDeviceRegistrar)?
     private var pendingRegistrationToken: PendingRegistrationToken?
     private static var usesMockAuth: Bool {

@@ -511,6 +511,23 @@
         }
       }
     },
+    "auth_error.session_data" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your account was verified, but its data could not be loaded. Try again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu cuenta se ha validado, pero no se pudieron cargar sus datos. Inténtalo de nuevo."
+          }
+        }
+      }
+    },
     "auth_error.too_many_requests" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2180,13 +2197,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Unable to load the latest data. Try again."
+            "value" : "Some data could not be refreshed. You can keep using the available information."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No se pudieron cargar los datos más recientes. Inténtalo de nuevo."
+            "value" : "Algunos datos no se pudieron actualizar. Puedes seguir usando la información disponible."
           }
         }
       }

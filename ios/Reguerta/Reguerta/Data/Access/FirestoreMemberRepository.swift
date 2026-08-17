@@ -120,7 +120,7 @@ extension FirestoreMemberRepository {
         let producerParity = try optionalParity(
             data["producerParity"],
             resource: resource,
-            acceptsLegacyCasing: false
+            acceptsLegacyValues: false
         )
         guard let ecoCommitment = try optionalMap(data, field: "ecoCommitment", resource: resource) else {
             throw RepositoryError.invalidData(resource: resource)
@@ -129,7 +129,7 @@ extension FirestoreMemberRepository {
         let ecoCommitmentParity = try optionalParity(
             ecoCommitment["parity"],
             resource: resource,
-            acceptsLegacyCasing: false
+            acceptsLegacyValues: false
         )
 
         return Member(
@@ -219,18 +219,18 @@ private extension FirestoreMemberRepository {
             producerParity: try optionalParity(
                 data["producerParity"],
                 resource: resource,
-                acceptsLegacyCasing: true
+                acceptsLegacyValues: true
             ),
             mode: try optionalEcoMode(
                 ecoCommitment?["mode"],
                 default: .weekly,
                 resource: resource,
-                acceptsLegacyCasing: true
+                acceptsLegacyValues: true
             ),
             parity: try optionalParity(
                 ecoCommitment?["parity"],
                 resource: resource,
-                acceptsLegacyCasing: true
+                acceptsLegacyValues: true
             )
         )
     }
@@ -338,16 +338,24 @@ private extension FirestoreMemberRepository {
     private static func optionalParity(
         _ rawValue: Any?,
         resource: String,
-        acceptsLegacyCasing: Bool
+        acceptsLegacyValues: Bool
     ) throws -> ProducerParity? {
         guard let rawValue, !(rawValue is NSNull) else { return nil }
         guard let value = rawValue as? String else { throw RepositoryError.invalidData(resource: resource) }
         let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        let candidate = acceptsLegacyCasing ? normalized.lowercased() : normalized
-        guard let parity = ProducerParity(rawValue: candidate) else {
-            throw RepositoryError.invalidData(resource: resource)
+        let candidate = acceptsLegacyValues ? normalized.lowercased() : normalized
+        if acceptsLegacyValues, candidate.isEmpty { return nil }
+        if let parity = ProducerParity(rawValue: candidate) {
+            return parity
         }
-        return parity
+        if acceptsLegacyValues {
+            switch candidate {
+            case "par": return .even
+            case "impar": return .odd
+            default: break
+            }
+        }
+        throw RepositoryError.invalidData(resource: resource)
     }
 
     private static func requiredEcoMode(_ rawValue: Any?, resource: String) throws -> EcoCommitmentMode {
@@ -363,12 +371,13 @@ private extension FirestoreMemberRepository {
         _ rawValue: Any?,
         default defaultValue: EcoCommitmentMode,
         resource: String,
-        acceptsLegacyCasing: Bool
+        acceptsLegacyValues: Bool
     ) throws -> EcoCommitmentMode {
         guard let rawValue, !(rawValue is NSNull) else { return defaultValue }
         guard let value = rawValue as? String else { throw RepositoryError.invalidData(resource: resource) }
         let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        let candidate = acceptsLegacyCasing ? normalized.lowercased() : normalized
+        let candidate = acceptsLegacyValues ? normalized.lowercased() : normalized
+        if acceptsLegacyValues, candidate.isEmpty { return defaultValue }
         guard let mode = EcoCommitmentMode(rawValue: candidate) else {
             throw RepositoryError.invalidData(resource: resource)
         }

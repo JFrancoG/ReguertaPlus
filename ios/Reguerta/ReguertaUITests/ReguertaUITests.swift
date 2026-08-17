@@ -28,14 +28,16 @@ final class ReguertaUITests: XCTestCase {
     private let latestNewsMaxScrollAttempts = 4
     private let deterministicNowMillis = "1778760000000"
 
-    override func setUpWithError() throws {
+    override func setUp() async throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.
 
         // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
 
         // In UI tests set initial state before each run.
-        XCUIApplication().terminate()
+        await MainActor.run {
+            XCUIApplication().terminate()
+        }
     }
 
     @MainActor func testUnauthorizedUserShowsRestrictedMode() throws {
@@ -241,7 +243,7 @@ final class ReguertaUITests: XCTestCase {
         }
     }
 
-    private func configuredApp() -> XCUIApplication {
+    @MainActor private func configuredApp() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += [
             "-AppleLanguages", "(en)",

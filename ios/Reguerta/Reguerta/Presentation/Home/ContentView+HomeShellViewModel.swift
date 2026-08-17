@@ -57,10 +57,6 @@ extension AccessRootViewModel {
         return myOrderViewModel.isCartVisible && !myOrderViewModel.isReadOnlyMode
     }
 
-    var shouldShowHomeFeedbackMessage: Bool {
-        feedbackCenter.messageKey != nil
-    }
-
     var homeDrawerProgress: CGFloat {
         resolvedHomeDrawerProgress(drawerWidth: homeDrawerWidth)
     }

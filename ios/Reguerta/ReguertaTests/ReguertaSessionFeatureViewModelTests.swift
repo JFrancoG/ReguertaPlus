@@ -29,6 +29,11 @@ struct ReguertaSessionFeatureViewModelTests {
         #expect(feedbackCenter.messageKey == nil)
     }
 
+    @Test func globalFeedbackAutoDismissesUnlessVoiceOverNeedsPersistentAccess() {
+        #expect(GlobalFeedbackPresentationPolicy.autoDismissDelay(isVoiceOverEnabled: false) == .seconds(8))
+        #expect(GlobalFeedbackPresentationPolicy.autoDismissDelay(isVoiceOverEnabled: true) == nil)
+    }
+
     @Test func bylawsBlocksEmptyQuestionWithFeedback() {
         let feedbackCenter = GlobalFeedbackCenter()
         let viewModel = BylawsFeatureViewModel(

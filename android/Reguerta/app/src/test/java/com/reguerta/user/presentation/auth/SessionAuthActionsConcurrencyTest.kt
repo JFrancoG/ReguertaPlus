@@ -127,6 +127,37 @@ class SessionAuthActionsConcurrencyTest {
     }
 
     @Test
+    fun `member loading failure after authentication reports account data instead of credentials`() = runTest {
+        val authProvider = ControlledAuthSessionProvider(
+            signInResults = listOf(
+                CompletableDeferred(AuthSignInResult.Success(principal("member-data-failure"))),
+            ),
+        )
+        val memberRepository = TestMemberRepository(
+            visibleMembersError = RepositoryException(
+                kind = RepositoryErrorKind.INVALID_DATA,
+                resource = "members.document",
+            ),
+        )
+        val fixture = fixture(
+            scope = this,
+            authProvider = authProvider,
+            memberRepository = memberRepository,
+        )
+
+        assertTrue(fixture.actions.signIn("secret123"))
+        advanceUntilIdle()
+
+        assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
+        assertFalse(fixture.state.value.isAuthenticating)
+        assertEquals(
+            com.reguerta.user.R.string.auth_error_session_data,
+            fixture.state.value.emailErrorRes,
+        )
+        assertEquals(2, authProvider.signOutRequests)
+    }
+
+    @Test
     fun `interactive submit is rejected while another session operation owns the lane`() = runTest {
         val predecessorResult = CompletableDeferred<AuthSignInResult>()
         val authProvider = ControlledAuthSessionProvider(
@@ -2085,6 +2116,7 @@ private class TestAuthorizedDeviceRegistrar(
 private class TestMemberRepository(
     private val visibleMembersStarted: CompletableDeferred<Unit>? = null,
     private val visibleMembersRelease: CompletableDeferred<Unit>? = null,
+    private val visibleMembersError: Exception? = null,
     private val currentEnvironment: () -> String? = { null },
 ) : MemberRepository {
     var findByAuthUidRequests = 0
@@ -2101,6 +2133,7 @@ private class TestMemberRepository(
         visibleMembersRelease?.let { release ->
             withContext(NonCancellable) { release.await() }
         }
+        visibleMembersError?.let { throw it }
         return listOf(member)
     }
 

@@ -71,6 +71,13 @@ struct FirestoreRepositoryErrorMapperTests {
             try FirestoreProductRepository.product(documentID: "product", data: invalidProduct)
         }
 
+        var blankLegacyCommonPurchaseType = validProductData()
+        blankLegacyCommonPurchaseType["commonPurchaseType"] = "   "
+        #expect(try FirestoreProductRepository.product(
+            documentID: "product",
+            data: blankLegacyCommonPurchaseType
+        ).commonPurchaseType == nil)
+
         var legacyNullProduct = validProductData()
         legacyNullProduct["productImageUrl"] = NSNull()
         #expect(try FirestoreProductRepository.product(
@@ -252,7 +259,9 @@ struct FirestoreRepositoryErrorMapperTests {
             "name": "Ana",
             "surname": "Reguerta",
             "email": " ANA@EXAMPLE.COM ",
-            "isProducer": true
+            "isProducer": true,
+            "producerParity": "par",
+            "ecoCommitment": ["mode": "biweekly", "parity": "impar"]
         ]
         let member = try FirestoreMemberRepository.member(
             documentID: "member_1",
@@ -261,7 +270,26 @@ struct FirestoreRepositoryErrorMapperTests {
         #expect(member.displayName == "Ana Reguerta")
         #expect(member.normalizedEmail == "ana@example.com")
         #expect(member.roles == [.member, .producer])
-        #expect(member.ecoCommitmentMode == .weekly)
+        #expect(member.producerParity == .even)
+        #expect(member.ecoCommitmentMode == .biweekly)
+        #expect(member.ecoCommitmentParity == .odd)
+
+        var blankLegacyParity = legacyMember
+        blankLegacyParity["ecoCommitment"] = ["mode": "weekly", "parity": "  "]
+        let memberWithoutParity = try FirestoreMemberRepository.member(
+            documentID: "member_1",
+            data: blankLegacyParity
+        )
+        #expect(memberWithoutParity.ecoCommitmentParity == nil)
+
+        var blankLegacyMode = legacyMember
+        blankLegacyMode["ecoCommitment"] = ["mode": "  ", "parity": ""]
+        let memberWithDefaultMode = try FirestoreMemberRepository.member(
+            documentID: "member_1",
+            data: blankLegacyMode
+        )
+        #expect(memberWithDefaultMode.ecoCommitmentMode == .weekly)
+        #expect(memberWithDefaultMode.ecoCommitmentParity == nil)
 
         var conflictingCanonicalType = legacyMember
         conflictingCanonicalType["normalizedEmail"] = 123
@@ -269,6 +297,44 @@ struct FirestoreRepositoryErrorMapperTests {
             try FirestoreMemberRepository.member(
                 documentID: "member_1",
                 data: conflictingCanonicalType
+            )
+        }
+
+        let legacyParityInDirectory: [String: Any] = [
+            "userId": "member_1",
+            "displayName": "Member One",
+            "companyName": NSNull(),
+            "roles": ["member", "producer"],
+            "isActive": true,
+            "producerCatalogEnabled": true,
+            "isCommonPurchaseManager": false,
+            "producerParity": "par",
+            "ecoCommitment": ["mode": "biweekly", "parity": "even"]
+        ]
+        #expect(throws: RepositoryError.invalidData(resource: "members.directory.document")) {
+            try FirestoreMemberRepository.directoryMember(
+                documentID: "member_1",
+                data: legacyParityInDirectory
+            )
+        }
+
+        var blankParityInDirectory = legacyParityInDirectory
+        blankParityInDirectory["producerParity"] = "odd"
+        blankParityInDirectory["ecoCommitment"] = ["mode": "weekly", "parity": ""]
+        #expect(throws: RepositoryError.invalidData(resource: "members.directory.document")) {
+            try FirestoreMemberRepository.directoryMember(
+                documentID: "member_1",
+                data: blankParityInDirectory
+            )
+        }
+
+        var blankModeInDirectory = legacyParityInDirectory
+        blankModeInDirectory["producerParity"] = "odd"
+        blankModeInDirectory["ecoCommitment"] = ["mode": "", "parity": "even"]
+        #expect(throws: RepositoryError.invalidData(resource: "members.directory.document")) {
+            try FirestoreMemberRepository.directoryMember(
+                documentID: "member_1",
+                data: blankModeInDirectory
             )
         }
     }

@@ -244,7 +244,7 @@ final class FirestoreProductRepository: @unchecked Sendable, ProductRepository {
     }
 
     private static func commonPurchaseType(_ data: [String: Any]) throws -> CommonPurchaseType? {
-        guard let rawValue = try optionalEnumString(data, field: "commonPurchaseType") else { return nil }
+        guard let rawValue = try optionalString(data, field: "commonPurchaseType") else { return nil }
         guard let value = CommonPurchaseType(rawValue: rawValue) else { throw invalidDocumentError }
         return value
     }

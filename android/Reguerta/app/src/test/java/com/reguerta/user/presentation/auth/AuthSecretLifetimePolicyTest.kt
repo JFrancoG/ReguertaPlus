@@ -28,8 +28,13 @@ class AuthSecretLifetimePolicyTest {
             secret = "test-pass12",
             submissionAccepted = true,
         )
+        val validationRevision = nextAuthSecretValidationRevision(
+            currentRevision = 4,
+            submissionAccepted = true,
+        )
 
         assertTrue(remainingSecret.isEmpty())
+        assertTrue(validationRevision == 5)
     }
 
     @Test
@@ -38,7 +43,12 @@ class AuthSecretLifetimePolicyTest {
             secret = "short",
             submissionAccepted = false,
         )
+        val validationRevision = nextAuthSecretValidationRevision(
+            currentRevision = 4,
+            submissionAccepted = false,
+        )
 
         assertTrue(remainingSecret == "short")
+        assertTrue(validationRevision == 4)
     }
 }

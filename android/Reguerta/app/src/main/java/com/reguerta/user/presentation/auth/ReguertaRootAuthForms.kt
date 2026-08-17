@@ -115,6 +115,7 @@ internal fun SignInCard(
     val spacing = ReguertaThemeTokens.spacing
     val focusManager = LocalFocusManager.current
     var passwordInput by remember { mutableStateOf("") }
+    var passwordValidationRevision by remember { mutableStateOf(0) }
     val canSubmit = !state.isAuthenticating &&
         isValidEmail(state.emailInput) &&
         isValidPassword(passwordInput) &&
@@ -160,6 +161,7 @@ internal fun SignInCard(
                 errorMessage = state.passwordErrorRes?.let { stringResource(it) },
                 liveValidationErrorMessage = stringResource(R.string.feedback_password_invalid_length),
                 liveValidation = ::isValidPassword,
+                liveValidationRevision = passwordValidationRevision,
             )
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -185,9 +187,11 @@ internal fun SignInCard(
             onClick = {
                 focusManager.clearFocus(force = true)
                 val passwordSnapshot = passwordInput
-                passwordInput = retainedAuthSecretAfterSubmission(
-                    secret = passwordSnapshot,
-                    submissionAccepted = onSignIn(passwordSnapshot),
+                val submissionAccepted = onSignIn(passwordSnapshot)
+                passwordInput = retainedAuthSecretAfterSubmission(passwordSnapshot, submissionAccepted)
+                passwordValidationRevision = nextAuthSecretValidationRevision(
+                    currentRevision = passwordValidationRevision,
+                    submissionAccepted = submissionAccepted,
                 )
             },
             enabled = canSubmit,
@@ -215,6 +219,7 @@ internal fun SignUpCard(
     val focusManager = LocalFocusManager.current
     var registerPasswordInput by remember { mutableStateOf("") }
     var registerRepeatPasswordInput by remember { mutableStateOf("") }
+    var passwordValidationRevision by remember { mutableStateOf(0) }
     var registerPasswordVisible by rememberSaveable { mutableStateOf(false) }
     val repeatRequiredMessage = stringResource(R.string.feedback_password_repeat_required)
     val invalidPasswordMessage = stringResource(R.string.feedback_password_invalid_length)
@@ -267,6 +272,7 @@ internal fun SignUpCard(
                 errorMessage = state.registerPasswordErrorRes?.let { stringResource(it) },
                 liveValidationErrorMessage = stringResource(R.string.feedback_password_invalid_length),
                 liveValidation = ::isValidPassword,
+                liveValidationRevision = passwordValidationRevision,
             )
             ReguertaInputField(
                 label = stringResource(R.string.register_repeat_password_label),
@@ -282,6 +288,7 @@ internal fun SignUpCard(
                 passwordVisible = registerPasswordVisible,
                 onPasswordVisibilityChange = { registerPasswordVisible = it },
                 errorMessage = state.registerRepeatPasswordErrorRes?.let { stringResource(it) },
+                liveValidationRevision = passwordValidationRevision,
                 liveValidationErrorProvider = { repeatedPassword ->
                     when {
                         repeatedPassword.isBlank() -> repeatRequiredMessage
@@ -315,6 +322,10 @@ internal fun SignUpCard(
                     secret = repeatedPasswordSnapshot,
                     submissionAccepted = submissionAccepted,
                 )
+                passwordValidationRevision = nextAuthSecretValidationRevision(
+                    currentRevision = passwordValidationRevision,
+                    submissionAccepted = submissionAccepted,
+                )
             },
             enabled = canSubmit,
             loading = state.isRegistering,
@@ -337,3 +348,8 @@ internal fun retainedAuthSecretAfterSubmission(
     secret: String,
     submissionAccepted: Boolean,
 ): String = if (submissionAccepted) "" else secret
+
+internal fun nextAuthSecretValidationRevision(
+    currentRevision: Int,
+    submissionAccepted: Boolean,
+): Int = if (submissionAccepted) currentRevision + 1 else currentRevision

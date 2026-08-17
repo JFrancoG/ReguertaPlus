@@ -134,7 +134,7 @@ internal fun decodeProductDocument(documentId: String, data: Map<String, Any?>):
         stockQty = data.optionalNonNegativeDouble("stockQty"),
         isEcoBasket = data.optionalBoolean("isEcoBasket", default = false),
         isCommonPurchase = data.optionalBoolean("isCommonPurchase", default = false),
-        commonPurchaseType = data.optionalEnumString("commonPurchaseType").toCommonPurchaseType(),
+        commonPurchaseType = data.optionalString("commonPurchaseType").toCommonPurchaseType(),
         archived = data.optionalBoolean("archived", default = false),
         createdAtMillis = data.optionalTimestampMillis("createdAt"),
         updatedAtMillis = data.optionalTimestampMillis("updatedAt"),

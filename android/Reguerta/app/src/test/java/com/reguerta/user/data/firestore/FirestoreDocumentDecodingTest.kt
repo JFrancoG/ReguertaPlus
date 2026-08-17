@@ -11,6 +11,7 @@ import com.reguerta.user.domain.products.Product
 import com.reguerta.user.domain.products.ProductPricingMode
 import com.reguerta.user.domain.products.ProductStockMode
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -43,6 +44,11 @@ class FirestoreDocumentDecodingTest {
         assertInvalidData("products.document") {
             decodeProductDocument("product", blankEnum)
         }
+
+        val blankLegacyCommonPurchaseType = validProductData().toMutableMap().apply {
+            this["commonPurchaseType"] = "   "
+        }
+        assertNull(decodeProductDocument("product", blankLegacyCommonPurchaseType).commonPurchaseType)
 
         val invalidBoolean = validProductData().toMutableMap().apply {
             this["archived"] = "false"

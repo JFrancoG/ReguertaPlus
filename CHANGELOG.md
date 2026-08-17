@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- 2026-08-11 | ♻️ refactor(ios): remove dormant repositories
 - 2026-08-05 | 💄 style(ios): clear Swift line-length baseline
 
 ### Added
@@ -66,6 +67,10 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-08-18 | 🐛 fix(startup): allow public version checks
+- 2026-08-14 | 🐛 fix(access): fix login feedback and validation
+- 2026-08-12 | 🐛 fix(auth): accept legacy Firestore values
+- 2026-08-11 | 🐛 fix(ios): clear strict concurrency warnings
 - 2026-07-29 | 🐛 fix(community): enforce feed integrity
 - 2026-07-29 | 🐛 fix(android): preserve device identity across secure-store migration
 - 2026-07-28 | 🐛 fix(push): fence registration to live sessions
@@ -173,6 +178,7 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
+- 2026-08-18 | 📦 build(android): refresh app dependencies
 - 2026-08-05 | 💄 style(ios): normalize Swift declarations
 - 2026-08-02 | 🔧 chore(ios): enforce Swift line width
 - 2026-07-30 | 📦 build(android): update Navigation 3 to 1.1.5

@@ -208,7 +208,7 @@ private func assertPostAuthenticationFailure(viewModel: SessionViewModel, provid
     #expect(viewModel.sessionOperationState == .idle)
     #expect(viewModel.sessionOperationTask == nil)
     #expect(viewModel.isAuthenticating == false)
-    #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.authErrorNetwork)
+    #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.authErrorSessionData)
     #expect(provider.isAuthenticated == false)
     #expect(provider.signOutCallCount == 2)
 }
