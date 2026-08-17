@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- 2026-08-11 | ♻️ refactor(ios): remove dormant repositories
 - 2026-08-05 | 💄 style(ios): clear Swift line-length baseline
 
 ### Added

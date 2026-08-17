@@ -184,25 +184,6 @@ struct ReguertaShiftsAdminViewModelTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
     }
 
-    @Test func chainedShiftRepositoryPropagatesPrimaryRejectionWithoutMutatingFallback() async {
-        let fallback = InMemoryShiftRepository()
-        let repository = ChainedShiftRepository(
-            primary: RejectingShiftRepository(),
-            fallback: fallback
-        )
-        let assignment = shift(
-            id: "delivery",
-            type: .delivery,
-            dateMillis: testMillis(year: 2026, month: 5, day: 6),
-            assignedUserIds: ["admin_1"]
-        )
-
-        await #expect(throws: ShiftsMutationTestError.rejected) {
-            try await repository.upsert(shift: assignment)
-        }
-        #expect(await fallback.allShifts().isEmpty)
-    }
-
     @Test func previewEnvironmentUsesInMemoryShiftsDependenciesAndSharesRootSession() {
         let environment = ReguertaAppEnvironment.preview()
 
