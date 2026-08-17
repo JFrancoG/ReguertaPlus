@@ -67,6 +67,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-08-12 | 🐛 fix(auth): accept legacy Firestore values
 - 2026-08-11 | 🐛 fix(ios): clear strict concurrency warnings
 - 2026-07-29 | 🐛 fix(community): enforce feed integrity
 - 2026-07-29 | 🐛 fix(android): preserve device identity across secure-store migration

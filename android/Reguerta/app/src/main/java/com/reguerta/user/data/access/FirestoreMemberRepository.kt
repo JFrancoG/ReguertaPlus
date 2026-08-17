@@ -119,13 +119,13 @@ internal fun decodeDirectoryMemberDocument(
     if (!data.requiredBoolean("isActive", resource)) invalidDocument(resource)
     val producerCatalogEnabled = data.requiredBoolean("producerCatalogEnabled", resource)
     val isCommonPurchaseManager = data.requiredBoolean("isCommonPurchaseManager", resource)
-    val producerParity = optionalParity(data["producerParity"], resource, acceptsLegacyCasing = false)
+    val producerParity = optionalParity(data["producerParity"], resource, acceptsLegacyValues = false)
     val ecoCommitment = data.optionalMap("ecoCommitment", resource) ?: invalidDocument(resource)
     val ecoCommitmentMode = requiredEcoMode(ecoCommitment["mode"], resource)
     val ecoCommitmentParity = optionalParity(
         ecoCommitment["parity"],
         resource,
-        acceptsLegacyCasing = false,
+        acceptsLegacyValues = false,
     )
 
     return Member(
@@ -174,18 +174,18 @@ internal fun decodeMemberDocument(
         false,
         resource,
     )
-    val producerParity = optionalParity(data["producerParity"], resource, acceptsLegacyCasing = true)
+    val producerParity = optionalParity(data["producerParity"], resource, acceptsLegacyValues = true)
     val ecoCommitment = data.optionalMap("ecoCommitment", resource)
     val ecoCommitmentMode = optionalEcoMode(
         ecoCommitment?.get("mode"),
         EcoCommitmentMode.WEEKLY,
         resource,
-        acceptsLegacyCasing = true,
+        acceptsLegacyValues = true,
     )
     val ecoCommitmentParity = optionalParity(
         ecoCommitment?.get("parity"),
         resource,
-        acceptsLegacyCasing = true,
+        acceptsLegacyValues = true,
     )
     val roles = data.fullMemberRoles(resource)
 
@@ -281,14 +281,17 @@ private fun Map<String, Any?>.directoryRoles(resource: String): Set<MemberRole> 
 private fun optionalParity(
     rawValue: Any?,
     resource: String,
-    acceptsLegacyCasing: Boolean,
+    acceptsLegacyValues: Boolean,
 ): ProducerParity? {
     val value = rawValue ?: return null
     val string = value as? String ?: invalidDocument(resource)
-    val normalized = string.trim().let { if (acceptsLegacyCasing) it.lowercase() else it }
+    val normalized = string.trim().let { if (acceptsLegacyValues) it.lowercase() else it }
     return when (normalized) {
+        "" -> if (acceptsLegacyValues) null else invalidDocument(resource)
         "even" -> ProducerParity.EVEN
         "odd" -> ProducerParity.ODD
+        "par" -> if (acceptsLegacyValues) ProducerParity.EVEN else invalidDocument(resource)
+        "impar" -> if (acceptsLegacyValues) ProducerParity.ODD else invalidDocument(resource)
         else -> invalidDocument(resource)
     }
 }
@@ -307,12 +310,13 @@ private fun optionalEcoMode(
     rawValue: Any?,
     default: EcoCommitmentMode,
     resource: String,
-    acceptsLegacyCasing: Boolean,
+    acceptsLegacyValues: Boolean,
 ): EcoCommitmentMode {
     val value = rawValue ?: return default
     val string = value as? String ?: invalidDocument(resource)
-    val normalized = string.trim().let { if (acceptsLegacyCasing) it.lowercase() else it }
+    val normalized = string.trim().let { if (acceptsLegacyValues) it.lowercase() else it }
     return when (normalized) {
+        "" -> if (acceptsLegacyValues) default else invalidDocument(resource)
         "weekly" -> EcoCommitmentMode.WEEKLY
         "biweekly" -> EcoCommitmentMode.BIWEEKLY
         else -> invalidDocument(resource)

@@ -10,6 +10,7 @@ import com.reguerta.user.domain.RepositoryErrorKind
 import com.reguerta.user.domain.RepositoryException
 import com.reguerta.user.domain.access.EcoCommitmentMode
 import com.reguerta.user.domain.access.MemberRole
+import com.reguerta.user.domain.access.ProducerParity
 import com.reguerta.user.domain.profiles.SharedProfile
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -101,16 +102,62 @@ class FirestoreProfileMemberDecodingTest {
             "surname" to "Reguerta",
             "email" to " ANA@EXAMPLE.COM ",
             "isProducer" to true,
+            "producerParity" to "par",
+            "ecoCommitment" to mapOf("mode" to "biweekly", "parity" to "impar"),
         )
 
         val member = decodeMemberDocument("member_1", legacy)
         assertEquals("Ana Reguerta", member.displayName)
         assertEquals("ana@example.com", member.normalizedEmail)
         assertEquals(setOf(MemberRole.MEMBER, MemberRole.PRODUCER), member.roles)
-        assertEquals(EcoCommitmentMode.WEEKLY, member.ecoCommitmentMode)
+        assertEquals(EcoCommitmentMode.BIWEEKLY, member.ecoCommitmentMode)
+        assertEquals(ProducerParity.EVEN, member.producerParity)
+        assertEquals(ProducerParity.ODD, member.ecoCommitmentParity)
+
+        val blankLegacyParity = decodeMemberDocument(
+            "member_1",
+            legacy + ("ecoCommitment" to mapOf("mode" to "weekly", "parity" to "  ")),
+        )
+        assertNull(blankLegacyParity.ecoCommitmentParity)
+
+        val blankLegacyMode = decodeMemberDocument(
+            "member_1",
+            legacy + ("ecoCommitment" to mapOf("mode" to "  ", "parity" to "")),
+        )
+        assertEquals(EcoCommitmentMode.WEEKLY, blankLegacyMode.ecoCommitmentMode)
+        assertNull(blankLegacyMode.ecoCommitmentParity)
 
         assertInvalidData("members.document") {
             decodeMemberDocument("member_1", legacy + ("normalizedEmail" to 123L))
+        }
+
+        val canonicalDirectory = mapOf<String, Any?>(
+            "userId" to "member_1",
+            "displayName" to "Member One",
+            "companyName" to null,
+            "roles" to listOf("member", "producer"),
+            "isActive" to true,
+            "producerCatalogEnabled" to true,
+            "isCommonPurchaseManager" to false,
+            "producerParity" to "par",
+            "ecoCommitment" to mapOf("mode" to "biweekly", "parity" to "even"),
+        )
+        assertInvalidData("members.directory.document") {
+            decodeDirectoryMemberDocument("member_1", canonicalDirectory)
+        }
+        assertInvalidData("members.directory.document") {
+            decodeDirectoryMemberDocument(
+                "member_1",
+                canonicalDirectory + ("producerParity" to "odd") +
+                    ("ecoCommitment" to mapOf("mode" to "weekly", "parity" to "")),
+            )
+        }
+        assertInvalidData("members.directory.document") {
+            decodeDirectoryMemberDocument(
+                "member_1",
+                canonicalDirectory + ("producerParity" to "odd") +
+                    ("ecoCommitment" to mapOf("mode" to "", "parity" to "even")),
+            )
         }
     }
 
