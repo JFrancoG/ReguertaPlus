@@ -60,6 +60,7 @@ fun ReguertaInputField(
     liveValidationErrorMessage: String? = null,
     liveValidation: ((String) -> Boolean)? = null,
     liveValidationErrorProvider: ((String) -> String?)? = null,
+    liveValidationRevision: Int = 0,
     isPassword: Boolean = false,
     showClearAction: Boolean = false,
     showPasswordToggle: Boolean = isPassword,
@@ -71,7 +72,7 @@ fun ReguertaInputField(
     maxLines: Int = if (singleLine) 1 else 4,
 ) {
     var focused by remember { mutableStateOf(false) }
-    var interacted by remember { mutableStateOf(false) }
+    var interacted by remember(liveValidationRevision) { mutableStateOf(false) }
     var internalPasswordVisible by remember { mutableStateOf(false) }
     val resolvedPasswordVisible = passwordVisible ?: internalPasswordVisible
     val controlScale = ReguertaAdaptive.profile.tokenScale.controls

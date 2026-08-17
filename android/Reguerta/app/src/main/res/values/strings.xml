@@ -503,6 +503,7 @@
     <string name="auth_error_email_not_verified">Verify your email before signing in. We sent you a verification link</string>
     <string name="auth_error_too_many_requests">Too many attempts. Try again later</string>
     <string name="auth_error_network">Check your connection and try again</string>
+    <string name="auth_error_session_data">Your account was verified, but its data could not be loaded. Try again.</string>
     <string name="auth_error_unknown">Unable to sign in right now</string>
     <string name="auth_error_register_generic">Unable to create your account right now. Try again.</string>
     <string name="auth_error_recover_generic">Unable to send the reset email right now. Try again.</string>
@@ -521,7 +522,7 @@
     <string name="feedback_only_admin_toggle_active">Only admins can activate or deactivate</string>
     <string name="feedback_only_admin_manage_members">Only admins can manage members</string>
     <string name="feedback_cannot_remove_last_admin">Cannot leave the app without active admins</string>
-    <string name="feedback_unable_load_data">Unable to load the latest data. Try again.</string>
+    <string name="feedback_unable_load_data">Some data could not be refreshed. You can keep using the available information.</string>
     <string name="feedback_unable_save_changes">Unable to save changes</string>
     <string name="feedback_only_admin_publish_news">Only admins can publish news</string>
     <string name="feedback_only_admin_edit_news">Only admins can edit news</string>

@@ -16,15 +16,10 @@ extension AccessRootRoutingView {
                 contentWidth: rootViewModel.homeContentWidth,
                 headerViewModel: rootViewModel.homeShellHeaderViewModel,
                 headerHorizontalPadding: rootViewModel.homeShellTopBarHorizontalPadding,
-                headerContentSpacing: rootViewModel.homeShellRouteSpacing,
-                showsBottomInset: rootViewModel.shouldShowHomeFeedbackMessage
+                headerContentSpacing: rootViewModel.homeShellRouteSpacing
             ) {
                 homeRouteContent
                     .frame(maxHeight: .infinity, alignment: .topLeading)
-            } bottomContent: {
-                if rootViewModel.shouldShowHomeFeedbackMessage {
-                    feedbackMessageRoute
-                }
             }
             .disabled(rootViewModel.isHomeDrawerPresented)
             .overlay(alignment: .topLeading) {

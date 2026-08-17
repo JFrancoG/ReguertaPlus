@@ -163,6 +163,12 @@ struct MainView: AccessRootRoutingView {
                 }
                 .toolbar(.hidden, for: .navigationBar)
         }
+        .overlay(alignment: .bottom) {
+            if shellState.currentRoute != .splash {
+                feedbackMessageRoute
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: feedbackCenter.messageKey)
         .overlay {
             RootOverlayView()
         }
@@ -220,10 +226,7 @@ struct AuthShellView: AccessRootRoutingView {
             splashRoute
         } else {
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-                    currentAuthRoute
-                    feedbackMessageRoute
-                }
+                currentAuthRoute
                 .frame(maxWidth: .infinity, alignment: .topLeading)
                 .containerRelativeFrame(.vertical, alignment: .top)
                 .padding(.bottom, tokens.spacing.md)

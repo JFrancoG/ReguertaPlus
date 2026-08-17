@@ -189,6 +189,7 @@ enum AccessL10nKey {
     static let authErrorWeakPassword = "auth_error.weak_password"
     static let authErrorTooManyRequests = "auth_error.too_many_requests"
     static let authErrorNetwork = "auth_error.network"
+    static let authErrorSessionData = "auth_error.session_data"
     static let authErrorUnknown = "auth_error.unknown"
     static let authInfoPasswordResetSent = "auth_info.password_reset_sent"
     static let authInfoVerificationSent = "auth_info.verification_sent"

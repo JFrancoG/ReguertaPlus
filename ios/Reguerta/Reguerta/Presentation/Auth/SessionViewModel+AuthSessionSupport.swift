@@ -120,7 +120,7 @@ extension SessionViewModel {
                 firebaseSignOutSucceeded: authSessionProvider.signOut(),
                 showsExpiredDialog: false
             )
-            feedbackCenter.show(AccessL10nKey.authErrorNetwork)
+            feedbackCenter.show(AccessL10nKey.authErrorSessionData)
         }
     }
 
@@ -220,7 +220,7 @@ extension SessionViewModel {
                 firebaseSignOutSucceeded: authSessionProvider.signOut(),
                 showsExpiredDialog: false
             )
-            feedbackCenter.show(AccessL10nKey.authErrorNetwork)
+            feedbackCenter.show(AccessL10nKey.authErrorSessionData)
             return
         }
         guard isCurrentSessionOperation(generation) else { return }

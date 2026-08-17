@@ -147,17 +147,20 @@ internal class SessionAuthActions(
             }
 
             when (authResult) {
-                is AuthSignInResult.Success -> when (
-                    applyAuthorizedSession(
-                        principal = authResult.principal,
-                        shouldRefreshCriticalData = true,
-                        operation = operation,
-                    )
-                ) {
-                    AuthorizedSessionApplication.STALE -> closeStaleFirebaseAuthentication(operation)
-                    AuthorizedSessionApplication.APPLIED,
-                    AuthorizedSessionApplication.TERMINATED,
-                        -> Unit
+                is AuthSignInResult.Success -> {
+                    operation.authenticationSucceeded.set(true)
+                    when (
+                        applyAuthorizedSession(
+                            principal = authResult.principal,
+                            shouldRefreshCriticalData = true,
+                            operation = operation,
+                        )
+                    ) {
+                        AuthorizedSessionApplication.STALE -> closeStaleFirebaseAuthentication(operation)
+                        AuthorizedSessionApplication.APPLIED,
+                        AuthorizedSessionApplication.TERMINATED,
+                            -> Unit
+                    }
                 }
 
                 is AuthSignInResult.Failure -> {
@@ -880,11 +883,17 @@ internal class SessionAuthActions(
         }
         if (!didBeginDraining) return
 
-        recoverSessionUi(operation.kind)
+        recoverSessionUi(
+            kind = operation.kind,
+            authenticationSucceeded = operation.authenticationSucceeded.get(),
+        )
         performPreliminarySessionCleanup(operation)
     }
 
-    private fun recoverSessionUi(kind: SessionAuthOperationKind) {
+    private fun recoverSessionUi(
+        kind: SessionAuthOperationKind,
+        authenticationSucceeded: Boolean = false,
+    ) {
         invalidateAuthorizedDeviceSessionSafely()
         cancelMyOrderFreshness()
         clearSessionRefreshTracking()
@@ -897,10 +906,12 @@ internal class SessionAuthActions(
             val registrationEmail = state.registerEmailInput
             state.toSignedOutSessionState(showSessionExpiredDialog = false).copy(
                 emailInput = knownEmail,
-                emailErrorRes = if (kind == SessionAuthOperationKind.SIGN_UP) {
-                    null
-                } else {
-                    R.string.auth_error_unknown
+                emailErrorRes = when {
+                    kind == SessionAuthOperationKind.SIGN_UP -> null
+                    kind == SessionAuthOperationKind.SIGN_IN && authenticationSucceeded -> {
+                        R.string.auth_error_session_data
+                    }
+                    else -> R.string.auth_error_unknown
                 },
                 registerEmailInput = if (kind == SessionAuthOperationKind.SIGN_UP) {
                     registrationEmail
@@ -1389,6 +1400,7 @@ private data class SessionAuthOperation(
     val kind: SessionAuthOperationKind,
     val expectedPrincipalUid: String?,
     val providerWasInvoked: AtomicBoolean = AtomicBoolean(false),
+    val authenticationSucceeded: AtomicBoolean = AtomicBoolean(false),
     val staleAuthenticationClosed: AtomicBoolean = AtomicBoolean(false),
     val terminalSessionApplied: AtomicBoolean = AtomicBoolean(false),
     val deadlineClaim: SessionOperationDeadlineClaim = SessionOperationDeadlineClaim(),
