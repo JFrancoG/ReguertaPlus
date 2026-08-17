@@ -15,8 +15,9 @@
 - [ ] At strict cutover, remove or disable Continue for unavailable/timeout states.
 
 ## 4. Backend / Firestore
-- [ ] Seed `config/public` policy fields per environment.
-- [ ] Verify anonymous `config/public` access at the coordinated strict-Rules cutover.
+- [x] Seed `config/public` policy fields per environment.
+- [x] Verify anonymous `config/public` access under Phase 1 compatibility rules.
+- [ ] Re-verify anonymous `config/public` access at the coordinated strict-Rules cutover.
 
 ## 5. Testing
 - [x] Unit tests for version comparison logic.

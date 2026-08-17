@@ -88,6 +88,25 @@ test("phase 1 leaves the previously deployed plus contract unchanged", async () 
   }
 });
 
+test("phase 1 exposes only public startup config without authentication", async () => {
+  const unauthenticatedDb = testEnv.unauthenticatedContext().firestore();
+
+  for (const env of envs) {
+    await assertSucceeds(
+      unauthenticatedDb.doc(`${env}/plus-collections/config/public`).get(),
+    );
+    await assertFails(
+      unauthenticatedDb.doc(`${env}/plus-collections/config/global`).get(),
+    );
+    await assertFails(
+      unauthenticatedDb.doc(`${env}/plus-collections/products/product`).get(),
+    );
+  }
+  await assertFails(
+    unauthenticatedDb.doc("preview/plus-collections/config/public").get(),
+  );
+});
+
 test("phase 1 rejects unsupported environments and unrelated roots", async () => {
   const db = testEnv.authenticatedContext("tester").firestore();
   await assertFails(

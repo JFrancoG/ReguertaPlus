@@ -152,6 +152,11 @@ service cloud.firestore {
         isLegacyCollection(collectionId);
     }
 
+    // Startup version gating runs before authentication and contains no member data.
+    match /{env}/plus-collections/config/public {
+      allow get: if isSupportedEnv(env);
+    }
+
     match /{env}/{dataset}/orders/{orderId} {
       allow read: if isSignedIn() && isSupportedEnv(env) && isSupportedDataset(dataset);
 
