@@ -248,7 +248,6 @@ struct HomeActionRowView: View {
     let presentation: HomeActionRowPresentation
     let onOpenMyOrder: () -> Void
     let onOpenReceivedOrders: () -> Void
-    let onRetryFreshness: () -> Void
 
     private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 
@@ -266,12 +265,6 @@ struct HomeActionRowView: View {
                 Text(localizedKey(AccessL10nKey.myOrderFreshnessChecking))
                     .font(tokens.typography.label)
                     .foregroundStyle(tokens.colors.textSecondary)
-            }
-
-            if presentation.shouldShowRetry {
-                reguertaButton(localizedKey(AccessL10nKey.myOrderFreshnessRetry), variant: .text, fullWidth: false) {
-                    onRetryFreshness()
-                }
             }
         }
     }

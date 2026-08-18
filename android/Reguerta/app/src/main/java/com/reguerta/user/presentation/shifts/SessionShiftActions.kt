@@ -17,6 +17,7 @@ import com.reguerta.user.domain.shifts.ShiftSwapResponseStatus
 import com.reguerta.user.domain.shifts.ShiftType
 import com.reguerta.user.presentation.root.SessionMode
 import com.reguerta.user.presentation.root.SessionUiState
+import com.reguerta.user.presentation.root.HOME_LOAD_AUTOMATIC_RETRY_DELAY_MILLIS
 import com.reguerta.user.presentation.root.ShiftSwapDraft
 import com.reguerta.user.presentation.root.buildDeliveryCalendarOverride
 import com.reguerta.user.presentation.root.nextAssignedShift
@@ -25,6 +26,9 @@ import com.reguerta.user.presentation.root.visibleTo
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -38,10 +42,19 @@ internal class SessionShiftActions(
     private val shiftSwapRequestRepository: ShiftSwapRequestRepository,
     private val nowMillisProvider: () -> Long,
     private val emitMessage: (Int) -> Unit,
+    private val automaticLoadRetryDelayMillis: Long? = HOME_LOAD_AUTOMATIC_RETRY_DELAY_MILLIS,
 ) {
+    init {
+        require(automaticLoadRetryDelayMillis == null || automaticLoadRetryDelayMillis > 0L) {
+            "Automatic load retry delay must be positive"
+        }
+    }
+
     private var nextOperationToken = 0L
     private var activeShiftRefresh: ShiftOperation? = null
+    private var shiftRetryJob: Job? = null
     private var activeCalendarRefresh: ShiftOperation? = null
+    private var calendarRetryJob: Job? = null
     private var activeCalendarMutation: ShiftOperation? = null
     private var activePlanningMutation: ShiftOperation? = null
     private var activeSwapCreate: ShiftOperation? = null
@@ -50,6 +63,12 @@ internal class SessionShiftActions(
     private val acknowledgedSwapTransitions = mutableMapOf<String, PendingAcknowledgedSwapTransition>()
 
     fun refreshShifts() {
+        shiftRetryJob?.cancel()
+        shiftRetryJob = null
+        refreshShiftsAttempt(retryOnFailure = true)
+    }
+
+    private fun refreshShiftsAttempt(retryOnFailure: Boolean) {
         val initialState = uiState.value
         val mode = initialState.mode as? SessionMode.Authorized ?: return
         val context = ShiftSessionContext.from(initialState, mode)
@@ -106,7 +125,9 @@ internal class SessionShiftActions(
                 finishShiftRefresh(operation)
                 throw cancellation
             } catch (_: Exception) {
-                if (finishShiftRefresh(operation)) {
+                if (!finishShiftRefresh(operation)) return@launch
+                if (retryOnFailure && scheduleShiftRetry(context)) return@launch
+                if (isCurrent(context)) {
                     emitMessage(R.string.feedback_unable_load_data)
                 }
             }
@@ -114,6 +135,12 @@ internal class SessionShiftActions(
     }
 
     fun refreshDeliveryCalendar() {
+        calendarRetryJob?.cancel()
+        calendarRetryJob = null
+        refreshDeliveryCalendarAttempt(retryOnFailure = true)
+    }
+
+    private fun refreshDeliveryCalendarAttempt(retryOnFailure: Boolean) {
         val initialState = uiState.value
         val mode = initialState.mode as? SessionMode.Authorized ?: return
         if (!mode.member.isAdmin) return
@@ -140,11 +167,45 @@ internal class SessionShiftActions(
                 finishCalendarRefresh(operation)
                 throw cancellation
             } catch (_: Exception) {
-                if (finishCalendarRefresh(operation)) {
+                if (!finishCalendarRefresh(operation)) return@launch
+                if (retryOnFailure && scheduleCalendarRetry(context)) return@launch
+                if (isCurrent(context)) {
                     emitMessage(R.string.feedback_unable_load_data)
                 }
             }
         }
+    }
+
+    private fun scheduleShiftRetry(context: ShiftSessionContext): Boolean {
+        val retryDelayMillis = automaticLoadRetryDelayMillis ?: return false
+        lateinit var retryJob: Job
+        retryJob = scope.launch(start = CoroutineStart.LAZY) {
+            delay(retryDelayMillis)
+            if (shiftRetryJob !== retryJob) return@launch
+            shiftRetryJob = null
+            if (!isCurrent(context)) return@launch
+            refreshShiftsAttempt(retryOnFailure = false)
+        }
+        shiftRetryJob?.cancel()
+        shiftRetryJob = retryJob
+        retryJob.start()
+        return true
+    }
+
+    private fun scheduleCalendarRetry(context: ShiftSessionContext): Boolean {
+        val retryDelayMillis = automaticLoadRetryDelayMillis ?: return false
+        lateinit var retryJob: Job
+        retryJob = scope.launch(start = CoroutineStart.LAZY) {
+            delay(retryDelayMillis)
+            if (calendarRetryJob !== retryJob) return@launch
+            calendarRetryJob = null
+            if (!isCurrent(context)) return@launch
+            refreshDeliveryCalendarAttempt(retryOnFailure = false)
+        }
+        calendarRetryJob?.cancel()
+        calendarRetryJob = retryJob
+        retryJob.start()
+        return true
     }
 
     fun saveDeliveryCalendarOverride(

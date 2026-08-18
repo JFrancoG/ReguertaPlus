@@ -39,7 +39,9 @@ final class MyOrderFreshnessViewModel {
     @ObservationIgnored let resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase
     @ObservationIgnored let criticalDataFreshnessLocalRepository: any CriticalDataFreshnessLocalRepository
     @ObservationIgnored private let timeout: Duration
+    @ObservationIgnored private let automaticRetryDelays: [Duration]
     @ObservationIgnored private let sleeper: @Sendable (Duration) async throws -> Void
+    @ObservationIgnored private let automaticRetrySleeper: @Sendable (Duration) async throws -> Void
     @ObservationIgnored private let applyCriticalOrderingState:
         @MainActor @Sendable (
             CriticalDataRefreshScope,
@@ -49,7 +51,10 @@ final class MyOrderFreshnessViewModel {
         @MainActor @Sendable (CriticalDataRefreshScope) -> Bool
     @ObservationIgnored var freshnessOperationTask: Task<Void, Never>?
     @ObservationIgnored var freshnessTimeoutTask: Task<Void, Never>?
+    @ObservationIgnored var freshnessRetryTask: Task<Void, Never>?
     @ObservationIgnored private var freshnessGeneration: UInt64 = 0
+    @ObservationIgnored private var freshnessRetryGeneration: UInt64 = 0
+    @ObservationIgnored private var automaticRetryAttempt = 0
 
     var state: MyOrderFreshnessState = .idle
 
@@ -66,7 +71,11 @@ final class MyOrderFreshnessViewModel {
             CriticalDataRefreshScope
         ) -> Bool = { _ in true },
         timeout: Duration = .milliseconds(2_500),
+        automaticRetryDelays: [Duration] = [.seconds(10), .seconds(20), .seconds(30)],
         sleeper: @escaping @Sendable (Duration) async throws -> Void = {
+            try await ContinuousClock().sleep(for: $0)
+        },
+        automaticRetrySleeper: @escaping @Sendable (Duration) async throws -> Void = {
             try await ContinuousClock().sleep(for: $0)
         }
     ) {
@@ -75,7 +84,9 @@ final class MyOrderFreshnessViewModel {
         self.applyCriticalOrderingState = applyCriticalOrderingState
         self.isCriticalOrderingStateCurrent = isCriticalOrderingStateCurrent
         self.timeout = timeout
+        self.automaticRetryDelays = automaticRetryDelays
         self.sleeper = sleeper
+        self.automaticRetrySleeper = automaticRetrySleeper
     }
 
     convenience init(dependencies: MyOrderFreshnessFeatureDependencies = .preview()) {
@@ -91,7 +102,7 @@ final class MyOrderFreshnessViewModel {
             let identity = freshnessIdentity(for: session)
             currentIdentity = identity
             if shouldRefresh(from: previousMode, identity: identity) {
-                refresh(for: identity)
+                refresh(for: identity, resetAutomaticRetry: true)
             }
         case .signedOut:
             reset()
@@ -106,7 +117,7 @@ final class MyOrderFreshnessViewModel {
         guard case .authorized(let session) = currentMode else { return }
         let identity = freshnessIdentity(for: session)
         currentIdentity = identity
-        refresh(for: identity)
+        refresh(for: identity, resetAutomaticRetry: true)
     }
 
     @discardableResult
@@ -117,7 +128,7 @@ final class MyOrderFreshnessViewModel {
         guard case .authorized(let session) = currentMode else { return false }
         let identity = freshnessIdentity(for: session)
         currentIdentity = identity
-        let handle = refresh(for: identity)
+        let handle = refresh(for: identity, resetAutomaticRetry: true)
         await handle.task.value
         let canEnter = handle.generation == freshnessGeneration &&
             currentIdentity == identity &&
@@ -129,7 +140,14 @@ final class MyOrderFreshnessViewModel {
         return canEnter
     }
 
-    @discardableResult private func refresh(for identity: FreshnessSessionIdentity) -> FreshnessOperationHandle {
+    @discardableResult
+    private func refresh(
+        for identity: FreshnessSessionIdentity,
+        resetAutomaticRetry: Bool
+    ) -> FreshnessOperationHandle {
+        if resetAutomaticRetry {
+            cancelAutomaticRetry(resetBackoff: true)
+        }
         invalidateFreshnessOperation()
         let generation = freshnessGeneration
         let metadataWriteGeneration = criticalDataFreshnessLocalRepository.writeGeneration
@@ -238,11 +256,13 @@ final class MyOrderFreshnessViewModel {
             freshnessOperationTask?.cancel()
             freshnessTimeoutTask = nil
             state = .timedOut
+            scheduleAutomaticRetryIfNeeded(identity: identity, generation: generation)
         }
     }
 
     private func reset() {
         invalidateFreshnessOperation()
+        cancelAutomaticRetry(resetBackoff: true)
         currentIdentity = nil
         state = .idle
     }
@@ -295,6 +315,7 @@ final class MyOrderFreshnessViewModel {
                 }
             }
             state = .ready
+            cancelAutomaticRetry(resetBackoff: true)
         case .invalidConfig:
             state = .unavailable
         }
@@ -303,11 +324,64 @@ final class MyOrderFreshnessViewModel {
     private func finishFreshnessOperation(_ generation: UInt64) {
         guard generation == freshnessGeneration else { return }
         freshnessOperationTask = nil
+        guard let currentIdentity else { return }
+        scheduleAutomaticRetryIfNeeded(identity: currentIdentity, generation: generation)
     }
 
     private func finishFreshnessTimeout(_ generation: UInt64) {
         guard generation == freshnessGeneration else { return }
         freshnessTimeoutTask = nil
+    }
+}
+
+private extension MyOrderFreshnessViewModel {
+    private func scheduleAutomaticRetryIfNeeded(
+        identity: FreshnessSessionIdentity,
+        generation: UInt64
+    ) {
+        guard generation == freshnessGeneration, currentIdentity == identity else { return }
+        guard state == .timedOut || state == .unavailable else { return }
+        guard freshnessRetryTask == nil, automaticRetryAttempt < automaticRetryDelays.count else { return }
+
+        let retryDelay = automaticRetryDelays[automaticRetryAttempt]
+        automaticRetryAttempt += 1
+        freshnessRetryGeneration &+= 1
+        let retryGeneration = freshnessRetryGeneration
+        let retrySleeper = automaticRetrySleeper
+        freshnessRetryTask = Task { @MainActor [weak self, retrySleeper] in
+            do {
+                try await retrySleeper(retryDelay)
+                try Task.checkCancellation()
+            } catch {
+                self?.finishAutomaticRetry(retryGeneration)
+                return
+            }
+
+            guard let self,
+                  retryGeneration == freshnessRetryGeneration,
+                  generation == freshnessGeneration,
+                  currentIdentity == identity,
+                  state == .timedOut || state == .unavailable else {
+                self?.finishAutomaticRetry(retryGeneration)
+                return
+            }
+            freshnessRetryTask = nil
+            refresh(for: identity, resetAutomaticRetry: false)
+        }
+    }
+
+    private func cancelAutomaticRetry(resetBackoff: Bool) {
+        freshnessRetryGeneration &+= 1
+        freshnessRetryTask?.cancel()
+        freshnessRetryTask = nil
+        if resetBackoff {
+            automaticRetryAttempt = 0
+        }
+    }
+
+    private func finishAutomaticRetry(_ generation: UInt64) {
+        guard generation == freshnessRetryGeneration else { return }
+        freshnessRetryTask = nil
     }
 
     private func freshnessIdentity(for session: AuthorizedSession) -> FreshnessSessionIdentity {
@@ -320,5 +394,4 @@ final class MyOrderFreshnessViewModel {
             canManageMembers: session.authenticatedMember.canManageMembers
         )
     }
-
 }

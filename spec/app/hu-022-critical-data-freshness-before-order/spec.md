@@ -18,7 +18,7 @@ As a member I want `My order` enabled only when critical data is fresh so orderi
 
 ### In Scope
 - Freshness gate before entering `My order`.
-- Timeout and retry path for blocked/stuck sync.
+- Timeout and bounded automatic recovery for blocked/stuck sync.
 
 ### Out of Scope
 - Full offline-first redesign.
@@ -30,7 +30,8 @@ As a member I want `My order` enabled only when critical data is fresh so orderi
 ## Acceptance criteria
 
 - `My order` remains disabled while critical sync/freshness checks are pending.
-- If freshness check times out, user can retry and recover without app restart.
+- If the freshness check times out or becomes unavailable, `My order` stays disabled and the app
+  retries automatically after 10, 20, and 30 seconds without requiring an app restart.
 
 ## Dependencies
 
@@ -41,7 +42,7 @@ As a member I want `My order` enabled only when critical data is fresh so orderi
 ## Risks
 
 - Risk: over-blocking when stale markers are wrong.
-  - Mitigation: timeout/retry UX and robust timestamp validation.
+  - Mitigation: bounded automatic retries and robust timestamp validation without adding an inline Home error message.
 
 ## Definition of Done (DoD)
 

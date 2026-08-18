@@ -413,13 +413,6 @@ internal fun HomeRoute(
         }
     }
 
-    fun retryMyOrderFreshness() {
-        val generation = onRetryMyOrderFreshness() ?: return
-        if (pendingMyOrderEntryGeneration != null) {
-            pendingMyOrderEntryGeneration = generation
-        }
-    }
-
     LaunchedEffect(
         myOrderFreshnessState,
         myOrderFreshnessGeneration,
@@ -677,7 +670,6 @@ internal fun HomeRoute(
                                 mode = mode,
                                 myOrderFreshnessState = myOrderFreshnessState,
                                 weeklySummaryDisplay = weeklySummary,
-                                onRetryMyOrderFreshness = ::retryMyOrderFreshness,
                                 onOpenMyOrder = ::requestMyOrderEntry,
                                 onOpenReceivedOrders = {
                                     navigateHome(HomeDestination.RECEIVED_ORDERS)
@@ -700,9 +692,6 @@ internal fun HomeRoute(
                     )
                     LatestNewsCard(
                         news = latestNews,
-                        onViewAll = {
-                            navigateHome(HomeDestination.NEWS)
-                        },
                         modifier = Modifier.padding(bottom = 16.dp),
                     )
                     Spacer(

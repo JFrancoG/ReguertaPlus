@@ -12,7 +12,8 @@ As a member I want `My order` enabled only when critical data is fresh so orderi
 ## Acceptance criteria
 
 - `My order` remains disabled while critical sync/freshness checks are pending.
-- Timeout/retry path is available when sync gets stuck.
+- When sync times out or becomes unavailable, the gate stays closed and retries automatically after
+  10, 20, and 30 seconds without a manual retry action.
 
 ## Scope
 ### In Scope

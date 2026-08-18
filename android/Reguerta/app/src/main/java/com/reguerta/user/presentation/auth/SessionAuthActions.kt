@@ -5,6 +5,7 @@ import com.reguerta.user.presentation.root.CriticalDataRefreshConsumerReceipt
 import com.reguerta.user.presentation.root.EmailPatternRegex
 import com.reguerta.user.presentation.root.MyOrderFreshnessUiState
 import com.reguerta.user.presentation.root.MY_ORDER_FRESHNESS_TIMEOUT_MILLIS
+import com.reguerta.user.presentation.root.MY_ORDER_FRESHNESS_RETRY_DELAYS_MILLIS
 import com.reguerta.user.presentation.root.ProductDraft
 import com.reguerta.user.presentation.root.SessionMode
 import com.reguerta.user.presentation.root.SessionUiState
@@ -88,10 +89,14 @@ internal class SessionAuthActions(
         () -> Boolean,
     ) -> CriticalDataRefreshConsumerReceipt?,
     private val sessionOperationTimeoutMillis: Long = SESSION_AUTH_OPERATION_TIMEOUT_MILLIS,
+    private val freshnessRetryDelaysMillis: List<Long> = MY_ORDER_FRESHNESS_RETRY_DELAYS_MILLIS,
 ) {
     init {
         require(sessionOperationTimeoutMillis > 0L) {
             "Session operation timeout must be positive"
+        }
+        require(freshnessRetryDelaysMillis.all { it > 0L }) {
+            "Freshness retry delays must be positive"
         }
     }
 
@@ -103,6 +108,8 @@ internal class SessionAuthActions(
     private val freshnessOperationLock = Any()
     private var freshnessOperationGeneration = 0L
     private var freshnessOperationJob: Job? = null
+    private var freshnessRetryJob: Job? = null
+    private var freshnessRetryAttempt = 0
 
     fun signIn(password: String): Boolean {
         val currentState = uiState.value
@@ -421,7 +428,12 @@ internal class SessionAuthActions(
         }
     }
 
-    fun refreshMyOrderFreshness(): Long? {
+    fun refreshMyOrderFreshness(): Long? = refreshMyOrderFreshness(resetAutomaticRetry = true)
+
+    private fun refreshMyOrderFreshness(resetAutomaticRetry: Boolean): Long? {
+        if (resetAutomaticRetry) {
+            cancelMyOrderFreshnessRetry(resetBackoff = true)
+        }
         val state = uiState.value
         val currentMode = state.mode as? SessionMode.Authorized ?: return null
         val sessionEnvironment = state.sessionEnvironment ?: run {
@@ -553,6 +565,7 @@ internal class SessionAuthActions(
                     )
                 ) {
                     pendingWrite = null
+                    resetMyOrderFreshnessRetryBackoffIfCurrent(operation)
                 } else {
                     updateMyOrderFreshnessIfCurrent(
                         operation = operation,
@@ -576,6 +589,7 @@ internal class SessionAuthActions(
                     // A failed conditional rollback must not replace the original operation outcome.
                 }
             }
+            scheduleMyOrderFreshnessRetryIfNeeded(operation)
         }
     }
 
@@ -711,7 +725,67 @@ internal class SessionAuthActions(
             freshnessOperationGeneration += 1
             freshnessOperationJob?.cancel()
             freshnessOperationJob = null
+            freshnessRetryJob?.cancel()
+            freshnessRetryJob = null
+            freshnessRetryAttempt = 0
         }
+    }
+
+    private fun cancelMyOrderFreshnessRetry(resetBackoff: Boolean) {
+        synchronized(freshnessOperationLock) {
+            freshnessRetryJob?.cancel()
+            freshnessRetryJob = null
+            if (resetBackoff) freshnessRetryAttempt = 0
+        }
+    }
+
+    private fun resetMyOrderFreshnessRetryBackoffIfCurrent(operation: FreshnessOperation) {
+        synchronized(freshnessOperationLock) {
+            if (freshnessOperationGeneration != operation.generation) return
+            freshnessRetryJob?.cancel()
+            freshnessRetryJob = null
+            freshnessRetryAttempt = 0
+        }
+    }
+
+    private fun scheduleMyOrderFreshnessRetryIfNeeded(operation: FreshnessOperation) {
+        val state = uiState.value
+        if (!isCurrentFreshnessOperation(operation, state)) return
+        if (
+            state.myOrderFreshnessState != MyOrderFreshnessUiState.TimedOut &&
+            state.myOrderFreshnessState != MyOrderFreshnessUiState.Unavailable
+        ) return
+
+        lateinit var retryJob: Job
+        synchronized(freshnessOperationLock) {
+            if (
+                freshnessOperationGeneration != operation.generation ||
+                freshnessRetryJob != null ||
+                freshnessRetryAttempt >= freshnessRetryDelaysMillis.size
+            ) return
+            val retryDelayMillis = freshnessRetryDelaysMillis[freshnessRetryAttempt]
+            freshnessRetryAttempt += 1
+            retryJob = scope.launch(start = CoroutineStart.LAZY) {
+                delay(retryDelayMillis)
+                val ownsRetry = synchronized(freshnessOperationLock) {
+                    if (freshnessRetryJob !== retryJob) {
+                        false
+                    } else {
+                        freshnessRetryJob = null
+                        true
+                    }
+                }
+                if (!ownsRetry || !isCurrentFreshnessOperation(operation)) return@launch
+                val currentState = uiState.value.myOrderFreshnessState
+                if (
+                    currentState != MyOrderFreshnessUiState.TimedOut &&
+                    currentState != MyOrderFreshnessUiState.Unavailable
+                ) return@launch
+                refreshMyOrderFreshness(resetAutomaticRetry = false)
+            }
+            freshnessRetryJob = retryJob
+        }
+        retryJob.start()
     }
 
     private fun releaseFreshnessOperation(operation: FreshnessOperation, job: Job) {

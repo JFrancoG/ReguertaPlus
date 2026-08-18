@@ -20,7 +20,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -296,7 +295,6 @@ internal fun HomeActionRow(
     isConsultaPhase: Boolean,
     onOpenMyOrder: () -> Unit,
     onOpenReceivedOrders: () -> Unit,
-    onRetryFreshness: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = ReguertaThemeTokens.spacing
@@ -333,9 +331,7 @@ internal fun HomeActionRow(
             )
             MyOrderFreshnessUiState.TimedOut,
             MyOrderFreshnessUiState.Unavailable,
-                -> TextButton(onClick = onRetryFreshness) {
-                Text(stringResource(R.string.my_order_freshness_retry))
-            }
+                -> Unit
             MyOrderFreshnessUiState.Idle,
             MyOrderFreshnessUiState.Ready,
                 -> Unit

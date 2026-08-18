@@ -276,7 +276,6 @@ struct OperationalModulesCardView: View {
     let onOpenProducts: () -> Void
     let onOpenShifts: () -> Void
     let onOpenBylaws: () -> Void
-    let onRetryFreshness: () -> Void
 
     private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 
@@ -323,9 +322,6 @@ struct OperationalModulesCardView: View {
                     Text(localizedKey(AccessL10nKey.myOrderFreshnessErrorMessage))
                         .font(tokens.typography.label)
                         .foregroundStyle(tokens.colors.textSecondary)
-                    Button(action: onRetryFreshness) {
-                        Text(localizedKey(AccessL10nKey.myOrderFreshnessRetry))
-                    }
                 case .idle, .ready:
                     EmptyView()
                 }

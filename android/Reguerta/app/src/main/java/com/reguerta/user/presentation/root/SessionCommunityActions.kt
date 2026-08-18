@@ -19,7 +19,10 @@ import com.reguerta.user.domain.access.canPublishNews
 import com.reguerta.user.domain.access.canSendAdminNotifications
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -37,15 +40,24 @@ internal class SessionCommunityActions(
     private val emitEvent: (SessionUiEvent) -> Unit,
     private val pushNotificationPermissionProvider: PushNotificationPermissionProvider,
     private val runtimeEnvironmentProvider: () -> String?,
+    private val automaticLoadRetryDelayMillis: Long? = HOME_LOAD_AUTOMATIC_RETRY_DELAY_MILLIS,
 ) {
+    init {
+        require(automaticLoadRetryDelayMillis == null || automaticLoadRetryDelayMillis > 0L) {
+            "Automatic load retry delay must be positive"
+        }
+    }
+
     private var nextProfileMutationToken = 0L
     private var activeProfileMutation: ActiveProfileMutation? = null
     private var nextProfileUploadToken = 0L
     private var activeProfileUpload: ActiveProfileUpload? = null
     private var nextNewsRefreshToken = 0L
     private var activeNewsRefresh: ActiveCommunityOperation? = null
+    private var newsRetryJob: Job? = null
     private var nextNotificationsRefreshToken = 0L
     private var activeNotificationsRefresh: ActiveCommunityOperation? = null
+    private var notificationsRetryJob: Job? = null
     private var nextNewsMutationToken = 0L
     private var activeNewsMutation: ActiveNewsMutation? = null
     private var nextNotificationMutationToken = 0L
@@ -210,12 +222,17 @@ internal class SessionCommunityActions(
         }
     }
 
-    fun refreshNews() {
-        refreshNews(shouldEmitFailureFeedback = { true })
+    fun refreshNews() = startNewsRefreshCycle(shouldEmitFailureFeedback = { true })
+
+    private fun startNewsRefreshCycle(shouldEmitFailureFeedback: (SessionUiState) -> Boolean) {
+        newsRetryJob?.cancel()
+        newsRetryJob = null
+        refreshNewsAttempt(shouldEmitFailureFeedback, retryOnFailure = true)
     }
 
-    private fun refreshNews(
+    private fun refreshNewsAttempt(
         shouldEmitFailureFeedback: (SessionUiState) -> Boolean,
+        retryOnFailure: Boolean,
     ) {
         val initialState = uiState.value
         val mode = initialState.mode as? SessionMode.Authorized ?: return
@@ -243,7 +260,9 @@ internal class SessionCommunityActions(
                 finishNewsRefresh(context, token)
                 throw cancellation
             } catch (_: Exception) {
-                if (finishNewsRefresh(context, token) && shouldEmitFailureFeedback(uiState.value)) {
+                if (!finishNewsRefresh(context, token)) return@launch
+                if (retryOnFailure && scheduleNewsRetry(context, shouldEmitFailureFeedback)) return@launch
+                if (shouldEmitFailureFeedback(uiState.value)) {
                     emitMessage(R.string.feedback_unable_load_data)
                 }
             }
@@ -251,22 +270,32 @@ internal class SessionCommunityActions(
     }
 
     fun refreshNotifications() {
-        refreshNotifications(
+        startNotificationsRefreshCycle(
             prepareRoute = false,
             shouldEmitFailureFeedback = { true },
         )
     }
 
     fun prepareNotificationsRoute() {
-        refreshNotifications(
+        startNotificationsRefreshCycle(
             prepareRoute = true,
             shouldEmitFailureFeedback = { true },
         )
     }
 
-    private fun refreshNotifications(
+    private fun startNotificationsRefreshCycle(
         prepareRoute: Boolean,
         shouldEmitFailureFeedback: (SessionUiState) -> Boolean,
+    ) {
+        notificationsRetryJob?.cancel()
+        notificationsRetryJob = null
+        refreshNotificationsAttempt(prepareRoute, shouldEmitFailureFeedback, retryOnFailure = true)
+    }
+
+    private fun refreshNotificationsAttempt(
+        prepareRoute: Boolean,
+        shouldEmitFailureFeedback: (SessionUiState) -> Boolean,
+        retryOnFailure: Boolean,
     ) {
         val initialState = uiState.value
         val mode = initialState.mode as? SessionMode.Authorized ?: return
@@ -325,10 +354,12 @@ internal class SessionCommunityActions(
                 finishNotificationsRefresh(context, token)
                 throw cancellation
             } catch (_: Exception) {
+                if (!finishNotificationsRefresh(context, token)) return@launch
                 if (
-                    finishNotificationsRefresh(context, token) &&
-                    shouldEmitFailureFeedback(uiState.value)
-                ) {
+                    retryOnFailure &&
+                    scheduleNotificationsRetry(context, prepareRoute, shouldEmitFailureFeedback)
+                ) return@launch
+                if (shouldEmitFailureFeedback(uiState.value)) {
                     emitMessage(R.string.feedback_unable_load_data)
                 }
             }
@@ -502,7 +533,7 @@ internal class SessionCommunityActions(
                     ),
                 )
             }
-            refreshNews { state ->
+            startNewsRefreshCycle { state ->
                 postAcknowledgementOwnership?.matches(state) == true &&
                     isCurrentCommunitySession(context, state)
             }
@@ -738,7 +769,7 @@ internal class SessionCommunityActions(
                 emitMessage(R.string.feedback_news_deleted)
                 onSuccess()
             }
-            refreshNews { state ->
+            startNewsRefreshCycle { state ->
                 deletionOwnership.matchesGeneration(state) &&
                     isCurrentCommunitySession(context, state)
             }
@@ -857,7 +888,7 @@ internal class SessionCommunityActions(
                     ),
                 )
             }
-            refreshNotifications(
+            startNotificationsRefreshCycle(
                 prepareRoute = false,
                 shouldEmitFailureFeedback = { state ->
                     postAcknowledgementOwnership?.matches(state) == true &&
@@ -865,6 +896,45 @@ internal class SessionCommunityActions(
                 },
             )
         }
+    }
+
+    private fun scheduleNewsRetry(
+        context: CommunitySessionContext,
+        shouldEmitFailureFeedback: (SessionUiState) -> Boolean,
+    ): Boolean {
+        val retryDelayMillis = automaticLoadRetryDelayMillis ?: return false
+        lateinit var retryJob: Job
+        retryJob = scope.launch(start = CoroutineStart.LAZY) {
+            delay(retryDelayMillis)
+            if (newsRetryJob !== retryJob) return@launch
+            newsRetryJob = null
+            if (!isCurrentCommunitySession(context)) return@launch
+            refreshNewsAttempt(shouldEmitFailureFeedback, retryOnFailure = false)
+        }
+        newsRetryJob?.cancel()
+        newsRetryJob = retryJob
+        retryJob.start()
+        return true
+    }
+
+    private fun scheduleNotificationsRetry(
+        context: CommunitySessionContext,
+        prepareRoute: Boolean,
+        shouldEmitFailureFeedback: (SessionUiState) -> Boolean,
+    ): Boolean {
+        val retryDelayMillis = automaticLoadRetryDelayMillis ?: return false
+        lateinit var retryJob: Job
+        retryJob = scope.launch(start = CoroutineStart.LAZY) {
+            delay(retryDelayMillis)
+            if (notificationsRetryJob !== retryJob) return@launch
+            notificationsRetryJob = null
+            if (!isCurrentCommunitySession(context)) return@launch
+            refreshNotificationsAttempt(prepareRoute, shouldEmitFailureFeedback, retryOnFailure = false)
+        }
+        notificationsRetryJob?.cancel()
+        notificationsRetryJob = retryJob
+        retryJob.start()
+        return true
     }
 
     private fun beginNewsMutation(

@@ -27,6 +27,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -37,6 +38,40 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SessionCommunityActionsFailureTest {
+    @Test
+    fun `first news failure retries automatically before showing feedback`() = runTest {
+        val replacement = newsArticle(id = "replacement", title = "Replacement")
+        val state = MutableStateFlow(authorizedState().copy(sessionEnvironment = "develop"))
+        val messages = mutableListOf<Int>()
+        val repository = QueuedNewsRepository(
+            ArrayDeque(
+                listOf(
+                    Result.failure(IOException("temporary")),
+                    Result.success(listOf(replacement)),
+                ),
+            ),
+        )
+        val actions = actions(
+            state = state,
+            repository = ControlledSharedProfileRepository(emptyList(), rejectsReads = false),
+            emitMessage = messages::add,
+            newsRepository = repository,
+            automaticLoadRetryDelayMillis = 10_000L,
+        )
+
+        actions.refreshNews()
+        runCurrent()
+
+        assertEquals(emptyList<Int>(), messages)
+        assertTrue(state.value.newsFeed.isEmpty())
+
+        advanceTimeBy(10_000L)
+        advanceUntilIdle()
+
+        assertEquals(listOf(replacement), state.value.newsFeed)
+        assertEquals(emptyList<Int>(), messages)
+    }
+
     @Test
     fun `failed news refresh preserves the last snapshot and allows a valid retry`() = runTest {
         val previous = newsArticle(id = "previous", title = "Previous")
@@ -1866,6 +1901,7 @@ class SessionCommunityActionsFailureTest {
         newsRepository: NewsRepository = EmptyNewsRepository,
         notificationRepository: NotificationRepository = EmptyNotificationRepository,
         runtimeEnvironmentProvider: () -> String? = { state.value.sessionEnvironment },
+        automaticLoadRetryDelayMillis: Long? = null,
     ) = SessionCommunityActions(
         uiState = state,
         scope = kotlinx.coroutines.CoroutineScope(currentCoroutineContext()),
@@ -1878,6 +1914,7 @@ class SessionCommunityActionsFailureTest {
         emitEvent = {},
         pushNotificationPermissionProvider = PushNotificationPermissionProvider { true },
         runtimeEnvironmentProvider = runtimeEnvironmentProvider,
+        automaticLoadRetryDelayMillis = automaticLoadRetryDelayMillis,
     )
 }
 

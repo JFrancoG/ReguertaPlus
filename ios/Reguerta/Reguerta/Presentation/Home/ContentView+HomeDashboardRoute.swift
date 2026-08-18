@@ -72,10 +72,6 @@ struct HomeActionRowPresentation {
         myOrderFreshnessState == .checking
     }
 
-    var shouldShowRetry: Bool {
-        myOrderFreshnessState == .timedOut || myOrderFreshnessState == .unavailable
-    }
-
     var isMyOrderEnabled: Bool {
         myOrderFreshnessState == .ready
     }
@@ -89,8 +85,7 @@ extension AccessRootRoutingView {
             presentation: rootViewModel.homeDashboardPresentation,
             newsViewModel: rootViewModel.newsNotificationsViewModel,
             onOpenMyOrder: rootViewModel.handleHomeDashboardMyOrderAction,
-            onOpenReceivedOrders: rootViewModel.handleHomeDashboardReceivedOrdersAction,
-            onRetryFreshness: rootViewModel.handleHomeDashboardFreshnessRetry
+            onOpenReceivedOrders: rootViewModel.handleHomeDashboardReceivedOrdersAction
         )
     }
 }
@@ -101,7 +96,6 @@ struct HomeDashboardRouteView: View {
     let newsViewModel: NewsNotificationsFeatureViewModel
     let onOpenMyOrder: () -> Void
     let onOpenReceivedOrders: () -> Void
-    let onRetryFreshness: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
@@ -109,8 +103,7 @@ struct HomeDashboardRouteView: View {
                 tokens: tokens,
                 content: presentation.content,
                 onOpenMyOrder: onOpenMyOrder,
-                onOpenReceivedOrders: onOpenReceivedOrders,
-                onRetryFreshness: onRetryFreshness
+                onOpenReceivedOrders: onOpenReceivedOrders
             )
 
             LatestNewsCardView(
@@ -129,7 +122,6 @@ private struct HomeDashboardSessionSectionView: View {
     let content: HomeDashboardContent
     let onOpenMyOrder: () -> Void
     let onOpenReceivedOrders: () -> Void
-    let onRetryFreshness: () -> Void
 
     var body: some View {
         switch content {
@@ -142,8 +134,7 @@ private struct HomeDashboardSessionSectionView: View {
                 tokens: tokens,
                 presentation: presentation,
                 onOpenMyOrder: onOpenMyOrder,
-                onOpenReceivedOrders: onOpenReceivedOrders,
-                onRetryFreshness: onRetryFreshness
+                onOpenReceivedOrders: onOpenReceivedOrders
             )
         }
     }
@@ -154,7 +145,6 @@ private struct HomeAuthorizedDashboardSectionView: View {
     let presentation: HomeAuthorizedDashboardPresentation
     let onOpenMyOrder: () -> Void
     let onOpenReceivedOrders: () -> Void
-    let onRetryFreshness: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
@@ -163,8 +153,7 @@ private struct HomeAuthorizedDashboardSectionView: View {
                 tokens: tokens,
                 presentation: presentation.actionRow,
                 onOpenMyOrder: onOpenMyOrder,
-                onOpenReceivedOrders: onOpenReceivedOrders,
-                onRetryFreshness: onRetryFreshness
+                onOpenReceivedOrders: onOpenReceivedOrders
             )
             Divider()
                 .background(tokens.colors.borderSubtle.opacity(0.65))

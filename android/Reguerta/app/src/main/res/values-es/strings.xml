@@ -376,8 +376,7 @@
     <string name="operational_modules_restricted_unauthorized">Estos módulos están bloqueados porque esta cuenta todavía no está autorizada.</string>
     <string name="my_order_freshness_checking">Comprobando la frescura de los datos críticos antes de activar Mi pedido…</string>
     <string name="my_order_freshness_error_title">Mi pedido no está disponible temporalmente</string>
-    <string name="my_order_freshness_error_message">No se pudieron validar a tiempo los datos críticos. Reintenta para continuar sin reiniciar la app.</string>
-    <string name="my_order_freshness_retry">Reintentar comprobación</string>
+    <string name="my_order_freshness_error_message">No se pudieron validar a tiempo los datos críticos. La app volverá a intentarlo automáticamente.</string>
     <string name="my_order_products_title">Crear tu pedido semanal</string>
     <string name="my_order_products_subtitle">Consulta productos disponibles agrupados por productor.</string>
     <string name="my_order_products_search_label">Buscar producto o productor</string>
@@ -544,7 +543,6 @@
     <string name="role_value_producer">productor</string>
     <string name="role_value_admin">admin</string>
     <string name="news_empty_state">Todavía no hay noticias para mostrar.</string>
-    <string name="news_view_all">Ver todas las noticias</string>
     <string name="news_list_subtitle">Consulta las últimas novedades de la comunidad en orden inverso de publicación.</string>
     <string name="news_refresh_action">Actualizar lista</string>
     <string name="news_loading">Cargando noticias…</string>

@@ -30,6 +30,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -40,6 +41,37 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SessionShiftActionsFailureTest {
+    @Test
+    fun `first shift failure retries automatically before showing feedback`() = runTest {
+        val recovered = shift("recovered")
+        val repository = QueuedShiftRepository(
+            ArrayDeque(
+                listOf(
+                    Result.failure(IOException("temporary")),
+                    Result.success(listOf(recovered)),
+                ),
+            ),
+        )
+        val state = MutableStateFlow(authorizedState())
+        val messages = mutableListOf<Int>()
+        val actions = actions(
+            state = state,
+            shiftRepository = repository,
+            emitMessage = messages::add,
+            automaticLoadRetryDelayMillis = 10_000L,
+        )
+
+        actions.refreshShifts()
+        runCurrent()
+        assertEquals(emptyList<Int>(), messages)
+
+        advanceTimeBy(10_000L)
+        advanceUntilIdle()
+
+        assertEquals(listOf(recovered), state.value.shiftsFeed)
+        assertEquals(emptyList<Int>(), messages)
+    }
+
     @Test
     fun `failed shift refresh preserves the last snapshot and reports load failure`() = runTest {
         val previous = shift("previous")
@@ -445,6 +477,7 @@ class SessionShiftActionsFailureTest {
         planningRepository: ShiftPlanningRequestRepository = ConfirmingPlanningRepository,
         swapRepository: ShiftSwapRequestRepository = StaticSwapRepository,
         emitMessage: (Int) -> Unit = {},
+        automaticLoadRetryDelayMillis: Long? = null,
     ) = SessionShiftActions(
         uiState = state,
         scope = CoroutineScope(kotlinx.coroutines.currentCoroutineContext()),
@@ -454,6 +487,7 @@ class SessionShiftActionsFailureTest {
         shiftSwapRequestRepository = swapRepository,
         nowMillisProvider = { 100L },
         emitMessage = emitMessage,
+        automaticLoadRetryDelayMillis = automaticLoadRetryDelayMillis,
     )
 
     private fun authorizedState(): SessionUiState {
@@ -524,6 +558,13 @@ private class StaticShiftRepository(private val shifts: List<ShiftAssignment>) :
 
 private object RejectingShiftRepository : ShiftRepository {
     override suspend fun getAllShifts(): List<ShiftAssignment> = throw IOException("read failed")
+    override suspend fun upsertShift(shift: ShiftAssignment): ShiftAssignment = shift
+}
+
+private class QueuedShiftRepository(
+    private val readResults: ArrayDeque<Result<List<ShiftAssignment>>>,
+) : ShiftRepository {
+    override suspend fun getAllShifts(): List<ShiftAssignment> = readResults.removeFirst().getOrThrow()
     override suspend fun upsertShift(shift: ShiftAssignment): ShiftAssignment = shift
 }
 
