@@ -11,24 +11,6 @@ struct ReguertaScreenScaffold<Content: View, BottomContent: View>: View {
     private let content: Content
     private let bottomContent: BottomContent
 
-    init(
-        contentWidth: CGFloat,
-        headerViewModel: ReguertaScreenHeaderViewModel,
-        headerHorizontalPadding: CGFloat = 0,
-        headerContentSpacing: CGFloat,
-        showsBottomInset: Bool = true,
-        @ViewBuilder content: () -> Content,
-        @ViewBuilder bottomContent: () -> BottomContent
-    ) {
-        self.contentWidth = contentWidth
-        self.headerViewModel = headerViewModel
-        self.headerHorizontalPadding = headerHorizontalPadding
-        self.headerContentSpacing = headerContentSpacing
-        self.showsBottomInset = showsBottomInset
-        self.content = content()
-        self.bottomContent = bottomContent()
-    }
-
     @ViewBuilder
     var body: some View {
         if showsBottomInset {
@@ -61,6 +43,26 @@ struct ReguertaScreenScaffold<Content: View, BottomContent: View>: View {
             .frame(width: contentWidth)
             .frame(maxWidth: .infinity)
             .background(tokens.colors.surfacePrimary)
+    }
+}
+
+extension ReguertaScreenScaffold {
+    init(
+        contentWidth: CGFloat,
+        headerViewModel: ReguertaScreenHeaderViewModel,
+        headerHorizontalPadding: CGFloat = 0,
+        headerContentSpacing: CGFloat,
+        showsBottomInset: Bool = true,
+        @ViewBuilder content: () -> Content,
+        @ViewBuilder bottomContent: () -> BottomContent
+    ) {
+        self.contentWidth = contentWidth
+        self.headerViewModel = headerViewModel
+        self.headerHorizontalPadding = headerHorizontalPadding
+        self.headerContentSpacing = headerContentSpacing
+        self.showsBottomInset = showsBottomInset
+        self.content = content()
+        self.bottomContent = bottomContent()
     }
 }
 

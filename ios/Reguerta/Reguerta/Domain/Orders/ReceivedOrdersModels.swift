@@ -23,7 +23,7 @@ enum ProducerOrderStatus: String, CaseIterable, Equatable, Sendable {
     }
 }
 
-struct ReceivedOrderLineRecord: Identifiable, Equatable, Sendable {
+struct ReceivedOrderLineRecord: Identifiable, Equatable {
     let id: String
     let orderId: String
     let consumerId: String
@@ -65,7 +65,7 @@ struct ReceivedOrderLineRecord: Identifiable, Equatable, Sendable {
     }
 }
 
-struct ReceivedOrdersProductRow: Identifiable, Equatable, Sendable {
+struct ReceivedOrdersProductRow: Identifiable, Equatable {
     let productId: String
     let productName: String
     let productImageUrl: String?
@@ -97,7 +97,7 @@ struct ReceivedOrdersProductRow: Identifiable, Equatable, Sendable {
     }
 }
 
-struct ReceivedOrdersMemberLine: Identifiable, Equatable, Sendable {
+struct ReceivedOrdersMemberLine: Identifiable, Equatable {
     let id: String
     let productName: String
     let packagingLine: String
@@ -125,7 +125,7 @@ struct ReceivedOrdersMemberLine: Identifiable, Equatable, Sendable {
     }
 }
 
-struct ReceivedOrdersMemberGroup: Identifiable, Equatable, Sendable {
+struct ReceivedOrdersMemberGroup: Identifiable, Equatable {
     let id: String
     let orderId: String
     let consumerDisplayName: String
@@ -134,7 +134,7 @@ struct ReceivedOrdersMemberGroup: Identifiable, Equatable, Sendable {
     let total: Double
 }
 
-struct ReceivedOrdersSnapshot: Equatable, Sendable {
+struct ReceivedOrdersSnapshot: Equatable {
     let byProductRows: [ReceivedOrdersProductRow]
     let byMemberGroups: [ReceivedOrdersMemberGroup]
     let generalTotal: Double

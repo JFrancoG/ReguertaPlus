@@ -101,6 +101,15 @@ When skipped, explicitly state why in the final handoff.
   private helpers, declarative Views, and tests.
 - Update the DocC comment whenever the documented contract changes.
 
+### Swift Struct Construction and Sendability
+
+- Do not declare explicit initializers inside the primary declaration of a Swift `struct`.
+- Use the synthesized memberwise initializer when assigning stored properties already expresses the complete construction contract.
+- Put any necessary initializer in an extension in the same file, including initializers that add validation, defaults, injection, composition, transformation, `@ViewBuilder`, or custom `Decodable` behavior.
+- Do not add explicit `Sendable` conformance to internal `struct` or `enum` declarations when the compiler can infer it from their stored or associated values.
+- Keep explicit `Sendable` only for a demonstrated public or generic boundary that requires it; document and report that boundary.
+- Apply these rules to production code, fixtures, previews, and test doubles.
+
 ### Swift Signature Formatting
 
 - Use 120 columns, including indentation, as the preferred maximum Swift line width.

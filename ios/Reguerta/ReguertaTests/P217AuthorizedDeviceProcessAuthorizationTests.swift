@@ -137,13 +137,13 @@ struct P217AuthorizedDeviceProcessAuthorizationTests {
     }
 }
 
-nonisolated private struct P217CoordinatorHarness: Sendable {
+nonisolated private struct P217CoordinatorHarness {
     let coordinator: FirebaseAuthorizedDeviceCoordinator
     let repository: P217RecordingDeviceRegistrationRepository
     let store: KeychainStore
 }
 
-nonisolated private struct P217RecordedDeviceRegistration: Equatable, Sendable {
+nonisolated private struct P217RecordedDeviceRegistration: Equatable {
     let fcmToken: String?
 }
 

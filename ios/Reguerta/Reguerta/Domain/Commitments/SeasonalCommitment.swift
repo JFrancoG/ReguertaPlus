@@ -1,16 +1,20 @@
 import Foundation
 
-struct SeasonalCommitment: Identifiable, Equatable, Sendable {
+struct SeasonalCommitment: Identifiable, Equatable {
     let id: String
     let userId: String
     let productId: String
-    let productNameHint: String?
+    private let storedProductNameHint: String?
     let seasonKey: String
     let fixedQtyPerOfferedWeek: Double
     let active: Bool
     let createdAtMillis: Int64
     let updatedAtMillis: Int64
 
+    var productNameHint: String? { storedProductNameHint }
+}
+
+extension SeasonalCommitment {
     init(
         id: String,
         userId: String,
@@ -25,7 +29,7 @@ struct SeasonalCommitment: Identifiable, Equatable, Sendable {
         self.id = id
         self.userId = userId
         self.productId = productId
-        self.productNameHint = productNameHint
+        self.storedProductNameHint = productNameHint
         self.seasonKey = seasonKey
         self.fixedQtyPerOfferedWeek = fixedQtyPerOfferedWeek
         self.active = active

@@ -1,6 +1,6 @@
 import Foundation
 
-struct SharedProfileDraft: Equatable, Sendable {
+struct SharedProfileDraft: Equatable {
     var familyNames = ""
     var photoUrl = ""
     var about = ""

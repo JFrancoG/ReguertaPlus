@@ -52,7 +52,7 @@ struct HomeLatestNewsItemPresentation: Identifiable, Equatable {
     let id: String
     let title: String
     let body: String
-    let metadataText: String?
+    private let storedMetadataText: String?
     let statusText: String?
     let imageURL: URL?
     let imagePlacement: HomeLatestNewsImagePlacement?
@@ -60,6 +60,10 @@ struct HomeLatestNewsItemPresentation: Identifiable, Equatable {
     let titleAccessibilityIdentifier: String
     let cardAccessibilityIdentifier: String
 
+    var metadataText: String? { storedMetadataText }
+}
+
+extension HomeLatestNewsItemPresentation {
     init(
         id: String,
         title: String,
@@ -75,7 +79,7 @@ struct HomeLatestNewsItemPresentation: Identifiable, Equatable {
         self.id = id
         self.title = title
         self.body = body
-        self.metadataText = metadataText
+        self.storedMetadataText = metadataText
         self.statusText = statusText
         self.imageURL = imageURL
         self.imagePlacement = imagePlacement

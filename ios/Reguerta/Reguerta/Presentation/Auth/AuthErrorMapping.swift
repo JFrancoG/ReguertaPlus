@@ -6,13 +6,17 @@ enum AuthErrorFlow: Sendable {
     case passwordReset
 }
 
-struct AuthErrorPresentation: Sendable {
-    let emailErrorKey: String?
+struct AuthErrorPresentation {
+    private let storedEmailErrorKey: String?
     let passwordErrorKey: String?
     let globalMessageKey: String?
 
+    var emailErrorKey: String? { storedEmailErrorKey }
+}
+
+extension AuthErrorPresentation {
     init(emailErrorKey: String? = nil, passwordErrorKey: String? = nil, globalMessageKey: String? = nil) {
-        self.emailErrorKey = emailErrorKey
+        self.storedEmailErrorKey = emailErrorKey
         self.passwordErrorKey = passwordErrorKey
         self.globalMessageKey = globalMessageKey
     }

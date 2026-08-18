@@ -1,6 +1,6 @@
 import Foundation
 
-struct OrderHistoryWeekOption: Identifiable, Equatable, Sendable {
+struct OrderHistoryWeekOption: Identifiable, Equatable {
     let weekKey: String
     let weekYear: Int
     let weekNumber: Int

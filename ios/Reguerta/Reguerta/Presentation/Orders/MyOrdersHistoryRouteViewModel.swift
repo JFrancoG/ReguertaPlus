@@ -9,7 +9,7 @@ enum MyOrdersHistoryLoadState: Equatable, Sendable {
     case error
 }
 
-struct MyOrdersHistoryRouteContext: Sendable {
+struct MyOrdersHistoryRouteContext {
     let currentMember: Member?
     let nowMillis: Int64
 

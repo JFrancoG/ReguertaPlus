@@ -9,20 +9,24 @@ nonisolated enum CriticalCollection: String, CaseIterable, Sendable {
     case measures
 }
 
-nonisolated struct CriticalDataFreshnessConfig: Equatable, Sendable {
+nonisolated struct CriticalDataFreshnessConfig: Equatable {
     let cacheExpirationMinutes: Int
     let remoteTimestampsMillis: [CriticalCollection: Int64]
 }
 
-nonisolated struct CriticalDataFreshnessMetadata: Equatable, Sendable {
+nonisolated struct CriticalDataFreshnessMetadata: Equatable {
     let validatedAtMillis: Int64
     let acknowledgedTimestampsMillis: [CriticalCollection: Int64]
     let environment: SessionEnvironment
     let principalUID: String
-    let authenticatedMemberID: String
+    private let storedAuthenticatedMemberID: String
     let memberID: String
     let canManageMembers: Bool
 
+    var authenticatedMemberID: String { storedAuthenticatedMemberID }
+}
+
+extension CriticalDataFreshnessMetadata {
     init(
         validatedAtMillis: Int64,
         acknowledgedTimestampsMillis: [CriticalCollection: Int64],
@@ -36,19 +40,23 @@ nonisolated struct CriticalDataFreshnessMetadata: Equatable, Sendable {
         self.acknowledgedTimestampsMillis = acknowledgedTimestampsMillis
         self.environment = environment
         self.principalUID = principalUID
-        self.authenticatedMemberID = authenticatedMemberID ?? memberID
+        self.storedAuthenticatedMemberID = authenticatedMemberID ?? memberID
         self.memberID = memberID
         self.canManageMembers = canManageMembers
     }
 }
 
-nonisolated struct CriticalDataRefreshScope: Equatable, Sendable {
+nonisolated struct CriticalDataRefreshScope: Equatable {
     let principalUID: String
-    let authenticatedMemberID: String
+    private let storedAuthenticatedMemberID: String
     let memberID: String
     let environment: SessionEnvironment
     let canManageMembers: Bool
 
+    var authenticatedMemberID: String { storedAuthenticatedMemberID }
+}
+
+extension CriticalDataRefreshScope {
     init(
         principalUID: String,
         authenticatedMemberID: String? = nil,
@@ -57,20 +65,24 @@ nonisolated struct CriticalDataRefreshScope: Equatable, Sendable {
         canManageMembers: Bool
     ) {
         self.principalUID = principalUID
-        self.authenticatedMemberID = authenticatedMemberID ?? memberID
+        self.storedAuthenticatedMemberID = authenticatedMemberID ?? memberID
         self.memberID = memberID
         self.environment = environment
         self.canManageMembers = canManageMembers
     }
 }
 
-nonisolated struct CriticalDataRefreshPayload: Equatable, Sendable {
-    let authenticatedMember: Member?
+nonisolated struct CriticalDataRefreshPayload: Equatable {
+    private let storedAuthenticatedMember: Member?
     let selectedMember: Member?
     let members: [Member]?
     let products: [Product]?
     let seasonalCommitments: [SeasonalCommitment]?
 
+    var authenticatedMember: Member? { storedAuthenticatedMember }
+}
+
+extension CriticalDataRefreshPayload {
     init(
         authenticatedMember: Member? = nil,
         selectedMember: Member? = nil,
@@ -78,7 +90,7 @@ nonisolated struct CriticalDataRefreshPayload: Equatable, Sendable {
         products: [Product]? = nil,
         seasonalCommitments: [SeasonalCommitment]? = nil
     ) {
-        self.authenticatedMember = authenticatedMember
+        self.storedAuthenticatedMember = authenticatedMember
         self.selectedMember = selectedMember
         self.members = members
         self.products = products

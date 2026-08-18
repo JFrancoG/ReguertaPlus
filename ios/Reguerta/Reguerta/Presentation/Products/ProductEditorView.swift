@@ -356,16 +356,6 @@ private struct ProductEditorTextFieldPair<First: View, Second: View>: View {
     let first: First
     let second: Second
 
-    init(
-        tokens: ReguertaDesignTokens,
-        @ViewBuilder first: () -> First,
-        @ViewBuilder second: () -> Second
-    ) {
-        self.tokens = tokens
-        self.first = first()
-        self.second = second()
-    }
-
     var body: some View {
         ProductEditorFieldPairLayout(
             horizontalSpacing: tokens.spacing.sm,
@@ -375,6 +365,18 @@ private struct ProductEditorTextFieldPair<First: View, Second: View>: View {
             second
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private extension ProductEditorTextFieldPair {
+    init(
+        tokens: ReguertaDesignTokens,
+        @ViewBuilder first: () -> First,
+        @ViewBuilder second: () -> Second
+    ) {
+        self.tokens = tokens
+        self.first = first()
+        self.second = second()
     }
 }
 
@@ -426,17 +428,19 @@ private struct ProductEditorStockControlsPreview: View {
     @Environment(\.reguertaTokens) private var tokens
     private let viewModel: ProductsRouteViewModel
 
+    var body: some View {
+        ProductEditorHeroView(tokens: tokens, viewModel: viewModel)
+            .padding(16)
+    }
+}
+
+private extension ProductEditorStockControlsPreview {
     init() {
         let environment = ReguertaAppEnvironment.preview()
         let viewModel = environment.accessRootViewModel.productsViewModel
         viewModel.editingProductId = ""
         viewModel.draft = ProductDraft()
         self.viewModel = viewModel
-    }
-
-    var body: some View {
-        ProductEditorHeroView(tokens: tokens, viewModel: viewModel)
-            .padding(16)
     }
 }
 

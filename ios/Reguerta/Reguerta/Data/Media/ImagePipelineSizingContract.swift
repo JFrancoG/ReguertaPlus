@@ -1,11 +1,11 @@
 import Foundation
 
-struct PixelSize: Equatable, Sendable {
+struct PixelSize: Equatable {
     let width: Int
     let height: Int
 }
 
-struct CropSquare: Equatable, Sendable {
+struct CropSquare: Equatable {
     let left: Int
     let top: Int
     let size: Int

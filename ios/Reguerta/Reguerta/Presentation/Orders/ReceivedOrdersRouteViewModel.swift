@@ -20,12 +20,12 @@ enum ReceivedOrdersLoadState: Equatable, Sendable {
     case error
 }
 
-struct ReceivedOrdersWindow: Equatable, Sendable {
+struct ReceivedOrdersWindow: Equatable {
     let isEnabled: Bool
     let targetWeekKey: String
 }
 
-struct ReceivedOrdersRouteContext: Sendable {
+struct ReceivedOrdersRouteContext {
     let currentMember: Member?
     let shifts: [ShiftAssignment]
     let defaultDeliveryDayOfWeek: DeliveryWeekday?

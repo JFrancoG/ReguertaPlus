@@ -243,7 +243,7 @@ struct BylawsArticleRetrieverTests {
     }
 }
 
-struct BylawsRetrievalExpectation: Sendable, CustomTestStringConvertible {
+struct BylawsRetrievalExpectation: CustomTestStringConvertible {
     let question: String
     let expectedArticleNumbers: [Int]
 

@@ -1,13 +1,9 @@
 import Foundation
 
 struct RuntimeSessionEnvironmentRouter: SessionEnvironmentRouting {
-    let transitionSignal: SessionEnvironmentRoutingSignal
+    private let storedTransitionSignal: SessionEnvironmentRoutingSignal
 
-    init(transitionSignal: SessionEnvironmentRoutingSignal? = nil) {
-        self.transitionSignal = transitionSignal ?? SessionEnvironmentRoutingSignal(
-            environment: ReguertaRuntimeEnvironment.currentFirestoreEnvironment
-        )
-    }
+    var transitionSignal: SessionEnvironmentRoutingSignal { storedTransitionSignal }
 
     var baseEnvironment: SessionEnvironment {
         ReguertaRuntimeEnvironment.baseFirestoreEnvironment
@@ -15,21 +11,21 @@ struct RuntimeSessionEnvironmentRouter: SessionEnvironmentRouting {
 
     func applyResolvedEnvironment(_ environment: SessionEnvironment, lease: SessionEnvironmentLease) {
         ReguertaRuntimeEnvironment.applySessionEnvironment(environment, lease: lease)
-        transitionSignal.publish(
+        storedTransitionSignal.publish(
             environment: ReguertaRuntimeEnvironment.currentFirestoreEnvironment
         )
     }
 
     func resetToBaseEnvironment(ifOwnedBy lease: SessionEnvironmentLease) {
         ReguertaRuntimeEnvironment.resetToBaseEnvironment(ifOwnedBy: lease)
-        transitionSignal.publish(
+        storedTransitionSignal.publish(
             environment: ReguertaRuntimeEnvironment.currentFirestoreEnvironment
         )
     }
 
     func resetToBaseEnvironment() {
         ReguertaRuntimeEnvironment.resetToBaseEnvironment()
-        transitionSignal.publish(
+        storedTransitionSignal.publish(
             environment: ReguertaRuntimeEnvironment.currentFirestoreEnvironment
         )
     }
@@ -41,18 +37,6 @@ struct FixedSessionEnvironmentRouter: SessionEnvironmentRouting {
     private let state: FixedSessionEnvironmentRouterState
     private let onApply: @MainActor @Sendable (SessionEnvironment) -> Void
     private let onReset: @MainActor @Sendable () -> Void
-
-    init(
-        baseEnvironment: SessionEnvironment = .develop,
-        onApply: @escaping @MainActor @Sendable (SessionEnvironment) -> Void = { _ in },
-        onReset: @escaping @MainActor @Sendable () -> Void = {}
-    ) {
-        self.baseEnvironment = baseEnvironment
-        self.transitionSignal = SessionEnvironmentRoutingSignal(environment: baseEnvironment)
-        self.state = FixedSessionEnvironmentRouterState()
-        self.onApply = onApply
-        self.onReset = onReset
-    }
 
     func applyResolvedEnvironment(_ environment: SessionEnvironment, lease: SessionEnvironmentLease) {
         state.activeLease = lease
@@ -69,6 +53,28 @@ struct FixedSessionEnvironmentRouter: SessionEnvironmentRouting {
         state.activeLease = nil
         onReset()
         transitionSignal.publish(environment: baseEnvironment)
+    }
+}
+
+extension RuntimeSessionEnvironmentRouter {
+    init(transitionSignal: SessionEnvironmentRoutingSignal? = nil) {
+        self.storedTransitionSignal = transitionSignal ?? SessionEnvironmentRoutingSignal(
+            environment: ReguertaRuntimeEnvironment.currentFirestoreEnvironment
+        )
+    }
+}
+
+extension FixedSessionEnvironmentRouter {
+    init(
+        baseEnvironment: SessionEnvironment = .develop,
+        onApply: @escaping @MainActor @Sendable (SessionEnvironment) -> Void = { _ in },
+        onReset: @escaping @MainActor @Sendable () -> Void = {}
+    ) {
+        self.baseEnvironment = baseEnvironment
+        self.transitionSignal = SessionEnvironmentRoutingSignal(environment: baseEnvironment)
+        self.state = FixedSessionEnvironmentRouterState()
+        self.onApply = onApply
+        self.onReset = onReset
     }
 }
 

@@ -1,11 +1,11 @@
 import Foundation
 
-struct ShiftSwapDraft: Equatable, Sendable {
+struct ShiftSwapDraft: Equatable {
     var shiftId = ""
     var reason = ""
 }
 
-struct ShiftSwapCreateSubmission: Sendable {
+struct ShiftSwapCreateSubmission {
     let draft: ShiftSwapDraft
     let requestedShiftId: String
     let request: ShiftSwapRequest
@@ -44,7 +44,7 @@ enum ShiftSwapAcknowledgement: Equatable, Sendable {
     }
 }
 
-struct ShiftBoardWindow: Equatable, Sendable {
+struct ShiftBoardWindow: Equatable {
     let highlightedShiftId: String?
 
     var targetShiftId: String? {
@@ -54,7 +54,7 @@ struct ShiftBoardWindow: Equatable, Sendable {
     func highlights(_ shift: ShiftAssignment) -> Bool { shift.id == highlightedShiftId }
 }
 
-struct ShiftSwapResponseOption: Equatable, Sendable {
+struct ShiftSwapResponseOption: Equatable {
     let request: ShiftSwapRequest
     let candidate: ShiftSwapCandidate
     let response: ShiftSwapResponse
@@ -64,7 +64,7 @@ struct ShiftSwapResponseOption: Equatable, Sendable {
     }
 }
 
-struct VisibleShiftSwapActivity: Sendable {
+struct VisibleShiftSwapActivity {
     let incoming: [(ShiftSwapRequest, ShiftSwapCandidate)]
     let availableResponses: [ShiftSwapResponseOption]
     let outgoing: [ShiftSwapRequest]

@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 
-struct MemberDraft: Equatable, Sendable {
+struct MemberDraft: Equatable {
     var displayName = ""
     var email = ""
     var companyName = ""

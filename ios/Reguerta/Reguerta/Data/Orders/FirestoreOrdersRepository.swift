@@ -2,13 +2,8 @@ import FirebaseFirestore
 import Foundation
 
 struct FirestoreOrdersRepository: OrdersRepository {
-    private let db: Firestore
+    private let storedDB: Firestore
     private let environment: ReguertaFirestoreEnvironment?
-
-    init(db: Firestore, environment: ReguertaFirestoreEnvironment? = nil) {
-        self.db = db
-        self.environment = environment
-    }
 
     private var resolvedEnvironment: ReguertaFirestoreEnvironment {
         environment ?? ReguertaRuntimeEnvironment.currentFirestoreEnvironment
@@ -21,7 +16,7 @@ struct FirestoreOrdersRepository: OrdersRepository {
             products: request.products,
             selectedQuantities: request.selectedQuantities,
             selectedEcoBasketOptions: request.selectedEcoBasketOptions,
-            db: db,
+            db: storedDB,
             environment: resolvedEnvironment,
             nowMillis: request.nowMillis
         )
@@ -40,7 +35,7 @@ struct FirestoreOrdersRepository: OrdersRepository {
     func orderHistoryWeekKeys(currentMember: Member?) async throws -> [String] {
         try await fetchOrderHistoryWeekKeys(
             currentMember: currentMember,
-            db: db,
+            db: storedDB,
             environment: resolvedEnvironment
         )
     }
@@ -49,7 +44,7 @@ struct FirestoreOrdersRepository: OrdersRepository {
         try await fetchOrderSummarySnapshot(
             currentMember: currentMember,
             weekKey: weekKey,
-            db: db,
+            db: storedDB,
             environment: resolvedEnvironment
         )
     }
@@ -58,7 +53,7 @@ struct FirestoreOrdersRepository: OrdersRepository {
         await loadMyOrderProducerStatuses(
             currentMember: currentMember,
             weekKey: weekKey,
-            db: db,
+            db: storedDB,
             environment: resolvedEnvironment
         )
     }
@@ -67,7 +62,7 @@ struct FirestoreOrdersRepository: OrdersRepository {
         try await fetchReceivedOrdersSnapshotForProducer(
             producerId: producerId,
             targetWeekKey: targetWeekKey,
-            db: db,
+            db: storedDB,
             environment: resolvedEnvironment
         )
     }
@@ -75,7 +70,7 @@ struct FirestoreOrdersRepository: OrdersRepository {
     func receivedOrdersHistoryWeekKeys(producerId: String) async throws -> [String] {
         try await fetchReceivedOrderHistoryWeekKeys(
             producerId: producerId,
-            db: db,
+            db: storedDB,
             environment: resolvedEnvironment
         )
     }
@@ -85,7 +80,7 @@ struct FirestoreOrdersRepository: OrdersRepository {
             producerId: producerId,
             targetWeekKey: weekKey,
             synchronizesUnreadStatuses: false,
-            db: db,
+            db: storedDB,
             environment: resolvedEnvironment
         )
     }
@@ -100,9 +95,16 @@ struct FirestoreOrdersRepository: OrdersRepository {
             orderId: orderId,
             producerId: producerId,
             status: status,
-            db: db,
+            db: storedDB,
             environment: resolvedEnvironment,
             nowMillis: nowMillis
         )
+    }
+}
+
+extension FirestoreOrdersRepository {
+    init(db: Firestore, environment: ReguertaFirestoreEnvironment? = nil) {
+        self.storedDB = db
+        self.environment = environment
     }
 }

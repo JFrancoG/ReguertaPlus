@@ -1,6 +1,6 @@
 import Foundation
 
-struct ProductDraft: Equatable, Sendable {
+struct ProductDraft: Equatable {
     var name = ""
     var description = ""
     var productImageUrl = ""
@@ -50,7 +50,7 @@ struct ProductDraft: Equatable, Sendable {
     }
 }
 
-struct ProductSaveInput: Equatable, Sendable {
+struct ProductSaveInput: Equatable {
     let draft: ProductDraft
     let existing: Product?
     let price: Double

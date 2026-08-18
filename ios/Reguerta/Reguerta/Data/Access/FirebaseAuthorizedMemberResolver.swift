@@ -1,10 +1,10 @@
 import Foundation
 
-nonisolated struct ResolveAuthorizedMemberRequest: Codable, Equatable, Sendable {
+nonisolated struct ResolveAuthorizedMemberRequest: Codable, Equatable {
     let env: SessionEnvironment
 }
 
-nonisolated struct ResolveAuthorizedMemberResponse: Codable, Equatable, Sendable {
+nonisolated struct ResolveAuthorizedMemberResponse: Codable, Equatable {
     let authorized: Bool
     let memberId: String
     let roles: Set<MemberRole>
@@ -15,18 +15,14 @@ nonisolated struct ResolveAuthorizedMemberResponse: Codable, Equatable, Sendable
 
 @MainActor
 struct FirebaseAuthorizedMemberResolver: AuthorizedMemberResolving {
-    private let client: AuthenticatedFirebaseFunctionsClient
-
-    init(client: AuthenticatedFirebaseFunctionsClient) {
-        self.client = client
-    }
+    private let storedClient: AuthenticatedFirebaseFunctionsClient
 
     func resolve(
         authPrincipal _: AuthPrincipal,
         requestedEnvironment: SessionEnvironment
     ) async throws -> AuthorizedMemberResolution {
         do {
-            let response = try await client.post(
+            let response = try await storedClient.post(
                 function: .resolveAuthorizedMember,
                 body: ResolveAuthorizedMemberRequest(env: requestedEnvironment),
                 response: ResolveAuthorizedMemberResponse.self
@@ -52,5 +48,11 @@ struct FirebaseAuthorizedMemberResolver: AuthorizedMemberResolving {
                 throw AuthorizedMemberResolutionError.unauthorized(.userAccessRestricted)
             }
         }
+    }
+}
+
+extension FirebaseAuthorizedMemberResolver {
+    init(client: AuthenticatedFirebaseFunctionsClient) {
+        self.storedClient = client
     }
 }

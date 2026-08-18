@@ -1,6 +1,6 @@
 import Foundation
 
-struct SharedProfile: Identifiable, Equatable, Sendable {
+struct SharedProfile: Identifiable, Equatable {
     var id: String { userId }
     let userId: String
     let familyNames: String

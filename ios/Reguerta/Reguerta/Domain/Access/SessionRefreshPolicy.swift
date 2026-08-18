@@ -5,12 +5,10 @@ enum SessionRefreshTrigger: Sendable {
     case foreground
 }
 
-struct SessionRefreshPolicy: Sendable {
-    let minimumForegroundIntervalMillis: Int64
+struct SessionRefreshPolicy {
+    private let storedMinimumForegroundIntervalMillis: Int64
 
-    init(minimumForegroundIntervalMillis: Int64 = 15_000) {
-        self.minimumForegroundIntervalMillis = minimumForegroundIntervalMillis
-    }
+    var minimumForegroundIntervalMillis: Int64 { storedMinimumForegroundIntervalMillis }
 
     /// Decides whether the current session should be refreshed for a lifecycle trigger.
     ///
@@ -41,5 +39,11 @@ struct SessionRefreshPolicy: Sendable {
             guard let lastRefreshAtMillis else { return true }
             return nowMillis - lastRefreshAtMillis >= minimumForegroundIntervalMillis
         }
+    }
+}
+
+extension SessionRefreshPolicy {
+    init(minimumForegroundIntervalMillis: Int64 = 15_000) {
+        self.storedMinimumForegroundIntervalMillis = minimumForegroundIntervalMillis
     }
 }

@@ -1,6 +1,6 @@
 import Foundation
 
-struct NewsImageDataResponse: Sendable {
+struct NewsImageDataResponse {
     let data: Data
     let statusCode: Int?
 }
@@ -10,14 +10,12 @@ protocol NewsImageDataFetching: Sendable {
 }
 
 struct URLSessionNewsImageDataFetcher: NewsImageDataFetching {
-    let session: URLSession
+    private let storedSession: URLSession
 
-    init(session: URLSession = .shared) {
-        self.session = session
-    }
+    var session: URLSession { storedSession }
 
     func data(for request: URLRequest) async throws -> NewsImageDataResponse {
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await storedSession.data(for: request)
         return NewsImageDataResponse(
             data: data,
             statusCode: (response as? HTTPURLResponse)?.statusCode
@@ -31,12 +29,8 @@ enum NewsImageDataLoaderError: Error, Equatable {
     case emptyData
 }
 
-struct NewsImageDataLoader: Sendable {
-    private let fetcher: any NewsImageDataFetching
-
-    init(fetcher: any NewsImageDataFetching = URLSessionNewsImageDataFetcher()) {
-        self.fetcher = fetcher
-    }
+struct NewsImageDataLoader {
+    private let storedFetcher: any NewsImageDataFetching
 
     func load(from url: URL) async throws -> Data {
         let request = URLRequest(
@@ -44,10 +38,22 @@ struct NewsImageDataLoader: Sendable {
             cachePolicy: .reloadRevalidatingCacheData,
             timeoutInterval: 30
         )
-        let response = try await fetcher.data(for: request)
+        let response = try await storedFetcher.data(for: request)
         guard let statusCode = response.statusCode else { throw NewsImageDataLoaderError.invalidResponse }
         guard (200 ..< 300).contains(statusCode) else { throw NewsImageDataLoaderError.httpStatus(statusCode) }
         guard !response.data.isEmpty else { throw NewsImageDataLoaderError.emptyData }
         return response.data
+    }
+}
+
+extension URLSessionNewsImageDataFetcher {
+    init(session: URLSession = .shared) {
+        self.storedSession = session
+    }
+}
+
+extension NewsImageDataLoader {
+    init(fetcher: any NewsImageDataFetching = URLSessionNewsImageDataFetcher()) {
+        self.storedFetcher = fetcher
     }
 }

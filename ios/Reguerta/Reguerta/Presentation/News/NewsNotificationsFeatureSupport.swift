@@ -1,6 +1,6 @@
 import Foundation
 
-struct NewsDraft: Equatable, Sendable {
+struct NewsDraft: Equatable {
     var title = ""
     var body = ""
     var urlImage = ""
@@ -21,7 +21,7 @@ struct NewsDraft: Equatable, Sendable {
     }
 }
 
-struct NotificationDraft: Equatable, Sendable {
+struct NotificationDraft: Equatable {
     var title = ""
     var body = ""
     var audience: NotificationAudience = .all
@@ -35,7 +35,7 @@ struct NotificationDraft: Equatable, Sendable {
     }
 }
 
-struct NotificationListItem: Identifiable, Equatable, Sendable {
+struct NotificationListItem: Identifiable, Equatable {
     let notification: NotificationEvent
     let isRead: Bool
 

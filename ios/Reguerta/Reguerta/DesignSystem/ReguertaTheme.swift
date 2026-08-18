@@ -22,7 +22,7 @@ enum AppAppearance: String, CaseIterable, Identifiable, Sendable {
 }
 import UIKit
 
-struct ReguertaButtonInteractionVisualState: Equatable, Sendable {
+struct ReguertaButtonInteractionVisualState: Equatable {
     let scale: CGFloat
     let opacity: Double
 }
@@ -145,19 +145,19 @@ extension EnvironmentValues {
 
 struct ReguertaTheme<Content: View>: View {
     @Environment(\.colorScheme) private var colorScheme
-    private let content: () -> Content
-
-    init(
-        @ViewBuilder content: @escaping () -> Content
-    ) {
-        self.content = content
-    }
+    private let storedContent: () -> Content
 
     var body: some View {
         let tokens = colorScheme == .dark ? ReguertaDesignTokens.dark : ReguertaDesignTokens.light
-        content()
+        storedContent()
             .environment(\.reguertaTokens, tokens)
             .tint(tokens.colors.actionPrimary)
+    }
+}
+
+extension ReguertaTheme {
+    init(@ViewBuilder content: @escaping () -> Content) {
+        self.storedContent = content
     }
 }
 

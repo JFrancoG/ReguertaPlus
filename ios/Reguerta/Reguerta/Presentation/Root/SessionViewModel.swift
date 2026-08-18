@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-struct AuthorizedSession: Equatable, Sendable {
+struct AuthorizedSession: Equatable {
     var principal: AuthPrincipal
     var authenticatedMember: Member
     var member: Member
