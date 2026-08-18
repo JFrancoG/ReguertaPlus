@@ -316,8 +316,6 @@ Delivery calendar strategy (canonical):
 - `title`: string (required)
 - `body`: string (required)
 - `publishedBy`: string (required, display name)
-- `publishedByUserId`: string (required, canonical identity of the admin
-  performing the current write)
 - `publishedAt`: timestamp (required)
 - `active`: bool (required)
 - `urlImage`: string|null (optional)

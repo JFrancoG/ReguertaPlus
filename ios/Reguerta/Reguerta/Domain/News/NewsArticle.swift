@@ -6,7 +6,6 @@ struct NewsArticle: Identifiable, Equatable, Sendable {
     let body: String
     let active: Bool
     let publishedBy: String
-    let publishedByUserId: String?
     let publishedAtMillis: Int64
     let urlImage: String?
 
@@ -16,7 +15,6 @@ struct NewsArticle: Identifiable, Equatable, Sendable {
         body: String,
         active: Bool,
         publishedBy: String,
-        publishedByUserId: String? = nil,
         publishedAtMillis: Int64,
         urlImage: String?
     ) {
@@ -25,7 +23,6 @@ struct NewsArticle: Identifiable, Equatable, Sendable {
         self.body = body
         self.active = active
         self.publishedBy = publishedBy
-        self.publishedByUserId = publishedByUserId
         self.publishedAtMillis = publishedAtMillis
         self.urlImage = urlImage
     }

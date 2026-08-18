@@ -911,7 +911,6 @@ class SessionAuthActionsConcurrencyTest {
             publishedBy = "Publisher",
             publishedAtMillis = 1L,
             urlImage = null,
-            publishedByUserId = member.id,
         )
         val notification = NotificationEvent(
             id = "notification-1",
@@ -1821,7 +1820,6 @@ class SessionAuthActionsConcurrencyTest {
             publishedBy = "Publisher",
             publishedAtMillis = 1L,
             urlImage = null,
-            publishedByUserId = "publisher-1",
         )
         val notification = NotificationEvent(
             id = "notification-1",

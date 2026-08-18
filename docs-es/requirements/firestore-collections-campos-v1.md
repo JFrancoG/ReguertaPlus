@@ -427,7 +427,6 @@ Estrategia canonica de calendario:
 | `title` | string | si | admin | |
 | `body` | string | si | admin | |
 | `publishedBy` | string | si | sistema/admin | Nombre visible del autor |
-| `publishedByUserId` | string | si | sistema/admin | Identidad canonica del admin que realiza la escritura actual |
 | `publishedAt` | timestamp | si | sistema/admin | |
 | `active` | bool | si | admin | |
 | `urlImage` | string\|null | no | admin | URL opcional de imagen para enriquecer la noticia |

@@ -197,12 +197,11 @@ class FirestoreSecurityBoundarySourceTest {
     }
 
     @Test
-    fun `news writes carry canonical publisher id without replacing display text`() {
+    fun `news writes retain the publisher display text`() {
         val repository = readMainSource("data/news/FirestoreNewsRepository.kt")
         val actions = readMainSource("presentation/root/SessionCommunityActions.kt")
 
-        assertTrue(repository.contains("\"publishedByUserId\" to publishedByUserId"))
-        assertTrue(actions.contains("publishedByUserId = mode.member.id"))
+        assertTrue(repository.contains("\"publishedBy\" to persisted.publishedBy"))
         assertTrue(actions.contains("publishedBy = existing?.publishedBy ?: mode.member.displayName"))
     }
 

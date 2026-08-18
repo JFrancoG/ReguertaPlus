@@ -128,7 +128,6 @@ struct NewsNotificationsMutationOwnershipTests {
             body: "Body",
             active: false,
             publishedBy: "Admin",
-            publishedByUserId: "admin",
             publishedAtMillis: 40,
             urlImage: nil
         )

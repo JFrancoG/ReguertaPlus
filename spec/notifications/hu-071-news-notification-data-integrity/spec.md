@@ -82,9 +82,8 @@ feed and can retry without losing the last known valid content.
 - Every document returned by a successful query with a missing, blank,
   mistyped, or invalid required field throws `INVALID_DATA`; no returned
   document is silently omitted.
-- News requires a non-empty ID, `title`, `body`, `publishedBy`, and
-  `publishedByUserId`, plus Boolean `active` and Firestore Timestamp
-  `publishedAt`.
+- News requires a non-empty ID, `title`, `body`, and `publishedBy`, plus
+  Boolean `active` and Firestore Timestamp `publishedAt`.
 - Notifications require a non-empty ID, `title`, `body`, canonical `type`,
   canonical `target`, exact `targetPayload`, Timestamp `sentAt`, and non-empty
   `createdBy`.

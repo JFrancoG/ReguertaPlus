@@ -2348,7 +2348,6 @@ private fun newsArticle(
     publishedBy = "Publisher",
     publishedAtMillis = 123L,
     urlImage = null,
-    publishedByUserId = "publisher-1",
 )
 
 private fun notificationEvent(

@@ -24,10 +24,6 @@ struct FirestoreNewsNotificationDecodingTests {
     @Test("News requires canonical non-empty fields, Bool and Timestamp")
     func newsRejectsMissingBlankAndMistypedRequiredFields() {
         var data = validNewsData()
-        data.removeValue(forKey: "publishedByUserId")
-        expectInvalidNews(data)
-
-        data = validNewsData()
         data["publishedBy"] = "   "
         expectInvalidNews(data)
 
@@ -279,7 +275,6 @@ struct FirestoreNewsNotificationDecodingTests {
             "title": " News title ",
             "body": " News body ",
             "publishedBy": " Publisher ",
-            "publishedByUserId": " admin_1 ",
             "publishedAt": Timestamp(date: Date(timeIntervalSince1970: 123)),
             "active": true,
             "urlImage": NSNull()

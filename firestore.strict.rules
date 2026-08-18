@@ -384,7 +384,6 @@ service cloud.firestore {
         data.get("body", "").size() > 0 &&
         data.get("publishedBy", "") is string &&
         data.get("publishedBy", "").size() > 0 &&
-        data.get("publishedByUserId", "") == actorId(env) &&
         data.get("publishedAt", null) is timestamp &&
         data.get("active", false) is bool;
     }

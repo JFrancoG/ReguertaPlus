@@ -219,7 +219,6 @@ async function seedFixtures() {
         title: "Published",
         body: "Visible",
         publishedBy: "Admin Tester",
-        publishedByUserId: actors.admin.memberId,
         publishedAt: new Date(),
         active: true,
       });
@@ -227,7 +226,6 @@ async function seedFixtures() {
         title: "Draft",
         body: "Private",
         publishedBy: "Admin Tester",
-        publishedByUserId: actors.admin.memberId,
         publishedAt: new Date(),
         active: false,
       });
@@ -871,15 +869,13 @@ test("admin governance does not imply producer ownership", async () => {
       title: "Admin notice",
       body: "Governed content",
       publishedBy: "Admin Tester",
-      publishedByUserId: actors.admin.memberId,
       publishedAt: new Date(),
       active: true,
     }));
-    await assertFails(adminDb.doc(docPath(env, "news", "news_forged_author")).set({
-      title: "Forged notice",
-      body: "Must not impersonate another author",
+    await assertSucceeds(adminDb.doc(docPath(env, "news", "news_display_author")).set({
+      title: "Delegated notice",
+      body: "The author name is display-only metadata",
       publishedBy: "Another Admin",
-      publishedByUserId: actors.member.memberId,
       publishedAt: new Date(),
       active: true,
     }));

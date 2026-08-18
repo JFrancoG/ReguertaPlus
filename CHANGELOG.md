@@ -67,6 +67,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-08-18 | 🐛 fix(news): remove nonexistent publisher metadata
 - 2026-08-18 | 🐛 fix(android): preserve state across activity recreation
 - 2026-08-18 | 🐛 fix(startup): allow public version checks
 - 2026-08-14 | 🐛 fix(access): fix login feedback and validation

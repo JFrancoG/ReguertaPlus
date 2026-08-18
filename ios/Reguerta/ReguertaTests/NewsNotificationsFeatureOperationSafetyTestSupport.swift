@@ -170,7 +170,6 @@ actor ConfirmedMutationNewsRepository: NewsRepository {
                 body: article.body,
                 active: article.active,
                 publishedBy: article.publishedBy,
-                publishedByUserId: article.publishedByUserId,
                 publishedAtMillis: article.publishedAtMillis,
                 urlImage: article.urlImage
             )
@@ -345,7 +344,6 @@ func safetyNewsArticle(id: String, publishedAtMillis: Int64 = 1) -> NewsArticle 
         body: "Body",
         active: true,
         publishedBy: "Publisher",
-        publishedByUserId: "admin_1",
         publishedAtMillis: publishedAtMillis,
         urlImage: nil
     )

@@ -428,7 +428,6 @@ internal class SessionCommunityActions(
                         publishedBy = existing?.publishedBy ?: mode.member.displayName,
                         publishedAtMillis = existing?.publishedAtMillis ?: nowMillis,
                         urlImage = draft.urlImage.trim().ifBlank { null },
-                        publishedByUserId = mode.member.id,
                     ),
                 ).also { currentCoroutineContext().ensureActive() }
             } catch (cancellation: CancellationException) {
