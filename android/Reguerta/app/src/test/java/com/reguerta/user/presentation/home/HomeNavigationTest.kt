@@ -163,6 +163,15 @@ class HomeNavigationTest {
     }
 
     @Test
+    fun `my order action only blocks while a freshness generation is checking`() {
+        assertFalse(MyOrderFreshnessUiState.Checking.allowsMyOrderEntryRequest())
+        assertTrue(MyOrderFreshnessUiState.Idle.allowsMyOrderEntryRequest())
+        assertTrue(MyOrderFreshnessUiState.Ready.allowsMyOrderEntryRequest())
+        assertTrue(MyOrderFreshnessUiState.TimedOut.allowsMyOrderEntryRequest())
+        assertTrue(MyOrderFreshnessUiState.Unavailable.allowsMyOrderEntryRequest())
+    }
+
+    @Test
     fun `same scope writer after ready invalidates navigation receipt`() {
         val refreshedMember = navigationMember(displayName = "Refreshed")
         val refreshedMode = SessionMode.Authorized(

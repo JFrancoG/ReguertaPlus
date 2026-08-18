@@ -60,8 +60,11 @@ import kotlinx.coroutines.withTimeout
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import java.util.UUID
+import java.util.logging.Level
+import java.util.logging.Logger
 
 internal const val SESSION_AUTH_OPERATION_TIMEOUT_MILLIS = 30_000L
+private val sessionAuthLogger = Logger.getLogger("SessionAuthActions")
 
 internal class SessionAuthActions(
     private val uiState: MutableStateFlow<SessionUiState>,
@@ -574,10 +577,16 @@ internal class SessionAuthActions(
                 }
             }
         } catch (_: TimeoutCancellationException) {
+            sessionAuthLogger.warning("Critical freshness exceeded its bounded timeout")
             updateMyOrderFreshnessIfCurrent(operation, MyOrderFreshnessUiState.TimedOut)
         } catch (error: CancellationException) {
             throw error
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            val repositoryError = error as? RepositoryException
+            val detail = repositoryError?.let {
+                "kind=${it.kind}, resource=${it.resource.substringBefore('/')}"
+            } ?: "kind=UNKNOWN"
+            sessionAuthLogger.log(Level.SEVERE, "Critical freshness failed: $detail")
             updateMyOrderFreshnessIfCurrent(operation, MyOrderFreshnessUiState.Unavailable)
         } finally {
             pendingWrite?.let { write ->

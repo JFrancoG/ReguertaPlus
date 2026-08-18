@@ -70,13 +70,11 @@ struct NewsNotificationsFeatureOperationSafetyTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableLoadData)
     }
 
-    @Test("An authorized update inside the same context never clears the previous snapshot")
+    @Test("A same-context update preserves News while initial-load recovery is pending")
     func sameContextSessionUpdatePreservesSnapshot() async {
         let member = safetyMember()
         let old = safetyNewsArticle(id: "old")
-        let repository = SequencedNewsRepository(
-            outcomes: [.failure(.unavailable(resource: "news"))]
-        )
+        let repository = ControlledNewsRepository()
         let viewModel = makeSafetyViewModel(member: member, newsRepository: repository)
         viewModel.newsFeed = [old]
         viewModel.latestNews = [old]
@@ -94,13 +92,17 @@ struct NewsNotificationsFeatureOperationSafetyTests {
         viewModel.sessionViewModel.mode = .authorized(refreshedSession)
         viewModel.handleSessionModeChange(.authorized(refreshedSession))
 
+        await repository.waitForReadCount(1)
+        await repository.completeRead(0, with: .failure(.unavailable(resource: "news")))
+        await Task.yield()
+
         #expect(viewModel.newsFeed == [old])
         #expect(viewModel.latestNews == [old])
-        await waitForSafetyCondition {
-            viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableLoadData
-        }
-        #expect(viewModel.newsFeed == [old])
-        #expect(viewModel.latestNews == [old])
+        #expect(viewModel.isLoadingNews)
+        #expect(viewModel.feedbackCenter.messageKey == nil)
+
+        viewModel.sessionViewModel.mode = .signedOut
+        viewModel.handleSessionModeChange(.signedOut)
     }
 
     @Test("Latest overlapping News refresh owns state, feedback and loading")

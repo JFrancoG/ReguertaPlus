@@ -1,11 +1,10 @@
 import FirebaseFirestore
 import Foundation
 
-private let seasonalCommitmentQueryUserFields = [
-    "userId",
-    "memberId"
-]
-private let seasonalCommitmentLegacyUserFields = [
+private let seasonalCommitmentCanonicalUserField = "userId"
+private let seasonalCommitmentUserReadFields = [
+    seasonalCommitmentCanonicalUserField,
+    "memberId",
     "uid",
     "user",
     "member",
@@ -14,7 +13,6 @@ private let seasonalCommitmentLegacyUserFields = [
     "userID",
     "memberID"
 ]
-private let seasonalCommitmentUserReadFields = seasonalCommitmentQueryUserFields + seasonalCommitmentLegacyUserFields
 private let seasonalCommitmentProductFields = [
     "productId",
     "product",
@@ -50,10 +48,6 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
         db.reguertaCollection(.seasonalCommitments, environment: environment)
     }
 
-    private var usersCollection: CollectionReference {
-        db.reguertaCollection(.users, environment: environment)
-    }
-
     func activeCommitments(userId: String) async throws -> [SeasonalCommitment] {
         try await activeCommitments(userId: userId, source: .defaultSource)
     }
@@ -70,29 +64,10 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
         guard !normalizedLookup.isEmpty else { return [] }
 
         do {
-            var documentsById = Dictionary(
-                try await queryByFields(
-                    seasonalCommitmentQueryUserFields,
-                    lookupValue: normalizedLookup,
-                    includeReferenceTarget: !normalizedLookup.contains("@"),
-                    source: source
-                ).map { ($0.documentID, $0) },
-                uniquingKeysWith: { current, _ in current }
+            return try await canonicalDocuments(
+                lookupValue: normalizedLookup,
+                source: source
             )
-
-            if documentsById.isEmpty {
-                documentsById = Dictionary(
-                    try await queryByFields(
-                        seasonalCommitmentLegacyUserFields,
-                        lookupValue: normalizedLookup,
-                        includeReferenceTarget: !normalizedLookup.contains("@"),
-                        source: source
-                    ).map { ($0.documentID, $0) },
-                    uniquingKeysWith: { current, _ in current }
-                )
-            }
-
-            return try documentsById.values
                 .map { document in
                     try Self.commitment(documentID: document.documentID, data: document.data())
                 }
@@ -104,47 +79,21 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
         }
     }
 
-    private func queryByFields(
-        _ fields: [String],
+    private func canonicalDocuments(
         lookupValue: String,
-        includeReferenceTarget: Bool,
         source: SeasonalCommitmentReadSource
     ) async throws -> [QueryDocumentSnapshot] {
-        var targets: [SeasonalCommitmentQueryTarget] = [.value(lookupValue)]
-        if includeReferenceTarget {
-            targets.append(.userReference(documentID: lookupValue))
+        let query = commitmentsCollection.whereField(
+            seasonalCommitmentCanonicalUserField,
+            isEqualTo: lookupValue
+        )
+        let snapshot = switch source {
+        case .defaultSource:
+            try await query.getDocuments()
+        case .server:
+            try await query.getDocuments(source: .server)
         }
-
-        return try await withThrowingTaskGroup(of: [QueryDocumentSnapshot].self) { group in
-            for field in fields {
-                for target in targets {
-                    group.addTask { [commitmentsCollection, usersCollection] in
-                        let lookupTarget: Any = switch target {
-                        case .value(let value):
-                            value
-                        case .userReference(let documentID):
-                            usersCollection.document(documentID)
-                        }
-                        let query = commitmentsCollection.whereField(
-                            field,
-                            isEqualTo: lookupTarget
-                        )
-                        let snapshot = switch source {
-                        case .defaultSource:
-                            try await query.getDocuments()
-                        case .server:
-                            try await query.getDocuments(source: .server)
-                        }
-                        return snapshot.documents
-                    }
-                }
-            }
-            var documents: [QueryDocumentSnapshot] = []
-            for try await queryDocuments in group {
-                documents.append(contentsOf: queryDocuments)
-            }
-            return documents
-        }
+        return snapshot.documents
     }
 
     private static func sortCommitments(_ lhs: SeasonalCommitment, _ rhs: SeasonalCommitment) -> Bool {
@@ -245,8 +194,8 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
     }
 
     private static func positiveDouble(_ value: Any?) -> Double? {
-        if value is Bool { return nil }
-        if let number = value as? NSNumber {
+        if let number = value as? NSNumber,
+           CFGetTypeID(number) != CFBooleanGetTypeID() {
             let double = number.doubleValue
             return double.isFinite && double > 0 ? double : nil
         }
@@ -264,8 +213,11 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
     private static func optionalBool(_ data: [String: Any], field: String, default defaultValue: Bool) throws -> Bool {
         guard let value = data[field] else { return defaultValue }
         if value is NSNull { return defaultValue }
-        guard let bool = value as? Bool else { throw invalidDocumentError }
-        return bool
+        guard let number = value as? NSNumber,
+              CFGetTypeID(number) == CFBooleanGetTypeID() else {
+            throw invalidDocumentError
+        }
+        return number.boolValue
     }
 
     private static func optionalTimestampMillis(_ data: [String: Any], field: String) throws -> Int64 {
@@ -283,11 +235,6 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
 private nonisolated enum SeasonalCommitmentReadSource: Sendable {
     case defaultSource
     case server
-}
-
-private nonisolated enum SeasonalCommitmentQueryTarget: Sendable {
-    case value(String)
-    case userReference(documentID: String)
 }
 
 private extension String {

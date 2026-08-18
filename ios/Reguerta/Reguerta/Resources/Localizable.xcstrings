@@ -5319,23 +5319,6 @@
         }
       }
     },
-    "operational_modules.my_order.freshness.checking" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Checking critical data freshness before enabling My order…"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Comprobando la frescura de los datos críticos antes de activar Mi pedido…"
-          }
-        }
-      }
-    },
     "operational_modules.my_order.freshness.error.message" : {
       "extractionState" : "manual",
       "localizations" : {

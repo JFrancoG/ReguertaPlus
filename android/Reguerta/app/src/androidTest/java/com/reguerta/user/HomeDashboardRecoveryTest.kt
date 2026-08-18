@@ -2,9 +2,11 @@ package com.reguerta.user
 
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.reguerta.user.presentation.home.HomeActionRow
 import com.reguerta.user.presentation.home.HomeOrderStateDisplay
@@ -13,6 +15,7 @@ import com.reguerta.user.presentation.root.MyOrderFreshnessUiState
 import com.reguerta.user.ui.theme.ReguertaTheme
 import org.junit.Rule
 import org.junit.Test
+import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
@@ -33,12 +36,35 @@ class HomeDashboardRecoveryTest {
     }
 
     @Test
-    fun unavailableFreshnessDoesNotExposeRecoveryMessageOrManualRetry() {
+    fun unavailableFreshnessAllowsANewGatedEntryRequest() {
+        var entryRequests = 0
         composeRule.setContent {
             ReguertaTheme {
                 HomeActionRow(
                     myOrderFreshnessState = MyOrderFreshnessUiState.Unavailable,
                     canOpenReceivedOrders = true,
+                    orderState = HomeOrderStateDisplay.NOT_STARTED,
+                    isConsultaPhase = false,
+                    onOpenMyOrder = { entryRequests += 1 },
+                    onOpenReceivedOrders = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("My order").performClick()
+        composeRule.runOnIdle { assertEquals(1, entryRequests) }
+        composeRule.onAllNodesWithText("Retry check").assertCountEquals(0)
+        composeRule.onAllNodesWithText("Critical data could not be validated in time. The app will retry automatically.")
+            .assertCountEquals(0)
+    }
+
+    @Test
+    fun checkingFreshnessKeepsMyOrderDisabled() {
+        composeRule.setContent {
+            ReguertaTheme {
+                HomeActionRow(
+                    myOrderFreshnessState = MyOrderFreshnessUiState.Checking,
+                    canOpenReceivedOrders = false,
                     orderState = HomeOrderStateDisplay.NOT_STARTED,
                     isConsultaPhase = false,
                     onOpenMyOrder = {},
@@ -47,8 +73,8 @@ class HomeDashboardRecoveryTest {
             }
         }
 
-        composeRule.onAllNodesWithText("Retry check").assertCountEquals(0)
-        composeRule.onAllNodesWithText("Critical data could not be validated in time. The app will retry automatically.")
+        composeRule.onNodeWithText("My order").assertIsNotEnabled()
+        composeRule.onAllNodesWithText("Checking critical data freshness before enabling My order…")
             .assertCountEquals(0)
     }
 }

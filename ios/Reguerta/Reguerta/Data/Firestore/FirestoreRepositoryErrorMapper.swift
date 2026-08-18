@@ -13,6 +13,7 @@ nonisolated enum FirestoreRepositoryErrorMapper {
             return error
         }
         if let repositoryError = error as? RepositoryError {
+            log(error: repositoryError, resource: resource)
             return repositoryError
         }
 
@@ -25,7 +26,7 @@ nonisolated enum FirestoreRepositoryErrorMapper {
 
         let mappedError: any Error = switch code {
         case .cancelled:
-            CancellationError()
+            RepositoryError.unavailable(resource: resource)
         case .notFound:
             RepositoryError.notFound(resource: resource)
         case .permissionDenied, .unauthenticated:
@@ -38,9 +39,7 @@ nonisolated enum FirestoreRepositoryErrorMapper {
             RepositoryError.unknown(resource: resource)
         }
 
-        if !(mappedError is CancellationError) {
-            log(error: error, resource: resource)
-        }
+        log(error: error, resource: resource)
         return mappedError
     }
 

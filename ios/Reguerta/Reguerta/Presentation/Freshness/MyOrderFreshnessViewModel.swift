@@ -1,5 +1,11 @@
 import Foundation
 import Observation
+import OSLog
+
+private let myOrderFreshnessLogger = Logger(
+    subsystem: "com.reguerta.app",
+    category: "CriticalFreshness"
+)
 
 enum MyOrderFreshnessState: Equatable, Sendable {
     case idle
@@ -70,7 +76,7 @@ final class MyOrderFreshnessViewModel {
         isCriticalOrderingStateCurrent: @escaping @MainActor @Sendable (
             CriticalDataRefreshScope
         ) -> Bool = { _ in true },
-        timeout: Duration = .milliseconds(2_500),
+        timeout: Duration = .seconds(10),
         automaticRetryDelays: [Duration] = [.seconds(10), .seconds(20), .seconds(30)],
         sleeper: @escaping @Sendable (Duration) async throws -> Void = {
             try await ContinuousClock().sleep(for: $0)
@@ -190,6 +196,9 @@ final class MyOrderFreshnessViewModel {
             } catch is CancellationError {
                 return
             } catch {
+                myOrderFreshnessLogger.error(
+                    "Critical freshness failed: \(String(describing: error), privacy: .private)"
+                )
                 self?.publishFailureIfCurrent(
                     identity: identity,
                     generation: generation,
@@ -253,6 +262,7 @@ final class MyOrderFreshnessViewModel {
             }
 
             guard let self, isCurrentFreshnessOperation(generation, identity: identity) else { return }
+            myOrderFreshnessLogger.warning("Critical freshness exceeded its bounded timeout")
             freshnessOperationTask?.cancel()
             freshnessTimeoutTask = nil
             state = .timedOut

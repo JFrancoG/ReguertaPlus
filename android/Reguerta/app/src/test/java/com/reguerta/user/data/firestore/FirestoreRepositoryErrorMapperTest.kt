@@ -18,6 +18,10 @@ class FirestoreRepositoryErrorMapperTest {
             repositoryErrorKind(firestoreCode = 14),
         )
         assertEquals(
+            RepositoryErrorKind.UNAVAILABLE,
+            repositoryErrorKind(firestoreCode = 1),
+        )
+        assertEquals(
             RepositoryErrorKind.INVALID_DATA,
             repositoryErrorKind(firestoreCode = 15),
         )

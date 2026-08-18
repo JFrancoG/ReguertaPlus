@@ -310,17 +310,17 @@ extension SessionViewModel {
         let refreshedSelectedMember = refreshedMembers.first {
             $0.id == session.member.id
         } ?? session.member
-        mode = .authorized(
-            AuthorizedSession(
-                principal: session.principal,
-                authenticatedMember: authenticatedMember,
-                member: authenticatedMember.canManageMembers
-                    ? refreshedSelectedMember
-                    : authenticatedMember,
-                members: refreshedMembers,
-                environment: session.environment
-            )
+        let refreshedSession = AuthorizedSession(
+            principal: session.principal,
+            authenticatedMember: authenticatedMember,
+            member: authenticatedMember.canManageMembers
+                ? refreshedSelectedMember
+                : authenticatedMember,
+            members: refreshedMembers,
+            environment: session.environment
         )
+        guard refreshedSession != session else { return }
+        mode = .authorized(refreshedSession)
     }
 
     private func shouldShowUnauthorizedDialog(for email: String, reason: UnauthorizedReason) -> Bool {

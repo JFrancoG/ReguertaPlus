@@ -5,6 +5,24 @@ import Testing
 @Suite(.timeLimit(.minutes(1)))
 @MainActor
 struct ProductsOrderingRefreshGenerationTests {
+    @Test("Un refresco nuevo de catalogo invalida el reintento inicial anterior")
+    func newerCatalogRefreshInvalidatesOlderRetryFence() async throws {
+        let currentProducer = producer(id: "producer_catalog", parity: .even)
+        let viewModel = await makeProductsViewModel(
+            currentMember: currentProducer,
+            members: [currentProducer]
+        )
+        let context = try #require(viewModel.authorizedSessionContext)
+
+        let initialGeneration = viewModel.beginCatalogRefresh()
+        #expect(viewModel.isCurrentCatalogRefresh(context, generation: initialGeneration))
+
+        let newerGeneration = viewModel.beginCatalogRefresh()
+
+        #expect(!viewModel.isCurrentCatalogRefresh(context, generation: initialGeneration))
+        #expect(viewModel.isCurrentCatalogRefresh(context, generation: newerGeneration))
+    }
+
     @Test("La carga ordinaria antigua no sobrescribe el snapshot del barrier")
     func olderOrdinaryRefreshCannotOverwriteFreshnessSnapshot() async throws {
         let currentMember = member(id: "member_refresh", ecoCommitmentMode: .weekly)
@@ -290,6 +308,67 @@ struct ProductsOrderingRefreshGenerationTests {
         viewModel.sessionViewModel.applyRefreshedAuthorizedMembers([staleMember])
 
         #expect(!viewModel.isOrderingStateCurrentForFreshness(scope: scope))
+    }
+}
+
+@Suite(.timeLimit(.minutes(1)))
+@MainActor
+struct ProductsOrderingEquivalentMemberRefreshTests {
+    @Test("Una lista de miembros equivalente conserva orden revision y receipt")
+    func equivalentFreshnessMembersDoNotInvalidateReceipt() async throws {
+        let firstMember = Member(
+            id: "member_first",
+            displayName: "Ana",
+            normalizedEmail: "ana@example.com",
+            authUid: "auth_member_first",
+            roles: [.member],
+            isActive: true,
+            producerCatalogEnabled: false,
+            ecoCommitmentMode: .weekly
+        )
+        let authenticatedMember = member(id: "member_middle", ecoCommitmentMode: .weekly)
+        let lastMember = Member(
+            id: "member_last",
+            displayName: "Zoe",
+            normalizedEmail: "zoe@example.com",
+            authUid: "auth_member_last",
+            roles: [.member],
+            isActive: true,
+            producerCatalogEnabled: false,
+            ecoCommitmentMode: .weekly
+        )
+        let sortedMembers = [firstMember, authenticatedMember, lastMember]
+        let viewModel = await makeProductsViewModel(
+            currentMember: authenticatedMember,
+            members: sortedMembers,
+            productRepository: InMemoryProductRepository()
+        )
+        let scope = try #require(refreshScope(in: viewModel))
+        let revisionBeforeRefresh = viewModel.sessionViewModel.sessionStateRevision
+
+        try await viewModel.refreshOrderingProductsForFreshness(
+            scope: scope,
+            payload: CriticalDataRefreshPayload(
+                authenticatedMember: authenticatedMember,
+                selectedMember: authenticatedMember,
+                members: sortedMembers,
+                products: [],
+                seasonalCommitments: []
+            )
+        )
+
+        guard case .authorized(let refreshedSession) = viewModel.sessionViewModel.mode else {
+            Issue.record("Se esperaba conservar una sesion autorizada")
+            return
+        }
+        #expect(refreshedSession.members.map(\.id) == sortedMembers.map(\.id))
+        #expect(viewModel.sessionViewModel.sessionStateRevision == revisionBeforeRefresh)
+        #expect(viewModel.isOrderingStateCurrentForFreshness(scope: scope))
+
+        viewModel.sessionViewModel.applyRefreshedAuthorizedMembers(sortedMembers)
+
+        #expect(viewModel.sessionViewModel.sessionStateRevision == revisionBeforeRefresh)
+        #expect(viewModel.isOrderingStateCurrentForFreshness(scope: scope))
     }
 }
 

@@ -298,43 +298,27 @@ internal fun HomeActionRow(
     modifier: Modifier = Modifier,
 ) {
     val spacing = ReguertaThemeTokens.spacing
-    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-        ) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+    ) {
+        HomeDashboardAction(
+            title = stringResource(R.string.module_my_order),
+            subtitle = stringResource(orderState.myOrderSubtitleRes(isConsultaPhase)),
+            primary = true,
+            enabled = myOrderFreshnessState.allowsMyOrderEntryRequest(),
+            onClick = onOpenMyOrder,
+            modifier = Modifier.weight(1f),
+        )
+        if (canOpenReceivedOrders) {
             HomeDashboardAction(
-                title = stringResource(R.string.module_my_order),
-                subtitle = stringResource(orderState.myOrderSubtitleRes(isConsultaPhase)),
-                primary = true,
-                enabled = myOrderFreshnessState == MyOrderFreshnessUiState.Ready,
-                onClick = onOpenMyOrder,
+                title = stringResource(R.string.home_shell_action_received_orders),
+                subtitle = null,
+                primary = false,
+                enabled = true,
+                onClick = onOpenReceivedOrders,
                 modifier = Modifier.weight(1f),
             )
-            if (canOpenReceivedOrders) {
-                HomeDashboardAction(
-                    title = stringResource(R.string.home_shell_action_received_orders),
-                    subtitle = null,
-                    primary = false,
-                    enabled = true,
-                    onClick = onOpenReceivedOrders,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        }
-
-        when (myOrderFreshnessState) {
-            MyOrderFreshnessUiState.Checking -> Text(
-                text = stringResource(R.string.my_order_freshness_checking),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            MyOrderFreshnessUiState.TimedOut,
-            MyOrderFreshnessUiState.Unavailable,
-                -> Unit
-            MyOrderFreshnessUiState.Idle,
-            MyOrderFreshnessUiState.Ready,
-                -> Unit
         }
     }
 }

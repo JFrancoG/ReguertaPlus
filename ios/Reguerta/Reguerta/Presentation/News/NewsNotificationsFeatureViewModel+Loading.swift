@@ -48,12 +48,19 @@ extension NewsNotificationsFeatureViewModel {
         currentEnvironment = transition.environment
     }
 
-    func refreshNews(failureFeedbackOwnership: NewsConvergenceFeedbackOwnership? = nil) async {
+    func refreshNews(
+        failureFeedbackOwnership: NewsConvergenceFeedbackOwnership? = nil,
+        recoversInitialFailure: Bool = false
+    ) async {
         guard let context = captureAuthorizedSessionContext() else { return }
 
         let operationId = beginNewsRefreshOperation()
         do {
-            let allNews = try await newsRepository.news(visibleTo: context.session.member)
+            let allNews = try await performInitialLoadWithRecovery(
+                enabled: recoversInitialFailure,
+                shouldRetry: { self.isCurrentNewsRefresh(operationId, context: context) },
+                operation: { try await newsRepository.news(visibleTo: context.session.member) }
+            )
             try Task.checkCancellation()
             guard isCurrentNewsRefresh(operationId, context: context) else { return }
             applyNewsSnapshot(allNews, member: context.session.member)
@@ -71,18 +78,27 @@ extension NewsNotificationsFeatureViewModel {
         finishNewsRefreshOperation(operationId, context: context)
     }
 
-    func refreshNotifications(failureFeedbackOwnership: NotificationMutationEditorOwnership? = nil) async {
+    func refreshNotifications(
+        failureFeedbackOwnership: NotificationMutationEditorOwnership? = nil,
+        recoversInitialFailure: Bool = false
+    ) async {
         guard let context = captureAuthorizedSessionContext() else { return }
 
         let operationId = beginNotificationsRefreshOperation()
         do {
-            async let notifications = notificationRepository.notifications(
-                visibleTo: context.session.member
+            let (allNotifications, readNotificationIDs) = try await performInitialLoadWithRecovery(
+                enabled: recoversInitialFailure,
+                shouldRetry: { self.isCurrentNotificationsRefresh(operationId, context: context) },
+                operation: {
+                    async let notifications = notificationRepository.notifications(
+                        visibleTo: context.session.member
+                    )
+                    async let readIDs = notificationRepository.readNotificationIds(
+                        memberId: context.memberID
+                    )
+                    return try await (notifications, readIDs)
+                }
             )
-            async let readIDs = notificationRepository.readNotificationIds(
-                memberId: context.memberID
-            )
-            let (allNotifications, readNotificationIDs) = try await (notifications, readIDs)
             try Task.checkCancellation()
             guard isCurrentNotificationsRefresh(operationId, context: context) else { return }
             applyNotificationsSnapshot(
@@ -284,9 +300,9 @@ private extension NewsNotificationsFeatureViewModel {
         let generation = communityHydrationGeneration
         activeCommunityHydrationTask = Task { [weak self] in
             guard let self else { return }
-            await self.refreshNews()
+            await self.refreshNews(recoversInitialFailure: true)
             guard self.isCurrentCommunityHydration(generation) else { return }
-            await self.refreshNotifications()
+            await self.refreshNotifications(recoversInitialFailure: true)
             self.finishCommunityHydration(generation)
         }
     }

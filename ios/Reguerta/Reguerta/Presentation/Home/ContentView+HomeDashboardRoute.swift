@@ -68,12 +68,14 @@ struct HomeActionRowPresentation {
     let orderState: HomeOrderStateDisplay
     let myOrderSubtitleKey: String
 
-    var shouldShowCheckingMessage: Bool {
-        myOrderFreshnessState == .checking
-    }
-
     var isMyOrderEnabled: Bool {
-        myOrderFreshnessState == .ready
+        myOrderFreshnessState.allowsMyOrderEntryRequest
+    }
+}
+
+extension MyOrderFreshnessState {
+    var allowsMyOrderEntryRequest: Bool {
+        self != .checking
     }
 }
 

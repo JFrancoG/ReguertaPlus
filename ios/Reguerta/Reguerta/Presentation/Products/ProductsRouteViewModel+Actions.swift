@@ -11,37 +11,44 @@ private struct ProductSaveRequest {
 
 @MainActor
 extension ProductsRouteViewModel {
-    func refreshCatalog() async {
+    func refreshCatalog(recoversInitialFailure: Bool = false) async {
         guard let context = authorizedSessionContext else {
+            catalogRefreshGeneration &+= 1
             catalogProducts = []
             isLoadingCatalog = false
             return
         }
         let session = context.session
         guard session.member.canManageProductCatalog else {
+            catalogRefreshGeneration &+= 1
             catalogProducts = []
             isLoadingCatalog = false
             return
         }
 
+        let refreshGeneration = beginCatalogRefresh()
         isLoadingCatalog = true
         let products: [Product]
         do {
-            products = try await productRepository.products(vendorId: session.member.id)
+            products = try await performInitialLoadWithRecovery(
+                enabled: recoversInitialFailure,
+                shouldRetry: { self.isCurrentCatalogRefresh(context, generation: refreshGeneration) },
+                operation: { try await productRepository.products(vendorId: session.member.id) }
+            )
             try Task.checkCancellation()
         } catch is CancellationError {
-            if isCurrentSession(context) {
+            if isCurrentCatalogRefresh(context, generation: refreshGeneration) {
                 isLoadingCatalog = false
             }
             return
         } catch {
-            if isCurrentSession(context) {
+            if isCurrentCatalogRefresh(context, generation: refreshGeneration) {
                 isLoadingCatalog = false
                 showUnableLoadFeedback()
             }
             return
         }
-        guard isCurrentSession(context) else { return }
+        guard isCurrentCatalogRefresh(context, generation: refreshGeneration) else { return }
         catalogProducts = products
         isLoadingCatalog = false
     }
