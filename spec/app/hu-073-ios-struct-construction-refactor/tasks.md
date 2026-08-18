@@ -72,5 +72,8 @@
 - [x] Document final no-parity-gap assessment.
 - [x] Update issue #245 with implementation and validation evidence.
 - [x] Update `CHANGELOG.md` after delivery authorization.
-- [x] Obtain explicit authorization for commit, push, PR, merge, closure, and
-  branch cleanup.
+- [x] Obtain explicit authorization for commit, push, PR, merge, and closure.
+- [x] Deliver source commit `a00f05d` through PR #246 and merge commit
+  `3837973`; close issue #245 as completed.
+- [ ] Delete the local and remote HU-073 branches only after separate explicit
+  destructive authorization.

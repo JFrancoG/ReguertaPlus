@@ -5,7 +5,7 @@
 - issue_id: #245
 - priority: P2
 - platform: ios
-- status: validated
+- status: delivered
 
 ## Context and problem
 
@@ -116,8 +116,7 @@ duplicated boilerplate and necessary custom construction remains easy to find.
 - [x] Independent iOS architecture/concurrency review completed.
 - [x] SwiftUI review completed for moved View initializers.
 - [x] Android parity impact documented as none.
-- [x] Issue and validation evidence updated; delivery remains explicitly
-  unauthorized.
+- [x] Issue and delivery evidence updated.
 
 ## Initial validation evidence
 
@@ -216,3 +215,14 @@ duplicated boilerplate and necessary custom construction remains easy to find.
   at `Large`, `XXX Large`, and `AX 5` Dynamic Type sizes.
 - No Android, Functions, backend, rules, or shared-contract file changed, so
   this construction-only iOS refactor creates no functional parity gap.
+
+## Final delivery evidence
+
+- Source commit: `a00f05d` (`♻️ refactor(ios): simplify struct construction`).
+- Pull request: #246, merged into `main`.
+- Definitive merge commit: `3837973`.
+- GitHub issue #245: closed as completed by the merged pull request.
+- Local `main` and `origin/main`: synchronized at `3837973` with a clean
+  worktree after delivery.
+- The HU-073 local and remote branches remain available because their deletion
+  requires separate destructive authorization.
