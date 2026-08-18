@@ -1,11 +1,11 @@
 package com.reguerta.user.presentation.orders
 
-import com.reguerta.user.presentation.products.seasonalCommitmentLookupKeys
 import com.reguerta.user.domain.access.EcoCommitmentMode
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
 import com.reguerta.user.domain.access.ProducerParity
 import com.reguerta.user.domain.commitments.SeasonalCommitment
+import com.reguerta.user.domain.commitments.seasonalCommitmentLookupKeys
 import com.reguerta.user.domain.products.Product
 import com.reguerta.user.domain.products.ProductPricingMode
 import com.reguerta.user.domain.products.ProductStockMode
@@ -333,7 +333,7 @@ class MyOrderCommitmentValidationTest {
     }
 
     @Test
-    fun `seasonal commitment lookup keys include member id auth uid and email`() {
+    fun `seasonal commitment lookup uses canonical member id`() {
         val keys = member(
             id = "member_1",
             ecoCommitmentMode = EcoCommitmentMode.WEEKLY,
@@ -344,10 +344,7 @@ class MyOrderCommitmentValidationTest {
             )
             .seasonalCommitmentLookupKeys()
 
-        assertEquals(
-            listOf("member_1", "uid_member_1", "member_1@reguerta.app"),
-            keys,
-        )
+        assertEquals(listOf("member_1"), keys)
     }
 
     @Test

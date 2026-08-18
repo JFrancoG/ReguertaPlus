@@ -34,6 +34,7 @@ final class ProductsRouteViewModel {
     var activeUploadOperationId: UInt64?
     var nextUploadOperationId: UInt64 = 0
     var sessionIdentityEpoch: UInt64 = 0
+    @ObservationIgnored var catalogRefreshGeneration: UInt64 = 0
     @ObservationIgnored private var orderingRefreshGeneration: UInt64 = 0
     @ObservationIgnored private var appliedFreshnessOrderingGeneration: UInt64?
     @ObservationIgnored private var appliedFreshnessSessionRevision: UInt64?
@@ -110,7 +111,7 @@ extension ProductsRouteViewModel {
                 clearEditor()
             }
             if session.member.canManageProductCatalog {
-                Task { await refreshCatalog() }
+                Task { await refreshCatalog(recoversInitialFailure: true) }
             } else {
                 catalogProducts = []
             }
@@ -252,10 +253,20 @@ extension ProductsRouteViewModel {
             latestSession.authenticatedMember.canManageMembers ==
                 context.session.authenticatedMember.canManageMembers
     }
+
+    func beginCatalogRefresh() -> UInt64 {
+        catalogRefreshGeneration &+= 1
+        return catalogRefreshGeneration
+    }
+
+    func isCurrentCatalogRefresh(_ context: ProductsRouteSessionContext, generation: UInt64) -> Bool {
+        generation == catalogRefreshGeneration && isCurrentSession(context)
+    }
 }
 
 private extension ProductsRouteViewModel {
     private func reset() {
+        catalogRefreshGeneration &+= 1
         invalidateOrderingRefresh()
         currentSession = nil
         currentMember = nil
@@ -278,6 +289,7 @@ private extension ProductsRouteViewModel {
     }
 
     private func invalidateOperationsForIdentityChange() {
+        catalogRefreshGeneration &+= 1
         invalidateOrderingRefresh()
         activeSaveOperationId = nil
         activeUploadOperationId = nil
@@ -382,10 +394,18 @@ private extension ProductsRouteViewModel {
     private func mergeOrderingMembers(_ members: [Member], payload: CriticalDataRefreshPayload) -> [Member] {
         var merged = members
         if let authenticatedMember = payload.authenticatedMember {
-            merged = merged.filter { $0.id != authenticatedMember.id } + [authenticatedMember]
+            if let index = merged.firstIndex(where: { $0.id == authenticatedMember.id }) {
+                merged[index] = authenticatedMember
+            } else {
+                merged.append(authenticatedMember)
+            }
         }
         if let selectedMember = payload.selectedMember {
-            merged = merged.filter { $0.id != selectedMember.id } + [selectedMember]
+            if let index = merged.firstIndex(where: { $0.id == selectedMember.id }) {
+                merged[index] = selectedMember
+            } else {
+                merged.append(selectedMember)
+            }
         }
         return merged
     }
@@ -440,29 +460,9 @@ private extension ProductsRouteViewModel {
     }
 
     private func loadSeasonalCommitments(for member: Member) async throws -> [SeasonalCommitment] {
-        var seasonalCommitmentsById: [String: SeasonalCommitment] = [:]
-        let lookupKeys = member.seasonalCommitmentLookupKeys
         let commitmentRepository = seasonalCommitmentRepository
-        let commitmentsByLookup = try await withThrowingTaskGroup(of: [SeasonalCommitment].self) { group in
-            for lookupKey in lookupKeys {
-                group.addTask {
-                    try await commitmentRepository.activeCommitments(userId: lookupKey)
-                }
-            }
-            var collected: [SeasonalCommitment] = []
-            for try await commitments in group {
-                collected.append(contentsOf: commitments)
-            }
-            return collected
-        }
-        for commitment in commitmentsByLookup {
-            seasonalCommitmentsById[commitment.id] = commitment
-        }
-        return seasonalCommitmentsById.values.sorted { lhs, rhs in
-            if lhs.seasonKey.localizedCaseInsensitiveCompare(rhs.seasonKey) != .orderedSame {
-                return lhs.seasonKey.localizedCaseInsensitiveCompare(rhs.seasonKey) == .orderedAscending
-            }
-            return lhs.productId.localizedCaseInsensitiveCompare(rhs.productId) == .orderedAscending
+        return try await loadActiveCommitments(for: member) { lookupKey in
+            try await commitmentRepository.activeCommitments(userId: lookupKey)
         }
     }
 

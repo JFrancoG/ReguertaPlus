@@ -12,18 +12,15 @@ import com.reguerta.user.domain.RepositoryException
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.commitments.SeasonalCommitment
 import com.reguerta.user.domain.commitments.SeasonalCommitmentRepository
+import com.reguerta.user.domain.commitments.loadActiveCommitmentsForMember
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
-private val SeasonalCommitmentQueryUserFields = listOf(
-    "userId",
+private const val SeasonalCommitmentCanonicalUserField = "userId"
+private val SeasonalCommitmentUserReadFields = listOf(
+    SeasonalCommitmentCanonicalUserField,
     "memberId",
-)
-private val SeasonalCommitmentLegacyUserFields = listOf(
     "uid",
     "user",
     "member",
@@ -32,7 +29,6 @@ private val SeasonalCommitmentLegacyUserFields = listOf(
     "userID",
     "memberID",
 )
-private val SeasonalCommitmentUserReadFields = SeasonalCommitmentQueryUserFields + SeasonalCommitmentLegacyUserFields
 private val SeasonalCommitmentProductFields = listOf(
     "productId",
     "product",
@@ -64,14 +60,11 @@ class FirestoreSeasonalCommitmentRepository(
     private val commitmentsCollectionPath: String
         get() = firestorePath.collectionPath(ReguertaFirestoreCollection.SEASONAL_COMMITMENTS)
 
-    private val usersCollectionPath: String
-        get() = firestorePath.collectionPath(ReguertaFirestoreCollection.USERS)
-
     override suspend fun getActiveCommitmentsForUser(userId: String): List<SeasonalCommitment> = withContext(Dispatchers.IO) {
         val normalizedLookup = userId.trim().ifBlank { return@withContext emptyList() }
         try {
             getActiveCommitments(
-                lookupKeys = listOf(normalizedLookup),
+                lookupKey = normalizedLookup,
                 serverOnly = false,
             )
         } catch (error: Exception) {
@@ -83,96 +76,33 @@ class FirestoreSeasonalCommitmentRepository(
         member: Member,
     ): List<SeasonalCommitment> = withContext(Dispatchers.IO) {
         try {
-            getActiveCommitments(
-                lookupKeys = criticalSeasonalCommitmentLookupKeys(member),
-                serverOnly = true,
-            )
+            loadActiveCommitmentsForMember(member) { lookupKey ->
+                getActiveCommitments(lookupKey = lookupKey, serverOnly = true)
+            }
         } catch (error: Exception) {
             throw error.toRepositoryException(resource = "seasonalCommitments.server")
         }
     }
 
     private suspend fun getActiveCommitments(
-        lookupKeys: List<String>,
+        lookupKey: String,
         serverOnly: Boolean,
-    ): List<SeasonalCommitment> = coroutineScope {
-        val documentsById = linkedMapOf<String, com.google.firebase.firestore.DocumentSnapshot>()
-        lookupKeys.map { lookupKey ->
-            async {
-                val lookupDocuments = linkedMapOf<String, com.google.firebase.firestore.DocumentSnapshot>()
-                queryByFields(
-                    fields = SeasonalCommitmentQueryUserFields,
-                    lookupValue = lookupKey,
-                    includeReferenceTarget = !lookupKey.contains('@'),
-                    serverOnly = serverOnly,
-                    output = lookupDocuments,
-                )
-                if (lookupDocuments.isEmpty()) {
-                    queryByFields(
-                        fields = SeasonalCommitmentLegacyUserFields,
-                        lookupValue = lookupKey,
-                        includeReferenceTarget = !lookupKey.contains('@'),
-                        serverOnly = serverOnly,
-                        output = lookupDocuments,
-                    )
-                }
-                lookupDocuments
-            }
-        }.awaitAll().forEach { lookupDocuments ->
-            documentsById.putAll(lookupDocuments)
+    ): List<SeasonalCommitment> {
+        val normalizedLookup = lookupKey.trim().ifBlank { return emptyList() }
+        val query = firestore.collection(commitmentsCollectionPath)
+            .whereEqualTo(SeasonalCommitmentCanonicalUserField, normalizedLookup)
+        val snapshot = if (serverOnly) {
+            query.get(Source.SERVER).await()
+        } else {
+            query.get().await()
         }
-
-        documentsById.values
+        return snapshot.documents
             .map { document -> document.toSeasonalCommitment() }
-            .filter { commitment ->
-                lookupKeys.any { lookupKey -> commitment.userId.matchesLookupUserId(lookupKey) }
-            }
+            .filter { commitment -> commitment.userId.matchesLookupUserId(normalizedLookup) }
             .filter(SeasonalCommitment::active)
             .sortedWith(compareBy<SeasonalCommitment> { it.seasonKey }.thenBy { it.productId })
     }
-
-    private suspend fun queryByFields(
-        fields: List<String>,
-        lookupValue: String,
-        includeReferenceTarget: Boolean,
-        serverOnly: Boolean,
-        output: MutableMap<String, com.google.firebase.firestore.DocumentSnapshot>,
-    ) = coroutineScope {
-        val referenceTarget = firestore.document("$usersCollectionPath/$lookupValue")
-        val targets = buildList<Any> {
-            add(lookupValue)
-            if (includeReferenceTarget) {
-                add(referenceTarget)
-            }
-        }
-        fields.flatMap { field ->
-            targets.map { target ->
-                async {
-                    val query = firestore.collection(commitmentsCollectionPath)
-                        .whereEqualTo(field, target)
-                    if (serverOnly) {
-                        query.get(Source.SERVER).await()
-                    } else {
-                        query.get().await()
-                    }
-                }
-            }
-        }.awaitAll().forEach { snapshot ->
-            snapshot.documents.forEach { document ->
-                output[document.id] = document
-            }
-        }
-    }
 }
-
-internal fun criticalSeasonalCommitmentLookupKeys(member: Member): List<String> = listOfNotNull(
-    member.id,
-    member.authUid,
-    member.normalizedEmail,
-)
-    .map(String::trim)
-    .filter(String::isNotBlank)
-    .distinct()
 
 private fun com.google.firebase.firestore.DocumentSnapshot.toSeasonalCommitment(): SeasonalCommitment {
     if (!exists()) invalidCommitmentDocument()

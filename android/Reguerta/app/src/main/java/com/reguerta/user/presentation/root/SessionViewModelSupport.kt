@@ -278,7 +278,7 @@ internal fun DeliveryWeekday.toDayOfWeek(): DayOfWeek = when (this) {
 }
 
 internal val EmailPatternRegex = "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$".toRegex(setOf(RegexOption.IGNORE_CASE))
-internal const val MY_ORDER_FRESHNESS_TIMEOUT_MILLIS = 2_500L
+internal const val MY_ORDER_FRESHNESS_TIMEOUT_MILLIS = 10_000L
 private const val PasswordMinLength = 6
 private const val PasswordMaxLength = 16
 

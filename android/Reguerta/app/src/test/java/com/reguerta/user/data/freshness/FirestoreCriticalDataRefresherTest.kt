@@ -1,11 +1,14 @@
 package com.reguerta.user.data.freshness
 
-import com.reguerta.user.data.commitments.criticalSeasonalCommitmentLookupKeys
 import com.reguerta.user.domain.RepositoryErrorKind
 import com.reguerta.user.domain.RepositoryException
 import com.reguerta.user.domain.access.Member
 import com.reguerta.user.domain.access.MemberRole
+import com.reguerta.user.domain.commitments.SeasonalCommitment
+import com.reguerta.user.domain.commitments.loadActiveCommitmentsForMember
+import com.reguerta.user.domain.commitments.seasonalCommitmentLookupKeys
 import com.reguerta.user.domain.freshness.CriticalDataRefreshScope
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
@@ -32,13 +35,39 @@ class FirestoreCriticalDataRefresherTest {
     }
 
     @Test
-    fun `seasonal commitment server refresh uses every selected member lookup key`() {
+    fun `seasonal commitment lookup uses only the canonical member id`() {
         val selected = member(id = "selected", isActive = true)
 
-        assertEquals(
-            listOf("selected", "uid-selected", "selected@reguerta.test"),
-            criticalSeasonalCommitmentLookupKeys(selected),
-        )
+        assertEquals(listOf("selected"), selected.seasonalCommitmentLookupKeys())
+    }
+
+    @Test
+    fun `canonical commitments use one member id lookup`() = runTest {
+        val selected = member(id = "selected", isActive = true)
+        val calls = mutableListOf<String>()
+        val canonical = commitment(id = "canonical", userId = selected.id)
+
+        val result = loadActiveCommitmentsForMember(selected) { lookupKey ->
+            calls += lookupKey
+            if (lookupKey == selected.id) listOf(canonical) else error("Unexpected lookup")
+        }
+
+        assertEquals(listOf(selected.id), calls)
+        assertEquals(listOf(canonical), result)
+    }
+
+    @Test
+    fun `empty canonical result is successful without identity fallbacks`() = runTest {
+        val selected = member(id = "selected", isActive = true)
+        val calls = mutableListOf<String>()
+
+        val result = loadActiveCommitmentsForMember(selected) { lookupKey ->
+            calls += lookupKey
+            emptyList()
+        }
+
+        assertEquals(listOf(selected.id), calls)
+        assertTrue(result.isEmpty())
     }
 
     @Test
@@ -83,4 +112,15 @@ private fun member(id: String, isActive: Boolean) = Member(
     roles = setOf(MemberRole.MEMBER),
     isActive = isActive,
     producerCatalogEnabled = false,
+)
+
+private fun commitment(id: String, userId: String) = SeasonalCommitment(
+    id = id,
+    userId = userId,
+    productId = "product-$id",
+    seasonKey = "2026",
+    fixedQtyPerOfferedWeek = 1.0,
+    active = true,
+    createdAtMillis = 1L,
+    updatedAtMillis = 1L,
 )

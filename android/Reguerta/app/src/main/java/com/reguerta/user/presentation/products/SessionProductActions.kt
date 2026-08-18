@@ -21,6 +21,7 @@ import com.reguerta.user.domain.RepositoryException
 import com.reguerta.user.domain.access.MemberRepository
 import com.reguerta.user.domain.access.canManageMembers
 import com.reguerta.user.domain.commitments.SeasonalCommitmentRepository
+import com.reguerta.user.domain.commitments.loadActiveCommitmentsForMember
 import com.reguerta.user.domain.freshness.CriticalDataRefreshPayload
 import com.reguerta.user.domain.products.Product
 import com.reguerta.user.domain.products.ProductContainerOption
@@ -31,12 +32,9 @@ import com.reguerta.user.presentation.orders.currentIsoWeekProducerParity
 import com.reguerta.user.presentation.orders.matchesCurrentProducerWeek
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import java.util.UUID
 import kotlin.math.abs
 import kotlin.math.ceil
@@ -206,18 +204,10 @@ internal class SessionProductActions(
                     seasonalCommitments[commitment.id] = commitment
                 }
             } else {
-                coroutineScope {
-                    refreshedCurrentMember.seasonalCommitmentLookupKeys()
-                        .map { lookupKey ->
-                            async {
-                                seasonalCommitmentRepository.getActiveCommitmentsForUser(lookupKey)
-                            }
-                        }
-                        .awaitAll()
-                        .flatten()
-                        .forEach {
-                            seasonalCommitments[it.id] = it
-                        }
+                loadActiveCommitmentsForMember(refreshedCurrentMember) { lookupKey ->
+                    seasonalCommitmentRepository.getActiveCommitmentsForUser(lookupKey)
+                }.forEach { commitment ->
+                    seasonalCommitments[commitment.id] = commitment
                 }
             }
             val allProducts = prefetchedPayload?.products ?: productRepository.getAllProducts()
@@ -816,22 +806,6 @@ internal fun isValidWeightRange(minWeight: Double?, maxWeight: Double?, step: Do
 
 internal fun com.reguerta.user.domain.access.Member?.isVisibleForOrdering(): Boolean =
     this?.isActive != false && this?.producerCatalogEnabled != false
-
-internal fun com.reguerta.user.domain.access.Member.seasonalCommitmentLookupKeys(): List<String> =
-    buildList {
-        add(id)
-        authUid
-            ?.trim()
-            ?.takeIf { it.isNotBlank() }
-            ?.let(::add)
-        normalizedEmail
-            .trim()
-            .takeIf { it.isNotBlank() }
-            ?.let(::add)
-    }
-        .map(String::trim)
-        .filter(String::isNotBlank)
-        .distinct()
 
 private fun List<Product>.replacing(product: Product): List<Product> =
     (filterNot { it.id == product.id } + product)

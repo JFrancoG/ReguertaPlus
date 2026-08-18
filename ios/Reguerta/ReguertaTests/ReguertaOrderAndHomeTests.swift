@@ -232,7 +232,7 @@ struct ReguertaOrderAndHomeTests {
         #expect(result.hasEcoBasketPriceMismatch == true)
     }
 
-    @Test func seasonalCommitmentLookupKeysIncludeMemberIdAuthUIDAndEmail() {
+    @Test func seasonalCommitmentLookupUsesCanonicalMemberID() {
         let member = Member(
             id: "member_1",
             displayName: "Member",
@@ -243,7 +243,7 @@ struct ReguertaOrderAndHomeTests {
             producerCatalogEnabled: true
         )
 
-        #expect(member.seasonalCommitmentLookupKeys == ["member_1", "uid_member_1", "member_1@reguerta.app"])
+        #expect(member.seasonalCommitmentLookupKeys == ["member_1"])
     }
 
     @Test func seasonalCommitmentLookupKeysRemoveDuplicatesAndBlanks() {
@@ -258,5 +258,66 @@ struct ReguertaOrderAndHomeTests {
         )
 
         #expect(member.seasonalCommitmentLookupKeys == ["member_1"])
+    }
+
+    @Test func myOrderActionOnlyBlocksWhileFreshnessIsChecking() {
+        #expect(MyOrderFreshnessState.checking.allowsMyOrderEntryRequest == false)
+        #expect(MyOrderFreshnessState.idle.allowsMyOrderEntryRequest)
+        #expect(MyOrderFreshnessState.ready.allowsMyOrderEntryRequest)
+        #expect(MyOrderFreshnessState.timedOut.allowsMyOrderEntryRequest)
+        #expect(MyOrderFreshnessState.unavailable.allowsMyOrderEntryRequest)
+    }
+
+    @Test func canonicalCommitmentsUseOneMemberIDLookup() async throws {
+        let currentMember = Member(
+            id: "member_1",
+            displayName: "Member",
+            normalizedEmail: "member_1@reguerta.app",
+            authUid: "uid_member_1",
+            roles: [.member],
+            isActive: true,
+            producerCatalogEnabled: true
+        )
+        let canonical = seasonalCommitment(productId: "canonical", fixedQtyPerOfferedWeek: 1)
+        let calls = SeasonalCommitmentLookupRecorder()
+
+        let result = try await loadActiveCommitments(for: currentMember) { lookupKey in
+            await calls.append(lookupKey)
+            return lookupKey == currentMember.id ? [canonical] : []
+        }
+
+        #expect(await calls.values == [currentMember.id])
+        #expect(result == [canonical])
+    }
+
+    @Test func emptyCanonicalCommitmentsAreSuccessfulWithoutIdentityFallbacks() async throws {
+        let currentMember = Member(
+            id: "member_1",
+            displayName: "Member",
+            normalizedEmail: "member_1@reguerta.app",
+            authUid: "uid_member_1",
+            roles: [.member],
+            isActive: true,
+            producerCatalogEnabled: true
+        )
+        let calls = SeasonalCommitmentLookupRecorder()
+
+        let result = try await loadActiveCommitments(for: currentMember) { lookupKey in
+            await calls.append(lookupKey)
+            return []
+        }
+
+        #expect(await calls.values == [currentMember.id])
+        #expect(result.isEmpty)
+    }
+}
+
+private actor SeasonalCommitmentLookupRecorder {
+    private var recordedValues: [String] = []
+
+    var values: [String] { recordedValues }
+
+    func append(_ value: String) {
+        recordedValues.append(value)
     }
 }

@@ -252,20 +252,12 @@ struct HomeActionRowView: View {
     private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-            if #available(iOS 26.0, *) {
-                GlassEffectContainer(spacing: tokens.spacing.sm) {
-                    actionRowContent
-                }
-            } else {
+        if #available(iOS 26.0, *) {
+            GlassEffectContainer(spacing: tokens.spacing.sm) {
                 actionRowContent
             }
-
-            if presentation.shouldShowCheckingMessage {
-                Text(localizedKey(AccessL10nKey.myOrderFreshnessChecking))
-                    .font(tokens.typography.label)
-                    .foregroundStyle(tokens.colors.textSecondary)
-            }
+        } else {
+            actionRowContent
         }
     }
 

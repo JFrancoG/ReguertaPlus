@@ -292,7 +292,7 @@ struct OperationalModulesCardView: View {
                     Text(localizedKey(AccessL10nKey.myOrder))
                 }
                 .accessibilityIdentifier("home.module.myOrder")
-                .disabled(!modulesEnabled || myOrderFreshnessState != .ready)
+                .disabled(!modulesEnabled || !myOrderFreshnessState.allowsMyOrderEntryRequest)
                 Button(action: onOpenProducts) {
                     Text(localizedKey(AccessL10nKey.catalog))
                 }
@@ -316,17 +316,13 @@ struct OperationalModulesCardView: View {
                 }
 
                 switch myOrderFreshnessState {
-                case .checking:
-                    Text(localizedKey(AccessL10nKey.myOrderFreshnessChecking))
-                        .font(tokens.typography.label)
-                        .foregroundStyle(tokens.colors.textSecondary)
                 case .timedOut, .unavailable:
                     Text(localizedKey(AccessL10nKey.myOrderFreshnessErrorTitle))
                         .font(tokens.typography.bodySecondary.weight(.semibold))
                     Text(localizedKey(AccessL10nKey.myOrderFreshnessErrorMessage))
                         .font(tokens.typography.label)
                         .foregroundStyle(tokens.colors.textSecondary)
-                case .idle, .ready:
+                case .idle, .checking, .ready:
                     EmptyView()
                 }
             }

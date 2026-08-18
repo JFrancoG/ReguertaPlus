@@ -30,8 +30,12 @@ As a member I want `My order` enabled only when critical data is fresh so orderi
 ## Acceptance criteria
 
 - `My order` remains disabled while critical sync/freshness checks are pending.
-- If the freshness check times out or becomes unavailable, `My order` stays disabled and the app
-  retries automatically after 10, 20, and 30 seconds without requiring an app restart.
+- A server query that succeeds with no matching current-week data is a valid empty result, not a
+  freshness failure.
+- Initial Home data failures wait 10 seconds and retry once before publishing the generic load-failure feedback.
+- If the freshness check times out or becomes unavailable, `My order` can start a new gated attempt but
+  navigation stays blocked until that exact attempt reaches `Ready`; the app also retries automatically
+  after 10, 20, and 30 seconds without requiring an app restart.
 
 ## Dependencies
 

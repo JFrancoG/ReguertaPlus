@@ -374,7 +374,6 @@
     <string name="feedback_producer_catalog_disabled">Catalog paused.</string>
     <string name="module_shifts">Shifts</string>
     <string name="operational_modules_restricted_unauthorized">These modules are locked because this account is not authorized yet.</string>
-    <string name="my_order_freshness_checking">Checking critical data freshness before enabling My order…</string>
     <string name="my_order_freshness_error_title">My order is temporarily unavailable</string>
     <string name="my_order_freshness_error_message">Critical data could not be validated in time. The app will retry automatically.</string>
     <string name="my_order_products_title">Create your weekly order</string>

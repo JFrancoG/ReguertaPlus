@@ -59,7 +59,7 @@ extension SharedProfileFeatureViewModel {
             }
             currentSession = session
             currentMember = session.member
-            Task { await refreshProfiles() }
+            Task { await refreshProfiles(recoversInitialFailure: true) }
         case .signedOut, .unauthorized:
             sessionIdentityEpoch += 1
             currentSession = nil
@@ -68,7 +68,7 @@ extension SharedProfileFeatureViewModel {
         }
     }
 
-    func refreshProfiles() async {
+    func refreshProfiles(recoversInitialFailure: Bool = false) async {
         guard let context = authorizedSessionContext else {
             resetProfileState()
             return
@@ -78,7 +78,11 @@ extension SharedProfileFeatureViewModel {
         let refreshProfilesRevision = profilesRevision
 
         do {
-            let fetchedProfiles = try await sharedProfileRepository.allSharedProfiles()
+            let fetchedProfiles = try await performInitialLoadWithRecovery(
+                enabled: recoversInitialFailure,
+                shouldRetry: { self.isCurrentRefresh(refreshOperationId, context: context) },
+                operation: { try await sharedProfileRepository.allSharedProfiles() }
+            )
             try Task.checkCancellation()
             guard isCurrentRefresh(refreshOperationId, context: context) else { return }
             if profilesRevision == refreshProfilesRevision {

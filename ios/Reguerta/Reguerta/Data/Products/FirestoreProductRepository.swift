@@ -199,7 +199,10 @@ final class FirestoreProductRepository: @unchecked Sendable, ProductRepository {
     private static func optionalDouble(_ data: [String: Any], field: String) throws -> Double? {
         guard let value = data[field] else { return nil }
         if value is NSNull { return nil }
-        guard !(value is Bool), let number = value as? NSNumber else { throw invalidDocumentError }
+        guard let number = value as? NSNumber,
+              CFGetTypeID(number) != CFBooleanGetTypeID() else {
+            throw invalidDocumentError
+        }
         let double = number.doubleValue
         guard double.isFinite else { throw invalidDocumentError }
         return double
@@ -220,8 +223,11 @@ final class FirestoreProductRepository: @unchecked Sendable, ProductRepository {
     private static func optionalBool(_ data: [String: Any], field: String, default defaultValue: Bool) throws -> Bool {
         guard let value = data[field] else { return defaultValue }
         if value is NSNull { return defaultValue }
-        guard let bool = value as? Bool else { throw invalidDocumentError }
-        return bool
+        guard let number = value as? NSNumber,
+              CFGetTypeID(number) == CFBooleanGetTypeID() else {
+            throw invalidDocumentError
+        }
+        return number.boolValue
     }
 
     private static func optionalTimestampMillis(_ data: [String: Any], field: String) throws -> Int64 {

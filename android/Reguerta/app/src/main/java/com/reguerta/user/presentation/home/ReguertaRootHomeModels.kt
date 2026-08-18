@@ -82,6 +82,9 @@ internal fun shouldNavigateToMyOrder(
     freshnessState == MyOrderFreshnessUiState.Ready &&
     receiptIsCurrent
 
+internal fun MyOrderFreshnessUiState.allowsMyOrderEntryRequest(): Boolean =
+    this != MyOrderFreshnessUiState.Checking
+
 internal fun shouldHideHomeShellTitle(
     destination: HomeDestination,
     isMyOrderCartVisible: Boolean,

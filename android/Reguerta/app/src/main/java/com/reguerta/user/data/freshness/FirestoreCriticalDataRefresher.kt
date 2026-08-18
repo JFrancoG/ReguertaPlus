@@ -1,5 +1,6 @@
 package com.reguerta.user.data.freshness
 
+import com.google.firebase.firestore.AggregateSource
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Source
@@ -152,14 +153,16 @@ class FirestoreCriticalDataRefresher(
 
             CriticalCollection.CONTAINERS -> {
                 firestore.collection(environment.legacyCollectionPath("containers"))
-                    .get(Source.SERVER)
+                    .count()
+                    .get(AggregateSource.SERVER)
                     .await()
                 CriticalRefreshResult.Completed
             }
 
             CriticalCollection.MEASURES -> {
                 firestore.collection(environment.legacyCollectionPath("measures"))
-                    .get(Source.SERVER)
+                    .count()
+                    .get(AggregateSource.SERVER)
                     .await()
                 CriticalRefreshResult.Completed
             }
@@ -254,7 +257,8 @@ class FirestoreCriticalDataRefresher(
             async {
                 firestore.collection(collectionPath)
                     .whereEqualTo(ownerField, memberId)
-                    .get(Source.SERVER)
+                    .count()
+                    .get(AggregateSource.SERVER)
                     .await()
             }
         }.awaitAll()

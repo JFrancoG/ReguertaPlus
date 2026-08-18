@@ -18,6 +18,10 @@ struct FirestoreRepositoryErrorMapperTests {
                 .unavailable(resource: resource)
         )
         #expect(
+            mappedError(code: FirestoreErrorCode.cancelled.rawValue, resource: resource) ==
+                .unavailable(resource: resource)
+        )
+        #expect(
             mappedError(code: FirestoreErrorCode.dataLoss.rawValue, resource: resource) ==
                 .invalidData(resource: resource)
         )

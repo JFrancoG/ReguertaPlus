@@ -1497,6 +1497,7 @@ class SessionAuthActionsConcurrencyTest {
 
     @Test
     fun `freshness timeout is explicit and does not persist metadata`() = runTest {
+        assertEquals(10_000L, MY_ORDER_FRESHNESS_TIMEOUT_MILLIS)
         val principal = principal("timeout")
         val fixture = fixture(
             scope = this,

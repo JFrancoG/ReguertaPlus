@@ -102,6 +102,7 @@ struct MyOrderFreshnessViewModelConcurrencyTests {
         guard let tasks = ownedRefreshTasks(in: viewModel) else { return }
         try await remoteRepository.waitForRequestCount(1)
         try await sleeper.waitForRequestCount(1)
+        #expect(await sleeper.requestedDuration(at: 0) == .seconds(10))
 
         await sleeper.completeRequest(at: 0)
         await tasks.timeout.value
@@ -272,7 +273,6 @@ private func makeControlledFreshnessViewModel(
             nowProvider: { 2_000 }
         ),
         criticalDataFreshnessLocalRepository: localRepository,
-        timeout: .seconds(60),
         automaticRetryDelays: [],
         sleeper: { duration in
             try await sleeper.sleep(for: duration)
@@ -422,14 +422,16 @@ actor ControlledCriticalDataFreshnessRemoteRepository: CriticalDataFreshnessRemo
 actor ControlledFreshnessSleeper {
     private var nextRequestIndex = 0
     private var registeredRequestCount = 0
+    private var requestedDurations: [Duration] = []
     private var requestContinuations: [Int: CheckedContinuation<Void, any Error>] = [:]
     private var cancelledRequests: Set<Int> = []
     private var nextRequestCountWaiterID = 0
     private var requestCountWaiters: [Int: (count: Int, continuation: CheckedContinuation<Void, any Error>)] = [:]
 
-    func sleep(for _: Duration) async throws {
+    func sleep(for duration: Duration) async throws {
         let requestIndex = nextRequestIndex
         nextRequestIndex += 1
+        requestedDurations.append(duration)
 
         try await withTaskCancellationHandler {
             try Task.checkCancellation()
@@ -461,6 +463,8 @@ actor ControlledFreshnessSleeper {
             Task { await self.cancelRequestCountWaiter(waiterID) }
         }
     }
+
+    func requestedDuration(at index: Int) -> Duration { requestedDurations[index] }
 
     func completeRequest(at index: Int) {
         guard let continuation = requestContinuations.removeValue(forKey: index) else {

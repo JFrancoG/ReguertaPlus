@@ -67,14 +67,14 @@ final class UsersFeatureViewModel {
         switch mode {
         case .authorized(let session):
             adoptAuthorizedSession(session, sourceMayContainPrivateMembers: true)
-            Task { await refreshMembers() }
+            Task { await refreshMembers(recoversInitialFailure: true) }
         case .signedOut, .unauthorized:
             sessionIdentityEpoch += 1
             resetState()
         }
     }
 
-    func refreshMembers() async {
+    func refreshMembers(recoversInitialFailure: Bool = false) async {
         guard let context = authorizedSessionContext else {
             resetState()
             return
@@ -85,7 +85,11 @@ final class UsersFeatureViewModel {
 
         let members: [Member]
         do {
-            members = try await memberRepository.members(visibleTo: session.member)
+            members = try await performInitialLoadWithRecovery(
+                enabled: recoversInitialFailure,
+                shouldRetry: { self.isCurrentRefresh(refreshOperationId, context: context) },
+                operation: { try await memberRepository.members(visibleTo: session.member) }
+            )
             try Task.checkCancellation()
         } catch is CancellationError {
             return

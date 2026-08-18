@@ -17,8 +17,8 @@ extension ShiftsFeatureViewModel {
             currentMember = session.member
             currentEnvironment = environment
             Task {
-                await refreshShifts()
-                await refreshDeliveryCalendar()
+                await refreshShifts(recoversInitialFailure: true)
+                await refreshDeliveryCalendar(recoversInitialFailure: true)
             }
         case .signedOut, .unauthorized:
             sessionIdentityEpoch += 1
@@ -31,7 +31,7 @@ extension ShiftsFeatureViewModel {
         recomputeNextShifts()
     }
 
-    func refreshShifts() async {
+    func refreshShifts(recoversInitialFailure: Bool = false) async {
         guard let context = authorizedSessionContext else {
             resetShifts()
             return
@@ -39,9 +39,15 @@ extension ShiftsFeatureViewModel {
 
         let refreshOperationId = beginShiftsRefreshOperation()
         do {
-            async let shifts = shiftRepository.allShifts()
-            async let requests = shiftSwapRequestRepository.allShiftSwapRequests()
-            let (loadedShifts, loadedRequests) = try await (shifts, requests)
+            let (loadedShifts, loadedRequests) = try await performInitialLoadWithRecovery(
+                enabled: recoversInitialFailure,
+                shouldRetry: { self.isCurrentShiftsRefresh(refreshOperationId, context: context) },
+                operation: {
+                    async let shifts = shiftRepository.allShifts()
+                    async let requests = shiftSwapRequestRepository.allShiftSwapRequests()
+                    return try await (shifts, requests)
+                }
+            )
             try Task.checkCancellation()
             guard isCurrentShiftsRefresh(refreshOperationId, context: context) else { return }
             shiftsFeed = loadedShifts
@@ -59,7 +65,7 @@ extension ShiftsFeatureViewModel {
         finishShiftsRefreshOperation(refreshOperationId, context: context)
     }
 
-    func refreshDeliveryCalendar() async {
+    func refreshDeliveryCalendar(recoversInitialFailure: Bool = false) async {
         guard let context = authorizedSessionContext, context.session.member.isAdmin else {
             resetDeliveryCalendar()
             return
@@ -67,9 +73,15 @@ extension ShiftsFeatureViewModel {
 
         let refreshOperationId = beginCalendarRefreshOperation()
         do {
-            async let defaultDay = deliveryCalendarRepository.defaultDeliveryDayOfWeek()
-            async let overrides = deliveryCalendarRepository.allOverrides()
-            let (loadedDefaultDay, loadedOverrides) = try await (defaultDay, overrides)
+            let (loadedDefaultDay, loadedOverrides) = try await performInitialLoadWithRecovery(
+                enabled: recoversInitialFailure,
+                shouldRetry: { self.isCurrentCalendarRefresh(refreshOperationId, context: context) },
+                operation: {
+                    async let defaultDay = deliveryCalendarRepository.defaultDeliveryDayOfWeek()
+                    async let overrides = deliveryCalendarRepository.allOverrides()
+                    return try await (defaultDay, overrides)
+                }
+            )
             try Task.checkCancellation()
             guard isCurrentCalendarRefresh(refreshOperationId, context: context) else { return }
             defaultDeliveryDayOfWeek = loadedDefaultDay

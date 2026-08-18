@@ -374,7 +374,6 @@
     <string name="feedback_producer_catalog_disabled">Catálogo pausado.</string>
     <string name="module_shifts">Turnos</string>
     <string name="operational_modules_restricted_unauthorized">Estos módulos están bloqueados porque esta cuenta todavía no está autorizada.</string>
-    <string name="my_order_freshness_checking">Comprobando la frescura de los datos críticos antes de activar Mi pedido…</string>
     <string name="my_order_freshness_error_title">Mi pedido no está disponible temporalmente</string>
     <string name="my_order_freshness_error_message">No se pudieron validar a tiempo los datos críticos. La app volverá a intentarlo automáticamente.</string>
     <string name="my_order_products_title">Crear tu pedido semanal</string>

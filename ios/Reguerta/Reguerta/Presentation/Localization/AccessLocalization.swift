@@ -157,7 +157,6 @@ enum AccessL10nKey {
     static let catalog = "operational_modules.catalog"
     static let shifts = "operational_modules.shifts"
     static let operationalModulesRestrictedUnauthorized = "operational_modules.restricted.unauthorized"
-    static let myOrderFreshnessChecking = "operational_modules.my_order.freshness.checking"
     static let myOrderFreshnessErrorTitle = "operational_modules.my_order.freshness.error.title"
     static let myOrderFreshnessErrorMessage = "operational_modules.my_order.freshness.error.message"
     static let adminManageMembersTitle = "admin.manage_members.title"

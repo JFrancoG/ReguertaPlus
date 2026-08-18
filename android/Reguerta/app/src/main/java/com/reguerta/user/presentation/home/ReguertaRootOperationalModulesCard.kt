@@ -38,7 +38,7 @@ internal fun OperationalModules(
             Text(stringResource(R.string.operational_modules_title))
             Button(
                 onClick = onOpenMyOrder,
-                enabled = modulesEnabled && myOrderFreshnessState == MyOrderFreshnessUiState.Ready,
+                enabled = modulesEnabled && myOrderFreshnessState.allowsMyOrderEntryRequest(),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(stringResource(R.string.module_my_order))
@@ -61,13 +61,6 @@ internal fun OperationalModules(
             }
 
             when (myOrderFreshnessState) {
-                MyOrderFreshnessUiState.Checking -> {
-                    Text(
-                        text = stringResource(R.string.my_order_freshness_checking),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-
                 MyOrderFreshnessUiState.TimedOut,
                 MyOrderFreshnessUiState.Unavailable,
                     -> {
@@ -83,6 +76,7 @@ internal fun OperationalModules(
                     }
 
                 MyOrderFreshnessUiState.Idle,
+                MyOrderFreshnessUiState.Checking,
                 MyOrderFreshnessUiState.Ready,
                     -> Unit
             }

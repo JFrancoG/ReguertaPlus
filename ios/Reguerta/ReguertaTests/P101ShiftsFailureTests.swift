@@ -317,6 +317,27 @@ struct P101ShiftsFailureTests {
 
 }
 
+extension P101ShiftsFailureTests {
+    @Test func firestoreCalendarContractRequiresCanonicalOrdersCloseField() throws {
+        let timestamp = Timestamp(date: Date(timeIntervalSince1970: 123))
+        let missingOrdersClose: [String: Any] = [
+            "weekKey": "2026-W20",
+            "deliveryDate": timestamp,
+            "ordersBlockedDate": timestamp,
+            "ordersOpenAt": timestamp,
+            "updatedBy": "admin_1",
+            "updatedAt": timestamp
+        ]
+
+        #expect(throws: RepositoryError.invalidData(resource: "deliveryCalendar.document")) {
+            try FirestoreDeliveryCalendarRepository.deliveryOverride(
+                documentID: "2026-W20",
+                data: missingOrdersClose
+            )
+        }
+    }
+}
+
 @MainActor
 private final class ThrowingShiftRepository: ShiftRepository {
     func allShifts() async throws -> [ShiftAssignment] {

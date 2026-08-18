@@ -217,28 +217,8 @@ private extension FirestoreCriticalDataRefresher {
             db: storedDB,
             environment: scope.environment
         )
-        let commitmentsByLookup = try await withThrowingTaskGroup(
-            of: [SeasonalCommitment].self
-        ) { group in
-            for lookupKey in selectedMember.seasonalCommitmentLookupKeys {
-                group.addTask {
-                    try await repository.activeCommitmentsFromServer(userId: lookupKey)
-                }
-            }
-            var collected: [SeasonalCommitment] = []
-            for try await commitments in group {
-                collected.append(contentsOf: commitments)
-            }
-            return collected
-        }
-        return Dictionary(
-            commitmentsByLookup.map { ($0.id, $0) },
-            uniquingKeysWith: { _, latest in latest }
-        ).values.sorted { lhs, rhs in
-            if lhs.seasonKey.localizedCaseInsensitiveCompare(rhs.seasonKey) != .orderedSame {
-                return lhs.seasonKey.localizedCaseInsensitiveCompare(rhs.seasonKey) == .orderedAscending
-            }
-            return lhs.productId.localizedCaseInsensitiveCompare(rhs.productId) == .orderedAscending
+        return try await loadActiveCommitments(for: selectedMember) { lookupKey in
+            try await repository.activeCommitmentsFromServer(userId: lookupKey)
         }
     }
 
@@ -285,7 +265,8 @@ private extension FirestoreCriticalDataRefresher {
     private func refreshOwnedQuery(path: String, ownerField: String, memberID: String) async throws {
         _ = try await storedDB.collection(path)
             .whereField(ownerField, isEqualTo: memberID)
-            .getDocuments(source: .server)
+            .count
+            .getAggregation(source: .server)
     }
 
     private func refreshLegacyCollection(
@@ -296,7 +277,7 @@ private extension FirestoreCriticalDataRefresher {
         do {
             _ = try await storedDB.collection(
                 legacyCollectionPath(named: collectionName, environment: scope.environment)
-            ).getDocuments(source: .server)
+            ).count.getAggregation(source: .server)
         } catch {
             throw FirestoreRepositoryErrorMapper.map(error, resource: resource)
         }

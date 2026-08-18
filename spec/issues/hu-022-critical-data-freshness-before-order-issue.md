@@ -12,8 +12,10 @@ As a member I want `My order` enabled only when critical data is fresh so orderi
 ## Acceptance criteria
 
 - `My order` remains disabled while critical sync/freshness checks are pending.
-- When sync times out or becomes unavailable, the gate stays closed and retries automatically after
-  10, 20, and 30 seconds without a manual retry action.
+- A successful server query with no matching current-week data is a valid empty result.
+- Initial Home data failures wait 10 seconds and retry once before publishing generic load-failure feedback.
+- When sync times out or becomes unavailable, navigation stays closed and retries automatically after
+  10, 20, and 30 seconds; the Home action can also request a new fenced attempt.
 
 ## Scope
 ### In Scope
@@ -25,11 +27,11 @@ As a member I want `My order` enabled only when critical data is fresh so orderi
 - Refactors not required to close acceptance criteria.
 
 ## Implementation checklist
-- [ ] Android
-- [ ] iOS
+- [x] Android
+- [x] iOS
 - [ ] Backend / Firestore
 - [ ] Testing
-- [ ] Documentation
+- [x] Documentation
 
 ## Suggested labels
 - type:feature

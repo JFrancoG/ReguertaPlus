@@ -89,6 +89,8 @@ class FirestoreSecurityBoundarySourceTest {
         assertTrue(source.contains("legacyCollectionPath(\"measures\")"))
         assertTrue(source.contains("OWNER_FIELD_NAMES = listOf(\"userId\", \"memberId\")"))
         assertTrue(source.contains("whereEqualTo(ownerField, memberId)"))
+        assertTrue(source.contains("count()"))
+        assertTrue(source.contains("get(AggregateSource.SERVER)"))
         assertTrue(
             source.indexOf(".requiringPrincipal(scope.principalUid)") <
                 source.indexOf("scope.requiresAccessScopeRetry(authenticatedMember)"),
@@ -114,14 +116,14 @@ class FirestoreSecurityBoundarySourceTest {
     }
 
     @Test
-    fun `critical freshness reads seasonal commitments from server for every member lookup key`() {
+    fun `critical freshness reads commitments by canonical user id`() {
         val refresher = readMainSource("data/freshness/FirestoreCriticalDataRefresher.kt")
         val commitments = readMainSource("data/commitments/FirestoreSeasonalCommitmentRepository.kt")
 
         assertTrue(refresher.contains("getActiveCommitmentsForMemberFromServer"))
-        assertTrue(commitments.contains("member.id"))
-        assertTrue(commitments.contains("member.authUid"))
-        assertTrue(commitments.contains("member.normalizedEmail"))
+        assertTrue(commitments.contains("SeasonalCommitmentCanonicalUserField"))
+        assertTrue(commitments.contains("loadActiveCommitmentsForMember"))
+        assertFalse(commitments.contains("whereEqualTo(field, target)"))
         assertTrue(commitments.contains("get(Source.SERVER)"))
     }
 
