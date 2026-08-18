@@ -60,7 +60,7 @@ private struct MyOrderCheckoutBatchContent {
     let deliveryDate: Timestamp
 }
 
-nonisolated struct MyOrderOwnedWeekQueryScope: Equatable, Sendable {
+nonisolated struct MyOrderOwnedWeekQueryScope: Equatable {
     let ownerField: String
     let ownerId: String
     let weekKey: String

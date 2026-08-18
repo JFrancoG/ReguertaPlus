@@ -20,7 +20,7 @@ nonisolated enum KeychainStoreError: Error, Equatable, Sendable {
     case encodingFailed(key: KeychainKey)
 }
 
-nonisolated struct KeychainReadResult: Sendable {
+nonisolated struct KeychainReadResult {
     let status: OSStatus
     let data: Data?
 }

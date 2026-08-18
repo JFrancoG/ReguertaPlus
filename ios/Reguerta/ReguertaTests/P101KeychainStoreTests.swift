@@ -145,27 +145,17 @@ struct P101KeychainStoreTests {
     }
 }
 
-nonisolated private struct KeychainTestPayload: Codable, Equatable, Sendable {
+nonisolated private struct KeychainTestPayload: Codable, Equatable {
     let value: String
 }
 
 nonisolated private struct StubKeychainClient: KeychainClient {
-    let readResult: KeychainReadResult
+    private let storedReadResult: KeychainReadResult
     let updateStatus: OSStatus
     let addStatus: OSStatus
     let deleteStatus: OSStatus
 
-    init(
-        readResult: KeychainReadResult = .init(status: errSecItemNotFound, data: nil),
-        updateStatus: OSStatus = errSecItemNotFound,
-        addStatus: OSStatus = errSecSuccess,
-        deleteStatus: OSStatus = errSecSuccess
-    ) {
-        self.readResult = readResult
-        self.updateStatus = updateStatus
-        self.addStatus = addStatus
-        self.deleteStatus = deleteStatus
-    }
+    var readResult: KeychainReadResult { storedReadResult }
 
     func read(service: String, account: String) -> KeychainReadResult {
         readResult
@@ -181,5 +171,19 @@ nonisolated private struct StubKeychainClient: KeychainClient {
 
     func delete(service: String, account: String) -> OSStatus {
         deleteStatus
+    }
+}
+
+nonisolated private extension StubKeychainClient {
+    init(
+        readResult: KeychainReadResult = .init(status: errSecItemNotFound, data: nil),
+        updateStatus: OSStatus = errSecItemNotFound,
+        addStatus: OSStatus = errSecSuccess,
+        deleteStatus: OSStatus = errSecSuccess
+    ) {
+        self.storedReadResult = readResult
+        self.updateStatus = updateStatus
+        self.addStatus = addStatus
+        self.deleteStatus = deleteStatus
     }
 }

@@ -15,26 +15,30 @@ protocol MemberAdminUpserting: Sendable {
 }
 
 struct UpsertMemberByAdminUseCase: MemberAdminUpserting {
-    private let repository: any MemberAdministrationRepository
-
-    init(repository: any MemberAdministrationRepository) {
-        self.repository = repository
-    }
+    private let storedRepository: any MemberAdministrationRepository
 
     func execute(target: Member) async throws -> Member {
-        try await repository.upsertMember(target.withCanonicalIdentity)
+        try await storedRepository.upsertMember(target.withCanonicalIdentity)
     }
 }
 
 struct LocalMemberAdministrationRepository: MemberAdministrationRepository {
-    private let repository: any LocalMemberRepository
-
-    init(repository: any LocalMemberRepository) {
-        self.repository = repository
-    }
+    private let storedRepository: any LocalMemberRepository
 
     func upsertMember(_ member: Member) async throws -> Member {
-        await repository.upsert(member: member)
+        await storedRepository.upsert(member: member)
+    }
+}
+
+extension UpsertMemberByAdminUseCase {
+    init(repository: any MemberAdministrationRepository) {
+        self.storedRepository = repository
+    }
+}
+
+extension LocalMemberAdministrationRepository {
+    init(repository: any LocalMemberRepository) {
+        self.storedRepository = repository
     }
 }
 

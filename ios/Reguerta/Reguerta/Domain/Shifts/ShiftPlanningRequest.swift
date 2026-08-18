@@ -12,7 +12,7 @@ nonisolated enum ShiftPlanningRequestStatus: String, Equatable, Sendable {
     case failed
 }
 
-nonisolated struct ShiftPlanningRequest: Identifiable, Equatable, Sendable {
+nonisolated struct ShiftPlanningRequest: Identifiable, Equatable {
     let id: String
     let type: ShiftPlanningRequestType
     let requestedByUserId: String

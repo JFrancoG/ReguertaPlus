@@ -9,7 +9,7 @@ enum MyOrderFreshnessState: Equatable, Sendable {
     case unavailable
 }
 
-private struct FreshnessSessionIdentity: Equatable, Sendable {
+private struct FreshnessSessionIdentity: Equatable {
     let uid: String
     let authenticatedMemberID: String
     let authenticatedMemberAuthUID: String?

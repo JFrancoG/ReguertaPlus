@@ -1,19 +1,9 @@
 import Foundation
 
-struct ResolveAuthorizedSessionUseCase: Sendable {
-    private let repository: any MemberRepository
-    private let resolver: any AuthorizedMemberResolving
-    private let environmentRouter: any SessionEnvironmentRouting
-
-    init(
-        repository: any MemberRepository,
-        resolver: any AuthorizedMemberResolving,
-        environmentRouter: any SessionEnvironmentRouting
-    ) {
-        self.repository = repository
-        self.resolver = resolver
-        self.environmentRouter = environmentRouter
-    }
+struct ResolveAuthorizedSessionUseCase {
+    private let storedRepository: any MemberRepository
+    private let storedResolver: any AuthorizedMemberResolving
+    private let storedEnvironmentRouter: any SessionEnvironmentRouting
 
     /// Resolves and verifies the member represented by an authenticated principal.
     ///
@@ -33,9 +23,9 @@ struct ResolveAuthorizedSessionUseCase: Sendable {
         try Task.checkCancellation()
         let resolution: AuthorizedMemberResolution
         do {
-            resolution = try await resolver.resolve(
+            resolution = try await storedResolver.resolve(
                 authPrincipal: authPrincipal,
-                requestedEnvironment: environmentRouter.baseEnvironment
+                requestedEnvironment: storedEnvironmentRouter.baseEnvironment
             )
         } catch let error as AuthorizedMemberResolutionError {
             switch error {
@@ -48,18 +38,18 @@ struct ResolveAuthorizedSessionUseCase: Sendable {
             return .unauthorized(.userAccessRestricted)
         }
         let environmentLease = SessionEnvironmentLease()
-        environmentRouter.applyResolvedEnvironment(
+        storedEnvironmentRouter.applyResolvedEnvironment(
             resolution.environment,
             lease: environmentLease
         )
         var keepsResolvedEnvironment = false
         defer {
             if !keepsResolvedEnvironment {
-                environmentRouter.resetToBaseEnvironment(ifOwnedBy: environmentLease)
+                storedEnvironmentRouter.resetToBaseEnvironment(ifOwnedBy: environmentLease)
             }
         }
 
-        guard let member = try await repository.member(id: resolution.memberId) else {
+        guard let member = try await storedRepository.member(id: resolution.memberId) else {
             return .unauthorized(.userNotFoundInAuthorizedUsers)
         }
         try Task.checkCancellation()
@@ -71,5 +61,17 @@ struct ResolveAuthorizedSessionUseCase: Sendable {
         }
         keepsResolvedEnvironment = true
         return .authorized(member: member, environment: resolution.environment)
+    }
+}
+
+extension ResolveAuthorizedSessionUseCase {
+    init(
+        repository: any MemberRepository,
+        resolver: any AuthorizedMemberResolving,
+        environmentRouter: any SessionEnvironmentRouting
+    ) {
+        self.storedRepository = repository
+        self.storedResolver = resolver
+        self.storedEnvironmentRouter = environmentRouter
     }
 }

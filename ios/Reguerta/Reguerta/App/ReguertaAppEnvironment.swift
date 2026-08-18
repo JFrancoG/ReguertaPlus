@@ -178,6 +178,16 @@ private struct LiveRootDependencies {
     let authorizedDeviceRegistrar: FirebaseAuthorizedDeviceCoordinator
     let criticalDataFreshnessLocalRepository: UserDefaultsCriticalDataFreshnessLocalRepository
 
+    var developImpersonationEnabled: Bool {
+        #if DEBUG
+        true
+        #else
+        false
+        #endif
+    }
+}
+
+private extension LiveRootDependencies {
     init(db: Firestore = Firestore.firestore()) {
         self.db = db
         self.memberRepository = FirestoreMemberRepository(db: db)
@@ -203,14 +213,6 @@ private struct LiveRootDependencies {
             repository: FirestoreDeviceRegistrationRepository(db: db),
             keychainStore: KeychainStore()
         )
-    }
-
-    var developImpersonationEnabled: Bool {
-        #if DEBUG
-        true
-        #else
-        false
-        #endif
     }
 }
 

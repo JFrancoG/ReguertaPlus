@@ -6,12 +6,12 @@ nonisolated enum FirebaseFunctionEndpoint: String, Sendable {
     case transitionShiftSwap
 }
 
-nonisolated struct FirebaseFunctionErrorPayload: Codable, Equatable, Sendable {
+nonisolated struct FirebaseFunctionErrorPayload: Codable, Equatable {
     let code: String
     let message: String
 }
 
-nonisolated struct FirebaseFunctionErrorResponse: Codable, Equatable, Sendable {
+nonisolated struct FirebaseFunctionErrorResponse: Codable, Equatable {
     let error: FirebaseFunctionErrorPayload
 }
 
@@ -36,41 +36,21 @@ protocol HTTPDataLoading {
 
 @MainActor
 struct URLSessionHTTPDataLoader: HTTPDataLoading {
-    private let session: URLSession
-
-    init(session: URLSession = .shared) {
-        self.session = session
-    }
+    private let storedSession: URLSession
 
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
-        try await session.data(for: request)
+        try await storedSession.data(for: request)
     }
 }
 
 @MainActor
 struct AuthenticatedFirebaseFunctionsClient {
-    private let baseURL: URL
+    private let storedBaseURL: URL
     private let tokenProvider: any FirebaseIDTokenProviding
     private let dataLoader: any HTTPDataLoading
     private let requestTimeout: TimeInterval
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
-
-    init(
-        baseURL: URL,
-        tokenProvider: any FirebaseIDTokenProviding,
-        dataLoader: any HTTPDataLoading = URLSessionHTTPDataLoader(),
-        requestTimeout: TimeInterval = 15,
-        encoder: JSONEncoder = JSONEncoder(),
-        decoder: JSONDecoder = JSONDecoder()
-    ) {
-        self.baseURL = baseURL
-        self.tokenProvider = tokenProvider
-        self.dataLoader = dataLoader
-        self.requestTimeout = requestTimeout
-        self.encoder = encoder
-        self.decoder = decoder
-    }
 
     func post<Request: Encodable, Response: Decodable>(
         function: FirebaseFunctionEndpoint,
@@ -87,7 +67,7 @@ struct AuthenticatedFirebaseFunctionsClient {
         }
         guard !token.isEmpty else { throw FirebaseFunctionClientError.missingIDToken }
 
-        let endpointURL = baseURL.appendingPathComponent(function.rawValue, isDirectory: false)
+        let endpointURL = storedBaseURL.appendingPathComponent(function.rawValue, isDirectory: false)
         guard endpointURL.scheme == "https", endpointURL.host != nil else {
             throw FirebaseFunctionClientError.invalidEndpoint
         }
@@ -152,5 +132,29 @@ struct AuthenticatedFirebaseFunctionsClient {
             }
         }
         return .transport(message: String(describing: error))
+    }
+}
+
+extension URLSessionHTTPDataLoader {
+    init(session: URLSession = .shared) {
+        self.storedSession = session
+    }
+}
+
+extension AuthenticatedFirebaseFunctionsClient {
+    init(
+        baseURL: URL,
+        tokenProvider: any FirebaseIDTokenProviding,
+        dataLoader: any HTTPDataLoading = URLSessionHTTPDataLoader(),
+        requestTimeout: TimeInterval = 15,
+        encoder: JSONEncoder = JSONEncoder(),
+        decoder: JSONDecoder = JSONDecoder()
+    ) {
+        self.storedBaseURL = baseURL
+        self.tokenProvider = tokenProvider
+        self.dataLoader = dataLoader
+        self.requestTimeout = requestTimeout
+        self.encoder = encoder
+        self.decoder = decoder
     }
 }

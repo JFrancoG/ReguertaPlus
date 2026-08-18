@@ -1,6 +1,6 @@
 import Foundation
 
-struct RegisteredDevice: Equatable, Sendable {
+struct RegisteredDevice: Equatable {
     let deviceId: String
     let platform: String
     let appVersion: String

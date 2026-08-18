@@ -1,6 +1,6 @@
 import Foundation
 
-struct Product: Identifiable, Equatable, Sendable {
+struct Product: Identifiable, Equatable {
     let id: String
     let vendorId: String
     let companyName: String

@@ -4,25 +4,21 @@ import Foundation
 extension User: @retroactive @unchecked Sendable {}
 
 struct FirebaseAuthSessionProvider: AuthSessionProvider {
-    private let auth: Auth
-
-    init(auth: Auth = Auth.auth()) {
-        self.auth = auth
-    }
+    private let storedAuth: Auth
 
     func signIn(email: String, password: String) async -> AuthSignInResult {
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
 
         do {
             let principal = try await awaitFirebaseAuthenticationFlow {
-                try await auth.signIn(withEmail: trimmedEmail, password: password)
+                try await storedAuth.signIn(withEmail: trimmedEmail, password: password)
             } continuation: { result in
                 try await awaitFirebaseAuthenticationMutation {
                     try await result.user.reload()
                 } signOut: {
                     signOut()
                 }
-                guard let refreshedUser = auth.currentUser else { throw FirebaseIDTokenError.noAuthenticatedUser }
+                guard let refreshedUser = storedAuth.currentUser else { throw FirebaseIDTokenError.noAuthenticatedUser }
                 _ = try await awaitFirebaseAuthenticationMutation {
                     try await refreshedUser.getIDTokenResult(forcingRefresh: true)
                 } signOut: {
@@ -51,7 +47,7 @@ struct FirebaseAuthSessionProvider: AuthSessionProvider {
 
         do {
             return try await awaitFirebaseAuthenticationFlow {
-                try await auth.createUser(withEmail: trimmedEmail, password: password)
+                try await storedAuth.createUser(withEmail: trimmedEmail, password: password)
             } continuation: { result in
                 let verificationSent = try await awaitFirebaseAuthenticationMutation {
                     await sendVerificationEmail(to: result.user)
@@ -81,7 +77,7 @@ struct FirebaseAuthSessionProvider: AuthSessionProvider {
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
 
         do {
-            try await auth.sendPasswordReset(withEmail: trimmedEmail)
+            try await storedAuth.sendPasswordReset(withEmail: trimmedEmail)
             return .success
         } catch {
             return .failure(mapFirebaseAuthError(error))
@@ -89,18 +85,18 @@ struct FirebaseAuthSessionProvider: AuthSessionProvider {
     }
 
     func sendCurrentUserEmailVerification() async -> Bool {
-        guard let user = auth.currentUser else { return false }
+        guard let user = storedAuth.currentUser else { return false }
         return await sendVerificationEmail(to: user)
     }
 
     func refreshCurrentSession() async -> AuthSessionRefreshResult {
-        guard let user = auth.currentUser else { return .noSession }
+        guard let user = storedAuth.currentUser else { return .noSession }
 
         do {
             return try await awaitFirebaseAuthenticationFlow {
                 try await user.reload()
             } continuation: {
-                guard let refreshedUser = auth.currentUser else { return .expired }
+                guard let refreshedUser = storedAuth.currentUser else { return .expired }
                 _ = try await awaitFirebaseAuthenticationMutation {
                     try await refreshedUser.getIDTokenResult(forcingRefresh: true)
                 } signOut: {
@@ -132,19 +128,25 @@ struct FirebaseAuthSessionProvider: AuthSessionProvider {
     }
 
     func validIDToken(forcingRefresh: Bool) async throws -> String {
-        guard let user = auth.currentUser else { throw FirebaseIDTokenError.noAuthenticatedUser }
+        guard let user = storedAuth.currentUser else { throw FirebaseIDTokenError.noAuthenticatedUser }
         try await user.reload()
-        guard let refreshedUser = auth.currentUser else { throw FirebaseIDTokenError.noAuthenticatedUser }
+        guard let refreshedUser = storedAuth.currentUser else { throw FirebaseIDTokenError.noAuthenticatedUser }
         return try await refreshedUser.getIDTokenResult(forcingRefresh: forcingRefresh).token
     }
 
     @discardableResult func signOut() -> Bool {
         do {
-            try auth.signOut()
+            try storedAuth.signOut()
             return true
         } catch {
             return false
         }
+    }
+}
+
+extension FirebaseAuthSessionProvider {
+    init(auth: Auth = Auth.auth()) {
+        self.storedAuth = auth
     }
 }
 

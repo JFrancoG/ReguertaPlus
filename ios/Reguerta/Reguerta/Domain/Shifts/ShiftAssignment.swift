@@ -11,7 +11,7 @@ enum ShiftStatus: String, Equatable, Sendable {
     case confirmed
 }
 
-struct ShiftAssignment: Identifiable, Equatable, Sendable {
+struct ShiftAssignment: Identifiable, Equatable {
     let id: String
     let type: ShiftType
     let dateMillis: Int64

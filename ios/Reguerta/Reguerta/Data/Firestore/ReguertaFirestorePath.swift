@@ -71,12 +71,10 @@ enum ReguertaFirestoreDocument: String, Sendable {
     case publicConfiguration = "public"
 }
 
-struct ReguertaFirestorePath: Sendable {
-    let environment: ReguertaFirestoreEnvironment?
+struct ReguertaFirestorePath {
+    private let storedEnvironment: ReguertaFirestoreEnvironment?
 
-    init(environment: ReguertaFirestoreEnvironment? = nil) {
-        self.environment = environment
-    }
+    var environment: ReguertaFirestoreEnvironment? { storedEnvironment }
 
     var resolvedEnvironment: ReguertaFirestoreEnvironment {
         environment ?? ReguertaRuntimeEnvironment.currentFirestoreEnvironment
@@ -88,6 +86,12 @@ struct ReguertaFirestorePath: Sendable {
 
     func documentPath(in collection: ReguertaFirestoreCollection, documentId: String) -> String {
         "\(collectionPath(collection))/\(documentId)"
+    }
+}
+
+extension ReguertaFirestorePath {
+    init(environment: ReguertaFirestoreEnvironment? = nil) {
+        self.storedEnvironment = environment
     }
 }
 

@@ -5,7 +5,7 @@ enum StartupPlatform: String, Sendable {
     case ios
 }
 
-struct StartupVersionPolicy: Equatable, Sendable {
+struct StartupVersionPolicy: Equatable {
     let currentVersion: String
     let minimumVersion: String
     let forceUpdate: Bool

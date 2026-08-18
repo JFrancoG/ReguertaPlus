@@ -4,18 +4,10 @@ struct ReguertaListItemCardView<Content: View>: View {
     @Environment(\.reguertaTokens) private var tokens
 
     let isHighlighted: Bool
-    let content: () -> Content
-
-    init(
-        isHighlighted: Bool = false,
-        @ViewBuilder content: @escaping () -> Content
-    ) {
-        self.isHighlighted = isHighlighted
-        self.content = content
-    }
+    private let storedContent: () -> Content
 
     var body: some View {
-        content()
+        storedContent()
             .frame(width: 358.resize)
             .background(tokens.colors.actionPrimary.opacity(0.15))
             .clipShape(RoundedRectangle(cornerRadius: 16.resize))
@@ -34,6 +26,16 @@ struct ReguertaListItemCardView<Content: View>: View {
                 y: 4
             )
             .animation(.easeInOut(duration: 0.25), value: isHighlighted)
+    }
+}
+
+extension ReguertaListItemCardView {
+    init(
+        isHighlighted: Bool = false,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.isHighlighted = isHighlighted
+        self.storedContent = content
     }
 }
 

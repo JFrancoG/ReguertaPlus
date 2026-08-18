@@ -1,6 +1,6 @@
 import Foundation
 
-struct MyOrderRouteContext: Sendable {
+struct MyOrderRouteContext {
     let products: [Product]
     let seasonalCommitments: [SeasonalCommitment]
     let shifts: [ShiftAssignment]

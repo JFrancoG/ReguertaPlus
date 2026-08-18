@@ -9,7 +9,7 @@ enum AuthShellRoute: String, Equatable, Hashable, Sendable {
     case home
 }
 
-struct AuthShellState: Equatable, Sendable {
+struct AuthShellState: Equatable {
     var backStack: [AuthShellRoute] = [.splash]
 
     var currentRoute: AuthShellRoute {

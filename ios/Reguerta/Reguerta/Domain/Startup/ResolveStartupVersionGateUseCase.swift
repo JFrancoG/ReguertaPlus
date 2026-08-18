@@ -1,11 +1,7 @@
 import Foundation
 
-struct ResolveStartupVersionGateUseCase: Sendable {
-    private let repository: any StartupVersionPolicyRepository
-
-    init(repository: any StartupVersionPolicyRepository) {
-        self.repository = repository
-    }
+struct ResolveStartupVersionGateUseCase {
+    private let storedRepository: any StartupVersionPolicyRepository
 
     /// Loads the platform's version policy and resolves the startup gate.
     ///
@@ -16,7 +12,7 @@ struct ResolveStartupVersionGateUseCase: Sendable {
     /// - Throws: A repository error or `RepositoryError.invalidData` when the policy cannot be
     ///   evaluated safely.
     func execute(platform: StartupPlatform, installedVersion: String) async throws -> StartupVersionGateDecision {
-        let policy = try await repository.policy(for: platform)
+        let policy = try await storedRepository.policy(for: platform)
         return try evaluate(installedVersion: installedVersion, policy: policy)
     }
 
@@ -63,5 +59,11 @@ struct ResolveStartupVersionGateUseCase: Sendable {
             return nil
         }
         return normalized
+    }
+}
+
+extension ResolveStartupVersionGateUseCase {
+    init(repository: any StartupVersionPolicyRepository) {
+        self.storedRepository = repository
     }
 }

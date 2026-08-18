@@ -42,26 +42,12 @@ enum ReguertaHeaderBadge {
 struct ReguertaHeaderAction {
     let systemImageName: String
     let accessibilityLabel: ReguertaHeaderText
-    let accessibilityIdentifier: String?
+    private let storedAccessibilityIdentifier: String?
     let isEnabled: Bool
     let badge: ReguertaHeaderBadge?
     let action: () -> Void
 
-    init(
-        systemImageName: String,
-        accessibilityLabel: ReguertaHeaderText,
-        accessibilityIdentifier: String? = nil,
-        isEnabled: Bool = true,
-        badge: ReguertaHeaderBadge? = nil,
-        action: @escaping () -> Void
-    ) {
-        self.systemImageName = systemImageName
-        self.accessibilityLabel = accessibilityLabel
-        self.accessibilityIdentifier = accessibilityIdentifier
-        self.isEnabled = isEnabled
-        self.badge = badge
-        self.action = action
-    }
+    var accessibilityIdentifier: String? { storedAccessibilityIdentifier }
 
     var opacity: Double {
         isEnabled ? 1 : 0.66
@@ -72,19 +58,41 @@ struct ReguertaHeaderAction {
     }
 }
 
+extension ReguertaHeaderAction {
+    init(
+        systemImageName: String,
+        accessibilityLabel: ReguertaHeaderText,
+        accessibilityIdentifier: String? = nil,
+        isEnabled: Bool = true,
+        badge: ReguertaHeaderBadge? = nil,
+        action: @escaping () -> Void
+    ) {
+        self.systemImageName = systemImageName
+        self.accessibilityLabel = accessibilityLabel
+        self.storedAccessibilityIdentifier = accessibilityIdentifier
+        self.isEnabled = isEnabled
+        self.badge = badge
+        self.action = action
+    }
+}
+
 struct ReguertaScreenHeaderViewModel {
-    let title: ReguertaHeaderText?
+    private let storedTitle: ReguertaHeaderText?
     let leadingAction: ReguertaHeaderAction?
     let leadingText: ReguertaHeaderText?
     let trailingAction: ReguertaHeaderAction?
 
+    var title: ReguertaHeaderText? { storedTitle }
+}
+
+extension ReguertaScreenHeaderViewModel {
     init(
         title: ReguertaHeaderText? = nil,
         leadingAction: ReguertaHeaderAction? = nil,
         leadingText: ReguertaHeaderText? = nil,
         trailingAction: ReguertaHeaderAction? = nil
     ) {
-        self.title = title
+        self.storedTitle = title
         self.leadingAction = leadingAction
         self.leadingText = leadingText
         self.trailingAction = trailingAction

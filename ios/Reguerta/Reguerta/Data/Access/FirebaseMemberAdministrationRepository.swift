@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated private struct UpsertMemberByAdminRequest: Encodable, Sendable {
+nonisolated private struct UpsertMemberByAdminRequest: Encodable {
     let environment: SessionEnvironment
     let memberId: String
     let displayName: String
@@ -49,7 +49,7 @@ nonisolated private struct UpsertMemberByAdminRequest: Encodable, Sendable {
     }
 }
 
-nonisolated private struct UpsertMemberByAdminResponse: Codable, Sendable {
+nonisolated private struct UpsertMemberByAdminResponse: Codable {
     let ok: Bool
     let memberId: String
     let roles: [MemberRole]
@@ -59,24 +59,14 @@ nonisolated private struct UpsertMemberByAdminResponse: Codable, Sendable {
 
 @MainActor
 struct FirebaseMemberAdministrationRepository: MemberAdministrationRepository {
-    private let client: AuthenticatedFirebaseFunctionsClient
+    private let storedClient: AuthenticatedFirebaseFunctionsClient
     private let environmentProvider: @MainActor @Sendable () -> SessionEnvironment
-
-    init(
-        client: AuthenticatedFirebaseFunctionsClient,
-        environmentProvider: @escaping @MainActor @Sendable () -> SessionEnvironment = {
-            ReguertaRuntimeEnvironment.currentFirestoreEnvironment
-        }
-    ) {
-        self.client = client
-        self.environmentProvider = environmentProvider
-    }
 
     func upsertMember(_ member: Member) async throws -> Member {
         let requestedEnvironment = environmentProvider()
         let response: UpsertMemberByAdminResponse
         do {
-            response = try await client.post(
+            response = try await storedClient.post(
                 function: .upsertMemberByAdmin,
                 body: UpsertMemberByAdminRequest(
                     environment: requestedEnvironment,
@@ -112,5 +102,17 @@ struct FirebaseMemberAdministrationRepository: MemberAdministrationRepository {
             throw FirebaseFunctionClientError.invalidResponse
         }
         return member
+    }
+}
+
+extension FirebaseMemberAdministrationRepository {
+    init(
+        client: AuthenticatedFirebaseFunctionsClient,
+        environmentProvider: @escaping @MainActor @Sendable () -> SessionEnvironment = {
+            ReguertaRuntimeEnvironment.currentFirestoreEnvironment
+        }
+    ) {
+        self.storedClient = client
+        self.environmentProvider = environmentProvider
     }
 }

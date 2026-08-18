@@ -11,19 +11,19 @@ enum ShiftSwapResponseStatus: String, Equatable, Sendable {
     case unavailable
 }
 
-struct ShiftSwapCandidate: Equatable, Sendable {
+struct ShiftSwapCandidate: Equatable {
     let userId: String
     let shiftId: String
 }
 
-struct ShiftSwapResponse: Equatable, Sendable {
+struct ShiftSwapResponse: Equatable {
     let userId: String
     let shiftId: String
     let status: ShiftSwapResponseStatus
     let respondedAtMillis: Int64
 }
 
-struct ShiftSwapRequest: Identifiable, Equatable, Sendable {
+struct ShiftSwapRequest: Identifiable, Equatable {
     let id: String
     let requestedShiftId: String
     let requesterUserId: String

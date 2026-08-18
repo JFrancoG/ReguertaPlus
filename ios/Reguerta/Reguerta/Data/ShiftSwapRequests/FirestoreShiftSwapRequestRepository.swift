@@ -169,7 +169,7 @@ final class FirestoreShiftSwapRequestRepository: @unchecked Sendable, ShiftSwapR
     }
 }
 
-nonisolated private struct ShiftSwapTransitionResponse: Decodable, Sendable {
+nonisolated private struct ShiftSwapTransitionResponse: Decodable {
     let ok: Bool
     let environment: SessionEnvironment
     let action: String
@@ -177,7 +177,7 @@ nonisolated private struct ShiftSwapTransitionResponse: Decodable, Sendable {
     let candidateCount: Int?
 }
 
-nonisolated private struct ShiftSwapTransitionRequest: Encodable, Sendable {
+nonisolated private struct ShiftSwapTransitionRequest: Encodable {
     let environment: SessionEnvironment
     let action: String
     let requestedShiftId: String?
@@ -186,6 +186,9 @@ nonisolated private struct ShiftSwapTransitionRequest: Encodable, Sendable {
     let candidateShiftId: String?
     let response: String?
 
+}
+
+extension ShiftSwapTransitionRequest {
     init(environment: SessionEnvironment, transition: ShiftSwapTransition) {
         self.environment = environment
         switch transition {

@@ -4,14 +4,14 @@ import Foundation
 import OSLog
 import UIKit
 
-nonisolated struct AuthorizedDeviceSessionContext: Codable, Equatable, Sendable {
+nonisolated struct AuthorizedDeviceSessionContext: Codable, Equatable {
     let memberId: String
     let authUid: String
     let environment: SessionEnvironment
     let lease: AuthorizedDeviceSessionLease
 }
 
-nonisolated private struct AuthorizedDeviceProcessAuthorization: Sendable {
+nonisolated private struct AuthorizedDeviceProcessAuthorization {
     let context: AuthorizedDeviceSessionContext
     let sessionFence: @MainActor @Sendable () -> Bool
 }

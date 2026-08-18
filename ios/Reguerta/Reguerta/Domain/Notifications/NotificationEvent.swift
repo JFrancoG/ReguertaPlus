@@ -1,6 +1,6 @@
 import Foundation
 
-struct NotificationEvent: Identifiable, Equatable, Sendable {
+struct NotificationEvent: Identifiable, Equatable {
     let id: String
     let title: String
     let body: String

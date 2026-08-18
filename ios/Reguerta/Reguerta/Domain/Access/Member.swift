@@ -1,7 +1,7 @@
 import Foundation
 
-nonisolated struct Member: Identifiable, Equatable, Sendable {
-    let id: String
+nonisolated struct Member: Identifiable, Equatable {
+    private let storedID: String
     let displayName: String
     let companyName: String?
     let phoneNumber: String?
@@ -15,35 +15,7 @@ nonisolated struct Member: Identifiable, Equatable, Sendable {
     let ecoCommitmentMode: EcoCommitmentMode
     let ecoCommitmentParity: ProducerParity?
 
-    nonisolated init(
-        id: String,
-        displayName: String,
-        companyName: String? = nil,
-        phoneNumber: String? = nil,
-        normalizedEmail: String,
-        authUid: String?,
-        roles: Set<MemberRole>,
-        isActive: Bool,
-        producerCatalogEnabled: Bool,
-        isCommonPurchaseManager: Bool = false,
-        producerParity: ProducerParity? = nil,
-        ecoCommitmentMode: EcoCommitmentMode = .weekly,
-        ecoCommitmentParity: ProducerParity? = nil
-    ) {
-        self.id = id
-        self.displayName = displayName
-        self.companyName = companyName
-        self.phoneNumber = phoneNumber
-        self.normalizedEmail = normalizedEmail
-        self.authUid = authUid
-        self.roles = roles
-        self.isActive = isActive
-        self.producerCatalogEnabled = producerCatalogEnabled
-        self.isCommonPurchaseManager = isCommonPurchaseManager
-        self.producerParity = producerParity
-        self.ecoCommitmentMode = ecoCommitmentMode
-        self.ecoCommitmentParity = ecoCommitmentParity
-    }
+    nonisolated var id: String { storedID }
 
     var isAdmin: Bool {
         roles.contains(.admin)
@@ -65,6 +37,38 @@ nonisolated struct Member: Identifiable, Equatable, Sendable {
             ecoCommitmentMode: ecoCommitmentMode,
             ecoCommitmentParity: ecoCommitmentParity
         )
+    }
+}
+
+extension Member {
+    nonisolated init(
+        id: String,
+        displayName: String,
+        companyName: String? = nil,
+        phoneNumber: String? = nil,
+        normalizedEmail: String,
+        authUid: String?,
+        roles: Set<MemberRole>,
+        isActive: Bool,
+        producerCatalogEnabled: Bool,
+        isCommonPurchaseManager: Bool = false,
+        producerParity: ProducerParity? = nil,
+        ecoCommitmentMode: EcoCommitmentMode = .weekly,
+        ecoCommitmentParity: ProducerParity? = nil
+    ) {
+        self.storedID = id
+        self.displayName = displayName
+        self.companyName = companyName
+        self.phoneNumber = phoneNumber
+        self.normalizedEmail = normalizedEmail
+        self.authUid = authUid
+        self.roles = roles
+        self.isActive = isActive
+        self.producerCatalogEnabled = producerCatalogEnabled
+        self.isCommonPurchaseManager = isCommonPurchaseManager
+        self.producerParity = producerParity
+        self.ecoCommitmentMode = ecoCommitmentMode
+        self.ecoCommitmentParity = ecoCommitmentParity
     }
 }
 

@@ -2,15 +2,11 @@ import FirebaseFirestore
 import Foundation
 
 struct FirestoreCriticalDataFreshnessRemoteRepository: CriticalDataFreshnessRemoteRepository {
-    private let db: Firestore
-
-    init(db: Firestore) {
-        self.db = db
-    }
+    private let storedDB: Firestore
 
     func getConfig(environment: SessionEnvironment) async throws -> CriticalDataFreshnessConfig {
         do {
-            let snapshot = try await db
+            let snapshot = try await storedDB
                 .reguertaDocument(.memberConfiguration, in: .config, environment: environment)
                 .getDocument(source: .server)
 
@@ -47,5 +43,11 @@ struct FirestoreCriticalDataFreshnessRemoteRepository: CriticalDataFreshnessRemo
             cacheExpirationMinutes: cacheExpirationNumber.intValue,
             remoteTimestampsMillis: remoteTimestamps
         )
+    }
+}
+
+extension FirestoreCriticalDataFreshnessRemoteRepository {
+    init(db: Firestore) {
+        self.storedDB = db
     }
 }

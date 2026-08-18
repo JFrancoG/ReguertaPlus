@@ -2,40 +2,36 @@ import Foundation
 
 @MainActor
 struct UserDefaultsCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLocalRepository {
-    private let userDefaults: UserDefaults
-
-    init(userDefaults: UserDefaults = .standard) {
-        self.userDefaults = userDefaults
-    }
+    private let storedUserDefaults: UserDefaults
 
     var writeGeneration: UInt64 {
-        (userDefaults.object(forKey: Keys.writeGeneration) as? NSNumber)?.uint64Value ?? 0
+        (storedUserDefaults.object(forKey: Keys.writeGeneration) as? NSNumber)?.uint64Value ?? 0
     }
 
     func getMetadata() -> CriticalDataFreshnessMetadata? {
-        let validatedAtMillis = (userDefaults.object(forKey: Keys.validatedAt) as? NSNumber)?.int64Value
-            ?? Int64(userDefaults.integer(forKey: Keys.validatedAt))
+        let validatedAtMillis = (storedUserDefaults.object(forKey: Keys.validatedAt) as? NSNumber)?.int64Value
+            ?? Int64(storedUserDefaults.integer(forKey: Keys.validatedAt))
         guard validatedAtMillis > 0 else { return nil }
-        guard let environmentRawValue = userDefaults.string(forKey: Keys.environment),
+        guard let environmentRawValue = storedUserDefaults.string(forKey: Keys.environment),
               let environment = SessionEnvironment(rawValue: environmentRawValue)
         else {
             return nil
         }
-        guard let principalUID = userDefaults.string(forKey: Keys.principalUID),
+        guard let principalUID = storedUserDefaults.string(forKey: Keys.principalUID),
               !principalUID.isEmpty,
-              let authenticatedMemberID = userDefaults.string(forKey: Keys.authenticatedMemberID),
+              let authenticatedMemberID = storedUserDefaults.string(forKey: Keys.authenticatedMemberID),
               !authenticatedMemberID.isEmpty,
-              let memberID = userDefaults.string(forKey: Keys.memberID),
+              let memberID = storedUserDefaults.string(forKey: Keys.memberID),
               !memberID.isEmpty,
-              let canManageMembers = userDefaults.object(forKey: Keys.canManageMembers) as? Bool
+              let canManageMembers = storedUserDefaults.object(forKey: Keys.canManageMembers) as? Bool
         else {
             return nil
         }
 
         var timestamps: [CriticalCollection: Int64] = [:]
         for collection in CriticalCollection.allCases {
-            let value = (userDefaults.object(forKey: timestampKey(for: collection)) as? NSNumber)?.int64Value
-                ?? Int64(userDefaults.integer(forKey: timestampKey(for: collection)))
+            let value = (storedUserDefaults.object(forKey: timestampKey(for: collection)) as? NSNumber)?.int64Value
+                ?? Int64(storedUserDefaults.integer(forKey: timestampKey(for: collection)))
             guard value > 0 else { return nil }
             timestamps[collection] = value
         }
@@ -56,32 +52,38 @@ struct UserDefaultsCriticalDataFreshnessLocalRepository: CriticalDataFreshnessLo
         ifWriteGeneration expectedWriteGeneration: UInt64
     ) -> Bool {
         guard writeGeneration == expectedWriteGeneration else { return false }
-        userDefaults.set(metadata.validatedAtMillis, forKey: Keys.validatedAt)
-        userDefaults.set(metadata.environment.rawValue, forKey: Keys.environment)
-        userDefaults.set(metadata.principalUID, forKey: Keys.principalUID)
-        userDefaults.set(metadata.authenticatedMemberID, forKey: Keys.authenticatedMemberID)
-        userDefaults.set(metadata.memberID, forKey: Keys.memberID)
-        userDefaults.set(metadata.canManageMembers, forKey: Keys.canManageMembers)
+        storedUserDefaults.set(metadata.validatedAtMillis, forKey: Keys.validatedAt)
+        storedUserDefaults.set(metadata.environment.rawValue, forKey: Keys.environment)
+        storedUserDefaults.set(metadata.principalUID, forKey: Keys.principalUID)
+        storedUserDefaults.set(metadata.authenticatedMemberID, forKey: Keys.authenticatedMemberID)
+        storedUserDefaults.set(metadata.memberID, forKey: Keys.memberID)
+        storedUserDefaults.set(metadata.canManageMembers, forKey: Keys.canManageMembers)
         for (collection, timestamp) in metadata.acknowledgedTimestampsMillis {
-            userDefaults.set(timestamp, forKey: timestampKey(for: collection))
+            storedUserDefaults.set(timestamp, forKey: timestampKey(for: collection))
         }
         return true
     }
 
     func clear() throws {
-        userDefaults.set(
+        storedUserDefaults.set(
             NSNumber(value: writeGeneration &+ 1),
             forKey: Keys.writeGeneration
         )
-        userDefaults.removeObject(forKey: Keys.validatedAt)
-        userDefaults.removeObject(forKey: Keys.environment)
-        userDefaults.removeObject(forKey: Keys.principalUID)
-        userDefaults.removeObject(forKey: Keys.authenticatedMemberID)
-        userDefaults.removeObject(forKey: Keys.memberID)
-        userDefaults.removeObject(forKey: Keys.canManageMembers)
+        storedUserDefaults.removeObject(forKey: Keys.validatedAt)
+        storedUserDefaults.removeObject(forKey: Keys.environment)
+        storedUserDefaults.removeObject(forKey: Keys.principalUID)
+        storedUserDefaults.removeObject(forKey: Keys.authenticatedMemberID)
+        storedUserDefaults.removeObject(forKey: Keys.memberID)
+        storedUserDefaults.removeObject(forKey: Keys.canManageMembers)
         for collection in CriticalCollection.allCases {
-            userDefaults.removeObject(forKey: timestampKey(for: collection))
+            storedUserDefaults.removeObject(forKey: timestampKey(for: collection))
         }
+    }
+}
+
+extension UserDefaultsCriticalDataFreshnessLocalRepository {
+    init(userDefaults: UserDefaults = .standard) {
+        self.storedUserDefaults = userDefaults
     }
 }
 

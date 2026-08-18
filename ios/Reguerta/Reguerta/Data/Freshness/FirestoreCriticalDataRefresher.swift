@@ -2,11 +2,7 @@ import FirebaseFirestore
 import Foundation
 
 struct FirestoreCriticalDataRefresher: CriticalDataRefreshing {
-    private let db: Firestore
-
-    init(db: Firestore) {
-        self.db = db
-    }
+    private let storedDB: Firestore
 
     func refresh(
         collections: Set<CriticalCollection>,
@@ -131,7 +127,7 @@ struct FirestoreCriticalDataRefresher: CriticalDataRefreshing {
 
 private extension FirestoreCriticalDataRefresher {
     private func refreshMember(id: String, scope: CriticalDataRefreshScope, resource: String) async throws -> Member {
-        let users = db.reguertaCollection(.users, environment: scope.environment)
+        let users = storedDB.reguertaCollection(.users, environment: scope.environment)
         do {
             let snapshot = try await users.document(id)
                 .getDocument(source: .server)
@@ -155,9 +151,9 @@ private extension FirestoreCriticalDataRefresher {
         selectedMember: Member
     ) async throws -> [Member] {
         let visibleMembersQuery: Query = if scope.canManageMembers {
-            db.reguertaCollection(.users, environment: scope.environment)
+            storedDB.reguertaCollection(.users, environment: scope.environment)
         } else {
-            db.reguertaCollection(.memberDirectory, environment: scope.environment)
+            storedDB.reguertaCollection(.memberDirectory, environment: scope.environment)
                 .whereField("isActive", isEqualTo: true)
         }
 
@@ -199,7 +195,7 @@ private extension FirestoreCriticalDataRefresher {
 
     private func refreshProducts(scope: CriticalDataRefreshScope) async throws -> [Product] {
         do {
-            let snapshot = try await db
+            let snapshot = try await storedDB
                 .reguertaCollection(.products, environment: scope.environment)
                 .getDocuments(source: .server)
             return try snapshot.documents.map { document in
@@ -218,7 +214,7 @@ private extension FirestoreCriticalDataRefresher {
         scope: CriticalDataRefreshScope
     ) async throws -> [SeasonalCommitment] {
         let repository = FirestoreSeasonalCommitmentRepository(
-            db: db,
+            db: storedDB,
             environment: scope.environment
         )
         let commitmentsByLookup = try await withThrowingTaskGroup(
@@ -287,7 +283,7 @@ private extension FirestoreCriticalDataRefresher {
     }
 
     private func refreshOwnedQuery(path: String, ownerField: String, memberID: String) async throws {
-        _ = try await db.collection(path)
+        _ = try await storedDB.collection(path)
             .whereField(ownerField, isEqualTo: memberID)
             .getDocuments(source: .server)
     }
@@ -298,7 +294,7 @@ private extension FirestoreCriticalDataRefresher {
         resource: String
     ) async throws {
         do {
-            _ = try await db.collection(
+            _ = try await storedDB.collection(
                 legacyCollectionPath(named: collectionName, environment: scope.environment)
             ).getDocuments(source: .server)
         } catch {
@@ -311,7 +307,13 @@ private extension FirestoreCriticalDataRefresher {
     }
 }
 
-private nonisolated struct MaterializedCriticalDataState: Sendable {
+extension FirestoreCriticalDataRefresher {
+    init(db: Firestore) {
+        self.storedDB = db
+    }
+}
+
+private nonisolated struct MaterializedCriticalDataState {
     let members: [Member]?
     let products: [Product]?
     let commitments: [SeasonalCommitment]

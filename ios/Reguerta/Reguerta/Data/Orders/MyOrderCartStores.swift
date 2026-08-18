@@ -1,14 +1,10 @@
 import Foundation
 
 struct UserDefaultsMyOrderCartStore: ImmediateMyOrderCartStore {
-    private let userDefaults: UserDefaults
-
-    init(userDefaults: UserDefaults = .standard) {
-        self.userDefaults = userDefaults
-    }
+    private let storedUserDefaults: UserDefaults
 
     func readCart(storageKey: String) async -> MyOrderCartSnapshot {
-        readMyOrderCartSnapshot(userDefaults: userDefaults, storageKey: storageKey)
+        readMyOrderCartSnapshot(userDefaults: storedUserDefaults, storageKey: storageKey)
     }
 
     func persistCart(storageKey: String, snapshot: MyOrderCartSnapshot) async {
@@ -17,26 +13,32 @@ struct UserDefaultsMyOrderCartStore: ImmediateMyOrderCartStore {
 
     func persistCartImmediately(storageKey: String, snapshot: MyOrderCartSnapshot) {
         persistMyOrderCartSnapshot(
-            userDefaults: userDefaults,
+            userDefaults: storedUserDefaults,
             storageKey: storageKey,
             selectedQuantities: snapshot.selectedQuantities,
             selectedEcoBasketOptions: snapshot.selectedEcoBasketOptions
         )
-        _ = userDefaults.synchronize()
+        _ = storedUserDefaults.synchronize()
     }
 
     func readConfirmed(storageKey: String) async -> MyOrderCartSnapshot {
-        readMyOrderConfirmedSnapshot(userDefaults: userDefaults, storageKey: storageKey)
+        readMyOrderConfirmedSnapshot(userDefaults: storedUserDefaults, storageKey: storageKey)
     }
 
     func persistConfirmed(storageKey: String, snapshot: MyOrderCartSnapshot) async {
         persistMyOrderConfirmedSnapshot(
-            userDefaults: userDefaults,
+            userDefaults: storedUserDefaults,
             storageKey: storageKey,
             selectedQuantities: snapshot.selectedQuantities,
             selectedEcoBasketOptions: snapshot.selectedEcoBasketOptions
         )
-        _ = userDefaults.synchronize()
+        _ = storedUserDefaults.synchronize()
+    }
+}
+
+extension UserDefaultsMyOrderCartStore {
+    init(userDefaults: UserDefaults = .standard) {
+        self.storedUserDefaults = userDefaults
     }
 }
 

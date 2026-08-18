@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated struct AuthorizedDeviceSessionLease: Codable, Equatable, Sendable {
+nonisolated struct AuthorizedDeviceSessionLease: Codable, Equatable {
     let id: UUID
 }
 
@@ -10,7 +10,7 @@ extension AuthorizedDeviceSessionLease {
     }
 }
 
-nonisolated struct AuthorizedDeviceRegistrationCommand: Equatable, Sendable {
+nonisolated struct AuthorizedDeviceRegistrationCommand: Equatable {
     let memberId: String
     let authUid: String
     let environment: SessionEnvironment

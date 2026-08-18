@@ -260,13 +260,13 @@ struct P101AuthorizedDeviceCoordinatorTests {
     }
 }
 
-nonisolated private struct CoordinatorHarness: Sendable {
+nonisolated private struct CoordinatorHarness {
     let coordinator: FirebaseAuthorizedDeviceCoordinator
     let repository: RecordingDeviceRegistrationRepository
     let store: KeychainStore
 }
 
-nonisolated private struct RecordedDeviceRegistration: Equatable, Sendable {
+nonisolated private struct RecordedDeviceRegistration: Equatable {
     let memberId: String
     let environment: SessionEnvironment
 }

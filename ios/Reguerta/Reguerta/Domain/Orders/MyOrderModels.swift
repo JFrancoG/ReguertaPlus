@@ -2,7 +2,7 @@ import Foundation
 
 let myOrderCommonPurchasesGroupId = "__my_order_reguerta_common_purchases__"
 
-struct MyOrderCartSnapshot: Equatable, Sendable {
+struct MyOrderCartSnapshot: Equatable {
     let selectedQuantities: [String: Int]
     let selectedEcoBasketOptions: [String: String]
 
@@ -20,7 +20,7 @@ struct MyOrderCartSnapshot: Equatable, Sendable {
     }
 }
 
-struct MyOrderConfirmedLine: Identifiable, Equatable, Sendable {
+struct MyOrderConfirmedLine: Identifiable, Equatable {
     let product: Product
     let unitsSelected: Int
     let quantityAtOrder: Double
@@ -29,7 +29,7 @@ struct MyOrderConfirmedLine: Identifiable, Equatable, Sendable {
     var id: String { product.id }
 }
 
-struct MyOrderConfirmedGroup: Identifiable, Equatable, Sendable {
+struct MyOrderConfirmedGroup: Identifiable, Equatable {
     let vendorId: String
     let companyName: String
     let producerStatus: ProducerOrderStatus
@@ -39,12 +39,12 @@ struct MyOrderConfirmedGroup: Identifiable, Equatable, Sendable {
     var id: String { vendorId }
 }
 
-struct MyOrderProducerStatusSnapshot: Equatable, Sendable {
+struct MyOrderProducerStatusSnapshot: Equatable {
     let byVendor: [String: ProducerOrderStatus]
     let legacyStatus: ProducerOrderStatus
 }
 
-struct MyOrderPreviousOrderLine: Identifiable, Equatable, Sendable {
+struct MyOrderPreviousOrderLine: Identifiable, Equatable {
     let vendorId: String
     let companyName: String
     let productName: String
@@ -55,7 +55,7 @@ struct MyOrderPreviousOrderLine: Identifiable, Equatable, Sendable {
     var id: String { "\(vendorId)_\(productName)" }
 }
 
-struct MyOrderPreviousOrderGroup: Identifiable, Equatable, Sendable {
+struct MyOrderPreviousOrderGroup: Identifiable, Equatable {
     let vendorId: String
     let companyName: String
     let lines: [MyOrderPreviousOrderLine]
@@ -64,18 +64,18 @@ struct MyOrderPreviousOrderGroup: Identifiable, Equatable, Sendable {
     var id: String { vendorId }
 }
 
-struct MyOrderPreviousGroupKey: Hashable, Sendable {
+struct MyOrderPreviousGroupKey: Hashable {
     let vendorId: String
     let companyName: String
 }
 
-struct MyOrderPreviousOrderSnapshot: Equatable, Sendable {
+struct MyOrderPreviousOrderSnapshot: Equatable {
     let weekKey: String
     let groups: [MyOrderPreviousOrderGroup]
     let total: Double
 }
 
-struct MyOrderConsultaWindow: Equatable, Sendable {
+struct MyOrderConsultaWindow: Equatable {
     let isConsultaPhase: Bool
     let previousWeekKey: String
 }

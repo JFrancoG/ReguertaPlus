@@ -10,7 +10,7 @@ enum DeliveryWeekday: String, CaseIterable, Equatable, Sendable {
     case sunday = "SUN"
 }
 
-struct DeliveryCalendarOverride: Equatable, Sendable {
+struct DeliveryCalendarOverride: Equatable {
     let weekKey: String
     let deliveryDateMillis: Int64
     let ordersBlockedDateMillis: Int64

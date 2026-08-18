@@ -6,14 +6,14 @@ enum ImageUploadNamespace: String, Sendable {
     case sharedProfiles = "shared_profiles"
 }
 
-struct ImageUploadRequest: Sendable {
+struct ImageUploadRequest {
     let ownerId: String
     let namespace: ImageUploadNamespace
     let entityId: String?
     let nameHint: String?
 }
 
-struct ImageUploadResult: Sendable {
+struct ImageUploadResult {
     let downloadURL: String
     let widthPx: Int
     let heightPx: Int

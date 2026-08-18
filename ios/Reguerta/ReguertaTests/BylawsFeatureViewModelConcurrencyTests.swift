@@ -220,7 +220,7 @@ private actor ControlledBylawsConsultant: BylawsConsulting {
     }
 }
 
-struct BylawsFailurePresentationExpectation: Sendable, CustomTestStringConvertible {
+struct BylawsFailurePresentationExpectation: CustomTestStringConvertible {
     let error: BylawsConsultationError
     let messageKey: String
 

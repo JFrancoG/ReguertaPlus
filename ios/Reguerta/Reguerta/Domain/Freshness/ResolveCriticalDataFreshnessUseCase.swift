@@ -1,24 +1,10 @@
 import Foundation
 
-struct ResolveCriticalDataFreshnessUseCase: Sendable {
-    private let remoteRepository: any CriticalDataFreshnessRemoteRepository
-    private let localRepository: any CriticalDataFreshnessLocalRepository
-    private let refresher: any CriticalDataRefreshing
-    private let nowProvider: @Sendable () -> Int64
-
-    init(
-        remoteRepository: any CriticalDataFreshnessRemoteRepository,
-        localRepository: any CriticalDataFreshnessLocalRepository,
-        refresher: any CriticalDataRefreshing = NoOpCriticalDataRefresher(),
-        nowProvider: @escaping @Sendable () -> Int64 = {
-            Int64(Date().timeIntervalSince1970 * 1000)
-        }
-    ) {
-        self.remoteRepository = remoteRepository
-        self.localRepository = localRepository
-        self.refresher = refresher
-        self.nowProvider = nowProvider
-    }
+struct ResolveCriticalDataFreshnessUseCase {
+    private let storedRemoteRepository: any CriticalDataFreshnessRemoteRepository
+    private let storedLocalRepository: any CriticalDataFreshnessLocalRepository
+    private let storedRefresher: any CriticalDataRefreshing
+    private let storedNowProvider: @Sendable () -> Int64
 
     /// Resolves which critical collections must be refreshed for an authenticated scope.
     ///
@@ -38,16 +24,16 @@ struct ResolveCriticalDataFreshnessUseCase: Sendable {
             return .invalidConfig
         }
         try Task.checkCancellation()
-        let config = try await remoteRepository.getConfig(environment: scope.environment)
+        let config = try await storedRemoteRepository.getConfig(environment: scope.environment)
         try Task.checkCancellation()
 
         try Task.checkCancellation()
-        let metadata = localRepository.getMetadata()
+        let metadata = storedLocalRepository.getMetadata()
         try Task.checkCancellation()
         let evaluation = evaluate(
             config: config,
             metadata: metadata,
-            nowMillis: nowProvider(),
+            nowMillis: storedNowProvider(),
             scope: scope
         )
         try Task.checkCancellation()
@@ -56,7 +42,7 @@ struct ResolveCriticalDataFreshnessUseCase: Sendable {
         case .invalidConfig:
             return .invalidConfig
         case .accepted(let collectionsToRefresh, let metadataToPersist):
-            let refreshedPayload = try await refresher.refresh(
+            let refreshedPayload = try await storedRefresher.refresh(
                 collections: collectionsToRefresh,
                 scope: scope
             )
@@ -141,6 +127,22 @@ struct ResolveCriticalDataFreshnessUseCase: Sendable {
             collectionsToRefresh: collectionsToRefresh,
             metadataToPersist: metadataToPersist
         )
+    }
+}
+
+extension ResolveCriticalDataFreshnessUseCase {
+    init(
+        remoteRepository: any CriticalDataFreshnessRemoteRepository,
+        localRepository: any CriticalDataFreshnessLocalRepository,
+        refresher: any CriticalDataRefreshing = NoOpCriticalDataRefresher(),
+        nowProvider: @escaping @Sendable () -> Int64 = {
+            Int64(Date().timeIntervalSince1970 * 1000)
+        }
+    ) {
+        self.storedRemoteRepository = remoteRepository
+        self.storedLocalRepository = localRepository
+        self.storedRefresher = refresher
+        self.storedNowProvider = nowProvider
     }
 }
 

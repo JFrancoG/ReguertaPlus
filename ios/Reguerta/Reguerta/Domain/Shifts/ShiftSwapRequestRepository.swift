@@ -7,7 +7,7 @@ enum ShiftSwapTransition: Sendable {
     case apply(request: ShiftSwapRequest, candidateShiftId: String)
 }
 
-struct ShiftSwapTransitionResult: Equatable, Sendable {
+struct ShiftSwapTransitionResult: Equatable {
     let requestId: String
     let candidateCount: Int?
 }

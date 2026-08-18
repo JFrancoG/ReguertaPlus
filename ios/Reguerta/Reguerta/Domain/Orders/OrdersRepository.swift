@@ -1,6 +1,6 @@
 import Foundation
 
-struct MyOrderCheckoutRequest: Sendable {
+struct MyOrderCheckoutRequest {
     let currentMember: Member?
     let weekKey: String
     let products: [Product]

@@ -5,7 +5,7 @@ nonisolated enum SessionEnvironment: String, Codable, Equatable, Sendable {
     case production
 }
 
-nonisolated struct AuthorizedMemberResolution: Equatable, Sendable {
+nonisolated struct AuthorizedMemberResolution: Equatable {
     let memberId: String
     let roles: Set<MemberRole>
     let isActive: Bool
@@ -17,7 +17,7 @@ nonisolated enum AuthorizedMemberResolutionError: Error, Equatable, Sendable {
     case unauthorized(UnauthorizedReason)
 }
 
-nonisolated struct SessionEnvironmentLease: Equatable, Sendable {
+nonisolated struct SessionEnvironmentLease: Equatable {
     private let id: UUID
 }
 
@@ -34,7 +34,7 @@ nonisolated protocol AuthorizedMemberResolving: Sendable {
     ) async throws -> AuthorizedMemberResolution
 }
 
-nonisolated struct SessionEnvironmentRoutingTransition: Equatable, Sendable {
+nonisolated struct SessionEnvironmentRoutingTransition: Equatable {
     let generation: UInt64
     let environment: SessionEnvironment
 }

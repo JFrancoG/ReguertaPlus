@@ -155,7 +155,7 @@ final class BylawsFeatureViewModel {
     }
 }
 
-nonisolated struct BylawsPdfPresentation: Identifiable, Equatable, Sendable {
+nonisolated struct BylawsPdfPresentation: Identifiable, Equatable {
     let url: URL
 
     var id: URL { url }

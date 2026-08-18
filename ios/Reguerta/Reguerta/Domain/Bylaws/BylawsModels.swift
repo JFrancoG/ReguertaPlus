@@ -1,12 +1,12 @@
 import Foundation
 
-nonisolated struct BylawsKnowledgeIndex: Equatable, Sendable {
+nonisolated struct BylawsKnowledgeIndex: Equatable {
     let schemaVersion: Int
     let pageCount: Int
     let articles: [BylawsArticle]
 }
 
-nonisolated struct BylawsArticle: Identifiable, Equatable, Sendable {
+nonisolated struct BylawsArticle: Identifiable, Equatable {
     let id: String
     let kind: String
     let articleNumber: Int?
@@ -17,13 +17,13 @@ nonisolated struct BylawsArticle: Identifiable, Equatable, Sendable {
     let searchAliases: [String]
 }
 
-nonisolated struct BylawsRetrievedArticle: Equatable, Sendable {
+nonisolated struct BylawsRetrievedArticle: Equatable {
     let article: BylawsArticle
     let score: Double
     let excerpt: String
 }
 
-nonisolated struct BylawsSourceEvidence: Identifiable, Equatable, Sendable {
+nonisolated struct BylawsSourceEvidence: Identifiable, Equatable {
     let sourceID: String
     let articleNumber: Int?
     let title: String
@@ -34,17 +34,17 @@ nonisolated struct BylawsSourceEvidence: Identifiable, Equatable, Sendable {
     nonisolated var id: String { sourceID }
 }
 
-nonisolated struct BylawsRetrievalDiagnostic: Equatable, Sendable {
+nonisolated struct BylawsRetrievalDiagnostic: Equatable {
     let sourceID: String
     let score: Double
 }
 
-nonisolated struct BylawsConsultationDiagnostics: Equatable, Sendable {
+nonisolated struct BylawsConsultationDiagnostics: Equatable {
     let modelIdentifier: String
     let retrieval: [BylawsRetrievalDiagnostic]
 }
 
-nonisolated struct BylawsConsultationResult: Equatable, Sendable {
+nonisolated struct BylawsConsultationResult: Equatable {
     let summary: String
     let evidence: [BylawsSourceEvidence]
     let diagnostics: BylawsConsultationDiagnostics
@@ -55,7 +55,7 @@ nonisolated enum BylawsResponseLanguage: Equatable, Sendable {
     case english
 }
 
-nonisolated struct BylawsSummaryRequest: Equatable, Sendable {
+nonisolated struct BylawsSummaryRequest: Equatable {
     let question: String
     let evidence: [BylawsSourceEvidence]
     let responseLanguage: BylawsResponseLanguage
