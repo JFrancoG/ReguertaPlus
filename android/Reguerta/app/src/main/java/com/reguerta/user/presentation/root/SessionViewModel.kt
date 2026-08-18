@@ -508,4 +508,8 @@ class SessionViewModel(
             _uiEvents.emit(event)
         }
     }
+
+    override fun onCleared() {
+        bylawsOnDeviceAssistant.close()
+    }
 }
