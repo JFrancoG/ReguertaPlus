@@ -5,7 +5,7 @@
 - issue_id: #241
 - priority: P1
 - platform: android
-- status: in_progress
+- status: ready_for_merge
 
 ## Context and problem
 
@@ -101,7 +101,7 @@ workflow.
 - [x] Focused connected recreation tests pass on an available emulator/device.
 - [x] Android/iOS parity impact reviewed and any gap documented.
 - [x] Issue and planning documentation created.
-- [ ] PR prepared with validation evidence when delivery is authorized.
+- [x] PR #242 prepared with validation evidence.
 
 ## Validation evidence
 

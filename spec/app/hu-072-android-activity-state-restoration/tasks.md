@@ -44,8 +44,8 @@
 ## 7. Closure
 
 - [x] Create/update linked issue.
-- [ ] Prepare focused commit and PR when authorized.
-- [~] Complete DoD checklist; commit/PR delivery remains unauthorized.
+- [x] Prepare focused commits and PR #242.
+- [x] Complete the implementation and validation DoD; merge remains the final delivery gate.
 
 ## Validation evidence
 
