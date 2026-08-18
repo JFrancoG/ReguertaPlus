@@ -10,7 +10,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -24,7 +23,6 @@ internal fun OperationalModules(
     canOpenProducts: Boolean,
     myOrderFreshnessState: MyOrderFreshnessUiState,
     onOpenMyOrder: () -> Unit,
-    onRetryMyOrderFreshness: () -> Unit,
     onOpenProducts: () -> Unit,
     onOpenShifts: () -> Unit,
     onOpenBylaws: () -> Unit,
@@ -82,9 +80,6 @@ internal fun OperationalModules(
                             text = stringResource(R.string.my_order_freshness_error_message),
                             style = MaterialTheme.typography.bodySmall,
                         )
-                        TextButton(onClick = onRetryMyOrderFreshness) {
-                            Text(stringResource(R.string.my_order_freshness_retry))
-                        }
                     }
 
                 MyOrderFreshnessUiState.Idle,

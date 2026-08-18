@@ -21,6 +21,9 @@ The client cut uses a fail-closed sequence on both platforms:
    impersonation and drops its previous private member list before retrying. A shared session-state
    revision also invalidates the receipt if another same-scope writer lands before acknowledgement.
 6. Persist the new acknowledgement and publish `Ready` only after every previous step succeeds.
+7. If the 2.5-second freshness deadline expires or the refresh is unavailable, keep the gate closed
+   and retry automatically after 10, 20, and 30 seconds. A new entry request or session transition
+   cancels the pending retry and resets the bounded backoff.
 
 `My order` revalidates this sequence on every entry request. Navigation is tied to the generation
 started by that request, so startup readiness or a stale concurrent request cannot open the route.
@@ -28,7 +31,7 @@ The Firestore namespace and phased compatibility boundary remain governed by ADR
 does not introduce a new architecture decision or deploy backend changes.
 
 ## 2. Layer impact
-- UI: Disabled/blocked states, timeout, retry actions.
+- UI: Disabled/blocked states and automatic timeout recovery without a manual retry action.
 - Domain: Freshness policy and critical-collection set resolution.
 - Data: Server-only selective refresh, identity-scoped metadata, conditional acknowledgement, and
   session/environment/access fencing.
@@ -57,10 +60,10 @@ does not introduce a new architecture decision or deploy backend changes.
 - Unit tests for freshness calculations.
 - Integration tests proving acknowledgement occurs only after successful critical refresh and
   consumer-state application.
-- Controlled concurrency tests for partial failure, timeout with late completion, retry, relogin,
+- Controlled concurrency tests for partial failure, timeout with late completion, bounded automatic retry, relogin,
   environment changes, authenticated-member relinks, access-scope changes, impersonation demotion,
   same-scope stale session writers, and competing entry requests.
-- Manual tests for timeout and retry UX.
+- Manual tests for timeout and automatic recovery UX.
 
 ## 5. Rollout and validation
 - Validate both normal and stale-data scenarios in develop after the coordinated Firebase gate opens.
@@ -71,15 +74,16 @@ does not introduce a new architecture decision or deploy backend changes.
 - Confirm `config/member` critical collections and freshness thresholds.
 
 ### Phase 2 - Implementation
-- Implement the server-only refresh barrier, post-consumer acknowledgement, gate, timeout, and retry.
+- Implement the server-only refresh barrier, post-consumer acknowledgement, gate, timeout, and bounded automatic retry.
 
 ### Phase 3 - Closure
 - Seed/verify the live timestamp contract, run live role canaries, and document outcomes.
 
 ## 7. Risks and mitigation
 - Risk: excessive startup/order latency.
-  - Mitigation: selective sync and concurrent canonical/legacy commitment lookups. Measure the
-    existing 2.5-second deadline in the deferred live canary before changing it.
+  - Mitigation: selective sync, concurrent canonical/legacy commitment lookups, and bounded retries
+    after 10, 20, and 30 seconds. Measure the existing 2.5-second deadline in the deferred live
+    canary before changing the deadline itself.
 - Risk: an operation completes after timeout, relogin, impersonation, environment switch, or access
   change.
   - Mitigation: generation and scope fencing before consumer application, acknowledgement, and navigation.

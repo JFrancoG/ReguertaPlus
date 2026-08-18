@@ -88,6 +88,7 @@ class SessionViewModel(
     private val bylawsOnDeviceAssistant: BylawsOnDeviceAssistant = PdfOnlyBylawsOnDeviceAssistant,
     private val sessionRefreshPolicy: SessionRefreshPolicy = SessionRefreshPolicy(),
     private val nowMillisProvider: () -> Long = { System.currentTimeMillis() },
+    private val feedbackClockMillisProvider: () -> Long = { System.nanoTime() / 1_000_000L },
     private val runtimeEnvironmentProvider: () -> String? = { null },
     private val developImpersonationEnabled: Boolean = false,
     initialNowOverrideMillis: Long? = null,
@@ -99,6 +100,7 @@ class SessionViewModel(
 
     private val _uiEvents = MutableSharedFlow<SessionUiEvent>(replay = 0)
     val uiEvents: SharedFlow<SessionUiEvent> = _uiEvents.asSharedFlow()
+    private val feedbackPresentationPolicy = SessionFeedbackPresentationPolicy()
 
     private val isSessionRefreshInFlight = AtomicBoolean(false)
     private var lastSessionRefreshAtMillis: Long? = null
@@ -469,7 +471,10 @@ class SessionViewModel(
 
     fun sendPasswordReset() = authActions.sendPasswordReset()
 
-    fun signOut() = authActions.signOut()
+    fun signOut() {
+        feedbackPresentationPolicy.reset()
+        authActions.signOut()
+    }
 
     fun refreshSession(trigger: SessionRefreshTrigger) = authActions.refreshSession(trigger)
 
@@ -500,6 +505,7 @@ class SessionViewModel(
     fun toggleActive(memberId: String) = memberActions.toggleActive(memberId)
 
     private fun emitMessage(@StringRes messageRes: Int) {
+        if (!feedbackPresentationPolicy.shouldPresent(messageRes, feedbackClockMillisProvider())) return
         emitEvent(SessionUiEvent.ShowMessage(messageRes))
     }
 

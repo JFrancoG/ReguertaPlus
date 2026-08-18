@@ -160,7 +160,6 @@ enum AccessL10nKey {
     static let myOrderFreshnessChecking = "operational_modules.my_order.freshness.checking"
     static let myOrderFreshnessErrorTitle = "operational_modules.my_order.freshness.error.title"
     static let myOrderFreshnessErrorMessage = "operational_modules.my_order.freshness.error.message"
-    static let myOrderFreshnessRetry = "operational_modules.my_order.freshness.retry"
     static let adminManageMembersTitle = "admin.manage_members.title"
     static let adminManageMembersSubtitle = "admin.manage_members.subtitle"
     static let adminCreatePreAuthorizedTitle = "admin.create_pre_authorized_member.title"

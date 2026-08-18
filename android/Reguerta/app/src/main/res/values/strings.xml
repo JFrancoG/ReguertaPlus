@@ -376,8 +376,7 @@
     <string name="operational_modules_restricted_unauthorized">These modules are locked because this account is not authorized yet.</string>
     <string name="my_order_freshness_checking">Checking critical data freshness before enabling My order…</string>
     <string name="my_order_freshness_error_title">My order is temporarily unavailable</string>
-    <string name="my_order_freshness_error_message">Critical data could not be validated in time. Retry to continue without restarting the app.</string>
-    <string name="my_order_freshness_retry">Retry check</string>
+    <string name="my_order_freshness_error_message">Critical data could not be validated in time. The app will retry automatically.</string>
     <string name="my_order_products_title">Create your weekly order</string>
     <string name="my_order_products_subtitle">Browse available products grouped by producer.</string>
     <string name="my_order_products_search_label">Search product or producer</string>
@@ -544,7 +543,6 @@
     <string name="role_value_producer">producer</string>
     <string name="role_value_admin">admin</string>
     <string name="news_empty_state">There are no news items to show yet.</string>
-    <string name="news_view_all">View all news</string>
     <string name="news_list_subtitle">Read the latest community updates in reverse publication order.</string>
     <string name="news_refresh_action">Refresh list</string>
     <string name="news_loading">Loading news…</string>

@@ -1139,6 +1139,60 @@ class SessionAuthActionsConcurrencyTest {
     }
 
     @Test
+    fun `failed freshness retries automatically after the configured delay and recovers`() = runTest {
+        val principal = principal("automatic-retry")
+        val refresher = PartiallyFailingThenRecoveringCriticalDataRefresher()
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)),
+            authProvider = ControlledAuthSessionProvider(),
+            freshnessRefresher = refresher,
+            freshnessRetryDelaysMillis = listOf(10_000L, 20_000L, 30_000L),
+        )
+
+        fixture.actions.refreshMyOrderFreshness()
+        runCurrent()
+
+        assertEquals(MyOrderFreshnessUiState.Unavailable, fixture.state.value.myOrderFreshnessState)
+        assertEquals(1, refresher.requestedCollections.size)
+
+        advanceTimeBy(9_999L)
+        runCurrent()
+        assertEquals(1, refresher.requestedCollections.size)
+
+        advanceTimeBy(1L)
+        advanceUntilIdle()
+
+        assertEquals(2, refresher.requestedCollections.size)
+        assertEquals(MyOrderFreshnessUiState.Ready, fixture.state.value.myOrderFreshnessState)
+    }
+
+    @Test
+    fun `sign out cancels a scheduled automatic freshness retry`() = runTest {
+        val principal = principal("automatic-retry-signout")
+        val refresher = PartiallyFailingThenRecoveringCriticalDataRefresher()
+        val fixture = fixture(
+            scope = this,
+            state = authorizedState(principal, member(principal)),
+            authProvider = ControlledAuthSessionProvider(),
+            freshnessRefresher = refresher,
+            freshnessRetryDelaysMillis = listOf(10_000L, 20_000L, 30_000L),
+        )
+
+        fixture.actions.refreshMyOrderFreshness()
+        runCurrent()
+        assertEquals(1, refresher.requestedCollections.size)
+
+        fixture.actions.signOut()
+        runCurrent()
+        advanceTimeBy(10_000L)
+        advanceUntilIdle()
+
+        assertTrue(fixture.state.value.mode is SessionMode.SignedOut)
+        assertEquals(1, refresher.requestedCollections.size)
+    }
+
+    @Test
     fun `consumer refresh failure blocks acknowledgement after firestore refresh`() = runTest {
         val principal = principal("consumer-failure")
         val fixture = fixture(
@@ -1946,6 +2000,7 @@ private fun fixture(
     ) -> CriticalDataRefreshConsumerReceipt?)? = null,
     refreshNews: () -> Unit = {},
     refreshNotifications: () -> Unit = {},
+    freshnessRetryDelaysMillis: List<Long> = emptyList(),
 ): AuthFixture {
     val stateFlow = MutableStateFlow(state)
     var lastRefreshAtMillis: Long? = null
@@ -1996,6 +2051,7 @@ private fun fixture(
             }
         },
         sessionOperationTimeoutMillis = sessionOperationTimeoutMillis,
+        freshnessRetryDelaysMillis = freshnessRetryDelaysMillis,
     )
     return AuthFixture(
         actions = actions,

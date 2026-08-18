@@ -86,7 +86,6 @@ internal fun AuthorizedHome(
     mode: SessionMode.Authorized,
     myOrderFreshnessState: MyOrderFreshnessUiState,
     weeklySummaryDisplay: HomeWeeklySummaryDisplay,
-    onRetryMyOrderFreshness: () -> Unit,
     onOpenMyOrder: () -> Unit,
     onOpenReceivedOrders: () -> Unit,
 ) {
@@ -98,7 +97,6 @@ internal fun AuthorizedHome(
         isConsultaPhase = weeklySummaryDisplay.isConsultaPhase,
         onOpenMyOrder = onOpenMyOrder,
         onOpenReceivedOrders = onOpenReceivedOrders,
-        onRetryFreshness = onRetryMyOrderFreshness,
     )
 }
 

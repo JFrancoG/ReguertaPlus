@@ -206,9 +206,9 @@ struct MyOrderFreshnessViewModelConcurrencyTests {
 
 }
 
-private typealias OwnedFreshnessTasks = (operation: Task<Void, Never>, timeout: Task<Void, Never>)
+typealias OwnedFreshnessTasks = (operation: Task<Void, Never>, timeout: Task<Void, Never>)
 
-@MainActor private func ownedRefreshTasks(in viewModel: MyOrderFreshnessViewModel) -> OwnedFreshnessTasks? {
+@MainActor func ownedRefreshTasks(in viewModel: MyOrderFreshnessViewModel) -> OwnedFreshnessTasks? {
     guard let operation = viewModel.freshnessOperationTask,
           let timeout = viewModel.freshnessTimeoutTask else {
         Issue.record("El refresh no conserva sus tareas de operacion y timeout")
@@ -227,12 +227,13 @@ private func makeImmediateFreshnessViewModel(config: CriticalDataFreshnessConfig
             nowProvider: { 2_000 }
         ),
         criticalDataFreshnessLocalRepository: localRepository,
-        timeout: .seconds(60)
+        timeout: .seconds(60),
+        automaticRetryDelays: []
     )
 }
 
 @MainActor
-private func makeControlledFreshnessViewModel(
+func makeControlledFreshnessViewModel(
     remoteRepository: ControlledCriticalDataFreshnessRemoteRepository
 ) -> MyOrderFreshnessViewModel {
     makeControlledFreshnessViewModel(
@@ -253,7 +254,8 @@ private func makeControlledFreshnessViewModel(
             nowProvider: { 2_000 }
         ),
         criticalDataFreshnessLocalRepository: localRepository,
-        timeout: .seconds(60)
+        timeout: .seconds(60),
+        automaticRetryDelays: []
     )
 }
 
@@ -271,6 +273,7 @@ private func makeControlledFreshnessViewModel(
         ),
         criticalDataFreshnessLocalRepository: localRepository,
         timeout: .seconds(60),
+        automaticRetryDelays: [],
         sleeper: { duration in
             try await sleeper.sleep(for: duration)
         }
@@ -278,7 +281,32 @@ private func makeControlledFreshnessViewModel(
 }
 
 @MainActor
-private func freshnessAuthorizedMode(
+func makeControlledFreshnessViewModel(
+    remoteRepository: ControlledCriticalDataFreshnessRemoteRepository,
+    timeoutSleeper: ControlledFreshnessSleeper,
+    automaticRetrySleeper: ControlledFreshnessSleeper
+) -> MyOrderFreshnessViewModel {
+    let localRepository = InMemoryCriticalDataFreshnessLocalRepository()
+    return MyOrderFreshnessViewModel(
+        resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase(
+            remoteRepository: remoteRepository,
+            localRepository: localRepository,
+            nowProvider: { 2_000 }
+        ),
+        criticalDataFreshnessLocalRepository: localRepository,
+        timeout: .seconds(60),
+        automaticRetryDelays: [.seconds(10), .seconds(20), .seconds(30)],
+        sleeper: { duration in
+            try await timeoutSleeper.sleep(for: duration)
+        },
+        automaticRetrySleeper: { duration in
+            try await automaticRetrySleeper.sleep(for: duration)
+        }
+    )
+}
+
+@MainActor
+func freshnessAuthorizedMode(
     uid: String,
     email: String? = nil,
     environment: SessionEnvironment = .develop
@@ -295,14 +323,14 @@ private func freshnessAuthorizedMode(
     )
 }
 
-private func validConcurrencyFreshnessConfig(timestamp: Int64 = 1_000) -> CriticalDataFreshnessConfig {
+func validConcurrencyFreshnessConfig(timestamp: Int64 = 1_000) -> CriticalDataFreshnessConfig {
     CriticalDataFreshnessConfig(
         cacheExpirationMinutes: 15,
         remoteTimestampsMillis: concurrencyFreshnessTimestamps(timestamp: timestamp)
     )
 }
 
-private func invalidConcurrencyFreshnessConfig() -> CriticalDataFreshnessConfig {
+func invalidConcurrencyFreshnessConfig() -> CriticalDataFreshnessConfig {
     CriticalDataFreshnessConfig(
         cacheExpirationMinutes: 0,
         remoteTimestampsMillis: concurrencyFreshnessTimestamps()
@@ -325,7 +353,7 @@ private func concurrencyFreshnessTimestamps(timestamp: Int64 = 1_000) -> [Critic
     )
 }
 
-private actor ControlledCriticalDataFreshnessRemoteRepository: CriticalDataFreshnessRemoteRepository {
+actor ControlledCriticalDataFreshnessRemoteRepository: CriticalDataFreshnessRemoteRepository {
     private var nextRequestIndex = 0
     private var registeredRequestCount = 0
     private var requestContinuations: [Int: CheckedContinuation<CriticalDataFreshnessConfig?, Never>] = [:]
@@ -391,7 +419,7 @@ private actor ControlledCriticalDataFreshnessRemoteRepository: CriticalDataFresh
     }
 }
 
-private actor ControlledFreshnessSleeper {
+actor ControlledFreshnessSleeper {
     private var nextRequestIndex = 0
     private var registeredRequestCount = 0
     private var requestContinuations: [Int: CheckedContinuation<Void, any Error>] = [:]

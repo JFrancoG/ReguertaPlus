@@ -72,7 +72,6 @@ import com.reguerta.user.domain.news.NewsArticle
 import com.reguerta.user.domain.profiles.SharedProfile
 import com.reguerta.user.domain.shifts.ShiftAssignment
 import com.reguerta.user.ui.components.ReguertaScreenHeader
-import com.reguerta.user.ui.components.auth.ReguertaFlatButton
 
 @Composable
 fun HomeShellTopBar(
@@ -558,7 +557,6 @@ private fun ShiftSummaryRow(
 @Composable
 fun LatestNewsCard(
     news: List<NewsArticle>,
-    onViewAll: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -580,10 +578,5 @@ fun LatestNewsCard(
         } else {
             LatestNewsSummaryRows(news = news)
         }
-        ReguertaFlatButton(
-            label = stringResource(R.string.news_view_all),
-            onClick = onViewAll,
-            modifier = Modifier.fillMaxWidth(),
-        )
     }
 }

@@ -187,10 +187,6 @@ extension AccessRootViewModel {
         homeDestination = .receivedOrders
     }
 
-    func handleHomeDashboardFreshnessRetry() {
-        myOrderFreshnessViewModel.retry(currentMode: sessionViewModel.mode)
-    }
-
     func handleHomeOpenDrawerDragChanged(_ translationWidth: CGFloat) {
         homeDrawerDragOffset = max(0, min(homeDrawerWidth, translationWidth))
     }
