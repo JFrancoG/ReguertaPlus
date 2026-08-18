@@ -193,7 +193,6 @@ actor ReviewNewsMutationRepository: NewsRepository {
                 body: article.body,
                 active: article.active,
                 publishedBy: article.publishedBy,
-                publishedByUserId: article.publishedByUserId,
                 publishedAtMillis: article.publishedAtMillis,
                 urlImage: article.urlImage
             )

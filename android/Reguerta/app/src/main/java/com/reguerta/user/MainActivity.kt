@@ -8,6 +8,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -19,11 +20,19 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.reguerta.user.data.settings.DataStoreAppearancePreferences
 import com.reguerta.user.presentation.root.ReguertaRoot
+import com.reguerta.user.presentation.root.ReguertaRootActivityStateViewModel
+import com.reguerta.user.presentation.root.SessionViewModel
+import com.reguerta.user.presentation.root.SessionViewModelFactory
 import com.reguerta.user.ui.theme.AppAppearance
 import com.reguerta.user.ui.theme.ReguertaTheme
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    internal val sessionViewModel: SessionViewModel by viewModels {
+        SessionViewModelFactory(applicationContext)
+    }
+    internal val rootStateViewModel: ReguertaRootActivityStateViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -40,6 +49,8 @@ class MainActivity : ComponentActivity() {
                 darkTheme = appearance.resolvesToDark(isSystemInDarkTheme()),
             ) {
                 ReguertaRoot(
+                    viewModel = sessionViewModel,
+                    rootStateViewModel = rootStateViewModel,
                     modifier = Modifier.fillMaxSize(),
                     appAppearance = appearance,
                     onAppAppearanceChanged = { updatedAppearance ->

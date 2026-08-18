@@ -44,9 +44,6 @@ class FirestoreNewsRepository(
     }
 
     override suspend fun upsertNews(article: NewsArticle): NewsArticle = withContext(Dispatchers.IO) {
-        val publishedByUserId = requireNotNull(article.publishedByUserId?.takeIf { it.isNotBlank() }) {
-            "News writes require the canonical publisher member id"
-        }
         val documentId = article.id.ifBlank {
             firestore.collection(newsCollectionPath).document().id
         }
@@ -56,7 +53,6 @@ class FirestoreNewsRepository(
             "body" to persisted.body,
             "active" to persisted.active,
             "publishedBy" to persisted.publishedBy,
-            "publishedByUserId" to publishedByUserId,
             "publishedAt" to Timestamp(persisted.publishedAtMillis / 1_000, ((persisted.publishedAtMillis % 1_000) * 1_000_000).toInt()),
             "urlImage" to persisted.urlImage,
         )
@@ -106,7 +102,6 @@ internal data class NewsDocumentDto(
     val body: String,
     val active: Boolean,
     val publishedBy: String,
-    val publishedByUserId: String,
     val publishedAtMillis: Long,
     val urlImage: String?,
 ) {
@@ -118,7 +113,6 @@ internal data class NewsDocumentDto(
         publishedBy = publishedBy,
         publishedAtMillis = publishedAtMillis,
         urlImage = urlImage,
-        publishedByUserId = publishedByUserId,
     )
 
     companion object {
@@ -132,7 +126,6 @@ internal data class NewsDocumentDto(
                 body = data.requiredNewsString("body", documentId),
                 active = data.requiredNewsBoolean("active", documentId),
                 publishedBy = data.requiredNewsString("publishedBy", documentId),
-                publishedByUserId = data.requiredNewsString("publishedByUserId", documentId),
                 publishedAtMillis = data.requiredNewsTimestampMillis("publishedAt", documentId),
                 urlImage = data.optionalNewsString("urlImage", documentId),
             )

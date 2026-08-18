@@ -61,7 +61,6 @@ struct FirestoreCommunityDocumentIdentityTests {
             "title": "News",
             "body": "Body",
             "publishedBy": "Publisher",
-            "publishedByUserId": "admin_1",
             "publishedAt": Timestamp(date: Date(timeIntervalSince1970: 1)),
             "active": true
         ]

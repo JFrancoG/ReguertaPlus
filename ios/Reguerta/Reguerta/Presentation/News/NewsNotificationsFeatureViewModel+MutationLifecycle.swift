@@ -71,7 +71,6 @@ extension NewsNotificationsFeatureViewModel {
             body: draft.body,
             active: draft.active,
             publishedBy: context.session.member.displayName,
-            publishedByUserId: context.memberID,
             publishedAtMillis: existing?.publishedAtMillis ?? nowMillisProvider(),
             urlImage: draft.normalizedImageURL
         )

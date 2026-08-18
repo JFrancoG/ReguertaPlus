@@ -29,7 +29,6 @@ struct ReguertaNewsNotificationsViewModelSavingTests {
         #expect(created.body == "Cuerpo")
         #expect(created.active == false)
         #expect(created.publishedBy == "Ana Admin")
-        #expect(created.publishedByUserId == admin.id)
         #expect(created.publishedAtMillis == 123)
         #expect(created.urlImage == "https://cdn.test/news.jpg")
         let originalId = created.id
@@ -51,7 +50,6 @@ struct ReguertaNewsNotificationsViewModelSavingTests {
         let updated = articles.first(where: { $0.id == originalId })
         #expect(updated?.title == "Actualizada")
         #expect(updated?.publishedBy == "Ana Admin")
-        #expect(updated?.publishedByUserId == admin.id)
         #expect(updated?.publishedAtMillis == 123)
         #expect(viewModel.pendingNewsSaveConfirmation == NewsSaveConfirmation(newsId: originalId, isNew: false))
         #expect(viewModel.feedbackCenter.messageKey == nil)

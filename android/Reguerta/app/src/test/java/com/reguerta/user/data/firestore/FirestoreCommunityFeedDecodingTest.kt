@@ -50,7 +50,6 @@ class FirestoreCommunityFeedDecodingTest {
             "news-1" to (validNewsDocument() + ("title" to "  ")),
             "news-1" to (validNewsDocument() + ("body" to 7L)),
             "news-1" to (validNewsDocument() + ("publishedBy" to "")),
-            "news-1" to (validNewsDocument() + ("publishedByUserId" to null)),
             "news-1" to (validNewsDocument() + ("active" to "true")),
             "news-1" to (validNewsDocument() + ("publishedAt" to 123L)),
             "news-1" to (validNewsDocument() + ("urlImage" to 42L)),
@@ -79,7 +78,6 @@ class FirestoreCommunityFeedDecodingTest {
         assertNull(missing.urlImage)
         assertNull(explicitNull.urlImage)
         assertEquals("https://example.test/news.jpg", present.urlImage)
-        assertEquals("publisher-1", present.publishedByUserId)
         assertEquals(123_000L, present.publishedAtMillis)
     }
 
@@ -271,7 +269,6 @@ private fun validNewsDocument(): Map<String, Any?> = mapOf(
     "title" to "News title",
     "body" to "News body",
     "publishedBy" to "Publisher",
-    "publishedByUserId" to "publisher-1",
     "publishedAt" to Timestamp(123, 0),
     "active" to true,
     "urlImage" to null,

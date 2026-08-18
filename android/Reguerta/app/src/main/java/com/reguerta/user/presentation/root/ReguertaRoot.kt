@@ -15,7 +15,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -53,8 +52,9 @@ private val StartupPolicyFetchTimeout = 2_500.milliseconds
 @Composable
 @SuppressLint("LocalContextGetResourceValueCall")
 fun ReguertaRoot(
+    viewModel: SessionViewModel,
+    rootStateViewModel: ReguertaRootActivityStateViewModel,
     modifier: Modifier = Modifier,
-    viewModel: SessionViewModel = rememberSessionViewModel(),
     appAppearance: AppAppearance = AppAppearance.SYSTEM,
     onAppAppearanceChanged: (AppAppearance) -> Unit = {},
 ) {
@@ -70,18 +70,19 @@ fun ReguertaRoot(
         )
     }
 
-    var shellState by remember { mutableStateOf(AuthShellState()) }
-    var splashAnimationFinished by remember { mutableStateOf(value = false) }
-    var startupGateState by remember {
-        mutableStateOf<StartupGateUiState>(StartupGateUiState.Checking)
-    }
-    var startupGateRetryGeneration by remember { mutableStateOf(0) }
+    var shellState by rootStateViewModel.shellState
+    var splashAnimationFinished by rootStateViewModel.splashAnimationFinished
+    var startupGateState by rootStateViewModel.startupGateState
+    var startupGateRetryGeneration by rootStateViewModel.startupGateRetryGeneration
+    var sessionStartupRefreshRequested by rootStateViewModel.sessionStartupRefreshRequested
     val isAuthenticatedSession = (
         state.mode is SessionMode.Authorized || state.mode is SessionMode.Unauthorized
     )
 
     LaunchedEffect(startupVersionGateResolver, startupGateRetryGeneration) {
-        startupGateState = StartupGateUiState.Checking
+        if (startupGateState != StartupGateUiState.Checking) {
+            return@LaunchedEffect
+        }
         startupGateState = resolveStartupGateUiState(timeout = StartupPolicyFetchTimeout) {
             startupVersionGateResolver(
                 platform = StartupPlatform.ANDROID,
@@ -91,7 +92,10 @@ fun ReguertaRoot(
     }
 
     LaunchedEffect(viewModel) {
-        viewModel.refreshSession(SessionRefreshTrigger.STARTUP)
+        if (!sessionStartupRefreshRequested) {
+            sessionStartupRefreshRequested = true
+            viewModel.refreshSession(SessionRefreshTrigger.STARTUP)
+        }
     }
 
     LaunchedEffect(viewModel) {
@@ -357,6 +361,7 @@ fun ReguertaRoot(
             ) {
                 when (shellState.currentRoute) {
                     AuthShellRoute.SPLASH -> SplashRoute(
+                        animationFinished = splashAnimationFinished,
                         onAnimationFinished = {
                             splashAnimationFinished = true
                         },
@@ -446,7 +451,7 @@ fun ReguertaRoot(
                             startupGateState = StartupGateUiState.Ready
                         },
                         onRetry = {
-                            startupGateRetryGeneration += 1
+                            rootStateViewModel.retryStartupGate()
                         },
                         onContinue = {
                             startupGateState = StartupGateUiState.Ready

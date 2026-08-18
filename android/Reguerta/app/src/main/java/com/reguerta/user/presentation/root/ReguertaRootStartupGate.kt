@@ -14,10 +14,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -39,13 +37,19 @@ import kotlin.time.Duration
 private const val SplashAnimationDurationMillis = 1_500
 @Composable
 internal fun SplashRoute(
+    animationFinished: Boolean,
     onAnimationFinished: () -> Unit,
 ) {
-    val progress = remember { Animatable(0f) }
-    var completed by remember { mutableStateOf(false) }
+    val progress = remember(animationFinished) {
+        Animatable(if (animationFinished) 1f else 0f)
+    }
     val latestOnAnimationFinished by rememberUpdatedState(onAnimationFinished)
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(animationFinished) {
+        if (animationFinished) {
+            progress.snapTo(1f)
+            return@LaunchedEffect
+        }
         progress.snapTo(0f)
         progress.animateTo(
             targetValue = 1f,
@@ -54,10 +58,7 @@ internal fun SplashRoute(
                 easing = FastOutSlowInEasing,
             ),
         )
-        if (!completed) {
-            completed = true
-            latestOnAnimationFinished()
-        }
+        latestOnAnimationFinished()
     }
 
     val fraction = progress.value

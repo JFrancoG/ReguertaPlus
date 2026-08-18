@@ -132,6 +132,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.rules)
     androidTestImplementation(libs.androidx.espresso.core)
     // Instrumented tests have a separate graph; resolving the provider also avoids a false duplicate warning.
     androidTestImplementation(platform(libs.androidx.compose.bom.get()))

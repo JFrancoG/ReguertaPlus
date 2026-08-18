@@ -1,9 +1,8 @@
 package com.reguerta.user.presentation.root
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
+import android.content.Context
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -39,109 +38,73 @@ import com.reguerta.user.domain.access.UpsertMemberByAdminUseCase
 import com.reguerta.user.domain.bylaws.BylawsEvidenceRetriever
 import com.reguerta.user.domain.freshness.ResolveCriticalDataFreshnessUseCase
 
-@Composable
-fun rememberSessionViewModel(): SessionViewModel {
-    val context = LocalContext.current
-    DevelopmentTimeMachine.initialize(context.applicationContext)
-    val firestore = remember { FirebaseFirestore.getInstance() }
-    val auth = remember { FirebaseAuth.getInstance() }
-    val firebaseApp = remember { FirebaseApp.getInstance() }
-    val repository = remember {
-        FirestoreMemberRepository(firestore = firestore)
-    }
-    val newsRepository = remember {
-        FirestoreNewsRepository(firestore = firestore)
-    }
-    val notificationRepository = remember {
-        FirestoreNotificationRepository(firestore = firestore)
-    }
-    val sharedProfileRepository = remember {
-        FirestoreSharedProfileRepository(firestore = firestore)
-    }
-    val productRepository = remember {
-        FirestoreProductRepository(firestore = firestore)
-    }
-    val seasonalCommitmentRepository = remember {
-        FirestoreSeasonalCommitmentRepository(firestore = firestore)
-    }
-    val shiftRepository = remember {
-        FirestoreShiftRepository(firestore = firestore)
-    }
-    val deliveryCalendarRepository = remember {
-        FirestoreDeliveryCalendarRepository(firestore = firestore)
-    }
-    val shiftPlanningRequestRepository = remember {
-        FirestoreShiftPlanningRequestRepository(firestore = firestore)
-    }
-    val freshnessLocalRepository = remember(context) {
-        DataStoreCriticalDataFreshnessLocalRepository(context.applicationContext)
-    }
-    val deviceRegistrationRepository = remember {
-        FirestoreDeviceRegistrationRepository(firestore = firestore)
-    }
-    val authorizedDeviceRegistrar = remember(context.applicationContext) {
-        FirebaseAuthorizedDeviceRegistrar(
-            context = context.applicationContext,
+class SessionViewModelFactory(
+    context: Context,
+) : ViewModelProvider.Factory {
+    private val applicationContext = context.applicationContext
+
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (!modelClass.isAssignableFrom(SessionViewModel::class.java)) {
+            throw IllegalArgumentException("Unknown ViewModel class ${modelClass.name}")
+        }
+
+        DevelopmentTimeMachine.initialize(applicationContext)
+        val firestore = FirebaseFirestore.getInstance()
+        val auth = FirebaseAuth.getInstance()
+        val firebaseApp = FirebaseApp.getInstance()
+        val repository = FirestoreMemberRepository(firestore = firestore)
+        val newsRepository = FirestoreNewsRepository(firestore = firestore)
+        val notificationRepository = FirestoreNotificationRepository(firestore = firestore)
+        val sharedProfileRepository = FirestoreSharedProfileRepository(firestore = firestore)
+        val productRepository = FirestoreProductRepository(firestore = firestore)
+        val seasonalCommitmentRepository = FirestoreSeasonalCommitmentRepository(firestore = firestore)
+        val shiftRepository = FirestoreShiftRepository(firestore = firestore)
+        val deliveryCalendarRepository = FirestoreDeliveryCalendarRepository(firestore = firestore)
+        val shiftPlanningRequestRepository = FirestoreShiftPlanningRequestRepository(firestore = firestore)
+        val freshnessLocalRepository = DataStoreCriticalDataFreshnessLocalRepository(applicationContext)
+        val deviceRegistrationRepository = FirestoreDeviceRegistrationRepository(firestore = firestore)
+        val authorizedDeviceRegistrar = FirebaseAuthorizedDeviceRegistrar(
+            context = applicationContext,
             repository = deviceRegistrationRepository,
         )
-    }
-    val pushNotificationPermissionProvider = remember(context.applicationContext) {
-        AndroidPushNotificationPermissionProvider(context = context.applicationContext)
-    }
-    val sessionEnvironmentRouter = remember {
-        RuntimeSessionEnvironmentRouter()
-    }
-    val authenticatedFunctionsClient = remember(auth, firebaseApp) {
-        AuthenticatedFirebaseFunctionsClient.create(auth = auth, firebaseApp = firebaseApp)
-    }
-    val shiftSwapTransitionClient = remember(authenticatedFunctionsClient) {
-        FirebaseShiftSwapTransitionClient(
+        val pushNotificationPermissionProvider = AndroidPushNotificationPermissionProvider(context = applicationContext)
+        val sessionEnvironmentRouter = RuntimeSessionEnvironmentRouter()
+        val authenticatedFunctionsClient = AuthenticatedFirebaseFunctionsClient.create(
+            auth = auth,
+            firebaseApp = firebaseApp,
+        )
+        val shiftSwapTransitionClient = FirebaseShiftSwapTransitionClient(
             functionCaller = authenticatedFunctionsClient,
             requestedEnvironment = {
                 ReguertaRuntimeEnvironment.currentFirestoreEnvironment().wireValue
             },
         )
-    }
-    val shiftSwapRequestRepository = remember(firestore, shiftSwapTransitionClient) {
-        FirestoreShiftSwapRequestRepository(
+        val shiftSwapRequestRepository = FirestoreShiftSwapRequestRepository(
             firestore = firestore,
             transitionClient = shiftSwapTransitionClient,
         )
-    }
-    val authorizedMemberResolver = remember(authenticatedFunctionsClient) {
-        FirebaseAuthorizedMemberResolver(
+        val authorizedMemberResolver = FirebaseAuthorizedMemberResolver(
             functionCaller = authenticatedFunctionsClient,
             requestedEnvironment = {
                 ReguertaRuntimeEnvironment.currentFirestoreEnvironment().wireValue
             },
         )
-    }
-    val memberAdministrationRepository = remember(authenticatedFunctionsClient) {
-        FirebaseMemberAdministrationRepository(
+        val memberAdministrationRepository = FirebaseMemberAdministrationRepository(
             functionCaller = authenticatedFunctionsClient,
             requestedEnvironment = {
                 ReguertaRuntimeEnvironment.currentFirestoreEnvironment().wireValue
             },
         )
-    }
-    val bylawsKnowledgeSource = remember(context.applicationContext) {
-        AssetBylawsKnowledgeSource(appContext = context.applicationContext)
-    }
-    val bylawsEvidenceRetriever = remember { BylawsEvidenceRetriever() }
-    val bylawsOnDeviceAssistant = remember {
-        createPlatformBylawsOnDeviceAssistant()
-    }
-    DisposableEffect(bylawsOnDeviceAssistant) {
-        onDispose { bylawsOnDeviceAssistant.close() }
-    }
-    val imagePipelineManager = remember(context.applicationContext) {
-        FirebaseImagePipelineManager(
-            context = context.applicationContext,
+        val bylawsKnowledgeSource = AssetBylawsKnowledgeSource(appContext = applicationContext)
+        val bylawsEvidenceRetriever = BylawsEvidenceRetriever()
+        val bylawsOnDeviceAssistant = createPlatformBylawsOnDeviceAssistant()
+        val imagePipelineManager = FirebaseImagePipelineManager(
+            context = applicationContext,
             storage = FirebaseStorage.getInstance(),
         )
-    }
-    return remember {
-        SessionViewModel(
+
+        return SessionViewModel(
             repository = repository,
             newsRepository = newsRepository,
             notificationRepository = notificationRepository,
@@ -181,6 +144,6 @@ fun rememberSessionViewModel(): SessionViewModel {
             },
             developImpersonationEnabled = false,
             initialNowOverrideMillis = DevelopmentTimeMachine.overrideNowMillis(),
-        )
+        ) as T
     }
 }

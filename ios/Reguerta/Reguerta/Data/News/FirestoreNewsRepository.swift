@@ -52,7 +52,6 @@ final class FirestoreNewsRepository: @unchecked Sendable, NewsRepository {
             body: article.body,
             active: article.active,
             publishedBy: article.publishedBy,
-            publishedByUserId: article.publishedByUserId,
             publishedAtMillis: article.publishedAtMillis,
             urlImage: article.urlImage
         )
@@ -63,7 +62,6 @@ final class FirestoreNewsRepository: @unchecked Sendable, NewsRepository {
                 "body": persisted.body,
                 "active": persisted.active,
                 "publishedBy": persisted.publishedBy,
-                "publishedByUserId": persisted.publishedByUserId as Any,
                 "publishedAt": Timestamp(
                     date: Date(timeIntervalSince1970: TimeInterval(persisted.publishedAtMillis) / 1_000)
                 ),
@@ -103,7 +101,6 @@ private struct FirestoreNewsDocumentDTO {
     let title: String
     let body: String
     let publishedBy: String
-    let publishedByUserID: String
     let publishedAtMillis: Int64
     let active: Bool
     let imageURL: String?
@@ -122,7 +119,6 @@ private enum FirestoreNewsDocumentDecoder {
             title: requiredString(data, field: "title", resource: resource),
             body: requiredString(data, field: "body", resource: resource),
             publishedBy: requiredString(data, field: "publishedBy", resource: resource),
-            publishedByUserID: requiredString(data, field: "publishedByUserId", resource: resource),
             publishedAtMillis: requiredTimestampMillis(data, field: "publishedAt", resource: resource),
             active: requiredBool(data, field: "active", resource: resource),
             imageURL: optionalString(data, field: "urlImage", resource: resource)
@@ -171,7 +167,6 @@ private enum FirestoreNewsDocumentMapper {
             body: dto.body,
             active: dto.active,
             publishedBy: dto.publishedBy,
-            publishedByUserId: dto.publishedByUserID,
             publishedAtMillis: dto.publishedAtMillis,
             urlImage: dto.imageURL
         )
