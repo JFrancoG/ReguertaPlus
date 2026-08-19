@@ -156,6 +156,7 @@ All notable changes to this project will be documented in this file.
 
 ### Tests
 
+- 2026-08-19 | ✅ test(ios): add reproducible validation lanes
 - 2026-07-27 | ✅ test(ios): harden home news regression
 
 ### Documentation

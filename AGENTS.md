@@ -72,8 +72,16 @@ Run the relevant checks for touched areas:
   - `./gradlew app:lintDebug`
   - `./gradlew app:connectedDebugAndroidTest` (when device/emulator is available or UI behavior changed)
 - iOS (`/ios/Reguerta`):
-  - `xcodebuild -project Reguerta.xcodeproj -scheme Reguerta -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17' test`
-  - If simulator name is unavailable, use any valid local simulator and report which one was used.
+  - Canonical full gate: `./scripts/validate-ios.sh release-gate --destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5'`
+  - During implementation, use the focused `fast-unit` lane and add `ui-smoke`
+    when auth, shell, navigation, or UI behavior is affected.
+  - If that simulator is unavailable, use another iOS 26 simulator. Pass an
+    exact device ID or both name and OS version, and report the destination.
+  - Xcode and the repository runner must both resolve the pinned SwiftLint
+    version through `PATH`. On Apple Silicon, when Homebrew installs SwiftLint
+    under `/opt/homebrew/bin`, expose that existing binary through a verified
+    `/usr/local/bin/swiftlint` symbolic link as documented in `README.md`; do
+    not hard-code a Homebrew prefix in the project or runner.
 - Functions (`/functions`):
   - `npm run lint`
   - `npm run build`

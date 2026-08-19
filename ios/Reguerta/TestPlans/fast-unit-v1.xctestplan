@@ -1,0 +1,31 @@
+{
+  "configurations" : [
+    {
+      "id" : "C462D7AA-2DA5-4204-A4BA-A1DEC614776B",
+      "name" : "Default",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : false,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:Reguerta.xcodeproj",
+      "identifier" : "E03FA0412F353C1A0038B8EB",
+      "name" : "Reguerta"
+    },
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:Reguerta.xcodeproj",
+        "identifier" : "E03FA04E2F353C1B0038B8EB",
+        "name" : "ReguertaTests"
+      }
+    }
+  ],
+  "version" : 1
+}

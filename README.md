@@ -91,7 +91,58 @@ Android (`android/Reguerta`):
 
 iOS (`ios/Reguerta`):
 ```bash
-xcodebuild -project Reguerta.xcodeproj -scheme Reguerta -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16' test
+./scripts/validate-ios.sh fast-unit \
+  --destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5'
+./scripts/validate-ios.sh ui-smoke \
+  --destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5'
+./scripts/validate-ios.sh release-gate \
+  --destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5'
+```
+
+The `Reguerta` scheme is the validation authority. Its versioned plans are
+`fast-unit-v1`, `ui-smoke-v1`, and `release-gate-v1`; the Develop and Production
+schemes retain their environment/launch roles. Tests run in Debug because the
+unit target uses `@testable`; the release lane performs a separate Production
+Release build before running the complete Debug test plan. The release runner
+prints logical pass/skip/fail counts and retains its temporary `.xcresult`
+outside the repository for diagnosis.
+
+SwiftLint and effective Swift settings can also be checked independently:
+
+```bash
+./scripts/run-swiftlint.sh
+./scripts/verify-swift-settings.sh
+```
+
+### SwiftLint from Xcode on Apple Silicon
+
+The repository requires SwiftLint 0.61.0. Xcode build phases do not always
+inherit the interactive shell `PATH`, so an Apple Silicon Homebrew install at
+`/opt/homebrew/bin/swiftlint` may work in Terminal but remain invisible to
+Xcode. Keep project files independent of Homebrew installation prefixes and
+expose the existing binary through a directory already present in Xcode's
+`PATH`:
+
+```bash
+brew install swiftlint
+ls -l /usr/local/bin/swiftlint
+sudo mkdir -p /usr/local/bin
+sudo ln -s /opt/homebrew/bin/swiftlint /usr/local/bin/swiftlint
+/usr/local/bin/swiftlint version
+```
+
+Create the link only when `/usr/local/bin/swiftlint` does not already exist;
+otherwise inspect the existing file or link before changing it. The final
+command must print `0.61.0`. This is a one-time host setup: neither the Xcode
+phase nor the repository runner may hard-code a Homebrew installation prefix.
+Cleaning the build folder does not repair a missing executable on `PATH`.
+
+Capture the coverage trend with a new result-bundle path:
+
+```bash
+./scripts/validate-ios.sh coverage \
+  --destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' \
+  --result-bundle-path /tmp/reguerta-fast-unit-coverage.xcresult
 ```
 
 Functions (`functions`):

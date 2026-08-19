@@ -1,0 +1,39 @@
+{
+  "configurations" : [
+    {
+      "id" : "091A891F-9830-49E6-AC46-C023CC5A9094",
+      "name" : "Default",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : false,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:Reguerta.xcodeproj",
+      "identifier" : "E03FA0412F353C1A0038B8EB",
+      "name" : "Reguerta"
+    },
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:Reguerta.xcodeproj",
+        "identifier" : "E03FA04E2F353C1B0038B8EB",
+        "name" : "ReguertaTests"
+      }
+    },
+    {
+      "parallelizable" : false,
+      "target" : {
+        "containerPath" : "container:Reguerta.xcodeproj",
+        "identifier" : "E03FA0582F353C1B0038B8EB",
+        "name" : "ReguertaUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

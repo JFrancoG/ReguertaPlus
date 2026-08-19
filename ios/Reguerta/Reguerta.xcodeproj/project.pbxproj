@@ -34,6 +34,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		E0B200012FC000010038B8EB /* fast-unit-v1.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = "fast-unit-v1.xctestplan"; sourceTree = "<group>"; };
+		E0B200022FC000010038B8EB /* ui-smoke-v1.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = "ui-smoke-v1.xctestplan"; sourceTree = "<group>"; };
+		E0B200032FC000010038B8EB /* release-gate-v1.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = "release-gate-v1.xctestplan"; sourceTree = "<group>"; };
 		E03FA0422F353C1A0038B8EB /* Reguerta.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Reguerta.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E03FA04F2F353C1B0038B8EB /* ReguertaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ReguertaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E03FA0592F353C1B0038B8EB /* ReguertaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ReguertaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -108,8 +111,19 @@
 				E03FA0442F353C1A0038B8EB /* Reguerta */,
 				E03FA0522F353C1B0038B8EB /* ReguertaTests */,
 				E03FA05C2F353C1B0038B8EB /* ReguertaUITests */,
+				E0B200042FC000010038B8EB /* TestPlans */,
 				E03FA0432F353C1A0038B8EB /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		E0B200042FC000010038B8EB /* TestPlans */ = {
+			isa = PBXGroup;
+			children = (
+				E0B200012FC000010038B8EB /* fast-unit-v1.xctestplan */,
+				E0B200022FC000010038B8EB /* ui-smoke-v1.xctestplan */,
+				E0B200032FC000010038B8EB /* release-gate-v1.xctestplan */,
+			);
+			path = TestPlans;
 			sourceTree = "<group>";
 		};
 		E03FA0432F353C1A0038B8EB /* Products */ = {
@@ -285,6 +299,8 @@
 			);
 			inputPaths = (
 				"$(SRCROOT)/.swiftlint.yml",
+				"$(SRCROOT)/.swiftlint-version",
+				"$(SRCROOT)/scripts/run-swiftlint.sh",
 				"$(SRCROOT)/Reguerta",
 				"$(SRCROOT)/ReguertaTests",
 				"$(SRCROOT)/ReguertaUITests",
@@ -296,7 +312,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "SWIFTLINT_BIN=\"/opt/homebrew/bin/swiftlint\"\nif [ ! -x \"${SWIFTLINT_BIN}\" ]; then\n  SWIFTLINT_BIN=\"/usr/local/bin/swiftlint\"\nfi\n\nif [ -x \"${SWIFTLINT_BIN}\" ]; then\n  cd \"${SRCROOT}\" || exit 1\n  \"${SWIFTLINT_BIN}\" lint --config \"${SRCROOT}/.swiftlint.yml\" --reporter xcode\nelse\n  echo \"warning: SwiftLint not installed. Install via Homebrew: brew install swiftlint\"\nfi\n";
+			shellScript = "\"${SRCROOT}/scripts/run-swiftlint.sh\"\n";
 		};
 		E0F1B0012FE512340038B8EB /* Select Firebase Configuration */ = {
 			isa = PBXShellScriptBuildPhase;

@@ -61,7 +61,20 @@ This document is the technical stack source of truth for Reguerta.
 ## Testing and Validation Tooling
 
 - Android: Gradle (`test`, `lint`, instrumentation as needed)
-- iOS: Xcodebuild test on simulator
+- iOS: `Reguerta` is the canonical Xcode scheme with versioned
+  `fast-unit-v1`, `ui-smoke-v1`, and `release-gate-v1` plans
+- iOS validation entrypoint: `scripts/validate-ios.sh`, with an explicit iOS 26
+  simulator destination; Develop and Production remain environment aliases
+- iOS lint: SwiftLint 0.61.0 is repository-pinned, resolved from `PATH`, and run
+  in strict/no-cache mode by both the repository runner and the Xcode phase
+- iOS lint host setup: Xcode may omit Apple Silicon Homebrew's
+  `/opt/homebrew/bin` from build-phase `PATH`; the one-time supported setup is
+  a verified `/usr/local/bin/swiftlint` symbolic link to the installed binary,
+  while project files remain independent of Homebrew prefixes
+- iOS settings: `scripts/verify-swift-settings.sh` checks the three targets in
+  Debug and Release against the Swift 6/nonisolated contract
+- iOS coverage: recorded from `fast-unit-v1` result bundles as a trend without
+  a threshold; performance tests remain uninstrumented
 - Functions: `npm run lint` and `npm run build`
 
 ## Notes
