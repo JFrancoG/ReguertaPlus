@@ -40,8 +40,8 @@ Este documento es la fuente de verdad del stack tecnico de Reguerta.
   módulos iOS propios, heredado desde una única autoridad a nivel de proyecto
 - Estado de la migración de aislamiento: implementada y validada localmente por
   HU-074 bajo ADR-0011; los targets de app, tests unitarios y tests de UI
-  heredan la política de proyecto, y la publicación de la rama está autorizada
-  mediante la issue #249 mientras la integración sigue siendo un gate separado
+  heredan la política de proyecto. El commit `a26768e` está publicado en la
+  rama HU-074; la integración sigue siendo un gate separado en la issue #249
 - Propiedad de actores: los modelos observables de UI y Stores declaran
   `@MainActor` explícitamente; Domain y Data permanecen neutrales por defecto y
   el estado mutable de infraestructura tiene un único propietario explícito

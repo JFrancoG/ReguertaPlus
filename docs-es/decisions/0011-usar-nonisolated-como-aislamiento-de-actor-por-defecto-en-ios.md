@@ -15,8 +15,9 @@ centralizado a nivel de proyecto y lo heredan los targets de app, tests
 unitarios y tests de UI. Debug, Release, el gate focalizado de 33 tests y el
 gate estándar completo de 497 tests están verdes sin escapes inseguros de
 migración. El 2026-08-19 el mantenedor autorizó commit, push, cierre de la fase
-1 y arranque de la fase 2. Pull request, merge, cierre de la issue y borrado de
-ramas permanecen como gates de entrega separados.
+1 y arranque de la fase 2. La implementación atómica está publicada como commit
+`a26768e` en la rama HU-074. Pull request, merge, cierre de la issue y borrado
+de ramas permanecen como gates de entrega separados.
 
 ## Contexto
 

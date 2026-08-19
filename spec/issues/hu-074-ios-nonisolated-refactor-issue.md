@@ -91,12 +91,13 @@ Phase 2 implementation inside HU-074.
 
 ## Current gate
 
-Phase 0 and Phase 1 are complete and validated locally; commit, push, and
-technical Phase 1 closure are now authorized. The
+Phase 0 and Phase 1 are complete, validated, and published as commit `a26768e`
+on `origin/codex/hu-074-ios-nonisolated-refactor`. The
 setting is centralized, every compiler diagnostic is resolved by ownership,
 Debug and Release build, the focused gate passes 33/33, and the standard gate
 passes 496 with 1 skip and 0 failures out of 497 logical tests on iPhone 17
 with iOS 26.5. Package pins are unchanged, no unsafe escape was added, all
-independent reviews are clear, and Android impact is none. Commit, push, and
-the separate Phase 2 bootstrap are in progress; pull request, merge, issue
-closure, and branch deletion remain unauthorized.
+independent reviews are clear, and Android impact is none. Local/upstream
+ahead/behind is `0/0`; the separate Phase 2 bootstrap starts from this commit.
+Pull request, merge, issue closure, and branch deletion remain unauthorized,
+so issue #249 stays open.

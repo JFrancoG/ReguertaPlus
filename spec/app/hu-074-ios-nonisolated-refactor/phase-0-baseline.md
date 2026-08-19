@@ -290,3 +290,9 @@ Phase 1 is complete and validated locally. On 2026-08-19 the maintainer
 authorized commit, push, closure of Phase 1, and startup of a separate Phase 2
 story. Pull request, merge, issue closure, branch deletion, and folding Phase 2
 implementation into HU-074 remain outside that authorization.
+
+The atomic cut was published as commit `a26768e` on
+`origin/codex/hu-074-ios-nonisolated-refactor`. The local branch and upstream
+both resolve to `a26768ef8c13c84504f472934d2af7910f9fe4fd` with ahead/behind
+`0/0`. This closes Phase 1 technically while issue #249 remains open for the
+separately authorized integration gate.

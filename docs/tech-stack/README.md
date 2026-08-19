@@ -39,8 +39,8 @@ This document is the technical stack source of truth for Reguerta.
   module, inherited from one project-level authority
 - Actor-isolation migration status: implemented and validated locally by
   HU-074 under ADR-0011; the app, unit-test, and UI-test targets inherit the
-  project-level policy, and branch publication is authorized through issue
-  #249 while integration remains a separate gate
+  project-level policy. Commit `a26768e` is published on the HU-074 branch;
+  integration remains a separate gate tracked by issue #249
 - Actor ownership: observable UI models and Stores declare `@MainActor`
   explicitly; Domain and Data remain actor-neutral by default and mutable
   infrastructure has one explicit owner

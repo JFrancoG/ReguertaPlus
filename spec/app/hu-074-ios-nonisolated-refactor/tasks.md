@@ -93,8 +93,9 @@ branch deletion remain separate delivery gates.
 
 - [x] Obtain explicit authorization for commit, push, technical Phase 1
   closure, and the separate Phase 2 bootstrap.
-- [ ] Commit and push the atomic Phase 1 cut.
-- [ ] Record the definitive branch commit and push evidence.
+- [x] Commit and push the atomic Phase 1 cut as `a26768e` on
+  `origin/codex/hu-074-ios-nonisolated-refactor`.
+- [x] Record the definitive branch commit and push evidence.
 - [ ] Deliver it to `main` through a linked pull request and close issue #249
   only after separate authorization.
 

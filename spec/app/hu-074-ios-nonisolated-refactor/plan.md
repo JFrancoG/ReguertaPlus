@@ -76,7 +76,7 @@ Exit gate:
 - English/Spanish decisions remain aligned and `git diff --check` passes.
 - The branch contains no unrelated change and no commit/push has been implied.
 
-### Phase 1 - Atomic adoption and compilation recovery (commit and push authorized)
+### Phase 1 - Atomic adoption and compilation recovery (complete and published)
 
 Initial files and clusters are deliberately bounded to configuration and
 compiler-exposed ownership:

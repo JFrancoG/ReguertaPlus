@@ -15,7 +15,8 @@ centralized at the project level and inherited by the app, unit-test, and
 UI-test targets. Debug, Release, the 33-test ownership gate, and the complete
 497-test standard gate are green without unsafe migration escapes. The
 maintainer authorized commit, push, Phase 1 closure, and Phase 2 startup on
-2026-08-19. Pull request, merge, issue closure, and branch deletion remain
+2026-08-19. The atomic implementation is published as commit `a26768e` on the
+HU-074 branch. Pull request, merge, issue closure, and branch deletion remain
 separate delivery gates.
 
 ## Context

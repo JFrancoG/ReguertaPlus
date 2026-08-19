@@ -5,7 +5,7 @@
 - issue_id: #249
 - priority: P1
 - platform: ios
-- status: in-progress
+- status: ready_for_merge
 
 ## Authorization and delivery boundary
 
@@ -201,3 +201,15 @@ concurrency errors or changing established behavior.
 - [x] English and Spanish decision/stack documentation remains aligned.
 - [x] Android parity impact is recorded as none.
 - [x] Issue #249 contains the final evidence for the authorized delivery step.
+
+## Branch publication evidence
+
+- Atomic implementation commit: `a26768e` (`♻️ refactor(ios): adopt
+  nonisolated isolation`).
+- Published branch: `origin/codex/hu-074-ios-nonisolated-refactor`.
+- Local `HEAD` and its upstream resolve to
+  `a26768ef8c13c84504f472934d2af7910f9fe4fd`; ahead/behind is `0/0`.
+- GitHub issue #249 remains open because pull request, merge, and issue closure
+  were not authorized by the branch-publication instruction.
+- Phase 1 is technically complete and published. Phase 2 starts as a separate,
+  explicitly stacked HU while integration remains pending.
