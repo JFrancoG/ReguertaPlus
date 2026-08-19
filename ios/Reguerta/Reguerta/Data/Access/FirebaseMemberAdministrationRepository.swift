@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated private struct UpsertMemberByAdminRequest: Encodable {
+private struct UpsertMemberByAdminRequest: Encodable {
     let environment: SessionEnvironment
     let memberId: String
     let displayName: String
@@ -49,7 +49,7 @@ nonisolated private struct UpsertMemberByAdminRequest: Encodable {
     }
 }
 
-nonisolated private struct UpsertMemberByAdminResponse: Codable {
+private struct UpsertMemberByAdminResponse: Codable {
     let ok: Bool
     let memberId: String
     let roles: [MemberRole]
@@ -60,16 +60,14 @@ nonisolated private struct UpsertMemberByAdminResponse: Codable {
 @MainActor
 struct FirebaseMemberAdministrationRepository: MemberAdministrationRepository {
     private let storedClient: AuthenticatedFirebaseFunctionsClient
-    private let environmentProvider: @MainActor @Sendable () -> SessionEnvironment
 
-    func upsertMember(_ member: Member) async throws -> Member {
-        let requestedEnvironment = await environmentProvider()
+    func upsertMember(_ member: Member, environment: SessionEnvironment) async throws -> Member {
         let response: UpsertMemberByAdminResponse
         do {
             response = try await storedClient.post(
                 function: .upsertMemberByAdmin,
                 body: UpsertMemberByAdminRequest(
-                    environment: requestedEnvironment,
+                    environment: environment,
                     memberId: member.id,
                     displayName: member.displayName,
                     companyName: member.companyName,
@@ -85,6 +83,8 @@ struct FirebaseMemberAdministrationRepository: MemberAdministrationRepository {
                 ),
                 response: UpsertMemberByAdminResponse.self
             )
+        } catch FirebaseFunctionClientError.cancelled {
+            throw CancellationError()
         } catch FirebaseFunctionClientError.unauthorized,
                 FirebaseFunctionClientError.forbidden {
             throw MemberManagementError.accessDenied
@@ -95,7 +95,7 @@ struct FirebaseMemberAdministrationRepository: MemberAdministrationRepository {
             throw MemberManagementError.conflict(code: code)
         }
         guard response.ok,
-              response.environment == requestedEnvironment,
+              response.environment == environment,
               response.memberId == member.id,
               Set(response.roles) == member.roles,
               response.isActive == member.isActive else {
@@ -106,13 +106,7 @@ struct FirebaseMemberAdministrationRepository: MemberAdministrationRepository {
 }
 
 extension FirebaseMemberAdministrationRepository {
-    init(
-        client: AuthenticatedFirebaseFunctionsClient,
-        environmentProvider: @escaping @MainActor @Sendable () -> SessionEnvironment = {
-            ReguertaRuntimeEnvironment.currentFirestoreEnvironment
-        }
-    ) {
+    init(client: AuthenticatedFirebaseFunctionsClient) {
         self.storedClient = client
-        self.environmentProvider = environmentProvider
     }
 }

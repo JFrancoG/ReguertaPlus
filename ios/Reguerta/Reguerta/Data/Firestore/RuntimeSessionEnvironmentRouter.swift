@@ -1,84 +1,70 @@
 import Foundation
 
-struct RuntimeSessionEnvironmentRouter: SessionEnvironmentRouting {
-    private let storedTransitionSignal: SessionEnvironmentRoutingSignal
+@MainActor
+final class RuntimeSessionEnvironmentRouter: SessionEnvironmentRouting {
+    let environmentStore: RuntimeSessionEnvironmentStore
 
-    var transitionSignal: SessionEnvironmentRoutingSignal { storedTransitionSignal }
-
-    var baseEnvironment: SessionEnvironment {
-        ReguertaRuntimeEnvironment.baseFirestoreEnvironment
+    init(environmentStore: RuntimeSessionEnvironmentStore = RuntimeSessionEnvironmentStore()) {
+        self.environmentStore = environmentStore
     }
 
+    var baseEnvironment: SessionEnvironment { environmentStore.baseEnvironment }
+    var environmentSnapshotProvider: any SessionEnvironmentSnapshotProviding { environmentStore }
+    var transitionSignal: SessionEnvironmentRoutingSignal { environmentStore.transitionSignal }
+
     func applyResolvedEnvironment(_ environment: SessionEnvironment, lease: SessionEnvironmentLease) {
-        ReguertaRuntimeEnvironment.applySessionEnvironment(environment, lease: lease)
-        storedTransitionSignal.publish(
-            environment: ReguertaRuntimeEnvironment.currentFirestoreEnvironment
-        )
+        let snapshot = environmentStore.apply(environment, lease: lease)
+        transitionSignal.publish(environment: snapshot.environment)
     }
 
     func resetToBaseEnvironment(ifOwnedBy lease: SessionEnvironmentLease) {
-        ReguertaRuntimeEnvironment.resetToBaseEnvironment(ifOwnedBy: lease)
-        storedTransitionSignal.publish(
-            environment: ReguertaRuntimeEnvironment.currentFirestoreEnvironment
-        )
+        guard let snapshot = environmentStore.reset(ifOwnedBy: lease) else { return }
+        transitionSignal.publish(environment: snapshot.environment)
     }
 
     func resetToBaseEnvironment() {
-        ReguertaRuntimeEnvironment.resetToBaseEnvironment()
-        storedTransitionSignal.publish(
-            environment: ReguertaRuntimeEnvironment.currentFirestoreEnvironment
-        )
+        let snapshot = environmentStore.reset()
+        transitionSignal.publish(environment: snapshot.environment)
     }
 }
 
 struct FixedSessionEnvironmentRouter: SessionEnvironmentRouting {
-    let baseEnvironment: SessionEnvironment
-    let transitionSignal: SessionEnvironmentRoutingSignal
-    private let state: FixedSessionEnvironmentRouterState
+    private let environmentStore: RuntimeSessionEnvironmentStore
     private let onApply: @MainActor @Sendable (SessionEnvironment) -> Void
     private let onReset: @MainActor @Sendable () -> Void
 
+    var baseEnvironment: SessionEnvironment { environmentStore.baseEnvironment }
+    var environmentSnapshotProvider: any SessionEnvironmentSnapshotProviding { environmentStore }
+    var transitionSignal: SessionEnvironmentRoutingSignal { environmentStore.transitionSignal }
+
     func applyResolvedEnvironment(_ environment: SessionEnvironment, lease: SessionEnvironmentLease) {
-        state.activeLease = lease
+        let snapshot = environmentStore.apply(environment, lease: lease)
         onApply(environment)
-        transitionSignal.publish(environment: environment)
+        transitionSignal.publish(environment: snapshot.environment)
     }
 
     func resetToBaseEnvironment(ifOwnedBy lease: SessionEnvironmentLease) {
-        guard state.activeLease == lease else { return }
-        resetToBaseEnvironment()
+        guard let snapshot = environmentStore.reset(ifOwnedBy: lease) else { return }
+        onReset()
+        transitionSignal.publish(environment: snapshot.environment)
     }
 
     func resetToBaseEnvironment() {
-        state.activeLease = nil
+        let snapshot = environmentStore.reset()
         onReset()
-        transitionSignal.publish(environment: baseEnvironment)
-    }
-}
-
-extension RuntimeSessionEnvironmentRouter {
-    init(transitionSignal: SessionEnvironmentRoutingSignal? = nil) {
-        self.storedTransitionSignal = transitionSignal ?? SessionEnvironmentRoutingSignal(
-            environment: ReguertaRuntimeEnvironment.currentFirestoreEnvironment
-        )
+        transitionSignal.publish(environment: snapshot.environment)
     }
 }
 
 extension FixedSessionEnvironmentRouter {
+    @MainActor
     init(
         baseEnvironment: SessionEnvironment = .develop,
         onApply: @escaping @MainActor @Sendable (SessionEnvironment) -> Void = { _ in },
         onReset: @escaping @MainActor @Sendable () -> Void = {}
     ) {
-        self.baseEnvironment = baseEnvironment
-        self.transitionSignal = SessionEnvironmentRoutingSignal(environment: baseEnvironment)
-        self.state = FixedSessionEnvironmentRouterState()
+        self.environmentStore = RuntimeSessionEnvironmentStore(baseEnvironment: baseEnvironment)
         self.onApply = onApply
         self.onReset = onReset
     }
-}
-
-@MainActor
-private final class FixedSessionEnvironmentRouterState {
-    var activeLease: SessionEnvironmentLease?
 }

@@ -2,13 +2,25 @@ import Foundation
 
 extension UsersFeatureViewModel {
     var authorizedSessionContext: SessionContext? {
-        guard let currentSession else { return nil }
+        guard let currentSession,
+              currentSession.representsActiveAuthorization,
+              case .authorized(let liveSession) = sessionViewModel.mode,
+              liveSession.representsActiveAuthorization else { return nil }
+        let currentSignature = authorizationSignature(for: currentSession)
+        let liveSignature = authorizationSignature(for: liveSession)
+        guard currentSignature == liveSignature else { return nil }
         return SessionContext(session: currentSession, generation: sessionIdentityEpoch)
     }
 
     func isCurrentSession(_ context: SessionContext) -> Bool {
-        guard let currentSession else { return false }
-        return authorizationSignature(for: currentSession) == authorizationSignature(for: context.session) &&
+        guard context.session.representsActiveAuthorization,
+              let currentSession,
+              currentSession.representsActiveAuthorization,
+              case .authorized(let liveSession) = sessionViewModel.mode,
+              liveSession.representsActiveAuthorization else { return false }
+        let expectedSignature = authorizationSignature(for: context.session)
+        return authorizationSignature(for: currentSession) == expectedSignature &&
+            authorizationSignature(for: liveSession) == expectedSignature &&
             sessionIdentityEpoch == context.generation
     }
 
@@ -127,6 +139,7 @@ extension UsersFeatureViewModel {
 
     func authorizationSignature(for session: AuthorizedSession) -> SessionAuthorizationSignature {
         SessionAuthorizationSignature(
+            environment: session.environment,
             principalUid: session.principal.uid,
             authenticatedMemberId: session.authenticatedMember.id,
             authenticatedMemberAuthUid: session.authenticatedMember.authUid,
@@ -147,6 +160,7 @@ extension UsersFeatureViewModel {
     }
 
     struct SessionAuthorizationSignature: Equatable {
+        let environment: SessionEnvironment
         let principalUid: String
         let authenticatedMemberId: String
         let authenticatedMemberAuthUid: String?

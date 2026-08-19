@@ -78,7 +78,7 @@ struct ReguertaRootDependencyTests {
         let repository = ControlledStartupVersionPolicyRepository()
         let sleeper = ControlledStartupGateSleeper()
         let rootViewModel = makeRootViewModel(
-            startupVersionGateUseCase: ResolveStartupVersionGateUseCase(repository: repository),
+            startupVersionGateUseCase: ResolveStartupVersionGateUseCase(repository: repository, environment: .develop),
             startupGateSleeper: { duration in
                 try await sleeper.sleep(for: duration)
             }
@@ -238,8 +238,10 @@ struct ReguertaRootDependencyTests {
     ) -> AccessRootViewModel {
         AccessRootViewModel(
             sessionViewModel: SessionViewModel(dependencies: .preview()),
+            developmentTimeMachine: DevelopmentTimeMachine(),
             startupVersionGateUseCase: startupVersionGateUseCase ?? ResolveStartupVersionGateUseCase(
-                repository: FixedStartupVersionPolicyRepository(policy: startupPolicy)
+                repository: FixedStartupVersionPolicyRepository(policy: startupPolicy),
+                environment: .develop
             ),
             shouldSkipSplashProvider: { shouldSkipSplash },
             installedVersionProvider: { installedVersion },
@@ -283,7 +285,7 @@ private actor ControlledStartupVersionPolicyRepository: StartupVersionPolicyRepo
     private var nextRequestCountWaiterID = 0
     private var requestCountWaiters: [Int: (count: Int, continuation: CheckedContinuation<Void, any Error>)] = [:]
 
-    func policy(for platform: StartupPlatform) async throws -> StartupVersionPolicy {
+    func policy(for platform: StartupPlatform, environment _: SessionEnvironment) async throws -> StartupVersionPolicy {
         let requestIndex = nextRequestIndex
         nextRequestIndex += 1
         resumeSatisfiedRequestCountWaiters()

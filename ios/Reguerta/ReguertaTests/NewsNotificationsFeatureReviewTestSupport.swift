@@ -35,7 +35,7 @@ actor ReviewControlledNotificationRepository: NotificationRepository {
         self.completesFirstRefreshOnSend = completesFirstRefreshOnSend
     }
 
-    func notifications(visibleTo _: Member) async throws -> [NotificationEvent] {
+    func notifications(visibleTo _: Member, environment _: SessionEnvironment) async throws -> [NotificationEvent] {
         let index = notificationRequests
         notificationRequests += 1
         resumeWaiters(&notificationWaiters, count: notificationRequests)
@@ -44,9 +44,9 @@ actor ReviewControlledNotificationRepository: NotificationRepository {
         }
     }
 
-    func allNotifications() async throws -> [NotificationEvent] { [] }
+    func allNotifications(environment _: SessionEnvironment) async throws -> [NotificationEvent] { [] }
 
-    func readNotificationIds(memberId _: String) async throws -> Set<String> {
+    func readNotificationIds(memberId _: String, environment _: SessionEnvironment) async throws -> Set<String> {
         let index = readIDRequests
         readIDRequests += 1
         resumeWaiters(&readIDWaiters, count: readIDRequests)
@@ -55,7 +55,12 @@ actor ReviewControlledNotificationRepository: NotificationRepository {
         }
     }
 
-    func markNotificationsRead(memberId _: String, notificationIds _: [String], readAtMillis _: Int64) async throws {
+    func markNotificationsRead(
+        memberId _: String,
+        notificationIds _: [String],
+        readAtMillis _: Int64,
+        environment _: SessionEnvironment
+    ) async throws {
         let index = markRequests
         markRequests += 1
         resumeWaiters(&markWaiters, count: markRequests)
@@ -64,7 +69,7 @@ actor ReviewControlledNotificationRepository: NotificationRepository {
         }
     }
 
-    func send(event: NotificationEvent) async throws -> NotificationEvent {
+    func send(event: NotificationEvent, environment _: SessionEnvironment) async throws -> NotificationEvent {
         if completesFirstRefreshOnSend {
             resumeNotification(0, with: .success([]))
             resumeReadIDs(0, with: .success([]))
@@ -174,7 +179,7 @@ actor ReviewNewsMutationRepository: NewsRepository {
         self.staleArticle = staleArticle
     }
 
-    func news(visibleTo _: Member) async throws -> [NewsArticle] {
+    func news(visibleTo _: Member, environment _: SessionEnvironment) async throws -> [NewsArticle] {
         let index = readRequests
         readRequests += 1
         let satisfied = readWaiters.filter { $0.0 <= readRequests }
@@ -183,9 +188,9 @@ actor ReviewNewsMutationRepository: NewsRepository {
         return try await withCheckedThrowingContinuation { readContinuations[index] = $0 }
     }
 
-    func allNews() async throws -> [NewsArticle] { [] }
+    func allNews(environment _: SessionEnvironment) async throws -> [NewsArticle] { [] }
 
-    func upsert(article: NewsArticle) async throws -> NewsArticle {
+    func upsert(article: NewsArticle, environment _: SessionEnvironment) async throws -> NewsArticle {
         let saved = await MainActor.run {
             NewsArticle(
                 id: "saved",
@@ -203,7 +208,7 @@ actor ReviewNewsMutationRepository: NewsRepository {
         return saved
     }
 
-    func delete(newsId _: String) async throws -> Bool {
+    func delete(newsId _: String, environment _: SessionEnvironment) async throws -> Bool {
         if mutation == .delete {
             resumeRead(0, with: staleArticle.map { [$0] } ?? [])
         }

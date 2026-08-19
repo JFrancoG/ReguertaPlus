@@ -3,6 +3,7 @@ import Testing
 
 @testable import Reguerta
 
+@Suite(.timeLimit(.minutes(1)))
 @MainActor
 struct ReguertaReceivedOrdersHistoryViewModelTests {
     @Test func receivedOrdersHistoryPresentationUsesTheActiveEnglishLocale() throws {
@@ -135,5 +136,56 @@ struct ReguertaReceivedOrdersHistoryViewModelTests {
         #expect(viewModel.selectedWeekKey == "2026-W21")
         #expect(viewModel.loadState == .error)
         #expect(await repository.receivedStatusUpdates().isEmpty)
+    }
+
+    @Test func receivedOrdersHistoryKeepsOneEnvironmentWhenAnObsoleteWeekLoadCompletesLate() async throws {
+        let repository = EnvironmentSwitchOrdersRepository(
+            blockedCalls: [.receivedOrdersHistoryWeekKeys(.develop)],
+            receivedSnapshots: [
+                .develop: receivedOrdersSnapshot(status: .unread),
+                .production: receivedOrdersSnapshot(status: .prepared)
+            ]
+        )
+        let currentProducer = producer(id: "producer_even", parity: .even)
+        let sessionViewModel = makeOrdersSessionViewModel(currentMember: currentProducer)
+        let viewModel = ReceivedOrdersHistoryRouteViewModel(
+            sessionViewModel: sessionViewModel,
+            ordersRepository: repository
+        )
+        let obsoleteOperation = Task {
+            await viewModel.appear(
+                context: receivedOrdersHistoryContext(
+                    nowMillis: testMillis(year: 2026, month: 5, day: 18),
+                    currentMember: currentProducer,
+                    environment: .develop
+                )
+            )
+        }
+        defer { obsoleteOperation.cancel() }
+
+        try await repository.waitForCallCount(1)
+        authorizeOrdersSession(sessionViewModel, currentMember: currentProducer, environment: .production)
+        await viewModel.appear(
+            context: receivedOrdersHistoryContext(
+                nowMillis: testMillis(year: 2026, month: 5, day: 25),
+                currentMember: currentProducer,
+                environment: .production
+            )
+        )
+        await repository.resume(.receivedOrdersHistoryWeekKeys(.develop))
+        await obsoleteOperation.value
+
+        guard case .loaded(let snapshot) = viewModel.loadState else {
+            Issue.record("Expected the production received-order history snapshot to remain loaded")
+            return
+        }
+        #expect(snapshot.byMemberGroups.first?.producerStatus == .prepared)
+        #expect(
+            await repository.recordedCalls() == [
+                .receivedOrdersHistoryWeekKeys(.develop),
+                .receivedOrdersHistoryWeekKeys(.production),
+                .receivedOrdersHistorySnapshot(.production)
+            ]
+        )
     }
 }

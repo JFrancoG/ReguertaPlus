@@ -44,11 +44,11 @@ final class UsersFeatureViewModel {
     }
 
     var canManageMembers: Bool {
-        currentMember?.canManageMembers == true
+        authorizedSessionContext?.session.member.canManageMembers == true
     }
 
     var canGrantAdminRole: Bool {
-        currentMember?.canGrantAdminRole == true
+        authorizedSessionContext?.session.member.canGrantAdminRole == true
     }
 
     init(
@@ -88,7 +88,12 @@ final class UsersFeatureViewModel {
             members = try await performInitialLoadWithRecovery(
                 enabled: recoversInitialFailure,
                 shouldRetry: { self.isCurrentRefresh(refreshOperationId, context: context) },
-                operation: { try await memberRepository.members(visibleTo: session.member) }
+                operation: {
+                    try await memberRepository.members(
+                        visibleTo: session.member,
+                        environment: session.environment
+                    )
+                }
             )
             try Task.checkCancellation()
         } catch is CancellationError {
@@ -175,7 +180,7 @@ final class UsersFeatureViewModel {
     }
 
     func toggleAdmin(memberId: String) async -> Bool {
-        guard let session = currentSession else { return false }
+        guard let context = authorizedSessionContext else { return false }
         guard activeMutationOperationId == nil, !isSavingMember, !isTogglingMember else { return false }
         guard canGrantAdminRole else {
             feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminEditRoles)
@@ -196,11 +201,11 @@ final class UsersFeatureViewModel {
         }
 
         let updated = target.replacing(roles: roles)
-        return await persistMember(target: updated, session: session, kind: .toggle)
+        return await persistMember(target: updated, context: context, kind: .toggle)
     }
 
     func toggleActive(memberId: String) async -> Bool {
-        guard let session = currentSession else { return false }
+        guard let context = authorizedSessionContext else { return false }
         guard activeMutationOperationId == nil, !isSavingMember, !isTogglingMember else { return false }
         guard canManageMembers else {
             feedbackCenter.show(AccessL10nKey.feedbackOnlyAdminToggleActive)
@@ -212,7 +217,7 @@ final class UsersFeatureViewModel {
 
         return await persistMember(
             target: target.replacing(isActive: !target.isActive),
-            session: session,
+            context: context,
             kind: .toggle
         )
     }
@@ -239,7 +244,7 @@ final class UsersFeatureViewModel {
 
 private extension UsersFeatureViewModel {
     func saveDraft(editingMemberId: String?, clearsEditor: Bool) async -> Bool {
-        guard let session = currentSession else { return false }
+        guard let context = authorizedSessionContext else { return false }
         guard activeMutationOperationId == nil, !isSavingMember, !isTogglingMember else { return false }
 
         switch draft.validated(
@@ -261,7 +266,7 @@ private extension UsersFeatureViewModel {
                 return false
             }
 
-            let saved = await persistMember(target: target, session: session, kind: .save)
+            let saved = await persistMember(target: target, context: context, kind: .save)
             if saved,
                editorRevision == saveEditorRevision,
                self.editingMemberId == saveEditingMemberId {
@@ -312,8 +317,9 @@ private extension UsersFeatureViewModel {
         )
     }
 
-    func persistMember(target: Member, session: AuthorizedSession, kind: MemberMutationKind) async -> Bool {
-        let context = SessionContext(session: session, generation: sessionIdentityEpoch)
+    func persistMember(target: Member, context: SessionContext, kind: MemberMutationKind) async -> Bool {
+        let session = context.session
+        let environment = session.environment
         guard isCurrentSession(context), activeMutationOperationId == nil else { return false }
         do {
             try Task.checkCancellation()
@@ -325,7 +331,7 @@ private extension UsersFeatureViewModel {
 
         let updated: Member
         do {
-            updated = try await upsertMemberByAdmin.execute(target: target)
+            updated = try await upsertMemberByAdmin.execute(target: target, environment: environment)
         } catch is CancellationError {
             return false
         } catch {

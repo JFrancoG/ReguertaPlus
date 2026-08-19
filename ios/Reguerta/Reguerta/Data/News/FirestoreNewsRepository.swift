@@ -1,25 +1,25 @@
 import CoreFoundation
+import FirebaseCore
 import FirebaseFirestore
 import Foundation
 
-final class FirestoreNewsRepository: @unchecked Sendable, NewsRepository {
-    private let db: Firestore
-    private let environment: ReguertaFirestoreEnvironment?
+actor FirestoreNewsRepository: NewsRepository {
+    private let storedDB: Firestore
 
-    init(db: Firestore = Firestore.firestore(), environment: ReguertaFirestoreEnvironment? = nil) {
-        self.db = db
-        self.environment = environment
+    init(firebaseAppName: String) {
+        guard let app = FirebaseApp.app(name: firebaseAppName) else {
+            preconditionFailure("Firebase app is required for news")
+        }
+        self.storedDB = Firestore.firestore(app: app)
     }
 
-    private var newsCollection: CollectionReference {
-        db.reguertaCollection(.news, environment: environment)
-    }
-
-    func news(visibleTo member: Member) async throws -> [NewsArticle] {
+    func news(visibleTo member: Member, environment: SessionEnvironment) async throws -> [NewsArticle] {
+        let newsCollection = storedDB.reguertaCollection(.news, environment: environment)
         let query = member.canPublishNews
             ? newsCollection
             : newsCollection.whereField("active", isEqualTo: true)
         do {
+            try Task.checkCancellation()
             let snapshot = try await query.getDocuments()
             return try Self.newsArticles(
                 documents: snapshot.documents.map {
@@ -31,8 +31,10 @@ final class FirestoreNewsRepository: @unchecked Sendable, NewsRepository {
         }
     }
 
-    func allNews() async throws -> [NewsArticle] {
+    func allNews(environment: SessionEnvironment) async throws -> [NewsArticle] {
+        let newsCollection = storedDB.reguertaCollection(.news, environment: environment)
         do {
+            try Task.checkCancellation()
             let snapshot = try await newsCollection.getDocuments()
             return try Self.newsArticles(
                 documents: snapshot.documents.map {
@@ -44,7 +46,8 @@ final class FirestoreNewsRepository: @unchecked Sendable, NewsRepository {
         }
     }
 
-    func upsert(article: NewsArticle) async throws -> NewsArticle {
+    func upsert(article: NewsArticle, environment: SessionEnvironment) async throws -> NewsArticle {
+        let newsCollection = storedDB.reguertaCollection(.news, environment: environment)
         let documentId = article.id.isEmpty ? newsCollection.document().documentID : article.id
         let persisted = NewsArticle(
             id: documentId,
@@ -57,6 +60,7 @@ final class FirestoreNewsRepository: @unchecked Sendable, NewsRepository {
         )
 
         do {
+            try Task.checkCancellation()
             try await newsCollection.document(documentId).setData([
                 "title": persisted.title,
                 "body": persisted.body,
@@ -73,8 +77,10 @@ final class FirestoreNewsRepository: @unchecked Sendable, NewsRepository {
         return persisted
     }
 
-    func delete(newsId: String) async throws -> Bool {
+    func delete(newsId: String, environment: SessionEnvironment) async throws -> Bool {
+        let newsCollection = storedDB.reguertaCollection(.news, environment: environment)
         do {
+            try Task.checkCancellation()
             try await newsCollection.document(newsId).delete()
             return true
         } catch {

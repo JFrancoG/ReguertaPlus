@@ -168,7 +168,7 @@ extension ReguertaProductsViewModelTests {
         }
         await viewModel.save()
 
-        let products = await repository.products(vendorId: currentProducer.id)
+        let products = await repository.products(vendorId: currentProducer.id, environment: .develop)
         #expect(products.count == 1)
         #expect(products.first?.vendorId == currentProducer.id)
         #expect(products.first?.isEcoBasket == true)
@@ -180,7 +180,7 @@ extension ReguertaProductsViewModelTests {
             id: "common_manager",
             displayName: "Compra comun",
             normalizedEmail: "common@reguerta.app",
-            authUid: nil,
+            authUid: "auth_common_manager",
             roles: [.member],
             isActive: true,
             producerCatalogEnabled: true,
@@ -204,7 +204,7 @@ extension ReguertaProductsViewModelTests {
         }
         await viewModel.save()
 
-        let products = await repository.products(vendorId: currentMember.id)
+        let products = await repository.products(vendorId: currentMember.id, environment: .develop)
         #expect(products.first?.isCommonPurchase == true)
         #expect(products.first?.commonPurchaseType == .seasonal)
         #expect(products.first?.isEcoBasket == false)
@@ -230,7 +230,7 @@ extension ReguertaProductsViewModelTests {
         }
         await viewModel.save()
 
-        let products = await repository.products(vendorId: currentProducer.id)
+        let products = await repository.products(vendorId: currentProducer.id, environment: .develop)
         #expect(products.isEmpty)
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
     }
@@ -413,15 +413,15 @@ private final class RejectingProductRepository: ProductRepository {
         self.items = items
     }
 
-    func allProducts() async -> [Product] {
+    func allProducts(environment _: SessionEnvironment) async -> [Product] {
         items
     }
 
-    func products(vendorId: String) async -> [Product] {
+    func products(vendorId: String, environment _: SessionEnvironment) async -> [Product] {
         items.filter { $0.vendorId == vendorId }
     }
 
-    func upsert(product _: Product) async throws -> Product {
+    func upsert(product _: Product, environment _: SessionEnvironment) async throws -> Product {
         throw ProductMutationTestError.rejected
     }
 }

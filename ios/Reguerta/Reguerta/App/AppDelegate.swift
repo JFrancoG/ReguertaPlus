@@ -27,7 +27,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         FirebaseBootstrapper.configureIfNeeded()
         Messaging.messaging().delegate = self
         UNUserNotificationCenter.current().delegate = self
-        requestPushAuthorization(application)
+        requestPushAuthorization()
         return true
     }
 
@@ -49,18 +49,19 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         print("APNs registration failed: \(error.localizedDescription)")
     }
 
-    private func requestPushAuthorization(_ application: UIApplication) {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
-            if let error {
+    private func requestPushAuthorization() {
+        Task { @MainActor in
+            do {
+                let granted = try await UNUserNotificationCenter.current().requestAuthorization(
+                    options: [.alert, .badge, .sound]
+                )
+                guard granted else {
+                    print("Push authorization denied by user")
+                    return
+                }
+                UIApplication.shared.registerForRemoteNotifications()
+            } catch {
                 print("Push authorization request failed: \(error.localizedDescription)")
-                return
-            }
-            guard granted else {
-                print("Push authorization denied by user")
-                return
-            }
-            DispatchQueue.main.async {
-                application.registerForRemoteNotifications()
             }
         }
     }

@@ -1,13 +1,17 @@
 struct ProductsRouteSessionContext {
     let session: AuthorizedSession
     let generation: UInt64
+    let sessionStateRevision: UInt64
 
-    func matches(scope: CriticalDataRefreshScope) -> Bool {
-        session.principal.uid == scope.principalUID &&
-            session.authenticatedMember.id == scope.authenticatedMemberID &&
-            session.authenticatedMember.authUid == scope.principalUID &&
-            session.member.id == scope.memberID &&
-            session.environment == scope.environment &&
-            session.authenticatedMember.canManageMembers == scope.canManageMembers
+    /// Requires the exact authorization identity and session revision captured before freshness began.
+    func matches(freshnessContext: MyOrderFreshnessSessionContext) -> Bool {
+        sessionStateRevision == freshnessContext.sessionStateRevision &&
+            matchesAuthorization(freshnessContext: freshnessContext)
+    }
+
+    /// Allows only the authorization-equivalent handoff produced synchronously by this owner.
+    func matchesAuthorization(freshnessContext: MyOrderFreshnessSessionContext) -> Bool {
+        freshnessContext.representsActiveAuthorization &&
+            freshnessContext.matchesAuthorization(of: session)
     }
 }

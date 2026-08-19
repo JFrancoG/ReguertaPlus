@@ -26,8 +26,8 @@ struct P101InMemoryMemberRepositoryPrivacyTests {
         )
         let repository = InMemoryMemberRepository(items: [currentMember, otherMember])
 
-        let firstRead = try await repository.members(visibleTo: currentMember)
-        let secondRead = try await repository.members(visibleTo: currentMember)
+        let firstRead = try await repository.members(visibleTo: currentMember, environment: .develop)
+        let secondRead = try await repository.members(visibleTo: currentMember, environment: .develop)
 
         #expect(firstRead == secondRead)
         #expect(firstRead.first { $0.id == currentMember.id } == currentMember)

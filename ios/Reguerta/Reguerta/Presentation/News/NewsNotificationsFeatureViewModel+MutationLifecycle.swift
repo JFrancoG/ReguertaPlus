@@ -33,19 +33,9 @@ extension NewsNotificationsFeatureViewModel {
             isCurrentSession(context)
     }
 
-    func finishNewsImageUploadOperation(
-        _ operationId: UInt64,
-        editorRevision: UInt64,
-        editorNewsID: String?,
-        context: SessionContext
-    ) {
+    func finishNewsImageUploadOperation(_ operationId: UInt64) {
         guard activeNewsImageUploadOperationId == operationId else { return }
         activeNewsImageUploadOperationId = nil
-        guard newsEditorRevision == editorRevision,
-              editingNewsId == editorNewsID,
-              isCurrentSession(context) else {
-            return
-        }
         isUploadingNewsImage = false
     }
 
@@ -106,10 +96,9 @@ extension NewsNotificationsFeatureViewModel {
         activeNewsMutationOperationId == operationId && isCurrentSession(context)
     }
 
-    func finishNewsMutationOperation(_ operationId: UInt64, context: SessionContext) {
+    func finishNewsMutationOperation(_ operationId: UInt64) {
         guard activeNewsMutationOperationId == operationId else { return }
         activeNewsMutationOperationId = nil
-        guard isCurrentSession(context) else { return }
         isSavingNews = false
     }
 
@@ -125,10 +114,9 @@ extension NewsNotificationsFeatureViewModel {
         activeNotificationMutationOperationId == operationId && isCurrentSession(context)
     }
 
-    func finishNotificationMutationOperation(_ operationId: UInt64, context: SessionContext) {
+    func finishNotificationMutationOperation(_ operationId: UInt64) {
         guard activeNotificationMutationOperationId == operationId else { return }
         activeNotificationMutationOperationId = nil
-        guard isCurrentSession(context) else { return }
         isSendingNotification = false
     }
 
@@ -154,7 +142,7 @@ extension NewsNotificationsFeatureViewModel {
         } else {
             convergenceOwnership = editorOwnership
         }
-        finishNewsMutationOperation(mutationOperationId, context: context)
+        finishNewsMutationOperation(mutationOperationId)
         scheduleNewsConvergence(feedbackOwnership: .editor(convergenceOwnership))
         return ownsEditor
     }
@@ -176,7 +164,7 @@ extension NewsNotificationsFeatureViewModel {
         } else {
             convergenceOwnership = editorOwnership
         }
-        finishNotificationMutationOperation(mutationOperationId, context: context)
+        finishNotificationMutationOperation(mutationOperationId)
         scheduleNotificationsConvergence(feedbackOwnership: convergenceOwnership)
         return ownsEditor
     }

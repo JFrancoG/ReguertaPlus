@@ -1,16 +1,18 @@
+import FirebaseCore
 import FirebaseFirestore
 import Foundation
 
-final class FirestoreDeliveryCalendarRepository: @unchecked Sendable, DeliveryCalendarRepository {
-    private let db: Firestore
-    private let environment: ReguertaFirestoreEnvironment?
+actor FirestoreDeliveryCalendarRepository: DeliveryCalendarRepository {
+    private let storedDB: Firestore
 
-    init(db: Firestore = Firestore.firestore(), environment: ReguertaFirestoreEnvironment? = nil) {
-        self.db = db
-        self.environment = environment
+    init(firebaseAppName: String) {
+        guard let app = FirebaseApp.app(name: firebaseAppName) else {
+            preconditionFailure("Firebase app is required for delivery calendar")
+        }
+        self.storedDB = Firestore.firestore(app: app)
     }
 
-    func defaultDeliveryDayOfWeek() async throws -> DeliveryWeekday {
+    func defaultDeliveryDayOfWeek(environment: SessionEnvironment) async throws -> DeliveryWeekday {
         let path = ReguertaFirestorePath(environment: environment)
         let candidatePaths = [
             path.documentPath(in: .config, documentId: ReguertaFirestoreDocument.memberConfiguration.rawValue),
@@ -19,7 +21,8 @@ final class FirestoreDeliveryCalendarRepository: @unchecked Sendable, DeliveryCa
 
         for documentPath in candidatePaths {
             do {
-                let snapshot = try await db.document(documentPath).getDocument(source: .server)
+                try Task.checkCancellation()
+                let snapshot = try await storedDB.document(documentPath).getDocument(source: .server)
                 guard snapshot.exists else { continue }
                 guard let data = snapshot.data() else { throw Self.invalidConfigurationError }
                 return try Self.deliveryWeekday(data: data)
@@ -30,10 +33,12 @@ final class FirestoreDeliveryCalendarRepository: @unchecked Sendable, DeliveryCa
         throw RepositoryError.notFound(resource: "config.deliveryCalendar")
     }
 
-    func allOverrides() async throws -> [DeliveryCalendarOverride] {
+    func allOverrides(environment: SessionEnvironment) async throws -> [DeliveryCalendarOverride] {
         let path = ReguertaFirestorePath(environment: environment)
         do {
-            let snapshot = try await db.collection(path.collectionPath(.deliveryCalendar)).getDocuments(source: .server)
+            try Task.checkCancellation()
+            let collection = storedDB.collection(path.collectionPath(.deliveryCalendar))
+            let snapshot = try await collection.getDocuments(source: .server)
             return try snapshot.documents
                 .map { document in
                     try Self.deliveryOverride(documentID: document.documentID, data: document.data())
@@ -44,7 +49,10 @@ final class FirestoreDeliveryCalendarRepository: @unchecked Sendable, DeliveryCa
         }
     }
 
-    func upsertOverride(_ override: DeliveryCalendarOverride) async throws -> DeliveryCalendarOverride {
+    func upsertOverride(
+        _ override: DeliveryCalendarOverride,
+        environment: SessionEnvironment
+    ) async throws -> DeliveryCalendarOverride {
         let payload: [String: Any] = [
             "weekKey": override.weekKey,
             "deliveryDate": Timestamp(
@@ -65,7 +73,8 @@ final class FirestoreDeliveryCalendarRepository: @unchecked Sendable, DeliveryCa
             )
         ]
         do {
-            try await db
+            try Task.checkCancellation()
+            try await storedDB
                 .document(
                     ReguertaFirestorePath(environment: environment)
                         .documentPath(in: .deliveryCalendar, documentId: override.weekKey)
@@ -77,9 +86,10 @@ final class FirestoreDeliveryCalendarRepository: @unchecked Sendable, DeliveryCa
         return override
     }
 
-    func deleteOverride(weekKey: String) async throws {
+    func deleteOverride(weekKey: String, environment: SessionEnvironment) async throws {
         do {
-            try await db
+            try Task.checkCancellation()
+            try await storedDB
                 .document(
                     ReguertaFirestorePath(environment: environment)
                         .documentPath(in: .deliveryCalendar, documentId: weekKey)

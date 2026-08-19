@@ -1,7 +1,8 @@
 import Foundation
 
-nonisolated enum DeviceRegistrationRepositoryError: Error, Equatable, Sendable {
+enum DeviceRegistrationRepositoryError: Error, Equatable {
     case staleSession
+    case unavailable
 }
 
 @MainActor

@@ -312,16 +312,20 @@ private actor RejectingMemberRepository: MemberRepository {
         storedMembers = members
     }
 
-    func member(id: String) async -> Member? {
+    func member(id: String, environment _: SessionEnvironment) async -> Member? {
         storedMembers.first { $0.id == id }
     }
 
-    func members(visibleTo _: Member) async throws -> [Member] {
+    func members(visibleTo _: Member, environment _: SessionEnvironment) async throws -> [Member] {
         readCount += 1
         throw MemberTestError.rejected
     }
 
-    func updateOwnProducerCatalogEnabled(member: Member, enabled: Bool) async -> Member {
+    func updateOwnProducerCatalogEnabled(
+        member: Member,
+        enabled: Bool,
+        environment _: SessionEnvironment
+    ) async -> Member {
         member.copy(producerCatalogEnabled: enabled)
     }
 }
@@ -333,15 +337,19 @@ private actor StaticMemberRepository: MemberRepository {
         storedMembers = members
     }
 
-    func member(id: String) async -> Member? {
+    func member(id: String, environment _: SessionEnvironment) async -> Member? {
         storedMembers.first { $0.id == id }
     }
 
-    func members(visibleTo _: Member) async throws -> [Member] {
+    func members(visibleTo _: Member, environment _: SessionEnvironment) async throws -> [Member] {
         storedMembers
     }
 
-    func updateOwnProducerCatalogEnabled(member: Member, enabled: Bool) async -> Member {
+    func updateOwnProducerCatalogEnabled(
+        member: Member,
+        enabled: Bool,
+        environment _: SessionEnvironment
+    ) async -> Member {
         member.copy(producerCatalogEnabled: enabled)
     }
 }
@@ -356,18 +364,22 @@ private actor FirstReadSuspendedMemberRepository: MemberRepository {
         self.fallbackMembers = fallbackMembers
     }
 
-    func member(id: String) async -> Member? {
+    func member(id: String, environment _: SessionEnvironment) async -> Member? {
         fallbackMembers.first { $0.id == id }
     }
 
-    func members(visibleTo _: Member) async throws -> [Member] {
+    func members(visibleTo _: Member, environment _: SessionEnvironment) async throws -> [Member] {
         readCount += 1
         resumeReadCountWaiters()
         guard readCount == 1 else { return fallbackMembers }
         return await withCheckedContinuation { firstReadContinuation = $0 }
     }
 
-    func updateOwnProducerCatalogEnabled(member: Member, enabled: Bool) async -> Member {
+    func updateOwnProducerCatalogEnabled(
+        member: Member,
+        enabled: Bool,
+        environment _: SessionEnvironment
+    ) async -> Member {
         member.copy(producerCatalogEnabled: enabled)
     }
 
@@ -390,7 +402,7 @@ private actor FirstReadSuspendedMemberRepository: MemberRepository {
 }
 
 private struct ImmediateMemberUpserter: MemberAdminUpserting {
-    func execute(target: Member) async -> Member { target }
+    func execute(target: Member, environment _: SessionEnvironment) async -> Member { target }
 }
 
 private actor SuspendedMemberUpserter: MemberAdminUpserting {
@@ -398,7 +410,7 @@ private actor SuspendedMemberUpserter: MemberAdminUpserting {
     private var writeContinuation: CheckedContinuation<Member, Never>?
     private var writeStartedWaiters: [CheckedContinuation<Void, Never>] = []
 
-    func execute(target: Member) async -> Member {
+    func execute(target: Member, environment _: SessionEnvironment) async -> Member {
         submittedMember = target
         return await withCheckedContinuation { continuation in
             writeContinuation = continuation
@@ -428,7 +440,7 @@ private actor MultiSuspendedMemberUpserter: MemberAdminUpserting {
     private var writes: [PendingWrite?] = []
     private var writeCountWaiters: [(Int, CheckedContinuation<Void, Never>)] = []
 
-    func execute(target: Member) async -> Member {
+    func execute(target: Member, environment _: SessionEnvironment) async -> Member {
         await withCheckedContinuation { continuation in
             writes.append(PendingWrite(submittedMember: target, continuation: continuation))
             resumeWriteCountWaiters()

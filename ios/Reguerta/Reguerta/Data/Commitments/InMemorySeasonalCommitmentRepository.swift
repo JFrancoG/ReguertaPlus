@@ -7,7 +7,7 @@ actor InMemorySeasonalCommitmentRepository: SeasonalCommitmentRepository {
         self.commitmentsById = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
     }
 
-    func activeCommitments(userId: String) async -> [SeasonalCommitment] {
+    func activeCommitments(userId: String, environment _: SessionEnvironment) async -> [SeasonalCommitment] {
         commitmentsById.values
             .filter { $0.userId == userId && $0.active }
             .sorted {

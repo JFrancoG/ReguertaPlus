@@ -3,11 +3,11 @@ import Foundation
 actor InMemoryShiftSwapRequestRepository: ShiftSwapRequestRepository {
     private var requests: [String: ShiftSwapRequest] = [:]
 
-    func allShiftSwapRequests() async -> [ShiftSwapRequest] {
+    func allShiftSwapRequests(environment _: SessionEnvironment) async -> [ShiftSwapRequest] {
         requests.values.sorted { $0.requestedAtMillis > $1.requestedAtMillis }
     }
 
-    func upsert(request: ShiftSwapRequest) async -> ShiftSwapRequest {
+    func upsert(request: ShiftSwapRequest, environment _: SessionEnvironment) async -> ShiftSwapRequest {
         let persisted = ShiftSwapRequest(
             id: request.id.isEmpty ? "swap_\(request.requestedShiftId)_\(request.requesterUserId)" : request.id,
             requestedShiftId: request.requestedShiftId,
@@ -26,13 +26,16 @@ actor InMemoryShiftSwapRequestRepository: ShiftSwapRequestRepository {
         return persisted
     }
 
-    func transition(_ transition: ShiftSwapTransition) async throws -> ShiftSwapTransitionResult {
+    func transition(
+        _ transition: ShiftSwapTransition,
+        environment: SessionEnvironment
+    ) async throws -> ShiftSwapTransitionResult {
         let request: ShiftSwapRequest
         switch transition {
         case .create(let value), .respond(let value, _, _), .cancel(let value), .apply(let value, _):
             request = value
         }
-        let persisted = await upsert(request: request)
+        let persisted = await upsert(request: request, environment: environment)
         return ShiftSwapTransitionResult(
             requestId: persisted.id,
             candidateCount: transition.candidateCount

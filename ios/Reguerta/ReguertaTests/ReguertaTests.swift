@@ -88,7 +88,8 @@ struct ReguertaTests {
                     roles: [.member],
                     isActive: admin.isActive,
                     producerCatalogEnabled: admin.producerCatalogEnabled
-                )
+                ),
+                environment: .develop
             )
             Issue.record("Expected last admin protection")
         } catch let error as MemberManagementError {
@@ -118,7 +119,8 @@ struct ReguertaTests {
                 roles: [.member],
                 isActive: true,
                 producerCatalogEnabled: true
-            )
+            ),
+            environment: .develop
         )
 
         #expect(created.normalizedEmail == "nuevo@reguerta.app")
@@ -219,10 +221,11 @@ extension ReguertaTests {
                 publishedBy: "Ana Admin",
                 publishedAtMillis: 4_000_000_000_000,
                 urlImage: nil
-            )
+            ),
+            environment: .develop
         )
 
-        let news = await repository.allNews()
+        let news = await repository.allNews(environment: .develop)
 
         #expect(news.first?.id == "news_002")
     }
@@ -230,8 +233,8 @@ extension ReguertaTests {
     @Test func inMemoryNewsRepositoryDeletesExistingNews() async {
         let repository = InMemoryNewsRepository()
 
-        let deleted = await repository.delete(newsId: "news_welcome_001")
-        let remaining = await repository.allNews()
+        let deleted = await repository.delete(newsId: "news_welcome_001", environment: .develop)
+        let remaining = await repository.allNews(environment: .develop)
 
         #expect(deleted == true)
         #expect(remaining.contains(where: { $0.id == "news_welcome_001" }) == false)
@@ -253,10 +256,11 @@ extension ReguertaTests {
                 createdBy: "adminUid",
                 sentAtMillis: 4_000_000_000_000,
                 weekKey: nil
-            )
+            ),
+            environment: .develop
         )
 
-        let notifications = await repository.allNotifications()
+        let notifications = await repository.allNotifications(environment: .develop)
 
         #expect(notifications.first?.id == "notification_002")
     }
@@ -404,7 +408,7 @@ private func makeInMemoryResolveUseCase(
 private struct RejectingMemberAdministrationRepository: MemberAdministrationRepository {
     let error: MemberManagementError
 
-    func upsertMember(_ member: Member) async throws -> Member {
+    func upsertMember(_ member: Member, environment _: SessionEnvironment) async throws -> Member {
         throw error
     }
 }

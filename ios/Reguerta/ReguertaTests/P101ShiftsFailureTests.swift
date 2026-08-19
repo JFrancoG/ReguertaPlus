@@ -340,59 +340,68 @@ extension P101ShiftsFailureTests {
 
 @MainActor
 private final class ThrowingShiftRepository: ShiftRepository {
-    func allShifts() async throws -> [ShiftAssignment] {
+    func allShifts(environment _: SessionEnvironment) async throws -> [ShiftAssignment] {
         throw RepositoryError.unavailable(resource: "shifts")
     }
 
-    func upsert(shift: ShiftAssignment) async throws -> ShiftAssignment {
+    func upsert(shift: ShiftAssignment, environment _: SessionEnvironment) async throws -> ShiftAssignment {
         shift
     }
 }
 
 @MainActor
 private final class ThrowingDeliveryCalendarRepository: DeliveryCalendarRepository {
-    func defaultDeliveryDayOfWeek() async throws -> DeliveryWeekday {
+    func defaultDeliveryDayOfWeek(environment _: SessionEnvironment) async throws -> DeliveryWeekday {
         throw RepositoryError.unavailable(resource: "config.deliveryCalendar")
     }
 
-    func allOverrides() async throws -> [DeliveryCalendarOverride] {
+    func allOverrides(environment _: SessionEnvironment) async throws -> [DeliveryCalendarOverride] {
         throw RepositoryError.unavailable(resource: "deliveryCalendar")
     }
 
-    func upsertOverride(_ override: DeliveryCalendarOverride) async throws -> DeliveryCalendarOverride {
+    func upsertOverride(
+        _ override: DeliveryCalendarOverride,
+        environment _: SessionEnvironment
+    ) async throws -> DeliveryCalendarOverride {
         override
     }
 
-    func deleteOverride(weekKey _: String) async throws {}
+    func deleteOverride(weekKey _: String, environment _: SessionEnvironment) async throws {}
 }
 
 @MainActor
 private final class ConfirmingCalendarWithFailingReadsRepository: DeliveryCalendarRepository {
-    func defaultDeliveryDayOfWeek() async throws -> DeliveryWeekday {
+    func defaultDeliveryDayOfWeek(environment _: SessionEnvironment) async throws -> DeliveryWeekday {
         throw RepositoryError.unavailable(resource: "config.deliveryCalendar")
     }
 
-    func allOverrides() async throws -> [DeliveryCalendarOverride] {
+    func allOverrides(environment _: SessionEnvironment) async throws -> [DeliveryCalendarOverride] {
         throw RepositoryError.unavailable(resource: "deliveryCalendar")
     }
 
-    func upsertOverride(_ override: DeliveryCalendarOverride) async throws -> DeliveryCalendarOverride {
+    func upsertOverride(
+        _ override: DeliveryCalendarOverride,
+        environment _: SessionEnvironment
+    ) async throws -> DeliveryCalendarOverride {
         override
     }
 
-    func deleteOverride(weekKey _: String) async throws {}
+    func deleteOverride(weekKey _: String, environment _: SessionEnvironment) async throws {}
 }
 
 @MainActor
 private final class ConfirmingSwapWithFailingReadsRepository: ShiftSwapRequestRepository {
     private(set) var transitionCount = 0
 
-    func allShiftSwapRequests() async throws -> [ShiftSwapRequest] {
+    func allShiftSwapRequests(environment _: SessionEnvironment) async throws -> [ShiftSwapRequest] {
         throw RepositoryError.unavailable(resource: "shiftSwapRequests")
     }
 
     @MainActor
-    func transition(_ transition: ShiftSwapTransition) async throws -> ShiftSwapTransitionResult {
+    func transition(
+        _ transition: ShiftSwapTransition,
+        environment _: SessionEnvironment
+    ) async throws -> ShiftSwapTransitionResult {
         transitionCount += 1
         let requestId = switch transition {
         case .create:
@@ -406,11 +415,14 @@ private final class ConfirmingSwapWithFailingReadsRepository: ShiftSwapRequestRe
 
 @MainActor
 private final class RejectingSwapRepository: ShiftSwapRequestRepository {
-    func allShiftSwapRequests() async throws -> [ShiftSwapRequest] {
+    func allShiftSwapRequests(environment _: SessionEnvironment) async throws -> [ShiftSwapRequest] {
         []
     }
 
-    func transition(_ transition: ShiftSwapTransition) async throws -> ShiftSwapTransitionResult {
+    func transition(
+        _ transition: ShiftSwapTransition,
+        environment _: SessionEnvironment
+    ) async throws -> ShiftSwapTransitionResult {
         throw RepositoryError.unavailable(resource: "shiftSwapRequests.transition")
     }
 }

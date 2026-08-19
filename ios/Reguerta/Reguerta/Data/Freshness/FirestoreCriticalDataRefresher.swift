@@ -221,12 +221,12 @@ private extension FirestoreCriticalDataRefresher {
         selectedMember: Member,
         scope: CriticalDataRefreshScope
     ) async throws -> [SeasonalCommitment] {
-        let repository = FirestoreSeasonalCommitmentRepository(
-            db: storedDB,
-            environment: scope.environment
-        )
+        let repository = FirestoreSeasonalCommitmentRepository(firebaseAppName: storedDB.app.name)
         return try await loadActiveCommitments(for: selectedMember) { lookupKey in
-            try await repository.activeCommitmentsFromServer(userId: lookupKey)
+            try await repository.activeCommitmentsFromServer(
+                userId: lookupKey,
+                environment: scope.environment
+            )
         }
     }
 

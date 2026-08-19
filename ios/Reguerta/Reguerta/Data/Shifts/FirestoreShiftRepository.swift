@@ -1,20 +1,20 @@
+import FirebaseCore
 import FirebaseFirestore
 import Foundation
 
-final class FirestoreShiftRepository: @unchecked Sendable, ShiftRepository {
-    private let db: Firestore
-    private let environment: ReguertaFirestoreEnvironment?
+actor FirestoreShiftRepository: ShiftRepository {
+    private let storedDB: Firestore
 
-    init(db: Firestore = Firestore.firestore(), environment: ReguertaFirestoreEnvironment? = nil) {
-        self.db = db
-        self.environment = environment
+    init(firebaseAppName: String) {
+        guard let app = FirebaseApp.app(name: firebaseAppName) else {
+            preconditionFailure("Firebase app is required for shifts")
+        }
+        self.storedDB = Firestore.firestore(app: app)
     }
 
-    private var shiftsCollection: CollectionReference {
-        db.reguertaCollection(.shifts, environment: environment)
-    }
-
-    func allShifts() async throws -> [ShiftAssignment] {
+    func allShifts(environment: SessionEnvironment) async throws -> [ShiftAssignment] {
+        try Task.checkCancellation()
+        let shiftsCollection = storedDB.reguertaCollection(.shifts, environment: environment)
         do {
             let snapshot = try await shiftsCollection.getDocuments(source: .server)
             return try snapshot.documents
@@ -27,7 +27,8 @@ final class FirestoreShiftRepository: @unchecked Sendable, ShiftRepository {
         }
     }
 
-    func upsert(shift: ShiftAssignment) async throws -> ShiftAssignment {
+    func upsert(shift: ShiftAssignment, environment: SessionEnvironment) async throws -> ShiftAssignment {
+        let shiftsCollection = storedDB.reguertaCollection(.shifts, environment: environment)
         let payload: [String: Any] = [
             "type": shift.type.rawValue,
             "date": Timestamp(date: Date(timeIntervalSince1970: TimeInterval(shift.dateMillis) / 1_000)),
@@ -40,6 +41,7 @@ final class FirestoreShiftRepository: @unchecked Sendable, ShiftRepository {
         ]
 
         do {
+            try Task.checkCancellation()
             try await shiftsCollection.document(shift.id).setData(payload, merge: true)
         } catch {
             throw FirestoreRepositoryErrorMapper.map(error, resource: "shifts.write")

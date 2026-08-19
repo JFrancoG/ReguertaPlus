@@ -121,6 +121,14 @@ struct AuthenticatedFirebaseFunctionsClient {
         if error is CancellationError {
             return .cancelled
         }
+        if let tokenProviderError = error as? IDTokenProviderError {
+            switch tokenProviderError {
+            case .noAuthenticatedUser:
+                return .missingIDToken
+            case .unavailable:
+                return .transport(message: String(describing: error))
+            }
+        }
         if let urlError = error as? URLError {
             switch urlError.code {
             case .cancelled:

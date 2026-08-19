@@ -114,9 +114,7 @@ extension MyOrderRouteViewModel {
         nowMillis.isoWeekKey
     }
 
-    var cartStorageKey: String {
-        "member_\(currentMember?.id ?? "")_week_\(currentWeekKey)"
-    }
+    var cartStorageKey: String { context.cartStorageKey }
 
     var groupedProducts: [MyOrderProducerGroup] {
         let filteredProducts = products.filter { product in

@@ -1,6 +1,6 @@
 import Foundation
 
 protocol ShiftRepository: Sendable {
-    func allShifts() async throws -> [ShiftAssignment]
-    func upsert(shift: ShiftAssignment) async throws -> ShiftAssignment
+    func allShifts(environment: SessionEnvironment) async throws -> [ShiftAssignment]
+    func upsert(shift: ShiftAssignment, environment: SessionEnvironment) async throws -> ShiftAssignment
 }

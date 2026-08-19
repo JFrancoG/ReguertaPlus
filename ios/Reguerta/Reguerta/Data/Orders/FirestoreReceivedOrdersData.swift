@@ -1,110 +1,106 @@
 import FirebaseFirestore
 import Foundation
 
-func fetchReceivedOrdersSnapshotForProducer(
-    producerId: String,
-    targetWeekKey: String,
-    synchronizesUnreadStatuses: Bool = true,
-    db: Firestore = Firestore.firestore(),
-    environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment
-) async throws -> ReceivedOrdersSnapshot? {
-    let firestorePath = ReguertaFirestorePath(environment: environment)
-    let lines = try await fetchReceivedOrderLines(
-        producerId: producerId,
-        targetWeekKey: targetWeekKey,
-        readTargets: receivedOrderlineReadTargets(firestorePath: firestorePath),
-        db: db
-    )
-    guard !lines.isEmpty else { return nil }
-    let statusesByOrderId = try await fetchReceivedOrderStatusesByOrderId(
-        orderIds: lines.map(\.orderId),
-        producerId: producerId,
-        db: db,
-        environment: environment
-    )
-    let synchronizedStatuses: [String: ProducerOrderStatus]
-    if synchronizesUnreadStatuses {
-        synchronizedStatuses = await synchronizeUnreadReceivedOrderStatuses(
-            statusesByOrderId: statusesByOrderId,
+extension FirestoreOrdersRepository {
+    func fetchReceivedOrdersSnapshotForProducer(
+        producerId: String,
+        targetWeekKey: String,
+        synchronizesUnreadStatuses: Bool = true,
+        environment: ReguertaFirestoreEnvironment
+    ) async throws -> ReceivedOrdersSnapshot? {
+        let firestorePath = ReguertaFirestorePath(environment: environment)
+        let lines = try await fetchReceivedOrderLines(
             producerId: producerId,
-            db: db,
+            targetWeekKey: targetWeekKey,
+            readTargets: receivedOrderlineReadTargets(firestorePath: firestorePath)
+        )
+        guard !lines.isEmpty else { return nil }
+        let statusesByOrderId = try await fetchReceivedOrderStatusesByOrderId(
+            orderIds: lines.map(\.orderId),
+            producerId: producerId,
             environment: environment
         )
-    } else {
-        synchronizedStatuses = statusesByOrderId
+        let synchronizedStatuses: [String: ProducerOrderStatus]
+        if synchronizesUnreadStatuses {
+            synchronizedStatuses = await synchronizeUnreadReceivedOrderStatuses(
+                statusesByOrderId: statusesByOrderId,
+                producerId: producerId,
+                environment: environment
+            )
+        } else {
+            synchronizedStatuses = statusesByOrderId
+        }
+
+        return buildReceivedOrdersSnapshot(from: lines, statusesByOrderId: synchronizedStatuses)
     }
 
-    return buildReceivedOrdersSnapshot(from: lines, statusesByOrderId: synchronizedStatuses)
-}
+    func fetchReceivedOrderHistoryWeekKeys(
+        producerId: String,
+        environment: ReguertaFirestoreEnvironment
+    ) async throws -> [String] {
+        let normalizedProducerId = producerId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard normalizedProducerId.isNotEmpty else { return [] }
 
-func fetchReceivedOrderHistoryWeekKeys(
-    producerId: String,
-    db: Firestore = Firestore.firestore(),
-    environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment
-) async throws -> [String] {
-    let normalizedProducerId = producerId.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard normalizedProducerId.isNotEmpty else { return [] }
+        let firestorePath = ReguertaFirestorePath(environment: environment)
+        var weekKeys = Set<String>()
+        var hasSuccessfulRead = false
+        var lastError: Error?
 
-    let firestorePath = ReguertaFirestorePath(environment: environment)
-    var weekKeys = Set<String>()
-    var hasSuccessfulRead = false
-    var lastError: Error?
-
-    for orderlinesPath in receivedOrderlineReadTargets(firestorePath: firestorePath) {
-        do {
-            let snapshot = try await db.collection(orderlinesPath)
-                .whereField("vendorId", isEqualTo: normalizedProducerId)
-                .getDocuments()
-            hasSuccessfulRead = true
-            for document in snapshot.documents {
-                if let weekKey = document.data()["weekKey"] as? String,
-                   weekKey.isValidIsoWeekKey {
-                    weekKeys.insert(weekKey)
+        for orderlinesPath in receivedOrderlineReadTargets(firestorePath: firestorePath) {
+            do {
+                let snapshot = try await storedDB.collection(orderlinesPath)
+                    .whereField("vendorId", isEqualTo: normalizedProducerId)
+                    .getDocuments()
+                hasSuccessfulRead = true
+                for document in snapshot.documents {
+                    if let weekKey = document.data()["weekKey"] as? String,
+                       weekKey.isValidIsoWeekKey {
+                        weekKeys.insert(weekKey)
+                    }
                 }
+            } catch {
+                lastError = error
             }
-        } catch {
-            lastError = error
         }
-    }
 
-    if !hasSuccessfulRead, let lastError {
-        throw lastError
-    }
-
-    return weekKeys.sorted()
-}
-
-func updateReceivedOrderProducerStatus(
-    orderId: String,
-    producerId: String,
-    status: ProducerOrderStatus,
-    db: Firestore = Firestore.firestore(),
-    environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment,
-    nowMillis: Int64 = Int64(Date().timeIntervalSince1970 * 1_000)
-) async -> ReceivedOrderStatusWriteResult {
-    let firestorePath = ReguertaFirestorePath(environment: environment)
-    let writeTargets = [
-        firestorePath.collectionPath(.orders)
-    ]
-    let nowTimestamp = Timestamp(date: Date(timeIntervalSince1970: TimeInterval(nowMillis) / 1_000))
-    var lastFailure: ReceivedOrderStatusWriteResult = .failure
-
-    for ordersPath in writeTargets {
-        do {
-            let orderRef = db.document("\(ordersPath)/\(orderId)")
-            try await orderRef.updateData([
-                "producerStatus": status.rawValue,
-                "producerStatusesByVendor.\(producerId)": status.rawValue,
-                "producerStatusUpdatedBy": producerId,
-                "updatedAt": nowTimestamp
-            ])
-            return .success
-        } catch {
-            lastFailure = receivedOrderStatusWriteResult(from: error)
+        if !hasSuccessfulRead, let lastError {
+            throw lastError
         }
+
+        return weekKeys.sorted()
     }
 
-    return lastFailure
+    func writeReceivedOrderProducerStatus(
+        orderId: String,
+        producerId: String,
+        status: ProducerOrderStatus,
+        environment: ReguertaFirestoreEnvironment,
+        nowMillis: Int64
+    ) async -> ReceivedOrderStatusWriteResult {
+        let firestorePath = ReguertaFirestorePath(environment: environment)
+        let writeTargets = [
+            firestorePath.collectionPath(.orders)
+        ]
+        let nowTimestamp = Timestamp(date: Date(timeIntervalSince1970: TimeInterval(nowMillis) / 1_000))
+        var lastFailure: ReceivedOrderStatusWriteResult = .failure
+
+        for ordersPath in writeTargets {
+            do {
+                let orderRef = storedDB.document("\(ordersPath)/\(orderId)")
+                try await orderRef.updateData([
+                    "producerStatus": status.rawValue,
+                    "producerStatusesByVendor.\(producerId)": status.rawValue,
+                    "producerStatusUpdatedBy": producerId,
+                    "updatedAt": nowTimestamp
+                ])
+                return .success
+            } catch {
+                lastFailure = receivedOrderStatusWriteResult(from: error)
+            }
+        }
+
+        return lastFailure
+    }
 }
 
 private func receivedOrderlineReadTargets(firestorePath: ReguertaFirestorePath) -> [String] {
@@ -113,119 +109,121 @@ private func receivedOrderlineReadTargets(firestorePath: ReguertaFirestorePath) 
     ]
 }
 
-private func fetchReceivedOrderLines(
-    producerId: String,
-    targetWeekKey: String,
-    readTargets: [String],
-    db: Firestore
-) async throws -> [ReceivedOrderLineRecord] {
-    var dedupedLinesByKey: [String: ReceivedOrderLineRecord] = [:]
-    var hasSuccessfulRead = false
-    var lastError: Error?
+extension FirestoreOrdersRepository {
+    private func fetchReceivedOrderLines(
+        producerId: String,
+        targetWeekKey: String,
+        readTargets: [String]
+    ) async throws -> [ReceivedOrderLineRecord] {
+        var dedupedLinesByKey: [String: ReceivedOrderLineRecord] = [:]
+        var hasSuccessfulRead = false
+        var lastError: Error?
 
-    for orderlinesPath in readTargets {
-        do {
-            let snapshot = try await db.collection(orderlinesPath)
-                .whereField("vendorId", isEqualTo: producerId)
-                .whereField("weekKey", isEqualTo: targetWeekKey)
-                .getDocuments()
-            hasSuccessfulRead = true
-            for document in snapshot.documents {
-                if let line = receivedOrderLineRecord(from: document.data(), fallbackDocumentID: document.documentID) {
-                    dedupedLinesByKey[line.dedupKey] = line
+        for orderlinesPath in readTargets {
+            do {
+                let snapshot = try await storedDB.collection(orderlinesPath)
+                    .whereField("vendorId", isEqualTo: producerId)
+                    .whereField("weekKey", isEqualTo: targetWeekKey)
+                    .getDocuments()
+                hasSuccessfulRead = true
+                for document in snapshot.documents {
+                    if let line = receivedOrderLineRecord(
+                        from: document.data(),
+                        fallbackDocumentID: document.documentID
+                    ) {
+                        dedupedLinesByKey[line.dedupKey] = line
+                    }
+                }
+            } catch {
+                lastError = error
+            }
+        }
+
+        if !hasSuccessfulRead, let lastError {
+            throw lastError
+        }
+
+        return dedupedLinesByKey.values.sorted { lhs, rhs in
+            if lhs.consumerDisplayName != rhs.consumerDisplayName {
+                return lhs.consumerDisplayName.localizedCaseInsensitiveCompare(
+                    rhs.consumerDisplayName
+                ) == .orderedAscending
+            }
+            return lhs.productName.localizedCaseInsensitiveCompare(rhs.productName) == .orderedAscending
+        }
+    }
+
+    private func fetchReceivedOrderStatusesByOrderId(
+        orderIds: [String],
+        producerId: String,
+        environment: ReguertaFirestoreEnvironment
+    ) async throws -> [String: ProducerOrderStatus] {
+        let dedupedOrderIds = Array(Set(orderIds)).filter(\.isNotEmpty)
+        guard !dedupedOrderIds.isEmpty else { return [:] }
+
+        let firestorePath = ReguertaFirestorePath(environment: environment)
+        let readTargets = [
+            firestorePath.collectionPath(.orders)
+        ]
+        var statusesByOrderId: [String: ProducerOrderStatus] = [:]
+        for ordersPath in readTargets {
+            for orderId in dedupedOrderIds {
+                let document = try await storedDB.document("\(ordersPath)/\(orderId)").getDocument()
+                if document.exists {
+                    statusesByOrderId[document.documentID] = receivedOrderStatus(
+                        from: document.data() ?? [:],
+                        producerId: producerId
+                    )
                 }
             }
-        } catch {
-            lastError = error
         }
+        return statusesByOrderId
     }
 
-    if !hasSuccessfulRead, let lastError {
-        throw lastError
-    }
+    private func synchronizeUnreadReceivedOrderStatuses(
+        statusesByOrderId: [String: ProducerOrderStatus],
+        producerId: String,
+        environment: ReguertaFirestoreEnvironment
+    ) async -> [String: ProducerOrderStatus] {
+        let unreadOrderIds = statusesByOrderId
+            .filter { $0.value == .unread }
+            .map(\.key)
+        guard !unreadOrderIds.isEmpty else { return statusesByOrderId }
 
-    return dedupedLinesByKey.values.sorted { lhs, rhs in
-        if lhs.consumerDisplayName != rhs.consumerDisplayName {
-            return lhs.consumerDisplayName.localizedCaseInsensitiveCompare(rhs.consumerDisplayName) == .orderedAscending
-        }
-        return lhs.productName.localizedCaseInsensitiveCompare(rhs.productName) == .orderedAscending
-    }
-}
-
-private func fetchReceivedOrderStatusesByOrderId(
-    orderIds: [String],
-    producerId: String,
-    db: Firestore = Firestore.firestore(),
-    environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment
-) async throws -> [String: ProducerOrderStatus] {
-    let dedupedOrderIds = Array(Set(orderIds)).filter(\.isNotEmpty)
-    guard !dedupedOrderIds.isEmpty else { return [:] }
-
-    let firestorePath = ReguertaFirestorePath(environment: environment)
-    let readTargets = [
-        firestorePath.collectionPath(.orders)
-    ]
-    var statusesByOrderId: [String: ProducerOrderStatus] = [:]
-    for ordersPath in readTargets {
-        for orderId in dedupedOrderIds {
-            let document = try await db.document("\(ordersPath)/\(orderId)").getDocument()
-            if document.exists {
-                statusesByOrderId[document.documentID] = receivedOrderStatus(
-                    from: document.data() ?? [:],
-                    producerId: producerId
-                )
-            }
-        }
-    }
-    return statusesByOrderId
-}
-
-private func synchronizeUnreadReceivedOrderStatuses(
-    statusesByOrderId: [String: ProducerOrderStatus],
-    producerId: String,
-    db: Firestore,
-    environment: ReguertaFirestoreEnvironment
-) async -> [String: ProducerOrderStatus] {
-    let unreadOrderIds = statusesByOrderId
-        .filter { $0.value == .unread }
-        .map(\.key)
-    guard !unreadOrderIds.isEmpty else { return statusesByOrderId }
-
-    let markedAsRead = await markReceivedOrdersAsRead(
-        orderIds: unreadOrderIds,
-        producerId: producerId,
-        db: db,
-        environment: environment
-    )
-    guard !markedAsRead.isEmpty else { return statusesByOrderId }
-
-    var synchronizedStatuses = statusesByOrderId
-    for orderId in markedAsRead {
-        synchronizedStatuses[orderId] = .read
-    }
-    return synchronizedStatuses
-}
-
-private func markReceivedOrdersAsRead(
-    orderIds: [String],
-    producerId: String,
-    db: Firestore = Firestore.firestore(),
-    environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment
-) async -> Set<String> {
-    var updatedOrderIds = Set<String>()
-    for orderId in Array(Set(orderIds)).filter(\.isNotEmpty) {
-        let updateResult = await updateReceivedOrderProducerStatus(
-            orderId: orderId,
+        let markedAsRead = await markReceivedOrdersAsRead(
+            orderIds: unreadOrderIds,
             producerId: producerId,
-            status: .read,
-            db: db,
             environment: environment
         )
-        if updateResult == .success {
-            updatedOrderIds.insert(orderId)
+        guard !markedAsRead.isEmpty else { return statusesByOrderId }
+
+        var synchronizedStatuses = statusesByOrderId
+        for orderId in markedAsRead {
+            synchronizedStatuses[orderId] = .read
         }
+        return synchronizedStatuses
     }
-    return updatedOrderIds
+
+    private func markReceivedOrdersAsRead(
+        orderIds: [String],
+        producerId: String,
+        environment: ReguertaFirestoreEnvironment
+    ) async -> Set<String> {
+        var updatedOrderIds = Set<String>()
+        for orderId in Array(Set(orderIds)).filter(\.isNotEmpty) {
+            let updateResult = await writeReceivedOrderProducerStatus(
+                orderId: orderId,
+                producerId: producerId,
+                status: .read,
+                environment: environment,
+                nowMillis: Int64(Date().timeIntervalSince1970 * 1_000)
+            )
+            if updateResult == .success {
+                updatedOrderIds.insert(orderId)
+            }
+        }
+        return updatedOrderIds
+    }
 }
 
 private func buildReceivedOrdersSnapshot(

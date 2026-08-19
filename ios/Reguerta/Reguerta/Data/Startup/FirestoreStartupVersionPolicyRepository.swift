@@ -1,18 +1,21 @@
-import Foundation
+import FirebaseCore
 import FirebaseFirestore
+import Foundation
 
-final class FirestoreStartupVersionPolicyRepository: @unchecked Sendable, StartupVersionPolicyRepository {
-    private let db: Firestore
-    private let environment: ReguertaFirestoreEnvironment?
+actor FirestoreStartupVersionPolicyRepository: StartupVersionPolicyRepository {
+    private let storedDB: Firestore
 
-    init(db: Firestore = Firestore.firestore(), environment: ReguertaFirestoreEnvironment? = nil) {
-        self.db = db
-        self.environment = environment
+    init(firebaseAppName: String) {
+        guard let app = FirebaseApp.app(name: firebaseAppName) else {
+            preconditionFailure("Firebase app is required for startup version policy")
+        }
+        self.storedDB = Firestore.firestore(app: app)
     }
 
-    func policy(for platform: StartupPlatform) async throws -> StartupVersionPolicy {
+    func policy(for platform: StartupPlatform, environment: SessionEnvironment) async throws -> StartupVersionPolicy {
         do {
-            let snapshot = try await db
+            try Task.checkCancellation()
+            let snapshot = try await storedDB
                 .reguertaDocument(.publicConfiguration, in: .config, environment: environment)
                 .getDocument(source: .server)
 

@@ -136,6 +136,34 @@ struct P101AuthorizedDeviceCoordinatorTests {
         #expect(harness.repository.registrations.map(\.environment) == [.production])
     }
 
+    @Test func cancelledRegistrationRejectsALateMessagingToken() async throws {
+        let tokenSource = FirstTokenRequestGate()
+        let harness = makeHarness(
+            currentAuthUidProvider: { "uid-a" },
+            tokenProvider: { await tokenSource.nextToken() }
+        )
+        let registration = Task {
+            try await harness.coordinator.register(
+                command: command(
+                    memberId: "member-a",
+                    authUid: "uid-a",
+                    environment: .develop
+                ),
+                isSessionCurrent: { true }
+            )
+        }
+
+        await tokenSource.waitUntilFirstRequestStarts()
+        registration.cancel()
+        await tokenSource.releaseFirstRequest()
+
+        await #expect(throws: CancellationError.self) {
+            try await registration.value
+        }
+        #expect(try await harness.store.loadString(for: .fcmToken) == nil)
+        #expect(harness.repository.registrations.isEmpty)
+    }
+
     @Test func repositoryRevalidationStopsAWriteAfterItsLeaseIsCleared() async throws {
         let started = TestSignal()
         let release = TestGate()

@@ -127,24 +127,29 @@ final class TestNowProvider {
 actor RecordingNotificationRepository: NotificationRepository {
     private var events: [NotificationEvent] = []
 
-    func notifications(visibleTo member: Member) async -> [NotificationEvent] {
+    func notifications(visibleTo member: Member, environment _: SessionEnvironment) async -> [NotificationEvent] {
         let events = events
         return await MainActor.run {
             events.filter { $0.isVisible(to: member) }
         }
     }
 
-    func allNotifications() async -> [NotificationEvent] {
+    func allNotifications(environment _: SessionEnvironment) async -> [NotificationEvent] {
         events
     }
 
-    func readNotificationIds(memberId _: String) async -> Set<String> {
+    func readNotificationIds(memberId _: String, environment _: SessionEnvironment) async -> Set<String> {
         []
     }
 
-    func markNotificationsRead(memberId _: String, notificationIds _: [String], readAtMillis _: Int64) async {}
+    func markNotificationsRead(
+        memberId _: String,
+        notificationIds _: [String],
+        readAtMillis _: Int64,
+        environment _: SessionEnvironment
+    ) async {}
 
-    func send(event: NotificationEvent) async -> NotificationEvent {
+    func send(event: NotificationEvent, environment _: SessionEnvironment) async -> NotificationEvent {
         events.append(event)
         return event
     }
@@ -157,7 +162,7 @@ actor RecordingNotificationRepository: NotificationRepository {
 actor RecordingShiftPlanningRequestRepository: ShiftPlanningRequestRepository {
     private var requests: [ShiftPlanningRequest] = []
 
-    func submit(request: ShiftPlanningRequest) async -> ShiftPlanningRequest {
+    func submit(request: ShiftPlanningRequest, environment _: SessionEnvironment) async -> ShiftPlanningRequest {
         requests.append(request)
         return request
     }
@@ -203,7 +208,8 @@ struct ConfirmShiftSwapTestScenario {
             requesterUserId: requester.id,
             candidates: [ShiftSwapCandidate(userId: candidate.id, shiftId: candidateShift.id)],
             responses: [availableShiftSwapResponse(userId: candidate.id, shiftId: candidateShift.id)]
-        )
+        ),
+        environment: .develop
     )
     let shiftRepository = InMemoryShiftRepository(items: [requestedShift, candidateShift])
     let viewModel = makeShiftsViewModel(

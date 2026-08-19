@@ -27,6 +27,14 @@ extension SessionEnvironmentLease {
     }
 }
 
+struct SessionEnvironmentSnapshot: Equatable {
+    let environment: SessionEnvironment
+}
+
+protocol SessionEnvironmentSnapshotProviding: Sendable {
+    func snapshot() -> SessionEnvironmentSnapshot
+}
+
 nonisolated protocol AuthorizedMemberResolving: Sendable {
     func resolve(
         authPrincipal: AuthPrincipal,
@@ -71,6 +79,7 @@ final class SessionEnvironmentRoutingSignal {
 @MainActor
 protocol SessionEnvironmentRouting: Sendable {
     var baseEnvironment: SessionEnvironment { get }
+    var environmentSnapshotProvider: any SessionEnvironmentSnapshotProviding { get }
     var transitionSignal: SessionEnvironmentRoutingSignal { get }
     func applyResolvedEnvironment(_ environment: SessionEnvironment, lease: SessionEnvironmentLease)
     func resetToBaseEnvironment(ifOwnedBy lease: SessionEnvironmentLease)

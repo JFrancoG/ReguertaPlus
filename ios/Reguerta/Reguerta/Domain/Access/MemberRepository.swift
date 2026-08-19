@@ -1,9 +1,13 @@
 import Foundation
 
 protocol MemberRepository: Sendable {
-    func member(id: String) async throws -> Member?
-    func members(visibleTo member: Member) async throws -> [Member]
-    func updateOwnProducerCatalogEnabled(member: Member, enabled: Bool) async throws -> Member
+    func member(id: String, environment: SessionEnvironment) async throws -> Member?
+    func members(visibleTo member: Member, environment: SessionEnvironment) async throws -> [Member]
+    func updateOwnProducerCatalogEnabled(
+        member: Member,
+        enabled: Bool,
+        environment: SessionEnvironment
+    ) async throws -> Member
 }
 
 protocol LocalMemberRepository: MemberRepository {

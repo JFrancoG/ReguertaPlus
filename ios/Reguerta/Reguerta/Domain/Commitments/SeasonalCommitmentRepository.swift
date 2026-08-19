@@ -1,7 +1,7 @@
 import Foundation
 
 protocol SeasonalCommitmentRepository: Sendable {
-    func activeCommitments(userId: String) async throws -> [SeasonalCommitment]
+    func activeCommitments(userId: String, environment: SessionEnvironment) async throws -> [SeasonalCommitment]
 }
 
 /// Resolves commitments through the canonical member-document id.

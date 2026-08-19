@@ -1,120 +1,183 @@
+import FirebaseCore
 import FirebaseFirestore
 import Foundation
+import Synchronization
 
-nonisolated enum ShiftPlanningRequestTransactionDecision: Equatable, Sendable {
+enum ShiftPlanningRequestTransactionDecision: Equatable {
     case create(ShiftPlanningRequest)
     case acknowledge(ShiftPlanningRequest)
 }
 
-final class FirestoreShiftPlanningRequestRepository: @unchecked Sendable, ShiftPlanningRequestRepository {
-    private let db: Firestore
-    private let environment: ReguertaFirestoreEnvironment?
+enum ShiftPlanningRequestTransactionOutcome {
+    case success(ShiftPlanningRequest)
+    case failure(RepositoryError)
+    case cancelled
+}
 
-    init(db: Firestore = Firestore.firestore(), environment: ReguertaFirestoreEnvironment? = nil) {
-        self.db = db
-        self.environment = environment
+protocol ShiftPlanningRequestTransactionExecuting: Sendable {
+    func execute(
+        request: ShiftPlanningRequest,
+        environment: SessionEnvironment,
+        completion: @escaping @Sendable (ShiftPlanningRequestTransactionOutcome) -> Void
+    )
+}
+
+actor FirestoreShiftPlanningRequestRepository: ShiftPlanningRequestRepository {
+    private let transactionExecutor: any ShiftPlanningRequestTransactionExecuting
+
+    init(firebaseAppName: String) {
+        self.transactionExecutor = FirestoreShiftPlanningRequestTransactionExecutor(firebaseAppName: firebaseAppName)
     }
 
-    private var requestsCollection: CollectionReference {
-        db.reguertaCollection(.shiftPlanningRequests, environment: environment)
+    init(transactionExecutor: any ShiftPlanningRequestTransactionExecuting) {
+        self.transactionExecutor = transactionExecutor
     }
 
-    func submit(request: ShiftPlanningRequest) async throws -> ShiftPlanningRequest {
+    func submit(request: ShiftPlanningRequest, environment: SessionEnvironment) async throws -> ShiftPlanningRequest {
         guard !request.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw RepositoryError.invalidData(resource: "shiftPlanningRequests.document")
         }
 
-        do {
-            let result = try await runCreateIfAbsentTransaction(request: request)
-            return try result.resolvedRequest()
-        } catch {
-            if Task.isCancelled {
-                throw CancellationError()
+        try Task.checkCancellation()
+        let transactionExecutor = transactionExecutor
+        let outcome = await withCheckedContinuation { continuation in
+            transactionExecutor.execute(request: request, environment: environment) { outcome in
+                continuation.resume(returning: outcome)
             }
-            throw FirestoreRepositoryErrorMapper.map(error, resource: "shiftPlanningRequests.write")
+        }
+        try Task.checkCancellation()
+
+        switch outcome {
+        case .success(let persistedRequest):
+            return persistedRequest
+        case .failure(let error):
+            throw error
+        case .cancelled:
+            throw CancellationError()
         }
     }
 
-    private func runCreateIfAbsentTransaction(
-        request: ShiftPlanningRequest
-    ) async throws -> ShiftPlanningRequestTransactionResult {
-        let document = requestsCollection.document(request.id)
-        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<
-            ShiftPlanningRequestTransactionResult,
-            any Error
-        >) in
-            db.runTransaction { transaction, errorPointer -> Any? in
-                Self.transactionValue(
-                    transaction: transaction,
-                    errorPointer: errorPointer,
-                    document: document,
-                    requested: request
-                )
-            } completion: { result, error in
-                Self.resumeTransaction(
-                    continuation,
-                    result: result,
-                    error: error
-                )
-            }
-        }
-    }
-
-    private static func transactionValue(
-        transaction: Transaction,
-        errorPointer: NSErrorPointer,
-        document: DocumentReference,
+    static func transactionDecision(
+        documentID: String,
+        data: [String: Any]?,
         requested: ShiftPlanningRequest
-    ) -> Any? {
-        let snapshot: DocumentSnapshot
-        do {
-            snapshot = try transaction.getDocument(document)
-        } catch let error as NSError {
-            errorPointer?.pointee = error
-            return nil
-        }
+    ) throws -> ShiftPlanningRequestTransactionDecision {
+        try ShiftPlanningRequestTransactionCodec.transactionDecision(
+            documentID: documentID,
+            data: data,
+            requested: requested
+        )
+    }
+}
 
-        let decision: ShiftPlanningRequestTransactionDecision
-        do {
-            decision = try transactionDecision(
-                documentID: document.documentID,
-                data: snapshot.exists ? snapshot.data() : nil,
-                requested: requested
-            )
-        } catch {
-            return ShiftPlanningRequestTransactionResult.invalidData
-        }
+private final class FirestoreShiftPlanningRequestTransactionExecutor:
+    ShiftPlanningRequestTransactionExecuting,
+    Sendable {
+    private let storedDB: Mutex<Firestore>
 
-        switch decision {
-        case .create(let requestToCreate):
-            transaction.setData(
-                firestoreData(for: requestToCreate),
-                forDocument: document
-            )
-            return ShiftPlanningRequestTransactionResult.success(requestToCreate)
-        case .acknowledge(let existing):
-            return ShiftPlanningRequestTransactionResult.success(existing)
+    init(firebaseAppName: String) {
+        guard let app = FirebaseApp.app(name: firebaseAppName) else {
+            preconditionFailure("Firebase app is required for shift planning requests")
         }
+        self.storedDB = Mutex(Firestore.firestore(app: app))
     }
 
-    private static func resumeTransaction(
-        _ continuation: CheckedContinuation<ShiftPlanningRequestTransactionResult, any Error>,
-        result: Any?,
-        error: (any Error)?
+    func execute(
+        request: ShiftPlanningRequest,
+        environment: SessionEnvironment,
+        completion: @escaping @Sendable (ShiftPlanningRequestTransactionOutcome) -> Void
     ) {
-        if let error {
-            continuation.resume(throwing: error)
-        } else if let transactionResult = result as? ShiftPlanningRequestTransactionResult {
-            continuation.resume(returning: transactionResult)
-        } else {
-            continuation.resume(
-                throwing: RepositoryError.invalidData(
-                    resource: "shiftPlanningRequests.transaction"
-                )
+        let documentPath = ReguertaFirestorePath(environment: environment)
+            .documentPath(in: .shiftPlanningRequests, documentId: request.id)
+        let context = storedDB.withLock { storedDB in
+            FirestoreShiftPlanningRequestTransactionContext(
+                document: storedDB.document(documentPath),
+                requested: request
             )
+        }
+        let updateBlock: @Sendable (Transaction, NSErrorPointer) -> Any? = { transaction, errorPointer in
+            context.transactionValue(transaction: transaction, errorPointer: errorPointer)
+        }
+        let completionBlock: @Sendable (Any?, (any Error)?) -> Void = { result, error in
+            completion(Self.outcome(result: result, error: error))
+        }
+
+        storedDB.withLock { storedDB in
+            storedDB.runTransaction(updateBlock, completion: completionBlock)
         }
     }
 
+    private static func outcome(result: Any?, error: (any Error)?) -> ShiftPlanningRequestTransactionOutcome {
+        if let error {
+            let mappedError = FirestoreRepositoryErrorMapper.map(
+                error,
+                resource: "shiftPlanningRequests.write"
+            )
+            if mappedError is CancellationError {
+                return .cancelled
+            }
+            return .failure(
+                mappedError as? RepositoryError ?? .unknown(resource: "shiftPlanningRequests.write")
+            )
+        }
+        guard let transactionResult = result as? ShiftPlanningRequestTransactionResult else {
+            return .failure(.invalidData(resource: "shiftPlanningRequests.transaction"))
+        }
+        do {
+            return .success(try transactionResult.resolvedRequest())
+        } catch let error as RepositoryError {
+            return .failure(error)
+        } catch {
+            return .failure(.unknown(resource: "shiftPlanningRequests.transaction"))
+        }
+    }
+}
+
+private final class FirestoreShiftPlanningRequestTransactionContext: Sendable {
+    private let document: Mutex<DocumentReference>
+    private let requested: ShiftPlanningRequest
+
+    init(document: DocumentReference, requested: ShiftPlanningRequest) {
+        self.document = Mutex(document)
+        self.requested = requested
+    }
+
+    func transactionValue(transaction: Transaction, errorPointer: NSErrorPointer) -> Any? {
+        document.withLock { document in
+            let snapshot: DocumentSnapshot
+            do {
+                snapshot = try transaction.getDocument(document)
+            } catch let error as NSError {
+                errorPointer?.pointee = error
+                return nil
+            }
+
+            let decision: ShiftPlanningRequestTransactionDecision
+            do {
+                decision = try ShiftPlanningRequestTransactionCodec.transactionDecision(
+                    documentID: document.documentID,
+                    data: snapshot.exists ? snapshot.data() : nil,
+                    requested: requested
+                )
+            } catch {
+                return ShiftPlanningRequestTransactionResult.invalidData
+            }
+
+            switch decision {
+            case .create(let requestToCreate):
+                transaction.setData(
+                    ShiftPlanningRequestTransactionCodec.firestoreData(for: requestToCreate),
+                    forDocument: document
+                )
+                return ShiftPlanningRequestTransactionResult.success(requestToCreate)
+            case .acknowledge(let existing):
+                return ShiftPlanningRequestTransactionResult.success(existing)
+            }
+        }
+    }
+}
+
+private enum ShiftPlanningRequestTransactionCodec {
     static func transactionDecision(
         documentID: String,
         data: [String: Any]?,
@@ -157,7 +220,7 @@ final class FirestoreShiftPlanningRequestRepository: @unchecked Sendable, ShiftP
         )
     }
 
-    private static func firestoreData(for request: ShiftPlanningRequest) -> [String: Any] {
+    static func firestoreData(for request: ShiftPlanningRequest) -> [String: Any] {
         [
             "type": request.type.rawValue,
             "requestedByUserId": request.requestedByUserId,
@@ -174,7 +237,7 @@ final class FirestoreShiftPlanningRequestRepository: @unchecked Sendable, ShiftP
     }
 }
 
-nonisolated private enum ShiftPlanningRequestTransactionResult: Sendable {
+private enum ShiftPlanningRequestTransactionResult {
     case success(ShiftPlanningRequest)
     case invalidData
 

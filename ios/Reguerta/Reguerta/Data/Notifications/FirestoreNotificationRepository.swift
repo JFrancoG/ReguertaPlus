@@ -1,3 +1,4 @@
+import FirebaseCore
 import FirebaseFirestore
 import Foundation
 
@@ -15,34 +16,39 @@ enum FirestoreNotificationDocumentSource {
     }
 }
 
-final class FirestoreNotificationRepository: @unchecked Sendable, NotificationRepository {
-    private let db: Firestore
-    private let environment: ReguertaFirestoreEnvironment?
+actor FirestoreNotificationRepository: NotificationRepository {
+    private let storedDB: Firestore
 
-    init(db: Firestore = Firestore.firestore(), environment: ReguertaFirestoreEnvironment? = nil) {
-        self.db = db
-        self.environment = environment
+    init(firebaseAppName: String) {
+        guard let app = FirebaseApp.app(name: firebaseAppName) else {
+            preconditionFailure("Firebase app is required for notifications")
+        }
+        self.storedDB = Firestore.firestore(app: app)
     }
 
-    private var notificationsCollection: CollectionReference {
-        db.reguertaCollection(.notificationEvents, environment: environment)
-    }
-
-    private func notificationReadsCollection(memberId: String) -> CollectionReference {
-        db.reguertaCollection(.users, environment: environment)
+    private func notificationReadsCollection(
+        memberId: String,
+        environment: ReguertaFirestoreEnvironment
+    ) -> CollectionReference {
+        storedDB.reguertaCollection(.users, environment: environment)
             .document(memberId)
             .collection("notificationReads")
     }
 
-    private func notificationInboxCollection(memberId: String) -> CollectionReference {
-        db.reguertaCollection(.users, environment: environment)
+    private func notificationInboxCollection(
+        memberId: String,
+        environment: ReguertaFirestoreEnvironment
+    ) -> CollectionReference {
+        storedDB.reguertaCollection(.users, environment: environment)
             .document(memberId)
             .collection("notificationInbox")
     }
 
-    func notifications(visibleTo member: Member) async throws -> [NotificationEvent] {
+    func notifications(visibleTo member: Member, environment: SessionEnvironment) async throws -> [NotificationEvent] {
+        let collection = notificationInboxCollection(memberId: member.id, environment: environment)
         do {
-            let snapshot = try await notificationInboxCollection(memberId: member.id).getDocuments()
+            try Task.checkCancellation()
+            let snapshot = try await collection.getDocuments()
             return try Self.notificationEvents(
                 documents: snapshot.documents.map {
                     (documentID: $0.documentID, data: $0.data())
@@ -54,8 +60,10 @@ final class FirestoreNotificationRepository: @unchecked Sendable, NotificationRe
         }
     }
 
-    func allNotifications() async throws -> [NotificationEvent] {
+    func allNotifications(environment: SessionEnvironment) async throws -> [NotificationEvent] {
+        let notificationsCollection = storedDB.reguertaCollection(.notificationEvents, environment: environment)
         do {
+            try Task.checkCancellation()
             let snapshot = try await notificationsCollection.getDocuments()
             return try Self.notificationEvents(
                 documents: snapshot.documents.map {
@@ -68,24 +76,31 @@ final class FirestoreNotificationRepository: @unchecked Sendable, NotificationRe
         }
     }
 
-    func readNotificationIds(memberId: String) async throws -> Set<String> {
+    func readNotificationIds(memberId: String, environment: SessionEnvironment) async throws -> Set<String> {
+        let collection = notificationReadsCollection(memberId: memberId, environment: environment)
         do {
-            let snapshot = try await notificationReadsCollection(memberId: memberId).getDocuments()
+            try Task.checkCancellation()
+            let snapshot = try await collection.getDocuments()
             return Set(snapshot.documents.map(\.documentID))
         } catch {
             throw FirestoreRepositoryErrorMapper.map(error, resource: "notificationReads")
         }
     }
 
-    func markNotificationsRead(memberId: String, notificationIds: [String], readAtMillis: Int64) async throws {
+    func markNotificationsRead(
+        memberId: String,
+        notificationIds: [String],
+        readAtMillis: Int64,
+        environment: SessionEnvironment
+    ) async throws {
         let normalizedIds = Set(notificationIds.map {
             $0.trimmingCharacters(in: .whitespacesAndNewlines)
         }.filter { !$0.isEmpty })
         guard !normalizedIds.isEmpty else { return }
 
-        let batch = db.batch()
+        let batch = storedDB.batch()
         let readAt = Timestamp(date: Date(timeIntervalSince1970: TimeInterval(readAtMillis) / 1_000))
-        let collection = notificationReadsCollection(memberId: memberId)
+        let collection = notificationReadsCollection(memberId: memberId, environment: environment)
         for notificationId in normalizedIds {
             batch.setData(
                 [
@@ -97,13 +112,15 @@ final class FirestoreNotificationRepository: @unchecked Sendable, NotificationRe
             )
         }
         do {
+            try Task.checkCancellation()
             try await batch.commit()
         } catch {
             throw FirestoreRepositoryErrorMapper.map(error, resource: "notificationReads")
         }
     }
 
-    func send(event: NotificationEvent) async throws -> NotificationEvent {
+    func send(event: NotificationEvent, environment: SessionEnvironment) async throws -> NotificationEvent {
+        let notificationsCollection = storedDB.reguertaCollection(.notificationEvents, environment: environment)
         let documentId = event.id.isEmpty ? notificationsCollection.document().documentID : event.id
         let persisted = NotificationEvent(
             id: documentId,
@@ -145,6 +162,7 @@ final class FirestoreNotificationRepository: @unchecked Sendable, NotificationRe
             payload["weekKey"] = weekKey
         }
         do {
+            try Task.checkCancellation()
             try await notificationsCollection.document(documentId).setData(payload, merge: true)
         } catch {
             throw FirestoreRepositoryErrorMapper.map(

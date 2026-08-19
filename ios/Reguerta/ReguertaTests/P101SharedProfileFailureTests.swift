@@ -3,6 +3,7 @@ import Testing
 
 @testable import Reguerta
 
+@Suite(.timeLimit(.minutes(1)))
 @MainActor
 struct P101SharedProfileFailureTests {
     @Test func failedRefreshPreservesProfilesAndDraftAndReportsLoadError() async {
@@ -38,16 +39,20 @@ struct P101SharedProfileFailureTests {
         #expect(viewModel.isSaving == false)
     }
 
-    @Test func confirmedSavePreservesNewerDraftRevision() async {
+    @Test func confirmedSavePreservesNewerDraftRevision() async throws {
         let repository = SuspendedProfileRepository()
         let viewModel = makeViewModel(member: makeMember(), repository: repository)
         viewModel.updateDraft(SharedProfileDraft(familyNames: "Versión enviada", about: "Primera"))
 
         let saveTask = Task { await viewModel.saveProfile() }
-        await repository.waitUntilWriteStarts()
+        defer {
+            saveTask.cancel()
+            repository.cancelAll()
+        }
+        try await repository.waitUntilWriteStarts()
         let newerDraft = SharedProfileDraft(familyNames: "Versión nueva", about: "Segunda")
         viewModel.updateDraft(newerDraft)
-        await repository.completeWrite()
+        repository.completeWrite()
 
         #expect(await saveTask.value == false)
         #expect(viewModel.profiles.first?.familyNames == "Versión enviada")
@@ -55,33 +60,41 @@ struct P101SharedProfileFailureTests {
         #expect(viewModel.isSaving == false)
     }
 
-    @Test func confirmedSavePublishesAfterTaskCancellation() async {
+    @Test func confirmedSavePublishesAfterTaskCancellation() async throws {
         let repository = SuspendedProfileRepository()
         let viewModel = makeViewModel(member: makeMember(), repository: repository)
         viewModel.updateDraft(SharedProfileDraft(familyNames: "Familia confirmada", about: "Guardado"))
 
         let saveTask = Task { await viewModel.saveProfile() }
-        await repository.waitUntilWriteStarts()
+        defer {
+            saveTask.cancel()
+            repository.cancelAll()
+        }
+        try await repository.waitUntilWriteStarts()
         saveTask.cancel()
-        await repository.completeWrite()
+        repository.completeWrite()
 
         #expect(await saveTask.value)
         #expect(viewModel.profiles.first?.familyNames == "Familia confirmada")
         #expect(viewModel.isSaving == false)
     }
 
-    @Test func staleSaveFromPreviousLoginPublishesNothing() async {
+    @Test func staleSaveFromPreviousLoginPublishesNothing() async throws {
         let member = makeMember()
         let repository = SuspendedProfileRepository()
         let viewModel = makeViewModel(member: member, repository: repository)
         viewModel.updateDraft(SharedProfileDraft(familyNames: "Sesión anterior", about: "Pendiente"))
 
         let saveTask = Task { await viewModel.saveProfile() }
-        await repository.waitUntilWriteStarts()
+        defer {
+            saveTask.cancel()
+            repository.cancelAll()
+        }
+        try await repository.waitUntilWriteStarts()
         viewModel.handleSessionModeChange(.signedOut)
         let replacement = makeSession(member: member)
         viewModel.handleSessionModeChange(.authorized(replacement))
-        await repository.completeWrite()
+        repository.completeWrite()
 
         #expect(await saveTask.value == false)
         #expect(viewModel.profiles.isEmpty)
@@ -89,9 +102,146 @@ struct P101SharedProfileFailureTests {
         #expect(viewModel.feedbackCenter.messageKey == nil)
     }
 
+    @Test func environmentChangeRejectsLateDevelopRefreshWithoutClearingProductionRefresh() async throws {
+        let member = makeMember()
+        let repository = EnvironmentSuspendedProfileRepository(suspendsReads: true)
+        let viewModel = makeViewModel(member: member, repository: repository)
+        let developProfile = makeProfile(familyNames: "Develop", about: "Respuesta obsoleta")
+        let productionProfile = makeProfile(familyNames: "Production", about: "Respuesta vigente")
+
+        let developRefresh = Task { await viewModel.refreshProfiles() }
+        defer {
+            developRefresh.cancel()
+            repository.cancelAll()
+        }
+        try await repository.waitUntilReadStarts(environment: .develop)
+        transition(viewModel, member: member, to: .production)
+        try await repository.waitUntilReadStarts(environment: .production)
+
+        repository.completeRead(environment: .develop, profiles: [developProfile])
+        await developRefresh.value
+
+        #expect(viewModel.profiles.isEmpty)
+        #expect(viewModel.draft == SharedProfileDraft())
+        #expect(viewModel.isLoading)
+
+        repository.completeRead(environment: .production, profiles: [productionProfile])
+        try await waitUntilLoadingFinishes(viewModel)
+
+        #expect(viewModel.profiles == [productionProfile])
+        #expect(viewModel.draft == productionProfile.toDraft())
+    }
+
+    @Test func environmentChangeRejectsLateDevelopSaveWithoutClearingProductionSave() async throws {
+        let member = makeMember()
+        let repository = EnvironmentSuspendedProfileRepository(suspendsReads: true)
+        let viewModel = makeViewModel(member: member, repository: repository)
+        viewModel.updateDraft(SharedProfileDraft(familyNames: "Develop", about: "Respuesta obsoleta"))
+
+        let developSave = Task { await viewModel.saveProfile() }
+        defer {
+            developSave.cancel()
+            repository.cancelAll()
+        }
+        try await repository.waitUntilUpsertStarts(environment: .develop)
+        transition(viewModel, member: member, to: .production)
+        try await repository.waitUntilReadStarts(environment: .production)
+        viewModel.updateDraft(SharedProfileDraft(familyNames: "Production", about: "Respuesta vigente"))
+        let productionSave = Task { await viewModel.saveProfile() }
+        defer { productionSave.cancel() }
+        try await repository.waitUntilUpsertStarts(environment: .production)
+
+        repository.completeUpsert(environment: .develop)
+        #expect(await developSave.value == false)
+        #expect(viewModel.profiles.isEmpty)
+        #expect(viewModel.draft.familyNames == "Production")
+        #expect(viewModel.isSaving)
+
+        repository.completeUpsert(environment: .production)
+        #expect(await productionSave.value)
+        #expect(viewModel.profiles.map(\.familyNames) == ["Production"])
+        #expect(viewModel.draft.familyNames == "Production")
+        #expect(viewModel.isSaving == false)
+
+        repository.completeRead(environment: .production, profiles: [])
+        try await waitUntilLoadingFinishes(viewModel)
+    }
+
+    @Test func environmentChangeRejectsLateDevelopDeleteWithoutClearingProductionDelete() async throws {
+        let member = makeMember()
+        let repository = EnvironmentSuspendedProfileRepository()
+        let viewModel = makeViewModel(member: member, repository: repository)
+        viewModel.profiles = [makeProfile(familyNames: "Develop", about: "Respuesta obsoleta")]
+
+        let developDelete = Task { await viewModel.deleteProfile() }
+        defer {
+            developDelete.cancel()
+            repository.cancelAll()
+        }
+        try await repository.waitUntilDeleteStarts(environment: .develop)
+        transition(viewModel, member: member, to: .production)
+        let productionDelete = Task { await viewModel.deleteProfile() }
+        defer { productionDelete.cancel() }
+        try await repository.waitUntilDeleteStarts(environment: .production)
+
+        repository.completeDelete(environment: .develop)
+        #expect(await developDelete.value == false)
+        #expect(viewModel.isDeleting)
+        #expect(viewModel.feedbackCenter.messageKey == nil)
+
+        repository.completeDelete(environment: .production)
+        #expect(await productionDelete.value)
+        #expect(viewModel.isDeleting == false)
+        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackSharedProfileDeleted)
+    }
+
+    @Test func environmentChangeRejectsLateDevelopUploadWithoutClearingProductionUpload() async throws {
+        let member = makeMember()
+        let repository = EnvironmentSuspendedProfileRepository(suspendsReads: true)
+        let imagePipeline = EnvironmentSuspendedImagePipelineManager()
+        let viewModel = makeViewModel(
+            member: member,
+            repository: repository,
+            imagePipelineManager: imagePipeline
+        )
+
+        let developUpload = Task { await viewModel.uploadImage(Data([1])) }
+        defer {
+            developUpload.cancel()
+            repository.cancelAll()
+            imagePipeline.cancelAll()
+        }
+        try await imagePipeline.waitUntilUploadStarts(environment: .develop)
+        transition(viewModel, member: member, to: .production)
+        try await repository.waitUntilReadStarts(environment: .production)
+        viewModel.updateDraft(SharedProfileDraft(familyNames: "Production"))
+        let productionUpload = Task { await viewModel.uploadImage(Data([2])) }
+        defer { productionUpload.cancel() }
+        try await imagePipeline.waitUntilUploadStarts(environment: .production)
+
+        imagePipeline.completeUpload(environment: .develop, downloadURL: "https://develop.test/photo.jpg")
+        await developUpload.value
+        #expect(viewModel.draft.photoUrl != "https://develop.test/photo.jpg")
+        #expect(viewModel.isUploadingImage)
+
+        imagePipeline.completeUpload(environment: .production, downloadURL: "https://production.test/photo.jpg")
+        await productionUpload.value
+        #expect(viewModel.draft.photoUrl == "https://production.test/photo.jpg")
+        #expect(viewModel.draft.familyNames == "Production")
+        #expect(viewModel.isUploadingImage == false)
+
+        repository.completeRead(environment: .production, profiles: [])
+        try await waitUntilLoadingFinishes(viewModel)
+    }
+
+    private func waitUntilLoadingFinishes(_ viewModel: SharedProfileFeatureViewModel) async throws {
+        try await SharedProfileLoadingWaiter().wait(untilLoadingFinishesIn: viewModel)
+    }
+
     private func makeViewModel(
         member: Member,
         repository: any SharedProfileRepository,
+        imagePipelineManager: any ImagePipelineManager = NoOpImagePipelineManager(),
         nowMillis: Int64 = 100
     ) -> SharedProfileFeatureViewModel {
         let sessionViewModel = SessionViewModel(dependencies: .preview())
@@ -100,7 +250,7 @@ struct P101SharedProfileFailureTests {
         let viewModel = SharedProfileFeatureViewModel(
             sessionViewModel: sessionViewModel,
             sharedProfileRepository: repository,
-            imagePipelineManager: NoOpImagePipelineManager(),
+            imagePipelineManager: imagePipelineManager,
             nowMillisProvider: { nowMillis }
         )
         viewModel.currentSession = session
@@ -108,14 +258,24 @@ struct P101SharedProfileFailureTests {
         return viewModel
     }
 
-    private func makeSession(member: Member) -> AuthorizedSession {
+    private func makeSession(member: Member, environment: SessionEnvironment = .develop) -> AuthorizedSession {
         AuthorizedSession(
             principal: AuthPrincipal(uid: "auth_\(member.id)", email: member.normalizedEmail),
             authenticatedMember: member,
             member: member,
             members: [member],
-            environment: .develop
+            environment: environment
         )
+    }
+
+    private func transition(
+        _ viewModel: SharedProfileFeatureViewModel,
+        member: Member,
+        to environment: SessionEnvironment
+    ) {
+        let session = makeSession(member: member, environment: environment)
+        viewModel.sessionViewModel.mode = .authorized(session)
+        viewModel.handleSessionModeChange(.authorized(session))
     }
 
     private func makeMember() -> Member {
@@ -139,71 +299,4 @@ struct P101SharedProfileFailureTests {
             updatedAtMillis: 1
         )
     }
-}
-
-private actor ControlledProfileRepository: SharedProfileRepository {
-    private var items: [String: SharedProfile]
-    private let rejectsReads: Bool
-    private(set) var readCount = 0
-
-    init(items: [SharedProfile], rejectsReads: Bool) {
-        self.items = Dictionary(uniqueKeysWithValues: items.map { ($0.userId, $0) })
-        self.rejectsReads = rejectsReads
-    }
-
-    func allSharedProfiles() async throws -> [SharedProfile] {
-        readCount += 1
-        if rejectsReads { throw ProfileTestError.rejected }
-        return items.values.sorted { $0.updatedAtMillis > $1.updatedAtMillis }
-    }
-
-    func sharedProfile(userId: String) async throws -> SharedProfile? {
-        readCount += 1
-        if rejectsReads { throw ProfileTestError.rejected }
-        return items[userId]
-    }
-
-    func upsert(profile: SharedProfile) async -> SharedProfile {
-        items[profile.userId] = profile
-        return profile
-    }
-
-    func deleteSharedProfile(userId: String) async -> Bool {
-        items.removeValue(forKey: userId) != nil
-    }
-}
-
-private actor SuspendedProfileRepository: SharedProfileRepository {
-    private var submittedProfile: SharedProfile?
-    private var writeContinuation: CheckedContinuation<SharedProfile, Never>?
-    private var writeStartedWaiters: [CheckedContinuation<Void, Never>] = []
-
-    func allSharedProfiles() async -> [SharedProfile] { [] }
-    func sharedProfile(userId _: String) async -> SharedProfile? { nil }
-
-    func upsert(profile: SharedProfile) async -> SharedProfile {
-        submittedProfile = profile
-        return await withCheckedContinuation { continuation in
-            writeContinuation = continuation
-            writeStartedWaiters.forEach { $0.resume() }
-            writeStartedWaiters.removeAll()
-        }
-    }
-
-    func deleteSharedProfile(userId _: String) async -> Bool { true }
-
-    func waitUntilWriteStarts() async {
-        guard writeContinuation == nil else { return }
-        await withCheckedContinuation { writeStartedWaiters.append($0) }
-    }
-
-    func completeWrite() {
-        guard let submittedProfile, let writeContinuation else { return }
-        self.writeContinuation = nil
-        writeContinuation.resume(returning: submittedProfile)
-    }
-}
-
-private enum ProfileTestError: Error {
-    case rejected
 }

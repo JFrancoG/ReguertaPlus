@@ -11,8 +11,8 @@ struct MyOrderFreshnessRefreshBarrierTests {
         let applier = ControlledOrderingStateApplier()
         let viewModel = makeBarrierViewModel(
             localRepository: localRepository,
-            applyCriticalOrderingState: { scope, _ in
-                try await applier.apply(scope: scope)
+            applyCriticalOrderingState: { context, _ in
+                try await applier.apply(scope: context.refreshScope)
             }
         )
 
@@ -37,8 +37,8 @@ struct MyOrderFreshnessRefreshBarrierTests {
         let applier = RecoveringOrderingStateApplier()
         let viewModel = makeBarrierViewModel(
             localRepository: localRepository,
-            applyCriticalOrderingState: { scope, _ in
-                try await applier.apply(scope: scope)
+            applyCriticalOrderingState: { context, _ in
+                try await applier.apply(scope: context.refreshScope)
             }
         )
         let mode = barrierAuthorizedMode(uid: "uid_retry")
@@ -82,8 +82,8 @@ struct MyOrderFreshnessRefreshBarrierTests {
     func entryRequestWaitsForItsOwnFreshnessGeneration() async {
         let applier = ControlledOrderingStateApplier()
         let viewModel = makeBarrierViewModel(
-            applyCriticalOrderingState: { scope, _ in
-                try await applier.apply(scope: scope)
+            applyCriticalOrderingState: { context, _ in
+                try await applier.apply(scope: context.refreshScope)
             }
         )
         let mode = barrierAuthorizedMode(uid: "uid_entry")
@@ -163,6 +163,8 @@ struct MyOrderFreshnessRefreshBarrierTests {
         await staleTasks.timeout.value
 
         #expect(viewModel.state == .ready)
+        #expect(viewModel.freshnessOperationTask == nil)
+        #expect(viewModel.freshnessTimeoutTask == nil)
         #expect(localRepository.getMetadata()?.principalUID == "uid_new")
     }
 
@@ -251,11 +253,11 @@ private func makeBarrierViewModel(
         InMemoryCriticalDataFreshnessLocalRepository(),
     refresher: any CriticalDataRefreshing = NoOpCriticalDataRefresher(),
     applyCriticalOrderingState: @escaping @MainActor @Sendable (
-        CriticalDataRefreshScope,
+        MyOrderFreshnessSessionContext,
         CriticalDataRefreshPayload
     ) async throws -> Void = { _, _ in },
     isCriticalOrderingStateCurrent: @escaping @MainActor @Sendable (
-        CriticalDataRefreshScope
+        MyOrderFreshnessSessionContext
     ) -> Bool = { _ in true },
     sleeper: @escaping @Sendable (Duration) async throws -> Void = {
         try await ContinuousClock().sleep(for: $0)
@@ -284,7 +286,7 @@ private func barrierAuthorizedMode(
     environment: SessionEnvironment = .develop,
     canManageMembers: Bool = false
 ) -> SessionMode {
-    let baseMember = member(id: uid, ecoCommitmentMode: .weekly)
+    let baseMember = member(id: uid, ecoCommitmentMode: .weekly, authUID: uid)
     let currentMember = if canManageMembers {
         Member(
             id: baseMember.id,

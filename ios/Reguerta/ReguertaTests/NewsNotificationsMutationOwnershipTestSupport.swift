@@ -17,15 +17,15 @@ actor ReviewControlledNewsWriteRepository: NewsRepository {
     private var deleteWaiters: [(Int, CheckedContinuation<Void, Never>)] = []
     private var readWaiters: [(Int, CheckedContinuation<Void, Never>)] = []
 
-    func news(visibleTo _: Member) async throws -> [NewsArticle] {
+    func news(visibleTo _: Member, environment _: SessionEnvironment) async throws -> [NewsArticle] {
         newsReads += 1
         resumeWaiters(&readWaiters, count: newsReads)
         throw CancellationError()
     }
 
-    func allNews() async throws -> [NewsArticle] { [] }
+    func allNews(environment _: SessionEnvironment) async throws -> [NewsArticle] { [] }
 
-    func upsert(article: NewsArticle) async throws -> NewsArticle {
+    func upsert(article: NewsArticle, environment _: SessionEnvironment) async throws -> NewsArticle {
         let index = upsertRequests.count
         upsertRequests.append(article)
         resumeWaiters(&upsertWaiters, count: upsertRequests.count)
@@ -34,7 +34,7 @@ actor ReviewControlledNewsWriteRepository: NewsRepository {
         }
     }
 
-    func delete(newsId: String) async throws -> Bool {
+    func delete(newsId: String, environment _: SessionEnvironment) async throws -> Bool {
         let index = deleteRequests.count
         deleteRequests.append(newsId)
         resumeWaiters(&deleteWaiters, count: deleteRequests.count)
@@ -88,17 +88,22 @@ actor ReviewControlledNotificationWriteRepository: NotificationRepository {
     private var sendWaiters: [(Int, CheckedContinuation<Void, Never>)] = []
     private var readWaiters: [(Int, CheckedContinuation<Void, Never>)] = []
 
-    func notifications(visibleTo _: Member) async throws -> [NotificationEvent] {
+    func notifications(visibleTo _: Member, environment _: SessionEnvironment) async throws -> [NotificationEvent] {
         notificationReads += 1
         resumeWaiters(&readWaiters, count: notificationReads)
         throw CancellationError()
     }
 
-    func allNotifications() async throws -> [NotificationEvent] { [] }
-    func readNotificationIds(memberId _: String) async throws -> Set<String> { [] }
-    func markNotificationsRead(memberId _: String, notificationIds _: [String], readAtMillis _: Int64) async throws {}
+    func allNotifications(environment _: SessionEnvironment) async throws -> [NotificationEvent] { [] }
+    func readNotificationIds(memberId _: String, environment _: SessionEnvironment) async throws -> Set<String> { [] }
+    func markNotificationsRead(
+        memberId _: String,
+        notificationIds _: [String],
+        readAtMillis _: Int64,
+        environment _: SessionEnvironment
+    ) async throws {}
 
-    func send(event: NotificationEvent) async throws -> NotificationEvent {
+    func send(event: NotificationEvent, environment _: SessionEnvironment) async throws -> NotificationEvent {
         let index = sendRequests.count
         sendRequests.append(event)
         resumeWaiters(&sendWaiters, count: sendRequests.count)

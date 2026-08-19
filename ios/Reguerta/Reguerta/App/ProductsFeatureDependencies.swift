@@ -24,9 +24,9 @@ struct ProductsFeatureDependencies {
         }
 
         return ProductsFeatureDependencies(
-            productRepository: FirestoreProductRepository(db: db),
-            memberRepository: FirestoreMemberRepository(db: db),
-            seasonalCommitmentRepository: FirestoreSeasonalCommitmentRepository(db: db),
+            productRepository: FirestoreProductRepository(firebaseAppName: db.app.name),
+            memberRepository: FirestoreMemberRepository(firebaseAppName: db.app.name),
+            seasonalCommitmentRepository: FirestoreSeasonalCommitmentRepository(firebaseAppName: db.app.name),
             imagePipelineManager: imagePipelineManager,
             nowMillisProvider: nowMillisProvider
         )

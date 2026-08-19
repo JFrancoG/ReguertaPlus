@@ -1,8 +1,7 @@
 import FirebaseAuth
 import Foundation
 
-extension User: @retroactive @unchecked Sendable {}
-
+@MainActor
 struct FirebaseAuthSessionProvider: AuthSessionProvider {
     private let storedAuth: Auth
 
@@ -13,14 +12,18 @@ struct FirebaseAuthSessionProvider: AuthSessionProvider {
             let principal = try await awaitFirebaseAuthenticationFlow {
                 try await storedAuth.signIn(withEmail: trimmedEmail, password: password)
             } continuation: { result in
+                let authenticatedUID = result.user.uid
                 try await awaitFirebaseAuthenticationMutation {
-                    try await result.user.reload()
+                    try await reloadFirebaseUser(result.user)
                 } signOut: {
                     signOut()
                 }
-                guard let refreshedUser = storedAuth.currentUser else { throw FirebaseIDTokenError.noAuthenticatedUser }
+                guard let refreshedUser = storedAuth.currentUser,
+                      refreshedUser.uid == authenticatedUID else {
+                    throw FirebaseIDTokenError.noAuthenticatedUser
+                }
                 _ = try await awaitFirebaseAuthenticationMutation {
-                    try await refreshedUser.getIDTokenResult(forcingRefresh: true)
+                    try await firebaseIDToken(for: refreshedUser, forcingRefresh: true)
                 } signOut: {
                     signOut()
                 }
@@ -86,19 +89,25 @@ struct FirebaseAuthSessionProvider: AuthSessionProvider {
 
     func sendCurrentUserEmailVerification() async -> Bool {
         guard let user = storedAuth.currentUser else { return false }
-        return await sendVerificationEmail(to: user)
+        return await awaitFirebaseBooleanCallback {
+            await sendVerificationEmail(to: user)
+        }
     }
 
     func refreshCurrentSession() async -> AuthSessionRefreshResult {
         guard let user = storedAuth.currentUser else { return .noSession }
+        let authenticatedUID = user.uid
 
         do {
             return try await awaitFirebaseAuthenticationFlow {
-                try await user.reload()
+                try await reloadFirebaseUser(user)
             } continuation: {
-                guard let refreshedUser = storedAuth.currentUser else { return .expired }
+                guard let refreshedUser = storedAuth.currentUser,
+                      refreshedUser.uid == authenticatedUID else {
+                    return .expired
+                }
                 _ = try await awaitFirebaseAuthenticationMutation {
-                    try await refreshedUser.getIDTokenResult(forcingRefresh: true)
+                    try await firebaseIDToken(for: refreshedUser, forcingRefresh: true)
                 } signOut: {
                     signOut()
                 }
@@ -128,10 +137,26 @@ struct FirebaseAuthSessionProvider: AuthSessionProvider {
     }
 
     func validIDToken(forcingRefresh: Bool) async throws -> String {
-        guard let user = storedAuth.currentUser else { throw FirebaseIDTokenError.noAuthenticatedUser }
-        try await user.reload()
-        guard let refreshedUser = storedAuth.currentUser else { throw FirebaseIDTokenError.noAuthenticatedUser }
-        return try await refreshedUser.getIDTokenResult(forcingRefresh: forcingRefresh).token
+        guard let user = storedAuth.currentUser else { throw IDTokenProviderError.noAuthenticatedUser }
+        let authenticatedUID = user.uid
+        do {
+            try await awaitFirebaseCallback {
+                try await reloadFirebaseUser(user)
+            }
+            guard let refreshedUser = storedAuth.currentUser,
+                  refreshedUser.uid == authenticatedUID else {
+                throw IDTokenProviderError.noAuthenticatedUser
+            }
+            return try await awaitFirebaseCallback {
+                try await firebaseIDToken(for: refreshedUser, forcingRefresh: forcingRefresh)
+            }
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let error as IDTokenProviderError {
+            throw error
+        } catch {
+            throw IDTokenProviderError.unavailable
+        }
     }
 
     @discardableResult func signOut() -> Bool {
@@ -147,6 +172,22 @@ struct FirebaseAuthSessionProvider: AuthSessionProvider {
 extension FirebaseAuthSessionProvider {
     init(auth: Auth = Auth.auth()) {
         self.storedAuth = auth
+    }
+}
+
+@MainActor
+func awaitFirebaseCallback<Value>(_ operation: () async throws -> Value) async throws -> Value {
+    let value = try await operation()
+    try Task.checkCancellation()
+    return value
+}
+
+@MainActor
+func awaitFirebaseBooleanCallback(_ operation: () async -> Bool) async -> Bool {
+    do {
+        return try await awaitFirebaseCallback(operation)
+    } catch {
+        return false
     }
 }
 
@@ -205,10 +246,44 @@ private enum FirebaseIDTokenError: Error {
 
 @MainActor private func sendVerificationEmail(to user: User) async -> Bool {
     do {
-        try await user.sendEmailVerification()
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            user.sendEmailVerification { error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume(returning: ())
+                }
+            }
+        }
         return true
     } catch {
         return false
+    }
+}
+
+@MainActor private func reloadFirebaseUser(_ user: User) async throws {
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+        user.reload { error in
+            if let error {
+                continuation.resume(throwing: error)
+            } else {
+                continuation.resume(returning: ())
+            }
+        }
+    }
+}
+
+@MainActor private func firebaseIDToken(for user: User, forcingRefresh: Bool) async throws -> String {
+    try await withCheckedThrowingContinuation { continuation in
+        user.getIDTokenResult(forcingRefresh: forcingRefresh) { result, error in
+            if let error {
+                continuation.resume(throwing: error)
+            } else if let result {
+                continuation.resume(returning: result.token)
+            } else {
+                continuation.resume(throwing: FirebaseIDTokenError.noAuthenticatedUser)
+            }
+        }
     }
 }
 

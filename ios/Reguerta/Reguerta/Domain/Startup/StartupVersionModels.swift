@@ -19,5 +19,5 @@ enum StartupVersionGateDecision: Equatable, Sendable {
 }
 
 protocol StartupVersionPolicyRepository: Sendable {
-    func policy(for platform: StartupPlatform) async throws -> StartupVersionPolicy
+    func policy(for platform: StartupPlatform, environment: SessionEnvironment) async throws -> StartupVersionPolicy
 }

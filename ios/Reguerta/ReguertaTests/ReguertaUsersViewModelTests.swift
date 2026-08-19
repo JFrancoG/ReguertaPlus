@@ -27,7 +27,11 @@ struct ReguertaUsersViewModelTests {
     }
 
     @Test func usersViewModelBlocksUnauthorizedMemberManagementActions() async {
-        let member = usersRegularMember(id: "member_1", displayName: "Member One")
+        let member = usersRegularMember(
+            id: "member_1",
+            displayName: "Member One",
+            authUid: "auth_member_1"
+        )
         let scenario = makeUsersScenario(currentMember: member, members: [member])
         scenario.viewModel.draft = validMemberDraft(email: "new@reguerta.app")
 
@@ -415,7 +419,7 @@ private struct UsersGenericPersistenceError: Error {}
 private struct FailingMemberAdminUpserter: MemberAdminUpserting {
     let error: any Error
 
-    func execute(target _: Member) async throws -> Member {
+    func execute(target _: Member, environment _: SessionEnvironment) async throws -> Member {
         throw error
     }
 }

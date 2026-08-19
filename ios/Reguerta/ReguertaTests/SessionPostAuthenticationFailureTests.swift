@@ -263,18 +263,22 @@ nonisolated private struct PostAuthenticationMemberRepository: MemberRepository 
     let member: Member
     let failsMemberList: Bool
 
-    func member(id: String) async throws -> Member? {
+    func member(id: String, environment _: SessionEnvironment) async throws -> Member? {
         id == member.id ? member : nil
     }
 
-    func members(visibleTo _: Member) async throws -> [Member] {
+    func members(visibleTo _: Member, environment _: SessionEnvironment) async throws -> [Member] {
         if failsMemberList {
             throw PostAuthenticationTestError.failed
         }
         return [member]
     }
 
-    func updateOwnProducerCatalogEnabled(member _: Member, enabled _: Bool) async throws -> Member {
+    func updateOwnProducerCatalogEnabled(
+        member _: Member,
+        enabled _: Bool,
+        environment _: SessionEnvironment
+    ) async throws -> Member {
         member
     }
 }

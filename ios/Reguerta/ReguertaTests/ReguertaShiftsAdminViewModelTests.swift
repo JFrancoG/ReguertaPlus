@@ -15,10 +15,10 @@ struct ReguertaShiftsAdminViewModelTests {
             scenario.viewModel.shiftSwapRequests.first?.status == .applied
         }
 
-        let storedShifts = await scenario.shiftRepository.allShifts()
+        let storedShifts = await scenario.shiftRepository.allShifts(environment: .develop)
         let updatedRequestedShift = storedShifts.first { $0.id == scenario.requestedShift.id }
         let updatedCandidateShift = storedShifts.first { $0.id == scenario.candidateShift.id }
-        let storedRequests = await scenario.requestRepository.allShiftSwapRequests()
+        let storedRequests = await scenario.requestRepository.allShiftSwapRequests(environment: .develop)
 
         #expect(storedRequests.first?.status == .applied)
         #expect(updatedRequestedShift == scenario.requestedShift)
@@ -62,7 +62,7 @@ struct ReguertaShiftsAdminViewModelTests {
         #expect(adminViewModel.hasDeliveryCalendarDayChange)
         await adminViewModel.saveDeliveryCalendarOverride()
 
-        var overrides = await calendarRepository.allOverrides()
+        var overrides = await calendarRepository.allOverrides(environment: .develop)
         #expect(adminViewModel.defaultDeliveryDayOfWeek == .wednesday)
         #expect(overrides.first?.weekKey == delivery.weekKey)
         #expect(overrides.first?.deliveryDateMillis.deliveryWeekday == .friday)
@@ -72,7 +72,7 @@ struct ReguertaShiftsAdminViewModelTests {
         #expect(adminViewModel.hasDeliveryCalendarDayChange)
         await adminViewModel.saveDeliveryCalendarOverride()
 
-        overrides = await calendarRepository.allOverrides()
+        overrides = await calendarRepository.allOverrides(environment: .develop)
         #expect(overrides.isEmpty)
     }
 
@@ -216,37 +216,43 @@ private final class RejectingDeliveryCalendarRepository: DeliveryCalendarReposit
         self.items = items
     }
 
-    func defaultDeliveryDayOfWeek() async -> DeliveryWeekday {
+    func defaultDeliveryDayOfWeek(environment _: SessionEnvironment) async -> DeliveryWeekday {
         .wednesday
     }
 
-    func allOverrides() async -> [DeliveryCalendarOverride] {
+    func allOverrides(environment _: SessionEnvironment) async -> [DeliveryCalendarOverride] {
         items
     }
 
-    func upsertOverride(_ override: DeliveryCalendarOverride) async throws -> DeliveryCalendarOverride {
+    func upsertOverride(
+        _ override: DeliveryCalendarOverride,
+        environment _: SessionEnvironment
+    ) async throws -> DeliveryCalendarOverride {
         throw ShiftsMutationTestError.rejected
     }
 
-    func deleteOverride(weekKey _: String) async throws {
+    func deleteOverride(weekKey _: String, environment _: SessionEnvironment) async throws {
         throw ShiftsMutationTestError.rejected
     }
 }
 
 @MainActor
 private final class RejectingShiftPlanningRequestRepository: ShiftPlanningRequestRepository {
-    func submit(request _: ShiftPlanningRequest) async throws -> ShiftPlanningRequest {
+    func submit(
+        request _: ShiftPlanningRequest,
+        environment _: SessionEnvironment
+    ) async throws -> ShiftPlanningRequest {
         throw ShiftsMutationTestError.rejected
     }
 }
 
 @MainActor
 private final class RejectingShiftRepository: ShiftRepository {
-    func allShifts() async -> [ShiftAssignment] {
+    func allShifts(environment _: SessionEnvironment) async -> [ShiftAssignment] {
         []
     }
 
-    func upsert(shift _: ShiftAssignment) async throws -> ShiftAssignment {
+    func upsert(shift _: ShiftAssignment, environment _: SessionEnvironment) async throws -> ShiftAssignment {
         throw ShiftsMutationTestError.rejected
     }
 }

@@ -38,6 +38,9 @@ struct FirebaseAuthorizedMemberResolver: AuthorizedMemberResolving {
                 firstLoginLinked: response.firstLoginLinked
             )
         } catch let error as FirebaseFunctionClientError {
+            if error == .cancelled {
+                throw CancellationError()
+            }
             guard case .forbidden(let code, _) = error else { throw error }
             switch code {
             case "member_not_found", "unlinked_account":

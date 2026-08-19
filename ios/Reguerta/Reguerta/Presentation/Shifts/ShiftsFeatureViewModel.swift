@@ -46,6 +46,12 @@ final class ShiftsFeatureViewModel {
     var nextShiftsRefreshOperationId: UInt64 = 0
     var activeCalendarRefreshOperationId: UInt64?
     var nextCalendarRefreshOperationId: UInt64 = 0
+    var activeCalendarMutationOperationId: UInt64?
+    var nextCalendarMutationOperationId: UInt64 = 0
+    var activePlanningSubmissionOperationId: UInt64?
+    var nextPlanningSubmissionOperationId: UInt64 = 0
+    var activeSwapSaveOperationId: UInt64?
+    var nextSwapSaveOperationId: UInt64 = 0
     var activeSwapMutationOperationId: UInt64?
     var nextSwapMutationOperationId: UInt64 = 0
 
@@ -98,9 +104,7 @@ final class ShiftsFeatureViewModel {
         planningRequestIDProvider: @escaping @MainActor () -> String = {
             UUID().uuidString.lowercased()
         },
-        environmentProvider: @escaping @MainActor () -> ReguertaFirestoreEnvironment = {
-            ReguertaRuntimeEnvironment.currentFirestoreEnvironment
-        }
+        environmentProvider: @escaping @MainActor () -> ReguertaFirestoreEnvironment
     ) {
         self.sessionViewModel = sessionViewModel
         self.feedbackCenter = feedbackCenter
@@ -118,5 +122,21 @@ final class ShiftsFeatureViewModel {
         let session: AuthorizedSession
         let generation: UInt64
         let environment: ReguertaFirestoreEnvironment
+        let sessionStateRevision: UInt64
+    }
+
+    struct SessionAuthorizationSignature: Equatable {
+        let principalUID: String
+        let authenticatedMember: MemberAuthorizationSignature
+        let currentMember: MemberAuthorizationSignature
+        let environment: SessionEnvironment
+    }
+
+    struct MemberAuthorizationSignature: Equatable {
+        let id: String
+        let authUID: String?
+        let roles: Set<MemberRole>
+        let isActive: Bool
+        let capabilities: Set<AccessCapability>
     }
 }

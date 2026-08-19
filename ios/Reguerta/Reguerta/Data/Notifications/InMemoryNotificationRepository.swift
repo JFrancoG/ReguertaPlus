@@ -45,14 +45,14 @@ actor InMemoryNotificationRepository: NotificationRepository {
         )
     ]
 
-    func notifications(visibleTo member: Member) async throws -> [NotificationEvent] {
-        let allNotifications = await allNotifications()
+    func notifications(visibleTo member: Member, environment: SessionEnvironment) async throws -> [NotificationEvent] {
+        let allNotifications = await allNotifications(environment: environment)
         return await MainActor.run {
             allNotifications.filter { $0.isVisible(to: member) }
         }
     }
 
-    func allNotifications() async -> [NotificationEvent] {
+    func allNotifications(environment _: SessionEnvironment) async -> [NotificationEvent] {
         var localized: [NotificationEvent] = []
         localized.reserveCapacity(notifications.count)
         for event in notifications.values {
@@ -61,16 +61,23 @@ actor InMemoryNotificationRepository: NotificationRepository {
         return localized.sorted { $0.sentAtMillis > $1.sentAtMillis }
     }
 
-    func readNotificationIds(memberId: String) async -> Set<String> { readNotificationIdsByMember[memberId] ?? [] }
+    func readNotificationIds(memberId: String, environment _: SessionEnvironment) async -> Set<String> {
+        readNotificationIdsByMember[memberId] ?? []
+    }
 
-    func markNotificationsRead(memberId: String, notificationIds: [String], readAtMillis _: Int64) async {
+    func markNotificationsRead(
+        memberId: String,
+        notificationIds: [String],
+        readAtMillis _: Int64,
+        environment _: SessionEnvironment
+    ) async {
         guard !notificationIds.isEmpty else { return }
         var readIds = readNotificationIdsByMember[memberId] ?? []
         readIds.formUnion(notificationIds)
         readNotificationIdsByMember[memberId] = readIds
     }
 
-    func send(event: NotificationEvent) async -> NotificationEvent {
+    func send(event: NotificationEvent, environment _: SessionEnvironment) async -> NotificationEvent {
         let eventId = event.id.isEmpty ? "notification_\(notifications.count + 1)" : event.id
         let persisted = NotificationEvent(
             id: eventId,

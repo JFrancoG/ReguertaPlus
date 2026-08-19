@@ -7,6 +7,7 @@ enum ImageUploadNamespace: String, Sendable {
 }
 
 struct ImageUploadRequest {
+    let environment: SessionEnvironment
     let ownerId: String
     let namespace: ImageUploadNamespace
     let entityId: String?
@@ -29,6 +30,18 @@ enum ImagePipelineError: Error, Sendable {
 }
 
 protocol ImagePipelineManager: Sendable {
+    /// Processes an image and uploads it under the immutable routing context carried by `request`.
+    ///
+    /// Implementations must derive the complete remote path from that request before suspending and
+    /// must not consult ambient session state later. Cancellation prevents a late URL from being
+    /// returned, but it does not guarantee deletion when the remote upload has already completed.
+    ///
+    /// - Parameters:
+    ///   - imageData: Source image bytes to validate, resize, crop, and encode.
+    ///   - request: Immutable owner, namespace, entity, and environment for the remote object.
+    /// - Returns: Metadata for the uploaded object and its download URL.
+    /// - Throws: `CancellationError` when cancelled, or an `ImagePipelineError` for processing or
+    ///   upload failures.
     func processAndUpload(imageData: Data, request: ImageUploadRequest) async throws -> ImageUploadResult
 }
 

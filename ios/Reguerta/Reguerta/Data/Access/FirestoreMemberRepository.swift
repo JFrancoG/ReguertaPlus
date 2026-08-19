@@ -1,30 +1,26 @@
+import FirebaseCore
 import FirebaseFirestore
 import Foundation
 
-final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
-    private let db: Firestore
-    private let environment: ReguertaFirestoreEnvironment?
+actor FirestoreMemberRepository: MemberRepository {
+    private let storedDB: Firestore
 
-    init(db: Firestore = Firestore.firestore(), environment: ReguertaFirestoreEnvironment? = nil) {
-        self.db = db
-        self.environment = environment
+    init(firebaseAppName: String) {
+        guard let app = FirebaseApp.app(name: firebaseAppName) else {
+            preconditionFailure("Firebase app is required for members")
+        }
+        self.storedDB = Firestore.firestore(app: app)
     }
 
-    private var usersCollection: CollectionReference {
-        db.reguertaCollection(.users, environment: environment)
-    }
-
-    private var memberDirectoryCollection: CollectionReference {
-        db.reguertaCollection(.memberDirectory, environment: environment)
-    }
-
-    func member(id: String) async throws -> Member? {
+    func member(id: String, environment: SessionEnvironment) async throws -> Member? {
         let normalizedID = id.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedID.isEmpty, !normalizedID.contains("/") else {
             throw RepositoryError.invalidData(resource: "members.id")
         }
 
         do {
+            try Task.checkCancellation()
+            let usersCollection = storedDB.reguertaCollection(.users, environment: environment)
             let snapshot = try await usersCollection.document(normalizedID).getDocument()
             guard snapshot.exists else { return nil }
             guard let data = snapshot.data() else { throw Self.invalidMemberDocumentError }
@@ -34,15 +30,21 @@ final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
         }
     }
 
-    func members(visibleTo member: Member) async throws -> [Member] {
+    func members(visibleTo member: Member, environment: SessionEnvironment) async throws -> [Member] {
         do {
+            try Task.checkCancellation()
             let members: [Member]
             if member.canManageMembers {
+                let usersCollection = storedDB.reguertaCollection(.users, environment: environment)
                 let snapshot = try await usersCollection.getDocuments()
                 members = try snapshot.documents.map { document in
                     try Self.member(documentID: document.documentID, data: document.data())
                 }
             } else {
+                let memberDirectoryCollection = storedDB.reguertaCollection(
+                    .memberDirectory,
+                    environment: environment
+                )
                 let snapshot = try await memberDirectoryCollection
                     .whereField("isActive", isEqualTo: true)
                     .getDocuments()
@@ -59,8 +61,14 @@ final class FirestoreMemberRepository: @unchecked Sendable, MemberRepository {
         }
     }
 
-    func updateOwnProducerCatalogEnabled(member: Member, enabled: Bool) async throws -> Member {
+    func updateOwnProducerCatalogEnabled(
+        member: Member,
+        enabled: Bool,
+        environment: SessionEnvironment
+    ) async throws -> Member {
         do {
+            try Task.checkCancellation()
+            let usersCollection = storedDB.reguertaCollection(.users, environment: environment)
             try await usersCollection.document(member.id).updateData([
                 "producerCatalogEnabled": enabled
             ])

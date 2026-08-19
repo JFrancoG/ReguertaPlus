@@ -12,7 +12,7 @@ struct OrdersFeatureDependencies {
         nowMillisProvider: @escaping @MainActor () -> Int64
     ) -> OrdersFeatureDependencies {
         OrdersFeatureDependencies(
-            ordersRepository: FirestoreOrdersRepository(db: db),
+            ordersRepository: FirestoreOrdersRepository(firebaseAppName: db.app.name),
             cartStore: UserDefaultsMyOrderCartStore(userDefaults: userDefaults),
             nowMillisProvider: nowMillisProvider
         )

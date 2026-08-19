@@ -226,16 +226,50 @@ struct ReguertaHomeSummaryTests {
         defer {
             defaults.removePersistentDomain(forName: suiteName)
         }
-        let cartKey = "reguerta_my_order_cart.member_member_1_week_2026-W19.quantities"
-        let confirmedKey = "reguerta_my_order_cart.member_member_1_week_2026-W19.confirmed_quantities"
+        let storageKey = myOrderLocalStateStorageKey(
+            memberId: "member_1",
+            weekKey: "2026-W19",
+            environment: .develop
+        )
+        let cartKey = "\(myOrderCartStoragePrefix).\(storageKey)\(myOrderCartQuantitiesSuffix)"
+        let confirmedKey = "\(myOrderCartStoragePrefix).\(storageKey)\(myOrderConfirmedQuantitiesSuffix)"
+        let legacyCartKey = "\(myOrderCartStoragePrefix).member_member_1_week_2026-W19\(myOrderCartQuantitiesSuffix)"
 
-        #expect(resolveHomeOrderState(userDefaults: defaults, memberId: "member_1", weekKey: "2026-W19") == .notStarted)
+        defaults.set(["legacy_product": 2], forKey: legacyCartKey)
+        #expect(
+            resolveHomeOrderState(
+                userDefaults: defaults,
+                memberId: "member_1",
+                weekKey: "2026-W19",
+                environment: .develop
+            ) == .notStarted
+        )
         defaults.set(["product_1": 2], forKey: cartKey)
         #expect(
-            resolveHomeOrderState(userDefaults: defaults, memberId: "member_1", weekKey: "2026-W19") == .unconfirmed
+            resolveHomeOrderState(
+                userDefaults: defaults,
+                memberId: "member_1",
+                weekKey: "2026-W19",
+                environment: .develop
+            ) == .unconfirmed
+        )
+        #expect(
+            resolveHomeOrderState(
+                userDefaults: defaults,
+                memberId: "member_1",
+                weekKey: "2026-W19",
+                environment: .production
+            ) == .notStarted
         )
         defaults.set(["product_1": 2], forKey: confirmedKey)
-        #expect(resolveHomeOrderState(userDefaults: defaults, memberId: "member_1", weekKey: "2026-W19") == .completed)
+        #expect(
+            resolveHomeOrderState(
+                userDefaults: defaults,
+                memberId: "member_1",
+                weekKey: "2026-W19",
+                environment: .develop
+            ) == .completed
+        )
     }
 
     @Test func homeDisplayedOrderStateUsesConsultationBeforeDelivery() {

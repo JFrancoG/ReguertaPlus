@@ -8,23 +8,28 @@ struct ShiftsFeatureDependencies {
     let deliveryCalendarRepository: any DeliveryCalendarRepository
     let notificationRepository: any NotificationRepository
     let nowMillisProvider: @MainActor () -> Int64
+    let environmentProvider: @MainActor () -> ReguertaFirestoreEnvironment
 
     static func live(
         db: Firestore,
+        environmentProvider: any SessionEnvironmentSnapshotProviding,
         functionsClient: AuthenticatedFirebaseFunctionsClient,
         notificationRepository: (any NotificationRepository)? = nil,
         nowMillisProvider: @escaping @MainActor () -> Int64
     ) -> ShiftsFeatureDependencies {
         ShiftsFeatureDependencies(
-            shiftRepository: FirestoreShiftRepository(db: db),
+            shiftRepository: FirestoreShiftRepository(firebaseAppName: db.app.name),
             shiftSwapRequestRepository: FirestoreShiftSwapRequestRepository(
-                db: db,
+                firebaseAppName: db.app.name,
                 functionsClient: functionsClient
             ),
-            shiftPlanningRequestRepository: FirestoreShiftPlanningRequestRepository(db: db),
-            deliveryCalendarRepository: FirestoreDeliveryCalendarRepository(db: db),
-            notificationRepository: notificationRepository ?? FirestoreNotificationRepository(db: db),
-            nowMillisProvider: nowMillisProvider
+            shiftPlanningRequestRepository: FirestoreShiftPlanningRequestRepository(firebaseAppName: db.app.name),
+            deliveryCalendarRepository: FirestoreDeliveryCalendarRepository(firebaseAppName: db.app.name),
+            notificationRepository: notificationRepository ?? FirestoreNotificationRepository(
+                firebaseAppName: db.app.name
+            ),
+            nowMillisProvider: nowMillisProvider,
+            environmentProvider: { environmentProvider.snapshot().environment }
         )
     }
 
@@ -35,7 +40,8 @@ struct ShiftsFeatureDependencies {
         ),
         deliveryCalendarRepository: InMemoryDeliveryCalendarRepository = InMemoryDeliveryCalendarRepository(),
         notificationRepository: InMemoryNotificationRepository = InMemoryNotificationRepository(),
-        nowMillisProvider: @escaping @MainActor () -> Int64 = { 0 }
+        nowMillisProvider: @escaping @MainActor () -> Int64 = { 0 },
+        environmentProvider: @escaping @MainActor () -> ReguertaFirestoreEnvironment = { .develop }
     ) -> ShiftsFeatureDependencies {
         ShiftsFeatureDependencies(
             shiftRepository: shiftRepository,
@@ -43,7 +49,8 @@ struct ShiftsFeatureDependencies {
             shiftPlanningRequestRepository: shiftPlanningRequestRepository,
             deliveryCalendarRepository: deliveryCalendarRepository,
             notificationRepository: notificationRepository,
-            nowMillisProvider: nowMillisProvider
+            nowMillisProvider: nowMillisProvider,
+            environmentProvider: environmentProvider
         )
     }
 }

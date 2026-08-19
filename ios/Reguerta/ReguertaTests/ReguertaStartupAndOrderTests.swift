@@ -15,7 +15,8 @@ struct ReguertaStartupAndOrderTests {
                     forceUpdate: true,
                     storeURL: "https://apps.apple.com"
                 )
-            )
+            ),
+            environment: .develop
         )
 
         let decision = try useCase.evaluate(
@@ -40,7 +41,8 @@ struct ReguertaStartupAndOrderTests {
                     forceUpdate: false,
                     storeURL: "https://apps.apple.com"
                 )
-            )
+            ),
+            environment: .develop
         )
 
         let decision = try useCase.evaluate(
