@@ -19,7 +19,7 @@ struct ReguertaCardView<Content: View>: View {
     }
 }
 
-#Preview("ReguertaCard") {
+#Preview("ReguertaCard", traits: .modifier(ReguertaDesignSystemPreviewModifier())) {
     reguertaCard {
         VStack(alignment: .leading, spacing: 8) {
             Text("Card title")

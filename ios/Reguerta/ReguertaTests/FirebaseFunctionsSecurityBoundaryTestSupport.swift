@@ -57,21 +57,27 @@ final class EnvironmentRecordingMemberRepository: MemberRepository {
         self.router = router
     }
 
-    func member(id: String) async throws -> Member? {
-        requestedMemberIds.append(id)
-        environmentAtMemberRead = router.appliedEnvironment
-        return id == memberValue?.id ? memberValue : nil
-    }
-
-    func members(visibleTo member: Member) async throws -> [Member] {
-        memberValue.map { [$0] } ?? []
-    }
-
-    func updateOwnProducerCatalogEnabled(member: Member, enabled: Bool) async throws -> Member {
-        guard let memberValue else {
-            throw FirebaseFunctionClientError.invalidResponse
+    nonisolated func member(id: String) async throws -> Member? {
+        await MainActor.run {
+            requestedMemberIds.append(id)
+            environmentAtMemberRead = router.appliedEnvironment
+            return id == memberValue?.id ? memberValue : nil
         }
-        return memberValue
+    }
+
+    nonisolated func members(visibleTo member: Member) async throws -> [Member] {
+        await MainActor.run {
+            memberValue.map { [$0] } ?? []
+        }
+    }
+
+    nonisolated func updateOwnProducerCatalogEnabled(member: Member, enabled: Bool) async throws -> Member {
+        try await MainActor.run {
+            guard let memberValue else {
+                throw FirebaseFunctionClientError.invalidResponse
+            }
+            return memberValue
+        }
     }
 }
 

@@ -61,6 +61,7 @@ struct ReguertaFloatingActionButtonView: View {
     .padding(.vertical)
 }
 
+@MainActor
 @ViewBuilder
 func reguertaFloatingActionButton(
     _ title: LocalizedStringKey,
@@ -76,6 +77,7 @@ func reguertaFloatingActionButton(
     )
 }
 
+@MainActor
 @ViewBuilder
 func reguertaFloatingActionButton(
     verbatim title: String,

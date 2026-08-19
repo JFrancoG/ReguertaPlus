@@ -56,6 +56,7 @@ struct ReguertaDialogViewModel {
     }
 }
 
+@MainActor
 @ViewBuilder
 func reguertaDialog(
     type: ReguertaDialogType,

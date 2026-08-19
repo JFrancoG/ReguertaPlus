@@ -33,7 +33,18 @@ Este documento es la fuente de verdad del stack tecnico de Reguerta.
 - UI: SwiftUI
 - Arquitectura: MVVM + Clean Architecture
 - Concurrencia: Swift Concurrency (`async/await`, flujos con tasks)
-- Modo de concurrencia: strict concurrency habilitado en el codigo de app
+- Modo de concurrencia: concurrencia estricta de Swift 6 configurada como
+  `complete`
+- Approachable Concurrency: habilitada (`SWIFT_APPROACHABLE_CONCURRENCY = YES`)
+- Objetivo de aislamiento de actor por defecto: `nonisolated` para todos los
+  módulos iOS propios, heredado desde una única autoridad a nivel de proyecto
+- Estado de la migración de aislamiento: implementada y validada localmente por
+  HU-074 bajo ADR-0011; los targets de app, tests unitarios y tests de UI
+  heredan la política de proyecto, y la publicación de la rama está autorizada
+  mediante la issue #249 mientras la integración sigue siendo un gate separado
+- Propiedad de actores: los modelos observables de UI y Stores declaran
+  `@MainActor` explícitamente; Domain y Data permanecen neutrales por defecto y
+  el estado mutable de infraestructura tiene un único propietario explícito
 - Modelo de estado/observacion: Observation framework (`@Observable`) como patron observable por defecto
 - Gestion de dependencias: Swift Package Manager (SPM)
 - Integracion backend: Firebase iOS SDK (Auth, Firestore, Storage, Messaging, Crashlytics, Analytics)
@@ -57,3 +68,5 @@ Este documento es la fuente de verdad del stack tecnico de Reguerta.
 ## Notas
 
 - Si hay conflicto entre este documento, ADRs o instrucciones de agentes, resolver mediante aclaracion explicita con el usuario antes de continuar.
+- ADR-0011 define la política de aislamiento iOS, las restricciones de migración
+  y la frontera de aprobación para escapes inseguros.

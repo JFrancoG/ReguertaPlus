@@ -22,7 +22,7 @@ struct ReguertaApp: App {
         WindowGroup {
             ReguertaTheme {
                 MainView()
-                    .environment(\.reguertaAppEnvironment, appEnvironment)
+                    .reguertaAppEnvironment(appEnvironment)
             }
             .preferredColorScheme(appAppearance.preferredColorScheme)
         }

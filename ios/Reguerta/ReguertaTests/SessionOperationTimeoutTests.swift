@@ -355,6 +355,8 @@ actor ControlledSessionOperationSleeper {
     private var registeredRequestCount = 0
     private var requestedDurations: [Duration] = []
     private var requestContinuations: [Int: CheckedContinuation<Void, any Error>] = [:]
+    private var requestCountWaiters: [Int: (count: Int, continuation: CheckedContinuation<Void, any Error>)] = [:]
+    private var nextRequestCountWaiterID = 0
     private var cancelledRequests: Set<Int> = []
 
     func sleep(for duration: Duration) async throws {
@@ -369,6 +371,7 @@ actor ControlledSessionOperationSleeper {
                 } else {
                     requestContinuations[requestIndex] = continuation
                     registeredRequestCount += 1
+                    resumeSatisfiedRequestCountWaiters()
                 }
             }
         } onCancel: {
@@ -377,14 +380,26 @@ actor ControlledSessionOperationSleeper {
     }
 
     func waitForRequestCount(_ expectedCount: Int) async throws {
-        for _ in 0 ..< 1_000 {
-            try Task.checkCancellation()
-            if registeredRequestCount >= expectedCount {
-                return
-            }
-            await Task.yield()
+        if registeredRequestCount >= expectedCount {
+            return
         }
-        Issue.record("No se registraron \(expectedCount) deadlines de sesión")
+
+        let waiterID = nextRequestCountWaiterID
+        nextRequestCountWaiterID += 1
+        try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+                guard !Task.isCancelled else {
+                    continuation.resume(throwing: CancellationError())
+                    return
+                }
+                requestCountWaiters[waiterID] = (expectedCount, continuation)
+            }
+        } onCancel: {
+            Task {
+                await self.cancelRequestCountWaiter(id: waiterID)
+            }
+        }
     }
 
     func completeRequest(at index: Int) {
@@ -405,6 +420,19 @@ actor ControlledSessionOperationSleeper {
             return
         }
         continuation.resume(throwing: CancellationError())
+    }
+
+    private func resumeSatisfiedRequestCountWaiters() {
+        let satisfiedIDs = requestCountWaiters.compactMap { id, waiter in
+            registeredRequestCount >= waiter.count ? id : nil
+        }
+        for id in satisfiedIDs {
+            requestCountWaiters.removeValue(forKey: id)?.continuation.resume()
+        }
+    }
+
+    private func cancelRequestCountWaiter(id: Int) {
+        requestCountWaiters.removeValue(forKey: id)?.continuation.resume(throwing: CancellationError())
     }
 
 }

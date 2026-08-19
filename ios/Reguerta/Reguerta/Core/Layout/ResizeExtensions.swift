@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 extension Int {
     var resize: CGFloat {
         CGFloat(self).resize
@@ -14,6 +15,7 @@ extension Int {
     }
 }
 
+@MainActor
 extension CGFloat {
     var resize: CGFloat {
         DeviceScale.resize(self)
@@ -28,6 +30,7 @@ extension CGFloat {
     }
 }
 
+@MainActor
 extension Double {
     var resize: CGFloat {
         CGFloat(self).resize

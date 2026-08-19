@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated protocol BylawsKnowledgeProviding: Sendable {
+protocol BylawsKnowledgeProviding: Sendable {
     func loadIndex() async throws -> BylawsKnowledgeIndex
 }
 

@@ -19,6 +19,7 @@ struct ResolveAuthorizedSessionUseCase {
     /// - Returns: An authorized member and environment, or a domain authorization failure.
     /// - Throws: `CancellationError`, a non-authorization resolver error, or an error produced
     ///   while loading the resolved member.
+    @MainActor
     func execute(authPrincipal: AuthPrincipal) async throws -> AccessResolutionResult {
         try Task.checkCancellation()
         let resolution: AuthorizedMemberResolution

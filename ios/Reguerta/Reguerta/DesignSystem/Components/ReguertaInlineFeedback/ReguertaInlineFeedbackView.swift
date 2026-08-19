@@ -17,7 +17,7 @@ struct ReguertaInlineFeedbackView: View {
     }
 }
 
-#Preview("ReguertaInlineFeedback") {
+#Preview("ReguertaInlineFeedback", traits: .modifier(ReguertaDesignSystemPreviewModifier())) {
     VStack(alignment: .leading, spacing: 12) {
         reguertaInlineFeedback("Info", kind: .info)
         reguertaInlineFeedback("Warning", kind: .warning)

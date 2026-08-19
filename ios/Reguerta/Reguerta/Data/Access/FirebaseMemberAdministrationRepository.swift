@@ -63,7 +63,7 @@ struct FirebaseMemberAdministrationRepository: MemberAdministrationRepository {
     private let environmentProvider: @MainActor @Sendable () -> SessionEnvironment
 
     func upsertMember(_ member: Member) async throws -> Member {
-        let requestedEnvironment = environmentProvider()
+        let requestedEnvironment = await environmentProvider()
         let response: UpsertMemberByAdminResponse
         do {
             response = try await storedClient.post(

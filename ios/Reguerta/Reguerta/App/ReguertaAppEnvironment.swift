@@ -8,6 +8,7 @@ struct ReguertaAppEnvironment {
     let accessRootViewModel: AccessRootViewModel
     let authorizedDeviceRegistrar: any AuthorizedDeviceRegistrar
 
+    @MainActor
     static func live() -> ReguertaAppEnvironment {
         if ProcessInfo.processInfo.arguments.contains("-useMockAuth") {
             return uiTesting()
@@ -34,6 +35,7 @@ struct ReguertaAppEnvironment {
         )
     }
 
+    @MainActor
     static func preview() -> ReguertaAppEnvironment {
         let memberRepository = InMemoryMemberRepository()
         let notificationRepository = InMemoryNotificationRepository()
@@ -74,6 +76,7 @@ struct ReguertaAppEnvironment {
         )
     }
 
+    @MainActor
     static func uiTesting() -> ReguertaAppEnvironment {
         let memberRepository = InMemoryMemberRepository()
         let newsRepository = InMemoryNewsRepository.uiTesting()
@@ -135,6 +138,7 @@ private struct UITestingAccessRootDependencies {
     let nowMillisProvider: @MainActor () -> Int64
 }
 
+@MainActor
 private func makeUITestingAccessRootViewModel(_ dependencies: UITestingAccessRootDependencies) -> AccessRootViewModel {
     AccessRootViewModel(
         sessionViewModel: dependencies.sessionViewModel,
@@ -188,6 +192,7 @@ private struct LiveRootDependencies {
 }
 
 private extension LiveRootDependencies {
+    @MainActor
     init(db: Firestore = Firestore.firestore()) {
         self.db = db
         self.memberRepository = FirestoreMemberRepository(db: db)
@@ -216,6 +221,7 @@ private extension LiveRootDependencies {
     }
 }
 
+@MainActor
 private func makeLiveSessionViewModel(
     _ dependencies: LiveRootDependencies,
     feedbackCenter: GlobalFeedbackCenter
@@ -252,6 +258,7 @@ private func makeLiveSessionViewModel(
     )
 }
 
+@MainActor
 private func makeLiveAccessRootViewModel(
     _ dependencies: LiveRootDependencies,
     sessionViewModel: SessionViewModel,
@@ -303,7 +310,26 @@ private func makeLiveAccessRootViewModel(
 }
 
 extension EnvironmentValues {
-    @Entry var reguertaAppEnvironment: ReguertaAppEnvironment = .preview()
+    @Entry fileprivate var injectedReguertaAppEnvironment: ReguertaAppEnvironment?
+
+    var reguertaAppEnvironment: ReguertaAppEnvironment {
+        get {
+            guard let injectedReguertaAppEnvironment else {
+                preconditionFailure("ReguertaAppEnvironment must be injected at the app root")
+            }
+            return injectedReguertaAppEnvironment
+        }
+        set {
+            injectedReguertaAppEnvironment = newValue
+        }
+    }
+}
+
+extension View {
+    @MainActor
+    func reguertaAppEnvironment(_ environment: ReguertaAppEnvironment) -> some View {
+        self.environment(\.injectedReguertaAppEnvironment, environment)
+    }
 }
 
 private struct PreviewStartupVersionPolicyRepository: StartupVersionPolicyRepository {

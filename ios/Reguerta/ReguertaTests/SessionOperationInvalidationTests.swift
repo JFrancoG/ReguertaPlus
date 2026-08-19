@@ -3,6 +3,7 @@ import Testing
 @testable import Reguerta
 
 @MainActor
+@Suite(.timeLimit(.minutes(1)))
 struct SessionOperationInvalidationTests {
     @Test("Cerrar sesión invalida un inicio de sesión que termina tarde")
     func signOutInvalidatesLateSignInSuccess() async {
@@ -241,7 +242,7 @@ struct SessionOperationInvalidationTests {
             try await useCase.execute(authPrincipal: principal)
         }
         guard await repository.waitForMemberRequestCount(2) else { return }
-        repository.completeMemberRead(at: 1, with: fixture)
+        await repository.completeMemberRead(at: 1, with: fixture)
 
         #expect(
             try await newerOperation.value == .authorized(
@@ -251,7 +252,7 @@ struct SessionOperationInvalidationTests {
         )
         #expect(routingRecorder.currentEnvironment == .production)
 
-        repository.completeMemberRead(at: 0, with: fixture)
+        await repository.completeMemberRead(at: 0, with: fixture)
         await #expect(throws: CancellationError.self) {
             try await staleOperation.value
         }
@@ -371,6 +372,8 @@ private final class SessionRoutingRecorder {
 
 private actor ControlledAuthorizedMemberResolver: AuthorizedMemberResolving {
     private var continuation: CheckedContinuation<AuthorizedMemberResolution, any Error>?
+    private var requestWaiters: [Int: CheckedContinuation<Bool, Never>] = [:]
+    private var nextRequestWaiterID = 0
 
     func resolve(
         authPrincipal _: AuthPrincipal,
@@ -378,24 +381,42 @@ private actor ControlledAuthorizedMemberResolver: AuthorizedMemberResolving {
     ) async throws -> AuthorizedMemberResolution {
         try await withCheckedThrowingContinuation { continuation in
             self.continuation = continuation
+            let waiters = Array(requestWaiters.values)
+            requestWaiters.removeAll()
+            waiters.forEach { $0.resume(returning: true) }
         }
     }
 
     func waitForRequest() async -> Bool {
-        for _ in 0 ..< 1_000 {
-            if continuation != nil {
-                return true
-            }
-            await Task.yield()
+        if continuation != nil {
+            return true
         }
-        Issue.record("No se inició la resolución de miembro")
-        return false
+
+        let waiterID = nextRequestWaiterID
+        nextRequestWaiterID += 1
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                guard !Task.isCancelled else {
+                    continuation.resume(returning: false)
+                    return
+                }
+                requestWaiters[waiterID] = continuation
+            }
+        } onCancel: {
+            Task {
+                await self.cancelRequestWaiter(id: waiterID)
+            }
+        }
     }
 
     func complete(with result: AuthorizedMemberResolution) {
         let continuation = continuation
         self.continuation = nil
         continuation?.resume(returning: result)
+    }
+
+    private func cancelRequestWaiter(id: Int) {
+        requestWaiters.removeValue(forKey: id)?.resume(returning: false)
     }
 }
 

@@ -20,6 +20,7 @@ struct SessionViewModelDependencies {
     let sessionOperationSleeper: @Sendable (Duration) async throws -> Void
     let developImpersonationEnabled: Bool
 
+    @MainActor
     static func live(
         db: Firestore = Firestore.firestore(),
         repository: (any MemberRepository)? = nil,
@@ -87,6 +88,7 @@ struct SessionViewModelDependencies {
         )
     }
 
+    @MainActor
     static func preview(
         repository: any LocalMemberRepository = InMemoryMemberRepository(),
         feedbackCenter: GlobalFeedbackCenter = GlobalFeedbackCenter(),

@@ -1,8 +1,16 @@
+import FirebaseCore
 import FirebaseFirestore
 import Foundation
 
-struct FirestoreCriticalDataRefresher: CriticalDataRefreshing {
+actor FirestoreCriticalDataRefresher: CriticalDataRefreshing {
     private let storedDB: Firestore
+
+    init(firebaseAppName: String) {
+        guard let app = FirebaseApp.app(name: firebaseAppName) else {
+            preconditionFailure("Firebase app is required for critical-data refresh")
+        }
+        self.storedDB = Firestore.firestore(app: app)
+    }
 
     func refresh(
         collections: Set<CriticalCollection>,
@@ -285,12 +293,6 @@ private extension FirestoreCriticalDataRefresher {
 
     private func legacyCollectionPath(named collectionName: String, environment: SessionEnvironment) -> String {
         "\(environment.rawValue)/collections/\(collectionName)"
-    }
-}
-
-extension FirestoreCriticalDataRefresher {
-    init(db: Firestore) {
-        self.storedDB = db
     }
 }
 

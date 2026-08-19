@@ -22,6 +22,7 @@ struct ReguertaInlineFeedbackViewModel {
     }
 }
 
+@MainActor
 @ViewBuilder
 func reguertaInlineFeedback(
     _ message: LocalizedStringKey,

@@ -5,6 +5,7 @@ struct MyOrderFreshnessFeatureDependencies {
     let resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase
     let criticalDataFreshnessLocalRepository: any CriticalDataFreshnessLocalRepository
 
+    @MainActor
     static func live(
         db: Firestore = Firestore.firestore(),
         localRepository: any CriticalDataFreshnessLocalRepository =
@@ -13,19 +14,21 @@ struct MyOrderFreshnessFeatureDependencies {
             Int64(Date().timeIntervalSince1970 * 1_000)
         }
     ) -> MyOrderFreshnessFeatureDependencies {
+        let firebaseAppName = db.app.name
         let remoteRepository = makeLiveRemoteRepository(db: db)
 
         return MyOrderFreshnessFeatureDependencies(
             resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase(
                 remoteRepository: remoteRepository,
                 localRepository: localRepository,
-                refresher: FirestoreCriticalDataRefresher(db: db),
+                refresher: FirestoreCriticalDataRefresher(firebaseAppName: firebaseAppName),
                 nowProvider: nowProvider
             ),
             criticalDataFreshnessLocalRepository: localRepository
         )
     }
 
+    @MainActor
     static func preview(
         remoteConfig: CriticalDataFreshnessConfig? = nil,
         localRepository: (any CriticalDataFreshnessLocalRepository)? = nil,
@@ -45,9 +48,10 @@ struct MyOrderFreshnessFeatureDependencies {
         )
     }
 
+    @MainActor
     private static func makeLiveRemoteRepository(db: Firestore) -> any CriticalDataFreshnessRemoteRepository {
         guard ProcessInfo.processInfo.arguments.contains("-useMockAuth") else {
-            return FirestoreCriticalDataFreshnessRemoteRepository(db: db)
+            return FirestoreCriticalDataFreshnessRemoteRepository(firebaseAppName: db.app.name)
         }
 
         return PreviewCriticalDataFreshnessRemoteRepository(
