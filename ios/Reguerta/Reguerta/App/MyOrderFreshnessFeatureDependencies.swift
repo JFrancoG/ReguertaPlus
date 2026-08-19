@@ -7,6 +7,7 @@ struct MyOrderFreshnessFeatureDependencies {
 
     @MainActor
     static func live(
+        configuration: ReguertaAppConfiguration,
         db: Firestore = Firestore.firestore(),
         localRepository: any CriticalDataFreshnessLocalRepository =
             UserDefaultsCriticalDataFreshnessLocalRepository(),
@@ -15,7 +16,7 @@ struct MyOrderFreshnessFeatureDependencies {
         }
     ) -> MyOrderFreshnessFeatureDependencies {
         let firebaseAppName = db.app.name
-        let remoteRepository = makeLiveRemoteRepository(db: db)
+        let remoteRepository = makeLiveRemoteRepository(configuration: configuration, db: db)
 
         return MyOrderFreshnessFeatureDependencies(
             resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase(
@@ -49,8 +50,11 @@ struct MyOrderFreshnessFeatureDependencies {
     }
 
     @MainActor
-    private static func makeLiveRemoteRepository(db: Firestore) -> any CriticalDataFreshnessRemoteRepository {
-        guard ProcessInfo.processInfo.arguments.contains("-useMockAuth") else {
+    private static func makeLiveRemoteRepository(
+        configuration: ReguertaAppConfiguration,
+        db: Firestore
+    ) -> any CriticalDataFreshnessRemoteRepository {
+        guard configuration.freshnessData == .mock else {
             return FirestoreCriticalDataFreshnessRemoteRepository(firebaseAppName: db.app.name)
         }
 

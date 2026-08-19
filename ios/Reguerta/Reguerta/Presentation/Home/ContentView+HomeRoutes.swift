@@ -1,9 +1,9 @@
 import SwiftUI
 
-extension AccessRootRoutingView {
+extension HomeShellView {
     @ViewBuilder
     var homeRouteContent: some View {
-        switch homeDestination {
+        switch rootViewModel.homeDestination {
         case .dashboard:
             dashboardRoute
         case .shifts:

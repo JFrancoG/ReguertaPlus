@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 import Testing
 
@@ -5,6 +6,22 @@ import Testing
 
 @MainActor
 struct ReguertaRootDependencyTests {
+    @Test func presentationRootConstructorsRequireExplicitFeatureDependencies() throws {
+        let relativePaths = [
+            "Reguerta/Presentation/Root/AccessRootViewModel.swift",
+            "Reguerta/Presentation/Freshness/MyOrderFreshnessViewModel.swift",
+            "Reguerta/Presentation/Bylaws/BylawsFeatureViewModel.swift"
+        ]
+
+        for relativePath in relativePaths {
+            let source = try source(at: relativePath)
+            #expect(source.contains("= .preview()") == false, "\(relativePath) must require explicit dependencies")
+        }
+
+        let rootSource = try source(at: relativePaths[0])
+        #expect(rootSource.contains("ProcessInfo.processInfo.arguments") == false)
+    }
+
     @Test func previewEnvironmentSharesSessionWithRootCoordinator() {
         let environment = ReguertaAppEnvironment.preview()
 
@@ -238,6 +255,14 @@ struct ReguertaRootDependencyTests {
     ) -> AccessRootViewModel {
         AccessRootViewModel(
             sessionViewModel: SessionViewModel(dependencies: .preview()),
+            productsFeatureDependencies: .preview(),
+            ordersFeatureDependencies: .preview(),
+            shiftsFeatureDependencies: .preview(),
+            newsNotificationsFeatureDependencies: .preview(),
+            sharedProfileFeatureDependencies: .preview(),
+            usersFeatureDependencies: .preview(),
+            myOrderFreshnessFeatureDependencies: .preview(),
+            bylawsFeatureDependencies: .preview(),
             developmentTimeMachine: DevelopmentTimeMachine(),
             startupVersionGateUseCase: startupVersionGateUseCase ?? ResolveStartupVersionGateUseCase(
                 repository: FixedStartupVersionPolicyRepository(policy: startupPolicy),
@@ -267,6 +292,14 @@ struct ReguertaRootDependencyTests {
             members: [member],
             environment: .develop
         )
+    }
+
+    private func source(at relativePath: String) throws -> String {
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appending(path: relativePath)
+        return try String(contentsOf: sourceURL, encoding: .utf8)
     }
 }
 

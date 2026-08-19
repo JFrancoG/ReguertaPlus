@@ -8,6 +8,62 @@ Accepted
 
 2026-05-11
 
+## HU-077 Implementation Addendum
+
+HU-077 / issue #255 materializes this accepted decision without rewriting it.
+App now selects one typed live, preview, or UI-test scenario, performs all live
+Firebase/Data construction, and injects a complete graph through a shared pure
+`ReguertaAppEnvironment.assemble` seam. Presentation has zero Firebase imports
+and no live adapter construction. The exhaustive Data boundary permits one
+inherited typed error reference only:
+`FirebaseFunctionClientError.unauthorized` at exactly one existing use site.
+It does not permit live construction or any additional Data type reference.
+`MainView` is the single shell reader of the environment; the unused root
+wrappers and broad routing protocol were removed only after characterization,
+and route views receive explicit inputs, bindings, and actions.
+
+`ReguertaAppConfiguration` decodes the fourth supported launch control,
+`-reguerta_dev_time_machine.override_now_millis`, once in App, requires one
+adjacent `Int64`, and fails fast for malformed input. The typed initial seed
+wins over persisted state. Live retains its persistent development clock;
+preview and UI-test clocks are transient, isolated per graph, and routed
+through root, session, features, and Freshness. Live Freshness retains its
+original `Date` wall clock. The accepted `AccessRootViewModel` ownership remains
+unchanged because characterization did not justify another store.
+
+The first full release checkpoint remains honest red evidence:
+`/private/tmp/hu077-final-release-gate.xcresult` recorded 615 responsibilities,
+613 passed, one known launch skip, and one failure in the My Order safe-area UI
+test because its search field was not found. The transient UI-test clock had
+lost the launch seed `1778760000000`. The typed seed fix restored deterministic
+My Order state.
+
+Local executable evidence on iPhone 17 / iOS 26.5 then passed: focused
+composition recorded 33 logical tests and 34 executions; shell/root passed
+21/21; fast unit passed 608/608 (602 Swift Testing plus 6 XCTest); UI smoke
+passed 4/4; and `/private/tmp/hu077-final-release-gate-2.xcresult` recorded 617
+responsibilities, 616 passed, one known launch skip, and zero failures.
+SwiftLint inspected 375 files with zero violations; effective settings passed
+6/6; generic Debug and Production Release builds are green. The tree contains
+375 Swift files and 63,992 lines: production 261/36,243, unit 112/27,365, and
+UI 2/384. The post-P1 Xcode MCP rerun in `windowtab2` completed all nine Large
+previews with no tool errors; Home passed one isolated retry after a transient
+`PotentialCrashError`.
+
+That 9/9 is a tool-completion result, not nine semantically unequivocal macro
+selections. The dedicated startup `unavailable` preview at index 0 repeatedly
+displayed `timedOut` despite its `.unavailable` source fixture. `MainView`
+displayed `unavailable` for the same fixture and runtime coverage distinguishes
+the states. A RenderPreview cache/selection interaction among macros sharing
+one source file is the current inference, not a demonstrated app-state defect.
+
+Final independent reconciliation reports 0 unresolved P0-P3. The maintainer's
+later instruction "haz commit y push, lanza pr y cierra issue, etc" authorizes
+commit, push, a ready pull request, merge, issue closure, branch deletion, and
+integration for HU-077. Issue #255 remains open and the branch remains local
+without an upstream while that delivery executes. Firebase deployment remains
+outside the requested scope.
+
 ## Context
 
 The iOS app root had started to mix SwiftUI composition, app delegate concerns,

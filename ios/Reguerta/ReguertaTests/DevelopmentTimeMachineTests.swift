@@ -29,6 +29,21 @@ struct DevelopmentTimeMachineTests {
         #expect(restoredOwner.nowMillis() == 9_876)
     }
 
+    @Test func typedInitialOverrideTakesPrecedenceOverPersistedProductionState() {
+        guard let isolatedDefaults = makeIsolatedDefaults() else { return }
+        defer { isolatedDefaults.defaults.removePersistentDomain(forName: isolatedDefaults.suiteName) }
+        let persistedOwner = DevelopmentTimeMachine(defaults: isolatedDefaults.defaults)
+        persistedOwner.setOverrideNowMillis(9_876)
+
+        let launchConfiguredOwner = DevelopmentTimeMachine(
+            defaults: isolatedDefaults.defaults,
+            initialOverrideNowMillis: 1_778_760_000_000
+        )
+
+        #expect(launchConfiguredOwner.overrideNowMillis == 1_778_760_000_000)
+        #expect(launchConfiguredOwner.nowMillis() == 1_778_760_000_000)
+    }
+
     @Test func independentlyComposedOwnersDoNotShareOverrides() {
         guard let firstDefaults = makeIsolatedDefaults(),
               let secondDefaults = makeIsolatedDefaults() else {
@@ -49,6 +64,17 @@ struct DevelopmentTimeMachineTests {
         #expect(firstOwner.nowMillis() == 99)
         #expect(secondOwner.overrideNowMillis == nil)
         #expect(secondOwner.nowMillis() == 42)
+    }
+
+    @Test func transientOwnersRestoreOnlyTheirTypedInitialOverride() {
+        let firstOwner = DevelopmentTimeMachine.transient(initialOverrideNowMillis: 1_778_760_000_000)
+        firstOwner.setOverrideNowMillis(99)
+
+        let secondOwner = DevelopmentTimeMachine.transient(initialOverrideNowMillis: 1_778_760_000_000)
+
+        #expect(firstOwner.nowMillis() == 99)
+        #expect(secondOwner.overrideNowMillis == 1_778_760_000_000)
+        #expect(secondOwner.nowMillis() == 1_778_760_000_000)
     }
 
     private func makeIsolatedDefaults() -> (defaults: UserDefaults, suiteName: String)? {

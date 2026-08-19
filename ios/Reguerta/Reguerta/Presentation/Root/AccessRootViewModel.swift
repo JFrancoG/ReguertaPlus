@@ -94,19 +94,17 @@ final class AccessRootViewModel {
     init(
         sessionViewModel: SessionViewModel,
         feedbackCenter: GlobalFeedbackCenter? = nil,
-        productsFeatureDependencies: ProductsFeatureDependencies = .preview(),
-        ordersFeatureDependencies: OrdersFeatureDependencies = .preview(),
-        shiftsFeatureDependencies: ShiftsFeatureDependencies = .preview(),
-        newsNotificationsFeatureDependencies: NewsNotificationsFeatureDependencies = .preview(),
-        sharedProfileFeatureDependencies: SharedProfileFeatureDependencies = .preview(),
-        usersFeatureDependencies: UsersFeatureDependencies = .preview(),
-        myOrderFreshnessFeatureDependencies: MyOrderFreshnessFeatureDependencies = .preview(),
-        bylawsFeatureDependencies: BylawsFeatureDependencies = .preview(),
+        productsFeatureDependencies: ProductsFeatureDependencies,
+        ordersFeatureDependencies: OrdersFeatureDependencies,
+        shiftsFeatureDependencies: ShiftsFeatureDependencies,
+        newsNotificationsFeatureDependencies: NewsNotificationsFeatureDependencies,
+        sharedProfileFeatureDependencies: SharedProfileFeatureDependencies,
+        usersFeatureDependencies: UsersFeatureDependencies,
+        myOrderFreshnessFeatureDependencies: MyOrderFreshnessFeatureDependencies,
+        bylawsFeatureDependencies: BylawsFeatureDependencies,
         developmentTimeMachine: DevelopmentTimeMachine,
         startupVersionGateUseCase: ResolveStartupVersionGateUseCase,
-        shouldSkipSplashProvider: @escaping () -> Bool = {
-            ProcessInfo.processInfo.arguments.contains("-skipSplash")
-        },
+        shouldSkipSplashProvider: @escaping () -> Bool,
         installedVersionProvider: @escaping () -> String = {
             resolveInstalledAppVersion()
         },

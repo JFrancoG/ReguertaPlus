@@ -10,93 +10,41 @@ private struct StartupVersionGateCardContent {
     var isDismissible = true
 }
 
-enum GlobalFeedbackPresentationPolicy {
-    static let autoDismissDelay: Duration = .seconds(8)
-
-    static func autoDismissDelay(isVoiceOverEnabled: Bool) -> Duration? {
-        isVoiceOverEnabled ? nil : autoDismissDelay
-    }
-}
-
-private struct GlobalFeedbackBanner: View {
-    @Environment(\.accessibilityVoiceOverEnabled) private var isVoiceOverEnabled
-    @Environment(\.reguertaTokens) private var tokens
-
-    let messageKey: String
-    let dismissTitle: LocalizedStringKey
-    let onDismiss: () -> Void
-
-    var body: some View {
-        reguertaCard {
-            HStack(alignment: .top, spacing: tokens.spacing.sm) {
-                reguertaInlineFeedback(LocalizedStringKey(messageKey))
-                Spacer(minLength: tokens.spacing.sm)
-                Button(action: onDismiss) {
-                    Image(systemName: "xmark")
-                        .font(tokens.typography.label)
-                        .foregroundStyle(tokens.colors.actionPrimary)
-                        .padding(tokens.spacing.xs)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(dismissTitle)
-            }
-        }
-        .frame(maxWidth: 358.resize)
-        .padding(.horizontal, tokens.spacing.lg)
-        .padding(.bottom, tokens.spacing.md)
-        .shadow(color: .black.opacity(0.18), radius: 12.resize, y: 4.resize)
-        .transition(.move(edge: .bottom).combined(with: .opacity))
-        .accessibilityIdentifier("global.feedback.banner")
-        .task(id: messageKey) {
-            guard let delay = GlobalFeedbackPresentationPolicy.autoDismissDelay(
-                isVoiceOverEnabled: isVoiceOverEnabled
-            ) else { return }
-            do {
-                try await Task.sleep(for: delay)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            onDismiss()
-        }
-    }
-}
-
-extension AccessRootRoutingView {
+extension RootOverlayView {
     @ViewBuilder
     var overlayDialogs: some View {
-        if showsRecoverSuccessDialog {
+        if rootViewModel.showsRecoverSuccessDialog {
             reguertaDialog(
                 type: .info,
                 title: l10n(AccessL10nKey.recoverSuccessDialogTitle),
                 message: l10n(AccessL10nKey.recoverSuccessDialogMessage),
                 primaryAction: ReguertaDialogAction(
                     title: l10n(AccessL10nKey.commonAccept),
-                    action: handleRecoverSuccessDialogDismiss
+                    action: rootViewModel.handleRecoverSuccessDialogDismiss
                 ),
-                onDismiss: handleRecoverSuccessDialogDismiss
+                onDismiss: rootViewModel.handleRecoverSuccessDialogDismiss
             )
         }
-        if viewModel.showSessionExpiredDialog {
+        if sessionViewModel.showSessionExpiredDialog {
             reguertaDialog(
                 type: .error,
                 title: l10n(AccessL10nKey.sessionExpiredTitle),
                 message: l10n(AccessL10nKey.sessionExpiredMessage),
                 primaryAction: ReguertaDialogAction(
                     title: l10n(AccessL10nKey.sessionExpiredAction),
-                    action: handleSessionExpiredDialogAction
+                    action: rootViewModel.handleSessionExpiredDialogAction
                 ),
-                onDismiss: handleSessionExpiredDialogAction
+                onDismiss: rootViewModel.handleSessionExpiredDialogAction
             )
         }
-        if viewModel.showUnauthorizedDialog {
+        if sessionViewModel.showUnauthorizedDialog {
             reguertaDialog(
                 type: .info,
                 title: l10n(AccessL10nKey.unauthorizedDialogTitle),
                 message: l10n(AccessL10nKey.unauthorizedDialogMessage),
                 primaryAction: ReguertaDialogAction(
                     title: l10n(AccessL10nKey.unauthorizedDialogAction),
-                    action: handleUnauthorizedDialogSignOut
+                    action: rootViewModel.handleUnauthorizedDialogSignOut
                 ),
                 dismissible: false
             )
@@ -119,20 +67,18 @@ extension AccessRootRoutingView {
         }
     }
 
-    @ViewBuilder
-    var feedbackMessageRoute: some View {
-        if let feedbackKey = feedbackCenter.messageKey {
-            GlobalFeedbackBanner(
-                messageKey: feedbackKey,
-                dismissTitle: localizedKey(AccessL10nKey.dismissMessage)
-            ) {
-                if feedbackCenter.messageKey == feedbackKey {
-                    feedbackCenter.clear()
-                }
-            }
+    func confirmPendingNewsDeletion() {
+        Task {
+            await rootViewModel.newsNotificationsViewModel.confirmNewsDeletion()
         }
     }
 
+    func clearPendingNewsDeletion() {
+        rootViewModel.newsNotificationsViewModel.clearPendingNewsDeletion()
+    }
+}
+
+extension AuthShellView {
     var splashRoute: some View {
         ZStack {
             VStack {
@@ -141,11 +87,11 @@ extension AccessRootRoutingView {
                     .resizable()
                     .scaledToFit()
                     .frame(width: 100.resize, height: 100.resize)
-                    .scaleEffect(splashScale)
-                    .rotationEffect(.degrees(splashRotation))
-                    .opacity(splashOpacity)
-                    .task(id: shellState.currentRoute) {
-                        startSplashAnimationIfNeeded()
+                    .scaleEffect(rootViewModel.splashScale)
+                    .rotationEffect(.degrees(rootViewModel.splashRotation))
+                    .opacity(rootViewModel.splashOpacity)
+                    .task(id: rootViewModel.shellState.currentRoute) {
+                        rootViewModel.startSplashAnimationIfNeeded()
                     }
                 Spacer(minLength: 0)
             }
@@ -157,7 +103,7 @@ extension AccessRootRoutingView {
 
     @ViewBuilder
     var startupVersionGateOverlay: some View {
-        switch startupGateState {
+        switch rootViewModel.startupGateState {
         case .optionalUpdate(let storeURL):
             startupVersionGateCard(
                 StartupVersionGateCardContent(
@@ -238,59 +184,18 @@ extension AccessRootRoutingView {
         )
     }
 
-    func handleSessionExpiredDialogAction() {
-        rootViewModel.handleSessionExpiredDialogAction()
-    }
-
-    func handleUnauthorizedDialogSignOut() {
-        rootViewModel.handleUnauthorizedDialogSignOut()
-    }
-
-    func confirmPendingNewsDeletion() {
-        Task {
-            await rootViewModel.newsNotificationsViewModel.confirmNewsDeletion()
-        }
-    }
-
-    func clearPendingNewsDeletion() {
-        rootViewModel.newsNotificationsViewModel.clearPendingNewsDeletion()
-    }
-
     func openStoreURL(_ rawURL: String) {
         guard let url = URL(string: rawURL.trimmingCharacters(in: .whitespacesAndNewlines)) else { return }
         openURL(url)
     }
-
-    func handleAuthRouteExit(from previousRoute: AuthShellRoute, to newRoute: AuthShellRoute) {
-        rootViewModel.handleAuthRouteExit(from: previousRoute, to: newRoute)
-    }
-
-    func handleRecoverSuccessDialogDismiss() {
-        rootViewModel.handleRecoverSuccessDialogDismiss()
-    }
-}
-
-private struct StartupGateUnavailablePreview: AccessRootRoutingView {
-    let appEnvironment: ReguertaAppEnvironment
-    @Environment(\.openURL) var openURL
-    @Environment(\.reguertaTokens) var tokens
-
-    var body: some View {
-        ZStack {
-            Color(.systemBackground).ignoresSafeArea()
-            startupVersionGateOverlay
-        }
-    }
 }
 
 #Preview("Startup version unavailable", traits: .modifier(ReguertaDesignSystemPreviewModifier())) {
-    let environment = ReguertaAppEnvironment.preview()
-    environment.accessRootViewModel.startupGateState = .unavailable
-    return StartupGateUnavailablePreview(appEnvironment: environment)
+    MainView()
+        .reguertaAppEnvironment(startupGatePreviewEnvironment(.unavailable))
 }
 
 #Preview("Startup version timed out", traits: .modifier(ReguertaDesignSystemPreviewModifier())) {
-    let environment = ReguertaAppEnvironment.preview()
-    environment.accessRootViewModel.startupGateState = .timedOut
-    return StartupGateUnavailablePreview(appEnvironment: environment)
+    MainView()
+        .reguertaAppEnvironment(startupGatePreviewEnvironment(.timedOut))
 }

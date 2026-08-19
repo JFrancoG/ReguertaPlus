@@ -1,6 +1,6 @@
 import Foundation
 
-extension AccessRootRoutingView {
+extension HomeShellView {
     func localizedDateTime(_ millis: Int64) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium

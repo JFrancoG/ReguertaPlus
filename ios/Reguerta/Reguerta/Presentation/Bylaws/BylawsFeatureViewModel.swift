@@ -41,7 +41,7 @@ final class BylawsFeatureViewModel {
 
     convenience init(
         feedbackCenter: GlobalFeedbackCenter = GlobalFeedbackCenter(),
-        dependencies: BylawsFeatureDependencies = .preview(),
+        dependencies: BylawsFeatureDependencies,
         consultationMessageKey: String? = nil
     ) {
         self.init(

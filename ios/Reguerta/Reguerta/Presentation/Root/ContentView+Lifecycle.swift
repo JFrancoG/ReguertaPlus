@@ -1,35 +1,5 @@
 import SwiftUI
 
-extension AccessRootRoutingView {
-    func dispatchShell(_ action: AuthShellAction) {
-        rootViewModel.dispatchShell(action)
-    }
-
-    func handleSplashIfNeeded() async {
-        await rootViewModel.handleSplashIfNeeded()
-    }
-
-    func evaluateStartupGateIfNeeded() {
-        rootViewModel.evaluateStartupGateIfNeeded()
-    }
-
-    func resolveStartupGateDecision(installedVersion: String) async throws -> StartupVersionGateDecision {
-        try await rootViewModel.resolveStartupGateDecision(installedVersion: installedVersion)
-    }
-
-    func continueFromSplashIfAllowed() {
-        rootViewModel.continueFromSplashIfAllowed()
-    }
-
-    func startSplashAnimationIfNeeded() {
-        rootViewModel.startSplashAnimationIfNeeded()
-    }
-
-    func resetSplashAnimationState() {
-        rootViewModel.resetSplashAnimationState()
-    }
-}
-
 enum SplashAnimationContract {
     static let durationSeconds: Double = 1.5
     static let durationNanoseconds: UInt64 = 1_500_000_000

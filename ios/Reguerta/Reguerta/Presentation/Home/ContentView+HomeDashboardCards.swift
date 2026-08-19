@@ -136,6 +136,7 @@ private extension NewsArticle {
 struct LatestNewsCardView: View {
     let tokens: ReguertaDesignTokens
     let latestNews: [HomeLatestNewsItemPresentation]
+    let loadNewsImageData: @Sendable (URL) async throws -> Data
 
     private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 
@@ -153,7 +154,11 @@ struct LatestNewsCardView: View {
                     LazyVStack(alignment: .leading, spacing: tokens.spacing.sm) {
                         ForEach(latestNews) { item in
                             reguertaListItemCard {
-                                HomeLatestNewsRowView(tokens: tokens, item: item)
+                                HomeLatestNewsRowView(
+                                    tokens: tokens,
+                                    item: item,
+                                    loadNewsImageData: loadNewsImageData
+                                )
                                     .padding(tokens.spacing.lg)
                             }
                             .accessibilityElement(children: .contain)
@@ -176,6 +181,7 @@ struct LatestNewsCardView: View {
 struct HomeLatestNewsRowView: View {
     let tokens: ReguertaDesignTokens
     let item: HomeLatestNewsItemPresentation
+    let loadNewsImageData: @Sendable (URL) async throws -> Data
 
     var body: some View {
         Group {
@@ -183,7 +189,11 @@ struct HomeLatestNewsRowView: View {
             case .leading:
                 HStack(alignment: .top, spacing: tokens.spacing.md) {
                     if let imageURL = item.imageURL {
-                        HomeLatestNewsImageView(tokens: tokens, imageURL: imageURL)
+                        HomeLatestNewsImageView(
+                            tokens: tokens,
+                            imageURL: imageURL,
+                            loadNewsImageData: loadNewsImageData
+                        )
                     }
                     HomeLatestNewsTextView(tokens: tokens, item: item)
                 }
@@ -191,7 +201,11 @@ struct HomeLatestNewsRowView: View {
                 HStack(alignment: .top, spacing: tokens.spacing.md) {
                     HomeLatestNewsTextView(tokens: tokens, item: item)
                     if let imageURL = item.imageURL {
-                        HomeLatestNewsImageView(tokens: tokens, imageURL: imageURL)
+                        HomeLatestNewsImageView(
+                            tokens: tokens,
+                            imageURL: imageURL,
+                            loadNewsImageData: loadNewsImageData
+                        )
                     }
                 }
             case nil:
@@ -234,9 +248,8 @@ private struct HomeLatestNewsTextView: View {
 private struct HomeLatestNewsImageView: View {
     let tokens: ReguertaDesignTokens
     let imageURL: URL
+    let loadNewsImageData: @Sendable (URL) async throws -> Data
     @State private var loadedImage: Image?
-
-    private let loader = NewsImageDataLoader()
 
     var body: some View {
         RoundedRectangle(cornerRadius: tokens.radius.sm)
@@ -259,7 +272,7 @@ private struct HomeLatestNewsImageView: View {
             .task(id: imageURL) {
                 loadedImage = nil
                 guard
-                    let data = try? await loader.load(from: imageURL),
+                    let data = try? await loadNewsImageData(imageURL),
                     !Task.isCancelled,
                     let image = UIImage(data: data)
                 else {

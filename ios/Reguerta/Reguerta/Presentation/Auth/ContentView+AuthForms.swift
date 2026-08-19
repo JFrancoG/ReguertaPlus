@@ -1,16 +1,16 @@
 import SwiftUI
 
-extension AccessRootRoutingView {
+extension AuthShellView {
     var signInCard: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
             reguertaInputField(
                 localizedKey(AccessL10nKey.emailLabel),
                 text: binding(\.emailInput),
                 placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
-                errorMessage: viewModel.emailErrorKey.map(localizedKey),
+                errorMessage: sessionViewModel.emailErrorKey.map(localizedKey),
                 liveValidationMessage: localizedKey(AccessL10nKey.feedbackEmailInvalid),
                 liveValidation: { isValidAccessEmail(normalizeAccessEmail($0)) },
-                isEnabled: !viewModel.isAuthenticating,
+                isEnabled: !sessionViewModel.isAuthenticating,
                 showsClearAction: true,
                 keyboardType: .emailAddress,
                 accessibilityIdentifier: "auth.login.emailField"
@@ -20,10 +20,10 @@ extension AccessRootRoutingView {
                 localizedKey(AccessL10nKey.passwordLabel),
                 text: binding(\.passwordInput),
                 placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
-                errorMessage: viewModel.passwordErrorKey.map(localizedKey),
+                errorMessage: sessionViewModel.passwordErrorKey.map(localizedKey),
                 liveValidationMessage: localizedKey(AccessL10nKey.authErrorWeakPassword),
                 liveValidation: { isValidAccessPassword($0) },
-                isEnabled: !viewModel.isAuthenticating,
+                isEnabled: !sessionViewModel.isAuthenticating,
                 isSecure: true,
                 showsPasswordToggle: true,
                 keyboardType: .default,
@@ -33,7 +33,7 @@ extension AccessRootRoutingView {
             HStack {
                 Spacer()
                 Button {
-                    dispatchShell(.openRecoverFromLogin)
+                    rootViewModel.dispatchShell(.openRecoverFromLogin)
                 } label: {
                     Text(localizedKey(AccessL10nKey.loginLinkForgotPassword))
                         .font(tokens.button.textFont)
@@ -46,12 +46,12 @@ extension AccessRootRoutingView {
             Spacer(minLength: 72.resize)
 
             reguertaButton(
-                localizedKey(viewModel.isAuthenticating ? AccessL10nKey.signingIn : AccessL10nKey.signIn),
-                isEnabled: viewModel.canSubmitSignIn,
-                isLoading: viewModel.isAuthenticating,
+                localizedKey(sessionViewModel.isAuthenticating ? AccessL10nKey.signingIn : AccessL10nKey.signIn),
+                isEnabled: sessionViewModel.canSubmitSignIn,
+                isLoading: sessionViewModel.isAuthenticating,
                 accessibilityIdentifier: "auth.login.signInButton"
             ) {
-                viewModel.signIn()
+                sessionViewModel.signIn()
             }
         }
     }
@@ -62,10 +62,10 @@ extension AccessRootRoutingView {
                 localizedKey(AccessL10nKey.emailLabel),
                 text: binding(\.registerEmailInput),
                 placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
-                errorMessage: viewModel.registerEmailErrorKey.map(localizedKey),
+                errorMessage: sessionViewModel.registerEmailErrorKey.map(localizedKey),
                 liveValidationMessage: localizedKey(AccessL10nKey.feedbackEmailInvalid),
                 liveValidation: { isValidAccessEmail(normalizeAccessEmail($0)) },
-                isEnabled: !viewModel.isRegistering,
+                isEnabled: !sessionViewModel.isRegistering,
                 showsClearAction: true,
                 keyboardType: .emailAddress
             )
@@ -74,10 +74,10 @@ extension AccessRootRoutingView {
                 localizedKey(AccessL10nKey.passwordLabel),
                 text: binding(\.registerPasswordInput),
                 placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
-                errorMessage: viewModel.registerPasswordErrorKey.map(localizedKey),
+                errorMessage: sessionViewModel.registerPasswordErrorKey.map(localizedKey),
                 liveValidationMessage: localizedKey(AccessL10nKey.authErrorWeakPassword),
                 liveValidation: { isValidAccessPassword($0) },
-                isEnabled: !viewModel.isRegistering,
+                isEnabled: !sessionViewModel.isRegistering,
                 isSecure: true,
                 sharedPasswordVisibility: rootBinding(\.areRegisterPasswordsVisible),
                 showsPasswordToggle: true,
@@ -88,7 +88,7 @@ extension AccessRootRoutingView {
                 localizedKey(AccessL10nKey.registerRepeatPasswordLabel),
                 text: binding(\.registerRepeatPasswordInput),
                 placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
-                errorMessage: viewModel.registerRepeatPasswordErrorKey.map(localizedKey),
+                errorMessage: sessionViewModel.registerRepeatPasswordErrorKey.map(localizedKey),
                 liveValidationMessageProvider: { repeatedPassword in
                     if repeatedPassword.isEmpty {
                         return localizedKey(AccessL10nKey.feedbackPasswordRepeatRequired)
@@ -96,12 +96,12 @@ extension AccessRootRoutingView {
                     if !isValidAccessPassword(repeatedPassword) {
                         return localizedKey(AccessL10nKey.authErrorWeakPassword)
                     }
-                    if repeatedPassword != viewModel.registerPasswordInput {
+                    if repeatedPassword != sessionViewModel.registerPasswordInput {
                         return localizedKey(AccessL10nKey.feedbackPasswordMismatch)
                     }
                     return nil
                 },
-                isEnabled: !viewModel.isRegistering,
+                isEnabled: !sessionViewModel.isRegistering,
                 isSecure: true,
                 sharedPasswordVisibility: rootBinding(\.areRegisterPasswordsVisible),
                 showsPasswordToggle: true,
@@ -112,14 +112,14 @@ extension AccessRootRoutingView {
 
             reguertaButton(
                 localizedKey(
-                    viewModel.isRegistering
+                    sessionViewModel.isRegistering
                         ? AccessL10nKey.registerActionCreating
                         : AccessL10nKey.registerActionCreateAccount
                 ),
-                isEnabled: viewModel.canSubmitSignUp,
-                isLoading: viewModel.isRegistering
+                isEnabled: sessionViewModel.canSubmitSignUp,
+                isLoading: sessionViewModel.isRegistering
             ) {
-                viewModel.signUp()
+                sessionViewModel.signUp()
             }
         }
     }
@@ -130,10 +130,10 @@ extension AccessRootRoutingView {
                 localizedKey(AccessL10nKey.emailLabel),
                 text: binding(\.recoverEmailInput),
                 placeholder: localizedKey(AccessL10nKey.inputPlaceholderTapToType),
-                errorMessage: viewModel.recoverEmailErrorKey.map(localizedKey),
+                errorMessage: sessionViewModel.recoverEmailErrorKey.map(localizedKey),
                 liveValidationMessage: localizedKey(AccessL10nKey.feedbackEmailInvalid),
                 liveValidation: { isValidAccessEmail(normalizeAccessEmail($0)) },
-                isEnabled: !viewModel.isRecoveringPassword,
+                isEnabled: !sessionViewModel.isRecoveringPassword,
                 showsClearAction: true,
                 keyboardType: .emailAddress
             )
@@ -142,14 +142,14 @@ extension AccessRootRoutingView {
 
             reguertaButton(
                 localizedKey(
-                    viewModel.isRecoveringPassword
+                    sessionViewModel.isRecoveringPassword
                         ? AccessL10nKey.recoverActionSending
                         : AccessL10nKey.recoverActionSendEmail
                 ),
-                isEnabled: viewModel.canSubmitPasswordReset,
-                isLoading: viewModel.isRecoveringPassword
+                isEnabled: sessionViewModel.canSubmitPasswordReset,
+                isLoading: sessionViewModel.isRecoveringPassword
             ) {
-                viewModel.sendPasswordReset()
+                sessionViewModel.sendPasswordReset()
             }
         }
     }
