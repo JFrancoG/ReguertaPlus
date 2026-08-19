@@ -4,8 +4,10 @@ Authorization source and delivery boundaries are recorded verbatim in
 `spec.md`. Phase 3 bootstrap and implementation are authorized. The maintainer's
 later 2026-08-19 delivery instruction is quoted verbatim: "Haz commit y push. Antes no te dije de lanzar la PR porque no sabía si tenias una issue por fase, como veo que si, lanza la anterior y lanza esta para poder cerrar ramas y empezar la siguiente fase con todo limpio".
 Commit, push, and opening the prior HU-075 and current HU-076 pull requests are
-authorized for this turn. Merge, issue closure, branch deletion, deployment,
-and integration remain separate gates.
+authorized and completed: HU-076 source commit `59216b5` and its synchronized
+branch/upstream are published; PR #252 and PR #253 are open, ready, and
+non-draft. Merge, issue closure, branch deletion, deployment, and integration
+remain separate gates.
 
 ## 0. Governance and baseline
 
@@ -22,8 +24,7 @@ and integration remain separate gates.
 - [x] Record Phase 4's ownership of the existing Presentation composition leak.
 - [x] Create the spec, plan, tasks, baseline, issue mirror, and ADR-0012 EN/ES.
 - [x] Align issue #251 with the refined local scope, local artifact paths, and
-  current evidence while keeping it open with labels intact. Stable GitHub
-  links remain pending the authorized publication in this turn.
+  current evidence while keeping it open with labels intact.
 
 `[!]` below records a completed end-state test obligation whose originally
 planned red-first chronology cannot be demonstrated from retained evidence.
@@ -171,10 +172,14 @@ universal red-first chronology.
   and preserve its labels.
 - [x] Obtain explicit authorization for commit, push, and opening the prior
   HU-075 and current HU-076 pull requests.
-- [ ] Commit the validated HU-076 scope with a focused Conventional Commit.
-- [ ] Push the HU-076 branch and verify its upstream.
-- [ ] Open the authorized prior HU-075 and current HU-076 pull requests with
-  their issue links and stacked dependency preserved.
+- [x] Commit the validated HU-076 source scope as `59216b5` with a focused
+  Conventional Commit.
+- [x] Push the HU-076 branch and verify its same-named `origin` upstream is
+  synchronized.
+- [x] Open PR #252 from HU-075 to the HU-074 branch and PR #253 from HU-076 to
+  the HU-075 branch; verify both are ready and non-draft.
+- [x] Verify issues #249, #250, and #251 remain open and HU-074 still has no pull
+  request and is not integrated.
 
 ## Explicit non-tasks
 
@@ -184,5 +189,5 @@ universal red-first chronology.
 - [x] Do not redesign App shell, SwiftUI, layout, DesignSystem, or features.
 - [x] Do not adopt iOS/Xcode 27-only APIs, settings, simulators, or rules.
 - [x] Do not merge a pull request, close #251, delete branches, deploy, or
-  integrate without separate authorization. Commit, push, and opening the prior
-  HU-075 and current HU-076 pull requests are authorized and pending this turn.
+  integrate without separate authorization. The authorized commit, push, and
+  prior/current pull-request opening are complete.

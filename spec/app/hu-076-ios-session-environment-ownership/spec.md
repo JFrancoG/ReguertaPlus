@@ -24,8 +24,10 @@ package upgrades, or integration into `main`.
 
 HU-076 is intentionally separate from HU-074 and HU-075. Its branch starts at
 the published HU-075 tip `d079379` because neither predecessor is integrated
-into `main`. The authorized delivery must preserve that dependency or wait until
-the stack is integrated and then rebase or retarget this story.
+into `main`. Delivery preserves that dependency: PR #252 targets the HU-074
+branch from HU-075, and PR #253 targets the HU-075 branch from HU-076. HU-074
+still has no pull request and is not integrated. Issues #249, #250, and #251
+remain open.
 
 ## Context and problem
 
@@ -270,6 +272,10 @@ boundary.
 
 - The branch starts from HU-075 commit `d079379`; #249 and #250 remain open and
   unmerged.
+- PR #252 is open, ready, and non-draft with HU-075 as head and HU-074 as base.
+- PR #253 is open, ready, and non-draft with HU-076 as head and HU-075 as base.
+- HU-074 still has no pull request and is not integrated; the three issues
+  #249, #250, and #251 remain open.
 - Xcode 26.6, Swift 6.3.3, Swift 6 mode, strict concurrency `complete`,
   project-level `nonisolated`, and iOS 26 are the maintenance authority.
 - Firebase iOS SDK remains pinned to 12.15.0 through the existing resolved file.
@@ -295,14 +301,14 @@ boundary.
 
 ## Local implementation and validation evidence - 2026-08-19
 
-At this documentation checkpoint, the implementation exists only in the local
-worktree on `codex/hu-076-ios-session-environment-ownership`. `HEAD` remains the
-published HU-075 tip `d079379`; HU-076 has no commit, upstream, publication, or
-pull request yet. Commit, push, and opening the prior HU-075 and current HU-076
-pull requests are authorized and pending in this delivery turn. Post-remediation
-executable gates are green. Final independent review reports 0 P0-P3 findings;
-issue #251 is synchronized, verified open, and retains its labels. Merge, issue
-closure, branch deletion, deployment, and integration remain unauthorized.
+HU-076 source is committed as `59216b5`. Branch
+`codex/hu-076-ios-session-environment-ownership` is published, tracks its
+same-named `origin` upstream, and is synchronized. PR #252 is open from HU-075
+to HU-074, and PR #253 is open from HU-076 to HU-075; both are ready and
+non-draft. Issues #249, #250, and #251 remain open. HU-074 still has no pull
+request and is not integrated. Post-remediation executable gates are green.
+Final independent review reports 0 P0-P3 findings. Merge, issue closure, branch
+deletion, deployment, and integration remain unauthorized.
 
 Final production source counts are:
 
@@ -400,7 +406,9 @@ is not a current Xcode or Issue Navigator diagnostic.
 - [x] Package pins, backend state, Android source, and iOS/Xcode 27 scope are
   unchanged.
 - [x] Independent review has no unresolved finding (0 P0-P3).
-- [x] Issue #251 reflects local evidence and remains open; commit, push, and
-  opening the prior/current pull requests are authorized and pending this turn,
-  while merge, issue closure, branch deletion, deployment, and integration
-  remain separately gated.
+- [x] Source commit `59216b5` and its branch/upstream are published and
+  synchronized; PR #252 and PR #253 are open, ready, and non-draft on their
+  stacked bases; issues #249, #250, and #251 remain open; HU-074 has no pull
+  request and is not integrated.
+- [x] Merge, issue closure, branch deletion, deployment, and integration remain
+  separately gated.

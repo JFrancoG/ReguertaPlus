@@ -12,8 +12,10 @@
 - Bootstrap and implementation are authorized. The maintainer's later
   2026-08-19 instruction is quoted verbatim: "Haz commit y push. Antes no te dije de lanzar la PR porque no sabía si tenias una issue por fase, como veo que si, lanza la anterior y lanza esta para poder cerrar ramas y empezar la siguiente fase con todo limpio".
   Commit, push, and opening the prior HU-075 and current HU-076 pull requests
-  are authorized and pending this turn. Merge, issue closure, branch deletion,
-  deployment, and integration are not authorized.
+  were authorized and completed. HU-076 source commit `59216b5` and its
+  synchronized branch/upstream are published. PR #252 and PR #253 are open,
+  ready, and non-draft. Merge, issue closure, branch deletion, deployment, and
+  integration are not authorized.
 
 ## Approved maintenance environment
 
@@ -204,14 +206,13 @@ Android work.
 
 ## Local implementation and validation evidence - 2026-08-19
 
-At this documentation checkpoint, the implementation is present only in the
-uncommitted local worktree on
-`codex/hu-076-ios-session-environment-ownership`. `HEAD` remains
-`d079379d9d51c0bb6c3381acce42b8291fa73c75`, the branch has no upstream, and
-HU-076 has not yet been committed or published. Commit, push, and opening the
-prior HU-075 and current HU-076 pull requests are authorized and pending this
-turn. Merge, issue closure, deployment, branch deletion, and integration remain
-unauthorized.
+HU-076 source is committed as `59216b5` on
+`codex/hu-076-ios-session-environment-ownership`. The branch and its same-named
+`origin` upstream are published and synchronized. PR #252 is open from HU-075
+to the HU-074 branch, and PR #253 is open from HU-076 to the HU-075 branch; both
+are ready and non-draft. Issues #249, #250, and #251 remain open. HU-074 still
+has no pull request and is not integrated. Merge, issue closure, deployment,
+branch deletion, and integration remain unauthorized.
 
 ### Final source counts
 
@@ -342,7 +343,8 @@ or Issue Navigator diagnostic.
 Independent iOS concurrency/architecture review completed with 0 P0-P3
 findings. Remote issue #251 is synchronized with this final local evidence,
 verified open, and retains its labels. The implementation is validated and
-`ready_for_merge`; commit, push, and opening the prior HU-075 and current HU-076
-pull requests are authorized and pending in this turn. At this checkpoint it
-remains uncommitted and unpublished on a branch without upstream. Merge, issue
-closure, branch deletion, deployment, and integration remain unauthorized.
+`ready_for_merge`; source commit `59216b5`, the HU-076 branch, and its upstream
+are published and synchronized. PR #252 and PR #253 are open, ready, and
+non-draft on their stacked bases. All three issues remain open, and HU-074 still
+has no pull request or integration. Merge, issue closure, branch deletion,
+deployment, and integration remain unauthorized.

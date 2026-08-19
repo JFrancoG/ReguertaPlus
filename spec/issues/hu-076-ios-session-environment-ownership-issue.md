@@ -23,8 +23,12 @@ and integration remain unauthorized.
 - Depends on #249 and #250.
 - Branch: `codex/hu-076-ios-session-environment-ownership`.
 - Stacked base: published HU-075 tip `d079379`.
-- The authorized PR must preserve the stack or wait for predecessor integration
-  and then be rebased/retargeted to `main`.
+- Source commit: `59216b5`; branch and same-named `origin` upstream are published
+  and synchronized.
+- PR #252 is open, ready, and non-draft from HU-075 to the HU-074 branch.
+- PR #253 is open, ready, and non-draft from HU-076 to the HU-075 branch.
+- Issues #249, #250, and #251 remain open. HU-074 still has no pull request and
+  is not integrated.
 
 ## Links
 
@@ -35,6 +39,8 @@ and integration remain unauthorized.
 - Baseline: `spec/app/hu-076-ios-session-environment-ownership/phase-3-baseline.md`
 - ADR EN: `docs/decisions/0012-own-ios-runtime-context-and-firebase-sdk-references.md`
 - ADR ES: `docs-es/decisions/0012-asignar-propietarios-explicitos-al-contexto-runtime-y-sdk-firebase-en-ios.md`
+- Prior pull request: https://github.com/JFrancoG/ReguertaPlus/pull/252
+- Current pull request: https://github.com/JFrancoG/ReguertaPlus/pull/253
 
 ## Scope
 
@@ -137,14 +143,13 @@ and integration remain unauthorized.
 
 ## Local implementation and validation evidence
 
-At this documentation checkpoint, the implementation exists only in the
-uncommitted local worktree. `HEAD` remains `d079379`, the branch has no upstream,
-and no HU-076 artifact or code has been published yet. Commit, push, and opening
-the prior HU-075 and current HU-076 pull requests are authorized and pending in
-this turn. The complete post-remediation executable gates are green; final
-independent review reports 0 P0-P3 findings, and issue #251 is synchronized,
-verified open, with its labels intact. Merge, issue closure, branch deletion,
-deployment, and integration remain unauthorized.
+HU-076 source is committed as `59216b5`. Its branch and same-named `origin`
+upstream are published and synchronized. PR #252 is open from HU-075 to the
+HU-074 branch, and PR #253 is open from HU-076 to the HU-075 branch; both are
+ready and non-draft. Issues #249, #250, and #251 remain open. HU-074 still has
+no pull request and is not integrated. The complete post-remediation executable
+gates are green, and final independent review reports 0 P0-P3 findings. Merge,
+issue closure, branch deletion, deployment, and integration remain unauthorized.
 
 Final source counts are:
 
@@ -223,8 +228,8 @@ or Issue Navigator diagnostic.
 Phase 3 is implemented and executable validation is green locally. Issue #251
 is synchronized, verified open, and retains its labels. Independent iOS
 concurrency/architecture review is clean with 0 P0-P3 findings. HU-076 is
-`ready_for_merge`. At this checkpoint the work is uncommitted and unpublished on
-a branch with no upstream, so the artifact paths above are local rather than
-stable remote links. Commit, push, and opening the prior HU-075 and current
-HU-076 pull requests are authorized and pending this turn. Merge, issue closure,
-deployment, branch deletion, and integration remain unauthorized.
+`ready_for_merge`. Source commit `59216b5`, its branch, and its upstream are
+published and synchronized. PR #252 and PR #253 are open, ready, and non-draft
+on their stacked bases. Issues #249, #250, and #251 remain open; HU-074 still
+has no pull request and is not integrated. Merge, issue closure, deployment,
+branch deletion, and integration remain unauthorized.

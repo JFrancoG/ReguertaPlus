@@ -15,10 +15,15 @@ independent review reports 0 P0-P3 findings, and issue #251 is synchronized and
 remains open. The maintainer's later 2026-08-19 delivery instruction is quoted
 verbatim: "Haz commit y push. Antes no te dije de lanzar la PR porque no sabía si tenias una issue por fase, como veo que si, lanza la anterior y lanza esta para poder cerrar ramas y empezar la siguiente fase con todo limpio".
 Commit, push, and opening the prior HU-075 and current HU-076 pull requests are
-authorized and pending this turn; HU-076 is `ready_for_merge`. This ADR records
-the accepted architecture but does not authorize merge, issue closure, branch
-deletion, Firebase deployment, package updates, live-data mutation, integration,
-Android changes, or iOS/Xcode 27 adoption.
+authorized and complete. HU-076 source commit `59216b5`, its branch, and its
+same-named `origin` upstream are published and synchronized. PR #252 is open
+from HU-075 to the HU-074 branch, and PR #253 is open from HU-076 to the HU-075
+branch; both are ready and non-draft. Issues #249, #250, and #251 remain open.
+HU-074 still has no pull request and is not integrated. HU-076 is
+`ready_for_merge`. This ADR records the accepted architecture but does not
+authorize merge, issue closure, branch deletion, Firebase deployment, package
+updates, live-data mutation, integration, Android changes, or iOS/Xcode 27
+adoption.
 
 ## Context
 
@@ -279,11 +284,12 @@ introduced concurrency escapes; no growth in Presentation Firebase imports;
 unchanged `Package.resolved`; and green focused, fast-unit, UI-smoke, Debug,
 Production Release, and full release gates on iOS 26. Independent iOS
 concurrency/architecture review completed with 0 P0-P3 findings, and issue #251
-is synchronized and verified open with its labels intact. At this documentation
-checkpoint the implementation remains uncommitted and unpublished. Commit,
-push, and opening the prior HU-075 and current HU-076 pull requests are
-authorized and pending this turn. Merge, issue closure, deployment, branch
-deletion, and integration remain unauthorized.
+is synchronized and verified open with its labels intact. Source commit
+`59216b5`, the HU-076 branch, and its upstream are published and synchronized.
+PR #252 and PR #253 are open, ready, and non-draft on their stacked bases.
+Issues #249, #250, and #251 remain open, and HU-074 still has no pull request or
+integration. Merge, issue closure, deployment, branch deletion, and integration
+remain unauthorized.
 
 ## Related Decisions and Work
 

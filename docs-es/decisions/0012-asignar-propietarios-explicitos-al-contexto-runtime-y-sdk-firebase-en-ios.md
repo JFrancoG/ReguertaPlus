@@ -15,10 +15,15 @@ independiente final informa 0 hallazgos P0-P3, y el issue #251 está sincronizad
 y permanece abierto. La instrucción posterior de entrega del mantenedor del
 2026-08-19 se cita literalmente: "Haz commit y push. Antes no te dije de lanzar la PR porque no sabía si tenias una issue por fase, como veo que si, lanza la anterior y lanza esta para poder cerrar ramas y empezar la siguiente fase con todo limpio".
 Commit, push y abrir las pull requests previa de HU-075 y actual de HU-076 están
-autorizados y pendientes en este turno; HU-076 queda `ready_for_merge`. Este ADR
-registra la arquitectura aceptada, pero no autoriza merge, cierre de issues,
-borrado de ramas, despliegue Firebase, upgrades de paquetes, mutación de datos
-live, integración, cambios Android ni adopción de iOS/Xcode 27.
+autorizados y completados. El commit fuente de HU-076 `59216b5`, su rama y su
+upstream `origin` homónimo están publicados y sincronizados. La PR #252 está
+abierta de HU-075 a la rama HU-074, y la PR #253 está abierta de HU-076 a la
+rama HU-075; ambas están ready y no son draft. Los issues #249, #250 y #251
+permanecen abiertos. HU-074 sigue sin pull request y no está integrado. HU-076
+queda `ready_for_merge`. Este ADR registra la arquitectura aceptada, pero no
+autoriza merge, cierre de issues, borrado de ramas, despliegue Firebase, upgrades
+de paquetes, mutación de datos live, integración, cambios Android ni adopción
+de iOS/Xcode 27.
 
 ## Contexto
 
@@ -293,10 +298,11 @@ en Presentation; `Package.resolved` intacto; y gates focalizados, fast-unit,
 UI-smoke, Debug, Production Release y release completo verdes en iOS 26. La
 revisión independiente de concurrencia/arquitectura iOS terminó con 0 hallazgos
 P0-P3, y el issue #251 está sincronizado y verificado abierto con sus labels
-intactas. En este checkpoint documental la implementación sigue sin commit ni
-publicación. Commit, push y abrir las pull requests previa de HU-075 y actual de
-HU-076 están autorizados y pendientes en este turno. Merge, cierre del issue,
-despliegue, borrado de rama e integración permanecen sin autorización.
+intactas. El commit fuente `59216b5`, la rama HU-076 y su upstream están
+publicados y sincronizados. Las PR #252 y #253 están abiertas, ready y no son
+draft sobre sus bases apiladas. Los issues #249, #250 y #251 permanecen abiertos,
+y HU-074 sigue sin pull request ni integración. Merge, cierre de issues,
+despliegue, borrado de ramas e integración permanecen sin autorización.
 
 ## Decisiones y trabajo relacionados
 

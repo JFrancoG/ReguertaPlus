@@ -13,7 +13,10 @@ deployment, and integration remain separately gated.
 The working branch `codex/hu-076-ios-session-environment-ownership` starts at
 `d079379`, the published HU-075 tip. It is deliberately stacked because #249
 and #250 are not integrated into `main`. HU-076 does not modify either
-predecessor branch and does not imply integration of the stack.
+predecessor branch and does not imply integration of the stack. The published
+delivery graph is PR #252 from HU-075 to the HU-074 branch and PR #253 from
+HU-076 to the HU-075 branch. Both are ready and non-draft. HU-074 still has no
+pull request and is not integrated; issues #249, #250, and #251 remain open.
 
 ## 2. Design principles
 
@@ -196,8 +199,9 @@ Exit gate:
 
 - Every acceptance criterion has evidence in the baseline/closure ledger.
 - No package/backend/Android/iOS-27 or Phase 4 scope entered the diff.
-- Issue #251 reflects local status and remains open while the authorized commit,
-  push, and prior/current pull-request opening are completed in this turn.
+- Issue #251 reflects the published source and remains open. PR #252 and PR #253
+  preserve the stack and are ready/non-draft; HU-074 remains without a pull
+  request or integration.
 
 ## 4. Expected file clusters
 
@@ -284,13 +288,12 @@ parameterized `authenticatedClientMapsTokenRefreshFailures` case did retain a TD
 step for cancellation, timeout, missing authenticated user, and unavailable
 token refresh errors.
 
-At this documentation checkpoint, the implementation remains local and
-uncommitted on the HU-076 branch. The branch still points to `d079379`, has no
-upstream, and has not been published. Commit, push, and opening the prior HU-075
-and current HU-076 pull requests are now authorized and pending in this turn.
-Issue #251 is synchronized with the final local evidence, verified open, and
-retains its labels. Merge, issue closure, branch deletion, deployment, and
-integration remain unauthorized.
+HU-076 source is committed as `59216b5`. Its branch and same-named `origin`
+upstream are published and synchronized. PR #252 is open from HU-075 to HU-074,
+and PR #253 is open from HU-076 to HU-075; both are ready and non-draft. Issues
+#249, #250, and #251 remain open. HU-074 still has no pull request and is not
+integrated. Merge, issue closure, branch deletion, deployment, and integration
+remain unauthorized.
 
 ## 8. Executed validation checkpoint
 
@@ -329,9 +332,11 @@ verification late success resolves `false` and a late FCM token throws
 cancellable test waiters. Publication/error is owner plus live-session fenced,
 while cleanup uses only the owner and cannot clobber a successor. Independent
 iOS concurrency/architecture review is clean with 0 P0-P3 findings, and issue
-#251 is synchronized and remains open. The authorized commit, push, and opening
-of the prior/current pull requests are pending this turn; merge, issue closure,
-branch deletion, deployment, and integration remain unauthorized.
+#251 is synchronized and remains open. Source commit `59216b5`, its branch, and
+its upstream are published and synchronized. PR #252 and PR #253 are open,
+ready, and non-draft on their stacked bases. HU-074 still has no pull request or
+integration, and all three issues remain open. Merge, issue closure, branch
+deletion, deployment, and integration remain unauthorized.
 
 The Phase 2 SwiftLint `PATH` warning was historical and is not a current Xcode
 or Issue Navigator diagnostic.
