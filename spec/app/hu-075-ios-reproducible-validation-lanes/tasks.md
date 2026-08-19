@@ -22,8 +22,8 @@ integration of #249 or HU-075 remain separate gates.
 - [x] Persist current SwiftLint behavior, findings, settings-check, coverage,
   command, and CI gaps in `phase-2-baseline.md`.
 - [x] Create the spec, plan, tasks, baseline, and issue mirror.
-- [ ] Update issue #250 with links to the local artifacts when they are
-  published; do not imply delivery before commit/push authorization.
+- [x] Publish the canonical artifacts on the HU-075 branch so issue #250 can
+  link to stable repository paths.
 
 ## 1. Versioned plans and canonical scheme
 
@@ -104,6 +104,8 @@ integration of #249 or HU-075 remain separate gates.
   separately authorized delivery/integration.
 - [x] Obtain separate authorization before commit or push: "ok, documentalo y
   commit y push".
+- [x] Publish implementation commit `4eee0da` and verify the branch matches its
+  upstream before recording delivery evidence.
 
 ## Explicit non-tasks
 

@@ -95,13 +95,15 @@ that authorization.
 
 ## Current gate
 
-HU-075 is implemented and validated on the stacked local branch. The three
+HU-075 is implemented, validated, and published on the stacked branch at
+`4eee0da70a23ad8db606fbbc77783b7bafe549bc`. The three
 plans are discoverable with exact 488/4/497 inventories; fast unit passes
 488/488, UI smoke passes 4/4, strict SwiftLint has zero findings, all six
 settings pairs pass, and the initial app coverage trend is 37.20% without a
 threshold. The composite release gate completed both generic builds and
 reported 497 logical tests: 496 passed, 1 known skip, and 0 failed. Independent
 review has no unresolved P0-P3. Xcode also builds with the SwiftLint phase
-enabled after the documented Apple Silicon host setup. Commit and push are
-authorized; issue #250 remains open, and pull request, merge, issue closure,
-branch deletion, and integration remain unauthorized.
+enabled after the documented Apple Silicon host setup. The local branch and
+its upstream matched after publication. Issue #250 remains open, and pull
+request, merge, issue closure, branch deletion, and integration remain
+unauthorized.

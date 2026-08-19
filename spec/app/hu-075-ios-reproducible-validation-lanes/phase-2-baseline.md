@@ -192,3 +192,14 @@ with:
 - The maintainer then authorized documentation, commit, and push with the
   verbatim instruction "ok, documentalo y commit y push". Pull request, merge,
   issue closure, branch deletion, and integration remain unauthorized.
+
+## Branch publication - 2026-08-19
+
+- Implementation commit:
+  `4eee0da70a23ad8db606fbbc77783b7bafe549bc`.
+- Remote branch:
+  `origin/codex/hu-075-ios-reproducible-validation-lanes`.
+- The first push created the remote branch and configured its local upstream.
+- `HEAD...@{upstream}` reported `0 0` immediately after publication.
+- Issue #250 remains open. Publication did not create a pull request, merge
+  either stacked story, close an issue, or delete a branch.

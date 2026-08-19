@@ -5,7 +5,7 @@
 - issue_id: #250
 - priority: P1
 - platform: ios
-- status: implemented
+- status: ready_for_merge
 
 ## Authorization and delivery boundary
 
@@ -233,3 +233,13 @@ iOS 26 and iOS 27 simulators may coexist.
 - [x] Android parity impact is recorded as none.
 - [x] Commit/push delivery has separate, verbatim authorization; PR, merge,
   issue closure, branch deletion, and integration remain unauthorized.
+
+## Publication evidence
+
+- Implementation commit:
+  `4eee0da70a23ad8db606fbbc77783b7bafe549bc`.
+- Published branch:
+  `origin/codex/hu-075-ios-reproducible-validation-lanes`.
+- The local branch and upstream were `0/0` immediately after the first push.
+- Issue #250 remains open. No pull request, merge, issue closure, branch
+  deletion, or integration was performed.
