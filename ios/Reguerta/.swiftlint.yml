@@ -3,10 +3,6 @@ included:
   - ReguertaTests
   - ReguertaUITests
 
-# Existing violations are baselined so the 120-column rule applies progressively
-# to new and modified code without mixing historical cleanup into feature work.
-baseline: .swiftlint-baseline.json
-
 excluded:
   - Reguerta.xcodeproj
   - Reguerta.xcworkspace

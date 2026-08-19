@@ -1,0 +1,37 @@
+{
+  "configurations" : [
+    {
+      "id" : "E103DF3F-BAD2-4BD9-A8B5-EE68385EC107",
+      "name" : "Default",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : false,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:Reguerta.xcodeproj",
+      "identifier" : "E03FA0412F353C1A0038B8EB",
+      "name" : "Reguerta"
+    },
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : false,
+      "selectedTests" : [
+        "ReguertaUITests/testUnauthorizedUserShowsRestrictedMode",
+        "ReguertaUITests/testPreAuthorizedProducerEntersHomeWithActionRowEnabled",
+        "ReguertaUITests/testDrawerNavigationOpensSelectedRoute",
+        "ReguertaUITests/testInvalidCredentialsShowsInlineErrorWithoutCrash"
+      ],
+      "target" : {
+        "containerPath" : "container:Reguerta.xcodeproj",
+        "identifier" : "E03FA0582F353C1B0038B8EB",
+        "name" : "ReguertaUITests"
+      }
+    }
+  ],
+  "version" : 1
+}
