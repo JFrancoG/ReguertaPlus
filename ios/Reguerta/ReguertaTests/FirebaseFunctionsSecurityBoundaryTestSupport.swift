@@ -16,17 +16,21 @@ nonisolated struct SecurityBoundaryFixedAuthorizedMemberResolver: AuthorizedMemb
 @MainActor
 final class RecordingSessionEnvironmentRouter: SessionEnvironmentRouting {
     let baseEnvironment: SessionEnvironment
-    let transitionSignal: SessionEnvironmentRoutingSignal
+    let environmentStore: RuntimeSessionEnvironmentStore
     private(set) var appliedEnvironment: SessionEnvironment?
     private(set) var resetCount = 0
     private var activeLease: SessionEnvironmentLease?
 
+    var environmentSnapshotProvider: any SessionEnvironmentSnapshotProviding { environmentStore }
+    var transitionSignal: SessionEnvironmentRoutingSignal { environmentStore.transitionSignal }
+
     init(baseEnvironment: SessionEnvironment) {
         self.baseEnvironment = baseEnvironment
-        self.transitionSignal = SessionEnvironmentRoutingSignal(environment: baseEnvironment)
+        self.environmentStore = RuntimeSessionEnvironmentStore(baseEnvironment: baseEnvironment)
     }
 
     func applyResolvedEnvironment(_ environment: SessionEnvironment, lease: SessionEnvironmentLease) {
+        environmentStore.apply(environment, lease: lease)
         appliedEnvironment = environment
         activeLease = lease
         transitionSignal.publish(environment: environment)
@@ -38,6 +42,7 @@ final class RecordingSessionEnvironmentRouter: SessionEnvironmentRouting {
     }
 
     func resetToBaseEnvironment() {
+        environmentStore.reset()
         appliedEnvironment = nil
         activeLease = nil
         resetCount += 1
@@ -57,21 +62,25 @@ final class EnvironmentRecordingMemberRepository: MemberRepository {
         self.router = router
     }
 
-    nonisolated func member(id: String) async throws -> Member? {
+    nonisolated func member(id: String, environment: SessionEnvironment) async throws -> Member? {
         await MainActor.run {
             requestedMemberIds.append(id)
-            environmentAtMemberRead = router.appliedEnvironment
+            environmentAtMemberRead = environment
             return id == memberValue?.id ? memberValue : nil
         }
     }
 
-    nonisolated func members(visibleTo member: Member) async throws -> [Member] {
+    nonisolated func members(visibleTo member: Member, environment _: SessionEnvironment) async throws -> [Member] {
         await MainActor.run {
             memberValue.map { [$0] } ?? []
         }
     }
 
-    nonisolated func updateOwnProducerCatalogEnabled(member: Member, enabled: Bool) async throws -> Member {
+    nonisolated func updateOwnProducerCatalogEnabled(
+        member: Member,
+        enabled: Bool,
+        environment _: SessionEnvironment
+    ) async throws -> Member {
         try await MainActor.run {
             guard let memberValue else {
                 throw FirebaseFunctionClientError.invalidResponse

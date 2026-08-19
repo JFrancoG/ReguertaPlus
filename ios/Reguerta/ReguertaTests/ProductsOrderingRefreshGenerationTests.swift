@@ -46,7 +46,7 @@ struct ProductsOrderingRefreshGenerationTests {
 
         let freshnessTask = Task { @MainActor in
             try await viewModel.refreshOrderingProductsForFreshness(
-                scope: scope,
+                context: scope,
                 payload: CriticalDataRefreshPayload()
             )
         }
@@ -55,13 +55,13 @@ struct ProductsOrderingRefreshGenerationTests {
         try await freshnessTask.value
 
         #expect(viewModel.myOrderProducts.map(\.id) == [freshProduct.id])
-        #expect(viewModel.isOrderingStateCurrentForFreshness(scope: scope))
+        #expect(viewModel.isOrderingStateCurrentForFreshness(context: scope))
 
         let newestTask = Task { @MainActor in
             await viewModel.refreshOrderingProducts()
         }
         await repository.waitForReadCount(3)
-        #expect(!viewModel.isOrderingStateCurrentForFreshness(scope: scope))
+        #expect(!viewModel.isOrderingStateCurrentForFreshness(context: scope))
         repository.completeRead(at: 2, with: [newestProduct])
         await newestTask.value
 
@@ -89,7 +89,7 @@ struct ProductsOrderingRefreshGenerationTests {
 
         let freshnessTask = Task { @MainActor in
             try await viewModel.refreshOrderingProductsForFreshness(
-                scope: scope,
+                context: scope,
                 payload: CriticalDataRefreshPayload()
             )
         }
@@ -109,7 +109,7 @@ struct ProductsOrderingRefreshGenerationTests {
             Issue.record("Error inesperado: \(error)")
         }
 
-        #expect(!viewModel.isOrderingStateCurrentForFreshness(scope: scope))
+        #expect(!viewModel.isOrderingStateCurrentForFreshness(context: scope))
         repository.completeRead(at: 1, with: [currentProduct])
         await currentTask.value
 
@@ -145,7 +145,7 @@ struct ProductsOrderingRefreshGenerationTests {
             )
         ) {
             try await viewModel.refreshOrderingProductsForFreshness(
-                scope: oldScope,
+                context: oldScope,
                 payload: payload
             )
         }
@@ -155,17 +155,17 @@ struct ProductsOrderingRefreshGenerationTests {
             return
         }
         #expect(promotedSession.authenticatedMember.canManageMembers)
-        #expect(!viewModel.isOrderingStateCurrentForFreshness(scope: oldScope))
+        #expect(!viewModel.isOrderingStateCurrentForFreshness(context: oldScope))
         #expect(viewModel.myOrderProducts.isEmpty)
 
         let newScope = try #require(refreshScope(in: viewModel))
-        #expect(newScope.canManageMembers)
+        #expect(newScope.refreshScope.canManageMembers)
         try await viewModel.refreshOrderingProductsForFreshness(
-            scope: newScope,
+            context: newScope,
             payload: payload
         )
 
-        #expect(viewModel.isOrderingStateCurrentForFreshness(scope: newScope))
+        #expect(viewModel.isOrderingStateCurrentForFreshness(context: newScope))
         #expect(viewModel.myOrderProducts.map(\.id) == [freshProduct.id])
         #expect(viewModel.myOrderSeasonalCommitments.isEmpty)
     }
@@ -195,7 +195,7 @@ struct ProductsOrderingRefreshGenerationTests {
             )
         ) {
             try await viewModel.refreshOrderingProductsForFreshness(
-                scope: oldScope,
+                context: oldScope,
                 payload: CriticalDataRefreshPayload(authenticatedMember: demotedMember)
             )
         }
@@ -207,14 +207,14 @@ struct ProductsOrderingRefreshGenerationTests {
         #expect(!demotedSession.authenticatedMember.canManageMembers)
         #expect(demotedSession.member.id == demotedMember.id)
         #expect(demotedSession.members.map(\.id) == [demotedMember.id])
-        #expect(!viewModel.isOrderingStateCurrentForFreshness(scope: oldScope))
+        #expect(!viewModel.isOrderingStateCurrentForFreshness(context: oldScope))
 
         let retryScope = try #require(refreshScope(in: viewModel))
-        #expect(retryScope.authenticatedMemberID == demotedMember.id)
-        #expect(retryScope.memberID == demotedMember.id)
-        #expect(!retryScope.canManageMembers)
+        #expect(retryScope.refreshScope.authenticatedMemberID == demotedMember.id)
+        #expect(retryScope.refreshScope.memberID == demotedMember.id)
+        #expect(!retryScope.refreshScope.canManageMembers)
         try await viewModel.refreshOrderingProductsForFreshness(
-            scope: retryScope,
+            context: retryScope,
             payload: CriticalDataRefreshPayload(
                 authenticatedMember: demotedMember,
                 selectedMember: demotedMember,
@@ -224,7 +224,7 @@ struct ProductsOrderingRefreshGenerationTests {
             )
         )
 
-        #expect(viewModel.isOrderingStateCurrentForFreshness(scope: retryScope))
+        #expect(viewModel.isOrderingStateCurrentForFreshness(context: retryScope))
         #expect(viewModel.myOrderProducts.map(\.id) == [freshProduct.id])
     }
 
@@ -259,7 +259,7 @@ struct ProductsOrderingRefreshGenerationTests {
             )
         ) {
             try await viewModel.refreshOrderingProductsForFreshness(
-                scope: scope,
+                context: scope,
                 payload: CriticalDataRefreshPayload(
                     authenticatedMember: relinkedMember,
                     selectedMember: relinkedMember,
@@ -270,7 +270,7 @@ struct ProductsOrderingRefreshGenerationTests {
             )
         }
 
-        #expect(!viewModel.isOrderingStateCurrentForFreshness(scope: scope))
+        #expect(!viewModel.isOrderingStateCurrentForFreshness(context: scope))
         #expect(viewModel.myOrderProducts.isEmpty)
     }
 
@@ -294,7 +294,7 @@ struct ProductsOrderingRefreshGenerationTests {
         )
         let scope = try #require(refreshScope(in: viewModel))
         try await viewModel.refreshOrderingProductsForFreshness(
-            scope: scope,
+            context: scope,
             payload: CriticalDataRefreshPayload(
                 authenticatedMember: freshMember,
                 selectedMember: freshMember,
@@ -303,12 +303,13 @@ struct ProductsOrderingRefreshGenerationTests {
                 seasonalCommitments: []
             )
         )
-        #expect(viewModel.isOrderingStateCurrentForFreshness(scope: scope))
+        #expect(viewModel.isOrderingStateCurrentForFreshness(context: scope))
 
         viewModel.sessionViewModel.applyRefreshedAuthorizedMembers([staleMember])
 
-        #expect(!viewModel.isOrderingStateCurrentForFreshness(scope: scope))
+        #expect(!viewModel.isOrderingStateCurrentForFreshness(context: scope))
     }
+
 }
 
 @Suite(.timeLimit(.minutes(1)))
@@ -347,7 +348,7 @@ struct ProductsOrderingEquivalentMemberRefreshTests {
         let revisionBeforeRefresh = viewModel.sessionViewModel.sessionStateRevision
 
         try await viewModel.refreshOrderingProductsForFreshness(
-            scope: scope,
+            context: scope,
             payload: CriticalDataRefreshPayload(
                 authenticatedMember: authenticatedMember,
                 selectedMember: authenticatedMember,
@@ -363,23 +364,20 @@ struct ProductsOrderingEquivalentMemberRefreshTests {
         }
         #expect(refreshedSession.members.map(\.id) == sortedMembers.map(\.id))
         #expect(viewModel.sessionViewModel.sessionStateRevision == revisionBeforeRefresh)
-        #expect(viewModel.isOrderingStateCurrentForFreshness(scope: scope))
+        #expect(viewModel.isOrderingStateCurrentForFreshness(context: scope))
 
         viewModel.sessionViewModel.applyRefreshedAuthorizedMembers(sortedMembers)
 
         #expect(viewModel.sessionViewModel.sessionStateRevision == revisionBeforeRefresh)
-        #expect(viewModel.isOrderingStateCurrentForFreshness(scope: scope))
+        #expect(viewModel.isOrderingStateCurrentForFreshness(context: scope))
     }
 }
 
-@MainActor private func refreshScope(in viewModel: ProductsRouteViewModel) -> CriticalDataRefreshScope? {
+@MainActor private func refreshScope(in viewModel: ProductsRouteViewModel) -> MyOrderFreshnessSessionContext? {
     guard case .authorized(let session) = viewModel.sessionViewModel.mode else { return nil }
-    return CriticalDataRefreshScope(
-        principalUID: session.principal.uid,
-        authenticatedMemberID: session.authenticatedMember.id,
-        memberID: session.member.id,
-        environment: session.environment,
-        canManageMembers: session.authenticatedMember.canManageMembers
+    return MyOrderFreshnessSessionContext(
+        session: session,
+        sessionStateRevision: viewModel.sessionViewModel.sessionStateRevision
     )
 }
 
@@ -405,13 +403,13 @@ private func memberCopy(_ source: Member, roles: Set<MemberRole>) -> Member {
 private final class ControlledOrderingProductRepository: ProductRepository {
     private var readContinuations: [CheckedContinuation<[Product], Never>?] = []
 
-    nonisolated func allProducts() async -> [Product] {
+    nonisolated func allProducts(environment _: SessionEnvironment) async -> [Product] {
         await suspendRead()
     }
 
-    nonisolated func products(vendorId _: String) async -> [Product] { [] }
+    nonisolated func products(vendorId _: String, environment _: SessionEnvironment) async -> [Product] { [] }
 
-    nonisolated func upsert(product: Product) async -> Product { product }
+    nonisolated func upsert(product: Product, environment _: SessionEnvironment) async -> Product { product }
 
     private func suspendRead() async -> [Product] {
         let index = readContinuations.count

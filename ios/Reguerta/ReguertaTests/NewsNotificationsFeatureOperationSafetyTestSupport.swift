@@ -15,7 +15,7 @@ actor SequencedNewsRepository: NewsRepository {
         self.outcomes = outcomes
     }
 
-    func news(visibleTo _: Member) async throws -> [NewsArticle] {
+    func news(visibleTo _: Member, environment _: SessionEnvironment) async throws -> [NewsArticle] {
         guard !outcomes.isEmpty else { return [] }
         switch outcomes.removeFirst() {
         case .success(let articles):
@@ -27,9 +27,9 @@ actor SequencedNewsRepository: NewsRepository {
         }
     }
 
-    func allNews() async throws -> [NewsArticle] { [] }
-    func upsert(article: NewsArticle) async throws -> NewsArticle { article }
-    func delete(newsId _: String) async throws -> Bool { true }
+    func allNews(environment _: SessionEnvironment) async throws -> [NewsArticle] { [] }
+    func upsert(article: NewsArticle, environment _: SessionEnvironment) async throws -> NewsArticle { article }
+    func delete(newsId _: String, environment _: SessionEnvironment) async throws -> Bool { true }
 }
 
 actor ControlledNewsRepository: NewsRepository {
@@ -37,7 +37,7 @@ actor ControlledNewsRepository: NewsRepository {
     private var continuations: [Int: CheckedContinuation<[NewsArticle], any Error>] = [:]
     private var waiters: [(Int, CheckedContinuation<Void, Never>)] = []
 
-    func news(visibleTo _: Member) async throws -> [NewsArticle] {
+    func news(visibleTo _: Member, environment _: SessionEnvironment) async throws -> [NewsArticle] {
         let index = readCount
         readCount += 1
         let satisfied = waiters.filter { $0.0 <= readCount }
@@ -46,9 +46,9 @@ actor ControlledNewsRepository: NewsRepository {
         return try await withCheckedThrowingContinuation { continuations[index] = $0 }
     }
 
-    func allNews() async throws -> [NewsArticle] { [] }
-    func upsert(article: NewsArticle) async throws -> NewsArticle { article }
-    func delete(newsId _: String) async throws -> Bool { true }
+    func allNews(environment _: SessionEnvironment) async throws -> [NewsArticle] { [] }
+    func upsert(article: NewsArticle, environment _: SessionEnvironment) async throws -> NewsArticle { article }
+    func delete(newsId _: String, environment _: SessionEnvironment) async throws -> Bool { true }
 
     func waitForReadCount(_ count: Int) async {
         guard readCount < count else { return }
@@ -89,7 +89,7 @@ actor SequencedNotificationRepository: NotificationRepository {
         self.readOutcomes = readOutcomes
     }
 
-    func notifications(visibleTo _: Member) async throws -> [NotificationEvent] {
+    func notifications(visibleTo _: Member, environment _: SessionEnvironment) async throws -> [NotificationEvent] {
         guard !notificationOutcomes.isEmpty else { return [] }
         switch notificationOutcomes.removeFirst() {
         case .success(let events): return events
@@ -98,9 +98,9 @@ actor SequencedNotificationRepository: NotificationRepository {
         }
     }
 
-    func allNotifications() async throws -> [NotificationEvent] { [] }
+    func allNotifications(environment _: SessionEnvironment) async throws -> [NotificationEvent] { [] }
 
-    func readNotificationIds(memberId _: String) async throws -> Set<String> {
+    func readNotificationIds(memberId _: String, environment _: SessionEnvironment) async throws -> Set<String> {
         guard !readOutcomes.isEmpty else { return [] }
         switch readOutcomes.removeFirst() {
         case .success(let ids): return ids
@@ -108,8 +108,13 @@ actor SequencedNotificationRepository: NotificationRepository {
         }
     }
 
-    func markNotificationsRead(memberId _: String, notificationIds _: [String], readAtMillis _: Int64) async throws {}
-    func send(event: NotificationEvent) async throws -> NotificationEvent { event }
+    func markNotificationsRead(
+        memberId _: String,
+        notificationIds _: [String],
+        readAtMillis _: Int64,
+        environment _: SessionEnvironment
+    ) async throws {}
+    func send(event: NotificationEvent, environment _: SessionEnvironment) async throws -> NotificationEvent { event }
 }
 
 actor ControlledNotificationRepository: NotificationRepository {
@@ -117,11 +122,18 @@ actor ControlledNotificationRepository: NotificationRepository {
     private var markContinuation: CheckedContinuation<Void, any Error>?
     private var waiters: [(Int, CheckedContinuation<Void, Never>)] = []
 
-    func notifications(visibleTo _: Member) async throws -> [NotificationEvent] { [] }
-    func allNotifications() async throws -> [NotificationEvent] { [] }
-    func readNotificationIds(memberId _: String) async throws -> Set<String> { [] }
+    func notifications(visibleTo _: Member, environment _: SessionEnvironment) async throws -> [NotificationEvent] {
+        []
+    }
+    func allNotifications(environment _: SessionEnvironment) async throws -> [NotificationEvent] { [] }
+    func readNotificationIds(memberId _: String, environment _: SessionEnvironment) async throws -> Set<String> { [] }
 
-    func markNotificationsRead(memberId _: String, notificationIds _: [String], readAtMillis _: Int64) async throws {
+    func markNotificationsRead(
+        memberId _: String,
+        notificationIds _: [String],
+        readAtMillis _: Int64,
+        environment _: SessionEnvironment
+    ) async throws {
         markCount += 1
         let satisfied = waiters.filter { $0.0 <= markCount }
         waiters.removeAll { $0.0 <= markCount }
@@ -129,7 +141,7 @@ actor ControlledNotificationRepository: NotificationRepository {
         try await withCheckedThrowingContinuation { markContinuation = $0 }
     }
 
-    func send(event: NotificationEvent) async throws -> NotificationEvent { event }
+    func send(event: NotificationEvent, environment _: SessionEnvironment) async throws -> NotificationEvent { event }
 
     func waitForMarkCount(_ count: Int) async {
         guard markCount < count else { return }
@@ -149,7 +161,7 @@ actor ConfirmedMutationNewsRepository: NewsRepository {
     private var deletes = 0
     private var readWaiters: [(Int, CheckedContinuation<Void, Never>)] = []
 
-    func news(visibleTo _: Member) async throws -> [NewsArticle] {
+    func news(visibleTo _: Member, environment _: SessionEnvironment) async throws -> [NewsArticle] {
         reads += 1
         let satisfied = readWaiters.filter { $0.0 <= reads }
         readWaiters.removeAll { $0.0 <= reads }
@@ -157,11 +169,11 @@ actor ConfirmedMutationNewsRepository: NewsRepository {
         throw RepositoryError.unavailable(resource: "news")
     }
 
-    func allNews() async throws -> [NewsArticle] {
+    func allNews(environment _: SessionEnvironment) async throws -> [NewsArticle] {
         throw RepositoryError.unavailable(resource: "news")
     }
 
-    func upsert(article: NewsArticle) async throws -> NewsArticle {
+    func upsert(article: NewsArticle, environment _: SessionEnvironment) async throws -> NewsArticle {
         upserts += 1
         return await MainActor.run {
             NewsArticle(
@@ -176,7 +188,7 @@ actor ConfirmedMutationNewsRepository: NewsRepository {
         }
     }
 
-    func delete(newsId _: String) async throws -> Bool {
+    func delete(newsId _: String, environment _: SessionEnvironment) async throws -> Bool {
         deletes += 1
         return true
     }
@@ -195,7 +207,7 @@ actor ConfirmedMutationNotificationRepository: NotificationRepository {
     private var sends = 0
     private var readWaiters: [(Int, CheckedContinuation<Void, Never>)] = []
 
-    func notifications(visibleTo _: Member) async throws -> [NotificationEvent] {
+    func notifications(visibleTo _: Member, environment _: SessionEnvironment) async throws -> [NotificationEvent] {
         reads += 1
         let satisfied = readWaiters.filter { $0.0 <= reads }
         readWaiters.removeAll { $0.0 <= reads }
@@ -203,11 +215,16 @@ actor ConfirmedMutationNotificationRepository: NotificationRepository {
         throw RepositoryError.unavailable(resource: "notificationInbox")
     }
 
-    func allNotifications() async throws -> [NotificationEvent] { [] }
-    func readNotificationIds(memberId _: String) async throws -> Set<String> { [] }
-    func markNotificationsRead(memberId _: String, notificationIds _: [String], readAtMillis _: Int64) async throws {}
+    func allNotifications(environment _: SessionEnvironment) async throws -> [NotificationEvent] { [] }
+    func readNotificationIds(memberId _: String, environment _: SessionEnvironment) async throws -> Set<String> { [] }
+    func markNotificationsRead(
+        memberId _: String,
+        notificationIds _: [String],
+        readAtMillis _: Int64,
+        environment _: SessionEnvironment
+    ) async throws {}
 
-    func send(event: NotificationEvent) async throws -> NotificationEvent {
+    func send(event: NotificationEvent, environment _: SessionEnvironment) async throws -> NotificationEvent {
         sends += 1
         return await MainActor.run {
             NotificationEvent(

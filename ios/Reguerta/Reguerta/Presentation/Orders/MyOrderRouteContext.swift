@@ -1,5 +1,17 @@
 import Foundation
 
+@MainActor
+func ordersRouteHasActiveAuthorization(
+    sessionViewModel: SessionViewModel,
+    currentMember: Member?,
+    environment: SessionEnvironment
+) -> Bool {
+    guard case .authorized(let session) = sessionViewModel.mode else { return false }
+    return session.representsActiveAuthorization &&
+        session.member == currentMember &&
+        session.environment == environment
+}
+
 struct MyOrderRouteContext {
     let products: [Product]
     let seasonalCommitments: [SeasonalCommitment]
@@ -10,6 +22,7 @@ struct MyOrderRouteContext {
     let isLoading: Bool
     let currentMember: Member?
     let members: [Member]
+    let environment: SessionEnvironment
 
     static let empty = MyOrderRouteContext(
         products: [],
@@ -20,12 +33,35 @@ struct MyOrderRouteContext {
         nowMillis: 0,
         isLoading: false,
         currentMember: nil,
-        members: []
+        members: [],
+        environment: .develop
     )
+
+    var currentWeekKey: String {
+        nowMillis.isoWeekKey
+    }
+
+    var consultaWindow: MyOrderConsultaWindow {
+        resolveMyOrderConsultaWindow(
+            defaultDeliveryDayOfWeek: defaultDeliveryDayOfWeek,
+            deliveryCalendarOverrides: deliveryCalendarOverrides,
+            shifts: shifts,
+            now: Date(timeIntervalSince1970: TimeInterval(nowMillis) / 1_000)
+        )
+    }
+
+    var cartStorageKey: String {
+        myOrderLocalStateStorageKey(
+            memberId: currentMember?.id,
+            weekKey: currentWeekKey,
+            environment: environment
+        )
+    }
 
     var identity: String {
         [
             currentMember?.id ?? "none",
+            environment.rawValue,
             nowMillis.isoWeekKey,
             String(isLoading),
             products.map(productSignature).joined(separator: ","),

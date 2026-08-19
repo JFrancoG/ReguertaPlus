@@ -26,18 +26,18 @@ actor InMemorySharedProfileRepository: SharedProfileRepository {
         )
     ]
 
-    func allSharedProfiles() async -> [SharedProfile] {
+    func allSharedProfiles(environment _: SessionEnvironment) async -> [SharedProfile] {
         profiles.values.sorted { $0.updatedAtMillis > $1.updatedAtMillis }
     }
 
-    func sharedProfile(userId: String) async -> SharedProfile? { profiles[userId] }
+    func sharedProfile(userId: String, environment _: SessionEnvironment) async -> SharedProfile? { profiles[userId] }
 
-    func upsert(profile: SharedProfile) async -> SharedProfile {
+    func upsert(profile: SharedProfile, environment _: SessionEnvironment) async -> SharedProfile {
         profiles[profile.userId] = profile
         return profile
     }
 
-    func deleteSharedProfile(userId: String) async -> Bool {
+    func deleteSharedProfile(userId: String, environment _: SessionEnvironment) async -> Bool {
         profiles.removeValue(forKey: userId) != nil
     }
 }

@@ -3,6 +3,7 @@ import Testing
 
 @testable import Reguerta
 
+@Suite(.timeLimit(.minutes(1)))
 @MainActor
 struct ReguertaOrdersViewModelTests {
     @Test func myOrderViewModelUsesLocalizedOrderActions() {
@@ -166,13 +167,8 @@ extension ReguertaOrdersViewModelTests {
             userDefaults.removePersistentDomain(forName: suiteName)
         }
         let product = regularProduct(id: "tomato", vendorId: "producer_even", name: "Tomates")
-        let storageKey = "member_member_1_week_2026-W20"
-        let viewModel = MyOrderRouteViewModel(
-            sessionViewModel: SessionViewModel(dependencies: .preview()),
-            ordersRepository: InMemoryOrdersRepository(),
-            cartStore: UserDefaultsMyOrderCartStore(userDefaults: userDefaults),
-            nowMillisProvider: { testMillis(year: 2026, month: 5, day: 14) }
-        )
+        let storageKey = myOrderLocalStateStorageKey(memberId: "member_1", weekKey: "2026-W20", environment: .develop)
+        let viewModel = makeMyOrderViewModel(cartStore: UserDefaultsMyOrderCartStore(userDefaults: userDefaults))
 
         await viewModel.appear(context: myOrderContext(products: [product]))
         viewModel.increase(product)
@@ -237,7 +233,12 @@ extension ReguertaOrdersViewModelTests {
             Issue.record("Expected checkout success alert")
             return
         }
-        let confirmed = await cartStore.readConfirmed(storageKey: "member_member_1_week_2026-W20")
+        let confirmedStorageKey = myOrderLocalStateStorageKey(
+            memberId: "member_1",
+            weekKey: "2026-W20",
+            environment: .develop
+        )
+        let confirmed = await cartStore.readConfirmed(storageKey: confirmedStorageKey)
         let submissions = await repository.submissions()
         #expect(total == 2.0)
         #expect(noPickupEcoBaskets == 0)
@@ -331,19 +332,21 @@ extension ReguertaOrdersViewModelTests {
 
     @Test func receivedOrdersViewModelDoesNotLoadForNonProducerOrOutsideWindow() async {
         let repository = InMemoryOrdersRepository()
-        let nonProducerViewModel = makeReceivedOrdersViewModel(repository: repository)
+        let nonProducer = member(id: "member_1", ecoCommitmentMode: .weekly)
+        let nonProducerViewModel = makeReceivedOrdersViewModel(repository: repository, currentMember: nonProducer)
         await nonProducerViewModel.appear(
             context: receivedOrdersContext(
-                currentMember: member(id: "member_1", ecoCommitmentMode: .weekly),
+                currentMember: nonProducer,
                 nowMillis: testMillis(year: 2026, month: 5, day: 11)
             )
         )
         #expect(nonProducerViewModel.loadState == .idle)
 
-        let producerViewModel = makeReceivedOrdersViewModel(repository: repository)
+        let currentProducer = producer(id: "producer_even", parity: .even)
+        let producerViewModel = makeReceivedOrdersViewModel(repository: repository, currentMember: currentProducer)
         await producerViewModel.appear(
             context: receivedOrdersContext(
-                currentMember: producer(id: "producer_even", parity: .even),
+                currentMember: currentProducer,
                 nowMillis: testMillis(year: 2026, month: 5, day: 14)
             )
         )
@@ -376,6 +379,55 @@ extension ReguertaOrdersViewModelTests {
         #expect(loadedSnapshot.byMemberGroups.first?.consumerDisplayName == "Carmen")
         #expect(loadedSnapshot.byMemberGroups.first?.lines.first?.totalMeasureLabel() == "3 kg")
         #expect(loadedSnapshot.generalTotal == 6.0)
+    }
+
+    @Test func receivedOrdersViewModelRejectsAnObsoleteEnvironmentResult() async throws {
+        let repository = EnvironmentSwitchOrdersRepository(
+            blockedCalls: [.receivedOrdersSnapshot(.develop)],
+            receivedSnapshots: [
+                .develop: receivedOrdersSnapshot(status: .unread),
+                .production: receivedOrdersSnapshot(status: .prepared)
+            ]
+        )
+        let nowMillis = testMillis(year: 2026, month: 5, day: 11)
+        let currentProducer = producer(id: "producer_even", parity: .even)
+        let viewModel = makeReceivedOrdersViewModel(
+            repository: repository, nowMillis: nowMillis, currentMember: currentProducer
+        )
+        let obsoleteOperation = Task {
+            await viewModel.appear(
+                context: receivedOrdersContext(
+                    currentMember: currentProducer,
+                    nowMillis: nowMillis,
+                    environment: .develop
+                )
+            )
+        }
+        defer { obsoleteOperation.cancel() }
+
+        try await repository.waitForCallCount(1)
+        authorizeOrdersSession(viewModel.sessionViewModel, currentMember: currentProducer, environment: .production)
+        await viewModel.appear(
+            context: receivedOrdersContext(
+                currentMember: currentProducer,
+                nowMillis: nowMillis,
+                environment: .production
+            )
+        )
+        await repository.resume(.receivedOrdersSnapshot(.develop))
+        await obsoleteOperation.value
+
+        guard case .loaded(let snapshot) = viewModel.loadState else {
+            Issue.record("Expected the production received-orders snapshot to remain loaded")
+            return
+        }
+        #expect(snapshot.byMemberGroups.first?.producerStatus == .prepared)
+        #expect(
+            await repository.recordedCalls() == [
+                .receivedOrdersSnapshot(.develop),
+                .receivedOrdersSnapshot(.production)
+            ]
+        )
     }
 
     @Test func receivedOrdersViewModelUpdatesProducerStatusAndMutatesLocalSnapshot() async {

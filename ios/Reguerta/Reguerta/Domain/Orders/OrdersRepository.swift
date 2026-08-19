@@ -9,31 +9,49 @@ struct MyOrderCheckoutRequest {
     let nowMillis: Int64
 }
 
-protocol OrdersRepository {
-    func submitMyOrder(_ request: MyOrderCheckoutRequest) async throws -> Bool
+protocol OrdersRepository: Sendable {
+    func submitMyOrder(_ request: MyOrderCheckoutRequest, environment: SessionEnvironment) async throws -> Bool
 
     func previousOrderSnapshot(
         currentMember: Member?,
-        previousWeekKey: String
+        previousWeekKey: String,
+        environment: SessionEnvironment
     ) async throws -> MyOrderPreviousOrderSnapshot?
 
-    func orderHistoryWeekKeys(currentMember: Member?) async throws -> [String]
+    func orderHistoryWeekKeys(currentMember: Member?, environment: SessionEnvironment) async throws -> [String]
 
-    func orderSummarySnapshot(currentMember: Member?, weekKey: String) async throws -> MyOrderPreviousOrderSnapshot?
+    func orderSummarySnapshot(
+        currentMember: Member?,
+        weekKey: String,
+        environment: SessionEnvironment
+    ) async throws -> MyOrderPreviousOrderSnapshot?
 
-    func myOrderProducerStatuses(currentMember: Member?, weekKey: String) async -> MyOrderProducerStatusSnapshot
+    func myOrderProducerStatuses(
+        currentMember: Member?,
+        weekKey: String,
+        environment: SessionEnvironment
+    ) async -> MyOrderProducerStatusSnapshot
 
-    func receivedOrdersSnapshot(producerId: String, targetWeekKey: String) async throws -> ReceivedOrdersSnapshot?
+    func receivedOrdersSnapshot(
+        producerId: String,
+        targetWeekKey: String,
+        environment: SessionEnvironment
+    ) async throws -> ReceivedOrdersSnapshot?
 
-    func receivedOrdersHistoryWeekKeys(producerId: String) async throws -> [String]
+    func receivedOrdersHistoryWeekKeys(producerId: String, environment: SessionEnvironment) async throws -> [String]
 
-    func receivedOrdersHistorySnapshot(producerId: String, weekKey: String) async throws -> ReceivedOrdersSnapshot?
+    func receivedOrdersHistorySnapshot(
+        producerId: String,
+        weekKey: String,
+        environment: SessionEnvironment
+    ) async throws -> ReceivedOrdersSnapshot?
 
     func updateReceivedOrderProducerStatus(
         orderId: String,
         producerId: String,
         status: ProducerOrderStatus,
-        nowMillis: Int64
+        nowMillis: Int64,
+        environment: SessionEnvironment
     ) async -> ReceivedOrderStatusWriteResult
 }
 

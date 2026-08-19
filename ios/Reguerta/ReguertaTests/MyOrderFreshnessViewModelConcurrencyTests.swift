@@ -311,7 +311,7 @@ func freshnessAuthorizedMode(
     email: String? = nil,
     environment: SessionEnvironment = .develop
 ) -> SessionMode {
-    let currentMember = member(id: uid, ecoCommitmentMode: .weekly)
+    let currentMember = member(id: uid, ecoCommitmentMode: .weekly, authUID: uid)
     return .authorized(
         AuthorizedSession(
             principal: AuthPrincipal(uid: uid, email: email ?? currentMember.normalizedEmail),

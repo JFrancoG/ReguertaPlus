@@ -212,8 +212,8 @@ struct SessionOperationInvalidationTests {
         #expect(provider.isAuthenticated == false)
     }
 
-    @Test("El rollback antiguo no pisa el entorno de una sesión nueva")
-    func staleRoutingRollbackDoesNotResetNewerLease() async throws {
+    @Test("Una autorización cancelada no publica ni resetea el entorno candidato")
+    func cancelledResolutionDoesNotPublishOrResetCandidateEnvironment() async throws {
         let fixture = authenticatedMember()
         let principal = authenticatedPrincipal(for: fixture)
         let repository = ControlledSessionMemberRepository(member: fixture)
@@ -236,7 +236,6 @@ struct SessionOperationInvalidationTests {
         }
         guard await repository.waitForMemberRequestCount(1) else { return }
         staleOperation.cancel()
-        environmentRouter.resetToBaseEnvironment()
 
         let newerOperation = Task {
             try await useCase.execute(authPrincipal: principal)
@@ -250,14 +249,16 @@ struct SessionOperationInvalidationTests {
                 environment: .production
             )
         )
-        #expect(routingRecorder.currentEnvironment == .production)
+        #expect(routingRecorder.appliedEnvironments.isEmpty)
+        #expect(routingRecorder.currentEnvironment == nil)
 
         await repository.completeMemberRead(at: 0, with: fixture)
         await #expect(throws: CancellationError.self) {
             try await staleOperation.value
         }
-        #expect(routingRecorder.currentEnvironment == .production)
-        #expect(routingRecorder.resetCount == 1)
+        #expect(routingRecorder.appliedEnvironments.isEmpty)
+        #expect(routingRecorder.currentEnvironment == nil)
+        #expect(routingRecorder.resetCount == 0)
     }
 
     @Test("El entorno resuelto forma parte de la identidad de la sesión autorizada")
@@ -474,15 +475,19 @@ private extension FixedAuthorizedMemberResolver {
 nonisolated private struct FixedSessionMemberRepository: MemberRepository {
     let member: Member
 
-    func member(id: String) async throws -> Member? {
+    func member(id: String, environment _: SessionEnvironment) async throws -> Member? {
         id == member.id ? member : nil
     }
 
-    func members(visibleTo _: Member) async throws -> [Member] {
+    func members(visibleTo _: Member, environment _: SessionEnvironment) async throws -> [Member] {
         [member]
     }
 
-    func updateOwnProducerCatalogEnabled(member _: Member, enabled _: Bool) async throws -> Member {
+    func updateOwnProducerCatalogEnabled(
+        member _: Member,
+        enabled _: Bool,
+        environment _: SessionEnvironment
+    ) async throws -> Member {
         member
     }
 }

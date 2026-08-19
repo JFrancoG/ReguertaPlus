@@ -9,15 +9,19 @@ final class ConfirmingVisibilityMemberRepository: MemberRepository {
         memberValue = member
     }
 
-    func member(id: String) async -> Member? {
+    func member(id: String, environment _: SessionEnvironment) async -> Member? {
         id == memberValue.id ? memberValue : nil
     }
 
-    func members(visibleTo _: Member) async throws -> [Member] {
+    func members(visibleTo _: Member, environment _: SessionEnvironment) async throws -> [Member] {
         throw ProductReadTestError.rejected
     }
 
-    func updateOwnProducerCatalogEnabled(member: Member, enabled: Bool) async -> Member {
+    func updateOwnProducerCatalogEnabled(
+        member: Member,
+        enabled: Bool,
+        environment _: SessionEnvironment
+    ) async -> Member {
         member.copy(producerCatalogEnabled: enabled)
     }
 }
@@ -28,11 +32,11 @@ final class SuspendedProductRepository: ProductRepository {
     private var submittedProduct: Product?
     private(set) var writeCount = 0
 
-    nonisolated func allProducts() async -> [Product] { [] }
+    nonisolated func allProducts(environment _: SessionEnvironment) async -> [Product] { [] }
 
-    nonisolated func products(vendorId _: String) async -> [Product] { [] }
+    nonisolated func products(vendorId _: String, environment _: SessionEnvironment) async -> [Product] { [] }
 
-    nonisolated func upsert(product: Product) async -> Product {
+    nonisolated func upsert(product: Product, environment _: SessionEnvironment) async -> Product {
         await suspendWrite(product: product)
     }
 
@@ -62,11 +66,11 @@ final class MultiSuspendedProductRepository: ProductRepository {
     private var continuations: [CheckedContinuation<Product, Never>?] = []
     private var submittedProducts: [Product] = []
 
-    nonisolated func allProducts() async -> [Product] { [] }
+    nonisolated func allProducts(environment _: SessionEnvironment) async -> [Product] { [] }
 
-    nonisolated func products(vendorId _: String) async -> [Product] { [] }
+    nonisolated func products(vendorId _: String, environment _: SessionEnvironment) async -> [Product] { [] }
 
-    nonisolated func upsert(product: Product) async -> Product {
+    nonisolated func upsert(product: Product, environment _: SessionEnvironment) async -> Product {
         await suspendWrite(product: product)
     }
 
@@ -138,7 +142,7 @@ final class ControlledProductRepository: ProductRepository {
         self.rejectsReads = rejectsReads
     }
 
-    nonisolated func allProducts() async throws -> [Product] {
+    nonisolated func allProducts(environment _: SessionEnvironment) async throws -> [Product] {
         try await MainActor.run {
             readCount += 1
             try rejectReadIfNeeded()
@@ -146,7 +150,7 @@ final class ControlledProductRepository: ProductRepository {
         }
     }
 
-    nonisolated func products(vendorId: String) async throws -> [Product] {
+    nonisolated func products(vendorId: String, environment _: SessionEnvironment) async throws -> [Product] {
         try await MainActor.run {
             readCount += 1
             try rejectReadIfNeeded()
@@ -154,7 +158,7 @@ final class ControlledProductRepository: ProductRepository {
         }
     }
 
-    nonisolated func upsert(product: Product) async -> Product {
+    nonisolated func upsert(product: Product, environment _: SessionEnvironment) async -> Product {
         await MainActor.run {
             writeCount += 1
             itemsById[product.id] = product
@@ -170,7 +174,7 @@ final class ControlledProductRepository: ProductRepository {
 }
 
 final class RejectingSeasonalCommitmentRepository: SeasonalCommitmentRepository {
-    func activeCommitments(userId _: String) async throws -> [SeasonalCommitment] {
+    func activeCommitments(userId _: String, environment _: SessionEnvironment) async throws -> [SeasonalCommitment] {
         throw ProductReadTestError.rejected
     }
 }
@@ -188,19 +192,19 @@ final class AmbiguousCreateProductRepository: ProductRepository {
         itemsById.count
     }
 
-    nonisolated func allProducts() async -> [Product] {
+    nonisolated func allProducts(environment _: SessionEnvironment) async -> [Product] {
         await MainActor.run {
             Array(itemsById.values)
         }
     }
 
-    nonisolated func products(vendorId: String) async -> [Product] {
+    nonisolated func products(vendorId: String, environment _: SessionEnvironment) async -> [Product] {
         await MainActor.run {
             itemsById.values.filter { $0.vendorId == vendorId }
         }
     }
 
-    nonisolated func upsert(product: Product) async throws -> Product {
+    nonisolated func upsert(product: Product, environment _: SessionEnvironment) async throws -> Product {
         try await MainActor.run {
             attemptedProductIds.append(product.id)
             itemsById[product.id] = product
@@ -213,15 +217,15 @@ final class AmbiguousCreateProductRepository: ProductRepository {
 }
 
 final class CancellingProductRepository: ProductRepository {
-    func allProducts() async throws -> [Product] {
+    func allProducts(environment _: SessionEnvironment) async throws -> [Product] {
         throw CancellationError()
     }
 
-    func products(vendorId _: String) async throws -> [Product] {
+    func products(vendorId _: String, environment _: SessionEnvironment) async throws -> [Product] {
         throw CancellationError()
     }
 
-    func upsert(product: Product) async -> Product {
+    func upsert(product: Product, environment _: SessionEnvironment) async -> Product {
         product
     }
 }

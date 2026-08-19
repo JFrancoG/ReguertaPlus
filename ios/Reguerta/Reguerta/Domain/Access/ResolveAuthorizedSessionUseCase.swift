@@ -7,10 +7,10 @@ struct ResolveAuthorizedSessionUseCase {
 
     /// Resolves and verifies the member represented by an authenticated principal.
     ///
-    /// Resolution starts in the router's base environment. A successful backend resolution
-    /// receives a temporary environment lease so the local member is read from the resolved
-    /// environment. The lease is rolled back unless the member identity, Firebase UID, active
-    /// state, and canonical roles all match the server-owned resolution.
+    /// Resolution starts in the router's base environment. The exact member is read from the
+    /// resolved candidate environment without publishing that candidate as live routing. The
+    /// session owner may commit the route only after mandatory hydration is complete and the
+    /// operation is still current.
     ///
     /// Authorization failures are returned as `.unauthorized`; cancellation and non-authorization
     /// failures from the resolver or member repository are propagated to the caller.
@@ -38,19 +38,10 @@ struct ResolveAuthorizedSessionUseCase {
         guard resolution.isActive else {
             return .unauthorized(.userAccessRestricted)
         }
-        let environmentLease = SessionEnvironmentLease()
-        storedEnvironmentRouter.applyResolvedEnvironment(
-            resolution.environment,
-            lease: environmentLease
-        )
-        var keepsResolvedEnvironment = false
-        defer {
-            if !keepsResolvedEnvironment {
-                storedEnvironmentRouter.resetToBaseEnvironment(ifOwnedBy: environmentLease)
-            }
-        }
-
-        guard let member = try await storedRepository.member(id: resolution.memberId) else {
+        guard let member = try await storedRepository.member(
+            id: resolution.memberId,
+            environment: resolution.environment
+        ) else {
             return .unauthorized(.userNotFoundInAuthorizedUsers)
         }
         try Task.checkCancellation()
@@ -60,7 +51,6 @@ struct ResolveAuthorizedSessionUseCase {
               member.roles == resolution.roles else {
             return .unauthorized(.userAccessRestricted)
         }
-        keepsResolvedEnvironment = true
         return .authorized(member: member, environment: resolution.environment)
     }
 }

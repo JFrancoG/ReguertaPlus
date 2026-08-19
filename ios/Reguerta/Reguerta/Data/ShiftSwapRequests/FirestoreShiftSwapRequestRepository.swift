@@ -1,27 +1,23 @@
+import FirebaseCore
 import FirebaseFirestore
 import Foundation
 
-final class FirestoreShiftSwapRequestRepository: @unchecked Sendable, ShiftSwapRequestRepository {
-    private let db: Firestore
-    private let environment: ReguertaFirestoreEnvironment?
+actor FirestoreShiftSwapRequestRepository: ShiftSwapRequestRepository {
+    private let storedDB: Firestore
     private let functionsClient: AuthenticatedFirebaseFunctionsClient
 
-    init(
-        db: Firestore = Firestore.firestore(),
-        environment: ReguertaFirestoreEnvironment? = nil,
-        functionsClient: AuthenticatedFirebaseFunctionsClient
-    ) {
-        self.db = db
-        self.environment = environment
+    init(firebaseAppName: String, functionsClient: AuthenticatedFirebaseFunctionsClient) {
+        guard let app = FirebaseApp.app(name: firebaseAppName) else {
+            preconditionFailure("Firebase app is required for shift swap requests")
+        }
+        self.storedDB = Firestore.firestore(app: app)
         self.functionsClient = functionsClient
     }
 
-    private var requestsCollection: CollectionReference {
-        db.reguertaCollection(.shiftSwapRequests, environment: environment)
-    }
-
-    func allShiftSwapRequests() async throws -> [ShiftSwapRequest] {
+    func allShiftSwapRequests(environment: SessionEnvironment) async throws -> [ShiftSwapRequest] {
+        let requestsCollection = storedDB.reguertaCollection(.shiftSwapRequests, environment: environment)
         do {
+            try Task.checkCancellation()
             let snapshot = try await requestsCollection.getDocuments(source: .server)
             return try snapshot.documents
                 .map { document in
@@ -33,13 +29,17 @@ final class FirestoreShiftSwapRequestRepository: @unchecked Sendable, ShiftSwapR
         }
     }
 
-    func transition(_ transition: ShiftSwapTransition) async throws -> ShiftSwapTransitionResult {
+    func transition(
+        _ transition: ShiftSwapTransition,
+        environment: SessionEnvironment
+    ) async throws -> ShiftSwapTransitionResult {
         let request = ShiftSwapTransitionRequest(
-            environment: environment ?? ReguertaRuntimeEnvironment.currentFirestoreEnvironment,
+            environment: environment,
             transition: transition
         )
         let response: ShiftSwapTransitionResponse
         do {
+            try Task.checkCancellation()
             response = try await functionsClient.post(
                 function: .transitionShiftSwap,
                 body: request,

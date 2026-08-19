@@ -31,7 +31,8 @@ struct ReguertaShiftsViewModelTests {
                 candidates: [
                     ShiftSwapCandidate(userId: otherMember.id, shiftId: candidateShift.id)
                 ]
-            )
+            ),
+            environment: .develop
         )
         let viewModel = makeShiftsViewModel(
             currentMember: currentMember,
@@ -116,7 +117,7 @@ struct ReguertaShiftsViewModelTests {
         )
         let calendarRepository = InMemoryDeliveryCalendarRepository(defaultDay: .wednesday)
         if let override {
-            _ = await calendarRepository.upsertOverride(override)
+            _ = await calendarRepository.upsertOverride(override, environment: .develop)
         }
         let viewModel = makeShiftsViewModel(
             currentMember: currentMember,
@@ -190,7 +191,7 @@ struct ReguertaShiftsViewModelTests {
         viewModel.startCreatingShiftSwap(shiftId: requestedShift.id)
         viewModel.updateShiftSwapDraft { $0.reason = "No puedo ir" }
         let saved = await viewModel.saveShiftSwapRequest()
-        let requests = await requestRepository.allShiftSwapRequests()
+        let requests = await requestRepository.allShiftSwapRequests(environment: .develop)
         let events = await notificationRepository.sentEvents()
 
         #expect(saved)
@@ -223,7 +224,8 @@ struct ReguertaShiftsViewModelTests {
                 requestedShiftId: requestedShift.id,
                 requesterUserId: requester.id,
                 candidates: [ShiftSwapCandidate(userId: candidate.id, shiftId: candidateShift.id)]
-            )
+            ),
+            environment: .develop
         )
         let viewModel = makeShiftsViewModel(
             currentMember: candidate,
@@ -238,7 +240,7 @@ struct ReguertaShiftsViewModelTests {
             viewModel.shiftSwapRequests.first?.responses.first?.status == .available
         }
 
-        let stored = await requestRepository.allShiftSwapRequests()
+        let stored = await requestRepository.allShiftSwapRequests(environment: .develop)
         #expect(stored.first?.responses.first?.status == .available)
     }
 

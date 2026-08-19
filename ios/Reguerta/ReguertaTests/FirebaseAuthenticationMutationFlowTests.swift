@@ -3,7 +3,54 @@ import Testing
 @testable import Reguerta
 
 @MainActor
+@Suite(.timeLimit(.minutes(1)))
 struct FirebaseAuthenticationMutationFlowTests {
+    @Test("Un callback Firebase tardío no devuelve éxito después de cancelar")
+    func callbackCheckpointRejectsLateSuccessAfterTaskCancellation() async {
+        let phase = ControlledFirebaseMutationPhase()
+        let task = Task { @MainActor in
+            try await awaitFirebaseCallback {
+                await phase.run()
+                return "fresh-token"
+            }
+        }
+
+        guard await phase.waitUntilStarted() else {
+            task.cancel()
+            await phase.complete()
+            _ = try? await task.value
+            return
+        }
+        task.cancel()
+        await phase.complete()
+
+        await #expect(throws: CancellationError.self) {
+            try await task.value
+        }
+    }
+
+    @Test("Un reenvío de verificación tardío no devuelve éxito después de cancelar")
+    func booleanCallbackCheckpointRejectsLateSuccessAfterTaskCancellation() async {
+        let phase = ControlledFirebaseMutationPhase()
+        let task = Task { @MainActor in
+            await awaitFirebaseBooleanCallback {
+                await phase.run()
+                return true
+            }
+        }
+
+        guard await phase.waitUntilStarted() else {
+            task.cancel()
+            await phase.complete()
+            _ = await task.value
+            return
+        }
+        task.cancel()
+        await phase.complete()
+
+        #expect(await task.value == false)
+    }
+
     @Test("Un checkpoint Firebase limpia una mutación que termina después de cancelar")
     func checkpointSignsOutBeforeReturning() async {
         let phase = ControlledFirebaseMutationPhase()
@@ -160,10 +207,12 @@ private enum FirebaseMutationCheckpointEvent: Equatable {
 
 private actor ControlledFirebaseMutationPhase {
     private var started = false
+    private var isComplete = false
     private var continuation: CheckedContinuation<Void, Never>?
 
     func run() async {
         started = true
+        guard !isComplete else { return }
         await withCheckedContinuation { continuation in
             self.continuation = continuation
         }
@@ -181,6 +230,7 @@ private actor ControlledFirebaseMutationPhase {
     }
 
     func complete() {
+        isComplete = true
         let continuation = continuation
         self.continuation = nil
         continuation?.resume()

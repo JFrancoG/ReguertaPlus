@@ -1,21 +1,21 @@
+import FirebaseCore
 import FirebaseFirestore
 import Foundation
 
-final class FirestoreProductRepository: @unchecked Sendable, ProductRepository {
-    private let db: Firestore
-    private let environment: ReguertaFirestoreEnvironment?
+actor FirestoreProductRepository: ProductRepository {
+    private let storedDB: Firestore
 
-    init(db: Firestore = Firestore.firestore(), environment: ReguertaFirestoreEnvironment? = nil) {
-        self.db = db
-        self.environment = environment
+    init(firebaseAppName: String) {
+        guard let app = FirebaseApp.app(name: firebaseAppName) else {
+            preconditionFailure("Firebase app is required for products")
+        }
+        self.storedDB = Firestore.firestore(app: app)
     }
 
-    private var productsCollection: CollectionReference {
-        db.reguertaCollection(.products, environment: environment)
-    }
-
-    func allProducts() async throws -> [Product] {
+    func allProducts(environment: SessionEnvironment) async throws -> [Product] {
         do {
+            let productsCollection = storedDB.reguertaCollection(.products, environment: environment)
+            try Task.checkCancellation()
             let snapshot = try await productsCollection.getDocuments()
             return try Self.products(from: snapshot.documents)
         } catch {
@@ -23,22 +23,25 @@ final class FirestoreProductRepository: @unchecked Sendable, ProductRepository {
         }
     }
 
-    func products(vendorId: String) async throws -> [Product] {
+    func products(vendorId: String, environment: SessionEnvironment) async throws -> [Product] {
         do {
-            let snapshot = try await productsCollection
-                .whereField("vendorId", isEqualTo: vendorId)
-                .getDocuments()
+            let productsCollection = storedDB.reguertaCollection(.products, environment: environment)
+            let query = productsCollection.whereField("vendorId", isEqualTo: vendorId)
+            try Task.checkCancellation()
+            let snapshot = try await query.getDocuments()
             return try Self.products(from: snapshot.documents)
         } catch {
             throw FirestoreRepositoryErrorMapper.map(error, resource: "products.vendor")
         }
     }
 
-    func upsert(product: Product) async throws -> Product {
+    func upsert(product: Product, environment: SessionEnvironment) async throws -> Product {
+        let productsCollection = storedDB.reguertaCollection(.products, environment: environment)
         let documentId = product.id.isEmpty ? productsCollection.document().documentID : product.id
         let persisted = persistedProduct(from: product, with: documentId)
 
         do {
+            try Task.checkCancellation()
             try await productsCollection.document(documentId).setData(
                 Self.upsertPayload(for: persisted),
                 merge: true

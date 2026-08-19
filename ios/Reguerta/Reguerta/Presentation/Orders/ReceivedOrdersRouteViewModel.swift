@@ -31,18 +31,21 @@ struct ReceivedOrdersRouteContext {
     let defaultDeliveryDayOfWeek: DeliveryWeekday?
     let deliveryCalendarOverrides: [DeliveryCalendarOverride]
     let nowMillis: Int64
+    let environment: SessionEnvironment
 
     static let empty = ReceivedOrdersRouteContext(
         currentMember: nil,
         shifts: [],
         defaultDeliveryDayOfWeek: nil,
         deliveryCalendarOverrides: [],
-        nowMillis: 0
+        nowMillis: 0,
+        environment: .develop
     )
 
     var identity: String {
         [
             currentMember?.id ?? "none",
+            environment.rawValue,
             String(currentMember?.canAccessReceivedOrders == true),
             nowMillis.isoWeekKey,
             shifts.map(shiftSignature).joined(separator: ","),
@@ -86,6 +89,24 @@ final class ReceivedOrdersRouteViewModel {
     var statusWriteFeedback: ReceivedOrderStatusWriteResult?
 
     private var loadedTaskID: String?
+    private var loadedTaskOwnerGeneration: UInt64?
+    private var loadOperationGeneration: UInt64 = 0
+    private var statusOperationGeneration: UInt64 = 0
+    private var contextSessionStateRevision: UInt64 = 0
+
+    private struct LoadOperation {
+        let context: ReceivedOrdersRouteContext
+        let generation: UInt64
+        let taskID: String
+        let window: ReceivedOrdersWindow
+        let sessionStateRevision: UInt64
+    }
+
+    private struct StatusOperation {
+        let context: ReceivedOrdersRouteContext
+        let generation: UInt64
+        let sessionStateRevision: UInt64
+    }
 
     init(
         sessionViewModel: SessionViewModel,
@@ -95,6 +116,7 @@ final class ReceivedOrdersRouteViewModel {
         self.sessionViewModel = sessionViewModel
         self.ordersRepository = ordersRepository
         self.nowMillisProvider = nowMillisProvider
+        contextSessionStateRevision = sessionViewModel.sessionStateRevision
     }
 
     var currentMember: Member? {
@@ -115,12 +137,20 @@ final class ReceivedOrdersRouteViewModel {
     }
 
     var loadTaskID: String {
-        "\(isProducer)-\(window.isEnabled)-\(window.targetWeekKey)-\(currentMember?.id ?? "")"
+        makeLoadTaskID(context: context, window: window)
     }
 
     func appear(context newContext: ReceivedOrdersRouteContext) async {
+        let contextChanged = context.identity != newContext.identity
+        let nextSessionStateRevision = sessionViewModel.sessionStateRevision
+        let sessionChanged = contextSessionStateRevision != nextSessionStateRevision
         context = newContext
-        await loadIfNeeded()
+        contextSessionStateRevision = nextSessionStateRevision
+        if contextChanged || sessionChanged {
+            invalidateStatusOperation()
+        }
+        let operation = beginLoadOperation()
+        await loadIfNeeded(operation: operation)
     }
 
     func selectTab(_ tab: ReceivedOrdersTab) {
@@ -128,47 +158,91 @@ final class ReceivedOrdersRouteViewModel {
     }
 
     func retry() async {
-        await loadIfNeeded(force: true)
+        let operation = beginLoadOperation()
+        await loadIfNeeded(force: true, operation: operation)
     }
 
     func loadIfNeeded(force: Bool = false) async {
-        guard isProducer else {
-            loadState = .idle
-            statusWriteFeedback = nil
-            loadedTaskID = nil
+        let operation = beginLoadOperation()
+        await loadIfNeeded(force: force, operation: operation)
+    }
+
+    private func loadIfNeeded(force: Bool = false, operation: LoadOperation) async {
+        guard let producerId = prepareLoad(force: force, operation: operation) else { return }
+        do {
+            let snapshot = try await ordersRepository.receivedOrdersSnapshot(
+                producerId: producerId,
+                targetWeekKey: operation.window.targetWeekKey,
+                environment: operation.context.environment
+            )
+            try Task.checkCancellation()
+            guard isCurrent(operation) else {
+                finishLoad(operation, completed: false)
+                return
+            }
+            finishLoad(operation, completed: true)
+            applyLoadedSnapshot(snapshot)
+        } catch is CancellationError {
+            finishLoad(operation, completed: false)
             return
-        }
-        guard window.isEnabled else {
-            loadState = .idle
-            statusWriteFeedback = nil
-            loadedTaskID = nil
-            return
-        }
-        if !force, case .loading = loadState {
-            return
-        }
-        if !force, loadedTaskID == loadTaskID {
-            return
-        }
-        guard let producerId = currentMember?.id else {
+        } catch {
+            guard isCurrent(operation) else {
+                finishLoad(operation, completed: false)
+                return
+            }
             loadState = .error
-            return
+            finishLoad(operation, completed: false)
         }
-        loadedTaskID = loadTaskID
+    }
+
+    private func prepareLoad(force: Bool, operation: LoadOperation) -> String? {
+        guard isCurrent(operation) else { return nil }
+        guard operation.context.currentMember?.canAccessReceivedOrders == true else {
+            resetLoadState()
+            return nil
+        }
+        guard operation.window.isEnabled else {
+            resetLoadState()
+            return nil
+        }
+        if !force, loadedTaskID == operation.taskID {
+            if loadedTaskOwnerGeneration == operation.generation { return nil }
+            if loadedTaskOwnerGeneration == nil { return nil }
+        }
+        guard let producerId = operation.context.currentMember?.id else {
+            loadState = .error
+            return nil
+        }
+        loadedTaskID = operation.taskID
+        loadedTaskOwnerGeneration = operation.generation
         loadState = .loading
         statusWriteFeedback = nil
-        do {
-            if let snapshot = try await ordersRepository.receivedOrdersSnapshot(
-                producerId: producerId,
-                targetWeekKey: window.targetWeekKey
-            ) {
-                loadState = .loaded(snapshot)
-            } else {
-                loadState = .empty
-            }
-        } catch {
-            loadState = .error
+        return producerId
+    }
+
+    private func resetLoadState() {
+        loadState = .idle
+        statusWriteFeedback = nil
+        loadedTaskID = nil
+        loadedTaskOwnerGeneration = nil
+    }
+
+    private func applyLoadedSnapshot(_ snapshot: ReceivedOrdersSnapshot?) {
+        if let snapshot {
+            loadState = .loaded(snapshot)
+        } else {
+            loadState = .empty
+        }
+    }
+
+    private func finishLoad(_ operation: LoadOperation, completed: Bool) {
+        guard loadedTaskID == operation.taskID, loadedTaskOwnerGeneration == operation.generation else { return }
+        loadedTaskOwnerGeneration = nil
+        if !completed {
             loadedTaskID = nil
+            if case .loading = loadState {
+                loadState = .idle
+            }
         }
     }
 
@@ -179,20 +253,93 @@ final class ReceivedOrdersRouteViewModel {
         guard let group = currentSnapshot.byMemberGroups.first(where: { $0.orderId == orderId }) else { return }
         guard group.producerStatus != status else { return }
 
+        let operation = beginStatusOperation()
+        guard isCurrent(operation) else { return }
         updatingStatusOrderId = orderId
+        defer { finishStatusOperation(operation) }
         let updateResult = await ordersRepository.updateReceivedOrderProducerStatus(
             orderId: orderId,
             producerId: producerId,
             status: status,
-            nowMillis: nowMillisProvider()
+            nowMillis: nowMillisProvider(),
+            environment: operation.context.environment
         )
+        guard !Task.isCancelled, isCurrent(operation) else { return }
         if updateResult == .success {
             statusWriteFeedback = nil
             loadState = .loaded(currentSnapshot.withProducerStatus(orderId: orderId, status: status))
         } else {
             statusWriteFeedback = updateResult
         }
+    }
+
+    private func finishStatusOperation(_ operation: StatusOperation) {
+        guard statusOperationGeneration == operation.generation else { return }
         updatingStatusOrderId = nil
+    }
+
+    private func beginLoadOperation() -> LoadOperation {
+        loadOperationGeneration &+= 1
+        let operationContext = context
+        let operationWindow = resolveReceivedOrdersWindow(
+            nowMillis: operationContext.nowMillis,
+            defaultDeliveryDayOfWeek: operationContext.defaultDeliveryDayOfWeek,
+            deliveryCalendarOverrides: operationContext.deliveryCalendarOverrides,
+            shifts: operationContext.shifts
+        )
+        return LoadOperation(
+            context: operationContext,
+            generation: loadOperationGeneration,
+            taskID: makeLoadTaskID(context: operationContext, window: operationWindow),
+            window: operationWindow,
+            sessionStateRevision: contextSessionStateRevision
+        )
+    }
+
+    private func beginStatusOperation() -> StatusOperation {
+        statusOperationGeneration &+= 1
+        return StatusOperation(
+            context: context,
+            generation: statusOperationGeneration,
+            sessionStateRevision: contextSessionStateRevision
+        )
+    }
+
+    private func invalidateStatusOperation() {
+        statusOperationGeneration &+= 1
+        updatingStatusOrderId = nil
+    }
+
+    private func isCurrent(_ operation: LoadOperation) -> Bool {
+        loadOperationGeneration == operation.generation &&
+            context.identity == operation.context.identity &&
+            sessionViewModel.sessionStateRevision == operation.sessionStateRevision &&
+            ordersRouteHasActiveAuthorization(
+                sessionViewModel: sessionViewModel,
+                currentMember: operation.context.currentMember,
+                environment: operation.context.environment
+            )
+    }
+
+    private func isCurrent(_ operation: StatusOperation) -> Bool {
+        statusOperationGeneration == operation.generation &&
+            context.identity == operation.context.identity &&
+            sessionViewModel.sessionStateRevision == operation.sessionStateRevision &&
+            ordersRouteHasActiveAuthorization(
+                sessionViewModel: sessionViewModel,
+                currentMember: operation.context.currentMember,
+                environment: operation.context.environment
+            )
+    }
+
+    private func makeLoadTaskID(context: ReceivedOrdersRouteContext, window: ReceivedOrdersWindow) -> String {
+        [
+            context.environment.rawValue,
+            String(context.currentMember?.canAccessReceivedOrders == true),
+            String(window.isEnabled),
+            window.targetWeekKey,
+            context.currentMember?.id ?? ""
+        ].joined(separator: "|")
     }
 }
 

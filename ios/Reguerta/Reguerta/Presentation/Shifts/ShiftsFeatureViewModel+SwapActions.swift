@@ -26,19 +26,15 @@ extension ShiftsFeatureViewModel {
 
     func saveShiftSwapRequest() async -> Bool {
         guard let context = authorizedSessionContext else { return false }
-        guard !isSavingShiftSwapRequest else { return false }
         guard let submission = shiftSwapCreateSubmission(for: context) else { return false }
+        guard let saveOperationId = beginSwapSaveOperation() else { return false }
 
-        isSavingShiftSwapRequest = true
-        defer {
-            if isCurrentSession(context) {
-                isSavingShiftSwapRequest = false
-            }
-        }
+        defer { finishSwapSaveOperation(saveOperationId) }
         let result: ShiftSwapTransitionResult
         do {
             result = try await shiftSwapRequestRepository.transition(
-                .create(request: submission.request)
+                .create(request: submission.request),
+                environment: context.environment
             )
         } catch is CancellationError {
             return false
@@ -90,10 +86,13 @@ extension ShiftsFeatureViewModel {
                 confirmedAtMillis: request.confirmedAtMillis,
                 appliedAtMillis: request.appliedAtMillis
         )
-        defer { finishSwapMutation(mutationOperationId, context: context) }
+        defer { finishSwapMutation(mutationOperationId) }
         let result: ShiftSwapTransitionResult
         do {
-            result = try await shiftSwapRequestRepository.transition(.cancel(request: cancelled))
+            result = try await shiftSwapRequestRepository.transition(
+                .cancel(request: cancelled),
+                environment: context.environment
+            )
         } catch is CancellationError {
             return
         } catch {
@@ -117,13 +116,14 @@ extension ShiftsFeatureViewModel {
         guard let mutationOperationId = beginSwapMutation() else { return }
 
         Task { @MainActor in
-            defer { finishSwapMutation(mutationOperationId, context: sessionContext) }
+            defer { finishSwapMutation(mutationOperationId) }
             let now = nowMillisProvider()
             let updatedRequest = appliedShiftSwapRequest(from: context.request, candidate: context.candidate, now: now)
             let result: ShiftSwapTransitionResult
             do {
                 result = try await shiftSwapRequestRepository.transition(
-                        .apply(request: updatedRequest, candidateShiftId: candidateShiftId)
+                    .apply(request: updatedRequest, candidateShiftId: candidateShiftId),
+                    environment: sessionContext.environment
                 )
             } catch is CancellationError {
                 return
@@ -196,7 +196,7 @@ private extension ShiftsFeatureViewModel {
         }
         guard let mutationOperationId = beginSwapMutation() else { return }
         Task { @MainActor in
-            defer { finishSwapMutation(mutationOperationId, context: context) }
+            defer { finishSwapMutation(mutationOperationId) }
             let now = nowMillisProvider()
             let updatedRequest = shiftSwapResponseRequest(
                 request: request,
@@ -211,7 +211,8 @@ private extension ShiftsFeatureViewModel {
                         request: updatedRequest,
                         candidateShiftId: candidateShiftId,
                         response: responseStatus
-                    )
+                    ),
+                    environment: context.environment
                 )
             } catch is CancellationError {
                 return
@@ -323,11 +324,24 @@ private extension ShiftsFeatureViewModel {
         activeSwapMutationOperationId == operationId && isCurrentSession(context)
     }
 
-    func finishSwapMutation(_ operationId: UInt64, context: SessionContext) {
+    func finishSwapMutation(_ operationId: UInt64) {
         guard activeSwapMutationOperationId == operationId else { return }
         activeSwapMutationOperationId = nil
-        guard isCurrentSession(context) else { return }
         isUpdatingShiftSwapRequest = false
+    }
+
+    func beginSwapSaveOperation() -> UInt64? {
+        guard activeSwapSaveOperationId == nil, !isSavingShiftSwapRequest else { return nil }
+        nextSwapSaveOperationId += 1
+        activeSwapSaveOperationId = nextSwapSaveOperationId
+        isSavingShiftSwapRequest = true
+        return nextSwapSaveOperationId
+    }
+
+    func finishSwapSaveOperation(_ operationId: UInt64) {
+        guard activeSwapSaveOperationId == operationId else { return }
+        activeSwapSaveOperationId = nil
+        isSavingShiftSwapRequest = false
     }
 
 }

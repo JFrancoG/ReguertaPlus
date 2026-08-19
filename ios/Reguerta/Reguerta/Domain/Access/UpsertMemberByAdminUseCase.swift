@@ -7,25 +7,29 @@ enum MemberManagementError: Error, Equatable, Sendable {
 }
 
 protocol MemberAdministrationRepository: Sendable {
-    func upsertMember(_ member: Member) async throws -> Member
+    /// Persists an administrative member mutation in one immutable environment snapshot.
+    ///
+    /// Implementations must use `environment` for the complete request and reject a response
+    /// that belongs to another environment.
+    func upsertMember(_ member: Member, environment: SessionEnvironment) async throws -> Member
 }
 
 protocol MemberAdminUpserting: Sendable {
-    func execute(target: Member) async throws -> Member
+    func execute(target: Member, environment: SessionEnvironment) async throws -> Member
 }
 
 struct UpsertMemberByAdminUseCase: MemberAdminUpserting {
     private let storedRepository: any MemberAdministrationRepository
 
-    func execute(target: Member) async throws -> Member {
-        try await storedRepository.upsertMember(target.withCanonicalIdentity)
+    func execute(target: Member, environment: SessionEnvironment) async throws -> Member {
+        try await storedRepository.upsertMember(target.withCanonicalIdentity, environment: environment)
     }
 }
 
 struct LocalMemberAdministrationRepository: MemberAdministrationRepository {
     private let storedRepository: any LocalMemberRepository
 
-    func upsertMember(_ member: Member) async throws -> Member {
+    func upsertMember(_ member: Member, environment _: SessionEnvironment) async throws -> Member {
         await storedRepository.upsert(member: member)
     }
 }

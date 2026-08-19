@@ -51,17 +51,16 @@ extension SharedProfileFeatureViewModel {
     func handleSessionModeChange(_ mode: SessionMode) {
         switch mode {
         case .authorized(let session):
-            let identityChanged = currentSession?.principal.uid != session.principal.uid ||
-                currentSession?.member.id != session.member.id
+            let identityChanged = !storedContextMatches(session)
             if identityChanged {
-                sessionIdentityEpoch += 1
+                sessionIdentityEpoch &+= 1
                 resetProfileState()
             }
             currentSession = session
             currentMember = session.member
             Task { await refreshProfiles(recoversInitialFailure: true) }
         case .signedOut, .unauthorized:
-            sessionIdentityEpoch += 1
+            sessionIdentityEpoch &+= 1
             currentSession = nil
             currentMember = nil
             resetProfileState()
@@ -81,10 +80,17 @@ extension SharedProfileFeatureViewModel {
             let fetchedProfiles = try await performInitialLoadWithRecovery(
                 enabled: recoversInitialFailure,
                 shouldRetry: { self.isCurrentRefresh(refreshOperationId, context: context) },
-                operation: { try await sharedProfileRepository.allSharedProfiles() }
+                operation: {
+                    try await sharedProfileRepository.allSharedProfiles(
+                        environment: context.session.environment
+                    )
+                }
             )
             try Task.checkCancellation()
-            guard isCurrentRefresh(refreshOperationId, context: context) else { return }
+            guard isCurrentRefresh(refreshOperationId, context: context) else {
+                finishRefreshOperation(refreshOperationId)
+                return
+            }
             if profilesRevision == refreshProfilesRevision {
                 applyProfiles(
                     fetchedProfiles,
@@ -93,14 +99,14 @@ extension SharedProfileFeatureViewModel {
                 )
             }
         } catch is CancellationError {
-            finishRefreshOperation(refreshOperationId, context: context)
+            finishRefreshOperation(refreshOperationId)
             return
         } catch {
             if isCurrentRefresh(refreshOperationId, context: context) {
                 feedbackCenter.show(AccessL10nKey.feedbackUnableLoadData)
             }
         }
-        finishRefreshOperation(refreshOperationId, context: context)
+        finishRefreshOperation(refreshOperationId)
     }
 
     func updateDraft(_ draft: SharedProfileDraft) {
@@ -127,7 +133,7 @@ extension SharedProfileFeatureViewModel {
 
         let saveEditorRevision = editorRevision
         let mutationOperationId = beginMutationOperation(isDelete: false)
-        defer { finishMutationOperation(mutationOperationId, context: context) }
+        defer { finishMutationOperation(mutationOperationId) }
 
         let savedProfile: SharedProfile
         do {
@@ -138,7 +144,8 @@ extension SharedProfileFeatureViewModel {
                     photoUrl: normalizedDraft.persistedPhotoUrl,
                     about: normalizedDraft.about,
                     updatedAtMillis: nowMillisProvider()
-                )
+                ),
+                environment: context.session.environment
             )
         } catch is CancellationError {
             return false
@@ -170,12 +177,13 @@ extension SharedProfileFeatureViewModel {
 
         let deleteEditorRevision = editorRevision
         let mutationOperationId = beginMutationOperation(isDelete: true)
-        defer { finishMutationOperation(mutationOperationId, context: context) }
+        defer { finishMutationOperation(mutationOperationId) }
 
         let deleted: Bool
         do {
             deleted = try await sharedProfileRepository.deleteSharedProfile(
-                userId: context.session.member.id
+                userId: context.session.member.id,
+                environment: context.session.environment
             )
         } catch is CancellationError {
             return false
@@ -215,12 +223,13 @@ extension SharedProfileFeatureViewModel {
 
         let uploadEditorRevision = editorRevision
         let uploadOperationId = beginUploadOperation()
-        defer { finishUploadOperation(uploadOperationId, context: context) }
+        defer { finishUploadOperation(uploadOperationId) }
 
         do {
             let uploaded = try await imagePipelineManager.processAndUpload(
                 imageData: imageData,
                 request: ImageUploadRequest(
+                    environment: context.session.environment,
                     ownerId: context.session.member.id,
                     namespace: .sharedProfiles,
                     entityId: context.session.member.id,
@@ -294,14 +303,20 @@ private extension SharedProfileFeatureViewModel {
     }
 
     private var authorizedSessionContext: SessionContext? {
-        guard let currentSession else { return nil }
-        return SessionContext(session: currentSession, generation: sessionIdentityEpoch)
+        guard let session = authorizedSession,
+              session.representsActiveAuthorization,
+              storedContextMatches(session) else { return nil }
+        return SessionContext(
+            session: session,
+            identity: sessionIdentity(for: session),
+            generation: sessionIdentityEpoch
+        )
     }
 
     private func isCurrentSession(_ context: SessionContext) -> Bool {
-        currentSession?.principal.uid == context.session.principal.uid &&
-            currentSession?.member.id == context.session.member.id &&
-            sessionIdentityEpoch == context.generation
+        guard let session = authorizedSession, storedContextMatches(session) else { return false }
+        return sessionIdentityEpoch == context.generation &&
+            sessionIdentity(for: session) == context.identity
     }
 
     private func isCurrentEditor(_ context: SessionContext, revision: UInt64) -> Bool {
@@ -319,8 +334,8 @@ private extension SharedProfileFeatureViewModel {
         activeRefreshOperationId == operationId && isCurrentSession(context)
     }
 
-    private func finishRefreshOperation(_ operationId: UInt64, context: SessionContext) {
-        guard isCurrentRefresh(operationId, context: context) else { return }
+    private func finishRefreshOperation(_ operationId: UInt64) {
+        guard activeRefreshOperationId == operationId else { return }
         activeRefreshOperationId = nil
         isLoading = false
     }
@@ -336,10 +351,9 @@ private extension SharedProfileFeatureViewModel {
         return nextMutationOperationId
     }
 
-    private func finishMutationOperation(_ operationId: UInt64, context: SessionContext) {
+    private func finishMutationOperation(_ operationId: UInt64) {
         guard activeMutationOperationId == operationId else { return }
         activeMutationOperationId = nil
-        guard isCurrentSession(context) else { return }
         isSaving = false
         isDeleting = false
     }
@@ -355,15 +369,64 @@ private extension SharedProfileFeatureViewModel {
         activeUploadOperationId == operationId && isCurrentEditor(context, revision: revision)
     }
 
-    private func finishUploadOperation(_ operationId: UInt64, context: SessionContext) {
+    private func finishUploadOperation(_ operationId: UInt64) {
         guard activeUploadOperationId == operationId else { return }
         activeUploadOperationId = nil
-        guard isCurrentSession(context) else { return }
         isUploadingImage = false
     }
 
     private struct SessionContext {
         let session: AuthorizedSession
+        let identity: SessionIdentity
         let generation: UInt64
+    }
+
+    private struct SessionIdentity: Equatable {
+        let principalUID: String
+        let authenticatedMember: MemberAuthorizationIdentity
+        let member: MemberAuthorizationIdentity
+        let environment: SessionEnvironment
+    }
+
+    private struct MemberAuthorizationIdentity: Equatable {
+        let id: String
+        let authUID: String?
+        let roles: Set<MemberRole>
+        let isActive: Bool
+        let capabilities: Set<AccessCapability>
+    }
+
+    private var authorizedSession: AuthorizedSession? {
+        switch sessionViewModel.mode {
+        case .authorized(let session):
+            session
+        case .signedOut, .unauthorized:
+            nil
+        }
+    }
+
+    private func storedContextMatches(_ session: AuthorizedSession) -> Bool {
+        guard let currentSession, let currentMember else { return false }
+        return sessionIdentity(for: currentSession) == sessionIdentity(for: session) &&
+            memberAuthorizationIdentity(for: currentMember) == memberAuthorizationIdentity(for: session.member)
+    }
+
+    private func sessionIdentity(for session: AuthorizedSession) -> SessionIdentity {
+        SessionIdentity(
+            principalUID: session.principal.uid,
+            authenticatedMember: memberAuthorizationIdentity(for: session.authenticatedMember),
+            member: memberAuthorizationIdentity(for: session.member),
+            environment: session.environment
+        )
+    }
+
+    private func memberAuthorizationIdentity(for member: Member) -> MemberAuthorizationIdentity {
+        MemberAuthorizationIdentity(
+            id: member.id,
+            authUID: member.authUid,
+            roles: member.roles,
+            isActive: member.isActive,
+            capabilities: MemberPermissionMatrix.capabilities(for: member)
+        )
     }
 }

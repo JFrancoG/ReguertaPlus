@@ -146,7 +146,7 @@ struct ReguertaNewsNotificationsViewModelTests {
         viewModel.requestNewsDeletion(newsId: article.id)
         await viewModel.confirmNewsDeletion()
 
-        #expect((await repository.allNews()).isEmpty)
+        #expect((await repository.allNews(environment: .develop)).isEmpty)
         #expect(viewModel.newsFeed.isEmpty)
         #expect(viewModel.editingNewsId == nil)
         #expect(viewModel.pendingNewsDeletionId == nil)
@@ -238,7 +238,10 @@ struct ReguertaNewsNotificationsViewModelTests {
         await viewModel.refreshNotifications()
         await viewModel.markVisibleNotificationsReadOnExit()
 
-        #expect(await repository.readNotificationIds(memberId: "member_1") == Set(["first", "second"]))
+        #expect(
+            await repository.readNotificationIds(memberId: "member_1", environment: .develop) ==
+                Set(["first", "second"])
+        )
         #expect(viewModel.notificationListItems.allSatisfy { $0.isRead })
         #expect(!viewModel.hasUnreadNotifications)
     }
@@ -303,7 +306,7 @@ struct ReguertaNewsNotificationsViewModelTests {
         }
         #expect(await viewModel.sendNotification())
 
-        let notifications = await repository.allNotifications()
+        let notifications = await repository.allNotifications(environment: .develop)
         guard let sent = notifications.first else {
             Issue.record("Expected sent notification")
             return

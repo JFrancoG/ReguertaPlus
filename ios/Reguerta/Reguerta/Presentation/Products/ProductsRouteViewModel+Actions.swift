@@ -28,29 +28,30 @@ extension ProductsRouteViewModel {
 
         let refreshGeneration = beginCatalogRefresh()
         isLoadingCatalog = true
+        defer { finishCatalogRefresh(refreshGeneration) }
         let products: [Product]
         do {
             products = try await performInitialLoadWithRecovery(
                 enabled: recoversInitialFailure,
                 shouldRetry: { self.isCurrentCatalogRefresh(context, generation: refreshGeneration) },
-                operation: { try await productRepository.products(vendorId: session.member.id) }
+                operation: {
+                    try await productRepository.products(
+                        vendorId: session.member.id,
+                        environment: session.environment
+                    )
+                }
             )
             try Task.checkCancellation()
         } catch is CancellationError {
-            if isCurrentCatalogRefresh(context, generation: refreshGeneration) {
-                isLoadingCatalog = false
-            }
             return
         } catch {
             if isCurrentCatalogRefresh(context, generation: refreshGeneration) {
-                isLoadingCatalog = false
                 showUnableLoadFeedback()
             }
             return
         }
         guard isCurrentCatalogRefresh(context, generation: refreshGeneration) else { return }
         catalogProducts = products
-        isLoadingCatalog = false
     }
 
     func startCreating() {
@@ -111,13 +112,14 @@ extension ProductsRouteViewModel {
         let editorProductId = editingProductId
         let editorPendingProductId = pendingNewProductId
         let uploadEditorRevision = editorRevision
-        defer { finishUploadOperation(uploadOperationId, context: context) }
+        defer { finishUploadOperation(uploadOperationId) }
         let entityId = editingProductId?.isEmpty == false ? editingProductId : nil
 
         do {
             let uploaded = try await imagePipelineManager.processAndUpload(
                 imageData: imageData,
                 request: ImageUploadRequest(
+                    environment: session.environment,
                     ownerId: session.member.id,
                     namespace: .products,
                     entityId: entityId,
@@ -156,7 +158,7 @@ extension ProductsRouteViewModel {
     @discardableResult func save() async -> Bool {
         guard let request = prepareSaveRequest() else { return false }
         let saveOperationId = beginSaveOperation()
-        defer { finishSaveOperation(saveOperationId, context: request.context) }
+        defer { finishSaveOperation(saveOperationId) }
 
         guard await validateSaveRequest(request) else { return false }
         guard isCurrentEditor(request) else { return false }
@@ -176,11 +178,12 @@ extension ProductsRouteViewModel {
         guard let product = catalogProducts.first(where: { $0.id == productId }) else { return }
 
         let saveOperationId = beginSaveOperation()
-        defer { finishSaveOperation(saveOperationId, context: context) }
+        defer { finishSaveOperation(saveOperationId) }
         let archivedProduct: Product
         do {
             archivedProduct = try await productRepository.upsert(
-                product: product.archivedCopy(nowMillis: nowMillisProvider())
+                product: product.archivedCopy(nowMillis: nowMillisProvider()),
+                environment: session.environment
             )
             try Task.checkCancellation()
         } catch is CancellationError {
@@ -205,18 +208,15 @@ extension ProductsRouteViewModel {
         guard session.member.isProducer else { return }
         let catalogEnabled = !isEnabled
         guard session.member.producerCatalogEnabled != catalogEnabled else { return }
+        guard let visibilityOperationId = beginCatalogVisibilityOperation() else { return }
 
-        isUpdatingCatalogVisibility = true
-        defer {
-            if isCurrentSession(context) {
-                isUpdatingCatalogVisibility = false
-            }
-        }
+        defer { finishCatalogVisibilityOperation(visibilityOperationId) }
         let updatedMember: Member
         do {
             updatedMember = try await memberRepository.updateOwnProducerCatalogEnabled(
                 member: session.member,
-                enabled: catalogEnabled
+                enabled: catalogEnabled,
+                environment: session.environment
             )
             try Task.checkCancellation()
         } catch is CancellationError {
@@ -305,7 +305,8 @@ private extension ProductsRouteViewModel {
                 sessionMember: request.context.session.member,
                 draft: request.input.draft,
                 price: request.input.price,
-                existingProduct: request.input.existing
+                existingProduct: request.input.existing,
+                environment: request.context.session.environment
             )
             try Task.checkCancellation()
             guard canSave else {
@@ -332,7 +333,8 @@ private extension ProductsRouteViewModel {
                     sessionMember: request.context.session.member,
                     input: request.input,
                     newProductId: request.newProductId
-                )
+                ),
+                environment: request.context.session.environment
             )
             try Task.checkCancellation()
             return saved
@@ -393,18 +395,30 @@ private extension ProductsRouteViewModel {
         return nextSaveOperationId
     }
 
-    func finishSaveOperation(_ operationId: UInt64, context: ProductsRouteSessionContext) {
+    func finishSaveOperation(_ operationId: UInt64) {
         guard activeSaveOperationId == operationId else { return }
         activeSaveOperationId = nil
-        guard isCurrentSession(context) else { return }
         isSaving = false
     }
 
-    func finishUploadOperation(_ operationId: UInt64, context: ProductsRouteSessionContext) {
+    func finishUploadOperation(_ operationId: UInt64) {
         guard activeUploadOperationId == operationId else { return }
         activeUploadOperationId = nil
-        guard isCurrentSession(context) else { return }
         isUploadingImage = false
+    }
+
+    func beginCatalogVisibilityOperation() -> UInt64? {
+        guard activeCatalogVisibilityOperationId == nil, !isUpdatingCatalogVisibility else { return nil }
+        nextCatalogVisibilityOperationId += 1
+        activeCatalogVisibilityOperationId = nextCatalogVisibilityOperationId
+        isUpdatingCatalogVisibility = true
+        return nextCatalogVisibilityOperationId
+    }
+
+    func finishCatalogVisibilityOperation(_ operationId: UInt64) {
+        guard activeCatalogVisibilityOperationId == operationId else { return }
+        activeCatalogVisibilityOperationId = nil
+        isUpdatingCatalogVisibility = false
     }
 
     func resolvePendingNewProductId() -> String {
@@ -420,10 +434,11 @@ private extension ProductsRouteViewModel {
         sessionMember: Member,
         draft: ProductDraft,
         price: Double,
-        existingProduct: Product?
+        existingProduct: Product?,
+        environment: SessionEnvironment
     ) async throws -> Bool {
         guard sessionMember.isProducer, draft.isEcoBasket else { return true }
-        let allProducts = try await productRepository.allProducts()
+        let allProducts = try await productRepository.allProducts(environment: environment)
         let activeEcoBasketPrice = allProducts
             .first(where: { $0.isEcoBasket && !$0.archived && $0.id != existingProduct?.id })?
             .price

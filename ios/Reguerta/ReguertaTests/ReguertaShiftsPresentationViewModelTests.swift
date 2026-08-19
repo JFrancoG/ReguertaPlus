@@ -121,7 +121,7 @@ struct ReguertaShiftsPresentationViewModelTests {
         )
         let calendarRepository = InMemoryDeliveryCalendarRepository(defaultDay: .wednesday)
         if let override {
-            _ = await calendarRepository.upsertOverride(override)
+            _ = await calendarRepository.upsertOverride(override, environment: .develop)
         }
         let viewModel = makeShiftsViewModel(
             currentMember: currentMember,
@@ -174,40 +174,37 @@ struct ReguertaShiftsPresentationViewModelTests {
         let currentMember = shiftMember(id: "member_1", displayName: "Carmen")
         let otherMember = shiftMember(id: "member_2", displayName: "Javier")
         let requestRepository = InMemoryShiftSwapRequestRepository()
-        _ = await requestRepository.upsert(
-            request: shiftSwapRequest(
+        let requests = [
+            shiftSwapRequest(
                 id: "incoming_delivery",
                 requestedShiftId: "delivery_1",
                 requesterUserId: otherMember.id,
                 candidates: [ShiftSwapCandidate(userId: currentMember.id, shiftId: "delivery_2")]
-            )
-        )
-        _ = await requestRepository.upsert(
-            request: shiftSwapRequest(
+            ),
+            shiftSwapRequest(
                 id: "outgoing_market",
                 requestedShiftId: "market_1",
                 requesterUserId: currentMember.id,
                 candidates: [ShiftSwapCandidate(userId: otherMember.id, shiftId: "market_2")]
-            )
-        )
-        _ = await requestRepository.upsert(
-            request: shiftSwapRequest(
+            ),
+            shiftSwapRequest(
                 id: "dismissed_history",
                 requestedShiftId: "market_3",
                 requesterUserId: currentMember.id,
                 candidates: [],
                 status: .applied
-            )
-        )
-        _ = await requestRepository.upsert(
-            request: shiftSwapRequest(
+            ),
+            shiftSwapRequest(
                 id: "unrelated_history",
                 requestedShiftId: "market_4",
                 requesterUserId: "member_5",
                 candidates: [ShiftSwapCandidate(userId: "member_6", shiftId: "market_5")],
                 status: .applied
             )
-        )
+        ]
+        for request in requests {
+            _ = await requestRepository.upsert(request: request, environment: .develop)
+        }
         let viewModel = makeShiftsViewModel(
             currentMember: currentMember,
             members: [currentMember, otherMember],

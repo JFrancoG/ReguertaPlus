@@ -12,7 +12,7 @@ struct SharedProfileFeatureDependencies {
         nowMillisProvider: @escaping @MainActor @Sendable () -> Int64
     ) -> SharedProfileFeatureDependencies {
         SharedProfileFeatureDependencies(
-            sharedProfileRepository: FirestoreSharedProfileRepository(db: db),
+            sharedProfileRepository: FirestoreSharedProfileRepository(firebaseAppName: db.app.name),
             imagePipelineManager: imagePipelineManager,
             nowMillisProvider: nowMillisProvider
         )

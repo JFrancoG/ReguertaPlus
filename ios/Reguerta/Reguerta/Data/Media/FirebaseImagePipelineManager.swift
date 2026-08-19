@@ -1,17 +1,56 @@
+import FirebaseCore
 import FirebaseStorage
 import Foundation
 import UIKit
 
-final class FirebaseImagePipelineManager: @unchecked Sendable, ImagePipelineManager {
-    private let storage: Storage
+protocol ImageStorageUploading: Sendable {
+    func upload(data: Data, path: String, contentType: String) async throws -> URL
+}
+
+final class FirebaseImagePipelineManager: Sendable, ImagePipelineManager {
+    private let storageUploader: any ImageStorageUploading
     private let jpegCompressionQuality: CGFloat
 
-    init(storage: Storage = Storage.storage(), jpegCompressionQuality: CGFloat = 0.82) {
-        self.storage = storage
+    init(firebaseAppName: String, jpegCompressionQuality: CGFloat = 0.82) {
+        self.storageUploader = FirebaseImageStorageUploader(firebaseAppName: firebaseAppName)
+        self.jpegCompressionQuality = jpegCompressionQuality
+    }
+
+    init(storageUploader: any ImageStorageUploading, jpegCompressionQuality: CGFloat = 0.82) {
+        self.storageUploader = storageUploader
         self.jpegCompressionQuality = jpegCompressionQuality
     }
 
     func processAndUpload(imageData: Data, request: ImageUploadRequest) async throws -> ImageUploadResult {
+        let outputData = try processedJPEGData(from: imageData)
+        try Task.checkCancellation()
+        let downloadURL: String
+        do {
+            downloadURL = try await storageUploader.upload(
+                data: outputData,
+                path: buildStoragePath(request: request),
+                contentType: mimeTypeJpeg
+            ).absoluteString
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let error as ImagePipelineError {
+            throw error
+        } catch {
+            throw ImagePipelineError.uploadFailed
+        }
+        try Task.checkCancellation()
+        let normalizedURL = downloadURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedURL.isEmpty else { throw ImagePipelineError.downloadURLMissing }
+        return ImageUploadResult(
+            downloadURL: normalizedURL,
+            widthPx: outputSidePx,
+            heightPx: outputSidePx,
+            byteSize: outputData.count,
+            mimeType: mimeTypeJpeg
+        )
+    }
+
+    private func processedJPEGData(from imageData: Data) throws -> Data {
         guard let original = UIImage(data: imageData), let originalCgImage = original.cgImage else {
             throw ImagePipelineError.invalidInput
         }
@@ -45,20 +84,7 @@ final class FirebaseImagePipelineManager: @unchecked Sendable, ImagePipelineMana
               !outputData.isEmpty else {
             throw ImagePipelineError.processingFailed
         }
-        let reference = storage.reference(withPath: buildStoragePath(request: request))
-        let metadata = StorageMetadata()
-        metadata.contentType = mimeTypeJpeg
-        try await uploadData(outputData, metadata: metadata, to: reference)
-        let downloadURL = try await fetchDownloadURL(from: reference).absoluteString
-        let normalizedURL = downloadURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !normalizedURL.isEmpty else { throw ImagePipelineError.downloadURLMissing }
-        return ImageUploadResult(
-            downloadURL: normalizedURL,
-            widthPx: outputSidePx,
-            heightPx: outputSidePx,
-            byteSize: outputData.count,
-            mimeType: mimeTypeJpeg
-        )
+        return outputData
     }
 
     private func resizeImage(_ image: UIImage, targetSize: CGSize) -> UIImage {
@@ -71,7 +97,7 @@ final class FirebaseImagePipelineManager: @unchecked Sendable, ImagePipelineMana
     }
 
     private func buildStoragePath(request: ImageUploadRequest) -> String {
-        let environment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment.rawValue
+        let environment = request.environment.rawValue
         let ownerId = sanitizePathComponent(request.ownerId, fallback: "unknown-owner")
         let entityId = sanitizePathComponent(request.entityId, fallback: "new")
         let namePrefix = ImageUploadFileNameFormatter.formatPrefix(
@@ -89,15 +115,71 @@ final class FirebaseImagePipelineManager: @unchecked Sendable, ImagePipelineMana
         return trimmed.isEmpty ? fallback : trimmed
     }
 
-    private func uploadData(_ data: Data, metadata: StorageMetadata, to reference: StorageReference) async throws {
+    private let outputSidePx = 300
+    private let mimeTypeJpeg = "image/jpeg"
+}
+
+private actor FirebaseImageStorageUploader: ImageStorageUploading {
+    private let storage: Storage
+    private var activeUploads: [UUID: StorageUploadTask] = [:]
+
+    init(firebaseAppName: String) {
+        guard let app = FirebaseApp.app(name: firebaseAppName) else {
+            preconditionFailure("Firebase app is required for image storage")
+        }
+        self.storage = Storage.storage(app: app)
+    }
+
+    func upload(data: Data, path: String, contentType: String) async throws -> URL {
+        let operationID = UUID()
+        let reference = storage.reference(withPath: path)
+        let metadata = StorageMetadata()
+        metadata.contentType = contentType
+
+        return try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            do {
+                try await performUpload(
+                    data: data,
+                    metadata: metadata,
+                    reference: reference,
+                    operationID: operationID
+                )
+            } catch {
+                activeUploads[operationID] = nil
+                if Task.isCancelled { throw CancellationError() }
+                throw error
+            }
+            activeUploads[operationID] = nil
+            try Task.checkCancellation()
+            do {
+                let downloadURL = try await fetchDownloadURL(from: reference)
+                try Task.checkCancellation()
+                return downloadURL
+            } catch {
+                if Task.isCancelled { throw CancellationError() }
+                throw error
+            }
+        } onCancel: {
+            Task { await self.cancelUpload(operationID) }
+        }
+    }
+
+    private func performUpload(
+        data: Data,
+        metadata: StorageMetadata,
+        reference: StorageReference,
+        operationID: UUID
+    ) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            reference.putData(data, metadata: metadata) { _, error in
+            let uploadTask = reference.putData(data, metadata: metadata) { _, error in
                 if let error {
                     continuation.resume(throwing: error)
-                    return
+                } else {
+                    continuation.resume(returning: ())
                 }
-                continuation.resume(returning: ())
             }
+            activeUploads[operationID] = uploadTask
         }
     }
 
@@ -106,17 +188,16 @@ final class FirebaseImagePipelineManager: @unchecked Sendable, ImagePipelineMana
             reference.downloadURL { url, error in
                 if let error {
                     continuation.resume(throwing: error)
-                    return
-                }
-                guard let url else {
+                } else if let url {
+                    continuation.resume(returning: url)
+                } else {
                     continuation.resume(throwing: ImagePipelineError.downloadURLMissing)
-                    return
                 }
-                continuation.resume(returning: url)
             }
         }
     }
 
-    private let outputSidePx = 300
-    private let mimeTypeJpeg = "image/jpeg"
+    private func cancelUpload(_ operationID: UUID) {
+        activeUploads[operationID]?.cancel()
+    }
 }

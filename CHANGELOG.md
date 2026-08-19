@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- 2026-08-19 | ♻️ refactor(ios): own session runtime context
 - 2026-08-19 | ♻️ refactor(ios): adopt nonisolated isolation
 - 2026-08-18 | ♻️ refactor(ios): simplify struct construction
 - 2026-08-11 | ♻️ refactor(ios): remove dormant repositories
@@ -161,6 +162,7 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-08-19 | 📝 docs(hu-076): record branch publication
 - 2026-08-19 | 📝 docs(hu-075): record branch publication
 - 2026-08-19 | 📝 docs(hu-074): record branch publication
 - 2026-08-18 | 📝 docs(hu-073): record final delivery

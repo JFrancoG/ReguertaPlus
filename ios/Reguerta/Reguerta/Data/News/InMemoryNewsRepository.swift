@@ -19,12 +19,12 @@ actor InMemoryNewsRepository: NewsRepository {
         )
     ]
 
-    func news(visibleTo member: Member) async throws -> [NewsArticle] {
+    func news(visibleTo member: Member, environment: SessionEnvironment) async throws -> [NewsArticle] {
         let canPublishNews = await MainActor.run { member.canPublishNews }
-        return await allNews().filter { canPublishNews || $0.active }
+        return await allNews(environment: environment).filter { canPublishNews || $0.active }
     }
 
-    func allNews() async -> [NewsArticle] {
+    func allNews(environment _: SessionEnvironment) async -> [NewsArticle] {
         var localized: [NewsArticle] = []
         localized.reserveCapacity(articles.count)
         for article in articles.values {
@@ -33,7 +33,7 @@ actor InMemoryNewsRepository: NewsRepository {
         return localized.sorted { $0.publishedAtMillis > $1.publishedAtMillis }
     }
 
-    func upsert(article: NewsArticle) async -> NewsArticle {
+    func upsert(article: NewsArticle, environment _: SessionEnvironment) async -> NewsArticle {
         let articleId = article.id.isEmpty ? "news_\(articles.count + 1)" : article.id
         let persisted = NewsArticle(
             id: articleId,
@@ -48,7 +48,7 @@ actor InMemoryNewsRepository: NewsRepository {
         return persisted
     }
 
-    func delete(newsId: String) async -> Bool {
+    func delete(newsId: String, environment _: SessionEnvironment) async -> Bool {
         articles.removeValue(forKey: newsId) != nil
     }
 }

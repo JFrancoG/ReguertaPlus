@@ -62,7 +62,7 @@ struct ReguertaSharedProfileViewModelTests {
         let saved = await viewModel.saveProfile()
 
         #expect(saved == false)
-        #expect(await repository.sharedProfile(userId: currentMember.id) == nil)
+        #expect(await repository.sharedProfile(userId: currentMember.id, environment: .develop) == nil)
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackSharedProfileContentRequired)
     }
 
@@ -82,7 +82,7 @@ struct ReguertaSharedProfileViewModelTests {
 
         let saved = await viewModel.saveProfile()
 
-        let profile = await repository.sharedProfile(userId: currentMember.id)
+        let profile = await repository.sharedProfile(userId: currentMember.id, environment: .develop)
         #expect(saved)
         #expect(profile?.familyNames == "Familia Uno")
         #expect(profile?.photoUrl == "https://cdn.test/profile.jpg")
@@ -138,7 +138,7 @@ struct ReguertaSharedProfileViewModelTests {
         let deleted = await viewModel.deleteProfile()
 
         #expect(deleted)
-        #expect(await repository.sharedProfile(userId: currentMember.id) == nil)
+        #expect(await repository.sharedProfile(userId: currentMember.id, environment: .develop) == nil)
         #expect(viewModel.profiles.isEmpty)
         #expect(viewModel.draft == SharedProfileDraft())
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackSharedProfileDeleted)
@@ -260,19 +260,19 @@ private final class RejectingSharedProfileRepository: SharedProfileRepository {
         self.items = items
     }
 
-    func allSharedProfiles() async -> [SharedProfile] {
+    func allSharedProfiles(environment _: SessionEnvironment) async -> [SharedProfile] {
         items.sorted { $0.updatedAtMillis > $1.updatedAtMillis }
     }
 
-    func sharedProfile(userId: String) async -> SharedProfile? {
+    func sharedProfile(userId: String, environment _: SessionEnvironment) async -> SharedProfile? {
         items.first { $0.userId == userId }
     }
 
-    func upsert(profile _: SharedProfile) async throws -> SharedProfile {
+    func upsert(profile _: SharedProfile, environment _: SessionEnvironment) async throws -> SharedProfile {
         throw SharedProfileMutationTestError.rejected
     }
 
-    func deleteSharedProfile(userId _: String) async throws -> Bool {
+    func deleteSharedProfile(userId _: String, environment _: SessionEnvironment) async throws -> Bool {
         throw SharedProfileMutationTestError.rejected
     }
 }

@@ -91,7 +91,8 @@ extension AccessRootRoutingView {
                 isLoading: rootViewModel.productsViewModel.isLoadingOrderingProducts ||
                     !rootViewModel.productsViewModel.hasLoadedOrderingProducts,
                 currentMember: currentHomeMember,
-                members: currentHomeSession?.members ?? []
+                members: currentHomeSession?.members ?? [],
+                environment: currentHomeSession?.environment ?? .develop
             ),
             cartOpenRequests: myOrderCartOpenRequests,
             onCartUnitsChange: { units in
@@ -112,7 +113,8 @@ extension AccessRootRoutingView {
             viewModel: rootViewModel.myOrdersHistoryViewModel,
             context: MyOrdersHistoryRouteContext(
                 currentMember: currentHomeMember,
-                nowMillis: rootViewModel.shiftsViewModel.currentNowMillis
+                nowMillis: rootViewModel.shiftsViewModel.currentNowMillis,
+                environment: currentHomeSession?.environment ?? .develop
             ),
             onTitleChanged: rootViewModel.setMyOrdersHistoryTitleOverride
         )
@@ -127,7 +129,8 @@ extension AccessRootRoutingView {
                 shifts: rootViewModel.shiftsViewModel.shiftsFeed,
                 defaultDeliveryDayOfWeek: rootViewModel.shiftsViewModel.defaultDeliveryDayOfWeek,
                 deliveryCalendarOverrides: rootViewModel.shiftsViewModel.deliveryCalendarOverrides,
-                nowMillis: rootViewModel.shiftsViewModel.currentNowMillis
+                nowMillis: rootViewModel.shiftsViewModel.currentNowMillis,
+                environment: currentHomeSession?.environment ?? .develop
             )
         )
     }
@@ -138,7 +141,8 @@ extension AccessRootRoutingView {
             viewModel: rootViewModel.receivedOrdersHistoryViewModel,
             context: ReceivedOrdersHistoryRouteContext(
                 currentMember: currentHomeMember,
-                nowMillis: rootViewModel.shiftsViewModel.currentNowMillis
+                nowMillis: rootViewModel.shiftsViewModel.currentNowMillis,
+                environment: currentHomeSession?.environment ?? .develop
             ),
             onTitleChanged: rootViewModel.setReceivedOrdersHistoryTitleOverride
         )

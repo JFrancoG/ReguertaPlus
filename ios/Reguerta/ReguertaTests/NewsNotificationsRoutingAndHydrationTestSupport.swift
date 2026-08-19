@@ -9,7 +9,7 @@ actor ReviewHydrationNewsRepository: NewsRepository {
     private var returnedReads: Set<Int> = []
     private var returnWaiters: [(Int, CheckedContinuation<Void, Never>)] = []
 
-    func news(visibleTo _: Member) async throws -> [NewsArticle] {
+    func news(visibleTo _: Member, environment _: SessionEnvironment) async throws -> [NewsArticle] {
         let index = requests
         requests += 1
         resumeRequestWaiters()
@@ -21,9 +21,9 @@ actor ReviewHydrationNewsRepository: NewsRepository {
         return articles
     }
 
-    func allNews() async throws -> [NewsArticle] { [] }
-    func upsert(article: NewsArticle) async throws -> NewsArticle { article }
-    func delete(newsId _: String) async throws -> Bool { true }
+    func allNews(environment _: SessionEnvironment) async throws -> [NewsArticle] { [] }
+    func upsert(article: NewsArticle, environment _: SessionEnvironment) async throws -> NewsArticle { article }
+    func delete(newsId _: String, environment _: SessionEnvironment) async throws -> Bool { true }
 
     func waitForRequestCount(_ count: Int) async {
         guard requests < count else { return }

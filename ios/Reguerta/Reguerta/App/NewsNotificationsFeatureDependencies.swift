@@ -11,21 +11,21 @@ struct NewsNotificationsFeatureDependencies {
 
     static func live(
         db: Firestore,
+        environmentProvider: any SessionEnvironmentSnapshotProviding,
         imagePipelineManager: any ImagePipelineManager,
         notificationRepository: (any NotificationRepository)? = nil,
         pushNotificationPermissionProvider: (any PushNotificationPermissionProvider)? = nil,
         nowMillisProvider: @escaping @MainActor () -> Int64
     ) -> NewsNotificationsFeatureDependencies {
         NewsNotificationsFeatureDependencies(
-            newsRepository: FirestoreNewsRepository(db: db),
-            notificationRepository: notificationRepository ?? FirestoreNotificationRepository(db: db),
+            newsRepository: FirestoreNewsRepository(firebaseAppName: db.app.name),
+            notificationRepository: notificationRepository ??
+                FirestoreNotificationRepository(firebaseAppName: db.app.name),
             pushNotificationPermissionProvider: pushNotificationPermissionProvider ??
                 IOSPushNotificationPermissionProvider(),
             imagePipelineManager: imagePipelineManager,
             nowMillisProvider: nowMillisProvider,
-            environmentProvider: {
-                ReguertaRuntimeEnvironment.currentFirestoreEnvironment
-            }
+            environmentProvider: { environmentProvider.snapshot().environment }
         )
     }
 

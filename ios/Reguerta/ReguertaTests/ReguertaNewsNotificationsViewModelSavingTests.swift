@@ -23,7 +23,7 @@ struct ReguertaNewsNotificationsViewModelSavingTests {
         }
         #expect(await viewModel.saveNews())
 
-        var articles = await repository.allNews()
+        var articles = await repository.allNews(environment: .develop)
         let created = try #require(articles.first)
         #expect(created.title == "Nueva noticia")
         #expect(created.body == "Cuerpo")
@@ -46,7 +46,7 @@ struct ReguertaNewsNotificationsViewModelSavingTests {
         }
         #expect(await viewModel.saveNews())
 
-        articles = await repository.allNews()
+        articles = await repository.allNews(environment: .develop)
         let updated = articles.first(where: { $0.id == originalId })
         #expect(updated?.title == "Actualizada")
         #expect(updated?.publishedBy == "Ana Admin")

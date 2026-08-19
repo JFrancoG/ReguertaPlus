@@ -312,6 +312,7 @@ private extension FirebaseAuthorizedDeviceCoordinator {
                 )
                 fetchedToken = nil
             }
+            try Task.checkCancellation()
 
             if let normalizedToken = normalize(fetchedToken) {
                 try await keychainStore.saveString(normalizedToken, for: .fcmToken)
@@ -319,6 +320,7 @@ private extension FirebaseAuthorizedDeviceCoordinator {
             }
             if attempt == 0 {
                 try await retryDelay()
+                try Task.checkCancellation()
             }
         }
         return try await keychainStore.loadString(for: .fcmToken)
@@ -397,7 +399,7 @@ private extension FirebaseAuthorizedDeviceCoordinator {
 }
 
 @MainActor private func fetchFirebaseMessagingToken() async throws -> String? {
-    try await withCheckedThrowingContinuation { continuation in
+    let token: String? = try await withCheckedThrowingContinuation { continuation in
         Messaging.messaging().token { token, error in
             if let error {
                 continuation.resume(throwing: error)
@@ -406,6 +408,8 @@ private extension FirebaseAuthorizedDeviceCoordinator {
             }
         }
     }
+    try Task.checkCancellation()
+    return token
 }
 
 @MainActor private func makeCurrentIOSDevice(token: String?, nowMillis: Int64) -> RegisteredDevice {

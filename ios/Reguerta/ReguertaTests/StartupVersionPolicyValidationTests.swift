@@ -12,7 +12,8 @@ struct StartupVersionPolicyValidationTests {
             storeURL: "https://apps.apple.com"
         )
         let useCase = ResolveStartupVersionGateUseCase(
-            repository: FixedStartupVersionPolicyRepository(policy: policy)
+            repository: FixedStartupVersionPolicyRepository(policy: policy),
+            environment: .develop
         )
 
         #expect(throws: RepositoryError.invalidData(resource: "startup.versionPolicy")) {
@@ -42,7 +43,8 @@ struct StartupVersionPolicyValidationTests {
     ])
     func startupGateRejectsSemanticallyInvalidPolicies(_ policy: StartupVersionPolicy) {
         let useCase = ResolveStartupVersionGateUseCase(
-            repository: FixedStartupVersionPolicyRepository(policy: policy)
+            repository: FixedStartupVersionPolicyRepository(policy: policy),
+            environment: .develop
         )
 
         #expect(throws: RepositoryError.invalidData(resource: "startup.versionPolicy")) {

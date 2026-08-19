@@ -240,7 +240,11 @@ extension AccessRootViewModel {
             members: session.members,
             localization: .current
         )
-        let storedOrderState = resolveHomeOrderState(memberId: session.member.id, weekKey: baseline.orderWeekKey)
+        let storedOrderState = resolveHomeOrderState(
+            memberId: session.member.id,
+            weekKey: baseline.orderWeekKey,
+            environment: session.environment
+        )
         return HomeWeeklySummaryDisplay(
             weekKey: baseline.weekKey,
             orderWeekKey: baseline.orderWeekKey,

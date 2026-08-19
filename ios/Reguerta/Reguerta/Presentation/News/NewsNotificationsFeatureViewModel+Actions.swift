@@ -134,21 +134,21 @@ extension NewsNotificationsFeatureViewModel {
         )
         let saved: NewsArticle
         do {
-            saved = try await newsRepository.upsert(article: article)
+            saved = try await newsRepository.upsert(article: article, environment: context.environment)
             try Task.checkCancellation()
         } catch is CancellationError {
-            finishNewsMutationOperation(mutationOperationId, context: context)
+            finishNewsMutationOperation(mutationOperationId)
             return false
         } catch {
             if isCurrentNewsMutation(mutationOperationId, context: context),
                isCurrentNewsMutationEditor(editorOwnership) {
                 feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
             }
-            finishNewsMutationOperation(mutationOperationId, context: context)
+            finishNewsMutationOperation(mutationOperationId)
             return false
         }
         guard isCurrentNewsMutation(mutationOperationId, context: context) else {
-            finishNewsMutationOperation(mutationOperationId, context: context)
+            finishNewsMutationOperation(mutationOperationId)
             return false
         }
 
@@ -178,17 +178,20 @@ extension NewsNotificationsFeatureViewModel {
 
         let deleted: Bool
         do {
-            deleted = try await newsRepository.delete(newsId: newsId)
+            deleted = try await newsRepository.delete(
+                newsId: newsId,
+                environment: context.environment
+            )
             try Task.checkCancellation()
         } catch is CancellationError {
-            finishNewsMutationOperation(mutationOperationId, context: context)
+            finishNewsMutationOperation(mutationOperationId)
             return
         } catch {
             if isCurrentNewsMutation(mutationOperationId, context: context),
                isCurrentNewsDeletion(deletionOwnership) {
                 feedbackCenter.show(AccessL10nKey.feedbackNewsDeleteFailed)
             }
-            finishNewsMutationOperation(mutationOperationId, context: context)
+            finishNewsMutationOperation(mutationOperationId)
             return
         }
         guard deleted, isCurrentNewsMutation(mutationOperationId, context: context) else {
@@ -196,7 +199,7 @@ extension NewsNotificationsFeatureViewModel {
                isCurrentNewsDeletion(deletionOwnership) {
                 feedbackCenter.show(AccessL10nKey.feedbackNewsDeleteFailed)
             }
-            finishNewsMutationOperation(mutationOperationId, context: context)
+            finishNewsMutationOperation(mutationOperationId)
             return
         }
 
@@ -209,7 +212,7 @@ extension NewsNotificationsFeatureViewModel {
             pendingNewsDeletionId = nil
             feedbackCenter.show(AccessL10nKey.feedbackNewsDeleted)
         }
-        finishNewsMutationOperation(mutationOperationId, context: context)
+        finishNewsMutationOperation(mutationOperationId)
         scheduleNewsConvergence(feedbackOwnership: .deletion(deletionOwnership))
     }
 
@@ -230,21 +233,24 @@ extension NewsNotificationsFeatureViewModel {
         let event = notificationEventForSend(draft: normalizedDraft, context: context)
         let sent: NotificationEvent
         do {
-            sent = try await notificationRepository.send(event: event)
+            sent = try await notificationRepository.send(
+                event: event,
+                environment: context.environment
+            )
             try Task.checkCancellation()
         } catch is CancellationError {
-            finishNotificationMutationOperation(mutationOperationId, context: context)
+            finishNotificationMutationOperation(mutationOperationId)
             return false
         } catch {
             if isCurrentNotificationMutation(mutationOperationId, context: context),
                isCurrentNotificationMutationEditor(editorOwnership) {
                 feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
             }
-            finishNotificationMutationOperation(mutationOperationId, context: context)
+            finishNotificationMutationOperation(mutationOperationId)
             return false
         }
         guard isCurrentNotificationMutation(mutationOperationId, context: context) else {
-            finishNotificationMutationOperation(mutationOperationId, context: context)
+            finishNotificationMutationOperation(mutationOperationId)
             return false
         }
 
@@ -267,24 +273,15 @@ extension NewsNotificationsFeatureViewModel {
         let editorNewsID = editingNewsId
         guard let operationId = beginNewsImageUploadOperation() else { return }
         defer {
-            finishNewsImageUploadOperation(
-                operationId,
-                editorRevision: editorRevision,
-                editorNewsID: editorNewsID,
-                context: context
-            )
+            finishNewsImageUploadOperation(operationId)
         }
         let entityId = editorNewsID?.isEmpty == false ? editorNewsID : nil
+        let request = makeNewsImageUploadRequest(context: context, entityID: entityId)
 
         do {
             let uploaded = try await imagePipelineManager.processAndUpload(
                 imageData: imageData,
-                request: ImageUploadRequest(
-                    ownerId: context.memberID,
-                    namespace: .news,
-                    entityId: entityId,
-                    nameHint: newsDraft.title
-                )
+                request: request
             )
             try Task.checkCancellation()
             guard isCurrentNewsImageUpload(
@@ -308,6 +305,16 @@ extension NewsNotificationsFeatureViewModel {
                 feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
             }
         }
+    }
+
+    private func makeNewsImageUploadRequest(context: SessionContext, entityID: String?) -> ImageUploadRequest {
+        ImageUploadRequest(
+            environment: context.environment,
+            ownerId: context.memberID,
+            namespace: .news,
+            entityId: entityID,
+            nameHint: newsDraft.title
+        )
     }
 
     func clearNewsImage() {

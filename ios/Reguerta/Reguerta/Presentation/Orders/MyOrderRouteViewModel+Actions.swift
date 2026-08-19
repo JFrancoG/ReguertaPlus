@@ -2,13 +2,18 @@ import Foundation
 
 extension MyOrderRouteViewModel {
     func appear(context newContext: MyOrderRouteContext) async {
-        context = newContext
-        if restoredCartStorageKey != cartStorageKey {
-            await restoreCartState(storageKey: cartStorageKey)
+        let operation = beginContextOperation(newContext)
+        if restoredCartStorageKey != operation.context.cartStorageKey {
+            await restoreCartState(
+                storageKey: operation.context.cartStorageKey,
+                contextOperation: operation
+            )
+            guard !Task.isCancelled, isCurrent(operation) else { return }
         }
         sanitizeSelectedStateForCurrentProducts()
-        await loadPreviousOrderIfNeeded()
-        await loadProducerStatusesIfNeeded()
+        await loadPreviousOrderIfNeeded(contextOperation: operation)
+        guard !Task.isCancelled, isCurrent(operation) else { return }
+        await loadProducerStatusesIfNeeded(contextOperation: operation)
     }
 
     func clearSearch() {
@@ -41,8 +46,11 @@ extension MyOrderRouteViewModel {
     }
 
     func retryPreviousOrder() async {
-        let targetWeekKey = isConsultaPhase ? consultaWindow.previousWeekKey : currentWeekKey
-        await loadPreviousWeekOrderState(previousWeekKey: targetWeekKey)
+        let operation = captureContextOperation()
+        let targetWeekKey = operation.context.consultaWindow.isConsultaPhase
+            ? operation.context.consultaWindow.previousWeekKey
+            : operation.context.currentWeekKey
+        await loadPreviousWeekOrderState(previousWeekKey: targetWeekKey, contextOperation: operation)
     }
 
     func validateCheckout() async {

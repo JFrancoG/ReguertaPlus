@@ -39,6 +39,11 @@ enum AuthSessionRefreshResult: Equatable, Sendable {
     case expired
 }
 
+enum IDTokenProviderError: Error, Equatable {
+    case noAuthenticatedUser
+    case unavailable
+}
+
 @MainActor
 protocol FirebaseIDTokenProviding {
     func validIDToken(forcingRefresh: Bool) async throws -> String

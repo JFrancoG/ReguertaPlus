@@ -106,9 +106,14 @@ struct FirebaseFunctionsSecurityBoundaryTests {
 
     @Test(arguments: [
         (CancellationError() as any Error, FirebaseFunctionClientError.cancelled),
-        (URLError(.timedOut) as any Error, FirebaseFunctionClientError.timeout)
+        (URLError(.timedOut) as any Error, FirebaseFunctionClientError.timeout),
+        (IDTokenProviderError.noAuthenticatedUser as any Error, FirebaseFunctionClientError.missingIDToken),
+        (
+            IDTokenProviderError.unavailable as any Error,
+            FirebaseFunctionClientError.transport(message: "unavailable")
+        )
     ])
-    func authenticatedClientMapsTokenRefreshCancellationAndTimeout(
+    func authenticatedClientMapsTokenRefreshFailures(
         tokenError: any Error,
         expectedError: FirebaseFunctionClientError
     ) async {
@@ -127,7 +132,7 @@ struct FirebaseFunctionsSecurityBoundaryTests {
         }
     }
 
-    @Test func authorizedSessionAppliesResolvedEnvironmentBeforeExactMemberRead() async throws {
+    @Test func authorizedSessionValidatesTheCandidateWithoutPublishingIt() async throws {
         let member = Member(
             id: "member_1",
             displayName: "Member",
@@ -160,9 +165,11 @@ struct FirebaseFunctionsSecurityBoundaryTests {
         #expect(result == .authorized(member: member, environment: .production))
         #expect(repository.environmentAtMemberRead == .production)
         #expect(repository.requestedMemberIds == [member.id])
+        #expect(router.appliedEnvironment == nil)
+        #expect(router.resetCount == 0)
     }
 
-    @Test func authorizedSessionRollsBackResolvedEnvironmentWhenExactMemberReadFails() async throws {
+    @Test func failedExactMemberReadNeverPublishesTheCandidateEnvironment() async throws {
         let router = RecordingSessionEnvironmentRouter(baseEnvironment: .develop)
         let repository = EnvironmentRecordingMemberRepository(member: nil, router: router)
         let useCase = ResolveAuthorizedSessionUseCase(
@@ -186,7 +193,7 @@ struct FirebaseFunctionsSecurityBoundaryTests {
         #expect(result == .unauthorized(.userNotFoundInAuthorizedUsers))
         #expect(repository.environmentAtMemberRead == .production)
         #expect(router.appliedEnvironment == nil)
-        #expect(router.resetCount == 1)
+        #expect(router.resetCount == 0)
     }
 }
 
@@ -211,8 +218,7 @@ extension FirebaseFunctionsSecurityBoundaryTests {
         )
         let useCase = UpsertMemberByAdminUseCase(
             repository: FirebaseMemberAdministrationRepository(
-                client: client,
-                environmentProvider: { .develop }
+                client: client
             )
         )
         let target = Member(
@@ -227,7 +233,7 @@ extension FirebaseFunctionsSecurityBoundaryTests {
             producerCatalogEnabled: true
         )
 
-        let saved = try await useCase.execute(target: target)
+        let saved = try await useCase.execute(target: target, environment: .develop)
 
         #expect(saved.roles == [.member, .admin])
         #expect(saved.normalizedEmail == "admin@example.com")
@@ -263,8 +269,7 @@ extension FirebaseFunctionsSecurityBoundaryTests {
                     baseURL: URL(string: "https://example.test")!,
                     tokenProvider: RecordingFirebaseIDTokenProvider(token: "token"),
                     dataLoader: loader
-                ),
-                environmentProvider: { .develop }
+                )
             )
         )
         let target = Member(
@@ -278,7 +283,47 @@ extension FirebaseFunctionsSecurityBoundaryTests {
         )
 
         await #expect(throws: FirebaseFunctionClientError.invalidResponse) {
-            try await useCase.execute(target: target)
+            try await useCase.execute(target: target, environment: .develop)
+        }
+    }
+
+    @Test func adminUpsertMapsFunctionCancellationToTaskCancellation() async {
+        let repository = FirebaseMemberAdministrationRepository(
+            client: AuthenticatedFirebaseFunctionsClient(
+                baseURL: URL(string: "https://example.test")!,
+                tokenProvider: RecordingFirebaseIDTokenProvider(token: "token"),
+                dataLoader: RecordingHTTPDataLoader(error: URLError(.cancelled))
+            )
+        )
+        let target = Member(
+            id: "member_admin",
+            displayName: "Admin",
+            normalizedEmail: "admin@example.com",
+            authUid: nil,
+            roles: [.admin],
+            isActive: true,
+            producerCatalogEnabled: true
+        )
+
+        await #expect(throws: CancellationError.self) {
+            try await repository.upsertMember(target, environment: .develop)
+        }
+    }
+
+    @Test func authorizedMemberResolverMapsFunctionCancellationToTaskCancellation() async {
+        let resolver = FirebaseAuthorizedMemberResolver(
+            client: AuthenticatedFirebaseFunctionsClient(
+                baseURL: URL(string: "https://example.test")!,
+                tokenProvider: RecordingFirebaseIDTokenProvider(token: "token"),
+                dataLoader: RecordingHTTPDataLoader(error: URLError(.cancelled))
+            )
+        )
+
+        await #expect(throws: CancellationError.self) {
+            try await resolver.resolve(
+                authPrincipal: AuthPrincipal(uid: "auth_1", email: "member@example.com"),
+                requestedEnvironment: .develop
+            )
         }
     }
 
@@ -296,8 +341,7 @@ extension FirebaseFunctionsSecurityBoundaryTests {
             statusCode: 200
         )
         let repository = FirestoreShiftSwapRequestRepository(
-            db: Firestore.firestore(),
-            environment: .develop,
+            firebaseAppName: Firestore.firestore().app.name,
             functionsClient: AuthenticatedFirebaseFunctionsClient(
                 baseURL: URL(string: "https://example.test")!,
                 tokenProvider: RecordingFirebaseIDTokenProvider(token: "token"),
@@ -320,14 +364,13 @@ extension FirebaseFunctionsSecurityBoundaryTests {
         )
 
         await #expect(throws: RepositoryError.invalidData(resource: "shiftSwapRequests.transition")) {
-            try await repository.transition(.create(request: request))
+            try await repository.transition(.create(request: request), environment: .develop)
         }
     }
 
     @Test func shiftSwapMapsFunctionCancellationToTaskCancellation() async {
         let repository = FirestoreShiftSwapRequestRepository(
-            db: Firestore.firestore(),
-            environment: .develop,
+            firebaseAppName: Firestore.firestore().app.name,
             functionsClient: AuthenticatedFirebaseFunctionsClient(
                 baseURL: URL(string: "https://example.test")!,
                 tokenProvider: RecordingFirebaseIDTokenProvider(token: "token"),
@@ -350,7 +393,7 @@ extension FirebaseFunctionsSecurityBoundaryTests {
         )
 
         await #expect(throws: CancellationError.self) {
-            try await repository.transition(.create(request: request))
+            try await repository.transition(.create(request: request), environment: .develop)
         }
     }
 

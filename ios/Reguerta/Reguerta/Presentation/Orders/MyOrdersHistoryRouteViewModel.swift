@@ -12,12 +12,14 @@ enum MyOrdersHistoryLoadState: Equatable, Sendable {
 struct MyOrdersHistoryRouteContext {
     let currentMember: Member?
     let nowMillis: Int64
+    let environment: SessionEnvironment
 
-    static let empty = MyOrdersHistoryRouteContext(currentMember: nil, nowMillis: 0)
+    static let empty = MyOrdersHistoryRouteContext(currentMember: nil, nowMillis: 0, environment: .develop)
 
     var identity: String {
         [
             currentMember?.id ?? "none",
+            environment.rawValue,
             orderHistoryPreviousIsoWeekKey(nowMillis: nowMillis)
         ].joined(separator: "|")
     }
@@ -38,10 +40,21 @@ final class MyOrdersHistoryRouteViewModel {
 
     private var loadedHistoryIdentity: String?
     private var loadedWeekKey: String?
+    private var historyLoadOwnerGeneration: UInt64?
+    private var weekLoadOwnerGeneration: UInt64?
+    private var loadOperationGeneration: UInt64 = 0
+    private var contextSessionStateRevision: UInt64 = 0
+
+    private struct LoadOperation {
+        let context: MyOrdersHistoryRouteContext
+        let generation: UInt64
+        let sessionStateRevision: UInt64
+    }
 
     init(sessionViewModel: SessionViewModel, ordersRepository: any OrdersRepository) {
         self.sessionViewModel = sessionViewModel
         self.ordersRepository = ordersRepository
+        contextSessionStateRevision = sessionViewModel.sessionStateRevision
     }
 
     var selectedWeek: OrderHistoryWeekOption? {
@@ -67,16 +80,19 @@ final class MyOrdersHistoryRouteViewModel {
 
     func appear(context newContext: MyOrdersHistoryRouteContext) async {
         context = newContext
-        await loadHistoryIfNeeded()
+        contextSessionStateRevision = sessionViewModel.sessionStateRevision
+        let operation = beginLoadOperation()
+        await loadHistoryIfNeeded(operation: operation)
     }
 
     func retry() async {
+        let operation = beginLoadOperation()
         loadedWeekKey = nil
         if availableWeeks.isEmpty {
             loadedHistoryIdentity = nil
-            await loadHistoryIfNeeded(force: true)
+            await loadHistoryIfNeeded(force: true, operation: operation)
         } else {
-            await loadSelectedWeek(force: true)
+            await loadSelectedWeek(force: true, operation: operation)
         }
     }
 
@@ -94,7 +110,8 @@ final class MyOrdersHistoryRouteViewModel {
         guard selectedWeekKey != weekKey else { return }
         selectedWeekKey = weekKey
         loadedWeekKey = nil
-        await loadSelectedWeek(force: true)
+        let operation = beginLoadOperation()
+        await loadSelectedWeek(force: true, operation: operation)
     }
 
     func presentWeekPicker() {
@@ -116,17 +133,43 @@ final class MyOrdersHistoryRouteViewModel {
     }
 
     func loadHistoryIfNeeded(force: Bool = false) async {
-        guard force || loadedHistoryIdentity != context.identity else {
-            await loadSelectedWeek()
-            return
+        let operation = beginLoadOperation()
+        await loadHistoryIfNeeded(force: force, operation: operation)
+    }
+
+    func loadSelectedWeek(force: Bool = false) async {
+        let operation = beginLoadOperation()
+        await loadSelectedWeek(force: force, operation: operation)
+    }
+
+    private func loadHistoryIfNeeded(force: Bool = false, operation: LoadOperation) async {
+        guard isCurrent(operation) else { return }
+        let operationContext = operation.context
+        if !force, loadedHistoryIdentity == operationContext.identity {
+            if historyLoadOwnerGeneration == operation.generation { return }
+            if historyLoadOwnerGeneration == nil {
+                await loadSelectedWeek(operation: operation)
+                return
+            }
         }
-        loadedHistoryIdentity = context.identity
-        let preferredWeekKey = orderHistoryPreviousIsoWeekKey(nowMillis: context.nowMillis)
+        loadedHistoryIdentity = operationContext.identity
+        historyLoadOwnerGeneration = operation.generation
+        let preferredWeekKey = orderHistoryPreviousIsoWeekKey(nowMillis: operationContext.nowMillis)
         selectedWeekKey = preferredWeekKey
         loadedWeekKey = nil
+        weekLoadOwnerGeneration = nil
         loadState = .loading
         do {
-            let realWeekKeys = try await ordersRepository.orderHistoryWeekKeys(currentMember: context.currentMember)
+            let realWeekKeys = try await ordersRepository.orderHistoryWeekKeys(
+                currentMember: operationContext.currentMember,
+                environment: operationContext.environment
+            )
+            try Task.checkCancellation()
+            guard isCurrent(operation) else {
+                finishHistoryLoad(operation, completed: false)
+                return
+            }
+            finishHistoryLoad(operation, completed: true)
             availableWeeks = orderHistoryContinuousWeekOptions(
                 realWeekKeys: realWeekKeys,
                 preferredWeekKey: preferredWeekKey
@@ -134,33 +177,103 @@ final class MyOrdersHistoryRouteViewModel {
             if availableWeeks.isEmpty, let fallback = orderHistoryWeekOption(weekKey: preferredWeekKey) {
                 availableWeeks = [fallback]
             }
-            await loadSelectedWeek(force: true)
+            await loadSelectedWeek(force: true, operation: operation)
+        } catch is CancellationError {
+            finishHistoryLoad(operation, completed: false)
+            return
         } catch {
+            guard isCurrent(operation) else {
+                finishHistoryLoad(operation, completed: false)
+                return
+            }
             availableWeeks = orderHistoryWeekOption(weekKey: preferredWeekKey).map { [$0] } ?? []
             loadState = .error
-            loadedHistoryIdentity = nil
+            finishHistoryLoad(operation, completed: false)
         }
     }
 
-    func loadSelectedWeek(force: Bool = false) async {
-        let weekKey = selectedWeekKey ?? orderHistoryPreviousIsoWeekKey(nowMillis: context.nowMillis)
-        guard force || loadedWeekKey != weekKey else { return }
+    private func loadSelectedWeek(force: Bool = false, operation: LoadOperation) async {
+        guard isCurrent(operation) else { return }
+        let operationContext = operation.context
+        let weekKey = selectedWeekKey ?? orderHistoryPreviousIsoWeekKey(nowMillis: operationContext.nowMillis)
+        if !force, loadedWeekKey == weekKey {
+            if weekLoadOwnerGeneration == operation.generation { return }
+            if weekLoadOwnerGeneration == nil { return }
+        }
         selectedWeekKey = weekKey
         loadedWeekKey = weekKey
+        weekLoadOwnerGeneration = operation.generation
         loadState = .loading
         do {
             let snapshot = try await ordersRepository.orderSummarySnapshot(
-                currentMember: context.currentMember,
-                weekKey: weekKey
+                currentMember: operationContext.currentMember,
+                weekKey: weekKey,
+                environment: operationContext.environment
             )
+            try Task.checkCancellation()
+            guard isCurrent(operation) else {
+                finishWeekLoad(operation, weekKey: weekKey, completed: false)
+                return
+            }
             if let snapshot, !snapshot.groups.isEmpty {
                 loadState = .loaded(snapshot)
             } else {
                 loadState = .empty
             }
+            finishWeekLoad(operation, weekKey: weekKey, completed: true)
+        } catch is CancellationError {
+            finishWeekLoad(operation, weekKey: weekKey, completed: false)
+            return
         } catch {
+            guard isCurrent(operation) else {
+                finishWeekLoad(operation, weekKey: weekKey, completed: false)
+                return
+            }
             loadState = .error
+            finishWeekLoad(operation, weekKey: weekKey, completed: false)
+        }
+    }
+
+    private func beginLoadOperation() -> LoadOperation {
+        loadOperationGeneration &+= 1
+        return LoadOperation(
+            context: context,
+            generation: loadOperationGeneration,
+            sessionStateRevision: contextSessionStateRevision
+        )
+    }
+
+    private func isCurrent(_ operation: LoadOperation) -> Bool {
+        loadOperationGeneration == operation.generation &&
+            context.identity == operation.context.identity &&
+            sessionViewModel.sessionStateRevision == operation.sessionStateRevision &&
+            ordersRouteHasActiveAuthorization(
+                sessionViewModel: sessionViewModel,
+                currentMember: operation.context.currentMember,
+                environment: operation.context.environment
+            )
+    }
+
+    private func finishHistoryLoad(_ operation: LoadOperation, completed: Bool) {
+        guard loadedHistoryIdentity == operation.context.identity,
+              historyLoadOwnerGeneration == operation.generation else { return }
+        historyLoadOwnerGeneration = nil
+        if !completed {
+            loadedHistoryIdentity = nil
+            if case .loading = loadState {
+                loadState = .idle
+            }
+        }
+    }
+
+    private func finishWeekLoad(_ operation: LoadOperation, weekKey: String, completed: Bool) {
+        guard loadedWeekKey == weekKey, weekLoadOwnerGeneration == operation.generation else { return }
+        weekLoadOwnerGeneration = nil
+        if !completed {
             loadedWeekKey = nil
+            if case .loading = loadState {
+                loadState = .idle
+            }
         }
     }
 }

@@ -252,9 +252,10 @@ private func homeDisplayNames(for memberIds: [String], members: [Member], pendin
 func resolveHomeOrderState(
     userDefaults: UserDefaults = .standard,
     memberId: String?,
-    weekKey: String
+    weekKey: String,
+    environment: SessionEnvironment
 ) -> HomeOrderStateDisplay {
-    let storageKey = "member_\(memberId ?? "")_week_\(weekKey)"
+    let storageKey = myOrderLocalStateStorageKey(memberId: memberId, weekKey: weekKey, environment: environment)
     let confirmedKey = "\(homeOrderCartStoragePrefix).\(storageKey)\(homeOrderConfirmedQuantitiesSuffix)"
     let cartKey = "\(homeOrderCartStoragePrefix).\(storageKey)\(homeOrderCartQuantitiesSuffix)"
     if userDefaults.hasPositiveHomeOrderQuantity(forKey: confirmedKey) {

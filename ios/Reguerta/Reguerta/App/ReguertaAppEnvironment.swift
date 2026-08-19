@@ -41,6 +41,7 @@ struct ReguertaAppEnvironment {
         let notificationRepository = InMemoryNotificationRepository()
         let feedbackCenter = GlobalFeedbackCenter()
         let authorizedDeviceRegistrar = NoOpAuthorizedDeviceRegistrar()
+        let developmentTimeMachine = DevelopmentTimeMachine()
         let freshnessDependencies = MyOrderFreshnessFeatureDependencies.preview()
         let sessionViewModel = SessionViewModel(
             dependencies: .preview(
@@ -62,8 +63,10 @@ struct ReguertaAppEnvironment {
             usersFeatureDependencies: .preview(memberRepository: memberRepository),
             myOrderFreshnessFeatureDependencies: freshnessDependencies,
             bylawsFeatureDependencies: .preview(),
+            developmentTimeMachine: developmentTimeMachine,
             startupVersionGateUseCase: ResolveStartupVersionGateUseCase(
-                repository: PreviewStartupVersionPolicyRepository()
+                repository: PreviewStartupVersionPolicyRepository(),
+                environment: .develop
             ),
             installedVersionProvider: { "0.0.0-preview" }
         )
@@ -83,8 +86,9 @@ struct ReguertaAppEnvironment {
         let notificationRepository = InMemoryNotificationRepository()
         let feedbackCenter = GlobalFeedbackCenter()
         let authorizedDeviceRegistrar = NoOpAuthorizedDeviceRegistrar()
+        let developmentTimeMachine = DevelopmentTimeMachine()
         let nowMillisProvider: @MainActor () -> Int64 = {
-            DevelopmentTimeMachine.shared.nowMillis()
+            developmentTimeMachine.nowMillis()
         }
         let freshnessConfig = CriticalDataFreshnessConfig(
             cacheExpirationMinutes: 15,
@@ -96,7 +100,7 @@ struct ReguertaAppEnvironment {
         )
         let freshnessDependencies = MyOrderFreshnessFeatureDependencies.preview(
             remoteConfig: freshnessConfig,
-            nowProvider: { DevelopmentTimeMachine.shared.nowMillis() }
+            nowProvider: { developmentTimeMachine.nowMillis() }
         )
         let sessionViewModel = SessionViewModel(
             dependencies: .preview(
@@ -115,6 +119,7 @@ struct ReguertaAppEnvironment {
                 newsRepository: newsRepository,
                 notificationRepository: notificationRepository,
                 freshnessDependencies: freshnessDependencies,
+                developmentTimeMachine: developmentTimeMachine,
                 nowMillisProvider: nowMillisProvider
             )
         )
@@ -135,6 +140,7 @@ private struct UITestingAccessRootDependencies {
     let newsRepository: InMemoryNewsRepository
     let notificationRepository: InMemoryNotificationRepository
     let freshnessDependencies: MyOrderFreshnessFeatureDependencies
+    let developmentTimeMachine: DevelopmentTimeMachine
     let nowMillisProvider: @MainActor () -> Int64
 }
 
@@ -163,16 +169,19 @@ private func makeUITestingAccessRootViewModel(_ dependencies: UITestingAccessRoo
         usersFeatureDependencies: .preview(memberRepository: dependencies.memberRepository),
         myOrderFreshnessFeatureDependencies: dependencies.freshnessDependencies,
         bylawsFeatureDependencies: .preview(),
+        developmentTimeMachine: dependencies.developmentTimeMachine,
         startupVersionGateUseCase: ResolveStartupVersionGateUseCase(
-            repository: PreviewStartupVersionPolicyRepository()
+            repository: PreviewStartupVersionPolicyRepository(),
+            environment: .develop
         ),
-        installedVersionProvider: { "0.0.0-ui-testing" },
-        initialNowOverrideMillis: DevelopmentTimeMachine.shared.overrideNowMillis
+        installedVersionProvider: { "0.0.0-ui-testing" }
     )
 }
 
 private struct LiveRootDependencies {
     let db: Firestore
+    let environmentStore: RuntimeSessionEnvironmentStore
+    let environmentRouter: RuntimeSessionEnvironmentRouter
     let memberRepository: FirestoreMemberRepository
     let authSessionProvider: FirebaseAuthSessionProvider
     let functionsClient: AuthenticatedFirebaseFunctionsClient
@@ -181,6 +190,7 @@ private struct LiveRootDependencies {
     let notificationRepository: FirestoreNotificationRepository
     let authorizedDeviceRegistrar: FirebaseAuthorizedDeviceCoordinator
     let criticalDataFreshnessLocalRepository: UserDefaultsCriticalDataFreshnessLocalRepository
+    let developmentTimeMachine: DevelopmentTimeMachine
 
     var developImpersonationEnabled: Bool {
         #if DEBUG
@@ -194,8 +204,11 @@ private struct LiveRootDependencies {
 private extension LiveRootDependencies {
     @MainActor
     init(db: Firestore = Firestore.firestore()) {
+        let environmentStore = RuntimeSessionEnvironmentStore()
         self.db = db
-        self.memberRepository = FirestoreMemberRepository(db: db)
+        self.environmentStore = environmentStore
+        self.environmentRouter = RuntimeSessionEnvironmentRouter(environmentStore: environmentStore)
+        self.memberRepository = FirestoreMemberRepository(firebaseAppName: db.app.name)
         self.authSessionProvider = FirebaseAuthSessionProvider()
         guard let projectID = FirebaseApp.app()?.options.projectID,
               let functionsBaseURL = URL(
@@ -207,13 +220,12 @@ private extension LiveRootDependencies {
             baseURL: functionsBaseURL,
             tokenProvider: authSessionProvider
         )
-        self.memberAdministrationRepository = FirebaseMemberAdministrationRepository(
-            client: functionsClient
-        )
-        self.imagePipelineManager = FirebaseImagePipelineManager()
-        self.notificationRepository = FirestoreNotificationRepository(db: db)
+        self.memberAdministrationRepository = FirebaseMemberAdministrationRepository(client: functionsClient)
+        self.imagePipelineManager = FirebaseImagePipelineManager(firebaseAppName: db.app.name)
+        self.notificationRepository = FirestoreNotificationRepository(firebaseAppName: db.app.name)
         self.criticalDataFreshnessLocalRepository =
             UserDefaultsCriticalDataFreshnessLocalRepository()
+        self.developmentTimeMachine = DevelopmentTimeMachine()
         self.authorizedDeviceRegistrar = FirebaseAuthorizedDeviceCoordinator(
             repository: FirestoreDeviceRegistrationRepository(db: db),
             keychainStore: KeychainStore()
@@ -234,7 +246,7 @@ private func makeLiveSessionViewModel(
                 criticalDataFreshnessLocalRepository:
                     dependencies.criticalDataFreshnessLocalRepository,
                 developImpersonationEnabled: dependencies.developImpersonationEnabled,
-                nowMillisProvider: { DevelopmentTimeMachine.shared.nowMillis() }
+                nowMillisProvider: { dependencies.developmentTimeMachine.nowMillis() }
             )
         )
     }
@@ -251,9 +263,9 @@ private func makeLiveSessionViewModel(
             authorizedDeviceRegistrar: dependencies.authorizedDeviceRegistrar,
             criticalDataFreshnessLocalRepository:
                 dependencies.criticalDataFreshnessLocalRepository,
-            environmentRouter: RuntimeSessionEnvironmentRouter(),
+            environmentRouter: dependencies.environmentRouter,
             developImpersonationEnabled: dependencies.developImpersonationEnabled,
-            nowMillisProvider: { DevelopmentTimeMachine.shared.nowMillis() }
+            nowMillisProvider: { dependencies.developmentTimeMachine.nowMillis() }
         )
     )
 }
@@ -270,28 +282,30 @@ private func makeLiveAccessRootViewModel(
         productsFeatureDependencies: ProductsFeatureDependencies.live(
             db: dependencies.db,
             imagePipelineManager: dependencies.imagePipelineManager,
-            nowMillisProvider: { DevelopmentTimeMachine.shared.nowMillis() }
+            nowMillisProvider: { dependencies.developmentTimeMachine.nowMillis() }
         ),
         ordersFeatureDependencies: OrdersFeatureDependencies.live(
             db: dependencies.db,
-            nowMillisProvider: { DevelopmentTimeMachine.shared.nowMillis() }
+            nowMillisProvider: { dependencies.developmentTimeMachine.nowMillis() }
         ),
         shiftsFeatureDependencies: ShiftsFeatureDependencies.live(
             db: dependencies.db,
+            environmentProvider: dependencies.environmentStore,
             functionsClient: dependencies.functionsClient,
             notificationRepository: dependencies.notificationRepository,
-            nowMillisProvider: { DevelopmentTimeMachine.shared.nowMillis() }
+            nowMillisProvider: { dependencies.developmentTimeMachine.nowMillis() }
         ),
         newsNotificationsFeatureDependencies: NewsNotificationsFeatureDependencies.live(
             db: dependencies.db,
+            environmentProvider: dependencies.environmentStore,
             imagePipelineManager: dependencies.imagePipelineManager,
             notificationRepository: dependencies.notificationRepository,
-            nowMillisProvider: { DevelopmentTimeMachine.shared.nowMillis() }
+            nowMillisProvider: { dependencies.developmentTimeMachine.nowMillis() }
         ),
         sharedProfileFeatureDependencies: SharedProfileFeatureDependencies.live(
             db: dependencies.db,
             imagePipelineManager: dependencies.imagePipelineManager,
-            nowMillisProvider: { DevelopmentTimeMachine.shared.nowMillis() }
+            nowMillisProvider: { dependencies.developmentTimeMachine.nowMillis() }
         ),
         usersFeatureDependencies: UsersFeatureDependencies.live(
             memberRepository: dependencies.memberRepository,
@@ -302,10 +316,18 @@ private func makeLiveAccessRootViewModel(
             localRepository: dependencies.criticalDataFreshnessLocalRepository
         ),
         bylawsFeatureDependencies: .live(),
-        startupVersionGateUseCase: ResolveStartupVersionGateUseCase(
-            repository: FirestoreStartupVersionPolicyRepository(db: dependencies.db)
-        ),
-        initialNowOverrideMillis: DevelopmentTimeMachine.shared.overrideNowMillis
+        developmentTimeMachine: dependencies.developmentTimeMachine,
+        startupVersionGateUseCase: makeLiveStartupVersionGateUseCase(dependencies)
+    )
+}
+
+@MainActor
+private func makeLiveStartupVersionGateUseCase(
+    _ dependencies: LiveRootDependencies
+) -> ResolveStartupVersionGateUseCase {
+    ResolveStartupVersionGateUseCase(
+        repository: FirestoreStartupVersionPolicyRepository(firebaseAppName: dependencies.db.app.name),
+        environment: dependencies.environmentStore.baseEnvironment
     )
 }
 
@@ -333,7 +355,7 @@ extension View {
 }
 
 private struct PreviewStartupVersionPolicyRepository: StartupVersionPolicyRepository {
-    func policy(for platform: StartupPlatform) async throws -> StartupVersionPolicy {
+    func policy(for platform: StartupPlatform, environment _: SessionEnvironment) async throws -> StartupVersionPolicy {
         throw RepositoryError.notFound(resource: "config.public")
     }
 }

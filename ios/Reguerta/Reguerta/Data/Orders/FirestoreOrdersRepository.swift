@@ -1,87 +1,106 @@
+import FirebaseCore
 import FirebaseFirestore
 import Foundation
 
-struct FirestoreOrdersRepository: OrdersRepository {
-    private let storedDB: Firestore
-    private let environment: ReguertaFirestoreEnvironment?
+actor FirestoreOrdersRepository: OrdersRepository {
+    let storedDB: Firestore
 
-    private var resolvedEnvironment: ReguertaFirestoreEnvironment {
-        environment ?? ReguertaRuntimeEnvironment.currentFirestoreEnvironment
+    init(firebaseAppName: String) {
+        guard let app = FirebaseApp.app(name: firebaseAppName) else {
+            preconditionFailure("Firebase app is required for orders")
+        }
+        self.storedDB = Firestore.firestore(app: app)
     }
 
-    func submitMyOrder(_ request: MyOrderCheckoutRequest) async throws -> Bool {
-        try await submitCheckoutOrderToFirestore(
-            currentMember: request.currentMember,
-            weekKey: request.weekKey,
-            products: request.products,
-            selectedQuantities: request.selectedQuantities,
-            selectedEcoBasketOptions: request.selectedEcoBasketOptions,
-            db: storedDB,
-            environment: resolvedEnvironment,
-            nowMillis: request.nowMillis
+    func submitMyOrder(_ request: MyOrderCheckoutRequest, environment: SessionEnvironment) async throws -> Bool {
+        try Task.checkCancellation()
+        return try await submitCheckoutOrderToFirestore(
+            request: request,
+            environment: environment
         )
     }
 
     func previousOrderSnapshot(
         currentMember: Member?,
-        previousWeekKey: String
+        previousWeekKey: String,
+        environment: SessionEnvironment
     ) async throws -> MyOrderPreviousOrderSnapshot? {
-        try await orderSummarySnapshot(
+        try Task.checkCancellation()
+        return try await fetchOrderSummarySnapshot(
             currentMember: currentMember,
-            weekKey: previousWeekKey
+            weekKey: previousWeekKey,
+            environment: environment
         )
     }
 
-    func orderHistoryWeekKeys(currentMember: Member?) async throws -> [String] {
-        try await fetchOrderHistoryWeekKeys(
+    func orderHistoryWeekKeys(currentMember: Member?, environment: SessionEnvironment) async throws -> [String] {
+        try Task.checkCancellation()
+        return try await fetchOrderHistoryWeekKeys(
             currentMember: currentMember,
-            db: storedDB,
-            environment: resolvedEnvironment
+            environment: environment
         )
     }
 
-    func orderSummarySnapshot(currentMember: Member?, weekKey: String) async throws -> MyOrderPreviousOrderSnapshot? {
-        try await fetchOrderSummarySnapshot(
-            currentMember: currentMember,
-            weekKey: weekKey,
-            db: storedDB,
-            environment: resolvedEnvironment
-        )
-    }
-
-    func myOrderProducerStatuses(currentMember: Member?, weekKey: String) async -> MyOrderProducerStatusSnapshot {
-        await loadMyOrderProducerStatuses(
+    func orderSummarySnapshot(
+        currentMember: Member?,
+        weekKey: String,
+        environment: SessionEnvironment
+    ) async throws -> MyOrderPreviousOrderSnapshot? {
+        try Task.checkCancellation()
+        return try await fetchOrderSummarySnapshot(
             currentMember: currentMember,
             weekKey: weekKey,
-            db: storedDB,
-            environment: resolvedEnvironment
+            environment: environment
         )
     }
 
-    func receivedOrdersSnapshot(producerId: String, targetWeekKey: String) async throws -> ReceivedOrdersSnapshot? {
-        try await fetchReceivedOrdersSnapshotForProducer(
+    func myOrderProducerStatuses(
+        currentMember: Member?,
+        weekKey: String,
+        environment: SessionEnvironment
+    ) async -> MyOrderProducerStatusSnapshot {
+        guard !Task.isCancelled else {
+            return MyOrderProducerStatusSnapshot(byVendor: [:], legacyStatus: .unread)
+        }
+        return await loadMyOrderProducerStatuses(
+            currentMember: currentMember,
+            weekKey: weekKey,
+            environment: environment
+        )
+    }
+
+    func receivedOrdersSnapshot(
+        producerId: String,
+        targetWeekKey: String,
+        environment: SessionEnvironment
+    ) async throws -> ReceivedOrdersSnapshot? {
+        try Task.checkCancellation()
+        return try await fetchReceivedOrdersSnapshotForProducer(
             producerId: producerId,
             targetWeekKey: targetWeekKey,
-            db: storedDB,
-            environment: resolvedEnvironment
+            environment: environment
         )
     }
 
-    func receivedOrdersHistoryWeekKeys(producerId: String) async throws -> [String] {
-        try await fetchReceivedOrderHistoryWeekKeys(
+    func receivedOrdersHistoryWeekKeys(producerId: String, environment: SessionEnvironment) async throws -> [String] {
+        try Task.checkCancellation()
+        return try await fetchReceivedOrderHistoryWeekKeys(
             producerId: producerId,
-            db: storedDB,
-            environment: resolvedEnvironment
+            environment: environment
         )
     }
 
-    func receivedOrdersHistorySnapshot(producerId: String, weekKey: String) async throws -> ReceivedOrdersSnapshot? {
-        try await fetchReceivedOrdersSnapshotForProducer(
+    func receivedOrdersHistorySnapshot(
+        producerId: String,
+        weekKey: String,
+        environment: SessionEnvironment
+    ) async throws -> ReceivedOrdersSnapshot? {
+        try Task.checkCancellation()
+        return try await fetchReceivedOrdersSnapshotForProducer(
             producerId: producerId,
             targetWeekKey: weekKey,
             synchronizesUnreadStatuses: false,
-            db: storedDB,
-            environment: resolvedEnvironment
+            environment: environment
         )
     }
 
@@ -89,22 +108,16 @@ struct FirestoreOrdersRepository: OrdersRepository {
         orderId: String,
         producerId: String,
         status: ProducerOrderStatus,
-        nowMillis: Int64
+        nowMillis: Int64,
+        environment: SessionEnvironment
     ) async -> ReceivedOrderStatusWriteResult {
-        await Reguerta.updateReceivedOrderProducerStatus(
+        guard !Task.isCancelled else { return .failure }
+        return await writeReceivedOrderProducerStatus(
             orderId: orderId,
             producerId: producerId,
             status: status,
-            db: storedDB,
-            environment: resolvedEnvironment,
+            environment: environment,
             nowMillis: nowMillis
         )
-    }
-}
-
-extension FirestoreOrdersRepository {
-    init(db: Firestore, environment: ReguertaFirestoreEnvironment? = nil) {
-        self.storedDB = db
-        self.environment = environment
     }
 }

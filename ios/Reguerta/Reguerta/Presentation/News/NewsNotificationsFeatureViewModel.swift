@@ -147,13 +147,27 @@ final class NewsNotificationsFeatureViewModel {
     struct SessionContext: Equatable {
         let session: AuthorizedSession
         let epoch: UInt64
-        let principalUID: String
-        let memberID: String
-        let memberRoles: Set<MemberRole>
+        let authorizationSignature: SessionAuthorizationSignature
         let canPublishNews: Bool
         let canSendAdminNotifications: Bool
-        let environment: SessionEnvironment
         let environmentRoutingGeneration: UInt64
+
+        var memberID: String { authorizationSignature.currentMember.id }
+        var environment: SessionEnvironment { authorizationSignature.environment }
+    }
+
+    struct SessionAuthorizationSignature: Equatable {
+        let principalUID: String
+        let authenticatedMember: MemberAuthorizationSignature
+        let currentMember: MemberAuthorizationSignature
+        let environment: SessionEnvironment
+    }
+
+    struct MemberAuthorizationSignature: Equatable {
+        let id: String
+        let authUID: String?
+        let roles: Set<MemberRole>
+        let isActive: Bool
     }
 
     struct NewsMutationEditorOwnership: Equatable {

@@ -1,3 +1,4 @@
+import FirebaseCore
 import FirebaseFirestore
 import Foundation
 
@@ -35,30 +36,31 @@ private let seasonalCommitmentQtyFields = [
     "quantity"
 ]
 
-final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, SeasonalCommitmentRepository {
-    private let db: Firestore
-    private let environment: ReguertaFirestoreEnvironment?
+actor FirestoreSeasonalCommitmentRepository: SeasonalCommitmentRepository {
+    private let storedDB: Firestore
 
-    init(db: Firestore = Firestore.firestore(), environment: ReguertaFirestoreEnvironment? = nil) {
-        self.db = db
-        self.environment = environment
+    init(firebaseAppName: String) {
+        guard let app = FirebaseApp.app(name: firebaseAppName) else {
+            preconditionFailure("Firebase app is required for seasonal commitments")
+        }
+        self.storedDB = Firestore.firestore(app: app)
     }
 
-    private var commitmentsCollection: CollectionReference {
-        db.reguertaCollection(.seasonalCommitments, environment: environment)
+    func activeCommitments(userId: String, environment: SessionEnvironment) async throws -> [SeasonalCommitment] {
+        return try await activeCommitments(userId: userId, source: .defaultSource, environment: environment)
     }
 
-    func activeCommitments(userId: String) async throws -> [SeasonalCommitment] {
-        try await activeCommitments(userId: userId, source: .defaultSource)
-    }
-
-    func activeCommitmentsFromServer(userId: String) async throws -> [SeasonalCommitment] {
-        try await activeCommitments(userId: userId, source: .server)
+    func activeCommitmentsFromServer(
+        userId: String,
+        environment: SessionEnvironment
+    ) async throws -> [SeasonalCommitment] {
+        return try await activeCommitments(userId: userId, source: .server, environment: environment)
     }
 
     private func activeCommitments(
         userId: String,
-        source: SeasonalCommitmentReadSource
+        source: SeasonalCommitmentReadSource,
+        environment: SessionEnvironment
     ) async throws -> [SeasonalCommitment] {
         let normalizedLookup = userId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedLookup.isEmpty else { return [] }
@@ -66,7 +68,8 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
         do {
             return try await canonicalDocuments(
                 lookupValue: normalizedLookup,
-                source: source
+                source: source,
+                environment: environment
             )
                 .map { document in
                     try Self.commitment(documentID: document.documentID, data: document.data())
@@ -81,12 +84,15 @@ final class FirestoreSeasonalCommitmentRepository: @unchecked Sendable, Seasonal
 
     private func canonicalDocuments(
         lookupValue: String,
-        source: SeasonalCommitmentReadSource
+        source: SeasonalCommitmentReadSource,
+        environment: SessionEnvironment
     ) async throws -> [QueryDocumentSnapshot] {
+        let commitmentsCollection = storedDB.reguertaCollection(.seasonalCommitments, environment: environment)
         let query = commitmentsCollection.whereField(
             seasonalCommitmentCanonicalUserField,
             isEqualTo: lookupValue
         )
+        try Task.checkCancellation()
         let snapshot = switch source {
         case .defaultSource:
             try await query.getDocuments()

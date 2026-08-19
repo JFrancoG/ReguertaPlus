@@ -144,13 +144,27 @@ extension SessionViewModel {
         sessionOperationState == .draining(generation: generation)
     }
 
+    /// Revokes local authorization immediately and keeps the session lane draining until owned cleanup completes.
+    func prepareForResolvedAuthorizationRevocation(principalEmail: String) {
+        let hadOwnedSessionOperation = prepareForLocalSessionTermination()
+        guard !hadOwnedSessionOperation else { return }
+        startStandaloneSessionTerminationBarrier(
+            firebaseSignOutSucceeded: authSessionProvider.signOut(),
+            principalEmail: principalEmail
+        )
+    }
+
     @discardableResult private func prepareForLocalSessionTermination() -> Bool {
+        let environmentLease = authorizedEnvironmentLease
         let deviceSessionLease = authorizedDeviceSessionLease
         let hadOwnedSessionOperation = sessionOperationState != .idle
+        authorizedEnvironmentLease = nil
         authorizedDeviceSessionLease = nil
         invalidateSessionOperation()
         clearSessionRefreshTracking()
-        environmentRouter.resetToBaseEnvironment()
+        if let environmentLease {
+            environmentRouter.resetToBaseEnvironment(ifOwnedBy: environmentLease)
+        }
         let freshnessCleanupSucceeded: Bool
         do {
             try criticalDataFreshnessLocalRepository.clear()

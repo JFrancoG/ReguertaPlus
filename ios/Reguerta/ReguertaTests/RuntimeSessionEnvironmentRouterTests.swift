@@ -3,33 +3,27 @@ import Testing
 @testable import Reguerta
 
 @MainActor
-@Suite(.serialized)
 struct RuntimeSessionEnvironmentRouterTests {
-    @Test func applyMutatesRuntimeBeforePublishingTheEffectiveEnvironment() {
-        ReguertaRuntimeEnvironment.setBaseEnvironmentForTesting(.develop)
-        defer { ReguertaRuntimeEnvironment.setBaseEnvironmentForTesting(nil) }
-
-        let signal = SessionEnvironmentRoutingSignal(environment: .develop)
-        let recorder = RuntimeRoutingTransitionRecorder()
-        signal.observe { transition in
+    @Test func applyMutatesOwnedStoreBeforePublishingTheEffectiveEnvironment() {
+        let store = RuntimeSessionEnvironmentStore(baseEnvironment: .develop)
+        let recorder = RuntimeRoutingTransitionRecorder(environmentProvider: store)
+        store.transitionSignal.observe { transition in
             recorder.record(transition)
         }
-        let router = RuntimeSessionEnvironmentRouter(transitionSignal: signal)
+        let router = RuntimeSessionEnvironmentRouter(environmentStore: store)
 
         router.applyResolvedEnvironment(.production, lease: SessionEnvironmentLease())
 
-        #expect(ReguertaRuntimeEnvironment.currentFirestoreEnvironment == .production)
+        #expect(store.snapshot().environment == .production)
         #expect(recorder.transition?.environment == .production)
         #expect(recorder.runtimeEnvironmentAtObservation == .production)
-        #expect(ReguertaFirestorePath().collectionPath(.users).hasPrefix("production/"))
+        #expect(ReguertaFirestorePath(environment: .production).collectionPath(.users).hasPrefix("production/"))
         #expect(ReguertaFirestorePath(environment: .develop).collectionPath(.users).hasPrefix("develop/"))
     }
 
     @Test func staleLeaseCannotResetTheEnvironmentOwnedByANewerLease() {
-        ReguertaRuntimeEnvironment.setBaseEnvironmentForTesting(.develop)
-        defer { ReguertaRuntimeEnvironment.setBaseEnvironmentForTesting(nil) }
-
-        let router = RuntimeSessionEnvironmentRouter()
+        let store = RuntimeSessionEnvironmentStore(baseEnvironment: .develop)
+        let router = RuntimeSessionEnvironmentRouter(environmentStore: store)
         let staleLease = SessionEnvironmentLease()
         let currentLease = SessionEnvironmentLease()
         router.applyResolvedEnvironment(.production, lease: staleLease)
@@ -37,32 +31,29 @@ struct RuntimeSessionEnvironmentRouterTests {
 
         router.resetToBaseEnvironment(ifOwnedBy: staleLease)
 
-        #expect(ReguertaRuntimeEnvironment.currentFirestoreEnvironment == .production)
+        #expect(store.snapshot().environment == .production)
         #expect(router.transitionSignal.currentTransition.environment == .production)
 
         router.resetToBaseEnvironment(ifOwnedBy: currentLease)
 
-        #expect(ReguertaRuntimeEnvironment.currentFirestoreEnvironment == .develop)
+        #expect(store.snapshot().environment == .develop)
         #expect(router.transitionSignal.currentTransition.environment == .develop)
     }
 
     @Test func resetsMutateRuntimeBeforePublishingTheBaseEnvironment() {
-        ReguertaRuntimeEnvironment.setBaseEnvironmentForTesting(.develop)
-        defer { ReguertaRuntimeEnvironment.setBaseEnvironmentForTesting(nil) }
-
-        let signal = SessionEnvironmentRoutingSignal(environment: .develop)
-        let recorder = RuntimeRoutingTransitionRecorder()
-        signal.observe { transition in
+        let store = RuntimeSessionEnvironmentStore(baseEnvironment: .develop)
+        let recorder = RuntimeRoutingTransitionRecorder(environmentProvider: store)
+        store.transitionSignal.observe { transition in
             recorder.record(transition)
         }
-        let router = RuntimeSessionEnvironmentRouter(transitionSignal: signal)
+        let router = RuntimeSessionEnvironmentRouter(environmentStore: store)
         let conditionalLease = SessionEnvironmentLease()
         router.applyResolvedEnvironment(.production, lease: conditionalLease)
         recorder.reset()
 
         router.resetToBaseEnvironment(ifOwnedBy: conditionalLease)
 
-        #expect(ReguertaRuntimeEnvironment.currentFirestoreEnvironment == .develop)
+        #expect(store.snapshot().environment == .develop)
         #expect(recorder.transition?.environment == .develop)
         #expect(recorder.runtimeEnvironmentAtObservation == .develop)
 
@@ -71,44 +62,67 @@ struct RuntimeSessionEnvironmentRouterTests {
 
         router.resetToBaseEnvironment()
 
-        #expect(ReguertaRuntimeEnvironment.currentFirestoreEnvironment == .develop)
+        #expect(store.snapshot().environment == .develop)
         #expect(recorder.transition?.environment == .develop)
         #expect(recorder.runtimeEnvironmentAtObservation == .develop)
     }
 
-    @Test func changingTheTestingBaseClearsTheOverrideAndItsLease() {
-        ReguertaRuntimeEnvironment.setBaseEnvironmentForTesting(.develop)
-        defer { ReguertaRuntimeEnvironment.setBaseEnvironmentForTesting(nil) }
+    @Test func independentlyComposedRoutersDoNotShareStateOrSignals() {
+        let firstStore = RuntimeSessionEnvironmentStore(baseEnvironment: .develop)
+        let secondStore = RuntimeSessionEnvironmentStore(baseEnvironment: .develop)
+        let firstRouter = RuntimeSessionEnvironmentRouter(environmentStore: firstStore)
+        let secondRouter = RuntimeSessionEnvironmentRouter(environmentStore: secondStore)
 
-        let router = RuntimeSessionEnvironmentRouter()
-        let obsoleteLease = SessionEnvironmentLease()
-        router.applyResolvedEnvironment(.production, lease: obsoleteLease)
+        firstRouter.applyResolvedEnvironment(.production, lease: SessionEnvironmentLease())
 
-        ReguertaRuntimeEnvironment.setBaseEnvironmentForTesting(.production)
+        #expect(firstStore.snapshot().environment == .production)
+        #expect(secondStore.snapshot().environment == .develop)
+        #expect(firstRouter.transitionSignal.currentTransition.generation == 1)
+        #expect(secondRouter.transitionSignal.currentTransition.generation == 0)
+    }
 
-        #expect(ReguertaRuntimeEnvironment.baseFirestoreEnvironment == .production)
-        #expect(ReguertaRuntimeEnvironment.currentFirestoreEnvironment == .production)
+    @Test func routersSharingAStoreShareStateAndTransitions() {
+        let store = RuntimeSessionEnvironmentStore(baseEnvironment: .develop)
+        let firstRouter = RuntimeSessionEnvironmentRouter(environmentStore: store)
+        let secondRouter = RuntimeSessionEnvironmentRouter(environmentStore: store)
+        let recorder = RuntimeRoutingTransitionRecorder(environmentProvider: store)
+        secondRouter.transitionSignal.observe { transition in
+            recorder.record(transition)
+        }
 
-        let currentLease = SessionEnvironmentLease()
-        router.applyResolvedEnvironment(.develop, lease: currentLease)
-        router.resetToBaseEnvironment(ifOwnedBy: obsoleteLease)
+        firstRouter.applyResolvedEnvironment(.production, lease: SessionEnvironmentLease())
 
-        #expect(ReguertaRuntimeEnvironment.currentFirestoreEnvironment == .develop)
+        #expect(firstRouter.transitionSignal === secondRouter.transitionSignal)
+        #expect(store.snapshot().environment == .production)
+        #expect(recorder.transition?.environment == .production)
+        #expect(recorder.runtimeEnvironmentAtObservation == .production)
+    }
 
-        router.resetToBaseEnvironment(ifOwnedBy: currentLease)
+    @Test func capturedSnapshotDoesNotChangeWithASuccessorRoute() {
+        let store = RuntimeSessionEnvironmentStore(baseEnvironment: .develop)
+        let router = RuntimeSessionEnvironmentRouter(environmentStore: store)
+        let captured = store.snapshot()
 
-        #expect(ReguertaRuntimeEnvironment.currentFirestoreEnvironment == .production)
+        router.applyResolvedEnvironment(.production, lease: SessionEnvironmentLease())
+
+        #expect(captured.environment == .develop)
+        #expect(store.snapshot().environment == .production)
     }
 }
 
 @MainActor
 private final class RuntimeRoutingTransitionRecorder {
+    private let environmentProvider: any SessionEnvironmentSnapshotProviding
     private(set) var transition: SessionEnvironmentRoutingTransition?
     private(set) var runtimeEnvironmentAtObservation: SessionEnvironment?
 
+    init(environmentProvider: any SessionEnvironmentSnapshotProviding) {
+        self.environmentProvider = environmentProvider
+    }
+
     func record(_ transition: SessionEnvironmentRoutingTransition) {
         self.transition = transition
-        self.runtimeEnvironmentAtObservation = ReguertaRuntimeEnvironment.currentFirestoreEnvironment
+        self.runtimeEnvironmentAtObservation = environmentProvider.snapshot().environment
     }
 
     func reset() {

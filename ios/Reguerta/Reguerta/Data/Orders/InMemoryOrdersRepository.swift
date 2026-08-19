@@ -35,7 +35,7 @@ actor InMemoryOrdersRepository: OrdersRepository {
 
     init() {}
 
-    func submitMyOrder(_ request: MyOrderCheckoutRequest) async -> Bool {
+    func submitMyOrder(_ request: MyOrderCheckoutRequest, environment _: SessionEnvironment) async -> Bool {
         guard submitResult,
               request.currentMember != nil,
               request.selectedQuantities.values.contains(where: { $0 > 0 }) else {
@@ -55,12 +55,17 @@ actor InMemoryOrdersRepository: OrdersRepository {
 
     func previousOrderSnapshot(
         currentMember: Member?,
-        previousWeekKey: String
+        previousWeekKey: String,
+        environment: SessionEnvironment
     ) async throws -> MyOrderPreviousOrderSnapshot? {
-        try await orderSummarySnapshot(currentMember: currentMember, weekKey: previousWeekKey)
+        try await orderSummarySnapshot(
+            currentMember: currentMember,
+            weekKey: previousWeekKey,
+            environment: environment
+        )
     }
 
-    func orderHistoryWeekKeys(currentMember: Member?) async throws -> [String] {
+    func orderHistoryWeekKeys(currentMember: Member?, environment _: SessionEnvironment) async throws -> [String] {
         if let previousOrderError {
             throw previousOrderError
         }
@@ -70,7 +75,11 @@ actor InMemoryOrdersRepository: OrdersRepository {
         return Array(explicitKeys.union(seededKeys)).sorted()
     }
 
-    func orderSummarySnapshot(currentMember: Member?, weekKey: String) async throws -> MyOrderPreviousOrderSnapshot? {
+    func orderSummarySnapshot(
+        currentMember: Member?,
+        weekKey: String,
+        environment _: SessionEnvironment
+    ) async throws -> MyOrderPreviousOrderSnapshot? {
         if let previousOrderError {
             throw previousOrderError
         }
@@ -78,7 +87,11 @@ actor InMemoryOrdersRepository: OrdersRepository {
         return previousOrdersByWeekKey[weekKey]
     }
 
-    func myOrderProducerStatuses(currentMember: Member?, weekKey: String) async -> MyOrderProducerStatusSnapshot {
+    func myOrderProducerStatuses(
+        currentMember: Member?,
+        weekKey: String,
+        environment _: SessionEnvironment
+    ) async -> MyOrderProducerStatusSnapshot {
         guard let memberId = currentMember?.id else {
             return MyOrderProducerStatusSnapshot(byVendor: [:], legacyStatus: .unread)
         }
@@ -86,14 +99,18 @@ actor InMemoryOrdersRepository: OrdersRepository {
             ?? MyOrderProducerStatusSnapshot(byVendor: [:], legacyStatus: .unread)
     }
 
-    func receivedOrdersSnapshot(producerId: String, targetWeekKey: String) async throws -> ReceivedOrdersSnapshot? {
+    func receivedOrdersSnapshot(
+        producerId: String,
+        targetWeekKey: String,
+        environment _: SessionEnvironment
+    ) async throws -> ReceivedOrdersSnapshot? {
         if let receivedOrdersError {
             throw receivedOrdersError
         }
         return receivedSnapshotsByProducerWeek[receivedKey(producerId: producerId, weekKey: targetWeekKey)]
     }
 
-    func receivedOrdersHistoryWeekKeys(producerId: String) async throws -> [String] {
+    func receivedOrdersHistoryWeekKeys(producerId: String, environment _: SessionEnvironment) async throws -> [String] {
         if let receivedOrdersError {
             throw receivedOrdersError
         }
@@ -106,15 +123,24 @@ actor InMemoryOrdersRepository: OrdersRepository {
         return Array(explicitKeys.union(seededKeys)).sorted()
     }
 
-    func receivedOrdersHistorySnapshot(producerId: String, weekKey: String) async throws -> ReceivedOrdersSnapshot? {
-        try await receivedOrdersSnapshot(producerId: producerId, targetWeekKey: weekKey)
+    func receivedOrdersHistorySnapshot(
+        producerId: String,
+        weekKey: String,
+        environment: SessionEnvironment
+    ) async throws -> ReceivedOrdersSnapshot? {
+        try await receivedOrdersSnapshot(
+            producerId: producerId,
+            targetWeekKey: weekKey,
+            environment: environment
+        )
     }
 
     func updateReceivedOrderProducerStatus(
         orderId: String,
         producerId: String,
         status: ProducerOrderStatus,
-        nowMillis: Int64
+        nowMillis: Int64,
+        environment _: SessionEnvironment
     ) async -> ReceivedOrderStatusWriteResult {
         receivedStatusUpdateRequests.append(
             ReceivedStatusUpdate(orderId: orderId, producerId: producerId, status: status)

@@ -9,6 +9,15 @@ struct AuthorizedSession: Equatable {
     var environment: SessionEnvironment
 }
 
+extension AuthorizedSession {
+    var representsActiveAuthorization: Bool {
+        principal.uid == authenticatedMember.authUid &&
+            authenticatedMember.isActive &&
+            member.isActive &&
+            (member.id == authenticatedMember.id || authenticatedMember.canManageMembers)
+    }
+}
+
 struct SessionOperationContext {
     let generation: UInt64
     let predecessor: Task<Void, Never>?
@@ -113,6 +122,7 @@ final class SessionViewModel {
     @ObservationIgnored var sessionTerminationCleanupGeneration: UInt64 = 0
     @ObservationIgnored var sessionOperationGeneration: UInt64 = 0
     @ObservationIgnored var sessionOperationPrincipalEmail = ""
+    @ObservationIgnored var authorizedEnvironmentLease: SessionEnvironmentLease?
     @ObservationIgnored var authorizedDeviceSessionLease: AuthorizedDeviceSessionLease?
 
     var isDevelopImpersonationEnabled: Bool {

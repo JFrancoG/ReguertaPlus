@@ -44,87 +44,83 @@ func resolveMyOrderConsultaWindow(
     )
 }
 
-func loadMyOrderProducerStatuses(
-    currentMember: Member?,
-    weekKey: String,
-    db: Firestore = Firestore.firestore(),
-    environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment
-) async -> MyOrderProducerStatusSnapshot {
-    guard let member = currentMember else {
-        return MyOrderProducerStatusSnapshot(byVendor: [:], legacyStatus: .unread)
-    }
-    let firestorePath = ReguertaFirestorePath(environment: environment)
-    do {
-        let orderDocuments = try await fetchMyOrderOwnedWeekDocuments(
-            collectionPath: firestorePath.collectionPath(.orders),
-            memberId: member.id,
-            weekKey: weekKey,
-            db: db
-        )
-        guard orderDocuments.count == 1, let payload = orderDocuments.values.first else {
+extension FirestoreOrdersRepository {
+    func loadMyOrderProducerStatuses(
+        currentMember: Member?,
+        weekKey: String,
+        environment: ReguertaFirestoreEnvironment
+    ) async -> MyOrderProducerStatusSnapshot {
+        guard let member = currentMember else {
             return MyOrderProducerStatusSnapshot(byVendor: [:], legacyStatus: .unread)
         }
-        return MyOrderProducerStatusSnapshot(
-            byVendor: myOrderProducerStatusesByVendor(from: payload),
-            legacyStatus: ProducerOrderStatus.from(payload["producerStatus"] as? String)
-        )
-    } catch {
-        return MyOrderProducerStatusSnapshot(byVendor: [:], legacyStatus: .unread)
-    }
-}
-
-func fetchPreviousWeekOrderSnapshot(
-    currentMember: Member?,
-    previousWeekKey: String,
-    db: Firestore = Firestore.firestore(),
-    environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment
-) async throws -> MyOrderPreviousOrderSnapshot? {
-    try await fetchOrderSummarySnapshot(
-        currentMember: currentMember,
-        weekKey: previousWeekKey,
-        db: db,
-        environment: environment
-    )
-}
-
-func fetchOrderSummarySnapshot(
-    currentMember: Member?,
-    weekKey: String,
-    db: Firestore = Firestore.firestore(),
-    environment: ReguertaFirestoreEnvironment = ReguertaRuntimeEnvironment.currentFirestoreEnvironment
-) async throws -> MyOrderPreviousOrderSnapshot? {
-    guard let member = currentMember else { return nil }
-    let firestorePath = ReguertaFirestorePath(environment: environment)
-    let readTargets = resolvePreviousOrderReadTargets(
-        firestorePath: firestorePath
-    )
-    let deterministicOrderId = "\(member.id)_\(weekKey)"
-    var lastError: Error?
-    var hasSuccessfulRead = false
-
-    for target in readTargets {
+        let firestorePath = ReguertaFirestorePath(environment: environment)
         do {
-            let snapshot = try await fetchPreviousWeekOrderSnapshot(
-                target: target,
-                deterministicOrderId: deterministicOrderId,
+            let orderDocuments = try await fetchMyOrderOwnedWeekDocuments(
+                collectionPath: firestorePath.collectionPath(.orders),
                 memberId: member.id,
-                previousWeekKey: weekKey,
-                db: db
+                weekKey: weekKey
             )
-            hasSuccessfulRead = true
-            if let snapshot {
-                return snapshot
+            guard orderDocuments.count == 1, let payload = orderDocuments.values.first else {
+                return MyOrderProducerStatusSnapshot(byVendor: [:], legacyStatus: .unread)
             }
+            return MyOrderProducerStatusSnapshot(
+                byVendor: myOrderProducerStatusesByVendor(from: payload),
+                legacyStatus: ProducerOrderStatus.from(payload["producerStatus"] as? String)
+            )
         } catch {
-            lastError = error
-            continue
+            return MyOrderProducerStatusSnapshot(byVendor: [:], legacyStatus: .unread)
         }
     }
 
-    if !hasSuccessfulRead, let lastError {
-        throw lastError
+    func fetchPreviousWeekOrderSnapshot(
+        currentMember: Member?,
+        previousWeekKey: String,
+        environment: ReguertaFirestoreEnvironment
+    ) async throws -> MyOrderPreviousOrderSnapshot? {
+        try await fetchOrderSummarySnapshot(
+            currentMember: currentMember,
+            weekKey: previousWeekKey,
+            environment: environment
+        )
     }
-    return nil
+
+    func fetchOrderSummarySnapshot(
+        currentMember: Member?,
+        weekKey: String,
+        environment: ReguertaFirestoreEnvironment
+    ) async throws -> MyOrderPreviousOrderSnapshot? {
+        guard let member = currentMember else { return nil }
+        let firestorePath = ReguertaFirestorePath(environment: environment)
+        let readTargets = resolvePreviousOrderReadTargets(
+            firestorePath: firestorePath
+        )
+        let deterministicOrderId = "\(member.id)_\(weekKey)"
+        var lastError: Error?
+        var hasSuccessfulRead = false
+
+        for target in readTargets {
+            do {
+                let snapshot = try await fetchPreviousWeekOrderSnapshot(
+                    target: target,
+                    deterministicOrderId: deterministicOrderId,
+                    memberId: member.id,
+                    previousWeekKey: weekKey
+                )
+                hasSuccessfulRead = true
+                if let snapshot {
+                    return snapshot
+                }
+            } catch {
+                lastError = error
+                continue
+            }
+        }
+
+        if !hasSuccessfulRead, let lastError {
+            throw lastError
+        }
+        return nil
+    }
 }
 
 func resolvePreviousOrderReadTargets(firestorePath: ReguertaFirestorePath) -> [MyOrderCheckoutWriteTarget] {
@@ -136,80 +132,75 @@ func resolvePreviousOrderReadTargets(firestorePath: ReguertaFirestorePath) -> [M
     ]
 }
 
-func fetchPreviousWeekOrderSnapshot(
-    target: MyOrderCheckoutWriteTarget,
-    deterministicOrderId: String,
-    memberId: String,
-    previousWeekKey: String,
-    db: Firestore
-) async throws -> MyOrderPreviousOrderSnapshot? {
-    let orderDocuments = try await fetchPreviousOrderDocuments(
-        target: target,
-        memberId: memberId,
-        weekKey: previousWeekKey,
-        db: db
-    )
+extension FirestoreOrdersRepository {
+    func fetchPreviousWeekOrderSnapshot(
+        target: MyOrderCheckoutWriteTarget,
+        deterministicOrderId: String,
+        memberId: String,
+        previousWeekKey: String
+    ) async throws -> MyOrderPreviousOrderSnapshot? {
+        let orderDocuments = try await fetchPreviousOrderDocuments(
+            target: target,
+            memberId: memberId,
+            weekKey: previousWeekKey
+        )
 
-    let candidateOrderIds = myOrderCandidateOrderIds(
-        deterministicOrderId: deterministicOrderId,
-        discoveredOrderIds: Array(orderDocuments.keys)
-    )
-    let lineDocuments = try await fetchPreviousOrderLineDocuments(
-        target: target,
-        candidateOrderIds: candidateOrderIds,
-        memberId: memberId,
-        weekKey: previousWeekKey,
-        db: db
-    )
+        let candidateOrderIds = myOrderCandidateOrderIds(
+            deterministicOrderId: deterministicOrderId,
+            discoveredOrderIds: Array(orderDocuments.keys)
+        )
+        let lineDocuments = try await fetchPreviousOrderLineDocuments(
+            target: target,
+            candidateOrderIds: candidateOrderIds,
+            memberId: memberId,
+            weekKey: previousWeekKey
+        )
 
-    let lines = lineDocuments.values.map { data in
-        myOrderPreviousLine(from: data)
+        let lines = lineDocuments.values.map { data in
+            myOrderPreviousLine(from: data)
+        }
+        let groups = buildMyOrderPreviousGroups(from: lines)
+        guard !groups.isEmpty else { return nil }
+
+        let documentedTotals = orderDocuments.values.compactMap { data in
+            (data["total"] as? NSNumber)?.doubleValue
+        }
+        let total = documentedTotals.isEmpty
+            ? groups.reduce(0) { $0 + $1.subtotal }
+            : documentedTotals.reduce(0, +)
+
+        return MyOrderPreviousOrderSnapshot(
+            weekKey: previousWeekKey,
+            groups: groups,
+            total: total
+        )
     }
-    let groups = buildMyOrderPreviousGroups(from: lines)
-    guard !groups.isEmpty else { return nil }
 
-    let documentedTotals = orderDocuments.values.compactMap { data in
-        (data["total"] as? NSNumber)?.doubleValue
+    private func fetchPreviousOrderDocuments(
+        target: MyOrderCheckoutWriteTarget,
+        memberId: String,
+        weekKey: String
+    ) async throws -> [String: [String: Any]] {
+        try await fetchMyOrderOwnedWeekDocuments(
+            collectionPath: target.orders,
+            memberId: memberId,
+            weekKey: weekKey
+        )
     }
-    let total = documentedTotals.isEmpty
-        ? groups.reduce(0) { $0 + $1.subtotal }
-        : documentedTotals.reduce(0, +)
 
-    return MyOrderPreviousOrderSnapshot(
-        weekKey: previousWeekKey,
-        groups: groups,
-        total: total
-    )
-}
-
-private func fetchPreviousOrderDocuments(
-    target: MyOrderCheckoutWriteTarget,
-    memberId: String,
-    weekKey: String,
-    db: Firestore
-) async throws -> [String: [String: Any]] {
-    try await fetchMyOrderOwnedWeekDocuments(
-        collectionPath: target.orders,
-        memberId: memberId,
-        weekKey: weekKey,
-        db: db
-    )
-}
-
-private func fetchPreviousOrderLineDocuments(
-    target: MyOrderCheckoutWriteTarget,
-    candidateOrderIds: [String],
-    memberId: String,
-    weekKey: String,
-    db: Firestore
-) async throws -> [String: [String: Any]] {
-    try await fetchMyOrderOwnedLineDocuments(
-        collectionPath: target.orderlines,
-        orderIds: candidateOrderIds,
-        memberId: memberId,
-        weekKey: weekKey,
-        db: db
-    )
+    private func fetchPreviousOrderLineDocuments(
+        target: MyOrderCheckoutWriteTarget,
+        candidateOrderIds: [String],
+        memberId: String,
+        weekKey: String
+    ) async throws -> [String: [String: Any]] {
+        try await fetchMyOrderOwnedLineDocuments(
+            collectionPath: target.orderlines,
+            orderIds: candidateOrderIds,
+            memberId: memberId,
+            weekKey: weekKey
+        )
+    }
 }
 
 nonisolated func myOrderCandidateOrderIds(deterministicOrderId: String, discoveredOrderIds: [String]) -> [String] {

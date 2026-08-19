@@ -40,13 +40,13 @@ struct SessionViewModelDependencies {
         }
     ) -> SessionViewModelDependencies {
         let useMockAuth = ProcessInfo.processInfo.arguments.contains("-useMockAuth")
-        let selectedRepository: any MemberRepository = repository ?? (useMockAuth
-            ? InMemoryMemberRepository()
-            : FirestoreMemberRepository(db: db))
-        let selectedAuthProvider: any AuthSessionProvider = authSessionProvider
-            ?? (useMockAuth ? MockAuthSessionProvider() : FirebaseAuthSessionProvider())
         let selectedEnvironmentRouter: any SessionEnvironmentRouting = environmentRouter
             ?? (useMockAuth ? FixedSessionEnvironmentRouter() : RuntimeSessionEnvironmentRouter())
+        let selectedRepository: any MemberRepository = repository ?? (useMockAuth
+            ? InMemoryMemberRepository()
+            : FirestoreMemberRepository(firebaseAppName: db.app.name))
+        let selectedAuthProvider: any AuthSessionProvider = authSessionProvider
+            ?? (useMockAuth ? MockAuthSessionProvider() : FirebaseAuthSessionProvider())
         let selectedResolver: any AuthorizedMemberResolving
         if let authorizedMemberResolver {
             selectedResolver = authorizedMemberResolver

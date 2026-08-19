@@ -8,13 +8,14 @@ import Testing
 func member(
     id: String,
     ecoCommitmentMode: EcoCommitmentMode,
-    ecoCommitmentParity: ProducerParity? = nil
+    ecoCommitmentParity: ProducerParity? = nil,
+    authUID: String? = nil
 ) -> Member {
     Member(
         id: id,
         displayName: "Member",
         normalizedEmail: "\(id)@reguerta.app",
-        authUid: "auth_\(id)",
+        authUid: authUID ?? "auth_\(id)",
         roles: [.member],
         isActive: true,
         producerCatalogEnabled: true,
@@ -28,7 +29,7 @@ func member(
         id: id,
         displayName: id,
         normalizedEmail: "\(id)@reguerta.app",
-        authUid: nil,
+        authUid: "auth_\(id)",
         roles: [.producer],
         isActive: true,
         producerCatalogEnabled: true,
@@ -297,7 +298,7 @@ let may2026HomeSummaryMembers = [
 struct FixedStartupVersionPolicyRepository: StartupVersionPolicyRepository {
     let policy: StartupVersionPolicy?
 
-    func policy(for platform: StartupPlatform) async throws -> StartupVersionPolicy {
+    func policy(for platform: StartupPlatform, environment _: SessionEnvironment) async throws -> StartupVersionPolicy {
         guard let policy else {
             throw RepositoryError.notFound(resource: "config.public")
         }

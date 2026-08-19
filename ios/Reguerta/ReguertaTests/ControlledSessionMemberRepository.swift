@@ -13,7 +13,7 @@ actor ControlledSessionMemberRepository: MemberRepository {
         memberValue = member
     }
 
-    func member(id _: String) async throws -> Member? {
+    func member(id _: String, environment _: SessionEnvironment) async throws -> Member? {
         memberRequestCount += 1
         resumeSatisfiedMemberRequestWaiters()
         return try await withCheckedThrowingContinuation { continuation in
@@ -21,11 +21,15 @@ actor ControlledSessionMemberRepository: MemberRepository {
         }
     }
 
-    func members(visibleTo _: Member) async throws -> [Member] {
+    func members(visibleTo _: Member, environment _: SessionEnvironment) async throws -> [Member] {
         [memberValue]
     }
 
-    func updateOwnProducerCatalogEnabled(member _: Member, enabled _: Bool) async throws -> Member {
+    func updateOwnProducerCatalogEnabled(
+        member _: Member,
+        enabled _: Bool,
+        environment _: SessionEnvironment
+    ) async throws -> Member {
         memberValue
     }
 

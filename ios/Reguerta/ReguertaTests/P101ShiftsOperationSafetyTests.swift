@@ -21,7 +21,9 @@ struct P101ShiftsOperationSafetyTests {
         await viewModel.confirmShiftPlanningRequest()
 
         let requests = await repository.recordedRequests()
+        let environments = await repository.recordedEnvironments()
         #expect(requests.count == 2)
+        #expect(environments == [.develop, .develop])
         #expect(requests[0].id.isEmpty == false)
         #expect(requests[0].id == requests[1].id)
         #expect(requests[0].requestedAtMillis == 111)
@@ -104,6 +106,7 @@ struct P101ShiftsOperationSafetyTests {
         #expect(viewModel.currentEnvironment == .production)
         #expect(viewModel.shiftsFeed == [currentShift])
         #expect(viewModel.feedbackCenter.messageKey == nil)
+        #expect(await repository.recordedEnvironments() == [.develop, .production])
     }
 
     private func authorizedSession(
@@ -122,20 +125,22 @@ struct P101ShiftsOperationSafetyTests {
 
 @MainActor
 private final class CancelledShiftRepository: ShiftRepository {
-    func allShifts() async throws -> [ShiftAssignment] {
+    func allShifts(environment _: SessionEnvironment) async throws -> [ShiftAssignment] {
         throw CancellationError()
     }
 
-    func upsert(shift: ShiftAssignment) async throws -> ShiftAssignment {
+    func upsert(shift: ShiftAssignment, environment _: SessionEnvironment) async throws -> ShiftAssignment {
         shift
     }
 }
 
 private actor RejectingOncePlanningRepository: ShiftPlanningRequestRepository {
     private var requests: [ShiftPlanningRequest] = []
+    private var environments: [SessionEnvironment] = []
 
-    func submit(request: ShiftPlanningRequest) async throws -> ShiftPlanningRequest {
+    func submit(request: ShiftPlanningRequest, environment: SessionEnvironment) async throws -> ShiftPlanningRequest {
         requests.append(request)
+        environments.append(environment)
         if requests.count == 1 {
             throw RepositoryError.unavailable(resource: "shiftPlanningRequests")
         }
@@ -144,6 +149,10 @@ private actor RejectingOncePlanningRepository: ShiftPlanningRequestRepository {
 
     func recordedRequests() -> [ShiftPlanningRequest] {
         requests
+    }
+
+    func recordedEnvironments() -> [SessionEnvironment] {
+        environments
     }
 }
 
@@ -159,6 +168,7 @@ private final class MutableFirestoreEnvironment {
 private actor SuspendedFirstShiftRepository: ShiftRepository {
     private let subsequentResult: [ShiftAssignment]
     private var readCount = 0
+    private var environments: [SessionEnvironment] = []
     private var firstReadContinuation: CheckedContinuation<[ShiftAssignment], Never>?
     private var readCountWaiters: [(Int, CheckedContinuation<Void, Never>)] = []
 
@@ -166,7 +176,8 @@ private actor SuspendedFirstShiftRepository: ShiftRepository {
         self.subsequentResult = subsequentResult
     }
 
-    func allShifts() async throws -> [ShiftAssignment] {
+    func allShifts(environment: SessionEnvironment) async throws -> [ShiftAssignment] {
+        environments.append(environment)
         readCount += 1
         let completedCount = readCount
         let readyWaiters = readCountWaiters.filter { $0.0 <= completedCount }
@@ -176,8 +187,12 @@ private actor SuspendedFirstShiftRepository: ShiftRepository {
         return await withCheckedContinuation { firstReadContinuation = $0 }
     }
 
-    func upsert(shift: ShiftAssignment) async throws -> ShiftAssignment {
+    func upsert(shift: ShiftAssignment, environment _: SessionEnvironment) async throws -> ShiftAssignment {
         shift
+    }
+
+    func recordedEnvironments() -> [SessionEnvironment] {
+        environments
     }
 
     func waitForReadCount(_ expectedCount: Int) async {

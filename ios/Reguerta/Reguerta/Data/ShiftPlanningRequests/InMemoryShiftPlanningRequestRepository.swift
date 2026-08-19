@@ -3,7 +3,7 @@ import Foundation
 actor InMemoryShiftPlanningRequestRepository: ShiftPlanningRequestRepository {
     private var requests: [String: ShiftPlanningRequest] = [:]
 
-    func submit(request: ShiftPlanningRequest) async -> ShiftPlanningRequest {
+    func submit(request: ShiftPlanningRequest, environment _: SessionEnvironment) async -> ShiftPlanningRequest {
         let persisted = ShiftPlanningRequest(
             id: request.id.isEmpty ? UUID().uuidString : request.id,
             type: request.type,

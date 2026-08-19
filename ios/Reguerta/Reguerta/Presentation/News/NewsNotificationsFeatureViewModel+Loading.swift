@@ -59,13 +59,21 @@ extension NewsNotificationsFeatureViewModel {
             let allNews = try await performInitialLoadWithRecovery(
                 enabled: recoversInitialFailure,
                 shouldRetry: { self.isCurrentNewsRefresh(operationId, context: context) },
-                operation: { try await newsRepository.news(visibleTo: context.session.member) }
+                operation: {
+                    try await newsRepository.news(
+                        visibleTo: context.session.member,
+                        environment: context.environment
+                    )
+                }
             )
             try Task.checkCancellation()
-            guard isCurrentNewsRefresh(operationId, context: context) else { return }
+            guard isCurrentNewsRefresh(operationId, context: context) else {
+                finishNewsRefreshOperation(operationId)
+                return
+            }
             applyNewsSnapshot(allNews, member: context.session.member)
         } catch is CancellationError {
-            finishNewsRefreshOperation(operationId, context: context)
+            finishNewsRefreshOperation(operationId)
             return
         } catch {
             if isCurrentNewsRefresh(operationId, context: context),
@@ -75,7 +83,7 @@ extension NewsNotificationsFeatureViewModel {
                 feedbackCenter.show(AccessL10nKey.feedbackUnableLoadData)
             }
         }
-        finishNewsRefreshOperation(operationId, context: context)
+        finishNewsRefreshOperation(operationId)
     }
 
     func refreshNotifications(
@@ -91,23 +99,28 @@ extension NewsNotificationsFeatureViewModel {
                 shouldRetry: { self.isCurrentNotificationsRefresh(operationId, context: context) },
                 operation: {
                     async let notifications = notificationRepository.notifications(
-                        visibleTo: context.session.member
+                        visibleTo: context.session.member,
+                        environment: context.environment
                     )
                     async let readIDs = notificationRepository.readNotificationIds(
-                        memberId: context.memberID
+                        memberId: context.memberID,
+                        environment: context.environment
                     )
                     return try await (notifications, readIDs)
                 }
             )
             try Task.checkCancellation()
-            guard isCurrentNotificationsRefresh(operationId, context: context) else { return }
+            guard isCurrentNotificationsRefresh(operationId, context: context) else {
+                finishNotificationsRefreshOperation(operationId)
+                return
+            }
             applyNotificationsSnapshot(
                 allNotifications,
                 readNotificationIDs: readNotificationIDs,
                 member: context.session.member
             )
         } catch is CancellationError {
-            finishNotificationsRefreshOperation(operationId, context: context)
+            finishNotificationsRefreshOperation(operationId)
             return
         } catch {
             if isCurrentNotificationsRefresh(operationId, context: context),
@@ -117,7 +130,7 @@ extension NewsNotificationsFeatureViewModel {
                 feedbackCenter.show(AccessL10nKey.feedbackUnableLoadData)
             }
         }
-        finishNotificationsRefreshOperation(operationId, context: context)
+        finishNotificationsRefreshOperation(operationId)
     }
 
     func prepareNotificationsRoute() async {
@@ -131,7 +144,7 @@ extension NewsNotificationsFeatureViewModel {
             showDialogIfInactive: true,
             context: context
         )
-        finishNotificationsRouteOperation(routeOperationId, context: context)
+        finishNotificationsRouteOperation(routeOperationId)
     }
 
     func refreshPushNotificationPermission(showDialogIfInactive: Bool) async {
@@ -154,27 +167,28 @@ extension NewsNotificationsFeatureViewModel {
             try await notificationRepository.markNotificationsRead(
                 memberId: context.memberID,
                 notificationIds: unreadIDs,
-                readAtMillis: nowMillisProvider()
+                readAtMillis: nowMillisProvider(),
+                environment: context.environment
             )
             try Task.checkCancellation()
         } catch is CancellationError {
-            finishMarkReadOperation(operationId, context: context)
+            finishMarkReadOperation(operationId)
             return
         } catch {
             if isCurrentMarkRead(operationId, context: context) {
                 feedbackCenter.show(AccessL10nKey.authErrorNetwork)
             }
-            finishMarkReadOperation(operationId, context: context)
+            finishMarkReadOperation(operationId)
             return
         }
         guard isCurrentMarkRead(operationId, context: context) else {
-            finishMarkReadOperation(operationId, context: context)
+            finishMarkReadOperation(operationId)
             return
         }
         pendingConfirmedReadNotificationIds.formUnion(unreadIDs)
         readNotificationIds.formUnion(pendingConfirmedReadNotificationIds)
         notificationsStateRevision &+= 1
-        finishMarkReadOperation(operationId, context: context)
+        finishMarkReadOperation(operationId)
     }
 }
 
@@ -190,6 +204,13 @@ extension NewsNotificationsFeatureViewModel {
 
     func captureAuthorizedSessionContext() -> SessionContext? {
         guard let latestSession = authorizedSession else {
+            if currentSession != nil || currentMember != nil || currentEnvironment != nil {
+                sessionIdentityEpoch &+= 1
+                reset()
+            }
+            return nil
+        }
+        guard latestSession.representsActiveAuthorization else {
             if currentSession != nil || currentMember != nil || currentEnvironment != nil {
                 sessionIdentityEpoch &+= 1
                 reset()
@@ -227,21 +248,12 @@ extension NewsNotificationsFeatureViewModel {
               let currentMember else {
             return false
         }
+        let expectedSignature = context.authorizationSignature
         return sessionIdentityEpoch == context.epoch &&
             environmentRoutingGeneration == context.environmentRoutingGeneration &&
-            context.principalUID == latestSession.principal.uid &&
-            context.principalUID == currentSession.principal.uid &&
-            context.memberID == latestSession.member.id &&
-            context.memberID == currentSession.member.id &&
-            context.memberRoles == latestSession.member.roles &&
-            context.memberRoles == currentSession.member.roles &&
-            context.memberRoles == currentMember.roles &&
-            context.canPublishNews == latestSession.member.canPublishNews &&
-            context.canPublishNews == currentSession.member.canPublishNews &&
-            context.canSendAdminNotifications == latestSession.member.canSendAdminNotifications &&
-            context.canSendAdminNotifications == currentSession.member.canSendAdminNotifications &&
-            context.environment == latestSession.environment &&
-            context.environment == currentSession.environment &&
+            authorizationSignature(for: latestSession) == expectedSignature &&
+            authorizationSignature(for: currentSession) == expectedSignature &&
+            memberAuthorizationSignature(for: currentMember) == expectedSignature.currentMember &&
             context.environment == currentEnvironment &&
             context.environment == environmentProvider()
     }
@@ -263,16 +275,8 @@ private extension NewsNotificationsFeatureViewModel {
               let currentEnvironment else {
             return false
         }
-        return currentSession.principal.uid == session.principal.uid &&
-            currentSession.member.id == session.member.id &&
-            currentMember.id == session.member.id &&
-            currentSession.member.roles == session.member.roles &&
-            currentMember.roles == session.member.roles &&
-            currentSession.member.canPublishNews == session.member.canPublishNews &&
-            currentMember.canPublishNews == session.member.canPublishNews &&
-            currentSession.member.canSendAdminNotifications == session.member.canSendAdminNotifications &&
-            currentMember.canSendAdminNotifications == session.member.canSendAdminNotifications &&
-            currentSession.environment == session.environment &&
+        return authorizationSignature(for: currentSession) == authorizationSignature(for: session) &&
+            memberAuthorizationSignature(for: currentMember) == memberAuthorizationSignature(for: session.member) &&
             currentEnvironment == environment
     }
 
@@ -280,13 +284,28 @@ private extension NewsNotificationsFeatureViewModel {
         SessionContext(
             session: session,
             epoch: sessionIdentityEpoch,
-            principalUID: session.principal.uid,
-            memberID: session.member.id,
-            memberRoles: session.member.roles,
+            authorizationSignature: authorizationSignature(for: session),
             canPublishNews: session.member.canPublishNews,
             canSendAdminNotifications: session.member.canSendAdminNotifications,
-            environment: session.environment,
             environmentRoutingGeneration: environmentRoutingGeneration
+        )
+    }
+
+    func authorizationSignature(for session: AuthorizedSession) -> SessionAuthorizationSignature {
+        SessionAuthorizationSignature(
+            principalUID: session.principal.uid,
+            authenticatedMember: memberAuthorizationSignature(for: session.authenticatedMember),
+            currentMember: memberAuthorizationSignature(for: session.member),
+            environment: session.environment
+        )
+    }
+
+    func memberAuthorizationSignature(for member: Member) -> MemberAuthorizationSignature {
+        MemberAuthorizationSignature(
+            id: member.id,
+            authUID: member.authUid,
+            roles: member.roles,
+            isActive: member.isActive
         )
     }
 
@@ -353,8 +372,8 @@ private extension NewsNotificationsFeatureViewModel {
         activeNewsRefreshOperationId == operationId && isCurrentSession(context)
     }
 
-    func finishNewsRefreshOperation(_ operationId: UInt64, context: SessionContext) {
-        guard isCurrentNewsRefresh(operationId, context: context) else { return }
+    func finishNewsRefreshOperation(_ operationId: UInt64) {
+        guard activeNewsRefreshOperationId == operationId else { return }
         activeNewsRefreshOperationId = nil
         isLoadingNews = false
     }
@@ -370,8 +389,8 @@ private extension NewsNotificationsFeatureViewModel {
         activeNotificationsRefreshOperationId == operationId && isCurrentSession(context)
     }
 
-    func finishNotificationsRefreshOperation(_ operationId: UInt64, context: SessionContext) {
-        guard isCurrentNotificationsRefresh(operationId, context: context) else { return }
+    func finishNotificationsRefreshOperation(_ operationId: UInt64) {
+        guard activeNotificationsRefreshOperationId == operationId else { return }
         activeNotificationsRefreshOperationId = nil
         isLoadingNotifications = false
     }
@@ -386,8 +405,8 @@ private extension NewsNotificationsFeatureViewModel {
         activeNotificationsRouteOperationId == operationId && isCurrentSession(context)
     }
 
-    func finishNotificationsRouteOperation(_ operationId: UInt64, context: SessionContext) {
-        guard isCurrentNotificationsRoute(operationId, context: context) else { return }
+    func finishNotificationsRouteOperation(_ operationId: UInt64) {
+        guard activeNotificationsRouteOperationId == operationId else { return }
         activeNotificationsRouteOperationId = nil
     }
 
@@ -396,8 +415,9 @@ private extension NewsNotificationsFeatureViewModel {
         let operationId = nextPermissionRefreshOperationId
         activePermissionRefreshOperationId = operationId
         let isActive = await pushNotificationPermissionProvider.isPushNotificationPermissionActive()
+        guard activePermissionRefreshOperationId == operationId else { return }
+        defer { activePermissionRefreshOperationId = nil }
         guard !Task.isCancelled,
-              activePermissionRefreshOperationId == operationId,
               isCurrentSession(context) else {
             return
         }
@@ -405,7 +425,6 @@ private extension NewsNotificationsFeatureViewModel {
         if showDialogIfInactive, !isActive, !didDismissPushNotificationPermissionDialogForVisit {
             showsPushNotificationPermissionDialog = true
         }
-        activePermissionRefreshOperationId = nil
     }
 
     func beginMarkReadOperation() -> UInt64 {
@@ -418,8 +437,8 @@ private extension NewsNotificationsFeatureViewModel {
         activeMarkReadOperationId == operationId && isCurrentSession(context)
     }
 
-    func finishMarkReadOperation(_ operationId: UInt64, context: SessionContext) {
-        guard isCurrentMarkRead(operationId, context: context) else { return }
+    func finishMarkReadOperation(_ operationId: UInt64) {
+        guard activeMarkReadOperationId == operationId else { return }
         activeMarkReadOperationId = nil
     }
 }

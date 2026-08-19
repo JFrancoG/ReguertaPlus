@@ -41,6 +41,7 @@ final class AccessRootViewModel {
     @ObservationIgnored let receivedOrdersHistoryViewModel: ReceivedOrdersHistoryRouteViewModel
     @ObservationIgnored let myOrderFreshnessViewModel: MyOrderFreshnessViewModel
     @ObservationIgnored let bylawsViewModel: BylawsFeatureViewModel
+    @ObservationIgnored private let developmentTimeMachine: DevelopmentTimeMachine
     @ObservationIgnored let startupVersionGateUseCase: ResolveStartupVersionGateUseCase
     @ObservationIgnored private let shouldSkipSplashProvider: () -> Bool
     @ObservationIgnored private let installedVersionProvider: () -> String
@@ -101,6 +102,7 @@ final class AccessRootViewModel {
         usersFeatureDependencies: UsersFeatureDependencies = .preview(),
         myOrderFreshnessFeatureDependencies: MyOrderFreshnessFeatureDependencies = .preview(),
         bylawsFeatureDependencies: BylawsFeatureDependencies = .preview(),
+        developmentTimeMachine: DevelopmentTimeMachine,
         startupVersionGateUseCase: ResolveStartupVersionGateUseCase,
         shouldSkipSplashProvider: @escaping () -> Bool = {
             ProcessInfo.processInfo.arguments.contains("-skipSplash")
@@ -111,8 +113,7 @@ final class AccessRootViewModel {
         startupGateTimeout: Duration = .milliseconds(2_500),
         startupGateSleeper: @escaping @Sendable (Duration) async throws -> Void = {
             try await ContinuousClock().sleep(for: $0)
-        },
-        initialNowOverrideMillis: Int64? = nil
+        }
     ) {
         self.sessionViewModel = sessionViewModel
         let resolvedFeedbackCenter = feedbackCenter ?? sessionViewModel.feedbackCenter
@@ -142,12 +143,13 @@ final class AccessRootViewModel {
         self.receivedOrdersHistoryViewModel = featureViewModels.receivedOrdersHistoryViewModel
         self.myOrderFreshnessViewModel = featureViewModels.myOrderFreshnessViewModel
         self.bylawsViewModel = featureViewModels.bylawsViewModel
+        self.developmentTimeMachine = developmentTimeMachine
         self.startupVersionGateUseCase = startupVersionGateUseCase
         self.shouldSkipSplashProvider = shouldSkipSplashProvider
         self.installedVersionProvider = installedVersionProvider
         self.startupGateTimeout = startupGateTimeout
         self.startupGateSleeper = startupGateSleeper
-        self.nowOverrideMillis = initialNowOverrideMillis
+        self.nowOverrideMillis = developmentTimeMachine.overrideNowMillis
     }
 
 }
@@ -236,14 +238,17 @@ private extension AccessRootViewModel {
         MyOrderFreshnessViewModel(
             resolveCriticalDataFreshness: dependencies.resolveCriticalDataFreshness,
             criticalDataFreshnessLocalRepository: dependencies.criticalDataFreshnessLocalRepository,
-            applyCriticalOrderingState: { scope, payload in
+            sessionStateRevisionProvider: {
+                productsViewModel.sessionViewModel.sessionStateRevision
+            },
+            applyCriticalOrderingState: { context, payload in
                 try await productsViewModel.refreshOrderingProductsForFreshness(
-                    scope: scope,
+                    context: context,
                     payload: payload
                 )
             },
-            isCriticalOrderingStateCurrent: { scope in
-                productsViewModel.isOrderingStateCurrentForFreshness(scope: scope)
+            isCriticalOrderingStateCurrent: { context in
+                productsViewModel.isOrderingStateCurrentForFreshness(context: context)
             }
         )
     }
@@ -277,7 +282,8 @@ private extension AccessRootViewModel {
             shiftPlanningRequestRepository: dependencies.shiftPlanningRequestRepository,
             deliveryCalendarRepository: dependencies.deliveryCalendarRepository,
             notificationRepository: dependencies.notificationRepository,
-            nowMillisProvider: dependencies.nowMillisProvider
+            nowMillisProvider: dependencies.nowMillisProvider,
+            environmentProvider: dependencies.environmentProvider
         )
     }
 
@@ -381,13 +387,13 @@ extension AccessRootViewModel {
     }
 
     func setNowOverrideMillis(_ nowMillis: Int64?) {
-        DevelopmentTimeMachine.shared.setOverrideNowMillis(nowMillis)
+        developmentTimeMachine.setOverrideNowMillis(nowMillis)
         nowOverrideMillis = nowMillis
         handleNowOverrideChange()
     }
 
     func shiftNowByDays(_ days: Int) {
-        let baseMillis = nowOverrideMillis ?? Int64(Date().timeIntervalSince1970 * 1_000)
+        let baseMillis = developmentTimeMachine.nowMillis()
         let shiftedMillis = baseMillis + Int64(days) * 24 * 60 * 60 * 1_000
         setNowOverrideMillis(shiftedMillis)
     }

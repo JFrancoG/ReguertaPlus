@@ -108,9 +108,12 @@ extension SessionViewModel {
                             : AccessL10nKey.authInfoVerificationPending
                     )
                 } else {
+                    prepareForResolvedAuthorizationRevocation(principalEmail: principal.email)
                     applyUnauthorizedSession(principalEmail: principal.email, reason: reason)
                 }
             }
+        } catch is CancellationError {
+            return
         } catch FirebaseFunctionClientError.unauthorized {
             guard isCurrentSessionOperation(generation) else { return }
             await handleExpiredSession()
@@ -213,7 +216,10 @@ extension SessionViewModel {
     ) async {
         let members: [Member]
         do {
-            members = try await repository.members(visibleTo: member)
+            members = try await repository.members(
+                visibleTo: member,
+                environment: environment
+            )
         } catch {
             guard isCurrentSessionOperation(generation) else { return }
             applyLocalSessionTermination(
@@ -224,6 +230,16 @@ extension SessionViewModel {
             return
         }
         guard isCurrentSessionOperation(generation) else { return }
+        let environmentLease = SessionEnvironmentLease()
+        authorizedEnvironmentLease = environmentLease
+        environmentRouter.applyResolvedEnvironment(environment, lease: environmentLease)
+        guard isCurrentSessionOperation(generation), authorizedEnvironmentLease == environmentLease else {
+            environmentRouter.resetToBaseEnvironment(ifOwnedBy: environmentLease)
+            if authorizedEnvironmentLease == environmentLease {
+                authorizedEnvironmentLease = nil
+            }
+            return
+        }
         mode = .authorized(
             AuthorizedSession(
                 principal: principal,
@@ -254,6 +270,13 @@ extension SessionViewModel {
         lease: AuthorizedDeviceSessionLease,
         generation: UInt64
     ) async {
+        guard isCurrentAuthorizedDeviceSession(
+            principal: principal,
+            authenticatedMember: member,
+            environment: environment,
+            lease: lease,
+            generation: generation
+        ) else { return }
         do {
             _ = try await authorizedDeviceRegistrar.register(
                 command: AuthorizedDeviceRegistrationCommand(
@@ -264,8 +287,13 @@ extension SessionViewModel {
                 ),
                 isSessionCurrent: { [weak self] in
                     guard let self else { return false }
-                    return self.isCurrentSessionOperation(generation) &&
-                        self.authorizedDeviceSessionLease == lease
+                    return self.isCurrentAuthorizedDeviceSession(
+                        principal: principal,
+                        authenticatedMember: member,
+                        environment: environment,
+                        lease: lease,
+                        generation: generation
+                    )
                 }
             )
         } catch is CancellationError {
@@ -273,6 +301,23 @@ extension SessionViewModel {
         } catch {
             // Push registration is non-critical. The live coordinator records private diagnostics.
         }
+    }
+
+    private func isCurrentAuthorizedDeviceSession(
+        principal: AuthPrincipal,
+        authenticatedMember: Member,
+        environment: SessionEnvironment,
+        lease: AuthorizedDeviceSessionLease,
+        generation: UInt64
+    ) -> Bool {
+        guard isCurrentSessionOperation(generation),
+              authorizedDeviceSessionLease == lease,
+              case .authorized(let session) = mode else { return false }
+        return session.representsActiveAuthorization &&
+            session.principal.uid == principal.uid &&
+            session.authenticatedMember.id == authenticatedMember.id &&
+            session.authenticatedMember.authUid == principal.uid &&
+            session.environment == environment
     }
 
     private func applyUnauthorizedSession(principalEmail: String, reason: UnauthorizedReason) {

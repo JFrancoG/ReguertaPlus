@@ -1,21 +1,21 @@
+import FirebaseCore
 import FirebaseFirestore
 import Foundation
 
-final class FirestoreSharedProfileRepository: @unchecked Sendable, SharedProfileRepository {
-    private let db: Firestore
-    private let environment: ReguertaFirestoreEnvironment?
+actor FirestoreSharedProfileRepository: SharedProfileRepository {
+    private let storedDB: Firestore
 
-    init(db: Firestore = Firestore.firestore(), environment: ReguertaFirestoreEnvironment? = nil) {
-        self.db = db
-        self.environment = environment
+    init(firebaseAppName: String) {
+        guard let app = FirebaseApp.app(name: firebaseAppName) else {
+            preconditionFailure("Firebase app is required for shared profiles")
+        }
+        self.storedDB = Firestore.firestore(app: app)
     }
 
-    private var profilesCollection: CollectionReference {
-        db.reguertaCollection(.sharedProfiles, environment: environment)
-    }
-
-    func allSharedProfiles() async throws -> [SharedProfile] {
+    func allSharedProfiles(environment: SessionEnvironment) async throws -> [SharedProfile] {
         do {
+            let profilesCollection = storedDB.reguertaCollection(.sharedProfiles, environment: environment)
+            try Task.checkCancellation()
             let snapshot = try await profilesCollection.getDocuments()
             return try snapshot.documents
                 .map { document in
@@ -30,8 +30,10 @@ final class FirestoreSharedProfileRepository: @unchecked Sendable, SharedProfile
         }
     }
 
-    func sharedProfile(userId: String) async throws -> SharedProfile? {
+    func sharedProfile(userId: String, environment: SessionEnvironment) async throws -> SharedProfile? {
         do {
+            let profilesCollection = storedDB.reguertaCollection(.sharedProfiles, environment: environment)
+            try Task.checkCancellation()
             let document = try await profilesCollection.document(userId).getDocument()
             guard document.exists else { return nil }
             guard let data = document.data() else { throw Self.invalidDocumentError }
@@ -41,8 +43,10 @@ final class FirestoreSharedProfileRepository: @unchecked Sendable, SharedProfile
         }
     }
 
-    func upsert(profile: SharedProfile) async throws -> SharedProfile {
+    func upsert(profile: SharedProfile, environment: SessionEnvironment) async throws -> SharedProfile {
         do {
+            let profilesCollection = storedDB.reguertaCollection(.sharedProfiles, environment: environment)
+            try Task.checkCancellation()
             try await profilesCollection.document(profile.userId).setData(
                 Self.upsertPayload(for: profile),
                 merge: true
@@ -53,8 +57,10 @@ final class FirestoreSharedProfileRepository: @unchecked Sendable, SharedProfile
         return profile
     }
 
-    func deleteSharedProfile(userId: String) async throws -> Bool {
+    func deleteSharedProfile(userId: String, environment: SessionEnvironment) async throws -> Bool {
         do {
+            let profilesCollection = storedDB.reguertaCollection(.sharedProfiles, environment: environment)
+            try Task.checkCancellation()
             try await profilesCollection.document(userId).delete()
         } catch {
             throw FirestoreRepositoryErrorMapper.map(error, resource: "sharedProfiles.write")
