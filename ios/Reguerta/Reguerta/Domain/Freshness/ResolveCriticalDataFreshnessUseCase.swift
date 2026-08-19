@@ -28,7 +28,7 @@ struct ResolveCriticalDataFreshnessUseCase {
         try Task.checkCancellation()
 
         try Task.checkCancellation()
-        let metadata = storedLocalRepository.getMetadata()
+        let metadata = await storedLocalRepository.getMetadata()
         try Task.checkCancellation()
         let evaluation = evaluate(
             config: config,

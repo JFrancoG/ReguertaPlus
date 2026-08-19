@@ -23,7 +23,7 @@ nonisolated enum AuthorizedDeviceRegistrationResult: Equatable, Sendable {
     case failed
 }
 
-nonisolated protocol AuthorizedDeviceRegistrar: Sendable {
+protocol AuthorizedDeviceRegistrar: Sendable {
     func register(
         command: AuthorizedDeviceRegistrationCommand,
         isSessionCurrent: @escaping @MainActor @Sendable () -> Bool

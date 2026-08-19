@@ -101,6 +101,40 @@ When skipped, explicitly state why in the final handoff.
   private helpers, declarative Views, and tests.
 - Update the DocC comment whenever the documented contract changes.
 
+### Swift Actor Isolation and Concurrency
+
+- The accepted target policy is that all first-party Swift targets in
+  `/ios/Reguerta` use `SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated` from one
+  inherited project-level authority in every configuration. HU-074 completed
+  and validated that migration locally under ADR-0011; a future target that
+  does not inherit the setting is architectural drift, not an exception.
+- Keep Swift 6 strict concurrency set to `complete`. Do not weaken diagnostics
+  to make a migration compile.
+- Keep `SWIFT_APPROACHABLE_CONCURRENCY = YES` enabled. Treat it as an
+  independent concurrency setting; it does not replace explicit actor
+  ownership or the `nonisolated` module policy.
+- Declare `@MainActor` explicitly on observable presentation models, Stores,
+  and composition operations that genuinely own UI state.
+- Keep Domain and Data nonisolated by default. Give mutable infrastructure
+  state one explicit actor or synchronization owner; preserve non-suspending
+  security and routing fences when their ordering is part of the contract.
+- Keep Firebase and other SDK reference types inside the appropriate isolated
+  infrastructure adapter: Data for persistence/service implementations, or
+  App for platform lifecycle and composition responsibilities. Never expose
+  live SDK references to Domain or Presentation or transfer them across actor
+  boundaries; transfer immutable Domain values, DTOs, or typed errors instead.
+- Do not introduce `@preconcurrency`, `@unchecked Sendable`,
+  `nonisolated(unsafe)`, `Task.detached`, GCD, or an equivalent escape as a
+  compilation workaround. A demonstrated unavoidable exception requires
+  explicit user approval, an ADR, a documented ownership invariant, focused
+  tests, and a removal condition.
+- Do not repeat `nonisolated` when the module default already expresses the
+  contract. Keep it when it overrides an isolated context or is semantically
+  required by a conformance or SDK boundary.
+- Compile tests under the same default-isolation policy as production and
+  isolate a test suite to `MainActor` only when the system under test requires
+  it.
+
 ### Swift Struct Construction and Sendability
 
 - Do not declare explicit initializers inside the primary declaration of a Swift `struct`.

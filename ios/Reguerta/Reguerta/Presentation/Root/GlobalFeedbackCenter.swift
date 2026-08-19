@@ -1,5 +1,6 @@
 import Observation
 
+@MainActor
 @Observable
 final class GlobalFeedbackCenter {
     var messageKey: String?

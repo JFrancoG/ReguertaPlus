@@ -405,17 +405,21 @@ private func memberCopy(_ source: Member, roles: Set<MemberRole>) -> Member {
 private final class ControlledOrderingProductRepository: ProductRepository {
     private var readContinuations: [CheckedContinuation<[Product], Never>?] = []
 
-    func allProducts() async -> [Product] {
+    nonisolated func allProducts() async -> [Product] {
+        await suspendRead()
+    }
+
+    nonisolated func products(vendorId _: String) async -> [Product] { [] }
+
+    nonisolated func upsert(product: Product) async -> Product { product }
+
+    private func suspendRead() async -> [Product] {
         let index = readContinuations.count
         readContinuations.append(nil)
         return await withCheckedContinuation { continuation in
             readContinuations[index] = continuation
         }
     }
-
-    func products(vendorId _: String) async -> [Product] { [] }
-
-    func upsert(product: Product) async -> Product { product }
 
     func waitForReadCount(_ expectedCount: Int) async {
         while readContinuations.count < expectedCount || readContinuations[expectedCount - 1] == nil {

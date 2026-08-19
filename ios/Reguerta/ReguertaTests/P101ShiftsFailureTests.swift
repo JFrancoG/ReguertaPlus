@@ -391,6 +391,7 @@ private final class ConfirmingSwapWithFailingReadsRepository: ShiftSwapRequestRe
         throw RepositoryError.unavailable(resource: "shiftSwapRequests")
     }
 
+    @MainActor
     func transition(_ transition: ShiftSwapTransition) async throws -> ShiftSwapTransitionResult {
         transitionCount += 1
         let requestId = switch transition {

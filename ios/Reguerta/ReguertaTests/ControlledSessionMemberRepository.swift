@@ -2,10 +2,11 @@ import Testing
 
 @testable import Reguerta
 
-@MainActor
-final class ControlledSessionMemberRepository: MemberRepository {
+actor ControlledSessionMemberRepository: MemberRepository {
     let memberValue: Member
     private var memberContinuations: [CheckedContinuation<Member?, any Error>?] = []
+    private var memberRequestWaiters: [Int: (count: Int, continuation: CheckedContinuation<Bool, Never>)] = [:]
+    private var nextMemberRequestWaiterID = 0
     private(set) var memberRequestCount = 0
 
     init(member: Member) {
@@ -14,6 +15,7 @@ final class ControlledSessionMemberRepository: MemberRepository {
 
     func member(id _: String) async throws -> Member? {
         memberRequestCount += 1
+        resumeSatisfiedMemberRequestWaiters()
         return try await withCheckedThrowingContinuation { continuation in
             memberContinuations.append(continuation)
         }
@@ -28,14 +30,25 @@ final class ControlledSessionMemberRepository: MemberRepository {
     }
 
     func waitForMemberRequestCount(_ expectedCount: Int) async -> Bool {
-        for _ in 0 ..< 1_000 {
-            if memberRequestCount >= expectedCount {
-                return true
-            }
-            await Task.yield()
+        if memberRequestCount >= expectedCount {
+            return true
         }
-        Issue.record("No se iniciaron \(expectedCount) lecturas de miembro")
-        return false
+
+        let waiterID = nextMemberRequestWaiterID
+        nextMemberRequestWaiterID += 1
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                guard !Task.isCancelled else {
+                    continuation.resume(returning: false)
+                    return
+                }
+                memberRequestWaiters[waiterID] = (expectedCount, continuation)
+            }
+        } onCancel: {
+            Task {
+                await self.cancelMemberRequestWaiter(id: waiterID)
+            }
+        }
     }
 
     func completeMemberRead(at index: Int, with member: Member?) {
@@ -46,5 +59,18 @@ final class ControlledSessionMemberRepository: MemberRepository {
         }
         memberContinuations[index] = nil
         continuation.resume(returning: member)
+    }
+
+    private func resumeSatisfiedMemberRequestWaiters() {
+        let satisfiedIDs = memberRequestWaiters.compactMap { id, waiter in
+            memberRequestCount >= waiter.count ? id : nil
+        }
+        for id in satisfiedIDs {
+            memberRequestWaiters.removeValue(forKey: id)?.continuation.resume(returning: true)
+        }
+    }
+
+    private func cancelMemberRequestWaiter(id: Int) {
+        memberRequestWaiters.removeValue(forKey: id)?.continuation.resume(returning: false)
     }
 }

@@ -1,8 +1,16 @@
+import FirebaseCore
 import FirebaseFirestore
 import Foundation
 
-struct FirestoreCriticalDataFreshnessRemoteRepository: CriticalDataFreshnessRemoteRepository {
+actor FirestoreCriticalDataFreshnessRemoteRepository: CriticalDataFreshnessRemoteRepository {
     private let storedDB: Firestore
+
+    init(firebaseAppName: String) {
+        guard let app = FirebaseApp.app(name: firebaseAppName) else {
+            preconditionFailure("Firebase app is required for critical-data freshness")
+        }
+        self.storedDB = Firestore.firestore(app: app)
+    }
 
     func getConfig(environment: SessionEnvironment) async throws -> CriticalDataFreshnessConfig {
         do {
@@ -43,11 +51,5 @@ struct FirestoreCriticalDataFreshnessRemoteRepository: CriticalDataFreshnessRemo
             cacheExpirationMinutes: cacheExpirationNumber.intValue,
             remoteTimestampsMillis: remoteTimestamps
         )
-    }
-}
-
-extension FirestoreCriticalDataFreshnessRemoteRepository {
-    init(db: Firestore) {
-        self.storedDB = db
     }
 }

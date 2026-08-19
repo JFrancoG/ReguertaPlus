@@ -72,6 +72,7 @@ struct ReguertaButtonViewModel {
     }
 }
 
+@MainActor
 @ViewBuilder
 func reguertaButton(
     _ title: LocalizedStringKey,

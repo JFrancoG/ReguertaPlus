@@ -257,7 +257,7 @@ struct RootOverlayView: AccessRootRoutingView {
     }
 }
 
-#Preview {
+#Preview(traits: .modifier(ReguertaDesignSystemPreviewModifier())) {
     ContentView()
-        .environment(\.reguertaAppEnvironment, .preview())
+        .reguertaAppEnvironment(.preview())
 }

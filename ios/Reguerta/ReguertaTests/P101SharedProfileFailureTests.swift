@@ -34,7 +34,7 @@ struct P101SharedProfileFailureTests {
         #expect(viewModel.profiles.map(\.userId) == [member.id])
         #expect(viewModel.profiles.first?.about == "Perfil confirmado")
         #expect(viewModel.draft.about == "Perfil confirmado")
-        #expect(repository.readCount == 0)
+        #expect(await repository.readCount == 0)
         #expect(viewModel.isSaving == false)
     }
 
@@ -47,7 +47,7 @@ struct P101SharedProfileFailureTests {
         await repository.waitUntilWriteStarts()
         let newerDraft = SharedProfileDraft(familyNames: "Versión nueva", about: "Segunda")
         viewModel.updateDraft(newerDraft)
-        repository.completeWrite()
+        await repository.completeWrite()
 
         #expect(await saveTask.value == false)
         #expect(viewModel.profiles.first?.familyNames == "Versión enviada")
@@ -63,7 +63,7 @@ struct P101SharedProfileFailureTests {
         let saveTask = Task { await viewModel.saveProfile() }
         await repository.waitUntilWriteStarts()
         saveTask.cancel()
-        repository.completeWrite()
+        await repository.completeWrite()
 
         #expect(await saveTask.value)
         #expect(viewModel.profiles.first?.familyNames == "Familia confirmada")
@@ -81,7 +81,7 @@ struct P101SharedProfileFailureTests {
         viewModel.handleSessionModeChange(.signedOut)
         let replacement = makeSession(member: member)
         viewModel.handleSessionModeChange(.authorized(replacement))
-        repository.completeWrite()
+        await repository.completeWrite()
 
         #expect(await saveTask.value == false)
         #expect(viewModel.profiles.isEmpty)
@@ -141,8 +141,7 @@ struct P101SharedProfileFailureTests {
     }
 }
 
-@MainActor
-private final class ControlledProfileRepository: SharedProfileRepository {
+private actor ControlledProfileRepository: SharedProfileRepository {
     private var items: [String: SharedProfile]
     private let rejectsReads: Bool
     private(set) var readCount = 0
@@ -174,8 +173,7 @@ private final class ControlledProfileRepository: SharedProfileRepository {
     }
 }
 
-@MainActor
-private final class SuspendedProfileRepository: SharedProfileRepository {
+private actor SuspendedProfileRepository: SharedProfileRepository {
     private var submittedProfile: SharedProfile?
     private var writeContinuation: CheckedContinuation<SharedProfile, Never>?
     private var writeStartedWaiters: [CheckedContinuation<Void, Never>] = []

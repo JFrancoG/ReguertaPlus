@@ -10,6 +10,7 @@ struct ReguertaCardViewModel {
     )
 }
 
+@MainActor
 @ViewBuilder
 func reguertaCard<Content: View>(
     @ViewBuilder content: @escaping () -> Content

@@ -9,6 +9,7 @@ struct ReguertaButtonStyles {
     let secondaryFont: Font
     let textFont: Font
 
+    @MainActor
     static var `default`: ReguertaButtonStyles {
         ReguertaButtonStyles(
             fullHeight: 48.resize,

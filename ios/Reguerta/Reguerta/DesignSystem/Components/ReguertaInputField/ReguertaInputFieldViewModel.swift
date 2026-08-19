@@ -77,6 +77,7 @@ struct ReguertaInputFieldViewModel {
     }
 }
 
+@MainActor
 @ViewBuilder
 func reguertaInputField(
     _ label: LocalizedStringKey,

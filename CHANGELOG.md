@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- 2026-08-19 | ♻️ refactor(ios): adopt nonisolated isolation
 - 2026-08-18 | ♻️ refactor(ios): simplify struct construction
 - 2026-08-11 | ♻️ refactor(ios): remove dormant repositories
 - 2026-08-05 | 💄 style(ios): clear Swift line-length baseline
@@ -159,6 +160,7 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-08-19 | 📝 docs(hu-074): record branch publication
 - 2026-08-18 | 📝 docs(hu-073): record final delivery
 - 2026-08-18 | 📝 docs(hu-072): record pull request readiness
 - 2026-07-30 | 📝 docs(ios): document domain contracts

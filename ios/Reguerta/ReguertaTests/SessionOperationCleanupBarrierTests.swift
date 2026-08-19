@@ -340,6 +340,8 @@ private func sessionCleanupFreshnessMetadata() -> CriticalDataFreshnessMetadata 
 
 private actor ControlledSessionCleanupRegistrar: AuthorizedDeviceRegistrar {
     private var clearContinuation: CheckedContinuation<Void, any Error>?
+    private var clearRequestWaiters: [Int: CheckedContinuation<Bool, Never>] = [:]
+    private var nextClearRequestWaiterID = 0
 
     func register(
         command _: AuthorizedDeviceRegistrationCommand,
@@ -353,18 +355,32 @@ private actor ControlledSessionCleanupRegistrar: AuthorizedDeviceRegistrar {
     func clearAuthorization(ifOwnedBy _: AuthorizedDeviceSessionLease) async throws {
         try await withCheckedThrowingContinuation { continuation in
             clearContinuation = continuation
+            let waiters = Array(clearRequestWaiters.values)
+            clearRequestWaiters.removeAll()
+            waiters.forEach { $0.resume(returning: true) }
         }
     }
 
     func waitForClearRequest() async -> Bool {
-        for _ in 0 ..< 1_000 {
-            if clearContinuation != nil {
-                return true
-            }
-            await Task.yield()
+        if clearContinuation != nil {
+            return true
         }
-        Issue.record("No se inició la limpieza controlada del lease")
-        return false
+
+        let waiterID = nextClearRequestWaiterID
+        nextClearRequestWaiterID += 1
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                guard !Task.isCancelled else {
+                    continuation.resume(returning: false)
+                    return
+                }
+                clearRequestWaiters[waiterID] = continuation
+            }
+        } onCancel: {
+            Task {
+                await self.cancelClearRequestWaiter(id: waiterID)
+            }
+        }
     }
 
     func completeClear() {
@@ -377,5 +393,9 @@ private actor ControlledSessionCleanupRegistrar: AuthorizedDeviceRegistrar {
         let continuation = clearContinuation
         clearContinuation = nil
         continuation?.resume(throwing: SessionCleanupTestError.failed)
+    }
+
+    private func cancelClearRequestWaiter(id: Int) {
+        clearRequestWaiters.removeValue(forKey: id)?.resume(returning: false)
     }
 }

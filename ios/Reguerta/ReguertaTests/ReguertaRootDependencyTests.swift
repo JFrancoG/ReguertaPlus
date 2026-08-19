@@ -1,3 +1,4 @@
+import SwiftUI
 import Testing
 
 @testable import Reguerta
@@ -30,6 +31,17 @@ struct ReguertaRootDependencyTests {
         #expect(environment.accessRootViewModel.installedVersion == "0.0.0-ui-testing")
         #expect(environment.sessionViewModel.mode == .signedOut)
         #expect(environment.sessionViewModel.isDevelopImpersonationEnabled == false)
+    }
+
+    @Test func environmentValuesPreserveTheInjectedAppGraphIdentity() {
+        let environment = ReguertaAppEnvironment.preview()
+        var values = EnvironmentValues()
+
+        values.reguertaAppEnvironment = environment
+
+        #expect(values.reguertaAppEnvironment.feedbackCenter === environment.feedbackCenter)
+        #expect(values.reguertaAppEnvironment.sessionViewModel === environment.sessionViewModel)
+        #expect(values.reguertaAppEnvironment.accessRootViewModel === environment.accessRootViewModel)
     }
 
     @Test func rootCoordinatorSkipsSplashToWelcomeWhenLaunchArgumentRequestsIt() async {

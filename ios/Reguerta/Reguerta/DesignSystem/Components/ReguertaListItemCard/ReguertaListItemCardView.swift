@@ -63,6 +63,7 @@ struct ReguertaListActionIconButton: View {
     }
 }
 
+@MainActor
 @ViewBuilder
 func reguertaListItemCard<Content: View>(
     isHighlighted: Bool = false,

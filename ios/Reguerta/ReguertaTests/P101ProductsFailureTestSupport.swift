@@ -2,7 +2,6 @@ import Foundation
 
 @testable import Reguerta
 
-@MainActor
 final class ConfirmingVisibilityMemberRepository: MemberRepository {
     private let memberValue: Member
 
@@ -29,11 +28,15 @@ final class SuspendedProductRepository: ProductRepository {
     private var submittedProduct: Product?
     private(set) var writeCount = 0
 
-    func allProducts() async -> [Product] { [] }
+    nonisolated func allProducts() async -> [Product] { [] }
 
-    func products(vendorId _: String) async -> [Product] { [] }
+    nonisolated func products(vendorId _: String) async -> [Product] { [] }
 
-    func upsert(product: Product) async -> Product {
+    nonisolated func upsert(product: Product) async -> Product {
+        await suspendWrite(product: product)
+    }
+
+    private func suspendWrite(product: Product) async -> Product {
         writeCount += 1
         submittedProduct = product
         return await withCheckedContinuation { continuation in
@@ -59,11 +62,15 @@ final class MultiSuspendedProductRepository: ProductRepository {
     private var continuations: [CheckedContinuation<Product, Never>?] = []
     private var submittedProducts: [Product] = []
 
-    func allProducts() async -> [Product] { [] }
+    nonisolated func allProducts() async -> [Product] { [] }
 
-    func products(vendorId _: String) async -> [Product] { [] }
+    nonisolated func products(vendorId _: String) async -> [Product] { [] }
 
-    func upsert(product: Product) async -> Product {
+    nonisolated func upsert(product: Product) async -> Product {
+        await suspendWrite(product: product)
+    }
+
+    private func suspendWrite(product: Product) async -> Product {
         let index = submittedProducts.count
         submittedProducts.append(product)
         continuations.append(nil)
@@ -131,22 +138,28 @@ final class ControlledProductRepository: ProductRepository {
         self.rejectsReads = rejectsReads
     }
 
-    func allProducts() async throws -> [Product] {
-        readCount += 1
-        try rejectReadIfNeeded()
-        return Array(itemsById.values)
+    nonisolated func allProducts() async throws -> [Product] {
+        try await MainActor.run {
+            readCount += 1
+            try rejectReadIfNeeded()
+            return Array(itemsById.values)
+        }
     }
 
-    func products(vendorId: String) async throws -> [Product] {
-        readCount += 1
-        try rejectReadIfNeeded()
-        return itemsById.values.filter { $0.vendorId == vendorId }
+    nonisolated func products(vendorId: String) async throws -> [Product] {
+        try await MainActor.run {
+            readCount += 1
+            try rejectReadIfNeeded()
+            return itemsById.values.filter { $0.vendorId == vendorId }
+        }
     }
 
-    func upsert(product: Product) async -> Product {
-        writeCount += 1
-        itemsById[product.id] = product
-        return product
+    nonisolated func upsert(product: Product) async -> Product {
+        await MainActor.run {
+            writeCount += 1
+            itemsById[product.id] = product
+            return product
+        }
     }
 
     private func rejectReadIfNeeded() throws {
@@ -156,7 +169,6 @@ final class ControlledProductRepository: ProductRepository {
     }
 }
 
-@MainActor
 final class RejectingSeasonalCommitmentRepository: SeasonalCommitmentRepository {
     func activeCommitments(userId _: String) async throws -> [SeasonalCommitment] {
         throw ProductReadTestError.rejected
@@ -176,25 +188,30 @@ final class AmbiguousCreateProductRepository: ProductRepository {
         itemsById.count
     }
 
-    func allProducts() async -> [Product] {
-        Array(itemsById.values)
-    }
-
-    func products(vendorId: String) async -> [Product] {
-        itemsById.values.filter { $0.vendorId == vendorId }
-    }
-
-    func upsert(product: Product) async throws -> Product {
-        attemptedProductIds.append(product.id)
-        itemsById[product.id] = product
-        if attemptedProductIds.count == 1 {
-            throw ProductReadTestError.rejected
+    nonisolated func allProducts() async -> [Product] {
+        await MainActor.run {
+            Array(itemsById.values)
         }
-        return product
+    }
+
+    nonisolated func products(vendorId: String) async -> [Product] {
+        await MainActor.run {
+            itemsById.values.filter { $0.vendorId == vendorId }
+        }
+    }
+
+    nonisolated func upsert(product: Product) async throws -> Product {
+        try await MainActor.run {
+            attemptedProductIds.append(product.id)
+            itemsById[product.id] = product
+            if attemptedProductIds.count == 1 {
+                throw ProductReadTestError.rejected
+            }
+            return product
+        }
     }
 }
 
-@MainActor
 final class CancellingProductRepository: ProductRepository {
     func allProducts() async throws -> [Product] {
         throw CancellationError()

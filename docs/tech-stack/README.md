@@ -33,7 +33,17 @@ This document is the technical stack source of truth for Reguerta.
 - UI: SwiftUI
 - Architecture: MVVM + Clean Architecture
 - Concurrency: Swift Concurrency (`async/await`, task-based flows)
-- Concurrency mode: strict concurrency enabled for app code
+- Concurrency mode: Swift 6 strict concurrency set to `complete`
+- Approachable Concurrency: enabled (`SWIFT_APPROACHABLE_CONCURRENCY = YES`)
+- Target default actor isolation: `nonisolated` for every first-party iOS
+  module, inherited from one project-level authority
+- Actor-isolation migration status: implemented and validated locally by
+  HU-074 under ADR-0011; the app, unit-test, and UI-test targets inherit the
+  project-level policy. Commit `a26768e` is published on the HU-074 branch;
+  integration remains a separate gate tracked by issue #249
+- Actor ownership: observable UI models and Stores declare `@MainActor`
+  explicitly; Domain and Data remain actor-neutral by default and mutable
+  infrastructure has one explicit owner
 - State/observation model: Observation framework (`@Observable`) as the default observable pattern
 - Dependency management: Swift Package Manager (SPM)
 - Backend integration: Firebase iOS SDK (Auth, Firestore, Storage, Messaging, Crashlytics, Analytics)
@@ -57,3 +67,4 @@ This document is the technical stack source of truth for Reguerta.
 ## Notes
 
 - If implementation details conflict with this document, ADRs, or agent instructions, resolve through explicit clarification with the user before proceeding.
+- ADR-0011 defines the iOS isolation policy, migration constraints, and unsafe-escape approval boundary.

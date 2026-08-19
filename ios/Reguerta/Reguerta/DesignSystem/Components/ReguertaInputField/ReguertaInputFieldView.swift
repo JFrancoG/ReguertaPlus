@@ -191,7 +191,7 @@ private struct ReguertaInputMessageView: View {
     }
 }
 
-#Preview("ReguertaInputField") {
+#Preview("ReguertaInputField", traits: .modifier(ReguertaDesignSystemPreviewModifier())) {
     @Previewable @State var text = ""
 
     VStack(spacing: 20) {

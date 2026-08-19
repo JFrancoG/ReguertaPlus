@@ -27,6 +27,7 @@ enum SessionMode: Equatable, Sendable {
     case authorized(AuthorizedSession)
 }
 
+@MainActor
 @Observable
 final class SessionViewModel {
     var emailInput = "" {

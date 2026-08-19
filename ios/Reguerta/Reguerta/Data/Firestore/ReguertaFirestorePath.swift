@@ -1,14 +1,68 @@
 import FirebaseFirestore
 import Foundation
+import Synchronization
 
 typealias ReguertaFirestoreEnvironment = SessionEnvironment
 
 enum ReguertaRuntimeEnvironment {
-    private static var sessionOverride: ReguertaFirestoreEnvironment?
-    private static var sessionEnvironmentLease: SessionEnvironmentLease?
-    private static var testingBaseEnvironment: ReguertaFirestoreEnvironment?
+    private struct State {
+        var sessionOverride: ReguertaFirestoreEnvironment?
+        var sessionEnvironmentLease: SessionEnvironmentLease?
+        var testingBaseEnvironment: ReguertaFirestoreEnvironment?
+    }
+
+    private static let state = Mutex(State())
 
     static var baseFirestoreEnvironment: ReguertaFirestoreEnvironment {
+        state.withLock { state in
+            resolvedBaseEnvironment(testingBaseEnvironment: state.testingBaseEnvironment)
+        }
+    }
+
+    static var currentFirestoreEnvironment: ReguertaFirestoreEnvironment {
+        state.withLock { state in
+            state.sessionOverride ?? resolvedBaseEnvironment(
+                testingBaseEnvironment: state.testingBaseEnvironment
+            )
+        }
+    }
+
+    static func applySessionEnvironment(_ environment: ReguertaFirestoreEnvironment, lease: SessionEnvironmentLease) {
+        state.withLock { state in
+            let baseEnvironment = resolvedBaseEnvironment(
+                testingBaseEnvironment: state.testingBaseEnvironment
+            )
+            state.sessionOverride = environment == baseEnvironment ? nil : environment
+            state.sessionEnvironmentLease = lease
+        }
+    }
+
+    static func resetToBaseEnvironment(ifOwnedBy lease: SessionEnvironmentLease) {
+        state.withLock { state in
+            guard state.sessionEnvironmentLease == lease else { return }
+            state.sessionOverride = nil
+            state.sessionEnvironmentLease = nil
+        }
+    }
+
+    static func resetToBaseEnvironment() {
+        state.withLock { state in
+            state.sessionOverride = nil
+            state.sessionEnvironmentLease = nil
+        }
+    }
+
+    static func setBaseEnvironmentForTesting(_ environment: ReguertaFirestoreEnvironment?) {
+        state.withLock { state in
+            state.testingBaseEnvironment = environment
+            state.sessionOverride = nil
+            state.sessionEnvironmentLease = nil
+        }
+    }
+
+    private static func resolvedBaseEnvironment(
+        testingBaseEnvironment: ReguertaFirestoreEnvironment?
+    ) -> ReguertaFirestoreEnvironment {
         if let testingBaseEnvironment {
             return testingBaseEnvironment
         }
@@ -17,30 +71,6 @@ enum ReguertaRuntimeEnvironment {
         #else
         return .production
         #endif
-    }
-
-    static var currentFirestoreEnvironment: ReguertaFirestoreEnvironment {
-        sessionOverride ?? baseFirestoreEnvironment
-    }
-
-    static func applySessionEnvironment(_ environment: ReguertaFirestoreEnvironment, lease: SessionEnvironmentLease) {
-        sessionOverride = environment == baseFirestoreEnvironment ? nil : environment
-        sessionEnvironmentLease = lease
-    }
-
-    static func resetToBaseEnvironment(ifOwnedBy lease: SessionEnvironmentLease) {
-        guard sessionEnvironmentLease == lease else { return }
-        resetToBaseEnvironment()
-    }
-
-    static func resetToBaseEnvironment() {
-        sessionOverride = nil
-        sessionEnvironmentLease = nil
-    }
-
-    static func setBaseEnvironmentForTesting(_ environment: ReguertaFirestoreEnvironment?) {
-        testingBaseEnvironment = environment
-        resetToBaseEnvironment()
     }
 }
 

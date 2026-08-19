@@ -55,30 +55,30 @@ struct ReguertaDesignTokens {
     }
 
     struct Spacing {
-        var xs: CGFloat { 4.resize }
-        var sm: CGFloat { 8.resize }
-        var md: CGFloat { 12.resize }
-        var lg: CGFloat { 16.resize }
-        var xl: CGFloat { 20.resize }
-        var xxl: CGFloat { 24.resize }
+        @MainActor var xs: CGFloat { 4.resize }
+        @MainActor var sm: CGFloat { 8.resize }
+        @MainActor var md: CGFloat { 12.resize }
+        @MainActor var lg: CGFloat { 16.resize }
+        @MainActor var xl: CGFloat { 20.resize }
+        @MainActor var xxl: CGFloat { 24.resize }
     }
 
     struct Radius {
-        var sm: CGFloat { 10.resize }
-        var md: CGFloat { 14.resize }
-        var lg: CGFloat { 18.resize }
+        @MainActor var sm: CGFloat { 10.resize }
+        @MainActor var md: CGFloat { 14.resize }
+        @MainActor var lg: CGFloat { 18.resize }
     }
 
     struct Typography {
-        var titleHero: Font { .custom("CabinSketch-Bold", size: 36.resize, relativeTo: .title) }
-        var titleSection: Font { .custom("CabinSketch-Bold", size: 24.resize, relativeTo: .title3) }
-        var titleDialog: Font { .custom("CabinSketch-Bold", size: 22.resize, relativeTo: .headline) }
-        var titleCard: Font { .custom("CabinSketch-Regular", size: 20.resize, relativeTo: .headline) }
-        var body: Font { .custom("CabinSketch-Regular", size: 18.resize, relativeTo: .body) }
-        var bodyDialog: Font { .custom("CabinSketch-Regular", size: 16.resize, relativeTo: .body) }
-        var bodySecondary: Font { .custom("CabinSketch-Regular", size: 16.resize, relativeTo: .subheadline) }
-        var label: Font { .custom("CabinSketch-Bold", size: 14.resize, relativeTo: .footnote) }
-        var labelRegular: Font { .custom("CabinSketch-Regular", size: 14.resize, relativeTo: .footnote) }
+        @MainActor var titleHero: Font { .custom("CabinSketch-Bold", size: 36.resize, relativeTo: .title) }
+        @MainActor var titleSection: Font { .custom("CabinSketch-Bold", size: 24.resize, relativeTo: .title3) }
+        @MainActor var titleDialog: Font { .custom("CabinSketch-Bold", size: 22.resize, relativeTo: .headline) }
+        @MainActor var titleCard: Font { .custom("CabinSketch-Regular", size: 20.resize, relativeTo: .headline) }
+        @MainActor var body: Font { .custom("CabinSketch-Regular", size: 18.resize, relativeTo: .body) }
+        @MainActor var bodyDialog: Font { .custom("CabinSketch-Regular", size: 16.resize, relativeTo: .body) }
+        @MainActor var bodySecondary: Font { .custom("CabinSketch-Regular", size: 16.resize, relativeTo: .subheadline) }
+        @MainActor var label: Font { .custom("CabinSketch-Bold", size: 14.resize, relativeTo: .footnote) }
+        @MainActor var labelRegular: Font { .custom("CabinSketch-Regular", size: 14.resize, relativeTo: .footnote) }
     }
 
     let colors: Colors
@@ -87,6 +87,7 @@ struct ReguertaDesignTokens {
     let typography: Typography
     let button: ReguertaButtonStyles
 
+    @MainActor
     static var light: ReguertaDesignTokens {
         ReguertaDesignTokens(
             colors: Colors(
@@ -109,6 +110,7 @@ struct ReguertaDesignTokens {
         )
     }
 
+    @MainActor
     static var dark: ReguertaDesignTokens {
         ReguertaDesignTokens(
             colors: Colors(
@@ -133,13 +135,26 @@ struct ReguertaDesignTokens {
 }
 
 private struct ReguertaDesignTokensKey: EnvironmentKey {
-    static let defaultValue = ReguertaDesignTokens.light
+    static let defaultValue: ReguertaDesignTokens? = nil
 }
 
 extension EnvironmentValues {
-    var reguertaTokens: ReguertaDesignTokens {
+    fileprivate var injectedReguertaTokens: ReguertaDesignTokens? {
         get { self[ReguertaDesignTokensKey.self] }
         set { self[ReguertaDesignTokensKey.self] = newValue }
+    }
+
+    @MainActor
+    var reguertaTokens: ReguertaDesignTokens {
+        get {
+            guard let tokens = injectedReguertaTokens else {
+                preconditionFailure("ReguertaDesignTokens must be injected by ReguertaTheme")
+            }
+            return tokens
+        }
+        set {
+            injectedReguertaTokens = newValue
+        }
     }
 }
 
@@ -150,7 +165,7 @@ struct ReguertaTheme<Content: View>: View {
     var body: some View {
         let tokens = colorScheme == .dark ? ReguertaDesignTokens.dark : ReguertaDesignTokens.light
         storedContent()
-            .environment(\.reguertaTokens, tokens)
+            .environment(\.injectedReguertaTokens, tokens)
             .tint(tokens.colors.actionPrimary)
     }
 }
