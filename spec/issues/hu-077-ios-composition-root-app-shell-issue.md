@@ -20,10 +20,9 @@ Firebase deployment remains outside the requested delivery scope.
 - GitHub issue: https://github.com/JFrancoG/ReguertaPlus/issues/255
 - Branch: `codex/hu-077-ios-composition-root-app-shell`.
 - Base: integrated `main` at `907e403`.
-- State: open / local implementation, executable gates, post-P1 preview tool
-  rerun, and final independent reconciliation complete with 0 unresolved P0-P3.
-- Plan: local closeout complete; full repository delivery authorized and
-  executing.
+- State: completed / source commit `c29bd04` merged by PR #256 as `68a036a`;
+  issue #255 closed as completed.
+- Plan: delivered; final documentation reconciliation and branch cleanup only.
 - Profile: iOS `maintenance`.
 
 ## Links
@@ -188,10 +187,12 @@ application-state defect.
 
 ## Next step
 
-Execute the authorized Conventional Commit, push, ready pull request, merge,
-issue closure, branch deletion, and integration workflow. Issue #255 remains
-open at this checkpoint and the branch remains local without an upstream.
-Firebase deployment is not part of this delivery.
+Source commit `c29bd04f6aab6b6190d75996ac04880c1f0c9d04` was published and
+ready PR #256 merged it into `main` as
+`68a036a5fce7d00b8ed0a79db4057df5cf584783`. The `Closes #255` linkage
+closed issue #255 as completed. This document is the focused reconciliation
+that records that definitive result; the delivery branch is removed after the
+reconciliation merges. Firebase deployment was not part of the delivery.
 
 ## Labels
 

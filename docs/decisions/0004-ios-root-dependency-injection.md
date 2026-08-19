@@ -58,11 +58,11 @@ the states. A RenderPreview cache/selection interaction among macros sharing
 one source file is the current inference, not a demonstrated app-state defect.
 
 Final independent reconciliation reports 0 unresolved P0-P3. The maintainer's
-later instruction "haz commit y push, lanza pr y cierra issue, etc" authorizes
-commit, push, a ready pull request, merge, issue closure, branch deletion, and
-integration for HU-077. Issue #255 remains open and the branch remains local
-without an upstream while that delivery executes. Firebase deployment remains
-outside the requested scope.
+later instruction "haz commit y push, lanza pr y cierra issue, etc" authorized
+the full repository delivery. Source commit `c29bd04` was merged by ready PR
+#256 as `68a036a`, and its closing linkage completed issue #255. The delivery
+branch is retained only for the focused final documentation reconciliation and
+is deleted after that merge. Firebase deployment remained outside scope.
 
 ## Context
 

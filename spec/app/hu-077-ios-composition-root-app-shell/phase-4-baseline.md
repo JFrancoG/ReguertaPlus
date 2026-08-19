@@ -285,10 +285,11 @@ the 9/9 result must not be read as nine semantically unambiguous selections.
 
 ## Delivery state
 
-Issue #255 remains open while the authorized delivery executes. The branch
-`codex/hu-077-ios-composition-root-app-shell` is local and has no upstream at
-this checkpoint. The later instruction "haz commit y push, lanza pr y cierra
-issue, etc" authorizes commit, push, a ready pull request, merge, issue closure,
-branch deletion, and integration. Firebase deployment remains outside scope.
-The five HU-077 artifacts and aligned ADR notes are the final local closure
-evidence; the remote issue body will be refreshed before merge.
+The later instruction "haz commit y push, lanza pr y cierra issue, etc"
+authorized the full repository delivery. Source commit
+`c29bd04f6aab6b6190d75996ac04880c1f0c9d04` was published on
+`codex/hu-077-ios-composition-root-app-shell`; ready PR #256 merged it into
+`main` as `68a036a5fce7d00b8ed0a79db4057df5cf584783`, and GitHub closed issue
+#255 as completed. The branch remains only long enough to integrate this final
+documentation reconciliation and is then deleted. Firebase deployment and the
+other explicit non-tasks were not performed.
