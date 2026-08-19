@@ -6,8 +6,9 @@ branch deletion, and integration are authorized. Firebase deployment remains
 outside the requested delivery scope.
 
 Local implementation, executable validation, the post-P1 preview tool rerun,
-final reconciliation review, and remote issue synchronization are complete.
-Issue #255 remains open while the authorized delivery executes in this turn.
+final reconciliation review, and repository delivery are complete. Source
+commit `c29bd04` was merged by PR #256 as `68a036a`, and issue #255 is closed
+as completed.
 
 ## 0. Governance and baseline
 
@@ -148,6 +149,16 @@ Issue #255 remains open while the authorized delivery executes in this turn.
 - [x] Obtain explicit authorization before opening a ready PR.
 - [x] Obtain explicit authorization before merge, issue closure, branch
   deletion, or integration.
+
+## Delivery result
+
+- [x] Commit and publish source commit `c29bd04` on the HU-077 branch.
+- [x] Open ready PR #256 against `main` with `Closes #255`.
+- [x] Merge PR #256 as `68a036a` and verify issue #255 is closed/completed.
+- [x] Preserve Firebase deployment, packages, live data, Android, Functions,
+  and iOS/Xcode 27 outside the delivered scope.
+- [x] Record the definitive source delivery in a focused documentation
+  reconciliation before deleting the delivery branch.
 
 ## Explicit non-tasks
 

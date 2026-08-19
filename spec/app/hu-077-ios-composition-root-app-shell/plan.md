@@ -9,9 +9,8 @@ delivery boundaries are recorded in `spec.md`.
 - Issue: #255.
 - Branch: `codex/hu-077-ios-composition-root-app-shell`.
 - Base: integrated `main` at `907e403`.
-- Plan state: implementation, local validation, documentation, and final
-  reconciliation review complete with 0 unresolved P0-P3; full repository
-  delivery authorized and executing.
+- Plan state: delivered through source commit `c29bd04`, PR #256, and merge
+  commit `68a036a`; issue #255 is closed as completed.
 - Profile: iOS `maintenance`; Xcode/iOS 26, Swift 6, Clean Architecture, and
   existing test frameworks remain authoritative.
 
@@ -307,8 +306,10 @@ displayed `unavailable` for that fixture and runtime coverage distinguishes the
 two states. A RenderPreview cache/selection interaction among macros in the
 same source file is the current inference, not a proven application defect.
 
-Issue #255 remains open while the authorized delivery executes. The branch is
-local without an upstream at this checkpoint. Commit, push, a ready pull
-request, merge, issue closure, branch deletion, and integration are authorized;
-Firebase deployment remains outside scope. The remote body will be refreshed
-before merge so it no longer describes delivery as unauthorized.
+Source commit `c29bd04f6aab6b6190d75996ac04880c1f0c9d04` was published and
+merged by ready PR #256 as merge commit
+`68a036a5fce7d00b8ed0a79db4057df5cf584783`. GitHub closed issue #255 as
+completed through the PR linkage. This final documentation reconciliation is
+the only reason the delivery branch remains temporarily; it is deleted after
+the reconciliation merges. Firebase deployment and all other excluded work
+were not performed.

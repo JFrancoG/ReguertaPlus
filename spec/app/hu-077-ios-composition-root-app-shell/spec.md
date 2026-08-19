@@ -5,7 +5,7 @@
 - issue_id: #255
 - priority: P1
 - platform: ios
-- status: implemented
+- status: delivered
 - plan_state: completed
 
 ## Authorization and delivery boundary
@@ -372,9 +372,10 @@ Functions, and iOS/Xcode 27 scope are clean.
 
 ## Delivery status
 
-Issue #255 remains open while the authorized delivery executes. The branch
-`codex/hu-077-ios-composition-root-app-shell` is local and has no upstream at
-this checkpoint. Commit, push, a ready pull request, merge, issue closure,
-branch deletion, and integration are authorized; Firebase deployment is not
-part of this delivery. The remote issue body will be synchronized before the
-pull request is merged.
+Source commit `c29bd04f6aab6b6190d75996ac04880c1f0c9d04` was published on
+`codex/hu-077-ios-composition-root-app-shell`. Ready PR #256 merged it into
+`main` as `68a036a5fce7d00b8ed0a79db4057df5cf584783` on 2026-08-19, and its
+`Closes #255` linkage closed issue #255 as completed. The delivery branch is
+retained only to carry this final documentation reconciliation and is removed
+after that reconciliation merges. Firebase deployment was not performed and
+remains outside the delivered scope.

@@ -88,12 +88,12 @@ no un defecto demostrado del estado de la app.
 
 La reconciliación independiente final informa 0 P0-P3 sin resolver. La
 instrucción posterior del mantenedor "haz commit y push, lanza pr y cierra
-issue, etc" autoriza commit, push, una pull request ready, merge, cierre del
-issue, borrado de rama e integración para HU-077. El issue #255 permanece
-abierto y la rama sigue local sin upstream mientras se ejecuta esa entrega. El
-despliegue Firebase, los upgrades de paquetes, la mutación de datos live, los
-cambios Android y la adopción de iOS/Xcode 27 quedan fuera del alcance
-solicitado.
+issue, etc" autorizó la entrega completa. El commit fuente `c29bd04` se integró
+mediante la PR ready #256 como `68a036a`, y su enlace de cierre completó el
+issue #255. La rama de entrega se conserva solo para la reconciliación
+documental final y se borra tras ese merge. El despliegue Firebase, los upgrades
+de paquetes, la mutación de datos live, los cambios Android y la adopción de
+iOS/Xcode 27 quedaron fuera de alcance.
 
 ## Contexto
 
