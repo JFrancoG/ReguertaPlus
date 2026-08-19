@@ -79,7 +79,7 @@ final class MyOrderFreshnessViewModel {
         self.automaticRetrySleeper = automaticRetrySleeper
     }
 
-    convenience init(dependencies: MyOrderFreshnessFeatureDependencies = .preview()) {
+    convenience init(dependencies: MyOrderFreshnessFeatureDependencies) {
         self.init(
             resolveCriticalDataFreshness: dependencies.resolveCriticalDataFreshness,
             criticalDataFreshnessLocalRepository: dependencies.criticalDataFreshnessLocalRepository

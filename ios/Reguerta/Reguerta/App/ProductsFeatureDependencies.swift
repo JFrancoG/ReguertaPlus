@@ -9,11 +9,12 @@ struct ProductsFeatureDependencies {
     let nowMillisProvider: @MainActor () -> Int64
 
     static func live(
+        configuration: ReguertaAppConfiguration,
         db: Firestore,
         imagePipelineManager: any ImagePipelineManager,
         nowMillisProvider: @escaping @MainActor () -> Int64
     ) -> ProductsFeatureDependencies {
-        if ProcessInfo.processInfo.arguments.contains("-useMockProductData") {
+        if configuration.productData == .mock {
             return ProductsFeatureDependencies(
                 productRepository: InMemoryProductRepository(items: mockProductData),
                 memberRepository: InMemoryMemberRepository(),

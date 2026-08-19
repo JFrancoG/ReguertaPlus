@@ -5,13 +5,16 @@ import UserNotifications
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
     nonisolated private static let logger = Logger(subsystem: "com.reguerta.app", category: "PushRegistration")
+    private var appConfiguration: ReguertaAppConfiguration?
     private var authorizedDeviceRegistrar: (any AuthorizedDeviceRegistrar)?
     private var pendingRegistrationToken: PendingRegistrationToken?
-    private static var usesMockAuth: Bool {
-        ProcessInfo.processInfo.arguments.contains("-useMockAuth")
-    }
 
-    func configure(authorizedDeviceRegistrar: any AuthorizedDeviceRegistrar) {
+    /// Installs launch policy and the shared device coordinator before application lifecycle callbacks begin.
+    func configure(
+        appConfiguration: ReguertaAppConfiguration,
+        authorizedDeviceRegistrar: any AuthorizedDeviceRegistrar
+    ) {
+        self.appConfiguration = appConfiguration
         self.authorizedDeviceRegistrar = authorizedDeviceRegistrar
         guard case .received(let token) = pendingRegistrationToken else { return }
         pendingRegistrationToken = nil
@@ -23,7 +26,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         ReguertaFontRegistrar.registerDesignFonts()
-        guard !Self.usesMockAuth else { return true }
+        guard pushNotificationsEnabled else { return true }
         FirebaseBootstrapper.configureIfNeeded()
         Messaging.messaging().delegate = self
         UNUserNotificationCenter.current().delegate = self
@@ -32,7 +35,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        guard !Self.usesMockAuth else { return }
+        guard pushNotificationsEnabled else { return }
         Messaging.messaging().apnsToken = deviceToken
         Messaging.messaging().token { _, error in
             if let error {
@@ -45,7 +48,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: any Error) {
-        guard !Self.usesMockAuth else { return }
+        guard pushNotificationsEnabled else { return }
         print("APNs registration failed: \(error.localizedDescription)")
     }
 
@@ -69,12 +72,19 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
 extension AppDelegate: MessagingDelegate {
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
-        guard !Self.usesMockAuth else { return }
+        guard pushNotificationsEnabled else { return }
         guard let authorizedDeviceRegistrar else {
             pendingRegistrationToken = .received(fcmToken)
             return
         }
         forwardRegistrationToken(fcmToken, to: authorizedDeviceRegistrar)
+    }
+
+    var pushNotificationsEnabled: Bool {
+        guard let appConfiguration else {
+            preconditionFailure("AppDelegate must receive App configuration before lifecycle callbacks")
+        }
+        return appConfiguration.pushNotifications == .enabled
     }
 
     private func forwardRegistrationToken(

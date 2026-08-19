@@ -79,13 +79,14 @@ extension MyOrderFreshnessState {
     }
 }
 
-extension AccessRootRoutingView {
+extension HomeShellView {
     @ViewBuilder
     var dashboardRoute: some View {
         HomeDashboardRouteView(
             tokens: tokens,
             presentation: rootViewModel.homeDashboardPresentation,
             newsViewModel: rootViewModel.newsNotificationsViewModel,
+            loadNewsImageData: loadNewsImageData,
             onOpenMyOrder: rootViewModel.handleHomeDashboardMyOrderAction,
             onOpenReceivedOrders: rootViewModel.handleHomeDashboardReceivedOrdersAction
         )
@@ -96,6 +97,7 @@ struct HomeDashboardRouteView: View {
     let tokens: ReguertaDesignTokens
     let presentation: HomeDashboardPresentation
     let newsViewModel: NewsNotificationsFeatureViewModel
+    let loadNewsImageData: @Sendable (URL) async throws -> Data
     let onOpenMyOrder: () -> Void
     let onOpenReceivedOrders: () -> Void
 
@@ -110,7 +112,8 @@ struct HomeDashboardRouteView: View {
 
             LatestNewsCardView(
                 tokens: tokens,
-                latestNews: newsViewModel.homeLatestNewsItems
+                latestNews: newsViewModel.homeLatestNewsItems,
+                loadNewsImageData: loadNewsImageData
             )
             .frame(maxHeight: .infinity, alignment: .topLeading)
         }

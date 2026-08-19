@@ -3,6 +3,7 @@ import SwiftUI
 struct NewsListRouteView: View {
     let tokens: ReguertaDesignTokens
     let viewModel: NewsNotificationsFeatureViewModel
+    let loadNewsImageData: @Sendable (URL) async throws -> Data
     let newsMetaText: (NewsArticle) -> String
     let onCreateNews: () -> Void
     let onEditNews: () -> Void
@@ -26,6 +27,7 @@ struct NewsListRouteView: View {
                                     index: index,
                                     isAdmin: viewModel.canPublishNews,
                                     isHighlighted: viewModel.highlightedNewsId == article.id,
+                                    loadNewsImageData: loadNewsImageData,
                                     newsMetaText: newsMetaText,
                                     onEditNews: editNews,
                                     onDeleteNews: requestNewsDeletion
@@ -79,6 +81,7 @@ private struct NewsArticleCardView: View {
     let index: Int
     let isAdmin: Bool
     let isHighlighted: Bool
+    let loadNewsImageData: @Sendable (URL) async throws -> Data
     let newsMetaText: (NewsArticle) -> String
     let onEditNews: (String) -> Void
     let onDeleteNews: (String) -> Void
@@ -96,7 +99,8 @@ private struct NewsArticleCardView: View {
                         bodyLineLimit: nil,
                         titleAccessibilityIdentifierPrefix: "news.list.article",
                         cardAccessibilityIdentifierPrefix: "news.list.articleCard"
-                    )
+                    ),
+                    loadNewsImageData: loadNewsImageData
                 )
 
                 if isAdmin {

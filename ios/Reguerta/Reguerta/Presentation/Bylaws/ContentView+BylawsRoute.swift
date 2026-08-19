@@ -1,11 +1,11 @@
 import SwiftUI
 
-extension AccessRootRoutingView {
+extension HomeShellView {
     var bylawsRoute: some View {
         BylawsRouteView(
             tokens: tokens,
             viewModel: rootViewModel.bylawsViewModel,
-            isDevelopBuild: viewModel.isDevelopImpersonationEnabled
+            isDevelopBuild: sessionViewModel.isDevelopImpersonationEnabled
         )
     }
 }

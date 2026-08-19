@@ -1,9 +1,9 @@
 import SwiftUI
 
-extension AccessRootRoutingView {
+extension AuthShellView {
     @ViewBuilder
     var currentAuthRoute: some View {
-        switch shellState.currentRoute {
+        switch rootViewModel.shellState.currentRoute {
         case .welcome:
             welcomeRoute
         case .login:
@@ -46,7 +46,7 @@ extension AccessRootRoutingView {
                 fullWidth: true,
                 accessibilityIdentifier: "auth.welcome.enterButton"
             ) {
-                dispatchShell(.continueFromWelcome)
+                rootViewModel.dispatchShell(.continueFromWelcome)
             }
             .frame(maxWidth: 320.resize)
             .frame(maxWidth: .infinity)
@@ -58,7 +58,7 @@ extension AccessRootRoutingView {
                     .font(tokens.typography.titleCard)
                     .foregroundStyle(tokens.colors.textSecondary)
                 Button {
-                    dispatchShell(.openRegisterFromWelcome)
+                    rootViewModel.dispatchShell(.openRegisterFromWelcome)
                 } label: {
                     Text(localizedKey(AccessL10nKey.welcomeLinkRegister))
                         .font(tokens.typography.titleCard)
@@ -102,7 +102,7 @@ extension AccessRootRoutingView {
                     accessibilityLabel: .localized(AccessL10nKey.commonBack),
                     accessibilityIdentifier: "auth.header.backButton",
                     action: {
-                        dispatchShell(.back)
+                        rootViewModel.dispatchShell(.back)
                     }
                 )
             )

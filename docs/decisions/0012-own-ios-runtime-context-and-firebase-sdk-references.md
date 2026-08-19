@@ -25,6 +25,72 @@ authorize merge, issue closure, branch deletion, Firebase deployment, package
 updates, live-data mutation, integration, Android changes, or iOS/Xcode 27
 adoption.
 
+## HU-077 Implementation Addendum
+
+The preceding HU-076 implementation, temporary Phase 4 residual, consequences,
+verification, and delivery statements are retained as their contemporaneous
+record. PRs #254, #252, and #253 subsequently integrated HU-074 through HU-076
+into `main`, and issues #249 through #251 were closed as completed.
+
+HU-077 / issue #255 now resolves the temporary composition residual without
+changing the ownership decision. App selects one typed live, preview, or
+UI-test scenario and owns all live Firebase/Data construction.
+`SessionViewModelDependencies` is a passive Presentation bundle;
+Presentation has zero Firebase imports and no live adapter construction. The
+exhaustive Data boundary permits only the inherited typed error reference
+`FirebaseFunctionClientError.unauthorized` at exactly one existing use site;
+it permits neither live construction nor any additional Data type reference.
+The shared `ReguertaAppEnvironment.assemble` seam proves graph identity with
+in-memory/no-op collaborators and never configures Firebase.
+
+`ReguertaAppConfiguration` decodes the fourth supported launch control,
+`-reguerta_dev_time_machine.override_now_millis`, once in App, requires one
+adjacent `Int64`, and fails fast for malformed input. The typed seed takes
+precedence over persisted state. Live retains its persistent development
+clock; preview and UI-test clocks are transient, isolated per graph, and routed
+through root, session, features, and Freshness. Live Freshness preserves its
+original `Date` wall clock.
+
+The shell implementation removes only wrappers proved unused and replaces the
+broad routing protocol with explicit route inputs, bindings, and actions.
+`MainView` is the single shell reader of the App environment, and
+`AccessRootViewModel` remains the cohesive owner of reducer, startup, and
+lifecycle state.
+
+The first full release checkpoint remains honest red evidence:
+`/private/tmp/hu077-final-release-gate.xcresult` recorded 615 responsibilities,
+613 passed, one known launch skip, and one My Order safe-area UI-test failure
+because its search field was not found. The transient UI-test clock had lost
+the launch seed `1778760000000`. The typed seed fix restored deterministic My
+Order state.
+
+Local executable evidence on iPhone 17 / iOS 26.5 then passed: focused
+composition recorded 33 logical tests and 34 executions; shell/root passed
+21/21; fast unit passed 608/608 (602 Swift Testing plus 6 XCTest); UI smoke
+passed 4/4; and `/private/tmp/hu077-final-release-gate-2.xcresult` recorded 617
+responsibilities, 616 passed, one known launch skip, and zero failures.
+SwiftLint inspected 375 files with zero violations; effective settings passed
+6/6; and generic Debug and Production Release builds are green. The tree
+contains 375 Swift files and 63,992 lines: production 261/36,243, unit
+112/27,365, and UI 2/384. The post-P1 Xcode MCP rerun in `windowtab2` completed
+all nine Large previews with no tool errors; Home passed one isolated retry
+after a transient `PotentialCrashError`.
+
+That 9/9 is a tool-completion result, not nine semantically unequivocal macro
+selections. The dedicated startup `unavailable` preview at index 0 repeatedly
+displayed `timedOut` despite its `.unavailable` source fixture. `MainView`
+displayed `unavailable` for the same fixture and runtime coverage distinguishes
+the states. A RenderPreview cache/selection interaction among macros sharing
+one source file is the current inference, not a demonstrated app-state defect.
+
+Final independent reconciliation reports 0 unresolved P0-P3. The maintainer's
+later instruction "haz commit y push, lanza pr y cierra issue, etc" authorizes
+commit, push, a ready pull request, merge, issue closure, branch deletion, and
+integration for HU-077. Issue #255 remains open and the branch remains local
+without an upstream while that delivery executes. Firebase deployment, package
+updates, live-data mutation, Android changes, and iOS/Xcode 27 adoption remain
+outside the requested scope.
+
 ## Context
 
 ADR-0011 changed the iOS project to project-level `nonisolated` default actor

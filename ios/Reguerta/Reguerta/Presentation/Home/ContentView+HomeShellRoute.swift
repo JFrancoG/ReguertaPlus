@@ -5,7 +5,7 @@ private enum HomeSignOutDialogL10n {
     static let message = "access.action.sign_out.confirm.message"
 }
 
-extension AccessRootRoutingView {
+extension HomeShellView {
     @ViewBuilder
     var homeRoute: some View {
         ZStack(alignment: .topLeading) {
@@ -212,7 +212,7 @@ extension AccessRootRoutingView {
             sharedProfile: rootViewModel.currentHomeSharedProfile,
             currentDestination: rootViewModel.homeDestination,
             installedVersion: rootViewModel.installedVersion,
-            isDevelopBuild: viewModel.isDevelopImpersonationEnabled,
+            isDevelopBuild: sessionViewModel.isDevelopImpersonationEnabled,
             onNavigate: rootViewModel.handleHomeDrawerNavigation,
             onCloseDrawer: rootViewModel.closeHomeDrawer,
             onSignOut: rootViewModel.handleHomeDrawerSignOut

@@ -1,6 +1,6 @@
 import SwiftUI
 
-extension AccessRootRoutingView {
+extension HomeShellView {
     @ViewBuilder
     var shiftsRoute: some View {
         ShiftsRouteView(
@@ -8,7 +8,7 @@ extension AccessRootRoutingView {
             viewModel: rootViewModel.shiftsViewModel,
             onStartSwapRequestForShift: { shiftId in
                 rootViewModel.shiftsViewModel.startCreatingShiftSwap(shiftId: shiftId)
-                homeDestination = .shiftSwapRequest
+                rootViewModel.homeDestination = .shiftSwapRequest
             }
         )
     }
@@ -28,7 +28,7 @@ extension AccessRootRoutingView {
             onSave: {
                 Task {
                     if await shiftsViewModel.saveShiftSwapRequest() {
-                        homeDestination = .shifts
+                        rootViewModel.homeDestination = .shifts
                     }
                 }
             }
@@ -40,14 +40,15 @@ extension AccessRootRoutingView {
         return NewsListRouteView(
             tokens: tokens,
             viewModel: newsNotificationsViewModel,
+            loadNewsImageData: loadNewsImageData,
             newsMetaText: { article in
                 l10n(AccessL10nKey.newsMetaFormat, article.publishedBy)
             },
             onCreateNews: {
-                homeDestination = .publishNews
+                rootViewModel.homeDestination = .publishNews
             },
             onEditNews: {
-                homeDestination = .publishNews
+                rootViewModel.homeDestination = .publishNews
             }
         )
     }
@@ -57,7 +58,7 @@ extension AccessRootRoutingView {
             tokens: tokens,
             viewModel: rootViewModel.newsNotificationsViewModel,
             onSaveSuccess: {
-                homeDestination = .news
+                rootViewModel.homeDestination = .news
             }
         )
     }
@@ -94,15 +95,15 @@ extension AccessRootRoutingView {
                 members: currentHomeSession?.members ?? [],
                 environment: currentHomeSession?.environment ?? .develop
             ),
-            cartOpenRequests: myOrderCartOpenRequests,
+            cartOpenRequests: rootViewModel.myOrderCartOpenRequests,
             onCartUnitsChange: { units in
-                myOrderCartUnits = units
+                rootViewModel.myOrderCartUnits = units
             },
             onReadOnlyModeChange: { isReadOnly in
-                myOrderReadOnlyMode = isReadOnly
+                rootViewModel.myOrderReadOnlyMode = isReadOnly
             },
             onCheckoutSuccessAcknowledge: {
-                homeDestination = .dashboard
+                rootViewModel.homeDestination = .dashboard
             }
         )
     }
@@ -178,7 +179,7 @@ extension AccessRootRoutingView {
             tokens: tokens,
             viewModel: rootViewModel.newsNotificationsViewModel,
             onSendSuccess: {
-                homeDestination = .notifications
+                rootViewModel.homeDestination = .notifications
             }
         )
     }
@@ -190,12 +191,12 @@ extension AccessRootRoutingView {
             session: currentHomeSession,
             shiftsViewModel: rootViewModel.shiftsViewModel,
             productsViewModel: rootViewModel.productsViewModel,
-            isDevelopImpersonationEnabled: viewModel.isDevelopImpersonationEnabled,
+            isDevelopImpersonationEnabled: sessionViewModel.isDevelopImpersonationEnabled,
             isImpersonationExpanded: rootBinding(\.isImpersonationExpanded),
             nowOverrideMillis: rootViewModel.nowOverrideMillis,
-            onClearImpersonation: viewModel.clearImpersonation,
+            onClearImpersonation: sessionViewModel.clearImpersonation,
             onImpersonate: { memberId in
-                viewModel.impersonate(memberId: memberId)
+                sessionViewModel.impersonate(memberId: memberId)
             },
             onSetNowOverrideMillis: rootViewModel.setNowOverrideMillis,
             onShiftNowByDays: rootViewModel.shiftNowByDays

@@ -184,40 +184,4 @@ final class SessionViewModel {
         self.developImpersonationEnabled = dependencies.developImpersonationEnabled
     }
 
-    convenience init(
-        repository: (any MemberRepository)? = nil,
-        feedbackCenter: GlobalFeedbackCenter = GlobalFeedbackCenter(),
-        authSessionProvider: (any AuthSessionProvider)? = nil,
-        resolveAuthorizedSession: ResolveAuthorizedSessionUseCase? = nil,
-        authorizedMemberResolver: (any AuthorizedMemberResolving)? = nil,
-        authorizedDeviceRegistrar: (any AuthorizedDeviceRegistrar)? = nil,
-        criticalDataFreshnessLocalRepository: any CriticalDataFreshnessLocalRepository =
-            NoOpCriticalDataFreshnessLocalRepository(),
-        environmentRouter: (any SessionEnvironmentRouting)? = nil,
-        developImpersonationEnabled: Bool = false,
-        sessionRefreshPolicy: SessionRefreshPolicy = SessionRefreshPolicy(),
-        nowMillisProvider: @escaping @MainActor @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1_000) },
-        sessionOperationTimeout: Duration = SessionOperationConfiguration.defaultTimeout,
-        sessionOperationSleeper: @escaping @Sendable (Duration) async throws -> Void = {
-            try await ContinuousClock().sleep(for: $0)
-        }
-    ) {
-        self.init(
-            dependencies: .live(
-                repository: repository,
-                feedbackCenter: feedbackCenter,
-                authSessionProvider: authSessionProvider,
-                resolveAuthorizedSession: resolveAuthorizedSession,
-                authorizedMemberResolver: authorizedMemberResolver,
-                authorizedDeviceRegistrar: authorizedDeviceRegistrar,
-                criticalDataFreshnessLocalRepository: criticalDataFreshnessLocalRepository,
-                environmentRouter: environmentRouter,
-                developImpersonationEnabled: developImpersonationEnabled,
-                sessionRefreshPolicy: sessionRefreshPolicy,
-                nowMillisProvider: nowMillisProvider,
-                sessionOperationTimeout: sessionOperationTimeout,
-                sessionOperationSleeper: sessionOperationSleeper
-            )
-        )
-    }
 }

@@ -5,6 +5,7 @@
 //  Created by Jesus Franco on 05.02.2026.
 //
 
+import Foundation
 import SwiftUI
 
 @main
@@ -31,9 +32,11 @@ struct ReguertaApp: App {
 
 extension ReguertaApp {
     init() {
-        let appEnvironment = ReguertaAppEnvironment.live()
+        let appConfiguration = ReguertaAppConfiguration(arguments: ProcessInfo.processInfo.arguments)
+        let appEnvironment = ReguertaAppEnvironment.make(configuration: appConfiguration)
         self.appEnvironment = appEnvironment
         appDelegate.configure(
+            appConfiguration: appConfiguration,
             authorizedDeviceRegistrar: appEnvironment.authorizedDeviceRegistrar
         )
     }

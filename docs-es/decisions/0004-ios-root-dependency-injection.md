@@ -8,6 +8,65 @@ Accepted
 
 2026-05-11
 
+## Adenda de implementación HU-077
+
+HU-077 / issue #255 materializa esta decisión aceptada sin reescribirla. App
+selecciona ahora un único escenario tipado live, preview o UI-test, realiza toda
+la construcción live Firebase/Data e inyecta un grafo completo mediante el seam
+puro compartido `ReguertaAppEnvironment.assemble`. Presentation tiene cero
+imports Firebase ni construcción live de adaptadores. El guard exhaustivo de
+Data permite solo una referencia tipada heredada:
+`FirebaseFunctionClientError.unauthorized` en exactamente un uso existente. No
+permite construcción live ni referencias adicionales a tipos de Data.
+`MainView` es el único lector del environment en el shell; los wrappers raíz
+sin consumidores y el protocolo amplio de routing se eliminaron solo después
+de caracterizarlos, y las vistas de ruta reciben inputs, bindings y acciones
+explícitos.
+
+`ReguertaAppConfiguration` decodifica una vez en App el cuarto control de
+launch, `-reguerta_dev_time_machine.override_now_millis`, exige un `Int64`
+adyacente y falla de inmediato ante una entrada mal formada. El seed inicial
+tipado prevalece sobre el estado persistido. Live conserva su reloj de
+desarrollo persistente; los relojes de preview y UI-test son transitorios,
+están aislados por grafo y se propagan por root, sesión, features y Freshness.
+Freshness live conserva su reloj de pared `Date` original. El ownership
+aceptado de `AccessRootViewModel` no cambia porque la caracterización no
+justificó otro store.
+
+El primer release completo se conserva como evidencia roja honesta:
+`/private/tmp/hu077-final-release-gate.xcresult` registró 615 responsabilidades,
+613 passed, un skip de launch conocido y un fallo en el UI test de safe area de
+My Order porque no encontró el campo de búsqueda. El reloj transitorio de
+UI-test había perdido el seed de launch `1778760000000`. El arreglo del seed
+tipado restauró el estado determinista de My Order.
+
+La evidencia ejecutable local posterior en iPhone 17 / iOS 26.5 pasó: la matriz
+focal de composición registró 33 tests lógicos y 34 ejecuciones; shell/root pasó
+21/21; fast unit pasó 608/608 (602 Swift Testing y 6 XCTest); UI smoke pasó 4/4;
+y `/private/tmp/hu077-final-release-gate-2.xcresult` registró 617
+responsabilidades, 616 passed, un skip de launch conocido y cero fallos.
+SwiftLint inspeccionó 375 archivos sin infracciones; settings pasó 6/6; y los
+builds genéricos Debug y Production Release están verdes. El árbol contiene
+375 archivos Swift y 63.992 líneas: producción 261/36.243, unit 112/27.365 y UI
+2/384. La repetición post-P1 con Xcode MCP en `windowtab2` completó los nueve
+previews Large sin errores de herramienta; Home pasó un retry aislado tras un
+`PotentialCrashError` transitorio.
+
+Ese 9/9 es un resultado de terminación de herramienta, no nueve selecciones de
+macro semánticamente inequívocas. El preview dedicado de startup `unavailable`
+en el índice 0 mostró `timedOut` de forma repetida pese a que su fixture fuente
+es `.unavailable`. `MainView` mostró `unavailable` para el mismo fixture y la
+cobertura runtime distingue ambos estados. La inferencia actual es una
+interacción de caché/selección de RenderPreview entre macros del mismo archivo,
+no un defecto demostrado del estado de la app.
+
+La reconciliación independiente final informa 0 P0-P3 sin resolver. La
+instrucción posterior del mantenedor "haz commit y push, lanza pr y cierra
+issue, etc" autoriza commit, push, una pull request ready, merge, cierre del
+issue, borrado de rama e integración para HU-077. El issue #255 permanece
+abierto y la rama sigue local sin upstream mientras se ejecuta esa entrega. El
+despliegue Firebase queda fuera del alcance solicitado.
+
 ## Contexto
 
 La raiz de la app iOS mezclaba composicion SwiftUI, responsabilidades de

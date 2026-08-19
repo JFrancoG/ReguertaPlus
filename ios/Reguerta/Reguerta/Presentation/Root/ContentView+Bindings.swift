@@ -1,17 +1,35 @@
 import SwiftUI
 
-extension AccessRootRoutingView {
+extension AuthShellView {
     func binding(_ keyPath: ReferenceWritableKeyPath<SessionViewModel, String>) -> Binding<String> {
         Binding(
-            get: { viewModel[keyPath: keyPath] },
-            set: { viewModel[keyPath: keyPath] = $0 }
+            get: { sessionViewModel[keyPath: keyPath] },
+            set: { sessionViewModel[keyPath: keyPath] = $0 }
+        )
+    }
+
+    func rootBinding<Value>(_ keyPath: ReferenceWritableKeyPath<AccessRootViewModel, Value>) -> Binding<Value> {
+        Binding(
+            get: { rootViewModel[keyPath: keyPath] },
+            set: { rootViewModel[keyPath: keyPath] = $0 }
+        )
+    }
+
+    func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
+}
+
+extension HomeShellView {
+    func rootBinding<Value>(_ keyPath: ReferenceWritableKeyPath<AccessRootViewModel, Value>) -> Binding<Value> {
+        Binding(
+            get: { rootViewModel[keyPath: keyPath] },
+            set: { rootViewModel[keyPath: keyPath] = $0 }
         )
     }
 
     func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 
     var currentHomeMember: Member? {
-        switch viewModel.mode {
+        switch sessionViewModel.mode {
         case .authorized(let session):
             return session.member
         case .signedOut, .unauthorized:
@@ -20,7 +38,7 @@ extension AccessRootRoutingView {
     }
 
     var currentHomeSession: AuthorizedSession? {
-        switch viewModel.mode {
+        switch sessionViewModel.mode {
         case .authorized(let session):
             return session
         case .signedOut, .unauthorized:
