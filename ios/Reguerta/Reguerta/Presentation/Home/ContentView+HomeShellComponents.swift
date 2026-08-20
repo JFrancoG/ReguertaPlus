@@ -147,6 +147,7 @@ struct HomeWeeklySummaryCardView: View {
                 }
             }
             .frame(maxWidth: .infinity)
+            .background(tokens.colors.surfaceSecondary, in: RoundedRectangle(cornerRadius: tokens.radius.md))
             .overlay(RoundedRectangle(cornerRadius: tokens.radius.md).stroke(tokens.colors.borderSubtle, lineWidth: 1))
             .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
         }
@@ -283,6 +284,7 @@ struct HomeActionRowView: View {
         let layout = dynamicTypeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(spacing: tokens.spacing.sm))
             : AnyLayout(HStackLayout(spacing: tokens.spacing.sm))
+        let panelShape = RoundedRectangle(cornerRadius: tokens.radius.lg)
 
         return layout {
             actionTile(
@@ -302,6 +304,8 @@ struct HomeActionRowView: View {
                 )
             }
         }
+        .padding(tokens.spacing.sm)
+        .background(tokens.colors.surfaceSecondary, in: panelShape)
     }
 
     private func actionTile(

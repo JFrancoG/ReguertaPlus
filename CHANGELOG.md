@@ -72,6 +72,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-08-21 | 🐛 fix(ios-ui): restore screen spacing and dialogs
 - 2026-08-19 | 🐛 fix(home): stabilize order freshness recovery
 - 2026-08-18 | 🐛 fix(home): automate freshness and feed recovery
 - 2026-08-18 | 🐛 fix(news): remove nonexistent publisher metadata

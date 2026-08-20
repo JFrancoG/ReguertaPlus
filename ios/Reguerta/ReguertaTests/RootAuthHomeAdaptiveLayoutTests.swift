@@ -27,6 +27,20 @@ struct RootAuthHomeAdaptiveLayoutTests {
         #expect(HomeShellLayoutContract.shouldRecognizeDrawerOpeningGesture(startLocationX: 45, edgeWidth: 44) == false)
     }
 
+    @Test func homeDrawerUsesCompactNavigationSpacingWithoutShrinkingTouchTargets() throws {
+        let drawerSource = try source(
+            at: productionSourceURL().appending(path: "Presentation/Home/ContentView+HomeDrawerComponents.swift")
+        )
+
+        #expect(drawerSource.contains("VStack(alignment: .leading, spacing: tokens.spacing.xs)"))
+        #expect(drawerSource.contains(".padding(.vertical, tokens.spacing.xs + 2)") == false)
+        #expect(
+            drawerSource.components(
+                separatedBy: ".frame(minHeight: tokens.layout.minimumTouchTarget)"
+            ).count == 3
+        )
+    }
+
     @Test func imagePickerIconControlsRetainTheAccessibleMinimumTarget() {
         #expect(ReguertaImagePickerLayoutContract.controlSize(requested: 38, minimumTouchTarget: 44) == 44)
         #expect(ReguertaImagePickerLayoutContract.controlSize(requested: 56, minimumTouchTarget: 44) == 56)
@@ -51,14 +65,27 @@ struct RootAuthHomeAdaptiveLayoutTests {
         }
     }
 
-    @Test func latestNewsScrollStaysInsideTheBottomSafeArea() throws {
-        let source = try source(
+    @Test func homeDashboardUsesScaffoldMarginsAndRetainsSemanticSurfacesAndSafeArea() throws {
+        let cardsSource = try source(
             at: productionSourceURL().appending(path: "Presentation/Home/ContentView+HomeDashboardCards.swift")
         )
+        let routeSource = try source(
+            at: productionSourceURL().appending(path: "Presentation/Home/ContentView+HomeDashboardRoute.swift")
+        )
+        let componentsSource = try source(
+            at: productionSourceURL().appending(path: "Presentation/Home/ContentView+HomeShellComponents.swift")
+        )
 
-        #expect(source.contains(".ignoresSafeArea(.container, edges: .bottom)") == false)
-        #expect(source.contains("Color.clear") == false)
-        #expect(source.contains(".padding(.bottom, tokens.spacing.lg)"))
+        #expect(cardsSource.contains(".ignoresSafeArea(.container, edges: .bottom)") == false)
+        #expect(cardsSource.contains("Color.clear") == false)
+        #expect(cardsSource.contains(".padding(.bottom, tokens.spacing.lg)"))
+        #expect(routeSource.contains(".padding(.horizontal, tokens.layout.compactHorizontalPadding)") == false)
+        #expect(
+            componentsSource.contains(
+                ".background(tokens.colors.surfaceSecondary, in: RoundedRectangle(cornerRadius: tokens.radius.md))"
+            )
+        )
+        #expect(componentsSource.contains(".background(tokens.colors.surfaceSecondary, in: panelShape)"))
     }
 
     @Test func rootMotionIsResolvedByViewsAndNotPresentationModels() throws {

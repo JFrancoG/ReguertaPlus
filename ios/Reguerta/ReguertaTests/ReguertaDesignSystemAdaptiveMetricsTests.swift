@@ -44,10 +44,14 @@ struct ReguertaDesignSystemAdaptiveMetricsTests {
         )
     }
 
-    @Test func inputRowsAndScaffoldRespectTouchAndSafeAreaOwnership() throws {
+    @Test func sharedComponentsRespectTouchDialogAlignmentAndSafeAreaOwnership() throws {
         let inputSource = try source(
             at: designSystemSourceURL()
                 .appending(path: "Components/ReguertaInputField/ReguertaInputFieldView.swift")
+        )
+        let dialogSource = try source(
+            at: designSystemSourceURL()
+                .appending(path: "Components/ReguertaDialog/ReguertaDialogView.swift")
         )
         let scaffoldSource = try source(
             at: designSystemSourceURL()
@@ -60,8 +64,14 @@ struct ReguertaDesignSystemAdaptiveMetricsTests {
                 options: .regularExpression
             ) != nil
         )
+        #expect(dialogSource.contains(".defaultScrollAnchor(.center, for: .alignment)"))
         #expect(scaffoldSource.contains(".ignoresSafeArea(.container, edges: .bottom)") == false)
         #expect(scaffoldSource.contains("tokens.colors.surfacePrimary.ignoresSafeArea()"))
+        #expect(
+            scaffoldSource.components(
+                separatedBy: ".padding(.horizontal, tokens.layout.compactHorizontalPadding)"
+            ).count == 4
+        )
     }
 
     @Test func designSystemComponentsDoNotReadLegacyGlobalScaling() throws {

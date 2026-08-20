@@ -54,6 +54,7 @@ struct ReguertaDialogView: View {
                 .padding(tokens.spacing.lg)
             }
             .scrollBounceBehavior(.basedOnSize)
+            .defaultScrollAnchor(.center, for: .alignment)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .coordinateSpace(name: ReguertaDialogCoordinateSpace.name)

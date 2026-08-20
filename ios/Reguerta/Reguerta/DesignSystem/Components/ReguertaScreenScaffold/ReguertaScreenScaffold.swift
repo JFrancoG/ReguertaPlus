@@ -39,12 +39,14 @@ struct ReguertaScreenScaffold<Content: View, BottomContent: View>: View {
     private var scaffoldContent: some View {
         content
             .frame(maxWidth: maximumContentWidth, alignment: .topLeading)
+            .padding(.horizontal, tokens.layout.compactHorizontalPadding)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(tokens.colors.surfacePrimary.ignoresSafeArea())
             .safeAreaInset(edge: .top, spacing: headerContentSpacing) {
                 ReguertaScreenHeaderView(configuration: headerConfiguration)
                     .padding(.horizontal, headerHorizontalPadding)
                     .frame(maxWidth: maximumContentWidth)
+                    .padding(.horizontal, tokens.layout.compactHorizontalPadding)
                     .frame(maxWidth: .infinity)
                     .background(tokens.colors.surfacePrimary)
             }
@@ -53,6 +55,7 @@ struct ReguertaScreenScaffold<Content: View, BottomContent: View>: View {
     private var bottomInsetContent: some View {
         bottomContent
             .frame(maxWidth: maximumContentWidth)
+            .padding(.horizontal, tokens.layout.compactHorizontalPadding)
             .frame(maxWidth: .infinity)
             .background(tokens.colors.surfacePrimary)
     }

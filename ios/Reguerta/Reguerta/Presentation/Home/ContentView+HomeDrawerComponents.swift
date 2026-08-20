@@ -43,7 +43,7 @@ struct HomeDrawerContentView: View {
                 .overlay(tokens.colors.borderSubtle.opacity(0.55))
 
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                VStack(alignment: .leading, spacing: tokens.spacing.xs) {
                     homeDrawerNavigationSections
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -183,7 +183,6 @@ struct HomeDrawerContentView: View {
                     Spacer(minLength: tokens.spacing.sm)
                 }
                 .frame(minHeight: tokens.layout.minimumTouchTarget)
-                .padding(.vertical, tokens.spacing.xs + 2)
                 .padding(.horizontal, tokens.spacing.sm)
             }
             .buttonStyle(.plain)
@@ -217,7 +216,6 @@ struct HomeDrawerContentView: View {
                 Spacer(minLength: tokens.spacing.sm)
             }
             .frame(minHeight: tokens.layout.minimumTouchTarget)
-            .padding(.vertical, tokens.spacing.xs + 2)
             .padding(.horizontal, tokens.spacing.sm)
             .background(
                 currentDestination == destination
