@@ -2,34 +2,32 @@ import SwiftUI
 
 extension MyOrderRouteView {
     var confirmedOrderView: some View {
-        ZStack(alignment: .bottom) {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                VStack(alignment: .trailing, spacing: tokens.spacing.xs) {
-                    reguertaButton(
-                        LocalizedStringKey(AccessL10nKey.myOrderEditConfirmedAction),
-                        fullWidth: false,
-                        fixedWidth: tokens.button.dialogTwoButtonsWidth
-                    ) {
-                        viewModel.editConfirmedOrder()
-                    }
-
-                    Text(LocalizedStringKey(AccessL10nKey.myOrderEditableUntilSundayNote))
-                        .font(tokens.typography.labelRegular)
-                        .foregroundStyle(tokens.colors.textSecondary)
+        VStack(alignment: .leading, spacing: tokens.spacing.md) {
+            VStack(alignment: .trailing, spacing: tokens.spacing.xs) {
+                reguertaButton(
+                    LocalizedStringKey(AccessL10nKey.myOrderEditConfirmedAction),
+                    fullWidth: false,
+                    fixedWidth: tokens.button.dialogTwoButtonsWidth
+                ) {
+                    viewModel.editConfirmedOrder()
                 }
-                .frame(maxWidth: .infinity, alignment: .trailing)
 
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: tokens.spacing.md) {
-                        ForEach(viewModel.confirmedOrderGroups) { group in
-                            confirmedProducerCard(group)
-                        }
-                    }
-                    .padding(.bottom, orderTotalBarScrollBottomPadding)
-                }
-                .ignoresSafeArea(.container, edges: .bottom)
+                Text(LocalizedStringKey(AccessL10nKey.myOrderEditableUntilSundayNote))
+                    .font(tokens.typography.labelRegular)
+                    .foregroundStyle(tokens.colors.textSecondary)
             }
+            .frame(maxWidth: .infinity, alignment: .trailing)
 
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: tokens.spacing.md) {
+                    ForEach(viewModel.confirmedOrderGroups) { group in
+                        confirmedProducerCard(group)
+                    }
+                }
+                .padding(.bottom, tokens.spacing.sm)
+            }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             orderTotalBar(
                 l10n(
                     AccessL10nKey.myOrderConfirmedTotalFormat,
@@ -42,60 +40,58 @@ extension MyOrderRouteView {
 
     @ViewBuilder
     var previousOrderView: some View {
-        ZStack(alignment: .bottom) {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                switch viewModel.previousOrderState {
-                case .loading:
-                    reguertaCard {
-                        HStack(spacing: tokens.spacing.sm) {
-                            ProgressView()
-                                .tint(tokens.colors.actionPrimary)
-                            Text(LocalizedStringKey(AccessL10nKey.myOrderPreviousLoading))
-                                .font(tokens.typography.bodySecondary)
-                                .foregroundStyle(tokens.colors.textSecondary)
-                        }
+        VStack(alignment: .leading, spacing: tokens.spacing.md) {
+            switch viewModel.previousOrderState {
+            case .loading:
+                reguertaCard {
+                    HStack(spacing: tokens.spacing.sm) {
+                        ProgressView()
+                            .tint(tokens.colors.actionPrimary)
+                        Text(LocalizedStringKey(AccessL10nKey.myOrderPreviousLoading))
+                            .font(tokens.typography.bodySecondary)
+                            .foregroundStyle(tokens.colors.textSecondary)
                     }
+                }
 
-                case .empty:
-                    Text(LocalizedStringKey(AccessL10nKey.myOrderPreviousEmpty))
-                        .font(tokens.typography.body)
-                        .foregroundStyle(tokens.colors.feedbackError)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.horizontal, tokens.spacing.lg)
-                        .padding(.vertical, tokens.spacing.xl)
+            case .empty:
+                Text(LocalizedStringKey(AccessL10nKey.myOrderPreviousEmpty))
+                    .font(tokens.typography.body)
+                    .foregroundStyle(tokens.colors.feedbackError)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.horizontal, tokens.spacing.lg)
+                    .padding(.vertical, tokens.spacing.xl)
 
-                case .error:
-                    reguertaCard {
-                        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                            Text(LocalizedStringKey(AccessL10nKey.myOrderPreviousError))
-                                .font(tokens.typography.bodySecondary)
-                                .foregroundStyle(tokens.colors.textSecondary)
-                            reguertaButton(
-                                LocalizedStringKey(AccessL10nKey.myOrderPreviousRetry),
-                                variant: .text,
-                                fullWidth: false
-                            ) {
-                                Task {
-                                    await viewModel.retryPreviousOrder()
-                                }
+            case .error:
+                reguertaCard {
+                    VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                        Text(LocalizedStringKey(AccessL10nKey.myOrderPreviousError))
+                            .font(tokens.typography.bodySecondary)
+                            .foregroundStyle(tokens.colors.textSecondary)
+                        reguertaButton(
+                            LocalizedStringKey(AccessL10nKey.myOrderPreviousRetry),
+                            variant: .text,
+                            fullWidth: false
+                        ) {
+                            Task {
+                                await viewModel.retryPreviousOrder()
                             }
                         }
                     }
+                }
 
-                case .loaded(let snapshot):
-                    ScrollView(.vertical, showsIndicators: false) {
-                        VStack(spacing: tokens.spacing.md) {
-                            ForEach(snapshot.groups) { group in
-                                previousProducerCard(group)
-                            }
+            case .loaded(let snapshot):
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: tokens.spacing.md) {
+                        ForEach(snapshot.groups) { group in
+                            previousProducerCard(group)
                         }
-                        .padding(.bottom, orderTotalBarScrollBottomPadding)
                     }
-                    .ignoresSafeArea(.container, edges: .bottom)
+                    .padding(.bottom, tokens.spacing.sm)
                 }
             }
-
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             if case .loaded(let snapshot) = viewModel.previousOrderState {
                 orderTotalBar(
                     l10n(
@@ -166,7 +162,7 @@ extension MyOrderRouteView {
     }
 
     func orderTotalBar(_ text: String) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 8.resize, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: tokens.radius.sm, style: .continuous)
 
         return HStack {
             Text(text)
@@ -175,19 +171,15 @@ extension MyOrderRouteView {
                 .frame(maxWidth: .infinity)
         }
         .padding(.horizontal, tokens.spacing.md)
-        .frame(height: 44.resize)
+        .frame(minHeight: tokens.layout.minimumTouchTarget)
         .background(shape.fill(tokens.colors.actionPrimary))
         .overlay(
-            shape.stroke(tokens.colors.borderSubtle.opacity(0.65), lineWidth: 1.resize)
+            shape.stroke(tokens.colors.borderSubtle.opacity(0.65), lineWidth: 1)
         )
         .clipShape(shape)
         .padding(.horizontal, tokens.spacing.sm)
-        .padding(.bottom, 8.resizeBottomSize)
+        .padding(.bottom, tokens.spacing.sm)
         .allowsHitTesting(false)
-    }
-
-    var orderTotalBarScrollBottomPadding: CGFloat {
-        72.resize + 8.resizeBottomSize
     }
 
     var loadingState: some View {
@@ -222,11 +214,10 @@ extension MyOrderRouteView {
                 }
             }
             .padding(.top, tokens.spacing.xs)
-            .padding(.bottom, 88.resize)
+            .padding(.bottom, tokens.spacing.sm)
         }
         .scrollClipDisabled(!viewModel.isCartVisible)
         .scrollDismissesKeyboard(.interactively)
-        .ignoresSafeArea(.container, edges: .bottom)
     }
 
     @ViewBuilder func producerHeader(_ group: MyOrderProducerGroup) -> some View {
@@ -261,25 +252,25 @@ extension MyOrderRouteView {
 
         reguertaListItemCard {
             VStack(alignment: .leading, spacing: 0) {
-                Spacer().frame(height: 16.resize)
+                Spacer().frame(height: tokens.spacing.lg)
                 ZStack(alignment: .topTrailing) {
                     HStack {
                         productImage(product)
                         Spacer(minLength: 0)
                     }
-                    .padding(.horizontal, 12.resize)
+                    .padding(.horizontal, tokens.spacing.md)
 
                     quantityControls(
                         product: product,
                         quantity: quantity,
                         isEditable: !viewModel.isReadOnlyMode
                     )
-                    .padding(.trailing, 12.resize)
+                    .padding(.trailing, tokens.spacing.md)
                 }
 
-                Spacer().frame(height: 8.resize)
+                Spacer().frame(height: tokens.spacing.sm)
 
-                VStack(alignment: .leading, spacing: 4.resize) {
+                VStack(alignment: .leading, spacing: tokens.spacing.xs) {
                     Text(product.name)
                         .font(tokens.typography.body.weight(.semibold))
                         .foregroundStyle(tokens.colors.textPrimary)
@@ -308,14 +299,14 @@ extension MyOrderRouteView {
                         }
                     }
                 }
-                .padding(.horizontal, 12.resize)
-                Spacer().frame(height: 16.resize)
+                .padding(.horizontal, tokens.spacing.md)
+                Spacer().frame(height: tokens.spacing.lg)
             }
         }
     }
 
     @ViewBuilder func productImage(_ product: Product) -> some View {
-        let imageSize = CGFloat(72.resize)
+        let imageSize = OrderAdaptiveLayoutMetrics.featuredProductImageSize
         if let imageURL = product.productImageUrl, let url = URL(string: imageURL), imageURL.isNotEmpty {
             AsyncImage(url: url) { phase in
                 switch phase {
@@ -328,13 +319,13 @@ extension MyOrderRouteView {
                 }
             }
             .frame(width: imageSize, height: imageSize)
-            .clipShape(RoundedRectangle(cornerRadius: 8.resize))
+            .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
         } else {
             Image("product_no_available")
                 .resizable()
                 .scaledToFill()
                 .frame(width: imageSize, height: imageSize)
-                .clipShape(RoundedRectangle(cornerRadius: 8.resize))
+                .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
         }
     }
 
@@ -365,13 +356,13 @@ extension MyOrderRouteView {
                 Text(LocalizedStringKey(AccessL10nKey.myOrderAddAction))
                     .font(tokens.typography.body.weight(.semibold))
                 Image(systemName: "cart.badge.plus")
-                    .font(.system(size: 24.resize, weight: .semibold))
+                    .font(.system(size: tokens.icons.prominent, weight: .semibold))
             }
             .foregroundStyle(canIncreaseQuantity ? tokens.colors.actionOnPrimary : tokens.colors.textSecondary)
-            .padding(.horizontal, 14.resize)
-            .frame(height: 44.resize)
+            .padding(.horizontal, tokens.spacing.md)
+            .frame(minHeight: tokens.layout.minimumTouchTarget)
             .background(canIncreaseQuantity ? tokens.colors.actionPrimary : Color(.systemGray5))
-            .clipShape(RoundedRectangle(cornerRadius: 12.resize))
+            .clipShape(RoundedRectangle(cornerRadius: tokens.radius.md))
         }
         .buttonStyle(.plain)
         .disabled(!canIncreaseQuantity)

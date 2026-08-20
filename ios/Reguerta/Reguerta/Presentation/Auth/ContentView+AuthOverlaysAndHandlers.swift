@@ -1,5 +1,9 @@
 import SwiftUI
 
+private enum SplashLayout {
+    static let logoSize: CGFloat = 100
+}
+
 private struct StartupVersionGateCardContent {
     let titleKey: String
     let messageKey: String
@@ -86,12 +90,16 @@ extension AuthShellView {
                 Image("brand_logo")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 100.resize, height: 100.resize)
-                    .scaleEffect(rootViewModel.splashScale)
-                    .rotationEffect(.degrees(rootViewModel.splashRotation))
-                    .opacity(rootViewModel.splashOpacity)
+                    .frame(width: SplashLayout.logoSize, height: SplashLayout.logoSize)
+                    .scaleEffect(motionPolicy.materialScale(rootViewModel.splashScale))
+                    .rotationEffect(
+                        .degrees(motionPolicy.allowsMaterialAnimation ? rootViewModel.splashRotation : 0)
+                    )
+                    .opacity(motionPolicy.allowsMaterialAnimation ? rootViewModel.splashOpacity : 1)
                     .task(id: rootViewModel.shellState.currentRoute) {
-                        rootViewModel.startSplashAnimationIfNeeded()
+                        withAnimation(splashMaterialAnimation) {
+                            rootViewModel.startSplashAnimationIfNeeded()
+                        }
                     }
                 Spacer(minLength: 0)
             }

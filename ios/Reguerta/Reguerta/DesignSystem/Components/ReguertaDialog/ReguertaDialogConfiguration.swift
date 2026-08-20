@@ -10,7 +10,7 @@ struct ReguertaDialogAction {
     let action: () -> Void
 }
 
-struct ReguertaDialogViewModel {
+struct ReguertaDialogConfiguration {
     let type: ReguertaDialogType
     let title: String
     let message: String
@@ -68,7 +68,7 @@ func reguertaDialog(
     onDismiss: (() -> Void)? = nil
 ) -> some View {
     ReguertaDialogView(
-        viewModel: ReguertaDialogViewModel(
+        configuration: ReguertaDialogConfiguration(
             type: type,
             title: title,
             message: message,

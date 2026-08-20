@@ -1,5 +1,23 @@
 import SwiftUI
 
+enum DeliveryCalendarAdaptiveLayoutContract {
+    private static let preferredDayControlSize: CGFloat = 46
+    private static let standardActionMaximumWidth: CGFloat = 216
+    static let borderWidth: CGFloat = 1
+
+    static func dayControlSize(minimumTouchTarget: CGFloat) -> CGFloat {
+        max(preferredDayControlSize, minimumTouchTarget)
+    }
+
+    static func usesStackedDayNavigation(isAccessibilitySize: Bool) -> Bool { isAccessibilitySize }
+
+    static func prefersExpandedSheet(isAccessibilitySize: Bool) -> Bool { isAccessibilitySize }
+
+    static func actionMaximumWidth(isAccessibilitySize: Bool) -> CGFloat? {
+        isAccessibilitySize ? nil : standardActionMaximumWidth
+    }
+}
+
 struct DeliveryCalendarWeekPickerSheet: View {
     @Environment(\.reguertaTokens) private var tokens
     @Environment(\.dismiss) private var dismiss
@@ -14,45 +32,53 @@ struct DeliveryCalendarWeekPickerSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-                Text(
-                    localizedKey(
-                        overrideEntry == nil
-                            ? AccessL10nKey.deliveryCalendarWeekPickerSubtitle
-                            : AccessL10nKey.deliveryCalendarWeekPickerOverrideSubtitle
+            ScrollView(.vertical, showsIndicators: true) {
+                VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                    Text(
+                        localizedKey(
+                            overrideEntry == nil
+                                ? AccessL10nKey.deliveryCalendarWeekPickerSubtitle
+                                : AccessL10nKey.deliveryCalendarWeekPickerOverrideSubtitle
+                        )
                     )
-                )
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .layoutPriority(1)
-                Picker(localizedKey(AccessL10nKey.deliveryCalendarWeekPickerFieldWeek), selection: $selectedWeekKey) {
-                    ForEach(futureWeeks, id: \.weekKey) { shift in
-                        Text("\(shift.weekKey) · \(effectiveDateLabel(for: shift))")
-                            .tag(shift.weekKey)
+                        .font(tokens.typography.bodySecondary)
+                        .foregroundStyle(tokens.colors.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .layoutPriority(1)
+                    Picker(
+                        localizedKey(AccessL10nKey.deliveryCalendarWeekPickerFieldWeek),
+                        selection: $selectedWeekKey
+                    ) {
+                        ForEach(futureWeeks, id: \.weekKey) { shift in
+                            Text("\(shift.weekKey) · \(effectiveDateLabel(for: shift))")
+                                .tag(shift.weekKey)
+                        }
                     }
+                    .pickerStyle(.wheel)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 180)
+                    .clipped()
+
+                    DeliveryDayNavigationControl(
+                        tokens: tokens,
+                        selectedWeekday: $selectedWeekday,
+                        isSaving: isSaving
+                    )
                 }
-                .pickerStyle(.wheel)
-                .frame(maxWidth: .infinity)
-                .frame(height: 180)
-                .clipped()
-
-                DeliveryDayNavigationControl(
-                    tokens: tokens,
-                    selectedWeekday: $selectedWeekday,
-                    isSaving: isSaving
-                )
-
+                .padding(tokens.spacing.lg)
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
                 reguertaButton(
                     localizedKey(AccessL10nKey.deliveryCalendarEditorActionSaveException),
                     isEnabled: hasDayChange && !isSaving,
                     isLoading: isSaving,
                     action: onSave
                 )
-                Spacer(minLength: 0)
+                .padding(.horizontal, tokens.spacing.lg)
+                .padding(.vertical, tokens.spacing.sm)
+                .background(tokens.colors.surfacePrimary)
             }
-            .padding(tokens.spacing.lg)
             .navigationTitle(localizedKey(AccessL10nKey.deliveryCalendarEditorNavTitle))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -87,6 +113,7 @@ struct DeliveryCalendarWeekPickerSheet: View {
 }
 
 private struct DeliveryDayNavigationControl: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let tokens: ReguertaDesignTokens
     @Binding var selectedWeekday: DeliveryWeekday
     let isSaving: Bool
@@ -100,7 +127,13 @@ private struct DeliveryDayNavigationControl: View {
     }
 
     var body: some View {
-        HStack(spacing: tokens.spacing.md) {
+        let layout = DeliveryCalendarAdaptiveLayoutContract.usesStackedDayNavigation(
+            isAccessibilitySize: dynamicTypeSize.isAccessibilitySize
+        )
+            ? AnyLayout(VStackLayout(spacing: tokens.spacing.sm))
+            : AnyLayout(HStackLayout(spacing: tokens.spacing.md))
+
+        layout {
             DeliveryDayNavigationButton(
                 tokens: tokens,
                 systemImageName: "chevron.left",
@@ -113,7 +146,12 @@ private struct DeliveryDayNavigationControl: View {
                 .font(tokens.typography.body.weight(.semibold))
                 .foregroundStyle(tokens.colors.actionPrimary)
                 .padding(.horizontal, tokens.spacing.lg)
-                .frame(maxWidth: .infinity, minHeight: 46.resize)
+                .frame(
+                    maxWidth: .infinity,
+                    minHeight: DeliveryCalendarAdaptiveLayoutContract.dayControlSize(
+                        minimumTouchTarget: tokens.layout.minimumTouchTarget
+                    )
+                )
                 .deliveryDayGlassBackground(tokens: tokens, shape: Capsule(), isEnabled: true)
 
             DeliveryDayNavigationButton(
@@ -151,8 +189,15 @@ private struct DeliveryDayNavigationButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: systemImageName)
-                .font(.system(size: 20.resize, weight: .bold))
-                .frame(width: 46.resize, height: 46.resize)
+                .font(.system(size: tokens.icons.standard, weight: .bold))
+                .frame(
+                    width: DeliveryCalendarAdaptiveLayoutContract.dayControlSize(
+                        minimumTouchTarget: tokens.layout.minimumTouchTarget
+                    ),
+                    height: DeliveryCalendarAdaptiveLayoutContract.dayControlSize(
+                        minimumTouchTarget: tokens.layout.minimumTouchTarget
+                    )
+                )
         }
         .buttonStyle(.plain)
         .foregroundStyle(isEnabled ? tokens.colors.actionPrimary : tokens.colors.textSecondary.opacity(0.45))
@@ -196,7 +241,7 @@ private extension View {
                 .overlay(
                     shape.stroke(
                         tokens.colors.borderSubtle.opacity(isEnabled ? 0.75 : 0.35),
-                        lineWidth: 1.resize
+                        lineWidth: DeliveryCalendarAdaptiveLayoutContract.borderWidth
                     )
                 )
         }
@@ -204,6 +249,7 @@ private extension View {
 }
 
 struct SettingsDeliveryCalendarSectionView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let tokens: ReguertaDesignTokens
     let shiftsViewModel: ShiftsFeatureViewModel
 
@@ -227,11 +273,14 @@ struct SettingsDeliveryCalendarSectionView: View {
                     .foregroundStyle(tokens.colors.textSecondary)
                 reguertaButton(
                     localizedKey(AccessL10nKey.settingsDeliveryCalendarActionChangeDay),
-                    fullWidth: false,
-                    fixedWidth: 216.resize,
                     action: shiftsViewModel.openCalendarWeekPicker
                 )
-                .frame(maxWidth: .infinity, alignment: .center)
+                .frame(
+                    maxWidth: DeliveryCalendarAdaptiveLayoutContract.actionMaximumWidth(
+                        isAccessibilitySize: dynamicTypeSize.isAccessibilitySize
+                    ),
+                    alignment: .center
+                )
             }
         }
         .sheet(
@@ -248,8 +297,14 @@ struct SettingsDeliveryCalendarSectionView: View {
                 hasDayChange: shiftsViewModel.hasDeliveryCalendarDayChange,
                 onSave: saveOverride
             )
-            .presentationDetents([.medium, .large])
+            .presentationDetents(calendarSheetDetents)
         }
+    }
+
+    private var calendarSheetDetents: Set<PresentationDetent> {
+        DeliveryCalendarAdaptiveLayoutContract.prefersExpandedSheet(
+            isAccessibilitySize: dynamicTypeSize.isAccessibilitySize
+        ) ? [.large] : [.medium, .large]
     }
 
     private var weekPickerPresentedBinding: Binding<Bool> {

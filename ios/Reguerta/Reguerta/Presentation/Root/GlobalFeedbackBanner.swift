@@ -8,7 +8,13 @@ enum GlobalFeedbackPresentationPolicy {
     }
 }
 
+private enum GlobalFeedbackLayout {
+    static let maximumWidth: CGFloat = 358
+}
+
 struct GlobalFeedbackBanner: View {
+    @Environment(\.reguertaMotionPolicy) private var motionPolicy
+
     let tokens: ReguertaDesignTokens
     let isVoiceOverEnabled: Bool
     let messageKey: String
@@ -28,15 +34,23 @@ struct GlobalFeedbackBanner: View {
                         .foregroundStyle(tokens.colors.actionPrimary)
                         .padding(tokens.spacing.xs)
                 }
+                .frame(
+                    minWidth: tokens.layout.minimumTouchTarget,
+                    minHeight: tokens.layout.minimumTouchTarget
+                )
                 .buttonStyle(.plain)
                 .accessibilityLabel(dismissTitle)
             }
         }
-        .frame(maxWidth: 358.resize)
+        .frame(maxWidth: GlobalFeedbackLayout.maximumWidth)
         .padding(.horizontal, tokens.spacing.lg)
         .padding(.bottom, tokens.spacing.md)
-        .shadow(color: .black.opacity(0.18), radius: 12.resize, y: 4.resize)
-        .transition(.move(edge: .bottom).combined(with: .opacity))
+        .shadow(color: .black.opacity(0.18), radius: tokens.spacing.md, y: tokens.spacing.xs)
+        .transition(
+            motionPolicy.allowsMaterialAnimation
+                ? .move(edge: .bottom).combined(with: .opacity)
+                : .identity
+        )
         .accessibilityIdentifier("global.feedback.banner")
         .task(id: messageKey) {
             guard let delay = GlobalFeedbackPresentationPolicy.autoDismissDelay(

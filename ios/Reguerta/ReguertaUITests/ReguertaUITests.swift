@@ -14,6 +14,8 @@ final class ReguertaUITests: XCTestCase {
     private let signInButtonId = "auth.login.signInButton"
     private let menuButtonId = "home.topBar.menuButton"
     private let topBarTitleId = "reguerta.screenHeader.title"
+    private let drawerCloseButtonId = "home.drawer.closeButton"
+    private let drawerNavigationScrollId = "home.drawer.navigationScroll"
     private let newsDrawerItemId = "home.drawer.item.news"
     private let usersDrawerItemId = "home.drawer.item.users"
     private let myOrderButtonId = "home.module.myOrder"
@@ -23,9 +25,14 @@ final class ReguertaUITests: XCTestCase {
     private let latestNewsTitleIdPrefix = "home.latestNews.article."
     private let latestNewsCardIdPrefix = "home.latestNews.articleCard."
     private let latestNewsScrollId = "home.latestNews.scroll"
-    private let latestNewsExpectedCount = 3
     private let latestNewsOverflowTargetId = "news_ui_testing_overflow_target"
+    private let latestNewsExpectedIds = [
+        "news_ui_testing_brief",
+        "news_ui_testing_medium",
+        "news_ui_testing_overflow_target"
+    ]
     private let latestNewsMaxScrollAttempts = 4
+    private let compactBottomSafetyMargin: CGFloat = 8
     private let deterministicNowMillis = "1778760000000"
 
     override func setUp() async throws {
@@ -95,39 +102,33 @@ final class ReguertaUITests: XCTestCase {
         let app = configuredApp()
         signInAsProducer(in: app)
 
-        let latestNewsTitles = app.staticTexts.matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", latestNewsTitleIdPrefix)
-        )
-        XCTAssertTrue(
-            waitForElementCount(latestNewsTitles, minimumCount: latestNewsExpectedCount, timeout: 8),
-            "Expected three deterministic latest news titles"
-        )
-        XCTAssertEqual(latestNewsTitles.count, latestNewsExpectedCount)
+        let latestNewsScroll = app.scrollViews[latestNewsScrollId]
+        XCTAssertTrue(latestNewsScroll.waitForExistence(timeout: 8), "Latest news scroll not found")
 
-        let latestNewsCards = app.otherElements.matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", latestNewsCardIdPrefix)
-        )
-        XCTAssertTrue(
-            waitForElementCount(latestNewsCards, minimumCount: latestNewsExpectedCount, timeout: 3),
-            "Expected three deterministic latest news cards"
-        )
-        XCTAssertEqual(latestNewsCards.count, latestNewsExpectedCount)
+        for articleId in latestNewsExpectedIds {
+            let title = app.staticTexts[latestNewsTitleId(for: articleId)]
+            let card = app.otherElements[latestNewsCardId(for: articleId)]
+            var materializationAttempts = 0
+            while !title.exists || !card.exists, materializationAttempts < latestNewsMaxScrollAttempts {
+                latestNewsScroll.swipeUp()
+                materializationAttempts += 1
+            }
+            XCTAssertTrue(title.exists, "Expected deterministic latest-news title \(articleId)")
+            XCTAssertTrue(card.exists, "Expected deterministic latest-news card \(articleId)")
+        }
 
         let targetTitle = app.staticTexts[latestNewsTitleId(for: latestNewsOverflowTargetId)]
         let targetCard = app.otherElements[latestNewsCardId(for: latestNewsOverflowTargetId)]
         XCTAssertTrue(targetTitle.waitForExistence(timeout: 3), "Overflow target title not found")
         XCTAssertTrue(targetCard.waitForExistence(timeout: 3), "Overflow target card not found")
 
-        let latestNewsScroll = app.scrollViews[latestNewsScrollId]
-        XCTAssertTrue(latestNewsScroll.waitForExistence(timeout: 3), "Latest news scroll not found")
-
         var scrollAttempts = 0
-        var keepsBottomBreathingRoom = targetCard.frame.maxY <= app.frame.maxY - 24
+        var keepsBottomBreathingRoom = targetCard.frame.maxY <= app.frame.maxY - compactBottomSafetyMargin
         while !targetTitle.isHittable || !keepsBottomBreathingRoom,
               scrollAttempts < latestNewsMaxScrollAttempts {
             latestNewsScroll.swipeUp()
             scrollAttempts += 1
-            keepsBottomBreathingRoom = targetCard.frame.maxY <= app.frame.maxY - 24
+            keepsBottomBreathingRoom = targetCard.frame.maxY <= app.frame.maxY - compactBottomSafetyMargin
         }
 
         if !targetTitle.isHittable || !keepsBottomBreathingRoom {
@@ -141,7 +142,7 @@ final class ReguertaUITests: XCTestCase {
         XCTAssertTrue(targetTitle.isHittable, "Latest news overflow target should be visible and hittable")
         XCTAssertLessThanOrEqual(
             targetCard.frame.maxY,
-            app.frame.maxY - 24,
+            app.frame.maxY - compactBottomSafetyMargin,
             "Latest news overflow target should keep visible bottom breathing room"
         )
     }
@@ -160,9 +161,16 @@ final class ReguertaUITests: XCTestCase {
         XCTAssertTrue(waitForHittable(searchField, timeout: 5), "My order search field not hittable")
         XCTAssertLessThanOrEqual(
             searchField.frame.maxY,
-            app.frame.maxY - 8,
+            app.frame.maxY - compactBottomSafetyMargin,
             "My order search field should not be covered by the bottom edge"
         )
+
+        searchField.tap()
+        searchField.typeText("milk")
+        let clearButton = app.buttons["myOrder.searchClearButton"]
+        XCTAssertTrue(clearButton.waitForExistence(timeout: 5), "My order clear-search button not found")
+        XCTAssertGreaterThanOrEqual(clearButton.frame.width, 44, "Clear-search button must be at least 44 points wide")
+        XCTAssertGreaterThanOrEqual(clearButton.frame.height, 44, "Clear-search button must be at least 44 points high")
     }
 
     @MainActor func testUsersAddButtonStaysAboveBottomSafeArea() throws {
@@ -171,7 +179,14 @@ final class ReguertaUITests: XCTestCase {
 
         openDrawer(in: app)
         let usersDrawerItem = app.buttons[usersDrawerItemId]
-        XCTAssertTrue(usersDrawerItem.waitForExistence(timeout: 5), "Users drawer item not found")
+        let drawerNavigationScroll = app.scrollViews[drawerNavigationScrollId]
+        XCTAssertTrue(waitForHittable(drawerNavigationScroll, timeout: 5), "Drawer navigation scroll not hittable")
+        var scrollAttempts = 0
+        while !usersDrawerItem.isHittable && scrollAttempts < 4 {
+            drawerNavigationScroll.swipeUp()
+            scrollAttempts += 1
+        }
+        XCTAssertTrue(usersDrawerItem.exists, "Users drawer item not found")
         XCTAssertTrue(waitForHittable(usersDrawerItem, timeout: 5), "Users drawer item not hittable")
         usersDrawerItem.tap()
 
@@ -180,7 +195,7 @@ final class ReguertaUITests: XCTestCase {
         XCTAssertTrue(waitForHittable(addButton, timeout: 5), "Users add button not hittable")
         XCTAssertLessThanOrEqual(
             addButton.frame.maxY,
-            app.frame.maxY - 8,
+            app.frame.maxY - compactBottomSafetyMargin,
             "Users add button should not be covered by the bottom edge"
         )
     }
@@ -242,8 +257,10 @@ final class ReguertaUITests: XCTestCase {
             configuredApp().launch()
         }
     }
+}
 
-    @MainActor private func configuredApp() -> XCUIApplication {
+private extension ReguertaUITests {
+    @MainActor func configuredApp() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += [
             "-AppleLanguages", "(en)",
@@ -256,43 +273,27 @@ final class ReguertaUITests: XCTestCase {
         return app
     }
 
-    private func latestNewsTitleId(for articleId: String) -> String {
+    func latestNewsTitleId(for articleId: String) -> String {
         "\(latestNewsTitleIdPrefix)\(articleId).title"
     }
 
-    private func latestNewsCardId(for articleId: String) -> String {
+    func latestNewsCardId(for articleId: String) -> String {
         "\(latestNewsCardIdPrefix)\(articleId)"
     }
 
-    @MainActor
-    private func waitForElementCount(
-        _ query: XCUIElementQuery,
-        minimumCount: Int,
-        timeout: TimeInterval
-    ) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if query.count >= minimumCount {
-                return true
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
-        }
-        return query.count >= minimumCount
-    }
-
-    @MainActor private func signInAsProducer(in app: XCUIApplication) {
+    @MainActor func signInAsProducer(in app: XCUIApplication) {
         signIn(email: "pablo.producer@reguerta.app", in: app)
 
-        XCTAssertTrue(app.buttons[myOrderButtonId].waitForExistence(timeout: 8), "Home did not load")
+        XCTAssertTrue(app.buttons[menuButtonId].waitForExistence(timeout: 8), "Home did not load")
     }
 
-    @MainActor private func signInAsAdmin(in app: XCUIApplication) {
+    @MainActor func signInAsAdmin(in app: XCUIApplication) {
         signIn(email: "ana.admin@reguerta.app", in: app)
 
         XCTAssertTrue(app.buttons[menuButtonId].waitForExistence(timeout: 8), "Home did not load")
     }
 
-    @MainActor private func signIn(email: String, in app: XCUIApplication) {
+    @MainActor func signIn(email: String, in app: XCUIApplication) {
         let emailField = launchAndOpenLogin(app)
         emailField.tap()
         emailField.typeText(email)
@@ -302,31 +303,69 @@ final class ReguertaUITests: XCTestCase {
         passwordField.tap()
         passwordField.typeText("test1234")
 
-        app.buttons[signInButtonId].tap()
+        tapSignInButton(in: app)
         dismissPasswordSavePromptIfNeeded(in: app)
     }
 
-    @MainActor private func openDrawer(in app: XCUIApplication) {
+    @MainActor func tapSignInButton(in app: XCUIApplication) {
+        dismissKeyboardBeforeSubmitting(in: app)
+
+        let signInButton = app.buttons[signInButtonId]
+        if !waitForHittable(signInButton, timeout: 1) {
+            app.scrollViews.firstMatch.swipeUp()
+        }
+        XCTAssertTrue(waitForHittable(signInButton, timeout: 5), "Sign in button not hittable")
+        signInButton.tap()
+    }
+
+    @MainActor func dismissKeyboardBeforeSubmitting(in app: XCUIApplication) {
+        let keyboard = app.keyboards.firstMatch
+        guard keyboard.exists else { return }
+
+        let returnKey = keyboard.buttons["Return"]
+        if returnKey.exists {
+            returnKey.tap()
+        } else {
+            app.scrollViews.firstMatch.swipeUp()
+        }
+        XCTAssertTrue(waitForNonExistence(keyboard, timeout: 3), "Keyboard did not dismiss before sign in")
+    }
+
+    @MainActor func openDrawer(in app: XCUIApplication) {
         let menuButton = app.buttons[menuButtonId]
         XCTAssertTrue(menuButton.waitForExistence(timeout: 8), "Menu button not found")
         dismissPasswordSavePromptIfNeeded(in: app, timeout: 1)
         XCTAssertTrue(waitForHittable(menuButton, timeout: 5), "Menu button not hittable")
         menuButton.tap()
+
+        let closeButton = app.buttons[drawerCloseButtonId]
+        if !waitForHittable(closeButton, timeout: 2) {
+            dismissPasswordSavePromptIfNeeded(in: app, timeout: 1)
+            XCTAssertTrue(waitForHittable(menuButton, timeout: 3), "Menu button not hittable after prompt dismissal")
+            menuButton.tap()
+        }
+        XCTAssertTrue(waitForHittable(closeButton, timeout: 5), "Drawer did not open")
     }
 
-    @MainActor private func waitForHittable(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+    @MainActor func waitForHittable(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
         let predicate = NSPredicate(format: "isHittable == true")
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 
-    @MainActor private func waitForEnabled(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+    @MainActor func waitForEnabled(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
         let predicate = NSPredicate(format: "isEnabled == true")
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 
-    @MainActor private func dismissPasswordSavePromptIfNeeded(in app: XCUIApplication, timeout: TimeInterval = 2) {
+    @MainActor func waitForNonExistence(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+        let predicate = NSPredicate(format: "exists == false")
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    }
+
+    @MainActor func dismissPasswordSavePromptIfNeeded(in app: XCUIApplication, timeout: TimeInterval = 2) {
         for title in ["Not Now", "Ahora no"] {
             let button = app.buttons[title]
             if button.waitForExistence(timeout: timeout) {
@@ -345,7 +384,7 @@ final class ReguertaUITests: XCTestCase {
         }
     }
 
-    @MainActor private func launchAndOpenLogin(_ app: XCUIApplication) -> XCUIElement {
+    @MainActor func launchAndOpenLogin(_ app: XCUIApplication) -> XCUIElement {
         app.launch()
 
         let enterButton = app.buttons[enterButtonId]

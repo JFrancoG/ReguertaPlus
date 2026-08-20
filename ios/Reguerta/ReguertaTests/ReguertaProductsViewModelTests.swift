@@ -85,7 +85,7 @@ struct ReguertaProductsViewModelTests {
         rootViewModel.homeDestination = .products
         rootViewModel.productsViewModel.editingProductId = ""
 
-        guard case .verbatim(let title)? = rootViewModel.homeShellHeaderViewModel.title else {
+        guard case .verbatim(let title)? = rootViewModel.homeShellHeaderConfiguration.title else {
             Issue.record("Expected a verbatim product editor title")
             return
         }

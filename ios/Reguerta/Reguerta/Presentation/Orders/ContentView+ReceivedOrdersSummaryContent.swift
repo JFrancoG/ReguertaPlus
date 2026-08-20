@@ -17,26 +17,25 @@ struct ReceivedOrdersSummaryContent: View {
     var body: some View {
         switch selectedTab {
         case .byProduct:
-            receivedOrdersList(bottomPadding: tokens.spacing.sm) {
+            receivedOrdersList {
                 ForEach(snapshot.byProductRows) { row in
                     productCard(row)
                 }
             }
 
         case .byMember:
-            ZStack(alignment: .bottom) {
-                receivedOrdersList(bottomPadding: totalBarScrollBottomPadding) {
-                    ForEach(snapshot.byMemberGroups) { group in
-                        memberCard(
-                            group,
-                            isUpdatingStatus: updatingStatusOrderId == group.orderId,
-                            onSelectStatus: { status in
-                                onSelectStatus(group.orderId, status)
-                            }
-                        )
-                    }
+            receivedOrdersList {
+                ForEach(snapshot.byMemberGroups) { group in
+                    memberCard(
+                        group,
+                        isUpdatingStatus: updatingStatusOrderId == group.orderId,
+                        onSelectStatus: { status in
+                            onSelectStatus(group.orderId, status)
+                        }
+                    )
                 }
-
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
                 totalBar(total: snapshot.generalTotal)
             }
         }
@@ -45,7 +44,6 @@ struct ReceivedOrdersSummaryContent: View {
 
 extension ReceivedOrdersSummaryContent {
     func receivedOrdersList<Content: View>(
-        bottomPadding: CGFloat,
         @ViewBuilder content: @escaping () -> Content
     ) -> some View {
         ScrollView(.vertical, showsIndicators: false) {
@@ -53,85 +51,107 @@ extension ReceivedOrdersSummaryContent {
                 content()
             }
             .frame(maxWidth: .infinity)
-            .padding(.bottom, bottomPadding)
+            .padding(.bottom, tokens.spacing.sm)
         }
-        .ignoresSafeArea(.container, edges: .bottom)
-    }
-
-    var totalBarScrollBottomPadding: CGFloat {
-        72.resize + 8.resizeBottomSize
     }
 
     var receivedOrdersProductNameFont: Font {
-        .custom("CabinSketch-Bold", size: 16.resize, relativeTo: .subheadline)
+        tokens.typography.bodySecondary.weight(.bold)
     }
 
     var receivedOrdersSmallDetailFont: Font {
-        .custom("CabinSketch-Regular", size: 11.resize, relativeTo: .caption)
+        tokens.typography.labelRegular
     }
 
     var receivedOrdersProductQuantityFont: Font {
-        .custom("CabinSketch-Bold", size: 28.resize, relativeTo: .title2)
+        tokens.typography.titleSection
     }
 
     var receivedOrdersParentheticalFont: Font {
-        .custom("CabinSketch-Regular", size: 12.resize, relativeTo: .caption)
+        tokens.typography.labelRegular
     }
 
     var receivedOrdersMemberAmountFont: Font {
-        .custom("CabinSketch-Bold", size: 18.resize, relativeTo: .body)
+        tokens.typography.body.weight(.bold)
     }
 
     var receivedOrdersMemberTotalFont: Font {
-        .custom("CabinSketch-Bold", size: 20.resize, relativeTo: .headline)
+        tokens.typography.titleCard.weight(.bold)
     }
 
     var receivedOrdersGeneralTotalFont: Font {
-        .custom("CabinSketch-Bold", size: 22.resize, relativeTo: .headline)
+        tokens.typography.titleDialog
     }
 
     @ViewBuilder func productCard(_ row: ReceivedOrdersProductRow) -> some View {
         reguertaListItemCard {
-            HStack(alignment: .center, spacing: 0) {
-                receivedOrdersProductImage(urlString: row.productImageUrl)
-                    .frame(width: 76.resize)
-
-                verticalDivider(height: 72.resize)
-
-                VStack(alignment: .center, spacing: 4.resize) {
-                    Text(row.productName)
-                        .font(receivedOrdersProductNameFont)
-                        .foregroundStyle(tokens.colors.actionPrimary)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                    Text(row.packagingLine)
-                        .font(receivedOrdersSmallDetailFont)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, tokens.spacing.sm)
-
-                verticalDivider(height: 72.resize)
-
-                VStack(alignment: .center, spacing: 4.resize) {
-                    Text(row.totalQuantity.myOrderUiDecimal)
-                        .font(receivedOrdersProductQuantityFont)
-                        .foregroundStyle(tokens.colors.textPrimary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.78)
-                    Text(row.totalMeasureLabel())
-                        .font(receivedOrdersSmallDetailFont)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.78)
-                }
-                .frame(width: 88.resize)
+            ViewThatFits(in: .horizontal) {
+                wideProductSummary(row)
+                compactProductSummary(row)
             }
             .padding(.vertical, tokens.spacing.sm)
             .padding(.horizontal, tokens.spacing.sm)
+        }
+    }
+
+    func wideProductSummary(_ row: ReceivedOrdersProductRow) -> some View {
+        HStack(alignment: .center, spacing: 0) {
+            receivedOrdersProductImage(urlString: row.productImageUrl)
+                .frame(width: OrderAdaptiveLayoutMetrics.summaryProductColumnWidth)
+
+            verticalDivider(height: OrderAdaptiveLayoutMetrics.largeDividerHeight)
+
+            productDescription(row)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, tokens.spacing.sm)
+
+            verticalDivider(height: OrderAdaptiveLayoutMetrics.largeDividerHeight)
+
+            productQuantity(row)
+                .frame(width: OrderAdaptiveLayoutMetrics.summaryTotalQuantityColumnWidth)
+        }
+    }
+
+    func compactProductSummary(_ row: ReceivedOrdersProductRow) -> some View {
+        HStack(alignment: .center, spacing: tokens.spacing.md) {
+            receivedOrdersProductImage(urlString: row.productImageUrl)
+            VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                productDescription(row)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                productQuantity(row)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    func productDescription(_ row: ReceivedOrdersProductRow) -> some View {
+        VStack(alignment: .center, spacing: tokens.spacing.xs) {
+            Text(row.productName)
+                .font(receivedOrdersProductNameFont)
+                .foregroundStyle(tokens.colors.actionPrimary)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+            Text(row.packagingLine)
+                .font(receivedOrdersSmallDetailFont)
+                .foregroundStyle(tokens.colors.textSecondary)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+        }
+    }
+
+    func productQuantity(_ row: ReceivedOrdersProductRow) -> some View {
+        VStack(alignment: .center, spacing: tokens.spacing.xs) {
+            Text(row.totalQuantity.myOrderUiDecimal)
+                .font(receivedOrdersProductQuantityFont)
+                .foregroundStyle(tokens.colors.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+            Text(row.totalMeasureLabel())
+                .font(receivedOrdersSmallDetailFont)
+                .foregroundStyle(tokens.colors.textSecondary)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.78)
         }
     }
 
@@ -190,37 +210,60 @@ extension ReceivedOrdersSummaryContent {
     }
 
     @ViewBuilder func memberLineRow(_ line: ReceivedOrdersMemberLine) -> some View {
+        ViewThatFits(in: .horizontal) {
+            wideMemberLineRow(line)
+            compactMemberLineRow(line)
+        }
+    }
+
+    func wideMemberLineRow(_ line: ReceivedOrdersMemberLine) -> some View {
         HStack(alignment: .center, spacing: tokens.spacing.sm) {
-            VStack(alignment: .leading, spacing: 4.resize) {
-                Text(line.productName)
-                    .font(tokens.typography.bodySecondary.weight(.semibold))
-                    .foregroundStyle(tokens.colors.textPrimary)
-                    .lineLimit(2)
-                Text(line.packagingLine)
-                    .font(tokens.typography.labelRegular)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                    .lineLimit(2)
-            }
+            memberProductDescription(line)
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            verticalDivider(height: 50.resize)
+            verticalDivider(height: OrderAdaptiveLayoutMetrics.compactDividerHeight)
 
-            VStack(alignment: .center, spacing: 4.resize) {
-                HStack(alignment: .firstTextBaseline, spacing: 3.resize) {
-                    Text(line.quantity.myOrderUiDecimal)
-                        .font(receivedOrdersMemberAmountFont)
-                        .foregroundStyle(tokens.colors.textPrimary)
-                    Text("(\(line.totalMeasureLabel()))")
-                        .font(receivedOrdersParentheticalFont)
-                        .foregroundStyle(tokens.colors.textSecondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                }
-                Text(line.subtotal.euroCurrencyText(locale: presentationLocale))
+            memberQuantityAndSubtotal(line)
+            .frame(width: OrderAdaptiveLayoutMetrics.memberAmountColumnWidth)
+        }
+    }
+
+    func compactMemberLineRow(_ line: ReceivedOrdersMemberLine) -> some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+            memberProductDescription(line)
+            memberQuantityAndSubtotal(line)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+    }
+
+    func memberProductDescription(_ line: ReceivedOrdersMemberLine) -> some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+            Text(line.productName)
+                .font(tokens.typography.bodySecondary.weight(.semibold))
+                .foregroundStyle(tokens.colors.textPrimary)
+                .lineLimit(2)
+            Text(line.packagingLine)
+                .font(tokens.typography.labelRegular)
+                .foregroundStyle(tokens.colors.textSecondary)
+                .lineLimit(2)
+        }
+    }
+
+    func memberQuantityAndSubtotal(_ line: ReceivedOrdersMemberLine) -> some View {
+        VStack(alignment: .center, spacing: tokens.spacing.xs) {
+            HStack(alignment: .firstTextBaseline, spacing: tokens.spacing.xs) {
+                Text(line.quantity.myOrderUiDecimal)
                     .font(receivedOrdersMemberAmountFont)
                     .foregroundStyle(tokens.colors.textPrimary)
+                Text("(\(line.totalMeasureLabel()))")
+                    .font(receivedOrdersParentheticalFont)
+                    .foregroundStyle(tokens.colors.textSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
-            .frame(width: 112.resize)
+            Text(line.subtotal.euroCurrencyText(locale: presentationLocale))
+                .font(receivedOrdersMemberAmountFont)
+                .foregroundStyle(tokens.colors.textPrimary)
         }
     }
 
@@ -268,9 +311,9 @@ extension ReceivedOrdersSummaryContent {
             .foregroundStyle(tokens.colors.textPrimary)
             .lineLimit(1)
             .padding(.horizontal, tokens.spacing.md)
-            .frame(minHeight: 44.resize)
+            .frame(minHeight: tokens.layout.minimumTouchTarget)
             .background(shape.fill(style.container))
-            .overlay(shape.stroke(style.border, lineWidth: 1.resize))
+            .overlay(shape.stroke(style.border, lineWidth: 1))
     }
 
     func receivedOrdersStatusChipStyle(_ status: ProducerOrderStatus) -> ProducerStatusVisualStyle {
@@ -312,11 +355,11 @@ extension ReceivedOrdersSummaryContent {
     func verticalDivider(height: CGFloat) -> some View {
         Rectangle()
             .fill(tokens.colors.borderSubtle.opacity(0.55))
-            .frame(width: 1.resize, height: height)
+            .frame(width: 1, height: height)
     }
 
     @ViewBuilder func totalBar(total: Double) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 8.resize, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: tokens.radius.sm, style: .continuous)
 
         HStack {
             Text(
@@ -331,19 +374,19 @@ extension ReceivedOrdersSummaryContent {
                 .minimumScaleFactor(0.86)
         }
         .padding(.horizontal, tokens.spacing.md)
-        .frame(height: 50.resize)
+        .frame(minHeight: tokens.layout.minimumTouchTarget)
         .background(shape.fill(tokens.colors.actionPrimary))
         .overlay(
-            shape.stroke(tokens.colors.borderSubtle.opacity(0.65), lineWidth: 1.resize)
+            shape.stroke(tokens.colors.borderSubtle.opacity(0.65), lineWidth: 1)
         )
         .clipShape(shape)
         .padding(.horizontal, tokens.spacing.sm)
-        .padding(.bottom, 8.resizeBottomSize)
+        .padding(.bottom, tokens.spacing.sm)
         .allowsHitTesting(false)
     }
 
     @ViewBuilder func receivedOrdersProductImage(urlString: String?) -> some View {
-        let imageSize = CGFloat(64.resize)
+        let imageSize = OrderAdaptiveLayoutMetrics.compactProductImageSize
         if let urlString, let url = URL(string: urlString), urlString.isNotEmpty {
             AsyncImage(url: url) { phase in
                 switch phase {

@@ -68,6 +68,7 @@ struct MyOrderRouteView: View {
     let onCheckoutSuccessAcknowledge: () -> Void
 
     @Environment(\.locale) var locale
+    @Environment(\.reguertaMotionPolicy) var motionPolicy
 
     var presentationLocale: Locale {
         reguertaPresentationLocale(fallback: locale)
@@ -75,7 +76,7 @@ struct MyOrderRouteView: View {
 
     var body: some View {
         routeContent
-            .overlay(alignment: .bottom) {
+            .safeAreaInset(edge: .bottom, spacing: 0) {
                 if shouldShowSearchOverlay {
                     searchOverlay
                 }
@@ -106,14 +107,8 @@ struct MyOrderRouteView: View {
 }
 
 extension MyOrderRouteView {
-    var myOrderCartOverlayAnimation: Animation {
-        .easeInOut(duration: 0.4)
-    }
-
-    var myOrderScreenHorizontalBleed: CGFloat {
-        let contentWidth = 358.resize
-        let screenOutset = max(0, (DeviceScale.shortestSide - contentWidth) / 2)
-        return screenOutset.rounded(.up) + 1.resize
+    var myOrderCartOverlayAnimation: Animation? {
+        motionPolicy.materialAnimation(.easeInOut(duration: tokens.motion.standardDuration))
     }
 }
 

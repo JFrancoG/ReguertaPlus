@@ -21,17 +21,17 @@ extension MyOrderRouteView {
                 }
             }
             .overlay(
-                shape.stroke(tokens.colors.borderSubtle.opacity(0.58), lineWidth: 1.resize)
+                shape.stroke(tokens.colors.borderSubtle.opacity(0.58), lineWidth: 1)
             )
-            .shadow(color: .black.opacity(0.16), radius: 18.resize, y: 8.resize)
+            .shadow(color: .black.opacity(0.16), radius: tokens.radius.lg, y: tokens.spacing.sm)
             .padding(.horizontal, tokens.spacing.md)
-            .padding(.bottom, 8.resizeBottomSize)
+            .padding(.bottom, tokens.spacing.sm)
     }
 
     var searchOverlayContent: some View {
         HStack(spacing: tokens.spacing.sm) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 23.resize, weight: .medium))
+                .font(.system(size: tokens.icons.prominent, weight: .medium))
                 .foregroundStyle(tokens.colors.textSecondary)
             TextField(
                 LocalizedStringKey(AccessL10nKey.myOrderListSearch),
@@ -50,12 +50,18 @@ extension MyOrderRouteView {
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(tokens.colors.textSecondary)
+                        .frame(
+                            minWidth: tokens.layout.minimumTouchTarget,
+                            minHeight: tokens.layout.minimumTouchTarget
+                        )
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(LocalizedStringKey(AccessL10nKey.commonClear))
+                .accessibilityIdentifier("myOrder.searchClearButton")
             }
         }
-        .frame(minHeight: 58.resize)
+        .frame(minHeight: OrderAdaptiveLayoutMetrics.searchMinimumHeight)
         .padding(.horizontal, tokens.spacing.lg)
         .contentShape(Capsule())
     }
@@ -79,7 +85,7 @@ extension MyOrderRouteView {
         .background {
             tokens.colors.surfacePrimary
                 .ignoresSafeArea(.container, edges: .bottom)
-                .padding(.horizontal, -myOrderScreenHorizontalBleed)
+                .containerRelativeFrame(.horizontal)
         }
         .allowsHitTesting(viewModel.isCartVisible)
         .accessibilityIdentifier("myOrder.cartOverlay")
@@ -108,7 +114,10 @@ extension MyOrderRouteView {
                     selectedProductCard(product)
                 }
             }
-            .padding(.bottom, 88.resize)
+            .padding(
+                .bottom,
+                tokens.layout.minimumTouchTarget + tokens.spacing.xxl + tokens.spacing.xl
+            )
         }
         .ignoresSafeArea(.container, edges: .bottom)
     }
@@ -140,7 +149,7 @@ extension MyOrderRouteView {
 
         reguertaListItemCard {
             VStack(alignment: .leading, spacing: 0) {
-                Spacer().frame(height: 16.resize)
+                Spacer().frame(height: tokens.spacing.lg)
                 HStack(alignment: .top, spacing: tokens.spacing.sm) {
                     productImage(product)
                     VStack(alignment: .leading, spacing: tokens.spacing.xs) {
@@ -159,9 +168,9 @@ extension MyOrderRouteView {
                     }
                     Spacer(minLength: 0)
                 }
-                .padding(.horizontal, 12.resize)
+                .padding(.horizontal, tokens.spacing.md)
 
-                Spacer().frame(height: 12.resize)
+                Spacer().frame(height: tokens.spacing.md)
 
                 quantityControls(
                     product: product,
@@ -169,19 +178,19 @@ extension MyOrderRouteView {
                     isEditable: !viewModel.isReadOnlyMode
                 )
                 .frame(maxWidth: .infinity, alignment: .trailing)
-                .padding(.horizontal, 12.resize)
+                .padding(.horizontal, tokens.spacing.md)
 
                 if product.isEcoBasket, quantity > 0, !viewModel.isReadOnlyMode {
-                    Spacer().frame(height: 12.resize)
+                    Spacer().frame(height: tokens.spacing.md)
                     ecoBasketOptionSelector(
                         selectedOption: selectedOption,
                         onOptionSelected: { option in
                             viewModel.selectEcoBasketOption(productId: product.id, option: option)
                         }
                     )
-                    .padding(.horizontal, 12.resize)
+                    .padding(.horizontal, tokens.spacing.md)
                 }
-                Spacer().frame(height: 16.resize)
+                Spacer().frame(height: tokens.spacing.lg)
             }
         }
     }
@@ -308,6 +317,7 @@ extension MyOrderRouteView {
                 .font(tokens.typography.bodySecondary.weight(.semibold))
                 .foregroundStyle(isSelected ? tokens.colors.actionPrimary : tokens.colors.textSecondary)
                 .frame(maxWidth: .infinity)
+                .frame(minHeight: tokens.layout.minimumTouchTarget)
                 .padding(.vertical, tokens.spacing.xs)
                 .background(
                     RoundedRectangle(cornerRadius: tokens.radius.sm)

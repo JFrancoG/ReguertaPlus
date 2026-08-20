@@ -52,6 +52,8 @@ private struct ProductEditorHeroView: View {
     let tokens: ReguertaDesignTokens
     @Bindable var viewModel: ProductsRouteViewModel
 
+    @ScaledMetric(relativeTo: .headline) private var imagePreviewSize: CGFloat = 136
+
     var body: some View {
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .top, spacing: tokens.spacing.md) {
@@ -82,7 +84,7 @@ private struct ProductEditorHeroView: View {
             onImageSelectionFailed: viewModel.showUnableSaveFeedback,
             onCameraPermissionDenied: viewModel.showCameraPermissionRequiredFeedback,
             onCameraUnavailable: viewModel.showCameraUnavailableFeedback,
-            previewSize: 136.resize,
+            previewSize: imagePreviewSize,
             selectsImageOnPreviewTap: true,
             showsImageControls: false
         )
@@ -96,12 +98,12 @@ private struct ProductEditorHeroView: View {
                     .foregroundStyle(tokens.colors.textPrimary)
             }
             .tint(tokens.colors.controlAccent)
-            .padding(.bottom, 24.resize)
+            .padding(.bottom, tokens.spacing.xxl)
 
             if viewModel.draft.stockMode == .finite {
                 HStack(spacing: tokens.spacing.sm) {
                     Text("\(localizedStockLabel): \(viewModel.finiteStockQuantity)")
-                        .font(.custom("CabinSketch-Regular", size: 18.resize, relativeTo: .headline))
+                        .font(tokens.typography.body)
                         .foregroundStyle(stockQuantityColor)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     stockStepper
@@ -141,7 +143,7 @@ private struct ProductEditorHeroView: View {
                 action: viewModel.decreaseFiniteStock
             )
             Divider()
-                .frame(height: 24.resize)
+                .frame(height: tokens.icons.prominent)
                 .overlay(tokens.colors.borderSubtle)
             stockStepButton(
                 systemImage: "plus",
@@ -166,7 +168,11 @@ private struct ProductEditorHeroView: View {
                         ? tokens.colors.textPrimary
                         : tokens.colors.textSecondary.opacity(0.35)
                 )
-                .frame(width: 48.resize, height: 36.resize)
+                .frame(
+                    minWidth: tokens.layout.minimumTouchTarget,
+                    minHeight: tokens.layout.minimumTouchTarget
+                )
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)

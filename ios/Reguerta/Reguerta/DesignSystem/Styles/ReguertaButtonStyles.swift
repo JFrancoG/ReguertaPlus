@@ -12,13 +12,13 @@ struct ReguertaButtonStyles {
     @MainActor
     static var `default`: ReguertaButtonStyles {
         ReguertaButtonStyles(
-            fullHeight: 48.resize,
-            cornerRadius: 24.resize,
-            dialogSingleWidth: 296.resize,
-            dialogTwoButtonsWidth: 140.resize,
-            primaryFont: .custom("CabinSketch-Bold", size: 20.resize, relativeTo: .body),
-            secondaryFont: .custom("CabinSketch-Regular", size: 20.resize, relativeTo: .body),
-            textFont: .custom("CabinSketch-Regular", size: 18.resize, relativeTo: .body)
+            fullHeight: 48,
+            cornerRadius: 24,
+            dialogSingleWidth: 296,
+            dialogTwoButtonsWidth: 140,
+            primaryFont: .custom("CabinSketch-Bold", size: 20, relativeTo: .body),
+            secondaryFont: .custom("CabinSketch-Regular", size: 20, relativeTo: .body),
+            textFont: .custom("CabinSketch-Regular", size: 18, relativeTo: .body)
         )
     }
 }

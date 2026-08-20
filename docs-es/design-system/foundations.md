@@ -45,13 +45,27 @@ Estos aliases son transicionales y pueden evolucionar.
 
 ## 4. Politica responsive
 
-Los sistemas actuales usan escalado custom (`resize` / width ratio).
+Estado por plataforma:
 
-Guia:
+- iOS usa contratos semanticos de tamano y la propuesta del contenedor SwiftUI
+  actual. HU-078 elimino `DeviceScale` global de ventana, su captura, las
+  extensiones de resize y todos los usos `.resize*` de produccion.
+- Android no cambio en HU-078. Su implementacion adaptativa queda como
+  seguimiento de paridad nativo de plataforma bajo la misma intencion semantica.
 
-- Mantener el comportamiento de escala existente durante la migracion.
-- No introducir nuevos tamanos hardcodeados.
-- Evolucionar hacia ramps de tamanos controladas por tokens e implementadas de forma nativa por plataforma.
+Reglas:
+
+- Derivar el layout del contenedor activo, no de un snapshot global de ventana.
+- Consumir tokens semanticos de spacing, radio, icono, control, layout y ancho
+  legible en vez de introducir escalado local de feature o dimensiones arbitrarias.
+- Mantener en iOS una region tactil minima de 44 puntos aunque el glifo visible
+  sea menor.
+- Limitar el ancho legible del scaffold en iOS y permitir que los contenedores
+  compactos utilicen el ancho disponible.
+- Usar estilos de texto relativos a Dynamic Type sin multiplicar las fuentes por
+  el ancho.
+- Reservar `@ScaledMetric` para metricas no textuales con significado visual que
+  deba seguir Dynamic Type.
 
 ## 5. Politica de tipografia
 
@@ -81,7 +95,7 @@ No duplicar tablas de hexadecimales en documentacion mantenida a mano. Ejecutar 
 | Contenido de accion y destructivo | Usar `actionOnPrimary` y `feedbackOnError`, respectivamente; no hardcodear blanco o negro. |
 | Estados seleccionado y leido/no leido | Anadir icono, texto, forma o semantica de accesibilidad; el color no puede ser la unica senal. |
 
-- Preservar minimos de area tactil en contratos de componentes.
+- Preservar un area tactil minima de 44 por 44 puntos en contratos iOS.
 - Considerar el estado renderizado, no un token aislado, como unidad de verificacion de contraste.
 
 ## 7. Flexibilidad por plataforma
@@ -105,11 +119,50 @@ Puntos de entrada actuales en codigo:
   - `android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Type.kt`
   - `android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/DesignTokens.kt`
 - iOS (theme wrapper + tokens semanticos):
-  - `ios/Reguerta/Reguerta/Reguerta/DesignSystem/ReguertaTheme.swift`
-  - `ios/Reguerta/Reguerta/Reguerta/ReguertaApp.swift`
+  - `ios/Reguerta/Reguerta/DesignSystem/ReguertaTheme.swift`
+  - `ios/Reguerta/Reguerta/ReguertaApp.swift`
 
 Baseline de migracion auth shell:
 
 - Las rutas Splash / Welcome / Login consumen spacing/radius/tipografia del foundation layer en:
-  - `android/Reguerta/app/src/main/java/com/reguerta/user/presentation/access/ReguertaRoot.kt`
-  - `ios/Reguerta/Reguerta/Reguerta/ContentView.swift`
+  - `android/Reguerta/app/src/main/java/com/reguerta/user/presentation/root/ReguertaRoot.kt`
+  - `ios/Reguerta/Reguerta/Presentation/Root/AuthShellView.swift`
+  - `ios/Reguerta/Reguerta/Presentation/Auth/ContentView+AuthRoutes.swift`
+  - `ios/Reguerta/Reguerta/Presentation/Auth/ContentView+AuthForms.swift`
+
+## 9. Foundation adaptativo iOS HU-078 (2026-08-20)
+
+`ReguertaDesignTokens` es la autoridad iOS para valores semanticos de spacing,
+radio, icono, layout, ancho legible, area de control, tipografia, color y
+movimiento. Los valores raw permanecen dentro de DesignSystem; las vistas de
+feature consumen intencion nombrada.
+
+Los contratos iOS activos son:
+
+- `ReguertaTheme` lee `accessibilityReduceMotion` una sola vez e inyecta
+  `ReguertaMotionPolicy` junto a los tokens semanticos.
+- `ReguertaMotionPolicy` preserva los cambios de estado esenciales y permite
+  eliminar animacion material y escala cuando se reduce el movimiento.
+- `ReguertaScreenScaffold` recibe el ancho del contenedor activo, centra el
+  contenido regular, limita su ancho legible a 720 puntos y preserva el ownership
+  de safe area de ADR-0005.
+- El texto usa CabinSketch con estilos relativos a Dynamic Type y sin
+  multiplicador de fuente derivado del ancho.
+- Siete propiedades `@ScaledMetric` focales escalan metricas no textuales con
+  significado; no sustituyen el layout consciente del contenedor.
+- Los controles compartidos componen una region tactil minima de 44 por 44
+  puntos.
+
+La evidencia de implementacion contiene 19 archivos Swift de DesignSystem /
+2.444 lineas / 30 previews y 6 archivos de soporte de previews de Presentation /
+1.998 lineas / 26 previews. Release, contrato de color, settings, builds, lint y
+auditoria de scope estan verdes. Las previews deterministas y las pruebas
+estructurales no certifican por si solas la accesibilidad en runtime. El
+2026-08-20 el mantenedor completo una aceptacion manual acotada para el MVP: la
+navegacion/acciones representativas con VoiceOver y Voice Control, los controles
+muestreados con Accessibility Inspector y la comparacion interactiva Reduce
+Motion off/on se comportaron correctamente. No es una certificacion exhaustiva
+de tecnologias de asistencia.
+
+No cambio codigo Android. La paridad Android debe adoptar APIs adaptativas
+nativas conservando estos roles semanticos, no copiar detalles de SwiftUI.

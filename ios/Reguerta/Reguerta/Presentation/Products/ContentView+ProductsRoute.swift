@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct ProductsRouteView: View {
+    @Environment(\.reguertaMotionPolicy) private var motionPolicy
+
     let tokens: ReguertaDesignTokens
     let viewModel: ProductsRouteViewModel
 
@@ -19,22 +21,21 @@ struct ProductsRouteView: View {
             ScrollViewReader { proxy in
                 ScrollView(.vertical, showsIndicators: false) {
                     routeContent
-                        .padding(
-                            .bottom,
-                            viewModel.isEditing
-                                ? tokens.spacing.sm
-                                : ReguertaFloatingActionButtonLayout.scrollContentBottomPadding
-                        )
+                        .padding(.bottom, tokens.spacing.sm)
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .onChange(of: viewModel.highlightedProductId) { _, productId in
                     guard let productId else { return }
-                    withAnimation(.easeInOut(duration: 0.25)) {
+                    withAnimation(
+                        motionPolicy.materialAnimation(.easeInOut(duration: tokens.motion.standardDuration))
+                    ) {
                         proxy.scrollTo(productId, anchor: .center)
                     }
                 }
             }
 
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             if !viewModel.isEditing {
                 reguertaFloatingActionButton(localizedKey(AccessL10nKey.productsListActionAdd)) {
                     viewModel.startCreating()
@@ -62,6 +63,8 @@ struct ProductsRouteView: View {
 }
 
 private struct ProductsListRouteView: View {
+    @Environment(\.reguertaMotionPolicy) private var motionPolicy
+
     let tokens: ReguertaDesignTokens
     let viewModel: ProductsRouteViewModel
     let activeProducts: [Product]
@@ -115,8 +118,14 @@ private struct ProductsListRouteView: View {
                 }
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: activeProducts.map(\.id))
-        .animation(.easeInOut(duration: 0.25), value: archivedProducts.map(\.id))
+        .animation(
+            motionPolicy.materialAnimation(.easeInOut(duration: tokens.motion.standardDuration)),
+            value: activeProducts.map(\.id)
+        )
+        .animation(
+            motionPolicy.materialAnimation(.easeInOut(duration: tokens.motion.standardDuration)),
+            value: archivedProducts.map(\.id)
+        )
     }
 }
 
@@ -127,6 +136,8 @@ private struct ProductCardRowView: View {
     let isHighlighted: Bool
     let onEdit: () -> Void
     let onArchive: () -> Void
+
+    @ScaledMetric(relativeTo: .headline) private var productThumbnailSize: CGFloat = 72
 
     private var descriptionText: String {
         product.description.isEmpty ? l10n(AccessL10nKey.productsCardDescriptionEmpty) : product.description
@@ -151,18 +162,18 @@ private struct ProductCardRowView: View {
     var body: some View {
         reguertaListItemCard(isHighlighted: isHighlighted) {
             VStack(alignment: .leading, spacing: 0) {
-                Spacer().frame(height: 16.resize)
+                Spacer().frame(height: tokens.spacing.lg)
                 ZStack(alignment: .topTrailing) {
                     HStack {
-                        Spacer().frame(width: 12.resize)
+                        Spacer().frame(width: tokens.spacing.md)
                         productImage
                         Spacer()
                     }
 
-                    HStack(spacing: 8.resize) {
+                    HStack(spacing: tokens.spacing.sm) {
                         ReguertaListActionIconButton(
                             systemImageName: "pencil",
-                            accessibilityLabel: "Editar producto",
+                            accessibilityLabel: l10n(AccessL10nKey.productsCardActionEdit),
                             backgroundColor: tokens.colors.actionPrimary,
                             foregroundColor: tokens.colors.actionOnPrimary,
                             action: onEdit
@@ -171,56 +182,56 @@ private struct ProductCardRowView: View {
                         if !archived {
                             ReguertaListActionIconButton(
                                 systemImageName: "trash",
-                                accessibilityLabel: "Archivar producto",
+                                accessibilityLabel: l10n(AccessL10nKey.productsCardActionArchive),
                                 backgroundColor: tokens.colors.feedbackError,
                                 foregroundColor: tokens.colors.feedbackOnError,
                                 action: onArchive
                             )
                         }
                     }
-                    .padding(.trailing, 12.resize)
+                    .padding(.trailing, tokens.spacing.md)
                 }
-                Spacer().frame(height: 8.resize)
+                Spacer().frame(height: tokens.spacing.sm)
 
-                VStack(alignment: .leading, spacing: 4.resize) {
+                VStack(alignment: .leading, spacing: tokens.spacing.xs) {
                     Text(product.name)
-                        .font(.custom("CabinSketch-Bold", size: 18.resize, relativeTo: .headline))
+                        .font(tokens.typography.body.weight(.bold))
                         .foregroundStyle(tokens.colors.textPrimary)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 12.resize)
+                        .padding(.horizontal, tokens.spacing.md)
 
                     Text(descriptionText)
-                        .font(.custom("CabinSketch-Regular", size: 14.resize, relativeTo: .subheadline))
+                        .font(tokens.typography.labelRegular)
                         .foregroundStyle(tokens.colors.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 12.resize)
+                        .padding(.horizontal, tokens.spacing.md)
 
-                    HStack(alignment: .firstTextBaseline, spacing: 8.resize) {
+                    HStack(alignment: .firstTextBaseline, spacing: tokens.spacing.sm) {
                         Text(priceText)
-                            .font(.custom("CabinSketch-Bold", size: 18.resize, relativeTo: .headline))
+                            .font(tokens.typography.body.weight(.bold))
                             .foregroundStyle(tokens.colors.textPrimary)
 
-                        Spacer(minLength: 8.resize)
+                        Spacer(minLength: tokens.spacing.sm)
 
                         Text(stockText)
-                            .font(.custom("CabinSketch-Bold", size: 18.resize, relativeTo: .headline))
+                            .font(tokens.typography.body.weight(.bold))
                             .foregroundStyle(tokens.colors.textPrimary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.72)
                     }
-                    .padding(.horizontal, 12.resize)
+                    .padding(.horizontal, tokens.spacing.md)
                 }
-                Spacer().frame(height: 16.resize)
+                Spacer().frame(height: tokens.spacing.lg)
             }
         }
     }
 
     @ViewBuilder
     private var productImage: some View {
-        RoundedRectangle(cornerRadius: 8.resize)
+        RoundedRectangle(cornerRadius: tokens.radius.sm)
             .fill(tokens.colors.surfaceSecondary)
-            .frame(width: 72.resize, height: 72.resize)
+            .frame(width: productThumbnailSize, height: productThumbnailSize)
             .overlay {
                 if let imageURL = URL(string: product.productImageUrl ?? ""), !(product.productImageUrl ?? "").isEmpty {
                     AsyncImage(url: imageURL) { phase in
@@ -234,8 +245,8 @@ private struct ProductCardRowView: View {
                                 .scaledToFill()
                         }
                     }
-                    .frame(width: 72.resize, height: 72.resize)
-                    .clipShape(RoundedRectangle(cornerRadius: 8.resize))
+                    .frame(width: productThumbnailSize, height: productThumbnailSize)
+                    .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
                 } else {
                     Image("product_no_available")
                         .resizable()

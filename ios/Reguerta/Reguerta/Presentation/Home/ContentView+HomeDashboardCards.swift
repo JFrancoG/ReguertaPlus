@@ -164,13 +164,9 @@ struct LatestNewsCardView: View {
                             .accessibilityElement(children: .contain)
                             .accessibilityIdentifier(item.cardAccessibilityIdentifier)
                         }
-
-                        Color.clear
-                            .frame(height: tokens.spacing.xxl)
-                            .accessibilityHidden(true)
                     }
+                    .padding(.bottom, tokens.spacing.lg)
                 }
-                .ignoresSafeArea(.container, edges: .bottom)
                 .accessibilityIdentifier("home.latestNews.scroll")
             }
         }
@@ -179,40 +175,48 @@ struct LatestNewsCardView: View {
 }
 
 struct HomeLatestNewsRowView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     let tokens: ReguertaDesignTokens
     let item: HomeLatestNewsItemPresentation
     let loadNewsImageData: @Sendable (URL) async throws -> Data
 
     var body: some View {
         Group {
-            switch item.imagePlacement {
-            case .leading:
-                HStack(alignment: .top, spacing: tokens.spacing.md) {
-                    if let imageURL = item.imageURL {
-                        HomeLatestNewsImageView(
-                            tokens: tokens,
-                            imageURL: imageURL,
-                            loadNewsImageData: loadNewsImageData
-                        )
-                    }
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                    newsImage
                     HomeLatestNewsTextView(tokens: tokens, item: item)
                 }
-            case .trailing:
-                HStack(alignment: .top, spacing: tokens.spacing.md) {
-                    HomeLatestNewsTextView(tokens: tokens, item: item)
-                    if let imageURL = item.imageURL {
-                        HomeLatestNewsImageView(
-                            tokens: tokens,
-                            imageURL: imageURL,
-                            loadNewsImageData: loadNewsImageData
-                        )
+            } else {
+                switch item.imagePlacement {
+                case .leading:
+                    HStack(alignment: .top, spacing: tokens.spacing.md) {
+                        newsImage
+                        HomeLatestNewsTextView(tokens: tokens, item: item)
                     }
+                case .trailing:
+                    HStack(alignment: .top, spacing: tokens.spacing.md) {
+                        HomeLatestNewsTextView(tokens: tokens, item: item)
+                        newsImage
+                    }
+                case nil:
+                    HomeLatestNewsTextView(tokens: tokens, item: item)
                 }
-            case nil:
-                HomeLatestNewsTextView(tokens: tokens, item: item)
             }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    @ViewBuilder
+    private var newsImage: some View {
+        if let imageURL = item.imageURL {
+            HomeLatestNewsImageView(
+                tokens: tokens,
+                imageURL: imageURL,
+                loadNewsImageData: loadNewsImageData
+            )
+        }
     }
 }
 
@@ -246,6 +250,10 @@ private struct HomeLatestNewsTextView: View {
 }
 
 private struct HomeLatestNewsImageView: View {
+    private enum Layout {
+        static let imageSize: CGFloat = 144
+    }
+
     let tokens: ReguertaDesignTokens
     let imageURL: URL
     let loadNewsImageData: @Sendable (URL) async throws -> Data
@@ -261,11 +269,11 @@ private struct HomeLatestNewsImageView: View {
                         .scaledToFill()
                 } else {
                     Image(systemName: "photo")
-                        .font(.system(size: 24.resize))
+                        .font(.system(size: tokens.icons.prominent))
                         .foregroundStyle(tokens.colors.textSecondary)
                 }
             }
-            .frame(width: 144.resize, height: 144.resize)
+            .frame(width: Layout.imageSize, height: Layout.imageSize)
             .compositingGroup()
             .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
             .accessibilityHidden(true)

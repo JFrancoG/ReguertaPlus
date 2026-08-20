@@ -1,5 +1,11 @@
 import SwiftUI
 
+private enum HomeDashboardLayout {
+    static let compactColumnWidth: CGFloat = 96
+    static let summaryRowMinimumHeight: CGFloat = 56
+    static let actionMinimumHeight: CGFloat = 82
+}
+
 struct HomeShellTopBarView: View {
     let titleKey: String
     let titleOverride: String?
@@ -63,8 +69,8 @@ struct HomeShellTopBarView: View {
         return nil
     }
 
-    private var headerViewModel: ReguertaScreenHeaderViewModel {
-        ReguertaScreenHeaderViewModel(
+    private var headerConfiguration: ReguertaScreenHeaderConfiguration {
+        ReguertaScreenHeaderConfiguration(
             title: headerTitle,
             leadingAction: leadingAction,
             leadingText: leadingText,
@@ -73,15 +79,15 @@ struct HomeShellTopBarView: View {
     }
 
     var body: some View {
-        ReguertaScreenHeaderView(viewModel: headerViewModel)
+        ReguertaScreenHeaderView(configuration: headerConfiguration)
     }
 }
 
 struct HomeWeeklySummaryCardView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     let tokens: ReguertaDesignTokens
     let display: HomeWeeklySummaryDisplay
-
-    private let compactColumnWidth: CGFloat = 96.resize
 
     private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 
@@ -91,7 +97,7 @@ struct HomeWeeklySummaryCardView: View {
                 Text(display.weekRangeLabel)
                     .font(tokens.typography.titleSection)
                     .foregroundStyle(tokens.colors.textPrimary)
-                    .lineLimit(1)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
                     .minimumScaleFactor(0.78)
                 Spacer(minLength: tokens.spacing.sm)
                 Text(display.weekBadgeLabel)
@@ -147,16 +153,27 @@ struct HomeWeeklySummaryCardView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    @ViewBuilder
     private func summaryGridRow(
         @ViewBuilder left: () -> some View,
         @ViewBuilder right: () -> some View
     ) -> some View {
-        HStack(spacing: 0) {
-            left()
-                .frame(width: compactColumnWidth)
-            Divider()
-            right()
-                .frame(maxWidth: .infinity)
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(spacing: 0) {
+                left()
+                    .frame(maxWidth: .infinity)
+                Divider()
+                right()
+                    .frame(maxWidth: .infinity)
+            }
+        } else {
+            HStack(spacing: 0) {
+                left()
+                    .frame(width: HomeDashboardLayout.compactColumnWidth)
+                Divider()
+                right()
+                    .frame(maxWidth: .infinity)
+            }
         }
     }
 
@@ -166,67 +183,67 @@ struct HomeWeeklySummaryCardView: View {
         valueColor: Color? = nil,
         maxValueLines: Int = 1
     ) -> some View {
-        VStack(alignment: .center, spacing: 2.resize) {
+        VStack(alignment: .center, spacing: tokens.spacing.xs / 2) {
             Text(localizedKey(titleKey))
                 .font(tokens.typography.label)
                 .foregroundStyle(tokens.colors.textSecondary)
                 .multilineTextAlignment(.center)
-                .lineLimit(1)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
             Text(value)
                 .font(tokens.typography.body.weight(.semibold))
                 .foregroundStyle(valueColor ?? tokens.colors.textPrimary)
                 .multilineTextAlignment(.center)
-                .lineLimit(maxValueLines)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? max(3, maxValueLines) : maxValueLines)
                 .minimumScaleFactor(0.82)
                 .truncationMode(.tail)
         }
-        .frame(maxWidth: .infinity, minHeight: 56.resize, alignment: .center)
+        .frame(maxWidth: .infinity, minHeight: HomeDashboardLayout.summaryRowMinimumHeight, alignment: .center)
         .padding(.horizontal, tokens.spacing.sm)
         .padding(.vertical, tokens.spacing.xs)
     }
 
     private func deliveryResponsiblesCell(titleKey: String, primary: String, secondary: String) -> some View {
-        VStack(alignment: .center, spacing: 2.resize) {
+        VStack(alignment: .center, spacing: tokens.spacing.xs / 2) {
             Text(localizedKey(titleKey))
                 .font(tokens.typography.label)
                 .foregroundStyle(tokens.colors.textSecondary)
                 .multilineTextAlignment(.center)
-                .lineLimit(1)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
             Text(primary)
                 .font(tokens.typography.body.weight(.semibold))
                 .foregroundStyle(tokens.colors.textPrimary)
                 .multilineTextAlignment(.center)
-                .lineLimit(1)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
                 .truncationMode(.tail)
             Text(secondary)
                 .font(tokens.typography.label)
                 .foregroundStyle(tokens.colors.textSecondary)
                 .multilineTextAlignment(.center)
-                .lineLimit(1)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
                 .truncationMode(.tail)
         }
-        .frame(maxWidth: .infinity, minHeight: 56.resize, alignment: .center)
+        .frame(maxWidth: .infinity, minHeight: HomeDashboardLayout.summaryRowMinimumHeight, alignment: .center)
         .padding(.horizontal, tokens.spacing.sm)
         .padding(.vertical, tokens.spacing.xs)
     }
 
     private func marketResponsiblesCell(titleKey: String, names: [String]) -> some View {
-        VStack(alignment: .center, spacing: 1.resize) {
+        VStack(alignment: .center, spacing: tokens.spacing.xs / 4) {
             Text(localizedKey(titleKey))
                 .font(tokens.typography.label)
                 .foregroundStyle(tokens.colors.textSecondary)
                 .multilineTextAlignment(.center)
-                .lineLimit(1)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
             ForEach(Array(names.prefix(3).enumerated()), id: \.offset) { _, name in
                 Text(name)
                     .font(tokens.typography.labelRegular)
                     .foregroundStyle(tokens.colors.textSecondary)
                     .multilineTextAlignment(.center)
-                    .lineLimit(1)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
                     .truncationMode(.tail)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 56.resize, alignment: .center)
+        .frame(maxWidth: .infinity, minHeight: HomeDashboardLayout.summaryRowMinimumHeight, alignment: .center)
         .padding(.horizontal, tokens.spacing.sm)
         .padding(.vertical, tokens.spacing.sm)
     }
@@ -243,6 +260,7 @@ struct HomeWeeklySummaryCardView: View {
 
 struct HomeActionRowView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let tokens: ReguertaDesignTokens
     let presentation: HomeActionRowPresentation
@@ -262,7 +280,11 @@ struct HomeActionRowView: View {
     }
 
     private var actionRowContent: some View {
-        HStack(spacing: tokens.spacing.sm) {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: tokens.spacing.sm))
+            : AnyLayout(HStackLayout(spacing: tokens.spacing.sm))
+
+        return layout {
             actionTile(
                 titleKey: AccessL10nKey.myOrder,
                 subtitleKey: presentation.myOrderSubtitleKey,
@@ -309,7 +331,7 @@ struct HomeActionRowView: View {
                         .lineLimit(1)
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 82.resize, alignment: .center)
+            .frame(maxWidth: .infinity, minHeight: HomeDashboardLayout.actionMinimumHeight, alignment: .center)
             .padding(tokens.spacing.md)
             .contentShape(RoundedRectangle(cornerRadius: tokens.radius.md))
             .homeActionTileGlass(
@@ -324,6 +346,24 @@ struct HomeActionRowView: View {
         .buttonStyle(.plain)
         .accessibilityIdentifier(accessibilityIdentifier)
     }
+}
+
+#Preview("Home actions AX5", traits: .modifier(ReguertaDesignSystemPreviewModifier())) {
+    let presentation = HomeActionRowPresentation(
+        myOrderFreshnessState: .ready,
+        canOpenReceivedOrders: true,
+        orderState: .unconfirmed,
+        myOrderSubtitleKey: AccessL10nKey.homeDashboardMyOrderSubtitleReview
+    )
+
+    HomeActionRowView(
+        tokens: .light,
+        presentation: presentation,
+        onOpenMyOrder: {},
+        onOpenReceivedOrders: {}
+    )
+    .environment(\.dynamicTypeSize, .accessibility5)
+    .frame(width: 320)
 }
 
 private extension View {

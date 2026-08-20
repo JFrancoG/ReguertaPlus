@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- 2026-08-20 | ♻️ refactor(ios): adopt adaptive layout
 - 2026-08-19 | ♻️ refactor(ios): consolidate app composition
 - 2026-08-19 | ♻️ refactor(ios): own session runtime context
 - 2026-08-19 | ♻️ refactor(ios): adopt nonisolated isolation

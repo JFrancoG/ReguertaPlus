@@ -1,5 +1,10 @@
 import SwiftUI
 
+private enum AuthWelcomeLayout {
+    static let logoSize: CGFloat = 214
+    static let maximumActionWidth: CGFloat = 320
+}
+
 extension AuthShellView {
     @ViewBuilder
     var currentAuthRoute: some View {
@@ -19,15 +24,15 @@ extension AuthShellView {
 
     var welcomeRoute: some View {
         VStack(spacing: tokens.spacing.md) {
-            Spacer().frame(height: 32.resize)
+            Spacer().frame(height: tokens.spacing.xxl + tokens.spacing.sm)
 
             Text(localizedKey(AccessL10nKey.welcomeTitlePrefix))
-                .font(.custom("CabinSketch-Regular", size: 22.resize, relativeTo: .headline))
+                .font(tokens.typography.titleDialog)
                 .foregroundStyle(tokens.colors.textPrimary)
                 .frame(maxWidth: .infinity)
 
             Text(localizedKey(AccessL10nKey.welcomeTitleBrand))
-                .font(.custom("CabinSketch-Bold", size: 36.resize, relativeTo: .title))
+                .font(tokens.typography.titleHero)
                 .foregroundStyle(tokens.colors.actionPrimary)
                 .frame(maxWidth: .infinity)
 
@@ -36,7 +41,7 @@ extension AuthShellView {
             Image("brand_logo")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 214.resize, height: 214.resize)
+                .frame(width: AuthWelcomeLayout.logoSize, height: AuthWelcomeLayout.logoSize)
                 .frame(maxWidth: .infinity)
 
             Spacer()
@@ -48,12 +53,15 @@ extension AuthShellView {
             ) {
                 rootViewModel.dispatchShell(.continueFromWelcome)
             }
-            .frame(maxWidth: 320.resize)
+            .frame(maxWidth: AuthWelcomeLayout.maximumActionWidth)
             .frame(maxWidth: .infinity)
 
             Spacer()
 
-            HStack(spacing: tokens.spacing.xs) {
+            let registrationPromptLayout = dynamicTypeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(spacing: tokens.spacing.xs))
+                : AnyLayout(HStackLayout(spacing: tokens.spacing.xs))
+            registrationPromptLayout {
                 Text(localizedKey(AccessL10nKey.welcomeNotRegistered))
                     .font(tokens.typography.titleCard)
                     .foregroundStyle(tokens.colors.textSecondary)
@@ -65,6 +73,7 @@ extension AuthShellView {
                         .foregroundStyle(tokens.colors.actionPrimary)
                 }
                 .buttonStyle(.plain)
+                .frame(minHeight: tokens.layout.minimumTouchTarget)
             }
             .frame(maxWidth: .infinity)
             .padding(.bottom, tokens.spacing.sm)
@@ -95,7 +104,7 @@ extension AuthShellView {
 
     func authHeader(titleKey: String) -> some View {
         ReguertaScreenHeaderView(
-            viewModel: ReguertaScreenHeaderViewModel(
+            configuration: ReguertaScreenHeaderConfiguration(
                 title: .localized(titleKey),
                 leadingAction: ReguertaHeaderAction(
                     systemImageName: "chevron.left",

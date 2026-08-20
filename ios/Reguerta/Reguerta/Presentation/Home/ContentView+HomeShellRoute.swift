@@ -8,56 +8,76 @@ private enum HomeSignOutDialogL10n {
 extension HomeShellView {
     @ViewBuilder
     var homeRoute: some View {
+        GeometryReader { proxy in
+            homeRoute(containerWidth: proxy.size.width)
+        }
+    }
+
+    @ViewBuilder
+    private func homeRoute(containerWidth: CGFloat) -> some View {
+        let drawerWidth = HomeShellLayoutContract.drawerWidth(
+            containerWidth: containerWidth,
+            minimumEdgeReveal: tokens.layout.minimumTouchTarget
+        )
+
         ZStack(alignment: .topLeading) {
-            homeDrawerPanel
+            homeDrawerPanel(drawerWidth: drawerWidth)
                 .zIndex(1)
+            homeScaffold(drawerWidth: drawerWidth)
+        }
+    }
 
-            ReguertaScreenScaffold(
-                contentWidth: rootViewModel.homeContentWidth,
-                headerViewModel: rootViewModel.homeShellHeaderViewModel,
-                headerHorizontalPadding: rootViewModel.homeShellTopBarHorizontalPadding,
-                headerContentSpacing: rootViewModel.homeShellRouteSpacing
-            ) {
-                homeRouteContent
-                    .frame(maxHeight: .infinity, alignment: .topLeading)
-            }
-            .disabled(rootViewModel.isHomeDrawerPresented)
-            .overlay(alignment: .topLeading) {
-                if rootViewModel.isHomeDrawerPresented {
-                    homeDrawerHomeScrim
-                }
-            }
-            .overlay {
-                homeCheckoutDialogOverlay
-            }
-            .overlay {
-                homePushNotificationPermissionDialogOverlay
-            }
-            .overlay {
-                homeSharedProfileSavedDialogOverlay
-            }
-            .overlay {
-                homeSignOutConfirmationDialogOverlay
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .offset(x: rootViewModel.homeLayerOffset)
-            .zIndex(2)
-            .animation(rootViewModel.homeDrawerAnimation, value: rootViewModel.isHomeDrawerOpen)
-            .animation(
-                .interactiveSpring(response: 0.25, dampingFraction: 0.84),
-                value: rootViewModel.homeDrawerDragOffset
-            )
-
-            if !rootViewModel.isHomeDrawerOpen {
-                Color.clear
-                    .frame(width: 22.resize)
-                    .frame(maxHeight: .infinity)
-                    .ignoresSafeArea()
-                    .contentShape(Rectangle())
-                    .gesture(openHomeDrawerDragGesture)
-                    .zIndex(4)
+    private func homeScaffold(drawerWidth: CGFloat) -> some View {
+        ReguertaScreenScaffold(
+            contentWidth: tokens.layout.readableContentMaximumWidth,
+            headerConfiguration: rootViewModel.homeShellHeaderConfiguration,
+            headerHorizontalPadding: homeShellTopBarHorizontalPadding,
+            headerContentSpacing: homeShellRouteSpacing
+        ) {
+            homeRouteContent
+                .frame(maxHeight: .infinity, alignment: .topLeading)
+        }
+        .disabled(rootViewModel.isHomeDrawerPresented)
+        .overlay(alignment: .topLeading) {
+            if rootViewModel.isHomeDrawerPresented {
+                homeDrawerHomeScrim(drawerWidth: drawerWidth)
             }
         }
+        .overlay {
+            homeCheckoutDialogOverlay
+        }
+        .overlay {
+            homePushNotificationPermissionDialogOverlay
+        }
+        .overlay {
+            homeSharedProfileSavedDialogOverlay
+        }
+        .overlay {
+            homeSignOutConfirmationDialogOverlay
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .offset(x: rootViewModel.homeLayerOffset(drawerWidth: drawerWidth))
+        .zIndex(2)
+        .simultaneousGesture(openHomeDrawerDragGesture(drawerWidth: drawerWidth))
+        .animation(homeDrawerAnimation, value: rootViewModel.isHomeDrawerOpen)
+        .animation(
+            homeDrawerDragAnimation,
+            value: rootViewModel.homeDrawerDragOffset
+        )
+    }
+
+    private var homeShellRouteSpacing: CGFloat {
+        if rootViewModel.isMyOrderCartOverlayVisible {
+            return 0
+        }
+        if rootViewModel.homeDestination == .myOrder {
+            return tokens.spacing.lg + tokens.spacing.xs / 2
+        }
+        return tokens.spacing.md
+    }
+
+    private var homeShellTopBarHorizontalPadding: CGFloat {
+        rootViewModel.homeDestination == .myOrder ? tokens.spacing.sm : 0
     }
 
     @ViewBuilder
@@ -205,7 +225,7 @@ extension HomeShellView {
         rootViewModel.homeDestination = .dashboard
     }
 
-    var homeDrawerPanel: some View {
+    func homeDrawerPanel(drawerWidth: CGFloat) -> some View {
         HomeDrawerContentView(
             tokens: tokens,
             currentMember: rootViewModel.currentHomeMember,
@@ -217,24 +237,23 @@ extension HomeShellView {
             onCloseDrawer: rootViewModel.closeHomeDrawer,
             onSignOut: rootViewModel.handleHomeDrawerSignOut
         )
-        .padding(.top, 8.resizeStatusBarSize)
-        .padding(.bottom, 16.resizeBottomSize)
-        .padding(.horizontal, 16.resize)
-        .frame(width: rootViewModel.homeDrawerWidth)
+        .padding(.horizontal, tokens.layout.compactHorizontalPadding)
+        .safeAreaPadding(.top, tokens.spacing.sm)
+        .safeAreaPadding(.bottom, tokens.spacing.lg)
+        .frame(width: drawerWidth)
         .frame(maxHeight: .infinity, alignment: .topLeading)
         .background(tokens.colors.surfacePrimary.ignoresSafeArea())
-        .offset(x: rootViewModel.homeDrawerOffset)
+        .offset(x: rootViewModel.homeDrawerOffset(drawerWidth: drawerWidth))
         .gesture(closeHomeDrawerDragGesture)
-        .ignoresSafeArea(.container, edges: .vertical)
         .allowsHitTesting(rootViewModel.isHomeDrawerPresented)
         .accessibilityHidden(!rootViewModel.isHomeDrawerPresented)
-        .animation(rootViewModel.homeDrawerAnimation, value: rootViewModel.isHomeDrawerOpen)
-        .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.84), value: rootViewModel.homeDrawerDragOffset)
+        .animation(homeDrawerAnimation, value: rootViewModel.isHomeDrawerOpen)
+        .animation(homeDrawerDragAnimation, value: rootViewModel.homeDrawerDragOffset)
     }
 
-    var homeDrawerHomeScrim: some View {
+    func homeDrawerHomeScrim(drawerWidth: CGFloat) -> some View {
         Color.black
-            .opacity(0.10 * Double(rootViewModel.homeDrawerProgress))
+            .opacity(0.10 * Double(rootViewModel.homeDrawerProgress(drawerWidth: drawerWidth)))
             .ignoresSafeArea()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
@@ -242,12 +261,23 @@ extension HomeShellView {
             .gesture(closeHomeDrawerDragGesture)
     }
 
-    var openHomeDrawerDragGesture: some Gesture {
+    func openHomeDrawerDragGesture(drawerWidth: CGFloat) -> some Gesture {
         DragGesture(minimumDistance: 12)
             .onChanged { gesture in
-                rootViewModel.handleHomeOpenDrawerDragChanged(gesture.translation.width)
+                guard HomeShellLayoutContract.shouldRecognizeDrawerOpeningGesture(
+                    startLocationX: gesture.startLocation.x,
+                    edgeWidth: tokens.layout.minimumTouchTarget
+                ) else { return }
+                rootViewModel.handleHomeOpenDrawerDragChanged(
+                    gesture.translation.width,
+                    drawerWidth: drawerWidth
+                )
             }
             .onEnded { gesture in
+                guard HomeShellLayoutContract.shouldRecognizeDrawerOpeningGesture(
+                    startLocationX: gesture.startLocation.x,
+                    edgeWidth: tokens.layout.minimumTouchTarget
+                ) else { return }
                 rootViewModel.handleHomeOpenDrawerDragEnded(gesture.translation.width)
             }
     }

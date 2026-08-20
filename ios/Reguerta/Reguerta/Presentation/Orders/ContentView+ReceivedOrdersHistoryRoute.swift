@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct ReceivedOrdersHistoryRouteView: View {
+    @Environment(\.reguertaMotionPolicy) private var motionPolicy
+
     let tokens: ReguertaDesignTokens
     let viewModel: ReceivedOrdersHistoryRouteViewModel
     let context: ReceivedOrdersHistoryRouteContext
@@ -80,7 +82,7 @@ struct ReceivedOrdersHistoryRouteView: View {
                     }
                 }
             )
-            .presentationDetents([.height(320.resize)])
+            .presentationDetents([.medium])
             .presentationBackground(tokens.colors.surfacePrimary)
         }
     }
@@ -92,7 +94,7 @@ struct ReceivedOrdersHistoryRouteView: View {
             selection: Binding(
                 get: { viewModel.selectedTab },
                 set: { tab in
-                    withAnimation(.snappy(duration: 0.22)) {
+                    withAnimation(motionPolicy.materialAnimation(.snappy(duration: tokens.motion.standardDuration))) {
                         viewModel.selectTab(tab)
                     }
                 }

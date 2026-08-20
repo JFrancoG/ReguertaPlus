@@ -19,32 +19,36 @@ struct ShiftsRouteView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-            if viewModel.hasVisibleShiftSwapActivity {
-                ShiftSwapRequestsCardView(
+        ScrollView(.vertical, showsIndicators: true) {
+            VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                if viewModel.hasVisibleShiftSwapActivity {
+                    ShiftSwapRequestsCardView(
+                        tokens: tokens,
+                        viewModel: viewModel,
+                        shiftSwapCopy: shiftSwapCopy
+                    )
+                }
+
+                MyNextShiftsSectionView(
+                    tokens: tokens,
+                    viewModel: viewModel
+                )
+
+                ShiftBoardSectionView(
                     tokens: tokens,
                     viewModel: viewModel,
-                    shiftSwapCopy: shiftSwapCopy
+                    shiftSwapCopy: shiftSwapCopy,
+                    onStartSwapRequestForShift: onStartSwapRequestForShift
                 )
             }
-
-            MyNextShiftsSectionView(
-                tokens: tokens,
-                viewModel: viewModel
-            )
-
-            ShiftBoardSectionView(
-                tokens: tokens,
-                viewModel: viewModel,
-                shiftSwapCopy: shiftSwapCopy,
-                onStartSwapRequestForShift: onStartSwapRequestForShift
-            )
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
 private struct MyNextShiftsSectionView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let tokens: ReguertaDesignTokens
     let viewModel: ShiftsFeatureViewModel
 
@@ -69,7 +73,10 @@ private struct MyNextShiftsSectionView: View {
                 reguertaCard {
                     VStack(alignment: .center, spacing: tokens.spacing.sm) {
                         nextShiftRow(titleKey: AccessL10nKey.shiftsTypeDelivery) {
-                            VStack(alignment: .center, spacing: tokens.spacing.sm) {
+                            VStack(
+                                alignment: dynamicTypeSize.isAccessibilitySize ? .leading : .center,
+                                spacing: tokens.spacing.sm
+                            ) {
                                 nextDateLine(
                                     titleKey: AccessL10nKey.shiftsNextDeliveryHelper,
                                     value: dateLabel(viewModel.nextDeliveryHelperShift),
@@ -89,9 +96,8 @@ private struct MyNextShiftsSectionView: View {
                                 .font(tokens.typography.bodySecondary)
                                 .fontWeight(.regular)
                                 .foregroundStyle(tokens.colors.textPrimary)
-                                .multilineTextAlignment(.center)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.82)
+                                .multilineTextAlignment(nextShiftTextAlignment)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 }
@@ -105,17 +111,30 @@ private struct MyNextShiftsSectionView: View {
         titleKey: String,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        HStack(alignment: .center, spacing: tokens.spacing.lg) {
+        let usesStackedLayout = ShiftsAdaptiveLayoutContract.usesStackedNextShiftSummary(
+            isAccessibilitySize: dynamicTypeSize.isAccessibilitySize
+        )
+        let layout = usesStackedLayout
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: tokens.spacing.sm))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: tokens.spacing.lg))
+
+        return layout {
             Text(localizedKey(titleKey))
                 .font(tokens.typography.body.weight(.semibold))
                 .foregroundStyle(tokens.colors.actionPrimary)
-                .multilineTextAlignment(.center)
-                .frame(width: 104, alignment: .center)
+                .multilineTextAlignment(nextShiftTextAlignment)
+                .frame(
+                    width: ShiftsAdaptiveLayoutContract.nextShiftTitleWidth(
+                        isAccessibilitySize: dynamicTypeSize.isAccessibilitySize
+                    ),
+                    alignment: usesStackedLayout ? .leading : .center
+                )
+                .frame(maxWidth: usesStackedLayout ? .infinity : nil, alignment: .leading)
 
             content()
-                .frame(maxWidth: .infinity, alignment: .center)
+                .frame(maxWidth: .infinity, alignment: usesStackedLayout ? .leading : .center)
         }
-        .frame(maxWidth: .infinity, alignment: .center)
+        .frame(maxWidth: .infinity, alignment: usesStackedLayout ? .leading : .center)
     }
 
     private func nextDateLine(titleKey: String, value: String, prominent: Bool) -> some View {
@@ -123,9 +142,12 @@ private struct MyNextShiftsSectionView: View {
             .font(prominent ? tokens.typography.body : tokens.typography.bodySecondary)
             .fontWeight(.regular)
             .foregroundStyle(tokens.colors.textPrimary)
-            .multilineTextAlignment(.center)
-            .lineLimit(1)
-            .minimumScaleFactor(0.82)
+            .multilineTextAlignment(nextShiftTextAlignment)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var nextShiftTextAlignment: TextAlignment {
+        dynamicTypeSize.isAccessibilitySize ? .leading : .center
     }
 
     private func dateLabel(_ shift: ShiftAssignment?) -> String {
