@@ -15,10 +15,11 @@ The maintainer activated Phase 5 on 2026-08-19 with the verbatim instruction:
 
 That instruction authorizes the HU-078 issue, branch, specification, plan,
 tasks, baseline, tests, and implementation within this document. On 2026-08-20
-the maintainer separately authorized committing this completed scope and two
-pre-existing Android dependency-catalog version updates. Push, pull request,
-merge, issue closure, branch deletion, deployment, and integration still
-require a separate delivery instruction.
+the maintainer separately authorized committing and pushing this completed
+scope and two pre-existing Android dependency-catalog version updates. On
+2026-08-21 the maintainer authorized the ready pull request, merge, issue
+closure, branch deletion, and local integration. Firebase/backend deployment is
+outside HU-078 and remains explicitly not applicable to this delivery.
 
 HU-078 starts from clean, synchronized `main` at
 `4b711833374e04e3a066676243b512aecb9f7194`. HU-077 / #255 is closed as
@@ -320,25 +321,26 @@ remains open.
 Issue #258 is open with `enhancement`, `platform:ios`, `priority:P1`, and
 `area:app`. The local branch is
 `codex/hu-078-ios-adaptive-layout-design-system-foundation` at the synchronized
-base above and has no upstream. The first implementation cut is the adaptive
+base above and initially had no upstream. The first implementation cut is the
+adaptive
 foundation characterization suite; no commit, push, PR, merge, issue closure,
 branch deletion, or deployment was authorized at bootstrap. The maintainer later
-authorized local commits only.
+authorized the complete delivery sequence recorded above.
 
-## Current implementation evidence (2026-08-20)
+## Current implementation evidence (2026-08-21)
 
-The local Phase 5 implementation is complete through the repository release
-gate and the bounded manual accessibility acceptance. The story is
-`ready_for_merge`; delivery remains a separate maintainer decision.
+The Phase 5 implementation is complete through the repository release gate and
+the bounded manual accessibility acceptance. The story is `ready_for_merge`,
+the branch is published, and the maintainer has authorized definitive delivery.
 
 | Measure | Initial | Current |
 | --- | ---: | ---: |
-| iOS production | 261 files / 36,243 lines | 267 files / 39,202 lines |
-| iOS unit tests | 112 files / 27,365 lines | 122 files / 29,191 lines |
+| iOS production | 261 files / 36,243 lines | 267 files / 39,208 lines |
+| iOS unit tests | 112 files / 27,365 lines | 122 files / 29,228 lines |
 | iOS UI tests | 2 files / 384 lines | 2 files / 423 lines |
-| Total Swift inventory | 375 files / 63,992 lines | 391 files / 68,816 lines |
-| Fast-unit responsibilities | 608 | 668 |
-| Release responsibilities | 617 | 677 |
+| Total Swift inventory | 375 files / 63,992 lines | 391 files / 68,859 lines |
+| Fast-unit responsibilities | 608 | 669 |
+| Release responsibilities | 617 | 678 |
 | `.resize*` occurrences/files | 303 / 35 | 0 / 0 |
 | Complete legacy layout surface | 37 files | 0 files |
 | Passive DesignSystem `*ViewModel` structs | 6 | 0 |
@@ -351,12 +353,13 @@ Final executable evidence:
 - focused adaptive selection: 72 logical responsibilities, 147
   device/configuration executions, 0 failed/skipped;
 - compact safe-area journeys: 3/3 on iPhone SE (3rd generation), iOS 26.5;
-- fast unit: 668/668 logical responsibilities, 812 executions, 0
-  failed/skipped;
+- fast unit: `/private/tmp/hu078-closeout-fast-unit.xcresult`, 669/669 logical
+  responsibilities, 813 executions, 0 failed/skipped;
 - UI smoke: 4/4 on iPhone 17, iOS 26.5;
-- release: `/private/tmp/hu078-final-release-gate-2.xcresult`, 677 total, 676
-  passed, the one inherited launch-matrix skip, and 0 failed; across device and
-  configuration executions, 820 passed and 4 skipped;
+- release:
+  `/var/folders/wt/r327qtw12_s5tbbcnx9dzqv80000gn/T/reguerta-release-gate.H9yckSBteo/release-gate-v1.xcresult`,
+  678 total, 677 passed, the one inherited launch-matrix skip, and 0 failed;
+  across device and configuration executions, 821 passed and 4 skipped;
 - SwiftLint 0.61.0: 0 findings across 391 Swift files;
 - effective Swift settings: 6/6 target/configuration pairs;
 - generic Debug and `Reguerta-Production` Production Release builds: passed;
@@ -380,6 +383,12 @@ correctly, sampled controls inspected with Accessibility Inspector exposed no
 issue, and Reduce Motion suppressed material animation while preserving the
 observed states and actions. This is bounded manual evidence rather than an
 exhaustive certification of every assistive technology and route.
+
+The final post-review UI remediation restored the shared horizontal screen
+insets, Home table/action surfaces, centered dialog alignment with accessible
+scroll behavior, and denser drawer rows while retaining the 44-point target.
+That bounded fix is recorded in commit `7c5d036` and is included in the final
+fast-unit and release evidence above.
 
 HU-078 made no Android UI/source implementation change. The separately
 authorized Android dependency-catalog maintenance is not adaptive-layout parity.

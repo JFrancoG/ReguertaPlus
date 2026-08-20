@@ -14,9 +14,10 @@ The maintainer activated Phase 5 on 2026-08-19 with the instruction:
 
 The instruction authorizes issue, branch, planning artifacts, tests, and
 in-scope implementation. On 2026-08-20 the maintainer additionally authorized
-local commits for HU-078 and two existing Android dependency-catalog updates.
-Push, PR, merge, issue closure, branch deletion, deployment, and integration
-remain unauthorized.
+committing and pushing HU-078 and two existing Android dependency-catalog
+updates. On 2026-08-21 the maintainer authorized a ready PR, merge, issue
+closure, branch deletion, and local integration. Firebase/backend deployment is
+outside this story and explicitly not applicable.
 
 - GitHub issue: https://github.com/JFrancoG/ReguertaPlus/issues/258
 - Branch: `codex/hu-078-ios-adaptive-layout-design-system-foundation`
@@ -61,12 +62,12 @@ remain unauthorized.
   one manual DesignSystem EnvironmentKey and one Dialog named coordinate space.
 - Inherited color catalog passes: 12 tokens, 11 pairs, 4 modes.
 
-## Current implementation evidence (2026-08-20)
+## Current implementation evidence (2026-08-21)
 
-- iOS: 391 Swift files / 68,816 lines; production 267/39,202, unit
-  122/29,191, UI 2/423.
-- Test inventory: 662 Swift Testing declarations, 6 XCTest unit methods, and 9
-  UI methods; 668 fast-unit and 677 release responsibilities.
+- iOS: 391 Swift files / 68,859 lines; production 267/39,208, unit
+  122/29,228, UI 2/423.
+- Test inventory: 663 Swift Testing declarations, 6 XCTest unit methods, and 9
+  UI methods; 669 fast-unit and 678 release responsibilities.
 - DesignSystem: 19 files / 2,444 lines / 30 previews. Presentation preview
   support: 6 files / 1,998 lines / 26 previews.
 - Zero `.resize*`, `DeviceScale`, capture-view, resize-extension, passive
@@ -75,12 +76,13 @@ remain unauthorized.
 - Focused adaptive evidence: 72 logical responsibilities / 147 executions / 0
   failed or skipped.
 - Compact iPhone SE evidence: 3/3.
-- Fast unit: 668/668 logical responsibilities / 812 executions / 0 failed or
-  skipped.
+- Fast unit: `/private/tmp/hu078-closeout-fast-unit.xcresult`, 669/669 logical
+  responsibilities / 813 executions / 0 failed or skipped.
 - UI smoke: 4/4.
-- Release: `/private/tmp/hu078-final-release-gate-2.xcresult`, 677 total, 676
-  passed, 1 inherited launch-matrix skip, 0 failed; 820 device/configuration
-  executions passed and 4 skipped.
+- Release:
+  `/var/folders/wt/r327qtw12_s5tbbcnx9dzqv80000gn/T/reguerta-release-gate.H9yckSBteo/release-gate-v1.xcresult`,
+  678 total, 677 passed, 1 inherited launch-matrix skip, 0 failed; 821
+  device/configuration executions passed and 4 skipped.
 - SwiftLint 0.61.0: 0 findings across 391 files. Effective settings: 6/6.
   Generic Debug and Production Release builds passed.
 - Color catalog: 12 tokens / 11 pairs / 4 modes. Diff and scope audits passed.
@@ -98,6 +100,11 @@ issue in Accessibility Inspector, and Reduce Motion off/on removed material
 animation while preserving the observed states and actions. This is bounded
 manual evidence, not exhaustive assistive-technology certification. HU-078 is
 ready for merge and remains open until authorized delivery is definitive.
+
+The final post-review UI remediation restored shared horizontal screen insets,
+Home table/action surfaces, centered dialogs with accessible scrolling, and
+denser drawer rows while retaining 44-point targets. Commit `7c5d036` and the
+final gates above cover those changes.
 
 ## Scope
 
@@ -188,15 +195,16 @@ ready for merge and remains open until authorized delivery is definitive.
 8. [x] Complete representative manual VoiceOver/Inspector and interactive
    Reduce Motion checks; all repository and deterministic matrix gates are
    green.
-9. [ ] Synchronize remote progress/closure evidence after the manual checks;
+9. [x] Synchronize remote progress/closure evidence after the manual checks;
    independent reviews and local documentation are complete.
 
 ## Delivery state
 
 Issue #258 is OPEN with `enhancement`, `platform:ios`, `priority:P1`, and
-`area:app`. The branch remains local with no upstream. Local commits are
-authorized; push, PR, merge, issue closure, branch deletion, deployment, and
-integration remain unauthorized and unperformed.
+`area:app`. The branch is published and synchronized. Commits and push are
+complete; the maintainer authorized the ready PR, merge, issue closure, branch
+deletion, and local integration on 2026-08-21. This mirror is the final pre-PR
+checkpoint. Firebase/backend deployment is outside scope and not applicable.
 
 ## Labels
 

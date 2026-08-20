@@ -124,10 +124,10 @@
 
 - [x] Focused adaptive unit command passes: 72 logical / 147 executions.
 - [x] Focused compact UI command passes 3/3 on iPhone SE / iOS 26.5.
-- [x] Fast-unit lane passes: 668/668 logical / 812 executions / 0 skipped.
+- [x] Fast-unit lane passes: 669/669 logical / 813 executions / 0 skipped.
 - [x] UI-smoke lane passes 4/4.
-- [x] Release gate passes: 677 total / 676 passed / 1 known skip / 0 failed;
-  820 device/configuration executions passed and 4 skipped.
+- [x] Release gate passes: 678 total / 677 passed / 1 known skip / 0 failed;
+  821 device/configuration executions passed and 4 skipped.
 - [x] SwiftLint 0.61.0 strict/no-cache passes across 391 files with zero findings.
 - [x] Effective Swift settings pass 6/6.
 - [x] Generic Debug build passes.
@@ -148,19 +148,22 @@
   `docs-es` counterpart.
 - [x] Synchronize spec, plan, tasks, baseline, and local issue mirror.
 - [x] Synchronize the current non-closing progress body with remote issue #258.
-- [ ] Resynchronize remote closure evidence after the completed manual
-  accessibility checks and definitive delivery.
+- [x] Prepare final remote closure evidence after the completed manual
+  accessibility checks for the authorized delivery.
 - [x] Record the Android no-code parity gap and follow-up requirement.
 
 ## 12. Delivery gates
 
 - [x] Commit authorized.
-- [ ] Push authorized.
-- [ ] Ready PR authorized.
-- [ ] Merge authorized.
-- [ ] Issue closure authorized.
-- [ ] Branch deletion/integration authorized.
-- [ ] Firebase/backend deployment authorized or explicitly not applicable.
+- [x] Push authorized.
+- [x] Ready PR authorized.
+- [x] Merge authorized.
+- [x] Issue closure authorized.
+- [x] Branch deletion/integration authorized.
+- [x] Firebase/backend deployment explicitly not applicable.
 
-Current delivery state: local commits are authorized. Push, PR, merge, issue
-closure, branch deletion, deployment, and integration remain unauthorized.
+Current delivery state: commits and branch publication are complete. The
+maintainer authorized the ready PR, merge, issue closure, branch deletion, and
+local integration on 2026-08-21. This is the final pre-PR checkpoint; remote PR
+and merge identifiers remain GitHub delivery evidence rather than speculative
+values in this commit.

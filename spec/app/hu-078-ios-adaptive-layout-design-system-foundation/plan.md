@@ -14,8 +14,9 @@ changing feature behavior.
 - Base: `main` at `4b711833374e04e3a066676243b512aecb9f7194`
 - Profile: iOS maintenance
 - State: approved / ready for merge
-- Delivery: local implementation and commits are authorized. Push, PR, merge,
-  closure, branch deletion, integration, and deployment are not authorized.
+- Delivery: implementation, commit, push, ready PR, merge, issue closure,
+  branch deletion, and local integration are authorized. Firebase/backend
+  deployment is outside HU-078 and explicitly not applicable.
 
 ## 3. Preserved contracts
 
@@ -223,12 +224,12 @@ HU-078 is complete only when:
 - completion metrics and residual debt are explicit;
 - independent reviews report zero unresolved P0-P3;
 - issue/docs are synchronized; and
-- delivery remains pending unless the maintainer separately authorizes it.
+- definitive delivery is performed only under explicit maintainer authorization.
 
 Any remaining `.resize*`, global window-derived layout state, sub-44 target, or
 unreviewed matrix surface keeps Phase 5 open.
 
-## 8. Execution snapshot (2026-08-20)
+## 8. Execution snapshot (2026-08-21)
 
 Sections 4.1 through 4.7 are implemented locally. The semantic foundation,
 shared components, Root/Auth/Home, every declared route cohort, Clock migration,
@@ -239,10 +240,10 @@ The repository portion of section 4.8 is green:
 
 - 72 focused logical responsibilities / 147 executions;
 - compact UI 3/3;
-- fast unit 668/668 logical responsibilities / 812 executions;
+- fast unit 669/669 logical responsibilities / 813 executions;
 - UI smoke 4/4;
-- release 677 total, 676 passed, the inherited launch-matrix skip, 0 failed;
-  device/configuration executions 820 passed and 4 skipped;
+- release 678 total, 677 passed, the inherited launch-matrix skip, 0 failed;
+  device/configuration executions 821 passed and 4 skipped;
 - SwiftLint 0.61.0 with 0 findings across 391 files;
 - effective settings 6/6, generic Debug green, Production Release green;
 - color catalog 12 tokens / 11 pairs / 4 modes and clean diff/scope audits;
@@ -250,15 +251,21 @@ The repository portion of section 4.8 is green:
 
 The first release attempt exposed a preview helper incorrectly limited by
 `#if DEBUG`; that compilation failure was remediated before the successful
-`/private/tmp/hu078-final-release-gate-2.xcresult` rerun.
+canonical `release-gate` rerun at
+`/var/folders/wt/r327qtw12_s5tbbcnx9dzqv80000gn/T/reguerta-release-gate.H9yckSBteo/release-gate-v1.xcresult`.
 
 The manual closeout was completed on 2026-08-20 as bounded MVP acceptance.
 VoiceOver and Voice Control navigation/actions behaved correctly on the sampled
 journeys, sampled controls exposed no issue in Accessibility Inspector, and an
 interactive Reduce Motion off/on comparison removed material animation without
 hiding observed state changes or actions. This does not claim exhaustive
-assistive-technology coverage. The implementation is ready for merge; delivery
-authorization remains a separate maintainer decision.
+assistive-technology coverage. On 2026-08-21 the maintainer authorized the
+ready PR, merge, issue closure, branch deletion, and local integration.
+
+The final post-review UI correction restored shared route padding, Home
+surfaces, centered dialogs, and compact drawer spacing without relaxing
+44-point targets. Commit `7c5d036` and the final 669/669 fast-unit and 678-item
+release gates cover that correction.
 
 HU-078 intentionally leaves Android UI/source implementation unchanged. A
 separately authorized dependency-catalog maintenance commit is not adaptive

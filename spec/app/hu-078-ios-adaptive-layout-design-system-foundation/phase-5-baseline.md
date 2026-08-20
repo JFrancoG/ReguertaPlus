@@ -14,8 +14,10 @@ look like the final tree.
 - GitHub issue: https://github.com/JFrancoG/ReguertaPlus/issues/258
 - Issue state: OPEN
 - iOS profile: maintenance, iOS 26.0 minimum, Swift 6 strict concurrency
-- Delivery: local bootstrap, implementation, and commits authorized; remote
-  delivery not authorized
+- Delivery at bootstrap: local bootstrap and implementation only. Commit and
+  push were later authorized; on 2026-08-21 the maintainer authorized ready PR,
+  merge, issue closure, branch deletion, and local integration. Deployment is
+  outside HU-078 and not applicable.
 
 ## Source and test inventory
 
@@ -311,20 +313,20 @@ legacy scaling reference, sub-44 hit target, or unvalidated matrix surface keeps
 HU-078 open and must name an owner, rationale, focused evidence, removal
 condition, and explicit approval before it can be treated as an exception.
 
-## Implementation snapshot (2026-08-20)
+## Implementation snapshot (2026-08-21)
 
 The initial evidence above remains the immutable pre-change baseline. The
 current local tree has the following implementation inventory:
 
 | Area | Swift files | Lines | Delta from baseline |
 | --- | ---: | ---: | ---: |
-| iOS production | 267 | 39,202 | +6 files / +2,959 lines |
-| iOS unit tests | 122 | 29,191 | +10 files / +1,826 lines |
+| iOS production | 267 | 39,208 | +6 files / +2,965 lines |
+| iOS unit tests | 122 | 29,228 | +10 files / +1,863 lines |
 | iOS UI tests | 2 | 423 | +39 lines |
-| Total | 391 | 68,816 | +16 files / +4,824 lines |
+| Total | 391 | 68,859 | +16 files / +4,867 lines |
 
-The test inventory is now 662 Swift Testing `@Test` declarations, 6 XCTest unit
-methods, and 9 XCTest UI methods: 668 fast-unit responsibilities and 677 release
+The test inventory is now 663 Swift Testing `@Test` declarations, 6 XCTest unit
+methods, and 9 XCTest UI methods: 669 fast-unit responsibilities and 678 release
 responsibilities.
 
 DesignSystem remains at 19 Swift files and now contains 2,444 lines and 30
@@ -350,6 +352,9 @@ and 26 deterministic community/operations route previews.
   boundary with cancellation preserved.
 - Android, Functions, packages, Xcode project settings, backend, deployment, and
   iOS/Xcode 27 remain outside the diff.
+- Post-review UI remediation restored shared horizontal insets, Home
+  table/action surfaces, centered accessible dialogs, and compact drawer rows
+  while preserving 44-point targets (`7c5d036`).
 
 ## Validation chronology
 
@@ -378,9 +383,9 @@ The final executable evidence is:
 | --- | --- | --- |
 | Focused adaptive suites | 72/72 logical responsibilities; 147 device/configuration executions; 0 failed/skipped | `/private/tmp/hu078-final-focused-5.xcresult` |
 | Compact safe-area UI | 3/3 on iPhone SE (3rd generation), iOS 26.5 | `/private/tmp/hu078-final-compact-ui-9.xcresult` |
-| Fast unit | 668/668 logical responsibilities; 812 executions; 0 failed/skipped | Canonical `fast-unit` runner result |
+| Fast unit | 669/669 logical responsibilities; 813 executions; 0 failed/skipped | `/private/tmp/hu078-closeout-fast-unit.xcresult` |
 | UI smoke | 4/4 on iPhone 17, iOS 26.5 | Canonical `ui-smoke` runner result |
-| Release gate | 677 total; 676 passed; 1 inherited launch-matrix skip; 0 failed. Device/configuration executions: 820 passed and 4 skipped | `/private/tmp/hu078-final-release-gate-2.xcresult` |
+| Release gate | 678 total; 677 passed; 1 inherited launch-matrix skip; 0 failed. Device/configuration executions: 821 passed and 4 skipped | `/var/folders/wt/r327qtw12_s5tbbcnx9dzqv80000gn/T/reguerta-release-gate.H9yckSBteo/release-gate-v1.xcresult` |
 | SwiftLint | SwiftLint 0.61.0; 391 files; 0 findings | Repository strict/no-cache runner |
 | Effective Swift settings | 6/6 target/configuration pairs | Repository settings verifier |
 | Builds | Generic Debug and `Reguerta-Production` Production Release passed | Release gate |
