@@ -194,6 +194,7 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
+- 2026-08-20 | 📦 build(android): update Firebase tooling
 - 2026-08-18 | 📦 build(android): upgrade Gradle to 9.7.0
 - 2026-08-18 | 📦 build(android): refresh app dependencies
 - 2026-08-05 | 💄 style(ios): normalize Swift declarations
