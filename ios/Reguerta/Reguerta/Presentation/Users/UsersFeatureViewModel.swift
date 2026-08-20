@@ -8,6 +8,8 @@ final class UsersFeatureViewModel {
     @ObservationIgnored let feedbackCenter: GlobalFeedbackCenter
     @ObservationIgnored let memberRepository: any MemberRepository
     @ObservationIgnored let upsertMemberByAdmin: any MemberAdminUpserting
+    @ObservationIgnored let memberHighlightClock: PresentationDelayClock
+    @ObservationIgnored var memberHighlightTask: Task<Void, Never>?
 
     var currentSession: AuthorizedSession?
     var currentMember: Member?
@@ -55,12 +57,14 @@ final class UsersFeatureViewModel {
         sessionViewModel: SessionViewModel,
         feedbackCenter: GlobalFeedbackCenter = GlobalFeedbackCenter(),
         memberRepository: any MemberRepository,
-        upsertMemberByAdmin: any MemberAdminUpserting
+        upsertMemberByAdmin: any MemberAdminUpserting,
+        memberHighlightClock: PresentationDelayClock = .continuous
     ) {
         self.sessionViewModel = sessionViewModel
         self.feedbackCenter = feedbackCenter
         self.memberRepository = memberRepository
         self.upsertMemberByAdmin = upsertMemberByAdmin
+        self.memberHighlightClock = memberHighlightClock
     }
 
     func handleSessionModeChange(_ mode: SessionMode) {
@@ -388,6 +392,7 @@ private extension UsersFeatureViewModel {
     }
 
     func resetState() {
+        cancelMemberHighlight()
         currentSession = nil
         currentMember = nil
         membersFeed = []
@@ -398,7 +403,6 @@ private extension UsersFeatureViewModel {
         isLoadingMembers = false
         isSavingMember = false
         isTogglingMember = false
-        highlightedMemberId = nil
         editorRevision += 1
         activeRefreshOperationId = nil
         activeMutationOperationId = nil
@@ -429,14 +433,19 @@ private extension UsersFeatureViewModel {
 
 private extension UsersFeatureViewModel {
     func highlightMember(_ memberId: String) {
+        memberHighlightTask?.cancel()
         highlightedMemberId = memberId
-        Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 1_600_000_000)
-            await MainActor.run {
-                if self?.highlightedMemberId == memberId {
-                    self?.highlightedMemberId = nil
-                }
+        let clock = memberHighlightClock
+        memberHighlightTask = Task { @MainActor [weak self, clock] in
+            do {
+                try await clock.sleep(.milliseconds(1_600))
+                try Task.checkCancellation()
+            } catch {
+                return
             }
+            guard let self, highlightedMemberId == memberId else { return }
+            highlightedMemberId = nil
+            memberHighlightTask = nil
         }
     }
 }

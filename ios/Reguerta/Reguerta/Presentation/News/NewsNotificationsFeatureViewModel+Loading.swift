@@ -336,6 +336,8 @@ private extension NewsNotificationsFeatureViewModel {
     }
 
     func clearCommunityContextState() {
+        newsHighlightTask?.cancel()
+        newsHighlightTask = nil
         resetNewsFeed()
         resetNotificationsFeed()
         newsDraft = NewsDraft()

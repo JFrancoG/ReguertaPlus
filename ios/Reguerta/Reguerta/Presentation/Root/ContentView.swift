@@ -3,6 +3,7 @@ import SwiftUI
 struct MainView: View {
     @Environment(\.reguertaAppEnvironment) private var appEnvironment
     @Environment(\.openURL) private var openURL
+    @Environment(\.reguertaMotionPolicy) private var motionPolicy
     @Environment(\.reguertaTokens) private var tokens
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityVoiceOverEnabled) private var isVoiceOverEnabled
@@ -23,9 +24,6 @@ struct MainView: View {
             .padding(rootViewModel.isHomeRoute ? 0 : tokens.spacing.lg)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(tokens.colors.surfacePrimary.ignoresSafeArea())
-            .overlay {
-                DeviceScaleCaptureView()
-            }
             .toolbar(.hidden, for: .navigationBar)
         }
         .overlay(alignment: .bottom) {
@@ -40,7 +38,10 @@ struct MainView: View {
                 }
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: feedbackCenter.messageKey)
+        .animation(
+            motionPolicy.materialAnimation(.easeInOut(duration: tokens.motion.quickDuration)),
+            value: feedbackCenter.messageKey
+        )
         .overlay {
             RootOverlayView(
                 rootViewModel: rootViewModel,

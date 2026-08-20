@@ -1,6 +1,33 @@
 import SwiftUI
 
+enum ShiftsAdaptiveLayoutContract {
+    private static let marketLeadingColumnWidth: CGFloat = 80
+    private static let deliveryLeadingColumnWidth: CGFloat = 88
+    private static let standardNextShiftTitleWidth: CGFloat = 104
+    private static let standardActionMaximumWidth: CGFloat = 196
+
+    static func leadingColumnWidth(for type: ShiftType, isAccessibilitySize: Bool) -> CGFloat? {
+        guard !isAccessibilitySize else { return nil }
+        return type == .market ? marketLeadingColumnWidth : deliveryLeadingColumnWidth
+    }
+
+    static func actionMaximumWidth(isAccessibilitySize: Bool) -> CGFloat? {
+        isAccessibilitySize ? nil : standardActionMaximumWidth
+    }
+
+    static func nextShiftTitleWidth(isAccessibilitySize: Bool) -> CGFloat? {
+        isAccessibilitySize ? nil : standardNextShiftTitleWidth
+    }
+
+    static func usesStackedNextShiftSummary(isAccessibilitySize: Bool) -> Bool { isAccessibilitySize }
+
+    static func editorMinimumHeight(minimumTouchTarget: CGFloat) -> CGFloat {
+        minimumTouchTarget * 4
+    }
+}
+
 struct ShiftBoardCardView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let tokens: ReguertaDesignTokens
     let viewModel: ShiftsFeatureViewModel
     let shift: ShiftAssignment
@@ -8,12 +35,16 @@ struct ShiftBoardCardView: View {
     let isHighlighted: Bool
     let onStartSwapRequestForShift: (String) -> Void
 
-    private var leftColumnWidth: CGFloat {
-        shift.type == .market ? 80.resize : 88.resize
+    private var leftColumnWidth: CGFloat? {
+        ShiftsAdaptiveLayoutContract.leadingColumnWidth(
+            for: shift.type,
+            isAccessibilitySize: dynamicTypeSize.isAccessibilitySize
+        )
     }
 
     private var leftAlignment: HorizontalAlignment {
-        shift.type == .market ? .center : .leading
+        guard !dynamicTypeSize.isAccessibilitySize else { return .leading }
+        return shift.type == .market ? .center : .leading
     }
 
     private var highlightedIndex: Int? {
@@ -39,8 +70,12 @@ struct ShiftBoardCardView: View {
     }
 
     var body: some View {
+        let boardLayout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: tokens.spacing.md))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: tokens.spacing.md))
+
         VStack(alignment: .leading, spacing: tokens.spacing.sm) {
-            HStack(alignment: .center, spacing: tokens.spacing.md) {
+            boardLayout {
                 VStack(alignment: leftAlignment, spacing: tokens.spacing.xs) {
                     ForEach(leftLines) { item in
                         Text(item.line.text)
@@ -51,6 +86,10 @@ struct ShiftBoardCardView: View {
                     }
                 }
                 .frame(width: leftColumnWidth, alignment: shift.type == .market ? .center : .leading)
+                .frame(
+                    maxWidth: dynamicTypeSize.isAccessibilitySize ? .infinity : nil,
+                    alignment: .leading
+                )
 
                 VStack(alignment: .leading, spacing: tokens.spacing.xs) {
                     ForEach(boardNames) { item in
@@ -62,9 +101,9 @@ struct ShiftBoardCardView: View {
                                 ? tokens.colors.actionPrimary
                                 : tokens.colors.textPrimary
                             )
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.78)
-                            .allowsTightening(true)
+                            .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
+                            .minimumScaleFactor(dynamicTypeSize.isAccessibilitySize ? 1 : 0.78)
+                            .allowsTightening(!dynamicTypeSize.isAccessibilitySize)
                     }
                     if shift.status != .planned {
                         Text(LocalizedStringKey(shift.status.titleKey))
@@ -78,12 +117,16 @@ struct ShiftBoardCardView: View {
                 reguertaButton(
                     LocalizedStringKey(shiftSwapCopy.ask),
                     variant: .secondary,
-                    fullWidth: false,
-                    fixedWidth: 196.resize
+                    fullWidth: true
                 ) {
                     onStartSwapRequestForShift(shift.id)
                 }
-                .frame(maxWidth: .infinity, alignment: .center)
+                .frame(
+                    maxWidth: ShiftsAdaptiveLayoutContract.actionMaximumWidth(
+                        isAccessibilitySize: dynamicTypeSize.isAccessibilitySize
+                    ),
+                    alignment: .center
+                )
             }
         }
         .padding(tokens.spacing.lg)
@@ -161,7 +204,11 @@ struct ShiftSwapRequestRouteView: View {
                         .font(tokens.typography.label)
                         .foregroundStyle(tokens.colors.textSecondary)
                     TextEditor(text: shiftSwapReasonBinding)
-                        .frame(minHeight: 160.resize)
+                        .frame(
+                            minHeight: ShiftsAdaptiveLayoutContract.editorMinimumHeight(
+                                minimumTouchTarget: tokens.layout.minimumTouchTarget
+                            )
+                        )
                         .padding(tokens.spacing.sm)
                         .background(tokens.colors.surfaceSecondary)
                         .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))

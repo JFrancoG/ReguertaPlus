@@ -6,7 +6,7 @@ enum ReguertaFeedbackKind {
     case error
 }
 
-struct ReguertaInlineFeedbackViewModel {
+struct ReguertaInlineFeedbackConfiguration {
     let message: LocalizedStringKey
     let kind: ReguertaFeedbackKind
 
@@ -29,7 +29,7 @@ func reguertaInlineFeedback(
     kind: ReguertaFeedbackKind = .error
 ) -> some View {
     ReguertaInlineFeedbackView(
-        viewModel: ReguertaInlineFeedbackViewModel(
+        configuration: ReguertaInlineFeedbackConfiguration(
             message: message,
             kind: kind
         )

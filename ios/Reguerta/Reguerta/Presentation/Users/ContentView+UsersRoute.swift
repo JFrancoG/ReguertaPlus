@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct UsersRouteView: View {
+    @Environment(\.reguertaMotionPolicy) private var motionPolicy
+
     let tokens: ReguertaDesignTokens
     let viewModel: UsersFeatureViewModel
 
@@ -62,23 +64,25 @@ struct UsersRouteView: View {
                             }
                         }
                     }
-                    .padding(
-                        .bottom,
-                        viewModel.canManageMembers
-                            ? ReguertaFloatingActionButtonLayout.scrollContentBottomPadding
-                            : tokens.spacing.sm
+                    .padding(.bottom, tokens.spacing.sm)
+                    .animation(
+                        motionPolicy.materialAnimation(.easeInOut(duration: tokens.motion.standardDuration)),
+                        value: viewModel.sortedMembers.map(\.id)
                     )
-                    .animation(.easeInOut(duration: 0.25), value: viewModel.sortedMembers.map(\.id))
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .onChange(of: viewModel.highlightedMemberId) { _, memberId in
                     guard let memberId else { return }
-                    withAnimation(.easeInOut(duration: 0.25)) {
+                    withAnimation(
+                        motionPolicy.materialAnimation(.easeInOut(duration: tokens.motion.standardDuration))
+                    ) {
                         proxy.scrollTo(memberId, anchor: .center)
                     }
                 }
             }
 
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             if viewModel.canManageMembers {
                 reguertaFloatingActionButton(
                     LocalizedStringKey(AccessL10nKey.usersListActionAdd),
@@ -93,52 +97,52 @@ struct UsersRouteView: View {
     private func userCardRow(_ member: Member) -> some View {
         reguertaListItemCard(isHighlighted: viewModel.highlightedMemberId == member.id) {
             VStack(alignment: .leading, spacing: 0) {
-                Spacer().frame(height: 16.resize)
+                Spacer().frame(height: tokens.spacing.lg)
                 userCardTextRows(member)
 
                 if viewModel.canManageMembers {
-                    Spacer().frame(height: 16.resize)
+                    Spacer().frame(height: tokens.spacing.lg)
                     userCardActions(member)
                 }
-                Spacer().frame(height: 16.resize)
+                Spacer().frame(height: tokens.spacing.lg)
             }
         }
     }
 
     @ViewBuilder private func userCardTextRows(_ member: Member) -> some View {
         Text(member.displayName)
-            .font(.custom("CabinSketch-Bold", size: 18.resize, relativeTo: .body))
+            .font(tokens.typography.body.weight(.bold))
             .foregroundStyle(tokens.colors.textPrimary)
-            .padding(.horizontal, 16.resize)
+            .padding(.horizontal, tokens.spacing.lg)
             .frame(maxWidth: .infinity, alignment: .leading)
 
-        Spacer().frame(height: 16.resize)
+        Spacer().frame(height: tokens.spacing.lg)
 
         Text(member.normalizedEmail)
-            .font(.custom("CabinSketch-Regular", size: 18.resize, relativeTo: .body))
+            .font(tokens.typography.body)
             .foregroundStyle(tokens.colors.textPrimary)
             .lineLimit(1)
             .minimumScaleFactor(0.72)
-            .padding(.horizontal, 16.resize)
+            .padding(.horizontal, tokens.spacing.lg)
             .frame(maxWidth: .infinity, alignment: .leading)
 
         if member.roles.contains(.producer) {
-            Spacer().frame(height: 16.resize)
+            Spacer().frame(height: tokens.spacing.lg)
             Text(producerLine(for: member))
-                .font(.custom("CabinSketch-Regular", size: 18.resize, relativeTo: .body))
+                .font(tokens.typography.body)
                 .foregroundStyle(tokens.colors.textPrimary)
                 .lineLimit(2)
                 .minimumScaleFactor(0.72)
-                .padding(.horizontal, 16.resize)
+                .padding(.horizontal, tokens.spacing.lg)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
 
         if member.roles.contains(.admin) {
-            Spacer().frame(height: 16.resize)
+            Spacer().frame(height: tokens.spacing.lg)
             Text(LocalizedStringKey(AccessL10nKey.usersCardAdminLabel))
-                .font(.custom("CabinSketch-Regular", size: 18.resize, relativeTo: .body))
+                .font(tokens.typography.body)
                 .foregroundStyle(tokens.colors.textPrimary)
-                .padding(.horizontal, 16.resize)
+                .padding(.horizontal, tokens.spacing.lg)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
@@ -148,7 +152,7 @@ struct UsersRouteView: View {
             Spacer()
             ReguertaListActionIconButton(
                 systemImageName: "pencil",
-                accessibilityLabel: "Editar Regüertense",
+                accessibilityLabel: l10n(AccessL10nKey.usersCardActionEdit),
                 backgroundColor: tokens.colors.actionPrimary,
                 foregroundColor: tokens.colors.actionOnPrimary,
                 action: { viewModel.startEditing(memberId: member.id) }
@@ -156,12 +160,12 @@ struct UsersRouteView: View {
 
             ReguertaListActionIconButton(
                 systemImageName: "trash",
-                accessibilityLabel: "Desactivar Regüertense",
+                accessibilityLabel: l10n(AccessL10nKey.usersCardActionDeactivate),
                 backgroundColor: tokens.colors.feedbackError,
                 foregroundColor: tokens.colors.feedbackOnError,
                 action: { viewModel.requestToggleActive(memberId: member.id) }
             )
-            Spacer().frame(width: 12.resize)
+            Spacer().frame(width: tokens.spacing.md)
         }
     }
 

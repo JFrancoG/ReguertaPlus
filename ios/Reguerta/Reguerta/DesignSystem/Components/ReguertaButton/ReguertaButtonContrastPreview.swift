@@ -24,6 +24,10 @@ private struct ReguertaButtonContrastPreview: View {
     }
 }
 
-#Preview("ReguertaButton", traits: .modifier(ReguertaDesignSystemPreviewModifier())) {
+#Preview(
+    "ReguertaButton",
+    traits: .modifier(ReguertaDesignSystemPreviewModifier(fixture: .buttonStates)),
+    .fixedLayout(width: 600, height: 820)
+) {
     ReguertaButtonContrastPreview()
 }

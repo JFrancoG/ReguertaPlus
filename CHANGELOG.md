@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- 2026-08-20 | ♻️ refactor(ios): adopt adaptive layout
 - 2026-08-19 | ♻️ refactor(ios): consolidate app composition
 - 2026-08-19 | ♻️ refactor(ios): own session runtime context
 - 2026-08-19 | ♻️ refactor(ios): adopt nonisolated isolation
@@ -71,6 +72,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-08-21 | 🐛 fix(ios-ui): restore screen spacing and dialogs
 - 2026-08-19 | 🐛 fix(home): stabilize order freshness recovery
 - 2026-08-18 | 🐛 fix(home): automate freshness and feed recovery
 - 2026-08-18 | 🐛 fix(news): remove nonexistent publisher metadata
@@ -163,6 +165,7 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-08-21 | 📝 docs(hu-078): record delivery authorization
 - 2026-08-19 | 📝 docs(hu-077): record final delivery
 - 2026-08-19 | 📝 docs(hu-076): record branch publication
 - 2026-08-19 | 📝 docs(hu-075): record branch publication
@@ -193,6 +196,7 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
+- 2026-08-20 | 📦 build(android): update Firebase tooling
 - 2026-08-18 | 📦 build(android): upgrade Gradle to 9.7.0
 - 2026-08-18 | 📦 build(android): refresh app dependencies
 - 2026-08-05 | 💄 style(ios): normalize Swift declarations

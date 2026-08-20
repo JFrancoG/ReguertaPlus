@@ -1,5 +1,31 @@
 import SwiftUI
 
+enum HomeShellLayoutContract {
+    static let maximumDrawerWidth: CGFloat = 304
+    static let openDrawerThreshold: CGFloat = 48
+    static let closeDrawerThreshold: CGFloat = 56
+
+    static func drawerWidth(containerWidth: CGFloat, minimumEdgeReveal: CGFloat) -> CGFloat {
+        min(maximumDrawerWidth, max(0, containerWidth - minimumEdgeReveal))
+    }
+
+    static func shouldRecognizeDrawerOpeningGesture(startLocationX: CGFloat, edgeWidth: CGFloat) -> Bool {
+        startLocationX >= 0 && startLocationX <= edgeWidth
+    }
+
+    static func clampedOpenTranslation(_ translationWidth: CGFloat, drawerWidth: CGFloat) -> CGFloat {
+        max(0, min(drawerWidth, translationWidth))
+    }
+
+    static func shouldOpenDrawer(translationWidth: CGFloat) -> Bool {
+        translationWidth > openDrawerThreshold
+    }
+
+    static func shouldCloseDrawer(translationWidth: CGFloat) -> Bool {
+        translationWidth < -closeDrawerThreshold
+    }
+}
+
 extension AccessRootViewModel {
     var currentHomeSession: AuthorizedSession? {
         switch sessionViewModel.mode {
@@ -18,36 +44,6 @@ extension AccessRootViewModel {
         sharedProfileViewModel.profiles.first { $0.userId == currentHomeMember?.id }
     }
 
-    var homeContentWidth: CGFloat {
-        358.resize
-    }
-
-    var homeDrawerWidth: CGFloat {
-        304.resize
-    }
-
-    var homeTopSpacing: CGFloat {
-        4.resizeStatusBarSize
-    }
-
-    var homeBottomSpacing: CGFloat {
-        homeDestination == .dashboard || homeDestination == .myOrder ? 0 : 16.resizeBottomSize
-    }
-
-    var homeShellRouteSpacing: CGFloat {
-        if isMyOrderCartOverlayVisible {
-            return 0
-        }
-        if homeDestination == .myOrder {
-            return 18.resize
-        }
-        return 12.resize
-    }
-
-    var homeShellTopBarHorizontalPadding: CGFloat {
-        homeDestination == .myOrder ? 8.resize : 0
-    }
-
     var isHomeDrawerPresented: Bool {
         isHomeDrawerOpen || homeDrawerDragOffset > 0
     }
@@ -57,20 +53,16 @@ extension AccessRootViewModel {
         return myOrderViewModel.isCartVisible && !myOrderViewModel.isReadOnlyMode
     }
 
-    var homeDrawerProgress: CGFloat {
-        resolvedHomeDrawerProgress(drawerWidth: homeDrawerWidth)
+    func homeDrawerProgress(drawerWidth: CGFloat) -> CGFloat {
+        resolvedHomeDrawerProgress(drawerWidth: drawerWidth)
     }
 
-    var homeDrawerOffset: CGFloat {
-        -homeDrawerWidth * (1 - homeDrawerProgress)
+    func homeDrawerOffset(drawerWidth: CGFloat) -> CGFloat {
+        -drawerWidth * (1 - homeDrawerProgress(drawerWidth: drawerWidth))
     }
 
-    var homeLayerOffset: CGFloat {
-        homeDrawerWidth * homeDrawerProgress
-    }
-
-    var homeDrawerAnimation: Animation {
-        .easeInOut(duration: 0.45)
+    func homeLayerOffset(drawerWidth: CGFloat) -> CGFloat {
+        drawerWidth * homeDrawerProgress(drawerWidth: drawerWidth)
     }
 
     var homeDashboardPresentation: HomeDashboardPresentation {
@@ -99,8 +91,8 @@ extension AccessRootViewModel {
         showsSharedProfileSavedDialog = false
     }
 
-    var homeShellHeaderViewModel: ReguertaScreenHeaderViewModel {
-        ReguertaScreenHeaderViewModel(
+    var homeShellHeaderConfiguration: ReguertaScreenHeaderConfiguration {
+        ReguertaScreenHeaderConfiguration(
             title: homeHeaderTitle,
             leadingAction: homeHeaderLeadingAction,
             leadingText: homeHeaderLeadingText,
@@ -187,12 +179,15 @@ extension AccessRootViewModel {
         homeDestination = .receivedOrders
     }
 
-    func handleHomeOpenDrawerDragChanged(_ translationWidth: CGFloat) {
-        homeDrawerDragOffset = max(0, min(homeDrawerWidth, translationWidth))
+    func handleHomeOpenDrawerDragChanged(_ translationWidth: CGFloat, drawerWidth: CGFloat) {
+        homeDrawerDragOffset = HomeShellLayoutContract.clampedOpenTranslation(
+            translationWidth,
+            drawerWidth: drawerWidth
+        )
     }
 
     func handleHomeOpenDrawerDragEnded(_ translationWidth: CGFloat) {
-        if translationWidth > 48.resize {
+        if HomeShellLayoutContract.shouldOpenDrawer(translationWidth: translationWidth) {
             openHomeDrawer()
         } else {
             homeDrawerDragOffset = 0
@@ -207,27 +202,21 @@ extension AccessRootViewModel {
 
     func handleHomeCloseDrawerDragEnded(_ translationWidth: CGFloat) {
         guard isHomeDrawerOpen else { return }
-        if translationWidth < -56.resize {
+        if HomeShellLayoutContract.shouldCloseDrawer(translationWidth: translationWidth) {
             closeHomeDrawer()
         } else {
-            withAnimation(homeDrawerAnimation) {
-                homeDrawerDragOffset = 0
-            }
+            homeDrawerDragOffset = 0
         }
     }
 
     func openHomeDrawer() {
-        withAnimation(homeDrawerAnimation) {
-            isHomeDrawerOpen = true
-            homeDrawerDragOffset = 0
-        }
+        isHomeDrawerOpen = true
+        homeDrawerDragOffset = 0
     }
 
     func closeHomeDrawer() {
-        withAnimation(homeDrawerAnimation) {
-            isHomeDrawerOpen = false
-            homeDrawerDragOffset = 0
-        }
+        isHomeDrawerOpen = false
+        homeDrawerDragOffset = 0
     }
 
     func homeWeeklySummary(for session: AuthorizedSession) -> HomeWeeklySummaryDisplay {
@@ -425,6 +414,7 @@ private extension AccessRootViewModel {
     }
 
     func resolvedHomeDrawerProgress(drawerWidth: CGFloat) -> CGFloat {
+        guard drawerWidth > 0 else { return 0 }
         if isHomeDrawerOpen {
             return max(0, min(1, (drawerWidth + homeDrawerDragOffset) / drawerWidth))
         }

@@ -237,15 +237,25 @@ extension ProductsRouteViewModel {
     }
 
     func highlightProduct(_ productId: String) {
+        cancelProductHighlight()
         highlightedProductId = productId
-        Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 1_600_000_000)
-            await MainActor.run {
-                if self?.highlightedProductId == productId {
-                    self?.highlightedProductId = nil
-                }
+        let clock = productHighlightClock
+        productHighlightTask = Task { @MainActor [weak self, clock] in
+            do {
+                try await clock.sleep(.milliseconds(1_600))
+                try Task.checkCancellation()
+            } catch {
+                return
             }
+            guard let self, highlightedProductId == productId else { return }
+            highlightedProductId = nil
+            productHighlightTask = nil
         }
+    }
+
+    func cancelProductHighlight() {
+        productHighlightTask?.cancel()
+        productHighlightTask = nil
     }
 
     func showUnableSaveFeedback() {

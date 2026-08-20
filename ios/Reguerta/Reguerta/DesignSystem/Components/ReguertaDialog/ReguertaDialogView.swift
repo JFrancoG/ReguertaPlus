@@ -5,7 +5,7 @@ struct ReguertaDialogView: View {
     @AccessibilityFocusState private var isTitleFocused: Bool
     @State private var cardFrame = CGRect.infinite
 
-    let viewModel: ReguertaDialogViewModel
+    let configuration: ReguertaDialogConfiguration
 
     var body: some View {
         ZStack {
@@ -15,10 +15,10 @@ struct ReguertaDialogView: View {
 
             ScrollView {
                 VStack(spacing: tokens.spacing.md) {
-                    ReguertaDialogIconView(viewModel: viewModel)
+                    ReguertaDialogIconView(configuration: configuration)
                         .accessibilityHidden(true)
 
-                    Text(viewModel.title)
+                    Text(configuration.title)
                         .font(tokens.typography.titleDialog)
                         .foregroundStyle(tokens.colors.textPrimary)
                         .multilineTextAlignment(.center)
@@ -26,13 +26,13 @@ struct ReguertaDialogView: View {
                         .accessibilityAddTraits(.isHeader)
                         .accessibilityFocused($isTitleFocused)
 
-                    Text(viewModel.message)
+                    Text(configuration.message)
                         .font(tokens.typography.bodyDialog)
                         .foregroundStyle(tokens.colors.textSecondary)
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    ReguertaDialogActionsView(viewModel: viewModel)
+                    ReguertaDialogActionsView(configuration: configuration)
                         .padding(.top, tokens.spacing.sm)
                 }
                 .padding(tokens.spacing.lg)
@@ -54,6 +54,7 @@ struct ReguertaDialogView: View {
                 .padding(tokens.spacing.lg)
             }
             .scrollBounceBehavior(.basedOnSize)
+            .defaultScrollAnchor(.center, for: .alignment)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .coordinateSpace(name: ReguertaDialogCoordinateSpace.name)
@@ -72,14 +73,14 @@ struct ReguertaDialogView: View {
         .onAppear {
             isTitleFocused = true
         }
-        .onChange(of: viewModel.title) {
+        .onChange(of: configuration.title) {
             isTitleFocused = true
         }
     }
 
     private func dismissIfAllowed() {
-        guard viewModel.dismissible else { return }
-        viewModel.onDismiss?()
+        guard configuration.dismissible else { return }
+        configuration.onDismiss?()
     }
 }
 
@@ -101,22 +102,28 @@ private struct ReguertaDialogCardFramePreferenceKey: PreferenceKey {
 private struct ReguertaDialogIconView: View {
     @Environment(\.reguertaTokens) private var tokens
 
-    let viewModel: ReguertaDialogViewModel
+    let configuration: ReguertaDialogConfiguration
 
     var body: some View {
         ZStack {
             Circle()
-                .fill(viewModel.accentColor(tokens: tokens).opacity(0.22))
-                .frame(width: 88, height: 88)
+                .fill(configuration.accentColor(tokens: tokens).opacity(0.22))
+                .frame(
+                    width: tokens.layout.minimumTouchTarget * 2,
+                    height: tokens.layout.minimumTouchTarget * 2
+                )
 
             Circle()
-                .fill(viewModel.accentColor(tokens: tokens))
-                .frame(width: 38, height: 38)
+                .fill(configuration.accentColor(tokens: tokens))
+                .frame(
+                    width: tokens.layout.minimumTouchTarget,
+                    height: tokens.layout.minimumTouchTarget
+                )
 
-            Image(systemName: viewModel.symbolName)
-                .font(.system(size: 18, weight: .bold))
+            Image(systemName: configuration.symbolName)
+                .font(.system(size: tokens.icons.standard, weight: .bold))
                 .symbolRenderingMode(.monochrome)
-                .foregroundStyle(viewModel.contentColor(tokens: tokens))
+                .foregroundStyle(configuration.contentColor(tokens: tokens))
         }
     }
 }
@@ -125,13 +132,13 @@ private struct ReguertaDialogActionsView: View {
     @Environment(\.reguertaTokens) private var tokens
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    let viewModel: ReguertaDialogViewModel
+    let configuration: ReguertaDialogConfiguration
 
     var body: some View {
-        if let secondaryAction = viewModel.secondaryAction {
+        if let secondaryAction = configuration.secondaryAction {
             if dynamicTypeSize.isAccessibilitySize {
                 VStack(spacing: tokens.spacing.sm) {
-                    dialogActionButton(viewModel.primaryAction, variant: viewModel.primaryButtonVariant)
+                    dialogActionButton(configuration.primaryAction, variant: configuration.primaryButtonVariant)
                     dialogActionButton(secondaryAction, variant: .secondary)
                 }
             } else {
@@ -146,23 +153,23 @@ private struct ReguertaDialogActionsView: View {
                     }
 
                     reguertaButton(
-                        LocalizedStringKey(viewModel.primaryAction.title),
-                        variant: viewModel.primaryButtonVariant,
+                        LocalizedStringKey(configuration.primaryAction.title),
+                        variant: configuration.primaryButtonVariant,
                         fullWidth: false,
                         fixedWidth: tokens.button.dialogTwoButtonsWidth
                     ) {
-                        viewModel.primaryAction.action()
+                        configuration.primaryAction.action()
                     }
                 }
             }
         } else {
             reguertaButton(
-                LocalizedStringKey(viewModel.primaryAction.title),
-                variant: viewModel.primaryButtonVariant,
+                LocalizedStringKey(configuration.primaryAction.title),
+                variant: configuration.primaryButtonVariant,
                 fullWidth: true,
                 fixedWidth: nil
             ) {
-                viewModel.primaryAction.action()
+                configuration.primaryAction.action()
             }
         }
     }
@@ -179,11 +186,43 @@ private struct ReguertaDialogActionsView: View {
     }
 }
 
-#Preview("ReguertaDialog", traits: .modifier(ReguertaDesignSystemPreviewModifier())) {
+#Preview(
+    "ReguertaDialog",
+    traits: .modifier(ReguertaDesignSystemPreviewModifier(fixture: .dialogInfo)),
+    .fixedLayout(width: 320, height: 640)
+) {
     reguertaDialog(
         type: .info,
         title: "Dialog title",
         message: "Dialog message",
         primaryAction: ReguertaDialogAction(title: "OK") {}
+    )
+}
+
+#Preview(
+    "Two actions XXX",
+    traits: .modifier(ReguertaDesignSystemPreviewModifier(fixture: .dialogXXX)),
+    .fixedLayout(width: 600, height: 820)
+) {
+    reguertaDialog(
+        type: .info,
+        title: "Confirm this change",
+        message: "The updated value will be available to every member of the community.",
+        primaryAction: ReguertaDialogAction(title: "Confirm") {},
+        secondaryAction: ReguertaDialogAction(title: "Cancel") {}
+    )
+}
+
+#Preview(
+    "Two actions AX5 · external Increased Contrast override",
+    traits: .modifier(ReguertaDesignSystemPreviewModifier(fixture: .dialogAccessibility)),
+    .fixedLayout(width: 320, height: 720)
+) {
+    reguertaDialog(
+        type: .error,
+        title: "Unable to complete this action",
+        message: "Review the information and try again. Your existing changes remain available.",
+        primaryAction: ReguertaDialogAction(title: "Try again") {},
+        secondaryAction: ReguertaDialogAction(title: "Go back") {}
     )
 }

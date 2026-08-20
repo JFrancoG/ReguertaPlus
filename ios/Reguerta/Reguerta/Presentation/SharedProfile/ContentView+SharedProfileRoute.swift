@@ -2,6 +2,8 @@ import SwiftUI
 import ImageIO
 
 struct SharedProfileHubRoute: View {
+    @Environment(\.reguertaMotionPolicy) private var motionPolicy
+
     let tokens: ReguertaDesignTokens
     let session: AuthorizedSession
     let viewModel: SharedProfileFeatureViewModel
@@ -14,6 +16,14 @@ struct SharedProfileHubRoute: View {
     @State private var isEditingOwnProfile = false
     @State private var profilePhotoOrientations: [String: SharedProfilePhotoOrientation] = [:]
     @FocusState private var focusedEditorField: SharedProfileEditorField?
+
+    @ScaledMetric(relativeTo: .body) private var listAvatarSize: CGFloat = 64
+    @ScaledMetric(relativeTo: .title3) private var editorImagePreviewSize: CGFloat = 160
+    @ScaledMetric(relativeTo: .title2) private var carouselAvatarSize: CGFloat = 184
+    @ScaledMetric(relativeTo: .body) private var portraitPhotoWidth: CGFloat = 132
+    @ScaledMetric(relativeTo: .body) private var detailPlaceholderSize: CGFloat = 96
+    private var carouselCardMaximumWidth: CGFloat { 300 }
+    private var carouselCardWidthFraction: CGFloat { 0.82 }
 
     private var ownProfile: SharedProfile? {
         viewModel.profiles.first { $0.userId == session.member.id }
@@ -102,7 +112,7 @@ struct SharedProfileHubRoute: View {
                                     carouselStartProfileUserId = profile.userId
                                 } label: {
                                     HStack(spacing: tokens.spacing.md) {
-                                        profileAvatar(profile, size: 64.resize, cornerRadius: tokens.radius.sm)
+                                        profileAvatar(profile, size: listAvatarSize, cornerRadius: tokens.radius.sm)
                                             .accessibilityHidden(true)
                                         Text(sharedProfileListName(profile))
                                             .font(tokens.typography.bodySecondary.weight(.semibold))
@@ -123,9 +133,10 @@ struct SharedProfileHubRoute: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.bottom, ReguertaFloatingActionButtonLayout.scrollContentBottomPadding)
+                .padding(.bottom, tokens.spacing.sm)
             }
-
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             reguertaFloatingActionButton(localizedKey(AccessL10nKey.profileSharedActionViewMyProfile)) {
                 selectedProfileUserId = nil
                 carouselStartProfileUserId = nil
@@ -214,6 +225,7 @@ struct SharedProfileHubRoute: View {
                         .foregroundStyle(tokens.colors.textSecondary)
                     TextField("", text: familyNamesBinding)
                         .textFieldStyle(.roundedBorder)
+                        .frame(minHeight: tokens.layout.minimumTouchTarget)
                         .focused($focusedEditorField, equals: .familyNames)
                         .accessibilityLabel(Text(localizedKey(AccessL10nKey.profileSharedFamilyNamesLabel)))
 
@@ -232,9 +244,9 @@ struct SharedProfileHubRoute: View {
                         onCameraUnavailable: viewModel.reportCameraUnavailable,
                         usesIconControls: true,
                         overlaysControlsOnImage: true,
-                        previewSize: 160.resize,
+                        previewSize: editorImagePreviewSize,
                         usesFitPreview: true,
-                        controlSize: 38.resize
+                        controlSize: tokens.layout.minimumTouchTarget
                     )
 
                     Text(localizedKey(AccessL10nKey.profileSharedAboutLabel))
@@ -250,10 +262,11 @@ struct SharedProfileHubRoute: View {
                         .accessibilityLabel(Text(localizedKey(AccessL10nKey.profileSharedAboutLabel)))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.bottom, ReguertaFloatingActionButtonLayout.scrollContentBottomPadding)
+                .padding(.bottom, tokens.spacing.sm)
             }
             .scrollDismissesKeyboard(.interactively)
-
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             if focusedEditorField == nil {
                 reguertaFloatingActionButton(
                     localizedKey(
@@ -273,10 +286,12 @@ struct SharedProfileHubRoute: View {
                         onProfileSaved()
                     }
                 }
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .transition(motionPolicy.reducesMotion ? .identity : .move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(.easeInOut(duration: 0.18), value: focusedEditorField)
+        .animation(
+            motionPolicy.materialAnimation(.easeInOut(duration: tokens.motion.quickDuration)), value: focusedEditorField
+        )
     }
 
     private func updateTitleOverride() {
@@ -294,7 +309,7 @@ struct SharedProfileHubRoute: View {
 
     private func scrollCarousel(_ proxy: ScrollViewProxy) {
         guard let carouselStartProfileUserId else { return }
-        withAnimation(.easeInOut(duration: 0.25)) {
+        withAnimation(motionPolicy.materialAnimation(.easeInOut(duration: tokens.motion.standardDuration))) {
             proxy.scrollTo(carouselStartProfileUserId, anchor: .center)
         }
     }
@@ -322,7 +337,7 @@ private extension SharedProfileHubRoute {
                 .lineLimit(2)
                 .frame(maxWidth: .infinity)
 
-            profileAvatar(profile, size: 184.resize, cornerRadius: tokens.radius.sm)
+            profileAvatar(profile, size: carouselAvatarSize, cornerRadius: tokens.radius.sm)
                 .accessibilityHidden(true)
 
             if !profile.about.isEmpty {
@@ -336,7 +351,9 @@ private extension SharedProfileHubRoute {
             Spacer(minLength: 0)
         }
         .padding(tokens.spacing.lg)
-        .frame(width: 300.resize, height: 430.resize, alignment: .top)
+        .containerRelativeFrame(.horizontal) { length, _ in
+            min(length * carouselCardWidthFraction, carouselCardMaximumWidth)
+        }
         .background(tokens.colors.actionPrimary.opacity(0.15))
         .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
     }
@@ -348,7 +365,7 @@ private extension SharedProfileHubRoute {
         if hasPhoto, orientation == .portrait {
             HStack(alignment: .top, spacing: tokens.spacing.md) {
                 sharedProfileDetailPhoto(profile)
-                    .frame(width: 132.resize)
+                    .frame(width: portraitPhotoWidth)
                 SharedProfileDetailText(profile: profile, tokens: tokens)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -369,27 +386,23 @@ private extension SharedProfileHubRoute {
             AsyncImage(url: url) { phase in
                 switch phase {
                 case .empty:
-                    avatarPlaceholder(size: 96.resize, cornerRadius: tokens.radius.sm)
+                    avatarPlaceholder(size: detailPlaceholderSize, cornerRadius: tokens.radius.sm)
                 case .success(let image):
                     image
                         .resizable()
                         .scaledToFit()
                         .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
                 case .failure:
-                    avatarPlaceholder(size: 96.resize, cornerRadius: tokens.radius.sm)
+                    avatarPlaceholder(size: detailPlaceholderSize, cornerRadius: tokens.radius.sm)
                 @unknown default:
-                    avatarPlaceholder(size: 96.resize, cornerRadius: tokens.radius.sm)
+                    avatarPlaceholder(size: detailPlaceholderSize, cornerRadius: tokens.radius.sm)
                 }
             }
         }
     }
 
     @ViewBuilder
-    func profileAvatar(
-        _ profile: SharedProfile,
-        size: CGFloat = 72.resize,
-        cornerRadius: CGFloat? = nil
-    ) -> some View {
+    func profileAvatar(_ profile: SharedProfile, size: CGFloat, cornerRadius: CGFloat? = nil) -> some View {
         let resolvedCornerRadius = cornerRadius ?? size / 2
         if let rawURL = profile.photoUrl, let url = URL(string: rawURL), !rawURL.isEmpty {
             AsyncImage(url: url) { phase in

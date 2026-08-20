@@ -336,14 +336,19 @@ extension NewsNotificationsFeatureViewModel {
     }
 
     func highlightNews(_ newsId: String) {
+        newsHighlightTask?.cancel()
         highlightedNewsId = newsId
-        Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 1_600_000_000)
-            await MainActor.run {
-                if self?.highlightedNewsId == newsId {
-                    self?.highlightedNewsId = nil
-                }
+        let clock = newsHighlightClock
+        newsHighlightTask = Task { @MainActor [weak self, clock] in
+            do {
+                try await clock.sleep(.milliseconds(1_600))
+                try Task.checkCancellation()
+            } catch {
+                return
             }
+            guard let self, highlightedNewsId == newsId else { return }
+            highlightedNewsId = nil
+            newsHighlightTask = nil
         }
     }
 }

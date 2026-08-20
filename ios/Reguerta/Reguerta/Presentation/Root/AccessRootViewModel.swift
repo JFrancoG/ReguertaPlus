@@ -45,6 +45,7 @@ final class AccessRootViewModel {
     @ObservationIgnored let startupVersionGateUseCase: ResolveStartupVersionGateUseCase
     @ObservationIgnored private let shouldSkipSplashProvider: () -> Bool
     @ObservationIgnored private let installedVersionProvider: () -> String
+    @ObservationIgnored let splashClock: PresentationDelayClock
     @ObservationIgnored let startupGateTimeout: Duration
     @ObservationIgnored let startupGateSleeper: @Sendable (Duration) async throws -> Void
     @ObservationIgnored var startupGateOperationTask: Task<Void, Never>?
@@ -108,6 +109,7 @@ final class AccessRootViewModel {
         installedVersionProvider: @escaping () -> String = {
             resolveInstalledAppVersion()
         },
+        splashClock: PresentationDelayClock = .continuous,
         startupGateTimeout: Duration = .milliseconds(2_500),
         startupGateSleeper: @escaping @Sendable (Duration) async throws -> Void = {
             try await ContinuousClock().sleep(for: $0)
@@ -145,6 +147,7 @@ final class AccessRootViewModel {
         self.startupVersionGateUseCase = startupVersionGateUseCase
         self.shouldSkipSplashProvider = shouldSkipSplashProvider
         self.installedVersionProvider = installedVersionProvider
+        self.splashClock = splashClock
         self.startupGateTimeout = startupGateTimeout
         self.startupGateSleeper = startupGateSleeper
         self.nowOverrideMillis = developmentTimeMachine.overrideNowMillis
@@ -343,11 +346,9 @@ extension AccessRootViewModel {
         guard !didStartSplashAnimation else { return }
         didStartSplashAnimation = true
 
-        withAnimation(.easeInOut(duration: SplashAnimationContract.durationSeconds)) {
-            splashScale = SplashAnimationContract.finalScale
-            splashRotation = SplashAnimationContract.finalRotation
-            splashOpacity = SplashAnimationContract.finalOpacity
-        }
+        splashScale = SplashAnimationContract.finalScale
+        splashRotation = SplashAnimationContract.finalRotation
+        splashOpacity = SplashAnimationContract.finalOpacity
     }
 
     func resetSplashAnimationState() {

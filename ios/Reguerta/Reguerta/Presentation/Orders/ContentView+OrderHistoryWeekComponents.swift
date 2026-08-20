@@ -163,10 +163,15 @@ private struct GlassWeekNavigationButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
+        Button {
+            action()
+        } label: {
             Image(systemName: systemImageName)
-                .font(.system(size: 20.resize, weight: .bold))
-                .frame(width: 46.resize, height: 46.resize)
+                .font(.system(size: tokens.icons.standard, weight: .bold))
+                .frame(
+                    minWidth: tokens.layout.minimumTouchTarget,
+                    minHeight: tokens.layout.minimumTouchTarget
+                )
         }
         .buttonStyle(.plain)
         .foregroundStyle(isEnabled ? tokens.colors.actionPrimary : tokens.colors.textSecondary.opacity(0.45))
@@ -182,12 +187,14 @@ private struct GlassWeekPickerButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
+        Button {
+            action()
+        } label: {
             Text(title)
                 .font(tokens.typography.body.weight(.semibold))
                 .foregroundStyle(tokens.colors.actionPrimary)
                 .padding(.horizontal, tokens.spacing.lg)
-                .frame(minWidth: 154.resize, minHeight: 46.resize)
+                .frame(minHeight: tokens.layout.minimumTouchTarget)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("orderHistory.weekPickerButton")
@@ -243,7 +250,7 @@ private extension View {
                 .background(tokens.colors.actionPrimary.opacity(isEnabled ? 0.14 : 0.06), in: shape)
                 .background(tokens.colors.surfacePrimary, in: shape)
                 .overlay(
-                    shape.stroke(tokens.colors.borderSubtle.opacity(isEnabled ? 0.75 : 0.35), lineWidth: 1.resize)
+                    shape.stroke(tokens.colors.borderSubtle.opacity(isEnabled ? 0.75 : 0.35), lineWidth: 1)
                 )
         }
     }

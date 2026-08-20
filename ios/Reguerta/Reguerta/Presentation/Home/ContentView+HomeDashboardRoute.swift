@@ -117,7 +117,7 @@ struct HomeDashboardRouteView: View {
             )
             .frame(maxHeight: .infinity, alignment: .topLeading)
         }
-        .frame(width: 358.resize, alignment: .topLeading)
+        .frame(maxWidth: tokens.layout.readableContentMaximumWidth, alignment: .topLeading)
         .frame(maxHeight: .infinity, alignment: .topLeading)
     }
 }

@@ -62,17 +62,18 @@ private struct PersonalOrderSummaryLineRow: View {
     let line: PersonalOrderSummaryLineContent
 
     var body: some View {
+        ViewThatFits(in: .horizontal) {
+            wideSummaryRow
+            compactSummaryRow
+        }
+        .frame(maxWidth: .infinity)
+        .frame(minHeight: OrderAdaptiveLayoutMetrics.summaryRowMinimumHeight)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var wideSummaryRow: some View {
         HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-                Text(line.productName)
-                    .font(tokens.typography.body.weight(.semibold))
-                    .foregroundStyle(tokens.colors.textPrimary)
-                    .lineLimit(2)
-                Text(line.packagingLine)
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary)
-                    .lineLimit(2)
-            }
+            productDescription
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.trailing, tokens.spacing.sm)
 
@@ -85,7 +86,7 @@ private struct PersonalOrderSummaryLineRow: View {
                 .lineLimit(2)
                 .minimumScaleFactor(0.8)
                 .padding(.horizontal, tokens.spacing.xs)
-                .frame(width: 72.resize)
+                .frame(width: OrderAdaptiveLayoutMetrics.summaryQuantityColumnWidth)
 
             columnDivider
 
@@ -96,11 +97,36 @@ private struct PersonalOrderSummaryLineRow: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
                 .padding(.leading, tokens.spacing.sm)
-                .frame(width: 82.resize, alignment: .trailing)
+                .frame(width: OrderAdaptiveLayoutMetrics.summarySubtotalColumnWidth, alignment: .trailing)
         }
-        .frame(maxWidth: .infinity)
-        .frame(minHeight: 64.resize)
-        .accessibilityElement(children: .combine)
+    }
+
+    private var compactSummaryRow: some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.sm) {
+            productDescription
+            HStack(alignment: .firstTextBaseline, spacing: tokens.spacing.md) {
+                Text(line.quantityText)
+                    .font(tokens.typography.body.weight(.semibold))
+                    .foregroundStyle(tokens.colors.textPrimary)
+                Spacer(minLength: tokens.spacing.sm)
+                Text(line.subtotalText)
+                    .font(tokens.typography.body.weight(.semibold))
+                    .foregroundStyle(tokens.colors.textPrimary)
+            }
+        }
+    }
+
+    private var productDescription: some View {
+        VStack(alignment: .leading, spacing: tokens.spacing.xs) {
+            Text(line.productName)
+                .font(tokens.typography.body.weight(.semibold))
+                .foregroundStyle(tokens.colors.textPrimary)
+                .lineLimit(2)
+            Text(line.packagingLine)
+                .font(tokens.typography.bodySecondary)
+                .foregroundStyle(tokens.colors.textSecondary)
+                .lineLimit(2)
+        }
     }
 
     private var columnDivider: some View {

@@ -84,6 +84,7 @@ extension UsersFeatureViewModel {
         if authorizationChanged {
             sessionIdentityEpoch += 1
             invalidateAsyncOperations()
+            cancelMemberHighlight()
             clearEditor()
             pendingToggleActiveMemberId = nil
         }
@@ -104,6 +105,12 @@ extension UsersFeatureViewModel {
         isLoadingMembers = false
         isSavingMember = false
         isTogglingMember = false
+    }
+
+    func cancelMemberHighlight() {
+        memberHighlightTask?.cancel()
+        memberHighlightTask = nil
+        highlightedMemberId = nil
     }
 
     func canExposePrivateMemberData(in session: AuthorizedSession) -> Bool {

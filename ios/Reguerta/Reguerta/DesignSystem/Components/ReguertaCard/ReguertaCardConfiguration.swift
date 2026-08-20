@@ -1,10 +1,10 @@
 import SwiftUI
 
-struct ReguertaCardViewModel {
+struct ReguertaCardConfiguration {
     let maxWidth: CGFloat?
     let alignment: Alignment
 
-    static let `default` = ReguertaCardViewModel(
+    static let `default` = ReguertaCardConfiguration(
         maxWidth: .infinity,
         alignment: .leading
     )
@@ -16,7 +16,7 @@ func reguertaCard<Content: View>(
     @ViewBuilder content: @escaping () -> Content
 ) -> some View {
     ReguertaCardView(
-        viewModel: .default,
+        configuration: .default,
         content: content
     )
 }

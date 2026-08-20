@@ -3,6 +3,16 @@ import PhotosUI
 import SwiftUI
 import UIKit
 
+enum ReguertaImagePickerLayoutContract {
+    static let defaultPreviewSize: CGFloat = 112
+    static let previewCornerRadius: CGFloat = 24
+    static let overlayShadowYOffset: CGFloat = 3
+
+    static func controlSize(requested: CGFloat, minimumTouchTarget: CGFloat) -> CGFloat {
+        max(requested, minimumTouchTarget)
+    }
+}
+
 struct ReguertaImagePickerField: View {
     let tokens: ReguertaDesignTokens
     let imageURLString: String
@@ -18,9 +28,9 @@ struct ReguertaImagePickerField: View {
     var placesActionsBesideImage = false
     var usesIconControls = false
     var overlaysControlsOnImage = false
-    var previewSize: CGFloat = 112.resize
+    var previewSize: CGFloat = ReguertaImagePickerLayoutContract.defaultPreviewSize
     var usesFitPreview = false
-    var controlSize: CGFloat = 44.resize
+    var controlSize: CGFloat = 44
     var selectsImageOnPreviewTap = false
     var showsImageControls = true
 
@@ -28,6 +38,13 @@ struct ReguertaImagePickerField: View {
     @State private var isPhotoPickerPresented = false
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var isCameraPresented = false
+
+    private var resolvedControlSize: CGFloat {
+        ReguertaImagePickerLayoutContract.controlSize(
+            requested: controlSize,
+            minimumTouchTarget: tokens.layout.minimumTouchTarget
+        )
+    }
 
     var body: some View {
         Group {
@@ -121,7 +138,7 @@ struct ReguertaImagePickerField: View {
     }
 
     private var imagePreview: some View {
-        RoundedRectangle(cornerRadius: 24.resize)
+        RoundedRectangle(cornerRadius: ReguertaImagePickerLayoutContract.previewCornerRadius)
             .fill(tokens.colors.surfaceSecondary)
             .frame(width: previewSize, height: previewSize)
             .overlay {
@@ -139,7 +156,7 @@ struct ReguertaImagePickerField: View {
                         }
                     }
                     .frame(width: previewSize, height: previewSize)
-                    .clipShape(RoundedRectangle(cornerRadius: 24.resize))
+                    .clipShape(RoundedRectangle(cornerRadius: ReguertaImagePickerLayoutContract.previewCornerRadius))
                 } else {
                     placeholderPreview
                 }
@@ -154,7 +171,7 @@ struct ReguertaImagePickerField: View {
                 .resizable()
                 .scaledToFill()
                 .frame(width: previewSize, height: previewSize)
-                .clipShape(RoundedRectangle(cornerRadius: 24.resize))
+                .clipShape(RoundedRectangle(cornerRadius: ReguertaImagePickerLayoutContract.previewCornerRadius))
         } else {
             Image(systemName: placeholderSystemImage)
                 .font(.system(size: previewSize * 0.3))
@@ -201,7 +218,7 @@ struct ReguertaImagePickerField: View {
                     accessibilityLabel: l10n(AccessL10nKey.commonActionSelect),
                     backgroundColor: tokens.colors.actionPrimary,
                     foregroundColor: tokens.colors.actionOnPrimary,
-                    size: controlSize,
+                    size: resolvedControlSize,
                     isEnabled: !isUploading
                 ) {
                     isSourceDialogPresented = true
@@ -213,7 +230,7 @@ struct ReguertaImagePickerField: View {
                         accessibilityLabel: l10n(AccessL10nKey.commonClear),
                         backgroundColor: tokens.colors.feedbackError,
                         foregroundColor: tokens.colors.feedbackOnError,
-                        size: controlSize,
+                        size: resolvedControlSize,
                         isEnabled: !isUploading,
                         action: onClearImage
                     )
@@ -246,9 +263,9 @@ struct ReguertaImagePickerField: View {
         }
         .shadow(
             color: tokens.colors.textPrimary.opacity(overlaysControlsOnImage ? 0.22 : 0),
-            radius: overlaysControlsOnImage ? 8.resize : 0,
+            radius: overlaysControlsOnImage ? tokens.spacing.sm : 0,
             x: 0,
-            y: overlaysControlsOnImage ? 3.resize : 0
+            y: overlaysControlsOnImage ? ReguertaImagePickerLayoutContract.overlayShadowYOffset : 0
         )
     }
 
@@ -277,6 +294,26 @@ struct ReguertaImagePickerField: View {
             onCameraPermissionDenied()
         }
     }
+}
+
+#Preview("Image picker icon controls", traits: .modifier(ReguertaDesignSystemPreviewModifier())) {
+    ReguertaImagePickerField(
+        tokens: .light,
+        imageURLString: "",
+        isUploading: false,
+        placeholderSystemImage: "person.fill",
+        subtitleKey: nil,
+        onPickImageData: { _ in },
+        onClearImage: {},
+        onImageSelectionFailed: {},
+        onCameraPermissionDenied: {},
+        onCameraUnavailable: {},
+        usesIconControls: true,
+        overlaysControlsOnImage: true,
+        previewSize: 160,
+        usesFitPreview: true,
+        controlSize: 38
+    )
 }
 
 private struct ReguertaCameraCaptureView: UIViewControllerRepresentable {

@@ -45,13 +45,25 @@ These aliases are transitional and can evolve.
 
 ## 4. Responsive Policy
 
-Current systems use custom scaling (`resize` / width ratio).
+Platform status:
 
-Guideline:
+- iOS uses semantic size contracts and the current SwiftUI container proposal.
+  HU-078 removed window-global `DeviceScale`, capture, resize extensions, and
+  every `.resize*` production use.
+- Android was not changed by HU-078. Its adaptive implementation remains a
+  platform-native parity follow-up under the same semantic intent.
 
-- Keep existing scaling behavior while migrating.
-- Do not introduce new hardcoded size values.
-- Move toward token-driven size ramps that can be implemented platform-natively.
+Rules:
+
+- Derive layout from the active container, not a process-global window snapshot.
+- Consume semantic spacing, radius, icon, control, layout, and readable-width
+  tokens rather than introducing feature-local scaling or arbitrary dimensions.
+- Keep a minimum 44-point iOS hit region even when the visible glyph is smaller.
+- Cap readable iOS scaffold content while allowing compact containers to use the
+  available width.
+- Use Dynamic Type relative text styles without multiplying font sizes by width.
+- Reserve `@ScaledMetric` for meaningful non-text metrics whose visual role
+  should follow Dynamic Type.
 
 ## 5. Typography Policy
 
@@ -81,7 +93,7 @@ Do not duplicate hexadecimal tables in manually maintained documentation. Run `p
 | Action and destructive content | Use `actionOnPrimary` and `feedbackOnError`, respectively; do not hardcode white or black. |
 | Selection and read/unread state | Add an icon, text, shape, or accessibility semantics; color cannot be the only signal. |
 
-- Preserve touch target minimums in component contracts.
+- Preserve a minimum 44-by-44-point iOS touch target in component contracts.
 - Treat the rendered state, rather than an isolated token, as the unit of contrast verification.
 
 ## 7. Platform Flexibility
@@ -105,11 +117,48 @@ Current code entry points:
   - `android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/Type.kt`
   - `android/Reguerta/app/src/main/java/com/reguerta/user/ui/theme/DesignTokens.kt`
 - iOS theme wrapper and semantic tokens:
-  - `ios/Reguerta/Reguerta/Reguerta/DesignSystem/ReguertaTheme.swift`
-  - `ios/Reguerta/Reguerta/Reguerta/ReguertaApp.swift`
+  - `ios/Reguerta/Reguerta/DesignSystem/ReguertaTheme.swift`
+  - `ios/Reguerta/Reguerta/ReguertaApp.swift`
 
 Auth shell migration baseline:
 
 - Splash / Welcome / Login routes now consume foundation spacing/radius/typography via theme tokens in:
-  - `android/Reguerta/app/src/main/java/com/reguerta/user/presentation/access/ReguertaRoot.kt`
-  - `ios/Reguerta/Reguerta/Reguerta/ContentView.swift`
+  - `android/Reguerta/app/src/main/java/com/reguerta/user/presentation/root/ReguertaRoot.kt`
+  - `ios/Reguerta/Reguerta/Presentation/Root/AuthShellView.swift`
+  - `ios/Reguerta/Reguerta/Presentation/Auth/ContentView+AuthRoutes.swift`
+  - `ios/Reguerta/Reguerta/Presentation/Auth/ContentView+AuthForms.swift`
+
+## 9. HU-078 iOS Adaptive Foundation (2026-08-20)
+
+`ReguertaDesignTokens` is the iOS authority for semantic spacing, radius, icon,
+layout, readable-width, control-target, typography, color, and motion values.
+Raw values stay inside DesignSystem; feature views consume named intent.
+
+The active iOS contracts are:
+
+- `ReguertaTheme` reads `accessibilityReduceMotion` once and injects
+  `ReguertaMotionPolicy` alongside semantic tokens.
+- `ReguertaMotionPolicy` preserves essential state changes while allowing
+  material animation and scale to disappear when motion is reduced.
+- `ReguertaScreenScaffold` accepts the active container width, centers regular
+  content, caps its readable width at 720 points, and preserves ADR-0005
+  safe-area ownership.
+- Text uses CabinSketch with relative Dynamic Type styles and no width-derived
+  font multiplier.
+- Seven focused `@ScaledMetric` properties scale meaningful non-text metrics;
+  they are not a replacement for container-aware layout.
+- Shared controls compose a minimum 44-by-44-point hit region.
+
+Implementation evidence contains 19 DesignSystem Swift files / 2,444 lines / 30
+previews and 6 Presentation preview-support files / 1,998 lines / 26 previews.
+The repository release gate, color contract, settings, builds, lint, and scope
+audits are green. Deterministic previews and structural tests do not certify
+runtime accessibility on their own. The maintainer completed bounded manual
+MVP acceptance on 2026-08-20: representative VoiceOver and Voice Control
+navigation/actions, sampled Accessibility Inspector controls, and an
+interactive Reduce Motion off/on comparison all behaved correctly. This is not
+exhaustive assistive-technology certification.
+
+No Android code changed. Android parity should adopt native adaptive APIs while
+preserving these semantic roles rather than copying SwiftUI implementation
+details.

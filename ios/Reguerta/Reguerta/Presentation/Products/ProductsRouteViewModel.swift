@@ -12,7 +12,8 @@ final class ProductsRouteViewModel {
     @ObservationIgnored let imagePipelineManager: any ImagePipelineManager
     @ObservationIgnored let nowMillisProvider: @MainActor () -> Int64
     @ObservationIgnored let productIDProvider: @MainActor () -> String
-
+    @ObservationIgnored let productHighlightClock: PresentationDelayClock
+    @ObservationIgnored var productHighlightTask: Task<Void, Never>?
     var currentSession: AuthorizedSession?
     var currentMember: Member?
     var catalogProducts: [Product] = []
@@ -41,7 +42,6 @@ final class ProductsRouteViewModel {
     @ObservationIgnored private var appliedFreshnessOrderingGeneration: UInt64?
     @ObservationIgnored private var appliedFreshnessSessionRevision: UInt64?
     @ObservationIgnored private var appliedFreshnessContext: MyOrderFreshnessSessionContext?
-
     var activeProducts: [Product] {
         catalogProducts.filter { !$0.archived }
     }
@@ -76,7 +76,8 @@ final class ProductsRouteViewModel {
         nowMillisProvider: @escaping @MainActor () -> Int64,
         productIDProvider: @escaping @MainActor () -> String = {
             UUID().uuidString.lowercased()
-        }
+        },
+        productHighlightClock: PresentationDelayClock = .continuous
     ) {
         self.sessionViewModel = sessionViewModel
         self.feedbackCenter = feedbackCenter
@@ -86,6 +87,7 @@ final class ProductsRouteViewModel {
         self.imagePipelineManager = imagePipelineManager
         self.nowMillisProvider = nowMillisProvider
         self.productIDProvider = productIDProvider
+        self.productHighlightClock = productHighlightClock
     }
 }
 
@@ -281,6 +283,7 @@ extension ProductsRouteViewModel {
 
 private extension ProductsRouteViewModel {
     private func reset() {
+        cancelProductHighlight()
         catalogRefreshGeneration &+= 1
         invalidateOrderingRefresh()
         currentSession = nil
@@ -305,6 +308,7 @@ private extension ProductsRouteViewModel {
     }
 
     private func invalidateOperationsForIdentityChange() {
+        cancelProductHighlight()
         catalogRefreshGeneration &+= 1
         invalidateOrderingRefresh()
         activeSaveOperationId = nil

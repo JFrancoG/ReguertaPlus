@@ -7,7 +7,7 @@ enum ReguertaInputState {
     case disabled
 }
 
-struct ReguertaInputFieldViewModel {
+struct ReguertaInputFieldConfiguration {
     let label: LocalizedStringKey
     let placeholder: LocalizedStringKey?
     let helperMessage: LocalizedStringKey?
@@ -104,7 +104,7 @@ func reguertaInputField(
 ) -> some View {
     ReguertaInputFieldView(
         text: text,
-        viewModel: ReguertaInputFieldViewModel(
+        configuration: ReguertaInputFieldConfiguration(
             label: label,
             placeholder: placeholder,
             helperMessage: helperMessage,

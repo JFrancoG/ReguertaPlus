@@ -11,7 +11,12 @@ extension AccessRootViewModel {
             return
         }
 
-        try? await Task.sleep(nanoseconds: SplashAnimationContract.durationNanoseconds)
+        do {
+            try await splashClock.sleep(.seconds(SplashAnimationContract.durationSeconds))
+            try Task.checkCancellation()
+        } catch {
+            return
+        }
         guard shellState.currentRoute == .splash else { return }
         splashDelayCompleted = true
         continueFromSplashIfAllowed()

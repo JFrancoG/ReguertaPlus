@@ -1,5 +1,13 @@
 import SwiftUI
 
+enum ReguertaInputFieldLayout {
+    static let clearIconHorizontalOffset: CGFloat = -1
+
+    static func actionSize(iconSize: CGFloat, minimumTouchTarget: CGFloat) -> CGFloat {
+        max(iconSize, minimumTouchTarget)
+    }
+}
+
 struct ReguertaInputFieldView: View {
     @Environment(\.reguertaTokens) private var tokens
     @FocusState private var isFocused: Bool
@@ -7,77 +15,104 @@ struct ReguertaInputFieldView: View {
     @State private var isPasswordVisible = false
     @State private var hasInteracted = false
 
-    let viewModel: ReguertaInputFieldViewModel
+    let configuration: ReguertaInputFieldConfiguration
 
     private var effectiveErrorMessage: LocalizedStringKey? {
-        viewModel.effectiveErrorMessage(text: text, hasInteracted: hasInteracted)
+        configuration.effectiveErrorMessage(text: text, hasInteracted: hasInteracted)
     }
 
     private var visualState: ReguertaInputState {
-        viewModel.visualState(text: text, hasInteracted: hasInteracted, isFocused: isFocused)
+        configuration.visualState(text: text, hasInteracted: hasInteracted, isFocused: isFocused)
     }
 
     private var passwordVisibility: Bool {
-        viewModel.passwordVisibility(isPasswordVisible: isPasswordVisible)
+        configuration.passwordVisibility(isPasswordVisible: isPasswordVisible)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.xs) {
-            Text(viewModel.label)
+            Text(configuration.label)
                 .font(tokens.typography.label)
-                .textCase(.uppercase)
-                .foregroundStyle(viewModel.labelColor(for: visualState, tokens: tokens))
+                .foregroundStyle(configuration.labelColor(for: visualState, tokens: tokens))
 
             HStack(spacing: tokens.spacing.sm) {
                 ReguertaInputTextEntryView(
                     text: $text,
                     isFocused: $isFocused,
                     passwordVisibility: passwordVisibility,
-                    viewModel: viewModel
+                    configuration: configuration
                 )
 
-                if viewModel.isSecure && viewModel.showsPasswordToggle {
+                if configuration.isSecure && configuration.showsPasswordToggle {
                     Button(action: togglePasswordVisibility) {
                         Image(systemName: passwordVisibility ? "eye.slash" : "eye")
                             .foregroundStyle(tokens.colors.textSecondary)
-                            .frame(width: 24.resize, height: 24.resize)
+                            .frame(
+                                width: tokens.icons.prominent,
+                                height: tokens.icons.prominent
+                            )
+                            .frame(
+                                minWidth: ReguertaInputFieldLayout.actionSize(
+                                    iconSize: tokens.icons.prominent,
+                                    minimumTouchTarget: tokens.layout.minimumTouchTarget
+                                ),
+                                minHeight: ReguertaInputFieldLayout.actionSize(
+                                    iconSize: tokens.icons.prominent,
+                                    minimumTouchTarget: tokens.layout.minimumTouchTarget
+                                )
+                            )
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .disabled(!viewModel.isEnabled)
+                    .disabled(!configuration.isEnabled)
                     .accessibilityLabel(
                         Text(passwordVisibility ? "common.action.hide_password" : "common.action.show_password")
                     )
                 }
 
-                if viewModel.showsClearAction && viewModel.isEnabled && !text.isEmpty {
+                if configuration.showsClearAction && configuration.isEnabled && !text.isEmpty {
                     Button(action: clearText) {
                         Image(systemName: "xmark")
                             .foregroundStyle(tokens.colors.textSecondary)
-                            .frame(width: 24.resize, height: 24.resize)
-                            .offset(x: -1.resize)
+                            .frame(
+                                width: tokens.icons.prominent,
+                                height: tokens.icons.prominent
+                            )
+                            .frame(
+                                minWidth: ReguertaInputFieldLayout.actionSize(
+                                    iconSize: tokens.icons.prominent,
+                                    minimumTouchTarget: tokens.layout.minimumTouchTarget
+                                ),
+                                minHeight: ReguertaInputFieldLayout.actionSize(
+                                    iconSize: tokens.icons.prominent,
+                                    minimumTouchTarget: tokens.layout.minimumTouchTarget
+                                )
+                            )
+                            .contentShape(Rectangle())
+                            .offset(x: ReguertaInputFieldLayout.clearIconHorizontalOffset)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(Text("common.action.clear"))
                 }
 
-                ReguertaInputTrailingIconView(viewModel: viewModel)
+                ReguertaInputTrailingIconView(configuration: configuration)
             }
             .padding(.vertical, tokens.spacing.xs)
 
             Rectangle()
-                .fill(viewModel.lineColor(for: visualState, tokens: tokens))
+                .fill(configuration.lineColor(for: visualState, tokens: tokens))
                 .frame(height: 1)
 
             ReguertaInputMessageView(
                 errorMessage: effectiveErrorMessage,
-                helperMessage: viewModel.helperMessage
+                helperMessage: configuration.helperMessage
             )
         }
         .onChange(of: isFocused, updateInteractionState)
     }
 
     private func togglePasswordVisibility() {
-        if let sharedPasswordVisibility = viewModel.sharedPasswordVisibility {
+        if let sharedPasswordVisibility = configuration.sharedPasswordVisibility {
             sharedPasswordVisibility.wrappedValue.toggle()
             return
         }
@@ -101,67 +136,82 @@ private struct ReguertaInputTextEntryView: View {
     var isFocused: FocusState<Bool>.Binding
 
     let passwordVisibility: Bool
-    let viewModel: ReguertaInputFieldViewModel
+    let configuration: ReguertaInputFieldConfiguration
 
     var body: some View {
         ZStack(alignment: .leading) {
-            if let placeholder = viewModel.placeholder {
+            if let placeholder = configuration.placeholder {
                 Text(placeholder)
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary.opacity(0.65))
                     .opacity(text.isEmpty ? 1 : 0)
             }
-            if viewModel.isSecure && !passwordVisibility {
+            if configuration.isSecure && !passwordVisibility {
                 SecureField("", text: $text)
                     .font(tokens.typography.body)
-                    .disabled(!viewModel.isEnabled)
-                    .allowsHitTesting(!viewModel.isReadOnly)
+                    .disabled(!configuration.isEnabled)
+                    .allowsHitTesting(!configuration.isReadOnly)
                     .focused(isFocused)
-                    .autocorrectionDisabled(viewModel.autocorrectionDisabled)
-                    .textInputAutocapitalization(viewModel.textInputAutocapitalization)
-                    .keyboardType(viewModel.keyboardType)
-                    .accessibilityLabel(Text(viewModel.label))
-                    .reguertaOptionalAccessibilityIdentifier(viewModel.accessibilityIdentifier)
-            } else if viewModel.isMultiline {
+                    .autocorrectionDisabled(configuration.autocorrectionDisabled)
+                    .textInputAutocapitalization(configuration.textInputAutocapitalization)
+                    .keyboardType(configuration.keyboardType)
+                    .accessibilityLabel(Text(configuration.label))
+                    .reguertaOptionalAccessibilityIdentifier(configuration.accessibilityIdentifier)
+            } else if configuration.isMultiline {
                 TextField("", text: $text, axis: .vertical)
                     .font(tokens.typography.body)
                     .lineLimit(3...6)
-                    .disabled(!viewModel.isEnabled)
-                    .allowsHitTesting(!viewModel.isReadOnly)
+                    .disabled(!configuration.isEnabled)
+                    .allowsHitTesting(!configuration.isReadOnly)
                     .focused(isFocused)
-                    .autocorrectionDisabled(viewModel.autocorrectionDisabled)
-                    .textInputAutocapitalization(viewModel.textInputAutocapitalization)
-                    .keyboardType(viewModel.keyboardType)
-                    .accessibilityLabel(Text(viewModel.label))
-                    .reguertaOptionalAccessibilityIdentifier(viewModel.accessibilityIdentifier)
+                    .autocorrectionDisabled(configuration.autocorrectionDisabled)
+                    .textInputAutocapitalization(configuration.textInputAutocapitalization)
+                    .keyboardType(configuration.keyboardType)
+                    .accessibilityLabel(Text(configuration.label))
+                    .reguertaOptionalAccessibilityIdentifier(configuration.accessibilityIdentifier)
             } else {
                 TextField("", text: $text)
                     .font(tokens.typography.body)
-                    .disabled(!viewModel.isEnabled)
-                    .allowsHitTesting(!viewModel.isReadOnly)
+                    .disabled(!configuration.isEnabled)
+                    .allowsHitTesting(!configuration.isReadOnly)
                     .focused(isFocused)
-                    .autocorrectionDisabled(viewModel.autocorrectionDisabled)
-                    .textInputAutocapitalization(viewModel.textInputAutocapitalization)
-                    .keyboardType(viewModel.keyboardType)
-                    .accessibilityLabel(Text(viewModel.label))
-                    .reguertaOptionalAccessibilityIdentifier(viewModel.accessibilityIdentifier)
+                    .autocorrectionDisabled(configuration.autocorrectionDisabled)
+                    .textInputAutocapitalization(configuration.textInputAutocapitalization)
+                    .keyboardType(configuration.keyboardType)
+                    .accessibilityLabel(Text(configuration.label))
+                    .reguertaOptionalAccessibilityIdentifier(configuration.accessibilityIdentifier)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(
+            maxWidth: .infinity,
+            minHeight: tokens.layout.minimumTouchTarget,
+            alignment: .leading
+        )
     }
 }
 
 private struct ReguertaInputTrailingIconView: View {
     @Environment(\.reguertaTokens) private var tokens
 
-    let viewModel: ReguertaInputFieldViewModel
+    let configuration: ReguertaInputFieldConfiguration
 
     var body: some View {
-        if let trailingIcon = viewModel.trailingIcon {
-            if let onTrailingTap = viewModel.onTrailingTap {
+        if let trailingIcon = configuration.trailingIcon {
+            if let onTrailingTap = configuration.onTrailingTap {
                 Button(action: onTrailingTap) {
                     trailingIcon
                         .foregroundStyle(tokens.colors.textSecondary)
+                        .frame(
+                            minWidth: ReguertaInputFieldLayout.actionSize(
+                                iconSize: tokens.icons.prominent,
+                                minimumTouchTarget: tokens.layout.minimumTouchTarget
+                            ),
+                            minHeight: ReguertaInputFieldLayout.actionSize(
+                                iconSize: tokens.icons.prominent,
+                                minimumTouchTarget: tokens.layout.minimumTouchTarget
+                            )
+                        )
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             } else {
@@ -191,25 +241,71 @@ private struct ReguertaInputMessageView: View {
     }
 }
 
-#Preview("ReguertaInputField", traits: .modifier(ReguertaDesignSystemPreviewModifier())) {
-    @Previewable @State var text = ""
+#Preview(
+    "Input compact",
+    traits: .modifier(ReguertaDesignSystemPreviewModifier(fixture: .inputCompact)),
+    .fixedLayout(width: 320, height: 640)
+) {
+    reguertaInputField(
+        "Email",
+        text: .constant("member@example.com"),
+        helperMessage: "Helper message"
+    )
+    .padding()
+}
+
+#Preview(
+    "Input states",
+    traits: .modifier(ReguertaDesignSystemPreviewModifier(fixture: .inputStates)),
+    .fixedLayout(width: 600, height: 820)
+) {
+    @Previewable @State var email = "member@example.com"
+    @Previewable @State var password = "secret-password"
 
     VStack(spacing: 20) {
         reguertaInputField(
             "Email",
-            text: $text,
+            text: $email,
             placeholder: "name@example.com",
             helperMessage: "Helper message",
             showsClearAction: true
         )
         reguertaInputField(
             "Password",
-            text: $text,
+            text: $password,
             placeholder: "Password",
             isSecure: true
         )
+        reguertaInputField(
+            "Invalid value",
+            text: .constant("Not valid"),
+            errorMessage: "Review this value"
+        )
+        reguertaInputField(
+            "Disabled field",
+            text: .constant("Unavailable"),
+            isEnabled: false
+        )
     }
+    .frame(maxWidth: 720)
     .padding()
+}
+
+#Preview(
+    "Input AX5 · external Increased Contrast override",
+    traits: .modifier(ReguertaDesignSystemPreviewModifier(fixture: .inputAccessibility)),
+    .fixedLayout(width: 320, height: 720)
+) {
+    ScrollView(.vertical, showsIndicators: true) {
+        reguertaInputField(
+            "Detailed delivery instructions",
+            text: .constant("Leave the order beside the community room entrance"),
+            helperMessage: "Include enough information so another member can find the delivery point",
+            showsClearAction: true,
+            isMultiline: true
+        )
+        .padding()
+    }
 }
 
 private extension View {

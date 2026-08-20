@@ -5,7 +5,7 @@ extension MyOrderRouteView {
         Text(title)
             .font(
                 usesCompactFont
-                    ? .custom("CabinSketch-Bold", size: 12.resize, relativeTo: .footnote)
+                    ? .custom("CabinSketch-Bold", size: 12, relativeTo: .footnote)
                     : tokens.typography.label
             )
             .foregroundStyle(tokens.colors.actionPrimary)

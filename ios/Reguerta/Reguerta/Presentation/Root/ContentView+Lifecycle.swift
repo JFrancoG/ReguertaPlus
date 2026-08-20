@@ -2,7 +2,6 @@ import SwiftUI
 
 enum SplashAnimationContract {
     static let durationSeconds: Double = 1.5
-    static let durationNanoseconds: UInt64 = 1_500_000_000
     static let initialScale: CGFloat = 0.2
     static let finalScale: CGFloat = 18.0
     static let initialRotation: Double = 0

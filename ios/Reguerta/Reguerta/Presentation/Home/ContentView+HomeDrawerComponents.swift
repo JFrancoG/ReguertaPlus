@@ -1,5 +1,9 @@
 import SwiftUI
 
+private enum HomeDrawerLayout {
+    static let avatarSize: CGFloat = 76
+}
+
 struct HomeDrawerContentView: View {
     let tokens: ReguertaDesignTokens
     let currentMember: Member?
@@ -39,12 +43,13 @@ struct HomeDrawerContentView: View {
                 .overlay(tokens.colors.borderSubtle.opacity(0.55))
 
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: tokens.spacing.md) {
+                VStack(alignment: .leading, spacing: tokens.spacing.xs) {
                     homeDrawerNavigationSections
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, tokens.spacing.sm)
             }
+            .accessibilityIdentifier("home.drawer.navigationScroll")
 
             Divider()
                 .overlay(tokens.colors.borderSubtle.opacity(0.55))
@@ -108,7 +113,7 @@ struct HomeDrawerContentView: View {
                     .scaledToFit()
                     .padding(tokens.spacing.sm)
             }
-            .frame(width: 76.resize, height: 76.resize)
+            .frame(width: HomeDrawerLayout.avatarSize, height: HomeDrawerLayout.avatarSize)
             .clipShape(Circle())
             .overlay(Circle().stroke(tokens.colors.actionPrimary.opacity(0.36), lineWidth: 1))
             .accessibilityLabel(localizedKey(AccessL10nKey.homeShellProfilePlaceholder))
@@ -117,7 +122,7 @@ struct HomeDrawerContentView: View {
                 .resizable()
                 .scaledToFit()
                 .padding(tokens.spacing.sm)
-                .frame(width: 76.resize, height: 76.resize)
+                .frame(width: HomeDrawerLayout.avatarSize, height: HomeDrawerLayout.avatarSize)
                 .background(tokens.colors.actionPrimary.opacity(0.14))
                 .clipShape(Circle())
                 .overlay(Circle().stroke(tokens.colors.actionPrimary.opacity(0.36), lineWidth: 1))
@@ -169,15 +174,15 @@ struct HomeDrawerContentView: View {
             Button(action: onSignOut) {
                 HStack(spacing: tokens.spacing.md) {
                     Image(systemName: "rectangle.portrait.and.arrow.right")
-                        .font(.system(size: 18.resize, weight: .semibold))
+                        .font(.system(size: tokens.icons.standard, weight: .semibold))
                         .foregroundStyle(tokens.colors.actionPrimary)
-                        .frame(width: 24.resize)
+                        .frame(width: tokens.icons.prominent)
                     Text(localizedKey(AccessL10nKey.signOut))
                         .font(tokens.typography.bodySecondary)
                         .foregroundStyle(tokens.colors.textPrimary)
                     Spacer(minLength: tokens.spacing.sm)
                 }
-                .padding(.vertical, tokens.spacing.xs + 2)
+                .frame(minHeight: tokens.layout.minimumTouchTarget)
                 .padding(.horizontal, tokens.spacing.sm)
             }
             .buttonStyle(.plain)
@@ -202,15 +207,15 @@ struct HomeDrawerContentView: View {
         } label: {
             HStack(spacing: tokens.spacing.md) {
                 Image(systemName: systemImage)
-                    .font(.system(size: 18.resize, weight: .semibold))
+                    .font(.system(size: tokens.icons.standard, weight: .semibold))
                     .foregroundStyle(tokens.colors.actionPrimary)
-                    .frame(width: 24.resize)
+                    .frame(width: tokens.icons.prominent)
                 Text(localizedKey(titleKey))
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textPrimary)
                 Spacer(minLength: tokens.spacing.sm)
             }
-            .padding(.vertical, tokens.spacing.xs + 2)
+            .frame(minHeight: tokens.layout.minimumTouchTarget)
             .padding(.horizontal, tokens.spacing.sm)
             .background(
                 currentDestination == destination

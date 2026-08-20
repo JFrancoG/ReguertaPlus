@@ -40,10 +40,11 @@ extension AuthShellView {
                         .foregroundStyle(tokens.colors.actionPrimary)
                 }
                 .buttonStyle(.plain)
+                .frame(minHeight: tokens.layout.minimumTouchTarget)
             }
             .padding(.top, tokens.spacing.xs)
 
-            Spacer(minLength: 72.resize)
+            Spacer(minLength: tokens.spacing.xxl * 3)
 
             reguertaButton(
                 localizedKey(sessionViewModel.isAuthenticating ? AccessL10nKey.signingIn : AccessL10nKey.signIn),
@@ -108,7 +109,7 @@ extension AuthShellView {
                 keyboardType: .default
             )
 
-            Spacer(minLength: 72.resize)
+            Spacer(minLength: tokens.spacing.xxl * 3)
 
             reguertaButton(
                 localizedKey(
@@ -138,7 +139,7 @@ extension AuthShellView {
                 keyboardType: .emailAddress
             )
 
-            Spacer(minLength: 88.resize)
+            Spacer(minLength: tokens.spacing.xxl * 3 + tokens.spacing.lg)
 
             reguertaButton(
                 localizedKey(

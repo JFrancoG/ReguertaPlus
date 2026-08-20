@@ -25,26 +25,25 @@ struct MyOrdersHistoryRouteView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            VStack(alignment: .leading, spacing: tokens.spacing.md) {
-                OrderHistoryWeekHeader(
-                    tokens: tokens,
-                    selectedWeek: viewModel.selectedWeek,
-                    canGoPrevious: viewModel.canGoPrevious,
-                    canGoNext: viewModel.canGoNext,
-                    onPrevious: {
-                        Task { await viewModel.selectPreviousWeek() }
-                    },
-                    onNext: {
-                        Task { await viewModel.selectNextWeek() }
-                    },
-                    onPickWeek: viewModel.presentWeekPicker
-                )
+        VStack(alignment: .leading, spacing: tokens.spacing.md) {
+            OrderHistoryWeekHeader(
+                tokens: tokens,
+                selectedWeek: viewModel.selectedWeek,
+                canGoPrevious: viewModel.canGoPrevious,
+                canGoNext: viewModel.canGoNext,
+                onPrevious: {
+                    Task { await viewModel.selectPreviousWeek() }
+                },
+                onNext: {
+                    Task { await viewModel.selectNextWeek() }
+                },
+                onPickWeek: viewModel.presentWeekPicker
+            )
 
-                routeContent
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-
+            routeContent
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             if !viewModel.isWeekPickerPresented, case .loaded(let snapshot) = viewModel.loadState {
                 OrderSummaryTotalBar(
                     tokens: tokens,
@@ -90,7 +89,7 @@ struct MyOrdersHistoryRouteView: View {
                     }
                 }
             )
-            .presentationDetents([.height(320.resize)])
+            .presentationDetents([.medium])
             .presentationBackground(tokens.colors.surfacePrimary)
         }
     }
@@ -135,8 +134,7 @@ struct MyOrdersHistoryRouteView: View {
             OrderSummaryList(
                 tokens: tokens,
                 groups: snapshot.groups,
-                locale: presentationLocale,
-                bottomPadding: 72.resize + 8.resizeBottomSize
+                locale: presentationLocale
             )
         }
     }
@@ -146,7 +144,6 @@ private struct OrderSummaryList: View {
     let tokens: ReguertaDesignTokens
     let groups: [MyOrderPreviousOrderGroup]
     let locale: Locale
-    let bottomPadding: CGFloat
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
@@ -176,9 +173,8 @@ private struct OrderSummaryList: View {
                     )
                 }
             }
-            .padding(.bottom, bottomPadding)
+            .padding(.bottom, tokens.spacing.sm)
         }
-        .ignoresSafeArea(.container, edges: .bottom)
     }
 }
 
@@ -187,7 +183,7 @@ private struct OrderSummaryTotalBar: View {
     let text: String
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 8.resize, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: tokens.radius.sm, style: .continuous)
 
         HStack {
             Text(text)
@@ -196,14 +192,14 @@ private struct OrderSummaryTotalBar: View {
                 .frame(maxWidth: .infinity)
         }
         .padding(.horizontal, tokens.spacing.md)
-        .frame(height: 44.resize)
+        .frame(minHeight: tokens.layout.minimumTouchTarget)
         .background(shape.fill(tokens.colors.actionPrimary))
         .overlay(
-            shape.stroke(tokens.colors.borderSubtle.opacity(0.65), lineWidth: 1.resize)
+            shape.stroke(tokens.colors.borderSubtle.opacity(0.65), lineWidth: 1)
         )
         .clipShape(shape)
         .padding(.horizontal, tokens.spacing.sm)
-        .padding(.bottom, 8.resizeBottomSize)
+        .padding(.bottom, tokens.spacing.sm)
         .allowsHitTesting(false)
     }
 }

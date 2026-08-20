@@ -205,7 +205,7 @@ struct ReguertaUsersViewModelTests {
         rootViewModel.usersViewModel.isEditorOpen = true
         rootViewModel.usersViewModel.editingMemberId = nil
 
-        guard case .verbatim(let title)? = rootViewModel.homeShellHeaderViewModel.title else {
+        guard case .verbatim(let title)? = rootViewModel.homeShellHeaderConfiguration.title else {
             Issue.record("Expected a verbatim users editor title")
             return
         }

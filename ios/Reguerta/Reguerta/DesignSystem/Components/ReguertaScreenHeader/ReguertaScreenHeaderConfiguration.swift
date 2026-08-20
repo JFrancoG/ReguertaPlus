@@ -76,7 +76,7 @@ extension ReguertaHeaderAction {
     }
 }
 
-struct ReguertaScreenHeaderViewModel {
+struct ReguertaScreenHeaderConfiguration {
     private let storedTitle: ReguertaHeaderText?
     let leadingAction: ReguertaHeaderAction?
     let leadingText: ReguertaHeaderText?
@@ -85,7 +85,7 @@ struct ReguertaScreenHeaderViewModel {
     var title: ReguertaHeaderText? { storedTitle }
 }
 
-extension ReguertaScreenHeaderViewModel {
+extension ReguertaScreenHeaderConfiguration {
     init(
         title: ReguertaHeaderText? = nil,
         leadingAction: ReguertaHeaderAction? = nil,

@@ -7,7 +7,7 @@ enum ReguertaButtonVariant {
     case text
 }
 
-struct ReguertaButtonViewModel {
+struct ReguertaButtonConfiguration {
     let title: LocalizedStringKey
     let variant: ReguertaButtonVariant
     let isEnabled: Bool
@@ -85,7 +85,7 @@ func reguertaButton(
     action: @escaping () -> Void
 ) -> some View {
     ReguertaButtonView(
-        viewModel: ReguertaButtonViewModel(
+        configuration: ReguertaButtonConfiguration(
             title: title,
             variant: variant,
             isEnabled: isEnabled,

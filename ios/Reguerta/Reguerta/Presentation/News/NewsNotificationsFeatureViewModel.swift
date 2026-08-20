@@ -18,6 +18,7 @@ final class NewsNotificationsFeatureViewModel {
     @ObservationIgnored let nowMillisProvider: @MainActor () -> Int64
     @ObservationIgnored let environmentProvider: @MainActor () -> SessionEnvironment
     @ObservationIgnored let environmentRoutingSignal: SessionEnvironmentRoutingSignal
+    @ObservationIgnored let newsHighlightClock: PresentationDelayClock
 
     var currentSession: AuthorizedSession?
     var currentMember: Member?
@@ -46,6 +47,7 @@ final class NewsNotificationsFeatureViewModel {
     @ObservationIgnored var sessionIdentityEpoch: UInt64 = 0
     @ObservationIgnored var environmentRoutingGeneration: UInt64 = 0
     @ObservationIgnored var activeCommunityHydrationTask: Task<Void, Never>?
+    @ObservationIgnored var newsHighlightTask: Task<Void, Never>?
     @ObservationIgnored var communityHydrationGeneration: UInt64 = 0
     @ObservationIgnored var activeNewsRefreshOperationId: UInt64?
     @ObservationIgnored var nextNewsRefreshOperationId: UInt64 = 0
@@ -101,7 +103,8 @@ final class NewsNotificationsFeatureViewModel {
         imagePipelineManager: any ImagePipelineManager,
         nowMillisProvider: @escaping @MainActor () -> Int64,
         environmentProvider: @escaping @MainActor () -> SessionEnvironment = { .develop },
-        environmentRoutingSignal: SessionEnvironmentRoutingSignal? = nil
+        environmentRoutingSignal: SessionEnvironmentRoutingSignal? = nil,
+        newsHighlightClock: PresentationDelayClock = .continuous
     ) {
         self.init(
             sessionViewModel: sessionViewModel,
@@ -112,7 +115,8 @@ final class NewsNotificationsFeatureViewModel {
             imagePipelineManager: imagePipelineManager,
             nowMillisProvider: nowMillisProvider,
             environmentProvider: environmentProvider,
-            environmentRoutingSignal: environmentRoutingSignal
+            environmentRoutingSignal: environmentRoutingSignal,
+            newsHighlightClock: newsHighlightClock
         )
     }
 
@@ -125,7 +129,8 @@ final class NewsNotificationsFeatureViewModel {
         imagePipelineManager: any ImagePipelineManager,
         nowMillisProvider: @escaping @MainActor () -> Int64,
         environmentProvider: @escaping @MainActor () -> SessionEnvironment = { .develop },
-        environmentRoutingSignal: SessionEnvironmentRoutingSignal? = nil
+        environmentRoutingSignal: SessionEnvironmentRoutingSignal? = nil,
+        newsHighlightClock: PresentationDelayClock = .continuous
     ) {
         self.sessionViewModel = sessionViewModel
         self.feedbackCenter = feedbackCenter
@@ -135,6 +140,7 @@ final class NewsNotificationsFeatureViewModel {
         self.imagePipelineManager = imagePipelineManager
         self.nowMillisProvider = nowMillisProvider
         self.environmentProvider = environmentProvider
+        self.newsHighlightClock = newsHighlightClock
         let resolvedRoutingSignal = environmentRoutingSignal
             ?? sessionViewModel.environmentRouter.transitionSignal
         self.environmentRoutingSignal = resolvedRoutingSignal

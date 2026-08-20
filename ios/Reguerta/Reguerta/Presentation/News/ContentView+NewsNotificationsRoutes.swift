@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct NewsListRouteView: View {
+    @Environment(\.reguertaMotionPolicy) private var motionPolicy
+
     let tokens: ReguertaDesignTokens
     let viewModel: NewsNotificationsFeatureViewModel
     let loadNewsImageData: @Sendable (URL) async throws -> Data
@@ -36,19 +38,24 @@ struct NewsListRouteView: View {
                             }
                         }
                     }
-                    .padding(.bottom, viewModel.canPublishNews
-                        ? ReguertaFloatingActionButtonLayout.scrollContentBottomPadding
-                        : tokens.spacing.sm)
-                    .animation(.easeInOut(duration: 0.25), value: viewModel.newsFeed.map(\.id))
+                    .padding(.bottom, tokens.spacing.sm)
+                    .animation(
+                        motionPolicy.materialAnimation(.easeInOut(duration: tokens.motion.standardDuration)),
+                        value: viewModel.newsFeed.map(\.id)
+                    )
                 }
                 .onChange(of: viewModel.highlightedNewsId) { _, newsId in
                     guard let newsId else { return }
-                    withAnimation(.easeInOut(duration: 0.25)) {
+                    withAnimation(
+                        motionPolicy.materialAnimation(.easeInOut(duration: tokens.motion.standardDuration))
+                    ) {
                         proxy.scrollTo(newsId, anchor: .center)
                     }
                 }
             }
 
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             if viewModel.canPublishNews {
                 reguertaFloatingActionButton(LocalizedStringKey(AccessL10nKey.newsCreateAction)) {
                     createNews()
@@ -121,7 +128,7 @@ private struct NewsArticleCardView: View {
                             foregroundColor: tokens.colors.feedbackOnError,
                             action: { onDeleteNews(article.id) }
                         )
-                        Spacer().frame(width: 12.resize)
+                        Spacer().frame(width: tokens.spacing.md)
                     }
                 }
             }
@@ -134,6 +141,8 @@ struct NewsEditorRouteView: View {
     let tokens: ReguertaDesignTokens
     let viewModel: NewsNotificationsFeatureViewModel
     let onSaveSuccess: () -> Void
+
+    private var multilineEditorMinimumHeight: CGFloat { tokens.layout.minimumTouchTarget * 4 }
 
     private var saveActionKey: String {
         if viewModel.isSavingNews {
@@ -190,13 +199,14 @@ struct NewsEditorRouteView: View {
                         text: newsTitle
                     )
                     .textFieldStyle(.roundedBorder)
+                    .frame(minHeight: tokens.layout.minimumTouchTarget)
                     .accessibilityLabel(Text(LocalizedStringKey(AccessL10nKey.newsFieldTitle)))
 
                     Text(LocalizedStringKey(AccessL10nKey.newsFieldBody))
                         .font(tokens.typography.label)
                         .foregroundStyle(tokens.colors.textSecondary)
                     TextEditor(text: newsBody)
-                        .frame(minHeight: 180.resize)
+                        .frame(minHeight: multilineEditorMinimumHeight)
                         .padding(tokens.spacing.sm)
                         .background(tokens.colors.surfaceSecondary)
                         .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
@@ -219,9 +229,10 @@ struct NewsEditorRouteView: View {
                     Toggle(LocalizedStringKey(AccessL10nKey.newsFieldActive), isOn: newsArchived)
                         .tint(tokens.colors.controlAccent)
                 }
-                .padding(.bottom, ReguertaFloatingActionButtonLayout.scrollContentBottomPadding)
+                .padding(.bottom, tokens.spacing.sm)
             }
-
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             reguertaFloatingActionButton(
                 LocalizedStringKey(saveActionKey),
                 isEnabled: !viewModel.isSavingNews && !viewModel.isUploadingNewsImage,
@@ -363,6 +374,8 @@ struct NotificationEditorRouteView: View {
     let viewModel: NewsNotificationsFeatureViewModel
     let onSendSuccess: () -> Void
 
+    private var multilineEditorMinimumHeight: CGFloat { tokens.layout.minimumTouchTarget * 4 }
+
     private var sendActionKey: String {
         viewModel.isSendingNotification
             ? AccessL10nKey.notificationsSendActionSending
@@ -415,13 +428,14 @@ struct NotificationEditorRouteView: View {
                         text: notificationTitle
                     )
                     .textFieldStyle(.roundedBorder)
+                    .frame(minHeight: tokens.layout.minimumTouchTarget)
                     .accessibilityLabel(Text(LocalizedStringKey(AccessL10nKey.notificationsFieldTitle)))
 
                     Text(LocalizedStringKey(AccessL10nKey.notificationsFieldBody))
                         .font(tokens.typography.label)
                         .foregroundStyle(tokens.colors.textSecondary)
                     TextEditor(text: notificationBody)
-                        .frame(minHeight: 180.resize)
+                        .frame(minHeight: multilineEditorMinimumHeight)
                         .padding(tokens.spacing.sm)
                         .background(tokens.colors.surfaceSecondary)
                         .clipShape(RoundedRectangle(cornerRadius: tokens.radius.sm))
@@ -441,9 +455,10 @@ struct NotificationEditorRouteView: View {
                     .pickerStyle(.menu)
                     .accessibilityLabel(Text(LocalizedStringKey(AccessL10nKey.notificationsFieldAudience)))
                 }
-                .padding(.bottom, ReguertaFloatingActionButtonLayout.scrollContentBottomPadding)
+                .padding(.bottom, tokens.spacing.sm)
             }
-
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             reguertaFloatingActionButton(
                 LocalizedStringKey(sendActionKey),
                 isEnabled: !viewModel.isSendingNotification,
