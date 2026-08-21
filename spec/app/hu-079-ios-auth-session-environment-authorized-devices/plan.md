@@ -13,7 +13,7 @@ deterministically verifiable.
 - Branch: `codex/hu-079-ios-auth-session-environment-authorized-devices`
 - Base: `main` at `08deba780ab799a049d8b363b2d2ef1c663f92b5`
 - Profile: iOS maintenance
-- State: approved / in progress
+- State: approved / ready for merge
 - Delivery: commit, push, ready PR, review, merge, issue closure, and branch
   cleanup authorized on 2026-08-21; backend deployment/live mutation remains
   unauthorized and is not required by this slice.
@@ -171,5 +171,5 @@ Automated implementation, gates, real Xcode RenderPreview, static independent
 reviews, and physical iPhone 11 acceptance with VoiceOver, Voice Control,
 Reduce Motion, Increased Contrast, and large Dynamic Type are complete. The
 maintainer explicitly deferred Accessibility Inspector refinement until after
-the MVP and authorized the repository delivery flow. The plan remains approved
-/ in progress only until remote synchronization and delivery complete.
+the MVP and authorized the repository delivery flow. The plan is approved and
+ready for merge; closure follows only after the remote merge is definitive.

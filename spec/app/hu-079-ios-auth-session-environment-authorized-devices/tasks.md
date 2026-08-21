@@ -132,6 +132,6 @@
 - [x] Branch deletion/integration authorized.
 - [x] Firebase/backend deployment explicitly not applicable.
 
-Current delivery state: the complete repository delivery flow is authorized.
-External Firebase/backend deployment and live mutation remain unauthorized and
-are not required by HU-079.
+Current delivery state: ready for merge; the complete repository delivery flow
+is authorized. External Firebase/backend deployment and live mutation remain
+unauthorized and are not required by HU-079.

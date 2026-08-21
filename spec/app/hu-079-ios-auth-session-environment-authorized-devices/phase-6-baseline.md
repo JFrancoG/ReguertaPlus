@@ -311,8 +311,8 @@ including dark and Increased Contrast variants; stable captures are stored at
 with VoiceOver, Voice Control, Reduce Motion, Increased Contrast, and large
 Dynamic Type. The maintainer explicitly deferred Accessibility Inspector
 refinement until after the MVP. The maintainer authorized remote synchronization
-and the complete repository delivery flow; the issue stays open and
-`in_progress` only until those actions complete.
+and the complete repository delivery flow; the issue is ready for merge and
+stays open only until the remote merge and closure are definitive.
 
 ## Reproducible commands
 

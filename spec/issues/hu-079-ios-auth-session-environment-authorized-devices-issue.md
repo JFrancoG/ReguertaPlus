@@ -29,7 +29,7 @@ scope and are not required.
 - GitHub issue: https://github.com/JFrancoG/ReguertaPlus/issues/260
 - Branch: `codex/hu-079-ios-auth-session-environment-authorized-devices`
 - Base: synchronized `main` at `08deba78`.
-- State: open / in progress.
+- State: open / ready for merge.
 - Profile: iOS maintenance.
 
 ## Canonical sources
@@ -193,9 +193,9 @@ stable captures are stored under `/private/tmp/hu079-renderpreview-*.png`.
 Physical iPhone 11 acceptance passed with VoiceOver, Voice Control, Reduce
 Motion, Increased Contrast, and large Dynamic Type. The maintainer explicitly
 deferred Accessibility Inspector refinement until after the MVP. The complete
-repository delivery flow is authorized; the issue stays open/in progress only
-until that flow completes. Firebase/backend deployment and live mutation remain
-unauthorized and are not required.
+repository delivery flow is authorized; the issue is ready for merge and stays
+open only until merge and closure are definitive. Firebase/backend deployment
+and live mutation remain unauthorized and are not required.
 
 ## Labels
 

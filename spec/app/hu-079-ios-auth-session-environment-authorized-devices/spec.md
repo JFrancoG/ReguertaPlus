@@ -5,7 +5,7 @@
 - issue_id: #260
 - priority: P1
 - platform: ios
-- status: in_progress
+- status: ready_for_merge
 - plan_state: approved
 
 ## Authorization and delivery boundary
@@ -379,9 +379,9 @@ associated previews, and the touched input boundary has 6.
 
 Residual debt is explicit: Accessibility Inspector refinement is deferred until
 after the MVP, Android retains its current implementation, and HU-070/#198
-remains the sole live backend rollout owner. The story remains `in_progress`
-and its issue remains open only until the separately authorized delivery flow
-completes.
+remains the sole live backend rollout owner. The story is `ready_for_merge`,
+and its issue remains open only until the authorized merge and closure are
+definitive.
 
 ## Risks and controls
 
