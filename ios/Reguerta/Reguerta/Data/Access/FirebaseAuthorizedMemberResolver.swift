@@ -38,17 +38,22 @@ struct FirebaseAuthorizedMemberResolver: AuthorizedMemberResolving {
                 firstLoginLinked: response.firstLoginLinked
             )
         } catch let error as FirebaseFunctionClientError {
-            if error == .cancelled {
+            switch error {
+            case .cancelled:
                 throw CancellationError()
-            }
-            guard case .forbidden(let code, _) = error else { throw error }
-            switch code {
-            case "member_not_found", "unlinked_account":
-                throw AuthorizedMemberResolutionError.unauthorized(.userNotFoundInAuthorizedUsers)
-            case "verified_email_required":
-                throw AuthorizedMemberResolutionError.unauthorized(.emailVerificationRequired)
+            case .unauthorized:
+                throw AuthorizedMemberResolutionError.sessionExpired
+            case .forbidden(let code, _):
+                switch code {
+                case "member_not_found", "unlinked_account":
+                    throw AuthorizedMemberResolutionError.unauthorized(.userNotFoundInAuthorizedUsers)
+                case "verified_email_required":
+                    throw AuthorizedMemberResolutionError.unauthorized(.emailVerificationRequired)
+                default:
+                    throw AuthorizedMemberResolutionError.unauthorized(.userAccessRestricted)
+                }
             default:
-                throw AuthorizedMemberResolutionError.unauthorized(.userAccessRestricted)
+                throw error
             }
         }
     }

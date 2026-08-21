@@ -336,8 +336,14 @@ private extension AccessRootViewModel {
 }
 
 extension AccessRootViewModel {
+    /// Applies an Auth-shell transition and completes route-exit cleanup in the same MainActor turn.
+    ///
+    /// Running cleanup immediately after the reducer invalidates route-owned tasks and drafts before a suspended
+    /// operation can publish into the destination route; callers must not defer this boundary to a View callback.
     func dispatchShell(_ action: AuthShellAction) {
+        let previousRoute = shellState.currentRoute
         shellState = reduceAuthShell(state: shellState, action: action)
+        handleShellRouteChange(from: previousRoute, to: shellState.currentRoute)
     }
 
     func startSplashAnimationIfNeeded() {

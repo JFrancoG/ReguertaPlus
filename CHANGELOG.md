@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- 2026-08-21 | ♻️ refactor(ios): harden auth session ownership
 - 2026-08-20 | ♻️ refactor(ios): adopt adaptive layout
 - 2026-08-19 | ♻️ refactor(ios): consolidate app composition
 - 2026-08-19 | ♻️ refactor(ios): own session runtime context
@@ -165,6 +166,7 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-08-21 | 📝 docs(hu-079): record delivery authorization
 - 2026-08-21 | 📝 docs(hu-078): record delivery authorization
 - 2026-08-19 | 📝 docs(hu-077): record final delivery
 - 2026-08-19 | 📝 docs(hu-076): record branch publication

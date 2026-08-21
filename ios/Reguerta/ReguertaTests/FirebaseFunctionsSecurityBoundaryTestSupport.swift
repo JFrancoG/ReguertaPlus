@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 @testable import Reguerta
 
@@ -10,6 +11,131 @@ nonisolated struct SecurityBoundaryFixedAuthorizedMemberResolver: AuthorizedMemb
         requestedEnvironment _: SessionEnvironment
     ) async throws -> AuthorizedMemberResolution {
         resolution
+    }
+}
+
+struct SecurityBoundaryThrowingAuthorizedMemberResolver: AuthorizedMemberResolving {
+    let error: AuthorizedMemberResolutionError
+
+    func resolve(
+        authPrincipal _: AuthPrincipal,
+        requestedEnvironment _: SessionEnvironment
+    ) async throws -> AuthorizedMemberResolution {
+        throw error
+    }
+}
+
+struct CancellingExpiredMemberResolver: AuthorizedMemberResolving {
+    func resolve(
+        authPrincipal _: AuthPrincipal,
+        requestedEnvironment _: SessionEnvironment
+    ) async throws -> AuthorizedMemberResolution {
+        withUnsafeCurrentTask { task in
+            task?.cancel()
+        }
+        throw AuthorizedMemberResolutionError.sessionExpired
+    }
+}
+
+final class ControlledExpiredMemberResolver: AuthorizedMemberResolving, Sendable {
+    private enum WaitRegistration {
+        case suspended
+        case started
+        case cancelled
+    }
+
+    private struct State {
+        var resolutionID: UUID?
+        var resolutionContinuation: CheckedContinuation<AuthorizedMemberResolution, any Error>?
+        var requestWaiters: [UUID: CheckedContinuation<Void, any Error>] = [:]
+    }
+
+    private let state = Mutex(State())
+
+    func resolve(
+        authPrincipal _: AuthPrincipal,
+        requestedEnvironment _: SessionEnvironment
+    ) async throws -> AuthorizedMemberResolution {
+        let resolutionID = UUID()
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                let requestWaiters = state.withLock { state -> [CheckedContinuation<Void, any Error>]? in
+                    guard !Task.isCancelled else { return nil }
+                    state.resolutionID = resolutionID
+                    state.resolutionContinuation = continuation
+                    defer { state.requestWaiters.removeAll() }
+                    return Array(state.requestWaiters.values)
+                }
+                guard let requestWaiters else {
+                    continuation.resume(throwing: CancellationError())
+                    return
+                }
+                requestWaiters.forEach { $0.resume() }
+            }
+        } onCancel: {
+            self.cancelResolution(resolutionID)
+        }
+    }
+
+    func waitForRequest() async throws {
+        let waiterID = UUID()
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                let registration = state.withLock { state -> WaitRegistration in
+                    guard !Task.isCancelled else { return .cancelled }
+                    guard state.resolutionContinuation == nil else { return .started }
+                    state.requestWaiters[waiterID] = continuation
+                    return .suspended
+                }
+                switch registration {
+                case .suspended:
+                    break
+                case .started:
+                    continuation.resume()
+                case .cancelled:
+                    continuation.resume(throwing: CancellationError())
+                }
+            }
+        } onCancel: {
+            self.cancelRequestWaiter(waiterID)
+        }
+    }
+
+    func completeWithExpiredSession() {
+        let continuation = state.withLock { state in
+            state.resolutionID = nil
+            defer { state.resolutionContinuation = nil }
+            return state.resolutionContinuation
+        }
+        continuation?.resume(throwing: AuthorizedMemberResolutionError.sessionExpired)
+    }
+
+    func cancelAll() {
+        let pending = state.withLock { state in
+            state.resolutionID = nil
+            let resolutionContinuation = state.resolutionContinuation
+            state.resolutionContinuation = nil
+            let requestWaiters = Array(state.requestWaiters.values)
+            state.requestWaiters.removeAll()
+            return (resolutionContinuation, requestWaiters)
+        }
+        pending.0?.resume(throwing: CancellationError())
+        pending.1.forEach { $0.resume(throwing: CancellationError()) }
+    }
+
+    private func cancelResolution(_ resolutionID: UUID) {
+        let continuation = state.withLock { state -> CheckedContinuation<AuthorizedMemberResolution, any Error>? in
+            guard state.resolutionID == resolutionID else { return nil }
+            state.resolutionID = nil
+            defer { state.resolutionContinuation = nil }
+            return state.resolutionContinuation
+        }
+        continuation?.resume(throwing: CancellationError())
+    }
+
+    private func cancelRequestWaiter(_ waiterID: UUID) {
+        let continuation = state.withLock { $0.requestWaiters.removeValue(forKey: waiterID) }
+        continuation?.resume(throwing: CancellationError())
     }
 }
 

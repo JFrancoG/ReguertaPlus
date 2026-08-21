@@ -84,8 +84,12 @@ extension SessionViewModel {
     }
 
     func applyAuthorizedSession(principal: AuthPrincipal, generation: UInt64) async {
+        let requestedEnvironment = environmentRouter.baseEnvironment
         do {
-            let result = try await resolveAuthorizedSession.execute(authPrincipal: principal)
+            let result = try await resolveAuthorizedSession.execute(
+                authPrincipal: principal,
+                requestedEnvironment: requestedEnvironment
+            )
             guard isCurrentSessionOperation(generation) else { return }
             switch result {
             case .authorized(let member, let environment):
@@ -111,12 +115,11 @@ extension SessionViewModel {
                     prepareForResolvedAuthorizationRevocation(principalEmail: principal.email)
                     applyUnauthorizedSession(principalEmail: principal.email, reason: reason)
                 }
+            case .sessionExpired:
+                await handleExpiredSession()
             }
         } catch is CancellationError {
             return
-        } catch FirebaseFunctionClientError.unauthorized {
-            guard isCurrentSessionOperation(generation) else { return }
-            await handleExpiredSession()
         } catch {
             guard isCurrentSessionOperation(generation) else { return }
             applyLocalSessionTermination(
@@ -146,6 +149,7 @@ extension SessionViewModel {
     }
 
     func resetAccessCredentialsAndErrors() {
+        invalidatePasswordRecoveryOperation()
         emailInput = ""
         passwordInput = ""
         registerEmailInput = ""
@@ -208,6 +212,12 @@ extension SessionViewModel {
         }
     }
 
+    /// Publishes an authorized session while preserving ownership across a benign refresh.
+    ///
+    /// The same principal UID, active authenticated-member identity, and environment reuse both authorization leases.
+    /// If their device registration is still running, that task and its revision remain the sole owner for the shared
+    /// lease; a changed authorization replaces the owner. This prevents overlapping registrations from treating the
+    /// same persisted context as two independent operations while cleanup targets the exact live leases.
     private func applyAuthorizedSession(
         principal: AuthPrincipal,
         member: Member,
@@ -230,7 +240,9 @@ extension SessionViewModel {
             return
         }
         guard isCurrentSessionOperation(generation) else { return }
-        let environmentLease = SessionEnvironmentLease()
+        let reusesLeases = canReuseAuthorizationLeases(for: principal, member: member, environment: environment)
+        let environmentLease = reusesLeases ? authorizedEnvironmentLease ?? .init() : .init()
+        let deviceSessionLease = reusesLeases ? authorizedDeviceSessionLease ?? .init() : .init()
         authorizedEnvironmentLease = environmentLease
         environmentRouter.applyResolvedEnvironment(environment, lease: environmentLease)
         guard isCurrentSessionOperation(generation), authorizedEnvironmentLease == environmentLease else {
@@ -249,75 +261,107 @@ extension SessionViewModel {
                 environment: environment
             )
         )
-        let deviceSessionLease = AuthorizedDeviceSessionLease()
         authorizedDeviceSessionLease = deviceSessionLease
         showSessionExpiredDialog = false
         showUnauthorizedDialog = false
         guard isCurrentSessionOperation(generation) else { return }
-        await registerAuthorizedDeviceBestEffort(
+        guard !reusesLeases || authorizedDeviceRegistrationTask == nil else { return }
+        scheduleAuthorizedDeviceRegistration(
             principal: principal,
             member: member,
             environment: environment,
-            lease: deviceSessionLease,
-            generation: generation
+            lease: deviceSessionLease
         )
     }
 
-    private func registerAuthorizedDeviceBestEffort(
+    private func canReuseAuthorizationLeases(
+        for principal: AuthPrincipal,
+        member: Member,
+        environment: SessionEnvironment
+    ) -> Bool {
+        guard authorizedEnvironmentLease != nil,
+              authorizedDeviceSessionLease != nil,
+              case .authorized(let session) = mode,
+              session.representsActiveAuthorization else { return false }
+        return session.principal.uid == principal.uid &&
+            session.authenticatedMember.id == member.id &&
+            member.authUid == principal.uid &&
+            member.isActive &&
+            session.environment == environment
+    }
+
+    private func scheduleAuthorizedDeviceRegistration(
         principal: AuthPrincipal,
         member: Member,
         environment: SessionEnvironment,
-        lease: AuthorizedDeviceSessionLease,
-        generation: UInt64
-    ) async {
-        guard isCurrentAuthorizedDeviceSession(
-            principal: principal,
-            authenticatedMember: member,
-            environment: environment,
-            lease: lease,
-            generation: generation
-        ) else { return }
-        do {
-            _ = try await authorizedDeviceRegistrar.register(
-                command: AuthorizedDeviceRegistrationCommand(
-                    memberId: member.id,
-                    authUid: principal.uid,
-                    environment: environment,
-                    lease: lease
-                ),
-                isSessionCurrent: { [weak self] in
-                    guard let self else { return false }
-                    return self.isCurrentAuthorizedDeviceSession(
-                        principal: principal,
-                        authenticatedMember: member,
-                        environment: environment,
-                        lease: lease,
-                        generation: generation
-                    )
-                }
+        lease: AuthorizedDeviceSessionLease
+    ) {
+        startAuthorizedDeviceRegistration(
+            AuthorizedDeviceRegistrationCommand(
+                memberId: member.id,
+                authUid: principal.uid,
+                environment: environment,
+                lease: lease
             )
-        } catch is CancellationError {
-            return
-        } catch {
-            // Push registration is non-critical. The live coordinator records private diagnostics.
+        )
+    }
+
+    private func startAuthorizedDeviceRegistration(_ command: AuthorizedDeviceRegistrationCommand) {
+        authorizedDeviceRegistrationRevision &+= 1
+        let registrationRevision = authorizedDeviceRegistrationRevision
+        authorizedDeviceRegistrationTask?.cancel()
+        authorizedDeviceRegistrationTask = nil
+        let registrar = authorizedDeviceRegistrar
+
+        authorizedDeviceRegistrationTask = Task { @MainActor [weak self, registrar] in
+            defer {
+                self?.finishAuthorizedDeviceRegistration(
+                    revision: registrationRevision,
+                    command: command
+                )
+            }
+            guard self?.isCurrentAuthorizedDeviceRegistration(
+                revision: registrationRevision,
+                command: command
+            ) == true else { return }
+            do {
+                _ = try await registrar.register(
+                    command: command,
+                    isSessionCurrent: { [weak self] in
+                        self?.isCurrentAuthorizedDeviceRegistration(
+                            revision: registrationRevision,
+                            command: command
+                        ) == true
+                    }
+                )
+            } catch is CancellationError {
+                return
+            } catch {
+                // Push registration is non-critical. The live coordinator records private diagnostics.
+            }
         }
     }
 
-    private func isCurrentAuthorizedDeviceSession(
-        principal: AuthPrincipal,
-        authenticatedMember: Member,
-        environment: SessionEnvironment,
-        lease: AuthorizedDeviceSessionLease,
-        generation: UInt64
+    private func finishAuthorizedDeviceRegistration(revision: UInt64, command: AuthorizedDeviceRegistrationCommand) {
+        guard revision == authorizedDeviceRegistrationRevision,
+              authorizedDeviceSessionLease == command.lease else { return }
+        authorizedDeviceRegistrationTask = nil
+    }
+
+    private func isCurrentAuthorizedDeviceRegistration(
+        revision: UInt64,
+        command: AuthorizedDeviceRegistrationCommand
     ) -> Bool {
-        guard isCurrentSessionOperation(generation),
-              authorizedDeviceSessionLease == lease,
-              case .authorized(let session) = mode else { return false }
-        return session.representsActiveAuthorization &&
-            session.principal.uid == principal.uid &&
-            session.authenticatedMember.id == authenticatedMember.id &&
-            session.authenticatedMember.authUid == principal.uid &&
-            session.environment == environment
+        guard revision == authorizedDeviceRegistrationRevision,
+              authorizedDeviceSessionLease == command.lease,
+              case .authorized(let session) = mode,
+              session.representsActiveAuthorization else { return false }
+        return AuthorizedDeviceRegistrationCommand(
+            memberId: session.authenticatedMember.id,
+            authUid: session.principal.uid,
+            environment: session.environment,
+            lease: command.lease
+        ) == command
     }
 
     private func applyUnauthorizedSession(principalEmail: String, reason: UnauthorizedReason) {

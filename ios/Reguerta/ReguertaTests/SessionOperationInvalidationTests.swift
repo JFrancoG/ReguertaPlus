@@ -227,18 +227,24 @@ struct SessionOperationInvalidationTests {
             resolver: FixedAuthorizedMemberResolver(
                 member: fixture,
                 fixedEnvironment: .production
-            ),
-            environmentRouter: environmentRouter
+            )
         )
+        let requestedEnvironment = environmentRouter.baseEnvironment
 
         let staleOperation = Task {
-            try await useCase.execute(authPrincipal: principal)
+            try await useCase.execute(
+                authPrincipal: principal,
+                requestedEnvironment: requestedEnvironment
+            )
         }
         guard await repository.waitForMemberRequestCount(1) else { return }
         staleOperation.cancel()
 
         let newerOperation = Task {
-            try await useCase.execute(authPrincipal: principal)
+            try await useCase.execute(
+                authPrincipal: principal,
+                requestedEnvironment: requestedEnvironment
+            )
         }
         guard await repository.waitForMemberRequestCount(2) else { return }
         await repository.completeMemberRead(at: 1, with: fixture)
@@ -307,8 +313,7 @@ private func makeViewModel(
         authSessionProvider: provider,
         resolveAuthorizedSession: ResolveAuthorizedSessionUseCase(
             repository: repository,
-            resolver: resolver,
-            environmentRouter: environmentRouter
+            resolver: resolver
         ),
         environmentRouter: environmentRouter,
         sessionRefreshPolicy: SessionRefreshPolicy(minimumForegroundIntervalMillis: 0),

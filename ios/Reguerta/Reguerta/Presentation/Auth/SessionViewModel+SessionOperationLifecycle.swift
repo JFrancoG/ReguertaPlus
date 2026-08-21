@@ -158,6 +158,7 @@ extension SessionViewModel {
         let environmentLease = authorizedEnvironmentLease
         let deviceSessionLease = authorizedDeviceSessionLease
         let hadOwnedSessionOperation = sessionOperationState != .idle
+        invalidateAuthorizedDeviceRegistration()
         authorizedEnvironmentLease = nil
         authorizedDeviceSessionLease = nil
         invalidateSessionOperation()
@@ -202,6 +203,12 @@ extension SessionViewModel {
         showSessionExpiredDialog = false
         showUnauthorizedDialog = false
         return hadOwnedSessionOperation
+    }
+
+    private func invalidateAuthorizedDeviceRegistration() {
+        authorizedDeviceRegistrationRevision &+= 1
+        authorizedDeviceRegistrationTask?.cancel()
+        authorizedDeviceRegistrationTask = nil
     }
 
     private func handleSessionOperationTimeout(_ generation: UInt64) {

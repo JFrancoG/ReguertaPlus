@@ -244,12 +244,8 @@ struct ReguertaAppCompositionBoundaryTests {
     }
 
     @Test func productionPresentationDoesNotImportFirebaseOrReferenceConcreteDataTypes() throws {
-        let allowedReferences = Set(["FirebaseFunctionClientError"])
         let concreteDataTypes = try concreteDataTypeNames()
-        let forbiddenReferences = concreteDataTypes.subtracting(allowedReferences).sorted()
-        var allowedReferenceFiles: [String] = []
 
-        #expect(allowedReferences.isSubset(of: concreteDataTypes))
         #expect(concreteDataTypes.contains("FirestoreOrdersRepository"))
         #expect(concreteDataTypes.contains("FirebaseImagePipelineManager"))
         #expect(concreteDataTypes.contains("NewsImageDataLoader"))
@@ -258,11 +254,7 @@ struct ReguertaAppCompositionBoundaryTests {
         for sourceURL in try swiftSources(in: "Reguerta/Presentation") {
             let source = try String(contentsOf: sourceURL, encoding: .utf8)
             #expect(source.contains("import Firebase") == false, "Firebase import in \(sourceURL.lastPathComponent)")
-            for typeName in allowedReferences {
-                let count = source.components(separatedBy: typeName).count - 1
-                allowedReferenceFiles += Array(repeating: sourceURL.lastPathComponent, count: count)
-            }
-            for typeName in forbiddenReferences {
+            for typeName in concreteDataTypes.sorted() {
                 let pattern = #"\b"# + NSRegularExpression.escapedPattern(for: typeName) + #"\b"#
                 #expect(
                     source.range(of: pattern, options: .regularExpression) == nil,
@@ -270,31 +262,25 @@ struct ReguertaAppCompositionBoundaryTests {
                 )
             }
         }
-
-        #expect(allowedReferenceFiles == ["SessionViewModel+AuthSessionSupport.swift"])
-        let authSupport = try source(at: "Reguerta/Presentation/Auth/SessionViewModel+AuthSessionSupport.swift")
-        #expect(authSupport.occurrenceCount(of: "FirebaseFunctionClientError.unauthorized") == 1)
     }
 
     private func concreteDataTypeNames() throws -> Set<String> {
+        let declarationPattern = try Regex(
+            #"^\s*((?:(?:public|package|internal|open|final|nonisolated|indirect|private|fileprivate)\s+)*)"# +
+                #"(actor|class|enum|struct)\s+([A-Za-z_][A-Za-z0-9_]*)\b"#
+        )
         return try Set(swiftSources(in: "Reguerta/Data").flatMap { sourceURL in
             let source = try String(contentsOf: sourceURL, encoding: .utf8)
             return source.components(separatedBy: .newlines).compactMap { line -> String? in
-                let tokens = line.split { character in
-                    character.isLetter == false && character.isNumber == false && character != "_"
-                }
-                guard let keywordIndex = tokens.firstIndex(where: {
-                    ["actor", "class", "enum", "struct"].contains(String($0))
-                }),
-                      tokens.indices.contains(keywordIndex + 1) else {
-                    return nil
-                }
-                let modifiers = tokens[..<keywordIndex].map(String.init)
+                guard let match = line.firstMatch(of: declarationPattern),
+                      let modifiersText = match.output[1].substring,
+                      let typeName = match.output[3].substring else { return nil }
+                let modifiers = modifiersText.split(whereSeparator: \.isWhitespace)
                 guard modifiers.contains("private") == false,
                       modifiers.contains("fileprivate") == false else {
                     return nil
                 }
-                return String(tokens[keywordIndex + 1])
+                return String(typeName)
             }
         })
     }
@@ -372,7 +358,7 @@ struct ReguertaAppCompositionBoundaryTests {
         #expect(source.occurrenceCount(of: "notificationRepository: dependencies.notificationRepository") == 2)
         #expect(source.occurrenceCount(of: "imagePipelineManager: dependencies.imagePipelineManager") == 3)
         #expect(source.occurrenceCount(of: "environmentProvider: dependencies.environmentStore") == 2)
-        #expect(source.occurrenceCount(of: "environmentRouter: dependencies.environmentRouter") == 2)
+        #expect(source.occurrenceCount(of: "environmentRouter: dependencies.environmentRouter") == 1)
         #expect(source.occurrenceCount(of: "developmentTimeMachine: dependencies.developmentTimeMachine") == 1)
         #expect(source.occurrenceCount(of: "memberRepository: dependencies.memberRepository") == 1)
         #expect(source.occurrenceCount(of: "environment: dependencies.environmentStore.baseEnvironment") == 1)

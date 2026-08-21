@@ -19,8 +19,7 @@ enum SessionViewModelPreviewDependencies {
             authSessionProvider: MockAuthSessionProvider(),
             resolveAuthorizedSession: ResolveAuthorizedSessionUseCase(
                 repository: repository,
-                resolver: InMemoryAuthorizedMemberResolver(repository: repository),
-                environmentRouter: environmentRouter
+                resolver: InMemoryAuthorizedMemberResolver(repository: repository)
             ),
             authorizedDeviceRegistrar: authorizedDeviceRegistrar,
             criticalDataFreshnessLocalRepository: criticalDataFreshnessLocalRepository,

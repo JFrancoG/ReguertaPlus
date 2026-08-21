@@ -9,9 +9,18 @@ import XCTest
 
 final class ReguertaUITests: XCTestCase {
     private let enterButtonId = "auth.welcome.enterButton"
+    private let registerButtonId = "auth.welcome.registerButton"
+    private let authBackButtonId = "auth.header.backButton"
     private let emailFieldId = "auth.login.emailField"
     private let passwordFieldId = "auth.login.passwordField"
+    private let recoverPasswordButtonId = "auth.login.recoverPasswordButton"
     private let signInButtonId = "auth.login.signInButton"
+    private let registerEmailFieldId = "auth.register.emailField"
+    private let registerPasswordFieldId = "auth.register.passwordField"
+    private let registerRepeatPasswordFieldId = "auth.register.repeatPasswordField"
+    private let registerCreateAccountButtonId = "auth.register.createAccountButton"
+    private let recoverEmailFieldId = "auth.recoverPassword.emailField"
+    private let recoverSendEmailButtonId = "auth.recoverPassword.sendEmailButton"
     private let menuButtonId = "home.topBar.menuButton"
     private let topBarTitleId = "reguerta.screenHeader.title"
     private let drawerCloseButtonId = "home.drawer.closeButton"
@@ -241,14 +250,85 @@ final class ReguertaUITests: XCTestCase {
         XCTAssertTrue(passwordField.waitForExistence(timeout: 5), "Password field not found")
         passwordField.tap()
         passwordField.typeText("wrong123")
+        let passwordValueBeforeSubmission = String(describing: passwordField.value)
 
-        app.buttons[signInButtonId].tap()
+        let signInButton = app.buttons[signInButtonId]
+        XCTAssertTrue(waitForEnabled(signInButton, timeout: 3), "Sign in button was not enabled before submission")
+        signInButton.tap()
 
+        // The exact copy and VoiceOver custom content are covered by unit/AX contracts. XCUI waits for the
+        // disabled submit state so this journey still proves that the invalid-credentials result reached the form.
         XCTAssertTrue(
-            app.staticTexts["Incorrect email or password"].waitForExistence(timeout: 5),
-            "Invalid credentials inline error should be shown"
+            waitForDisabled(signInButton, label: "Sign in", timeout: 5),
+            "Invalid credentials should disable the completed sign-in form"
         )
-        XCTAssertTrue(app.buttons[signInButtonId].exists, "App should remain alive on invalid credentials")
+        XCTAssertEqual(emailField.value as? String, "ana.admin@reguerta.app", "Email input should remain visible")
+        XCTAssertEqual(
+            String(describing: passwordField.value),
+            passwordValueBeforeSubmission,
+            "Password input should remain visible"
+        )
+        XCTAssertTrue(signInButton.exists, "App should remain alive on invalid credentials")
+    }
+
+    @MainActor func testRegistrationRouteExposesStableControlsAndResetsDraftOnBack() throws {
+        let app = configuredApp()
+        app.launch()
+
+        let registerButton = app.buttons[registerButtonId]
+        XCTAssertTrue(registerButton.waitForExistence(timeout: 8), "Registration entry not found")
+        registerButton.tap()
+
+        let emailField = app.textFields[registerEmailFieldId]
+        XCTAssertTrue(emailField.waitForExistence(timeout: 5), "Registration email field not found")
+        XCTAssertTrue(app.secureTextFields[registerPasswordFieldId].exists, "Registration password field not found")
+        XCTAssertTrue(
+            app.secureTextFields[registerRepeatPasswordFieldId].exists,
+            "Registration repeated-password field not found"
+        )
+        XCTAssertTrue(app.buttons[registerCreateAccountButtonId].exists, "Create-account button not found")
+
+        let draftEmail = "draft.registration@example.com"
+        emailField.tap()
+        emailField.typeText(draftEmail)
+        XCTAssertEqual(emailField.value as? String, draftEmail, "Registration draft was not entered")
+        dismissKeyboardBeforeSubmitting(in: app)
+        app.buttons[authBackButtonId].tap()
+
+        XCTAssertTrue(registerButton.waitForExistence(timeout: 5), "Welcome registration entry did not return")
+        registerButton.tap()
+        let resetEmailField = app.textFields[registerEmailFieldId]
+        XCTAssertTrue(resetEmailField.waitForExistence(timeout: 5), "Registration email field did not return")
+        XCTAssertFalse(
+            String(describing: resetEmailField.value).contains(draftEmail),
+            "Registration draft was not reset"
+        )
+    }
+
+    @MainActor func testRecoveryRouteExposesStableControlsAndResetsDraftOnBack() throws {
+        let app = configuredApp()
+        _ = launchAndOpenLogin(app)
+
+        let recoverButton = app.buttons[recoverPasswordButtonId]
+        XCTAssertTrue(recoverButton.waitForExistence(timeout: 5), "Password-recovery entry not found")
+        recoverButton.tap()
+
+        let emailField = app.textFields[recoverEmailFieldId]
+        XCTAssertTrue(emailField.waitForExistence(timeout: 5), "Recovery email field not found")
+        XCTAssertTrue(app.buttons[recoverSendEmailButtonId].exists, "Recovery send-email button not found")
+
+        let draftEmail = "draft.recovery@example.com"
+        emailField.tap()
+        emailField.typeText(draftEmail)
+        XCTAssertEqual(emailField.value as? String, draftEmail, "Recovery draft was not entered")
+        dismissKeyboardBeforeSubmitting(in: app)
+        app.buttons[authBackButtonId].tap()
+
+        XCTAssertTrue(recoverButton.waitForExistence(timeout: 5), "Login recovery entry did not return")
+        recoverButton.tap()
+        let resetEmailField = app.textFields[recoverEmailFieldId]
+        XCTAssertTrue(resetEmailField.waitForExistence(timeout: 5), "Recovery email field did not return")
+        XCTAssertFalse(String(describing: resetEmailField.value).contains(draftEmail), "Recovery draft was not reset")
     }
 
     @MainActor func testLaunchPerformance() throws {
@@ -355,6 +435,12 @@ private extension ReguertaUITests {
 
     @MainActor func waitForEnabled(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
         let predicate = NSPredicate(format: "isEnabled == true")
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    }
+
+    @MainActor func waitForDisabled(_ element: XCUIElement, label: String, timeout: TimeInterval) -> Bool {
+        let predicate = NSPredicate(format: "isEnabled == false AND label == %@", label)
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }

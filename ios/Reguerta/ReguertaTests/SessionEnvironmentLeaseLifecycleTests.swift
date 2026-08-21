@@ -115,8 +115,7 @@ private func makeLeaseLifecycleViewModel(
         authSessionProvider: TestAuthSessionProvider(),
         resolveAuthorizedSession: ResolveAuthorizedSessionUseCase(
             repository: repository,
-            resolver: LeaseLifecycleAuthorizedMemberResolver(member: member, environment: .production),
-            environmentRouter: router
+            resolver: LeaseLifecycleAuthorizedMemberResolver(member: member, environment: .production)
         ),
         environmentRouter: router
     )

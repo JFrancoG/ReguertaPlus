@@ -127,14 +127,17 @@ struct UsersOrdersDeviceAuthorizationEntryTests {
             repository: memberRepository,
             resolveAuthorizedSession: ResolveAuthorizedSessionUseCase(
                 repository: memberRepository,
-                resolver: AuthorizationEntryMemberResolver(member: authenticatedMember),
-                environmentRouter: environmentRouter
+                resolver: AuthorizationEntryMemberResolver(member: authenticatedMember)
             ),
             authorizedDeviceRegistrar: coordinator,
             environmentRouter: environmentRouter
         )
 
         await viewModel.applyAuthorizedSession(principal: principal)
+        if let initialRegistration = viewModel.authorizedDeviceRegistrationTask {
+            await initialRegistration.value
+        }
+        #expect(viewModel.authorizedDeviceRegistrationTask == nil)
         #expect(deviceRepository.registrationCount == 1)
 
         let revokedMember = authorizationEntryInactiveCopy(of: authenticatedMember)

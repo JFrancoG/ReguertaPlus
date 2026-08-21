@@ -19,7 +19,8 @@ struct ReguertaTests {
         let useCase = makeInMemoryResolveUseCase(repository: repository)
 
         let result = try await useCase.execute(
-            authPrincipal: AuthPrincipal(uid: "uid_unknown", email: "unknown@reguerta.app")
+            authPrincipal: AuthPrincipal(uid: "uid_unknown", email: "unknown@reguerta.app"),
+            requestedEnvironment: .develop
         )
 
         #expect(result == .unauthorized(.userNotFoundInAuthorizedUsers))
@@ -42,7 +43,8 @@ struct ReguertaTests {
         )
 
         let result = try await useCase.execute(
-            authPrincipal: AuthPrincipal(uid: "uid_inactive", email: "inactive@reguerta.app")
+            authPrincipal: AuthPrincipal(uid: "uid_inactive", email: "inactive@reguerta.app"),
+            requestedEnvironment: .develop
         )
 
         #expect(result == .unauthorized(.userAccessRestricted))
@@ -53,7 +55,8 @@ struct ReguertaTests {
         let useCase = makeInMemoryResolveUseCase(repository: repository)
 
         let result = try await useCase.execute(
-            authPrincipal: AuthPrincipal(uid: "uid_admin_1", email: "ana.admin@reguerta.app")
+            authPrincipal: AuthPrincipal(uid: "uid_admin_1", email: "ana.admin@reguerta.app"),
+            requestedEnvironment: .develop
         )
 
         guard case .authorized(let member, _) = result else {
@@ -107,7 +110,8 @@ struct ReguertaTests {
         )
 
         _ = try await resolveUseCase.execute(
-            authPrincipal: AuthPrincipal(uid: "uid_admin_3", email: "ana.admin@reguerta.app")
+            authPrincipal: AuthPrincipal(uid: "uid_admin_3", email: "ana.admin@reguerta.app"),
+            requestedEnvironment: .develop
         )
 
         let created = try await upsertUseCase.execute(
@@ -132,7 +136,8 @@ struct ReguertaTests {
         let useCase = makeInMemoryResolveUseCase(repository: repository)
 
         _ = try await useCase.execute(
-            authPrincipal: AuthPrincipal(uid: "uid_admin_linked", email: "ana.admin@reguerta.app")
+            authPrincipal: AuthPrincipal(uid: "uid_admin_linked", email: "ana.admin@reguerta.app"),
+            requestedEnvironment: .develop
         )
 
         _ = await repository.upsert(
@@ -148,7 +153,8 @@ struct ReguertaTests {
         )
 
         let result = try await useCase.execute(
-            authPrincipal: AuthPrincipal(uid: "uid_admin_linked", email: "ana.admin@reguerta.app")
+            authPrincipal: AuthPrincipal(uid: "uid_admin_linked", email: "ana.admin@reguerta.app"),
+            requestedEnvironment: .develop
         )
 
         guard case .authorized(let member, _) = result else {
@@ -394,14 +400,10 @@ extension ReguertaTests {
 
 }
 
-@MainActor
-private func makeInMemoryResolveUseCase(
-    repository: any LocalMemberRepository
-) -> ResolveAuthorizedSessionUseCase {
+private func makeInMemoryResolveUseCase(repository: any LocalMemberRepository) -> ResolveAuthorizedSessionUseCase {
     ResolveAuthorizedSessionUseCase(
         repository: repository,
-        resolver: InMemoryAuthorizedMemberResolver(repository: repository),
-        environmentRouter: FixedSessionEnvironmentRouter()
+        resolver: InMemoryAuthorizedMemberResolver(repository: repository)
     )
 }
 

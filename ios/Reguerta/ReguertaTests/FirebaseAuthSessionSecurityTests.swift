@@ -3,6 +3,7 @@ import Testing
 
 @testable import Reguerta
 
+@Suite(.timeLimit(.minutes(1)))
 @MainActor
 struct FirebaseAuthSessionSecurityTests {
     @Test func signUpKeepsSessionLockedWhenFirebaseSignOutFails() async {
@@ -50,8 +51,7 @@ struct FirebaseAuthSessionSecurityTests {
             authSessionProvider: provider,
             resolveAuthorizedSession: ResolveAuthorizedSessionUseCase(
                 repository: repository,
-                resolver: VerificationRequiredResolver(),
-                environmentRouter: environmentRouter
+                resolver: VerificationRequiredResolver()
             ),
             environmentRouter: environmentRouter
         )
@@ -90,6 +90,69 @@ struct FirebaseAuthSessionSecurityTests {
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.authErrorUnknown)
     }
 
+    @Test func expiredDomainResolutionFailsClosedWithoutADataError() async {
+        let member = authenticatedMember()
+        let repository = InMemoryMemberRepository(items: [member])
+        let environmentRouter = FixedSessionEnvironmentRouter()
+        let viewModel = SessionViewModel(
+            repository: repository,
+            authSessionProvider: TestAuthSessionProvider(signOutSucceeds: false),
+            resolveAuthorizedSession: ResolveAuthorizedSessionUseCase(
+                repository: repository,
+                resolver: ExpiredAuthorizedMemberResolver()
+            ),
+            environmentRouter: environmentRouter
+        )
+        viewModel.mode = authorizedMode(member: member)
+
+        await viewModel.applyAuthorizedSession(
+            principal: AuthPrincipal(uid: "auth_1", email: member.normalizedEmail)
+        )
+
+        #expect(
+            viewModel.mode == .unauthorized(
+                email: member.normalizedEmail,
+                reason: .userAccessRestricted
+            )
+        )
+        #expect(viewModel.showSessionExpiredDialog)
+        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.authErrorUnknown)
+    }
+
+    @Test func staleExpiredDomainResolutionDoesNotTerminateTheSuccessorSession() async throws {
+        let member = authenticatedMember()
+        let repository = InMemoryMemberRepository(items: [member])
+        let environmentRouter = FixedSessionEnvironmentRouter()
+        let resolver = ControlledExpiredMemberResolver()
+        defer { resolver.cancelAll() }
+        let viewModel = SessionViewModel(
+            repository: repository,
+            authSessionProvider: TestAuthSessionProvider(signOutSucceeds: false),
+            resolveAuthorizedSession: ResolveAuthorizedSessionUseCase(
+                repository: repository,
+                resolver: resolver
+            ),
+            environmentRouter: environmentRouter
+        )
+        let successorMode = authorizedMode(member: member)
+        let staleOperation = Task { @MainActor in
+            await viewModel.applyAuthorizedSession(
+                principal: AuthPrincipal(uid: "stale_auth", email: "stale@example.com"),
+                generation: 0
+            )
+        }
+
+        try await resolver.waitForRequest()
+        viewModel.sessionOperationGeneration = 1
+        viewModel.mode = successorMode
+        resolver.completeWithExpiredSession()
+        await staleOperation.value
+
+        #expect(viewModel.mode == successorMode)
+        #expect(viewModel.showSessionExpiredDialog == false)
+        #expect(viewModel.showUnauthorizedDialog == false)
+    }
+
     @Test func manualSignOutFailsClosedWhenFirebaseSignOutFails() {
         let member = authenticatedMember()
         let viewModel = SessionViewModel(
@@ -119,8 +182,7 @@ struct FirebaseAuthSessionSecurityTests {
             authSessionProvider: TestAuthSessionProvider(),
             resolveAuthorizedSession: ResolveAuthorizedSessionUseCase(
                 repository: repository,
-                resolver: SuccessfulAuthorizedMemberResolver(member: member),
-                environmentRouter: environmentRouter
+                resolver: SuccessfulAuthorizedMemberResolver(member: member)
             ),
             authorizedDeviceRegistrar: FailingAuthorizedDeviceRegistrar(),
             environmentRouter: environmentRouter
@@ -185,6 +247,15 @@ nonisolated private struct SuccessfulAuthorizedMemberResolver: AuthorizedMemberR
             environment: requestedEnvironment,
             firstLoginLinked: false
         )
+    }
+}
+
+private struct ExpiredAuthorizedMemberResolver: AuthorizedMemberResolving {
+    func resolve(
+        authPrincipal _: AuthPrincipal,
+        requestedEnvironment _: SessionEnvironment
+    ) async throws -> AuthorizedMemberResolution {
+        throw AuthorizedMemberResolutionError.sessionExpired
     }
 }
 

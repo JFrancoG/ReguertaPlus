@@ -291,8 +291,7 @@ private func makeLiveAppAssembly(
             authSessionProvider: dependencies.authSessionProvider,
             resolveAuthorizedSession: ResolveAuthorizedSessionUseCase(
                 repository: dependencies.memberRepository,
-                resolver: FirebaseAuthorizedMemberResolver(client: dependencies.functionsClient),
-                environmentRouter: dependencies.environmentRouter
+                resolver: FirebaseAuthorizedMemberResolver(client: dependencies.functionsClient)
             ),
             authorizedDeviceRegistrar: dependencies.authorizedDeviceRegistrar,
             criticalDataFreshnessLocalRepository: dependencies.criticalDataFreshnessLocalRepository,

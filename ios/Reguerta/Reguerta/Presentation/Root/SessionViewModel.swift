@@ -122,6 +122,10 @@ final class SessionViewModel {
     @ObservationIgnored var sessionTerminationCleanupGeneration: UInt64 = 0
     @ObservationIgnored var sessionOperationGeneration: UInt64 = 0
     @ObservationIgnored var sessionOperationPrincipalEmail = ""
+    @ObservationIgnored var passwordRecoveryOperationTask: Task<Void, Never>?
+    @ObservationIgnored var passwordRecoveryOperationGeneration: UInt64 = 0
+    @ObservationIgnored var authorizedDeviceRegistrationTask: Task<Void, Never>?
+    @ObservationIgnored var authorizedDeviceRegistrationRevision: UInt64 = 0
     @ObservationIgnored var authorizedEnvironmentLease: SessionEnvironmentLease?
     @ObservationIgnored var authorizedDeviceSessionLease: AuthorizedDeviceSessionLease?
 

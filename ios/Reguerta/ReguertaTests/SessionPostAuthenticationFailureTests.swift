@@ -183,8 +183,7 @@ private func makePostAuthenticationViewModel(
         authSessionProvider: provider,
         resolveAuthorizedSession: ResolveAuthorizedSessionUseCase(
             repository: repository,
-            resolver: resolver,
-            environmentRouter: environmentRouter
+            resolver: resolver
         ),
         environmentRouter: environmentRouter
     )
