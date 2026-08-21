@@ -15,6 +15,7 @@ nonisolated struct AuthorizedMemberResolution: Equatable {
 
 nonisolated enum AuthorizedMemberResolutionError: Error, Equatable, Sendable {
     case unauthorized(UnauthorizedReason)
+    case sessionExpired
 }
 
 nonisolated struct SessionEnvironmentLease: Equatable {

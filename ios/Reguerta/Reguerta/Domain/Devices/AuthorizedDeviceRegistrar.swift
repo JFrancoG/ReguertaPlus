@@ -24,6 +24,11 @@ nonisolated enum AuthorizedDeviceRegistrationResult: Equatable, Sendable {
 }
 
 protocol AuthorizedDeviceRegistrar: Sendable {
+    /// Establishes one authorized-device context while the supplied session fence remains current.
+    ///
+    /// Callers must retain at most one in-flight registration for an equivalent command and lease. A benign session
+    /// refresh reuses that owner instead of overlapping the same persisted context. The registrar may retain the fence
+    /// after this call returns so later token updates remain bound to the exact authorization that created the context.
     func register(
         command: AuthorizedDeviceRegistrationCommand,
         isSessionCurrent: @escaping @MainActor @Sendable () -> Bool

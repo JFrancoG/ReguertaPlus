@@ -45,9 +45,9 @@ struct ReguertaDesignSystemAdaptiveMetricsTests {
     }
 
     @Test func sharedComponentsRespectTouchDialogAlignmentAndSafeAreaOwnership() throws {
-        let inputSource = try source(
+        let inputEntrySource = try source(
             at: designSystemSourceURL()
-                .appending(path: "Components/ReguertaInputField/ReguertaInputFieldView.swift")
+                .appending(path: "Components/ReguertaInputField/ReguertaInputTextEntryView.swift")
         )
         let dialogSource = try source(
             at: designSystemSourceURL()
@@ -59,7 +59,7 @@ struct ReguertaDesignSystemAdaptiveMetricsTests {
         )
 
         #expect(
-            inputSource.range(
+            inputEntrySource.range(
                 of: #"\.frame\((?s:.*?)minHeight:\s*tokens\.layout\.minimumTouchTarget"#,
                 options: .regularExpression
             ) != nil

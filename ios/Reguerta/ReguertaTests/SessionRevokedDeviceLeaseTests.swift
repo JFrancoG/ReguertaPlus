@@ -17,6 +17,7 @@ struct SessionRevokedDeviceLeaseTests {
         defer { registrar.cancelAll() }
 
         await viewModel.applyAuthorizedSession(principal: principal)
+        try await registrar.waitForRegistrationCapture()
         try await registrar.updateRegistrationToken("accepted-before-revocation")
         let lateTokenUpdate = Task {
             try await registrar.updateRegistrationToken("late-token")
@@ -84,8 +85,7 @@ private func makeRevokedSessionScenario() -> RevokedSessionScenario {
         authSessionProvider: provider,
         resolveAuthorizedSession: ResolveAuthorizedSessionUseCase(
             repository: repository,
-            resolver: RevokingAuthorizedMemberResolver(member: member),
-            environmentRouter: environmentRouter
+            resolver: RevokingAuthorizedMemberResolver(member: member)
         ),
         authorizedDeviceRegistrar: registrar,
         environmentRouter: environmentRouter,
@@ -154,6 +154,7 @@ private final class RevokedSessionDeviceRegistrar: AuthorizedDeviceRegistrar, Se
     }
 
     private let state = Mutex(State())
+    private let registrationCaptured = RevokedSessionTestGate()
     private let lateTokenStarted = RevokedSessionTestGate()
     private let lateTokenRelease = RevokedSessionTestGate()
     private let clearStarted = RevokedSessionTestGate()
@@ -164,6 +165,7 @@ private final class RevokedSessionDeviceRegistrar: AuthorizedDeviceRegistrar, Se
         isSessionCurrent: @escaping @MainActor @Sendable () -> Bool
     ) async throws -> AuthorizedDeviceRegistrationResult {
         state.withLock { $0.sessionFence = isSessionCurrent }
+        registrationCaptured.open()
         return .registered
     }
 
@@ -188,6 +190,10 @@ private final class RevokedSessionDeviceRegistrar: AuthorizedDeviceRegistrar, Se
         try await lateTokenStarted.wait()
     }
 
+    func waitForRegistrationCapture() async throws {
+        try await registrationCaptured.wait()
+    }
+
     func waitForClearRequest() async throws {
         try await clearStarted.wait()
     }
@@ -210,6 +216,7 @@ private final class RevokedSessionDeviceRegistrar: AuthorizedDeviceRegistrar, Se
     }
 
     func cancelAll() {
+        registrationCaptured.cancelAll()
         lateTokenStarted.cancelAll()
         lateTokenRelease.cancelAll()
         clearStarted.cancelAll()

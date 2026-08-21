@@ -154,12 +154,12 @@ struct FirebaseFunctionsSecurityBoundaryTests {
                     environment: .production,
                     firstLoginLinked: false
                 )
-            ),
-            environmentRouter: router
+            )
         )
 
         let result = try await useCase.execute(
-            authPrincipal: AuthPrincipal(uid: "auth_1", email: "member@example.com")
+            authPrincipal: AuthPrincipal(uid: "auth_1", email: "member@example.com"),
+            requestedEnvironment: router.baseEnvironment
         )
 
         #expect(result == .authorized(member: member, environment: .production))
@@ -182,12 +182,12 @@ struct FirebaseFunctionsSecurityBoundaryTests {
                     environment: .production,
                     firstLoginLinked: false
                 )
-            ),
-            environmentRouter: router
+            )
         )
 
         let result = try await useCase.execute(
-            authPrincipal: AuthPrincipal(uid: "auth_1", email: "member@example.com")
+            authPrincipal: AuthPrincipal(uid: "auth_1", email: "member@example.com"),
+            requestedEnvironment: router.baseEnvironment
         )
 
         #expect(result == .unauthorized(.userNotFoundInAuthorizedUsers))

@@ -43,8 +43,7 @@ extension SessionViewModel {
         let selectedEnvironmentRouter = environmentRouter ?? RuntimeSessionEnvironmentRouter()
         let selectedResolveAuthorizedSession = resolveAuthorizedSession ?? makeTestResolveAuthorizedSession(
             repository: selectedRepository,
-            authorizedMemberResolver: authorizedMemberResolver,
-            environmentRouter: selectedEnvironmentRouter
+            authorizedMemberResolver: authorizedMemberResolver
         )
         self.init(
             dependencies: SessionViewModelDependencies(
@@ -65,11 +64,9 @@ extension SessionViewModel {
     }
 }
 
-@MainActor
 private func makeTestResolveAuthorizedSession(
     repository: any MemberRepository,
-    authorizedMemberResolver: (any AuthorizedMemberResolving)?,
-    environmentRouter: any SessionEnvironmentRouting
+    authorizedMemberResolver: (any AuthorizedMemberResolving)?
 ) -> ResolveAuthorizedSessionUseCase {
     let resolver: any AuthorizedMemberResolving
     if let authorizedMemberResolver {
@@ -79,9 +76,5 @@ private func makeTestResolveAuthorizedSession(
     } else {
         preconditionFailure("A non-local test repository requires an explicit authorized-session resolver")
     }
-    return ResolveAuthorizedSessionUseCase(
-        repository: repository,
-        resolver: resolver,
-        environmentRouter: environmentRouter
-    )
+    return ResolveAuthorizedSessionUseCase(repository: repository, resolver: resolver)
 }

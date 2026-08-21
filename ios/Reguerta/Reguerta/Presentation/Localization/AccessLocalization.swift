@@ -27,6 +27,7 @@ enum AccessL10nKey {
     static let startupValidationActionRetry = "startup.validation.action.retry"
     static let startupValidationActionContinue = "startup.validation.action.continue"
     static let commonAccept = "common.action.accept"
+    static let commonAccessibilityError = "common.accessibility.error"
     static let commonBack = "common.action.back"
     static let commonClear = "common.action.clear"
     static let commonClose = "common.action.close"

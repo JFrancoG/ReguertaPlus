@@ -248,8 +248,7 @@ func makeSessionTimeoutScenario(
         authSessionProvider: provider,
         resolveAuthorizedSession: ResolveAuthorizedSessionUseCase(
             repository: repository,
-            resolver: TimeoutAuthorizedMemberResolver(member: member),
-            environmentRouter: environmentRouter
+            resolver: TimeoutAuthorizedMemberResolver(member: member)
         ),
         authorizedDeviceRegistrar: authorizedDeviceRegistrar,
         criticalDataFreshnessLocalRepository: criticalDataFreshnessLocalRepository,

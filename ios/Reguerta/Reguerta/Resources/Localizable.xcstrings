@@ -602,13 +602,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Use a stronger password (at least 6 characters)"
+            "value" : "Use a password between 6 and 16 characters"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Usa una contraseña más segura (mínimo 6 caracteres)"
+            "value" : "Usa una contraseña de entre 6 y 16 caracteres"
           }
         }
       }
@@ -1089,6 +1089,23 @@
         }
       }
     },
+    "common.accessibility.error" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Error"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Error"
+          }
+        }
+      }
+    },
     "common.action.accept" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1191,6 +1208,7 @@
       }
     },
     "common.action.hide_password" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1241,6 +1259,7 @@
       }
     },
     "common.action.show_password" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {

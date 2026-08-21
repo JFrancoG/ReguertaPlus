@@ -1,11 +1,10 @@
 import SwiftUI
 
 struct AuthShellView: View {
-    @Environment(\.dynamicTypeSize) var dynamicTypeSize
     @Environment(\.reguertaMotionPolicy) var motionPolicy
 
-    let rootViewModel: AccessRootViewModel
-    let sessionViewModel: SessionViewModel
+    @Bindable var rootViewModel: AccessRootViewModel
+    @Bindable var sessionViewModel: SessionViewModel
     let tokens: ReguertaDesignTokens
     let openURL: OpenURLAction
 
@@ -18,10 +17,14 @@ struct AuthShellView: View {
             splashRoute
         } else {
             ScrollView(.vertical, showsIndicators: false) {
-                currentAuthRoute
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
-                    .containerRelativeFrame(.vertical, alignment: .top)
-                    .padding(.bottom, tokens.spacing.md)
+                ZStack(alignment: .topLeading) {
+                    Color.clear
+                        .containerRelativeFrame(.vertical, alignment: .top)
+
+                    currentAuthRoute
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                }
+                .padding(.bottom, tokens.spacing.md)
             }
             .scrollDismissesKeyboard(.interactively)
             .scrollClipDisabled()
@@ -37,6 +40,7 @@ struct AuthShellView: View {
         tokens: .light,
         openURL: EnvironmentValues().openURL
     )
+    .reguertaAuthRoutePreviewSurface(tokens: .light, scrollsContent: false)
     .environment(\.dynamicTypeSize, .accessibility5)
 }
 
@@ -48,4 +52,5 @@ struct AuthShellView: View {
         tokens: .light,
         openURL: EnvironmentValues().openURL
     )
+    .reguertaAuthRoutePreviewSurface(tokens: .light, scrollsContent: false)
 }

@@ -9,4 +9,5 @@ nonisolated enum UnauthorizedReason: Equatable, Sendable {
 nonisolated enum AccessResolutionResult: Equatable, Sendable {
     case authorized(member: Member, environment: SessionEnvironment)
     case unauthorized(UnauthorizedReason)
+    case sessionExpired
 }

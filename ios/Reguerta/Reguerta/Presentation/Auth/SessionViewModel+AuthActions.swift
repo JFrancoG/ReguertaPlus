@@ -210,33 +210,6 @@ extension SessionViewModel {
         }
     }
 
-    func sendPasswordReset() {
-        let email = normalizeAccessEmail(recoverEmailInput)
-        feedbackCenter.clear()
-        recoverEmailErrorKey = nil
-
-        if email.isEmpty {
-            recoverEmailErrorKey = AccessL10nKey.feedbackEmailRequired
-            return
-        }
-        if !isValidAccessEmail(email) {
-            recoverEmailErrorKey = AccessL10nKey.feedbackEmailInvalid
-            return
-        }
-
-        isRecoveringPassword = true
-        Task { @MainActor in
-            let result = await authSessionProvider.sendPasswordReset(email: email)
-            switch result {
-            case .success:
-                feedbackCenter.show(AccessL10nKey.authInfoPasswordResetSent)
-            case .failure(let reason):
-                applyPasswordResetFailure(reason)
-            }
-            isRecoveringPassword = false
-        }
-    }
-
     func resetSignInDraft() {
         emailInput = ""
         passwordInput = ""
@@ -253,12 +226,6 @@ extension SessionViewModel {
         registerPasswordErrorKey = nil
         registerRepeatPasswordErrorKey = nil
         isRegistering = false
-    }
-
-    func resetRecoverDraft() {
-        recoverEmailInput = ""
-        recoverEmailErrorKey = nil
-        isRecoveringPassword = false
     }
 
 }

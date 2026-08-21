@@ -34,17 +34,21 @@ struct ReguertaInputFieldView: View {
             Text(configuration.label)
                 .font(tokens.typography.label)
                 .foregroundStyle(configuration.labelColor(for: visualState, tokens: tokens))
+                .accessibilityHidden(true)
 
             HStack(spacing: tokens.spacing.sm) {
                 ReguertaInputTextEntryView(
                     text: $text,
                     isFocused: $isFocused,
                     passwordVisibility: passwordVisibility,
+                    errorMessage: effectiveErrorMessage,
                     configuration: configuration
                 )
 
                 if configuration.isSecure && configuration.showsPasswordToggle {
-                    Button(action: togglePasswordVisibility) {
+                    Button {
+                        togglePasswordVisibility()
+                    } label: {
                         Image(systemName: passwordVisibility ? "eye.slash" : "eye")
                             .foregroundStyle(tokens.colors.textSecondary)
                             .frame(
@@ -66,12 +70,20 @@ struct ReguertaInputFieldView: View {
                     .buttonStyle(.plain)
                     .disabled(!configuration.isEnabled)
                     .accessibilityLabel(
-                        Text(passwordVisibility ? "common.action.hide_password" : "common.action.show_password")
+                        Text(
+                            LocalizedStringKey(
+                                passwordVisibility
+                                    ? AccessL10nKey.commonHidePassword
+                                    : AccessL10nKey.commonShowPassword
+                            )
+                        )
                     )
                 }
 
                 if configuration.showsClearAction && configuration.isEnabled && !text.isEmpty {
-                    Button(action: clearText) {
+                    Button {
+                        clearText()
+                    } label: {
                         Image(systemName: "xmark")
                             .foregroundStyle(tokens.colors.textSecondary)
                             .frame(
@@ -108,7 +120,9 @@ struct ReguertaInputFieldView: View {
                 helperMessage: configuration.helperMessage
             )
         }
-        .onChange(of: isFocused, updateInteractionState)
+        .onChange(of: isFocused) { _, newValue in
+            updateInteractionState(newValue)
+        }
     }
 
     private func togglePasswordVisibility() {
@@ -123,120 +137,9 @@ struct ReguertaInputFieldView: View {
         text = ""
     }
 
-    private func updateInteractionState(previousValue: Bool, newValue: Bool) {
+    private func updateInteractionState(_ newValue: Bool) {
         if newValue {
             hasInteracted = true
-        }
-    }
-}
-
-private struct ReguertaInputTextEntryView: View {
-    @Environment(\.reguertaTokens) private var tokens
-    @Binding var text: String
-    var isFocused: FocusState<Bool>.Binding
-
-    let passwordVisibility: Bool
-    let configuration: ReguertaInputFieldConfiguration
-
-    var body: some View {
-        ZStack(alignment: .leading) {
-            if let placeholder = configuration.placeholder {
-                Text(placeholder)
-                    .font(tokens.typography.bodySecondary)
-                    .foregroundStyle(tokens.colors.textSecondary.opacity(0.65))
-                    .opacity(text.isEmpty ? 1 : 0)
-            }
-            if configuration.isSecure && !passwordVisibility {
-                SecureField("", text: $text)
-                    .font(tokens.typography.body)
-                    .disabled(!configuration.isEnabled)
-                    .allowsHitTesting(!configuration.isReadOnly)
-                    .focused(isFocused)
-                    .autocorrectionDisabled(configuration.autocorrectionDisabled)
-                    .textInputAutocapitalization(configuration.textInputAutocapitalization)
-                    .keyboardType(configuration.keyboardType)
-                    .accessibilityLabel(Text(configuration.label))
-                    .reguertaOptionalAccessibilityIdentifier(configuration.accessibilityIdentifier)
-            } else if configuration.isMultiline {
-                TextField("", text: $text, axis: .vertical)
-                    .font(tokens.typography.body)
-                    .lineLimit(3...6)
-                    .disabled(!configuration.isEnabled)
-                    .allowsHitTesting(!configuration.isReadOnly)
-                    .focused(isFocused)
-                    .autocorrectionDisabled(configuration.autocorrectionDisabled)
-                    .textInputAutocapitalization(configuration.textInputAutocapitalization)
-                    .keyboardType(configuration.keyboardType)
-                    .accessibilityLabel(Text(configuration.label))
-                    .reguertaOptionalAccessibilityIdentifier(configuration.accessibilityIdentifier)
-            } else {
-                TextField("", text: $text)
-                    .font(tokens.typography.body)
-                    .disabled(!configuration.isEnabled)
-                    .allowsHitTesting(!configuration.isReadOnly)
-                    .focused(isFocused)
-                    .autocorrectionDisabled(configuration.autocorrectionDisabled)
-                    .textInputAutocapitalization(configuration.textInputAutocapitalization)
-                    .keyboardType(configuration.keyboardType)
-                    .accessibilityLabel(Text(configuration.label))
-                    .reguertaOptionalAccessibilityIdentifier(configuration.accessibilityIdentifier)
-            }
-        }
-        .frame(
-            maxWidth: .infinity,
-            minHeight: tokens.layout.minimumTouchTarget,
-            alignment: .leading
-        )
-    }
-}
-
-private struct ReguertaInputTrailingIconView: View {
-    @Environment(\.reguertaTokens) private var tokens
-
-    let configuration: ReguertaInputFieldConfiguration
-
-    var body: some View {
-        if let trailingIcon = configuration.trailingIcon {
-            if let onTrailingTap = configuration.onTrailingTap {
-                Button(action: onTrailingTap) {
-                    trailingIcon
-                        .foregroundStyle(tokens.colors.textSecondary)
-                        .frame(
-                            minWidth: ReguertaInputFieldLayout.actionSize(
-                                iconSize: tokens.icons.prominent,
-                                minimumTouchTarget: tokens.layout.minimumTouchTarget
-                            ),
-                            minHeight: ReguertaInputFieldLayout.actionSize(
-                                iconSize: tokens.icons.prominent,
-                                minimumTouchTarget: tokens.layout.minimumTouchTarget
-                            )
-                        )
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            } else {
-                trailingIcon
-                    .foregroundStyle(tokens.colors.textSecondary)
-            }
-        }
-    }
-}
-
-private struct ReguertaInputMessageView: View {
-    @Environment(\.reguertaTokens) private var tokens
-
-    let errorMessage: LocalizedStringKey?
-    let helperMessage: LocalizedStringKey?
-
-    var body: some View {
-        if let errorMessage {
-            Text(errorMessage)
-                .font(tokens.typography.bodySecondary)
-                .foregroundStyle(tokens.colors.feedbackError)
-        } else if let helperMessage {
-            Text(helperMessage)
-                .font(tokens.typography.bodySecondary)
-                .foregroundStyle(tokens.colors.textSecondary)
         }
     }
 }
@@ -305,15 +208,5 @@ private struct ReguertaInputMessageView: View {
             isMultiline: true
         )
         .padding()
-    }
-}
-
-private extension View {
-    @ViewBuilder func reguertaOptionalAccessibilityIdentifier(_ identifier: String?) -> some View {
-        if let identifier {
-            accessibilityIdentifier(identifier)
-        } else {
-            self
-        }
     }
 }

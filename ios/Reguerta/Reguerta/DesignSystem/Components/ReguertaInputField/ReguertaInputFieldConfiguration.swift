@@ -22,6 +22,7 @@ struct ReguertaInputFieldConfiguration {
     let showsClearAction: Bool
     let showsPasswordToggle: Bool
     let keyboardType: UIKeyboardType
+    let textContentType: UITextContentType?
     let trailingIcon: Image?
     let onTrailingTap: (() -> Void)?
     let accessibilityIdentifier: String?
@@ -78,7 +79,6 @@ struct ReguertaInputFieldConfiguration {
 }
 
 @MainActor
-@ViewBuilder
 func reguertaInputField(
     _ label: LocalizedStringKey,
     text: Binding<String>,
@@ -95,6 +95,7 @@ func reguertaInputField(
     showsClearAction: Bool = false,
     showsPasswordToggle: Bool = true,
     keyboardType: UIKeyboardType = .default,
+    textContentType: UITextContentType? = nil,
     trailingIcon: Image? = nil,
     onTrailingTap: (() -> Void)? = nil,
     accessibilityIdentifier: String? = nil,
@@ -119,6 +120,7 @@ func reguertaInputField(
             showsClearAction: showsClearAction,
             showsPasswordToggle: showsPasswordToggle,
             keyboardType: keyboardType,
+            textContentType: textContentType,
             trailingIcon: trailingIcon,
             onTrailingTap: onTrailingTap,
             accessibilityIdentifier: accessibilityIdentifier,

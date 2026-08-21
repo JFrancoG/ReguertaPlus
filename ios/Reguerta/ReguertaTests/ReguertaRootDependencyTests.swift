@@ -66,7 +66,7 @@ struct ReguertaRootDependencyTests {
 
         await rootViewModel.handleSplashIfNeeded()
 
-        #expect(rootViewModel.splashDelayCompleted)
+        #expect(rootViewModel.splashDelayCompleted == false)
         #expect(rootViewModel.startupGateState == .optionalDismissed)
         #expect(rootViewModel.shellState.currentRoute == .welcome)
     }

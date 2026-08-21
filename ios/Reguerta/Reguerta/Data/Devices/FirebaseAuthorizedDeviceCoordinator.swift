@@ -111,10 +111,19 @@ actor FirebaseAuthorizedDeviceCoordinator: AuthorizedDeviceRegistrar {
 }
 
 private extension FirebaseAuthorizedDeviceCoordinator {
+    /// Registers one authorized-device context only while its presentation-owned session fence remains current.
+    ///
+    /// Cancellation and the fence are checked before mutating the actor's generation or active authorization; later
+    /// checkpoints still discard only context owned by this operation. The compositor must retain at most one
+    /// registration task for a lease and context, because the persisted context is not a distinct operation identity.
     private func performRegistration(
         command: AuthorizedDeviceRegistrationCommand,
         isSessionCurrent: @escaping @MainActor @Sendable () -> Bool
     ) async throws -> AuthorizedDeviceRegistrationResult {
+        try Task.checkCancellation()
+        guard await isSessionCurrent() else { return .skipped }
+        try Task.checkCancellation()
+
         generation &+= 1
         let operationGeneration = generation
         let context = AuthorizedDeviceSessionContext(

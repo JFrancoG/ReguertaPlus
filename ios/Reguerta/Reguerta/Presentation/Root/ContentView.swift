@@ -69,9 +69,6 @@ struct MainView: View {
         .onChange(of: rootViewModel.splashDelayCompleted) { _, _ in
             rootViewModel.continueFromSplashIfAllowed()
         }
-        .onChange(of: rootViewModel.shellState.currentRoute) { previousRoute, route in
-            rootViewModel.handleShellRouteChange(from: previousRoute, to: route)
-        }
         .onChange(of: feedbackCenter.messageKey) { _, feedbackKey in
             rootViewModel.handleFeedbackMessageChange(feedbackKey)
         }
@@ -102,5 +99,19 @@ func routePreviewEnvironment(_ route: AuthShellRoute) -> ReguertaAppEnvironment 
 func rootOverlayPreviewEnvironment() -> ReguertaAppEnvironment {
     let environment = routePreviewEnvironment(.welcome)
     environment.accessRootViewModel.showsRecoverSuccessDialog = true
+    return environment
+}
+
+@MainActor
+func sessionExpiredOverlayPreviewEnvironment() -> ReguertaAppEnvironment {
+    let environment = routePreviewEnvironment(.login)
+    environment.sessionViewModel.showSessionExpiredDialog = true
+    return environment
+}
+
+@MainActor
+func unauthorizedOverlayPreviewEnvironment() -> ReguertaAppEnvironment {
+    let environment = routePreviewEnvironment(.login)
+    environment.sessionViewModel.showUnauthorizedDialog = true
     return environment
 }
