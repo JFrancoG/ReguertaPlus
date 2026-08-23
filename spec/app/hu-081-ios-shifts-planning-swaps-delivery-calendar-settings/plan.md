@@ -168,8 +168,8 @@ Gate: admin/calendar/planning cohort + session/role guards + fast-unit.
 - Recalculate source/test/previews and logical/concrete test counts.
 - Reconcile issue mirror, spec, plan, tasks, evidence, Android parity, HU-070,
   and residual debt.
-- Request separate authorization before commit, push, PR, merge, closure, or
-  branch cleanup.
+- Preserve checkpoint `b956f09` on the remote feature branch and request
+  separate authorization before PR, merge, closure, or branch cleanup.
 
 ## Initial risks and controls
 

@@ -147,7 +147,8 @@ HU-079/HU-080.
   de calendario y planificación conservan sus gates admin.
 - Es evidencia local: no afirma que la proyección `config/member` requerida
   exista actualmente en los entornos live.
+- Checkpoint `b956f09` publicado y verificado en la rama remota HU-081.
 
 Estado: OPEN / en progreso. Issue, rama, auditoría, baseline, especificación,
-plan y tareas están activos. No se autoriza ni se afirma commit, push, PR,
-merge, cierre, borrado de rama, mutación live o despliegue.
+plan y tareas están activos. No se autoriza ni se afirma PR, merge, cierre,
+borrado de rama, mutación live o despliegue.

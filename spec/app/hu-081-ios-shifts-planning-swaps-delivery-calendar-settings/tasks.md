@@ -88,11 +88,12 @@
 
 ## Delivery
 
-- [ ] Obtain explicit authorization for commit/push/PR/merge/closure.
-- [ ] Create focused Conventional Commit(s).
-- [ ] Push and verify upstream SHA.
+- [x] Obtain explicit authorization for the first checkpoint commit and push.
+- [x] Create focused Conventional Commit `b956f09`.
+- [x] Push and verify upstream SHA `b956f09`.
 - [ ] Open ready PR with validation evidence.
 - [ ] Review checks/findings and remediate before merge.
 - [ ] Merge, close #264, and clean branches only after confirmed authorization.
 
-No delivery action is authorized by the activation instruction.
+The current delivery authority stops at commit and push. PR, merge, issue
+closure, and branch cleanup require separate authorization.

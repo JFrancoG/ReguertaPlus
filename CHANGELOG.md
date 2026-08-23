@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Documentation
+
+- 2026-08-23 | 📝 docs(ios): record HU-081 checkpoint
+
 ### Changed
 
 - 2026-08-23 | ♻️ refactor(ios): harden order state ownership

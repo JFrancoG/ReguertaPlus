@@ -226,5 +226,7 @@ iOS 26.5. Calendar mutation and planning guards remain unchanged and covered.
 This is local client evidence only; it does not claim that either live
 environment currently contains the required `config/member` projection.
 
-HU-081 remains active. No commit, push, pull request, merge, issue closure,
-branch deletion, live mutation, or deployment is authorized or claimed.
+Checkpoint `b956f09` is committed and verified on
+`origin/codex/hu-081-ios-shifts-planning-swaps-delivery-calendar-settings`.
+HU-081 remains active. No pull request, merge, issue closure, branch deletion,
+live mutation, or deployment is authorized or claimed.
