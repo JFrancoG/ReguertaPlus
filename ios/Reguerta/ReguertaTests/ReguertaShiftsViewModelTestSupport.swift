@@ -9,9 +9,11 @@ func makeShiftsViewModel(
     shiftPlanningRequestRepository: (any ShiftPlanningRequestRepository)? = nil,
     deliveryCalendarRepository: (any DeliveryCalendarRepository)? = nil,
     nowMillisProvider: @escaping @MainActor () -> Int64 = { 0 },
+    shiftsRetrySleeper: @escaping @MainActor (Duration) async throws -> Void = {
+        try await ContinuousClock().sleep(for: $0)
+    },
     environmentProvider: @escaping @MainActor () -> ReguertaFirestoreEnvironment = { .develop }
 ) -> ShiftsFeatureViewModel {
-    let sessionViewModel = SessionViewModel(dependencies: .preview())
     let session = AuthorizedSession(
         principal: AuthPrincipal(uid: "auth_\(currentMember.id)", email: currentMember.normalizedEmail),
         authenticatedMember: currentMember,
@@ -19,6 +21,32 @@ func makeShiftsViewModel(
         members: members,
         environment: environmentProvider()
     )
+    return makeShiftsViewModel(
+        session: session,
+        shiftRepository: shiftRepository,
+        shiftSwapRequestRepository: shiftSwapRequestRepository,
+        shiftPlanningRequestRepository: shiftPlanningRequestRepository,
+        deliveryCalendarRepository: deliveryCalendarRepository,
+        nowMillisProvider: nowMillisProvider,
+        shiftsRetrySleeper: shiftsRetrySleeper,
+        environmentProvider: environmentProvider
+    )
+}
+
+@MainActor
+func makeShiftsViewModel(
+    session: AuthorizedSession,
+    shiftRepository: (any ShiftRepository)? = nil,
+    shiftSwapRequestRepository: (any ShiftSwapRequestRepository)? = nil,
+    shiftPlanningRequestRepository: (any ShiftPlanningRequestRepository)? = nil,
+    deliveryCalendarRepository: (any DeliveryCalendarRepository)? = nil,
+    nowMillisProvider: @escaping @MainActor () -> Int64 = { 0 },
+    shiftsRetrySleeper: @escaping @MainActor (Duration) async throws -> Void = {
+        try await ContinuousClock().sleep(for: $0)
+    },
+    environmentProvider: @escaping @MainActor () -> ReguertaFirestoreEnvironment = { .develop }
+) -> ShiftsFeatureViewModel {
+    let sessionViewModel = SessionViewModel(dependencies: .preview())
     sessionViewModel.mode = .authorized(session)
     let viewModel = ShiftsFeatureViewModel(
         sessionViewModel: sessionViewModel,
@@ -27,11 +55,9 @@ func makeShiftsViewModel(
         shiftPlanningRequestRepository: shiftPlanningRequestRepository ?? RecordingShiftPlanningRequestRepository(),
         deliveryCalendarRepository: deliveryCalendarRepository ?? InMemoryDeliveryCalendarRepository(),
         nowMillisProvider: nowMillisProvider,
+        shiftsRetrySleeper: shiftsRetrySleeper,
         environmentProvider: environmentProvider
     )
-    viewModel.currentSession = session
-    viewModel.currentMember = currentMember
-    viewModel.currentEnvironment = session.environment
     return viewModel
 }
 

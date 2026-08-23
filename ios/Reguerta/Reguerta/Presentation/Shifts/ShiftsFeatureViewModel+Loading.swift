@@ -1,82 +1,17 @@
 import Foundation
 
 extension ShiftsFeatureViewModel {
-    func handleSessionModeChange(_ mode: SessionMode) {
-        switch mode {
-        case .authorized(let session):
-            guard session.representsActiveAuthorization else {
-                sessionIdentityEpoch += 1
-                reset()
-                return
-            }
-            let environment = session.environment
-            let identityChanged = currentSession?.principal.uid != session.principal.uid ||
-                currentSession?.member.id != session.member.id
-            let adminAccessChanged = currentMember?.isAdmin != session.member.isAdmin
-            let environmentChanged = currentEnvironment.map { $0 != environment } ?? false
-            if identityChanged || adminAccessChanged || environmentChanged {
-                sessionIdentityEpoch += 1
-                reset()
-            }
-            currentSession = session
-            currentMember = session.member
-            currentEnvironment = environment
-            Task {
-                await refreshShifts(recoversInitialFailure: true)
-                await refreshDeliveryCalendar(recoversInitialFailure: true)
-            }
-        case .signedOut, .unauthorized:
-            sessionIdentityEpoch += 1
-            reset()
-        }
-    }
-
-    func handleNowOverrideChange() {
-        guard currentSession != nil else { return }
-        recomputeNextShifts()
-    }
-
-    func refreshShifts(recoversInitialFailure: Bool = false) async {
-        guard let context = authorizedSessionContext else {
-            resetShifts()
-            return
-        }
-
-        let refreshOperationId = beginShiftsRefreshOperation()
-        defer { finishShiftsRefreshOperation(refreshOperationId) }
-        do {
-            let (loadedShifts, loadedRequests) = try await performInitialLoadWithRecovery(
-                enabled: recoversInitialFailure,
-                shouldRetry: { self.isCurrentShiftsRefresh(refreshOperationId, context: context) },
-                operation: {
-                    async let shifts = shiftRepository.allShifts(environment: context.environment)
-                    async let requests = shiftSwapRequestRepository.allShiftSwapRequests(
-                        environment: context.environment
-                    )
-                    return try await (shifts, requests)
-                }
-            )
-            try Task.checkCancellation()
-            guard isCurrentShiftsRefresh(refreshOperationId, context: context) else { return }
-            shiftsFeed = loadedShifts
-            shiftSwapRequests = loadedRequests.visible(to: context.session.member.id)
-            reconcileShiftSwapAcknowledgements(with: loadedRequests)
-            recomputeNextShifts()
-        } catch is CancellationError {
-            return
-        } catch {
-            if isCurrentShiftsRefresh(refreshOperationId, context: context) {
-                feedbackCenter.show(AccessL10nKey.feedbackUnableLoadData)
-            }
-        }
-    }
-
     func refreshDeliveryCalendar(recoversInitialFailure: Bool = false) async {
         guard let context = authorizedSessionContext else {
             resetDeliveryCalendar()
             return
         }
 
+        await refreshDeliveryCalendar(for: context, recoversInitialFailure: recoversInitialFailure)
+    }
+
+    func refreshDeliveryCalendar(for context: SessionContext, recoversInitialFailure: Bool = false) async {
+        guard isCurrentSession(context) else { return }
         let refreshOperationId = beginCalendarRefreshOperation()
         defer { finishCalendarRefreshOperation(refreshOperationId) }
         do {
@@ -288,7 +223,6 @@ extension ShiftsFeatureViewModel {
         isSubmittingShiftPlanningRequest = false
         isSavingShiftSwapRequest = false
         isUpdatingShiftSwapRequest = false
-        activeShiftsRefreshOperationId = nil
         activeCalendarRefreshOperationId = nil
         activeCalendarMutationOperationId = nil
         activePlanningSubmissionOperationId = nil
@@ -333,7 +267,7 @@ extension ShiftsFeatureViewModel {
             environmentProvider() == context.environment
     }
 
-    private func authorizationSignature(for session: AuthorizedSession) -> SessionAuthorizationSignature {
+    func authorizationSignature(for session: AuthorizedSession) -> SessionAuthorizationSignature {
         SessionAuthorizationSignature(
             principalUID: session.principal.uid,
             authenticatedMember: memberAuthorizationSignature(for: session.authenticatedMember),
@@ -342,7 +276,7 @@ extension ShiftsFeatureViewModel {
         )
     }
 
-    private func memberAuthorizationSignature(for member: Member) -> MemberAuthorizationSignature {
+    func memberAuthorizationSignature(for member: Member) -> MemberAuthorizationSignature {
         MemberAuthorizationSignature(
             id: member.id,
             authUID: member.authUid,
@@ -370,13 +304,19 @@ extension ShiftsFeatureViewModel {
         )
     }
 
-    private func resetShifts() {
-        shiftsFeed = []
-        shiftSwapRequests = []
+    func resetShifts() {
+        resetShiftsFeed()
         dismissedShiftSwapRequestIds = []
         shiftSwapAcknowledgements = [:]
         shiftSwapDraft = ShiftSwapDraft()
         selectedShiftSegment = .delivery
+    }
+
+    func resetShiftsFeed() {
+        invalidateShiftsRefreshOwner()
+        pendingInitialCalendarHydration = nil
+        shiftsFeed = []
+        shiftSwapRequests = []
         nextDeliveryShift = nil
         nextMarketShift = nil
         isLoadingShifts = false
@@ -396,20 +336,28 @@ extension ShiftsFeatureViewModel {
         pendingShiftPlanningRequestedAtMillis = nil
     }
 
-    private func beginShiftsRefreshOperation() -> UInt64 {
+    func beginShiftsRefreshOperation() -> UInt64 {
         nextShiftsRefreshOperationId += 1
         activeShiftsRefreshOperationId = nextShiftsRefreshOperationId
         isLoadingShifts = true
         return nextShiftsRefreshOperationId
     }
 
-    private func isCurrentShiftsRefresh(_ operationId: UInt64, context: SessionContext) -> Bool {
+    func isCurrentShiftsRefresh(_ operationId: UInt64, context: SessionContext) -> Bool {
         activeShiftsRefreshOperationId == operationId && isCurrentSession(context)
     }
 
-    private func finishShiftsRefreshOperation(_ operationId: UInt64) {
+    func finishShiftsRefreshOperation(_ operationId: UInt64) {
         guard activeShiftsRefreshOperationId == operationId else { return }
+        shiftsRefreshTask = nil
         activeShiftsRefreshOperationId = nil
+        isLoadingShifts = false
+    }
+
+    func invalidateShiftsRefreshOwner() {
+        activeShiftsRefreshOperationId = nil
+        shiftsRefreshTask?.cancel()
+        shiftsRefreshTask = nil
         isLoadingShifts = false
     }
 
@@ -458,7 +406,7 @@ extension ShiftsFeatureViewModel {
         isSubmittingShiftPlanningRequest = false
     }
 
-    private func reconcileShiftSwapAcknowledgements(with requests: [ShiftSwapRequest]) {
+    func reconcileShiftSwapAcknowledgements(with requests: [ShiftSwapRequest]) {
         let requestsById = Dictionary(uniqueKeysWithValues: requests.map { ($0.id, $0) })
         shiftSwapAcknowledgements = shiftSwapAcknowledgements.filter { requestId, acknowledgement in
             guard let request = requestsById[requestId] else { return true }

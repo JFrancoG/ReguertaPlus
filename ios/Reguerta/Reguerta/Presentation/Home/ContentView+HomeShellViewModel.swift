@@ -460,7 +460,7 @@ private extension AccessRootViewModel {
             },
             .shifts: { [weak self] in
                 guard let self else { return }
-                Task { await self.shiftsViewModel.refreshShifts() }
+                self.shiftsViewModel.requestShiftsRefresh()
             },
             .settings: { [weak self] in
                 guard let self else { return }

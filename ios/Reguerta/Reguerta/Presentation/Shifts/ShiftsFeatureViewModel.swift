@@ -13,6 +13,10 @@ final class ShiftsFeatureViewModel {
     @ObservationIgnored let nowMillisProvider: @MainActor () -> Int64
     @ObservationIgnored let planningRequestIDProvider: @MainActor () -> String
     @ObservationIgnored let environmentProvider: @MainActor () -> ReguertaFirestoreEnvironment
+    @ObservationIgnored let shiftsRetrySleeper: @MainActor (Duration) async throws -> Void
+    @ObservationIgnored var shiftsRefreshTask: Task<Void, Never>?
+    @ObservationIgnored var pendingInitialCalendarHydration: PendingInitialCalendarHydration?
+    @ObservationIgnored var nextInitialCalendarHydrationGeneration: UInt64 = 0
 
     var currentSession: AuthorizedSession?
     var currentMember: Member?
@@ -102,6 +106,9 @@ final class ShiftsFeatureViewModel {
         planningRequestIDProvider: @escaping @MainActor () -> String = {
             UUID().uuidString.lowercased()
         },
+        shiftsRetrySleeper: @escaping @MainActor (Duration) async throws -> Void = {
+            try await ContinuousClock().sleep(for: $0)
+        },
         environmentProvider: @escaping @MainActor () -> ReguertaFirestoreEnvironment
     ) {
         self.sessionViewModel = sessionViewModel
@@ -112,7 +119,13 @@ final class ShiftsFeatureViewModel {
         self.deliveryCalendarRepository = deliveryCalendarRepository
         self.nowMillisProvider = nowMillisProvider
         self.planningRequestIDProvider = planningRequestIDProvider
+        self.shiftsRetrySleeper = shiftsRetrySleeper
         self.environmentProvider = environmentProvider
+        if case .authorized(let session) = sessionViewModel.mode, session.representsActiveAuthorization {
+            currentSession = session
+            currentMember = session.member
+            currentEnvironment = session.environment
+        }
     }
 
     struct SessionContext {
@@ -120,6 +133,12 @@ final class ShiftsFeatureViewModel {
         let generation: UInt64
         let environment: ReguertaFirestoreEnvironment
         let sessionStateRevision: UInt64
+    }
+
+    struct PendingInitialCalendarHydration {
+        let generation: UInt64
+        let context: SessionContext
+        let feedOperationId: UInt64
     }
 
     struct SessionAuthorizationSignature: Equatable {
