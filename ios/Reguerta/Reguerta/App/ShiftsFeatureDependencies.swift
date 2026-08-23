@@ -6,7 +6,6 @@ struct ShiftsFeatureDependencies {
     let shiftSwapRequestRepository: any ShiftSwapRequestRepository
     let shiftPlanningRequestRepository: any ShiftPlanningRequestRepository
     let deliveryCalendarRepository: any DeliveryCalendarRepository
-    let notificationRepository: any NotificationRepository
     let nowMillisProvider: @MainActor () -> Int64
     let environmentProvider: @MainActor () -> ReguertaFirestoreEnvironment
 
@@ -14,7 +13,6 @@ struct ShiftsFeatureDependencies {
         db: Firestore,
         environmentProvider: any SessionEnvironmentSnapshotProviding,
         functionsClient: AuthenticatedFirebaseFunctionsClient,
-        notificationRepository: (any NotificationRepository)? = nil,
         nowMillisProvider: @escaping @MainActor () -> Int64
     ) -> ShiftsFeatureDependencies {
         ShiftsFeatureDependencies(
@@ -25,9 +23,6 @@ struct ShiftsFeatureDependencies {
             ),
             shiftPlanningRequestRepository: FirestoreShiftPlanningRequestRepository(firebaseAppName: db.app.name),
             deliveryCalendarRepository: FirestoreDeliveryCalendarRepository(firebaseAppName: db.app.name),
-            notificationRepository: notificationRepository ?? FirestoreNotificationRepository(
-                firebaseAppName: db.app.name
-            ),
             nowMillisProvider: nowMillisProvider,
             environmentProvider: { environmentProvider.snapshot().environment }
         )
@@ -39,7 +34,6 @@ struct ShiftsFeatureDependencies {
         shiftPlanningRequestRepository: InMemoryShiftPlanningRequestRepository = InMemoryShiftPlanningRequestRepository(
         ),
         deliveryCalendarRepository: InMemoryDeliveryCalendarRepository = InMemoryDeliveryCalendarRepository(),
-        notificationRepository: InMemoryNotificationRepository = InMemoryNotificationRepository(),
         nowMillisProvider: @escaping @MainActor () -> Int64 = { 0 },
         environmentProvider: @escaping @MainActor () -> ReguertaFirestoreEnvironment = { .develop }
     ) -> ShiftsFeatureDependencies {
@@ -48,7 +42,6 @@ struct ShiftsFeatureDependencies {
             shiftSwapRequestRepository: shiftSwapRequestRepository,
             shiftPlanningRequestRepository: shiftPlanningRequestRepository,
             deliveryCalendarRepository: deliveryCalendarRepository,
-            notificationRepository: notificationRepository,
             nowMillisProvider: nowMillisProvider,
             environmentProvider: environmentProvider
         )

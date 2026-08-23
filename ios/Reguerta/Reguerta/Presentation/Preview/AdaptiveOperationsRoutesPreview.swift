@@ -113,6 +113,7 @@ struct AdaptiveOperationsRoutesPreview: View {
             DeliveryCalendarWeekPickerSheet(
                 futureWeeks: fixture.futureDeliveryShifts,
                 overrides: fixture.deliveryCalendarOverrides,
+                defaultWeekday: .wednesday,
                 selectedWeekKey: $selectedCalendarWeekKey,
                 selectedWeekday: $selectedCalendarWeekday,
                 overrideEntry: fixture.deliveryCalendarOverrides.first {

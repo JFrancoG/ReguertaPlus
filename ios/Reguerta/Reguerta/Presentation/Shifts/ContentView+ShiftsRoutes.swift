@@ -317,10 +317,19 @@ private struct ShiftSwapRequestsCardView: View {
                 .font(tokens.typography.label)
                 .foregroundStyle(tokens.colors.textSecondary)
             HStack(spacing: tokens.spacing.sm) {
-                reguertaButton(LocalizedStringKey(shiftSwapCopy.acceptShort), fullWidth: false) {
+                reguertaButton(
+                    LocalizedStringKey(shiftSwapCopy.acceptShort),
+                    isEnabled: viewModel.canSubmitShiftSwapRequestMutation(for: request.id),
+                    fullWidth: false
+                ) {
                     viewModel.acceptShiftSwapRequest(requestId: request.id, candidateShiftId: candidate.shiftId)
                 }
-                reguertaButton(LocalizedStringKey(shiftSwapCopy.rejectShort), variant: .text, fullWidth: false) {
+                reguertaButton(
+                    LocalizedStringKey(shiftSwapCopy.rejectShort),
+                    variant: .text,
+                    isEnabled: viewModel.canSubmitShiftSwapRequestMutation(for: request.id),
+                    fullWidth: false
+                ) {
                     viewModel.rejectShiftSwapRequest(requestId: request.id, candidateShiftId: candidate.shiftId)
                 }
             }
@@ -355,7 +364,11 @@ private struct ShiftSwapRequestsCardView: View {
                         )
                     )
                     .font(tokens.typography.label)
-                    reguertaButton(LocalizedStringKey(shiftSwapCopy.confirm), fullWidth: false) {
+                    reguertaButton(
+                        LocalizedStringKey(shiftSwapCopy.confirm),
+                        isEnabled: viewModel.canSubmitShiftSwapRequestMutation(for: request.id),
+                        fullWidth: false
+                    ) {
                         viewModel.confirmShiftSwapRequest(requestId: request.id, candidateShiftId: candidate.shiftId)
                     }
                 }
@@ -383,10 +396,13 @@ private struct ShiftSwapRequestsCardView: View {
                     Text(shiftSwapCopy.waitingMany(Set(request.candidates.map(\.userId)).count))
                         .font(tokens.typography.label)
                         .foregroundStyle(tokens.colors.textSecondary)
-                    reguertaButton(LocalizedStringKey(shiftSwapCopy.cancel), variant: .text, fullWidth: false) {
-                        Task {
-                            await viewModel.cancelShiftSwapRequest(requestId: request.id)
-                        }
+                    reguertaButton(
+                        LocalizedStringKey(shiftSwapCopy.cancel),
+                        variant: .text,
+                        isEnabled: viewModel.canSubmitShiftSwapRequestMutation(for: request.id),
+                        fullWidth: false
+                    ) {
+                        _ = viewModel.startCancellingShiftSwapRequest(requestId: request.id)
                     }
                 }
                 .padding(tokens.spacing.sm)

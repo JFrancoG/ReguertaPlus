@@ -30,12 +30,12 @@ actor FirestoreShiftSwapRequestRepository: ShiftSwapRequestRepository {
     }
 
     func transition(
-        _ transition: ShiftSwapTransition,
+        _ command: ShiftSwapCommand,
         environment: SessionEnvironment
     ) async throws -> ShiftSwapTransitionResult {
         let request = ShiftSwapTransitionRequest(
             environment: environment,
-            transition: transition
+            command: command
         )
         let response: ShiftSwapTransitionResponse
         do {
@@ -54,7 +54,7 @@ actor FirestoreShiftSwapRequestRepository: ShiftSwapRequestRepository {
               response.action == request.action,
               !responseRequestId.isEmpty,
               request.requestId == nil || request.requestId == responseRequestId else {
-            throw RepositoryError.invalidData(resource: "shiftSwapRequests.transition")
+            throw ShiftSwapCommandError.invalidData
         }
         return ShiftSwapTransitionResult(
             requestId: responseRequestId,
@@ -142,26 +142,65 @@ actor FirestoreShiftSwapRequestRepository: ShiftSwapRequestRepository {
         if error is CancellationError {
             return error
         }
+        if let commandError = error as? ShiftSwapCommandError {
+            return commandError
+        }
         if let repositoryError = error as? RepositoryError {
-            return repositoryError
+            return mapRepositoryError(repositoryError)
         }
         guard let functionError = error as? FirebaseFunctionClientError else {
-            return RepositoryError.unknown(resource: "shiftSwapRequests.transition")
+            return ShiftSwapCommandError.unknown
         }
-        switch functionError {
+        return mapFunctionClientError(functionError)
+    }
+
+    private static func mapRepositoryError(_ error: RepositoryError) -> ShiftSwapCommandError {
+        switch error {
+        case .notFound:
+            return .conflict(code: "not_found")
+        case .unavailable:
+            return .unavailable
+        case .permissionDenied:
+            return .permissionDenied
+        case .invalidData:
+            return .invalidData
+        case .unknown:
+            return .unknown
+        }
+    }
+
+    private static func mapFunctionClientError(_ error: FirebaseFunctionClientError) -> any Error {
+        switch error {
         case .cancelled:
             return CancellationError()
         case .missingIDToken, .unauthorized, .forbidden:
-            return RepositoryError.permissionDenied(resource: "shiftSwapRequests.transition")
+            return ShiftSwapCommandError.permissionDenied
+        case .conflict(let code, _):
+            return code == "no_shift_swap_candidates"
+                ? ShiftSwapCommandError.noCandidates
+                : ShiftSwapCommandError.conflict(code: code)
         case .timeout, .transport:
-            return RepositoryError.unavailable(resource: "shiftSwapRequests.transition")
-        case .http(let statusCode, _, _) where statusCode == 408 || statusCode == 429 || statusCode >= 500:
-            return RepositoryError.unavailable(resource: "shiftSwapRequests.transition")
+            return ShiftSwapCommandError.unavailable
+        case .http(let statusCode, let code, _):
+            return mapFunctionHTTPError(statusCode: statusCode, code: code)
         case .invalidHTTPResponse, .invalidResponse:
-            return RepositoryError.invalidData(resource: "shiftSwapRequests.transition")
-        case .invalidEndpoint, .conflict, .http:
-            return RepositoryError.unknown(resource: "shiftSwapRequests.transition")
+            return ShiftSwapCommandError.invalidData
+        case .invalidEndpoint:
+            return ShiftSwapCommandError.unknown
         }
+    }
+
+    private static func mapFunctionHTTPError(statusCode: Int, code: String) -> ShiftSwapCommandError {
+        if statusCode == 408 || statusCode == 429 || statusCode >= 500 {
+            return .unavailable
+        }
+        if statusCode == 400 {
+            return .invalidData
+        }
+        if statusCode == 404 {
+            return .conflict(code: code)
+        }
+        return .unknown
     }
 
     private static var invalidDocumentError: RepositoryError {
@@ -185,39 +224,38 @@ nonisolated private struct ShiftSwapTransitionRequest: Encodable {
     let requestId: String?
     let candidateShiftId: String?
     let response: String?
-
 }
 
 extension ShiftSwapTransitionRequest {
-    init(environment: SessionEnvironment, transition: ShiftSwapTransition) {
+    init(environment: SessionEnvironment, command: ShiftSwapCommand) {
         self.environment = environment
-        switch transition {
-        case .create(let request):
+        switch command {
+        case .create(let requestedShiftId, let reason):
             action = "create"
-            requestedShiftId = request.requestedShiftId
-            reason = request.reason
+            self.requestedShiftId = requestedShiftId
+            self.reason = reason
             requestId = nil
             candidateShiftId = nil
             response = nil
-        case .respond(let request, let candidateShiftId, let responseStatus):
+        case .respond(let requestId, let candidateShiftId, let responseStatus):
             action = "respond"
             requestedShiftId = nil
             reason = nil
-            requestId = request.id
+            self.requestId = requestId
             self.candidateShiftId = candidateShiftId
             response = responseStatus.rawValue
-        case .cancel(let request):
+        case .cancel(let requestId):
             action = "cancel"
             requestedShiftId = nil
             reason = nil
-            requestId = request.id
+            self.requestId = requestId
             candidateShiftId = nil
             response = nil
-        case .apply(let request, let candidateShiftId):
+        case .apply(let requestId, let candidateShiftId):
             action = "apply"
             requestedShiftId = nil
             reason = nil
-            requestId = request.id
+            self.requestId = requestId
             self.candidateShiftId = candidateShiftId
             response = nil
         }

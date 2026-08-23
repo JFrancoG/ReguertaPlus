@@ -8,11 +8,12 @@ func makeShiftsViewModel(
     shiftSwapRequestRepository: (any ShiftSwapRequestRepository)? = nil,
     shiftPlanningRequestRepository: (any ShiftPlanningRequestRepository)? = nil,
     deliveryCalendarRepository: (any DeliveryCalendarRepository)? = nil,
-    notificationRepository: (any NotificationRepository)? = nil,
     nowMillisProvider: @escaping @MainActor () -> Int64 = { 0 },
+    shiftsRetrySleeper: @escaping @MainActor (Duration) async throws -> Void = {
+        try await ContinuousClock().sleep(for: $0)
+    },
     environmentProvider: @escaping @MainActor () -> ReguertaFirestoreEnvironment = { .develop }
 ) -> ShiftsFeatureViewModel {
-    let sessionViewModel = SessionViewModel(dependencies: .preview())
     let session = AuthorizedSession(
         principal: AuthPrincipal(uid: "auth_\(currentMember.id)", email: currentMember.normalizedEmail),
         authenticatedMember: currentMember,
@@ -20,6 +21,32 @@ func makeShiftsViewModel(
         members: members,
         environment: environmentProvider()
     )
+    return makeShiftsViewModel(
+        session: session,
+        shiftRepository: shiftRepository,
+        shiftSwapRequestRepository: shiftSwapRequestRepository,
+        shiftPlanningRequestRepository: shiftPlanningRequestRepository,
+        deliveryCalendarRepository: deliveryCalendarRepository,
+        nowMillisProvider: nowMillisProvider,
+        shiftsRetrySleeper: shiftsRetrySleeper,
+        environmentProvider: environmentProvider
+    )
+}
+
+@MainActor
+func makeShiftsViewModel(
+    session: AuthorizedSession,
+    shiftRepository: (any ShiftRepository)? = nil,
+    shiftSwapRequestRepository: (any ShiftSwapRequestRepository)? = nil,
+    shiftPlanningRequestRepository: (any ShiftPlanningRequestRepository)? = nil,
+    deliveryCalendarRepository: (any DeliveryCalendarRepository)? = nil,
+    nowMillisProvider: @escaping @MainActor () -> Int64 = { 0 },
+    shiftsRetrySleeper: @escaping @MainActor (Duration) async throws -> Void = {
+        try await ContinuousClock().sleep(for: $0)
+    },
+    environmentProvider: @escaping @MainActor () -> ReguertaFirestoreEnvironment = { .develop }
+) -> ShiftsFeatureViewModel {
+    let sessionViewModel = SessionViewModel(dependencies: .preview())
     sessionViewModel.mode = .authorized(session)
     let viewModel = ShiftsFeatureViewModel(
         sessionViewModel: sessionViewModel,
@@ -27,14 +54,29 @@ func makeShiftsViewModel(
         shiftSwapRequestRepository: shiftSwapRequestRepository ?? InMemoryShiftSwapRequestRepository(),
         shiftPlanningRequestRepository: shiftPlanningRequestRepository ?? RecordingShiftPlanningRequestRepository(),
         deliveryCalendarRepository: deliveryCalendarRepository ?? InMemoryDeliveryCalendarRepository(),
-        notificationRepository: notificationRepository ?? RecordingNotificationRepository(),
         nowMillisProvider: nowMillisProvider,
+        shiftsRetrySleeper: shiftsRetrySleeper,
         environmentProvider: environmentProvider
     )
-    viewModel.currentSession = session
-    viewModel.currentMember = currentMember
-    viewModel.currentEnvironment = session.environment
     return viewModel
+}
+
+@MainActor
+func awaitCurrentShiftsRefresh(in viewModel: ShiftsFeatureViewModel) async {
+    guard let refreshTask = viewModel.shiftsRefreshTask else { return }
+    await refreshTask.value
+}
+
+@MainActor
+func awaitShiftSwapSave(in viewModel: ShiftsFeatureViewModel) async -> Bool {
+    guard let mutationTask = viewModel.startSavingShiftSwapRequest() else { return false }
+    return await mutationTask.value
+}
+
+@MainActor
+func awaitShiftSwapCancellation(requestId: String, in viewModel: ShiftsFeatureViewModel) async -> Bool {
+    guard let mutationTask = viewModel.startCancellingShiftSwapRequest(requestId: requestId) else { return false }
+    return await mutationTask.value
 }
 
 @MainActor func shiftMember(id: String, displayName: String) -> Member {
@@ -124,41 +166,6 @@ final class TestNowProvider {
     }
 }
 
-actor RecordingNotificationRepository: NotificationRepository {
-    private var events: [NotificationEvent] = []
-
-    func notifications(visibleTo member: Member, environment _: SessionEnvironment) async -> [NotificationEvent] {
-        let events = events
-        return await MainActor.run {
-            events.filter { $0.isVisible(to: member) }
-        }
-    }
-
-    func allNotifications(environment _: SessionEnvironment) async -> [NotificationEvent] {
-        events
-    }
-
-    func readNotificationIds(memberId _: String, environment _: SessionEnvironment) async -> Set<String> {
-        []
-    }
-
-    func markNotificationsRead(
-        memberId _: String,
-        notificationIds _: [String],
-        readAtMillis _: Int64,
-        environment _: SessionEnvironment
-    ) async {}
-
-    func send(event: NotificationEvent, environment _: SessionEnvironment) async -> NotificationEvent {
-        events.append(event)
-        return event
-    }
-
-    func sentEvents() async -> [NotificationEvent] {
-        events
-    }
-}
-
 actor RecordingShiftPlanningRequestRepository: ShiftPlanningRequestRepository {
     private var requests: [ShiftPlanningRequest] = []
 
@@ -200,7 +207,9 @@ struct ConfirmShiftSwapTestScenario {
         assignedUserIds: [candidate.id],
         helperUserId: helper.id
     )
-    let requestRepository = InMemoryShiftSwapRequestRepository()
+    let requestRepository = InMemoryShiftSwapRequestRepository(
+        actorUserIdProvider: { requester.id }
+    )
     _ = await requestRepository.upsert(
         request: shiftSwapRequest(
             id: "swap_1",

@@ -162,7 +162,7 @@ struct P101ShiftsFailureTests {
     @Test func refreshCalendarPreservesSnapshotWhenAReadFails() async throws {
         let admin = adminMember(id: "admin_1", displayName: "Admin")
         let existing = try #require(
-            buildDeliveryCalendarOverride(
+            DeliveryCalendarOverride.weeklyException(
                 weekKey: "2026-W20",
                 weekday: .friday,
                 updatedByUserId: admin.id,
@@ -234,7 +234,8 @@ struct P101ShiftsFailureTests {
         viewModel.shiftsFeed = [requestedShift, candidateShift]
         viewModel.startCreatingShiftSwap(shiftId: requestedShift.id)
 
-        let saved = await viewModel.saveShiftSwapRequest()
+        let saved = await awaitShiftSwapSave(in: viewModel)
+        await awaitCurrentShiftsRefresh(in: viewModel)
 
         #expect(saved)
         #expect(viewModel.shiftSwapDraft == ShiftSwapDraft())
@@ -246,7 +247,7 @@ struct P101ShiftsFailureTests {
             ) == false
         )
         viewModel.startCreatingShiftSwap(shiftId: requestedShift.id)
-        #expect(await viewModel.saveShiftSwapRequest() == false)
+        #expect(await awaitShiftSwapSave(in: viewModel) == false)
         #expect(repository.transitionCount == 1)
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableLoadData)
     }
@@ -277,12 +278,12 @@ struct P101ShiftsFailureTests {
         viewModel.updateShiftSwapDraft { $0.reason = "No puedo ir" }
         let originalDraft = viewModel.shiftSwapDraft
 
-        let saved = await viewModel.saveShiftSwapRequest()
+        let saved = await awaitShiftSwapSave(in: viewModel)
 
         #expect(saved == false)
         #expect(viewModel.shiftSwapDraft == originalDraft)
         #expect(viewModel.isSavingShiftSwapRequest == false)
-        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableSaveChanges)
+        #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackShiftSwapUnavailable)
     }
 
     @Test func confirmedSwapUpdateSuppressesRetryWhenReadBackFails() async {
@@ -302,7 +303,8 @@ struct P101ShiftsFailureTests {
         )
         viewModel.shiftSwapRequests = [request]
 
-        await viewModel.cancelShiftSwapRequest(requestId: request.id)
+        _ = await awaitShiftSwapCancellation(requestId: request.id, in: viewModel)
+        await awaitCurrentShiftsRefresh(in: viewModel)
 
         #expect(viewModel.shiftSwapRequests == [request])
         #expect(viewModel.acknowledgedShiftSwapRequestIds == [request.id])
@@ -311,7 +313,7 @@ struct P101ShiftsFailureTests {
         #expect(repository.transitionCount == 1)
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableLoadData)
 
-        await viewModel.cancelShiftSwapRequest(requestId: request.id)
+        _ = await awaitShiftSwapCancellation(requestId: request.id, in: viewModel)
         #expect(repository.transitionCount == 1)
     }
 
@@ -399,15 +401,15 @@ private final class ConfirmingSwapWithFailingReadsRepository: ShiftSwapRequestRe
 
     @MainActor
     func transition(
-        _ transition: ShiftSwapTransition,
+        _ command: ShiftSwapCommand,
         environment _: SessionEnvironment
     ) async throws -> ShiftSwapTransitionResult {
         transitionCount += 1
-        let requestId = switch transition {
+        let requestId = switch command {
         case .create:
             "swap_server"
-        case .respond(let request, _, _), .cancel(let request), .apply(let request, _):
-            request.id
+        case .respond(let requestId, _, _), .cancel(let requestId), .apply(let requestId, _):
+            requestId
         }
         return ShiftSwapTransitionResult(requestId: requestId, candidateCount: 1)
     }
@@ -420,9 +422,9 @@ private final class RejectingSwapRepository: ShiftSwapRequestRepository {
     }
 
     func transition(
-        _ transition: ShiftSwapTransition,
+        _ command: ShiftSwapCommand,
         environment _: SessionEnvironment
     ) async throws -> ShiftSwapTransitionResult {
-        throw RepositoryError.unavailable(resource: "shiftSwapRequests.transition")
+        throw ShiftSwapCommandError.unavailable
     }
 }

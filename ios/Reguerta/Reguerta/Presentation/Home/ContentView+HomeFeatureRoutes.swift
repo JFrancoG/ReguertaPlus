@@ -26,11 +26,7 @@ extension HomeShellView {
             shift: shift,
             shiftDisplayLabel: shiftDisplayLabel,
             onSave: {
-                Task {
-                    if await shiftsViewModel.saveShiftSwapRequest() {
-                        rootViewModel.homeDestination = .shifts
-                    }
-                }
+                _ = rootViewModel.startShiftSwapRequestSave()
             }
         )
     }

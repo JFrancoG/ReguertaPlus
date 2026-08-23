@@ -10,10 +10,19 @@ final class ShiftsFeatureViewModel {
     @ObservationIgnored let shiftSwapRequestRepository: any ShiftSwapRequestRepository
     @ObservationIgnored let shiftPlanningRequestRepository: any ShiftPlanningRequestRepository
     @ObservationIgnored let deliveryCalendarRepository: any DeliveryCalendarRepository
-    @ObservationIgnored let notificationRepository: any NotificationRepository
     @ObservationIgnored let nowMillisProvider: @MainActor () -> Int64
     @ObservationIgnored let planningRequestIDProvider: @MainActor () -> String
     @ObservationIgnored let environmentProvider: @MainActor () -> ReguertaFirestoreEnvironment
+    @ObservationIgnored let shiftsRetrySleeper: @MainActor (Duration) async throws -> Void
+    @ObservationIgnored var shiftsRefreshTask: Task<Void, Never>?
+    @ObservationIgnored var shiftSwapMutationTask: Task<Bool, Never>?
+    @ObservationIgnored var activeShiftSwapMutationAuthorizationReceipt: ShiftSwapMutationAuthorizationReceipt?
+    @ObservationIgnored var activeShiftSwapMutationIntent: ShiftSwapMutationIntent?
+    @ObservationIgnored var activeShiftSwapMutationDidStartTransition = false
+    @ObservationIgnored var pendingShiftSwapAuthorizationBoundaryReceipt: ShiftSwapMutationUncertaintyReceipt?
+    @ObservationIgnored var handledShiftSwapAuthorizationBoundaryRevision: UInt64 = 0
+    @ObservationIgnored var pendingInitialCalendarHydration: PendingInitialCalendarHydration?
+    @ObservationIgnored var nextInitialCalendarHydrationGeneration: UInt64 = 0
 
     var currentSession: AuthorizedSession?
     var currentMember: Member?
@@ -22,6 +31,7 @@ final class ShiftsFeatureViewModel {
     var shiftSwapRequests: [ShiftSwapRequest] = []
     var dismissedShiftSwapRequestIds = Set<String>()
     var shiftSwapAcknowledgements: [String: ShiftSwapAcknowledgement] = [:]
+    var uncertainShiftSwapMutationIntents: [ShiftSwapMutationUncertaintyKey: ShiftSwapMutationUncertaintyReceipt] = [:]
     var shiftSwapDraft = ShiftSwapDraft()
     var selectedShiftSegment: ShiftBoardSegment = .delivery
     var nextDeliveryShift: ShiftAssignment?
@@ -50,10 +60,8 @@ final class ShiftsFeatureViewModel {
     var nextCalendarMutationOperationId: UInt64 = 0
     var activePlanningSubmissionOperationId: UInt64?
     var nextPlanningSubmissionOperationId: UInt64 = 0
-    var activeSwapSaveOperationId: UInt64?
-    var nextSwapSaveOperationId: UInt64 = 0
-    var activeSwapMutationOperationId: UInt64?
-    var nextSwapMutationOperationId: UInt64 = 0
+    var activeShiftSwapMutationOperationId: UInt64?
+    var nextShiftSwapMutationOperationId: UInt64 = 0
 
     var acknowledgedShiftSwapRequestIds: Set<String> {
         Set(shiftSwapAcknowledgements.keys)
@@ -99,10 +107,12 @@ final class ShiftsFeatureViewModel {
         shiftSwapRequestRepository: any ShiftSwapRequestRepository,
         shiftPlanningRequestRepository: any ShiftPlanningRequestRepository,
         deliveryCalendarRepository: any DeliveryCalendarRepository,
-        notificationRepository: any NotificationRepository,
         nowMillisProvider: @escaping @MainActor () -> Int64,
         planningRequestIDProvider: @escaping @MainActor () -> String = {
             UUID().uuidString.lowercased()
+        },
+        shiftsRetrySleeper: @escaping @MainActor (Duration) async throws -> Void = {
+            try await ContinuousClock().sleep(for: $0)
         },
         environmentProvider: @escaping @MainActor () -> ReguertaFirestoreEnvironment
     ) {
@@ -112,10 +122,21 @@ final class ShiftsFeatureViewModel {
         self.shiftSwapRequestRepository = shiftSwapRequestRepository
         self.shiftPlanningRequestRepository = shiftPlanningRequestRepository
         self.deliveryCalendarRepository = deliveryCalendarRepository
-        self.notificationRepository = notificationRepository
         self.nowMillisProvider = nowMillisProvider
         self.planningRequestIDProvider = planningRequestIDProvider
+        self.shiftsRetrySleeper = shiftsRetrySleeper
         self.environmentProvider = environmentProvider
+        handledShiftSwapAuthorizationBoundaryRevision = sessionViewModel.shiftSwapAuthorizationBoundaryRevision
+        if case .authorized(let session) = sessionViewModel.mode, session.representsActiveAuthorization {
+            currentSession = session
+            currentMember = session.member
+            currentEnvironment = session.environment
+        }
+    }
+
+    deinit {
+        shiftsRefreshTask?.cancel()
+        shiftSwapMutationTask?.cancel()
     }
 
     struct SessionContext {
@@ -123,6 +144,19 @@ final class ShiftsFeatureViewModel {
         let generation: UInt64
         let environment: ReguertaFirestoreEnvironment
         let sessionStateRevision: UInt64
+    }
+
+    struct ShiftSwapMutationAuthorizationReceipt {
+        let operationId: UInt64
+        var generation: UInt64
+        var sessionStateRevision: UInt64
+        let authorizationBoundaryRevision: UInt64
+    }
+
+    struct PendingInitialCalendarHydration {
+        let generation: UInt64
+        let context: SessionContext
+        let feedOperationId: UInt64
     }
 
     struct SessionAuthorizationSignature: Equatable {

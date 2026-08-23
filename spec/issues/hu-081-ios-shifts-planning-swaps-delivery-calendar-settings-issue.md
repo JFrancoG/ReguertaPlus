@@ -1,0 +1,287 @@
+# [HU-081][P1][iOS] Consolidar turnos, planificación, intercambios, calendario y ajustes
+
+## Tracking
+
+- GitHub issue: #264
+- URL: https://github.com/JFrancoG/ReguertaPlus/issues/264
+- State: READY FOR REVIEW / terminal scope split
+- Branch: `codex/hu-081-ios-shifts-planning-swaps-delivery-calendar-settings`
+- Base: `35a874288e3844d9c3d88abbaa39e2fb6fef42b2`
+- Roadmap: tercera vertical de Phase 6.
+- Profile: iOS maintenance; iOS 26, Swift 6, strict concurrency.
+
+## Objetivo
+
+Modernizar como una vertical iOS cohesiva Shifts, Planning, Swaps, Delivery
+Calendar y Settings, preservando los contratos funcionales existentes mientras
+se corrigen la inconsistencia temporal demostrada, la falsa autoridad cliente
+en swaps, las reglas de negocio alojadas en Presentation y el ownership
+asíncrono incompleto.
+
+## Autorización
+
+Instrucción del mantenedor, 2026-08-23:
+
+> Ok. Abre issue, rama y comenzamos con el siguiente paso
+
+Autorizó issue, rama, auditoría, especificación, baseline, plan, tareas, tests,
+previews y comienzo de la implementación dentro de HU-081. Después indicó:
+
+> ok. Haz commit y push, y comenzamos a implementar el siguiente corte
+
+Esta segunda instrucción autorizó commit/push del checkpoint Phase 1A e iniciar
+Phase 1B. Después indicó:
+
+> commit y push, y comenzamos el siguiente corte
+
+Esta tercera instrucción autoriza commit/push del Phase 1B completado e iniciar
+Phase 2. No autoriza PR, merge, cierre, borrado de rama, datos live, despliegue
+Firebase ni cambios Google Sheets.
+
+Después indicó:
+
+> ok. commit y push, y phase 3
+
+Esta cuarta instrucción autoriza commit/push de Phase 2 completada e iniciar
+Phase 3. No autoriza PR, merge, cierre, borrado de rama, datos live, despliegue
+Firebase ni cambios Google Sheets.
+
+Después indicó:
+
+> pues commit y push y comenzamos fase 4
+
+Esta quinta instrucción autoriza commit/push de Phase 3 completada e iniciar
+Phase 4. No autoriza el checkpoint de Phase 4, PR, merge, cierre, borrado de
+rama, datos live, despliegue Firebase ni cambios Google Sheets.
+
+Después indicó:
+
+> pues commit y push
+
+Esta sexta instrucción autoriza commit/push del checkpoint Phase 4 completado.
+No autoriza Phase 5, PR, merge, cierre, borrado de rama, datos live, despliegue
+Firebase ni cambios Google Sheets.
+
+Después indicó:
+
+> Lanza PR, cierra issue y rama. Pero no inicies la siguiente fase
+
+Esta séptima instrucción autoriza PR, revisión, merge, cierre explícito de #264
+y borrado de la rama local/remota. También recorta el alcance terminal de #264
+a las Phases 1–4 ya completadas. Phase 5 y los cortes posteriores se conservan
+como continuación pendiente para un nuevo hilo, después de que se mergee un
+ajuste independiente de Turnos. Este cierre no autoriza crear ahora la issue o
+rama futura ni iniciar Phase 5.
+
+## Recorte terminal autorizado
+
+#264 se cierra con las Phases 1–4 validadas. Los criterios iniciales que dependen
+de Planning/Calendar ownership, UI/previews/accesibilidad y los gates finales
+asociados a esas fases quedan diferidos; no se marcan como completados ni se
+incluyen en esta entrega. El futuro hilo debe verificar el merge de esta PR y el
+merge posterior del ajuste de Turnos, congelar un nuevo `main` y proponer una
+nueva issue/rama de continuación sin reabrir automáticamente #264.
+
+La PR debe usar `Refs #264`, nunca `Closes #264`. La issue se cerrará de forma
+explícita solo después de verificar el merge y publicar el comentario final de
+scope split.
+
+## Contexto
+
+HU-081 no reabre las historias funcionales ya entregadas. Preserva
+RF-TURN-01...07, RF-CAL-01...05, RNF-02, HU-011/015/016/017/020/041/042/063/066,
+la integración de planificación, los intercambios, la configuración de
+apariencia/modo no disponible y los contratos de sesión/entorno heredados de
+HU-079/HU-080.
+
+## Problemas iniciales demostrados
+
+1. `refreshDeliveryCalendar` descarta default y excepciones para todo socio no
+   admin, aunque Rules permiten la lectura a cualquier socio activo, HU-042
+   exige reflejarlas a miembros y My Order/Received Orders/Home las consumen.
+2. `DeliveryCalendarSupport` deriva semana y ventanas con `Calendar.current` /
+   huso del dispositivo, mientras Shift week keys y Orders usan
+   `Europe/Madrid`. El mismo `weekKey` puede producir timestamps distintos.
+3. El cliente puede impedir `create` si su `shiftsFeed` local no proyecta
+   candidatos, pero Functions es la autoridad: relee turnos/socios activos y
+   calcula candidatos transaccionalmente. Un snapshot obsoleto puede negar una
+   solicitud válida.
+4. `ShiftSwapTransition` transporta requests completos aunque Data serializa
+   comandos mínimos y Functions ignora las mutaciones client-side.
+5. Políticas reutilizables de swaps/calendario viven en Presentation y deben
+   clasificarse sin duplicar la autoridad del backend.
+6. `ShiftsFeatureViewModel` concentra cinco repositorios y múltiples estados/
+   generaciones; algunos efectos cancel-and-replace usan tareas no retenidas.
+7. `notificationRepository` está inyectado pero no se usa; Functions crea las
+   notificaciones de swap en su transacción.
+8. No hay viajes UI del slice y faltan previews de swaps y estados de
+   carga/vacío/error/guardado.
+
+## Alcance
+
+- Shifts globales/próximos, board y display.
+- Planning delivery/market y sus solicitudes.
+- Swap create/respond/cancel/apply, acknowledgements y command boundary.
+- Delivery Calendar default, excepciones, editor y ventanas de pedidos.
+- Settings general/productor/admin/develop en los seams consumidores.
+- Domain/Data/App/Presentation, owners, cancelación, sesión y entorno.
+- Swift Testing, UI focal, previews, localización, accesibilidad, motion y
+  layout adaptativo.
+
+## Fuera de alcance
+
+- Nuevas reglas de turnos, política de ausencias, permisos o producto nuevo.
+- Esquema Firestore, Functions, Rules, backfills, Google Sheets, datos live o
+  deploys; HU-070/#198 permanece independiente.
+- Seed/read-back live de `config/member.deliveryDayOfWeek`; el cliente lo
+  necesita para que un socio resuelva el default, pero HU-022/HU-070 conservan
+  el rollout y los canaries.
+- Android; la paridad temporal queda explícita.
+- Verticales/fases posteriores, paquetes, project settings, CI, iOS/Xcode 27,
+  migración amplia de tests o cierre RNF-02 fuera de los seams tocados.
+- PR, merge, cierre y limpieza de rama hasta nueva autorización.
+
+## Criterios de aceptación iniciales
+
+Esta lista conserva el plan original. Los checks pendientes pertenecen a la
+continuación diferida descrita arriba y no bloquean el cierre recortado de #264.
+
+- [x] Issue, rama, base, perfil e inventario inicial quedan congelados sin
+  duplicados.
+- [x] Todo socio activo carga default y excepciones de calendario, mientras
+  escritura y planificación siguen siendo exclusivas de admin.
+- [x] Overrides/ventanas son independientes del huso del dispositivo y usan
+  `Europe/Madrid` para cada instante empresarial.
+- [x] Los comandos swap contienen solo inputs cliente; Functions conserva la
+  autoridad de candidatos, aplicación, helpers y notificaciones.
+- [x] Un snapshot local obsoleto no impide un create válido y el no-candidate
+  backend produce feedback específico/localizado.
+- [x] Domain, Data, App y Presentation respetan sus responsabilidades sin falsa
+  autoridad cliente ni escapes de concurrencia.
+- [ ] Feed, swaps, planning y calendario tienen owners cohesivos, cancelación,
+  successor fences y owner-only cleanup cubiertos por tests.
+- [ ] Sesión/miembro/rol/entorno se validan antes de generación, I/O o publicación.
+- [x] Se elimina la dependencia de notificaciones muerta sin cambiar Functions.
+- [ ] Appearance, modo no disponible, impersonación, reloj develop y contratos
+  funcionales de turnos/calendario se preservan.
+- [ ] UI localizada/adaptativa y previews deterministas cubren estados y roles.
+- [ ] UI focal, matriz manual/física, `fast-unit`, `ui-smoke` aplicable,
+  `release-gate`, SwiftLint, settings y builds quedan verdes.
+- [ ] Deuda residual, Android, HU-070/#198 y siguientes verticales quedan explícitos.
+
+## Plan inicial
+
+1. Congelar inventario, owners, contratos, test/previews y commands.
+2. Capturar RED de lectura de calendario para socio activo y separar lectura
+   de escritura/planificación admin-only.
+3. Capturar RED timezone y mover la política mínima de calendario a Domain.
+4. Capturar el stale-feed RED y hacer veraz el command boundary de swaps.
+5. Cortar ownership por vidas de operación demostradas, sin Stores ceremoniales.
+6. Completar UI/previews y revisiones independientes.
+7. Ejecutar gates y reconciliar evidencia antes de pedir delivery.
+
+## Validación
+
+- `./scripts/validate-ios.sh fast-unit --destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5'`
+- `./scripts/validate-ios.sh ui-smoke --destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5'` cuando aplique.
+- `./scripts/validate-ios.sh release-gate --destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5'`
+- UI focal, SwiftLint, settings 6/6, Debug, Production Release y guards.
+- Phone/iPad, Large/XXX Large/AX5, ES/EN, light/dark, Increased Contrast,
+  Reduce Motion, VoiceOver y Voice Control.
+
+## Documentos vivos
+
+- `spec/app/hu-081-ios-shifts-planning-swaps-delivery-calendar-settings/spec.md`
+- `spec/app/hu-081-ios-shifts-planning-swaps-delivery-calendar-settings/phase-6-baseline.md`
+- `spec/app/hu-081-ios-shifts-planning-swaps-delivery-calendar-settings/plan.md`
+- `spec/app/hu-081-ios-shifts-planning-swaps-delivery-calendar-settings/tasks.md`
+
+## Progreso actual
+
+- Phase 1A: RED válido sobre la lectura de socia activa, GREEN focal 27/27 y
+  `fast-unit-v1` PASS. `b956f09` contiene el cambio funcional; `b491e50`
+  documenta el checkpoint y es el tip remoto verificado.
+- Phase 1B: checkpoint `fc1157e`, con RED válido en
+  `/tmp/reguerta-hu081-xctestrun-red.E2voNm/Result.xcresult`; el helper antiguo
+  construía milisegundos UTC en vez de instantes Madrid.
+- Phase 1B centraliza `BusinessCalendar` en Domain, valida ISO
+  weeks estrictamente, usa aritmética DST-safe, limita excepciones a
+  martes/jueves/viernes y evita escrituras para default o excepción sin cambios.
+- GREEN focal: 30 tests lógicos / 46 ejecuciones concretas. La política pasa
+  5/21 tanto con `TZ=UTC` como con `TZ=America/New_York`.
+- `fast-unit-v1` final: 789 lógicos / 996 concretos, PASS en iPhone 17 / iOS
+  26.5. SwiftLint 0.61.0: 438 archivos, 0 infracciones. `git diff --check`: PASS.
+- Phase 2 está publicada como `fae4da0`: comandos mínimos en Domain, mapping exacto
+  en Data, Functions como autoridad, feedback tipado/localizado y dependencia
+  Shifts de notificaciones eliminada. El fake autoritativo cubre identidad,
+  estados, timestamps y read-back.
+- Phase 2: cohortes focales PASS; 28/28 contratos de seguridad Functions PASS;
+  `fast-unit-v1` 796 lógicos / 1.018 concretos PASS; cuatro journeys
+  `ui-smoke` PASS; SwiftLint 0/440. Xcode aún emite el aviso conocido de versión
+  LLDB, sin fallo de test.
+- Es evidencia local: no afirma que la proyección `config/member` requerida
+  exista actualmente en los entornos live.
+- Los `Calendar.current` y formatters con timezone implícito que quedan en
+  Presentation pertenecen a Phase 6 de la futura issue de continuación HU-081,
+  no a Phase 5. El fallback heredado de `OrderHistoryWeek` queda fuera del seam
+  Phase 1.
+- Phase 3 está completada localmente. El RED válido demostró que un successor
+  del feed con el mismo contexto perdía la hidratación inicial pendiente de
+  Calendar. El GREEN retiene un owner débil y atómico para Shifts + solicitudes
+  swap, propaga la cancelación al task exacto y preserva latest-wins y cleanup
+  owner-only.
+- Los fences cubren principal, socia autenticada, socia seleccionada,
+  rol/capacidad, entorno y admin. La deriva de rol reinicia solo el feed y
+  conserva acknowledgements, dismissals, draft, segmento y owners de mutación;
+  la deriva de identidad o acceso admin, entorno o autorización inválida
+  mantiene el reset completo.
+- La hidratación inicial Feed -> Calendar se transfiere solo a un successor de
+  contexto equivalente y usa el `SessionContext` capturado, manteniendo el
+  orden tras éxito o error terminal del feed sin rediseñar Calendar, planning o
+  mutaciones swap.
+- Evidencia Phase 3 en iPhone 17 / iOS 26.5: focal 12 lógicos / 15 concretos,
+  cohorte ampliada 79 / 87 y `fast-unit-v1` 808 / 1.033, todo PASS sin skips.
+  SwiftLint 0/444; guards estáticos y revisiones independientes de ownership,
+  tests y alcance sin hallazgos P0-P2.
+- Phase 3 está publicada como `124c34d` con checkpoint documental `5dab3e2` en
+  la rama remota verificada.
+- Phase 4 está completada y commiteada como `6df78eb`. El RED determinista mostró que sign-out no
+  cancelaba físicamente un create suspendido no cooperativo. El GREEN retiene un
+  owner débil y un único lane para create/respond/cancel/apply, invalida la
+  identidad antes de cancelar y cerca resultado, error y cleanup tardíos. Una
+  revisión observable de frontera cubre ABA coalescido y retiene el receipt si
+  el resultado llega antes que su handler.
+- La deriva solo de rol y la salida de ruta preservan un comando aceptado; una
+  deriva de identidad/entorno lo cancela. El cambio de capacidad admin cerca la
+  publicación y preserva acknowledgements confirmados e incertidumbre del mismo
+  recurso. La navegación tardía solo vuelve a Shifts si la ruta request aún es
+  la actual.
+- El acknowledgement confirmado precede al refresh atómico del feed y libera el
+  lane sin esperar read-back. Create se bloquea por requested shift ID; el resto
+  por request ID. Los errores definitivos liberan la clave y los ambiguos ponen
+  en cuarentena solo esa clave con procedencia de operación.
+- La incertidumbre request se limpia únicamente cuando el read-back autoritativo
+  refleja esa request o un estado terminal; una proyección ausente/obsoleta la
+  conserva. Create no puede autolimpiarse sin correlation/idempotency key
+  backend: ese contrato Functions requiere una issue separada.
+- El relogin del mismo recurso conserva receipts/incertidumbre; otra identidad o
+  entorno los descarta. La proyección pública anidada de Users permanece
+  fail-closed entre sus dos cambios síncronos y solo publica al estabilizar la
+  sesión sucesora real.
+- Evidencia Phase 4 en iPhone 17 / iOS 26.5: focal 43 lógicos / 280 concretos,
+  cohorte ampliada 105 / 124 y `fast-unit-v1` 844 / 1.303, todo PASS sin fallos
+  ni skips. SwiftLint 0/460; build Xcode sin errores ni warnings y guards de
+  proyecto, alcance y concurrencia limpios.
+- Gate terminal de las Phases 1–4 en el mismo destino: `release-gate-v1` PASS
+  con 856 tests lógicos (855 pass, 1 skip, 0 fallos) y 1.318 ejecuciones
+  concretas (1.314 pass, 4 skips, 0 fallos), SwiftLint 0/460, settings 6/6,
+  builds Debug/Production Release y todos los guards del repositorio verdes.
+  Este gate valida solo el alcance entregado; no completa las Phases 5–7.
+
+Estado: READY FOR REVIEW / cierre recortado autorizado. Las Phases 1–4 están
+publicadas y validadas; PR, merge, cierre explícito de #264 y limpieza de rama
+están autorizados. Los `Calendar.current` y formatters con timezone implícito
+restantes pertenecen a Phase 6 de la futura issue de continuación, no a Phase 5.
+Phase 5 no se inicia: queda pendiente para un nuevo hilo e issue después del
+ajuste independiente de Turnos. No se autorizan mutaciones live, despliegue,
+Functions, Google Sheets ni Android.

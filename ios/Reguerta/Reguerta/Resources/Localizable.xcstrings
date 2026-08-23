@@ -2193,19 +2193,87 @@
         }
       }
     },
+    "feedback.shift_swap_conflict" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This shift change is no longer current. Refresh and try again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este cambio de turno ya no está actualizado. Actualiza e inténtalo de nuevo."
+          }
+        }
+      }
+    },
+    "feedback.shift_swap_invalid_data" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The shift-change service returned an invalid response."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El servicio de cambios de turno devolvió una respuesta no válida."
+          }
+        }
+      }
+    },
     "feedback.shift_swap_no_candidates" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No future members are available for this shift change."
+            "value" : "No eligible candidates are available for this shift change."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No hay socios futuros disponibles para este cambio de turno."
+            "value" : "No hay candidatos disponibles que cumplan los requisitos para este cambio de turno."
+          }
+        }
+      }
+    },
+    "feedback.shift_swap_permission_denied" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You no longer have permission to change this shift."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ya no tienes permiso para cambiar este turno."
+          }
+        }
+      }
+    },
+    "feedback.shift_swap_unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The shift-change service is temporarily unavailable. Try again later."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El servicio de cambios de turno no está disponible temporalmente. Inténtalo más tarde."
           }
         }
       }

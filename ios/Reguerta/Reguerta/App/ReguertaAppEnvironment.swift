@@ -60,10 +60,7 @@ struct ReguertaAppEnvironment {
                 root: ReguertaAppRootAssemblyDependencies(
                     products: .preview(nowMillisProvider: nowMillisProvider),
                     orders: .preview(nowMillisProvider: nowMillisProvider),
-                    shifts: .preview(
-                        notificationRepository: notificationRepository,
-                        nowMillisProvider: nowMillisProvider
-                    ),
+                    shifts: .preview(nowMillisProvider: nowMillisProvider),
                     newsNotifications: .preview(
                         notificationRepository: notificationRepository,
                         nowMillisProvider: nowMillisProvider
@@ -116,10 +113,7 @@ struct ReguertaAppEnvironment {
                         nowMillisProvider: nowMillisProvider
                     ),
                     orders: .preview(nowMillisProvider: nowMillisProvider),
-                    shifts: .preview(
-                        notificationRepository: notificationRepository,
-                        nowMillisProvider: nowMillisProvider
-                    ),
+                    shifts: .preview(nowMillisProvider: nowMillisProvider),
                     newsNotifications: .preview(
                         newsRepository: newsRepository,
                         notificationRepository: notificationRepository,
@@ -339,7 +333,6 @@ private func makeLiveRootAssembly(
             db: dependencies.db,
             environmentProvider: dependencies.environmentStore,
             functionsClient: dependencies.functionsClient,
-            notificationRepository: dependencies.notificationRepository,
             nowMillisProvider: nowMillisProvider
         ),
         newsNotifications: NewsNotificationsFeatureDependencies.live(

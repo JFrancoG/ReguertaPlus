@@ -4,8 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Documentation
+
+- 2026-08-23 | 📝 docs(ios): prepare HU-081 closeout
+- 2026-08-23 | 📝 docs(ios): record HU-081 swap checkpoint
+- 2026-08-23 | 📝 docs(ios): start HU-081 swap ownership
+- 2026-08-23 | 📝 docs(ios): start HU-081 feed ownership
+- 2026-08-23 | 📝 docs(ios): record HU-081 calendar checkpoint
+- 2026-08-23 | 📝 docs(ios): record HU-081 checkpoint
+
 ### Changed
 
+- 2026-08-23 | ♻️ refactor(ios): own shift swap mutation lifecycle
+- 2026-08-23 | ♻️ refactor(ios): own shifts feed lifecycle
+- 2026-08-23 | ♻️ refactor(ios): make swap commands authoritative
 - 2026-08-23 | ♻️ refactor(ios): harden order state ownership
 - 2026-08-21 | ♻️ refactor(ios): harden auth session ownership
 - 2026-08-20 | ♻️ refactor(ios): adopt adaptive layout
@@ -74,6 +86,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-08-23 | 🐛 fix(ios): enforce Madrid delivery calendar
+- 2026-08-23 | 🐛 fix(ios): load member delivery calendar
 - 2026-08-21 | 🐛 fix(ios-ui): restore screen spacing and dialogs
 - 2026-08-19 | 🐛 fix(home): stabilize order freshness recovery
 - 2026-08-18 | 🐛 fix(home): automate freshness and feed recovery

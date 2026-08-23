@@ -50,10 +50,10 @@ func resolveHomeWeeklySummaryDisplay(
     deliveryCalendarOverrides: [DeliveryCalendarOverride],
     shifts: [ShiftAssignment],
     members: [Member],
-    businessTimeZone: TimeZone = OrderBusinessCalendar.timeZone,
+    businessTimeZone: TimeZone = BusinessCalendar.timeZone,
     localization: HomeWeeklySummaryLocalization = .current
 ) -> HomeWeeklySummaryDisplay {
-    let calendar = OrderBusinessCalendar.make(timeZone: businessTimeZone)
+    let calendar = BusinessCalendar.make(timeZone: businessTimeZone)
     let now = Date(timeIntervalSince1970: TimeInterval(nowMillis) / 1_000)
     let today = calendar.startOfDay(for: now)
     let context = HomeWeeklySummaryResolutionContext(
@@ -284,11 +284,11 @@ func resolveHomeDisplayedOrderState(isConsultaPhase: Bool, orderState: HomeOrder
 func formatHomeTopBarDate(
     nowMillis: Int64,
     locale: Locale = .current,
-    businessTimeZone: TimeZone = OrderBusinessCalendar.timeZone
+    businessTimeZone: TimeZone = BusinessCalendar.timeZone
 ) -> String {
     let date = Date(timeIntervalSince1970: TimeInterval(nowMillis) / 1_000)
     let formatter = DateFormatter()
-    formatter.calendar = OrderBusinessCalendar.make(timeZone: businessTimeZone)
+    formatter.calendar = BusinessCalendar.make(timeZone: businessTimeZone)
     formatter.locale = locale
     formatter.timeZone = businessTimeZone
     formatter.setLocalizedDateFormatFromTemplate("EEEE d MMMM")
