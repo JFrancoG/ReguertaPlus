@@ -27,12 +27,18 @@
 - [x] Capture RED proving an active member loads Calendar default and exceptions.
 - [x] Preserve admin-only Calendar mutation and planning with focused tests.
 - [x] Apply the smallest read-versus-mutate authorization fix.
-- [ ] Add explicit-timezone contract tests before production changes.
-- [ ] Capture a valid RED for device-timezone-dependent construction.
-- [ ] Move ISO week and window construction to Domain.
-- [ ] Use one Madrid authority for delivery/block/open/close instants.
-- [ ] Preserve malformed-key behavior, exception-only writes, and default deletion.
-- [ ] Run focused calendar/admin suites and fast-unit.
+- [x] Add explicit-timezone contract tests before production changes.
+- [x] Capture a valid RED for device-timezone-dependent construction.
+- [x] Move ISO week and window construction to Domain.
+- [x] Use one Madrid authority for delivery/block/open/close instants.
+- [x] Preserve malformed-key behavior, exception-only writes, and default deletion.
+- [x] Run focused calendar/admin suites and fast-unit.
+
+Phase 1B evidence: 30 logical / 46 concrete focused executions passed; the
+policy passed 5 logical / 21 concrete executions under both `TZ=UTC` and
+`TZ=America/New_York`; canonical `fast-unit-v1` passed 789 logical / 996
+concrete executions. SwiftLint found zero violations in 438 files. Phase 1B is
+local and uncommitted.
 
 ## Phase 2 - swap command boundary
 
@@ -90,10 +96,12 @@
 
 - [x] Obtain explicit authorization for the first checkpoint commit and push.
 - [x] Create focused Conventional Commit `b956f09`.
-- [x] Push and verify upstream SHA `b956f09`.
+- [x] Create checkpoint documentation commit `b491e50`.
+- [x] Push and verify upstream tip `b491e50`.
 - [ ] Open ready PR with validation evidence.
 - [ ] Review checks/findings and remediate before merge.
 - [ ] Merge, close #264, and clean branches only after confirmed authorization.
 
-The current delivery authority stops at commit and push. PR, merge, issue
-closure, and branch cleanup require separate authorization.
+The completed delivery authority covers the published Phase 1A checkpoint only.
+Phase 1B commit/push, PR, merge, issue closure, and branch cleanup require
+separate authorization.

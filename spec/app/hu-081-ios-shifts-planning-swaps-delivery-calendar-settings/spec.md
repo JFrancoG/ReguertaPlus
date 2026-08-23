@@ -16,10 +16,17 @@ The maintainer activated the third Phase 6 slice on 2026-08-23 with:
 
 > Ok. Abre issue, rama y comenzamos con el siguiente paso
 
-This authorizes issue, branch, audit, specification, baseline, plan, tasks,
-tests, previews, and in-scope implementation. It does not authorize commit,
-push, pull request, merge, issue closure, branch deletion, live-data mutation,
-Firebase deployment, or Google Sheets changes.
+This authorized issue, branch, audit, specification, baseline, plan, tasks,
+tests, previews, and in-scope implementation. The maintainer later authorized
+the first checkpoint and the next cut with:
+
+> ok. Haz commit y push, y comenzamos a implementar el siguiente corte
+
+That instruction authorized commit and push of the completed Phase 1A
+checkpoint and implementation of Phase 1B. It does not authorize commit or
+push of the still-local Phase 1B work, pull request, merge, issue closure,
+branch deletion, live-data mutation, Firebase deployment, or Google Sheets
+changes.
 
 ## Context and problem
 
@@ -175,7 +182,7 @@ preview gallery lacks swap and mutation-state coverage.
   resolved without a duplicate execution item.
 - [x] An active regular member loads the Calendar default and weekly
   exceptions, while calendar mutation and planning remain admin-only.
-- [ ] Delivery Calendar override/window construction is deterministic across
+- [x] Delivery Calendar override/window construction is deterministic across
   device timezones and uses `Europe/Madrid` for every business instant.
 - [ ] Swap commands express only create/respond/cancel/apply inputs owned by the
   client; Functions remains the authoritative candidate/application owner.
@@ -217,16 +224,46 @@ preview gallery lacks swap and mutation-state coverage.
 
 ## Delivery state
 
-The first production cut is GREEN. The valid RED ran the six-test
+Phase 1A is GREEN and published. Its valid RED ran the six-test
 `ReguertaShiftsViewModelTests` suite and failed only the new member Calendar
-expectation because `defaultDeliveryDayOfWeek` was `nil`. Removing only the
-admin condition from the Calendar read guard made the 27-test Shifts/Calendar/
-authorization cohort pass; canonical `fast-unit-v1` also passed on iPhone 17,
-iOS 26.5. Calendar mutation and planning guards remain unchanged and covered.
-This is local client evidence only; it does not claim that either live
-environment currently contains the required `config/member` projection.
+expectation because `defaultDeliveryDayOfWeek` was `nil`. The 27-test focused
+cohort and canonical `fast-unit-v1` then passed. Functional commit `b956f09`
+contains the read-boundary fix; documentation commit `b491e50` records the
+checkpoint and is the verified remote branch tip.
 
-Checkpoint `b956f09` is committed and verified on
-`origin/codex/hu-081-ios-shifts-planning-swaps-delivery-calendar-settings`.
-HU-081 remains active. No pull request, merge, issue closure, branch deletion,
-live mutation, or deployment is authorized or claimed.
+Phase 1B is GREEN locally and remains uncommitted. The valid device-timezone
+RED is `/tmp/reguerta-hu081-xctestrun-red.E2voNm/Result.xcresult`; the previous
+Presentation helper produced UTC-derived milliseconds instead of Madrid
+instants. The implementation now provides one guarded `BusinessCalendar`
+authority in Domain, strict ISO-week parsing, DST-safe calendar arithmetic, a
+semantic exception factory limited to Tuesday/Thursday/Friday, and
+exception-only writes with true no-op handling for unchanged/default weeks.
+Settings retains legacy/default selections only so an invalid persisted value
+can be exited safely.
+
+Final local evidence on iPhone 17 / iOS 26.5:
+
+- focused policy/admin/Settings/presentation cohort: 30 logical / 46 concrete,
+  PASS at
+  `/var/folders/wt/r327qtw12_s5tbbcnx9dzqv80000gn/T/reguerta-hu081-final-focused.5j30UY5se5/Result.xcresult`;
+- the policy selector under `TZ=UTC` and `TZ=America/New_York`: 5 logical / 21
+  concrete in each process, both PASS;
+- canonical `fast-unit-v1`: 789 logical / 996 concrete, PASS;
+- SwiftLint 0.61.0: 438 files, zero violations; `git diff --check`: PASS.
+
+The canonical four-journey `ui-smoke` runner remains infrastructure-flaky:
+different journeys terminated with `signal term` across two runs while Xcode
+reported a missing LLDB debugger version. Every terminated journey passed on
+an isolated retry, with no product assertion failure. Dedicated Delivery
+Calendar UI automation remains a later Phase 6 requirement.
+
+Remaining `Calendar.current` and implicit formatter timezone use in Shifts and
+Settings Presentation belongs to later HU-081 display/UI cuts, not to a
+different issue. The inherited `OrderHistoryWeek` fallback is outside this
+touched seam and remains separately recorded. No live environment assertion is
+made about `config/member`.
+
+The next executable cut is Phase 2: first capture a RED proving that a stale
+local feed cannot prevent the authoritative backend swap-create command. HU-081
+remains active; no Phase 1B commit/push, pull request, merge, issue closure,
+branch deletion, live mutation, or deployment is authorized or claimed.

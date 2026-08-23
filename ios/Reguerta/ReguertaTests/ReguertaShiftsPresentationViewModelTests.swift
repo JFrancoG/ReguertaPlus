@@ -113,9 +113,9 @@ struct ReguertaShiftsPresentationViewModelTests {
             dateMillis: testMillis(year: 2026, month: 5, day: 6),
             assignedUserIds: [currentMember.id]
         )
-        let override = buildDeliveryCalendarOverride(
+        let override = DeliveryCalendarOverride.weeklyException(
             weekKey: shiftedDelivery.weekKey,
-            weekday: .sunday,
+            weekday: .friday,
             updatedByUserId: currentMember.id,
             updatedAtMillis: 10
         )
@@ -128,7 +128,7 @@ struct ReguertaShiftsPresentationViewModelTests {
             members: [currentMember],
             shiftRepository: InMemoryShiftRepository(items: [previousDelivery, shiftedDelivery]),
             deliveryCalendarRepository: calendarRepository,
-            nowMillisProvider: { testMillis(year: 2026, month: 5, day: 8) }
+            nowMillisProvider: { testMillis(year: 2026, month: 5, day: 7) }
         )
 
         await viewModel.refreshShifts()

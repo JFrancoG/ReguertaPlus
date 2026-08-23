@@ -162,7 +162,7 @@ struct P101ShiftsFailureTests {
     @Test func refreshCalendarPreservesSnapshotWhenAReadFails() async throws {
         let admin = adminMember(id: "admin_1", displayName: "Admin")
         let existing = try #require(
-            buildDeliveryCalendarOverride(
+            DeliveryCalendarOverride.weeklyException(
                 weekKey: "2026-W20",
                 weekday: .friday,
                 updatedByUserId: admin.id,

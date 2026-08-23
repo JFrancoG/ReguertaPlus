@@ -1,16 +1,5 @@
 import Foundation
 
-/// Canonical ISO calendar for order, delivery, and shift decisions in the Madrid business time zone.
-enum OrderBusinessCalendar {
-    static let timeZone = TimeZone(identifier: "Europe/Madrid") ?? .current
-
-    static func make(timeZone: TimeZone = OrderBusinessCalendar.timeZone) -> Calendar {
-        var calendar = Calendar(identifier: .iso8601)
-        calendar.timeZone = timeZone
-        return calendar
-    }
-}
-
 struct OrderConsultationCycle: Equatable {
     let weekStart: Date
     let deliveryDate: Date
@@ -43,7 +32,7 @@ func resolveOrderConsultationCycle(
     return OrderConsultationCycle(
         weekStart: weekStart,
         deliveryDate: deliveryDate,
-        previousWeekKey: orderIsoWeekKey(for: previousWeek, calendar: calendar),
+        previousWeekKey: BusinessCalendar.isoWeekKey(for: previousWeek, calendar: calendar),
         isConsultaPhase: today >= weekStart && today <= deliveryDate
     )
 }
@@ -56,7 +45,7 @@ func resolveOrderDeliveryDate(
     calendar: Calendar
 ) -> Date {
     let normalizedWeekStart = calendar.startOfDay(for: weekStart)
-    let weekKey = orderIsoWeekKey(for: normalizedWeekStart, calendar: calendar)
+    let weekKey = BusinessCalendar.isoWeekKey(for: normalizedWeekStart, calendar: calendar)
     if let override = deliveryCalendarOverrides.first(where: { $0.weekKey == weekKey }) {
         return calendar.startOfDay(
             for: Date(timeIntervalSince1970: TimeInterval(override.deliveryDateMillis) / 1_000)
@@ -75,9 +64,9 @@ func resolveMyOrderConsultaWindow(
     deliveryCalendarOverrides: [DeliveryCalendarOverride],
     shifts _: [ShiftAssignment],
     now: Date = Date(),
-    timeZone: TimeZone = OrderBusinessCalendar.timeZone
+    timeZone: TimeZone = BusinessCalendar.timeZone
 ) -> MyOrderConsultaWindow {
-    let calendar = OrderBusinessCalendar.make(timeZone: timeZone)
+    let calendar = BusinessCalendar.make(timeZone: timeZone)
     let cycle = resolveOrderConsultationCycle(
         defaultDeliveryDayOfWeek: defaultDeliveryDayOfWeek,
         deliveryCalendarOverrides: deliveryCalendarOverrides,
@@ -88,41 +77,6 @@ func resolveMyOrderConsultaWindow(
         isConsultaPhase: cycle.isConsultaPhase,
         previousWeekKey: cycle.previousWeekKey
     )
-}
-
-private func orderIsoWeekKey(for date: Date, calendar: Calendar) -> String {
-    String(
-        format: "%04d-W%02d",
-        calendar.component(.yearForWeekOfYear, from: date),
-        calendar.component(.weekOfYear, from: date)
-    )
-}
-
-extension Int64 {
-    /// Returns the ISO week key for this timestamp in the canonical Madrid business calendar.
-    var isoWeekKey: String {
-        let calendar = OrderBusinessCalendar.make()
-        let date = Date(timeIntervalSince1970: TimeInterval(self) / 1_000)
-        return orderIsoWeekKey(for: date, calendar: calendar)
-    }
-
-    /// Returns the delivery weekday for this timestamp in the canonical Madrid business calendar.
-    var deliveryWeekday: DeliveryWeekday {
-        let calendar = OrderBusinessCalendar.make()
-        let weekday = calendar.component(
-            .weekday,
-            from: Date(timeIntervalSince1970: TimeInterval(self) / 1_000)
-        )
-        switch weekday {
-        case 2: return .monday
-        case 3: return .tuesday
-        case 4: return .wednesday
-        case 5: return .thursday
-        case 6: return .friday
-        case 7: return .saturday
-        default: return .sunday
-        }
-    }
 }
 
 private extension DeliveryWeekday {

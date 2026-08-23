@@ -179,3 +179,36 @@ find ios/Reguerta/ReguertaUITests -type f -name '*.swift' | wc -l
 Implementation evidence will record exact focused selectors and isolated
 `.xcresult` paths. No live Firebase, Functions, or Google Sheets call is part
 of activation.
+
+## Validated Phase 1 delta
+
+This section records progress after the frozen activation snapshot without
+rewriting the historical inventory above.
+
+- Phase 1A separated active-member Calendar reads from admin-only mutation and
+  planning. Functional checkpoint `b956f09` and documentation checkpoint
+  `b491e50` are published; `b491e50` is the verified remote tip.
+- Phase 1B removed persisted Calendar construction from Presentation and
+  generalized the existing Orders authority into one guarded
+  `BusinessCalendar` in Domain.
+- Strict `YYYY-Www` round-trip validation now rejects malformed or impossible
+  ISO weeks. Calendar arithmetic preserves Madrid midnight and Sunday close
+  contracts across DST.
+- Persisted exceptions accept Tuesday, Thursday, or Friday only. Default weeks
+  and unchanged exceptions perform no repository write; returning to the
+  default deletes the existing exception.
+- Final focused evidence passed 30 logical / 46 concrete executions. The same
+  policy selector passed 5 logical / 21 concrete executions under both
+  `TZ=UTC` and `TZ=America/New_York` through temporary `.xctestrun` copies.
+- Canonical final `fast-unit-v1` passed 789 logical / 996 concrete executions
+  on iPhone 17 / iOS 26.5. SwiftLint reported zero violations in 438 files and
+  `git diff --check` passed.
+- The canonical four-journey UI smoke runner produced changing `signal term`
+  failures while Xcode reported no LLDB debugger version. Each terminated
+  journey passed when retried alone; there was no product assertion failure.
+
+Phase 1B is local and uncommitted. Remaining Shifts/Settings display
+`Calendar.current` and implicit formatter timezone usage stays in HU-081 for
+later display/UI phases. The inherited `OrderHistoryWeek` fallback is outside
+the touched Phase 1 seam. No live configuration or Firebase state was mutated
+or inferred from these local tests.

@@ -78,6 +78,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- 2026-08-23 | 🐛 fix(ios): enforce Madrid delivery calendar
 - 2026-08-23 | 🐛 fix(ios): load member delivery calendar
 - 2026-08-21 | 🐛 fix(ios-ui): restore screen spacing and dialogs
 - 2026-08-19 | 🐛 fix(home): stabilize order freshness recovery

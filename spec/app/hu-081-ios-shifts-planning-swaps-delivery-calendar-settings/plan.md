@@ -82,6 +82,27 @@ GREEN:
 
 Gate: focused calendar policy + existing admin/calendar suites + fast-unit.
 
+### Executed Phase 1 evidence
+
+Phase 1A is completed and published. Commit `b956f09` contains the functional
+read-boundary fix and `b491e50` records the checkpoint at the verified remote
+tip.
+
+Phase 1B is completed locally and remains uncommitted. The sequence captured a
+valid old-helper RED, then introduced one guarded Madrid business calendar,
+strict ISO week validation, DST-safe window construction, the allowed
+Tuesday/Thursday/Friday exception policy, exact selection behavior, and zero
+repository writes for default/unchanged no-ops. The same policy selector ran
+from temporary `.xctestrun` copies with `TZ=UTC` and
+`TZ=America/New_York`; both passed without mutating the global simulator
+timezone.
+
+The final focused cohort passed 30 logical / 46 concrete executions, and the
+canonical final `fast-unit-v1` passed 789 logical / 996 concrete executions on
+iPhone 17 / iOS 26.5. SwiftLint reported zero violations across 438 files.
+Presentation-only `Calendar.current` and implicit formatter timezone use remain
+for the later display/UI phases of HU-081.
+
 ## Phase 2 - truthful swap command boundary
 
 RED:
@@ -168,8 +189,9 @@ Gate: admin/calendar/planning cohort + session/role guards + fast-unit.
 - Recalculate source/test/previews and logical/concrete test counts.
 - Reconcile issue mirror, spec, plan, tasks, evidence, Android parity, HU-070,
   and residual debt.
-- Preserve checkpoint `b956f09` on the remote feature branch and request
-  separate authorization before PR, merge, closure, or branch cleanup.
+- Preserve checkpoints `b956f09` and `b491e50` on the remote feature branch and
+  request separate authorization before publishing the local Phase 1B cut, PR,
+  merge, closure, or branch cleanup.
 
 ## Initial risks and controls
 
@@ -184,7 +206,7 @@ Gate: admin/calendar/planning cohort + session/role guards + fast-unit.
 
 ## First executable step
 
-Replace the incorrect regular-member Calendar expectation with a focused RED:
-an active member must load the default and weekly exceptions, while mutation
-and planning stay admin-only. Then apply the smallest role-boundary GREEN
-before entering the explicit-timezone policy tests.
+Capture the Phase 2 stale-feed RED: a current authorized member must reach an
+authoritative fake swap repository even when the local `shiftsFeed` cannot
+project candidates. Then characterize the minimal create/respond/cancel/apply
+command inputs before changing the production boundary.

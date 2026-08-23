@@ -158,11 +158,15 @@ extension ShiftsFeatureViewModel {
 
     private func deliveryCalendarMutation(for context: SessionContext) -> DeliveryCalendarMutation? {
         guard let weekKey = selectedDeliveryCalendarWeekKey else { return nil }
-        if selectedDeliveryCalendarOverride != nil,
-           selectedDeliveryCalendarWeekday == defaultDeliveryDayOfWeek {
-            return .delete(weekKey: weekKey)
+        let existingOverride = selectedDeliveryCalendarOverride
+        let defaultWeekday = defaultDeliveryDayOfWeek ?? .wednesday
+        if selectedDeliveryCalendarWeekday == defaultWeekday {
+            return existingOverride == nil ? nil : .delete(weekKey: weekKey)
         }
-        guard let override = buildDeliveryCalendarOverride(
+        guard existingOverride?.deliveryDateMillis.deliveryWeekday != selectedDeliveryCalendarWeekday else {
+            return nil
+        }
+        guard let override = DeliveryCalendarOverride.weeklyException(
             weekKey: weekKey,
             weekday: selectedDeliveryCalendarWeekday,
             updatedByUserId: context.session.member.id,

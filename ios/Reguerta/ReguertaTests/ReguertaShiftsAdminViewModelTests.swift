@@ -28,7 +28,7 @@ struct ReguertaShiftsAdminViewModelTests {
     @Test func shiftsViewModelLoadsDeliveryCalendarForActiveMember() async throws {
         let regularMember = shiftMember(id: "member_1", displayName: "Carmen")
         let existingOverride = try #require(
-            buildDeliveryCalendarOverride(
+            DeliveryCalendarOverride.weeklyException(
                 weekKey: "2026-W19",
                 weekday: .friday,
                 updatedByUserId: "admin_1",
@@ -109,6 +109,57 @@ struct ReguertaShiftsAdminViewModelTests {
         #expect(overrides.isEmpty)
     }
 
+    @Test func shiftsViewModelDoesNotPersistTheDefaultWeekWithoutAnException() async {
+        let admin = adminMember(id: "admin_1", displayName: "Admin")
+        let calendarRepository = RecordingDeliveryCalendarRepository(defaultDay: .wednesday)
+        let viewModel = makeShiftsViewModel(
+            currentMember: admin,
+            members: [admin],
+            deliveryCalendarRepository: calendarRepository,
+            nowMillisProvider: { 42 }
+        )
+        await viewModel.refreshDeliveryCalendar()
+        viewModel.selectCalendarWeekForEditing("2026-W20")
+
+        await viewModel.saveDeliveryCalendarOverride()
+
+        #expect(await calendarRepository.allOverrides(environment: .develop).isEmpty)
+        let writeCallCounts = await calendarRepository.writeCallCounts()
+        #expect(writeCallCounts.upserts == 0)
+        #expect(writeCallCounts.deletes == 0)
+    }
+
+    @Test func shiftsViewModelDoesNotRewriteAnUnchangedException() async throws {
+        let admin = adminMember(id: "admin_1", displayName: "Admin")
+        let existingOverride = try #require(
+            DeliveryCalendarOverride.weeklyException(
+                weekKey: "2026-W20",
+                weekday: .friday,
+                updatedByUserId: admin.id,
+                updatedAtMillis: 1
+            )
+        )
+        let calendarRepository = RecordingDeliveryCalendarRepository(
+            defaultDay: .wednesday,
+            items: [existingOverride]
+        )
+        let viewModel = makeShiftsViewModel(
+            currentMember: admin,
+            members: [admin],
+            deliveryCalendarRepository: calendarRepository,
+            nowMillisProvider: { 42 }
+        )
+        await viewModel.refreshDeliveryCalendar()
+        viewModel.selectCalendarWeekForEditing(existingOverride.weekKey)
+
+        await viewModel.saveDeliveryCalendarOverride()
+
+        #expect(await calendarRepository.allOverrides(environment: .develop) == [existingOverride])
+        let writeCallCounts = await calendarRepository.writeCallCounts()
+        #expect(writeCallCounts.upserts == 0)
+        #expect(writeCallCounts.deletes == 0)
+    }
+
     @Test func shiftsViewModelSubmitsAdminPlanningRequestAndClearsPendingState() async {
         let admin = adminMember(id: "admin_1", displayName: "Admin")
         let planningRepository = RecordingShiftPlanningRequestRepository()
@@ -170,7 +221,7 @@ struct ReguertaShiftsAdminViewModelTests {
             assignedUserIds: [admin.id]
         )
         let existingOverride = try #require(
-            buildDeliveryCalendarOverride(
+            DeliveryCalendarOverride.weeklyException(
                 weekKey: delivery.weekKey,
                 weekday: .friday,
                 updatedByUserId: admin.id,
@@ -238,6 +289,42 @@ struct ReguertaShiftsAdminViewModelTests {
             environment.accessRootViewModel.shiftsViewModel.notificationRepository
                 is InMemoryNotificationRepository
         )
+    }
+}
+
+private actor RecordingDeliveryCalendarRepository: DeliveryCalendarRepository {
+    private let defaultDay: DeliveryWeekday
+    private var items: [String: DeliveryCalendarOverride]
+    private var upsertCallCount = 0
+    private var deleteCallCount = 0
+
+    init(defaultDay: DeliveryWeekday, items: [DeliveryCalendarOverride] = []) {
+        self.defaultDay = defaultDay
+        self.items = Dictionary(uniqueKeysWithValues: items.map { ($0.weekKey, $0) })
+    }
+
+    func defaultDeliveryDayOfWeek(environment _: SessionEnvironment) async -> DeliveryWeekday { defaultDay }
+
+    func allOverrides(environment _: SessionEnvironment) async -> [DeliveryCalendarOverride] {
+        items.values.sorted { $0.weekKey < $1.weekKey }
+    }
+
+    func upsertOverride(
+        _ override: DeliveryCalendarOverride,
+        environment _: SessionEnvironment
+    ) async -> DeliveryCalendarOverride {
+        upsertCallCount += 1
+        items[override.weekKey] = override
+        return override
+    }
+
+    func deleteOverride(weekKey: String, environment _: SessionEnvironment) async {
+        deleteCallCount += 1
+        items.removeValue(forKey: weekKey)
+    }
+
+    func writeCallCounts() -> (upserts: Int, deletes: Int) {
+        (upsertCallCount, deleteCallCount)
     }
 }
 

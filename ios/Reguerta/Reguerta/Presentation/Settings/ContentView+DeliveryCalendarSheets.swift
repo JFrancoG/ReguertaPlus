@@ -16,6 +16,15 @@ enum DeliveryCalendarAdaptiveLayoutContract {
     static func actionMaximumWidth(isAccessibilitySize: Bool) -> CGFloat? {
         isAccessibilitySize ? nil : standardActionMaximumWidth
     }
+
+    static func selectableWeekdays(
+        defaultWeekday: DeliveryWeekday,
+        selectedWeekday: DeliveryWeekday
+    ) -> [DeliveryWeekday] {
+        DeliveryWeekday.allCases.filter {
+            $0 == defaultWeekday || $0 == selectedWeekday || $0.isAllowedCalendarException
+        }
+    }
 }
 
 struct DeliveryCalendarWeekPickerSheet: View {
@@ -23,6 +32,7 @@ struct DeliveryCalendarWeekPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
     let futureWeeks: [ShiftAssignment]
     let overrides: [DeliveryCalendarOverride]
+    let defaultWeekday: DeliveryWeekday
     @Binding var selectedWeekKey: String
     @Binding var selectedWeekday: DeliveryWeekday
     let overrideEntry: DeliveryCalendarOverride?
@@ -62,6 +72,7 @@ struct DeliveryCalendarWeekPickerSheet: View {
 
                     DeliveryDayNavigationControl(
                         tokens: tokens,
+                        defaultWeekday: defaultWeekday,
                         selectedWeekday: $selectedWeekday,
                         isSaving: isSaving
                     )
@@ -115,15 +126,25 @@ struct DeliveryCalendarWeekPickerSheet: View {
 private struct DeliveryDayNavigationControl: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let tokens: ReguertaDesignTokens
+    let defaultWeekday: DeliveryWeekday
     @Binding var selectedWeekday: DeliveryWeekday
     let isSaving: Bool
 
+    private var selectableWeekdays: [DeliveryWeekday] {
+        DeliveryCalendarAdaptiveLayoutContract.selectableWeekdays(
+            defaultWeekday: defaultWeekday,
+            selectedWeekday: selectedWeekday
+        )
+    }
+
     private var canGoPrevious: Bool {
-        selectedWeekday != .monday && !isSaving
+        guard let index = selectableWeekdays.firstIndex(of: selectedWeekday) else { return false }
+        return index > 0 && !isSaving
     }
 
     private var canGoNext: Bool {
-        selectedWeekday != .sunday && !isSaving
+        guard let index = selectableWeekdays.firstIndex(of: selectedWeekday) else { return false }
+        return index < selectableWeekdays.count - 1 && !isSaving
     }
 
     var body: some View {
@@ -166,14 +187,14 @@ private struct DeliveryDayNavigationControl: View {
     }
 
     private func selectPrevious() {
-        guard let index = DeliveryWeekday.allCases.firstIndex(of: selectedWeekday), index > 0 else { return }
-        selectedWeekday = DeliveryWeekday.allCases[index - 1]
+        guard let index = selectableWeekdays.firstIndex(of: selectedWeekday), index > 0 else { return }
+        selectedWeekday = selectableWeekdays[index - 1]
     }
 
     private func selectNext() {
-        let weekdays = DeliveryWeekday.allCases
-        guard let index = weekdays.firstIndex(of: selectedWeekday), index < weekdays.count - 1 else { return }
-        selectedWeekday = weekdays[index + 1]
+        guard let index = selectableWeekdays.firstIndex(of: selectedWeekday),
+              index < selectableWeekdays.count - 1 else { return }
+        selectedWeekday = selectableWeekdays[index + 1]
     }
 
     private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
@@ -290,6 +311,7 @@ struct SettingsDeliveryCalendarSectionView: View {
             DeliveryCalendarWeekPickerSheet(
                 futureWeeks: shiftsViewModel.futureDeliveryWeeks,
                 overrides: shiftsViewModel.deliveryCalendarOverrides,
+                defaultWeekday: shiftsViewModel.defaultDeliveryDayOfWeek ?? .wednesday,
                 selectedWeekKey: selectedWeekBinding,
                 selectedWeekday: selectedWeekdayBinding,
                 overrideEntry: shiftsViewModel.selectedDeliveryCalendarOverride,

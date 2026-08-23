@@ -110,7 +110,7 @@ struct ReguertaShiftsViewModelTests {
             assignedUserIds: [currentMember.id]
         )
         let override = try #require(
-            buildDeliveryCalendarOverride(
+            DeliveryCalendarOverride.weeklyException(
                 weekKey: delivery.weekKey,
                 weekday: .friday,
                 updatedByUserId: "admin_1",

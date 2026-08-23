@@ -17,6 +17,33 @@ struct SettingsShiftsAdaptiveLayoutTests {
         #expect(DeliveryCalendarAdaptiveLayoutContract.prefersExpandedSheet(isAccessibilitySize: true))
     }
 
+    @Test func deliveryCalendarEditorUsesTheAllowedExceptionPolicy() {
+        #expect(
+            DeliveryCalendarAdaptiveLayoutContract.selectableWeekdays(
+                defaultWeekday: .wednesday,
+                selectedWeekday: .wednesday
+            ) == [.tuesday, .wednesday, .thursday, .friday]
+        )
+        #expect(
+            DeliveryCalendarAdaptiveLayoutContract.selectableWeekdays(
+                defaultWeekday: .sunday,
+                selectedWeekday: .sunday
+            ) == [.tuesday, .thursday, .friday, .sunday]
+        )
+        #expect(
+            DeliveryCalendarAdaptiveLayoutContract.selectableWeekdays(
+                defaultWeekday: .wednesday,
+                selectedWeekday: .saturday
+            ) == [.tuesday, .wednesday, .thursday, .friday, .saturday]
+        )
+        #expect(
+            DeliveryCalendarAdaptiveLayoutContract.selectableWeekdays(
+                defaultWeekday: .wednesday,
+                selectedWeekday: .wednesday
+            ).contains(.saturday) == false
+        )
+    }
+
     @Test func shiftBoardColumnReleasesItsFixedWidthForAccessibilitySizes() {
         #expect(
             ShiftsAdaptiveLayoutContract.leadingColumnWidth(for: .market, isAccessibilitySize: false) == 80

@@ -8,7 +8,7 @@ func currentISOWeekProducerParity(nowMillis: Int64 = Int64(Date().timeIntervalSi
 /// Resolves producer parity from the canonical Madrid week, independent of the device time zone.
 func producerParityForISOWeek(nowMillis: Int64) -> ProducerParity {
     let date = Date(timeIntervalSince1970: TimeInterval(nowMillis) / 1_000)
-    let week = OrderBusinessCalendar.make().component(.weekOfYear, from: date)
+    let week = BusinessCalendar.make().component(.weekOfYear, from: date)
     return week.isMultiple(of: 2) ? .even : .odd
 }
 

@@ -24,10 +24,14 @@ Instrucción del mantenedor, 2026-08-23:
 
 > Ok. Abre issue, rama y comenzamos con el siguiente paso
 
-Autoriza issue, rama, auditoría, especificación, baseline, plan, tareas, tests,
-previews y comienzo de la implementación dentro de HU-081. No autoriza commit,
-push, PR, merge, cierre, borrado de rama, datos live, despliegue Firebase ni
-cambios Google Sheets.
+Autorizó issue, rama, auditoría, especificación, baseline, plan, tareas, tests,
+previews y comienzo de la implementación dentro de HU-081. Después indicó:
+
+> ok. Haz commit y push, y comenzamos a implementar el siguiente corte
+
+Esta segunda instrucción autorizó commit/push del checkpoint Phase 1A e iniciar
+Phase 1B. No autoriza commit/push del Phase 1B todavía local, PR, merge, cierre,
+borrado de rama, datos live, despliegue Firebase ni cambios Google Sheets.
 
 ## Contexto
 
@@ -82,7 +86,7 @@ HU-079/HU-080.
 - Android; la paridad temporal queda explícita.
 - Verticales/fases posteriores, paquetes, project settings, CI, iOS/Xcode 27,
   migración amplia de tests o cierre RNF-02 fuera de los seams tocados.
-- Delivery Git/remoto hasta nueva autorización.
+- Delivery Git/remoto posterior al checkpoint Phase 1A hasta nueva autorización.
 
 ## Criterios de aceptación
 
@@ -90,7 +94,7 @@ HU-079/HU-080.
   duplicados.
 - [x] Todo socio activo carga default y excepciones de calendario, mientras
   escritura y planificación siguen siendo exclusivas de admin.
-- [ ] Overrides/ventanas son independientes del huso del dispositivo y usan
+- [x] Overrides/ventanas son independientes del huso del dispositivo y usan
   `Europe/Madrid` para cada instante empresarial.
 - [ ] Los comandos swap contienen solo inputs cliente; Functions conserva la
   autoridad de candidatos, aplicación, helpers y notificaciones.
@@ -138,17 +142,32 @@ HU-079/HU-080.
 
 ## Progreso actual
 
-- RED válido: la suite `ReguertaShiftsViewModelTests` descubrió seis tests y
-  falló solo la nueva expectativa de socia activa (`default == nil`).
-- GREEN: 27/27 en las suites focales de Shifts, Calendar, revocación y
-  autorización.
-- `fast-unit-v1`: PASS en iPhone 17 / iOS 26.5.
-- El cambio productivo elimina únicamente el gate admin de lectura; escritura
-  de calendario y planificación conservan sus gates admin.
+- Phase 1A: RED válido sobre la lectura de socia activa, GREEN focal 27/27 y
+  `fast-unit-v1` PASS. `b956f09` contiene el cambio funcional; `b491e50`
+  documenta el checkpoint y es el tip remoto verificado.
+- Phase 1B: RED válido en
+  `/tmp/reguerta-hu081-xctestrun-red.E2voNm/Result.xcresult`; el helper antiguo
+  construía milisegundos UTC en vez de instantes Madrid.
+- La implementación local centraliza `BusinessCalendar` en Domain, valida ISO
+  weeks estrictamente, usa aritmética DST-safe, limita excepciones a
+  martes/jueves/viernes y evita escrituras para default o excepción sin cambios.
+- GREEN focal: 30 tests lógicos / 46 ejecuciones concretas. La política pasa
+  5/21 tanto con `TZ=UTC` como con `TZ=America/New_York`.
+- `fast-unit-v1` final: 789 lógicos / 996 concretos, PASS en iPhone 17 / iOS
+  26.5. SwiftLint 0.61.0: 438 archivos, 0 infracciones. `git diff --check`: PASS.
+- El `ui-smoke` conjunto sigue inestable por infraestructura: Xcode informa que
+  no existe versión LLDB y termina journeys distintos con `signal term`. Cada
+  journey terminado pasó al reintentarlo aislado; no hubo fallo de aserción de
+  producto.
 - Es evidencia local: no afirma que la proyección `config/member` requerida
   exista actualmente en los entornos live.
-- Checkpoint `b956f09` publicado y verificado en la rama remota HU-081.
+- Los `Calendar.current` y formatters con timezone implícito que quedan en
+  Presentation son cortes posteriores de esta misma HU-081, no otra issue. El
+  fallback heredado de `OrderHistoryWeek` queda fuera del seam Phase 1.
+- Siguiente corte: Phase 2, empezando por el RED que prueba que un feed local
+  obsoleto no puede impedir el create autoritativo de swap.
 
 Estado: OPEN / en progreso. Issue, rama, auditoría, baseline, especificación,
-plan y tareas están activos. No se autoriza ni se afirma PR, merge, cierre,
-borrado de rama, mutación live o despliegue.
+plan y tareas están activos. Phase 1B sigue local y sin commit/push. No se
+autoriza ni se afirma PR, merge, cierre, borrado de rama, mutación live o
+despliegue.

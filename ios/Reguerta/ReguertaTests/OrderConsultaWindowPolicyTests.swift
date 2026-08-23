@@ -107,7 +107,7 @@ struct OrderConsultaWindowPolicyTests {
         )
 
         #expect(parityPolicySource.contains("func producerParityForISOWeek"))
-        #expect(parityPolicySource.contains("OrderBusinessCalendar.make()"))
+        #expect(parityPolicySource.contains("BusinessCalendar.make()"))
         #expect(!parityPolicySource.contains(".current"))
         #expect(!presentationSource.contains("func producerParityForISOWeek"))
         #expect(boundaryMillis.isoWeekKey == "2026-W29")
