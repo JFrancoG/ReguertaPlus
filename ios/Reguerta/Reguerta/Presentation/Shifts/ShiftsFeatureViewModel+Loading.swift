@@ -72,7 +72,7 @@ extension ShiftsFeatureViewModel {
     }
 
     func refreshDeliveryCalendar(recoversInitialFailure: Bool = false) async {
-        guard let context = authorizedSessionContext, context.session.member.isAdmin else {
+        guard let context = authorizedSessionContext else {
             resetDeliveryCalendar()
             return
         }

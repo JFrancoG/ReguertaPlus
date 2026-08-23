@@ -95,8 +95,8 @@ struct ReguertaShiftsViewModelTests {
         #expect(viewModel.nextMarketShift == nil)
     }
 
-    @Test func shiftsViewModelFiltersBoardSegmentAndAppliesDeliveryCalendarOverrides() async {
-        let currentMember = adminMember(id: "admin_1", displayName: "Admin")
+    @Test func shiftsViewModelFiltersBoardSegmentAndAppliesDeliveryCalendarOverrides() async throws {
+        let currentMember = shiftMember(id: "member_1", displayName: "Carmen")
         let delivery = shift(
             id: "delivery",
             type: .delivery,
@@ -109,16 +109,16 @@ struct ReguertaShiftsViewModelTests {
             dateMillis: testMillis(year: 2026, month: 5, day: 8),
             assignedUserIds: [currentMember.id]
         )
-        let override = buildDeliveryCalendarOverride(
-            weekKey: delivery.weekKey,
-            weekday: .friday,
-            updatedByUserId: currentMember.id,
-            updatedAtMillis: 10
+        let override = try #require(
+            buildDeliveryCalendarOverride(
+                weekKey: delivery.weekKey,
+                weekday: .friday,
+                updatedByUserId: "admin_1",
+                updatedAtMillis: 10
+            )
         )
         let calendarRepository = InMemoryDeliveryCalendarRepository(defaultDay: .wednesday)
-        if let override {
-            _ = await calendarRepository.upsertOverride(override, environment: .develop)
-        }
+        _ = await calendarRepository.upsertOverride(override, environment: .develop)
         let viewModel = makeShiftsViewModel(
             currentMember: currentMember,
             members: [currentMember],
@@ -130,6 +130,8 @@ struct ReguertaShiftsViewModelTests {
         await viewModel.refreshShifts()
         await viewModel.refreshDeliveryCalendar()
 
+        #expect(viewModel.defaultDeliveryDayOfWeek == .wednesday)
+        #expect(viewModel.deliveryCalendarOverrides == [override])
         #expect(viewModel.visibleShifts.map(\.id) == [delivery.id])
         #expect(viewModel.effectiveDateMillis(for: delivery).deliveryWeekday == .friday)
 

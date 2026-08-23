@@ -1,0 +1,230 @@
+# HU-081 - Consolidate the iOS Shifts/Planning/Swaps/Delivery Calendar/Settings slice
+
+## Metadata
+
+- issue_id: #264
+- priority: P1
+- platform: ios
+- status: in_progress
+- plan_state: approved
+- branch: `codex/hu-081-ios-shifts-planning-swaps-delivery-calendar-settings`
+- base: `35a874288e3844d9c3d88abbaa39e2fb6fef42b2`
+
+## Authorization and delivery boundary
+
+The maintainer activated the third Phase 6 slice on 2026-08-23 with:
+
+> Ok. Abre issue, rama y comenzamos con el siguiente paso
+
+This authorizes issue, branch, audit, specification, baseline, plan, tasks,
+tests, previews, and in-scope implementation. It does not authorize commit,
+push, pull request, merge, issue closure, branch deletion, live-data mutation,
+Firebase deployment, or Google Sheets changes.
+
+## Context and problem
+
+Phase 6 modernizes one vertical slice at a time. HU-079 closed Auth/session and
+HU-080 closed Products/Orders/Home/Freshness. HU-081 owns the existing iOS
+Shifts, Planning, Swaps, Delivery Calendar, and Settings implementation without
+reopening their delivered product behavior or the preceding session/runtime
+contracts.
+
+The primary slice contains 30 Swift files and 4,244 lines across Domain, Data,
+App, Shifts Presentation, and Settings Presentation. Its directly supporting
+localization, preview gallery, and develop-time seams bring the activation
+surface to 36 files and 5,885 lines. Size is only an audit signal; executable
+defects and ownership contracts determine every cut.
+
+## Source-backed activation defects
+
+### P1 - active members do not load Delivery Calendar exceptions
+
+`refreshDeliveryCalendar` currently resets calendar state unless the authorized
+member is an admin. That contradicts both the Firestore contract, which permits
+every active member to read `deliveryCalendar`, and HU-042, which requires the
+effective exception date to be visible to members. `My Order`, `Received
+Orders`, and Home consume this shared state for every authorized session, so a
+regular member silently falls back to Wednesday and an empty exception set.
+
+The first RED must prove that an active regular member loads the default and
+weekly exceptions while calendar mutation and planning remain admin-only.
+
+### P1 - Delivery Calendar uses the device timezone
+
+`Presentation/Settings/DeliveryCalendarSupport.swift` derives ISO week starts,
+delivery dates, blocked dates, and order-window timestamps with
+`Calendar.current` and `TimeZone.current`. `ShiftAssignment.weekKey` and the
+Orders consumers use the canonical Madrid business calendar. A device outside
+Madrid can therefore write different milliseconds for the same `weekKey`,
+which Orders later interprets in Madrid.
+
+The next Calendar RED must prove that override construction is independent of
+the device timezone and that the resulting delivery/block/open/close instants
+use the shared `Europe/Madrid` authority.
+
+### P1 - stale client data can deny a swap owned by Functions
+
+The client computes candidates from its current `shiftsFeed` and refuses to
+call the repository when that local snapshot has no candidates. The
+`transitionShiftSwap` Function is the authoritative transaction: it rereads
+all shifts and active members, validates ownership/timing, computes candidates,
+applies swaps, recomputes helpers, and creates notifications. A stale client
+feed can reject a request that the backend would accept.
+
+`ShiftSwapTransition` also transports complete `ShiftSwapRequest` values even
+though Data serializes only action-specific identifiers, reason, candidate, or
+response fields and Functions ignores client-side mutations. HU-081 must make
+the command boundary truthful without changing the existing Function contract.
+
+### P2 - business policy and infrastructure ownership leak into Presentation
+
+Candidate projection, member replacement, helper recomputation, and Delivery
+Calendar window construction live in Presentation. Some are useful local
+display projections, while the authoritative mutation belongs to Functions.
+Each operation must be classified before moving it: Domain owns reusable client
+policy; Data maps transport commands; Presentation coordinates UI state and
+must not pretend to own backend authority.
+
+### P2 - asynchronous ownership is incomplete
+
+`ShiftsFeatureViewModel` owns five repositories, session/environment context,
+roughly forty state and generation slots, refresh, swaps, planning, calendar,
+display, and feedback. Several cancel-and-replace effects are launched through
+unretained `Task` values. Operation IDs prevent some stale publication but do
+not physically cancel I/O or bind its lifetime to one owner.
+
+The slice may introduce cohesive Stores only when tests demonstrate an
+independent state/operation lifetime. The ViewModel remains a facade where that
+keeps View composition simpler; no split is justified by file length alone.
+
+### P2 - dead dependency and missing executable UI evidence
+
+`notificationRepository` is injected into the Shifts graph but unused; Functions
+already write the swap notifications transactionally. There are no XCUITest
+journeys for Shifts, Planning, Swaps, Delivery Calendar, or Settings, and the
+preview gallery lacks swap and mutation-state coverage.
+
+## Authoritative inherited contracts
+
+- RF-TURN-01...07: global/next shifts, active-member planning, rotation,
+  swaps, notifications, and minimum market staffing.
+- RF-CAL-01...05: admin-only future changes, recomputed order windows,
+  `weekKey` identity, exception-only persistence, and mandatory default.
+- RNF-02: business-time consistency with `Europe/Madrid` for this slice.
+- HU-020/HU-041/HU-042/HU-063: Sheets-backed data, segmented board, helper
+  semantics, member-visible effective Calendar exceptions, and existing
+  presentation behavior.
+- HU-066: appearance, producer unavailable mode, admin tools, impersonation,
+  and develop-time controls.
+- ADR-0004/0008/0011/0012 plus HU-079/HU-080: composition, session fences,
+  strict Swift 6 ownership, nonisolated module policy, and runtime context.
+- Existing `transitionShiftSwap` Function: backend-authoritative candidate,
+  participant, timing, swap, helper, and notification transaction.
+
+## In scope
+
+- Global and next shifts, segmented board, display projections, and refresh.
+- Delivery/market planning request submission and status ownership.
+- Swap create/respond/cancel/apply command flow and acknowledgement state.
+- Delivery Calendar default, overrides, editor, and order-window calculation.
+- Settings sections that consume Shifts/Calendar/Products/session/develop time.
+- Domain policies, truthful repository commands, Data mappings, App composition,
+  Presentation owners, and selective semantic DocC.
+- Deterministic Swift Testing, focused UI, previews, localization,
+  accessibility, motion, and adaptive layout for the affected surface.
+
+## Out of scope
+
+- New shift rules, post-publication absence policy, permission redesign, or a
+  new product workflow.
+- Firestore schema, Functions behavior, Rules, backfills, Google Sheets writes,
+  live data, deploys, or closure of HU-070/#198.
+- Android implementation. The temporary parity gap remains explicit and a
+  future Android slice must use native Compose/state ownership.
+- Live presence/read-back of `config/member.deliveryDayOfWeek`. The member-safe
+  projection is required by the current repository and Rules contract, but
+  seed, canary, and live validation remain owned by HU-022/HU-070.
+- News/Notifications, Users/Shared Profile, Bylaws/Startup/Media, or later
+  modernization phases.
+- Packages, project settings, CI, iOS/Xcode 27, broad test migration, or global
+  RNF-02 closure outside the touched Shifts/Calendar/Settings seams.
+
+## Preserved contracts
+
+1. Only a live authorized session may read or mutate the active environment.
+2. Every active member may read the Delivery Calendar used by member-facing
+   order surfaces; calendar mutation and planning remain admin-only before any
+   generation mutation or repository I/O.
+3. The backend remains the authority for swap eligibility and application;
+   local projections may guide UX but cannot falsely deny an authoritative
+   request because their snapshot is stale.
+4. Every mutation sends only the command fields the backend owns and accepts.
+5. A cancelled or superseded operation cannot publish, clear, or clean up a
+   successor; physical cancellation is used where the owner controls the task.
+6. Delivery Calendar writes one Madrid-derived exception for a changed week;
+   returning to the default deletes the redundant exception.
+7. Appearance and develop time remain device-level/root-owned; producer
+   unavailable mode continues through the Products owner rather than a second
+   Settings persistence path.
+8. No new live Firebase or Google Sheets operation is executed by tests or
+   previews.
+
+## Acceptance criteria
+
+- [x] HU-081, issue #264, branch, base, profile, and initial inventory are
+  resolved without a duplicate execution item.
+- [x] An active regular member loads the Calendar default and weekly
+  exceptions, while calendar mutation and planning remain admin-only.
+- [ ] Delivery Calendar override/window construction is deterministic across
+  device timezones and uses `Europe/Madrid` for every business instant.
+- [ ] Swap commands express only create/respond/cancel/apply inputs owned by the
+  client; Functions remains the authoritative candidate/application owner.
+- [ ] A stale local candidate projection cannot prevent a valid backend create;
+  backend no-candidate failure maps to specific, localized feedback.
+- [ ] Reusable client business policies live in Domain, transport mapping lives
+  in Data, and Presentation contains no backend-authoritative mutation logic.
+- [ ] Feed, swaps, planning, and calendar operations have cohesive owners,
+  retained cancellation where contractual, successor fences, and owner-only
+  cleanup covered by deterministic tests.
+- [ ] Session, member, role, environment, route, and revision checks occur
+  before generation mutation, repository I/O, or state publication.
+- [ ] The unused Shifts notification dependency is removed without changing
+  the Function-owned notification behavior.
+- [ ] Appearance, unavailable mode, impersonation, develop time, planning,
+  swaps, and Delivery Calendar preserve inherited behavior.
+- [ ] Affected SwiftUI is localized and adaptive with deterministic
+  loading/empty/content/error/mutation/role previews.
+- [ ] Focused member/admin UI journeys and the required phone/iPad, Dynamic
+  Type, color, contrast, VoiceOver, Voice Control, and Reduce Motion matrix pass.
+- [ ] Focused cohorts, canonical `fast-unit`, applicable `ui-smoke`, definitive
+  `release-gate`, SwiftLint, settings 6/6, Debug, Production Release, layer and
+  concurrency guards, and `git diff --check` pass on the frozen final tree.
+- [ ] Android parity, HU-070/#198, later verticals, inherited skips, and all
+  accepted residual debt are recorded without claiming out-of-scope closure.
+
+## Validation contract
+
+- Project: `ios/Reguerta/Reguerta.xcodeproj`
+- Scheme: `Reguerta`
+- Destination: `platform=iOS Simulator,name=iPhone 17,OS=26.5`
+- Implementation plan: `fast-unit-v1`
+- Closure runners:
+  - `./scripts/validate-ios.sh fast-unit --destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5'`
+  - `./scripts/validate-ios.sh ui-smoke --destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5'`
+  - `./scripts/validate-ios.sh release-gate --destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5'`
+- Focused Swift Testing and XCUITest selectors are recorded before each RED.
+- No infrastructure/setup failure counts as behavioral RED or GREEN evidence.
+
+## Delivery state
+
+The first production cut is GREEN. The valid RED ran the six-test
+`ReguertaShiftsViewModelTests` suite and failed only the new member Calendar
+expectation because `defaultDeliveryDayOfWeek` was `nil`. Removing only the
+admin condition from the Calendar read guard made the 27-test Shifts/Calendar/
+authorization cohort pass; canonical `fast-unit-v1` also passed on iPhone 17,
+iOS 26.5. Calendar mutation and planning guards remain unchanged and covered.
+This is local client evidence only; it does not claim that either live
+environment currently contains the required `config/member` projection.
+
+HU-081 remains active. No commit, push, pull request, merge, issue closure,
+branch deletion, live mutation, or deployment is authorized or claimed.
