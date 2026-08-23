@@ -553,6 +553,7 @@ story. HU-080 aligns the Orders/Home/Shift-week/producer-parity seams it touches
 with `Europe/Madrid`; inherited RNF-02 debt in Settings/Shifts and other
 verticals remains out of scope, so no global timezone closure is claimed. The
 final independent post-focus audit reports no P0-P3 finding in HU-080's changed
-surface. The final physical focus retest passes. Status stays `in_progress`
-solely because commit, push, PR, merge, and issue closure are pending and have
-not been authorized.
+surface. The final physical focus retest passes. Status is `ready_for_merge`;
+the maintainer authorized commit, push, ready PR, merge, issue closure, branch
+cleanup, and local integration on 2026-08-23. Live Firebase/backend mutation
+remains out of scope and is not required.

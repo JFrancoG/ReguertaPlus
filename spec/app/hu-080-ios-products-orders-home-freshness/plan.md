@@ -2,10 +2,13 @@
 
 ## State
 
-- status: in_progress
+- status: ready_for_merge
 - plan_state: approved
 - issue: #262
 - branch: `codex/hu-080-ios-products-orders-home-freshness`
+- delivery: commit, push, ready PR, merge, issue closure, branch cleanup, and
+  local integration authorized on 2026-08-23; live Firebase/backend mutation
+  remains out of scope.
 
 ## Delivery principles
 
@@ -232,8 +235,7 @@ is deferred rather than mixed into this fix.
 - Record Android parity and HU-070/#198 as residuals.
 
 Status: local implementation and validation are complete on the final frozen
-tree. The story remains `in_progress` solely because commit, push, PR, merge,
-and issue closure have not been authorized.
+tree. The story is `ready_for_merge`; remote merge and closure are authorized.
 
 - Products: 70 logical/73 concrete, all passed.
 - Last dedicated Home/Freshness/Orders cohort: 147/147 passed.
@@ -324,7 +326,7 @@ and 76,713 lines in total, a +24-file/+3,689-line delta from the activation
 baseline of 413 files/73,024 lines. The definitive release gate establishes
 791 logical responsibilities and 985 concrete executions.
 
-The story remains `in_progress` solely because Git delivery is pending and not
+The story is `ready_for_merge`; the complete repository delivery flow is
 authorized. All local implementation, physical acceptance, validation,
 inventory, and five-artifact reconciliation work is complete.
 Android parity, HU-070/#198 live work,

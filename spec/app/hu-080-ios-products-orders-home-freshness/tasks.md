@@ -162,14 +162,16 @@
 - [x] Final frozen counts, release evidence, inherited skips, and independent
   review with no P0-P3 finding are reconciled.
 
-## Delivery
+## Delivery gates
 
-- [ ] Obtain explicit authorization for commit/push/PR/merge/closure.
-- [ ] Create focused Conventional Commit(s).
-- [ ] Push and verify upstream SHA.
-- [ ] Open ready PR with validation evidence.
-- [ ] Review CI and independent findings; remediate before merge.
-- [ ] Merge only after authorization and green gates.
-- [ ] Close issue #262 and clean up the branch only after confirmed merge.
+- [x] Commit authorized.
+- [x] Push authorized.
+- [x] Ready PR authorized.
+- [x] Merge authorized for definitive closure.
+- [x] Issue closure authorized.
+- [x] Branch deletion and local integration authorized.
+- [x] Firebase/backend deployment explicitly not applicable.
 
-No delivery action in this section is authorized by the activation instruction.
+Current delivery state: ready for merge. The complete repository delivery flow
+is authorized as of 2026-08-23. Remote PR and merge identifiers remain GitHub
+delivery evidence rather than speculative values in this commit.

@@ -167,6 +167,7 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-08-23 | 📝 docs(hu-080): record delivery authorization
 - 2026-08-21 | 📝 docs(hu-079): record delivery authorization
 - 2026-08-21 | 📝 docs(hu-078): record delivery authorization
 - 2026-08-19 | 📝 docs(hu-077): record final delivery

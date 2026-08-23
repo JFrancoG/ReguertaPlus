@@ -5,7 +5,7 @@
 - issue_id: #262
 - priority: P1
 - platform: ios
-- status: in_progress
+- status: ready_for_merge
 - plan_state: approved
 - branch: `codex/hu-080-ios-products-orders-home-freshness`
 - base: `5c511dda9aeb3dab182888733cf972847a91b97a`
@@ -20,6 +20,16 @@ This authorizes the issue, branch, specification, baseline, plan, tasks, tests,
 previews, and in-scope implementation. It does not authorize commit, push, pull
 request, merge, issue closure, branch deletion, live-data mutation, or Firebase
 deployment.
+
+On 2026-08-23, after the completed physical acceptance and definitive release
+gate, the maintainer authorized the complete repository delivery flow:
+
+> Teniamos que hacer commit, push, lanzar PR y cerrar issue y rama.
+
+This authorizes the focused commits, branch publication, ready pull request,
+merge required for closure, issue closure, branch deletion, and local
+integration. Live-data mutation and Firebase/backend deployment remain outside
+HU-080 and are not required by this delivery.
 
 ## Context and problem
 
@@ -576,11 +586,11 @@ or totals, and normalizes bad measure quantities safely.
 
 ## Delivery state
 
-HU-080 is active and remains in progress solely because Git delivery has not
-been authorized. The post-manual implementation, physical acceptance,
+HU-080 is `ready_for_merge`. The post-manual implementation, physical acceptance,
 post-focus cohorts, canonical `fast-unit`, focused navigation UI, `ui-smoke`,
 definitive frozen-tree `release-gate`, rendered preview, SwiftLint, settings,
 Debug and Production Release builds, closure guards, final inventory, and
 five-artifact reconciliation are complete and green.
-Issue #262 and the local branch exist. No commit, push, PR, merge, issue
-closure, live mutation, or deployment is authorized or claimed.
+Source commit `812be29` records the implementation and initial evidence. Issue
+#262 remains open only until the authorized remote merge and closure are
+definitive. Live mutation and deployment remain out of scope.

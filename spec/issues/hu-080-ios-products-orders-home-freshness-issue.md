@@ -4,7 +4,7 @@
 
 - GitHub issue: #262
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/262
-- State: OPEN / in progress
+- State: OPEN / ready for merge
 - Branch: `codex/hu-080-ios-products-orders-home-freshness`
 - Base: `5c511dda9aeb3dab182888733cf972847a91b97a`
 
@@ -24,6 +24,16 @@ Instrucción del mantenedor, 2026-08-21:
 Autoriza issue, rama, especificación, baseline, plan, tareas, tests, previews e
 implementación dentro de HU-080. No autoriza commit, push, PR, merge, cierre,
 borrado de rama, datos live ni despliegue Firebase/backend.
+
+Instrucción posterior del mantenedor, 2026-08-23, tras completar la aceptación
+física y el `release-gate` definitivo:
+
+> Teniamos que hacer commit, push, lanzar PR y cerrar issue y rama.
+
+Autoriza commits focalizados, publicación de la rama, PR lista, el merge
+necesario para el cierre, cierre de #262, borrado de la rama e integración
+local. Los datos live y el despliegue Firebase/backend siguen fuera de HU-080 y
+no son necesarios para esta entrega.
 
 ## Problemas iniciales demostrados
 
@@ -382,8 +392,9 @@ final no deja hallazgos P0-P3 en la superficie HU-080 modificada.
 - `spec/app/hu-080-ios-products-orders-home-freshness/plan.md`
 - `spec/app/hu-080-ios-products-orders-home-freshness/tasks.md`
 
-Estado: OPEN / in progress únicamente porque el delivery Git no está
-autorizado. Implementación, aceptación física, focales, `fast-unit`, UI,
-preview, `release-gate`, SwiftLint, settings, builds, guards, inventario y
-reconciliación documental están completos y verdes. Sin commit, push, PR,
-merge, cierre ni mutación live.
+Estado: OPEN / ready for merge. Implementación, aceptación física, focales,
+`fast-unit`, UI, preview, `release-gate`, SwiftLint, settings, builds, guards,
+inventario y reconciliación documental están completos y verdes. El commit
+fuente `812be29` está creado y el delivery remoto completo está autorizado. La
+issue permanece abierta solo hasta que merge y cierre sean definitivos; no se
+autoriza ni necesita mutación live.
