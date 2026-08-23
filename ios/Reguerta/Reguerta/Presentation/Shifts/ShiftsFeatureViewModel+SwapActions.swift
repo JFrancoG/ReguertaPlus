@@ -33,14 +33,17 @@ extension ShiftsFeatureViewModel {
         let result: ShiftSwapTransitionResult
         do {
             result = try await shiftSwapRequestRepository.transition(
-                .create(request: submission.request),
+                .create(
+                    requestedShiftId: submission.requestedShiftId,
+                    reason: submission.reason
+                ),
                 environment: context.environment
             )
         } catch is CancellationError {
             return false
         } catch {
             if isCurrentSession(context) {
-                feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
+                showShiftSwapError(error)
             }
             return false
         }
@@ -70,34 +73,20 @@ extension ShiftsFeatureViewModel {
     func cancelShiftSwapRequest(requestId: String) async {
         guard let context = authorizedSessionContext,
               !acknowledgedShiftSwapRequestIds.contains(requestId),
-              let request = shiftSwapRequests.first(where: { $0.id == requestId }) else { return }
+              shiftSwapRequests.contains(where: { $0.id == requestId }) else { return }
         guard let mutationOperationId = beginSwapMutation() else { return }
-        let cancelled = ShiftSwapRequest(
-                id: request.id,
-                requestedShiftId: request.requestedShiftId,
-                requesterUserId: request.requesterUserId,
-                reason: request.reason,
-                status: .cancelled,
-                candidates: request.candidates,
-                responses: request.responses,
-                selectedCandidateUserId: request.selectedCandidateUserId,
-                selectedCandidateShiftId: request.selectedCandidateShiftId,
-                requestedAtMillis: request.requestedAtMillis,
-                confirmedAtMillis: request.confirmedAtMillis,
-                appliedAtMillis: request.appliedAtMillis
-        )
         defer { finishSwapMutation(mutationOperationId) }
         let result: ShiftSwapTransitionResult
         do {
             result = try await shiftSwapRequestRepository.transition(
-                .cancel(request: cancelled),
+                .cancel(requestId: requestId),
                 environment: context.environment
             )
         } catch is CancellationError {
             return
         } catch {
             if isCurrentSwapMutation(mutationOperationId, context: context) {
-                feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
+                showShiftSwapError(error)
             }
             return
         }
@@ -109,27 +98,24 @@ extension ShiftsFeatureViewModel {
     func confirmShiftSwapRequest(requestId: String, candidateShiftId: String) {
         guard let sessionContext = authorizedSessionContext,
               !acknowledgedShiftSwapRequestIds.contains(requestId),
-              let context = confirmShiftSwapContext(
-            requestId: requestId,
-            candidateShiftId: candidateShiftId
-        ) else { return }
+              let request = shiftSwapRequests.first(where: { $0.id == requestId }),
+              request.requesterUserId == sessionContext.session.member.id,
+              request.candidates.contains(where: { $0.shiftId == candidateShiftId }) else { return }
         guard let mutationOperationId = beginSwapMutation() else { return }
 
         Task { @MainActor in
             defer { finishSwapMutation(mutationOperationId) }
-            let now = nowMillisProvider()
-            let updatedRequest = appliedShiftSwapRequest(from: context.request, candidate: context.candidate, now: now)
             let result: ShiftSwapTransitionResult
             do {
                 result = try await shiftSwapRequestRepository.transition(
-                    .apply(request: updatedRequest, candidateShiftId: candidateShiftId),
+                    .apply(requestId: requestId, candidateShiftId: candidateShiftId),
                     environment: sessionContext.environment
                 )
             } catch is CancellationError {
                 return
             } catch {
                 if isCurrentSwapMutation(mutationOperationId, context: sessionContext) {
-                    feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
+                    showShiftSwapError(error)
                 }
                 return
             }
@@ -149,32 +135,10 @@ private extension ShiftsFeatureViewModel {
                 shift,
                 currentMemberId: context.session.member.id
               ) else { return nil }
-        let candidates = shift.swapCandidates(
-            allShifts: shiftsFeed,
-            requesterUserId: context.session.member.id,
-            nowMillis: nowMillisProvider()
-        )
-        guard !candidates.isEmpty else {
-            feedbackCenter.show(AccessL10nKey.feedbackShiftSwapNoCandidates)
-            return nil
-        }
         return ShiftSwapCreateSubmission(
             draft: draft,
             requestedShiftId: shift.id,
-            request: ShiftSwapRequest(
-                id: "",
-                requestedShiftId: shift.id,
-                requesterUserId: context.session.member.id,
-                reason: draft.reason.trimmingCharacters(in: .whitespacesAndNewlines),
-                status: .open,
-                candidates: candidates,
-                responses: [],
-                selectedCandidateUserId: nil,
-                selectedCandidateShiftId: nil,
-                requestedAtMillis: nowMillisProvider(),
-                confirmedAtMillis: nil,
-                appliedAtMillis: nil
-            )
+            reason: draft.reason.trimmingCharacters(in: .whitespacesAndNewlines)
         )
     }
 
@@ -197,18 +161,11 @@ private extension ShiftsFeatureViewModel {
         guard let mutationOperationId = beginSwapMutation() else { return }
         Task { @MainActor in
             defer { finishSwapMutation(mutationOperationId) }
-            let now = nowMillisProvider()
-            let updatedRequest = shiftSwapResponseRequest(
-                request: request,
-                candidate: candidate,
-                responseStatus: responseStatus,
-                respondedAtMillis: now
-            )
             let result: ShiftSwapTransitionResult
             do {
                 result = try await shiftSwapRequestRepository.transition(
                     .respond(
-                        request: updatedRequest,
+                        requestId: requestId,
                         candidateShiftId: candidateShiftId,
                         response: responseStatus
                     ),
@@ -218,7 +175,7 @@ private extension ShiftsFeatureViewModel {
                 return
             } catch {
                 if isCurrentSwapMutation(mutationOperationId, context: context) {
-                    feedbackCenter.show(AccessL10nKey.feedbackUnableSaveChanges)
+                    showShiftSwapError(error)
                 }
                 return
             }
@@ -232,84 +189,28 @@ private extension ShiftsFeatureViewModel {
         }
     }
 
-    func shiftSwapResponseRequest(
-        request: ShiftSwapRequest,
-        candidate: ShiftSwapCandidate,
-        responseStatus: ShiftSwapResponseStatus,
-        respondedAtMillis: Int64
-    ) -> ShiftSwapRequest {
-        let updatedResponses = request.responses
-            .filter { !($0.userId == candidate.userId && $0.shiftId == candidate.shiftId) }
-            + [ShiftSwapResponse(
-                userId: candidate.userId,
-                shiftId: candidate.shiftId,
-                status: responseStatus,
-                respondedAtMillis: respondedAtMillis
-            )]
-        return ShiftSwapRequest(
-            id: request.id,
-            requestedShiftId: request.requestedShiftId,
-            requesterUserId: request.requesterUserId,
-            reason: request.reason,
-            status: request.status,
-            candidates: request.candidates,
-            responses: updatedResponses.sorted { $0.respondedAtMillis > $1.respondedAtMillis },
-            selectedCandidateUserId: request.selectedCandidateUserId,
-            selectedCandidateShiftId: request.selectedCandidateShiftId,
-            requestedAtMillis: request.requestedAtMillis,
-            confirmedAtMillis: request.confirmedAtMillis,
-            appliedAtMillis: request.appliedAtMillis
-        )
-    }
-
-    func confirmShiftSwapContext(requestId: String, candidateShiftId: String) -> ConfirmShiftSwapContext? {
-        guard let session = authorizedSession else { return nil }
-        guard let request = shiftSwapRequests.first(where: { $0.id == requestId }) else {
-            return nil
-        }
-        guard let requestedShift = shiftsFeed.first(where: { $0.id == request.requestedShiftId }) else {
-            return nil
-        }
-        guard let candidate = request.candidates.first(where: { $0.shiftId == candidateShiftId }) else {
-            return nil
-        }
-        guard let candidateShift = shiftsFeed.first(where: { $0.id == candidate.shiftId }) else {
-            return nil
-        }
-
-        return ConfirmShiftSwapContext(
-            session: session,
-            request: request,
-            requestedShift: requestedShift,
-            candidate: candidate,
-            candidateShift: candidateShift
-        )
-    }
-
     func refreshShiftSwapState(for context: SessionContext) async {
         guard isCurrentSession(context) else { return }
         await refreshShifts()
     }
 
-    func appliedShiftSwapRequest(
-        from request: ShiftSwapRequest,
-        candidate: ShiftSwapCandidate,
-        now: Int64
-    ) -> ShiftSwapRequest {
-        ShiftSwapRequest(
-            id: request.id,
-            requestedShiftId: request.requestedShiftId,
-            requesterUserId: request.requesterUserId,
-            reason: request.reason,
-            status: .applied,
-            candidates: request.candidates,
-            responses: request.responses,
-            selectedCandidateUserId: candidate.userId,
-            selectedCandidateShiftId: candidate.shiftId,
-            requestedAtMillis: request.requestedAtMillis,
-            confirmedAtMillis: now,
-            appliedAtMillis: now
-        )
+    func showShiftSwapError(_ error: any Error) {
+        let messageKey: String
+        switch error as? ShiftSwapCommandError {
+        case .noCandidates:
+            messageKey = AccessL10nKey.feedbackShiftSwapNoCandidates
+        case .permissionDenied:
+            messageKey = AccessL10nKey.feedbackShiftSwapPermissionDenied
+        case .conflict:
+            messageKey = AccessL10nKey.feedbackShiftSwapConflict
+        case .unavailable:
+            messageKey = AccessL10nKey.feedbackShiftSwapUnavailable
+        case .invalidData:
+            messageKey = AccessL10nKey.feedbackShiftSwapInvalidData
+        case .unknown, .none:
+            messageKey = AccessL10nKey.feedbackUnableSaveChanges
+        }
+        feedbackCenter.show(messageKey)
     }
 
     func beginSwapMutation() -> UInt64? {

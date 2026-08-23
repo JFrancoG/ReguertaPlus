@@ -84,7 +84,6 @@ private func makePureAppRootAssemblyDependencies(
         ),
         orders: .preview(nowMillisProvider: collaborators.nowMillisProvider),
         shifts: .preview(
-            notificationRepository: collaborators.notificationRepository,
             nowMillisProvider: collaborators.nowMillisProvider,
             environmentProvider: { collaborators.environmentStore.snapshot().environment }
         ),

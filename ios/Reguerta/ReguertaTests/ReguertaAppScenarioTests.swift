@@ -180,10 +180,6 @@ struct ReguertaAppScenarioTests {
                     rootViewModel.myOrderFreshnessViewModel.criticalDataFreshnessLocalRepository as AnyObject
             )
             #expect(
-                rootViewModel.shiftsViewModel.notificationRepository as AnyObject ===
-                    rootViewModel.newsNotificationsViewModel.notificationRepository as AnyObject
-            )
-            #expect(
                 rootViewModel.productsViewModel.imagePipelineManager as AnyObject ===
                     rootViewModel.newsNotificationsViewModel.imagePipelineManager as AnyObject
             )
@@ -355,7 +351,7 @@ struct ReguertaAppCompositionBoundaryTests {
         )
         #expect(source.occurrenceCount(of: "repository: dependencies.memberRepository") == 2)
         #expect(source.occurrenceCount(of: "authorizedDeviceRegistrar: dependencies.authorizedDeviceRegistrar") == 1)
-        #expect(source.occurrenceCount(of: "notificationRepository: dependencies.notificationRepository") == 2)
+        #expect(source.occurrenceCount(of: "notificationRepository: dependencies.notificationRepository") == 1)
         #expect(source.occurrenceCount(of: "imagePipelineManager: dependencies.imagePipelineManager") == 3)
         #expect(source.occurrenceCount(of: "environmentProvider: dependencies.environmentStore") == 2)
         #expect(source.occurrenceCount(of: "environmentRouter: dependencies.environmentRouter") == 1)

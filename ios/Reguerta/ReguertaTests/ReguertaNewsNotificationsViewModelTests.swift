@@ -327,8 +327,7 @@ struct ReguertaNewsNotificationsViewModelTests {
         #expect(viewModel.isNotificationSendConfirmationPresented == false)
     }
 
-    @Test
-    func previewEnvironmentUsesInMemoryNewsNotificationsDependenciesAndSharesNotificationRepository() async throws {
+    @Test func previewEnvironmentUsesInMemoryNewsNotificationsDependencies() {
         let environment = ReguertaAppEnvironment.preview()
 
         #expect(
@@ -342,14 +341,10 @@ struct ReguertaNewsNotificationsViewModelTests {
                 is NoOpImagePipelineManager
         )
 
-        let newsRepository = try #require(
-            environment.accessRootViewModel.newsNotificationsViewModel.notificationRepository as?
-                InMemoryNotificationRepository
+        #expect(
+            environment.accessRootViewModel.newsNotificationsViewModel.notificationRepository
+                is InMemoryNotificationRepository
         )
-        let shiftsRepository = try #require(
-            environment.accessRootViewModel.shiftsViewModel.notificationRepository as? InMemoryNotificationRepository
-        )
-        #expect(newsRepository === shiftsRepository)
     }
 }
 

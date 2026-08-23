@@ -8,7 +8,6 @@ func makeShiftsViewModel(
     shiftSwapRequestRepository: (any ShiftSwapRequestRepository)? = nil,
     shiftPlanningRequestRepository: (any ShiftPlanningRequestRepository)? = nil,
     deliveryCalendarRepository: (any DeliveryCalendarRepository)? = nil,
-    notificationRepository: (any NotificationRepository)? = nil,
     nowMillisProvider: @escaping @MainActor () -> Int64 = { 0 },
     environmentProvider: @escaping @MainActor () -> ReguertaFirestoreEnvironment = { .develop }
 ) -> ShiftsFeatureViewModel {
@@ -27,7 +26,6 @@ func makeShiftsViewModel(
         shiftSwapRequestRepository: shiftSwapRequestRepository ?? InMemoryShiftSwapRequestRepository(),
         shiftPlanningRequestRepository: shiftPlanningRequestRepository ?? RecordingShiftPlanningRequestRepository(),
         deliveryCalendarRepository: deliveryCalendarRepository ?? InMemoryDeliveryCalendarRepository(),
-        notificationRepository: notificationRepository ?? RecordingNotificationRepository(),
         nowMillisProvider: nowMillisProvider,
         environmentProvider: environmentProvider
     )
@@ -124,41 +122,6 @@ final class TestNowProvider {
     }
 }
 
-actor RecordingNotificationRepository: NotificationRepository {
-    private var events: [NotificationEvent] = []
-
-    func notifications(visibleTo member: Member, environment _: SessionEnvironment) async -> [NotificationEvent] {
-        let events = events
-        return await MainActor.run {
-            events.filter { $0.isVisible(to: member) }
-        }
-    }
-
-    func allNotifications(environment _: SessionEnvironment) async -> [NotificationEvent] {
-        events
-    }
-
-    func readNotificationIds(memberId _: String, environment _: SessionEnvironment) async -> Set<String> {
-        []
-    }
-
-    func markNotificationsRead(
-        memberId _: String,
-        notificationIds _: [String],
-        readAtMillis _: Int64,
-        environment _: SessionEnvironment
-    ) async {}
-
-    func send(event: NotificationEvent, environment _: SessionEnvironment) async -> NotificationEvent {
-        events.append(event)
-        return event
-    }
-
-    func sentEvents() async -> [NotificationEvent] {
-        events
-    }
-}
-
 actor RecordingShiftPlanningRequestRepository: ShiftPlanningRequestRepository {
     private var requests: [ShiftPlanningRequest] = []
 
@@ -200,7 +163,9 @@ struct ConfirmShiftSwapTestScenario {
         assignedUserIds: [candidate.id],
         helperUserId: helper.id
     )
-    let requestRepository = InMemoryShiftSwapRequestRepository()
+    let requestRepository = InMemoryShiftSwapRequestRepository(
+        actorUserIdProvider: { requester.id }
+    )
     _ = await requestRepository.upsert(
         request: shiftSwapRequest(
             id: "swap_1",

@@ -10,7 +10,6 @@ final class ShiftsFeatureViewModel {
     @ObservationIgnored let shiftSwapRequestRepository: any ShiftSwapRequestRepository
     @ObservationIgnored let shiftPlanningRequestRepository: any ShiftPlanningRequestRepository
     @ObservationIgnored let deliveryCalendarRepository: any DeliveryCalendarRepository
-    @ObservationIgnored let notificationRepository: any NotificationRepository
     @ObservationIgnored let nowMillisProvider: @MainActor () -> Int64
     @ObservationIgnored let planningRequestIDProvider: @MainActor () -> String
     @ObservationIgnored let environmentProvider: @MainActor () -> ReguertaFirestoreEnvironment
@@ -99,7 +98,6 @@ final class ShiftsFeatureViewModel {
         shiftSwapRequestRepository: any ShiftSwapRequestRepository,
         shiftPlanningRequestRepository: any ShiftPlanningRequestRepository,
         deliveryCalendarRepository: any DeliveryCalendarRepository,
-        notificationRepository: any NotificationRepository,
         nowMillisProvider: @escaping @MainActor () -> Int64,
         planningRequestIDProvider: @escaping @MainActor () -> String = {
             UUID().uuidString.lowercased()
@@ -112,7 +110,6 @@ final class ShiftsFeatureViewModel {
         self.shiftSwapRequestRepository = shiftSwapRequestRepository
         self.shiftPlanningRequestRepository = shiftPlanningRequestRepository
         self.deliveryCalendarRepository = deliveryCalendarRepository
-        self.notificationRepository = notificationRepository
         self.nowMillisProvider = nowMillisProvider
         self.planningRequestIDProvider = planningRequestIDProvider
         self.environmentProvider = environmentProvider

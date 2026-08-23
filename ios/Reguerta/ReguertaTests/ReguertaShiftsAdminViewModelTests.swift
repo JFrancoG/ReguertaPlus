@@ -285,10 +285,6 @@ struct ReguertaShiftsAdminViewModelTests {
             environment.accessRootViewModel.shiftsViewModel.deliveryCalendarRepository
                 is InMemoryDeliveryCalendarRepository
         )
-        #expect(
-            environment.accessRootViewModel.shiftsViewModel.notificationRepository
-                is InMemoryNotificationRepository
-        )
     }
 }
 

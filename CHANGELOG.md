@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- 2026-08-23 | ♻️ refactor(ios): make swap commands authoritative
 - 2026-08-23 | ♻️ refactor(ios): harden order state ownership
 - 2026-08-21 | ♻️ refactor(ios): harden auth session ownership
 - 2026-08-20 | ♻️ refactor(ios): adopt adaptive layout
