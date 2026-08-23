@@ -367,7 +367,9 @@ func makeProductsViewModel(
     productRepository: (any ProductRepository)? = nil,
     memberRepository: (any MemberRepository)? = nil,
     seasonalCommitmentRepository: (any SeasonalCommitmentRepository)? = nil,
-    imagePipelineManager: any ImagePipelineManager = MockImagePipelineManager(result: .success("https://cdn.reguerta.test/image.jpg")),
+    imagePipelineManager: any ImagePipelineManager = MockImagePipelineManager(
+        result: .success("https://cdn.reguerta.test/image.jpg")
+    ),
     nowMillis: Int64? = nil
 ) async -> ProductsRouteViewModel {
     let authenticatedMember = authenticatedMember ?? currentMember
@@ -400,8 +402,7 @@ func makeProductsViewModel(
         imagePipelineManager: imagePipelineManager,
         nowMillisProvider: { nowMillis }
     )
-    viewModel.currentSession = session
-    viewModel.currentMember = currentMember
+    viewModel.adoptCurrentSessionOwner(session)
     return viewModel
 }
 

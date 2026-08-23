@@ -24,3 +24,8 @@ struct ShiftAssignment: Identifiable, Equatable {
 
     func isAssigned(to userId: String) -> Bool { assignedUserIds.contains(userId) || helperUserId == userId }
 }
+
+extension ShiftAssignment {
+    /// ISO week key for the shift timestamp in the canonical Madrid business calendar.
+    var weekKey: String { dateMillis.isoWeekKey }
+}

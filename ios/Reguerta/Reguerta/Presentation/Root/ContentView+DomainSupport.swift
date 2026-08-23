@@ -106,13 +106,6 @@ extension ShiftAssignment {
         }
     }
 
-    var weekKey: String {
-        let calendar = Calendar(identifier: .iso8601)
-        let week = calendar.component(.weekOfYear, from: localDate)
-        let year = calendar.component(.yearForWeekOfYear, from: localDate)
-        return String(format: "%04d-W%02d", year, week)
-    }
-
     private var boardDateLabel: String {
         localDate.boardDateLabel
     }
@@ -149,32 +142,6 @@ extension DeliveryWeekday {
         }
     }
 
-}
-
-extension Int64 {
-    var isoWeekKey: String {
-        let calendar = Calendar(identifier: .iso8601)
-        let date = Date(timeIntervalSince1970: TimeInterval(self) / 1_000)
-        let week = calendar.component(.weekOfYear, from: date)
-        let year = calendar.component(.yearForWeekOfYear, from: date)
-        return String(format: "%04d-W%02d", year, week)
-    }
-
-    var deliveryWeekday: DeliveryWeekday {
-        let weekday = Calendar.current.component(
-            .weekday,
-            from: Date(timeIntervalSince1970: TimeInterval(self) / 1_000)
-        )
-        switch weekday {
-        case 2: return .monday
-        case 3: return .tuesday
-        case 4: return .wednesday
-        case 5: return .thursday
-        case 6: return .friday
-        case 7: return .saturday
-        default: return .sunday
-        }
-    }
 }
 
 extension Date {

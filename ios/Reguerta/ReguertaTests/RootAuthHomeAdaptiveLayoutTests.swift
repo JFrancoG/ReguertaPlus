@@ -75,17 +75,31 @@ struct RootAuthHomeAdaptiveLayoutTests {
         let componentsSource = try source(
             at: productionSourceURL().appending(path: "Presentation/Home/ContentView+HomeShellComponents.swift")
         )
+        let headerSource = try source(
+            at: productionSourceURL().appending(
+                path: "DesignSystem/Components/ReguertaScreenHeader/ReguertaScreenHeaderView.swift"
+            )
+        )
 
         #expect(cardsSource.contains(".ignoresSafeArea(.container, edges: .bottom)") == false)
         #expect(cardsSource.contains("Color.clear") == false)
         #expect(cardsSource.contains(".padding(.bottom, tokens.spacing.lg)"))
+        #expect(cardsSource.contains("ScrollView {") == false)
+        #expect(cardsSource.contains(".accessibilityAddTraits(.isHeader)"))
         #expect(routeSource.contains(".padding(.horizontal, tokens.layout.compactHorizontalPadding)") == false)
+        #expect(routeSource.components(separatedBy: "ScrollView {").count == 2)
+        #expect(routeSource.contains(".accessibilityIdentifier(\"home.dashboard.scroll\")"))
         #expect(
             componentsSource.contains(
                 ".background(tokens.colors.surfaceSecondary, in: RoundedRectangle(cornerRadius: tokens.radius.md))"
             )
         )
         #expect(componentsSource.contains(".background(tokens.colors.surfaceSecondary, in: panelShape)"))
+        #expect(componentsSource.contains("Text(display.weekRangeAccessibilityLabel)"))
+        #expect(componentsSource.components(separatedBy: ".accessibilityElement(children: .combine)").count == 4)
+        #expect(componentsSource.contains(".accessibilityAddTraits(.isHeader)"))
+        #expect(headerSource.contains("ReguertaScreenHeaderLeadingTextView"))
+        #expect(headerSource.components(separatedBy: ".accessibilityAddTraits(.isHeader)").count == 3)
     }
 
     @Test func rootMotionIsResolvedByViewsAndNotPresentationModels() throws {

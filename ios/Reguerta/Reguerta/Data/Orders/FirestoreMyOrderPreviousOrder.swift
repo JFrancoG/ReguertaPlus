@@ -1,49 +1,6 @@
 import FirebaseFirestore
 import Foundation
 
-func resolveMyOrderConsultaWindow(
-    defaultDeliveryDayOfWeek _: DeliveryWeekday?,
-    deliveryCalendarOverrides: [DeliveryCalendarOverride],
-    shifts _: [ShiftAssignment],
-    now: Date = Date(),
-    timeZone: TimeZone = TimeZone(identifier: "Europe/Madrid") ?? .current
-) -> MyOrderConsultaWindow {
-    var calendar = Calendar(identifier: .iso8601)
-    calendar.timeZone = timeZone
-
-    let weekStartDay = calendar.startOfDay(
-        for: calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
-    )
-    let today = calendar.startOfDay(for: now)
-    let currentWeekKey = String(
-        format: "%04d-W%02d",
-        calendar.component(.yearForWeekOfYear, from: weekStartDay),
-        calendar.component(.weekOfYear, from: weekStartDay)
-    )
-
-    let effectiveDeliveryDate: Date
-    if let override = deliveryCalendarOverrides.first(where: { $0.weekKey == currentWeekKey }) {
-        effectiveDeliveryDate = calendar.startOfDay(
-            for: Date(timeIntervalSince1970: TimeInterval(override.deliveryDateMillis) / 1_000)
-        )
-    } else {
-        effectiveDeliveryDate = calendar.date(byAdding: .day, value: 2, to: weekStartDay) ?? weekStartDay
-    }
-
-    let previousWeekDate = calendar.date(byAdding: .day, value: -7, to: weekStartDay) ?? weekStartDay
-    let previousWeekKey = String(
-        format: "%04d-W%02d",
-        calendar.component(.yearForWeekOfYear, from: previousWeekDate),
-        calendar.component(.weekOfYear, from: previousWeekDate)
-    )
-    let isConsultaPhase = today >= weekStartDay && today <= effectiveDeliveryDate
-
-    return MyOrderConsultaWindow(
-        isConsultaPhase: isConsultaPhase,
-        previousWeekKey: previousWeekKey
-    )
-}
-
 extension FirestoreOrdersRepository {
     func loadMyOrderProducerStatuses(
         currentMember: Member?,

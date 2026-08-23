@@ -16,7 +16,6 @@ struct AdaptiveOperationsRoutesPreviewTests {
             #expect(source.contains("case \(scenario)"), "Missing preview scenario: \(scenario)")
         }
         #expect(occurrenceCount(of: "#Preview(", in: source) == expectedScenarios.count)
-        #expect(source.contains("ReguertaDesignSystemPreviewModifier") == false)
     }
 
     @Test func operationsPreviewCoversTheDeclaredAdaptiveCombinations() throws {
@@ -40,7 +39,84 @@ struct AdaptiveOperationsRoutesPreviewTests {
         #expect(occurrenceCount(of: "external Increased Contrast override", in: source) == requiredOverrideCount)
     }
 
-    @Test func everyPreviewPinsItsScenarioMatrixWithAnExplicitFixedLayout() throws {
+    @MainActor @Test func homeFreshnessScenariosMaterializeTheirRuntimeState() {
+        let expectations: [(scenario: AdaptiveOperationsPreviewScenario, state: MyOrderFreshnessState)] = [
+            (.homeDashboard, .ready),
+            (.homeFreshnessIdle, .idle),
+            (.homeFreshnessChecking, .checking),
+            (.homeFreshnessTimedOut, .timedOut),
+            (.homeFreshnessUnavailable, .unavailable)
+        ]
+
+        for expectation in expectations {
+            let fixture = AdaptiveOperationsPreviewFixture(scenario: expectation.scenario)
+            guard case .authorized(let presentation) = fixture.homeDashboardPresentation.content else {
+                Issue.record("\(expectation.scenario.rawValue) must materialize authorized Home content")
+                continue
+            }
+            #expect(
+                presentation.actionRow.myOrderFreshnessState == expectation.state,
+                "\(expectation.scenario.rawValue) must materialize \(expectation.state)"
+            )
+        }
+    }
+
+    @MainActor @Test func receivedOrdersFailureUsesTheRealInlineRetryState() async throws {
+        let source = try combinedPreviewSource()
+        let routeSource = try receivedOrdersRouteSource()
+        let failureScenario = try #require(
+            AdaptiveOperationsPreviewScenario.allCases.first {
+                $0.rawValue == "receivedOrdersFailure"
+            }
+        )
+
+        #expect(source.contains("case .receivedOrders, .receivedOrdersWide, .receivedOrdersFailure:"))
+        #expect(source.contains("AdaptiveOperationsRoutesPreview(scenario: .receivedOrdersFailure)"))
+        #expect(source.contains("receivedOrdersViewModel.loadState = .error"))
+        #expect(source.contains("failsReceivedOrdersReads: scenario == .receivedOrdersFailure"))
+        #expect(source.contains("throw AdaptiveOperationsPreviewOrdersRepositoryError.unavailable"))
+        #expect(source.contains("private var receivedOrdersReadCountValue = 0"))
+        #expect(source.contains("receivedOrdersReadCountValue += 1"))
+        #expect(source.contains("func receivedOrdersReadCount() -> Int"))
+        #expect(routeSource.contains("case .error:"))
+        #expect(routeSource.contains("await viewModel.retry()"))
+
+        let fixture = AdaptiveOperationsPreviewFixture(scenario: failureScenario)
+        #expect(fixture.receivedOrdersViewModel.loadState == .error)
+        let readCountBeforeRetry = await fixture.ordersRepository.receivedOrdersReadCount()
+        await fixture.receivedOrdersViewModel.retry()
+        let readCountAfterRetry = await fixture.ordersRepository.receivedOrdersReadCount()
+        #expect(readCountAfterRetry == readCountBeforeRetry + 1)
+        #expect(fixture.receivedOrdersViewModel.loadState == .error)
+    }
+
+    @Test func receivedOrdersIncludesPhoneAxAndWideXxxLargeScenarios() throws {
+        let source = try combinedPreviewSource()
+        let receivedScenarios = AdaptiveOperationsPreviewScenario.allCases.filter {
+            $0.rawValue.hasPrefix("receivedOrders") && $0 != .receivedOrdersHistory
+        }
+        let phoneScenario = receivedScenarios.first { $0.rawValue == "receivedOrders" }
+        let wideScenario = receivedScenarios.first { $0.rawValue == "receivedOrdersWide" }
+        let failureScenario = receivedScenarios.first { $0.rawValue == "receivedOrdersFailure" }
+
+        #expect(Set(receivedScenarios.map(\.rawValue)) == [
+            "receivedOrders",
+            "receivedOrdersFailure",
+            "receivedOrdersWide"
+        ])
+        #expect(phoneScenario?.rawValue == "receivedOrders")
+        #expect(phoneScenario?.matrix.width == 320)
+        #expect(phoneScenario?.matrix.dynamicTypeSize == .large)
+        #expect(wideScenario?.rawValue == "receivedOrdersWide")
+        #expect(wideScenario?.matrix.width == 600)
+        #expect(wideScenario?.matrix.dynamicTypeSize == .xxxLarge)
+        #expect(failureScenario?.rawValue == "receivedOrdersFailure")
+        #expect(failureScenario?.matrix.width == 320)
+        #expect(failureScenario?.matrix.dynamicTypeSize == .accessibility5)
+        #expect(source.contains("AdaptiveOperationsRoutesPreview(scenario: .receivedOrdersWide)"))
+    }
+
+    @Test func everyPreviewCombinesTheDesignSystemModifierWithItsFixedMatrix() throws {
         let source = try combinedPreviewSource()
         let declarations = previewDeclarations(in: source)
 
@@ -51,6 +127,10 @@ struct AdaptiveOperationsRoutesPreviewTests {
             let expectedSize = CGSize(width: matrix.width, height: matrix.height)
 
             #expect(declaration != nil, "Missing preview declaration for \(scenario.rawValue)")
+            #expect(
+                declaration?.contains(".modifier(ReguertaDesignSystemPreviewModifier())") == true,
+                "\(scenario.rawValue) must apply the design-system preview modifier"
+            )
             #expect(
                 try declaration.flatMap { try fixedLayoutSize(in: $0) } == expectedSize,
                 "\(scenario.rawValue) must pin \(expectedSize.width)x\(expectedSize.height) with fixedLayout"
@@ -118,6 +198,15 @@ struct AdaptiveOperationsRoutesPreviewTests {
         return previewSourceFileNames.map { previewDirectory.appending(path: $0) }
     }
 
+    private func receivedOrdersRouteSource() throws -> String {
+        let presentationDirectory = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appending(path: "Reguerta/Presentation")
+        let routeURL = presentationDirectory.appending(path: "Orders/ContentView+ReceivedOrdersRoute.swift")
+        return try String(contentsOf: routeURL, encoding: .utf8)
+    }
+
     private func occurrenceCount(of needle: String, in source: String) -> Int {
         source.components(separatedBy: needle).count - 1
     }
@@ -130,7 +219,7 @@ struct AdaptiveOperationsRoutesPreviewTests {
 
     private func fixedLayoutSize(in declaration: String) throws -> CGSize? {
         let pattern = try Regex(
-            #"traits:\s*\.fixedLayout\s*\(\s*width:\s*([0-9_]+)\s*,\s*height:\s*([0-9_]+)\s*\)"#
+            #"\.fixedLayout\s*\(\s*width:\s*([0-9_]+)\s*,\s*height:\s*([0-9_]+)\s*\)"#
         )
         guard let match = declaration.firstMatch(of: pattern),
               let widthText = match.output[1].substring,
@@ -173,11 +262,17 @@ struct AdaptiveOperationsRoutesPreviewTests {
     private var expectedScenarios: [String] {
         [
             "homeDashboard",
+            "homeFreshnessIdle",
+            "homeFreshnessChecking",
+            "homeFreshnessTimedOut",
+            "homeFreshnessUnavailable",
             "homeDrawer",
             "myOrderList",
             "myOrderCart",
             "myOrdersHistory",
             "receivedOrders",
+            "receivedOrdersFailure",
+            "receivedOrdersWide",
             "receivedOrdersHistory",
             "shiftsPlanning",
             "settings",

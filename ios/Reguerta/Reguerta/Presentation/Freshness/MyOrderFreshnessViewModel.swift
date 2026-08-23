@@ -2,24 +2,6 @@ import Foundation
 import Observation
 import OSLog
 
-private let myOrderFreshnessLogger = Logger(
-    subsystem: "com.reguerta.app",
-    category: "CriticalFreshness"
-)
-
-enum MyOrderFreshnessState: Equatable, Sendable {
-    case idle
-    case checking
-    case ready
-    case timedOut
-    case unavailable
-}
-
-private struct FreshnessOperationHandle {
-    let generation: UInt64
-    let task: Task<Void, Never>
-}
-
 @MainActor
 @Observable
 final class MyOrderFreshnessViewModel {
@@ -37,10 +19,13 @@ final class MyOrderFreshnessViewModel {
         ) async throws -> Void
     @ObservationIgnored private let isCriticalOrderingStateCurrent:
         @MainActor @Sendable (MyOrderFreshnessSessionContext) -> Bool
+    @ObservationIgnored private let acknowledgedCriticalOrderingStateRevision:
+        @MainActor @Sendable (MyOrderFreshnessSessionContext) -> UInt64?
     @ObservationIgnored var freshnessOperationTask: Task<Void, Never>?
     @ObservationIgnored var freshnessTimeoutTask: Task<Void, Never>?
     @ObservationIgnored var freshnessRetryTask: Task<Void, Never>?
-    @ObservationIgnored private var freshnessGeneration: UInt64 = 0
+    @ObservationIgnored var freshnessEntryWaiters: [UUID: FreshnessEntryWaiter] = [:]
+    @ObservationIgnored private(set) var freshnessGeneration: UInt64 = 0
     @ObservationIgnored private var freshnessRetryGeneration: UInt64 = 0
     @ObservationIgnored private var automaticRetryAttempt = 0
 
@@ -59,6 +44,9 @@ final class MyOrderFreshnessViewModel {
         isCriticalOrderingStateCurrent: @escaping @MainActor @Sendable (
             MyOrderFreshnessSessionContext
         ) -> Bool = { _ in true },
+        acknowledgedCriticalOrderingStateRevision: @escaping @MainActor @Sendable (
+            MyOrderFreshnessSessionContext
+        ) -> UInt64? = { _ in nil },
         timeout: Duration = .seconds(10),
         automaticRetryDelays: [Duration] = [.seconds(10), .seconds(20), .seconds(30)],
         sleeper: @escaping @Sendable (Duration) async throws -> Void = {
@@ -73,17 +61,11 @@ final class MyOrderFreshnessViewModel {
         self.sessionStateRevisionProvider = sessionStateRevisionProvider
         self.applyCriticalOrderingState = applyCriticalOrderingState
         self.isCriticalOrderingStateCurrent = isCriticalOrderingStateCurrent
+        self.acknowledgedCriticalOrderingStateRevision = acknowledgedCriticalOrderingStateRevision
         self.timeout = timeout
         self.automaticRetryDelays = automaticRetryDelays
         self.sleeper = sleeper
         self.automaticRetrySleeper = automaticRetrySleeper
-    }
-
-    convenience init(dependencies: MyOrderFreshnessFeatureDependencies) {
-        self.init(
-            resolveCriticalDataFreshness: dependencies.resolveCriticalDataFreshness,
-            criticalDataFreshnessLocalRepository: dependencies.criticalDataFreshnessLocalRepository
-        )
     }
 
     @discardableResult
@@ -163,7 +145,7 @@ final class MyOrderFreshnessViewModel {
             )
             try Task.checkCancellation()
             guard isOwnedFreshnessOperation(generation, identity: identity) else { return }
-            guard isCriticalOrderingStateCurrent(identity) else {
+            guard hasCurrentCriticalOrderingState(identity) else {
                 freshnessTimeoutTask?.cancel()
                 freshnessTimeoutTask = nil
                 state = .unavailable
@@ -207,7 +189,7 @@ final class MyOrderFreshnessViewModel {
             }
 
             guard let self, isOwnedFreshnessOperation(generation, identity: identity) else { return }
-            guard isLiveFreshnessContext(identity) else {
+            guard isLiveOrAcknowledgedFreshnessContext(identity) else {
                 finishStaleFreshnessTimeout(generation, identity: identity)
                 return
             }
@@ -215,6 +197,7 @@ final class MyOrderFreshnessViewModel {
             freshnessOperationTask?.cancel()
             freshnessTimeoutTask = nil
             state = .timedOut
+            resolveFreshnessEntryWaiters(generation: generation, result: false)
             scheduleAutomaticRetryIfNeeded(identity: identity, generation: generation)
         }
     }
@@ -242,6 +225,7 @@ final class MyOrderFreshnessViewModel {
 
     @discardableResult private func invalidateFreshnessOperation() -> Task<Void, Never>? {
         let invalidatedOperation = freshnessOperationTask
+        resolveFreshnessEntryWaiters(generation: freshnessGeneration, result: false)
         invalidatedOperation?.cancel()
         freshnessTimeoutTask?.cancel()
         freshnessGeneration &+= 1
@@ -266,6 +250,17 @@ final class MyOrderFreshnessViewModel {
     private func isLiveFreshnessContext(_ identity: MyOrderFreshnessSessionContext) -> Bool {
         identity.representsActiveAuthorization &&
             identity.sessionStateRevision == sessionStateRevisionProvider()
+    }
+
+    private func isLiveOrAcknowledgedFreshnessContext(_ identity: MyOrderFreshnessSessionContext) -> Bool {
+        isLiveFreshnessContext(identity) || hasCurrentCriticalOrderingState(identity)
+    }
+
+    private func hasCurrentCriticalOrderingState(_ identity: MyOrderFreshnessSessionContext) -> Bool {
+        guard isCriticalOrderingStateCurrent(identity) else { return false }
+        let liveRevision = sessionStateRevisionProvider()
+        guard identity.sessionStateRevision != liveRevision else { return true }
+        return acknowledgedCriticalOrderingStateRevision(identity) == liveRevision
     }
 
     private func publish(
@@ -298,7 +293,13 @@ final class MyOrderFreshnessViewModel {
     private func finishFreshnessOperation(_ generation: UInt64, identity: MyOrderFreshnessSessionContext) {
         guard ownsFreshnessGeneration(generation, identity: identity) else { return }
         freshnessOperationTask = nil
-        guard isLiveFreshnessContext(identity) else {
+        let canEnter = state == .ready && hasCurrentCriticalOrderingState(identity)
+        resolveFreshnessEntryWaiters(
+            generation: generation,
+            identity: identity,
+            result: canEnter
+        )
+        guard isLiveOrAcknowledgedFreshnessContext(identity) else {
             freshnessTimeoutTask?.cancel()
             freshnessTimeoutTask = nil
             if state == .checking {
@@ -311,6 +312,7 @@ final class MyOrderFreshnessViewModel {
 
     private func finishStaleFreshnessTimeout(_ generation: UInt64, identity: MyOrderFreshnessSessionContext) {
         guard ownsFreshnessGeneration(generation, identity: identity) else { return }
+        resolveFreshnessEntryWaiters(generation: generation, result: false)
         freshnessOperationTask?.cancel()
         freshnessOperationTask = nil
         if state == .checking {
@@ -323,9 +325,36 @@ final class MyOrderFreshnessViewModel {
         freshnessTimeoutTask = nil
     }
 }
-
 extension MyOrderFreshnessViewModel {
+    convenience init(dependencies: MyOrderFreshnessFeatureDependencies) {
+        self.init(
+            resolveCriticalDataFreshness: dependencies.resolveCriticalDataFreshness,
+            criticalDataFreshnessLocalRepository: dependencies.criticalDataFreshnessLocalRepository
+        )
+    }
+}
+extension MyOrderFreshnessViewModel {
+    /// Recognizes only the successor revision emitted by the current Products refresh receipt.
+    ///
+    /// This check lets the session-mode observer preserve the owned refresh and entry waiter when
+    /// Products synchronously updates benign member data. A generic current-state predicate cannot
+    /// legitimize a revision change: the explicit acknowledgement must equal the live revision.
+    func recognizesAcknowledgedRevisionHandoff(from previousMode: SessionMode, to mode: SessionMode) -> Bool {
+        guard let identity = currentIdentity,
+              case .authorized(let previousSession) = previousMode,
+              case .authorized(let session) = mode,
+              previousSession.representsActiveAuthorization,
+              session.representsActiveAuthorization,
+              identity.matchesAuthorization(of: previousSession),
+              identity.matchesAuthorization(of: session),
+              identity.sessionStateRevision != sessionStateRevisionProvider() else { return false }
+        return hasCurrentCriticalOrderingState(identity)
+    }
+
     func handleSessionModeChange(from previousMode: SessionMode, to mode: SessionMode) {
+        if recognizesAcknowledgedRevisionHandoff(from: previousMode, to: mode) {
+            return
+        }
         switch mode {
         case .authorized(let session):
             guard session.representsActiveAuthorization else {
@@ -353,24 +382,61 @@ extension MyOrderFreshnessViewModel {
         refresh(for: identity, resetAutomaticRetry: true)
     }
 
+    /// Revalidates critical data for one attempted My Order entry.
+    ///
+    /// Cancellation or a stale session revision rejects the attempt before it can replace the
+    /// current freshness owner. A successful result belongs to the same generation and immutable
+    /// authorization context that reached `ready`; cancelling this caller removes only its waiter
+    /// and does not cancel a refresh that may still serve other consumers.
+    ///
+    /// - Parameters:
+    ///   - context: Immutable authorization and revision captured when the caller created the entry intent.
+    ///   - onReady: Synchronous handoff invoked only after the owned refresh is ready and current.
+    /// - Returns: `true` only when that exact entry attempt may consume the refreshed ordering state.
     @discardableResult
     func revalidateForEntry(
-        currentMode: SessionMode,
+        context: MyOrderFreshnessSessionContext,
         onReady: @MainActor () -> Void = {}
     ) async -> Bool {
-        guard case .authorized(let session) = currentMode, session.representsActiveAuthorization else { return false }
-        let identity = freshnessIdentity(for: session)
-        currentIdentity = identity
-        guard let handle = refresh(for: identity, resetAutomaticRetry: true) else { return false }
-        await handle.task.value
-        let canEnter = handle.generation == freshnessGeneration &&
-            currentIdentity == identity &&
+        guard context.representsActiveAuthorization,
+              !Task.isCancelled,
+              context.sessionStateRevision == sessionStateRevisionProvider() else { return false }
+        currentIdentity = context
+        guard let handle = refresh(for: context, resetAutomaticRetry: true) else { return false }
+        let didResolveReady = await waitForFreshnessEntryResolution(
+            generation: handle.generation,
+            identity: context
+        )
+        let canEnter = didResolveReady &&
+            !Task.isCancelled &&
+            handle.generation == freshnessGeneration &&
+            currentIdentity == context &&
             state == .ready &&
-            isCriticalOrderingStateCurrent(identity)
+            hasCurrentCriticalOrderingState(context)
         if canEnter {
             onReady()
         }
         return canEnter
+    }
+
+    /// Resolves whether an entry waiter may still register for an owned checking operation.
+    ///
+    /// Returning `nil` means the exact generation and authorization context are still checking.
+    /// Every other state is terminal for registration and resolves immediately, which prevents a
+    /// waiter queued behind invalidation from being inserted into a successor generation.
+    func freshnessEntryWaiterRegistrationResult(
+        generation: UInt64,
+        identity: MyOrderFreshnessSessionContext
+    ) -> Bool? {
+        guard generation == freshnessGeneration, currentIdentity == identity else { return false }
+        switch state {
+        case .checking:
+            return nil
+        case .ready:
+            return hasCurrentCriticalOrderingState(identity)
+        case .idle, .timedOut, .unavailable:
+            return false
+        }
     }
 }
 
@@ -425,7 +491,6 @@ private extension MyOrderFreshnessViewModel {
         guard generation == freshnessRetryGeneration else { return }
         freshnessRetryTask = nil
     }
-
     private func freshnessIdentity(for session: AuthorizedSession) -> MyOrderFreshnessSessionContext {
         MyOrderFreshnessSessionContext(
             session: session,

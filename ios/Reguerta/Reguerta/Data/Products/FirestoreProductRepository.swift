@@ -38,7 +38,7 @@ actor FirestoreProductRepository: ProductRepository {
     func upsert(product: Product, environment: SessionEnvironment) async throws -> Product {
         let productsCollection = storedDB.reguertaCollection(.products, environment: environment)
         let documentId = product.id.isEmpty ? productsCollection.document().documentID : product.id
-        let persisted = persistedProduct(from: product, with: documentId)
+        let persisted = Self.productForPersistence(product, documentID: documentId)
 
         do {
             try Task.checkCancellation()
@@ -52,9 +52,10 @@ actor FirestoreProductRepository: ProductRepository {
         return persisted
     }
 
-    private func persistedProduct(from product: Product, with documentId: String) -> Product {
+    /// Assigns the remote document ID without changing any validated product field.
+    static func productForPersistence(_ product: Product, documentID: String) -> Product {
         Product(
-            id: documentId,
+            id: documentID,
             vendorId: product.vendorId,
             companyName: product.companyName,
             name: product.name,
@@ -78,7 +79,10 @@ actor FirestoreProductRepository: ProductRepository {
             commonPurchaseType: product.commonPurchaseType,
             archived: product.archived,
             createdAtMillis: product.createdAtMillis,
-            updatedAtMillis: product.updatedAtMillis
+            updatedAtMillis: product.updatedAtMillis,
+            weightStep: product.weightStep,
+            minWeight: product.minWeight,
+            maxWeight: product.maxWeight
         )
     }
 

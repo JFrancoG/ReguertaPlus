@@ -88,21 +88,41 @@ struct HomeWeeklySummaryCardView: View {
 
     let tokens: ReguertaDesignTokens
     let display: HomeWeeklySummaryDisplay
+    let accessibilityFocus: AccessibilityFocusState<Bool>.Binding
+    let onAccessibilityTargetVisibilityChange: (Bool) -> Void
 
     private func localizedKey(_ key: String) -> LocalizedStringKey { LocalizedStringKey(key) }
 
     var body: some View {
+        let headerLayout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: tokens.spacing.sm))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: tokens.spacing.sm))
+
         VStack(alignment: .leading, spacing: tokens.spacing.md) {
-            HStack(alignment: .center) {
+            headerLayout {
                 Text(display.weekRangeLabel)
                     .font(tokens.typography.titleSection)
                     .foregroundStyle(tokens.colors.textPrimary)
-                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
                     .minimumScaleFactor(0.78)
-                Spacer(minLength: tokens.spacing.sm)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel(Text(display.weekRangeAccessibilityLabel))
+                    .accessibilityAddTraits(.isHeader)
+                    .accessibilityFocused(accessibilityFocus)
+                    .onAppear {
+                        onAccessibilityTargetVisibilityChange(true)
+                    }
+                    .onDisappear {
+                        onAccessibilityTargetVisibilityChange(false)
+                    }
+                if !dynamicTypeSize.isAccessibilitySize {
+                    Spacer(minLength: 0)
+                }
                 Text(display.weekBadgeLabel)
                     .font(tokens.typography.labelRegular)
                     .foregroundStyle(tokens.colors.actionPrimary)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
+                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, tokens.spacing.sm)
                     .padding(.vertical, tokens.spacing.xs)
                     .overlay(Capsule().stroke(tokens.colors.actionPrimary, lineWidth: 1))
@@ -189,18 +209,19 @@ struct HomeWeeklySummaryCardView: View {
                 .font(tokens.typography.label)
                 .foregroundStyle(tokens.colors.textSecondary)
                 .multilineTextAlignment(.center)
-                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
             Text(value)
                 .font(tokens.typography.body.weight(.semibold))
                 .foregroundStyle(valueColor ?? tokens.colors.textPrimary)
                 .multilineTextAlignment(.center)
-                .lineLimit(dynamicTypeSize.isAccessibilitySize ? max(3, maxValueLines) : maxValueLines)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : maxValueLines)
                 .minimumScaleFactor(0.82)
                 .truncationMode(.tail)
         }
         .frame(maxWidth: .infinity, minHeight: HomeDashboardLayout.summaryRowMinimumHeight, alignment: .center)
         .padding(.horizontal, tokens.spacing.sm)
         .padding(.vertical, tokens.spacing.xs)
+        .accessibilityElement(children: .combine)
     }
 
     private func deliveryResponsiblesCell(titleKey: String, primary: String, secondary: String) -> some View {
@@ -209,23 +230,24 @@ struct HomeWeeklySummaryCardView: View {
                 .font(tokens.typography.label)
                 .foregroundStyle(tokens.colors.textSecondary)
                 .multilineTextAlignment(.center)
-                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
             Text(primary)
                 .font(tokens.typography.body.weight(.semibold))
                 .foregroundStyle(tokens.colors.textPrimary)
                 .multilineTextAlignment(.center)
-                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
                 .truncationMode(.tail)
             Text(secondary)
                 .font(tokens.typography.label)
                 .foregroundStyle(tokens.colors.textSecondary)
                 .multilineTextAlignment(.center)
-                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
                 .truncationMode(.tail)
         }
         .frame(maxWidth: .infinity, minHeight: HomeDashboardLayout.summaryRowMinimumHeight, alignment: .center)
         .padding(.horizontal, tokens.spacing.sm)
         .padding(.vertical, tokens.spacing.xs)
+        .accessibilityElement(children: .combine)
     }
 
     private func marketResponsiblesCell(titleKey: String, names: [String]) -> some View {
@@ -234,19 +256,20 @@ struct HomeWeeklySummaryCardView: View {
                 .font(tokens.typography.label)
                 .foregroundStyle(tokens.colors.textSecondary)
                 .multilineTextAlignment(.center)
-                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
             ForEach(Array(names.prefix(3).enumerated()), id: \.offset) { _, name in
                 Text(name)
                     .font(tokens.typography.labelRegular)
                     .foregroundStyle(tokens.colors.textSecondary)
                     .multilineTextAlignment(.center)
-                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
                     .truncationMode(.tail)
             }
         }
         .frame(maxWidth: .infinity, minHeight: HomeDashboardLayout.summaryRowMinimumHeight, alignment: .center)
         .padding(.horizontal, tokens.spacing.sm)
         .padding(.vertical, tokens.spacing.sm)
+        .accessibilityElement(children: .combine)
     }
 
     private func orderStateCell(_ state: HomeOrderStateDisplay) -> some View {

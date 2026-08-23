@@ -276,10 +276,6 @@ extension MyOrderRouteViewModel {
             return
         }
 
-        let storageKey = cartStorageKey
-        let cartStore = cartStore
-        Task {
-            await cartStore.persistCart(storageKey: storageKey, snapshot: snapshot)
-        }
+        enqueueCartPersistence(snapshot: snapshot)
     }
 }

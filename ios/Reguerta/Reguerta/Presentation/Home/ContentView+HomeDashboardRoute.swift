@@ -32,6 +32,7 @@ struct HomeWeeklySummaryDisplay: Equatable {
     let weekKey: String
     let orderWeekKey: String
     let weekRangeLabel: String
+    let weekRangeAccessibilityLabel: String
     let weekBadgeLabel: String
     let producerName: String
     let deliveryLabel: String
@@ -55,6 +56,16 @@ enum HomeDashboardContent {
 
 struct HomeDashboardPresentation {
     let content: HomeDashboardContent
+}
+
+struct HomeDashboardInitialVoiceOverFocusGate {
+    private(set) var hasRequestedFocus = false
+
+    mutating func requestFocusIfNeeded(isVoiceOverEnabled: Bool, isTargetMounted: Bool) -> Bool {
+        guard isVoiceOverEnabled, isTargetMounted, !hasRequestedFocus else { return false }
+        hasRequestedFocus = true
+        return true
+    }
 }
 
 struct HomeAuthorizedDashboardPresentation {
@@ -82,6 +93,7 @@ extension MyOrderFreshnessState {
 extension HomeShellView {
     @ViewBuilder
     var dashboardRoute: some View {
+        let orderStateScope = rootViewModel.currentHomeOrderStateScope
         HomeDashboardRouteView(
             tokens: tokens,
             presentation: rootViewModel.homeDashboardPresentation,
@@ -90,10 +102,18 @@ extension HomeShellView {
             onOpenMyOrder: rootViewModel.handleHomeDashboardMyOrderAction,
             onOpenReceivedOrders: rootViewModel.handleHomeDashboardReceivedOrdersAction
         )
+        .task(id: orderStateScope) {
+            await rootViewModel.refreshHomeOrderState(for: orderStateScope)
+        }
     }
 }
 
 struct HomeDashboardRouteView: View {
+    @Environment(\.accessibilityVoiceOverEnabled) private var isVoiceOverEnabled
+    @AccessibilityFocusState(for: .voiceOver) private var isWeeklySummaryFocused: Bool
+    @State private var initialVoiceOverFocusGate = HomeDashboardInitialVoiceOverFocusGate()
+    @State private var isWeeklySummaryFocusTargetMounted = false
+
     let tokens: ReguertaDesignTokens
     let presentation: HomeDashboardPresentation
     let newsViewModel: NewsNotificationsFeatureViewModel
@@ -102,29 +122,50 @@ struct HomeDashboardRouteView: View {
     let onOpenReceivedOrders: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-            HomeDashboardSessionSectionView(
-                tokens: tokens,
-                content: presentation.content,
-                onOpenMyOrder: onOpenMyOrder,
-                onOpenReceivedOrders: onOpenReceivedOrders
-            )
+        ScrollView {
+            VStack(alignment: .leading, spacing: tokens.spacing.lg) {
+                HomeDashboardSessionSectionView(
+                    tokens: tokens,
+                    content: presentation.content,
+                    weeklySummaryAccessibilityFocus: $isWeeklySummaryFocused,
+                    onWeeklySummaryAccessibilityTargetVisibilityChange: updateWeeklySummaryFocusTargetVisibility,
+                    onOpenMyOrder: onOpenMyOrder,
+                    onOpenReceivedOrders: onOpenReceivedOrders
+                )
 
-            LatestNewsCardView(
-                tokens: tokens,
-                latestNews: newsViewModel.homeLatestNewsItems,
-                loadNewsImageData: loadNewsImageData
-            )
-            .frame(maxHeight: .infinity, alignment: .topLeading)
+                LatestNewsCardView(
+                    tokens: tokens,
+                    latestNews: newsViewModel.homeLatestNewsItems,
+                    loadNewsImageData: loadNewsImageData
+                )
+            }
+            .frame(maxWidth: tokens.layout.readableContentMaximumWidth, alignment: .topLeading)
         }
-        .frame(maxWidth: tokens.layout.readableContentMaximumWidth, alignment: .topLeading)
-        .frame(maxHeight: .infinity, alignment: .topLeading)
+        .accessibilityIdentifier("home.dashboard.scroll")
+        .onChange(of: isVoiceOverEnabled) {
+            requestInitialVoiceOverFocusIfNeeded()
+        }
+    }
+
+    private func updateWeeklySummaryFocusTargetVisibility(_ isMounted: Bool) {
+        isWeeklySummaryFocusTargetMounted = isMounted
+        requestInitialVoiceOverFocusIfNeeded()
+    }
+
+    private func requestInitialVoiceOverFocusIfNeeded() {
+        guard initialVoiceOverFocusGate.requestFocusIfNeeded(
+            isVoiceOverEnabled: isVoiceOverEnabled,
+            isTargetMounted: isWeeklySummaryFocusTargetMounted
+        ) else { return }
+        isWeeklySummaryFocused = true
     }
 }
 
 private struct HomeDashboardSessionSectionView: View {
     let tokens: ReguertaDesignTokens
     let content: HomeDashboardContent
+    let weeklySummaryAccessibilityFocus: AccessibilityFocusState<Bool>.Binding
+    let onWeeklySummaryAccessibilityTargetVisibilityChange: (Bool) -> Void
     let onOpenMyOrder: () -> Void
     let onOpenReceivedOrders: () -> Void
 
@@ -138,6 +179,9 @@ private struct HomeDashboardSessionSectionView: View {
             HomeAuthorizedDashboardSectionView(
                 tokens: tokens,
                 presentation: presentation,
+                weeklySummaryAccessibilityFocus: weeklySummaryAccessibilityFocus,
+                onWeeklySummaryAccessibilityTargetVisibilityChange:
+                    onWeeklySummaryAccessibilityTargetVisibilityChange,
                 onOpenMyOrder: onOpenMyOrder,
                 onOpenReceivedOrders: onOpenReceivedOrders
             )
@@ -148,12 +192,19 @@ private struct HomeDashboardSessionSectionView: View {
 private struct HomeAuthorizedDashboardSectionView: View {
     let tokens: ReguertaDesignTokens
     let presentation: HomeAuthorizedDashboardPresentation
+    let weeklySummaryAccessibilityFocus: AccessibilityFocusState<Bool>.Binding
+    let onWeeklySummaryAccessibilityTargetVisibilityChange: (Bool) -> Void
     let onOpenMyOrder: () -> Void
     let onOpenReceivedOrders: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: tokens.spacing.lg) {
-            HomeWeeklySummaryCardView(tokens: tokens, display: presentation.weeklySummary)
+            HomeWeeklySummaryCardView(
+                tokens: tokens,
+                display: presentation.weeklySummary,
+                accessibilityFocus: weeklySummaryAccessibilityFocus,
+                onAccessibilityTargetVisibilityChange: onWeeklySummaryAccessibilityTargetVisibilityChange
+            )
             HomeActionRowView(
                 tokens: tokens,
                 presentation: presentation.actionRow,

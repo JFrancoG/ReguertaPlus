@@ -40,6 +40,7 @@ final class AccessRootViewModel {
     @ObservationIgnored let receivedOrdersViewModel: ReceivedOrdersRouteViewModel
     @ObservationIgnored let receivedOrdersHistoryViewModel: ReceivedOrdersHistoryRouteViewModel
     @ObservationIgnored let myOrderFreshnessViewModel: MyOrderFreshnessViewModel
+    @ObservationIgnored let resolveMyOrderLocalStateUseCase: ResolveMyOrderLocalStateUseCase
     @ObservationIgnored let bylawsViewModel: BylawsFeatureViewModel
     @ObservationIgnored private let developmentTimeMachine: DevelopmentTimeMachine
     @ObservationIgnored let startupVersionGateUseCase: ResolveStartupVersionGateUseCase
@@ -51,7 +52,8 @@ final class AccessRootViewModel {
     @ObservationIgnored var startupGateOperationTask: Task<Void, Never>?
     @ObservationIgnored var startupGateTimeoutTask: Task<Void, Never>?
     @ObservationIgnored var startupGateGeneration: UInt64 = 0
-
+    @ObservationIgnored var myOrderEntryTask: Task<Void, Never>?
+    @ObservationIgnored var myOrderEntryGeneration: UInt64 = 0
     var shellState = AuthShellState()
     var splashScale: CGFloat = SplashAnimationContract.initialScale
     var splashRotation: Double = SplashAnimationContract.initialRotation
@@ -79,7 +81,10 @@ final class AccessRootViewModel {
     var receivedOrdersHistoryTitleOverride: String?
     var showsSharedProfileSavedDialog = false
     var showsHomeSignOutDialog = false
+    var resolvedHomeOrderStateScope: HomeOrderStateScope?
+    var homeOrderLocalState: MyOrderLocalState = .empty
     var nowOverrideMillis: Int64?
+    @ObservationIgnored var homeOrderStateGeneration: UInt64 = 0
     var shouldSkipSplash: Bool {
         shouldSkipSplashProvider()
     }
@@ -142,6 +147,7 @@ final class AccessRootViewModel {
         self.receivedOrdersViewModel = featureViewModels.receivedOrdersViewModel
         self.receivedOrdersHistoryViewModel = featureViewModels.receivedOrdersHistoryViewModel
         self.myOrderFreshnessViewModel = featureViewModels.myOrderFreshnessViewModel
+        self.resolveMyOrderLocalStateUseCase = ordersFeatureDependencies.resolveMyOrderLocalStateUseCase
         self.bylawsViewModel = featureViewModels.bylawsViewModel
         self.developmentTimeMachine = developmentTimeMachine
         self.startupVersionGateUseCase = startupVersionGateUseCase
@@ -152,7 +158,6 @@ final class AccessRootViewModel {
         self.startupGateSleeper = startupGateSleeper
         self.nowOverrideMillis = developmentTimeMachine.overrideNowMillis
     }
-
 }
 
 private extension AccessRootViewModel {
@@ -230,28 +235,6 @@ private extension AccessRootViewModel {
             dependencies: freshnessDependencies
         )
         return (productsViewModel, freshnessViewModel)
-    }
-
-    static func makeMyOrderFreshnessViewModel(
-        productsViewModel: ProductsRouteViewModel,
-        dependencies: MyOrderFreshnessFeatureDependencies
-    ) -> MyOrderFreshnessViewModel {
-        MyOrderFreshnessViewModel(
-            resolveCriticalDataFreshness: dependencies.resolveCriticalDataFreshness,
-            criticalDataFreshnessLocalRepository: dependencies.criticalDataFreshnessLocalRepository,
-            sessionStateRevisionProvider: {
-                productsViewModel.sessionViewModel.sessionStateRevision
-            },
-            applyCriticalOrderingState: { context, payload in
-                try await productsViewModel.refreshOrderingProductsForFreshness(
-                    context: context,
-                    payload: payload
-                )
-            },
-            isCriticalOrderingStateCurrent: { context in
-                productsViewModel.isOrderingStateCurrentForFreshness(context: context)
-            }
-        )
     }
 
     static func makeProductsViewModel(
@@ -370,6 +353,16 @@ extension AccessRootViewModel {
     }
 
     func handleSessionModeChange(from previousMode: SessionMode, to mode: SessionMode) {
+        let preservesHomeEntry = homeDestination == .dashboard &&
+            myOrderEntryTask?.isCancelled == false &&
+            myOrderFreshnessViewModel.recognizesAcknowledgedRevisionHandoff(
+                from: previousMode,
+                to: mode
+            )
+        if !preservesHomeEntry {
+            invalidateHomeMyOrderEntryIntent()
+        }
+        myOrderViewModel.invalidateCartPersistenceForSessionChange()
         productsViewModel.handleSessionModeChange(mode)
         myOrderFreshnessViewModel.handleSessionModeChange(from: previousMode, to: mode)
         shiftsViewModel.handleSessionModeChange(mode)
@@ -470,6 +463,10 @@ extension AccessRootViewModel {
     }
     func handleHomeDestinationChange(from previousDestination: HomeDestination, to destination: HomeDestination) {
         guard previousDestination != destination else { return }
+        invalidateHomeMyOrderEntryIntent()
+        if previousDestination == .dashboard {
+            homeOrderStateGeneration &+= 1
+        }
         if previousDestination == .notifications {
             Task { await newsNotificationsViewModel.markVisibleNotificationsReadOnExit() }
         }

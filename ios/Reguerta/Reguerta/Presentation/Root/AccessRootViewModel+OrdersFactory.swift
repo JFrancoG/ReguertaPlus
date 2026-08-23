@@ -1,4 +1,30 @@
 extension AccessRootViewModel {
+    static func makeMyOrderFreshnessViewModel(
+        productsViewModel: ProductsRouteViewModel,
+        dependencies: MyOrderFreshnessFeatureDependencies
+    ) -> MyOrderFreshnessViewModel {
+        MyOrderFreshnessViewModel(
+            resolveCriticalDataFreshness: dependencies.resolveCriticalDataFreshness,
+            criticalDataFreshnessLocalRepository: dependencies.criticalDataFreshnessLocalRepository,
+            sessionStateRevisionProvider: {
+                productsViewModel.sessionViewModel.sessionStateRevision
+            },
+            applyCriticalOrderingState: { context, payload in
+                try await productsViewModel.refreshOrderingProductsForFreshness(
+                    context: context,
+                    payload: payload
+                )
+            },
+            isCriticalOrderingStateCurrent: { context in
+                productsViewModel.isOrderingStateCurrentForFreshness(context: context)
+            },
+            acknowledgedCriticalOrderingStateRevision: { context in
+                guard productsViewModel.isOrderingStateCurrentForFreshness(context: context) else { return nil }
+                return productsViewModel.sessionViewModel.sessionStateRevision
+            }
+        )
+    }
+
     static func makeMyOrderViewModel(
         sessionViewModel: SessionViewModel,
         dependencies: OrdersFeatureDependencies

@@ -34,6 +34,7 @@ struct AdaptiveCommunityRoutesPreviewTests {
             "productsLoading",
             "productsEmpty",
             "productsContent",
+            "productsFailure",
             "productEditor",
             "usersContent",
             "userEditor",
@@ -58,26 +59,48 @@ struct AdaptiveCommunityRoutesPreviewTests {
         #expect(source.contains("isVoiceOverEnabled: true"))
     }
 
+    @MainActor @Test func productsFailureUsesItsRealRouteAndDeterministicGlobalFeedback() throws {
+        let source = try previewSource()
+        let failureScenario = try #require(
+            AdaptiveCommunityPreviewScenario.allCases.first {
+                String(describing: $0) == "productsFailure"
+            }
+        )
+
+        #expect(source.contains("AdaptiveCommunityRoutesPreview(scenario: .productsFailure)"))
+        #expect(source.contains("messageKey: fixture.environment.feedbackCenter.messageKey"))
+        #expect(source.contains("fixture.environment.feedbackCenter.clear()"))
+        #expect(source.contains("environment.feedbackCenter.show(AccessL10nKey.feedbackUnableLoadData)"))
+        guard case .products = failureScenario.route else {
+            Issue.record("Products failure must render ProductsRouteView")
+            return
+        }
+
+        let fixture = AdaptiveCommunityPreviewFixture.make(for: failureScenario)
+        #expect(fixture.rootViewModel.productsViewModel.isLoadingCatalog == false)
+        #expect(fixture.environment.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableLoadData)
+    }
+
     @MainActor @Test func galleryDeclaresTheRequiredGeometryTypeLocaleAppearanceAndMotionMatrix() throws {
         let source = try previewSource()
         let variants = AdaptiveCommunityPreviewScenario.allCases.map(\.matrix)
 
-        #expect(variants.count == 16)
+        #expect(variants.count == 17)
         #expect(Set(variants.map(\.canvas)) == Set(AdaptiveCommunityPreviewCanvas.allCases))
         #expect(Set(variants.map(\.dynamicTypeSize)) == [.large, .xxxLarge, .accessibility5])
         #expect(Set(variants.map(\.localeIdentifier)) == ["es", "en"])
         #expect(Set(variants.map(\.colorScheme)) == [.light, .dark])
         #expect(Set(variants.map(\.requiresIncreasedContrastOverride)) == [false, true])
         #expect(Set(variants.map(\.reducesMotion)) == [false, true])
-        #expect(variants.map(\.requiresIncreasedContrastOverride).filter { $0 }.count == 9)
-        #expect(occurrenceCount(of: "external Increased Contrast override", in: source) == 9)
+        #expect(variants.map(\.requiresIncreasedContrastOverride).filter { $0 }.count == 10)
+        #expect(occurrenceCount(of: "external Increased Contrast override", in: source) == 10)
         #expect(source.contains(".environment(\\.locale,"))
         #expect(source.contains(".environment(\\.dynamicTypeSize,"))
         #expect(source.contains(".reguertaPreviewTheme("))
         #expect(source.contains(".preferredColorScheme("))
     }
 
-    @MainActor @Test func everyPreviewPinsItsScenarioCanvasWithAnExplicitFixedLayout() throws {
+    @MainActor @Test func everyPreviewCombinesTheDesignSystemModifierWithItsFixedCanvas() throws {
         let source = try previewSource()
         let declarations = previewDeclarations(in: source)
 
@@ -88,6 +111,10 @@ struct AdaptiveCommunityRoutesPreviewTests {
             let expectedSize = scenario.matrix.canvas.size
 
             #expect(declaration != nil, "Missing preview declaration for \(scenarioName)")
+            #expect(
+                declaration?.contains(".modifier(ReguertaDesignSystemPreviewModifier())") == true,
+                "\(scenarioName) must apply the design-system preview modifier"
+            )
             #expect(
                 try declaration.flatMap { try fixedLayoutSize(in: $0) } == expectedSize,
                 "\(scenarioName) must pin \(expectedSize.width)x\(expectedSize.height) with fixedLayout"
@@ -110,6 +137,7 @@ struct AdaptiveCommunityRoutesPreviewTests {
             "URLSession",
             "Firestore",
             "Firebase",
+            "UserDefaults",
             "Date()",
             "UUID()",
             "Task {",
@@ -154,7 +182,7 @@ struct AdaptiveCommunityRoutesPreviewTests {
 
     private func fixedLayoutSize(in declaration: String) throws -> CGSize? {
         let pattern = try Regex(
-            #"traits:\s*\.fixedLayout\s*\(\s*width:\s*([0-9_]+)\s*,\s*height:\s*([0-9_]+)\s*\)"#
+            #"\.fixedLayout\s*\(\s*width:\s*([0-9_]+)\s*,\s*height:\s*([0-9_]+)\s*\)"#
         )
         guard let match = declaration.firstMatch(of: pattern),
               let widthText = match.output[1].substring,

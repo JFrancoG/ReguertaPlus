@@ -21,9 +21,11 @@ private struct AdaptiveCommunityRoutesPreview: View {
             GlobalFeedbackRouteView(
                 tokens: tokens,
                 isVoiceOverEnabled: true,
-                messageKey: errorMessageKey,
+                messageKey: fixture.environment.feedbackCenter.messageKey,
                 dismissTitle: LocalizedStringKey(AccessL10nKey.dismissMessage)
-            ) { _ in }
+            ) { _ in
+                fixture.environment.feedbackCenter.clear()
+            }
         }
         .background(tokens.colors.surfacePrimary)
         .reguertaPreviewTheme(
@@ -88,10 +90,6 @@ private struct AdaptiveCommunityRoutesPreview: View {
         }
     }
 
-    private var errorMessageKey: String? {
-        scenario == .routeError ? AccessL10nKey.feedbackUnableLoadData : nil
-    }
-
     private func previewNewsMetadata(_ article: NewsArticle) -> String {
         l10n(AccessL10nKey.newsMetaFormat, article.publishedBy)
     }
@@ -118,112 +116,136 @@ extension AdaptiveCommunityRoutesPreview {
 
 #Preview(
     "Products · loading · compact · ES light · Large",
-    traits: .fixedLayout(width: 320, height: 844)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 320, height: 844)
 ) {
     AdaptiveCommunityRoutesPreview(scenario: .productsLoading)
 }
 
 #Preview(
     "Products · empty · 600 · EN dark · XXX · reduced · external Increased Contrast override",
-    traits: .fixedLayout(width: 600, height: 900)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 600, height: 900)
 ) {
     AdaptiveCommunityRoutesPreview(scenario: .productsEmpty)
 }
 
 #Preview(
     "Products · content · iPad · ES light · AX5 · external Increased Contrast override",
-    traits: .fixedLayout(width: 820, height: 1_180)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 820, height: 1_180)
 ) {
     AdaptiveCommunityRoutesPreview(scenario: .productsContent)
 }
 
 #Preview(
+    "Products · failure · compact · EN dark · AX5 · reduced · external Increased Contrast override",
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 320, height: 844)
+) {
+    AdaptiveCommunityRoutesPreview(scenario: .productsFailure)
+}
+
+#Preview(
     "Product editor · compact · EN dark · AX5 · reduced",
-    traits: .fixedLayout(width: 320, height: 844)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 320, height: 844)
 ) {
     AdaptiveCommunityRoutesPreview(scenario: .productEditor)
 }
 
 #Preview(
     "Users · content · 600 · ES light · Large · external Increased Contrast override",
-    traits: .fixedLayout(width: 600, height: 900)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 600, height: 900)
 ) {
     AdaptiveCommunityRoutesPreview(scenario: .usersContent)
 }
 
 #Preview(
     "User editor · iPad · EN dark · XXX · reduced",
-    traits: .fixedLayout(width: 820, height: 1_180)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 820, height: 1_180)
 ) {
     AdaptiveCommunityRoutesPreview(scenario: .userEditor)
 }
 
 #Preview(
     "User action · compact · ES light · AX5 · reduced · external Increased Contrast override",
-    traits: .fixedLayout(width: 320, height: 844)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 320, height: 844)
 ) {
     AdaptiveCommunityRoutesPreview(scenario: .userAction)
 }
 
 #Preview(
     "Shared profile · loading · 600 · EN dark · Large · reduced",
-    traits: .fixedLayout(width: 600, height: 900)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 600, height: 900)
 ) {
     AdaptiveCommunityRoutesPreview(scenario: .sharedProfileLoading)
 }
 
 #Preview(
     "Shared profile · content · iPad · ES light · XXX · external Increased Contrast override",
-    traits: .fixedLayout(width: 820, height: 1_180)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 820, height: 1_180)
 ) {
     AdaptiveCommunityRoutesPreview(scenario: .sharedProfileContent)
 }
 
 #Preview(
     "News · loading · compact · EN dark · AX5 · reduced",
-    traits: .fixedLayout(width: 320, height: 844)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 320, height: 844)
 ) {
     AdaptiveCommunityRoutesPreview(scenario: .newsLoading)
 }
 
 #Preview(
     "News · content · 600 · ES light · Large · external Increased Contrast override",
-    traits: .fixedLayout(width: 600, height: 900)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 600, height: 900)
 ) {
     AdaptiveCommunityRoutesPreview(scenario: .newsContent)
 }
 
 #Preview(
     "News editor · iPad · EN dark · XXX · reduced",
-    traits: .fixedLayout(width: 820, height: 1_180)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 820, height: 1_180)
 ) {
     AdaptiveCommunityRoutesPreview(scenario: .newsEditor)
 }
 
 #Preview(
     "Notifications · empty · compact · ES light · Large · external Increased Contrast override",
-    traits: .fixedLayout(width: 320, height: 844)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 320, height: 844)
 ) {
     AdaptiveCommunityRoutesPreview(scenario: .notificationsEmpty)
 }
 
 #Preview(
     "Notifications · content · 600 · EN dark · AX5 · reduced",
-    traits: .fixedLayout(width: 600, height: 900)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 600, height: 900)
 ) {
     AdaptiveCommunityRoutesPreview(scenario: .notificationsContent)
 }
 
 #Preview(
     "Notification editor · iPad · ES light · XXX · external Increased Contrast override",
-    traits: .fixedLayout(width: 820, height: 1_180)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 820, height: 1_180)
 ) {
     AdaptiveCommunityRoutesPreview(scenario: .notificationEditor)
 }
 
 #Preview(
     "Community error · compact · EN dark · AX5 · reduced · external Increased Contrast override",
-    traits: .fixedLayout(width: 320, height: 844)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 320, height: 844)
 ) {
     AdaptiveCommunityRoutesPreview(scenario: .routeError)
 }
