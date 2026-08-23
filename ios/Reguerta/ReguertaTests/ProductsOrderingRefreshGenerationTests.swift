@@ -373,7 +373,7 @@ struct ProductsOrderingEquivalentMemberRefreshTests {
     }
 }
 
-@MainActor private func refreshScope(in viewModel: ProductsRouteViewModel) -> MyOrderFreshnessSessionContext? {
+@MainActor func refreshScope(in viewModel: ProductsRouteViewModel) -> MyOrderFreshnessSessionContext? {
     guard case .authorized(let session) = viewModel.sessionViewModel.mode else { return nil }
     return MyOrderFreshnessSessionContext(
         session: session,
@@ -381,7 +381,7 @@ struct ProductsOrderingEquivalentMemberRefreshTests {
     )
 }
 
-private func memberCopy(_ source: Member, roles: Set<MemberRole>) -> Member {
+func memberCopy(_ source: Member, roles: Set<MemberRole>) -> Member {
     Member(
         id: source.id,
         displayName: source.displayName,

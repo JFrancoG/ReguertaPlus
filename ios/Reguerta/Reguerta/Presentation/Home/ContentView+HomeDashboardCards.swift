@@ -145,32 +145,30 @@ struct LatestNewsCardView: View {
             Text(localizedKey(AccessL10nKey.homeShellNewsTitle))
                 .font(tokens.typography.titleSection)
                 .frame(maxWidth: .infinity, alignment: .center)
+                .accessibilityAddTraits(.isHeader)
             if latestNews.isEmpty {
                 Text(localizedKey(AccessL10nKey.newsEmptyState))
                     .font(tokens.typography.bodySecondary)
                     .foregroundStyle(tokens.colors.textSecondary)
             } else {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: tokens.spacing.sm) {
-                        ForEach(latestNews) { item in
-                            reguertaListItemCard {
-                                HomeLatestNewsRowView(
-                                    tokens: tokens,
-                                    item: item,
-                                    loadNewsImageData: loadNewsImageData
-                                )
-                                    .padding(tokens.spacing.lg)
-                            }
-                            .accessibilityElement(children: .contain)
-                            .accessibilityIdentifier(item.cardAccessibilityIdentifier)
+                LazyVStack(alignment: .leading, spacing: tokens.spacing.sm) {
+                    ForEach(latestNews) { item in
+                        reguertaListItemCard {
+                            HomeLatestNewsRowView(
+                                tokens: tokens,
+                                item: item,
+                                loadNewsImageData: loadNewsImageData
+                            )
+                                .padding(tokens.spacing.lg)
                         }
+                        .accessibilityElement(children: .contain)
+                        .accessibilityIdentifier(item.cardAccessibilityIdentifier)
                     }
-                    .padding(.bottom, tokens.spacing.lg)
                 }
-                .accessibilityIdentifier("home.latestNews.scroll")
+                .padding(.bottom, tokens.spacing.lg)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 }
 

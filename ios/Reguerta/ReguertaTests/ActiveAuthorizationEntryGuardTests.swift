@@ -80,10 +80,19 @@ struct ActiveAuthorizationEntryGuardTests {
     @Test("Freshness no inicia retry ni revalidacion con una autorizacion ya revocada")
     func freshnessEntryOperationsDoNotReachRepositoryAfterUnobservedRevocation() async {
         let scenario = activeEntryFreshnessScenario()
-        scenario.sessionViewModel.mode = activeEntryRevokedMode(from: scenario.session)
+        let revokedMode = activeEntryRevokedMode(from: scenario.session)
+        scenario.sessionViewModel.mode = revokedMode
+        guard case .authorized(let revokedSession) = revokedMode else {
+            Issue.record("Expected an authorized revoked session")
+            return
+        }
+        let revokedContext = MyOrderFreshnessSessionContext(
+            session: revokedSession,
+            sessionStateRevision: scenario.sessionViewModel.sessionStateRevision
+        )
 
         scenario.viewModel.retry(currentMode: scenario.sessionViewModel.mode)
-        let canEnter = await scenario.viewModel.revalidateForEntry(currentMode: scenario.sessionViewModel.mode)
+        let canEnter = await scenario.viewModel.revalidateForEntry(context: revokedContext)
 
         #expect(!canEnter)
         #expect(await scenario.remoteRepository.requestCount() == 0)

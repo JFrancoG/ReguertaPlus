@@ -26,7 +26,11 @@ struct AdaptiveOperationsRoutesPreview: View {
     @ViewBuilder
     private var route: some View {
         switch scenario {
-        case .homeDashboard:
+        case .homeDashboard,
+             .homeFreshnessIdle,
+             .homeFreshnessChecking,
+             .homeFreshnessTimedOut,
+             .homeFreshnessUnavailable:
             HomeDashboardRouteView(
                 tokens: matrix.tokens,
                 presentation: fixture.homeDashboardPresentation,
@@ -68,7 +72,7 @@ struct AdaptiveOperationsRoutesPreview: View {
                 onTitleChanged: { _ in }
             )
 
-        case .receivedOrders:
+        case .receivedOrders, .receivedOrdersWide, .receivedOrdersFailure:
             ReceivedOrdersRouteView(
                 tokens: matrix.tokens,
                 viewModel: fixture.receivedOrdersViewModel,
@@ -138,11 +142,17 @@ extension AdaptiveOperationsRoutesPreview {
 
 enum AdaptiveOperationsPreviewScenario: String, CaseIterable, Hashable {
     case homeDashboard
+    case homeFreshnessIdle
+    case homeFreshnessChecking
+    case homeFreshnessTimedOut
+    case homeFreshnessUnavailable
     case homeDrawer
     case myOrderList
     case myOrderCart
     case myOrdersHistory
     case receivedOrders
+    case receivedOrdersWide
+    case receivedOrdersFailure
     case receivedOrdersHistory
     case shiftsPlanning
     case settings
@@ -158,6 +168,46 @@ enum AdaptiveOperationsPreviewScenario: String, CaseIterable, Hashable {
                 locale: Locale(identifier: "es_ES"),
                 colorScheme: .light,
                 requiresIncreasedContrastOverride: false,
+                reducesMotion: false
+            )
+        case .homeFreshnessIdle:
+            AdaptiveOperationsPreviewMatrix(
+                width: 600,
+                height: 820,
+                dynamicTypeSize: .xxxLarge,
+                locale: Locale(identifier: "en_US"),
+                colorScheme: .dark,
+                requiresIncreasedContrastOverride: false,
+                reducesMotion: false
+            )
+        case .homeFreshnessChecking:
+            AdaptiveOperationsPreviewMatrix(
+                width: 320,
+                height: 760,
+                dynamicTypeSize: .accessibility5,
+                locale: Locale(identifier: "es_ES"),
+                colorScheme: .light,
+                requiresIncreasedContrastOverride: true,
+                reducesMotion: true
+            )
+        case .homeFreshnessTimedOut:
+            AdaptiveOperationsPreviewMatrix(
+                width: 320,
+                height: 760,
+                dynamicTypeSize: .large,
+                locale: Locale(identifier: "en_US"),
+                colorScheme: .dark,
+                requiresIncreasedContrastOverride: false,
+                reducesMotion: true
+            )
+        case .homeFreshnessUnavailable:
+            AdaptiveOperationsPreviewMatrix(
+                width: 1_024,
+                height: 900,
+                dynamicTypeSize: .xxxLarge,
+                locale: Locale(identifier: "es_ES"),
+                colorScheme: .light,
+                requiresIncreasedContrastOverride: true,
                 reducesMotion: false
             )
         case .homeDrawer:
@@ -209,6 +259,26 @@ enum AdaptiveOperationsPreviewScenario: String, CaseIterable, Hashable {
                 colorScheme: .dark,
                 requiresIncreasedContrastOverride: true,
                 reducesMotion: false
+            )
+        case .receivedOrdersWide:
+            AdaptiveOperationsPreviewMatrix(
+                width: 600,
+                height: 820,
+                dynamicTypeSize: .xxxLarge,
+                locale: Locale(identifier: "es_ES"),
+                colorScheme: .light,
+                requiresIncreasedContrastOverride: false,
+                reducesMotion: false
+            )
+        case .receivedOrdersFailure:
+            AdaptiveOperationsPreviewMatrix(
+                width: 320,
+                height: 760,
+                dynamicTypeSize: .accessibility5,
+                locale: Locale(identifier: "es_ES"),
+                colorScheme: .light,
+                requiresIncreasedContrastOverride: true,
+                reducesMotion: true
             )
         case .receivedOrdersHistory:
             AdaptiveOperationsPreviewMatrix(
@@ -276,70 +346,128 @@ struct AdaptiveOperationsPreviewMatrix {
 
 #Preview(
     "Operations · Home dashboard · compact ES light",
-    traits: .fixedLayout(width: 320, height: 760)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 320, height: 760)
 ) {
     AdaptiveOperationsRoutesPreview(scenario: .homeDashboard)
 }
 
 #Preview(
+    "Operations · Home freshness idle · 600 EN dark XXX",
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 600, height: 820)
+) {
+    AdaptiveOperationsRoutesPreview(scenario: .homeFreshnessIdle)
+}
+
+#Preview(
+    "Operations · Home freshness checking · compact ES AX5 reduced · external Increased Contrast override",
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 320, height: 760)
+) {
+    AdaptiveOperationsRoutesPreview(scenario: .homeFreshnessChecking)
+}
+
+#Preview(
+    "Operations · Home freshness timed out · compact EN dark reduced",
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 320, height: 760)
+) {
+    AdaptiveOperationsRoutesPreview(scenario: .homeFreshnessTimedOut)
+}
+
+#Preview(
+    "Operations · Home freshness unavailable · iPad ES XXX · external Increased Contrast override",
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 1_024, height: 900)
+) {
+    AdaptiveOperationsRoutesPreview(scenario: .homeFreshnessUnavailable)
+}
+
+#Preview(
     "Operations · Home drawer · iPad EN dark",
-    traits: .fixedLayout(width: 1_024, height: 900)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 1_024, height: 900)
 ) {
     AdaptiveOperationsRoutesPreview(scenario: .homeDrawer)
 }
 
 #Preview(
     "Operations · My order · 600 Large",
-    traits: .fixedLayout(width: 600, height: 820)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 600, height: 820)
 ) {
     AdaptiveOperationsRoutesPreview(scenario: .myOrderList)
 }
 
 #Preview(
     "Operations · Cart · compact EN AX5 Reduce Motion",
-    traits: .fixedLayout(width: 320, height: 760)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 320, height: 760)
 ) {
     AdaptiveOperationsRoutesPreview(scenario: .myOrderCart)
 }
 
 #Preview(
     "Operations · My history · iPad ES XXX",
-    traits: .fixedLayout(width: 1_024, height: 900)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 1_024, height: 900)
 ) {
     AdaptiveOperationsRoutesPreview(scenario: .myOrdersHistory)
 }
 
 #Preview(
     "Operations · Received orders · compact EN · external Increased Contrast override",
-    traits: .fixedLayout(width: 320, height: 760)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 320, height: 760)
 ) {
     AdaptiveOperationsRoutesPreview(scenario: .receivedOrders)
 }
 
 #Preview(
+    "Operations · Received orders · 600 ES XXX",
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 600, height: 820)
+) {
+    AdaptiveOperationsRoutesPreview(scenario: .receivedOrdersWide)
+}
+
+#Preview(
+    "Operations · Received orders failure · compact ES AX5 reduced · external Increased Contrast override",
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 320, height: 760)
+) {
+    AdaptiveOperationsRoutesPreview(scenario: .receivedOrdersFailure)
+}
+
+#Preview(
     "Operations · Received history · 600 ES AX5",
-    traits: .fixedLayout(width: 600, height: 820)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 600, height: 820)
 ) {
     AdaptiveOperationsRoutesPreview(scenario: .receivedOrdersHistory)
 }
 
 #Preview(
     "Operations · Shifts · compact EN AX5 · external Increased Contrast override",
-    traits: .fixedLayout(width: 320, height: 760)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 320, height: 760)
 ) {
     AdaptiveOperationsRoutesPreview(scenario: .shiftsPlanning)
 }
 
 #Preview(
     "Operations · Settings planning · 600 ES XXX",
-    traits: .fixedLayout(width: 600, height: 820)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 600, height: 820)
 ) {
     AdaptiveOperationsRoutesPreview(scenario: .settings)
 }
 
 #Preview(
     "Operations · Calendar sheet · compact EN AX5 · external Increased Contrast override",
-    traits: .fixedLayout(width: 320, height: 760)
+    traits: .modifier(ReguertaDesignSystemPreviewModifier()),
+    .fixedLayout(width: 320, height: 760)
 ) {
     AdaptiveOperationsRoutesPreview(scenario: .deliveryCalendarSheet)
 }

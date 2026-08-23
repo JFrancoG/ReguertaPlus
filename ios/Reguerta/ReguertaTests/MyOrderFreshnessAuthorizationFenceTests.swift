@@ -5,6 +5,97 @@ import Testing
 @Suite(.timeLimit(.minutes(1)))
 @MainActor
 struct MyOrderFreshnessAuthorizationFenceTests {
+    @Test("Un cambio benigno de nombre conserva la entrada tras avanzar la revision")
+    func benignMemberRevisionHandoffPreservesReadyEntry() async throws {
+        let originalMember = member(id: "freshness_profile_update", ecoCommitmentMode: .weekly)
+        let refreshedMember = replacingDisplayName(in: originalMember, with: "Nombre actualizado")
+        let productsViewModel = await makeProductsViewModel(
+            currentMember: originalMember,
+            members: [originalMember],
+            productRepository: InMemoryProductRepository()
+        )
+        let localRepository = InMemoryCriticalDataFreshnessLocalRepository()
+        let refresher = CountingAuthorizationFreshnessRefresher(
+            payload: CriticalDataRefreshPayload(
+                authenticatedMember: refreshedMember,
+                selectedMember: refreshedMember,
+                members: [refreshedMember],
+                products: [],
+                seasonalCommitments: []
+            )
+        )
+        let freshnessViewModel = makeAuthorizationFencedFreshnessViewModel(
+            productsViewModel: productsViewModel,
+            localRepository: localRepository,
+            refresher: refresher,
+            timeoutSleeper: nil
+        )
+        let originalSession = try #require(productsViewModel.sessionViewModel.mode.authorizedSession)
+        let originalRevision = productsViewModel.sessionViewModel.sessionStateRevision
+        let entryContext = MyOrderFreshnessSessionContext(
+            session: originalSession,
+            sessionStateRevision: originalRevision
+        )
+
+        let canEnter = await freshnessViewModel.revalidateForEntry(context: entryContext)
+
+        let refreshedSession = try #require(productsViewModel.sessionViewModel.mode.authorizedSession)
+        let refreshedRevision = productsViewModel.sessionViewModel.sessionStateRevision
+        let refreshedContext = MyOrderFreshnessSessionContext(
+            session: refreshedSession,
+            sessionStateRevision: refreshedRevision
+        )
+        let refreshRequestCount = await refresher.requestCount
+        #expect(canEnter)
+        #expect(freshnessViewModel.state == .ready)
+        #expect(refreshedRevision == originalRevision &+ 1)
+        #expect(refreshedSession.principal == originalSession.principal)
+        #expect(refreshedSession.member.displayName == refreshedMember.displayName)
+        #expect(refreshedContext.authenticatedMember == entryContext.authenticatedMember)
+        #expect(refreshedContext.member == entryContext.member)
+        #expect(refreshedContext.environment == entryContext.environment)
+        #expect(refreshRequestCount == 1)
+        #expect(productsViewModel.isOrderingStateCurrentForFreshness(context: entryContext))
+    }
+
+    @Test("Un predicado current sin ACK explicito no legitima una revision sucesora")
+    func currentPredicateAloneCannotAcknowledgeASuccessorRevision() async throws {
+        let originalMember = member(id: "freshness_no_ack", ecoCommitmentMode: .weekly)
+        let refreshedMember = replacingDisplayName(in: originalMember, with: "Sin ACK")
+        let productsViewModel = await makeProductsViewModel(
+            currentMember: originalMember,
+            members: [originalMember],
+            productRepository: InMemoryProductRepository()
+        )
+        let localRepository = InMemoryCriticalDataFreshnessLocalRepository()
+        let freshnessViewModel = makeAuthorizationFencedFreshnessViewModel(
+            productsViewModel: productsViewModel,
+            localRepository: localRepository,
+            refresher: CountingAuthorizationFreshnessRefresher(
+                payload: CriticalDataRefreshPayload(
+                    authenticatedMember: refreshedMember,
+                    selectedMember: refreshedMember,
+                    members: [refreshedMember],
+                    products: [],
+                    seasonalCommitments: []
+                )
+            ),
+            timeoutSleeper: nil,
+            acknowledgesSuccessorRevision: false
+        )
+        let originalSession = try #require(productsViewModel.sessionViewModel.mode.authorizedSession)
+        let entryContext = MyOrderFreshnessSessionContext(
+            session: originalSession,
+            sessionStateRevision: productsViewModel.sessionViewModel.sessionStateRevision
+        )
+
+        let canEnter = await freshnessViewModel.revalidateForEntry(context: entryContext)
+
+        #expect(!canEnter)
+        #expect(freshnessViewModel.state == .unavailable)
+        #expect(productsViewModel.isOrderingStateCurrentForFreshness(context: entryContext))
+    }
+
     @Test("Una desactivacion live impide aplicar y reconocer un payload suspendido")
     func liveDeactivationFencesSuspendedFreshnessPayloadWithoutRouteHandler() async throws {
         let scenario = await makeFreshnessAuthorizationFenceScenario()
@@ -136,7 +227,8 @@ private func makeAuthorizationFencedFreshnessViewModel(
     productsViewModel: ProductsRouteViewModel,
     localRepository: InMemoryCriticalDataFreshnessLocalRepository,
     refresher: any CriticalDataRefreshing,
-    timeoutSleeper: ControlledFreshnessSleeper?
+    timeoutSleeper: ControlledFreshnessSleeper?,
+    acknowledgesSuccessorRevision: Bool = true
 ) -> MyOrderFreshnessViewModel {
     MyOrderFreshnessViewModel(
         resolveCriticalDataFreshness: ResolveCriticalDataFreshnessUseCase(
@@ -159,6 +251,11 @@ private func makeAuthorizationFencedFreshnessViewModel(
         },
         isCriticalOrderingStateCurrent: { context in
             productsViewModel.isOrderingStateCurrentForFreshness(context: context)
+        },
+        acknowledgedCriticalOrderingStateRevision: { context in
+            guard acknowledgesSuccessorRevision,
+                  productsViewModel.isOrderingStateCurrentForFreshness(context: context) else { return nil }
+            return productsViewModel.sessionViewModel.sessionStateRevision
         },
         timeout: .seconds(60),
         automaticRetryDelays: [],
@@ -216,6 +313,23 @@ private final class SuspendedAuthorizationFreshnessRefresher: CriticalDataRefres
 
     func cancelAll() {
         operation.cancelAll()
+    }
+}
+
+private actor CountingAuthorizationFreshnessRefresher: CriticalDataRefreshing {
+    private let payload: CriticalDataRefreshPayload
+    private(set) var requestCount = 0
+
+    init(payload: CriticalDataRefreshPayload) {
+        self.payload = payload
+    }
+
+    func refresh(
+        collections _: Set<CriticalCollection>,
+        scope _: CriticalDataRefreshScope
+    ) async throws -> CriticalDataRefreshPayload {
+        requestCount += 1
+        return payload
     }
 }
 

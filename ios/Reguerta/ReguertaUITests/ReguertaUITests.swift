@@ -1,12 +1,4 @@
-//
-//  ReguertaUITests.swift
-//  ReguertaUITests
-//
-//  Created by Jesús Franco on 05.02.2026.
-//
-
 import XCTest
-
 final class ReguertaUITests: XCTestCase {
     private let enterButtonId = "auth.welcome.enterButton"
     private let registerButtonId = "auth.welcome.registerButton"
@@ -33,7 +25,7 @@ final class ReguertaUITests: XCTestCase {
     private let usersAddButtonId = "users.addButton"
     private let latestNewsTitleIdPrefix = "home.latestNews.article."
     private let latestNewsCardIdPrefix = "home.latestNews.articleCard."
-    private let latestNewsScrollId = "home.latestNews.scroll"
+    private let homeDashboardScrollId = "home.dashboard.scroll"
     private let latestNewsOverflowTargetId = "news_ui_testing_overflow_target"
     private let latestNewsExpectedIds = [
         "news_ui_testing_brief",
@@ -45,12 +37,7 @@ final class ReguertaUITests: XCTestCase {
     private let deterministicNowMillis = "1778760000000"
 
     override func setUp() async throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-
-        // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
-
-        // In UI tests set initial state before each run.
         await MainActor.run {
             XCUIApplication().terminate()
         }
@@ -59,17 +46,13 @@ final class ReguertaUITests: XCTestCase {
     @MainActor func testUnauthorizedUserShowsRestrictedMode() throws {
         let app = configuredApp()
         let emailField = launchAndOpenLogin(app)
-
         emailField.tap()
         emailField.typeText("unknown@reguerta.app")
-
         let passwordField = app.secureTextFields[passwordFieldId]
         XCTAssertTrue(passwordField.waitForExistence(timeout: 5), "Password field not found")
         passwordField.tap()
         passwordField.typeText("test1234")
-
         app.buttons[signInButtonId].tap()
-
         XCTAssertTrue(app.staticTexts["Unauthorized user email"].waitForExistence(timeout: 5))
         dismissPasswordSavePromptIfNeeded(in: app)
         let signOutButton = app.buttons.matching(identifier: "Sign out").firstMatch
@@ -83,21 +66,16 @@ final class ReguertaUITests: XCTestCase {
         let emailField = launchAndOpenLogin(app)
         emailField.tap()
         emailField.typeText("pablo.producer@reguerta.app")
-
         let passwordField = app.secureTextFields[passwordFieldId]
         XCTAssertTrue(passwordField.waitForExistence(timeout: 5), "Password field not found")
         passwordField.tap()
         passwordField.typeText("test1234")
-
         app.buttons[signInButtonId].tap()
         dismissPasswordSavePromptIfNeeded(in: app)
-
         let myOrderButton = app.buttons[myOrderButtonId]
         let receivedOrdersButton = app.buttons[receivedOrdersButtonId]
-
         XCTAssertTrue(myOrderButton.waitForExistence(timeout: 8), "My order button not found")
         XCTAssertTrue(receivedOrdersButton.waitForExistence(timeout: 3), "Received orders button not found")
-
         let enabledPredicate = NSPredicate(format: "isEnabled == true")
         expectation(for: enabledPredicate, evaluatedWith: myOrderButton)
         expectation(for: enabledPredicate, evaluatedWith: receivedOrdersButton)
@@ -110,32 +88,28 @@ final class ReguertaUITests: XCTestCase {
     @MainActor func testHomeShowsLatestNewsWithoutBottomObstruction() throws {
         let app = configuredApp()
         signInAsProducer(in: app)
-
-        let latestNewsScroll = app.scrollViews[latestNewsScrollId]
-        XCTAssertTrue(latestNewsScroll.waitForExistence(timeout: 8), "Latest news scroll not found")
-
+        let homeDashboardScroll = app.scrollViews[homeDashboardScrollId]
+        XCTAssertTrue(homeDashboardScroll.waitForExistence(timeout: 8), "Home dashboard scroll not found")
         for articleId in latestNewsExpectedIds {
             let title = app.staticTexts[latestNewsTitleId(for: articleId)]
             let card = app.otherElements[latestNewsCardId(for: articleId)]
             var materializationAttempts = 0
             while !title.exists || !card.exists, materializationAttempts < latestNewsMaxScrollAttempts {
-                latestNewsScroll.swipeUp()
+                homeDashboardScroll.swipeUp()
                 materializationAttempts += 1
             }
             XCTAssertTrue(title.exists, "Expected deterministic latest-news title \(articleId)")
             XCTAssertTrue(card.exists, "Expected deterministic latest-news card \(articleId)")
         }
-
         let targetTitle = app.staticTexts[latestNewsTitleId(for: latestNewsOverflowTargetId)]
         let targetCard = app.otherElements[latestNewsCardId(for: latestNewsOverflowTargetId)]
         XCTAssertTrue(targetTitle.waitForExistence(timeout: 3), "Overflow target title not found")
         XCTAssertTrue(targetCard.waitForExistence(timeout: 3), "Overflow target card not found")
-
         var scrollAttempts = 0
         var keepsBottomBreathingRoom = targetCard.frame.maxY <= app.frame.maxY - compactBottomSafetyMargin
         while !targetTitle.isHittable || !keepsBottomBreathingRoom,
               scrollAttempts < latestNewsMaxScrollAttempts {
-            latestNewsScroll.swipeUp()
+            homeDashboardScroll.swipeUp()
             scrollAttempts += 1
             keepsBottomBreathingRoom = targetCard.frame.maxY <= app.frame.maxY - compactBottomSafetyMargin
         }
@@ -161,6 +135,13 @@ final class ReguertaUITests: XCTestCase {
         signInAsProducer(in: app)
 
         let myOrderButton = app.buttons[myOrderButtonId]
+        let homeDashboardScroll = app.scrollViews[homeDashboardScrollId]
+        XCTAssertTrue(waitForHittable(homeDashboardScroll, timeout: 5), "Home dashboard scroll not hittable")
+        var scrollAttempts = 0
+        while !myOrderButton.isHittable && scrollAttempts < latestNewsMaxScrollAttempts {
+            homeDashboardScroll.swipeUp()
+            scrollAttempts += 1
+        }
         XCTAssertTrue(waitForHittable(myOrderButton, timeout: 5), "My order button not hittable")
         XCTAssertTrue(waitForEnabled(myOrderButton, timeout: 5), "My order button not enabled")
         myOrderButton.tap()
@@ -191,7 +172,7 @@ final class ReguertaUITests: XCTestCase {
         let drawerNavigationScroll = app.scrollViews[drawerNavigationScrollId]
         XCTAssertTrue(waitForHittable(drawerNavigationScroll, timeout: 5), "Drawer navigation scroll not hittable")
         var scrollAttempts = 0
-        while !usersDrawerItem.isHittable && scrollAttempts < 4 {
+        while !usersDrawerItem.isHittable && scrollAttempts < latestNewsMaxScrollAttempts {
             drawerNavigationScroll.swipeUp()
             scrollAttempts += 1
         }
@@ -332,14 +313,13 @@ final class ReguertaUITests: XCTestCase {
     }
 
     @MainActor func testLaunchPerformance() throws {
-        // This measures how long it takes to launch your application.
         measure(metrics: [XCTApplicationLaunchMetric()]) {
             configuredApp().launch()
         }
     }
 }
 
-private extension ReguertaUITests {
+extension ReguertaUITests {
     @MainActor func configuredApp() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += [
@@ -363,13 +343,11 @@ private extension ReguertaUITests {
 
     @MainActor func signInAsProducer(in app: XCUIApplication) {
         signIn(email: "pablo.producer@reguerta.app", in: app)
-
         XCTAssertTrue(app.buttons[menuButtonId].waitForExistence(timeout: 8), "Home did not load")
     }
 
     @MainActor func signInAsAdmin(in app: XCUIApplication) {
         signIn(email: "ana.admin@reguerta.app", in: app)
-
         XCTAssertTrue(app.buttons[menuButtonId].waitForExistence(timeout: 8), "Home did not load")
     }
 
@@ -389,7 +367,6 @@ private extension ReguertaUITests {
 
     @MainActor func tapSignInButton(in app: XCUIApplication) {
         dismissKeyboardBeforeSubmitting(in: app)
-
         let signInButton = app.buttons[signInButtonId]
         if !waitForHittable(signInButton, timeout: 1) {
             app.scrollViews.firstMatch.swipeUp()
@@ -406,7 +383,7 @@ private extension ReguertaUITests {
         if returnKey.exists {
             returnKey.tap()
         } else {
-            app.scrollViews.firstMatch.swipeUp()
+            keyboard.swipeDown()
         }
         XCTAssertTrue(waitForNonExistence(keyboard, timeout: 3), "Keyboard did not dismiss before sign in")
     }

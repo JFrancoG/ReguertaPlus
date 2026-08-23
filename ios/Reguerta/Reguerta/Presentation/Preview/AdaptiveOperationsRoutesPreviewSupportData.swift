@@ -231,6 +231,7 @@ enum AdaptiveOperationsPreviewData {
         weekKey: "2026-W34",
         orderWeekKey: "2026-W34",
         weekRangeLabel: "17–23 agosto",
+        weekRangeAccessibilityLabel: "Del 17 al 23 de agosto",
         weekBadgeLabel: "Semana 34",
         producerName: "Huerta comunitaria La Acequia",
         deliveryLabel: "Miércoles 19 de agosto · 18:00",
@@ -250,6 +251,24 @@ enum AdaptiveOperationsPreviewData {
             active: true,
             publishedBy: currentMember.displayName,
             publishedAtMillis: nowMillis,
+            urlImage: nil
+        ),
+        NewsArticle(
+            id: "operations-news-reminder",
+            title: "Recordatorio de cierre del pedido semanal",
+            body: "Revisa las cantidades antes del cierre para que el productor reciba el pedido completo.",
+            active: true,
+            publishedBy: helper.displayName,
+            publishedAtMillis: nowMillis - 60_000,
+            urlImage: nil
+        ),
+        NewsArticle(
+            id: "operations-news-market",
+            title: "Próximo turno de mercado comunitario",
+            body: "La información de responsables y horario ya está disponible en el resumen semanal.",
+            active: true,
+            publishedBy: currentMember.displayName,
+            publishedAtMillis: nowMillis - 120_000,
             urlImage: nil
         )
     ]

@@ -59,10 +59,10 @@ extension ProductsRouteViewModel {
             showUnableSaveFeedback()
             return
         }
+        cancelProductImageUpload()
         draft = ProductDraft()
         editingProductId = ""
         pendingNewProductId = productIDProvider()
-        editorRevision += 1
         isUploadingImage = false
     }
 
@@ -72,10 +72,10 @@ extension ProductsRouteViewModel {
             return
         }
         guard let product = catalogProducts.first(where: { $0.id == productId }) else { return }
+        cancelProductImageUpload()
         draft = product.toDraft()
         editingProductId = product.id
         pendingNewProductId = nil
-        editorRevision += 1
         isUploadingImage = false
     }
 
@@ -85,14 +85,13 @@ extension ProductsRouteViewModel {
         var updatedDraft = draft
         update(&updatedDraft)
         draft = updatedDraft
-        editorRevision += 1
     }
 
     func clearEditor() {
+        cancelProductImageUpload()
         draft = ProductDraft()
         editingProductId = nil
         pendingNewProductId = nil
-        editorRevision += 1
         isUploadingImage = false
     }
 
@@ -114,18 +113,16 @@ extension ProductsRouteViewModel {
         let uploadEditorRevision = editorRevision
         defer { finishUploadOperation(uploadOperationId) }
         let entityId = editingProductId?.isEmpty == false ? editingProductId : nil
+        let request = ImageUploadRequest(
+            environment: session.environment,
+            ownerId: session.member.id,
+            namespace: .products,
+            entityId: entityId,
+            nameHint: draft.name
+        )
 
         do {
-            let uploaded = try await imagePipelineManager.processAndUpload(
-                imageData: imageData,
-                request: ImageUploadRequest(
-                    environment: session.environment,
-                    ownerId: session.member.id,
-                    namespace: .products,
-                    entityId: entityId,
-                    nameHint: draft.name
-                )
-            )
+            let uploaded = try await performProductImageUpload(imageData: imageData, request: request)
             try Task.checkCancellation()
             guard isCurrentEditor(
                 context,
@@ -134,7 +131,6 @@ extension ProductsRouteViewModel {
                 revision: uploadEditorRevision
             ) else { return }
             draft.productImageUrl = uploaded.downloadURL
-            editorRevision += 1
         } catch is CancellationError {
             return
         } catch {
@@ -176,6 +172,9 @@ extension ProductsRouteViewModel {
         guard session.member.canManageProductCatalog else { return }
         guard activeSaveOperationId == nil, !isSaving else { return }
         guard let product = catalogProducts.first(where: { $0.id == productId }) else { return }
+        let editorProductId = editingProductId
+        let editorPendingProductId = pendingNewProductId
+        let archiveEditorRevision = editorRevision
 
         let saveOperationId = beginSaveOperation()
         defer { finishSaveOperation(saveOperationId) }
@@ -196,7 +195,12 @@ extension ProductsRouteViewModel {
         }
         guard isCurrentSession(context) else { return }
         applyConfirmedProductToCatalog(archivedProduct)
-        if editingProductId == productId {
+        if editingProductId == productId, isCurrentEditor(
+            context,
+            editingProductId: editorProductId,
+            pendingProductId: editorPendingProductId,
+            revision: archiveEditorRevision
+        ) {
             clearEditor()
         }
         highlightProduct(productId)
@@ -232,7 +236,7 @@ extension ProductsRouteViewModel {
             member.id == updatedMember.id ? updatedMember : member
         }
         sessionViewModel.applyUpdatedAuthorizedMember(updatedMember, members: locallyUpdatedMembers)
-        syncCurrentSessionFromSessionViewModel()
+        guard syncCurrentSessionFromSessionViewModel(from: context) else { return }
         await refreshOrderingProducts()
     }
 
@@ -256,6 +260,14 @@ extension ProductsRouteViewModel {
     func cancelProductHighlight() {
         productHighlightTask?.cancel()
         productHighlightTask = nil
+    }
+
+    func cancelProductImageUpload() {
+        let uploadTask = productImageUploadTask
+        productImageUploadTask = nil
+        activeUploadOperationId = nil
+        isUploadingImage = false
+        uploadTask?.cancel()
     }
 
     func showUnableSaveFeedback() {
@@ -383,7 +395,6 @@ private extension ProductsRouteViewModel {
         draft = ProductDraft()
         editingProductId = nil
         pendingNewProductId = nil
-        editorRevision += 1
         highlightProduct(saved.id)
     }
 
@@ -413,8 +424,22 @@ private extension ProductsRouteViewModel {
 
     func finishUploadOperation(_ operationId: UInt64) {
         guard activeUploadOperationId == operationId else { return }
+        productImageUploadTask = nil
         activeUploadOperationId = nil
         isUploadingImage = false
+    }
+
+    func performProductImageUpload(imageData: Data, request: ImageUploadRequest) async throws -> ImageUploadResult {
+        let imagePipelineManager = imagePipelineManager
+        let uploadTask = Task { @concurrent in
+            try await imagePipelineManager.processAndUpload(imageData: imageData, request: request)
+        }
+        productImageUploadTask = uploadTask
+        return try await withTaskCancellationHandler {
+            try await uploadTask.value
+        } onCancel: {
+            uploadTask.cancel()
+        }
     }
 
     func beginCatalogVisibilityOperation() -> UInt64? {

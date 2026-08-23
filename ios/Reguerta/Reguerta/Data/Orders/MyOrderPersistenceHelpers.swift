@@ -155,20 +155,6 @@ extension Member {
     }
 }
 
-extension DeliveryWeekday {
-    var myOrderDayOffset: Int {
-        switch self {
-        case .monday: return 0
-        case .tuesday: return 1
-        case .wednesday: return 2
-        case .thursday: return 3
-        case .friday: return 4
-        case .saturday: return 5
-        case .sunday: return 6
-        }
-    }
-}
-
 extension Array {
     func chunked(into size: Int) -> [[Element]] {
         guard !isEmpty else { return [] }

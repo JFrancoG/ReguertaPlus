@@ -14,12 +14,13 @@ final class ProductsRouteViewModel {
     @ObservationIgnored let productIDProvider: @MainActor () -> String
     @ObservationIgnored let productHighlightClock: PresentationDelayClock
     @ObservationIgnored var productHighlightTask: Task<Void, Never>?
+    @ObservationIgnored var productImageUploadTask: Task<ImageUploadResult, any Error>?
     var currentSession: AuthorizedSession?
     var currentMember: Member?
     var catalogProducts: [Product] = []
     var myOrderProducts: [Product] = []
     var myOrderSeasonalCommitments: [SeasonalCommitment] = []
-    var draft = ProductDraft()
+    var draft = ProductDraft() { didSet { editorRevision &+= 1 } }
     var editingProductId: String?
     var isLoadingCatalog = false
     var isLoadingOrderingProducts = false
@@ -37,6 +38,7 @@ final class ProductsRouteViewModel {
     var activeCatalogVisibilityOperationId: UInt64?
     var nextCatalogVisibilityOperationId: UInt64 = 0
     var sessionIdentityEpoch: UInt64 = 0
+    @ObservationIgnored var synchronizedSessionStateRevision: UInt64?
     @ObservationIgnored var catalogRefreshGeneration: UInt64 = 0
     @ObservationIgnored private var orderingRefreshGeneration: UInt64 = 0
     @ObservationIgnored private var appliedFreshnessOrderingGeneration: UInt64?
@@ -45,19 +47,15 @@ final class ProductsRouteViewModel {
     var activeProducts: [Product] {
         catalogProducts.filter { !$0.archived }
     }
-
     var archivedProducts: [Product] {
         catalogProducts.filter(\.archived)
     }
-
     var isEditing: Bool {
         editingProductId != nil
     }
-
     var isProducer: Bool {
         currentMember?.isProducer == true
     }
-
     var canManageEcoBasket: Bool {
         isProducer && currentMember?.producerParity != nil
     }
@@ -88,10 +86,20 @@ final class ProductsRouteViewModel {
         self.nowMillisProvider = nowMillisProvider
         self.productIDProvider = productIDProvider
         self.productHighlightClock = productHighlightClock
+        if case .authorized(let session) = sessionViewModel.mode, session.representsActiveAuthorization {
+            adoptCurrentSessionOwner(session)
+        }
     }
 }
 
 extension ProductsRouteViewModel {
+    /// Revokes every Products owner before a different session revision is adopted.
+    func invalidateProductsSessionOwner() {
+        sessionIdentityEpoch &+= 1
+        invalidateOperationsForIdentityChange()
+        clearEditor()
+    }
+
     func handleSessionModeChange(_ mode: SessionMode) {
         switch mode {
         case .authorized(let session):
@@ -109,17 +117,13 @@ extension ProductsRouteViewModel {
                     session.authenticatedMember.canManageMembers
             let catalogAccessRevoked = currentMember?.canManageProductCatalog == true &&
                 !session.member.canManageProductCatalog
-            let shouldInvalidateEditor = identityChanged || catalogAccessRevoked
+            let revisionChanged = synchronizedSessionStateRevision != sessionViewModel.sessionStateRevision
+            let shouldInvalidateEditor = identityChanged || revisionChanged || catalogAccessRevoked
             if shouldInvalidateEditor {
-                sessionIdentityEpoch += 1
-                invalidateOperationsForIdentityChange()
+                invalidateProductsSessionOwner()
             }
             resetOrderingProductsIfSessionChanged(to: session)
-            currentSession = session
-            currentMember = session.member
-            if shouldInvalidateEditor {
-                clearEditor()
-            }
+            adoptCurrentSessionOwner(session)
             if session.member.canManageProductCatalog {
                 Task { await refreshCatalog(recoversInitialFailure: true) }
             } else {
@@ -132,7 +136,7 @@ extension ProductsRouteViewModel {
     }
 
     func handleNowOverrideChange() {
-        guard currentSession != nil else { return }
+        guard authorizedSessionContext != nil else { return }
         Task { await refreshOrderingProducts() }
     }
 
@@ -179,7 +183,7 @@ extension ProductsRouteViewModel {
             try validateFreshnessPayload(
                 payload,
                 scope: freshnessContext.refreshScope,
-                session: context.session
+                context: context
             )
             let appliedContext = try await loadAndApplyOrderingState(
                 context: context,
@@ -221,47 +225,6 @@ extension ProductsRouteViewModel {
 }
 
 extension ProductsRouteViewModel {
-    private var authorizedSession: AuthorizedSession? {
-        switch sessionViewModel.mode {
-        case .authorized(let session) where session.representsActiveAuthorization:
-            return session
-        case .authorized, .signedOut, .unauthorized:
-            return nil
-        }
-    }
-
-    var authorizedSessionContext: ProductsRouteSessionContext? {
-        guard let session = authorizedSession else { return nil }
-        return ProductsRouteSessionContext(
-            session: session,
-            generation: sessionIdentityEpoch,
-            sessionStateRevision: sessionViewModel.sessionStateRevision
-        )
-    }
-
-    func syncCurrentSessionFromSessionViewModel() {
-        guard let session = authorizedSession else {
-            reset()
-            return
-        }
-        resetOrderingProductsIfSessionChanged(to: session)
-        currentSession = session
-        currentMember = session.member
-    }
-
-    func isCurrentSession(_ context: ProductsRouteSessionContext) -> Bool {
-        guard context.session.representsActiveAuthorization, let latestSession = authorizedSession else { return false }
-        return sessionViewModel.sessionStateRevision == context.sessionStateRevision &&
-            sessionIdentityEpoch == context.generation &&
-            latestSession.principal.uid == context.session.principal.uid &&
-            latestSession.authenticatedMember.id == context.session.authenticatedMember.id &&
-            latestSession.authenticatedMember.authUid == context.session.authenticatedMember.authUid &&
-            latestSession.member.id == context.session.member.id &&
-            latestSession.environment == context.session.environment &&
-            latestSession.authenticatedMember.canManageMembers ==
-                context.session.authenticatedMember.canManageMembers
-    }
-
     func beginCatalogRefresh() -> UInt64 {
         catalogRefreshGeneration &+= 1
         return catalogRefreshGeneration
@@ -283,11 +246,13 @@ extension ProductsRouteViewModel {
 
 private extension ProductsRouteViewModel {
     private func reset() {
+        cancelProductImageUpload()
         cancelProductHighlight()
         catalogRefreshGeneration &+= 1
         invalidateOrderingRefresh()
         currentSession = nil
         currentMember = nil
+        synchronizedSessionStateRevision = nil
         catalogProducts = []
         myOrderProducts = []
         myOrderSeasonalCommitments = []
@@ -301,13 +266,13 @@ private extension ProductsRouteViewModel {
         isUpdatingCatalogVisibility = false
         highlightedProductId = nil
         pendingNewProductId = nil
-        editorRevision += 1
         activeSaveOperationId = nil
         activeUploadOperationId = nil
         activeCatalogVisibilityOperationId = nil
     }
 
     private func invalidateOperationsForIdentityChange() {
+        cancelProductImageUpload()
         cancelProductHighlight()
         catalogRefreshGeneration &+= 1
         invalidateOrderingRefresh()
@@ -321,23 +286,6 @@ private extension ProductsRouteViewModel {
         isLoadingOrderingProducts = false
         catalogProducts = []
         highlightedProductId = nil
-    }
-
-    private func resetOrderingProductsIfSessionChanged(to session: AuthorizedSession) {
-        guard let currentSession else { return }
-        guard currentSession.principal.uid != session.principal.uid ||
-            currentSession.authenticatedMember.id != session.authenticatedMember.id ||
-            currentSession.authenticatedMember.authUid != session.authenticatedMember.authUid ||
-            currentSession.member.id != session.member.id ||
-            currentSession.environment != session.environment ||
-            currentSession.authenticatedMember.canManageMembers !=
-                session.authenticatedMember.canManageMembers else {
-            return
-        }
-        myOrderProducts = []
-        myOrderSeasonalCommitments = []
-        hasLoadedOrderingProducts = false
-        isLoadingOrderingProducts = false
     }
 
     private func beginOrderingRefresh() -> UInt64 {
@@ -429,12 +377,19 @@ private extension ProductsRouteViewModel {
         return merged
     }
 
-    private func applyRefreshedIdentityPayload(_ payload: CriticalDataRefreshPayload, to session: AuthorizedSession) {
+    private func applyRefreshedIdentityPayload(
+        _ payload: CriticalDataRefreshPayload,
+        to session: AuthorizedSession,
+        from context: ProductsRouteSessionContext
+    ) {
         if let authenticatedMember = payload.authenticatedMember,
            session.authenticatedMember.canManageMembers,
-           !authenticatedMember.canManageMembers {
+            !authenticatedMember.canManageMembers {
             sessionViewModel.applyRefreshedAuthorizedMembers([authenticatedMember])
-            syncCurrentSessionFromSessionViewModel()
+            _ = syncCurrentSessionFromSessionViewModel(
+                from: context,
+                allowsSelectedMemberReplacement: true
+            )
             return
         }
         var membersByID = Dictionary(uniqueKeysWithValues: session.members.map { ($0.id, $0) })
@@ -445,14 +400,15 @@ private extension ProductsRouteViewModel {
             membersByID[selectedMember.id] = selectedMember
         }
         sessionViewModel.applyRefreshedAuthorizedMembers(Array(membersByID.values))
-        syncCurrentSessionFromSessionViewModel()
+        _ = syncCurrentSessionFromSessionViewModel(from: context)
     }
 
     private func validateFreshnessPayload(
         _ payload: CriticalDataRefreshPayload,
         scope: CriticalDataRefreshScope,
-        session: AuthorizedSession
+        context: ProductsRouteSessionContext
     ) throws {
+        let session = context.session
         if let authenticatedMember = payload.authenticatedMember {
             guard authenticatedMember.id == scope.authenticatedMemberID,
                   authenticatedMember.authUid == scope.principalUID,
@@ -462,7 +418,7 @@ private extension ProductsRouteViewModel {
                 )
             }
             if authenticatedMember.canManageMembers != scope.canManageMembers {
-                applyRefreshedIdentityPayload(payload, to: session)
+                applyRefreshedIdentityPayload(payload, to: session, from: context)
                 throw RepositoryError.unavailable(
                     resource: "criticalData.orderingState.accessScopeChanged"
                 )

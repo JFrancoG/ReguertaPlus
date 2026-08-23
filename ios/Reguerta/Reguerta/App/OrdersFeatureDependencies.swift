@@ -6,14 +6,19 @@ struct OrdersFeatureDependencies {
     let cartStore: any MyOrderCartStore
     let nowMillisProvider: @MainActor () -> Int64
 
+    var resolveMyOrderLocalStateUseCase: ResolveMyOrderLocalStateUseCase {
+        ResolveMyOrderLocalStateUseCase(cartStore: cartStore)
+    }
+
     static func live(
         db: Firestore,
         userDefaults: UserDefaults = .standard,
         nowMillisProvider: @escaping @MainActor () -> Int64
     ) -> OrdersFeatureDependencies {
-        OrdersFeatureDependencies(
+        let cartStore = UserDefaultsMyOrderCartStore(userDefaults: userDefaults)
+        return OrdersFeatureDependencies(
             ordersRepository: FirestoreOrdersRepository(firebaseAppName: db.app.name),
-            cartStore: UserDefaultsMyOrderCartStore(userDefaults: userDefaults),
+            cartStore: cartStore,
             nowMillisProvider: nowMillisProvider
         )
     }

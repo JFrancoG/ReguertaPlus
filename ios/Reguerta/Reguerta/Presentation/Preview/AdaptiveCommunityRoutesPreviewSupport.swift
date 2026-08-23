@@ -20,6 +20,7 @@ enum AdaptiveCommunityPreviewScenario: CaseIterable {
     case productsLoading
     case productsEmpty
     case productsContent
+    case productsFailure
     case productEditor
     case usersContent
     case userEditor
@@ -36,7 +37,7 @@ enum AdaptiveCommunityPreviewScenario: CaseIterable {
 
     var route: AdaptiveCommunityPreviewRoute {
         switch self {
-        case .productsLoading, .productsEmpty, .productsContent, .productEditor:
+        case .productsLoading, .productsEmpty, .productsContent, .productsFailure, .productEditor:
             .products
         case .usersContent, .userEditor, .userAction:
             .users
@@ -81,6 +82,15 @@ enum AdaptiveCommunityPreviewScenario: CaseIterable {
                 colorScheme: .light,
                 requiresIncreasedContrastOverride: true,
                 reducesMotion: false
+            )
+        case .productsFailure:
+            AdaptiveCommunityPreviewVariant(
+                canvas: .compact,
+                dynamicTypeSize: .accessibility5,
+                localeIdentifier: "en",
+                colorScheme: .dark,
+                requiresIncreasedContrastOverride: true,
+                reducesMotion: true
             )
         case .productEditor:
             AdaptiveCommunityPreviewVariant(
@@ -261,8 +271,7 @@ struct AdaptiveCommunityPreviewFixture {
 
     private func seedAuthorizedFeatureState() {
         let productsViewModel = rootViewModel.productsViewModel
-        productsViewModel.currentSession = session
-        productsViewModel.currentMember = session.member
+        productsViewModel.adoptCurrentSessionOwner(session)
 
         _ = rootViewModel.usersViewModel.adoptAuthorizedSession(
             session,
@@ -306,6 +315,9 @@ struct AdaptiveCommunityPreviewFixture {
             rootViewModel.productsViewModel.catalogProducts = []
         case .productsContent:
             rootViewModel.productsViewModel.catalogProducts = previewProducts()
+        case .productsFailure:
+            rootViewModel.productsViewModel.catalogProducts = []
+            environment.feedbackCenter.show(AccessL10nKey.feedbackUnableLoadData)
         case .productEditor:
             seedProductEditor()
         default:
@@ -345,6 +357,7 @@ struct AdaptiveCommunityPreviewFixture {
             rootViewModel.newsNotificationsViewModel.newsFeed = previewNews()
         case .routeError:
             rootViewModel.newsNotificationsViewModel.newsFeed = []
+            environment.feedbackCenter.show(AccessL10nKey.feedbackUnableLoadData)
         default:
             break
         }

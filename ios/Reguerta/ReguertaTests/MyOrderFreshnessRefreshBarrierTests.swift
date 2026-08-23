@@ -87,13 +87,14 @@ struct MyOrderFreshnessRefreshBarrierTests {
             }
         )
         let mode = barrierAuthorizedMode(uid: "uid_entry")
+        let context = barrierFreshnessContext(for: mode)
 
         let firstEntry = Task { @MainActor in
-            await viewModel.revalidateForEntry(currentMode: mode)
+            await viewModel.revalidateForEntry(context: context)
         }
         await applier.waitForRequestCount(1)
         let secondEntry = Task { @MainActor in
-            await viewModel.revalidateForEntry(currentMode: mode)
+            await viewModel.revalidateForEntry(context: context)
         }
         await applier.waitForRequestCount(2)
 
@@ -315,6 +316,14 @@ private func barrierAuthorizedMode(
             environment: environment
         )
     )
+}
+
+@MainActor
+private func barrierFreshnessContext(for mode: SessionMode) -> MyOrderFreshnessSessionContext {
+    guard case .authorized(let session) = mode else {
+        preconditionFailure("Expected an authorized test mode")
+    }
+    return MyOrderFreshnessSessionContext(session: session, sessionStateRevision: 0)
 }
 
 private func barrierFreshnessConfig() -> CriticalDataFreshnessConfig {

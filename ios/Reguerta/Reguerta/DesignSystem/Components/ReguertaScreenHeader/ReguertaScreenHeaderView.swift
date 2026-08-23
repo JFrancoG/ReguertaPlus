@@ -66,6 +66,7 @@ private struct ReguertaScreenHeaderLeadingTextView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.78)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityAddTraits(.isHeader)
                     .accessibilityIdentifier("reguerta.screenHeader.leadingText")
             } else {
                 Spacer(minLength: 0)

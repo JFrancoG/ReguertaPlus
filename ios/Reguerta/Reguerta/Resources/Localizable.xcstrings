@@ -2567,6 +2567,24 @@
         }
       }
     },
+    "home.dashboard.week_range.accessibility" : {
+      "comment" : "VoiceOver label for the dashboard week range. The first value is the start date and the second is the end date.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From %1$@ to %2$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Del %1$@ al %2$@"
+          }
+        }
+      }
+    },
     "home.placeholder.admin_broadcast" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -109,6 +109,23 @@ private func receivedOrderlineReadTargets(firestorePath: ReguertaFirestorePath) 
     ]
 }
 
+/// Reduces a status-write failure to the narrow feedback result exposed outside Data.
+///
+/// Only an authorization denial recognized by the shared Firestore mapper retains that meaning. Cancellation,
+/// transient infrastructure failures, malformed data, and unrelated errors remain generic failures so numeric codes
+/// from another domain cannot leak through the boundary.
+func receivedOrderStatusWriteResult(from error: any Error) -> ReceivedOrderStatusWriteResult {
+    let mappedError = FirestoreRepositoryErrorMapper.map(error, resource: "orders.write")
+    guard let repositoryError = mappedError as? RepositoryError else { return .failure }
+
+    return switch repositoryError {
+    case .permissionDenied:
+        .permissionDenied
+    case .notFound, .unavailable, .invalidData, .unknown:
+        .failure
+    }
+}
+
 extension FirestoreOrdersRepository {
     private func fetchReceivedOrderLines(
         producerId: String,

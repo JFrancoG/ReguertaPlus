@@ -3,6 +3,7 @@ import Foundation
 
 @MainActor
 final class AdaptiveOperationsPreviewFixture {
+    let scenario: AdaptiveOperationsPreviewScenario
     let environment: ReguertaAppEnvironment
     let session: AuthorizedSession
     let ordersRepository: AdaptiveOperationsPreviewOrdersRepository
@@ -31,7 +32,8 @@ final class AdaptiveOperationsPreviewFixture {
         let ordersRepository = AdaptiveOperationsPreviewOrdersRepository(
             historyWeekKey: historyWeekKey,
             personalHistory: AdaptiveOperationsPreviewOrderData.personalHistory,
-            receivedOrders: AdaptiveOperationsPreviewOrderData.receivedOrders
+            receivedOrders: AdaptiveOperationsPreviewOrderData.receivedOrders,
+            failsReceivedOrdersReads: scenario == .receivedOrdersFailure
         )
         let cartSnapshot = scenario == .myOrderCart ? data.cartSnapshot : .empty
         let cartStore = AdaptiveOperationsPreviewCartStore(cartSnapshot: cartSnapshot)
@@ -62,6 +64,7 @@ final class AdaptiveOperationsPreviewFixture {
             ordersRepository: ordersRepository
         )
 
+        self.scenario = scenario
         self.environment = environment
         self.session = session
         self.ordersRepository = ordersRepository
@@ -121,12 +124,29 @@ final class AdaptiveOperationsPreviewFixture {
     }
 
     var homeDashboardPresentation: HomeDashboardPresentation {
+        switch scenario {
+        case .homeFreshnessIdle:
+            homeDashboardPresentation(myOrderFreshnessState: .idle)
+        case .homeFreshnessChecking:
+            homeDashboardPresentation(myOrderFreshnessState: .checking)
+        case .homeFreshnessTimedOut:
+            homeDashboardPresentation(myOrderFreshnessState: .timedOut)
+        case .homeFreshnessUnavailable:
+            homeDashboardPresentation(myOrderFreshnessState: .unavailable)
+        default:
+            homeDashboardPresentation(myOrderFreshnessState: .ready)
+        }
+    }
+
+    private func homeDashboardPresentation(
+        myOrderFreshnessState: MyOrderFreshnessState
+    ) -> HomeDashboardPresentation {
         HomeDashboardPresentation(
             content: .authorized(
                 HomeAuthorizedDashboardPresentation(
                     weeklySummary: AdaptiveOperationsPreviewData.homeWeeklySummary,
                     actionRow: HomeActionRowPresentation(
-                        myOrderFreshnessState: .ready,
+                        myOrderFreshnessState: myOrderFreshnessState,
                         canOpenReceivedOrders: true,
                         orderState: .unconfirmed,
                         myOrderSubtitleKey: AccessL10nKey.homeDashboardMyOrderSubtitleReview
@@ -154,12 +174,11 @@ final class AdaptiveOperationsPreviewFixture {
         configureProductAndNewsState()
         configureShiftsState()
         configureMyOrderState(scenario: scenario)
-        configureOrderHistoryState()
+        configureOrderHistoryState(scenario: scenario)
     }
 
     private func configureProductAndNewsState() {
-        productsViewModel.currentSession = session
-        productsViewModel.currentMember = currentMember
+        productsViewModel.adoptCurrentSessionOwner(session)
         productsViewModel.catalogProducts = products
 
         newsViewModel.currentSession = session
@@ -196,7 +215,7 @@ final class AdaptiveOperationsPreviewFixture {
         myOrderViewModel.isCartVisible = scenario == .myOrderCart
     }
 
-    private func configureOrderHistoryState() {
+    private func configureOrderHistoryState(scenario: AdaptiveOperationsPreviewScenario) {
         let historyWeekKey = orderHistoryPreviousIsoWeekKey(
             nowMillis: nowMillis,
             timeZone: AdaptiveOperationsPreviewData.timeZone
@@ -213,7 +232,11 @@ final class AdaptiveOperationsPreviewFixture {
 
         receivedOrdersViewModel.context = receivedOrdersContext
         receivedOrdersViewModel.selectedTab = .byMember
-        receivedOrdersViewModel.loadState = .loaded(AdaptiveOperationsPreviewOrderData.receivedOrders)
+        if scenario == .receivedOrdersFailure {
+            receivedOrdersViewModel.loadState = .error
+        } else {
+            receivedOrdersViewModel.loadState = .loaded(AdaptiveOperationsPreviewOrderData.receivedOrders)
+        }
 
         receivedOrdersHistoryViewModel.context = receivedOrdersHistoryContext
         receivedOrdersHistoryViewModel.availableWeeks = historyWeeks
@@ -224,19 +247,27 @@ final class AdaptiveOperationsPreviewFixture {
 
 }
 
+enum AdaptiveOperationsPreviewOrdersRepositoryError: Error {
+    case unavailable
+}
+
 actor AdaptiveOperationsPreviewOrdersRepository: OrdersRepository {
     let historyWeekKey: String
     let personalHistory: MyOrderPreviousOrderSnapshot
     let receivedOrders: ReceivedOrdersSnapshot
+    let failsReceivedOrdersReads: Bool
+    private var receivedOrdersReadCountValue = 0
 
     init(
         historyWeekKey: String,
         personalHistory: MyOrderPreviousOrderSnapshot,
-        receivedOrders: ReceivedOrdersSnapshot
+        receivedOrders: ReceivedOrdersSnapshot,
+        failsReceivedOrdersReads: Bool
     ) {
         self.historyWeekKey = historyWeekKey
         self.personalHistory = personalHistory
         self.receivedOrders = receivedOrders
+        self.failsReceivedOrdersReads = failsReceivedOrdersReads
     }
 
     func submitMyOrder(_ request: MyOrderCheckoutRequest, environment: SessionEnvironment) async throws -> Bool {
@@ -280,7 +311,15 @@ actor AdaptiveOperationsPreviewOrdersRepository: OrdersRepository {
         targetWeekKey: String,
         environment: SessionEnvironment
     ) async throws -> ReceivedOrdersSnapshot? {
-        producerId.isEmpty || targetWeekKey != historyWeekKey || environment != .develop ? nil : receivedOrders
+        receivedOrdersReadCountValue += 1
+        if failsReceivedOrdersReads {
+            throw AdaptiveOperationsPreviewOrdersRepositoryError.unavailable
+        }
+        return producerId.isEmpty || targetWeekKey != historyWeekKey || environment != .develop ? nil : receivedOrders
+    }
+
+    func receivedOrdersReadCount() -> Int {
+        receivedOrdersReadCountValue
     }
 
     func receivedOrdersHistoryWeekKeys(

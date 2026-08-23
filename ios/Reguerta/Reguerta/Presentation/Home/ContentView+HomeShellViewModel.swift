@@ -26,6 +26,11 @@ enum HomeShellLayoutContract {
     }
 }
 
+private struct HomeMyOrderEntryIntent {
+    let generation: UInt64
+    let freshnessContext: MyOrderFreshnessSessionContext
+}
+
 extension AccessRootViewModel {
     var currentHomeSession: AuthorizedSession? {
         switch sessionViewModel.mode {
@@ -163,16 +168,53 @@ extension AccessRootViewModel {
     }
 
     func handleHomeDashboardMyOrderAction() {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            await myOrderFreshnessViewModel.revalidateForEntry(
-                currentMode: sessionViewModel.mode
-            ) { [weak self] in
-                guard let self else { return }
+        guard let intent = beginHomeMyOrderEntryIntent() else { return }
+        let freshnessViewModel = myOrderFreshnessViewModel
+        myOrderEntryTask = Task { @MainActor [weak self, freshnessViewModel] in
+            await freshnessViewModel.revalidateForEntry(context: intent.freshnessContext) { [weak self] in
+                guard let self,
+                      canCommitHomeMyOrderEntryAfterFreshnessAcknowledgement(intent) else { return }
                 myOrderViewModel.resetCartOverlayForRouteEntry()
                 homeDestination = .myOrder
             }
+            guard let self else { return }
+            finishHomeMyOrderEntryIntent(intent)
         }
+    }
+
+    private func beginHomeMyOrderEntryIntent() -> HomeMyOrderEntryIntent? {
+        invalidateHomeMyOrderEntryIntent()
+        guard homeDestination == .dashboard,
+              let session = currentHomeSession else { return nil }
+        let freshnessContext = MyOrderFreshnessSessionContext(
+            session: session,
+            sessionStateRevision: sessionViewModel.sessionStateRevision
+        )
+        guard freshnessContext.representsActiveAuthorization else { return nil }
+        return HomeMyOrderEntryIntent(
+            generation: myOrderEntryGeneration,
+            freshnessContext: freshnessContext
+        )
+    }
+
+    func invalidateHomeMyOrderEntryIntent() {
+        myOrderEntryGeneration &+= 1
+        myOrderEntryTask?.cancel()
+        myOrderEntryTask = nil
+    }
+
+    private func canCommitHomeMyOrderEntryAfterFreshnessAcknowledgement(_ intent: HomeMyOrderEntryIntent) -> Bool {
+        guard !Task.isCancelled,
+              intent.generation == myOrderEntryGeneration,
+              homeDestination == .dashboard,
+              let session = currentHomeSession,
+              session.representsActiveAuthorization else { return false }
+        return intent.freshnessContext.matchesAuthorization(of: session)
+    }
+
+    private func finishHomeMyOrderEntryIntent(_ intent: HomeMyOrderEntryIntent) {
+        guard intent.generation == myOrderEntryGeneration else { return }
+        myOrderEntryTask = nil
     }
 
     func handleHomeDashboardReceivedOrdersAction() {
@@ -219,39 +261,6 @@ extension AccessRootViewModel {
         homeDrawerDragOffset = 0
     }
 
-    func homeWeeklySummary(for session: AuthorizedSession) -> HomeWeeklySummaryDisplay {
-        let nowMillis = shiftsViewModel.currentNowMillis
-        let baseline = resolveHomeWeeklySummaryDisplay(
-            nowMillis: nowMillis,
-            defaultDeliveryDayOfWeek: shiftsViewModel.defaultDeliveryDayOfWeek,
-            deliveryCalendarOverrides: shiftsViewModel.deliveryCalendarOverrides,
-            shifts: shiftsViewModel.shiftsFeed,
-            members: session.members,
-            localization: .current
-        )
-        let storedOrderState = resolveHomeOrderState(
-            memberId: session.member.id,
-            weekKey: baseline.orderWeekKey,
-            environment: session.environment
-        )
-        return HomeWeeklySummaryDisplay(
-            weekKey: baseline.weekKey,
-            orderWeekKey: baseline.orderWeekKey,
-            weekRangeLabel: baseline.weekRangeLabel,
-            weekBadgeLabel: baseline.weekBadgeLabel,
-            producerName: baseline.producerName,
-            deliveryLabel: baseline.deliveryLabel,
-            responsibleName: baseline.responsibleName,
-            helperName: baseline.helperName,
-            marketLabel: baseline.marketLabel,
-            marketResponsibleNames: baseline.marketResponsibleNames,
-            orderState: resolveHomeDisplayedOrderState(
-                isConsultaPhase: baseline.isConsultaPhase,
-                orderState: storedOrderState
-            ),
-            isConsultaPhase: baseline.isConsultaPhase
-        )
-    }
 }
 
 private extension AccessRootViewModel {

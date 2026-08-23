@@ -23,6 +23,7 @@ struct ProductsRouteView: View {
                     routeContent
                         .padding(.bottom, tokens.spacing.sm)
                 }
+                .accessibilityIdentifier("products.route.scroll")
                 .scrollDismissesKeyboard(.interactively)
                 .onChange(of: viewModel.highlightedProductId) { _, productId in
                     guard let productId else { return }

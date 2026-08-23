@@ -20,7 +20,9 @@ extension ProductsRouteViewModel {
         }
 
         sessionViewModel.applyRefreshedAuthorizedMembers(application.members)
-        syncCurrentSessionFromSessionViewModel()
+        guard syncCurrentSessionFromSessionViewModel(from: application.sessionContext) else {
+            throw CancellationError()
+        }
         guard let appliedContext = authorizedSessionContext,
               appliedContext.generation == application.sessionContext.generation,
               appliedContext.session.principal.uid == application.sessionContext.session.principal.uid,

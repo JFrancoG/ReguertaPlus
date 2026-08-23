@@ -29,6 +29,15 @@ final class MyOrderRouteViewModel {
         let noPickupEcoBaskets: Int
     }
 
+    struct CartPersistenceRequest {
+        let generation: UInt64
+        let storageKey: String
+        let snapshot: MyOrderCartSnapshot
+        let currentMember: Member?
+        let environment: SessionEnvironment
+        let sessionStateRevision: UInt64
+    }
+
     @ObservationIgnored let sessionViewModel: SessionViewModel
     @ObservationIgnored let ordersRepository: any OrdersRepository
     @ObservationIgnored let cartStore: any MyOrderCartStore
@@ -60,6 +69,10 @@ final class MyOrderRouteViewModel {
     @ObservationIgnored var consultaLoadOwnerGeneration: UInt64?
     @ObservationIgnored var statusLoadOwnerGeneration: UInt64?
     @ObservationIgnored var contextSessionStateRevision: UInt64 = 0
+    @ObservationIgnored var cartPersistenceTask: Task<Void, Never>?
+    @ObservationIgnored var cartPersistenceTaskGeneration: UInt64 = 0
+    @ObservationIgnored var cartPersistenceRequestGeneration: UInt64 = 0
+    @ObservationIgnored var pendingCartPersistenceRequest: CartPersistenceRequest?
 
     init(
         sessionViewModel: SessionViewModel,
@@ -78,6 +91,9 @@ final class MyOrderRouteViewModel {
         let contextChanged = context.identity != newContext.identity
         let nextSessionStateRevision = sessionViewModel.sessionStateRevision
         let sessionChanged = contextSessionStateRevision != nextSessionStateRevision
+        if context.cartStorageKey != newContext.cartStorageKey || sessionChanged {
+            invalidateCartPersistenceForContextChange()
+        }
         contextGeneration &+= 1
         previousOrderOperationGeneration &+= 1
         producerStatusOperationGeneration &+= 1
