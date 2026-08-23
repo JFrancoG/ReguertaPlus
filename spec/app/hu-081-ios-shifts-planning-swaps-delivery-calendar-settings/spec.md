@@ -41,6 +41,15 @@ implementation. It does not authorize pull request, merge, issue closure,
 branch deletion, live-data mutation, Firebase deployment, or Google Sheets
 changes.
 
+The maintainer then authorized the Phase 3 checkpoint and Phase 4 with:
+
+> pues commit y push y comenzamos fase 4
+
+This authorizes commit and push of completed Phase 3 plus Phase 4
+implementation. It does not authorize the Phase 4 checkpoint, pull request,
+merge, issue closure, branch deletion, live-data mutation, Firebase deployment,
+or Google Sheets changes.
+
 ## Context and problem
 
 Phase 6 modernizes one vertical slice at a time. HU-079 closed Auth/session and
@@ -293,7 +302,30 @@ different issue. The inherited `OrderHistoryWeek` fallback is outside this
 touched seam and remains separately recorded. No live environment assertion is
 made about `config/member`.
 
-Phase 3 feed ownership is the active authorized cut. Its first step is the
-deterministic lifetime RED matrix before any production ownership change.
-HU-081 remains active; no pull request, merge, issue closure, branch deletion,
-live mutation, or deployment is authorized or claimed.
+Phase 3 feed ownership is complete locally. Its valid RED timed out because a
+same-context feed successor lost the pending initial Calendar hydration. The
+GREEN retains one weak, atomic Shifts + swap-request feed owner, propagates
+caller cancellation to that exact task, preserves latest-wins owner-only
+cleanup, and adopts an already-authorized session. Publication is fenced across
+principal, authenticated-member, selected-member, role/capability, environment,
+and admin changes. Role drift performs a feed-only reset that preserves
+acknowledgements, dismissals, draft, segment, and later mutation owners; full
+identity or admin-access drift, environment drift, or invalid authorization
+retains the full reset.
+
+Pending initial Feed -> Calendar hydration transfers only to an
+equivalent-context feed successor, is claimed only by the current exact owner,
+and starts Calendar with the captured `SessionContext`. Ordering is preserved
+after feed success and terminal failure without redesigning Calendar, planning,
+or swap-mutation ownership.
+
+Final Phase 3 evidence on iPhone 17 / iOS 26.5 is 12 logical / 15 concrete
+focused ownership/calendar executions, 79 / 87 expanded
+Shifts/session/composition executions, and 808 / 1,033 canonical
+`fast-unit-v1` executions, all passing without skips. SwiftLint passed with
+zero violations across 444 files; static guards and independent ownership,
+test, and scope reviews found zero P0-P2 issues. Phase 3 is committed as
+`124c34d` and authorized for push. Phase 4 swap-mutation ownership is the active
+authorized cut, beginning with its deterministic lifetime RED matrix. HU-081
+remains active; no Phase 4 checkpoint, pull request, merge, issue closure,
+branch deletion, live mutation, or deployment is authorized or claimed.

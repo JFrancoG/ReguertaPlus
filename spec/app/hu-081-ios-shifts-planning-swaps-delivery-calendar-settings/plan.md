@@ -153,7 +153,9 @@ concrete executions and all four `ui-smoke` journeys passed on iPhone 17 / iOS
 26.5. SwiftLint reported zero violations across 440 files; localization JSON,
 `git diff --check`, project/package/Functions guards, and the independent P0-P2
 review passed. Phase 2 is published as `fae4da0`; Phase 3 feed ownership is now
-the active authorized cut.
+complete locally. The Phase 2 documentation checkpoint is published as
+`3a10095`; Phase 3 is committed as `124c34d` and authorized for push. Phase 4
+swap-mutation ownership is now the active authorized cut.
 
 ## Phase 3 - Shifts feed ownership
 
@@ -165,6 +167,26 @@ the active authorized cut.
 - Keep next-shift and board display projection pure and Madrid-consistent.
 
 Gate: feed/session ownership cohort + root composition guards + fast-unit.
+
+Phase 3 completion evidence: the valid RED timed out because a same-context
+feed successor lost the pending initial Calendar hydration. The GREEN retains
+one weak, atomic Shifts + swap-request feed owner; propagates cancellation to
+the exact owned task; applies latest-wins and owner-only cleanup; adopts an
+already-authorized session; and fences publication across principal,
+authenticated-member, selected-member, role/capability, environment, and admin
+changes. Role drift resets only the feed and preserves acknowledgements,
+dismissals, draft, segment, and the later mutation owners; full identity or
+admin-access drift, environment drift, or invalid authorization keeps the full
+reset. Initial Feed -> Calendar hydration
+is transferable only to an equivalent-context successor and uses the captured
+`SessionContext`, preserving ordering after success or terminal feed failure.
+
+The focused ownership/calendar cohort passed 12 logical / 15 concrete
+executions; the expanded Shifts/session/composition cohort passed 79 / 87; and
+canonical `fast-unit-v1` passed 808 / 1,033 on iPhone 17 / iOS 26.5. SwiftLint
+reported zero violations across 444 files. `git diff --check`, the 120-column
+guard, concurrency-escape scan, project-file guard, and independent ownership,
+test, and scope reviews passed with zero P0-P2 findings.
 
 ## Phase 4 - swap mutation ownership
 
@@ -214,8 +236,8 @@ Gate: admin/calendar/planning cohort + session/role guards + fast-unit.
 - Recalculate source/test/previews and logical/concrete test counts.
 - Reconcile issue mirror, spec, plan, tasks, evidence, Android parity, HU-070,
   and residual debt.
-- Preserve checkpoints `b956f09`, `b491e50`, `fc1157e`, `be2cdfd`, and
-  `fae4da0` on the remote
+- Preserve checkpoints `b956f09`, `b491e50`, `fc1157e`, `be2cdfd`, `fae4da0`,
+  and `124c34d` on the remote
   feature branch and request separate authorization before PR, merge, closure,
   or branch cleanup.
 
@@ -232,7 +254,6 @@ Gate: admin/calendar/planning cohort + session/role guards + fast-unit.
 
 ## Next executable step
 
-Capture the Phase 3 feed-ownership RED matrix: authorized entry/re-entry, retry,
-cancellation, identity/role/environment drift, non-cooperative completion, and
-owner-only successor cleanup. Do not change production ownership before the RED
-identifies the exact failing lifetime contract.
+Capture the Phase 4 swap-mutation ownership RED matrix for overlap, double
+submit, route exit, demotion, late completion, acknowledgement refresh, and
+retry before changing production ownership.

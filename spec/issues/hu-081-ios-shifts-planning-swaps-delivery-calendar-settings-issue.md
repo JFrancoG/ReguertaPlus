@@ -46,6 +46,14 @@ Esta cuarta instrucción autoriza commit/push de Phase 2 completada e iniciar
 Phase 3. No autoriza PR, merge, cierre, borrado de rama, datos live, despliegue
 Firebase ni cambios Google Sheets.
 
+Después indicó:
+
+> pues commit y push y comenzamos fase 4
+
+Esta quinta instrucción autoriza commit/push de Phase 3 completada e iniciar
+Phase 4. No autoriza el checkpoint de Phase 4, PR, merge, cierre, borrado de
+rama, datos live, despliegue Firebase ni cambios Google Sheets.
+
 ## Contexto
 
 HU-081 no reabre las historias funcionales ya entregadas. Preserva
@@ -181,10 +189,29 @@ HU-079/HU-080.
 - Los `Calendar.current` y formatters con timezone implícito que quedan en
   Presentation son cortes posteriores de esta misma HU-081, no otra issue. El
   fallback heredado de `OrderHistoryWeek` queda fuera del seam Phase 1.
-- Corte activo: Phase 3, ownership del feed, empezando por la matriz RED de
-  ciclo de vida antes de cambiar producción.
+- Phase 3 está completada localmente. El RED válido demostró que un successor
+  del feed con el mismo contexto perdía la hidratación inicial pendiente de
+  Calendar. El GREEN retiene un owner débil y atómico para Shifts + solicitudes
+  swap, propaga la cancelación al task exacto y preserva latest-wins y cleanup
+  owner-only.
+- Los fences cubren principal, socia autenticada, socia seleccionada,
+  rol/capacidad, entorno y admin. La deriva de rol reinicia solo el feed y
+  conserva acknowledgements, dismissals, draft, segmento y owners de mutación;
+  la deriva de identidad o acceso admin, entorno o autorización inválida
+  mantiene el reset completo.
+- La hidratación inicial Feed -> Calendar se transfiere solo a un successor de
+  contexto equivalente y usa el `SessionContext` capturado, manteniendo el
+  orden tras éxito o error terminal del feed sin rediseñar Calendar, planning o
+  mutaciones swap.
+- Evidencia Phase 3 en iPhone 17 / iOS 26.5: focal 12 lógicos / 15 concretos,
+  cohorte ampliada 79 / 87 y `fast-unit-v1` 808 / 1.033, todo PASS sin skips.
+  SwiftLint 0/444; guards estáticos y revisiones independientes de ownership,
+  tests y alcance sin hallazgos P0-P2.
+- Phase 3 está commiteada como `124c34d` y autorizada para publicación. Phase 4,
+  ownership de mutaciones swap, es el corte activo autorizado y comienza por
+  su matriz RED determinista de ciclo de vida.
 
 Estado: OPEN / en progreso. Issue, rama, auditoría, baseline, especificación,
-plan y tareas están activos. Phase 2 está entregada y Phase 3 ha comenzado. No
-se autoriza ni se afirma PR, merge, cierre, borrado de rama, mutación live o
-despliegue.
+plan y tareas están activos. Phase 2 está entregada y Phase 3 está completa
+como `124c34d`. No se autoriza ni se afirma checkpoint de Phase 4, PR, merge,
+cierre, borrado de rama, mutación live o despliegue.

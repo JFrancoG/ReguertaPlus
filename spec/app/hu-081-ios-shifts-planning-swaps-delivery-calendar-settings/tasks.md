@@ -63,14 +63,24 @@ Functional commit `fae4da0` is published on the verified feature branch.
 
 ## Phase 3 - feed ownership
 
-- [ ] Characterize entry/re-entry, retry, cancellation, identity, role, and environment drift.
-- [ ] Decide one cohesive feed owner or independently justified owners.
-- [ ] Retain/cancel read tasks and preserve latest-wins/owner-only cleanup.
-- [ ] Preserve next-shift and board display contracts.
-- [ ] Run feed/session/composition cohort and fast-unit.
+- [x] Characterize entry/re-entry, retry, cancellation, identity, role, and environment drift.
+- [x] Decide one cohesive feed owner or independently justified owners.
+- [x] Retain/cancel read tasks and preserve latest-wins/owner-only cleanup.
+- [x] Preserve next-shift and board display contracts.
+- [x] Run feed/session/composition cohort and fast-unit.
 
-Phase 3 is authorized and active. The first executable gate is the deterministic
-ownership RED matrix; no production ownership change precedes that evidence.
+Phase 3 is complete locally. The valid RED proved that a same-context feed
+successor lost pending initial Calendar hydration. The GREEN retains one weak,
+atomic Shifts + swap-request feed owner, transfers the pending exact-context
+Calendar intent only to an equivalent successor, preserves Feed -> Calendar
+ordering, and distinguishes feed-only role drift from full identity,
+admin-access, environment, and invalid-authorization reset. Focused ownership
+and Calendar tests passed 12 logical / 15 concrete executions; the expanded
+cohort passed 79 / 87; canonical `fast-unit-v1` passed 808 / 1,033; and
+SwiftLint passed 0 / 444.
+Independent ownership, test, and scope reviews found zero P0-P2 issues. Phase
+3 is committed as `124c34d` and authorized for push. Phase 4 is authorized and
+active; its first executable gate is the deterministic ownership RED matrix.
 
 ## Phase 4 - swap ownership
 
@@ -118,10 +128,12 @@ ownership RED matrix; no production ownership change precedes that evidence.
 - [x] Push and verify the Phase 1B checkpoint on the upstream branch.
 - [x] Obtain explicit authorization for the Phase 2 checkpoint and Phase 3 start.
 - [x] Create and push Phase 2 Conventional Commit `fae4da0`.
+- [x] Obtain explicit authorization for the Phase 3 checkpoint and Phase 4 start.
+- [x] Create Phase 3 Conventional Commit `124c34d`.
 - [ ] Open ready PR with validation evidence.
 - [ ] Review checks/findings and remediate before merge.
 - [ ] Merge, close #264, and clean branches only after confirmed authorization.
 
-The current delivery authority covers the published Phase 2 checkpoint and
-Phase 3 implementation. PR, merge, issue closure, branch cleanup, and live
-mutations require separate authorization.
+The current delivery authority covers the Phase 3 checkpoint commit/push and
+Phase 4 implementation. It does not cover the Phase 4 checkpoint, PR, merge,
+issue closure, branch cleanup, or live mutations.
