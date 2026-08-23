@@ -42,7 +42,7 @@ struct ReguertaShiftsViewModelTests {
         )
 
         viewModel.handleSessionModeChange(viewModel.sessionViewModel.mode)
-        await waitForCondition { viewModel.shiftsFeed.count == 2 }
+        await awaitCurrentShiftsRefresh(in: viewModel)
 
         #expect(viewModel.shiftSwapRequests.map(\.id) == ["visible_request"])
         #expect(viewModel.nextDeliveryShift?.id == requestedShift.id)
@@ -160,7 +160,7 @@ struct ReguertaShiftsViewModelTests {
 
         viewModel.startCreatingShiftSwap(shiftId: requestedShift.id)
         viewModel.updateShiftSwapDraft { $0.reason = "  No puedo ir  " }
-        let saved = await viewModel.saveShiftSwapRequest()
+        let saved = await awaitShiftSwapSave(in: viewModel)
         let recordedCreate = await requestRepository.recordedCreate()
 
         #expect(saved)
@@ -223,7 +223,7 @@ struct ReguertaShiftsViewModelTests {
         viewModel.startCreatingShiftSwap(shiftId: requestedShift.id)
         viewModel.updateShiftSwapDraft { $0.reason = "No puedo ir" }
         let originalDraft = viewModel.shiftSwapDraft
-        let saved = await viewModel.saveShiftSwapRequest()
+        let saved = await awaitShiftSwapSave(in: viewModel)
 
         #expect(saved == false)
         #expect(viewModel.shiftSwapDraft == originalDraft)
@@ -268,7 +268,8 @@ struct ReguertaShiftsViewModelTests {
 
         viewModel.startCreatingShiftSwap(shiftId: requestedShift.id)
         viewModel.updateShiftSwapDraft { $0.reason = "No puedo ir" }
-        let saved = await viewModel.saveShiftSwapRequest()
+        let saved = await awaitShiftSwapSave(in: viewModel)
+        await awaitCurrentShiftsRefresh(in: viewModel)
 
         #expect(saved)
         #expect(viewModel.shiftSwapRequests.first?.id == "swap_server")

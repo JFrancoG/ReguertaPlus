@@ -31,6 +31,10 @@ private struct HomeMyOrderEntryIntent {
     let freshnessContext: MyOrderFreshnessSessionContext
 }
 
+private struct ShiftSwapSaveNavigationIntent {
+    let routeGeneration: UInt64
+}
+
 extension AccessRootViewModel {
     var currentHomeSession: AuthorizedSession? {
         switch sessionViewModel.mode {
@@ -144,6 +148,23 @@ extension AccessRootViewModel {
 
     func handleHomeCartAction() {
         myOrderCartOpenRequests += 1
+    }
+
+    func startShiftSwapRequestSave() -> Task<Void, Never>? {
+        guard homeDestination == .shiftSwapRequest,
+              let mutationTask = shiftsViewModel.startSavingShiftSwapRequest() else { return nil }
+        let intent = ShiftSwapSaveNavigationIntent(routeGeneration: shiftSwapRouteGeneration)
+        return Task { @MainActor [weak self] in
+            let didSave = await mutationTask.value
+            self?.handleShiftSwapSaveCompletion(didSave, intent: intent)
+        }
+    }
+
+    private func handleShiftSwapSaveCompletion(_ didSave: Bool, intent: ShiftSwapSaveNavigationIntent) {
+        guard didSave,
+              homeDestination == .shiftSwapRequest,
+              shiftSwapRouteGeneration == intent.routeGeneration else { return }
+        homeDestination = .shifts
     }
 
     func handleHomeDrawerNavigation(_ destination: HomeDestination) {

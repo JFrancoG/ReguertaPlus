@@ -214,6 +214,7 @@ extension ShiftsFeatureViewModel {
     }
 
     func reset() {
+        invalidateShiftSwapMutationOwner()
         currentSession = nil
         currentMember = nil
         currentEnvironment = nil
@@ -221,13 +222,9 @@ extension ShiftsFeatureViewModel {
         resetDeliveryCalendar()
         isSavingDeliveryCalendar = false
         isSubmittingShiftPlanningRequest = false
-        isSavingShiftSwapRequest = false
-        isUpdatingShiftSwapRequest = false
         activeCalendarRefreshOperationId = nil
         activeCalendarMutationOperationId = nil
         activePlanningSubmissionOperationId = nil
-        activeSwapSaveOperationId = nil
-        activeSwapMutationOperationId = nil
     }
 
     var authorizedSessionContext: SessionContext? {
@@ -308,6 +305,7 @@ extension ShiftsFeatureViewModel {
         resetShiftsFeed()
         dismissedShiftSwapRequestIds = []
         shiftSwapAcknowledgements = [:]
+        uncertainShiftSwapMutationIntents = [:]
         shiftSwapDraft = ShiftSwapDraft()
         selectedShiftSegment = .delivery
     }

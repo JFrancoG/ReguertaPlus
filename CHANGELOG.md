@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- 2026-08-23 | ♻️ refactor(ios): own shift swap mutation lifecycle
 - 2026-08-23 | ♻️ refactor(ios): own shifts feed lifecycle
 - 2026-08-23 | ♻️ refactor(ios): make swap commands authoritative
 - 2026-08-23 | ♻️ refactor(ios): harden order state ownership

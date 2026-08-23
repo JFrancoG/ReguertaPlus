@@ -2,28 +2,6 @@ import Synchronization
 
 @testable import Reguerta
 
-enum ShiftsAuthorizationDrift: CaseIterable {
-    case principalAuthentication
-    case authenticatedMember
-    case selectedMember
-    case environment
-}
-
-struct ShiftsAuthorizationScenario {
-    let initial: AuthorizedSession
-    let successor: AuthorizedSession
-    let environment: ShiftsEnvironmentBox
-}
-
-@MainActor
-final class ShiftsEnvironmentBox {
-    var value: SessionEnvironment
-
-    init(_ value: SessionEnvironment) {
-        self.value = value
-    }
-}
-
 @MainActor
 final class WeakShiftsOwnershipReference<Value: AnyObject> {
     weak var value: Value?
@@ -59,7 +37,7 @@ func seedRoleDriftState(
     viewModel.shiftSwapAcknowledgements[request.id] = .create(requestedShiftId: shift.id)
     viewModel.dismissShiftSwapActivity(requestId: request.id)
     viewModel.startCreatingShiftSwap(shiftId: shift.id)
-    viewModel.activeSwapSaveOperationId = 41
+    viewModel.activeShiftSwapMutationOperationId = 41
     viewModel.isSavingShiftSwapRequest = true
     viewModel.activePlanningSubmissionOperationId = 42
     viewModel.isSubmittingShiftPlanningRequest = true
@@ -71,7 +49,7 @@ func seedAuthorizationBoundaryState(in viewModel: ShiftsFeatureViewModel, shift:
     viewModel.dismissShiftSwapActivity(requestId: "dismissed")
     viewModel.startCreatingShiftSwap(shiftId: shift.id)
     viewModel.selectedShiftSegment = .market
-    viewModel.activeSwapSaveOperationId = 41
+    viewModel.activeShiftSwapMutationOperationId = 41
     viewModel.isSavingShiftSwapRequest = true
     viewModel.activePlanningSubmissionOperationId = 42
     viewModel.isSubmittingShiftPlanningRequest = true
@@ -80,7 +58,9 @@ func seedAuthorizationBoundaryState(in viewModel: ShiftsFeatureViewModel, shift:
 @MainActor
 func shiftsAuthorizationScenario(for drift: ShiftsAuthorizationDrift) -> ShiftsAuthorizationScenario {
     let authenticatedAdmin = adminMember(id: "admin_boundary", displayName: "Ana")
-    let selectedMember = shiftMember(id: "member_boundary", displayName: "Carmen")
+    let selectedMember = drift == .selectedMemberAdminAccess
+        ? adminMember(id: "member_boundary", displayName: "Carmen")
+        : shiftMember(id: "member_boundary", displayName: "Carmen")
     let replacementMember = shiftMember(id: "member_boundary_successor", displayName: "Javier")
     let environment = ShiftsEnvironmentBox(.develop)
     let initial = AuthorizedSession(
@@ -115,9 +95,25 @@ private func successorAuthorizationSession(
         return reauthenticatedAuthorizationSession(from: initial)
     case .authenticatedMember:
         return replacementAuthenticatedAuthorizationSession(from: initial)
+    case .authenticatedMemberAdminAccess:
+        var successor = initial
+        let revokedAdmin = replacingRoles(in: initial.authenticatedMember, with: [.member])
+        successor.authenticatedMember = revokedAdmin
+        if let memberIndex = successor.members.firstIndex(where: { $0.id == revokedAdmin.id }) {
+            successor.members[memberIndex] = revokedAdmin
+        }
+        return successor
     case .selectedMember:
         var successor = initial
         successor.member = replacementMember
+        return successor
+    case .selectedMemberAdminAccess:
+        var successor = initial
+        let revokedAdmin = replacingRoles(in: initial.member, with: [.member])
+        successor.member = revokedAdmin
+        if let memberIndex = successor.members.firstIndex(where: { $0.id == revokedAdmin.id }) {
+            successor.members[memberIndex] = revokedAdmin
+        }
         return successor
     case .environment:
         var successor = initial
@@ -344,6 +340,10 @@ final class ControlledShiftsFeedRepository: ShiftRepository, ShiftSwapRequestRep
     func waitUntilPairStarts(_ index: Int) async throws {
         try await shiftReads[index].waitUntilStarted()
         try await swapReads[index].waitUntilStarted()
+    }
+
+    func waitUntilShiftReadStarts(_ index: Int = 0) async throws {
+        try await shiftReads[index].waitUntilStarted()
     }
 
     func waitUntilPairResolves(_ index: Int) async throws {

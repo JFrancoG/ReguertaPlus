@@ -2,6 +2,8 @@ import Foundation
 
 extension ShiftsFeatureViewModel {
     func handleSessionModeChange(_ mode: SessionMode) {
+        handleShiftSwapAuthorizationBoundaryChange()
+        let boundaryReceipts = shiftSwapMutationReceipts
         switch mode {
         case .authorized(let session):
             guard session.representsActiveAuthorization else {
@@ -16,7 +18,10 @@ extension ShiftsFeatureViewModel {
                     $0.authenticatedMember.authUid != session.authenticatedMember.authUid ||
                     $0.member.id != session.member.id
             } ?? false
-            let adminAccessChanged = currentMember.map { $0.isAdmin != session.member.isAdmin } ?? false
+            let adminAccessChanged = currentSession.map {
+                $0.authenticatedMember.isAdmin != session.authenticatedMember.isAdmin ||
+                    $0.member.isAdmin != session.member.isAdmin
+            } ?? false
             let authorizationChanged = currentSession.map {
                 authorizationSignature(for: $0) != authorizationSignature(for: session)
             } ?? false
@@ -24,9 +29,14 @@ extension ShiftsFeatureViewModel {
                 memberAuthorizationSignature(for: $0) != memberAuthorizationSignature(for: session.member)
             } ?? false
             let environmentChanged = currentEnvironment.map { $0 != environment } ?? false
+            let preservesShiftSwapReceipts = currentSession.map {
+                hasSameShiftSwapResourceScope(from: $0, to: session)
+            } ?? false
+            let canRebaseShiftSwapMutation = currentSession.map {
+                isBenignShiftSwapAuthorizationTransition(from: $0, to: session)
+            } ?? false
             if identityChanged || adminAccessChanged || environmentChanged {
-                sessionIdentityEpoch += 1
-                reset()
+                resetForShiftSwapBoundary(preserving: boundaryReceipts, sameScope: preservesShiftSwapReceipts)
             } else if authorizationChanged || memberAuthorizationChanged {
                 sessionIdentityEpoch += 1
                 resetShiftsFeed()
@@ -34,6 +44,9 @@ extension ShiftsFeatureViewModel {
             currentSession = session
             currentMember = session.member
             currentEnvironment = environment
+            if canRebaseShiftSwapMutation {
+                rebaseShiftSwapMutationAuthorizationReceipt()
+            }
             _ = startShiftsRefresh(recoversInitialFailure: true, startsInitialCalendarHydration: true)
         case .signedOut, .unauthorized:
             sessionIdentityEpoch += 1
@@ -65,7 +78,7 @@ extension ShiftsFeatureViewModel {
         startsInitialCalendarHydration: Bool = false
     ) -> Task<Void, Never>? {
         guard let context = authorizedSessionContext else {
-            resetShifts()
+            resetShiftsFeed()
             return nil
         }
 
@@ -198,6 +211,7 @@ private final class ShiftsFeedRefreshOwner {
             viewModel.shiftsFeed = loadedShifts
             viewModel.shiftSwapRequests = loadedRequests.visible(to: context.session.member.id)
             viewModel.reconcileShiftSwapAcknowledgements(with: loadedRequests)
+            viewModel.reconcileUncertainShiftSwapMutation(with: loadedRequests)
             viewModel.recomputeNextShifts()
         } catch is CancellationError {
             return

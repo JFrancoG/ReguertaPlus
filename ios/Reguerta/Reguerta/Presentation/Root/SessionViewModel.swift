@@ -36,6 +36,33 @@ enum SessionMode: Equatable, Sendable {
     case authorized(AuthorizedSession)
 }
 
+private struct ShiftSwapAuthorizationBoundarySignature: Equatable {
+    let principalUID: String
+    let authenticatedMemberID: String
+    let authenticatedMemberAuthUID: String?
+    let authenticatedMemberIsAdmin: Bool
+    let selectedMemberID: String
+    let selectedMemberAuthUID: String?
+    let selectedMemberIsAdmin: Bool
+    let environment: SessionEnvironment
+}
+
+private extension SessionMode {
+    var shiftSwapAuthorizationBoundarySignature: ShiftSwapAuthorizationBoundarySignature? {
+        guard case .authorized(let session) = self, session.representsActiveAuthorization else { return nil }
+        return ShiftSwapAuthorizationBoundarySignature(
+            principalUID: session.principal.uid,
+            authenticatedMemberID: session.authenticatedMember.id,
+            authenticatedMemberAuthUID: session.authenticatedMember.authUid,
+            authenticatedMemberIsAdmin: session.authenticatedMember.isAdmin,
+            selectedMemberID: session.member.id,
+            selectedMemberAuthUID: session.member.authUid,
+            selectedMemberIsAdmin: session.member.isAdmin,
+            environment: session.environment
+        )
+    }
+}
+
 @MainActor
 @Observable
 final class SessionViewModel {
@@ -96,10 +123,15 @@ final class SessionViewModel {
         didSet {
             if oldValue != mode {
                 sessionStateRevision &+= 1
+                if oldValue.shiftSwapAuthorizationBoundarySignature != mode.shiftSwapAuthorizationBoundarySignature {
+                    shiftSwapAuthorizationBoundaryRevision &+= 1
+                }
             }
         }
     }
     @ObservationIgnored private(set) var sessionStateRevision: UInt64 = 0
+    /// Advances synchronously when a hard authorization boundary can invalidate an accepted swap command.
+    private(set) var shiftSwapAuthorizationBoundaryRevision: UInt64 = 0
 
     let feedbackCenter: GlobalFeedbackCenter
     let repository: any MemberRepository

@@ -217,7 +217,7 @@ struct ShiftSwapRequestRouteView: View {
                         LocalizedStringKey(
                             viewModel.isSavingShiftSwapRequest ? shiftSwapCopy.sending : shiftSwapCopy.send
                         ),
-                        isEnabled: !viewModel.isSavingShiftSwapRequest && !viewModel.shiftSwapDraft.shiftId.isEmpty,
+                        isEnabled: viewModel.canSubmitShiftSwapCreate(for: viewModel.shiftSwapDraft.shiftId),
                         isLoading: viewModel.isSavingShiftSwapRequest,
                         action: onSave
                     )

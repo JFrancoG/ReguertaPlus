@@ -57,6 +57,9 @@ struct MainView: View {
         .onChange(of: sessionViewModel.mode) { previousMode, mode in
             rootViewModel.handleSessionModeChange(from: previousMode, to: mode)
         }
+        .onChange(of: sessionViewModel.shiftSwapAuthorizationBoundaryRevision) { _, _ in
+            rootViewModel.handleShiftSwapAuthorizationBoundaryChange()
+        }
         .onChange(of: rootViewModel.nowOverrideMillis) { _, _ in
             rootViewModel.handleNowOverrideChange()
         }

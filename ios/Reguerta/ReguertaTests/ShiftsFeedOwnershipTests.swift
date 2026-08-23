@@ -112,20 +112,23 @@ struct ShiftsFeedOwnershipTests {
         #expect(repository.wasSwapReadCancelled(0))
         #expect(viewModel.shiftSwapDraft.shiftId.isEmpty)
         #expect(viewModel.selectedShiftSegment == .delivery)
-        #expect(viewModel.shiftSwapAcknowledgements.isEmpty)
+        #expect(viewModel.shiftSwapAcknowledgements.isEmpty == !drift.preservesShiftSwapReceipts)
         #expect(viewModel.dismissedShiftSwapRequestIds.isEmpty)
-        #expect(viewModel.activeSwapSaveOperationId == nil)
+        #expect(viewModel.activeShiftSwapMutationOperationId == nil)
         #expect(viewModel.isSavingShiftSwapRequest == false)
         #expect(viewModel.activePlanningSubmissionOperationId == nil)
         #expect(viewModel.isSubmittingShiftPlanningRequest == false)
-        try await repository.waitUntilPairStarts(1)
-
-        guard let successorRefresh = viewModel.shiftsRefreshTask else {
-            Issue.record("Expected the successor authorization to own the feed")
-            return
+        if scenario.successor.representsActiveAuthorization {
+            try await repository.waitUntilPairStarts(1)
+            guard let successorRefresh = viewModel.shiftsRefreshTask else {
+                Issue.record("Expected the successor authorization to own the feed")
+                return
+            }
+            await repository.completePair(1, shifts: [], requests: [])
+            _ = await successorRefresh.value
+        } else {
+            #expect(viewModel.shiftsRefreshTask == nil)
         }
-        await repository.completePair(1, shifts: [], requests: [])
-        _ = await successorRefresh.value
         if drift == .principalAuthentication {
             await repository.failShifts(0)
             await repository.completeRequests(0, requests: [])
@@ -136,6 +139,7 @@ struct ShiftsFeedOwnershipTests {
 
         #expect(viewModel.shiftsFeed.isEmpty)
         #expect(viewModel.shiftSwapRequests.isEmpty)
+        #expect(viewModel.shiftSwapAcknowledgements.isEmpty == !drift.preservesShiftSwapReceipts)
         #expect(viewModel.isLoadingShifts == false)
         #expect(viewModel.feedbackCenter.messageKey == nil)
     }
@@ -216,7 +220,7 @@ struct ShiftsFeedOwnershipTests {
         #expect(viewModel.shiftSwapAcknowledgements[staleRequest.id] != nil)
         #expect(viewModel.dismissedShiftSwapRequestIds.contains(staleRequest.id))
         #expect(viewModel.shiftSwapDraft.shiftId == staleShift.id)
-        #expect(viewModel.activeSwapSaveOperationId == 41)
+        #expect(viewModel.activeShiftSwapMutationOperationId == 41)
         #expect(viewModel.isSavingShiftSwapRequest)
         #expect(viewModel.activePlanningSubmissionOperationId == 42)
         #expect(viewModel.isSubmittingShiftPlanningRequest)
@@ -238,7 +242,7 @@ struct ShiftsFeedOwnershipTests {
         #expect(viewModel.shiftSwapRequests.isEmpty)
         #expect(viewModel.shiftSwapAcknowledgements[staleRequest.id] != nil)
         #expect(viewModel.dismissedShiftSwapRequestIds.contains(staleRequest.id))
-        #expect(viewModel.activeSwapSaveOperationId == 41)
+        #expect(viewModel.activeShiftSwapMutationOperationId == 41)
         #expect(viewModel.activePlanningSubmissionOperationId == 42)
         #expect(viewModel.feedbackCenter.messageKey == nil)
     }

@@ -54,6 +54,7 @@ final class AccessRootViewModel {
     @ObservationIgnored var startupGateGeneration: UInt64 = 0
     @ObservationIgnored var myOrderEntryTask: Task<Void, Never>?
     @ObservationIgnored var myOrderEntryGeneration: UInt64 = 0
+    @ObservationIgnored var shiftSwapRouteGeneration: UInt64 = 0
     var shellState = AuthShellState()
     var splashScale: CGFloat = SplashAnimationContract.initialScale
     var splashRotation: Double = SplashAnimationContract.initialRotation
@@ -378,6 +379,10 @@ extension AccessRootViewModel {
         }
     }
 
+    func handleShiftSwapAuthorizationBoundaryChange() {
+        shiftsViewModel.handleShiftSwapAuthorizationBoundaryChange()
+    }
+
     func handleNowOverrideChange() {
         productsViewModel.handleNowOverrideChange()
         shiftsViewModel.handleNowOverrideChange()
@@ -463,6 +468,9 @@ extension AccessRootViewModel {
     func handleHomeDestinationChange(from previousDestination: HomeDestination, to destination: HomeDestination) {
         guard previousDestination != destination else { return }
         invalidateHomeMyOrderEntryIntent()
+        if previousDestination == .shiftSwapRequest || destination == .shiftSwapRequest {
+            shiftSwapRouteGeneration &+= 1
+        }
         if previousDestination == .dashboard {
             homeOrderStateGeneration &+= 1
         }

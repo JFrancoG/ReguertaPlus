@@ -234,7 +234,8 @@ struct P101ShiftsFailureTests {
         viewModel.shiftsFeed = [requestedShift, candidateShift]
         viewModel.startCreatingShiftSwap(shiftId: requestedShift.id)
 
-        let saved = await viewModel.saveShiftSwapRequest()
+        let saved = await awaitShiftSwapSave(in: viewModel)
+        await awaitCurrentShiftsRefresh(in: viewModel)
 
         #expect(saved)
         #expect(viewModel.shiftSwapDraft == ShiftSwapDraft())
@@ -246,7 +247,7 @@ struct P101ShiftsFailureTests {
             ) == false
         )
         viewModel.startCreatingShiftSwap(shiftId: requestedShift.id)
-        #expect(await viewModel.saveShiftSwapRequest() == false)
+        #expect(await awaitShiftSwapSave(in: viewModel) == false)
         #expect(repository.transitionCount == 1)
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableLoadData)
     }
@@ -277,7 +278,7 @@ struct P101ShiftsFailureTests {
         viewModel.updateShiftSwapDraft { $0.reason = "No puedo ir" }
         let originalDraft = viewModel.shiftSwapDraft
 
-        let saved = await viewModel.saveShiftSwapRequest()
+        let saved = await awaitShiftSwapSave(in: viewModel)
 
         #expect(saved == false)
         #expect(viewModel.shiftSwapDraft == originalDraft)
@@ -302,7 +303,8 @@ struct P101ShiftsFailureTests {
         )
         viewModel.shiftSwapRequests = [request]
 
-        await viewModel.cancelShiftSwapRequest(requestId: request.id)
+        _ = await awaitShiftSwapCancellation(requestId: request.id, in: viewModel)
+        await awaitCurrentShiftsRefresh(in: viewModel)
 
         #expect(viewModel.shiftSwapRequests == [request])
         #expect(viewModel.acknowledgedShiftSwapRequestIds == [request.id])
@@ -311,7 +313,7 @@ struct P101ShiftsFailureTests {
         #expect(repository.transitionCount == 1)
         #expect(viewModel.feedbackCenter.messageKey == AccessL10nKey.feedbackUnableLoadData)
 
-        await viewModel.cancelShiftSwapRequest(requestId: request.id)
+        _ = await awaitShiftSwapCancellation(requestId: request.id, in: viewModel)
         #expect(repository.transitionCount == 1)
     }
 

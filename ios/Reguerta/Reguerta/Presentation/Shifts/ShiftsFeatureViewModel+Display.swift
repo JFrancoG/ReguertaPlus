@@ -193,7 +193,8 @@ extension ShiftsFeatureViewModel {
         let hasUnreconciledCreate = shiftSwapAcknowledgements.values.contains {
             $0.blocksCreate(for: shift.id)
         }
-        guard !hasCanonicalOpenRequest, !hasUnreconciledCreate else { return false }
+        let hasUncertainCreate = uncertainShiftSwapMutationIntents[.create(requestedShiftId: shift.id)] != nil
+        guard !hasCanonicalOpenRequest, !hasUnreconciledCreate, !hasUncertainCreate else { return false }
         let effectiveMillis = effectiveDateMillis(for: shift)
         switch shift.type {
         case .delivery:

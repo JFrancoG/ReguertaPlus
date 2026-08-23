@@ -61,6 +61,24 @@ func makeShiftsViewModel(
     return viewModel
 }
 
+@MainActor
+func awaitCurrentShiftsRefresh(in viewModel: ShiftsFeatureViewModel) async {
+    guard let refreshTask = viewModel.shiftsRefreshTask else { return }
+    await refreshTask.value
+}
+
+@MainActor
+func awaitShiftSwapSave(in viewModel: ShiftsFeatureViewModel) async -> Bool {
+    guard let mutationTask = viewModel.startSavingShiftSwapRequest() else { return false }
+    return await mutationTask.value
+}
+
+@MainActor
+func awaitShiftSwapCancellation(requestId: String, in viewModel: ShiftsFeatureViewModel) async -> Bool {
+    guard let mutationTask = viewModel.startCancellingShiftSwapRequest(requestId: requestId) else { return false }
+    return await mutationTask.value
+}
+
 @MainActor func shiftMember(id: String, displayName: String) -> Member {
     Member(
         id: id,
