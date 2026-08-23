@@ -212,3 +212,25 @@ Shifts/Settings display `Calendar.current` and implicit formatter timezone
 usage stays in HU-081 for later display/UI phases. The inherited
 `OrderHistoryWeek` fallback is outside the touched Phase 1 seam. No live
 configuration or Firebase state was mutated or inferred from these local tests.
+
+## Validated Phase 2 delta
+
+This section records the completed local command-boundary cut without changing
+the frozen activation inventory.
+
+- Minimal typed Domain commands now represent create/respond/cancel/apply; Data
+  maps only their accepted fields to the unchanged Functions union.
+- Presentation no longer fabricates authoritative swap request mutations or
+  denies create from a stale local candidate projection.
+- Typed backend outcomes drive localized ES/EN feedback. The Shifts-only unused
+  notification dependency is removed; Functions and News/Notifications remain
+  unchanged.
+- The in-memory authority models read-back, actor identity, open/accepted state,
+  authenticated response attribution, and repository-owned timestamps.
+- Focused suites and all 28 Functions security tests passed. Canonical
+  `fast-unit-v1` passed 796 logical / 1,018 concrete executions, all four
+  `ui-smoke` journeys passed, and SwiftLint found zero violations in 440 files.
+
+Phase 2 is published as `fae4da0`. Phase 3 feed ownership is authorized and
+begins with its deterministic RED matrix. Project settings, packages, Android,
+Functions, CI, live Firebase, and Google Sheets remain untouched.

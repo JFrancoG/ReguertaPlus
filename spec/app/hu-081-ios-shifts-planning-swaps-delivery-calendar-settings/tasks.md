@@ -37,18 +37,29 @@
 Phase 1B evidence: 30 logical / 46 concrete focused executions passed; the
 policy passed 5 logical / 21 concrete executions under both `TZ=UTC` and
 `TZ=America/New_York`; canonical `fast-unit-v1` passed 789 logical / 996
-concrete executions. SwiftLint found zero violations in 438 files. Phase 1B is
-local and uncommitted.
+concrete executions. SwiftLint found zero violations in 438 files. Functional
+commit `fc1157e` and documentation commit `be2cdfd` are published on the
+verified upstream branch.
 
 ## Phase 2 - swap command boundary
 
-- [ ] Capture stale-local-feed denial RED with an authoritative fake repository.
-- [ ] Characterize create/respond/cancel/apply payload fields.
-- [ ] Replace request-carrying transitions with minimal typed commands.
-- [ ] Preserve Functions as candidate/application/notification authority.
-- [ ] Map no-candidate and other transport outcomes to typed localized feedback.
-- [ ] Remove false client mutation authority and unused notification dependency.
-- [ ] Run Domain/Data/VM/Functions-boundary cohorts and fast-unit.
+- [x] Capture stale-local-feed denial RED with an authoritative fake repository.
+- [x] Characterize create/respond/cancel/apply payload fields.
+- [x] Replace request-carrying transitions with minimal typed commands.
+- [x] Preserve Functions as candidate/application/notification authority.
+- [x] Map no-candidate and other transport outcomes to typed localized feedback.
+- [x] Remove false client mutation authority and unused notification dependency.
+- [x] Run Domain/Data/VM/Functions-boundary cohorts and fast-unit.
+
+Phase 2 evidence: the valid stale-feed RED proved Presentation denied create
+before making any repository call. The GREEN sends only typed command inputs,
+preserves the existing Functions union and notification transaction, maps the
+transport taxonomy to localized feedback, and gives the in-memory authority
+explicit actor, transition, and timestamp semantics. Focused boundary/VM/
+composition suites and Functions security tests passed. Canonical
+`fast-unit-v1` passed 796 logical / 1,018 concrete executions; `ui-smoke`
+passed all four journeys. SwiftLint found zero violations in 440 files.
+Functional commit `fae4da0` is published on the verified feature branch.
 
 ## Phase 3 - feed ownership
 
@@ -57,6 +68,9 @@ local and uncommitted.
 - [ ] Retain/cancel read tasks and preserve latest-wins/owner-only cleanup.
 - [ ] Preserve next-shift and board display contracts.
 - [ ] Run feed/session/composition cohort and fast-unit.
+
+Phase 3 is authorized and active. The first executable gate is the deterministic
+ownership RED matrix; no production ownership change precedes that evidence.
 
 ## Phase 4 - swap ownership
 
@@ -100,11 +114,14 @@ local and uncommitted.
 - [x] Push and verify upstream tip `b491e50`.
 - [x] Obtain explicit authorization for the Phase 1B checkpoint and Phase 2 start.
 - [x] Create Phase 1B Conventional Commit `fc1157e`.
+- [x] Create Phase 1B documentation commit `be2cdfd`.
 - [x] Push and verify the Phase 1B checkpoint on the upstream branch.
+- [x] Obtain explicit authorization for the Phase 2 checkpoint and Phase 3 start.
+- [x] Create and push Phase 2 Conventional Commit `fae4da0`.
 - [ ] Open ready PR with validation evidence.
 - [ ] Review checks/findings and remediate before merge.
 - [ ] Merge, close #264, and clean branches only after confirmed authorization.
 
-The current delivery authority covers the Phase 1B checkpoint and Phase 2
-implementation. PR, merge, issue closure, and branch cleanup require separate
-authorization.
+The current delivery authority covers the published Phase 2 checkpoint and
+Phase 3 implementation. PR, merge, issue closure, branch cleanup, and live
+mutations require separate authorization.

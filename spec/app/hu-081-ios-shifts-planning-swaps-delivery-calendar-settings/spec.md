@@ -32,6 +32,15 @@ This authorizes commit and push of completed Phase 1B plus implementation of
 Phase 2. It does not authorize pull request, merge, issue closure, branch
 deletion, live-data mutation, Firebase deployment, or Google Sheets changes.
 
+The maintainer then authorized the Phase 2 checkpoint and Phase 3 with:
+
+> ok. commit y push, y phase 3
+
+This authorizes commit and push of completed Phase 2 plus Phase 3
+implementation. It does not authorize pull request, merge, issue closure,
+branch deletion, live-data mutation, Firebase deployment, or Google Sheets
+changes.
+
 ## Context and problem
 
 Phase 6 modernizes one vertical slice at a time. HU-079 closed Auth/session and
@@ -188,18 +197,18 @@ preview gallery lacks swap and mutation-state coverage.
   exceptions, while calendar mutation and planning remain admin-only.
 - [x] Delivery Calendar override/window construction is deterministic across
   device timezones and uses `Europe/Madrid` for every business instant.
-- [ ] Swap commands express only create/respond/cancel/apply inputs owned by the
+- [x] Swap commands express only create/respond/cancel/apply inputs owned by the
   client; Functions remains the authoritative candidate/application owner.
-- [ ] A stale local candidate projection cannot prevent a valid backend create;
+- [x] A stale local candidate projection cannot prevent a valid backend create;
   backend no-candidate failure maps to specific, localized feedback.
-- [ ] Reusable client business policies live in Domain, transport mapping lives
+- [x] Reusable client business policies live in Domain, transport mapping lives
   in Data, and Presentation contains no backend-authoritative mutation logic.
 - [ ] Feed, swaps, planning, and calendar operations have cohesive owners,
   retained cancellation where contractual, successor fences, and owner-only
   cleanup covered by deterministic tests.
 - [ ] Session, member, role, environment, route, and revision checks occur
   before generation mutation, repository I/O, or state publication.
-- [ ] The unused Shifts notification dependency is removed without changing
+- [x] The unused Shifts notification dependency is removed without changing
   the Function-owned notification behavior.
 - [ ] Appearance, unavailable mode, impersonation, develop time, planning,
   swaps, and Delivery Calendar preserve inherited behavior.
@@ -255,11 +264,28 @@ Final local evidence on iPhone 17 / iOS 26.5:
 - canonical `fast-unit-v1`: 789 logical / 996 concrete, PASS;
 - SwiftLint 0.61.0: 438 files, zero violations; `git diff --check`: PASS.
 
-The canonical four-journey `ui-smoke` runner remains infrastructure-flaky:
-different journeys terminated with `signal term` across two runs while Xcode
-reported a missing LLDB debugger version. Every terminated journey passed on
-an isolated retry, with no product assertion failure. Dedicated Delivery
-Calendar UI automation remains a later Phase 6 requirement.
+Earlier Phase 1 `ui-smoke` attempts were infrastructure-flaky: different
+journeys terminated with `signal term` while Xcode reported a missing LLDB
+debugger version, then passed when retried alone. The final Phase 2 run below
+passes the complete four-journey plan. Dedicated Delivery Calendar UI
+automation remains a later Phase 6 requirement.
+
+Phase 2 is GREEN and published as `fae4da0`. Its valid RED showed create returning
+`false` with zero repository calls when the local candidate feed was stale.
+Domain now exposes only minimal typed commands, Data preserves the exact
+Functions payload union, and Presentation no longer constructs authoritative
+swap mutations or owns candidate eligibility. Typed transport outcomes drive
+localized ES/EN feedback, and the unused Shifts notification dependency is
+gone without changing the Function-owned notification transaction.
+
+The in-memory authority now persists create/read-back, owns transition
+timestamps, enforces open/accepted/requester contracts, and attributes a
+response by authenticated member plus shift. Focused boundary, VM, failure,
+composition, and notification suites passed; all 28 Functions security tests
+passed. Final Phase 2 evidence on iPhone 17 / iOS 26.5 is 796 logical / 1,018
+concrete `fast-unit-v1` executions and four passing `ui-smoke` journeys.
+SwiftLint 0.61.0 reported zero violations in 440 files. The UI runner still
+emits the known missing-LLDB-version warning, without a test failure.
 
 Remaining `Calendar.current` and implicit formatter timezone use in Shifts and
 Settings Presentation belongs to later HU-081 display/UI cuts, not to a
@@ -267,7 +293,7 @@ different issue. The inherited `OrderHistoryWeek` fallback is outside this
 touched seam and remains separately recorded. No live environment assertion is
 made about `config/member`.
 
-The active cut is now Phase 2: first capture a RED proving that a stale local
-feed cannot prevent the authoritative backend swap-create command. HU-081
-remains active; no pull request, merge, issue closure, branch deletion, live
-mutation, or deployment is authorized or claimed.
+Phase 3 feed ownership is the active authorized cut. Its first step is the
+deterministic lifetime RED matrix before any production ownership change.
+HU-081 remains active; no pull request, merge, issue closure, branch deletion,
+live mutation, or deployment is authorized or claimed.

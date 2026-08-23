@@ -130,6 +130,31 @@ GREEN:
 Gate: focused Domain/Data/VM boundary suite + Functions security contract tests
 + fast-unit.
 
+### Executed Phase 2 evidence
+
+The stale-feed test first failed because Presentation returned before calling
+the authoritative repository. The completed boundary now exposes only typed
+create/respond/cancel/apply inputs from Domain; Data alone maps them to the
+existing Functions payload union. Presentation no longer builds authoritative
+candidate, response, cancellation, or application request models, and local
+candidate projection cannot deny create.
+
+Backend errors retain a typed taxonomy for no candidates, permission,
+conflict, transport unavailability, invalid data, unknown failure, and task
+cancellation, with localized ES/EN feedback. The unused Shifts notification
+dependency was removed while Functions notification writes and the separate
+News/Notifications dependency remain unchanged. The authoritative in-memory
+double persists create/read-back, owns transition timestamps, checks open and
+accepted states, and resolves responders by authenticated member plus shift.
+
+The focused boundary/VM/composition cohorts passed, as did all 28 Functions
+security contract tests. Canonical `fast-unit-v1` passed 796 logical / 1,018
+concrete executions and all four `ui-smoke` journeys passed on iPhone 17 / iOS
+26.5. SwiftLint reported zero violations across 440 files; localization JSON,
+`git diff --check`, project/package/Functions guards, and the independent P0-P2
+review passed. Phase 2 is published as `fae4da0`; Phase 3 feed ownership is now
+the active authorized cut.
+
 ## Phase 3 - Shifts feed ownership
 
 - Characterize authorized entry, identity/role/environment changes, retry,
@@ -189,7 +214,8 @@ Gate: admin/calendar/planning cohort + session/role guards + fast-unit.
 - Recalculate source/test/previews and logical/concrete test counts.
 - Reconcile issue mirror, spec, plan, tasks, evidence, Android parity, HU-070,
   and residual debt.
-- Preserve checkpoints `b956f09`, `b491e50`, and `fc1157e` on the remote
+- Preserve checkpoints `b956f09`, `b491e50`, `fc1157e`, `be2cdfd`, and
+  `fae4da0` on the remote
   feature branch and request separate authorization before PR, merge, closure,
   or branch cleanup.
 
@@ -204,9 +230,9 @@ Gate: admin/calendar/planning cohort + session/role guards + fast-unit.
 | New UI tests call live services | Use existing mock-auth/in-memory launch paths only |
 | Settings reopens Products/Auth | Keep appearance/root and unavailable-mode/Products owners unchanged |
 
-## First executable step
+## Next executable step
 
-Capture the Phase 2 stale-feed RED: a current authorized member must reach an
-authoritative fake swap repository even when the local `shiftsFeed` cannot
-project candidates. Then characterize the minimal create/respond/cancel/apply
-command inputs before changing the production boundary.
+Capture the Phase 3 feed-ownership RED matrix: authorized entry/re-entry, retry,
+cancellation, identity/role/environment drift, non-cooperative completion, and
+owner-only successor cleanup. Do not change production ownership before the RED
+identifies the exact failing lifetime contract.
