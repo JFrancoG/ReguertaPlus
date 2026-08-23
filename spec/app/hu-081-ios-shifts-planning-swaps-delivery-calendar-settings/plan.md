@@ -88,9 +88,9 @@ Phase 1A is completed and published. Commit `b956f09` contains the functional
 read-boundary fix and `b491e50` records the checkpoint at the verified remote
 tip.
 
-Phase 1B is completed locally and remains uncommitted. The sequence captured a
-valid old-helper RED, then introduced one guarded Madrid business calendar,
-strict ISO week validation, DST-safe window construction, the allowed
+Phase 1B is completed in commit `fc1157e`. The sequence captured a valid
+old-helper RED, then introduced one guarded Madrid business calendar, strict
+ISO week validation, DST-safe window construction, the allowed
 Tuesday/Thursday/Friday exception policy, exact selection behavior, and zero
 repository writes for default/unchanged no-ops. The same policy selector ran
 from temporary `.xctestrun` copies with `TZ=UTC` and
@@ -189,9 +189,9 @@ Gate: admin/calendar/planning cohort + session/role guards + fast-unit.
 - Recalculate source/test/previews and logical/concrete test counts.
 - Reconcile issue mirror, spec, plan, tasks, evidence, Android parity, HU-070,
   and residual debt.
-- Preserve checkpoints `b956f09` and `b491e50` on the remote feature branch and
-  request separate authorization before publishing the local Phase 1B cut, PR,
-  merge, closure, or branch cleanup.
+- Preserve checkpoints `b956f09`, `b491e50`, and `fc1157e` on the remote
+  feature branch and request separate authorization before PR, merge, closure,
+  or branch cleanup.
 
 ## Initial risks and controls
 

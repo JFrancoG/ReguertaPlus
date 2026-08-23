@@ -98,10 +98,13 @@ local and uncommitted.
 - [x] Create focused Conventional Commit `b956f09`.
 - [x] Create checkpoint documentation commit `b491e50`.
 - [x] Push and verify upstream tip `b491e50`.
+- [x] Obtain explicit authorization for the Phase 1B checkpoint and Phase 2 start.
+- [x] Create Phase 1B Conventional Commit `fc1157e`.
+- [x] Push and verify the Phase 1B checkpoint on the upstream branch.
 - [ ] Open ready PR with validation evidence.
 - [ ] Review checks/findings and remediate before merge.
 - [ ] Merge, close #264, and clean branches only after confirmed authorization.
 
-The completed delivery authority covers the published Phase 1A checkpoint only.
-Phase 1B commit/push, PR, merge, issue closure, and branch cleanup require
-separate authorization.
+The current delivery authority covers the Phase 1B checkpoint and Phase 2
+implementation. PR, merge, issue closure, and branch cleanup require separate
+authorization.

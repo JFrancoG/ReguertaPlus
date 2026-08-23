@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-08-23 | 📝 docs(ios): record HU-081 calendar checkpoint
 - 2026-08-23 | 📝 docs(ios): record HU-081 checkpoint
 
 ### Changed

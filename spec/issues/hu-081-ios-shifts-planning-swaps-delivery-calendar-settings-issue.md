@@ -30,8 +30,13 @@ previews y comienzo de la implementación dentro de HU-081. Después indicó:
 > ok. Haz commit y push, y comenzamos a implementar el siguiente corte
 
 Esta segunda instrucción autorizó commit/push del checkpoint Phase 1A e iniciar
-Phase 1B. No autoriza commit/push del Phase 1B todavía local, PR, merge, cierre,
-borrado de rama, datos live, despliegue Firebase ni cambios Google Sheets.
+Phase 1B. Después indicó:
+
+> commit y push, y comenzamos el siguiente corte
+
+Esta tercera instrucción autoriza commit/push del Phase 1B completado e iniciar
+Phase 2. No autoriza PR, merge, cierre, borrado de rama, datos live, despliegue
+Firebase ni cambios Google Sheets.
 
 ## Contexto
 
@@ -145,7 +150,7 @@ HU-079/HU-080.
 - Phase 1A: RED válido sobre la lectura de socia activa, GREEN focal 27/27 y
   `fast-unit-v1` PASS. `b956f09` contiene el cambio funcional; `b491e50`
   documenta el checkpoint y es el tip remoto verificado.
-- Phase 1B: RED válido en
+- Phase 1B: checkpoint `fc1157e`, con RED válido en
   `/tmp/reguerta-hu081-xctestrun-red.E2voNm/Result.xcresult`; el helper antiguo
   construía milisegundos UTC en vez de instantes Madrid.
 - La implementación local centraliza `BusinessCalendar` en Domain, valida ISO
@@ -164,10 +169,10 @@ HU-079/HU-080.
 - Los `Calendar.current` y formatters con timezone implícito que quedan en
   Presentation son cortes posteriores de esta misma HU-081, no otra issue. El
   fallback heredado de `OrderHistoryWeek` queda fuera del seam Phase 1.
-- Siguiente corte: Phase 2, empezando por el RED que prueba que un feed local
+- Corte activo: Phase 2, empezando por el RED que prueba que un feed local
   obsoleto no puede impedir el create autoritativo de swap.
 
 Estado: OPEN / en progreso. Issue, rama, auditoría, baseline, especificación,
-plan y tareas están activos. Phase 1B sigue local y sin commit/push. No se
+plan y tareas están activos. Phase 1B está entregado y Phase 2 comienza. No se
 autoriza ni se afirma PR, merge, cierre, borrado de rama, mutación live o
 despliegue.

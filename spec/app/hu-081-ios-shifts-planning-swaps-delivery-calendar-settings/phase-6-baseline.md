@@ -188,8 +188,8 @@ rewriting the historical inventory above.
 - Phase 1A separated active-member Calendar reads from admin-only mutation and
   planning. Functional checkpoint `b956f09` and documentation checkpoint
   `b491e50` are published; `b491e50` is the verified remote tip.
-- Phase 1B removed persisted Calendar construction from Presentation and
-  generalized the existing Orders authority into one guarded
+- Phase 1B checkpoint `fc1157e` removed persisted Calendar construction from
+  Presentation and generalized the existing Orders authority into one guarded
   `BusinessCalendar` in Domain.
 - Strict `YYYY-Www` round-trip validation now rejects malformed or impossible
   ISO weeks. Calendar arithmetic preserves Madrid midnight and Sunday close
@@ -207,8 +207,8 @@ rewriting the historical inventory above.
   failures while Xcode reported no LLDB debugger version. Each terminated
   journey passed when retried alone; there was no product assertion failure.
 
-Phase 1B is local and uncommitted. Remaining Shifts/Settings display
-`Calendar.current` and implicit formatter timezone usage stays in HU-081 for
-later display/UI phases. The inherited `OrderHistoryWeek` fallback is outside
-the touched Phase 1 seam. No live configuration or Firebase state was mutated
-or inferred from these local tests.
+Phase 1B is committed and its authorized delivery precedes Phase 2. Remaining
+Shifts/Settings display `Calendar.current` and implicit formatter timezone
+usage stays in HU-081 for later display/UI phases. The inherited
+`OrderHistoryWeek` fallback is outside the touched Phase 1 seam. No live
+configuration or Firebase state was mutated or inferred from these local tests.

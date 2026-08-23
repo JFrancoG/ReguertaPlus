@@ -23,10 +23,14 @@ the first checkpoint and the next cut with:
 > ok. Haz commit y push, y comenzamos a implementar el siguiente corte
 
 That instruction authorized commit and push of the completed Phase 1A
-checkpoint and implementation of Phase 1B. It does not authorize commit or
-push of the still-local Phase 1B work, pull request, merge, issue closure,
-branch deletion, live-data mutation, Firebase deployment, or Google Sheets
-changes.
+checkpoint and implementation of Phase 1B. The maintainer then authorized the
+next checkpoint and cut with:
+
+> commit y push, y comenzamos el siguiente corte
+
+This authorizes commit and push of completed Phase 1B plus implementation of
+Phase 2. It does not authorize pull request, merge, issue closure, branch
+deletion, live-data mutation, Firebase deployment, or Google Sheets changes.
 
 ## Context and problem
 
@@ -228,18 +232,18 @@ Phase 1A is GREEN and published. Its valid RED ran the six-test
 `ReguertaShiftsViewModelTests` suite and failed only the new member Calendar
 expectation because `defaultDeliveryDayOfWeek` was `nil`. The 27-test focused
 cohort and canonical `fast-unit-v1` then passed. Functional commit `b956f09`
-contains the read-boundary fix; documentation commit `b491e50` records the
-checkpoint and is the verified remote branch tip.
+contains the read-boundary fix and documentation commit `b491e50` records that
+checkpoint.
 
-Phase 1B is GREEN locally and remains uncommitted. The valid device-timezone
-RED is `/tmp/reguerta-hu081-xctestrun-red.E2voNm/Result.xcresult`; the previous
+Phase 1B is GREEN and committed as `fc1157e`. The valid device-timezone RED is
+`/tmp/reguerta-hu081-xctestrun-red.E2voNm/Result.xcresult`; the previous
 Presentation helper produced UTC-derived milliseconds instead of Madrid
-instants. The implementation now provides one guarded `BusinessCalendar`
-authority in Domain, strict ISO-week parsing, DST-safe calendar arithmetic, a
-semantic exception factory limited to Tuesday/Thursday/Friday, and
-exception-only writes with true no-op handling for unchanged/default weeks.
-Settings retains legacy/default selections only so an invalid persisted value
-can be exited safely.
+instants. The delivered implementation provides one guarded
+`BusinessCalendar` authority in Domain, strict ISO-week parsing, DST-safe
+calendar arithmetic, a semantic exception factory limited to
+Tuesday/Thursday/Friday, and exception-only writes with true no-op handling for
+unchanged/default weeks. Settings retains legacy/default selections only so an
+invalid persisted value can be exited safely.
 
 Final local evidence on iPhone 17 / iOS 26.5:
 
@@ -263,7 +267,7 @@ different issue. The inherited `OrderHistoryWeek` fallback is outside this
 touched seam and remains separately recorded. No live environment assertion is
 made about `config/member`.
 
-The next executable cut is Phase 2: first capture a RED proving that a stale
-local feed cannot prevent the authoritative backend swap-create command. HU-081
-remains active; no Phase 1B commit/push, pull request, merge, issue closure,
-branch deletion, live mutation, or deployment is authorized or claimed.
+The active cut is now Phase 2: first capture a RED proving that a stale local
+feed cannot prevent the authoritative backend swap-create command. HU-081
+remains active; no pull request, merge, issue closure, branch deletion, live
+mutation, or deployment is authorized or claimed.
