@@ -50,6 +50,14 @@ implementation. It does not authorize the Phase 4 checkpoint, pull request,
 merge, issue closure, branch deletion, live-data mutation, Firebase deployment,
 or Google Sheets changes.
 
+The maintainer then authorized the Phase 4 checkpoint with:
+
+> pues commit y push
+
+This authorizes commit and push of completed Phase 4 only. It does not authorize
+Phase 5 implementation, pull request, merge, issue closure, branch deletion,
+live-data mutation, Firebase deployment, or Google Sheets changes.
+
 ## Context and problem
 
 Phase 6 modernizes one vertical slice at a time. HU-079 closed Auth/session and
@@ -325,7 +333,54 @@ Shifts/session/composition executions, and 808 / 1,033 canonical
 `fast-unit-v1` executions, all passing without skips. SwiftLint passed with
 zero violations across 444 files; static guards and independent ownership,
 test, and scope reviews found zero P0-P2 issues. Phase 3 is committed as
-`124c34d` and authorized for push. Phase 4 swap-mutation ownership is the active
-authorized cut, beginning with its deterministic lifetime RED matrix. HU-081
-remains active; no Phase 4 checkpoint, pull request, merge, issue closure,
-branch deletion, live mutation, or deployment is authorized or claimed.
+`124c34d`, its documentation checkpoint is `5dab3e2`, and both are published on
+the verified feature branch.
+
+Phase 4 swap-mutation ownership is complete and committed as `6df78eb`. Its
+deterministic RED proved that sign-out did not physically cancel a suspended, non-cooperative
+create operation. The GREEN retains one weak owner and one single-flight lane
+for create, respond, cancel, and apply; invalidates the operation identity
+before cancellation; propagates async caller cancellation to the exact retained
+task; and rejects late success, failure, and cleanup from an obsolete owner. An
+observable authorization-boundary revision also detects coalesced ABA session
+transitions. If a result arrives before that boundary handler, its receipt is
+retained but cannot publish until the current boundary has been handled.
+
+Every command has an exact retry key: create uses the requested shift ID and
+respond/cancel/apply use the request ID. Definitive `noCandidates`,
+`permissionDenied`, and `conflict` failures release that key; ambiguous
+`unavailable`, `invalidData`, and unknown failures quarantine only the affected
+key. Operation provenance prevents a late definitive failure from clearing a
+newer uncertainty with the same key. Role-only drift preserves an accepted
+mutation. Identity or environment drift cancels and fences it; admin-capability
+drift is a hard publication boundary but preserves confirmed acknowledgements
+and keyed uncertainty while the resource scope remains the same.
+
+Leaving the request route does not discard an accepted command. Completion may
+navigate back to Shifts only while that request route is still current, so a
+late result cannot pull the user away from a successor route. A confirmed
+backend result publishes its acknowledgement before scheduling an authoritative
+atomic feed refresh and releases the mutation lane without waiting for read-back.
+Failed read-back therefore keeps the acknowledgement and blocks only the exact
+ambiguous resubmission. A request uncertainty clears only when authoritative
+read-back reflects that exact request or a terminal status; a missing or stale
+projection keeps it quarantined. Create uncertainty cannot clear automatically
+because the backend exposes no client correlation or idempotency key. Adding
+that end-to-end guarantee remains a separate Functions contract and issue, not
+part of this Presentation-only cut.
+
+Same-resource relogin preserves acknowledgements and keyed uncertainty, while a
+different identity or environment discards them. The nested Users public-member
+projection can emit a second synchronous authorization change; Shifts remains
+fail-closed between both changes and settles only after handling the actual
+successor session.
+
+Final Phase 4 evidence on iPhone 17 / iOS 26.5 is 43 logical / 280 concrete
+focused ownership executions, 105 / 124 expanded Shifts/session/repository/root
+executions, and 844 / 1,303 canonical `fast-unit-v1` executions, all passing
+without failures or skips. SwiftLint 0.61.0 reported zero violations across 460
+files; Xcode built without errors or warnings, and the
+project/package/layer/escape guards remained clean. This documentation records
+the authorized feature-branch publication. HU-081 remains active; no Phase 5
+work, pull request, merge, issue closure, branch deletion, live mutation, or
+deployment is authorized or claimed.

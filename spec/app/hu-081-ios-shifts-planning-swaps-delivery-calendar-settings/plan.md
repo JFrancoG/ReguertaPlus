@@ -154,8 +154,9 @@ concrete executions and all four `ui-smoke` journeys passed on iPhone 17 / iOS
 `git diff --check`, project/package/Functions guards, and the independent P0-P2
 review passed. Phase 2 is published as `fae4da0`; Phase 3 feed ownership is now
 complete locally. The Phase 2 documentation checkpoint is published as
-`3a10095`; Phase 3 is committed as `124c34d` and authorized for push. Phase 4
-swap-mutation ownership is now the active authorized cut.
+`3a10095`; Phase 3 and its documentation checkpoint are published as `124c34d`
+and `5dab3e2`. Phase 4 swap-mutation ownership is committed as `6df78eb`; its
+documentation checkpoint and feature-branch push are explicitly authorized.
 
 ## Phase 3 - Shifts feed ownership
 
@@ -198,6 +199,43 @@ test, and scope reviews passed with zero P0-P2 findings.
 
 Gate: swap ownership cohort + repository command suite + fast-unit.
 
+Phase 4 completion evidence: the valid RED showed that sign-out did not
+physically cancel a suspended non-cooperative create operation. The GREEN owns
+create/respond/cancel/apply through one weak retained task and one single-flight
+operation identity. Owner invalidation precedes cancellation; current
+identity/authorization/environment and owner checks fence late result, error,
+and cleanup. An observable authorization-boundary revision closes coalesced ABA
+transitions and retains a pending completion receipt when the result wins the
+race against the boundary handler. Role-only drift preserves an accepted
+command. Identity/environment drift cancels it; admin-capability drift is a hard
+publication boundary while retaining same-resource mutation receipts. Route exit
+preserves an accepted mutation, but semantic root completion only navigates
+while the request route remains current.
+
+Confirmed command acknowledgement precedes the atomic feed refresh and the
+mutation lane no longer waits for read-back. Failed read-back retains that
+acknowledgement and blocks ambiguous resubmission only for the exact command
+key. Create is keyed by requested shift ID; respond/cancel/apply are keyed by
+request ID. Definitive `noCandidates`, `permissionDenied`, and `conflict`
+failures release the key. Ambiguous `unavailable`, `invalidData`, and unknown
+failures quarantine it with operation provenance so a stale failure cannot
+clear a newer uncertainty.
+
+Authoritative read-back clears request uncertainty only when the exact request
+is reflected or terminal; missing and stale projections retain it. Create
+uncertainty cannot auto-clear because the backend command lacks a client
+correlation/idempotency key. That end-to-end contract belongs to a separate
+Functions issue. Same-resource relogin preserves receipts and uncertainty;
+different identity/environment discards them. Nested Users public-projection
+changes remain fail-closed until the actual successor session is handled.
+
+The focused ownership matrix passed 43 logical / 280 concrete executions; the
+expanded Shifts/session/repository/root cohort passed 105 / 124; and canonical
+`fast-unit-v1` passed 844 / 1,303 on iPhone 17 / iOS 26.5, all without failures
+or skips. SwiftLint reported zero violations across 460 files. Xcode built with
+zero errors or warnings; `git diff --check`, concurrency/layer/scope guards, and the
+zero-project-file-diff guard passed.
+
 ## Phase 5 - planning and Delivery Calendar ownership
 
 - Characterize admin authorization before generation/I/O, concurrent planning,
@@ -209,6 +247,10 @@ Gate: swap ownership cohort + repository command suite + fast-unit.
   directly when that bypasses invariants.
 
 Gate: admin/calendar/planning cohort + session/role guards + fast-unit.
+
+This phase does not absorb Presentation display cleanup. Remaining
+`Calendar.current` and implicit formatter-timezone uses stay in the later
+display/UI phase of HU-081, not in a separate issue.
 
 ## Phase 6 - SwiftUI, previews, accessibility, and motion
 
@@ -254,6 +296,7 @@ Gate: admin/calendar/planning cohort + session/role guards + fast-unit.
 
 ## Next executable step
 
-Capture the Phase 4 swap-mutation ownership RED matrix for overlap, double
-submit, route exit, demotion, late completion, acknowledgement refresh, and
-retry before changing production ownership.
+Publish the authorized Phase 4 implementation and documentation checkpoint on
+the feature branch, then stop. Phase 5 remains unauthorized and must begin only
+after separate approval, with deterministic planning and Delivery Calendar
+ownership characterization before changing production ownership.

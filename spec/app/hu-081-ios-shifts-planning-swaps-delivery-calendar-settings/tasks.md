@@ -79,15 +79,38 @@ and Calendar tests passed 12 logical / 15 concrete executions; the expanded
 cohort passed 79 / 87; canonical `fast-unit-v1` passed 808 / 1,033; and
 SwiftLint passed 0 / 444.
 Independent ownership, test, and scope reviews found zero P0-P2 issues. Phase
-3 is committed as `124c34d` and authorized for push. Phase 4 is authorized and
-active; its first executable gate is the deterministic ownership RED matrix.
+3 is published as `124c34d` with documentation checkpoint `5dab3e2` on the
+verified feature branch. Phase 4 implementation is committed as `6df78eb`; its
+documentation checkpoint and feature-branch push are authorized.
 
 ## Phase 4 - swap ownership
 
-- [ ] Characterize mutation overlap, double submit, route exit, demotion, and late completion.
-- [ ] Retain/cancel task owners and protect non-cooperative successors.
-- [ ] Preserve acknowledgement and post-mutation refresh ordering.
-- [ ] Run swap ownership/repository cohort and fast-unit.
+- [x] Characterize mutation overlap, double submit, route exit, demotion, and late completion.
+- [x] Retain/cancel task owners and protect non-cooperative successors.
+- [x] Preserve acknowledgement and post-mutation refresh ordering.
+- [x] Run swap ownership/repository cohort and fast-unit.
+
+Phase 4 is complete and committed as `6df78eb`. One weak retained task and one
+operation identity serialize create/respond/cancel/apply, propagate caller and authorization
+cancellation, and prevent stale results or cleanup from affecting a successor.
+An observable authorization-boundary revision covers coalesced ABA transitions
+and result-before-handler races. Role-only drift and route exit preserve an
+accepted command; identity/environment drift invalidates it. Admin-capability
+drift fences publication while preserving same-resource acknowledgements and
+keyed uncertainty.
+
+Acknowledgement precedes separately owned feed read-back and releases the lane.
+Exact retry keys are requested shift ID for create and request ID for the other
+commands. Definitive failures release the key; ambiguous failures quarantine
+only that key with operation provenance. Request uncertainty clears only on an
+exact reflected or terminal read-back. Missing/stale read-back retains it;
+create uncertainty cannot auto-clear without a backend correlation/idempotency
+key. That Functions contract remains a separate issue outside this cut.
+
+The focused matrix passed 43 logical / 280 concrete executions, the expanded
+cohort passed 105 / 124, canonical `fast-unit-v1` passed 844 / 1,303, and
+SwiftLint passed 0 / 460 on iPhone 17 / iOS 26.5. Xcode built with no errors or
+warnings and static scope/concurrency/project guards passed.
 
 ## Phase 5 - planning and calendar ownership
 
@@ -96,6 +119,10 @@ active; its first executable gate is the deterministic ownership RED matrix.
 - [ ] Introduce only cohesive Store boundaries demonstrated by tests.
 - [ ] Replace direct state bypasses with semantic intents where required.
 - [ ] Run admin/planning/calendar/session cohort and fast-unit.
+
+Remaining Presentation `Calendar.current` and implicit formatter-timezone
+cleanup belong to the later display/UI phase of this HU-081, not to Phase 5 or
+another issue.
 
 ## Phase 6 - UI, previews, accessibility, and motion
 
@@ -130,10 +157,16 @@ active; its first executable gate is the deterministic ownership RED matrix.
 - [x] Create and push Phase 2 Conventional Commit `fae4da0`.
 - [x] Obtain explicit authorization for the Phase 3 checkpoint and Phase 4 start.
 - [x] Create Phase 3 Conventional Commit `124c34d`.
+- [x] Create Phase 3 documentation checkpoint `5dab3e2`.
+- [x] Push and verify the Phase 3 checkpoint at upstream tip `5dab3e2`.
+- [x] Obtain explicit authorization for the Phase 4 checkpoint.
+- [x] Create Phase 4 Conventional Commit `6df78eb`.
+- [x] Create and push the Phase 4 documentation checkpoint and verify upstream.
+- [ ] Obtain explicit authorization for the Phase 5 start.
 - [ ] Open ready PR with validation evidence.
 - [ ] Review checks/findings and remediate before merge.
 - [ ] Merge, close #264, and clean branches only after confirmed authorization.
 
-The current delivery authority covers the Phase 3 checkpoint commit/push and
-Phase 4 implementation. It does not cover the Phase 4 checkpoint, PR, merge,
-issue closure, branch cleanup, or live mutations.
+The current delivery authority covers the Phase 4 checkpoint commit and push.
+It does not cover Phase 5 implementation, PR, merge, issue closure, branch
+cleanup, or live mutations.

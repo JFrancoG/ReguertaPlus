@@ -234,3 +234,58 @@ the frozen activation inventory.
 Phase 2 is published as `fae4da0`. Phase 3 feed ownership is authorized and
 begins with its deterministic RED matrix. Project settings, packages, Android,
 Functions, CI, live Firebase, and Google Sheets remain untouched.
+
+## Validated Phase 3 delta
+
+This section records the published feed-ownership cut without changing the
+frozen activation inventory.
+
+- One weak, atomic owner now covers the Shifts and swap-request feed. It
+  propagates cancellation to the exact task and keeps latest-wins,
+  owner-only cleanup.
+- Pending initial Feed -> Calendar hydration transfers only to an equivalent
+  session successor and preserves ordering after success or terminal failure.
+- Principal, authenticated member, selected member, role/capability,
+  environment, and admin fences prevent obsolete publication. Role-only drift
+  resets just the feed; full identity/access/environment drift keeps the hard
+  reset.
+- Focused evidence passed 12 logical / 15 concrete executions; the expanded
+  cohort passed 79 / 87; canonical `fast-unit-v1` passed 808 / 1,033; and
+  SwiftLint passed 0 / 444. Independent ownership, tests, and scope reviews
+  found zero P0-P2 issues.
+
+Phase 3 is published as functional checkpoint `124c34d` plus documentation
+checkpoint `5dab3e2` on the verified feature branch.
+
+## Validated Phase 4 delta
+
+This section records the completed mutation-ownership cut without changing the
+frozen activation inventory.
+
+- One weak retained owner and one single-flight lane serialize
+  create/respond/cancel/apply. Operation identity, authorization fences, route
+  generation, and an observable ABA boundary reject obsolete publication and
+  preserve a completion receipt when result and boundary handling race.
+- Create is keyed by requested shift ID; respond/cancel/apply are keyed by
+  request ID. Definitive failures release that key. Ambiguous failures
+  quarantine only that key, and operation provenance protects a newer
+  uncertainty from stale cleanup.
+- Acknowledgement precedes authoritative read-back and releases the lane.
+  Request uncertainty clears only on the exact reflected or terminal state;
+  missing/stale projection retains it. Create cannot auto-clear without a
+  backend correlation/idempotency key, which remains a separate Functions
+  contract and issue.
+- Same-resource transitions preserve confirmed acknowledgements and keyed
+  uncertainty; a distinct identity/environment discards them. Nested Users
+  public-projection changes remain fail-closed until the actual successor
+  session is handled.
+- Focused evidence passed 43 logical / 280 concrete executions; the expanded
+  cohort passed 105 / 124; canonical `fast-unit-v1` passed 844 / 1,303; and
+  SwiftLint passed 0 / 460 on iPhone 17 / iOS 26.5. Xcode built without errors
+  or warnings; static project, scope, layer, concurrency, and formatting guards passed.
+
+Phase 4 implementation is committed as `6df78eb`; its documentation checkpoint
+and feature-branch push are authorized. Phase 5 planning and Delivery Calendar
+ownership has not started and requires separate explicit authorization.
+Remaining Presentation `Calendar.current` and implicit formatter-timezone
+cleanup belong to the later display/UI phase of HU-081.

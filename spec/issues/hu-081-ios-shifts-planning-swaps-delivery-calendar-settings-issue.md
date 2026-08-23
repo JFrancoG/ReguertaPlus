@@ -54,6 +54,14 @@ Esta quinta instrucción autoriza commit/push de Phase 3 completada e iniciar
 Phase 4. No autoriza el checkpoint de Phase 4, PR, merge, cierre, borrado de
 rama, datos live, despliegue Firebase ni cambios Google Sheets.
 
+Después indicó:
+
+> pues commit y push
+
+Esta sexta instrucción autoriza commit/push del checkpoint Phase 4 completado.
+No autoriza Phase 5, PR, merge, cierre, borrado de rama, datos live, despliegue
+Firebase ni cambios Google Sheets.
+
 ## Contexto
 
 HU-081 no reabre las historias funcionales ya entregadas. Preserva
@@ -207,11 +215,40 @@ HU-079/HU-080.
   cohorte ampliada 79 / 87 y `fast-unit-v1` 808 / 1.033, todo PASS sin skips.
   SwiftLint 0/444; guards estáticos y revisiones independientes de ownership,
   tests y alcance sin hallazgos P0-P2.
-- Phase 3 está commiteada como `124c34d` y autorizada para publicación. Phase 4,
-  ownership de mutaciones swap, es el corte activo autorizado y comienza por
-  su matriz RED determinista de ciclo de vida.
+- Phase 3 está publicada como `124c34d` con checkpoint documental `5dab3e2` en
+  la rama remota verificada.
+- Phase 4 está completada y commiteada como `6df78eb`. El RED determinista mostró que sign-out no
+  cancelaba físicamente un create suspendido no cooperativo. El GREEN retiene un
+  owner débil y un único lane para create/respond/cancel/apply, invalida la
+  identidad antes de cancelar y cerca resultado, error y cleanup tardíos. Una
+  revisión observable de frontera cubre ABA coalescido y retiene el receipt si
+  el resultado llega antes que su handler.
+- La deriva solo de rol y la salida de ruta preservan un comando aceptado; una
+  deriva de identidad/entorno lo cancela. El cambio de capacidad admin cerca la
+  publicación y preserva acknowledgements confirmados e incertidumbre del mismo
+  recurso. La navegación tardía solo vuelve a Shifts si la ruta request aún es
+  la actual.
+- El acknowledgement confirmado precede al refresh atómico del feed y libera el
+  lane sin esperar read-back. Create se bloquea por requested shift ID; el resto
+  por request ID. Los errores definitivos liberan la clave y los ambiguos ponen
+  en cuarentena solo esa clave con procedencia de operación.
+- La incertidumbre request se limpia únicamente cuando el read-back autoritativo
+  refleja esa request o un estado terminal; una proyección ausente/obsoleta la
+  conserva. Create no puede autolimpiarse sin correlation/idempotency key
+  backend: ese contrato Functions requiere una issue separada.
+- El relogin del mismo recurso conserva receipts/incertidumbre; otra identidad o
+  entorno los descarta. La proyección pública anidada de Users permanece
+  fail-closed entre sus dos cambios síncronos y solo publica al estabilizar la
+  sesión sucesora real.
+- Evidencia Phase 4 en iPhone 17 / iOS 26.5: focal 43 lógicos / 280 concretos,
+  cohorte ampliada 105 / 124 y `fast-unit-v1` 844 / 1.303, todo PASS sin fallos
+  ni skips. SwiftLint 0/460; build Xcode sin errores ni warnings y guards de
+  proyecto, alcance y concurrencia limpios.
 
 Estado: OPEN / en progreso. Issue, rama, auditoría, baseline, especificación,
-plan y tareas están activos. Phase 2 está entregada y Phase 3 está completa
-como `124c34d`. No se autoriza ni se afirma checkpoint de Phase 4, PR, merge,
-cierre, borrado de rama, mutación live o despliegue.
+plan y tareas están activos. Phase 3 está publicada; la implementación Phase 4
+está commiteada como `6df78eb` y este checkpoint documental registra su push
+autorizado. Los `Calendar.current` y formatters con timezone implícito restantes
+pertenecen al corte posterior de display/UI de esta HU-081, no a Phase 5 ni a
+otra issue. No se autoriza Phase 5, PR, merge, cierre, borrado de rama, mutación
+live o despliegue.
