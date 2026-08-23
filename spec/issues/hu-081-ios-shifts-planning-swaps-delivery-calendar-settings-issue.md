@@ -4,7 +4,7 @@
 
 - GitHub issue: #264
 - URL: https://github.com/JFrancoG/ReguertaPlus/issues/264
-- State: OPEN / in progress
+- State: READY FOR REVIEW / terminal scope split
 - Branch: `codex/hu-081-ios-shifts-planning-swaps-delivery-calendar-settings`
 - Base: `35a874288e3844d9c3d88abbaa39e2fb6fef42b2`
 - Roadmap: tercera vertical de Phase 6.
@@ -62,6 +62,30 @@ Esta sexta instrucción autoriza commit/push del checkpoint Phase 4 completado.
 No autoriza Phase 5, PR, merge, cierre, borrado de rama, datos live, despliegue
 Firebase ni cambios Google Sheets.
 
+Después indicó:
+
+> Lanza PR, cierra issue y rama. Pero no inicies la siguiente fase
+
+Esta séptima instrucción autoriza PR, revisión, merge, cierre explícito de #264
+y borrado de la rama local/remota. También recorta el alcance terminal de #264
+a las Phases 1–4 ya completadas. Phase 5 y los cortes posteriores se conservan
+como continuación pendiente para un nuevo hilo, después de que se mergee un
+ajuste independiente de Turnos. Este cierre no autoriza crear ahora la issue o
+rama futura ni iniciar Phase 5.
+
+## Recorte terminal autorizado
+
+#264 se cierra con las Phases 1–4 validadas. Los criterios iniciales que dependen
+de Planning/Calendar ownership, UI/previews/accesibilidad y los gates finales
+asociados a esas fases quedan diferidos; no se marcan como completados ni se
+incluyen en esta entrega. El futuro hilo debe verificar el merge de esta PR y el
+merge posterior del ajuste de Turnos, congelar un nuevo `main` y proponer una
+nueva issue/rama de continuación sin reabrir automáticamente #264.
+
+La PR debe usar `Refs #264`, nunca `Closes #264`. La issue se cerrará de forma
+explícita solo después de verificar el merge y publicar el comentario final de
+scope split.
+
 ## Contexto
 
 HU-081 no reabre las historias funcionales ya entregadas. Preserva
@@ -117,7 +141,10 @@ HU-079/HU-080.
   migración amplia de tests o cierre RNF-02 fuera de los seams tocados.
 - PR, merge, cierre y limpieza de rama hasta nueva autorización.
 
-## Criterios de aceptación
+## Criterios de aceptación iniciales
+
+Esta lista conserva el plan original. Los checks pendientes pertenecen a la
+continuación diferida descrita arriba y no bloquean el cierre recortado de #264.
 
 - [x] Issue, rama, base, perfil e inventario inicial quedan congelados sin
   duplicados.
@@ -195,8 +222,9 @@ HU-079/HU-080.
 - Es evidencia local: no afirma que la proyección `config/member` requerida
   exista actualmente en los entornos live.
 - Los `Calendar.current` y formatters con timezone implícito que quedan en
-  Presentation son cortes posteriores de esta misma HU-081, no otra issue. El
-  fallback heredado de `OrderHistoryWeek` queda fuera del seam Phase 1.
+  Presentation pertenecen a Phase 6 de la futura issue de continuación HU-081,
+  no a Phase 5. El fallback heredado de `OrderHistoryWeek` queda fuera del seam
+  Phase 1.
 - Phase 3 está completada localmente. El RED válido demostró que un successor
   del feed con el mismo contexto perdía la hidratación inicial pendiente de
   Calendar. El GREEN retiene un owner débil y atómico para Shifts + solicitudes
@@ -244,11 +272,16 @@ HU-079/HU-080.
   cohorte ampliada 105 / 124 y `fast-unit-v1` 844 / 1.303, todo PASS sin fallos
   ni skips. SwiftLint 0/460; build Xcode sin errores ni warnings y guards de
   proyecto, alcance y concurrencia limpios.
+- Gate terminal de las Phases 1–4 en el mismo destino: `release-gate-v1` PASS
+  con 856 tests lógicos (855 pass, 1 skip, 0 fallos) y 1.318 ejecuciones
+  concretas (1.314 pass, 4 skips, 0 fallos), SwiftLint 0/460, settings 6/6,
+  builds Debug/Production Release y todos los guards del repositorio verdes.
+  Este gate valida solo el alcance entregado; no completa las Phases 5–7.
 
-Estado: OPEN / en progreso. Issue, rama, auditoría, baseline, especificación,
-plan y tareas están activos. Phase 3 está publicada; la implementación Phase 4
-está commiteada como `6df78eb` y este checkpoint documental registra su push
-autorizado. Los `Calendar.current` y formatters con timezone implícito restantes
-pertenecen al corte posterior de display/UI de esta HU-081, no a Phase 5 ni a
-otra issue. No se autoriza Phase 5, PR, merge, cierre, borrado de rama, mutación
-live o despliegue.
+Estado: READY FOR REVIEW / cierre recortado autorizado. Las Phases 1–4 están
+publicadas y validadas; PR, merge, cierre explícito de #264 y limpieza de rama
+están autorizados. Los `Calendar.current` y formatters con timezone implícito
+restantes pertenecen a Phase 6 de la futura issue de continuación, no a Phase 5.
+Phase 5 no se inicia: queda pendiente para un nuevo hilo e issue después del
+ajuste independiente de Turnos. No se autorizan mutaciones live, despliegue,
+Functions, Google Sheets ni Android.

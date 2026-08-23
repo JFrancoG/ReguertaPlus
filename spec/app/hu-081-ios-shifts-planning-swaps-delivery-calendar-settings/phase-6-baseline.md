@@ -283,9 +283,28 @@ frozen activation inventory.
   cohort passed 105 / 124; canonical `fast-unit-v1` passed 844 / 1,303; and
   SwiftLint passed 0 / 460 on iPhone 17 / iOS 26.5. Xcode built without errors
   or warnings; static project, scope, layer, concurrency, and formatting guards passed.
+- The terminal Phase 1–4 `release-gate-v1` passed on the same destination with
+  856 logical tests (855 passed, 1 skipped, 0 failed) and 1,318 concrete
+  executions (1,314 passed, 4 skipped, 0 failed). The gate also passed
+  SwiftLint 0/460, effective settings 6/6, Debug and Production Release builds,
+  and the repository project, package, layer, scope, concurrency, and formatting
+  guards.
 
 Phase 4 implementation is committed as `6df78eb`; its documentation checkpoint
 and feature-branch push are authorized. Phase 5 planning and Delivery Calendar
 ownership has not started and requires separate explicit authorization.
 Remaining Presentation `Calendar.current` and implicit formatter-timezone
 cleanup belong to the later display/UI phase of HU-081.
+
+## Terminal Phase 4 closeout boundary
+
+The maintainer authorized PR, merge, explicit closure of issue #264, and
+feature-branch cleanup at the completed Phase 4 boundary. Phases 5 through 7
+remain intentionally incomplete and are preserved only as continuation scope.
+Their unchecked work is not claimed by this closeout.
+
+After a separate Shifts adjustment is merged, a new clean thread must compare
+that merge with this frozen Phase 4 baseline before proposing a new execution
+issue or branch. The old branch must not be restored, and #264 must not be
+reopened automatically. No Phase 5, Android, Functions, Firebase, Google
+Sheets, project-setting, package, or CI work starts during this closeout.

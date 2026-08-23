@@ -112,6 +112,13 @@ cohort passed 105 / 124, canonical `fast-unit-v1` passed 844 / 1,303, and
 SwiftLint passed 0 / 460 on iPhone 17 / iOS 26.5. Xcode built with no errors or
 warnings and static scope/concurrency/project guards passed.
 
+## Deferred continuation after issue #264
+
+The maintainer closed the scope of #264 at the completed Phase 4 boundary. The
+following Phase 5, Phase 6, and continuation gates are intentionally pending,
+not failed acceptance criteria and not work claimed by this delivery. They must
+be re-audited from the future `main` after a separate Shifts adjustment merges.
+
 ## Phase 5 - planning and calendar ownership
 
 - [ ] Characterize authorization before generation/I/O for every admin operation.
@@ -121,8 +128,7 @@ warnings and static scope/concurrency/project guards passed.
 - [ ] Run admin/planning/calendar/session cohort and fast-unit.
 
 Remaining Presentation `Calendar.current` and implicit formatter-timezone
-cleanup belong to the later display/UI phase of this HU-081, not to Phase 5 or
-another issue.
+cleanup belong to Phase 6 of the future HU-081 continuation issue, not to Phase 5.
 
 ## Phase 6 - UI, previews, accessibility, and motion
 
@@ -133,7 +139,7 @@ another issue.
 - [ ] Complete VoiceOver/Voice Control and physical-device acceptance.
 - [ ] Run independent SwiftUI/accessibility review and close P0-P3 findings.
 
-## Final gates
+## Deferred continuation gates
 
 - [ ] Pass all affected focused cohorts on the frozen final source tree.
 - [ ] Pass canonical `fast-unit`, applicable UI, `ui-smoke`, and `release-gate`.
@@ -163,10 +169,17 @@ another issue.
 - [x] Create Phase 4 Conventional Commit `6df78eb`.
 - [x] Create and push the Phase 4 documentation checkpoint and verify upstream.
 - [ ] Obtain explicit authorization for the Phase 5 start.
-- [ ] Open ready PR with validation evidence.
-- [ ] Review checks/findings and remediate before merge.
-- [ ] Merge, close #264, and clean branches only after confirmed authorization.
+- [x] Obtain explicit authorization for PR, merge, #264 closure, and branch cleanup.
+- [x] Prepare the Phase 1–4 PR with `Refs #264`, validation, and accepted deferrals.
+- [x] Pass the terminal Phase 1–4 `release-gate-v1`: 856 logical tests
+  (855 passed, 1 skipped, 0 failed), 1,318 concrete executions (1,314 passed,
+  4 skipped, 0 failed), SwiftLint 0/460, settings 6/6, Debug/Production Release,
+  and all repository guards on iPhone 17 / iOS 26.5.
+- [ ] Record the definitive PR, merge, #264 closure, and branch cleanup in the
+  final tracker comment after those external operations succeed.
+- [x] Stop without starting Phase 5 or creating its execution item.
 
-The current delivery authority covers the Phase 4 checkpoint commit and push.
-It does not cover Phase 5 implementation, PR, merge, issue closure, branch
-cleanup, or live mutations.
+The current delivery authority covers the Phase 1–4 PR, review, merge, explicit
+#264 closure, and local/remote branch cleanup. It does not cover Phase 5
+implementation or tracker creation, live mutations, Firebase deployment,
+Google Sheets, or Android work.

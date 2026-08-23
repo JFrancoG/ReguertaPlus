@@ -2,7 +2,7 @@
 
 ## State
 
-- status: in_progress
+- status: ready_for_merge
 - plan_state: approved
 - issue: #264
 - branch: `codex/hu-081-ios-shifts-planning-swaps-delivery-calendar-settings`
@@ -238,6 +238,10 @@ zero-project-file-diff guard passed.
 
 ## Phase 5 - planning and Delivery Calendar ownership
 
+Deferred continuation after issue #264. This phase is intentionally incomplete
+and must be re-baselined in a new clean thread after the separate Shifts
+adjustment is merged to `main`.
+
 - Characterize admin authorization before generation/I/O, concurrent planning,
   calendar refresh vs mutation, sheet dismissal, stale writes, and successor
   sessions.
@@ -249,10 +253,12 @@ zero-project-file-diff guard passed.
 Gate: admin/calendar/planning cohort + session/role guards + fast-unit.
 
 This phase does not absorb Presentation display cleanup. Remaining
-`Calendar.current` and implicit formatter-timezone uses stay in the later
-display/UI phase of HU-081, not in a separate issue.
+`Calendar.current` and implicit formatter-timezone uses stay in Phase 6 of the
+future HU-081 continuation issue, not in Phase 5.
 
 ## Phase 6 - SwiftUI, previews, accessibility, and motion
+
+Deferred continuation after Phase 5; not part of the terminal scope of #264.
 
 - Reassess the 17 affected View declarations by cohesive source responsibility;
   split only touched multi-View files whose boundaries are independently useful.
@@ -269,6 +275,16 @@ display/UI phase of HU-081, not in a separate issue.
 
 ## Phase 7 - closure gates and handoff
 
+Deferred continuation gates for the future Phase 5/6 delivery. They are not
+claimed by the Phase 1–4 closeout of #264.
+
+The separate terminal Phase 1–4 `release-gate-v1` passed on iPhone 17 /
+iOS 26.5 with 856 logical tests (855 passed, 1 skipped, 0 failed) and 1,318
+concrete executions (1,314 passed, 4 skipped, 0 failed), together with
+SwiftLint 0/460, settings 6/6, Debug and Production Release builds, and all
+repository guards. That evidence does not check any item in the deferred list
+below.
+
 - Run final affected cohorts on the frozen source tree.
 - Run canonical `fast-unit`, applicable UI focal and `ui-smoke`, then definitive
   `release-gate` on iPhone 17 / iOS 26.5.
@@ -278,10 +294,9 @@ display/UI phase of HU-081, not in a separate issue.
 - Recalculate source/test/previews and logical/concrete test counts.
 - Reconcile issue mirror, spec, plan, tasks, evidence, Android parity, HU-070,
   and residual debt.
-- Preserve checkpoints `b956f09`, `b491e50`, `fc1157e`, `be2cdfd`, `fae4da0`,
-  and `124c34d` on the remote
-  feature branch and request separate authorization before PR, merge, closure,
-  or branch cleanup.
+- Preserve every Phase 1–4 checkpoint in the merged PR and `main` history after
+  deleting the local and remote feature branch. The future continuation must
+  resolve stable `main` links rather than relying on the deleted branch.
 
 ## Initial risks and controls
 
@@ -296,7 +311,9 @@ display/UI phase of HU-081, not in a separate issue.
 
 ## Next executable step
 
-Publish the authorized Phase 4 implementation and documentation checkpoint on
-the feature branch, then stop. Phase 5 remains unauthorized and must begin only
-after separate approval, with deterministic planning and Delivery Calendar
-ownership characterization before changing production ownership.
+Open and review the authorized Phase 1–4 pull request, merge it, close #264 by
+the explicit scope split, and remove the merged feature branch. Then stop.
+
+After the maintainer's separate Shifts adjustment is merged, a new clean thread
+must verify both merges on `main`, audit their overlap, freeze a new base, and
+propose the continuation issue/branch before any Phase 5 implementation.

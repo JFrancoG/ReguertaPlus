@@ -5,7 +5,7 @@
 - issue_id: #264
 - priority: P1
 - platform: ios
-- status: in_progress
+- status: ready_for_merge
 - plan_state: approved
 - branch: `codex/hu-081-ios-shifts-planning-swaps-delivery-calendar-settings`
 - base: `35a874288e3844d9c3d88abbaa39e2fb6fef42b2`
@@ -57,6 +57,17 @@ The maintainer then authorized the Phase 4 checkpoint with:
 This authorizes commit and push of completed Phase 4 only. It does not authorize
 Phase 5 implementation, pull request, merge, issue closure, branch deletion,
 live-data mutation, Firebase deployment, or Google Sheets changes.
+
+The maintainer then authorized the terminal delivery with:
+
+> Lanza PR, cierra issue y rama. Pero no inicies la siguiente fase
+
+This authorizes the pull request, review, merge, explicit closure of issue #264,
+and local/remote feature-branch cleanup. It also narrows the terminal scope of
+#264 to the completed Phases 1 through 4. Phase 5 and the later UI/closure work
+remain intentionally incomplete and must move to a future continuation after a
+separate Shifts adjustment has merged. No Phase 5 issue, branch, or
+implementation is authorized in this delivery.
 
 ## Context and problem
 
@@ -158,7 +169,10 @@ preview gallery lacks swap and mutation-state coverage.
 - Existing `transitionShiftSwap` Function: backend-authoritative candidate,
   participant, timing, swap, helper, and notification transaction.
 
-## In scope
+## Initial in-scope plan
+
+This section preserves the original broad activation plan. The terminal scope
+of issue #264 is narrowed to Phases 1 through 4 by the explicit split below.
 
 - Global and next shifts, segmented board, display projections, and refresh.
 - Delivery/market planning request submission and status ownership.
@@ -206,7 +220,10 @@ preview gallery lacks swap and mutation-state coverage.
 8. No new live Firebase or Google Sheets operation is executed by tests or
    previews.
 
-## Acceptance criteria
+## Initial acceptance criteria
+
+Unchecked criteria belong to the deferred continuation and are not claimed or
+required by the explicitly narrowed closure of issue #264.
 
 - [x] HU-081, issue #264, branch, base, profile, and initial inventory are
   resolved without a duplicate execution item.
@@ -305,10 +322,10 @@ SwiftLint 0.61.0 reported zero violations in 440 files. The UI runner still
 emits the known missing-LLDB-version warning, without a test failure.
 
 Remaining `Calendar.current` and implicit formatter timezone use in Shifts and
-Settings Presentation belongs to later HU-081 display/UI cuts, not to a
-different issue. The inherited `OrderHistoryWeek` fallback is outside this
-touched seam and remains separately recorded. No live environment assertion is
-made about `config/member`.
+Settings Presentation belongs to Phase 6 of the future HU-081 continuation
+issue, not to Phase 5. The inherited `OrderHistoryWeek` fallback is outside
+this touched seam and remains separately recorded. No live environment
+assertion is made about `config/member`.
 
 Phase 3 feed ownership is complete locally. Its valid RED timed out because a
 same-context feed successor lost the pending initial Calendar hydration. The
@@ -381,6 +398,30 @@ executions, and 844 / 1,303 canonical `fast-unit-v1` executions, all passing
 without failures or skips. SwiftLint 0.61.0 reported zero violations across 460
 files; Xcode built without errors or warnings, and the
 project/package/layer/escape guards remained clean. This documentation records
-the authorized feature-branch publication. HU-081 remains active; no Phase 5
-work, pull request, merge, issue closure, branch deletion, live mutation, or
-deployment is authorized or claimed.
+the authorized feature-branch publication.
+
+The terminal Phase 1–4 `release-gate-v1` then passed on iPhone 17 / iOS 26.5
+with 856 logical tests (855 passed, 1 skipped, 0 failed) and 1,318 concrete
+executions (1,314 passed, 4 skipped, 0 failed). SwiftLint 0/460, effective
+settings 6/6, Debug and Production Release builds, and every repository guard
+also passed. This terminal gate validates the delivered scope only; it does not
+complete or validate the deferred Phases 5 through 7.
+
+## Terminal scope split for issue #264
+
+Issue #264 closes with the fully validated Phases 1 through 4 above. This is an
+explicit maintainer-approved scope split, not a claim that the original broad
+Phase 5, Phase 6, or Phase 7 plan was implemented. Those sections remain below
+as the source-backed continuation plan and must be re-audited against the new
+`main` after the separate Shifts adjustment is merged.
+
+The future clean thread must first verify both merge commits, freeze the new
+base, inspect the Shifts adjustment for overlap with the delivered feed and
+swap owners, and propose a new execution issue and `codex/` branch. It must not
+reopen #264 automatically or reuse the deleted feature branch. No Phase 5 code,
+tracker item, branch, Firebase mutation, deployment, or Android work starts as
+part of this closeout.
+
+The pull request must use `Refs #264`, never `Closes #264`. The issue closes
+explicitly only after the merge result is verified and the terminal scope split
+is recorded in its final comment.
