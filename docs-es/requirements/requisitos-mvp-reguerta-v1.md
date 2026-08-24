@@ -120,11 +120,11 @@ Fuera de MVP (fase posterior):
 
 - `RF-TURN-01` Debe existir pantalla de consulta global de turnos (reparto y mercado).
 - `RF-TURN-02` Debe mostrarse de forma visible el próximo turno personal (reparto y mercado).
-- `RF-TURN-03` Planificación de turnos solo con socios en alta.
-- `RF-TURN-04` Altas nuevas o reincorporaciones deben añadirse al final de la rotación.
+- `RF-TURN-03` La planificación de turnos usa socios en alta que no sean productores reales. Los encargados comunes de compras representados como productores de `Compras Regüerta` siguen siendo seleccionables.
+- `RF-TURN-04` Cada tipo de turno mantiene una rotación continua entre proyecciones estacionales. Los cambios de socios nunca reordenan una ronda congelada/pública; hasta que la asamblea ratifique la política de reserva, entrada, baja y reincorporación, cualquier cambio de elegibilidad posterior al congelado bloquea una nueva activación sin cambiar asignaciones publicadas.
 - `RF-TURN-05` Debe existir solicitud/aceptación/confirmación de intercambio de turnos.
 - `RF-TURN-06` Al materializar un cambio de turno, se debe notificar a todos.
-- `RF-TURN-07` Mercado debe asegurar mínimo 3 socios; si falta, tomar del siguiente en rotación.
+- `RF-TURN-07` Cada fecha de mercado tiene exactamente 3 socios seleccionables distintos. Sus 30 posiciones de la temporada objetivo consumen la rotación continua de mercado y materializan en proyecciones posteriores el resto de la ronda activa en el límite; con menos de 3 seleccionables se falla de forma cerrada.
 
 Nota de gobierno: la política definitiva para cubrir bajas sobrevenidas tras publicar turnos queda para asamblea.
 
@@ -151,8 +151,8 @@ Nota de gobierno: la política definitiva para cubrir bajas sobrevenidas tras pu
   - en iOS, solo un modelo no disponible implica consulta solo mediante PDF; una pregunta ajena, evidencia insuficiente o un fallo de generacion no publica respuesta y muestra una orientacion contextual mientras el PDF sigue accesible; Android develop conserva su fallback actual hasta completar la paridad,
   - ninguna pregunta, extracto o respuesta se envia a un servicio de inferencia en nube,
   - la generacion local Android permanece solo en develop mientras la API prerelease y los terminos de audiencia del proveedor impidan su uso en produccion.
-- `RF-IA-02` Turnos con fuente en Google Sheets (lectura y cambios) integrable con app.
-- `RF-IA-03` Para MVP, la trazabilidad de acciones de turnos se apoya en notificación global de cambios.
+- `RF-IA-02` Firestore es la autoridad de turnos y estado de rotación. Un libro estable por entorno expone proyecciones estacionales de lectura/escritura gobernadas, pero Sheets nunca controla cohorte, ronda, cursor ni propietario de rotación.
+- `RF-IA-03` Las notificaciones de publicación de turnos se liberan solo tras activación gobernada y read-back. Los eventos/bandeja canónicos son referencias genéricas idempotentes sin socio, fecha ni asignación; FCM mantiene semántica al menos una vez y puede mostrar duplicados.
 
 ### 3.11 Arranque de app y sincronizacion
 

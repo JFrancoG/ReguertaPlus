@@ -1,0 +1,277 @@
+# Tasks - HU-082 (Continuous seasonal shift rotation)
+
+## 0. Approval and traceability
+
+- [x] Review and accept ADR-0013 core rotation/projection decision.
+- [x] Review this spec, including the explicit replacement of the fixed
+  two-turns-per-season idea with the completed-round invariant.
+- [x] Align RF-TURN-03, RF-TURN-04, RF-TURN-07, RF-IA-02, and RF-IA-03 in the
+  English and Spanish authoritative requirements.
+- [x] Freeze the exact base commit, implementation branch, and current issue
+  state before code changes.
+- [x] Record the current develop test anomalies without repairing live data.
+
+Approval checkpoint: maintainer authorization on 2026-08-24; implementation branch
+`codex/hu-082-continuous-seasonal-shift-rotation` frozen from `d8fd646`. The
+observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
+
+## 1. Contract and RED fixtures
+
+- [ ] Define versioned rotation, round, cohort, cursor, horizon, ownership,
+  assignment, migration-baseline lineage, release lease, and provenance wire
+  contracts.
+- [ ] Define bootstrap-source precedence and exact admin mapping artifact with UID
+  order, round/cursor, evidence, stable tie order, predecessor/helper constraint,
+  provenance, and digest independently per type.
+- [ ] Define one seasonal activation-bundle contract containing delivery and
+  market target/frontier subplans, combined digest/revision, transaction budget,
+  both rotation leases, sync commands, and notification batch.
+- [ ] Define stable request terminal summaries and localized failure codes.
+- [ ] Define backend-owned monotonic maintenance/write epoch, active-revision
+  preconditions, stable stale-write failures, and the affected-writer inventory.
+- [ ] Define the no-gap entry barrier (external/Rules deny read-back followed by the
+  atomic backend close/epoch bump) plus atomic activation, abort/reopen, and recovery
+  transitions. Include epoch/revision in digest, forward/inverse manifests/budgets,
+  idempotency keys, and failure injection. Never restore/reuse an epoch.
+- [x] Add RED eligibility cases for inactive members, real producers, common
+  purchase managers, and catalog flags.
+- [ ] Add RED bootstrap cases for valid state/history/mapping/new queue, randomized
+  query order, ambiguous legacy ownership, helper/cursor conflict, ineligible helper,
+  and independent delivery/market mappings.
+- [ ] Add RED delivery cases for inherited carryover, October continuation,
+  August completion, round overflow, N=2/N<2, effective-lead helpers, append
+  recomputation, and HU-016 swap behavior across seasons.
+- [x] Add RED market cases for N=3, N=4, N=29, N=30, N=31, and N<3, plus
+  property tests across schedulable cohort sizes.
+- [x] Add RED market overflow materialization across one and multiple future
+  seasonal projections.
+- [ ] Add RED replay, invalid planning-frontier season, cohort mismatch,
+  preview/stage/activate mismatch, every fairness-input version drift (including
+  an enabled credit ledger), staged-visibility, and concurrent-request cases.
+- [ ] Add RED bundle cases where either subplan fails, drifts, replays, or exceeds
+  budget; neither type may activate or emit side effects on failure.
+- [ ] Add shared mobile fixtures for canonical source and planner provenance.
+
+## 2. Backend model and deterministic planners
+
+- [ ] Extract the planning contract from `functions/src/index.ts`.
+- [x] Implement the single canonical eligibility predicate.
+- [ ] Implement a Firestore rotation-state repository with optimistic version or
+  lease ownership and idempotency keys.
+- [ ] Implement fail-closed typed bootstrap precedence. Require the last unambiguous
+  eligible registered delivery helper as the first new owner/effective lead; never
+  infer owner from swapped assignment or silently rewrite conflicting helper evidence.
+- [ ] Implement an IAM-restricted, maintenance-allowlisted rollout execution
+  boundary separate from the normal mobile/admin request path. Give the operator
+  invoker-only IAM; deny direct data roles and runtime impersonation/token minting.
+- [ ] Implement exact digest-bound modes for repair, migration/bootstrap, preview,
+  stage, activate, sync correction, recovery, and cleanup. Only the epoch-aware
+  runtime writes; reject every alternate operator/deployer/controller/script path.
+- [x] Implement the pure delivery planner over explicit Madrid dates, cohort,
+  cursor, and inherited carryover.
+- [x] Implement the pure market planner for exactly 10 target-season dates plus
+  materialized remainder of the boundary-active round in future projections.
+- [ ] Persist `rotationOwnerUserId` separately from effective assignment.
+- [ ] Recompute delivery helpers from the next chronological effective lead after
+  generation, append, swap, import, manual assignment, credit, or approved coverage,
+  including boundaries, but only while the predecessor is uncompleted.
+- [ ] Add a versioned planned-versus-actual helper contract. Completion atomically
+  freezes helper UID/source assignment revision/time; ordinary later edits preserve
+  that history, and only a separate evidenced correction command may amend it.
+- [ ] Enforce distinct adjacent effective delivery leads. Under one authoritative
+  CAS/transaction, validate predecessor/current/successor assignment, completion,
+  and revision for every effective-lead mutation; reject equal lead/helper or stale
+  completion without partial mutation or side effects.
+- [ ] Remove random roster order and wall-clock target-season inference.
+
+## 3. Publication, requests, notifications, and security
+
+- [ ] Track the first incomplete planning-frontier season; merge partial overflow,
+  advance over fully prefilled seasons, allow exact replay, and reject arbitrary
+  targets independently per typed subplan before accepting the combined bundle.
+- [ ] Fail closed without mutation when live eligibility differs from the frozen
+  round cohort.
+- [ ] Restrict preview writes to private request/status/audit control-plane state
+  and bind non-public stage plus atomic activate to the exact input
+  snapshot/digest/revision.
+- [ ] Include membership, rotation, policy/config/calendar override, and enabled
+  credit-ledger versions plus any migration-baseline revision/digest in the
+  candidate lineage; transactionally recheck them and commit planned credit
+  transitions only during exact activation.
+- [ ] Keep staged rotation/shifts admin-readable but outside normal member queries,
+  Sheets export, active cursor/cohort state, and notification consumers.
+- [ ] Inventory current flat `shifts` readers and implement one measured atomic
+  public promotion transaction for the combined delivery/market projection, both
+  rotation/cursors, active bundle metadata, digest-bound sync commands, and held
+  intents; fail closed if the combined manifest exceeds platform limits.
+- [ ] Persist sync commands as claimable pending state and define explicit post-
+  commit pull/invocation plus discovery/retry; never depend on an Eventarc creation
+  delivery that occurred while its consumer was disabled.
+- [ ] Define operation-registry/marker and fake-consumer vectors requiring
+  candidate `onShiftWritten` to validate before/after changes for creates/updates
+  and exact before-image marker/version/path for recovery deletes, no-op only that
+  operation, and leave later ordinary events active. HU-083 owns the real trigger.
+- [ ] Define retention/fail-closed requirements for terminal operation tombstones
+  and per-event ledgers; prove the producer contract with fixtures and hand real
+  consumer implementation/integration evidence to HU-083.
+- [ ] Make `requested -> processing -> completed|failed` idempotent and safe
+  under retry or competing triggers.
+- [ ] Write client-compatible `source = app` plus planner provenance.
+- [ ] Publish rotation state, shifts, and request summary without partial cursor
+  advancement; hold notifications until governed release.
+- [ ] Release held notifications idempotently after the authorized read-back gate;
+  prove replay cannot duplicate the canonical event/inbox effect while FCM remains
+  explicitly at least once and may retry/present a duplicate.
+- [ ] Retain bundle release leases on both affected types and reject any later
+  stage/activate touching either while sealed/partial/non-terminal; clear both
+  only on reconciliation, valid rollback, or an explicit terminal incident that
+  accounts for demonstrably unsubmitted and `unknown`/accepted/delivered events.
+- [ ] Define safe resume as degraded mode with affected-shift mutation fence,
+  owner, TTL, escalation, and terminal cancellation/supersession of demonstrably
+  unsubmitted intents at expiry; keep `unknown`/accepted/delivered history immutable
+  and route possible delivery through reconciliation/correction.
+- [ ] Bind each intent to assignment/member/token versions; transactionally/CAS
+  read them while claiming and creating event/inbox, and write nothing when stale.
+- [ ] Before every FCM send/retry, freshly revalidate assignment, UID, active
+  eligibility, and token ownership/version while holding a short dispatch lease
+  respected by every writer of those values; cancel/supersede drift only before
+  authenticated submission starts, without silent retargeting or reuse of an
+  earlier validation.
+- [ ] Persist an append-only attempt ledger per canonical event with `attemptId`,
+  lease owner/epoch/deadline, validation digest, authenticated start, and terminal
+  `accepted|unknown|failed`; derive aggregate state without replacing evidence.
+- [ ] Use bounded timeout, keep ambiguous expiry as immutable possibly delivered
+  `unknown`, and append a new revalidated attempt for any at-least-once retry.
+- [ ] Persist generic non-sensitive canonical event/inbox copies and send a generic
+  event-reference push, with no member name, shift date, or effective assignment.
+  Fetch authorized current-revision detail on every push/inbox open; document the
+  irreducible later OS-display race.
+- [ ] Version backend/mobile event and inbox schemas/decoders so legacy required
+  `title`/`body` fields receive only generic copy for these events. Add Rules,
+  repository, offline-cache, logout/demotion/environment/assignment-drift tests;
+  purge ephemeral detail and show generic state when fresh fetch is unavailable.
+- [ ] Store held notification intents outside every currently watched consumer
+  path; create canonical events only during explicit idempotent release.
+- [ ] Test old/current/candidate consumer and rollback combinations against the
+  held outbox.
+- [ ] Preserve existing reciprocal swap behavior for newly generated shifts.
+- [ ] Update strict Firestore Rules and bilingual collection documentation.
+- [ ] Require current epoch/revision in Rules/server CAS for every affected app/admin,
+  swap, override, calendar, Sheets-import, and command mutation; migrate unsupported
+  direct paths to versioned callables/commands and reject offline legacy queues.
+- [ ] Prove crash/retry at every epoch transition either commits the full authorized
+  state pair once or leaves writes closed, with no stale active-revision reopening.
+- [ ] Prove clients cannot forge planner state, ownership, or terminal success.
+- [ ] Prove mobile/admin credentials cannot call the rollout-only boundary or
+  forge/change mutation provenance, and prove the operator cannot write Firestore/
+  Sheets directly or impersonate/mint tokens for the runtime.
+- [ ] Add structured operational logging without member-sensitive payloads.
+
+## 4. Android read-back
+
+- [ ] Extend the request entity/repository with exact two-subplan bundle
+  observation and per-type terminal summary/failure decoding.
+- [ ] Update every affected Android writer to carry epoch/revision or use the
+  versioned command path; test stale offline queue rejection and reauthentication.
+- [ ] Add candidate revision/digest Domain models and an admin-authorized
+  repository query; prove normal-member reads fail in Rules/repository tests.
+- [ ] Decode terminal summary and stable error codes without exposing raw backend
+  messages.
+- [ ] Retain/cancel the operation under session, environment, user, and admin
+  authorization ownership.
+- [ ] Show requested/processing/failed/completed states in the admin flow.
+- [ ] Fetch/render the exact staged revision for authorized admins without
+  leaking candidate shifts into normal member feeds.
+- [ ] Refresh the server shifts feed once after activation completion and only
+  then show success.
+- [ ] Verify board and upcoming-shift projections across seasons.
+- [ ] Add unit, failure, decoding, operation-safety, and UI tests.
+
+## 5. iOS read-back
+
+- [ ] Extend Domain/Data request contracts with exact two-subplan bundle
+  observation and per-type terminal summary/failure decoding.
+- [ ] Update every affected iOS writer to carry epoch/revision or use the versioned
+  command path; test stale offline queue rejection and reauthentication.
+- [ ] Add equivalent candidate revision/digest Domain models and admin-only
+  repository query; prove normal-member reads fail in Rules/repository tests.
+- [ ] Decode terminal summary and stable error codes without exposing raw backend
+  messages.
+- [ ] Own and fence the operation in the current Shifts/Settings presentation
+  boundary without broad HU-081 cleanup.
+- [ ] Show requested/processing/failed/completed states with localized copy.
+- [ ] Fetch/render the exact staged revision for authorized admins without
+  leaking candidate shifts into normal member feeds.
+- [ ] Refresh the server shifts feed once after activation completion and only
+  then show success.
+- [ ] Verify board and upcoming-shift projections across seasons.
+- [ ] Add Swift Testing cohorts, previews, accessibility identifiers, and UI
+  smoke coverage where UI changes.
+
+## 6. Automated validation
+
+- [ ] Run Functions `npm run lint`.
+- [ ] Run Functions `npm run build`.
+- [ ] Run focused planner, contract, concurrency, backend security, and Rules
+  suites.
+- [ ] Run Android `app:testDebugUnitTest` and `app:lintDebug`.
+- [ ] Run Android connected UI tests when an emulator/device is available.
+- [ ] Run iOS focused tests and `fast-unit`.
+- [ ] Run iOS `ui-smoke` because Settings and Shifts feedback changes.
+- [ ] Run the canonical iOS `release-gate` and verify SwiftLint.
+- [ ] Run `git diff --check` and reconcile all acceptance criteria with evidence.
+
+## 7. Local/emulator acceptance
+
+- [ ] Generate delivery with a prior-season tail and prove the next fair owner is
+  appended as the preceding shift's effective-lead helper; prove later swaps update
+  uncompleted helpers without changing ownership or completed helper history.
+- [ ] Verify N=2 and cross-season append/swap/import/manual/coverage matrices never
+  produce adjacent equal delivery leads, and completion-versus-edit races freeze
+  actual history or retry the edit without rewriting it.
+- [ ] Prove delivery fills August and finishes the active round across one or
+  multiple future projections, including a cohort larger than one full season.
+- [ ] Generate market N=4, N=29, N=30, and N=31 scenarios and verify
+  distinctness, final-group fill, and carryover.
+- [ ] Prove each market boundary-active round is materialized into the required
+  future projections without recursively publishing later rounds.
+- [ ] Read back request, rotation state, shifts, and notifications.
+- [ ] Verify Android and iOS update after terminal completion without restart.
+- [ ] Prove replay produces no duplicate or cursor drift.
+- [ ] Prove preview has only private request/status/audit writes, stage remains
+  non-public, activation is atomic, canonical notification-event release is
+  idempotent, inbox upsert deduplicates, and FCM carries a stable event ID while
+  retaining explicit possible-duplicate semantics.
+- [ ] Prove canonical event/inbox/push artifacts contain only generic shift references,
+  supported clients decode them, and stale/offline caches cannot expose member/date/
+  assignment detail after authorization or revision changes.
+- [ ] Prove assignment/member drift between read and event claim fails CAS, and
+  UID/eligibility/token writers serialize with every initial/retried FCM dispatch
+  lease; prove drift before authenticated submission starts fails closed and drift
+  after submission cannot retract `unknown`/accepted state; presentation remains
+  generic, at least once, and potentially delayed/duplicated.
+- [ ] Prove crash/timeout/lost-ack/late-completion dispatch cases never hold the
+  lease indefinitely and preserve `unknown` as possibly accepted evidence.
+- [ ] Prove any post-stage fairness-input or enabled credit-ledger change
+  invalidates activation without a partial cursor/credit transition.
+- [ ] Prove current supported flat readers never see candidate or partial data,
+  and transaction-budget overflow makes no public write and blocks rollout for a
+  mobile active-revision migration.
+- [ ] Prove exact activation/repair/recovery Sheets-sync command and event vectors
+  with an idempotent fake consumer; require HU-083 to prove the real adapter drains
+  them without duplicate export/notification.
+- [ ] Prove rollback/cleanup retains replay evidence until expiry and delayed or
+  unknown-marker events cannot be misclassified as ordinary after cleanup.
+- [ ] Prove safe resume retains the release lease, partial release blocks a
+  superseding revision, terminal reconciliation clears it, and candidate lineage
+  cannot mix migration baselines.
+- [ ] Prove membership mismatch and invalid planning frontier fail atomically.
+- [ ] Record the handoff contract for HU-083; do not mutate production.
+
+## 8. Closure
+
+- [ ] Update spec DoD, issue checklists, and implementation evidence.
+- [ ] Document parity status and any approved residual explicitly.
+- [ ] Link focused commits and PR to issue #266.
+- [ ] Keep HU-083, HU-084, and HU-085 blockers/status synchronized without
+  closing them implicitly.

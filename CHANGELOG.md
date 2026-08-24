@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- 2026-08-24 | 📝 docs(shifts): define seasonal rotation rollout
 - 2026-08-23 | 📝 docs(ios): prepare HU-081 closeout
 - 2026-08-23 | 📝 docs(ios): record HU-081 swap checkpoint
 - 2026-08-23 | 📝 docs(ios): start HU-081 swap ownership
