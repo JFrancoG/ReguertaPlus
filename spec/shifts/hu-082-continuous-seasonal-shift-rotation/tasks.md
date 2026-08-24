@@ -34,8 +34,11 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
   - [x] Implement the exact maintenance/rotation codecs and one transactional
     three-document authoritative digest with stable epoch, active-lineage, and
     read-set conflict classification.
-  - [ ] Remaining: inventory and migrate or deny every affected app/admin,
-    swap, override, calendar, Sheets-import, and backend-command writer.
+  - [x] Inventory and canonically digest every current app/admin, swap, override,
+    calendar, Sheets-import/export, trigger, IAM, and workbook writer. Classify
+    fairness-input writers separately for activation-version recheck.
+  - [ ] Remaining: migrate or deny every affected writer and implement each
+    server mutation's same-transaction epoch/revision precondition.
 - [ ] Define the no-gap entry barrier (external/Rules deny read-back followed by the
   atomic backend close/epoch bump) plus atomic activation, abort/reopen, and recovery
   transitions. Include epoch/revision in digest, forward/inverse manifests/budgets,
@@ -49,8 +52,18 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
     Preview may inspect open or closed state; stage requires the same closed
     state and therefore requires a new closed-state preview after maintenance
     entry.
-  - [ ] Remaining: trusted external barrier verification, activation/recovery
-    transitions, crash injection, and governed reopen.
+  - [x] Add the SDK-free exact barrier-packet verifier and coordinator that runs
+    inside the adapter-provided held-fence callback. Bind the authorized packet
+    to command CAS, inventory, Rules, exact control manifest, causal set,
+    workbook, dual read-backs, queues, and quiet horizon; retain/read back and
+    reverify the full evidence idempotently under `environment + transitionId`,
+    enforce an expiry-bound transaction-attempt admission, reject a superseded
+    replay, recover an exact terminal replay after expiry through an
+    `existing-only` evidence read, and expose no reopen operation. State-operation
+    schema v2 records the attempt sample and has no deployed v1 state to migrate.
+  - [ ] Remaining: implement and validate the immutable idempotent evidence store and real
+    trusted external adapter, including durable failure closure; then implement
+    activation/recovery transitions, crash injection, and governed reopen.
 - [x] Add RED eligibility cases for inactive members, real producers, common
   purchase managers, and catalog flags.
 - [x] Add RED bootstrap cases for valid state/history/mapping/new queue, randomized

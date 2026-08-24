@@ -263,6 +263,68 @@ was changed. Real barrier verification, writer migration, adapter measurements,
 candidate positions, live activation/recovery CAS, consumers, and mobile read-back
 remain pending.
 
+## Local implementation checkpoint — writer inventory and barrier contract (2026-08-24)
+
+The complete current write surface is now one versioned, canonically digested
+inventory. It groups Android/iOS direct clients by logical ingress, assigns
+internal helpers to their exported endpoint or delivery, and includes legacy
+planning, import/export, swap, cascade triggers, Admin SDK/IAM/console/CI paths,
+and every required human or automated workbook authority. The generic
+notification trigger must isolate HU-082-causal delivery without stopping
+unrelated notification producers; an inability to prove that isolation aborts
+entry or requires a governed bridge/full fence. Unmanifested Admin/IAM authority
+is modeled database-wide while known runtime writers retain their own controls.
+Six logical membership and
+configuration writers are classified separately: they may remain open only after
+the future activation transaction can recheck their exact fairness-input version.
+This includes `resolveAuthorizedMember`: authentication-only metadata must be
+canonically excluded from fairness versions or advance/recheck that version.
+The inventory records that the repository's configured Phase 1 Rules remain
+permissive and that strict local Rules still allow unversioned direct admin shift
+and calendar writes; neither is treated as an already-closed barrier.
+
+An SDK-free verifier now accepts only an exact, canonically digested audit packet
+bound to the maintenance environment, transition and full CAS, the compiled
+inventory, an explicitly authorized Rules artifact, the exact workbook file ID,
+causal accepted-set digest, zero pending/in-flight work, empty delivery queues,
+unchanged workbook revision/digest with no pending offline editors, and a policy-
+bound quiet horizon. It requires matching initial Rules/control read-backs before
+causal capture, an initial zero-queue read-back after post-drain delivery closure,
+and final Rules/control/queue/workbook read-backs after the quiet horizon. It
+normalizes set-like input order but rejects every missing, extra, duplicate,
+enabled, drifting, stale, or chronologically invalid claim. Evidence expires at
+the oldest final observation plus the authorized maximum age; both verifier
+passes and the trusted clock sample inside the transaction callback must fall
+within that limit. It is an attempt-admission deadline, not a claim about the
+physical server commit time; the held fence covers commit latency.
+
+While all fences remain held, the external control-plane flow must first build
+and explicitly authorize the exact dynamic Rules, control-manifest, workbook,
+causal-set, and timing-policy checkpoint. The coordinator then executes packet
+verification, idempotent full-envelope retention/read-back/reverification, and
+the existing maintenance CAS inside the adapter-provided held-fence callback. It
+exposes no reopen action, but only the future real adapter can enforce durable
+closure on every failure and rollout validation must prove it. The immutable
+entry intent carries `intakeBarrierExpiresAtMillis` and rejects a late transaction
+attempt. The evidence port uses `environment + transitionId`, creates once,
+replays only the same digest, and rejects collisions without overwriting. State
+operation schema v2 adds that deadline and the explicit `attemptedAt` sample;
+there is no deployed v1 state to migrate in this runtime-disconnected cut. A
+repository replay is accepted only while a fresh authoritative
+read proves that its after-digest, closed state, transition ID, and compact
+barrier still own current state. Unit tests cover those contracts plus exact
+inventory and command binding, Rules/workbook/queue/drain failures, chronology,
+freshness, retention mismatch, callback multiplicity, CAS failure propagation,
+and exact terminal recovery after evidence expiry. Freshness gates only a missing
+operation; an exact terminal retry reads retained evidence without recreating it.
+
+This remains a local contract, not trusted live evidence. No Rules or Functions
+were deployed, no endpoint/trigger/queue/principal/editor was disabled, no IAM or
+Drive permission changed, and no Firebase or workbook data was read or mutated.
+The concrete idempotent evidence store, real adapter, writer migration,
+versioned mutation commands, activation/recovery CAS, and governed reopen remain
+pending.
+
 ## Suggested labels
 
 - `type:feature`

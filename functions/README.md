@@ -306,16 +306,79 @@ El puerto sin dependencia del SDK implementa dos transiciones desconectadas del
 runtime: `enterMaintenance` y `abortPreActivationMaintenance`. Ambas exigen el
 digest, `stateRevision`, `writeEpoch` y linaje activo exactos; avanzan las dos
 revisiones una vez, conservan el linaje activo y crean atómicamente evidencia
-inmutable en `shiftPlanningOperations/state-{transitionId}`. Un retry exacto
-reproduce el resultado original y una colisión de intención falla. El registro
-conserva ambas rotaciones para recalcular sus digests before/after y rechazar
-evidencia alterada. La entrada recibe evidencia de barrera ya verificada, cuya
-fecha no puede ser posterior al commit; este repositorio no verifica ni abre la
-barrera externa Rules/IAM. El aborto limpia la barrera del estado actual, pero
+inmutable schema v2 en `shiftPlanningOperations/state-{transitionId}`. V2 añade
+el deadline de admisión y renombra su muestra temporal a `attemptedAt`; no existe
+estado v1 desplegado que preservar porque este flujo sigue desconectado. Un retry
+exacto reproduce el resultado original y una colisión de intención falla. Ese replay
+del repositorio es evidencia terminal histórica: el coordinador solo lo acepta
+si una nueva lectura confirma que su digest posterior sigue siendo el actual,
+el mantenimiento continúa cerrado, `lastTransitionId` coincide y conserva la
+misma barrera compacta. El registro conserva ambas rotaciones para recalcular sus digests before/after y rechazar
+evidencia alterada. La entrada recibe evidencia de barrera ya verificada. Su
+intención inmutable conserva además `intakeBarrierExpiresAtMillis`, y la
+transacción exige
+`verifiedAtMillis <= attemptedAtMillis <= intakeBarrierExpiresAtMillis`, donde
+`attemptedAtMillis` es el reloj de confianza muestreado dentro del callback y no
+el instante físico de commit del servidor. Este repositorio no verifica ni abre
+la barrera externa Rules/IAM. El aborto limpia la barrera del estado actual, pero
 el registro inmutable conserva la evidencia histórica. Solo puede abortar si la
 operación de entrada exacta sigue poseyendo el read-set y ambos leases de release
 son nulos. Un replay terminal de aborto vuelve a comprobar esas dos condiciones
 contra la evidencia persistida antes de devolver el resultado original.
+
+El inventario compilado `hu082-affected-writers-v1` separa ingresos cliente,
+endpoints HTTP, deliveries de triggers, autoridades Admin/IAM y todas las vias
+humanas o automatizadas del workbook. El trigger generico de notificaciones debe
+aislar solo la entrega causal de HU-082, sin detener productores ajenos; si no
+puede probarse ese aislamiento, la entrada aborta o requiere un puente/fence
+gobernado. La autoridad Admin/IAM no manifestada se modela database-wide, aunque
+a cada runtime conocido se le aplica su propio control. Incluye ademas seis
+writers logicos de membership/configuracion que no se cercan si la activacion
+puede revalidar atomicamente su version; ese guard
+aun esta pendiente. `resolveAuthorizedMember` queda incluido: sus cambios de
+autenticacion deben excluirse canonicamente de la proyeccion de fairness o hacer
+avanzar su version. El digest del inventario forma parte del paquete de barrera y
+cualquier writer ausente, duplicado, extra o desconocido lo invalida.
+
+Un verificador SDK-free normaliza un paquete de auditoria de claves exactas y lo
+liga al entorno, transicion, CAS de estado, Rules esperadas, ID exacto del
+workbook, controles de todos los writers, conjunto causal aceptado, drenaje,
+colas, revision/digest del workbook y horizonte de calma. Exige read-backs
+iniciales tras cerrar Rules y controles, un primer read-back de colas a cero tras
+el drenaje, y read-backs finales de Rules, controles, colas y workbook despues
+del horizonte. Solo con recuentos cero, ausencia de drift, cronologia valida y
+evidencia fresca deriva el compacto `{ revision, digest, verifiedAtMillis }`.
+La caducidad se calcula desde la observacion final mas antigua mas la edad maxima
+y limita las dos verificaciones y la admision del intento transaccional. No
+afirma que el commit fisico del servidor ocurra antes del deadline: el adaptador
+debe mantener los fences hasta que la transaccion resuelva, cubriendo esa latencia.
+
+Antes de invocar el puerto, el flujo de control externo debe mantener todos los
+fences cerrados y autorizar explicitamente el checkpoint dinamico exacto: Rules,
+manifest de controles, workbook, conjunto causal y politica temporal. Dentro del
+callback que ese adaptador declara retenido, el coordinador verifica el paquete,
+lo retiene por la clave estable `environment + transitionId`, relee y reverifica
+el sobre completo, y ejecuta la CAS. El puerto crea cuando no existe, devuelve el
+sobre previo solo para un replay con digest identico y falla ante una colision;
+nunca sobreescribe evidencia. El coordinador no ofrece reapertura, pero su tipo
+no puede
+probar que un adaptador real mantenga el fence: esa obligacion y su validacion de
+rollout siguen pendientes.
+
+Antes de exigir frescura, el coordinador consulta la operacion terminal. Una
+entrada inexistente debe superar ambos checks temporales antes del intento; una
+entrada terminal con intent exacto usa lectura `existing-only` del sobre ya
+retenido y puede recuperar su resultado incluso despues del deadline. Nunca
+recrea evidencia historica ausente. Tras el replay, la comprobacion de propiedad
+actual sigue siendo obligatoria.
+
+Este contrato no prueba una barrera real. El almacen concreto idempotente de
+evidencia y el adaptador que despliegue y relea Rules, deshabilite/drene
+Functions/Eventarc, audite IAM y cerque Drive/Workspace siguen pendientes y
+pertenecen al rollout autorizado posterior. Las Rules Phase 1
+configuradas en el repositorio siguen permitiendo rutas legacy y las strict
+locales aun admiten escrituras admin directas de turnos/calendario, por lo que
+ninguna de ellas cuenta por si sola como evidencia de cierre HU-082.
 
 El gate canonico y conservador de HU-082 limita cada direccion a 500 escrituras
 documentales mas transformaciones declaradas y 10 MiB de peticion serializada.

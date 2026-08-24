@@ -9,6 +9,7 @@ const {
   createShiftPlanningDigest,
 } = require("../lib/shift-planning-digest.js");
 const {
+  SHIFT_PLANNING_STATE_PERSISTENCE_SCHEMA_VERSION,
   buildShiftPlanningAuthoritativeState,
   parseShiftPlanningAuthoritativeState,
 } = require("../lib/shift-planning-state-persistence.js");
@@ -24,7 +25,7 @@ if (!EMULATOR_HOST) {
 
 const ENVIRONMENT = "develop";
 const ROOT = `${ENVIRONMENT}/plus-collections`;
-const COMMITTED_AT_MILLIS = 1_782_643_201_000;
+const ATTEMPTED_AT_MILLIS = 1_782_643_201_000;
 const ACTIVE_DIGEST = `shift-planning:v1:sha256:${"a".repeat(64)}`;
 const BASELINE_DIGEST = `shift-planning:v1:sha256:${"b".repeat(64)}`;
 const BARRIER_DIGEST = `shift-planning:v1:sha256:${"c".repeat(64)}`;
@@ -64,7 +65,7 @@ after(async () => {
 
 beforeEach(async () => {
   await clearFirestore();
-  nowMillis = COMMITTED_AT_MILLIS;
+  nowMillis = ATTEMPTED_AT_MILLIS;
   repository = createFirestoreShiftPlanningStateRepository(
     firestore,
     () => Timestamp.fromMillis(nowMillis),
@@ -198,6 +199,7 @@ const enterCommand = (current, transitionId = "enter-001", overrides = {}) => ({
   expectedActiveRevision: current.maintenance.activeRevision,
   expectedActiveDigest: current.maintenance.activeDigest,
   intakeBarrier: barrier(),
+  intakeBarrierExpiresAtMillis: ATTEMPTED_AT_MILLIS + 60_000,
   ...overrides,
 });
 
@@ -234,7 +236,7 @@ const expectedTransition = ({intent, before, maintenanceAfter}) => {
     rotations: before.rotations,
   });
   return {
-    schemaVersion: 1,
+    schemaVersion: SHIFT_PLANNING_STATE_PERSISTENCE_SCHEMA_VERSION,
     operationKind: "maintenanceTransition",
     transitionId: intent.transitionId,
     environment: intent.environment,
@@ -246,7 +248,7 @@ const expectedTransition = ({intent, before, maintenanceAfter}) => {
     maintenanceAfter,
     authoritativeDigestBefore: before.authoritativeDigest,
     authoritativeDigestAfter: afterDigest,
-    committedAtMillis: COMMITTED_AT_MILLIS,
+    attemptedAtMillis: ATTEMPTED_AT_MILLIS,
   };
 };
 
@@ -385,11 +387,19 @@ test("enter maintenance commits once and replays the exact transition", async ()
     lastTransitionId: intent.transitionId,
   };
   const expected = expectedTransition({intent, before, maintenanceAfter});
+  assert.equal(await repository.loadMaintenanceTransition({
+    environment: ENVIRONMENT,
+    transitionId: intent.transitionId,
+  }), null);
 
   const committed = await repository.enterMaintenanceWithBarrierEvidence(
     intent,
   );
   assert.deepEqual(committed, {kind: "committed", transition: expected});
+  assert.deepEqual(await repository.loadMaintenanceTransition({
+    environment: ENVIRONMENT,
+    transitionId: intent.transitionId,
+  }), expected);
   assert.deepEqual(
     (await firestore.doc(statePath()).get()).data(),
     maintenanceAfter,
@@ -426,7 +436,7 @@ test("enter maintenance rejects a transition-id collision without mutation", asy
   assert.deepEqual(await planningDocuments(), persistedAfterCommit);
 });
 
-test("enter rejects barrier evidence verified after its commit instant", async () => {
+test("enter rejects barrier evidence verified after its attempt instant", async () => {
   await seedAuthoritativeState();
   const current = await repository.loadAuthoritativeState({
     environment: ENVIRONMENT,
@@ -437,7 +447,25 @@ test("enter rejects barrier evidence verified after its commit instant", async (
     repository.enterMaintenanceWithBarrierEvidence(enterCommand(
       current,
       "enter-future-barrier",
-      {intakeBarrier: barrier({verifiedAtMillis: COMMITTED_AT_MILLIS + 1})},
+      {intakeBarrier: barrier({verifiedAtMillis: ATTEMPTED_AT_MILLIS + 1})},
+    )),
+    errorCode("maintenance_state_conflict"),
+  );
+  assert.deepEqual(await planningDocuments(), beforeDocuments);
+});
+
+test("enter rejects barrier evidence expired before its attempt", async () => {
+  await seedAuthoritativeState();
+  const current = await repository.loadAuthoritativeState({
+    environment: ENVIRONMENT,
+  });
+  const beforeDocuments = await planningDocuments();
+
+  await assert.rejects(
+    repository.enterMaintenanceWithBarrierEvidence(enterCommand(
+      current,
+      "enter-expired-barrier",
+      {intakeBarrierExpiresAtMillis: ATTEMPTED_AT_MILLIS - 1},
     )),
     errorCode("maintenance_state_conflict"),
   );
@@ -736,8 +764,8 @@ test("abort refuses either rotation while a release lease is retained", async ()
       leaseEpoch: 4,
       ownerOperationId: "release-sealed",
       state: "sealed",
-      acquiredAtMillis: COMMITTED_AT_MILLIS - 10_000,
-      deadlineAtMillis: COMMITTED_AT_MILLIS + 10_000,
+      acquiredAtMillis: ATTEMPTED_AT_MILLIS - 10_000,
+      deadlineAtMillis: ATTEMPTED_AT_MILLIS + 10_000,
     };
     await seedAuthoritativeState({
       [type]: rotation(type, {releaseLease: lease}),
@@ -773,8 +801,8 @@ test("abort replay rejects an internally consistent retained lease", async () =>
     leaseEpoch: 4,
     ownerOperationId: "release-sealed",
     state: "sealed",
-    acquiredAtMillis: COMMITTED_AT_MILLIS - 10_000,
-    deadlineAtMillis: COMMITTED_AT_MILLIS + 10_000,
+    acquiredAtMillis: ATTEMPTED_AT_MILLIS - 10_000,
+    deadlineAtMillis: ATTEMPTED_AT_MILLIS + 10_000,
   };
   await seedAuthoritativeState({
     delivery: rotation("delivery", {releaseLease: retainedLease}),
@@ -799,10 +827,10 @@ test("abort replay rejects an internally consistent retained lease", async () =>
     lastTransitionId: intent.transitionId,
   };
   const forged = expectedTransition({intent, before: closed, maintenanceAfter});
-  const {committedAtMillis, ...persisted} = forged;
+  const {attemptedAtMillis, ...persisted} = forged;
   await firestore.doc(operationPath(intent.transitionId)).set({
     ...persisted,
-    committedAt: Timestamp.fromMillis(committedAtMillis),
+    attemptedAt: Timestamp.fromMillis(attemptedAtMillis),
   });
   const beforeReplay = await planningDocuments();
 

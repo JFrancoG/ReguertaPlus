@@ -589,9 +589,14 @@ un unico read-set autoritativo para CAS:
   exactamente mientras su cursor esta dentro de una ronda; un cursor en el
   limite de ronda exige `cohortFrozen = false` y snapshot congelado vacio.
 - `shiftPlanningOperations/state-{transitionId}` guarda evidencia terminal
-  inmutable de entrada en mantenimiento o aborto preactivacion, incluidas las
-  rotaciones exactas necesarias para recalcular ambos digests autoritativos. Un
-  retry exacto reproduce el resultado original; reutilizar el ID con otra
+  inmutable schema v2 de entrada en mantenimiento o aborto preactivacion, incluidas las
+  rotaciones exactas necesarias para recalcular ambos digests autoritativos. La
+  intencion de entrada conserva tambien `intakeBarrierExpiresAtMillis`; este
+  campo pertenece a la operacion inmutable, no a `shiftPlanningState/current`.
+  La operacion guarda en `attemptedAt` la muestra del reloj de confianza tomada
+  dentro del callback transaccional; este flujo local y desconectado del runtime
+  no tiene operaciones v1 desplegadas que migrar.
+  Un retry exacto reproduce el resultado original; reutilizar el ID con otra
   intencion o alterar la evidencia de digest falla cerrado.
 
 La entrada local en mantenimiento y el aborto preactivacion actualizan solo
@@ -604,8 +609,20 @@ actual y que ambos leases de release sean nulos. Un replay terminal de aborto
 revalida ambas condiciones contra la evidencia persistida antes de devolver el
 resultado. Esta transicion de estado no
 verifica ni reabre la barrera externa de Rules/IAM. Un estado ausente es invalido
-y nunca se inicializa o repara implicitamente. La verificacion de barrera no
-puede ser posterior al commit registrado de la transicion.
+y nunca se inicializa o repara implicitamente. La transaccion solo admite el
+intento cuando
+`verifiedAtMillis <= attemptedAtMillis <= intakeBarrierExpiresAtMillis`.
+`attemptedAtMillis` no es el instante fisico del commit del servidor Firestore;
+el adaptador externo debe retener todos los fences hasta que la transaccion
+resuelva, de forma que esa latencia no abra un hueco de entrada. Un
+replay directo del repositorio de entrada sigue siendo evidencia historica; el
+coordinador de barrera solo lo acepta tras releer el estado autoritativo y probar
+que su digest posterior sigue vigente, el mantenimiento continua cerrado,
+`lastTransitionId` coincide y la barrera compacta no ha cambiado.
+El coordinador consulta la evidencia terminal antes de exigir frescura: una
+operacion ausente requiere un paquete vigente, mientras una operacion terminal
+exacta puede reproducirse tras el deadline solo mediante lectura del sobre
+completo ya retenido. Nunca recrea evidencia historica ausente.
 
 El mismo normalizador sin dependencia del SDK alimenta la frontera del bundle.
 El bundle exige que los campos legacy de rotacion del snapshot de fairness sean

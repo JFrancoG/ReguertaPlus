@@ -44,7 +44,7 @@ const transitionRecordKeys = [
   "maintenanceAfter",
   "authoritativeDigestBefore",
   "authoritativeDigestAfter",
-  "committedAt",
+  "attemptedAt",
 ] as const;
 
 const maintenanceCasKeys = [
@@ -61,6 +61,7 @@ const maintenanceCasKeys = [
 const enterMaintenanceKeys = [
   ...maintenanceCasKeys,
   "intakeBarrier",
+  "intakeBarrierExpiresAtMillis",
 ] as const;
 
 const abortMaintenanceKeys = [
@@ -214,6 +215,10 @@ const normalizeTransitionIntent = (
       ...normalizeMaintenanceCas(intent),
       action: "enterMaintenance",
       intakeBarrier: requireIntakeBarrier(intent.intakeBarrier),
+      intakeBarrierExpiresAtMillis: requireNonNegativeInteger(
+        intent.intakeBarrierExpiresAtMillis,
+        "intake barrier expiry",
+      ),
     };
   }
   if (intent.action === "abortPreActivationMaintenance") {
@@ -342,7 +347,10 @@ const assertTransitionShape = (
       before.intakeBarrier !== null ||
       after.maintenanceStatus !== "closed" ||
       after.intakeBarrier === null ||
-      intent.intakeBarrier.verifiedAtMillis > record.committedAtMillis ||
+      intent.intakeBarrier.verifiedAtMillis > record.attemptedAtMillis ||
+      intent.intakeBarrier.verifiedAtMillis >
+        intent.intakeBarrierExpiresAtMillis ||
+      record.attemptedAtMillis > intent.intakeBarrierExpiresAtMillis ||
       createShiftPlanningDigest(after.intakeBarrier) !==
         createShiftPlanningDigest(intent.intakeBarrier)
     )
@@ -377,7 +385,7 @@ const parseTransitionRecord = (
   if (
     data.schemaVersion !== SHIFT_PLANNING_STATE_PERSISTENCE_SCHEMA_VERSION ||
     data.operationKind !== "maintenanceTransition" ||
-    !(data.committedAt instanceof Timestamp)
+    !(data.attemptedAt instanceof Timestamp)
   ) {
     return failState("Maintenance transition discriminator is invalid.");
   }
@@ -386,9 +394,9 @@ const parseTransitionRecord = (
   const environment = requireEnvironment(data.environment);
   const action = data.action;
   const intentDigest = requireDigest(data.intentDigest, "intent digest");
-  const committedAtMillis = requireNonNegativeInteger(
-    data.committedAt.toMillis(),
-    "transition commit instant",
+  const attemptedAtMillis = requireNonNegativeInteger(
+    data.attemptedAt.toMillis(),
+    "transition attempt instant",
   );
   if (
     action !== intent.action ||
@@ -427,7 +435,7 @@ const parseTransitionRecord = (
       data.authoritativeDigestAfter,
       "authoritative digest after",
     ),
-    committedAtMillis,
+    attemptedAtMillis,
   };
   assertTransitionShape(record);
   return record;
@@ -501,10 +509,10 @@ const requireAbortReplayEntryEvidence = async (
 const serializeTransitionRecord = (
   record: ShiftPlanningMaintenanceTransitionRecord,
 ): object => {
-  const {committedAtMillis, ...persisted} = record;
+  const {attemptedAtMillis, ...persisted} = record;
   return {
     ...persisted,
-    committedAt: Timestamp.fromMillis(committedAtMillis),
+    attemptedAt: Timestamp.fromMillis(attemptedAtMillis),
   };
 };
 
@@ -575,7 +583,7 @@ const transitionRecord = (input: {
   intent: ShiftPlanningMaintenanceTransitionIntent;
   before: ShiftPlanningAuthoritativeState;
   after: ShiftPlanningAuthoritativeState;
-  committedAtMillis: number;
+  attemptedAtMillis: number;
 }): ShiftPlanningMaintenanceTransitionRecord => ({
   schemaVersion: SHIFT_PLANNING_STATE_PERSISTENCE_SCHEMA_VERSION,
   operationKind: "maintenanceTransition",
@@ -589,7 +597,7 @@ const transitionRecord = (input: {
   maintenanceAfter: input.after.maintenance,
   authoritativeDigestBefore: input.before.authoritativeDigest,
   authoritativeDigestAfter: input.after.authoritativeDigest,
-  committedAtMillis: input.committedAtMillis,
+  attemptedAtMillis: input.attemptedAtMillis,
 });
 
 /**
@@ -670,20 +678,23 @@ export const createFirestoreShiftPlanningStateRepository = (
         maintenance: maintenanceAfter,
         rotations: before.rotations,
       });
-      const committedAtMillis = readClockMillis();
+      const attemptedAtMillis = readClockMillis();
       if (
         intent.action === "enterMaintenance" &&
-        intent.intakeBarrier.verifiedAtMillis > committedAtMillis
+        (
+          intent.intakeBarrier.verifiedAtMillis > attemptedAtMillis ||
+          attemptedAtMillis > intent.intakeBarrierExpiresAtMillis
+        )
       ) {
         return failMaintenanceConflict(
-          "Intake barrier cannot be verified after the transition.",
+          "Intake barrier is not valid at the transaction attempt instant.",
         );
       }
       const record = transitionRecord({
         intent,
         before,
         after,
-        committedAtMillis,
+        attemptedAtMillis,
       });
       transaction.update(
         stateReference(firestore, intent.environment),
@@ -692,6 +703,23 @@ export const createFirestoreShiftPlanningStateRepository = (
       transaction.create(operation, serializeTransitionRecord(record));
       return {kind: "committed", transition: record};
     });
+  };
+
+  const loadMaintenanceTransition = async (input: {
+    environment: ShiftPlanningEnvironment;
+    transitionId: string;
+  }): Promise<ShiftPlanningMaintenanceTransitionRecord | null> => {
+    const environment = requireEnvironment(input.environment);
+    const transitionId = requireIdentifier(
+      input.transitionId,
+      "transitionId",
+    );
+    const snapshot = await operationReference(
+      firestore,
+      environment,
+      transitionId,
+    ).get();
+    return snapshot.exists ? parseTransitionRecord(snapshot) : null;
   };
 
   const enterMaintenanceWithBarrierEvidence = (
@@ -706,6 +734,7 @@ export const createFirestoreShiftPlanningStateRepository = (
 
   return {
     loadAuthoritativeState,
+    loadMaintenanceTransition,
     enterMaintenanceWithBarrierEvidence,
     abortPreActivationMaintenance,
   };

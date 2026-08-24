@@ -14,7 +14,7 @@ import {
   parseShiftRotationAggregateWire,
 } from "./shift-planning-wire.js";
 
-export const SHIFT_PLANNING_STATE_PERSISTENCE_SCHEMA_VERSION = 1 as const;
+export const SHIFT_PLANNING_STATE_PERSISTENCE_SCHEMA_VERSION = 2 as const;
 
 export type ShiftPlanningAuthoritativeRotations = {
   delivery: ShiftRotationAggregateWire;
@@ -197,6 +197,8 @@ export type ShiftPlanningEnterMaintenanceCommand =
   ShiftPlanningMaintenanceCas & {
     action: "enterMaintenance";
     intakeBarrier: ShiftPlanningIntakeBarrier;
+    /** Latest trusted transaction-attempt instant that may admit this proof. */
+    intakeBarrierExpiresAtMillis: number;
   };
 
 export type ShiftPlanningAbortPreActivationCommand =
@@ -226,7 +228,8 @@ export type ShiftPlanningMaintenanceTransitionRecord = {
   maintenanceAfter: ShiftPlanningMaintenanceState;
   authoritativeDigestBefore: string;
   authoritativeDigestAfter: string;
-  committedAtMillis: number;
+  /** Trusted transaction-callback clock; this is not the server commit time. */
+  attemptedAtMillis: number;
 };
 
 export type ShiftPlanningMaintenanceTransitionResult = {
@@ -241,6 +244,12 @@ export interface ShiftPlanningStatePersistence {
   loadAuthoritativeState(input: {
     environment: ShiftPlanningEnvironment;
   }): Promise<ShiftPlanningAuthoritativeState>;
+
+  /** Loads immutable terminal evidence without attempting a new transition. */
+  loadMaintenanceTransition(input: {
+    environment: ShiftPlanningEnvironment;
+    transitionId: string;
+  }): Promise<ShiftPlanningMaintenanceTransitionRecord | null>;
 
   /**
    * Requires evidence already verified by a trusted external-barrier adapter.

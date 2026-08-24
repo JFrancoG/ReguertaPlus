@@ -473,8 +473,12 @@ authoritative CAS read-set:
   round; a round-boundary cursor requires `cohortFrozen = false` and an empty
   frozen snapshot.
 - `shiftPlanningOperations/state-{transitionId}` stores immutable terminal
-  evidence for maintenance entry or pre-activation abort, including the exact
-  rotations needed to recompute both authoritative digests. An exact retry
+  schema-v2 evidence for maintenance entry or pre-activation abort, including the exact
+  rotations needed to recompute both authoritative digests. A maintenance-entry
+  intent also stores `intakeBarrierExpiresAtMillis`; this field belongs to the
+  immutable operation, not to `shiftPlanningState/current`. The operation stores
+  the trusted transaction-callback clock sample as `attemptedAt`; this local,
+  runtime-disconnected flow has no deployed v1 operation state to migrate. An exact retry
   replays its original result; an ID reused for another intent or altered digest
   evidence fails closed.
 
@@ -486,7 +490,19 @@ Abort also requires the exact persisted entry operation still to own the current
 read-set and both rotation release leases to be null. A terminal abort replay
 revalidates both conditions against persisted evidence before returning.
 This state transition does not verify or reopen the external Rules/IAM fence.
-Barrier verification time cannot follow the recorded transition commit time.
+The entry transaction admits an attempt only when
+`verifiedAtMillis <= attemptedAtMillis <= intakeBarrierExpiresAtMillis`.
+`attemptedAtMillis` is not the physical Firestore server commit time. The
+external adapter must keep every fence held until the transaction resolves, so
+commit latency cannot reopen an intake gap.
+A raw repository entry replay remains historical evidence; the barrier
+coordinator accepts it only after reloading authoritative state and proving its
+after-digest is still current, maintenance remains closed, `lastTransitionId`
+matches, and the compact barrier is unchanged.
+The coordinator looks up terminal evidence before enforcing freshness: a missing
+operation requires a fresh packet, while an exact terminal operation may replay
+after expiry only by reading the already-retained full envelope. It never
+recreates missing historical evidence.
 Missing state is invalid and is never initialized or repaired implicitly.
 
 The same SDK-free normalizer supplies the bundle boundary. The bundle requires
