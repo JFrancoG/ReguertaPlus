@@ -196,6 +196,15 @@ test("builds stable localized failure metadata without raw backend messages", ()
       messageKey: "shiftPlanning.error.insufficientMarketMembers",
     },
   });
+  assert.throws(
+    () => buildShiftPlanningFailureSummary({
+      mode: "stage",
+      bundleId: "bundle-2026",
+      scope: "request",
+      code: "constructor",
+    }),
+    (error) => error.code === "invalid_planning_request",
+  );
 });
 
 test("freezes distinct public, admin-readable and backend-only collections", () => {

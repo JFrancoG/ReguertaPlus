@@ -106,6 +106,13 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
   exact receipt, stage loads that receipt plus measured forward/inverse adapter
   evidence, and activate loads only the staged candidate and verifies its
   `candidateDigest` plus input snapshot/digest/revision.
+  - [x] Private persistence cut: transactional claim/lease/fencing, immutable
+    preview bundle/receipt, persisted-preview stage, non-overwriting candidate
+    header, terminal replay integrity, and candidate-only read-only activation
+    preflight are covered in the Firestore emulator.
+  - [ ] Remaining: obtain real adapter measurements, materialize inspectable
+    candidate positions, recheck the live input snapshot, and execute activation
+    through the maintenance/publication CAS.
 - [ ] Include membership, rotation, policy/config/calendar override, and enabled
   credit-ledger versions plus any migration-baseline revision/digest in the
   candidate lineage; transactionally recheck them and commit planned credit
@@ -131,6 +138,11 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
   consumer implementation/integration evidence to HU-083.
 - [ ] Make `requested -> processing -> completed|failed` idempotent and safe
   under retry or competing triggers.
+  - [x] Implement and test that lifecycle for private `preview` and `stage`,
+    including busy/resume, expired takeover, fencing, exact terminal summaries,
+    and replay without artifact overwrite.
+  - [ ] Extend the lifecycle to the future v2 activation runtime and its recovery
+    and retention policy before checking the parent task.
 - [ ] Write client-compatible `source = app` plus planner provenance.
 - [ ] Publish rotation state, shifts, and request summary without partial cursor
   advancement; hold notifications until governed release.
@@ -265,6 +277,9 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
   non-public, activation is atomic, canonical notification-event release is
   idempotent, inbox upsert deduplicates, and FCM carries a stable event ID while
   retaining explicit possible-duplicate semantics.
+  - [x] Emulator cut: preview writes only private request/operation/bundle state,
+    stage writes only its private candidate header, and activate preflight is
+    candidate-only and performs no write.
 - [ ] Prove canonical event/inbox/push artifacts contain only generic shift references,
   supported clients decode them, and stale/offline caches cannot expose member/date/
   assignment detail after authorization or revision changes.

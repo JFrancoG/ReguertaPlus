@@ -1565,7 +1565,7 @@ const recoveryManifest = (input: {
       contract: input.snapshot.market.normalized,
     },
     {
-      path: `${root}/shiftPlanningState/global`,
+      path: `${root}/shiftPlanningState/current`,
       contract: {
         writeEpoch: input.request.expectedWriteEpoch,
         activeRevision: input.snapshot.activeRevision,
@@ -1787,7 +1787,93 @@ const parseTransactionEvidence = (input: {
   };
 };
 
-const parsePreviewReceipt = (value: unknown): ShiftPlanningPreviewReceipt => {
+const parseTransactionMeasurementArtifact = (input: {
+  value: unknown;
+  direction: "forward" | "inverse";
+}): ShiftPlanningTransactionMeasurement => {
+  const field = `transactionEvidence.${input.direction}`;
+  const measurement = requireRecord(input.value, field);
+  requireExactRecordFields(measurement, [
+    "schemaVersion",
+    "direction",
+    "manifestDigest",
+    "documentWriteCount",
+    "fieldTransformCount",
+    "requestByteCount",
+    "adapterRevision",
+    "indexConfigurationDigest",
+  ], field);
+  const documentWriteCount = requireNonNegativeInteger(
+    measurement.documentWriteCount,
+    `${field}.documentWriteCount`,
+  );
+  const fieldTransformCount = requireNonNegativeInteger(
+    measurement.fieldTransformCount,
+    `${field}.fieldTransformCount`,
+  );
+  const requestByteCount = requireNonNegativeInteger(
+    measurement.requestByteCount,
+    `${field}.requestByteCount`,
+  );
+  if (
+    measurement.schemaVersion !== SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION ||
+    measurement.direction !== input.direction ||
+    documentWriteCount + fieldTransformCount >
+      SHIFT_PLANNING_FIRESTORE_TRANSACTION_WRITE_LIMIT ||
+    requestByteCount < 1 ||
+    requestByteCount > SHIFT_PLANNING_FIRESTORE_TRANSACTION_BYTE_LIMIT
+  ) {
+    return failState(`${field} discriminators or limits are invalid.`);
+  }
+  return {
+    schemaVersion: SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION,
+    direction: input.direction,
+    manifestDigest: requireNullableDigest(
+      measurement.manifestDigest,
+      `${field}.manifestDigest`,
+    ) || failState(`${field}.manifestDigest must not be null.`),
+    documentWriteCount,
+    fieldTransformCount,
+    requestByteCount,
+    adapterRevision: requireDocumentIdentifier(
+      measurement.adapterRevision,
+      `${field}.adapterRevision`,
+    ),
+    indexConfigurationDigest: requireNullableDigest(
+      measurement.indexConfigurationDigest,
+      `${field}.indexConfigurationDigest`,
+    ) || failState(`${field}.indexConfigurationDigest must not be null.`),
+  };
+};
+
+const parseTransactionEvidenceArtifact = (
+  value: unknown,
+): ShiftPlanningTransactionEvidence => {
+  const evidence = requireRecord(value, "transactionEvidence");
+  requireExactRecordFields(
+    evidence,
+    ["schemaVersion", "forward", "inverse"],
+    "transactionEvidence",
+  );
+  if (evidence.schemaVersion !== SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION) {
+    return failState("Transaction evidence schema is unsupported.");
+  }
+  return {
+    schemaVersion: SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION,
+    forward: parseTransactionMeasurementArtifact({
+      value: evidence.forward,
+      direction: "forward",
+    }),
+    inverse: parseTransactionMeasurementArtifact({
+      value: evidence.inverse,
+      direction: "inverse",
+    }),
+  };
+};
+
+export const parseShiftPlanningPreviewReceipt = (
+  value: unknown,
+): ShiftPlanningPreviewReceipt => {
   const receipt = requireRecord(value, "persistedPreview");
   requireExactRecordFields(receipt, [
     "schemaVersion",
@@ -1838,20 +1924,10 @@ const parsePreviewReceipt = (value: unknown): ShiftPlanningPreviewReceipt => {
   };
 };
 
-const parseStagedCandidate = (input: {
-  value: unknown;
-  forwardManifestDigest: string;
-  inverseManifestDigest: string;
-  budgets: {
-    forward: ShiftPlanningTransactionBudget;
-    inverse: ShiftPlanningTransactionBudget;
-  };
-  authority: {
-    adapterRevision: string;
-    indexConfigurationDigest: string;
-  };
-}): ShiftPlanningStagedCandidate => {
-  const candidate = requireRecord(input.value, "stagedCandidate");
+export const parseShiftPlanningStagedCandidateArtifact = (
+  value: unknown,
+): ShiftPlanningStagedCandidate => {
+  const candidate = requireRecord(value, "stagedCandidate");
   requireExactRecordFields(candidate, [
     "schemaVersion",
     "status",
@@ -1917,6 +1993,28 @@ const parseStagedCandidate = (input: {
       candidate.expectedStateDigest,
       "candidate.expectedStateDigest",
     ) || failState("Candidate expected-state digest must not be null."),
+    transactionEvidence: parseTransactionEvidenceArtifact(
+      candidate.transactionEvidence,
+    ),
+  };
+};
+
+export const validateShiftPlanningStagedCandidate = (input: {
+  value: unknown;
+  forwardManifestDigest: string;
+  inverseManifestDigest: string;
+  budgets: {
+    forward: ShiftPlanningTransactionBudget;
+    inverse: ShiftPlanningTransactionBudget;
+  };
+  authority: {
+    adapterRevision: string;
+    indexConfigurationDigest: string;
+  };
+}): ShiftPlanningStagedCandidate => {
+  const candidate = parseShiftPlanningStagedCandidateArtifact(input.value);
+  return {
+    ...candidate,
     transactionEvidence: parseTransactionEvidence({
       value: candidate.transactionEvidence,
       forwardManifestDigest: input.forwardManifestDigest,
@@ -2013,7 +2111,9 @@ const resolvePersistedPlanningChain = (input: {
         "transaction evidence.",
       );
     }
-    const previewReceipt = parsePreviewReceipt(input.persistedPreview);
+    const previewReceipt = parseShiftPlanningPreviewReceipt(
+      input.persistedPreview,
+    );
     if (
       input.request.binding?.kind !== "preview" ||
       previewReceipt.requestId !== input.request.binding.sourceRequestId ||
@@ -2066,7 +2166,7 @@ const resolvePersistedPlanningChain = (input: {
       "Activate requires only the persisted staged candidate.",
     );
   }
-  const stagedCandidate = parseStagedCandidate({
+  const stagedCandidate = validateShiftPlanningStagedCandidate({
     value: input.stagedCandidate,
     forwardManifestDigest: input.forwardManifestDigest,
     inverseManifestDigest: input.inverseManifestDigest,

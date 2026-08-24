@@ -340,32 +340,46 @@ Rules, only an active linked admin may create and read requests; creation also
 binds `requestId`, `environment`, and `requestedByUserId` to authenticated path
 state. No client may update or delete a request.
 
+A private Firestore repository now implements the local/emulator lifecycle for
+`preview` and `stage`. A transactional claim binds the immutable intake to an
+operation and processing lease. The same worker may resume, a different worker
+receives `busy` while the lease is live, and an expired-lease takeover increments
+the fencing epoch so the previous owner can no longer finish. Exact terminal
+state replays without invoking planning or rewriting artifacts. Preview and
+stage therefore persist `requested -> processing -> completed|failed` with a
+stable typed summary and no raw internal error message. This repository is not
+wired to the legacy runtime trigger.
+
 ### 4.8.c `shiftPlanningCandidates/{bundleId}`
 
-Versioned, two-subplan candidate intended to be persisted by the backend-owned
-staging adapter. It is outside the public `shifts` projection, Sheets export,
-and ordinary member queries. Strict Rules allow active linked admins to
-read/get/list candidates for review, but every client, including admins, is
-denied create, update, and delete; only trusted backend code may write them.
+The local backend repository persists a versioned two-subplan staged-candidate
+header. It is outside the public `shifts` projection, Sheets export, and ordinary
+member queries. Strict Rules allow active linked admins to read/get/list
+candidates for review, but every client, including admins, is denied create,
+update, and delete; only trusted backend code may write them. Materializing the
+candidate's inspectable position documents remains pending.
 
-The pure contract requires this exact artifact chain:
+The pure contract and private repository enforce this artifact chain:
 
 1. `preview` produces a digest-bound receipt containing its request and bundle
-   identity, environment, requester, and `expectedStateDigest`. The future
-   repository must persist that receipt before it can authorize staging.
+   identity, environment, requester, and `expectedStateDigest`. Completing
+   preview atomically persists the immutable bundle plus that receipt and the
+   terminal lifecycle.
 2. `stage` must receive that exact persisted preview receipt and adapter-produced
    `transactionEvidence` for both the forward activation and inverse recovery
-   manifests. It produces one `status = staged` candidate containing the source
+   manifests. The repository reloads the source preview and bundle, then creates
+   without overwrite one `status = staged` header containing the source
    preview/stage IDs, preview-receipt digest, expected-state digest, bundle
-   revision/digest, and the complete transaction evidence.
-3. `activate` must receive only that persisted staged candidate. Its binding must
-   match `candidateId`, `bundleRevision`, `bundleDigest`, and `candidateDigest`,
-   where `candidateDigest` covers the complete staged candidate rather than only
-   the generated bundle. Missing, substituted, stale, or tampered artifacts fail
-   before publication.
+   revision/digest, and complete transaction evidence.
+3. The current `activate` boundary is read-only preflight. It loads and verifies
+   only the persisted staged candidate against `candidateId`, bundle lineage, and
+   `candidateDigest`; it does not claim or complete the request and performs no
+   write. The future planner/runtime must recompute and revalidate the live input
+   snapshot and bundle digest before any CAS or public activation.
 
-The pure function validates supplied artifacts but does not persist or load them.
-The Firestore repository and CAS adapter that prove persistence remain pending.
+The pure function remains side-effect free. The local/emulator repository proves
+private receipt, bundle, lifecycle, and candidate-header persistence, but does
+not yet materialize candidate positions or implement publication/activation CAS.
 
 Transaction evidence is exact and adapter-specific for both directions. Each
 measurement binds `manifestDigest`, `documentWriteCount`,
@@ -374,8 +388,8 @@ measurement binds `manifestDigest`, `documentWriteCount`,
 500 combined planned document writes and declared field transforms, plus 10 MiB
 per serialized transaction request. The pure budget counts planned document
 mutations, including the forward writes that persist recovery before-images; only
-the future persistence adapter can serialize the real writes and provide
-byte/transform evidence. Measurement authority (`adapterRevision` and
+the future publication-measurement adapter can serialize the real writes and
+provide byte/transform evidence. Measurement authority (`adapterRevision` and
 `indexConfigurationDigest`) is part of both the fairness snapshot and expected
 state, so changing it invalidates evidence and the staged candidate. Stage fails
 closed when either direction is missing, stale, does not match its
@@ -416,22 +430,27 @@ The following collection names are frozen for the private control plane:
   position, bound to recipient UID, shift identity, and expected assignment,
   membership, eligibility, and destination revisions.
 - `shiftPlanningOperations`: idempotency/audit records plus recovery paths,
-  persisted before-image references/digests, active CAS, and monotonic recovery
-  epoch.
+  including the implemented request claim/lease/fencing lifecycle; future
+  operation records also carry recovery paths, persisted before-image
+  references/digests, active CAS, and monotonic recovery epoch.
 
 All seven collections are backend-only: strict Rules deny every client read and
 write, including admin clients. Their internal field schemas are not a mobile
 contract in this cut.
 
 Rollout state for this cut: the v2 wire parser, deterministic pure planners, and
-candidate/control-plane Rules exist only as local candidate code. The legacy
-`onShiftPlanningRequestCreated` implementation in `functions/src/index.ts`
-remains the active runtime implementation; v2 persistence, activation, mobile
-integration, deployment, and live data changes have not occurred. The local
-Phase 1 Rules candidate now denies all client access to the new planning control
-plane, including requests and candidates. The local strict candidate allows only
-the exact admin request create/read and admin candidate read boundaries above.
-Neither Rules change has been deployed by this cut.
+private Firestore repository exist as local/emulator code. The repository owns
+claim/lease/fencing/takeover/replay, atomically persists preview bundle plus
+receipt, reloads persisted preview/bundle before creating a non-overwritten stage
+header, and offers candidate-only read-only activation preflight. Still pending
+and fail-closed are real byte/transform measurement, candidate-position
+materialization, maintenance/publication CAS and activation, a v2 trigger, sync,
+notification and recovery consumers, mobile integration, deployment, and live
+data changes. The legacy `onShiftPlanningRequestCreated` implementation in
+`functions/src/index.ts` remains the active runtime. The local Phase 1 Rules
+candidate denies all client access to the new planning control plane; the local
+strict candidate allows only the exact admin request create/read and admin
+candidate read boundaries above. Neither Rules change has been deployed.
 
 ### 4.9 `shiftSwapRequests/{requestId}`
 

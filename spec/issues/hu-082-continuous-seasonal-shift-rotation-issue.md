@@ -113,7 +113,7 @@ round, with as many rounds as the calendar and cohort require.
   feeds, and current flat readers pass atomic/oversize activation tests.
 - [ ] No production mutation is included.
 
-## Local implementation checkpoint — 2026-08-24
+## Local implementation checkpoint — contract/planner cut (2026-08-24)
 
 The current contract/pure-planning cut adds the exact v2 request/wire boundary,
 canonical fairness digest, fail-closed rotation bootstrap, and a side-effect-free
@@ -143,12 +143,39 @@ the seven private control-plane collections remain backend-only. The Phase 1
 candidate denies the nine new planning roots so its permissive catch-all cannot
 expose them. These Rules are local candidates and must not be deployed alone.
 
-This checkpoint is deliberately non-deployable. The legacy v1 trigger in
+That checkpoint was deliberately non-deployable. The legacy v1 trigger in
 `functions/src/index.ts`, unversioned direct `shifts` writers, persistence/CAS,
 preview/candidate repositories, adapter byte/transform measurements, request
 lifecycle, real sync/notification/recovery consumers, and Android/iOS v2 read-back
 remain pending. No transaction, Firebase project, Sheet, deploy, or production
 data mutation is part of this cut.
+
+## Local implementation checkpoint — private persistence cut (2026-08-24)
+
+The local Firestore repository now owns the exact persisted envelope for
+`preview` and `stage`. A transaction binds an immutable v2 request to one
+operation and lease; competing workers receive `busy`, an expired takeover
+increments the fencing epoch, stale owners cannot finish, and canonical terminal
+summaries replay without recalculation or artifact overwrite. Preview atomically
+persists its immutable bundle, exact receipt, request lifecycle, and operation.
+Stage reloads the persisted preview and bundle, requires candidate evidence to
+match the result exactly, and creates a digest-bound candidate header without
+accepting even an identical pre-existing collision.
+
+The activation boundary added here is intentionally read-only and candidate-only:
+it validates an unclaimed activate request against the persisted staged candidate
+without loading a preview or bundle, claiming the request, or writing state. A
+future runtime must still rebuild and revalidate the live fairness snapshot and
+bundle digest immediately before the activation CAS. Emulator regressions cover
+claim contention, lease takeover/fencing, canonical failure summaries, terminal
+replay integrity, immutable preview persistence, stage collision/tamper handling,
+and zero-write activation preflight.
+
+This cut remains deliberately non-deployable. Real adapter byte/transform
+measurement, candidate-position materialization, maintenance/publication CAS,
+public activation, the v2 trigger, sync/notification/recovery consumers, mobile
+read-back, Rules deployment, Sheets access, and all shared/live mutations remain
+pending. The legacy v1 trigger is unchanged and remains the active runtime.
 
 ## Suggested labels
 

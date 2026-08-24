@@ -348,6 +348,27 @@ test("plans both independent frontiers into one side-effect-free preview", () =>
     result.manifests.inverse.recoveryWriteEpoch.minimumExclusiveEpoch,
     8,
   );
+  const recoveryPaths = [
+    ...result.manifests.inverse.deleteCreatedDocuments.map(
+      ({pathTemplate}) => pathTemplate,
+    ),
+    ...result.manifests.inverse.restoreBeforeImages.flatMap((beforeImage) => [
+      beforeImage.targetPath,
+      beforeImage.beforeImagePathTemplate,
+    ]),
+  ];
+  assert.equal(
+    recoveryPaths.includes(
+      "develop/plus-collections/shiftPlanningState/current",
+    ),
+    true,
+  );
+  assert.equal(
+    recoveryPaths.some((path) =>
+      path.includes("/shiftPlanningState/global")
+    ),
+    false,
+  );
 });
 
 test("normalizes roster query and role order in the combined digest", () => {

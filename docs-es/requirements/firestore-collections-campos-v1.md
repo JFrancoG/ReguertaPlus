@@ -452,34 +452,47 @@ enlazado puede crear y leer peticiones; la creacion tambien liga `requestId`,
 `environment` y `requestedByUserId` al estado autenticado de la ruta. Ningun
 cliente puede actualizar ni borrar una peticion.
 
+Un repositorio Firestore privado ya implementa en local/emulador el lifecycle de
+`preview` y `stage`. Un claim transaccional liga el intake inmutable a una
+operacion y a su lease de procesamiento. El mismo worker puede reanudar, otro
+recibe `busy` mientras el lease siga vigente y un takeover tras expirar incrementa
+el fencing epoch para que el owner anterior ya no pueda terminar. Un estado
+terminal exacto devuelve replay sin invocar planificacion ni reescribir
+artefactos. Preview y stage persisten asi
+`requested -> processing -> completed|failed` con resumen estable tipado y sin
+mensajes internos de error sin tipar. Este repositorio no esta conectado al
+trigger runtime legacy.
+
 ## 4.8.c `shiftPlanningCandidates/{bundleId}`
 
-Candidato versionado de dos subplanes que debe persistir el futuro adaptador de
-staging propiedad del backend. Queda fuera de la proyeccion publica `shifts`,
-la exportacion a Sheets y las consultas de socios ordinarios. Las Rules
-estrictas permiten a admins activos enlazados leer, obtener y listar candidatos
-para revisarlos, pero niegan create, update y delete a todo cliente, incluido
-admin; solo el backend confiable puede escribirlos.
+El repositorio backend local persiste una cabecera versionada de candidato staged
+con dos subplanes. Queda fuera de la proyeccion publica `shifts`, la exportacion
+a Sheets y las consultas de socios ordinarios. Las Rules estrictas permiten a
+admins activos enlazados leer, obtener y listar candidatos para revisarlos, pero
+niegan create, update y delete a todo cliente, incluido admin; solo el backend
+confiable puede escribirlos. Sigue pendiente materializar los documentos de
+posiciones inspeccionables del candidato.
 
-El contrato puro exige esta cadena exacta de artefactos:
+El contrato puro y el repositorio privado hacen cumplir esta cadena de artefactos:
 
 1. `preview` produce un recibo ligado por digest con identidad de peticion y
-   bundle, entorno, solicitante y `expectedStateDigest`. El futuro repositorio
-   debe persistirlo antes de que pueda autorizar staging.
+   bundle, entorno, solicitante y `expectedStateDigest`. Completar preview
+   persiste atomicamente el bundle inmutable, ese recibo y el lifecycle terminal.
 2. `stage` debe recibir ese recibo de preview persistido exacto y
    `transactionEvidence` producido por el adaptador para los manifiestos forward
-   de activacion e inverse de recovery. Produce un candidato `status = staged`
-   con IDs de preview/stage origen, digest del recibo, digest del estado esperado,
-   revision/digest del bundle y la evidencia transaccional completa.
-3. `activate` debe recibir solo ese candidato staged persistido. Su binding debe
-   coincidir en `candidateId`, `bundleRevision`, `bundleDigest` y
-   `candidateDigest`; `candidateDigest` cubre el candidato staged completo, no
-   solo el bundle generado. Un artefacto ausente, sustituido, obsoleto o alterado
-   falla antes de publicar.
+   de activacion e inverse de recovery. El repositorio vuelve a cargar el preview
+   y el bundle origen, y despues crea sin sobreescritura una cabecera
+   `status = staged` con IDs de preview/stage origen, digest del recibo, digest del
+   estado esperado, revision/digest del bundle y evidencia transaccional completa.
+3. La frontera `activate` actual es un preflight de solo lectura. Carga y valida
+   unicamente el candidato staged persistido frente a `candidateId`, linaje de
+   bundle y `candidateDigest`; no reclama ni completa la peticion y no escribe.
+   El planner/runtime futuro debe recalcular y revalidar el snapshot live de
+   entradas y el digest del bundle antes de cualquier CAS o activacion publica.
 
-La funcion pura valida los artefactos recibidos, pero no los persiste ni los
-carga. Siguen pendientes el repositorio Firestore y el adaptador CAS que deben
-probar esa persistencia.
+La funcion pura sigue sin side effects. El repositorio local/emulador prueba la
+persistencia privada de recibo, bundle, lifecycle y cabecera de candidato, pero
+aun no materializa posiciones ni implementa CAS de publicacion/activacion.
 
 La evidencia transaccional es exacta y especifica del adaptador en ambos
 sentidos. Cada medicion liga `manifestDigest`, `documentWriteCount`,
@@ -488,8 +501,8 @@ sentidos. Cada medicion liga `manifestDigest`, `documentWriteCount`,
 es de 500 escrituras documentales previstas mas transformaciones de campo
 declaradas, y 10 MiB por peticion transaccional serializada. El presupuesto puro
 cuenta las mutaciones documentales previstas, incluidas las escrituras forward que
-persisten las before-images de recovery; solo el futuro adaptador de persistencia
-puede serializar las escrituras reales y aportar evidencia de
+persisten las before-images de recovery; solo el futuro adaptador de medicion de
+publicacion puede serializar las escrituras reales y aportar evidencia de
 bytes/transformaciones. La autoridad de medicion (`adapterRevision` e
 `indexConfigurationDigest`) forma parte del snapshot de fairness y del estado
 esperado, por lo que cambiarla invalida la evidencia y el candidato staged. Stage
@@ -533,23 +546,29 @@ Los nombres siguientes quedan congelados para el plano de control privado:
   posicion asignada, ligada a UID destinatario, turno y revisiones esperadas de
   asignacion, membership, elegibilidad y destino.
 - `shiftPlanningOperations`: idempotencia/auditoria mas rutas de recovery,
-  referencias/digests de before-images persistidas, CAS activo y epoca monotona
-  de recovery.
+  incluido el lifecycle ya implementado de claim/lease/fencing de peticiones;
+  los registros futuros tambien llevan rutas de recovery, referencias/digests de
+  before-images persistidas, CAS activo y epoca monotona de recovery.
 
 Las siete colecciones son solo backend: las Rules estrictas niegan cualquier
 lectura o escritura de cliente, tambien a admins. Sus esquemas internos no son
 contrato movil en este corte.
 
 Estado de rollout de este corte: el parser wire v2, los planners puros
-deterministas y las Rules del plano de control/candidatos existen solo como
-codigo candidato local. La implementacion legacy
+deterministas y el repositorio Firestore privado existen como codigo
+local/emulador. El repositorio posee claim/lease/fencing/takeover/replay, persiste
+atomicamente bundle y recibo de preview, vuelve a cargar preview/bundle
+persistidos antes de crear una cabecera stage sin sobreescritura y ofrece un
+preflight activate candidate-only de solo lectura. Siguen pendientes y
+fail-closed la medicion real de bytes/transformaciones, la materializacion de
+posiciones del candidato, el CAS de mantenimiento/publicacion y la activacion,
+un trigger v2, consumidores de sync/notificacion/recovery, integracion movil,
+despliegue y cambios live. La implementacion legacy
 `onShiftPlanningRequestCreated` de `functions/src/index.ts` sigue siendo el
-runtime activo; aun no se han realizado persistencia v2, activacion, integracion
-movil, despliegue ni cambios live. El candidato local de Rules Phase 1 niega a
-todo cliente el nuevo plano de control, incluidas peticiones y candidatos. El
-candidato estricto local permite solo la creacion/lectura admin exacta de
-peticiones y la lectura admin de candidatos descritas arriba. Ninguno de esos
-cambios de Rules se ha desplegado en este corte.
+runtime activo. El candidato local de Rules Phase 1 niega a todo cliente el nuevo
+plano de control; el candidato estricto local permite solo la creacion/lectura
+admin exacta de peticiones y la lectura admin de candidatos descritas arriba.
+Ninguno de esos cambios de Rules se ha desplegado.
 
 ## 4.9 `shiftSwapRequests/{requestId}`
 

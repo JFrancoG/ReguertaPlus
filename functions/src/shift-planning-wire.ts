@@ -585,19 +585,33 @@ const failureMessageKeys: Record<ShiftPlanningFailureCode, string> = {
   planning_frontier_complete: "planningFrontierComplete",
 };
 
+export const isShiftPlanningFailureCode = (
+  value: unknown,
+): value is ShiftPlanningFailureCode =>
+  typeof value === "string" &&
+  Object.prototype.hasOwnProperty.call(failureMessageKeys, value);
+
 export const buildShiftPlanningFailureSummary = (input: {
   mode: ShiftPlanningMode;
   bundleId: string;
   scope: ShiftPlanningFailureScope;
   code: ShiftPlanningFailureCode;
-}): ShiftPlanningFailedSummary => ({
-  schemaVersion: SHIFT_PLANNING_WIRE_SCHEMA_VERSION,
-  status: "failed",
-  mode: input.mode,
-  bundleId: requireIdentifier(input.bundleId, "invalid_planning_request"),
-  failure: {
-    scope: input.scope,
-    code: input.code,
-    messageKey: `shiftPlanning.error.${failureMessageKeys[input.code]}`,
-  },
-});
+}): ShiftPlanningFailedSummary => {
+  if (!isShiftPlanningFailureCode(input.code)) {
+    throw new ShiftPlanningError(
+      "invalid_planning_request",
+      "Planning failure code is invalid.",
+    );
+  }
+  return {
+    schemaVersion: SHIFT_PLANNING_WIRE_SCHEMA_VERSION,
+    status: "failed",
+    mode: input.mode,
+    bundleId: requireIdentifier(input.bundleId, "invalid_planning_request"),
+    failure: {
+      scope: input.scope,
+      code: input.code,
+      messageKey: `shiftPlanning.error.${failureMessageKeys[input.code]}`,
+    },
+  };
+};

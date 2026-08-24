@@ -189,10 +189,15 @@ timestamps y validacion requieren admin activo.
 
 El corte actual define un contrato v2 cerrado para una sola petición con los
 subplanes `delivery` y `market`. Los módulos nuevos validan el wire contract y
-calculan planes deterministas en local; no hay todavía repositorio Firestore,
-adaptador de publicación/activación, integración móvil, despliegue ni escritura
-live. El trigger legacy `onShiftPlanningRequestCreated` de `src/index.ts` sigue
-siendo la implementación runtime activa y aún no consume este contrato v2.
+calculan planes deterministas en local. Ya existe un repositorio Firestore
+privado, validado en local/emulador, para el lifecycle de `preview` y `stage`, y
+un preflight `activate` estrictamente de solo lectura. Todavía no hay adaptador
+real de bytes/transformaciones, materialización de posiciones del candidato,
+CAS/publicación/activación, trigger v2, consumidores de sync/notificaciones/
+recovery, integración móvil, despliegue ni escritura live; todas esas fronteras
+siguen fail-closed. El trigger legacy `onShiftPlanningRequestCreated` de
+`src/index.ts` sigue siendo la implementación runtime activa y aún no consume
+este contrato v2.
 
 Ruta de petición prevista:
 
@@ -224,21 +229,32 @@ Los digests usan
 `shift-planning:v1:sha256:<64 caracteres hexadecimales minusculos>`. No se
 aceptan campos extra ni temporadas implicitas deducidas del reloj.
 
-### Cadena pura `preview -> stage -> activate`
+### Cadena pura y persistencia privada `preview -> stage -> activate`
 
 - `preview` no consume artefactos previos y devuelve un recibo con
   `requestId`, identidad/revision/digest de bundle, entorno, solicitante y
-  `expectedStateDigest`.
+  `expectedStateDigest`. El repositorio completa preview persistiendo el bundle,
+  el recibo y su estado terminal en una sola transaccion privada.
 - `stage` exige ese recibo de preview ya persistido y exactamente coincidente.
-  Tambien exige mediciones del futuro adaptador Firestore para los manifiestos
+  El repositorio vuelve a cargar tanto el preview como el bundle persistidos y
+  crea, sin sobreescritura, la cabecera staged con su digest y linaje. Stage
+  tambien exige mediciones del futuro adaptador Firestore para los manifiestos
   forward e inverse: digest del manifiesto, escrituras documentales,
   transformaciones de campo, bytes serializados, revision del adaptador y digest
-  de configuracion de indices. Devuelve un candidato staged que conserva toda
-  esa evidencia y el linaje preview/stage.
-- `activate` exige solo el candidato staged persistido. Debe coincidir con
-  `candidateId`, `bundleRevision`, `bundleDigest`, estado esperado y
-  `candidateDigest`; este ultimo cubre el candidato completo y detecta cualquier
-  sustitucion o alteracion posterior al stage.
+  de configuracion de indices.
+- `activate` solo dispone por ahora de un preflight de lectura. Carga y valida
+  unicamente el candidato staged persistido frente a `candidateId`, linaje de
+  bundle y `candidateDigest`; no carga el bundle, no reclama ni completa la
+  peticion y no escribe estado. El planner/runtime futuro debe recalcular y
+  revalidar el snapshot live y el digest del bundle antes de cualquier CAS.
+
+El claim transaccional enlaza cada peticion con una operacion y un lease de
+procesamiento. El mismo worker puede reanudarla; otro recibe `busy` mientras el
+lease siga vigente; tras expirar, el takeover incrementa el `fencingEpoch` y
+rechaza al owner anterior. Un resultado terminal exacto devuelve replay sin
+recalcular ni reescribir. `preview` y `stage` recorren
+`requested -> processing -> completed|failed`; los fallos terminales usan el
+resumen estable y no persisten mensajes internos sin tipar.
 
 El gate canonico y conservador de HU-082 limita cada direccion a 500 escrituras
 documentales mas transformaciones declaradas y 10 MiB de peticion serializada.
@@ -248,9 +264,10 @@ del adaptador para ambos sentidos. El presupuesto forward incluye tambien las
 escrituras que persisten las before-images exigidas por recovery. La autoridad de
 medicion (`adapterRevision` e `indexConfigurationDigest`) forma parte del snapshot
 de fairness y del estado esperado; cambiarla invalida la evidencia y el candidato.
-La funcion pura solo valida valores que le entrega el caller; el repositorio que
-debe cargar y probar que recibo/candidato estan realmente persistidos sigue
-pendiente.
+El repositorio ya prueba que preview, bundle y cabecera de candidato estan
+persistidos y ligados por digest, pero no calcula esas mediciones. No fabrica
+evidencia: sin el adaptador real de bytes/transformaciones, stage sigue fail-closed
+en el flujo runtime.
 
 ### Fronteras, manifests y side effects diferidos
 
@@ -276,17 +293,20 @@ pendiente.
   before-images persistidas, CAS de bundle activo/digest/epoca y una epoca
   posterior que nunca se reutiliza ni decrementa.
 
-Todo lo anterior sigue siendo contrato/resultado puro. No ejecuta ninguna
-transaccion, CAS, comando de Sheets, lease, recovery ni notificacion.
+El planner y los manifests siguen siendo contrato/resultado puro. El repositorio
+solo ejecuta transacciones privadas sobre peticiones, operaciones, bundles y la
+cabecera de candidato; no ejecuta CAS de publicacion, comandos de Sheets,
+recovery ni notificaciones.
 
 La partición prevista de acceso es:
 
 - `shiftPlanningRequests`: en Rules estrictas, create/read solo para admin
   activo enlazado y con el esquema exacto; ningún cliente puede update/delete.
 - `shiftPlanningCandidates`: candidatos de dos subplanes, escritos solo por
-  backend y legibles para revisión por admin; ningún cliente puede mutarlos. El
-  candidato incluye linaje preview/stage, `expectedStateDigest`, evidencia
-  forward/inverse y su `candidateDigest` externo.
+  backend y legibles para revisión por admin; ningún cliente puede mutarlos. La
+  cabecera persistida incluye linaje preview/stage, `expectedStateDigest`,
+  evidencia forward/inverse y su `candidateDigest`; la materializacion
+  inspeccionable de todas las posiciones sigue pendiente.
 - Solo backend, sin lectura ni escritura de cliente incluso para admin:
   `shiftPlanningState`, `shiftRotations`, `shiftRotationMappings`,
   `shiftPlanningBundles`, `shiftPlanningSyncCommands`,
