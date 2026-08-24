@@ -54,6 +54,7 @@ import {
 } from "./shift-swap-security.js";
 import {buildNotificationInboxDocument} from "./notification-inbox.js";
 import {buildMemberDirectoryDocument} from "./member-directory.js";
+import {isEligibleForShiftRotation} from "./shift-eligibility.js";
 
 const firebaseApp = initializeApp();
 const auth = getAuth(firebaseApp);
@@ -2105,8 +2106,9 @@ type ShiftPlanningRequestRecord = {
 };
 
 type PlanningMemberRef = MemberSheetRef & {
+  isActive: boolean;
   roles: string[];
-  producerCatalogEnabled: boolean;
+  isCommonPurchaseManager: boolean;
   createdAtMillis: number;
   updatedAtMillis: number;
 };
@@ -3138,7 +3140,7 @@ const getDefaultDeliveryDayWireValue = async (
   return "WED";
 };
 
-const listActivePlanningMembers = async (
+const listEligiblePlanningMembers = async (
   env: string,
 ): Promise<PlanningMemberRef[]> => {
   const snapshot = await plusUsersCollection(env)
@@ -3157,9 +3159,10 @@ const listActivePlanningMembers = async (
           parseString(doc.get("emailNormalized")) ||
           "",
         phone: parseString(doc.get("phone")),
+        isActive: doc.get("isActive") === true,
         roles: parseRoles(doc.get("roles")),
-        producerCatalogEnabled:
-          doc.get("producerCatalogEnabled") !== false,
+        isCommonPurchaseManager:
+          doc.get("isCommonPurchaseManager") === true,
         createdAtMillis: createdAt instanceof Timestamp ?
           createdAt.toMillis() :
           0,
@@ -3168,9 +3171,7 @@ const listActivePlanningMembers = async (
           0,
       };
     })
-    .filter((member) =>
-      !(member.roles.includes("producer") && member.producerCatalogEnabled)
-    );
+    .filter(isEligibleForShiftRotation);
 };
 
 const shuffleArray = <T>(values: T[]): T[] => {
@@ -3863,7 +3864,7 @@ const processShiftPlanningRequest = async (
   const seasonStartYear = targetSeasonStartYearFromNow();
   const seasonLabel = buildSeasonLabel(seasonStartYear);
   const existingShifts = await readAllShifts(env);
-  const activeMembers = await listActivePlanningMembers(env);
+  const activeMembers = await listEligiblePlanningMembers(env);
 
   if (activeMembers.length === 0) {
     throw new Error("No active members available for planning.");
