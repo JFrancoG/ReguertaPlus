@@ -26,6 +26,17 @@ const legacyCollections = [
   "products",
   "users",
 ];
+const privateShiftPlanningCollections = [
+  "shiftPlanningRequests",
+  "shiftPlanningState",
+  "shiftRotations",
+  "shiftRotationMappings",
+  "shiftPlanningBundles",
+  "shiftPlanningCandidates",
+  "shiftPlanningSyncCommands",
+  "shiftPlanningNotificationIntents",
+  "shiftPlanningOperations",
+];
 
 let testEnv;
 
@@ -113,4 +124,25 @@ test("phase 1 rejects unsupported environments and unrelated roots", async () =>
     db.doc("preview/collections/users/user").set({value: true}),
   );
   await assertFails(db.doc("unrelated/root/document/value").set({value: true}));
+});
+
+test("phase 1 closes every private shift-planning partition", async () => {
+  const db = testEnv.authenticatedContext("legacy-admin").firestore();
+
+  for (const env of envs) {
+    for (const collection of privateShiftPlanningCollections) {
+      const path = `${env}/plus-collections/${collection}/private-document`;
+      const nestedPath = `${path}/nested/value`;
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().doc(path).set({schemaVersion: 1});
+        await context.firestore().doc(nestedPath).set({schemaVersion: 1});
+      });
+      await assertFails(db.doc(path).get());
+      await assertFails(db.doc(nestedPath).get());
+      await assertFails(db.doc(path).set({schemaVersion: 1}));
+      await assertFails(db.doc(nestedPath).set({schemaVersion: 1}));
+      await assertFails(db.doc(path).update({schemaVersion: 2}));
+      await assertFails(db.doc(path).delete());
+    }
+  }
 });

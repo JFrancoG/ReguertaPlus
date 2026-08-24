@@ -50,6 +50,7 @@ Define collections and fields as a closed contract so Android, iOS, and backend 
 - Shift type: `delivery`, `market`
 - Shift status: `planned`, `swap_pending`, `confirmed`
 - Shift source: `app`, `google_sheets`
+- Planner-generated shift origin: `planner`
 - Swap request status: `open`, `cancelled`, `applied`
 - Swap response status: `available`, `unavailable`
 - Notification event type: `order_reminder`, `order_auto_generated`, `shift_swap_requested`, `shift_swap_available`, `shift_swap_unavailable`, `shift_swap_accepted`, `shift_swap_applied`, `shift_updated`, `news_published`, `admin_broadcast`
@@ -283,19 +284,154 @@ Delivery calendar strategy (canonical):
 - `helperUserId`: string|null
 - `status`: string (`planned`|`swap_pending`|`confirmed`) (required)
 - `source`: string (`app`|`google_sheets`) (required)
+- `origin`: string|null (`planner` for an HU-082 generated shift)
+- `planningRequestId`: string|null (request lineage for a planner-generated shift)
+- `bundleRevision`: string|null (publication revision; required by the future HU-082 publication adapter)
+- `bundleDigest`: string|null (digest bound to `bundleRevision`; required by the future HU-082 publication adapter)
+- `writeEpoch`: integer|null (maintenance/publication epoch; required by the future HU-082 publication adapter)
+- `projectionSeasonStartYear`: integer|null (season partition that contains the projected date)
+- `rotationOwnerUserId`: string|null (immutable fair-queue owner for a generated `delivery` shift)
+- `rotationOwnerUserIds`: array<string>|null (three immutable fair-queue owners for a generated `market` shift)
+- `roundNumber`: integer|null (delivery owner's one-based round)
+- `positionInRound`: integer|null (delivery owner's one-based position in its round)
+- `rotationPositions`: array<map>|null (market positions, aligned with `assignedUserIds`)
+  - `rotationOwnerUserId`: string (immutable fair-queue owner)
+  - `effectiveAssigneeUserId`: string (member currently expected to cover the position)
+  - `roundNumber`: integer (one-based)
+  - `positionInRound`: integer (one-based)
+- `planningReason`: string|null (`target`|`boundaryRoundRemainder` for delivery; market positions may also use `finalGroupPadding`)
 - `createdAt`: timestamp (required)
 - `updatedAt`: timestamp (required)
 
+HU-082 keeps effective assignment (`assignedUserIds`) separate from rotation
+ownership. A newly generated position initially copies its owner into its
+effective assignee, but later coverage or reassignment must not rewrite the
+owner, round, or position. Planner-generated shifts remain compatible with
+current clients by using `source = app`; `origin = planner` and the lineage
+fields distinguish them from ordinary app edits. The bundle revision, digest,
+epoch, and complete ownership persistence listed here are the contract intended
+for the publication/activation adapter. This cut does not yet make that adapter
+or those writes active in `index.ts`.
+
 ### 4.8.b `shiftPlanningRequests/{requestId}`
 
-- `type`: string (`delivery`|`market`) (required)
-- `requestedByUserId`: string (required)
-- `requestedAt`: timestamp (required)
-- `status`: string (`requested`|`processing`|`completed`|`failed`) (required)
-- `seasonLabel`: string|null (optional, backend completion summary)
-- `sheetName`: string|null (optional, backend completion summary)
-- `generatedCount`: number|null (optional, backend completion summary)
-- `errorMessage`: string|null (optional, only when failed)
+- `schemaVersion`: integer (required, exact value `2`)
+- `requestId`: string (required, equals the document ID)
+- `bundleId`: string (required, stable ID shared by both subplans)
+- `environment`: string (`develop`|`production`) (required, equals path `<env>`)
+- `requestedByUserId`: string (required, equals the linked requesting admin member)
+- `requestedAt`: timestamp (required Firestore `Timestamp`; the Functions parser normalizes it to `requestedAtMillis` internally)
+- `mode`: string (`preview`|`stage`|`activate`) (required)
+- `status`: string (required, exact intake value `requested`)
+- `expectedWriteEpoch`: integer (required, non-negative)
+- `expectedActiveRevision`: string|null (required optimistic precondition)
+- `subplans`: map (required, exact keys `delivery` and `market`)
+  - `delivery.targetSeasonStartYear`: integer (required, `2000...9998`)
+  - `market.targetSeasonStartYear`: integer (required, `2000...9998`)
+- `binding`: map|null (required)
+  - `preview`: must be `null`.
+  - `stage`: exact map `{ kind: "preview", sourceRequestId, bundleRevision, bundleDigest }`.
+  - `activate`: exact map `{ kind: "candidate", candidateId, bundleRevision, bundleDigest, candidateDigest }`.
+  - `bundleDigest` and `candidateDigest` format: `shift-planning:v1:sha256:<64 lowercase hexadecimal characters>`.
+
+This is an exact v2 intake schema: extra or missing fields fail validation, and
+the backend never infers either target season from the wall clock. In strict
+Rules, only an active linked admin may create and read requests; creation also
+binds `requestId`, `environment`, and `requestedByUserId` to authenticated path
+state. No client may update or delete a request.
+
+### 4.8.c `shiftPlanningCandidates/{bundleId}`
+
+Versioned, two-subplan candidate intended to be persisted by the backend-owned
+staging adapter. It is outside the public `shifts` projection, Sheets export,
+and ordinary member queries. Strict Rules allow active linked admins to
+read/get/list candidates for review, but every client, including admins, is
+denied create, update, and delete; only trusted backend code may write them.
+
+The pure contract requires this exact artifact chain:
+
+1. `preview` produces a digest-bound receipt containing its request and bundle
+   identity, environment, requester, and `expectedStateDigest`. The future
+   repository must persist that receipt before it can authorize staging.
+2. `stage` must receive that exact persisted preview receipt and adapter-produced
+   `transactionEvidence` for both the forward activation and inverse recovery
+   manifests. It produces one `status = staged` candidate containing the source
+   preview/stage IDs, preview-receipt digest, expected-state digest, bundle
+   revision/digest, and the complete transaction evidence.
+3. `activate` must receive only that persisted staged candidate. Its binding must
+   match `candidateId`, `bundleRevision`, `bundleDigest`, and `candidateDigest`,
+   where `candidateDigest` covers the complete staged candidate rather than only
+   the generated bundle. Missing, substituted, stale, or tampered artifacts fail
+   before publication.
+
+The pure function validates supplied artifacts but does not persist or load them.
+The Firestore repository and CAS adapter that prove persistence remain pending.
+
+Transaction evidence is exact and adapter-specific for both directions. Each
+measurement binds `manifestDigest`, `documentWriteCount`,
+`fieldTransformCount`, `requestByteCount`, `adapterRevision`, and
+`indexConfigurationDigest`. The conservative canonical HU-082 adapter gate is
+500 combined planned document writes and declared field transforms, plus 10 MiB
+per serialized transaction request. The pure budget counts planned document
+mutations, including the forward writes that persist recovery before-images; only
+the future persistence adapter can serialize the real writes and provide
+byte/transform evidence. Measurement authority (`adapterRevision` and
+`indexConfigurationDigest`) is part of both the fairness snapshot and expected
+state, so changing it invalidates evidence and the staged candidate. Stage fails
+closed when either direction is missing, stale, does not match its
+manifest/budget, or exceeds either ceiling.
+
+Other digest-bound pure bundle invariants are:
+
+- `futureProjectionOccupancy` is independent per type and contains exact
+  `{ seasonStartYear, occupiedPositionCount, lineageRevision, lineageDigest }`
+  entries. It advances over already complete future projections and rejects
+  overlap, duplicate seasons, invalid capacity, or missing lineage.
+- A migration baseline is either absent everywhere or the exact same
+  `revision`/`digest` at bundle, delivery rotation, and market rotation scope.
+- Until HU-084 defines exact credit transitions, the credit ledger must be
+  disabled with zero planned transitions; every other value fails closed.
+- Activation freezes a typed cohort only when its boundary-active round remains
+  incomplete. A frozen cohort must preserve its ordered cursor cohort; live
+  eligibility drift may be inspected by preview but blocks stage and activate.
+- The bundle carries digest-bound forward and inverse manifests. The inverse
+  recovery manifest names created paths to delete, target paths whose persisted
+  before-images must be restored, before-image contract digests, required active
+  bundle/write-epoch CAS, and a strictly higher recovery epoch that is never
+  reused or decremented.
+
+### 4.8.d HU-082 backend-only planning collections
+
+The following collection names are frozen for the private control plane:
+
+- `shiftPlanningState`: `current` holds maintenance state, monotonic
+  `writeEpoch`, and paired active-lineage keys `activeRevision`/`activeDigest`.
+- `shiftRotations`: independent versioned delivery and market rotation aggregates.
+- `shiftRotationMappings`: administrator-reviewed bootstrap/migration evidence.
+- `shiftPlanningBundles`: immutable bundle metadata, manifests, budgets, and lineage.
+- `shiftPlanningSyncCommands`: backend-owned Sheets commands bound to
+  workbook/revision, partition/state revision, expected and command partition
+  epochs, and a claim lease intent.
+- `shiftPlanningNotificationIntents`: one held generic intent per assignment
+  position, bound to recipient UID, shift identity, and expected assignment,
+  membership, eligibility, and destination revisions.
+- `shiftPlanningOperations`: idempotency/audit records plus recovery paths,
+  persisted before-image references/digests, active CAS, and monotonic recovery
+  epoch.
+
+All seven collections are backend-only: strict Rules deny every client read and
+write, including admin clients. Their internal field schemas are not a mobile
+contract in this cut.
+
+Rollout state for this cut: the v2 wire parser, deterministic pure planners, and
+candidate/control-plane Rules exist only as local candidate code. The legacy
+`onShiftPlanningRequestCreated` implementation in `functions/src/index.ts`
+remains the active runtime implementation; v2 persistence, activation, mobile
+integration, deployment, and live data changes have not occurred. The local
+Phase 1 Rules candidate now denies all client access to the new planning control
+plane, including requests and candidates. The local strict candidate allows only
+the exact admin request create/read and admin candidate read boundaries above.
+Neither Rules change has been deployed by this cut.
 
 ### 4.9 `shiftSwapRequests/{requestId}`
 

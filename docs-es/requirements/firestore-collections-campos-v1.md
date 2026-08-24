@@ -103,6 +103,9 @@ Definir de forma cerrada las colecciones Firestore y los campos de cada una para
 - `app`
 - `google_sheets`
 
+### 3.10.b Procedencia de turno generado (`shifts.origin`)
+- `planner`
+
 ### 3.11 Estado de solicitud de intercambio (`shiftSwapRequests.status`)
 - `open`
 - `cancelled`
@@ -388,21 +391,165 @@ Estrategia canonica de calendario:
 | `helperUserId` | string\|null | no | sistema/admin | Reparto |
 | `status` | string | si | sistema | `planned`/`swap_pending`/`confirmed` |
 | `source` | string | si | sistema | `app`/`google_sheets` |
+| `origin` | string\|null | no | sistema | `planner` para un turno generado por HU-082 |
+| `planningRequestId` | string\|null | no | sistema | Linaje de la peticion que genero el turno |
+| `bundleRevision` | string\|null | no | sistema | Revision de publicacion; obligatoria en el futuro adaptador HU-082 |
+| `bundleDigest` | string\|null | no | sistema | Digest ligado a `bundleRevision`; obligatorio en el futuro adaptador HU-082 |
+| `writeEpoch` | integer\|null | no | sistema | Epoca de mantenimiento/publicacion; obligatoria en el futuro adaptador HU-082 |
+| `projectionSeasonStartYear` | integer\|null | no | sistema | Temporada en cuya proyeccion cae la fecha |
+| `rotationOwnerUserId` | string\|null | no | sistema | Propietario inmutable de cola para un reparto generado |
+| `rotationOwnerUserIds` | array<string>\|null | no | sistema | Tres propietarios inmutables de cola para un mercado generado |
+| `roundNumber` | integer\|null | no | sistema | Ronda, desde 1, del propietario de reparto |
+| `positionInRound` | integer\|null | no | sistema | Posicion, desde 1, del propietario de reparto |
+| `rotationPositions` | array<map>\|null | no | sistema | Posiciones de mercado alineadas con `assignedUserIds` |
+| `planningReason` | string\|null | no | sistema | `target`/`boundaryRoundRemainder`; una posicion de mercado tambien puede ser `finalGroupPadding` |
 | `createdAt` | timestamp | si | no | |
 | `updatedAt` | timestamp | si | sistema | |
+
+Cada elemento de `rotationPositions` contiene
+`rotationOwnerUserId`, `effectiveAssigneeUserId`, `roundNumber` y
+`positionInRound`. HU-082 separa la asignacion efectiva (`assignedUserIds`) de
+la propiedad de rotacion. Una posicion nueva copia inicialmente su propietario
+como asignado efectivo, pero una cobertura o reasignacion posterior no puede
+reescribir propietario, ronda ni posicion. Los turnos generados conservan
+compatibilidad usando `source = app`; `origin = planner` y los campos de linaje
+los distinguen de una edicion ordinaria de la app. Revision, digest, epoca y
+persistencia completa de propiedad son el contrato previsto para el adaptador
+de publicacion/activacion. Este corte aun no activa ese adaptador ni esas
+escrituras en `index.ts`.
 
 ## 4.8.b `shiftPlanningRequests/{requestId}`
 
 | Campo | Tipo | Req | Editable | Notas |
 |---|---|---|---|---|
-| `type` | string | si | admin/sistema | `delivery` o `market` |
-| `requestedByUserId` | string | si | no | Admin que lanza la planificacion |
-| `requestedAt` | timestamp | si | no | Fecha de peticion |
-| `status` | string | si | sistema | `requested` / `processing` / `completed` / `failed` |
-| `seasonLabel` | string\|null | no | sistema | Resumen de la temporada generada |
-| `sheetName` | string\|null | no | sistema | Pestana Google Sheets generada |
-| `generatedCount` | number\|null | no | sistema | Numero de turnos creados |
-| `errorMessage` | string\|null | no | sistema | Solo si el backend falla |
+| `schemaVersion` | integer | si | no | Valor exacto `2` |
+| `requestId` | string | si | no | Coincide con el ID del documento |
+| `bundleId` | string | si | no | ID estable compartido por los dos subplanes |
+| `environment` | string | si | no | `develop`/`production`; coincide con `<env>` de la ruta |
+| `requestedByUserId` | string | si | no | Socio admin enlazado que crea la peticion |
+| `requestedAt` | timestamp | si | no | `Timestamp` de Firestore; el parser de Functions lo normaliza internamente a `requestedAtMillis` |
+| `mode` | string | si | no | `preview`/`stage`/`activate` |
+| `status` | string | si | no | Valor exacto de entrada `requested` |
+| `expectedWriteEpoch` | integer | si | no | Precondicion no negativa |
+| `expectedActiveRevision` | string\|null | si | no | Precondicion optimista |
+| `subplans` | map | si | no | Claves exactas `delivery` y `market` |
+| `binding` | map\|null | si | no | Binding exacto discriminado por modo |
+
+Cada subplan contiene solo `targetSeasonStartYear`, entero entre 2000 y 9998.
+El `binding` es:
+
+- `preview`: `null`;
+- `stage`: mapa exacto
+  `{ kind: "preview", sourceRequestId, bundleRevision, bundleDigest }`;
+- `activate`: mapa exacto
+  `{ kind: "candidate", candidateId, bundleRevision, bundleDigest, candidateDigest }`.
+
+`bundleDigest` y `candidateDigest` usan el formato
+`shift-planning:v1:sha256:<64 caracteres hexadecimales minusculos>`. El esquema
+v2 es cerrado: un campo extra o ausente falla, y el backend nunca deduce ninguna
+de las temporadas por la fecha actual. En Rules estrictas solo un admin activo y
+enlazado puede crear y leer peticiones; la creacion tambien liga `requestId`,
+`environment` y `requestedByUserId` al estado autenticado de la ruta. Ningun
+cliente puede actualizar ni borrar una peticion.
+
+## 4.8.c `shiftPlanningCandidates/{bundleId}`
+
+Candidato versionado de dos subplanes que debe persistir el futuro adaptador de
+staging propiedad del backend. Queda fuera de la proyeccion publica `shifts`,
+la exportacion a Sheets y las consultas de socios ordinarios. Las Rules
+estrictas permiten a admins activos enlazados leer, obtener y listar candidatos
+para revisarlos, pero niegan create, update y delete a todo cliente, incluido
+admin; solo el backend confiable puede escribirlos.
+
+El contrato puro exige esta cadena exacta de artefactos:
+
+1. `preview` produce un recibo ligado por digest con identidad de peticion y
+   bundle, entorno, solicitante y `expectedStateDigest`. El futuro repositorio
+   debe persistirlo antes de que pueda autorizar staging.
+2. `stage` debe recibir ese recibo de preview persistido exacto y
+   `transactionEvidence` producido por el adaptador para los manifiestos forward
+   de activacion e inverse de recovery. Produce un candidato `status = staged`
+   con IDs de preview/stage origen, digest del recibo, digest del estado esperado,
+   revision/digest del bundle y la evidencia transaccional completa.
+3. `activate` debe recibir solo ese candidato staged persistido. Su binding debe
+   coincidir en `candidateId`, `bundleRevision`, `bundleDigest` y
+   `candidateDigest`; `candidateDigest` cubre el candidato staged completo, no
+   solo el bundle generado. Un artefacto ausente, sustituido, obsoleto o alterado
+   falla antes de publicar.
+
+La funcion pura valida los artefactos recibidos, pero no los persiste ni los
+carga. Siguen pendientes el repositorio Firestore y el adaptador CAS que deben
+probar esa persistencia.
+
+La evidencia transaccional es exacta y especifica del adaptador en ambos
+sentidos. Cada medicion liga `manifestDigest`, `documentWriteCount`,
+`fieldTransformCount`, `requestByteCount`, `adapterRevision` e
+`indexConfigurationDigest`. El gate conservador canonico del adaptador HU-082
+es de 500 escrituras documentales previstas mas transformaciones de campo
+declaradas, y 10 MiB por peticion transaccional serializada. El presupuesto puro
+cuenta las mutaciones documentales previstas, incluidas las escrituras forward que
+persisten las before-images de recovery; solo el futuro adaptador de persistencia
+puede serializar las escrituras reales y aportar evidencia de
+bytes/transformaciones. La autoridad de medicion (`adapterRevision` e
+`indexConfigurationDigest`) forma parte del snapshot de fairness y del estado
+esperado, por lo que cambiarla invalida la evidencia y el candidato staged. Stage
+falla cerrado si falta una direccion, esta obsoleta, no coincide con su
+manifiesto/presupuesto o supera cualquiera de los limites.
+
+Otros invariantes del bundle puro ligados por digest son:
+
+- `futureProjectionOccupancy` es independiente por tipo y contiene entradas
+  exactas `{ seasonStartYear, occupiedPositionCount, lineageRevision,
+  lineageDigest }`. Permite avanzar sobre proyecciones futuras ya completas y
+  rechaza solape, temporadas duplicadas, capacidad invalida o linaje ausente.
+- Un baseline de migracion esta ausente en todos los niveles o tiene exactamente
+  la misma `revision`/`digest` en bundle, rotacion de reparto y rotacion de mercado.
+- Hasta que HU-084 defina transiciones exactas de credito, el ledger debe estar
+  desactivado y no puede contener transiciones previstas; cualquier otro valor
+  falla cerrado.
+- La activacion congela una cohorte tipada solo cuando su ronda activa en el
+  limite queda incompleta. Una cohorte congelada conserva el orden de su cursor;
+  un drift de elegibilidad live puede inspeccionarse en preview, pero bloquea
+  stage y activate.
+- El bundle lleva manifiestos forward e inverse ligados por digest. El manifiesto
+  inverse de recovery nombra rutas creadas que borrar, rutas objetivo cuyas
+  before-images persistidas debe restaurar, digests de contrato de esas imagenes,
+  el CAS requerido de bundle activo/epoca y una epoca de recovery estrictamente
+  superior que nunca se reutiliza ni decrementa.
+
+## 4.8.d Colecciones de planificacion HU-082 solo backend
+
+Los nombres siguientes quedan congelados para el plano de control privado:
+
+- `shiftPlanningState`: `current` guarda mantenimiento, `writeEpoch` monotono y
+  las claves emparejadas de linaje activo `activeRevision`/`activeDigest`.
+- `shiftRotations`: agregados versionados e independientes de reparto y mercado.
+- `shiftRotationMappings`: evidencia de bootstrap/migracion revisada por admin.
+- `shiftPlanningBundles`: metadatos, manifiestos, presupuestos y linaje inmutables.
+- `shiftPlanningSyncCommands`: comandos backend de Sheets ligados a
+  workbook/revision, particion/revision de estado, epocas esperada y de comando,
+  e intento de lease de claim.
+- `shiftPlanningNotificationIntents`: una intencion generica retenida por
+  posicion asignada, ligada a UID destinatario, turno y revisiones esperadas de
+  asignacion, membership, elegibilidad y destino.
+- `shiftPlanningOperations`: idempotencia/auditoria mas rutas de recovery,
+  referencias/digests de before-images persistidas, CAS activo y epoca monotona
+  de recovery.
+
+Las siete colecciones son solo backend: las Rules estrictas niegan cualquier
+lectura o escritura de cliente, tambien a admins. Sus esquemas internos no son
+contrato movil en este corte.
+
+Estado de rollout de este corte: el parser wire v2, los planners puros
+deterministas y las Rules del plano de control/candidatos existen solo como
+codigo candidato local. La implementacion legacy
+`onShiftPlanningRequestCreated` de `functions/src/index.ts` sigue siendo el
+runtime activo; aun no se han realizado persistencia v2, activacion, integracion
+movil, despliegue ni cambios live. El candidato local de Rules Phase 1 niega a
+todo cliente el nuevo plano de control, incluidas peticiones y candidatos. El
+candidato estricto local permite solo la creacion/lectura admin exacta de
+peticiones y la lectura admin de candidatos descritas arriba. Ninguno de esos
+cambios de Rules se ha desplegado en este corte.
 
 ## 4.9 `shiftSwapRequests/{requestId}`
 

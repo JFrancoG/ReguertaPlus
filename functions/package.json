@@ -6,7 +6,7 @@
     "test:order-reminder:unit": "npm run build && node --test test/order-reminder-scheduler.test.cjs",
     "test:firebase-admin:contract": "node --test test/firebase-admin-modernization.test.cjs",
     "test:backend-security": "npm run build && node --test test/backend-security.test.cjs test/member-directory.test.cjs test/shift-swap-security.test.cjs",
-    "test:shift-planning:unit": "npm run build && node --test test/shift-eligibility.test.cjs test/shift-planning-contract.test.cjs test/delivery-shift-planner.test.cjs test/market-shift-planner.test.cjs",
+    "test:shift-planning:unit": "npm run build && node --test test/shift-eligibility.test.cjs test/shift-planning-contract.test.cjs test/shift-planning-wire.test.cjs test/shift-planning-digest.test.cjs test/shift-rotation-bootstrap.test.cjs test/delivery-shift-planner.test.cjs test/market-shift-planner.test.cjs test/shift-planning-bundle.test.cjs",
     "test:migrations": "npm run build && node --test test/migration-scripts.test.cjs",
     "backfill:auth-links": "node scripts/backfill-auth-links.cjs",
     "backfill:legacy-auth-links": "node scripts/backfill-legacy-auth-links.cjs",

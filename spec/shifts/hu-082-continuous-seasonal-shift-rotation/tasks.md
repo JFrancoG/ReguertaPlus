@@ -17,16 +17,18 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
 
 ## 1. Contract and RED fixtures
 
-- [ ] Define versioned rotation, round, cohort, cursor, horizon, ownership,
+- [x] Define versioned rotation, round, cohort, cursor, horizon, ownership,
   assignment, migration-baseline lineage, release lease, and provenance wire
   contracts.
-- [ ] Define bootstrap-source precedence and exact admin mapping artifact with UID
+- [x] Define bootstrap-source precedence and exact admin mapping artifact with UID
   order, round/cursor, evidence, stable tie order, predecessor/helper constraint,
   provenance, and digest independently per type.
-- [ ] Define one seasonal activation-bundle contract containing delivery and
-  market target/frontier subplans, combined digest/revision, transaction budget,
-  both rotation leases, sync commands, and notification batch.
-- [ ] Define stable request terminal summaries and localized failure codes.
+- [x] Define one side-effect-free seasonal activation-bundle contract containing
+  delivery and market target/frontier subplans, future projection occupancy,
+  common migration baseline, cohort-freeze transitions, combined digest/revision,
+  forward/inverse manifests and budgets, both rotation lease intents,
+  epoch/lease-bound sync commands, and per-assignment notification intents.
+- [x] Define stable request terminal summaries and localized failure codes.
 - [ ] Define backend-owned monotonic maintenance/write epoch, active-revision
   preconditions, stable stale-write failures, and the affected-writer inventory.
 - [ ] Define the no-gap entry barrier (external/Rules deny read-back followed by the
@@ -35,7 +37,7 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
   idempotency keys, and failure injection. Never restore/reuse an epoch.
 - [x] Add RED eligibility cases for inactive members, real producers, common
   purchase managers, and catalog flags.
-- [ ] Add RED bootstrap cases for valid state/history/mapping/new queue, randomized
+- [x] Add RED bootstrap cases for valid state/history/mapping/new queue, randomized
   query order, ambiguous legacy ownership, helper/cursor conflict, ineligible helper,
   and independent delivery/market mappings.
 - [ ] Add RED delivery cases for inherited carryover, October continuation,
@@ -50,6 +52,11 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
   an enabled credit ledger), staged-visibility, and concurrent-request cases.
 - [ ] Add RED bundle cases where either subplan fails, drifts, replays, or exceeds
   budget; neither type may activate or emit side effects on failure.
+- [x] Add focused pure bundle cases for exact preview/stage/activate artifact
+  binding, staged `candidateDigest`, measured forward/inverse adapter evidence,
+  measurement-authority drift, before-image budgeting, disabled credit-ledger
+  enforcement, the 500-write/10-MiB gate, future occupancy, common baseline,
+  cohort freeze, and release/workbook-partition lease conflicts.
 - [ ] Add shared mobile fixtures for canonical source and planner provenance.
 
 ## 2. Backend model and deterministic planners
@@ -58,7 +65,7 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
 - [x] Implement the single canonical eligibility predicate.
 - [ ] Implement a Firestore rotation-state repository with optimistic version or
   lease ownership and idempotency keys.
-- [ ] Implement fail-closed typed bootstrap precedence. Require the last unambiguous
+- [x] Implement fail-closed typed bootstrap precedence. Require the last unambiguous
   eligible registered delivery helper as the first new owner/effective lead; never
   infer owner from swapped assignment or silently rewrite conflicting helper evidence.
 - [ ] Implement an IAM-restricted, maintenance-allowlisted rollout execution
@@ -71,6 +78,10 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
   cursor, and inherited carryover.
 - [x] Implement the pure market planner for exactly 10 target-season dates plus
   materialized remainder of the boundary-active round in future projections.
+- [x] Implement the side-effect-free two-type bundle planner with deterministic
+  receipt/candidate digests, exact expected state, frontier transitions,
+  forward/inverse recovery manifests, budgets, sync commands, held intents, and
+  release-lease intents.
 - [ ] Persist `rotationOwnerUserId` separately from effective assignment.
 - [ ] Recompute delivery helpers from the next chronological effective lead after
   generation, append, swap, import, manual assignment, credit, or approved coverage,
@@ -91,9 +102,10 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
   targets independently per typed subplan before accepting the combined bundle.
 - [ ] Fail closed without mutation when live eligibility differs from the frozen
   round cohort.
-- [ ] Restrict preview writes to private request/status/audit control-plane state
-  and bind non-public stage plus atomic activate to the exact input
-  snapshot/digest/revision.
+- [ ] Implement the Firestore request/candidate repository so preview persists its
+  exact receipt, stage loads that receipt plus measured forward/inverse adapter
+  evidence, and activate loads only the staged candidate and verifies its
+  `candidateDigest` plus input snapshot/digest/revision.
 - [ ] Include membership, rotation, policy/config/calendar override, and enabled
   credit-ledger versions plus any migration-baseline revision/digest in the
   candidate lineage; transactionally recheck them and commit planned credit
@@ -103,10 +115,13 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
 - [ ] Inventory current flat `shifts` readers and implement one measured atomic
   public promotion transaction for the combined delivery/market projection, both
   rotation/cursors, active bundle metadata, digest-bound sync commands, and held
-  intents; fail closed if the combined manifest exceeds platform limits.
+  intents. Measure forward and inverse serialized requests with the real adapter;
+  fail closed above the conservative 500-write/10-MiB gate.
 - [ ] Persist sync commands as claimable pending state and define explicit post-
   commit pull/invocation plus discovery/retry; never depend on an Eventarc creation
-  delivery that occurred while its consumer was disabled.
+  delivery that occurred while its consumer was disabled. CAS workbook/revision,
+  partition state revision, expected/command partition epoch, and claim lease
+  immediately before every external batch.
 - [ ] Define operation-registry/marker and fake-consumer vectors requiring
   candidate `onShiftWritten` to validate before/after changes for creates/updates
   and exact before-image marker/version/path for recovery deletes, no-op only that
@@ -130,8 +145,10 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
   owner, TTL, escalation, and terminal cancellation/supersession of demonstrably
   unsubmitted intents at expiry; keep `unknown`/accepted/delivered history immutable
   and route possible delivery through reconciliation/correction.
-- [ ] Bind each intent to assignment/member/token versions; transactionally/CAS
-  read them while claiming and creating event/inbox, and write nothing when stale.
+- [ ] Persist one held intent per assignment position and bind it to recipient UID,
+  shift identity, and assignment/membership/eligibility/destination revisions;
+  transactionally/CAS read them while claiming and creating event/inbox, and
+  write nothing when stale.
 - [ ] Before every FCM send/retry, freshly revalidate assignment, UID, active
   eligibility, and token ownership/version while holding a short dispatch lease
   respected by every writer of those values; cancel/supersede drift only before
@@ -155,7 +172,13 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
 - [ ] Test old/current/candidate consumer and rollback combinations against the
   held outbox.
 - [ ] Preserve existing reciprocal swap behavior for newly generated shifts.
-- [ ] Update strict Firestore Rules and bilingual collection documentation.
+- [x] Update strict Firestore Rules and bilingual collection documentation for the
+  exact local v2 request, admin-readable/backend-written candidate, and seven
+  backend-only control-plane partitions; do not deploy either Rules candidate.
+- [ ] Implement persisted before-image capture and recovery CAS from the pure
+  inverse manifest: exact target/create paths, before-image contract digests,
+  current active bundle revision/digest/write epoch, and a strictly higher epoch
+  that is never reused or decremented.
 - [ ] Require current epoch/revision in Rules/server CAS for every affected app/admin,
   swap, override, calendar, Sheets-import, and command mutation; migrate unsupported
   direct paths to versioned callables/commands and reject offline legacy queues.

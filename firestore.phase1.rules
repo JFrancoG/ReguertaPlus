@@ -27,6 +27,20 @@ service cloud.firestore {
       ];
     }
 
+    function isPrivateShiftPlanningCollection(collectionId) {
+      return collectionId in [
+        "shiftPlanningRequests",
+        "shiftPlanningState",
+        "shiftRotations",
+        "shiftRotationMappings",
+        "shiftPlanningBundles",
+        "shiftPlanningCandidates",
+        "shiftPlanningSyncCommands",
+        "shiftPlanningNotificationIntents",
+        "shiftPlanningOperations",
+      ];
+    }
+
     function isValidProducerStatus(status) {
       return status in ["unread", "read", "prepared", "delivered"];
     }
@@ -180,7 +194,8 @@ service cloud.firestore {
       allow read, write: if isSignedIn() &&
         isSupportedEnv(env) &&
         isSupportedDataset(dataset) &&
-        collectionId != "orders";
+        collectionId != "orders" &&
+        !isPrivateShiftPlanningCollection(collectionId);
     }
   }
 }

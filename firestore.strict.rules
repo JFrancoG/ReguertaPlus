@@ -117,6 +117,112 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
     }
 
+    function hasExactKeys(data, fields) {
+      return data.keys().hasAll(fields) && data.keys().hasOnly(fields);
+    }
+
+    function isValidPlanningTargetSubplan(data) {
+      return data is map &&
+        hasExactKeys(data, ["targetSeasonStartYear"]) &&
+        data.targetSeasonStartYear is int &&
+        data.targetSeasonStartYear >= 2000 &&
+        data.targetSeasonStartYear <= 9998;
+    }
+
+    function isPlanningIdentifier(value) {
+      return value is string &&
+        value.matches("^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$");
+    }
+
+    function isValidPlanningDigestBinding(binding) {
+      return isPlanningIdentifier(binding.bundleRevision) &&
+        binding.bundleDigest is string &&
+        binding.bundleDigest.matches(
+          "^shift-planning:v1:sha256:[a-f0-9]{64}$"
+        );
+    }
+
+    function isValidPlanningBinding(mode, binding, requestId, bundleId) {
+      return (mode == "preview" && binding == null) ||
+        (
+          mode == "stage" &&
+          binding is map &&
+          hasExactKeys(binding, [
+            "kind",
+            "sourceRequestId",
+            "bundleRevision",
+            "bundleDigest",
+          ]) &&
+          binding.kind == "preview" &&
+          isPlanningIdentifier(binding.sourceRequestId) &&
+          binding.sourceRequestId != requestId &&
+          isValidPlanningDigestBinding(binding)
+        ) ||
+        (
+          mode == "activate" &&
+          binding is map &&
+          hasExactKeys(binding, [
+            "kind",
+            "candidateId",
+            "bundleRevision",
+            "bundleDigest",
+            "candidateDigest",
+          ]) &&
+          binding.kind == "candidate" &&
+          binding.candidateId == bundleId &&
+          isValidPlanningDigestBinding(binding) &&
+          binding.candidateDigest is string &&
+          binding.candidateDigest.matches(
+            "^shift-planning:v1:sha256:[a-f0-9]{64}$"
+          )
+        );
+    }
+
+    function isValidShiftPlanningRequest(env, requestId) {
+      let data = request.resource.data;
+      let fields = [
+        "schemaVersion",
+        "requestId",
+        "bundleId",
+        "environment",
+        "requestedByUserId",
+        "requestedAt",
+        "mode",
+        "status",
+        "expectedWriteEpoch",
+        "expectedActiveRevision",
+        "subplans",
+        "binding",
+      ];
+      return hasExactKeys(data, fields) &&
+        data.schemaVersion == 2 &&
+        data.requestId == requestId &&
+        isPlanningIdentifier(data.requestId) &&
+        isPlanningIdentifier(data.bundleId) &&
+        data.environment == env &&
+        isPlanningIdentifier(data.requestedByUserId) &&
+        data.requestedByUserId == actorId(env) &&
+        data.requestedAt is timestamp &&
+        data.mode in ["preview", "stage", "activate"] &&
+        data.status == "requested" &&
+        data.expectedWriteEpoch is int &&
+        data.expectedWriteEpoch >= 0 &&
+        (
+          data.expectedActiveRevision == null ||
+          isPlanningIdentifier(data.expectedActiveRevision)
+        ) &&
+        data.subplans is map &&
+        hasExactKeys(data.subplans, ["delivery", "market"]) &&
+        isValidPlanningTargetSubplan(data.subplans.delivery) &&
+        isValidPlanningTargetSubplan(data.subplans.market) &&
+        isValidPlanningBinding(
+          data.mode,
+          data.binding,
+          requestId,
+          data.bundleId
+        );
+    }
+
     function validLastDeviceReference(env, userId) {
       let affected = request.resource.data.diff(resource.data).affectedKeys();
       let deviceId = request.resource.data.get("lastDeviceId", "");
@@ -515,10 +621,18 @@ service cloud.firestore {
     match /{env}/plus-collections/shiftPlanningRequests/{requestId} {
       allow read: if isAdmin(env);
       allow create: if isAdmin(env) &&
-        request.resource.data.get("requestedByUserId", "") == actorId(env) &&
-        request.resource.data.get("status", "") == "requested" &&
-        request.resource.data.get("type", "") in ["delivery", "market"];
+        isValidShiftPlanningRequest(env, requestId);
       allow update, delete: if false;
+    }
+
+    match /{env}/plus-collections/shiftPlanningCandidates/{bundleId} {
+      allow read: if isAdmin(env);
+      allow create, update, delete: if false;
+    }
+
+    match /{env}/plus-collections/shiftPlanningCandidates/{bundleId}/{document=**} {
+      allow read: if isAdmin(env);
+      allow create, update, delete: if false;
     }
 
     match /{env}/plus-collections/shiftSwapRequests/{requestId} {

@@ -945,3 +945,179 @@ test("sensitive system workflows reject direct member writes", async () => {
     );
   }
 });
+
+test("admins can create only exact shift-planning bundle requests", async () => {
+  for (const env of envs) {
+    const adminDb = contextFor(actors.admin).firestore();
+    const requests = collectionPath(env, "shiftPlanningRequests");
+    const valid = {
+      schemaVersion: 2,
+      requestId: "planning-preview",
+      bundleId: "bundle-2026",
+      environment: env,
+      requestedByUserId: actors.admin.memberId,
+      requestedAt: new Date(),
+      mode: "preview",
+      status: "requested",
+      expectedWriteEpoch: 7,
+      expectedActiveRevision: "active-6",
+      subplans: {
+        delivery: {targetSeasonStartYear: 2026},
+        market: {targetSeasonStartYear: 2026},
+      },
+      binding: null,
+    };
+
+    await assertSucceeds(adminDb.doc(`${requests}/planning-preview`).set(valid));
+    await assertFails(adminDb.doc(`${requests}/legacy-request`).set({
+      type: "delivery",
+      requestedByUserId: actors.admin.memberId,
+      status: "requested",
+    }));
+    await assertFails(adminDb.doc(`${requests}/wrong-environment`).set({
+      ...valid,
+      requestId: "wrong-environment",
+      environment: env === "develop" ? "production" : "develop",
+    }));
+    await assertFails(adminDb.doc(`${requests}/extra-field`).set({
+      ...valid,
+      requestId: "extra-field",
+      rawErrorMessage: "must never be client controlled",
+    }));
+    await assertFails(adminDb.doc(`${requests}/padded-bundle`).set({
+      ...valid,
+      requestId: "padded-bundle",
+      bundleId: " padded ",
+    }));
+    await assertFails(adminDb.doc(`${requests}/unbound-stage`).set({
+      ...valid,
+      requestId: "unbound-stage",
+      mode: "stage",
+    }));
+    const digestBinding = {
+      bundleRevision: "bundle-v1-0123456789abcdef",
+      bundleDigest: `shift-planning:v1:sha256:${"a".repeat(64)}`,
+    };
+    await assertSucceeds(adminDb.doc(`${requests}/planning-stage`).set({
+      ...valid,
+      requestId: "planning-stage",
+      mode: "stage",
+      binding: {
+        kind: "preview",
+        sourceRequestId: "planning-preview",
+        ...digestBinding,
+      },
+    }));
+    await assertSucceeds(adminDb.doc(`${requests}/planning-activate`).set({
+      ...valid,
+      requestId: "planning-activate",
+      mode: "activate",
+      binding: {
+        kind: "candidate",
+        candidateId: valid.bundleId,
+        candidateDigest: `shift-planning:v1:sha256:${"b".repeat(64)}`,
+        ...digestBinding,
+      },
+    }));
+    await assertFails(adminDb.doc(`${requests}/activate-without-candidate-digest`).set({
+      ...valid,
+      requestId: "activate-without-candidate-digest",
+      mode: "activate",
+      binding: {
+        kind: "candidate",
+        candidateId: valid.bundleId,
+        ...digestBinding,
+      },
+    }));
+    await assertFails(adminDb.doc(`${requests}/stage-from-candidate`).set({
+      ...valid,
+      requestId: "stage-from-candidate",
+      mode: "stage",
+      binding: {
+        kind: "candidate",
+        candidateId: valid.bundleId,
+        candidateDigest: `shift-planning:v1:sha256:${"b".repeat(64)}`,
+        ...digestBinding,
+      },
+    }));
+    await assertFails(adminDb.doc(`${requests}/activate-preview`).set({
+      ...valid,
+      requestId: "activate-preview",
+      mode: "activate",
+      binding: {
+        kind: "preview",
+        sourceRequestId: "planning-preview",
+        ...digestBinding,
+      },
+    }));
+    await assertFails(adminDb.doc(`${requests}/activate-other-candidate`).set({
+      ...valid,
+      requestId: "activate-other-candidate",
+      mode: "activate",
+      binding: {
+        kind: "candidate",
+        candidateId: "another-bundle",
+        candidateDigest: `shift-planning:v1:sha256:${"b".repeat(64)}`,
+        ...digestBinding,
+      },
+    }));
+  }
+});
+
+test("only admins read staged candidates and no client mutates them", async () => {
+  for (const env of envs) {
+    const path = docPath(env, "shiftPlanningCandidates", "bundle-2026");
+    const positionPath = `${path}/positions/delivery-2026-09-02`;
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(path).set({
+        schemaVersion: 1,
+        bundleId: "bundle-2026",
+        bundleRevision: "bundle-v1-2026",
+      });
+      await context.firestore().doc(positionPath).set({
+        type: "delivery",
+        date: "2026-09-02",
+      });
+    });
+    const adminDb = contextFor(actors.admin).firestore();
+    const memberDb = contextFor(actors.member).firestore();
+
+    await assertSucceeds(adminDb.doc(path).get());
+    await assertSucceeds(adminDb.doc(positionPath).get());
+    await assertSucceeds(adminDb.collection(`${path}/positions`).get());
+    await assertSucceeds(
+      adminDb.collection(collectionPath(env, "shiftPlanningCandidates")).get(),
+    );
+    await assertFails(memberDb.doc(path).get());
+    await assertFails(memberDb.doc(positionPath).get());
+    await assertFails(adminDb.doc(path).set({schemaVersion: 1}));
+    await assertFails(adminDb.doc(positionPath).set({type: "market"}));
+    await assertFails(adminDb.doc(path).update({bundleId: "tampered"}));
+    await assertFails(adminDb.doc(path).delete());
+  }
+});
+
+test("planner state, rotations and outboxes remain backend-only", async () => {
+  const privateCollections = [
+    "shiftPlanningState",
+    "shiftRotations",
+    "shiftRotationMappings",
+    "shiftPlanningBundles",
+    "shiftPlanningSyncCommands",
+    "shiftPlanningNotificationIntents",
+    "shiftPlanningOperations",
+  ];
+  for (const env of envs) {
+    const adminDb = contextFor(actors.admin).firestore();
+    for (const collection of privateCollections) {
+      const path = docPath(env, collection, "private-document");
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().doc(path).set({schemaVersion: 1});
+      });
+      await assertFails(adminDb.doc(path).get());
+      await assertFails(adminDb.doc(path).set({schemaVersion: 1}));
+      await assertFails(adminDb.doc(path).update({schemaVersion: 2}));
+      await assertFails(adminDb.doc(path).delete());
+    }
+  }
+});

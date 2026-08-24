@@ -113,6 +113,43 @@ round, with as many rounds as the calendar and cohort require.
   feeds, and current flat readers pass atomic/oversize activation tests.
 - [ ] No production mutation is included.
 
+## Local implementation checkpoint — 2026-08-24
+
+The current contract/pure-planning cut adds the exact v2 request/wire boundary,
+canonical fairness digest, fail-closed rotation bootstrap, and a side-effect-free
+delivery-plus-market bundle planner. The bundle binds independent before/after
+frontiers, `futureProjectionOccupancy`, active state, one exact common migration
+baseline, cohort-freeze transitions, forward/inverse manifests and write budgets,
+two release-lease intents, Sheets-sync templates, and held assignment intents into
+one stable revision/digest.
+
+The pure artifact chain is now fail-closed. Stage requires the exact persisted
+preview receipt plus adapter measurements for both forward and inverse manifests;
+the conservative canonical gate is 500 document writes plus declared transforms
+and 10 MiB serialized in each direction. Forward budgeting includes persisted
+recovery before-images, and measurement authority is fairness/expected-state
+lineage: an adapter or index-configuration change invalidates the evidence and
+candidate. Until HU-084 owns exact credit transitions, any enabled or non-empty
+credit ledger fails closed. Activate requires the persisted staged candidate and a
+`candidateDigest` over that complete candidate, not only the bundle digest. The
+pure model emits sync commands bound to workbook/partition epochs and
+claim leases, one held intent per assignment with UID and assignment/membership/
+eligibility/destination revisions, and a recovery manifest bound to exact paths,
+persisted before-image contract digests, active CAS, and a never-reused higher epoch.
+
+Local strict Rules admit only exact admin request creation/read-back and
+admin candidate inspection (including nested positions); all candidate writes and
+the seven private control-plane collections remain backend-only. The Phase 1
+candidate denies the nine new planning roots so its permissive catch-all cannot
+expose them. These Rules are local candidates and must not be deployed alone.
+
+This checkpoint is deliberately non-deployable. The legacy v1 trigger in
+`functions/src/index.ts`, unversioned direct `shifts` writers, persistence/CAS,
+preview/candidate repositories, adapter byte/transform measurements, request
+lifecycle, real sync/notification/recovery consumers, and Android/iOS v2 read-back
+remain pending. No transaction, Firebase project, Sheet, deploy, or production
+data mutation is part of this cut.
+
 ## Suggested labels
 
 - `type:feature`

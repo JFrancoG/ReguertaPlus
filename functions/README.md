@@ -185,30 +185,131 @@ Endpoints de aplicacion:
 El resto de endpoints HTTP candidatos de sincronizacion, exportacion,
 timestamps y validacion requieren admin activo.
 
-## 🗓️ Planificación manual de turnos activos
+## 🗓️ Contrato local de planificación continua HU-082
 
-`HU-017` añade una vía prudente para que un admin lance desde la app la
-planificación de la siguiente temporada sin automatizar todavía el proceso
-por cron.
+El corte actual define un contrato v2 cerrado para una sola petición con los
+subplanes `delivery` y `market`. Los módulos nuevos validan el wire contract y
+calculan planes deterministas en local; no hay todavía repositorio Firestore,
+adaptador de publicación/activación, integración móvil, despliegue ni escritura
+live. El trigger legacy `onShiftPlanningRequestCreated` de `src/index.ts` sigue
+siendo la implementación runtime activa y aún no consume este contrato v2.
 
-Flujo:
-- Android/iOS escriben una petición en
-  `{env}/plus-collections/shiftPlanningRequests/{requestId}`
-- El trigger Firestore `onShiftPlanningRequestCreated` genera la temporada
-  siguiente usando solo socios activos
-- Reparto:
-  - rota socios activos en orden aleatorio
-  - mantiene socios nuevos/reactivados al final
-  - deriva `helperUserId` a partir del siguiente turno
-- Mercado:
-  - garantiza al menos 3 socios por mes
-  - redistribuye sobrantes si un bloque final queda incompleto
-- La función escribe:
-  - `plus-collections/shifts`
-  - nuevas pestañas de Google Sheets con formato humano:
-    - `turnos-reparto YYYY-YY`
-    - `turnos-mercado YYYY-YY`
-- Finalmente crea una `notificationEvents` dirigida a los socios afectados.
+Ruta de petición prevista:
+
+`{env}/plus-collections/shiftPlanningRequests/{requestId}`
+
+El documento de entrada tiene exactamente estos campos:
+
+- `schemaVersion: 2`;
+- `requestId`, que coincide con el ID del documento;
+- `bundleId`, común a reparto y mercado;
+- `environment`, `develop` o `production`, igual a `{env}`;
+- `requestedByUserId`, igual al socio admin enlazado que crea la petición;
+- `requestedAt`, un `Timestamp` real de Firestore que el parser normaliza a
+  `requestedAtMillis` solo dentro de Functions;
+- `mode`: `preview`, `stage` o `activate`;
+- `status: "requested"`;
+- `expectedWriteEpoch`, entero no negativo;
+- `expectedActiveRevision`, string o `null`;
+- `subplans`, mapa de claves exactas `delivery` y `market`, cada una con el
+  único campo `targetSeasonStartYear` (`2000...9998`);
+- `binding`, discriminado por modo:
+  - `preview`: `null`;
+  - `stage`: mapa exacto
+    `{ kind: "preview", sourceRequestId, bundleRevision, bundleDigest }`;
+  - `activate`: mapa exacto
+    `{ kind: "candidate", candidateId, bundleRevision, bundleDigest, candidateDigest }`.
+
+Los digests usan
+`shift-planning:v1:sha256:<64 caracteres hexadecimales minusculos>`. No se
+aceptan campos extra ni temporadas implicitas deducidas del reloj.
+
+### Cadena pura `preview -> stage -> activate`
+
+- `preview` no consume artefactos previos y devuelve un recibo con
+  `requestId`, identidad/revision/digest de bundle, entorno, solicitante y
+  `expectedStateDigest`.
+- `stage` exige ese recibo de preview ya persistido y exactamente coincidente.
+  Tambien exige mediciones del futuro adaptador Firestore para los manifiestos
+  forward e inverse: digest del manifiesto, escrituras documentales,
+  transformaciones de campo, bytes serializados, revision del adaptador y digest
+  de configuracion de indices. Devuelve un candidato staged que conserva toda
+  esa evidencia y el linaje preview/stage.
+- `activate` exige solo el candidato staged persistido. Debe coincidir con
+  `candidateId`, `bundleRevision`, `bundleDigest`, estado esperado y
+  `candidateDigest`; este ultimo cubre el candidato completo y detecta cualquier
+  sustitucion o alteracion posterior al stage.
+
+El gate canonico y conservador de HU-082 limita cada direccion a 500 escrituras
+documentales mas transformaciones declaradas y 10 MiB de peticion serializada.
+El planner puro calcula presupuestos forward/inverse, pero deja los bytes como
+`requiresPersistenceAdapter`: stage falla cerrado hasta recibir la medicion real
+del adaptador para ambos sentidos. El presupuesto forward incluye tambien las
+escrituras que persisten las before-images exigidas por recovery. La autoridad de
+medicion (`adapterRevision` e `indexConfigurationDigest`) forma parte del snapshot
+de fairness y del estado esperado; cambiarla invalida la evidencia y el candidato.
+La funcion pura solo valida valores que le entrega el caller; el repositorio que
+debe cargar y probar que recibo/candidato estan realmente persistidos sigue
+pendiente.
+
+### Fronteras, manifests y side effects diferidos
+
+- `futureProjectionOccupancy` se aporta por separado para reparto y mercado con
+  entradas exactas `seasonStartYear`, `occupiedPositionCount`,
+  `lineageRevision` y `lineageDigest`. Se incluye en el digest, permite saltar
+  proyecciones futuras completas y rechaza solapes o capacidades invalidas.
+- El baseline de migracion debe ser `null` en bundle y ambas rotaciones o la
+  misma pareja exacta `revision`/`digest` en los tres niveles.
+- Hasta que HU-084 defina transiciones exactas de credito, el ledger debe llegar
+  desactivado (`enabled = false`) y sin transiciones previstas; cualquier otro
+  valor falla cerrado.
+- La activacion propuesta congela una cohorte solo si queda una ronda activa al
+  cruzar el limite. Preview puede diagnosticar drift de una cohorte congelada;
+  stage y activate lo rechazan sin side effects.
+- Cada comando de sync queda ligado a workbook/revision, particion/revision de
+  estado, epoca esperada, nueva epoca de comando y un lease de claim. Los leases
+  de particion ya activos bloquean stage/activate.
+- Se genera una intencion de notificacion generica por cada posicion asignada,
+  con UID destinatario, turno y revisiones esperadas de asignacion, membership,
+  elegibilidad y destino; no se deduplica solo por persona.
+- El manifest inverse de recovery liga rutas creadas, rutas y digests de
+  before-images persistidas, CAS de bundle activo/digest/epoca y una epoca
+  posterior que nunca se reutiliza ni decrementa.
+
+Todo lo anterior sigue siendo contrato/resultado puro. No ejecuta ninguna
+transaccion, CAS, comando de Sheets, lease, recovery ni notificacion.
+
+La partición prevista de acceso es:
+
+- `shiftPlanningRequests`: en Rules estrictas, create/read solo para admin
+  activo enlazado y con el esquema exacto; ningún cliente puede update/delete.
+- `shiftPlanningCandidates`: candidatos de dos subplanes, escritos solo por
+  backend y legibles para revisión por admin; ningún cliente puede mutarlos. El
+  candidato incluye linaje preview/stage, `expectedStateDigest`, evidencia
+  forward/inverse y su `candidateDigest` externo.
+- Solo backend, sin lectura ni escritura de cliente incluso para admin:
+  `shiftPlanningState`, `shiftRotations`, `shiftRotationMappings`,
+  `shiftPlanningBundles`, `shiftPlanningSyncCommands`,
+  `shiftPlanningNotificationIntents` y `shiftPlanningOperations`.
+
+El documento `shiftPlanningState/current` usa `activeRevision` y `activeDigest`
+como claves emparejadas de linaje activo; no reutiliza los nombres
+`bundleRevision`/`bundleDigest` propios de bundles, bindings y publicación.
+
+El candidato local `firestore.phase1.rules` niega todo acceso de cliente a este
+nuevo plano de control, incluidas peticiones y candidatos. El candidato local
+`firestore.strict.rules` permite solo las aperturas admin exactas anteriores.
+Ninguno de estos cambios de Rules se ha desplegado en este corte.
+
+El adaptador futuro publicará los turnos generados con `source = "app"` para
+mantener compatibilidad, más `origin = "planner"`, `planningRequestId`,
+`bundleRevision`, `bundleDigest` y `writeEpoch`. También persistirá propiedad de
+rotación separada de la asignación efectiva: `rotationOwnerUserId`, ronda y
+posición para reparto; `rotationOwnerUserIds` y posiciones por propietario para
+mercado. Una reasignación futura podrá cambiar `assignedUserIds` sin reescribir
+la propiedad histórica. Estos son campos previstos del adaptador de
+publicación/activación, no escrituras que los planners puros o el runtime activo
+ya estén realizando.
 
 ### Contrato de hoja esperado
 
