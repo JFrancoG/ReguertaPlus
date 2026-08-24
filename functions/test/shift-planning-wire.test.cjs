@@ -6,6 +6,7 @@ const {
   buildShiftPlanningFailureSummary,
   parseShiftPlanningMaintenanceState,
   parseShiftPlanningRequestV2,
+  parseShiftRotationAggregateWire,
   SHIFT_PLANNING_COLLECTIONS,
 } = require("../lib/shift-planning-wire.js");
 
@@ -173,8 +174,86 @@ test("parses monotonic maintenance state and requires a verified close barrier",
   assert.throws(
     () => parseShiftPlanningMaintenanceState({
       ...open,
+      intakeBarrier: closed.intakeBarrier,
+    }),
+    (error) => error.code === "invalid_planning_state",
+  );
+  assert.throws(
+    () => parseShiftPlanningMaintenanceState({
+      ...open,
       activeDigest: null,
     }),
+    (error) => error.code === "invalid_planning_state",
+  );
+});
+
+test("parses exact rotation aggregates with path-owned type and lineage", () => {
+  const aggregate = {
+    schemaVersion: 1,
+    type: "delivery",
+    stateRevision: 4,
+    cursor: {
+      schemaVersion: 1,
+      type: "delivery",
+      cohortUserIds: ["member-1", "member-2", "member-3"],
+      roundNumber: 2,
+      nextMemberIndex: 1,
+    },
+    planningFrontierSeasonStartYear: 2027,
+    cohortFrozen: true,
+    frozenCohortUserIds: ["member-1", "member-2", "member-3"],
+    activeRevision: "active-8",
+    activeDigest: `shift-planning:v1:sha256:${"b".repeat(64)}`,
+    lastIdempotencyKey: "activate-8-delivery",
+    migrationBaseline: {
+      revision: "baseline-1",
+      digest: `shift-planning:v1:sha256:${"c".repeat(64)}`,
+    },
+    releaseLease: {
+      type: "delivery",
+      bundleId: "bundle-2027",
+      bundleRevision: "bundle-v1-2027",
+      bundleDigest: `shift-planning:v1:sha256:${"d".repeat(64)}`,
+      leaseEpoch: 3,
+      ownerOperationId: "release-3",
+      state: "sealed",
+      acquiredAtMillis: 1_782_643_200_000,
+      deadlineAtMillis: 1_782_643_260_000,
+    },
+  };
+
+  assert.deepEqual(
+    parseShiftRotationAggregateWire(aggregate, "delivery"),
+    aggregate,
+  );
+  assert.throws(
+    () => parseShiftRotationAggregateWire(aggregate, "market"),
+    (error) => error.code === "invalid_planning_state",
+  );
+  assert.throws(
+    () => parseShiftRotationAggregateWire({...aggregate, extra: true}, "delivery"),
+    (error) => error.code === "invalid_planning_state",
+  );
+  assert.throws(
+    () => parseShiftRotationAggregateWire({
+      ...aggregate,
+      activeDigest: null,
+    }, "delivery"),
+    (error) => error.code === "invalid_planning_state",
+  );
+  assert.throws(
+    () => parseShiftRotationAggregateWire({
+      ...aggregate,
+      cohortFrozen: false,
+      frozenCohortUserIds: [],
+    }, "delivery"),
+    (error) => error.code === "invalid_planning_state",
+  );
+  assert.throws(
+    () => parseShiftRotationAggregateWire({
+      ...aggregate,
+      cursor: {...aggregate.cursor, nextMemberIndex: 0},
+    }, "delivery"),
     (error) => error.code === "invalid_planning_state",
   );
 });

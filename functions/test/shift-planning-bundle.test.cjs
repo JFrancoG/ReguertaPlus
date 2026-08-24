@@ -3,8 +3,15 @@ const {test} = require("node:test");
 const {Timestamp} = require("firebase-admin/firestore");
 
 const {
+  parseShiftPlanningExpectedState,
   planShiftPlanningBundle,
 } = require("../lib/shift-planning-bundle.js");
+const {
+  buildShiftPlanningAuthoritativeState,
+} = require("../lib/shift-planning-state-persistence.js");
+const {
+  createShiftPlanningDigest,
+} = require("../lib/shift-planning-digest.js");
 
 const memberIds = Array.from(
   {length: 6},
@@ -115,6 +122,29 @@ const fairnessSnapshot = () => ({
   migrationBaseline: null,
 });
 
+const maintenanceState = (snapshot, overrides = {}) => ({
+  schemaVersion: 1,
+  stateRevision: 11,
+  writeEpoch: snapshot.writeEpoch,
+  maintenanceStatus: "closed",
+  activeRevision: snapshot.activeRevision,
+  activeDigest: snapshot.activeDigest,
+  intakeBarrier: {
+    revision: "barrier-v1",
+    digest: `shift-planning:v1:sha256:${"a".repeat(64)}`,
+    verifiedAtMillis: 1_782_643_100_000,
+  },
+  lastTransitionId: "maintenance-enter-1",
+  ...overrides,
+});
+
+const authoritativeState = (snapshot, maintenanceOverrides = {}) =>
+  buildShiftPlanningAuthoritativeState({
+    environment: snapshot.environment,
+    maintenance: maintenanceState(snapshot, maintenanceOverrides),
+    rotations: snapshot.rotations,
+  });
+
 const request = (overrides = {}) => ({
   schemaVersion: 2,
   requestId: "request-preview-2026",
@@ -134,14 +164,19 @@ const request = (overrides = {}) => ({
   ...overrides,
 });
 
-const bundleInput = (overrides = {}) => ({
-  request: request(),
-  fairnessSnapshot: fairnessSnapshot(),
-  delivery: {continuity: {kind: "newRotation"}},
-  market: {},
-  transactionWriteLimit: 500,
-  ...overrides,
-});
+const bundleInput = (overrides = {}) => {
+  const snapshot = overrides.fairnessSnapshot ?? fairnessSnapshot();
+  return {
+    request: request(),
+    authoritativeState:
+      overrides.authoritativeState ?? authoritativeState(snapshot),
+    fairnessSnapshot: snapshot,
+    delivery: {continuity: {kind: "newRotation"}},
+    market: {},
+    transactionWriteLimit: 500,
+    ...overrides,
+  };
+};
 
 const errorCode = (expectedCode) => (error) =>
   error instanceof Error && error.code === expectedCode;
@@ -162,9 +197,9 @@ const candidateBinding = (result) => ({
 });
 
 const transactionEvidence = (result, overrides = {}) => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
   forward: {
-    schemaVersion: 1,
+    schemaVersion: 2,
     direction: "forward",
     manifestDigest: result.transactionRequirements.forwardManifestDigest,
     documentWriteCount: result.budgets.forward.totalWrites,
@@ -176,7 +211,7 @@ const transactionEvidence = (result, overrides = {}) => ({
     ...overrides.forward,
   },
   inverse: {
-    schemaVersion: 1,
+    schemaVersion: 2,
     direction: "inverse",
     manifestDigest: result.transactionRequirements.inverseManifestDigest,
     documentWriteCount: result.budgets.inverse.totalWrites,
@@ -211,7 +246,8 @@ test("plans both independent frontiers into one side-effect-free preview", () =>
     result.bundleDigest,
     /^shift-planning:v1:sha256:[a-f0-9]{64}$/,
   );
-  assert.match(result.bundleRevision, /^bundle-v1-[a-f0-9]{24}$/);
+  assert.equal(result.schemaVersion, 2);
+  assert.match(result.bundleRevision, /^bundle-v2-[a-f0-9]{24}$/);
   assert.equal(result.delivery.shifts[0].assignedUserIds[0], "member-1");
   assert.deepEqual(result.market.shifts[0].assignedUserIds, [
     "member-3",
@@ -268,18 +304,41 @@ test("plans both independent frontiers into one side-effect-free preview", () =>
     true,
   );
   assert.deepEqual(result.expectedState, {
-    environment: "develop",
-    writeEpoch: 7,
-    activeRevision: "active-6",
-    activeDigest,
-    rotationStateRevisions: {delivery: 4, market: 7},
-    releaseLeases: {delivery: null, market: null},
+    schemaVersion: 2,
+    authoritativeState: authoritativeState(fairnessSnapshot()),
     transactionMeasurementAuthority: {
       adapterRevision: "firestore-adapter-v1",
       indexConfigurationDigest:
         `shift-planning:v1:sha256:${"1".repeat(64)}`,
     },
   });
+  const expectedStateDigest = createShiftPlanningDigest(result.expectedState);
+  for (const manifest of [
+    result.manifests.forward,
+    result.manifests.inverse,
+  ]) {
+    assert.equal(manifest.expectedStateDigest, expectedStateDigest);
+    assert.equal(
+      manifest.expectedAuthoritativeDigest,
+      result.expectedState.authoritativeState.authoritativeDigest,
+    );
+  }
+  assert.deepEqual(result.manifests.forward.activeState, {
+    stateRevisionBefore: 11,
+    stateRevisionAfter: 12,
+    writeEpochBefore: 7,
+    writeEpochAfter: 8,
+    activeRevisionBefore: "active-6",
+  });
+  const maintenanceBeforeImage = result.manifests.inverse.restoreBeforeImages
+    .find(({targetPath}) =>
+      targetPath.endsWith("/shiftPlanningState/current"));
+  assert.equal(
+    maintenanceBeforeImage.captureContractDigest,
+    createShiftPlanningDigest(
+      result.expectedState.authoritativeState.maintenance,
+    ),
+  );
   assert.equal(
     result.frontiers.delivery.frontierBefore.seasonStartYear,
     2026,
@@ -430,6 +489,163 @@ test("normalizes roster query and role order in the combined digest", () => {
   assert.deepEqual(result.market.shifts, baseline.market.shifts);
 });
 
+test("parses only one exact v2 expected authoritative state", () => {
+  const expectedState = planShiftPlanningBundle(bundleInput()).expectedState;
+  assert.deepEqual(
+    parseShiftPlanningExpectedState(structuredClone(expectedState)),
+    expectedState,
+  );
+
+  for (const invalid of [
+    {...structuredClone(expectedState), schemaVersion: 1},
+    {...structuredClone(expectedState), unexpected: true},
+    {
+      ...structuredClone(expectedState),
+      transactionMeasurementAuthority: {
+        ...expectedState.transactionMeasurementAuthority,
+        unexpected: true,
+      },
+    },
+    {
+      ...structuredClone(expectedState),
+      authoritativeState: {
+        ...expectedState.authoritativeState,
+        authoritativeDigest:
+          `shift-planning:v1:sha256:${"0".repeat(64)}`,
+      },
+    },
+  ]) {
+    assert.throws(
+      () => parseShiftPlanningExpectedState(invalid),
+      errorCode("invalid_planning_state"),
+    );
+  }
+});
+
+test("requires fairness state to equal the exact authoritative read-set", () => {
+  const snapshot = fairnessSnapshot();
+  const captured = authoritativeState(snapshot);
+  snapshot.rotations.delivery.lastIdempotencyKey = "other-operation";
+
+  assert.throws(
+    () => planShiftPlanningBundle(bundleInput({
+      authoritativeState: captured,
+      fairnessSnapshot: snapshot,
+    })),
+    errorCode("invalid_planning_state"),
+  );
+
+  const forged = structuredClone(captured);
+  forged.authoritativeDigest =
+    `shift-planning:v1:sha256:${"0".repeat(64)}`;
+  assert.throws(
+    () => planShiftPlanningBundle(bundleInput({authoritativeState: forged})),
+    errorCode("invalid_planning_state"),
+  );
+});
+
+test("binds maintenance and aggregate-only drift into state and manifests", () => {
+  const baseline = planShiftPlanningBundle(bundleInput());
+  const maintenanceSnapshot = fairnessSnapshot();
+  const changedMaintenance = planShiftPlanningBundle(bundleInput({
+    fairnessSnapshot: maintenanceSnapshot,
+    authoritativeState: authoritativeState(maintenanceSnapshot, {
+      intakeBarrier: {
+        revision: "barrier-v2",
+        digest: `shift-planning:v1:sha256:${"b".repeat(64)}`,
+        verifiedAtMillis: 1_782_643_110_000,
+      },
+      lastTransitionId: "maintenance-enter-2",
+    }),
+  }));
+  const aggregateSnapshot = fairnessSnapshot();
+  aggregateSnapshot.rotations.market.lastIdempotencyKey = "rotation-market-8";
+  const changedAggregate = planShiftPlanningBundle(bundleInput({
+    fairnessSnapshot: aggregateSnapshot,
+  }));
+
+  for (const changed of [changedMaintenance, changedAggregate]) {
+    assert.notEqual(
+      createShiftPlanningDigest(changed.expectedState),
+      createShiftPlanningDigest(baseline.expectedState),
+    );
+    assert.notEqual(
+      changed.transactionRequirements.forwardManifestDigest,
+      baseline.transactionRequirements.forwardManifestDigest,
+    );
+    assert.notEqual(
+      changed.transactionRequirements.inverseManifestDigest,
+      baseline.transactionRequirements.inverseManifestDigest,
+    );
+    assert.notEqual(changed.bundleDigest, baseline.bundleDigest);
+    assert.notEqual(changed.bundleRevision, baseline.bundleRevision);
+  }
+});
+
+test("allows open preview but requires a closed-state re-preview for stage", () => {
+  const openSnapshot = fairnessSnapshot();
+  const openState = authoritativeState(openSnapshot, {
+    maintenanceStatus: "open",
+    intakeBarrier: null,
+    lastTransitionId: "maintenance-abort-1",
+  });
+  const openPreview = planShiftPlanningBundle(bundleInput({
+    authoritativeState: openState,
+    fairnessSnapshot: openSnapshot,
+  }));
+  assert.equal(openPreview.mode, "preview");
+  assert.throws(
+    () => stageFromPreview(openPreview, {
+      authoritativeState: openState,
+      fairnessSnapshot: openSnapshot,
+    }),
+    errorCode("maintenance_state_conflict"),
+  );
+
+  const closedSnapshot = fairnessSnapshot();
+  closedSnapshot.writeEpoch = 8;
+  const closedState = authoritativeState(closedSnapshot, {
+    stateRevision: 12,
+    lastTransitionId: "maintenance-enter-2",
+  });
+  assert.throws(
+    () => planShiftPlanningBundle(bundleInput({
+      request: request({
+        requestId: "request-stage-after-entry",
+        expectedWriteEpoch: 8,
+        mode: "stage",
+        binding: previewBinding(openPreview),
+      }),
+      authoritativeState: closedState,
+      fairnessSnapshot: closedSnapshot,
+      persistedPreview: openPreview.previewReceipt,
+      transactionEvidence: transactionEvidence(openPreview),
+    })),
+    errorCode("preview_binding_mismatch"),
+  );
+
+  const closedPreview = planShiftPlanningBundle(bundleInput({
+    request: request({
+      requestId: "request-preview-after-entry",
+      expectedWriteEpoch: 8,
+    }),
+    authoritativeState: closedState,
+    fairnessSnapshot: closedSnapshot,
+  }));
+  assert.doesNotThrow(() => planShiftPlanningBundle(bundleInput({
+    request: request({
+      requestId: "request-stage-after-repreview",
+      expectedWriteEpoch: 8,
+      mode: "stage",
+      binding: previewBinding(closedPreview),
+    }),
+    authoritativeState: closedState,
+    fairnessSnapshot: closedSnapshot,
+    persistedPreview: closedPreview.previewReceipt,
+    transactionEvidence: transactionEvidence(closedPreview),
+  })));
+});
+
 test("binds active lineage and transaction policy into the bundle digest", () => {
   const baseline = planShiftPlanningBundle(bundleInput());
   const changedLineage = fairnessSnapshot();
@@ -534,6 +750,11 @@ test("binds stage and activate to the exact deterministic candidate", () => {
     activate.stagedCandidateDigest,
     stage.stagedCandidateDigest,
   );
+  assert.equal(preview.previewReceipt.schemaVersion, 2);
+  assert.equal(stage.stagedCandidate.schemaVersion, 2);
+  assert.equal(stage.transactionEvidence.schemaVersion, 2);
+  assert.equal(stage.transactionEvidence.forward.schemaVersion, 2);
+  assert.equal(stage.transactionEvidence.inverse.schemaVersion, 2);
 
   const drifted = fairnessSnapshot();
   drifted.overrides.revision = "overrides-3";
@@ -713,6 +934,41 @@ test("freezes only a boundary-active cohort in the activation manifest", () => {
   );
 });
 
+test("requires persisted cohort freeze to match the cursor boundary", () => {
+  const boundary = fairnessSnapshot();
+  assert.doesNotThrow(() => planShiftPlanningBundle(bundleInput({
+    fairnessSnapshot: boundary,
+  })));
+
+  const withinRound = fairnessSnapshot();
+  withinRound.rotations.market.cursor.nextMemberIndex = 1;
+  withinRound.rotations.market.cohortFrozen = true;
+  withinRound.rotations.market.frozenCohortUserIds = [
+    ...withinRound.rotations.market.cursor.cohortUserIds,
+  ];
+  assert.doesNotThrow(() => planShiftPlanningBundle(bundleInput({
+    fairnessSnapshot: withinRound,
+  })));
+
+  const frozenAtBoundary = structuredClone(withinRound);
+  frozenAtBoundary.rotations.market.cursor.nextMemberIndex = 0;
+  assert.throws(
+    () => planShiftPlanningBundle(bundleInput({
+      fairnessSnapshot: frozenAtBoundary,
+    })),
+    errorCode("invalid_planning_state"),
+  );
+
+  const unfrozenWithinRound = fairnessSnapshot();
+  unfrozenWithinRound.rotations.market.cursor.nextMemberIndex = 1;
+  assert.throws(
+    () => planShiftPlanningBundle(bundleInput({
+      fairnessSnapshot: unfrozenWithinRound,
+    })),
+    errorCode("invalid_planning_state"),
+  );
+});
+
 test("requires one exact migration baseline across bundle and rotations", () => {
   const baseline = {
     revision: "baseline-2026-v1",
@@ -736,12 +992,16 @@ test("requires one exact migration baseline across bundle and rotations", () => 
 
 test("allows preview but blocks stage and activate on frozen-cohort drift", () => {
   const snapshot = fairnessSnapshot();
-  for (const type of ["delivery", "market"]) {
-    const current = snapshot.rotations[type];
-    current.cohortFrozen = true;
-    current.frozenCohortUserIds = [...current.cursor.cohortUserIds];
-  }
   snapshot.roster.at(-1).isActive = false;
+  snapshot.rotations.delivery = rotation(
+    "delivery",
+    memberIds.slice(0, -1),
+  );
+  snapshot.rotations.market.cursor.nextMemberIndex = 1;
+  snapshot.rotations.market.cohortFrozen = true;
+  snapshot.rotations.market.frozenCohortUserIds = [
+    ...snapshot.rotations.market.cursor.cohortUserIds,
+  ];
   const preview = planShiftPlanningBundle(bundleInput({
     fairnessSnapshot: snapshot,
   }));

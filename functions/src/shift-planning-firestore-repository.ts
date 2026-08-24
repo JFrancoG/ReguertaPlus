@@ -8,6 +8,7 @@ import {
 import {
   SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION,
   ShiftPlanningBundleResult,
+  parseShiftPlanningExpectedState,
   parseShiftPlanningPreviewReceipt,
   parseShiftPlanningStagedCandidateArtifact,
   validateShiftPlanningStagedCandidate,
@@ -649,28 +650,51 @@ const assertOperationMatchesRequest = (
 const planningRoot = (environment: ShiftPlanningEnvironment): string =>
   `${environment}/plus-collections`;
 
+const resultExpectedState = (
+  result: ShiftPlanningBundleResult,
+): ShiftPlanningBundleResult["expectedState"] => {
+  const expectedState = parseShiftPlanningExpectedState(result.expectedState);
+  if (
+    createShiftPlanningDigest(expectedState) !==
+      createShiftPlanningDigest(result.expectedState) ||
+    expectedState.authoritativeState.environment !== result.environment ||
+    expectedState.authoritativeState.maintenance.writeEpoch !==
+      result.expectedWriteEpoch ||
+    expectedState.authoritativeState.maintenance.activeRevision !==
+      result.expectedActiveRevision
+  ) {
+    return failPersistence(
+      "Planning result has invalid authoritative-state lineage.",
+    );
+  }
+  return expectedState;
+};
+
 const bundleArtifact = (
   result: ShiftPlanningBundleResult,
-): ShiftPlanningPersistedBundleArtifact => ({
-  schemaVersion: result.schemaVersion,
-  bundleId: result.bundleId,
-  environment: result.environment,
-  bundleRevision: result.bundleRevision,
-  bundleDigest: result.bundleDigest,
-  expectedWriteEpoch: result.expectedWriteEpoch,
-  activationWriteEpoch: result.activationWriteEpoch,
-  expectedActiveRevision: result.expectedActiveRevision,
-  expectedState: result.expectedState,
-  frontiers: result.frontiers,
-  delivery: result.delivery,
-  market: result.market,
-  manifests: result.manifests,
-  budgets: result.budgets,
-  releaseLeaseIntents: result.releaseLeaseIntents,
-  syncCommands: result.syncCommands,
-  heldNotificationIntents: result.heldNotificationIntents,
-  transactionRequirements: result.transactionRequirements,
-});
+): ShiftPlanningPersistedBundleArtifact => {
+  const expectedState = resultExpectedState(result);
+  return {
+    schemaVersion: result.schemaVersion,
+    bundleId: result.bundleId,
+    environment: result.environment,
+    bundleRevision: result.bundleRevision,
+    bundleDigest: result.bundleDigest,
+    expectedWriteEpoch: result.expectedWriteEpoch,
+    activationWriteEpoch: result.activationWriteEpoch,
+    expectedActiveRevision: result.expectedActiveRevision,
+    expectedState,
+    frontiers: result.frontiers,
+    delivery: result.delivery,
+    market: result.market,
+    manifests: result.manifests,
+    budgets: result.budgets,
+    releaseLeaseIntents: result.releaseLeaseIntents,
+    syncCommands: result.syncCommands,
+    heldNotificationIntents: result.heldNotificationIntents,
+    transactionRequirements: result.transactionRequirements,
+  };
+};
 
 const persistedBundle = (
   result: ShiftPlanningBundleResult,
@@ -690,10 +714,17 @@ const persistedBundle = (
 const parsePersistedBundle = (value: unknown): ShiftPlanningPersistedBundle => {
   const bundle = requireRecord(value, "persisted bundle");
   requireExactKeys(bundle, bundleKeys, "persisted bundle");
-  const artifact = requireRecord(
+  const rawArtifact = requireRecord(
     bundle.artifact,
     "persisted bundle artifact",
-  ) as ShiftPlanningPersistedBundleArtifact;
+  );
+  const expectedState = parseShiftPlanningExpectedState(
+    rawArtifact.expectedState,
+  );
+  const artifact = {
+    ...rawArtifact,
+    expectedState,
+  } as ShiftPlanningPersistedBundleArtifact;
   const parsed: ShiftPlanningPersistedBundle = {
     schemaVersion: SHIFT_PLANNING_PERSISTENCE_SCHEMA_VERSION,
     environment: requireEnvironment(bundle.environment),
@@ -709,10 +740,16 @@ const parsePersistedBundle = (value: unknown): ShiftPlanningPersistedBundle => {
   if (
     bundle.schemaVersion !== SHIFT_PLANNING_PERSISTENCE_SCHEMA_VERSION ||
     createShiftPlanningDigest(artifact) !== parsed.artifactDigest ||
+    artifact.schemaVersion !== SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION ||
     artifact.environment !== parsed.environment ||
     artifact.bundleId !== parsed.bundleId ||
     artifact.bundleRevision !== parsed.bundleRevision ||
-    artifact.bundleDigest !== parsed.bundleDigest
+    artifact.bundleDigest !== parsed.bundleDigest ||
+    expectedState.authoritativeState.environment !== parsed.environment ||
+    artifact.expectedWriteEpoch !==
+      expectedState.authoritativeState.maintenance.writeEpoch ||
+    artifact.expectedActiveRevision !==
+      expectedState.authoritativeState.maintenance.activeRevision
   ) {
     return failPersistence("Persisted bundle lineage is invalid.");
   }

@@ -31,10 +31,26 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
 - [x] Define stable request terminal summaries and localized failure codes.
 - [ ] Define backend-owned monotonic maintenance/write epoch, active-revision
   preconditions, stable stale-write failures, and the affected-writer inventory.
+  - [x] Implement the exact maintenance/rotation codecs and one transactional
+    three-document authoritative digest with stable epoch, active-lineage, and
+    read-set conflict classification.
+  - [ ] Remaining: inventory and migrate or deny every affected app/admin,
+    swap, override, calendar, Sheets-import, and backend-command writer.
 - [ ] Define the no-gap entry barrier (external/Rules deny read-back followed by the
   atomic backend close/epoch bump) plus atomic activation, abort/reopen, and recovery
   transitions. Include epoch/revision in digest, forward/inverse manifests/budgets,
   idempotency keys, and failure injection. Never restore/reuse an epoch.
+  - [x] Implement local/emulator-only idempotent entry and pre-activation abort
+    CAS. Each transition advances `stateRevision` and `writeEpoch` exactly once,
+    preserves active lineage, records immutable replay evidence, and revalidates
+    entry ownership plus null release leases on terminal abort replay.
+  - [x] Bind bundle schema v2, both manifests, preview receipts, and staged
+    candidates to the full authoritative maintenance-plus-rotations read-set.
+    Preview may inspect open or closed state; stage requires the same closed
+    state and therefore requires a new closed-state preview after maintenance
+    entry.
+  - [ ] Remaining: trusted external barrier verification, activation/recovery
+    transitions, crash injection, and governed reopen.
 - [x] Add RED eligibility cases for inactive members, real producers, common
   purchase managers, and catalog flags.
 - [x] Add RED bootstrap cases for valid state/history/mapping/new queue, randomized
@@ -67,6 +83,11 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
 - [x] Implement the single canonical eligibility predicate.
 - [ ] Implement a Firestore rotation-state repository with optimistic version or
   lease ownership and idempotency keys.
+  - [x] Read `shiftPlanningState/current` and both rotation aggregates in one
+    transaction and bind them to one deterministic authoritative digest. Missing,
+    corrupt, cross-lineage, or competing state fails closed; no bootstrap occurs.
+  - [ ] Remaining: governed rotation writes, activation/recovery ownership, and
+    release-lease reconciliation.
 - [x] Implement fail-closed typed bootstrap precedence. Require the last unambiguous
   eligible registered delivery helper as the first new owner/effective lead; never
   infer owner from swapped assignment or silently rewrite conflicting helper evidence.
@@ -112,9 +133,12 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
     preview bundle/receipt, persisted-preview stage, non-overwriting candidate
     header, terminal replay integrity, and candidate-only read-only activation
     preflight are covered in the Firestore emulator.
+  - [x] Authoritative binding cut: after claim, preview loads the full current
+    read-set; stage loads the exact persisted preview and then the current
+    read-set. Both reject a resolver result that does not bind that exact state.
   - [ ] Remaining: obtain real adapter measurements, materialize inspectable
-    candidate positions, recheck the live input snapshot, and execute activation
-    through the maintenance/publication CAS.
+    candidate positions, recheck the complete live input snapshot during
+    activation, and execute activation through the maintenance/publication CAS.
 - [ ] Include membership, rotation, policy/config/calendar override, and enabled
   credit-ledger versions plus any migration-baseline revision/digest in the
   candidate lineage; transactionally recheck them and commit planned credit
@@ -145,7 +169,8 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
     and replay without artifact overwrite.
   - [x] Add the SDK-free local request orchestrator: claim before planning,
     short-circuit busy/replay, load persisted preview for stage, terminalize only
-    typed deterministic failures, and keep activate candidate-only/read-only.
+    typed deterministic failures, load the authoritative state for preview/stage,
+    and keep activate candidate-only/read-only.
   - [ ] Extend the lifecycle to the future v2 activation runtime and its recovery
     and retention policy before checking the parent task.
 - [ ] Write client-compatible `source = app` plus planner provenance.
@@ -297,6 +322,12 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
   lease indefinitely and preserve `unknown` as possibly accepted evidence.
 - [ ] Prove any post-stage fairness-input or enabled credit-ledger change
   invalidates activation without a partial cursor/credit transition.
+  - [x] Local artifact cut: maintenance barrier/status/revision/transition drift
+    and either rotation-aggregate drift change the expected-state/manifests and
+    invalidate the preview-to-stage chain; candidate and receipt retain the
+    transitive `expectedStateDigest` binding.
+  - [ ] Remaining: transactionally re-read every live fairness input in the
+    activation CAS and prove the zero-public-write failure path.
 - [ ] Prove current supported flat readers never see candidate or partial data,
   and transaction-budget overflow makes no public write and blocks rollout for a
   mobile active-revision migration.

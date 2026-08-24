@@ -1,4 +1,6 @@
 import {
+  consumeRotationPositions,
+  SHIFT_PLANNING_SCHEMA_VERSION,
   ShiftPlanningError,
   ShiftPlanningFailureCode,
   ShiftRotationCursor,
@@ -195,6 +197,41 @@ const exactMaintenanceKeys = [
   "activeDigest",
   "intakeBarrier",
   "lastTransitionId",
+] as const;
+
+const exactRotationAggregateKeys = [
+  "schemaVersion",
+  "type",
+  "stateRevision",
+  "cursor",
+  "planningFrontierSeasonStartYear",
+  "cohortFrozen",
+  "frozenCohortUserIds",
+  "activeRevision",
+  "activeDigest",
+  "lastIdempotencyKey",
+  "migrationBaseline",
+  "releaseLease",
+] as const;
+
+const exactRotationCursorKeys = [
+  "schemaVersion",
+  "type",
+  "cohortUserIds",
+  "roundNumber",
+  "nextMemberIndex",
+] as const;
+
+const exactReleaseLeaseKeys = [
+  "type",
+  "bundleId",
+  "bundleRevision",
+  "bundleDigest",
+  "leaseEpoch",
+  "ownerOperationId",
+  "state",
+  "acquiredAtMillis",
+  "deadlineAtMillis",
 ] as const;
 
 const requireRecord = (
@@ -518,10 +555,12 @@ export const parseShiftPlanningMaintenanceState = (
   }
   const intakeBarrier = state.intakeBarrier === null ?
     null : parseIntakeBarrier(state.intakeBarrier);
-  if (state.maintenanceStatus === "closed" && intakeBarrier === null) {
+  if (
+    (state.maintenanceStatus === "closed") !== (intakeBarrier !== null)
+  ) {
     throw new ShiftPlanningError(
       "invalid_planning_state",
-      "Closed maintenance requires a verified intake barrier.",
+      "Maintenance status and intake barrier are inconsistent.",
     );
   }
   return {
@@ -541,6 +580,233 @@ export const parseShiftPlanningMaintenanceState = (
     lastTransitionId: requireIdentifier(
       state.lastTransitionId,
       "invalid_planning_state",
+    ),
+  };
+};
+
+const requireStateIdentifierArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    throw new ShiftPlanningError(
+      "invalid_planning_state",
+      "Planning identifier collection is invalid.",
+    );
+  }
+  const identifiers = value.map((item) =>
+    requireIdentifier(item, "invalid_planning_state"));
+  if (new Set(identifiers).size !== identifiers.length) {
+    throw new ShiftPlanningError(
+      "invalid_planning_state",
+      "Planning identifier collection contains duplicates.",
+    );
+  }
+  return identifiers;
+};
+
+const parseShiftRotationCursor = (
+  value: unknown,
+  type: ShiftRotationType,
+): ShiftRotationCursor => {
+  const cursor = requireRecord(value, "invalid_planning_state");
+  requireExactKeys(
+    cursor,
+    exactRotationCursorKeys,
+    "invalid_planning_state",
+  );
+  const candidate: ShiftRotationCursor = {
+    schemaVersion: SHIFT_PLANNING_SCHEMA_VERSION,
+    type,
+    cohortUserIds: requireStateIdentifierArray(cursor.cohortUserIds),
+    roundNumber: requireNonNegativeInteger(
+      cursor.roundNumber,
+      "invalid_planning_state",
+    ),
+    nextMemberIndex: requireNonNegativeInteger(
+      cursor.nextMemberIndex,
+      "invalid_planning_state",
+    ),
+  };
+  if (
+    cursor.schemaVersion !== SHIFT_PLANNING_SCHEMA_VERSION ||
+    cursor.type !== type
+  ) {
+    throw new ShiftPlanningError(
+      "invalid_planning_state",
+      "Rotation cursor discriminator is invalid.",
+    );
+  }
+  try {
+    return consumeRotationPositions(candidate, 0).nextRotation;
+  } catch {
+    throw new ShiftPlanningError(
+      "invalid_planning_state",
+      "Rotation cursor is invalid.",
+    );
+  }
+};
+
+const parseShiftPlanningLineage = (
+  value: unknown,
+): ShiftPlanningLineage | null => {
+  if (value === null) return null;
+  const lineage = requireRecord(value, "invalid_planning_state");
+  requireExactKeys(
+    lineage,
+    ["revision", "digest"],
+    "invalid_planning_state",
+  );
+  return {
+    revision: requireIdentifier(lineage.revision, "invalid_planning_state"),
+    digest: requireDigest(lineage.digest, "invalid_planning_state"),
+  };
+};
+
+const parseShiftPlanningReleaseLease = (
+  value: unknown,
+  type: ShiftRotationType,
+): ShiftPlanningReleaseLease | null => {
+  if (value === null) return null;
+  const lease = requireRecord(value, "invalid_planning_state");
+  requireExactKeys(
+    lease,
+    exactReleaseLeaseKeys,
+    "invalid_planning_state",
+  );
+  const acquiredAtMillis = requireNonNegativeInteger(
+    lease.acquiredAtMillis,
+    "invalid_planning_state",
+  );
+  const deadlineAtMillis = requireNonNegativeInteger(
+    lease.deadlineAtMillis,
+    "invalid_planning_state",
+  );
+  if (
+    lease.type !== type ||
+    (
+      lease.state !== "sealed" &&
+      lease.state !== "releasing" &&
+      lease.state !== "degraded"
+    ) ||
+    deadlineAtMillis < acquiredAtMillis
+  ) {
+    throw new ShiftPlanningError(
+      "invalid_planning_state",
+      "Planning release lease is invalid.",
+    );
+  }
+  return {
+    type,
+    bundleId: requireIdentifier(lease.bundleId, "invalid_planning_state"),
+    bundleRevision: requireIdentifier(
+      lease.bundleRevision,
+      "invalid_planning_state",
+    ),
+    bundleDigest: requireDigest(
+      lease.bundleDigest,
+      "invalid_planning_state",
+    ),
+    leaseEpoch: requireNonNegativeInteger(
+      lease.leaseEpoch,
+      "invalid_planning_state",
+    ),
+    ownerOperationId: requireIdentifier(
+      lease.ownerOperationId,
+      "invalid_planning_state",
+    ),
+    state: lease.state,
+    acquiredAtMillis,
+    deadlineAtMillis,
+  };
+};
+
+export const parseShiftRotationAggregateWire = (
+  value: unknown,
+  expectedType: ShiftRotationType,
+): ShiftRotationAggregateWire => {
+  const aggregate = requireRecord(value, "invalid_planning_state");
+  requireExactKeys(
+    aggregate,
+    exactRotationAggregateKeys,
+    "invalid_planning_state",
+  );
+  if (
+    aggregate.schemaVersion !== SHIFT_PLANNING_WIRE_SCHEMA_VERSION ||
+    aggregate.type !== expectedType ||
+    typeof aggregate.cohortFrozen !== "boolean"
+  ) {
+    throw new ShiftPlanningError(
+      "invalid_planning_state",
+      "Rotation aggregate discriminator is invalid.",
+    );
+  }
+  const cursor = parseShiftRotationCursor(aggregate.cursor, expectedType);
+  const frozenCohortUserIds = requireStateIdentifierArray(
+    aggregate.frozenCohortUserIds,
+  );
+  const frozenCohortMatches =
+    cursor.cohortUserIds.length === frozenCohortUserIds.length &&
+    cursor.cohortUserIds.every(
+      (userId, index) => userId === frozenCohortUserIds[index],
+    );
+  const shouldFreezeCohort = cursor.nextMemberIndex !== 0;
+  if (
+    aggregate.cohortFrozen !== shouldFreezeCohort ||
+    (shouldFreezeCohort && !frozenCohortMatches) ||
+    (!shouldFreezeCohort && frozenCohortUserIds.length !== 0)
+  ) {
+    throw new ShiftPlanningError(
+      "invalid_planning_state",
+      "Rotation cohort freeze state is inconsistent.",
+    );
+  }
+  const activeRevision = requireNullableRevision(
+    aggregate.activeRevision,
+    "invalid_planning_state",
+  );
+  const activeDigest = aggregate.activeDigest === null ?
+    null : requireDigest(aggregate.activeDigest, "invalid_planning_state");
+  if ((activeRevision === null) !== (activeDigest === null)) {
+    throw new ShiftPlanningError(
+      "invalid_planning_state",
+      "Rotation active revision and digest must change together.",
+    );
+  }
+  const planningFrontierSeasonStartYear = requireNonNegativeInteger(
+    aggregate.planningFrontierSeasonStartYear,
+    "invalid_planning_state",
+  );
+  if (
+    planningFrontierSeasonStartYear < 2000 ||
+    planningFrontierSeasonStartYear > 9998
+  ) {
+    throw new ShiftPlanningError(
+      "invalid_planning_state",
+      "Rotation planning frontier is invalid.",
+    );
+  }
+  return {
+    schemaVersion: SHIFT_PLANNING_WIRE_SCHEMA_VERSION,
+    type: expectedType,
+    stateRevision: requireNonNegativeInteger(
+      aggregate.stateRevision,
+      "invalid_planning_state",
+    ),
+    cursor,
+    planningFrontierSeasonStartYear,
+    cohortFrozen: aggregate.cohortFrozen,
+    frozenCohortUserIds,
+    activeRevision,
+    activeDigest,
+    lastIdempotencyKey: aggregate.lastIdempotencyKey === null ?
+      null : requireIdentifier(
+        aggregate.lastIdempotencyKey,
+        "invalid_planning_state",
+      ),
+    migrationBaseline: parseShiftPlanningLineage(
+      aggregate.migrationBaseline,
+    ),
+    releaseLease: parseShiftPlanningReleaseLease(
+      aggregate.releaseLease,
+      expectedType,
     ),
   };
 };

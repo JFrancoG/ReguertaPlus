@@ -10,6 +10,8 @@
     "test:shift-planning:lifecycle": "npm run build && node --test test/shift-planning-request-lifecycle.test.cjs",
     "test:shift-planning:repository:unit": "METADATA_SERVER_DETECTION=none node --test --test-concurrency=1 test/shift-planning-firestore-repository.test.cjs",
     "test:shift-planning:repository": "npm run build && firebase emulators:exec --config ../firebase.strict.json --project demo-reguerta-hu082-repository --only firestore \"npm run test:shift-planning:repository:unit\"",
+    "test:shift-planning:state:emulator:unit": "METADATA_SERVER_DETECTION=none node --test --test-concurrency=1 test/shift-planning-firestore-state-repository.test.cjs",
+    "test:shift-planning:state": "npm run build && firebase emulators:exec --config ../firebase.strict.json --project demo-reguerta-hu082-state --only firestore \"npm run test:shift-planning:state:emulator:unit\"",
     "test:migrations": "npm run build && node --test test/migration-scripts.test.cjs",
     "backfill:auth-links": "node scripts/backfill-auth-links.cjs",
     "backfill:legacy-auth-links": "node scripts/backfill-legacy-auth-links.cjs",

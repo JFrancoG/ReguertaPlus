@@ -364,13 +364,21 @@ The pure contract and private repository enforce this artifact chain:
 1. `preview` produces a digest-bound receipt containing its request and bundle
    identity, environment, requester, and `expectedStateDigest`. Completing
    preview atomically persists the immutable bundle plus that receipt and the
-   terminal lifecycle.
+   terminal lifecycle. After claim, the lifecycle reads maintenance plus both
+   rotations coherently. Artifact schema v2 stores that complete normalized
+   read-set and its authoritative digest in the bundle's `expectedState`; the
+   receipt retains only the transitive digest. Preview accepts either open or
+   closed maintenance for inspection.
 2. `stage` must receive that exact persisted preview receipt and adapter-produced
    `transactionEvidence` for both the forward activation and inverse recovery
-   manifests. The repository reloads the source preview and bundle, then creates
-   without overwrite one `status = staged` header containing the source
-   preview/stage IDs, preview-receipt digest, expected-state digest, bundle
-   revision/digest, and complete transaction evidence.
+   manifests. It loads the persisted preview before a fresh authoritative-state
+   read, and the resolved bundle must bind exactly that read-set. Stage requires
+   closed maintenance and the same state as preview; maintenance entry therefore
+   invalidates an open-state preview and requires a new closed-state preview.
+   The repository reloads the source preview and bundle, then creates without
+   overwrite one `status = staged` header containing the source preview/stage
+   IDs, preview-receipt digest, expected-state digest, bundle revision/digest,
+   and complete transaction evidence.
 3. The current `activate` boundary is read-only preflight. It loads and verifies
    only the persisted staged candidate against `candidateId`, bundle lineage, and
    `candidateDigest`; it does not claim or complete the request and performs no
@@ -380,6 +388,9 @@ The pure contract and private repository enforce this artifact chain:
 The pure function remains side-effect free. The local/emulator repository proves
 private receipt, bundle, lifecycle, and candidate-header persistence, but does
 not yet materialize candidate positions or implement publication/activation CAS.
+Bundle, receipt, candidate, and transaction evidence use internal artifact schema
+v2 and `bundle-v2-*` revisions. The request remains `schemaVersion = 2`; the
+public wire terminal summary remains `schemaVersion = 1`.
 
 Transaction evidence is exact and adapter-specific for both directions. Each
 measurement binds `manifestDigest`, `documentWriteCount`,
@@ -390,10 +401,12 @@ per serialized transaction request. The pure budget counts planned document
 mutations, including the forward writes that persist recovery before-images; only
 the future publication-measurement adapter can serialize the real writes and
 provide byte/transform evidence. Measurement authority (`adapterRevision` and
-`indexConfigurationDigest`) is part of both the fairness snapshot and expected
-state, so changing it invalidates evidence and the staged candidate. Stage fails
-closed when either direction is missing, stale, does not match its
-manifest/budget, or exceeds either ceiling.
+`indexConfigurationDigest`) is part of both the fairness snapshot and the exact
+expected-state envelope. That envelope also contains the complete authoritative
+maintenance-plus-rotations read-set. Changing either authority or read-set
+invalidates evidence and the staged candidate. Stage fails closed when either
+direction is missing, stale, does not match its manifest/budget, or exceeds
+either ceiling.
 
 Other digest-bound pure bundle invariants are:
 
@@ -415,6 +428,10 @@ Other digest-bound pure bundle invariants are:
   reused or decremented. The immutable bundle persisted by preview predates
   activation and remains outside both write-sets: it is retained as replay
   evidence and is never updated, restored, or deleted.
+- Both manifests carry `expectedStateDigest` and
+  `expectedAuthoritativeDigest`. The forward manifest records the maintenance
+  `stateRevision` and `writeEpoch` transition. The before-image contract for
+  `shiftPlanningState/current` covers the complete maintenance document.
 
 ### 4.8.d HU-082 backend-only planning collections
 
@@ -440,17 +457,63 @@ All seven collections are backend-only: strict Rules deny every client read and
 write, including admin clients. Their internal field schemas are not a mobile
 contract in this cut.
 
+The implemented local state repository treats these exact documents as one
+authoritative CAS read-set:
+
+- `shiftPlanningState/current` contains `schemaVersion`, monotonic
+  `stateRevision` and `writeEpoch`, `maintenanceStatus`, paired
+  `activeRevision`/`activeDigest`, `intakeBarrier`, and `lastTransitionId`.
+  `open` requires a null barrier; `closed` requires exact verified barrier
+  evidence (`revision`, `digest`, `verifiedAtMillis`).
+- `shiftRotations/delivery` and `shiftRotations/market` contain the exact typed
+  aggregate, cursor, planning frontier, frozen-cohort state, paired active
+  lineage, last idempotency key, migration baseline, and optional release lease.
+  Both aggregates must match the global active lineage and each other's
+  migration baseline. The cohort is frozen exactly while its cursor is inside a
+  round; a round-boundary cursor requires `cohortFrozen = false` and an empty
+  frozen snapshot.
+- `shiftPlanningOperations/state-{transitionId}` stores immutable terminal
+  evidence for maintenance entry or pre-activation abort, including the exact
+  rotations needed to recompute both authoritative digests. An exact retry
+  replays its original result; an ID reused for another intent or altered digest
+  evidence fails closed.
+
+Local maintenance entry and pre-activation abort each update only `current` and
+create one operation record in a transaction. Both revisions advance exactly
+once, active lineage is preserved, and abort clears the current barrier so new
+entry requires new evidence; the immutable operation retains the prior proof.
+Abort also requires the exact persisted entry operation still to own the current
+read-set and both rotation release leases to be null. A terminal abort replay
+revalidates both conditions against persisted evidence before returning.
+This state transition does not verify or reopen the external Rules/IAM fence.
+Barrier verification time cannot follow the recorded transition commit time.
+Missing state is invalid and is never initialized or repaired implicitly.
+
+The same SDK-free normalizer supplies the bundle boundary. The bundle requires
+the legacy fairness rotation fields to equal both authoritative aggregates
+canonically, and persists the complete authoritative envelope plus measurement
+authority in schema-v2 `expectedState`. Barrier/status/revision/transition drift
+or any rotation aggregate drift changes the state and manifest digests. Preview
+receipts and staged candidates keep only `expectedStateDigest`, binding the same
+read-set transitively without duplicating it.
+
 Rollout state for this cut: the v2 wire parser, deterministic pure planners, and
-private Firestore repository exist as local/emulator code. The repository owns
-claim/lease/fencing/takeover/replay, atomically persists preview bundle plus
+private Firestore repositories exist as local/emulator code. The request
+repository owns claim/lease/fencing/takeover/replay, atomically persists preview bundle plus
 receipt, reloads persisted preview/bundle before creating a non-overwritten stage
 header, and offers candidate-only read-only activation preflight. An SDK-free
 local orchestrator transactionally routes and claims preview/stage before
-planning, short-circuits busy and terminal replay, reloads the exact preview for
-stage, terminalizes only typed deterministic failures, and routes activate to
-that no-write preflight without creating an operation.
+planning, short-circuits busy and terminal replay, loads authoritative state for
+preview, reloads the exact preview and then authoritative state for stage,
+rejects a resolver result bound to any other read-set, terminalizes only typed
+deterministic failures, and routes activate to that no-write preflight without
+creating an operation or reading state. The state repository
+atomically reads maintenance plus both rotations, derives one canonical CAS
+digest, and implements runtime-disconnected, idempotent maintenance entry and
+abort.
 Still pending and fail-closed are real byte/transform measurement,
-candidate-position materialization, maintenance/publication CAS and activation,
+candidate-position materialization, the trusted external intake barrier, writer
+migration, bundle-bound public activation/recovery CAS,
 a v2 trigger connected to the orchestrator, sync, notification and recovery
 consumers, mobile integration, deployment, and live data changes. The legacy
 `onShiftPlanningRequestCreated` implementation in `functions/src/index.ts`

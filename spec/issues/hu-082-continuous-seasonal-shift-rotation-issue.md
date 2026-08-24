@@ -200,6 +200,69 @@ is not exported from `src/index.ts`; public CAS, authoritative live snapshot
 validation, adapter measurement, candidate materialization, consumers, mobile
 integration, deployment, and every live mutation remain pending.
 
+## Local implementation checkpoint — authoritative state CAS cut (2026-08-24)
+
+The local backend now parses `shiftPlanningState/current` and both typed rotation
+aggregates with exact fields and invariants, then reads all three documents in one
+Firestore transaction and binds their normalized values to one environment-scoped
+authoritative digest. Missing documents, malformed cursors/cohorts/leases,
+cross-type data, divergent active lineage, or different migration baselines fail
+closed. There is deliberately no implicit bootstrap or repair.
+
+Two runtime-disconnected private transitions exercise the monotonic state
+contract in Firestore Emulator. Maintenance entry requires exact CAS plus
+already-verified barrier evidence; pre-activation abort requires the exact closed
+read-set. Both advance `stateRevision` and `writeEpoch` once, preserve active
+lineage, leave both
+rotation documents unchanged, and atomically create immutable
+`state-{transitionId}` evidence. Exact retries replay the original outcome even
+after later state changes, while stale epoch, active lineage, read-set, or reused
+intent IDs fail without mutation. Abort clears the current barrier; its operation
+record retains the historical proof, and no external fence is reopened here.
+Abort additionally proves that the exact entry operation still owns the read-set
+and refuses to reopen while either rotation retains a release lease. Terminal
+abort replay revalidates both persisted conditions before returning.
+
+This cut remains non-deployable and is not wired from `src/index.ts`. The real
+Rules/IAM/queue barrier and read-back, initial governed state/bootstrap,
+affected-writer migration, activation/recovery public CAS, candidate positions,
+measurements, consumers, mobile integration, Sheets access, deploys, and
+shared/live mutations remain pending.
+
+## Local implementation checkpoint — authoritative artifact binding cut (2026-08-24)
+
+The SDK-free authoritative-state builder is now the single normalizer used by
+the Firestore state repository and bundle boundary. Bundle, preview receipt,
+staged candidate, and transaction evidence move to artifact schema v2 and
+`bundle-v2-*` revisions, while the existing request contract and public terminal
+summary remain at schema versions 2 and 1 respectively. `expectedState` contains the complete normalized
+maintenance document, both rotation aggregates, their environment-scoped digest,
+and the transaction-measurement authority. Receipts and candidates carry only
+its digest, so they remain transitively bound without duplicating the read-set.
+
+Both forward and inverse manifests bind the expected-state and authoritative
+digests. The forward manifest records maintenance state-revision and write-epoch
+transitions; the inverse before-image contract now covers the complete maintenance
+document. Preview may inspect open or closed maintenance. Stage and the pure
+activate planner require closed maintenance and the exact preview state, so an
+open-state preview is deliberately invalid after maintenance entry and must be
+recreated against the closed state.
+
+The local request lifecycle now claims preview before loading the authoritative
+state, and for stage loads the exact persisted preview before a fresh
+authoritative read. It rejects any resolved bundle that does not bind that exact
+read-set. Busy, terminal replay, and candidate-only activate preflight still
+short-circuit without loading state; activation does not yet revalidate live
+inputs or execute a CAS. Unit and isolated-emulator regressions cover state and
+manifest drift, exact artifact schemas, re-preview after maintenance entry, and
+wire-summary compatibility.
+
+This remains runtime-disconnected and non-deployable. No trigger, Rules, IAM,
+Sheet, shared Firebase project, public shift, mobile client, or production state
+was changed. Real barrier verification, writer migration, adapter measurements,
+candidate positions, live activation/recovery CAS, consumers, and mobile read-back
+remain pending.
+
 ## Suggested labels
 
 - `type:feature`

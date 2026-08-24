@@ -16,7 +16,6 @@ import {
   ShiftPlanningError,
   ShiftRotationCursor,
   ShiftRotationType,
-  consumeRotationPositions,
 } from "./shift-planning-contract.js";
 import {
   SHIFT_PLANNING_DIGEST_PREFIX,
@@ -25,6 +24,10 @@ import {
   createShiftPlanningDigest,
   normalizeShiftPlanningFairnessSnapshot,
 } from "./shift-planning-digest.js";
+import {
+  ShiftPlanningAuthoritativeState,
+  parseShiftPlanningAuthoritativeState,
+} from "./shift-planning-state-persistence.js";
 import {isEligibleForShiftRotation} from "./shift-eligibility.js";
 import {
   ShiftPlanningEnvironment,
@@ -32,9 +35,10 @@ import {
   ShiftPlanningReleaseLease,
   ShiftPlanningRequestV2,
   parseShiftPlanningRequestV2,
+  parseShiftRotationAggregateWire,
 } from "./shift-planning-wire.js";
 
-export const SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION = 1 as const;
+export const SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION = 2 as const;
 export const SHIFT_PLANNING_FIRESTORE_TRANSACTION_WRITE_LIMIT = 500 as const;
 export const SHIFT_PLANNING_FIRESTORE_TRANSACTION_BYTE_LIMIT =
   10 * 1024 * 1024;
@@ -94,6 +98,7 @@ export type ShiftPlanningPreviewReceipt = {
 
 export type ShiftPlanningBundleInput = {
   request: unknown;
+  authoritativeState: unknown;
   fairnessSnapshot: unknown;
   delivery: {
     inheritedTargetPrefix?: RotationProjectionPrefix | null;
@@ -137,18 +142,8 @@ export type ShiftPlanningTransactionBudget = {
 };
 
 export type ShiftPlanningExpectedState = {
-  environment: ShiftPlanningEnvironment;
-  writeEpoch: number;
-  activeRevision: string | null;
-  activeDigest: string | null;
-  rotationStateRevisions: {
-    delivery: number;
-    market: number;
-  };
-  releaseLeases: {
-    delivery: ShiftPlanningReleaseLease | null;
-    market: ShiftPlanningReleaseLease | null;
-  };
+  schemaVersion: typeof SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION;
+  authoritativeState: ShiftPlanningAuthoritativeState;
   transactionMeasurementAuthority: {
     adapterRevision: string;
     indexConfigurationDigest: string;
@@ -200,6 +195,8 @@ export type ShiftPlanningReleaseLeaseIntent = {
 };
 
 export type ShiftPlanningActivationManifest = {
+  expectedStateDigest: string;
+  expectedAuthoritativeDigest: string;
   publicProjection: {
     deliveryShiftWrites: number;
     marketShiftWrites: number;
@@ -226,6 +223,8 @@ export type ShiftPlanningActivationManifest = {
     };
   };
   activeState: {
+    stateRevisionBefore: number;
+    stateRevisionAfter: number;
     writeEpochBefore: number;
     writeEpochAfter: number;
     activeRevisionBefore: string | null;
@@ -273,6 +272,8 @@ export type ShiftPlanningActivationManifest = {
 };
 
 export type ShiftPlanningRecoveryManifest = {
+  expectedStateDigest: string;
+  expectedAuthoritativeDigest: string;
   requiresPersistedBeforeImages: true;
   recoveryWriteEpoch: {
     kind: "incrementCurrent";
@@ -439,13 +440,10 @@ type BundleRotationSnapshot = {
 
 type BundleFairnessSnapshot = {
   normalized: ShiftPlanningFairnessSnapshot;
+  authoritativeState: ShiftPlanningAuthoritativeState;
   environment: ShiftPlanningEnvironment;
   activeRevision: string | null;
   activeDigest: string | null;
-  migrationBaseline: {
-    revision: string;
-    digest: string;
-  } | null;
   roster: readonly BundleRosterMember[];
   eligibleUserIds: readonly string[];
   delivery: BundleRotationSnapshot;
@@ -566,27 +564,6 @@ const requireSeasonStartYear = (
   return value as number;
 };
 
-const requireStringArray = (
-  value: unknown,
-  field: string,
-): string[] => {
-  if (!Array.isArray(value)) {
-    return failState(`${field} must be an array.`);
-  }
-  const values = value.map((item, index) =>
-    requireDocumentIdentifier(item, `${field}[${index}]`));
-  if (new Set(values).size !== values.length) {
-    return failState(`${field} must contain unique identifiers.`);
-  }
-  return values;
-};
-
-const sameOrderedValues = (
-  left: readonly string[],
-  right: readonly string[],
-): boolean => left.length === right.length &&
-  left.every((value, index) => value === right[index]);
-
 const sameValueSet = (
   left: readonly string[],
   right: readonly string[],
@@ -621,58 +598,6 @@ const sameMigrationBaseline = (
   right: {revision: string; digest: string} | null,
 ): boolean => left === null || right === null ? left === right :
   left.revision === right.revision && left.digest === right.digest;
-
-const parseReleaseLease = (
-  value: unknown,
-  type: ShiftRotationType,
-): ShiftPlanningReleaseLease | null => {
-  if (value === null) return null;
-  const lease = requireRecord(value, `rotations.${type}.releaseLease`);
-  const acquiredAtMillis = requireNonNegativeInteger(
-    lease.acquiredAtMillis,
-    `rotations.${type}.releaseLease.acquiredAtMillis`,
-  );
-  const deadlineAtMillis = requireNonNegativeInteger(
-    lease.deadlineAtMillis,
-    `rotations.${type}.releaseLease.deadlineAtMillis`,
-  );
-  if (
-    lease.type !== type ||
-    (
-      lease.state !== "sealed" &&
-      lease.state !== "releasing" &&
-      lease.state !== "degraded"
-    ) ||
-    typeof lease.bundleDigest !== "string" ||
-    !/^shift-planning:v1:sha256:[a-f0-9]{64}$/.test(lease.bundleDigest) ||
-    deadlineAtMillis < acquiredAtMillis
-  ) {
-    return failState(`rotations.${type}.releaseLease is invalid.`);
-  }
-  return {
-    type,
-    bundleId: requireDocumentIdentifier(
-      lease.bundleId,
-      `rotations.${type}.releaseLease.bundleId`,
-    ),
-    bundleRevision: requireDocumentIdentifier(
-      lease.bundleRevision,
-      `rotations.${type}.releaseLease.bundleRevision`,
-    ),
-    bundleDigest: lease.bundleDigest,
-    leaseEpoch: requireNonNegativeInteger(
-      lease.leaseEpoch,
-      `rotations.${type}.releaseLease.leaseEpoch`,
-    ),
-    ownerOperationId: requireDocumentIdentifier(
-      lease.ownerOperationId,
-      `rotations.${type}.releaseLease.ownerOperationId`,
-    ),
-    state: lease.state,
-    acquiredAtMillis,
-    deadlineAtMillis,
-  };
-};
 
 const parseWorkbookPartitionLease = (
   value: unknown,
@@ -781,72 +706,29 @@ const parseRotationSnapshot = (
   value: unknown,
   type: ShiftRotationType,
 ): BundleRotationSnapshot => {
-  const rotation = requireRecord(value, `rotations.${type}`);
-  if (
-    rotation.schemaVersion !== SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION ||
-    rotation.type !== type ||
-    typeof rotation.cohortFrozen !== "boolean"
-  ) {
-    return failState(`rotations.${type} has invalid discriminators.`);
-  }
-  requireNonNegativeInteger(
-    rotation.stateRevision,
-    `rotations.${type}.stateRevision`,
-  );
-  requireRecord(rotation.cursor, `rotations.${type}.cursor`);
-  const cursor = consumeRotationPositions(
-    rotation.cursor as ShiftRotationCursor,
-    0,
-  ).nextRotation;
-  if (cursor.type !== type) {
-    return failState(`rotations.${type}.cursor has the wrong type.`);
-  }
-  const frozenCohortUserIds = requireStringArray(
-    rotation.frozenCohortUserIds,
-    `rotations.${type}.frozenCohortUserIds`,
-  );
-  if (
-    rotation.cohortFrozen &&
-    !sameOrderedValues(cursor.cohortUserIds, frozenCohortUserIds)
-  ) {
-    return failState(
-      `rotations.${type} frozen cohort does not match its cursor.`,
-    );
-  }
-  if (!rotation.cohortFrozen && frozenCohortUserIds.length > 0) {
-    return failState(
-      `rotations.${type} cannot retain an unfrozen cohort snapshot.`,
-    );
-  }
+  const rotation = parseShiftRotationAggregateWire(value, type);
   return {
-    stateRevision: rotation.stateRevision as number,
-    cursor,
-    planningFrontierSeasonStartYear: requireSeasonStartYear(
+    stateRevision: rotation.stateRevision,
+    cursor: rotation.cursor,
+    planningFrontierSeasonStartYear:
       rotation.planningFrontierSeasonStartYear,
-      `rotations.${type}.planningFrontierSeasonStartYear`,
-    ),
     cohortFrozen: rotation.cohortFrozen,
-    frozenCohortUserIds,
-    activeRevision: requireNullableRevision(
-      rotation.activeRevision,
-      `rotations.${type}.activeRevision`,
-    ),
-    activeDigest: requireNullableDigest(
-      rotation.activeDigest,
-      `rotations.${type}.activeDigest`,
-    ),
-    migrationBaseline: parseMigrationBaseline(
-      rotation.migrationBaseline,
-      `rotations.${type}.migrationBaseline`,
-    ),
-    releaseLease: parseReleaseLease(rotation.releaseLease, type),
-    normalized: rotation,
+    frozenCohortUserIds: rotation.frozenCohortUserIds,
+    activeRevision: rotation.activeRevision,
+    activeDigest: rotation.activeDigest,
+    migrationBaseline: rotation.migrationBaseline,
+    releaseLease: rotation.releaseLease,
+    normalized: rotation as unknown as ShiftPlanningCanonicalJsonObject,
   };
 };
 
 const parseBundleFairnessSnapshot = (
   value: unknown,
+  authoritativeValue: unknown,
 ): BundleFairnessSnapshot => {
+  const authoritativeState = parseShiftPlanningAuthoritativeState(
+    authoritativeValue,
+  );
   const normalized = normalizeShiftPlanningFairnessSnapshot(value);
   const environment = normalized.environment;
   if (environment !== "develop" && environment !== "production") {
@@ -925,6 +807,20 @@ const parseBundleFairnessSnapshot = (
       "Rotation migration baselines do not match bundle lineage.",
     );
   }
+  if (
+    environment !== authoritativeState.environment ||
+    normalized.writeEpoch !== authoritativeState.maintenance.writeEpoch ||
+    activeRevision !== authoritativeState.maintenance.activeRevision ||
+    activeDigest !== authoritativeState.maintenance.activeDigest ||
+    createShiftPlanningDigest(delivery.normalized) !==
+      createShiftPlanningDigest(authoritativeState.rotations.delivery) ||
+    createShiftPlanningDigest(market.normalized) !==
+      createShiftPlanningDigest(authoritativeState.rotations.market)
+  ) {
+    return failState(
+      "Fairness snapshot does not match authoritative planning state.",
+    );
+  }
   const releaseLeaseDurationMillis = requireNonNegativeInteger(
     config.releaseLeaseDurationMillis,
     "config.releaseLeaseDurationMillis",
@@ -964,14 +860,20 @@ const parseBundleFairnessSnapshot = (
   }
   return {
     normalized,
-    environment,
-    activeRevision,
-    activeDigest,
-    migrationBaseline,
+    authoritativeState,
+    environment: authoritativeState.environment,
+    activeRevision: authoritativeState.maintenance.activeRevision,
+    activeDigest: authoritativeState.maintenance.activeDigest,
     roster,
     eligibleUserIds,
-    delivery,
-    market,
+    delivery: parseRotationSnapshot(
+      authoritativeState.rotations.delivery,
+      "delivery",
+    ),
+    market: parseRotationSnapshot(
+      authoritativeState.rotations.market,
+      "market",
+    ),
     deliveryWeekday: config.deliveryWeekday as BusinessWeekday,
     creditLedgerWriteCount,
     releaseLeaseDurationMillis,
@@ -988,7 +890,10 @@ const validateRequestAgainstSnapshot = (
   if (request.environment !== snapshot.environment) {
     failState("Planning request does not match authoritative state.");
   }
-  if (request.expectedWriteEpoch !== snapshot.normalized.writeEpoch) {
+  if (
+    request.expectedWriteEpoch !==
+      snapshot.authoritativeState.maintenance.writeEpoch
+  ) {
     throw new ShiftPlanningError(
       "stale_write_epoch",
       "Planning request write epoch is stale.",
@@ -1050,6 +955,15 @@ const validateModeGate = (
     snapshot.market,
     snapshot.eligibleUserIds,
   );
+  if (
+    request.mode !== "preview" &&
+    snapshot.authoritativeState.maintenance.maintenanceStatus !== "closed"
+  ) {
+    throw new ShiftPlanningError(
+      "maintenance_state_conflict",
+      "Stage and activate require closed planning maintenance.",
+    );
+  }
   if (
     request.mode !== "preview" &&
     (
@@ -1441,6 +1355,8 @@ const releaseLeaseIntentTemplates = (input: {
 const activationManifest = (input: {
   request: ShiftPlanningRequestV2;
   snapshot: BundleFairnessSnapshot;
+  expectedStateDigest: string;
+  expectedAuthoritativeDigest: string;
   activationWriteEpoch: number;
   delivery: DeliveryPlan;
   market: MarketPlan;
@@ -1454,6 +1370,8 @@ const activationManifest = (input: {
     ReleaseLeaseIntentTemplate,
   ];
 }): ShiftPlanningActivationManifest => ({
+  expectedStateDigest: input.expectedStateDigest,
+  expectedAuthoritativeDigest: input.expectedAuthoritativeDigest,
   publicProjection: {
     deliveryShiftWrites: input.delivery.shifts.length,
     marketShiftWrites: input.market.shifts.length,
@@ -1485,9 +1403,15 @@ const activationManifest = (input: {
     },
   },
   activeState: {
-    writeEpochBefore: input.request.expectedWriteEpoch,
+    stateRevisionBefore:
+      input.snapshot.authoritativeState.maintenance.stateRevision,
+    stateRevisionAfter:
+      input.snapshot.authoritativeState.maintenance.stateRevision + 1,
+    writeEpochBefore:
+      input.snapshot.authoritativeState.maintenance.writeEpoch,
     writeEpochAfter: input.activationWriteEpoch,
-    activeRevisionBefore: input.request.expectedActiveRevision,
+    activeRevisionBefore:
+      input.snapshot.authoritativeState.maintenance.activeRevision,
   },
   syncCommandTemplates: [
     {
@@ -1536,6 +1460,8 @@ const activationManifest = (input: {
 const recoveryManifest = (input: {
   request: ShiftPlanningRequestV2;
   snapshot: BundleFairnessSnapshot;
+  expectedStateDigest: string;
+  expectedAuthoritativeDigest: string;
   activationWriteEpoch: number;
   delivery: DeliveryPlan;
   market: MarketPlan;
@@ -1572,11 +1498,7 @@ const recoveryManifest = (input: {
     },
     {
       path: `${root}/shiftPlanningState/current`,
-      contract: {
-        writeEpoch: input.request.expectedWriteEpoch,
-        activeRevision: input.snapshot.activeRevision,
-        activeDigest: input.snapshot.activeDigest,
-      },
+      contract: input.snapshot.authoritativeState.maintenance,
     },
     {
       path: `${root}/shiftPlanningCandidates/${input.request.bundleId}`,
@@ -1603,6 +1525,8 @@ const recoveryManifest = (input: {
     });
   }
   return {
+    expectedStateDigest: input.expectedStateDigest,
+    expectedAuthoritativeDigest: input.expectedAuthoritativeDigest,
     requiresPersistedBeforeImages: true,
     recoveryWriteEpoch: {
       kind: "incrementCurrent",
@@ -1660,7 +1584,7 @@ const stableRequestInput = (request: ShiftPlanningRequestV2): object => ({
 
 const bundleRevision = (digest: string): string => {
   const hash = digest.slice(SHIFT_PLANNING_DIGEST_PREFIX.length);
-  return `bundle-v1-${hash.slice(0, 24)}`;
+  return `bundle-v2-${hash.slice(0, 24)}`;
 };
 
 const requireExactRecordFields = (
@@ -1675,6 +1599,51 @@ const requireExactRecordFields = (
   ) {
     failState(`${name} fields are not exact.`);
   }
+};
+
+/**
+ * Rehydrates the exact expected-state artifact persisted with a v2 bundle.
+ * @param {unknown} value Untrusted expected-state artifact.
+ * @return {ShiftPlanningExpectedState} Canonical authoritative read-set
+ * binding.
+ */
+export const parseShiftPlanningExpectedState = (
+  value: unknown,
+): ShiftPlanningExpectedState => {
+  const expectedState = requireRecord(value, "expectedState");
+  requireExactRecordFields(expectedState, [
+    "schemaVersion",
+    "authoritativeState",
+    "transactionMeasurementAuthority",
+  ], "expectedState");
+  if (expectedState.schemaVersion !== SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION) {
+    return failState("Expected-state schema is unsupported.");
+  }
+  const measurementAuthority = requireRecord(
+    expectedState.transactionMeasurementAuthority,
+    "expectedState.transactionMeasurementAuthority",
+  );
+  requireExactRecordFields(measurementAuthority, [
+    "adapterRevision",
+    "indexConfigurationDigest",
+  ], "expectedState.transactionMeasurementAuthority");
+  return {
+    schemaVersion: SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION,
+    authoritativeState: parseShiftPlanningAuthoritativeState(
+      expectedState.authoritativeState,
+    ),
+    transactionMeasurementAuthority: {
+      adapterRevision: requireDocumentIdentifier(
+        measurementAuthority.adapterRevision,
+        "expectedState.transactionMeasurementAuthority.adapterRevision",
+      ),
+      indexConfigurationDigest: requireNullableDigest(
+        measurementAuthority.indexConfigurationDigest,
+        "expectedState.transactionMeasurementAuthority." +
+          "indexConfigurationDigest",
+      ) || failState("Expected-state index digest must not be null."),
+    },
+  };
 };
 
 const parseTransactionMeasurement = (input: {
@@ -2301,13 +2270,20 @@ export const planShiftPlanningBundle = (
   input: ShiftPlanningBundleInput,
 ): ShiftPlanningBundleResult => {
   const request = parseShiftPlanningRequestV2(input.request);
-  const snapshot = parseBundleFairnessSnapshot(input.fairnessSnapshot);
+  const snapshot = parseBundleFairnessSnapshot(
+    input.fairnessSnapshot,
+    input.authoritativeState,
+  );
   validateRequestAgainstSnapshot(request, snapshot);
   validateModeGate(request, snapshot);
   const writeLimit = requireTransactionWriteLimit(
     input.transactionWriteLimit,
   );
-  if (request.expectedWriteEpoch >= Number.MAX_SAFE_INTEGER - 1) {
+  if (
+    request.expectedWriteEpoch >= Number.MAX_SAFE_INTEGER - 1 ||
+    snapshot.authoritativeState.maintenance.stateRevision ===
+      Number.MAX_SAFE_INTEGER
+  ) {
     failState("Activation and recovery epochs cannot advance safely.");
   }
   if (
@@ -2316,7 +2292,8 @@ export const planShiftPlanningBundle = (
   ) {
     failState("Workbook partition epochs cannot advance and recover safely.");
   }
-  const activationWriteEpoch = request.expectedWriteEpoch + 1;
+  const activationWriteEpoch =
+    snapshot.authoritativeState.maintenance.writeEpoch + 1;
   const deliveryFutureProjectionOccupancy =
     normalizeFutureProjectionOccupancy({
       value: input.delivery.futureProjectionOccupancy,
@@ -2353,6 +2330,13 @@ export const planShiftPlanningBundle = (
     deliveryFutureProjectionOccupancy,
     marketFutureProjectionOccupancy,
   });
+  const expectedState: ShiftPlanningExpectedState = {
+    schemaVersion: SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION,
+    authoritativeState: snapshot.authoritativeState,
+    transactionMeasurementAuthority:
+      snapshot.transactionMeasurementAuthority,
+  };
+  const expectedStateDigest = createShiftPlanningDigest(expectedState);
   const leaseIntentTemplates = releaseLeaseIntentTemplates({
     bundleId: request.bundleId,
     leaseEpoch: activationWriteEpoch,
@@ -2361,6 +2345,9 @@ export const planShiftPlanningBundle = (
   const forwardManifest = activationManifest({
     request,
     snapshot,
+    expectedStateDigest,
+    expectedAuthoritativeDigest:
+      snapshot.authoritativeState.authoritativeDigest,
     activationWriteEpoch,
     delivery,
     market,
@@ -2371,6 +2358,9 @@ export const planShiftPlanningBundle = (
   const inverseManifest = recoveryManifest({
     request,
     snapshot,
+    expectedStateDigest,
+    expectedAuthoritativeDigest:
+      snapshot.authoritativeState.authoritativeDigest,
     activationWriteEpoch,
     delivery,
     market,
@@ -2388,22 +2378,6 @@ export const planShiftPlanningBundle = (
   const budgets = {
     forward: transactionBudget("forward", budgetInput),
     inverse: transactionBudget("inverse", budgetInput),
-  };
-  const expectedState: ShiftPlanningExpectedState = {
-    environment: snapshot.environment,
-    writeEpoch: request.expectedWriteEpoch,
-    activeRevision: request.expectedActiveRevision,
-    activeDigest: snapshot.activeDigest,
-    rotationStateRevisions: {
-      delivery: snapshot.delivery.stateRevision,
-      market: snapshot.market.stateRevision,
-    },
-    releaseLeases: {
-      delivery: snapshot.delivery.releaseLease,
-      market: snapshot.market.releaseLease,
-    },
-    transactionMeasurementAuthority:
-      snapshot.transactionMeasurementAuthority,
   };
   const bundleDigest = createShiftPlanningDigest({
     schemaVersion: SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION,
@@ -2438,7 +2412,6 @@ export const planShiftPlanningBundle = (
   validateBinding(request, revision, bundleDigest);
   const forwardManifestDigest = createShiftPlanningDigest(forwardManifest);
   const inverseManifestDigest = createShiftPlanningDigest(inverseManifest);
-  const expectedStateDigest = createShiftPlanningDigest(expectedState);
   const persistedChain = resolvePersistedPlanningChain({
     request,
     revision,

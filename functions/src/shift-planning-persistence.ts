@@ -4,6 +4,7 @@ import {
   ShiftPlanningStagedCandidate,
 } from "./shift-planning-bundle.js";
 import {
+  SHIFT_PLANNING_WIRE_SCHEMA_VERSION,
   ShiftPlanningCompletedSummary,
   ShiftPlanningEnvironment,
   ShiftPlanningFailedSummary,
@@ -141,7 +142,7 @@ export type ShiftPlanningActivationPreflight = {
 export const buildShiftPlanningCompletedSummary = (
   result: ShiftPlanningBundleResult,
 ): ShiftPlanningCompletedSummary => ({
-  schemaVersion: result.schemaVersion,
+  schemaVersion: SHIFT_PLANNING_WIRE_SCHEMA_VERSION,
   status: "completed",
   mode: result.mode,
   bundleId: result.bundleId,

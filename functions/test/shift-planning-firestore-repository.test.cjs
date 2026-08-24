@@ -15,6 +15,9 @@ const {
   createShiftPlanningDigest,
 } = require("../lib/shift-planning-digest.js");
 const {
+  buildShiftPlanningAuthoritativeState,
+} = require("../lib/shift-planning-state-persistence.js");
+const {
   buildShiftPlanningFailureSummary,
 } = require("../lib/shift-planning-wire.js");
 
@@ -29,7 +32,7 @@ const ENVIRONMENT = "develop";
 const ROOT = `${ENVIRONMENT}/plus-collections`;
 const REQUESTED_AT_MILLIS = 1_782_643_200_000;
 const BUNDLE_DIGEST = `shift-planning:v1:sha256:${"a".repeat(64)}`;
-const BUNDLE_REVISION = "bundle-v1-aaaaaaaaaaaaaaaaaaaaaaaa";
+const BUNDLE_REVISION = "bundle-v2-aaaaaaaaaaaaaaaaaaaaaaaa";
 
 let app;
 let firestore;
@@ -159,8 +162,56 @@ const emptyBudget = (direction) => {
   };
 };
 
+const authoritativeState = () => buildShiftPlanningAuthoritativeState({
+  environment: ENVIRONMENT,
+  maintenance: {
+    schemaVersion: 1,
+    stateRevision: 12,
+    writeEpoch: 7,
+    maintenanceStatus: "closed",
+    activeRevision: "active-6",
+    activeDigest: `shift-planning:v1:sha256:${"b".repeat(64)}`,
+    intakeBarrier: {
+      revision: "rules-barrier-10",
+      digest: `shift-planning:v1:sha256:${"4".repeat(64)}`,
+      verifiedAtMillis: REQUESTED_AT_MILLIS - 1_000,
+    },
+    lastTransitionId: "enter-001",
+  },
+  rotations: {
+    delivery: rotationState("delivery", 4, ["member-1", "member-2"]),
+    market: rotationState("market", 5, ["member-2", "member-1"]),
+  },
+});
+
+function rotationState(type, stateRevision, cohortUserIds) {
+  return {
+    schemaVersion: 1,
+    type,
+    stateRevision,
+    cursor: {
+      schemaVersion: 1,
+      type,
+      cohortUserIds,
+      roundNumber: 2,
+      nextMemberIndex: 1,
+    },
+    planningFrontierSeasonStartYear: 2026,
+    cohortFrozen: true,
+    frozenCohortUserIds: [...cohortUserIds],
+    activeRevision: "active-6",
+    activeDigest: `shift-planning:v1:sha256:${"b".repeat(64)}`,
+    lastIdempotencyKey: "activate-6",
+    migrationBaseline: {
+      revision: "baseline-1",
+      digest: `shift-planning:v1:sha256:${"5".repeat(64)}`,
+    },
+    releaseLease: null,
+  };
+}
+
 const stableBundleFields = () => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
   bundleId: "bundle-2026",
   environment: ENVIRONMENT,
   bundleRevision: BUNDLE_REVISION,
@@ -169,12 +220,8 @@ const stableBundleFields = () => ({
   activationWriteEpoch: 8,
   expectedActiveRevision: "active-6",
   expectedState: {
-    environment: ENVIRONMENT,
-    writeEpoch: 7,
-    activeRevision: "active-6",
-    activeDigest: `shift-planning:v1:sha256:${"b".repeat(64)}`,
-    rotationStateRevisions: {delivery: 4, market: 5},
-    releaseLeases: {delivery: null, market: null},
+    schemaVersion: 2,
+    authoritativeState: authoritativeState(),
     transactionMeasurementAuthority: {
       adapterRevision: "firestore-adapter-v1",
       indexConfigurationDigest:
@@ -239,7 +286,7 @@ const stableBundleFields = () => ({
 const previewResult = (requestId = "preview-001") => {
   const stable = stableBundleFields();
   const receipt = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     status: "completed",
     mode: "preview",
     requestId,
@@ -267,9 +314,9 @@ const stageResult = (
   preview = previewResult(),
 ) => {
   const evidence = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     forward: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       direction: "forward",
       manifestDigest:
         preview.transactionRequirements.forwardManifestDigest,
@@ -281,7 +328,7 @@ const stageResult = (
         `shift-planning:v1:sha256:${"c".repeat(64)}`,
     },
     inverse: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       direction: "inverse",
       manifestDigest:
         preview.transactionRequirements.inverseManifestDigest,
@@ -294,7 +341,7 @@ const stageResult = (
     },
   };
   const candidate = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     status: "staged",
     candidateId: "bundle-2026",
     bundleId: "bundle-2026",
@@ -344,6 +391,13 @@ const completePreview = async (requestId = "preview-001") => {
   );
   return {acquired, result, summary};
 };
+
+test("completed summaries keep wire v1 for bundle v2 artifacts", () => {
+  const result = previewResult("preview-wire-version");
+  const summary = buildShiftPlanningCompletedSummary(result);
+  assert.equal(result.schemaVersion, 2);
+  assert.equal(summary.schemaVersion, 1);
+});
 
 test("claim is exclusive and an expired takeover fences the old worker", async () => {
   await seedRequest({requestId: "preview-claim"});
@@ -496,6 +550,29 @@ test("preview rejects noncanonical or mismatched receipt lineage", async () => {
       summary: buildShiftPlanningCompletedSummary(wrongStateResult),
     }),
     (error) => error.code === "request_intent_conflict",
+  );
+
+  const nonExactExpectedState = {
+    ...result.expectedState,
+    unexpected: true,
+  };
+  const nonExactReceipt = {
+    ...result.previewReceipt,
+    expectedStateDigest: createShiftPlanningDigest(nonExactExpectedState),
+  };
+  const nonExactStateResult = {
+    ...result,
+    expectedState: nonExactExpectedState,
+    previewReceipt: nonExactReceipt,
+    previewReceiptDigest: createShiftPlanningDigest(nonExactReceipt),
+  };
+  await assert.rejects(
+    repository.completePreview({
+      token: acquired.token,
+      result: nonExactStateResult,
+      summary: buildShiftPlanningCompletedSummary(nonExactStateResult),
+    }),
+    (error) => error.code === "invalid_planning_state",
   );
   assert.equal(
     (await firestore.doc(requestPath("preview-invalid-receipt")).get())
@@ -882,11 +959,26 @@ test("activate preflight rejects an aliased candidate document path", async () =
 });
 
 test("private runtime drives preview and stage but only preflights activate", async () => {
+  const stateLoads = [];
+  const statePersistence = {
+    loadAuthoritativeState: async (input) => {
+      stateLoads.push(input);
+      return authoritativeState();
+    },
+  };
   await seedRequest({requestId: "preview-runtime"});
   const previewExecution = await executeShiftPlanningRequest({
     persistence: repository,
-    resolveBundle: async ({persistedPreview: source}) => {
+    statePersistence,
+    resolveBundle: async ({
+      persistedPreview: source,
+      authoritativeState: loadedState,
+    }) => {
       assert.equal(source, null);
+      assert.equal(
+        loadedState.authoritativeDigest,
+        authoritativeState().authoritativeDigest,
+      );
       return previewResult("preview-runtime");
     },
     environment: ENVIRONMENT,
@@ -909,8 +1001,16 @@ test("private runtime drives preview and stage but only preflights activate", as
   });
   const stageExecution = await executeShiftPlanningRequest({
     persistence: repository,
-    resolveBundle: async ({persistedPreview: source}) => {
+    statePersistence,
+    resolveBundle: async ({
+      persistedPreview: source,
+      authoritativeState: loadedState,
+    }) => {
       assert.equal(source.receipt.requestId, "preview-runtime");
+      assert.equal(
+        loadedState.authoritativeDigest,
+        authoritativeState().authoritativeDigest,
+      );
       return stageResult("stage-runtime", previewExecution.result);
     },
     environment: ENVIRONMENT,
@@ -935,6 +1035,7 @@ test("private runtime drives preview and stage but only preflights activate", as
   let activateResolverCalls = 0;
   const activateExecution = await executeShiftPlanningRequest({
     persistence: repository,
+    statePersistence,
     resolveBundle: async () => {
       activateResolverCalls += 1;
       return stageExecution.result;
@@ -947,6 +1048,10 @@ test("private runtime drives preview and stage but only preflights activate", as
   });
   assert.equal(activateExecution.kind, "activationPreflight");
   assert.equal(activateResolverCalls, 0);
+  assert.deepEqual(stateLoads, [
+    {environment: ENVIRONMENT},
+    {environment: ENVIRONMENT},
+  ]);
   assert.equal(
     (await firestore.doc(operationPath("activate-runtime")).get()).exists,
     false,

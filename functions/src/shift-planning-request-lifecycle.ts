@@ -1,4 +1,5 @@
 import {
+  parseShiftPlanningExpectedState,
   ShiftPlanningBundleResult,
 } from "./shift-planning-bundle.js";
 import {
@@ -6,6 +7,7 @@ import {
   ShiftPlanningFailureCode,
 } from "./shift-planning-contract.js";
 import {
+  createShiftPlanningDigest,
   ShiftPlanningDigestError,
 } from "./shift-planning-digest.js";
 import {
@@ -18,6 +20,10 @@ import {
   buildShiftPlanningCompletedSummary,
 } from "./shift-planning-persistence.js";
 import {
+  ShiftPlanningAuthoritativeState,
+  ShiftPlanningStatePersistence,
+} from "./shift-planning-state-persistence.js";
+import {
   ShiftPlanningEnvironment,
   ShiftPlanningFailedSummary,
   ShiftPlanningFailureScope,
@@ -28,6 +34,7 @@ import {
 export type ShiftPlanningBundleResolutionInput = {
   request: ShiftPlanningRequestV2;
   persistedPreview: ShiftPlanningPersistedPreview | null;
+  authoritativeState: ShiftPlanningAuthoritativeState;
 };
 
 export type ShiftPlanningBundleResolver = (
@@ -66,6 +73,7 @@ export type ShiftPlanningRequestLifecycleResult =
 
 export type ExecuteShiftPlanningRequestInput = {
   persistence: ShiftPlanningPersistence;
+  statePersistence: ShiftPlanningStatePersistence;
   resolveBundle: ShiftPlanningBundleResolver;
   environment: ShiftPlanningEnvironment;
   requestId: string;
@@ -130,6 +138,7 @@ const invalidResolvedBundle = (message: string): never => {
 const requireResolvedBundle = (
   request: ShiftPlanningRequestV2,
   result: ShiftPlanningBundleResult,
+  authoritativeState: ShiftPlanningAuthoritativeState,
 ): ShiftPlanningBundleResult => {
   if (
     result.requestId !== request.requestId ||
@@ -139,6 +148,26 @@ const requireResolvedBundle = (
   ) {
     return invalidResolvedBundle(
       "Resolved planning bundle does not match its claimed request.",
+    );
+  }
+  let resolvedAuthoritativeState: ShiftPlanningAuthoritativeState;
+  try {
+    resolvedAuthoritativeState = parseShiftPlanningExpectedState(
+      result.expectedState,
+    ).authoritativeState;
+  } catch {
+    return invalidResolvedBundle(
+      "Resolved planning bundle contains invalid expected state.",
+    );
+  }
+  if (
+    resolvedAuthoritativeState.authoritativeDigest !==
+      authoritativeState.authoritativeDigest ||
+    createShiftPlanningDigest(resolvedAuthoritativeState) !==
+      createShiftPlanningDigest(authoritativeState)
+  ) {
+    return invalidResolvedBundle(
+      "Resolved planning bundle does not bind the loaded authoritative state.",
     );
   }
   if (request.mode === "preview") {
@@ -172,6 +201,7 @@ const requireResolvedBundle = (
 
 const resolveClaimedBundle = async (input: {
   persistence: ShiftPlanningPersistence;
+  statePersistence: ShiftPlanningStatePersistence;
   resolveBundle: ShiftPlanningBundleResolver;
   request: ShiftPlanningRequestV2;
 }): Promise<ShiftPlanningBundleResult> => {
@@ -187,9 +217,18 @@ const resolveClaimedBundle = async (input: {
       environment: input.request.environment,
       requestId: binding.sourceRequestId,
     }) : null;
+  const authoritativeState =
+    await input.statePersistence.loadAuthoritativeState({
+      environment: input.request.environment,
+    });
   return requireResolvedBundle(
     input.request,
-    await input.resolveBundle({request: input.request, persistedPreview}),
+    await input.resolveBundle({
+      request: input.request,
+      persistedPreview,
+      authoritativeState,
+    }),
+    authoritativeState,
   );
 };
 
@@ -197,8 +236,8 @@ const resolveClaimedBundle = async (input: {
  * Runs the private v2 request lifecycle without selecting Firebase triggers or
  * public side effects. Preview and stage claim before planning; activation is
  * deliberately restricted to the repository's candidate-only read preflight.
- * @param {ExecuteShiftPlanningRequestInput} input Persistence and planner
- * ports.
+ * @param {ExecuteShiftPlanningRequestInput} input Request/state persistence
+ * and planner ports.
  * @return {Promise<ShiftPlanningRequestLifecycleResult>} Stable lifecycle
  * result.
  */
@@ -247,6 +286,7 @@ export const executeShiftPlanningRequest = async (
   try {
     result = await resolveClaimedBundle({
       persistence: input.persistence,
+      statePersistence: input.statePersistence,
       resolveBundle: input.resolveBundle,
       request: claim.request,
     });

@@ -191,12 +191,17 @@ El corte actual define un contrato v2 cerrado para una sola petición con los
 subplanes `delivery` y `market`. Los módulos nuevos validan el wire contract y
 calculan planes deterministas en local. Ya existe un repositorio Firestore
 privado, validado en local/emulador, para el lifecycle de `preview` y `stage`, y
-un orquestador local sin dependencia del SDK que ejecuta ese lifecycle. El modo
-`activate` permanece limitado a un preflight estrictamente de solo lectura.
+un orquestador local sin dependencia del SDK que ejecuta ese lifecycle contra un
+read-set autoritativo de mantenimiento y ambas rotaciones. Los artefactos internos
+usan schema v2 y revisiones `bundle-v2-*`; la petición conserva
+`schemaVersion = 2` y el resumen terminal público wire conserva
+`schemaVersion = 1`. El modo `activate` permanece
+limitado a un preflight estrictamente de solo lectura.
 Todavía no hay adaptador real de bytes/transformaciones, materialización de
-posiciones del candidato, CAS/publicación/activación, trigger v2 conectado al
-orquestador, consumidores de sync/notificaciones/recovery, integración móvil,
-despliegue ni escritura live; todas esas fronteras siguen fail-closed. El trigger
+posiciones del candidato, barrera externa fiable, migración de writers, CAS de
+activación/publicación/recovery, trigger v2 conectado al orquestador, consumidores
+de sync/notificaciones/recovery, integración móvil, despliegue ni escritura live;
+todas esas fronteras siguen fail-closed. El trigger
 legacy `onShiftPlanningRequestCreated` de `src/index.ts` sigue siendo la
 implementación runtime activa y aún no consume este contrato v2.
 
@@ -234,11 +239,19 @@ aceptan campos extra ni temporadas implicitas deducidas del reloj.
 
 - `preview` no consume artefactos previos y devuelve un recibo con
   `requestId`, identidad/revision/digest de bundle, entorno, solicitante y
-  `expectedStateDigest`. El repositorio completa preview persistiendo el bundle,
-  el recibo y su estado terminal en una sola transaccion privada.
+  `expectedStateDigest`. Después del claim, el lifecycle carga en una sola lectura
+  coherente `shiftPlanningState/current` y ambas rotaciones. El bundle persiste ese
+  read-set completo y su digest dentro de `expectedState`; el recibo conserva solo
+  el digest transitivo. El repositorio completa preview persistiendo el bundle, el
+  recibo y su estado terminal en una sola transaccion privada. Preview puede
+  inspeccionar mantenimiento abierto o cerrado.
 - `stage` exige ese recibo de preview ya persistido y exactamente coincidente.
-  El repositorio vuelve a cargar tanto el preview como el bundle persistidos y
-  crea, sin sobreescritura, la cabecera staged con su digest y linaje. Stage
+  Tras cargarlo, el lifecycle lee de nuevo el estado autoritativo; el resolver debe
+  devolver un bundle ligado exactamente a ese read-set. El repositorio vuelve a
+  cargar tanto el preview como el bundle persistidos y crea, sin sobreescritura,
+  la cabecera staged con su digest y linaje. Stage requiere mantenimiento cerrado
+  y el mismo estado del preview. Por ello, entrar en mantenimiento invalida un
+  preview abierto y obliga a crear otro preview ya cerrado antes de stage. Stage
   tambien exige mediciones del futuro adaptador Firestore para los manifiestos
   forward e inverse: digest del manifiesto, escrituras documentales,
   transformaciones de campo, bytes serializados, revision del adaptador y digest
@@ -260,11 +273,49 @@ resumen estable y no persisten mensajes internos sin tipar.
 El orquestador enruta y reclama dentro de una única transacción del repositorio.
 Para `preview` y `stage` adquiere el lease antes de invocar al planner, evita
 invocarlo en `busy` o replay terminal y, para `stage`, carga el preview persistido
-exacto. Los errores deterministas tipados de planificación o digest terminan con
-un resumen estable; los fallos de infraestructura se propagan sin terminalizar el
-lease para permitir un retry seguro. Para `activate` la misma transacción devuelve
-la ruta de preflight sin crear operación ni escribir; después solo ejecuta el
-preflight candidate-only y no invoca al planner.
+exacto antes de leer el estado autoritativo. Para `preview`, lee ese estado justo
+después del claim. El resolver recibe el read-set y su resultado debe ligarlo de
+forma canónica y exacta. Los errores deterministas tipados de planificación o
+digest terminan con un resumen estable; los fallos de infraestructura se propagan
+sin terminalizar el lease para permitir un retry seguro. Para `activate` la misma
+transacción devuelve la ruta de preflight sin crear operación ni escribir;
+después solo ejecuta el preflight candidate-only, no lee el estado y no invoca al
+planner.
+
+### Estado autoritativo y CAS local de mantenimiento
+
+Un segundo repositorio privado lee en una única transacción
+`shiftPlanningState/current`, `shiftRotations/delivery` y
+`shiftRotations/market`. Valida campos exactos, cursores/cohortes, fronteras,
+leases, baseline de migración y un único linaje activo; después liga los tres
+documentos y el entorno a un digest autoritativo. Un documento ausente o
+incoherente falla cerrado y nunca provoca bootstrap o reparación implícita.
+Una cohorte solo puede figurar congelada con el cursor dentro de una ronda; en
+el límite debe quedar no congelada y sin snapshot retenido.
+
+Ese mismo normalizador SDK-free valida el read-set recibido por el planner. El
+`expectedState` de artifact schema v2 contiene el estado autoritativo completo y
+la autoridad de medición (`adapterRevision` e `indexConfigurationDigest`). Los
+campos de rotación heredados del fairness snapshot deben coincidir canónicamente
+con ambos agregados autoritativos; cualquier drift de barrera, transición,
+revisión, lease, cursor o linaje cambia los digests y rompe la cadena. Los recibos
+preview y candidatos staged no duplican el estado: guardan su
+`expectedStateDigest`.
+
+El puerto sin dependencia del SDK implementa dos transiciones desconectadas del
+runtime: `enterMaintenance` y `abortPreActivationMaintenance`. Ambas exigen el
+digest, `stateRevision`, `writeEpoch` y linaje activo exactos; avanzan las dos
+revisiones una vez, conservan el linaje activo y crean atómicamente evidencia
+inmutable en `shiftPlanningOperations/state-{transitionId}`. Un retry exacto
+reproduce el resultado original y una colisión de intención falla. El registro
+conserva ambas rotaciones para recalcular sus digests before/after y rechazar
+evidencia alterada. La entrada recibe evidencia de barrera ya verificada, cuya
+fecha no puede ser posterior al commit; este repositorio no verifica ni abre la
+barrera externa Rules/IAM. El aborto limpia la barrera del estado actual, pero
+el registro inmutable conserva la evidencia histórica. Solo puede abortar si la
+operación de entrada exacta sigue poseyendo el read-set y ambos leases de release
+son nulos. Un replay terminal de aborto vuelve a comprobar esas dos condiciones
+contra la evidencia persistida antes de devolver el resultado original.
 
 El gate canonico y conservador de HU-082 limita cada direccion a 500 escrituras
 documentales mas transformaciones declaradas y 10 MiB de peticion serializada.
@@ -304,11 +355,15 @@ en el flujo runtime.
   posterior que nunca se reutiliza ni decrementa. El bundle inmutable ya
   persistido por preview queda fuera del write-set de activación y del inverse:
   no se actualiza, restaura ni borra, y se retiene como evidencia de replay.
+- Ambos manifests incluyen `expectedStateDigest` y
+  `expectedAuthoritativeDigest`. El forward declara la transición de
+  `stateRevision` y `writeEpoch`; el contrato de before-image de
+  `shiftPlanningState/current` cubre el documento de mantenimiento completo.
 
-El planner y los manifests siguen siendo contrato/resultado puro. El repositorio
-solo ejecuta transacciones privadas sobre peticiones, operaciones, bundles y la
-cabecera de candidato; no ejecuta CAS de publicacion, comandos de Sheets,
-recovery ni notificaciones.
+El planner y los manifests siguen siendo contrato/resultado puro. Los
+repositorios solo ejecutan transacciones privadas sobre peticiones, operaciones,
+bundles, la cabecera de candidato y el estado de mantenimiento; no ejecutan CAS
+de publicación, comandos de Sheets, recovery ni notificaciones.
 
 La partición prevista de acceso es:
 
@@ -327,6 +382,8 @@ La partición prevista de acceso es:
 El documento `shiftPlanningState/current` usa `activeRevision` y `activeDigest`
 como claves emparejadas de linaje activo; no reutiliza los nombres
 `bundleRevision`/`bundleDigest` propios de bundles, bindings y publicación.
+`maintenanceStatus = "open"` exige `intakeBarrier = null`; `closed` exige la
+evidencia exacta `{ revision, digest, verifiedAtMillis }`.
 
 El candidato local `firestore.phase1.rules` niega todo acceso de cliente a este
 nuevo plano de control, incluidas peticiones y candidatos. El candidato local
