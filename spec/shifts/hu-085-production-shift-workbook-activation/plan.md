@@ -13,11 +13,11 @@ Use one quiesced shared-project change window with explicit gates before:
 6. irreversible notification release and normal-traffic resume.
 
 One activation covers a complete seasonal horizon plus required carryover, so it
-is not a small canary. `preview` writes only private request/status/audit records
-and has no domain/projection effects; `stage` writes a versioned candidate in a
-separate backend-owned partition invisible to normal members/Sheets; `activate`
-promotes the exact bounded public manifest and is the acknowledged visibility
-boundary.
+is not a small canary. `preview` writes only private request/operation lifecycle
+state plus its immutable bundle/receipt and has no domain/projection effects;
+`stage` writes a versioned candidate in a separate backend-owned partition
+invisible to normal members/Sheets; `activate` promotes the exact bounded public
+manifest and is the acknowledged visibility boundary.
 
 ## 2. Authorization and mutation inventory
 
@@ -315,10 +315,10 @@ diff, or revision invalidates approval.
   mobile/admin request ingress.
 - Require the exact `migrationBaselineRevision`/digest as its only migration
   input; never fall back to the legacy public projection.
-- Prove its only writes are private request/status/audit records and prove no
-  rotation, candidate/public shift, Sheet, outbox, or ledger mutation plus exact
-  equality with the authorized snapshot/digest, counts, groups, helpers, and
-  future projections.
+- Prove its only writes are private request/operation lifecycle state plus its
+  immutable bundle/receipt and prove no rotation, candidate/public shift, Sheet,
+  outbox, or ledger mutation plus exact equality with the authorized
+  snapshot/digest, counts, groups, helpers, and future projections.
 - Any drift triggers the complete pre-activation recovery packet, not merely a
   pause with mutated deploy/config left behind.
 

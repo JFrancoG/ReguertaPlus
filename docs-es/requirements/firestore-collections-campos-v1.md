@@ -528,7 +528,9 @@ Otros invariantes del bundle puro ligados por digest son:
   inverse de recovery nombra rutas creadas que borrar, rutas objetivo cuyas
   before-images persistidas debe restaurar, digests de contrato de esas imagenes,
   el CAS requerido de bundle activo/epoca y una epoca de recovery estrictamente
-  superior que nunca se reutiliza ni decrementa.
+  superior que nunca se reutiliza ni decrementa. El bundle inmutable persistido
+  por preview es anterior a la activacion y queda fuera de ambos write-sets: se
+  retiene como evidencia de replay y nunca se actualiza, restaura ni borra.
 
 ## 4.8.d Colecciones de planificacion HU-082 solo backend
 
@@ -559,11 +561,15 @@ deterministas y el repositorio Firestore privado existen como codigo
 local/emulador. El repositorio posee claim/lease/fencing/takeover/replay, persiste
 atomicamente bundle y recibo de preview, vuelve a cargar preview/bundle
 persistidos antes de crear una cabecera stage sin sobreescritura y ofrece un
-preflight activate candidate-only de solo lectura. Siguen pendientes y
-fail-closed la medicion real de bytes/transformaciones, la materializacion de
-posiciones del candidato, el CAS de mantenimiento/publicacion y la activacion,
-un trigger v2, consumidores de sync/notificacion/recovery, integracion movil,
-despliegue y cambios live. La implementacion legacy
+preflight activate candidate-only de solo lectura. Un orquestador local sin
+dependencia del SDK enruta y reclama preview/stage transaccionalmente antes de
+planificar, corta busy y replay terminal, carga el preview exacto para stage,
+terminaliza solo fallos deterministas tipados y enruta activate a ese preflight
+sin crear una operacion ni escribir.
+Siguen pendientes y fail-closed la medicion real de bytes/transformaciones, la
+materializacion de posiciones del candidato, el CAS de mantenimiento/publicacion
+y la activacion, un trigger v2 conectado al orquestador, consumidores de
+sync/notificacion/recovery, integracion movil, despliegue y cambios live. La implementacion legacy
 `onShiftPlanningRequestCreated` de `functions/src/index.ts` sigue siendo el
 runtime activo. El candidato local de Rules Phase 1 niega a todo cliente el nuevo
 plano de control; el candidato estricto local permite solo la creacion/lectura

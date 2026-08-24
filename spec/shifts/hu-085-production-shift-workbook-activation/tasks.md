@@ -239,9 +239,10 @@
   mobile/admin request ingress closed.
 - [ ] Require the exact migration-baseline revision/digest and prove preview
   cannot read/fall back to the legacy public projection.
-- [ ] Prove only private request/status/audit records are written, with no
-  rotation, candidate/public shift, Sheet, outbox, or ledger mutation, and prove
-  exact plan/count/invariant/digest equality.
+- [ ] Prove only private request/operation lifecycle state plus the immutable
+  bundle/receipt is written, with no rotation, candidate/public shift, Sheet,
+  outbox, or ledger mutation, and prove exact plan/count/invariant/digest
+  equality.
 - [ ] Execute complete pre-activation recovery on drift.
 
 ## 7. Non-public stage

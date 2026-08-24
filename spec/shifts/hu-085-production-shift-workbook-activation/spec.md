@@ -382,8 +382,8 @@ targets/snapshot/digest/revisions and expires on drift.
   rotation/source/projection bootstrap is built once as a hidden immutable
   migration baseline and cannot advance the active cursor or alter public rows.
 - One production bundle `preview` for delivery and market whose only writes are
-  private request/status/audit records; it has no rotation, candidate/public
-  shift, Sheet, outbox, or ledger effects.
+  private request/operation lifecycle state plus its immutable bundle/receipt;
+  it has no rotation, candidate/public shift, Sheet, outbox, or ledger effects.
 - One digest-bound versioned two-type `stage` hidden from normal members, Sheets,
   active rotation state, and notification consumers.
 - Explicit atomic `activate` of that exact staged bundle. For installed flat-
@@ -532,9 +532,10 @@ targets/snapshot/digest/revisions and expires on drift.
   immutable hidden migration baseline, leaves existing
   public rows/cursor unchanged, and cannot reach legacy export/notification
   consumers before activation.
-- [ ] Preview writes only private request/status/audit records and matches the
-  authorized two-type migration-baseline revision/digest with no domain/projection
-  side effects or fallback to legacy public input.
+- [ ] Preview writes only private request/operation lifecycle state plus its
+  immutable bundle/receipt and matches the authorized two-type migration-baseline
+  revision/digest with no domain/projection side effects or fallback to legacy
+  public input.
 - [ ] Stage writes only the exact versioned candidate and remains invisible to
   normal member queries, Sheets, active cursor/cohort, and notification consumers;
   its delivery/market bundle is the sole child of the authorized baseline/preview

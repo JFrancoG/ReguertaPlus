@@ -1095,11 +1095,15 @@ export const createFirestoreShiftPlanningRepository = (
     return firestore.runTransaction(async (transaction) => {
       const requestReference = requestRef(environment, requestId);
       const operationReference = operationRef(environment, requestId);
-      const [requestSnapshot, operationSnapshot] = await Promise.all([
-        transaction.get(requestReference),
-        transaction.get(operationReference),
-      ]);
+      const requestSnapshot = await transaction.get(requestReference);
       const envelope = parseRequestEnvelope(requestSnapshot, environment);
+      if (envelope.request.mode === "activate") {
+        return {
+          kind: "activationPreflight",
+          request: envelope.request,
+        };
+      }
+      const operationSnapshot = await transaction.get(operationReference);
       const nowMillis = readClockMillis();
       const expiresAtMillis = nowMillis + input.leaseDurationMillis;
       if (!Number.isSafeInteger(expiresAtMillis)) {

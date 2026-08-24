@@ -412,7 +412,9 @@ Other digest-bound pure bundle invariants are:
   recovery manifest names created paths to delete, target paths whose persisted
   before-images must be restored, before-image contract digests, required active
   bundle/write-epoch CAS, and a strictly higher recovery epoch that is never
-  reused or decremented.
+  reused or decremented. The immutable bundle persisted by preview predates
+  activation and remains outside both write-sets: it is retained as replay
+  evidence and is never updated, restored, or deleted.
 
 ### 4.8.d HU-082 backend-only planning collections
 
@@ -442,12 +444,17 @@ Rollout state for this cut: the v2 wire parser, deterministic pure planners, and
 private Firestore repository exist as local/emulator code. The repository owns
 claim/lease/fencing/takeover/replay, atomically persists preview bundle plus
 receipt, reloads persisted preview/bundle before creating a non-overwritten stage
-header, and offers candidate-only read-only activation preflight. Still pending
-and fail-closed are real byte/transform measurement, candidate-position
-materialization, maintenance/publication CAS and activation, a v2 trigger, sync,
-notification and recovery consumers, mobile integration, deployment, and live
-data changes. The legacy `onShiftPlanningRequestCreated` implementation in
-`functions/src/index.ts` remains the active runtime. The local Phase 1 Rules
+header, and offers candidate-only read-only activation preflight. An SDK-free
+local orchestrator transactionally routes and claims preview/stage before
+planning, short-circuits busy and terminal replay, reloads the exact preview for
+stage, terminalizes only typed deterministic failures, and routes activate to
+that no-write preflight without creating an operation.
+Still pending and fail-closed are real byte/transform measurement,
+candidate-position materialization, maintenance/publication CAS and activation,
+a v2 trigger connected to the orchestrator, sync, notification and recovery
+consumers, mobile integration, deployment, and live data changes. The legacy
+`onShiftPlanningRequestCreated` implementation in `functions/src/index.ts`
+remains the active runtime. The local Phase 1 Rules
 candidate denies all client access to the new planning control plane; the local
 strict candidate allows only the exact admin request create/read and admin
 candidate read boundaries above. Neither Rules change has been deployed.

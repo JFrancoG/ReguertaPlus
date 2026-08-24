@@ -194,9 +194,9 @@ documented in the English and Spanish Firestore references before code lands.
 - Require each typed subplan's own first incomplete planning-frontier season (or
   exact replay), preserving partial overflow and advancing over fully prefilled
   seasons, then validate the combined bundle authority.
-- Implement preview with no domain/projection side effects (only private request,
-  status, and audit lifecycle writes), digest-bound non-public staging, and
-  exact atomic activation.
+- Implement preview with no domain/projection side effects (only private request/
+  operation lifecycle state and the immutable bundle/receipt artifact),
+  digest-bound non-public staging, and exact atomic activation.
 - Bind the digest to every versioned fairness input and transactionally recheck
   them at activation, including the credit-ledger version and planned credit
   transitions once HU-084 is enabled.
@@ -207,6 +207,9 @@ documented in the English and Spanish Firestore references before code lands.
   migration if exceeded.
 - Include the atomic epoch/active-revision transition in the forward activation and
   inverse recovery transaction manifests and their measured budgets.
+- Keep the immutable bundle already persisted by preview outside both the
+  activation write-set and inverse recovery; retain it as replay evidence rather
+  than updating, restoring, or deleting it.
 - Emit stable digest-bound Sheets-sync command IDs in that transaction and define
   the exact manifest/idempotency/marker protocol. Prove it with a test consumer;
   HU-083 implements the real explicit pull/invoked multi-season worker. Pending

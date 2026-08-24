@@ -117,7 +117,7 @@ export type ShiftPlanningTransactionBudget = {
   predecessorHelperWrites: number;
   rotationWrites: 2;
   activeStateWrites: 1;
-  bundleMetadataWrites: 1;
+  bundleMetadataWrites: 0;
   requestWrites: 1;
   stagedCandidateWrites: 1;
   syncCommandWrites: 2;
@@ -305,7 +305,7 @@ export type ShiftPlanningRecoveryManifest = {
   predecessorHelperRestores: number;
   rotationRestores: 2;
   activeStateRestores: 1;
-  bundleMetadataUpdates: 1;
+  bundleMetadataUpdates: 0;
   requestUpdates: 1;
   stagedCandidateUpdates: 1;
   syncCommandDeletes: 2;
@@ -1147,27 +1147,34 @@ const transactionBudget = (
     input.delivery.predecessorHelperUpdate === null ? 0 : 1;
   const beforeImageWrites = direction === "forward" ?
     input.beforeImageWriteCount : 0;
-  const commonUpdateWrites = predecessorHelperWrites + 2 + 1 + 1 + 1 +
-    input.creditLedgerWrites;
+  const rotationWrites = 2 as const;
+  const activeStateWrites = 1 as const;
+  const bundleMetadataWrites = 0 as const;
+  const requestWrites = 1 as const;
+  const stagedCandidateWrites = 1 as const;
+  const syncCommandWrites = 2 as const;
+  const operationRegistryWrites = 1 as const;
+  const commonUpdateWrites = predecessorHelperWrites + rotationWrites +
+    activeStateWrites + requestWrites + stagedCandidateWrites +
+    operationRegistryWrites + input.creditLedgerWrites;
   const createWrites = direction === "forward" ?
-    publicShiftWrites + 1 + 2 + 1 + input.heldIntentWrites +
+    publicShiftWrites + syncCommandWrites + input.heldIntentWrites +
       beforeImageWrites : 0;
-  const updateWrites = direction === "forward" ?
-    commonUpdateWrites : commonUpdateWrites + 2;
+  const updateWrites = commonUpdateWrites;
   const deleteWrites = direction === "inverse" ?
-    publicShiftWrites + 2 + input.heldIntentWrites : 0;
+    publicShiftWrites + syncCommandWrites + input.heldIntentWrites : 0;
   const budget: ShiftPlanningTransactionBudget = {
     direction,
     writeLimit: input.writeLimit,
     publicShiftWrites,
     predecessorHelperWrites,
-    rotationWrites: 2,
-    activeStateWrites: 1,
-    bundleMetadataWrites: 1,
-    requestWrites: 1,
-    stagedCandidateWrites: 1,
-    syncCommandWrites: 2,
-    operationRegistryWrites: 1,
+    rotationWrites,
+    activeStateWrites,
+    bundleMetadataWrites,
+    requestWrites,
+    stagedCandidateWrites,
+    syncCommandWrites,
+    operationRegistryWrites,
     beforeImageWrites,
     heldIntentWrites: input.heldIntentWrites,
     creditLedgerWrites: input.creditLedgerWrites,
@@ -1544,7 +1551,6 @@ const recoveryManifest = (input: {
   ];
   const deleteCreatedDocuments = [
     ...publicShiftPaths,
-    `${root}/shiftPlanningBundles/{bundleRevision}`,
     `${root}/shiftPlanningSyncCommands/{bundleRevision}-delivery`,
     `${root}/shiftPlanningSyncCommands/{bundleRevision}-market`,
     ...input.recipients.map((_, index) =>
@@ -1628,7 +1634,7 @@ const recoveryManifest = (input: {
       input.delivery.predecessorHelperUpdate === null ? 0 : 1,
     rotationRestores: 2,
     activeStateRestores: 1,
-    bundleMetadataUpdates: 1,
+    bundleMetadataUpdates: 0,
     requestUpdates: 1,
     stagedCandidateUpdates: 1,
     syncCommandDeletes: 2,

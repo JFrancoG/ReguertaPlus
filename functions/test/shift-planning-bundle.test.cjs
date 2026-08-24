@@ -301,6 +301,7 @@ test("plans both independent frontiers into one side-effect-free preview", () =>
   ), true);
   assert.equal(result.manifests.inverse.requiresPersistedBeforeImages, true);
   for (const budget of [result.budgets.forward, result.budgets.inverse]) {
+    assert.equal(budget.bundleMetadataWrites, 0);
     assert.equal(
       budget.totalWrites,
       budget.createWrites + budget.updateWrites + budget.deleteWrites,
@@ -326,6 +327,35 @@ test("plans both independent frontiers into one side-effect-free preview", () =>
       configuredByteLimit: 10 * 1024 * 1024,
     });
   }
+  const forward = result.budgets.forward;
+  assert.equal(
+    forward.createWrites,
+    forward.publicShiftWrites + forward.syncCommandWrites +
+      forward.beforeImageWrites + forward.heldIntentWrites,
+  );
+  assert.equal(
+    forward.updateWrites,
+    forward.predecessorHelperWrites + forward.rotationWrites +
+      forward.activeStateWrites + forward.requestWrites +
+      forward.stagedCandidateWrites + forward.operationRegistryWrites +
+      forward.creditLedgerWrites,
+  );
+  assert.equal(forward.deleteWrites, 0);
+  const inverse = result.budgets.inverse;
+  assert.equal(inverse.createWrites, 0);
+  assert.equal(
+    inverse.updateWrites,
+    inverse.predecessorHelperWrites + inverse.rotationWrites +
+      inverse.activeStateWrites + inverse.requestWrites +
+      inverse.stagedCandidateWrites + inverse.operationRegistryWrites +
+      inverse.creditLedgerWrites,
+  );
+  assert.equal(
+    inverse.deleteWrites,
+    inverse.publicShiftWrites + inverse.syncCommandWrites +
+      inverse.heldIntentWrites,
+  );
+  assert.equal(result.manifests.inverse.bundleMetadataUpdates, 0);
   assert.equal(
     result.budgets.forward.beforeImageWrites,
     result.manifests.inverse.restoreBeforeImages.length,
@@ -343,6 +373,18 @@ test("plans both independent frontiers into one side-effect-free preview", () =>
       ({pathTemplate}) => pathTemplate.includes("shift_market_"),
     ),
     true,
+  );
+  assert.equal(
+    result.manifests.inverse.deleteCreatedDocuments.some(
+      ({pathTemplate}) => pathTemplate.includes("shiftPlanningBundles"),
+    ),
+    false,
+  );
+  assert.equal(
+    result.manifests.inverse.restoreBeforeImages.some(
+      ({targetPath}) => targetPath.includes("shiftPlanningBundles"),
+    ),
+    false,
   );
   assert.equal(
     result.manifests.inverse.recoveryWriteEpoch.minimumExclusiveEpoch,

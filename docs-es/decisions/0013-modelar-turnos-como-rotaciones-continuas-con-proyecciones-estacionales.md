@@ -214,14 +214,17 @@ hacen una lectura del servidor tras activar.
 
 `preview` calcula el plan determinista y su digest sin mutar rotación, turnos
 candidatos/públicos, Sheets, outbox de notificaciones ni un ledger de créditos
-habilitado. Solo puede escribir los registros privados de control de
-petición/estado/auditoría de su ciclo de vida. `stage` solo acepta ese
+habilitado. Solo puede escribir el estado privado del ciclo de vida de
+petición/operación y su artefacto inmutable de bundle/recibo. `stage` solo acepta ese
 snapshot/digest combinado y guarda una candidata versionada del bundle de ambos
 tipos en una partición separada propiedad del backend, oculta para las consultas
 normales de socios, la exportación Sheets y los consumidores de notificaciones;
 no avanza ningún cursor activo ni congela ninguna cohorte. `activate` solo acepta
 esa revisión/digest y promociona atómicamente ambas rotaciones/proyecciones
-activas. La activación es el límite reconocido de visibilidad pública y encola
+activas. Como el bundle inmutable de preview es anterior a la activación, el
+recovery inverse lo retiene fuera de su write-set y nunca lo actualiza, restaura
+ni clasifica como una ruta creada por la activación que se deba borrar. La
+activación es el límite reconocido de visibilidad pública y encola
 sync de Sheets e intenciones de notificación retenidas.
 
 El primer despliegue conserva las apps instaladas que leen la colección plana

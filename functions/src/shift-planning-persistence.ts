@@ -59,6 +59,10 @@ export type ShiftPlanningClaimToken = {
 
 export type ShiftPlanningRequestClaim =
   | {
+    kind: "activationPreflight";
+    request: ShiftPlanningRequestV2;
+  }
+  | {
     kind: "process" | "resume";
     request: ShiftPlanningRequestV2;
     token: ShiftPlanningClaimToken;

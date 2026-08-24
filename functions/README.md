@@ -191,13 +191,14 @@ El corte actual define un contrato v2 cerrado para una sola petición con los
 subplanes `delivery` y `market`. Los módulos nuevos validan el wire contract y
 calculan planes deterministas en local. Ya existe un repositorio Firestore
 privado, validado en local/emulador, para el lifecycle de `preview` y `stage`, y
-un preflight `activate` estrictamente de solo lectura. Todavía no hay adaptador
-real de bytes/transformaciones, materialización de posiciones del candidato,
-CAS/publicación/activación, trigger v2, consumidores de sync/notificaciones/
-recovery, integración móvil, despliegue ni escritura live; todas esas fronteras
-siguen fail-closed. El trigger legacy `onShiftPlanningRequestCreated` de
-`src/index.ts` sigue siendo la implementación runtime activa y aún no consume
-este contrato v2.
+un orquestador local sin dependencia del SDK que ejecuta ese lifecycle. El modo
+`activate` permanece limitado a un preflight estrictamente de solo lectura.
+Todavía no hay adaptador real de bytes/transformaciones, materialización de
+posiciones del candidato, CAS/publicación/activación, trigger v2 conectado al
+orquestador, consumidores de sync/notificaciones/recovery, integración móvil,
+despliegue ni escritura live; todas esas fronteras siguen fail-closed. El trigger
+legacy `onShiftPlanningRequestCreated` de `src/index.ts` sigue siendo la
+implementación runtime activa y aún no consume este contrato v2.
 
 Ruta de petición prevista:
 
@@ -256,6 +257,15 @@ recalcular ni reescribir. `preview` y `stage` recorren
 `requested -> processing -> completed|failed`; los fallos terminales usan el
 resumen estable y no persisten mensajes internos sin tipar.
 
+El orquestador enruta y reclama dentro de una única transacción del repositorio.
+Para `preview` y `stage` adquiere el lease antes de invocar al planner, evita
+invocarlo en `busy` o replay terminal y, para `stage`, carga el preview persistido
+exacto. Los errores deterministas tipados de planificación o digest terminan con
+un resumen estable; los fallos de infraestructura se propagan sin terminalizar el
+lease para permitir un retry seguro. Para `activate` la misma transacción devuelve
+la ruta de preflight sin crear operación ni escribir; después solo ejecuta el
+preflight candidate-only y no invoca al planner.
+
 El gate canonico y conservador de HU-082 limita cada direccion a 500 escrituras
 documentales mas transformaciones declaradas y 10 MiB de peticion serializada.
 El planner puro calcula presupuestos forward/inverse, pero deja los bytes como
@@ -291,7 +301,9 @@ en el flujo runtime.
   elegibilidad y destino; no se deduplica solo por persona.
 - El manifest inverse de recovery liga rutas creadas, rutas y digests de
   before-images persistidas, CAS de bundle activo/digest/epoca y una epoca
-  posterior que nunca se reutiliza ni decrementa.
+  posterior que nunca se reutiliza ni decrementa. El bundle inmutable ya
+  persistido por preview queda fuera del write-set de activación y del inverse:
+  no se actualiza, restaura ni borra, y se retiene como evidencia de replay.
 
 El planner y los manifests siguen siendo contrato/resultado puro. El repositorio
 solo ejecuta transacciones privadas sobre peticiones, operaciones, bundles y la

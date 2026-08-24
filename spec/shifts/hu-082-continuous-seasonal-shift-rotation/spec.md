@@ -199,9 +199,10 @@ contract and deterministic planner behavior.
 - `preview` computes both complete deterministic subplans and one combined digest
   without writing
   rotation state, public shifts, candidate shifts, Sheets rows, notification
-  intents, or credit-ledger state. Its only permitted writes are the private
-  control-plane request/status and audit records required for the exact
-  `requested -> processing -> completed|failed` lifecycle.
+  intents, or credit-ledger state. Its only permitted writes are private
+  request/operation lifecycle state plus the immutable bundle and receipt
+  required for the exact `requested -> processing -> completed|failed`
+  lifecycle and digest-bound stage.
 - `stage` is bound to that combined input snapshot/digest and persists one
   versioned two-type bundle candidate in a backend-owned partition hidden from
   normal member queries, Sheets export, and notification consumers. It advances
@@ -261,6 +262,9 @@ contract and deterministic planner behavior.
   No epoch is reused or decremented. Epoch/maintenance state belongs to the candidate
   digest, forward/inverse transaction budgets, recovery manifest, and crash/replay
   tests, so no gate can reopen on a stale pair.
+- The immutable bundle persisted by preview predates public activation. Inverse
+  recovery retains it outside its write-set and must never update, restore, or
+  classify it as an activation-created document to delete.
 - Activation supports an idempotent notification hold/release boundary. The
   active result can be reconciled before any irreversible inbox/FCM event is
   released. A transaction/CAS reads current assignment and membership versions
@@ -437,9 +441,10 @@ English/Spanish requirement edits are accepted, this spec remains draft.
   exact replay independently for each typed subplan; partial overflow is merged,
   fully prefilled seasons advance that type's frontier, and any invalid subplan
   prevents the entire bundle from activating or drifting either cursor.
-- [ ] Preview writes only private request/status/audit control-plane records and
-  writes no rotation, candidate/public shift, Sheet, outbox, or credit-ledger
-  data; stage requires its exact input snapshot/digest.
+- [ ] Preview writes only private request/operation lifecycle state and its
+  immutable bundle/receipt; it writes no rotation, candidate/public shift,
+  Sheet, outbox, or credit-ledger data, and stage requires its exact input
+  snapshot/digest.
 - [ ] Stage is admin-readable but invisible to normal member queries, Sheets,
   active cursor/cohort state, and notification consumers; Android/iOS admin
   inspection renders the exact revision without leaking it to member feeds.

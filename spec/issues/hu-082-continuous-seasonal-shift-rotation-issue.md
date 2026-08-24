@@ -68,9 +68,10 @@ round, with as many rounds as the calendar and cohort require.
   reopening. It is digested and budgeted and is never restored or reused.
 - A round cohort freezes on public activation, never on preview/stage; roster
   or any other fairness-input drift forces a new digest.
-- Preview writes only private request/status/audit records; digest-bound staging
-  stays in a separate admin-only partition, and activation transactionally
-  rechecks all input versions, including the credit ledger when enabled.
+- Preview writes only private request/operation lifecycle state plus its immutable
+  bundle/receipt; digest-bound staging stays in a separate admin-only partition,
+  and activation transactionally rechecks all input versions, including the
+  credit ledger when enabled.
 - The invoker-only rollout boundary covers every governed data mutation: repair,
   migration/bootstrap, preview, stage, activate, sync correction, recovery, and
   cleanup. The epoch-aware runtime alone writes data; operator/deployer/scripts do not.
@@ -176,6 +177,28 @@ measurement, candidate-position materialization, maintenance/publication CAS,
 public activation, the v2 trigger, sync/notification/recovery consumers, mobile
 read-back, Rules deployment, Sheets access, and all shared/live mutations remain
 pending. The legacy v1 trigger is unchanged and remains the active runtime.
+
+## Local implementation checkpoint — request orchestration cut (2026-08-24)
+
+An SDK-free lifecycle orchestrator now routes each exact persisted request through
+one repository transaction. Preview and stage claim before invoking their planner;
+busy and terminal replay return without planning, and stage receives the exact
+persisted preview. Typed planning and digest failures become stable terminal
+summaries, while infrastructure or persistence failures remain retryable instead
+of being rewritten as business failures. The same transaction routes activate to
+candidate preflight without creating an operation or writing state; activate does
+not claim or resolve a bundle.
+
+The pure manifest/budget contract also keeps the immutable bundle already
+persisted by preview entirely outside activation and inverse recovery: it is not
+updated, restored, or deleted. Existing request, candidate, and operation records
+are classified as updates, while only genuinely new public projection, command,
+before-image, and held-intent documents are creates. Unit and Firestore emulator
+coverage exercise the complete private `preview -> stage` path and prove the
+`activate` orchestration boundary performs no operation write. This orchestrator
+is not exported from `src/index.ts`; public CAS, authoritative live snapshot
+validation, adapter measurement, candidate materialization, consumers, mobile
+integration, deployment, and every live mutation remain pending.
 
 ## Suggested labels
 

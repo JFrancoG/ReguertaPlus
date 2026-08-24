@@ -56,7 +56,9 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
   binding, staged `candidateDigest`, measured forward/inverse adapter evidence,
   measurement-authority drift, before-image budgeting, disabled credit-ledger
   enforcement, the 500-write/10-MiB gate, future occupancy, common baseline,
-  cohort freeze, and release/workbook-partition lease conflicts.
+  cohort freeze, immutable preview-bundle exclusion from activation/recovery,
+  exact create/update/delete classification, and release/workbook-partition lease
+  conflicts.
 - [ ] Add shared mobile fixtures for canonical source and planner provenance.
 
 ## 2. Backend model and deterministic planners
@@ -141,6 +143,9 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
   - [x] Implement and test that lifecycle for private `preview` and `stage`,
     including busy/resume, expired takeover, fencing, exact terminal summaries,
     and replay without artifact overwrite.
+  - [x] Add the SDK-free local request orchestrator: claim before planning,
+    short-circuit busy/replay, load persisted preview for stage, terminalize only
+    typed deterministic failures, and keep activate candidate-only/read-only.
   - [ ] Extend the lifecycle to the future v2 activation runtime and its recovery
     and retention policy before checking the parent task.
 - [ ] Write client-compatible `source = app` plus planner provenance.
@@ -273,8 +278,8 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
 - [ ] Read back request, rotation state, shifts, and notifications.
 - [ ] Verify Android and iOS update after terminal completion without restart.
 - [ ] Prove replay produces no duplicate or cursor drift.
-- [ ] Prove preview has only private request/status/audit writes, stage remains
-  non-public, activation is atomic, canonical notification-event release is
+- [ ] Prove preview has only private request/operation/bundle writes, stage
+  remains non-public, activation is atomic, canonical notification-event release is
   idempotent, inbox upsert deduplicates, and FCM carries a stable event ID while
   retaining explicit possible-duplicate semantics.
   - [x] Emulator cut: preview writes only private request/operation/bundle state,

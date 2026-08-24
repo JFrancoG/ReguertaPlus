@@ -6,6 +6,9 @@ const {
   createFirestoreShiftPlanningRepository,
 } = require("../lib/shift-planning-firestore-repository.js");
 const {
+  executeShiftPlanningRequest,
+} = require("../lib/shift-planning-request-lifecycle.js");
+const {
   buildShiftPlanningCompletedSummary,
 } = require("../lib/shift-planning-persistence.js");
 const {
@@ -125,31 +128,36 @@ const seedRequest = async (input) => {
   return document;
 };
 
-const emptyBudget = (direction) => ({
-  direction,
-  writeLimit: 500,
-  publicShiftWrites: 0,
-  predecessorHelperWrites: 0,
-  rotationWrites: 2,
-  activeStateWrites: 1,
-  bundleMetadataWrites: 1,
-  requestWrites: 1,
-  stagedCandidateWrites: 1,
-  syncCommandWrites: 2,
-  operationRegistryWrites: 1,
-  beforeImageWrites: 0,
-  heldIntentWrites: 0,
-  creditLedgerWrites: 0,
-  createWrites: 0,
-  updateWrites: 0,
-  deleteWrites: 0,
-  totalWrites: 8,
-  byteEstimate: {
-    status: "requiresPersistenceAdapter",
-    estimatedBytes: null,
-    configuredByteLimit: 10 * 1024 * 1024,
-  },
-});
+const emptyBudget = (direction) => {
+  const createWrites = direction === "forward" ? 2 : 0;
+  const updateWrites = 6;
+  const deleteWrites = direction === "inverse" ? 2 : 0;
+  return {
+    direction,
+    writeLimit: 500,
+    publicShiftWrites: 0,
+    predecessorHelperWrites: 0,
+    rotationWrites: 2,
+    activeStateWrites: 1,
+    bundleMetadataWrites: 0,
+    requestWrites: 1,
+    stagedCandidateWrites: 1,
+    syncCommandWrites: 2,
+    operationRegistryWrites: 1,
+    beforeImageWrites: 0,
+    heldIntentWrites: 0,
+    creditLedgerWrites: 0,
+    createWrites,
+    updateWrites,
+    deleteWrites,
+    totalWrites: createWrites + updateWrites + deleteWrites,
+    byteEstimate: {
+      status: "requiresPersistenceAdapter",
+      estimatedBytes: null,
+      configuredByteLimit: 10 * 1024 * 1024,
+    },
+  };
+};
 
 const stableBundleFields = () => ({
   schemaVersion: 1,
@@ -265,7 +273,7 @@ const stageResult = (
       direction: "forward",
       manifestDigest:
         preview.transactionRequirements.forwardManifestDigest,
-      documentWriteCount: 8,
+      documentWriteCount: preview.budgets.forward.totalWrites,
       fieldTransformCount: 0,
       requestByteCount: 25_000,
       adapterRevision: "firestore-adapter-v1",
@@ -277,7 +285,7 @@ const stageResult = (
       direction: "inverse",
       manifestDigest:
         preview.transactionRequirements.inverseManifestDigest,
-      documentWriteCount: 8,
+      documentWriteCount: preview.budgets.inverse.totalWrites,
       fieldTransformCount: 0,
       requestByteCount: 25_000,
       adapterRevision: "firestore-adapter-v1",
@@ -512,6 +520,33 @@ test("claims fail closed across environment paths", async () => {
   await assertPlanningDocuments([
     requestPath("preview-cross-environment"),
   ]);
+});
+
+test("activate routing is normalized and read-only", async () => {
+  await seedRequest({
+    requestId: "activate-routing",
+    mode: "activate",
+    binding: {
+      kind: "candidate",
+      candidateId: "bundle-2026",
+      bundleRevision: BUNDLE_REVISION,
+      bundleDigest: BUNDLE_DIGEST,
+      candidateDigest: `shift-planning:v1:sha256:${"9".repeat(64)}`,
+    },
+  });
+
+  const claim = await repository.claimRequest({
+    environment: ENVIRONMENT,
+    requestId: "activate-routing",
+    operationId: "request-activate-routing",
+    workerId: "worker-activate-routing",
+    leaseDurationMillis: 10_000,
+  });
+
+  assert.equal(claim.kind, "activationPreflight");
+  assert.equal(claim.request.requestedAtMillis, REQUESTED_AT_MILLIS);
+  assert.equal(claim.request.mode, "activate");
+  await assertPlanningDocuments([requestPath("activate-routing")]);
 });
 
 test("stage loads the persisted preview and never overwrites a candidate", async () => {
@@ -844,4 +879,85 @@ test("activate preflight rejects an aliased candidate document path", async () =
     (await firestore.doc(operationPath("activate-alias")).get()).exists,
     false,
   );
+});
+
+test("private runtime drives preview and stage but only preflights activate", async () => {
+  await seedRequest({requestId: "preview-runtime"});
+  const previewExecution = await executeShiftPlanningRequest({
+    persistence: repository,
+    resolveBundle: async ({persistedPreview: source}) => {
+      assert.equal(source, null);
+      return previewResult("preview-runtime");
+    },
+    environment: ENVIRONMENT,
+    requestId: "preview-runtime",
+    operationId: "request-preview-runtime",
+    workerId: "worker-preview-runtime",
+    leaseDurationMillis: 10_000,
+  });
+  assert.equal(previewExecution.kind, "completed");
+
+  await seedRequest({
+    requestId: "stage-runtime",
+    mode: "stage",
+    binding: {
+      kind: "preview",
+      sourceRequestId: "preview-runtime",
+      bundleRevision: BUNDLE_REVISION,
+      bundleDigest: BUNDLE_DIGEST,
+    },
+  });
+  const stageExecution = await executeShiftPlanningRequest({
+    persistence: repository,
+    resolveBundle: async ({persistedPreview: source}) => {
+      assert.equal(source.receipt.requestId, "preview-runtime");
+      return stageResult("stage-runtime", previewExecution.result);
+    },
+    environment: ENVIRONMENT,
+    requestId: "stage-runtime",
+    operationId: "request-stage-runtime",
+    workerId: "worker-stage-runtime",
+    leaseDurationMillis: 10_000,
+  });
+  assert.equal(stageExecution.kind, "completed");
+
+  await seedRequest({
+    requestId: "activate-runtime",
+    mode: "activate",
+    binding: {
+      kind: "candidate",
+      candidateId: "bundle-2026",
+      bundleRevision: BUNDLE_REVISION,
+      bundleDigest: BUNDLE_DIGEST,
+      candidateDigest: stageExecution.result.stagedCandidateDigest,
+    },
+  });
+  let activateResolverCalls = 0;
+  const activateExecution = await executeShiftPlanningRequest({
+    persistence: repository,
+    resolveBundle: async () => {
+      activateResolverCalls += 1;
+      return stageExecution.result;
+    },
+    environment: ENVIRONMENT,
+    requestId: "activate-runtime",
+    operationId: "request-activate-runtime",
+    workerId: "worker-activate-runtime",
+    leaseDurationMillis: 10_000,
+  });
+  assert.equal(activateExecution.kind, "activationPreflight");
+  assert.equal(activateResolverCalls, 0);
+  assert.equal(
+    (await firestore.doc(operationPath("activate-runtime")).get()).exists,
+    false,
+  );
+  await assertPlanningDocuments([
+    requestPath("preview-runtime"),
+    operationPath("preview-runtime"),
+    bundlePath(),
+    requestPath("stage-runtime"),
+    operationPath("stage-runtime"),
+    candidatePath(),
+    requestPath("activate-runtime"),
+  ]);
 });

@@ -204,13 +204,16 @@ cannot leave a half-updated season. Clients observe the exact bundle/mode to
 
 `preview` computes the deterministic plan and digest without mutating rotation,
 candidate/public shifts, Sheets, notification outbox, or an enabled credit
-ledger. It may write only private request/status/audit control-plane records for
-its lifecycle.
+ledger. It may write only private request/operation lifecycle state plus its
+immutable bundle/receipt artifact.
 `stage` accepts only that combined snapshot/digest and stores one versioned
 two-type bundle candidate in a separate backend-owned partition hidden from
 normal member queries, Sheets export, and notification consumers; it advances no
 active cursor and freezes no cohort. `activate` accepts only that candidate
 revision/digest and atomically promotes both active rotations/projections.
+Because the immutable preview bundle predates activation, inverse recovery
+retains it outside its write-set and never updates, restores, or classifies it as
+an activation-created path to delete.
 Activation is the acknowledged public-visibility boundary and queues Sheets sync
 plus held notification intents.
 
