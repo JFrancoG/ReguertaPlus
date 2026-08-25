@@ -395,12 +395,26 @@ fences cerrados y autorizar explicitamente el checkpoint dinamico exacto: Rules,
 manifest de controles, workbook, conjunto causal y politica temporal. Dentro del
 callback que ese adaptador declara retenido, el coordinador verifica el paquete,
 lo retiene por la clave estable `environment + transitionId`, relee y reverifica
-el sobre completo, y ejecuta la CAS. El puerto crea cuando no existe, devuelve el
-sobre previo solo para un replay con digest identico y falla ante una colision;
-nunca sobreescribe evidencia. El coordinador no ofrece reapertura, pero su tipo
-no puede
-probar que un adaptador real mantenga el fence: esa obligacion y su validacion de
-rollout siguen pendientes.
+el sobre completo, y ejecuta la CAS. El repositorio Firestore local/emulador crea
+`shiftPlanningOperations/barrier-evidence-{transitionId}` cuando no existe, devuelve el
+sobre previo solo para un replay con digest identico y falla ante una colision o
+un schema, binding o digest alterado; nunca sobreescribe evidencia ni cambia
+`retainedAt`. Ese timestamp debe ser no negativo, exacto al milisegundo y no
+anterior a `verifiedAtMillis`; el read-back posterior debe coincidir con el
+registro completo observado o creado por la transaccion.
+
+El adaptador production-shaped implementado recibe puertos de control inyectados,
+liga scope, revision de hold y evidencia en un checkpoint digerido, lo relee antes
+y despues del unico callback y no expone reapertura. Si falla el cierre, cualquier
+read-back, el callback o la comprobacion final, vuelve a probar el cierre y retiene
+`shiftPlanningOperations/barrier-failure-{transitionId}` con la fase y los digests
+del scope, hold y checkpoint. Un cierre fallido previo bloquea el retry antes de
+volver a operar. Los prefijos `barrier-evidence-` y `barrier-failure-` son
+disjuntos incluso cuando un ID comienza por `failure-`. Esto prueba la
+orquestacion y el journal local, no que existan los
+drivers reales ni que los fences externos hayan sido cerrados. El futuro driver
+debe hacer converger cierres concurrentes del mismo scope en un unico checkpoint;
+la CAS de mantenimiento conserva la idempotencia durable de cada callback.
 
 Antes de exigir frescura, el coordinador consulta la operacion terminal. Una
 entrada inexistente debe superar ambos checks temporales antes del intento; una
@@ -409,10 +423,10 @@ retenido y puede recuperar su resultado incluso despues del deadline. Nunca
 recrea evidencia historica ausente. Tras el replay, la comprobacion de propiedad
 actual sigue siendo obligatoria.
 
-Este contrato no prueba una barrera real. El almacen concreto idempotente de
-evidencia y el adaptador que despliegue y relea Rules, deshabilite/drene
-Functions/Eventarc, audite IAM y cerque Drive/Workspace siguen pendientes y
-pertenecen al rollout autorizado posterior. Las Rules Phase 1
+Este contrato no prueba una barrera real. Los bindings que desplieguen y relean
+Rules, deshabiliten/drenen Functions/Eventarc, auditen IAM y cerquen
+Drive/Workspace siguen pendientes y pertenecen al rollout autorizado posterior;
+el adaptador no se conecta todavia desde `index.ts`. Las Rules Phase 1
 configuradas en el repositorio siguen permitiendo rutas legacy y las strict
 locales aun admiten escrituras admin directas de turnos/calendario, por lo que
 ninguna de ellas cuenta por si sola como evidencia de cierre HU-082.

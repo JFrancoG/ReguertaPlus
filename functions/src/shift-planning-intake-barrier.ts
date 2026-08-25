@@ -1125,6 +1125,38 @@ const parsePayload = (
 };
 
 /**
+ * Parses one detached intake-barrier envelope and verifies that its digest
+ * binds the complete normalized payload. This structural boundary deliberately
+ * does not apply command binding, chronology, or freshness; those checks belong
+ * to maintenance admission, while immutable evidence storage must also read
+ * terminal packets after their admission window has elapsed.
+ * @param {unknown} value Untrusted evidence envelope.
+ * @return {ShiftPlanningIntakeBarrierEvidenceEnvelope} Normalized envelope.
+ */
+export const parseShiftPlanningIntakeBarrierEvidenceEnvelope = (
+  value: unknown,
+): ShiftPlanningIntakeBarrierEvidenceEnvelope => {
+  const canonicalEnvelope = detachedCanonicalValue(
+    value,
+    "intake barrier envelope",
+  );
+  const envelope = requireRecord(
+    canonicalEnvelope,
+    "intake barrier envelope",
+  );
+  requireExactKeys(envelope, ["payload", "digest"], "intake barrier envelope");
+  const payload = parsePayload(envelope.payload);
+  const digest = requireDigest(
+    envelope.digest,
+    "intake barrier evidence digest",
+  );
+  if (digest !== createShiftPlanningDigest(payload)) {
+    return failBarrier("Intake barrier evidence digest does not match.");
+  }
+  return {payload, digest};
+};
+
+/**
  * Revalidates a detached audit packet and derives the compact evidence
  * persisted by the maintenance CAS. The digest binds the exact packet; it does
  * not replace the trusted adapter that reads and holds real Rules, IAM, queue,
@@ -1141,24 +1173,8 @@ const verifyIntakeBarrierEvidence = (
   nowMillis: number,
   requireFreshness: boolean,
 ): VerifiedShiftPlanningIntakeBarrier => {
-  const canonicalEnvelope = detachedCanonicalValue(
-    value,
-    "intake barrier envelope",
-  );
-  const envelope = requireRecord(
-    canonicalEnvelope,
-    "intake barrier envelope",
-  );
-  requireExactKeys(envelope, ["payload", "digest"], "intake barrier envelope");
-  const payload = parsePayload(envelope.payload);
-  const digest = requireDigest(
-    envelope.digest,
-    "intake barrier evidence digest",
-  );
-  const expectedDigest = createShiftPlanningDigest(payload);
-  if (digest !== expectedDigest) {
-    return failBarrier("Intake barrier evidence digest does not match.");
-  }
+  const {payload, digest} =
+    parseShiftPlanningIntakeBarrierEvidenceEnvelope(value);
   const normalizedNow = requireNonNegativeInteger(
     nowMillis,
     "verification clock",

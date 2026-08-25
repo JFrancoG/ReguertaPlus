@@ -481,6 +481,40 @@ authoritative CAS read-set:
   runtime-disconnected flow has no deployed v1 operation state to migrate. An exact retry
   replays its original result; an ID reused for another intent or altered digest
   evidence fails closed.
+- `shiftPlanningOperations/barrier-evidence-{transitionId}` stores the complete immutable
+  intake-barrier evidence envelope under the stable environment and transition key.
+  Its exact schema-v1 wrapper is `schemaVersion`,
+  `operationKind = intakeBarrierEvidence`, `environment`, `transitionId`,
+  `evidence`, `evidenceDigest`, and Firestore `retainedAt`. That timestamp must
+  be millisecond-exact, non-negative, and no earlier than the packet's
+  `verifiedAtMillis`.
+- `shiftPlanningOperations/barrier-failure-{transitionId}` stores one immutable
+  failed-closure incident with
+  `operationKind = intakeBarrierFailureClosure`. It binds the environment and
+  transition to the exact `scopeDigest`, `holdRevision`, `checkpointDigest`, and
+  failure `phase`; it also records Firestore `failedAt` and the canonical
+  `failureDigest`. The domain read-back derives `failedAtMillis` from that exact
+  timestamp and retains no raw exception text.
+
+The fixed `barrier-evidence-` and `barrier-failure-` namespaces are disjoint, so
+no accepted transition ID can alias an evidence document to another
+transition's failure closure.
+
+Both barrier records use create-or-exact-replay semantics. A retry with the same
+canonical evidence or closure intent reads back the original record without
+updating its retention/failure instant. Reusing the stable key with another
+digest or binding, or finding a malformed or digest/binding-tampered record,
+fails closed without overwrite, repair, or early deletion. Every successful
+create or replay is followed by an exact Firestore read-back. The backend-only
+IAM boundary remains responsible for protecting the audit timestamps themselves;
+the repository also compares the complete transaction result, including its
+timestamp, with the immediate post-transaction read-back.
+
+This freezes only the local/emulator persistence contract and the incident
+journal used by the production-shaped adapter. It does not prove a live Rules,
+IAM, Functions/Eventarc, Drive, Workspace, queue, editor, or workbook fence; it
+does not authorize a deployment and exposes no reopening capability. Governed
+live implementations, wiring, and read-back evidence remain pending.
 
 Local maintenance entry and pre-activation abort each update only `current` and
 create one operation record in a transaction. Both revisions advance exactly
@@ -528,8 +562,9 @@ atomically reads maintenance plus both rotations, derives one canonical CAS
 digest, and implements runtime-disconnected, idempotent maintenance entry and
 abort.
 Still pending and fail-closed are real byte/transform measurement,
-candidate-position materialization, the trusted external intake barrier, writer
-migration, bundle-bound public activation/recovery CAS,
+candidate-position materialization, live Google control-plane implementations
+and trusted intake-barrier wiring, writer migration, bundle-bound public
+activation/recovery CAS,
 a v2 trigger connected to the orchestrator, sync, notification and recovery
 consumers, mobile integration, deployment, and live data changes. The legacy
 `onShiftPlanningRequestCreated` implementation in `functions/src/index.ts`

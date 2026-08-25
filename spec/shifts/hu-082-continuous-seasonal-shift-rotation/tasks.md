@@ -89,9 +89,16 @@ occurred. Protected technical evidence remains outside the repository.
     replay, recover an exact terminal replay after expiry through an
     `existing-only` evidence read, and expose no reopen operation. State-operation
     schema v2 records the attempt sample and has no deployed v1 state to migrate.
-  - [ ] Remaining: implement and validate the immutable idempotent evidence store and real
-    trusted external adapter, including durable failure closure; then implement
-    activation/recovery transitions, crash injection, and governed reopen.
+  - [x] Implement and validate the local/emulator immutable idempotent evidence
+    store plus a production-shaped trusted adapter over injected control-plane
+    ports. The adapter holds one exact checkpoint around one callback per
+    invocation, requires concurrent closure of the same scope to converge,
+    performs initial/final read-back, retains an immutable failure closure for
+    every post-close failure, and has no reopen capability.
+  - [ ] Remaining: bind that adapter to the real Rules, IAM,
+    Functions/Eventarc, queue, Drive/Workspace, editor, and workbook controls;
+    then implement activation/recovery transitions, crash injection, live
+    rollout evidence, and governed reopen.
 - [x] Add RED eligibility cases for inactive members, real producers, common
   purchase managers, and catalog flags.
 - [x] Add RED bootstrap cases for valid state/history/mapping/new queue, randomized

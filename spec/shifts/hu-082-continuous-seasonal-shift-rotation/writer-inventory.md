@@ -93,10 +93,13 @@ writer must join the external fence instead of being assumed safe.
    full envelope, then start `enterMaintenanceWithBarrierEvidence` before
    expiry. Retention creates when absent, replays only an identical digest, and
    fails on a key collision; it never overwrites evidence. The coordinator
-   exposes no reopen capability. The future real adapter is contractually
-   responsible for holding every fence until the Firestore transaction resolves
-   and for keeping fences closed on every failure; rollout validation must prove
-   that behavior.
+   exposes no reopen capability. The production-shaped local adapter additionally
+   verifies one immutable held checkpoint before and after the callback and
+   journals any failure under the same transition while the controls remain
+   closed. The future real control-plane bindings are contractually responsible
+   for holding every fence until the Firestore transaction resolves and for
+   keeping fences closed on every failure; rollout validation must prove that
+   behavior.
 
 The local verifier binds this packet to environment, transition ID, the complete
 maintenance CAS, expected Rules artifact, exact workbook file ID, inventory
@@ -118,10 +121,9 @@ state ownership is still rechecked before accepting that replay.
 
 ## Explicitly pending
 
-- A real adapter that reads and holds Rules, IAM, Eventarc/Functions delivery,
-  Drive/Workspace, editor, and workbook state.
-- A concrete immutable idempotent store for complete barrier evidence, with
-  create-or-exact-replay and collision rejection under the stable key.
+- Real control-plane bindings that read and hold Rules, IAM,
+  Eventarc/Functions delivery, Drive/Workspace, editor, and workbook state. The
+  repository contains only the injected no-reopen adapter and its local tests.
 - Temporary barrier Rules and all shared deployment/read-back.
 - Disabling or draining any live endpoint, trigger, principal, queue, or editor.
 - Epoch/revision migration of mobile and backend writers.

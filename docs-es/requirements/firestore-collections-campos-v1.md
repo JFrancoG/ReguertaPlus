@@ -598,6 +598,41 @@ un unico read-set autoritativo para CAS:
   no tiene operaciones v1 desplegadas que migrar.
   Un retry exacto reproduce el resultado original; reutilizar el ID con otra
   intencion o alterar la evidencia de digest falla cerrado.
+- `shiftPlanningOperations/barrier-evidence-{transitionId}` guarda el sobre completo e
+  inmutable de evidencia de barrera de entrada bajo la clave estable de entorno y
+  transicion. Su wrapper schema v1 exacto contiene `schemaVersion`,
+  `operationKind = intakeBarrierEvidence`, `environment`, `transitionId`,
+  `evidence`, `evidenceDigest` y el `retainedAt` de Firestore. Ese timestamp debe
+  ser exacto al milisegundo, no negativo y no anterior al `verifiedAtMillis` del
+  paquete.
+- `shiftPlanningOperations/barrier-failure-{transitionId}` guarda un unico
+  incidente inmutable de cierre fallido con
+  `operationKind = intakeBarrierFailureClosure`. Liga entorno y transicion con
+  `scopeDigest`, `holdRevision`, `checkpointDigest` y la `phase` de fallo
+  exactos; tambien registra el `failedAt` de Firestore y el `failureDigest`
+  canonico. El read-back de dominio deriva `failedAtMillis` de ese timestamp
+  exacto y no conserva el texto crudo de la excepcion.
+
+Los namespaces fijos `barrier-evidence-` y `barrier-failure-` son disjuntos, por
+lo que ningun ID de transicion aceptado puede hacer alias entre un documento de
+evidencia y el cierre fallido de otra transicion.
+
+Ambos registros de barrera usan semantica create-or-exact-replay. Un retry con la
+misma evidencia canonica o intencion de cierre relee el registro original sin
+actualizar su instante de retencion o fallo. Reutilizar la clave estable con otro
+digest o binding, o encontrar un registro malformado o con digest/binding
+alterado, falla cerrado sin sobreescritura, reparacion ni borrado temprano. Cada
+create o replay correcto se completa con una relectura exacta de Firestore. La
+frontera IAM solo-backend sigue siendo responsable de proteger los propios
+timestamps de auditoria; el repositorio tambien compara el resultado completo de
+la transaccion, incluido su timestamp, con el read-back inmediatamente posterior.
+
+Esto congela unicamente el contrato de persistencia local/emulador y el journal
+de incidentes usado por el adaptador con forma de produccion. No prueba un fence
+live de Rules, IAM, Functions/Eventarc, Drive, Workspace, colas, editores o
+workbook; no autoriza ningun despliegue ni expone capacidad de reapertura. Siguen
+pendientes las implementaciones live gobernadas, su wiring y su evidencia de
+read-back.
 
 La entrada local en mantenimiento y el aborto preactivacion actualizan solo
 `current` y crean un registro de operacion dentro de una transaccion. Ambas
@@ -648,9 +683,10 @@ leer estado ni escribir. El repositorio de estado lee atomicamente
 mantenimiento y ambas rotaciones, deriva un digest CAS canonico e implementa
 entrada y aborto idempotentes y desconectados del runtime.
 Siguen pendientes y fail-closed la medicion real de bytes/transformaciones, la
-materializacion de posiciones del candidato, la barrera externa de entrada
-fiable, la migracion de writers y el CAS de activacion/recovery publico ligado al
-bundle, un trigger v2 conectado al orquestador, consumidores de
+materializacion de posiciones del candidato, las implementaciones live del plano
+de control de Google y el wiring fiable de la barrera de entrada, la migracion de
+writers y el CAS de activacion/recovery publico ligado al bundle, un trigger v2
+conectado al orquestador, consumidores de
 sync/notificacion/recovery, integracion movil, despliegue y cambios live. La implementacion legacy
 `onShiftPlanningRequestCreated` de `functions/src/index.ts` sigue siendo el
 runtime activo. El candidato local de Rules Phase 1 niega a todo cliente el nuevo
