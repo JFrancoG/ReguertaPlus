@@ -235,7 +235,7 @@ const resolveClaimedBundle = async (input: {
 /**
  * Runs the private v2 request lifecycle without selecting Firebase triggers or
  * public side effects. Preview and stage claim before planning; activation is
- * deliberately restricted to the repository's candidate-only read preflight.
+ * deliberately restricted to the repository's candidate-package read preflight.
  * @param {ExecuteShiftPlanningRequestInput} input Request/state persistence
  * and planner ports.
  * @return {Promise<ShiftPlanningRequestLifecycleResult>} Stable lifecycle

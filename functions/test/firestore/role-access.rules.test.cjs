@@ -1068,6 +1068,13 @@ test("only admins read staged candidates and no client mutates them", async () =
   for (const env of envs) {
     const path = docPath(env, "shiftPlanningCandidates", "bundle-2026");
     const positionPath = `${path}/positions/delivery-2026-09-02`;
+    const newCandidatePath = docPath(
+      env,
+      "shiftPlanningCandidates",
+      "bundle-create-denied",
+    );
+    const newPositionPath = `${path}/positions/market-create-denied`;
+    const unexpectedChildPath = `${path}/unexpected/document`;
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await context.firestore().doc(path).set({
         schemaVersion: 1,
@@ -1078,6 +1085,9 @@ test("only admins read staged candidates and no client mutates them", async () =
         type: "delivery",
         date: "2026-09-02",
       });
+      await context.firestore().doc(unexpectedChildPath).set({
+        private: true,
+      });
     });
     const adminDb = contextFor(actors.admin).firestore();
     const memberDb = contextFor(actors.member).firestore();
@@ -1085,14 +1095,22 @@ test("only admins read staged candidates and no client mutates them", async () =
     await assertSucceeds(adminDb.doc(path).get());
     await assertSucceeds(adminDb.doc(positionPath).get());
     await assertSucceeds(adminDb.collection(`${path}/positions`).get());
+    await assertFails(adminDb.doc(unexpectedChildPath).get());
     await assertSucceeds(
       adminDb.collection(collectionPath(env, "shiftPlanningCandidates")).get(),
     );
     await assertFails(memberDb.doc(path).get());
     await assertFails(memberDb.doc(positionPath).get());
+    await assertFails(
+      memberDb.collection(collectionPath(env, "shiftPlanningCandidates")).get(),
+    );
+    await assertFails(memberDb.collection(`${path}/positions`).get());
+    await assertFails(adminDb.doc(newCandidatePath).set({schemaVersion: 1}));
+    await assertFails(adminDb.doc(newPositionPath).set({type: "market"}));
     await assertFails(adminDb.doc(path).set({schemaVersion: 1}));
     await assertFails(adminDb.doc(positionPath).set({type: "market"}));
     await assertFails(adminDb.doc(path).update({bundleId: "tampered"}));
+    await assertFails(adminDb.doc(positionPath).delete());
     await assertFails(adminDb.doc(path).delete());
   }
 });

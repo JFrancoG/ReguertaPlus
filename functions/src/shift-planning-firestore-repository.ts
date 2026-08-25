@@ -14,6 +14,13 @@ import {
   validateShiftPlanningStagedCandidate,
 } from "./shift-planning-bundle.js";
 import {
+  ShiftPlanningPersistedCandidatePosition,
+  buildShiftPlanningCandidatePositionSet,
+  parseShiftPlanningPersistedCandidatePosition,
+  persistShiftPlanningCandidatePosition,
+  validateShiftPlanningCandidatePositionSet,
+} from "./shift-planning-candidate.js";
+import {
   ShiftPlanningError,
   ShiftPlanningFailureCode,
   requirePlanningRequestId,
@@ -856,6 +863,110 @@ const parsePersistedCandidate = (
   return parsed;
 };
 
+const candidatePositionDocuments = (input: {
+  candidate: ShiftPlanningPersistedCandidate;
+  bundle: ShiftPlanningPersistedBundle;
+}): readonly ShiftPlanningPersistedCandidatePosition[] => {
+  try {
+    const expected = buildShiftPlanningCandidatePositionSet({
+      candidateId: input.candidate.bundleId,
+      bundleRevision: input.candidate.bundleRevision,
+      bundleDigest: input.candidate.bundleDigest,
+      writeEpoch: input.bundle.artifact.activationWriteEpoch,
+      delivery: input.bundle.artifact.delivery,
+      market: input.bundle.artifact.market,
+    });
+    if (
+      createShiftPlanningDigest(expected.manifest) !==
+        createShiftPlanningDigest(input.candidate.candidate.positionManifest)
+    ) {
+      return failPersistence(
+        "Staged candidate position manifest does not match its bundle.",
+      );
+    }
+    return expected.positions.map((position) =>
+      persistShiftPlanningCandidatePosition({
+        position,
+        candidateDigest: input.candidate.candidateDigest,
+      }));
+  } catch (error) {
+    if (error instanceof ShiftPlanningError) {
+      return failPersistence(
+        "Staged candidate position projection is not canonical.",
+      );
+    }
+    throw error;
+  }
+};
+
+const parseCandidatePositionDocuments = (input: {
+  documents: readonly {id: string; data(): unknown}[];
+  candidate: ShiftPlanningPersistedCandidate;
+  bundle: ShiftPlanningPersistedBundle;
+}): readonly ShiftPlanningPersistedCandidatePosition[] => {
+  try {
+    const documents = input.documents.map((snapshot) => {
+      const document = parseShiftPlanningPersistedCandidatePosition(
+        snapshot.data(),
+      );
+      if (document.positionId !== snapshot.id) {
+        return failPersistence(
+          "Candidate position path identity does not match its document.",
+        );
+      }
+      return document;
+    });
+    return validateShiftPlanningCandidatePositionSet({
+      manifest: input.candidate.candidate.positionManifest,
+      positions: documents,
+      candidateId: input.candidate.bundleId,
+      candidateDigest: input.candidate.candidateDigest,
+      bundleRevision: input.candidate.bundleRevision,
+      bundleDigest: input.candidate.bundleDigest,
+      writeEpoch: input.bundle.artifact.activationWriteEpoch,
+    });
+  } catch (error) {
+    if (error instanceof ShiftPlanningError) {
+      return failPersistence(
+        "Persisted candidate positions do not match their manifest.",
+      );
+    }
+    throw error;
+  }
+};
+
+const requireCandidateBundleLineage = (input: {
+  candidate: ShiftPlanningPersistedCandidate;
+  bundle: ShiftPlanningPersistedBundle;
+}): void => {
+  const validatedCandidate = validateShiftPlanningStagedCandidate({
+    value: input.candidate.candidate,
+    forwardManifestDigest:
+      input.bundle.artifact.transactionRequirements.forwardManifestDigest,
+    inverseManifestDigest:
+      input.bundle.artifact.transactionRequirements.inverseManifestDigest,
+    budgets: input.bundle.artifact.budgets,
+    authority:
+      input.bundle.artifact.expectedState.transactionMeasurementAuthority,
+  });
+  if (
+    input.bundle.environment !== input.candidate.environment ||
+    input.bundle.bundleId !== input.candidate.bundleId ||
+    input.bundle.bundleRevision !== input.candidate.bundleRevision ||
+    input.bundle.bundleDigest !== input.candidate.bundleDigest ||
+    input.bundle.artifactDigest !== input.candidate.bundleArtifactDigest ||
+    createShiftPlanningDigest(validatedCandidate) !==
+      input.candidate.candidateDigest ||
+    validatedCandidate.expectedStateDigest !==
+      createShiftPlanningDigest(input.bundle.artifact.expectedState)
+  ) {
+    return failPersistence(
+      "Staged candidate and immutable bundle lineage do not match.",
+    );
+  }
+  candidatePositionDocuments(input);
+};
+
 const requireResultIdentity = (
   result: ShiftPlanningBundleResult,
   token: ShiftPlanningClaimToken,
@@ -1043,11 +1154,12 @@ export const createFirestoreShiftPlanningRepository = (
     if (envelope.request.mode !== "stage") {
       return failPersistence("Terminal candidate is not owned by stage.");
     }
+    const candidateReference = candidateRef(
+      envelope.request.environment,
+      artifact.candidateId,
+    );
     const [candidateSnapshot, bundleSnapshot] = await Promise.all([
-      transaction.get(candidateRef(
-        envelope.request.environment,
-        artifact.candidateId,
-      )),
+      transaction.get(candidateReference),
       transaction.get(bundleRef(
         envelope.request.environment,
         summary.bundleRevision,
@@ -1058,6 +1170,17 @@ export const createFirestoreShiftPlanningRepository = (
     }
     const candidate = parsePersistedCandidate(candidateSnapshot.data());
     const bundle = parsePersistedBundle(bundleSnapshot.data());
+    requireCandidateBundleLineage({candidate, bundle});
+    const positionSnapshots = await transaction.get(
+      candidateReference.collection("positions").limit(
+        candidate.candidate.positionManifest.positionDocumentCount + 1,
+      ),
+    );
+    parseCandidatePositionDocuments({
+      documents: positionSnapshots.docs,
+      candidate,
+      bundle,
+    });
     if (
       candidate.candidateDigest !== artifact.candidateDigest ||
       candidate.bundleArtifactDigest !== artifact.bundleArtifactDigest ||
@@ -1416,6 +1539,20 @@ export const createFirestoreShiftPlanningRepository = (
     requireCompletedSummary(input.summary, input.result);
     const candidate = persistedCandidate(input.result);
     const expectedBundle = persistedBundle(input.result);
+    requireCandidateBundleLineage({candidate, bundle: expectedBundle});
+    const expectedPositions = candidatePositionDocuments({
+      candidate,
+      bundle: expectedBundle,
+    });
+    const stageWriteCount = expectedPositions.length + 3;
+    if (
+      stageWriteCount > input.result.budgets.forward.writeLimit ||
+      stageWriteCount > input.result.budgets.forward.totalWrites
+    ) {
+      return failPersistence(
+        "Staged candidate materialization exceeds the forward write budget.",
+      );
+    }
     const artifact: ShiftPlanningPersistedArtifact = {
       kind: "candidate",
       candidateId: candidate.bundleId,
@@ -1445,12 +1582,21 @@ export const createFirestoreShiftPlanningRepository = (
         input.token.environment,
         candidate.bundleId,
       );
-      const [sourceRequestSnapshot, sourceBundleSnapshot, candidateSnapshot] =
-        await Promise.all([
-          transaction.get(sourceRequestReference),
-          transaction.get(sourceBundleReference),
-          transaction.get(destinationCandidateReference),
-        ]);
+      const destinationPositions =
+        destinationCandidateReference.collection("positions");
+      const [
+        sourceRequestSnapshot,
+        sourceBundleSnapshot,
+        candidateSnapshot,
+        positionSnapshots,
+      ] = await Promise.all([
+        transaction.get(sourceRequestReference),
+        transaction.get(sourceBundleReference),
+        transaction.get(destinationCandidateReference),
+        transaction.get(destinationPositions.limit(
+          candidate.candidate.positionManifest.positionDocumentCount + 1,
+        )),
+      ]);
       const isTerminal =
         current.operation.state !== "processing" ||
         current.envelope.lifecycle?.state !== "processing";
@@ -1507,6 +1653,7 @@ export const createFirestoreShiftPlanningRepository = (
         return failPersistence("Stage source bundle is not persisted.");
       }
       const sourceBundle = parsePersistedBundle(sourceBundleSnapshot.data());
+      requireCandidateBundleLineage({candidate, bundle: sourceBundle});
       if (
         sourceBundle.artifactDigest !== expectedBundle.artifactDigest ||
         sourceBundle.artifactDigest !==
@@ -1525,13 +1672,32 @@ export const createFirestoreShiftPlanningRepository = (
         ) {
           return failPersistence("Staged candidate ID already conflicts.");
         }
+        requireCandidateBundleLineage({
+          candidate: existing,
+          bundle: sourceBundle,
+        });
+        parseCandidatePositionDocuments({
+          documents: positionSnapshots.docs,
+          candidate: existing,
+          bundle: sourceBundle,
+        });
         if (!isTerminal) {
           return failPersistence(
             "Staged candidate ID existed before request completion.",
           );
         }
+      } else if (positionSnapshots.size > 0) {
+        return failPersistence(
+          "Staged candidate has orphaned position documents.",
+        );
       } else if (!isTerminal) {
         transaction.create(destinationCandidateReference, candidate);
+        expectedPositions.forEach((position) => {
+          transaction.create(
+            destinationPositions.doc(position.positionId),
+            position,
+          );
+        });
       } else {
         return failPersistence("Terminal stage lost its persisted candidate.");
       }
@@ -1630,9 +1796,11 @@ export const createFirestoreShiftPlanningRepository = (
       if (binding?.kind !== "candidate") {
         return failPersistence("Activate request has no candidate binding.");
       }
-      const candidateSnapshot = await transaction.get(
-        candidateRef(environment, binding.candidateId),
+      const candidateReference = candidateRef(
+        environment,
+        binding.candidateId,
       );
+      const candidateSnapshot = await transaction.get(candidateReference);
       if (!candidateSnapshot.exists) {
         throw new ShiftPlanningError(
           "candidate_binding_mismatch",
@@ -1655,7 +1823,28 @@ export const createFirestoreShiftPlanningRepository = (
           "Activation binding does not match persisted candidate lineage.",
         );
       }
-      return {request: envelope.request, candidate};
+      const bundleSnapshot = await transaction.get(
+        bundleRef(environment, candidate.bundleRevision),
+      );
+      if (!bundleSnapshot.exists) {
+        throw new ShiftPlanningError(
+          "candidate_binding_mismatch",
+          "Activation candidate lost its immutable bundle.",
+        );
+      }
+      const bundle = parsePersistedBundle(bundleSnapshot.data());
+      requireCandidateBundleLineage({candidate, bundle});
+      const positionSnapshots = await transaction.get(
+        candidateReference.collection("positions").limit(
+          candidate.candidate.positionManifest.positionDocumentCount + 1,
+        ),
+      );
+      const positions = parseCandidatePositionDocuments({
+        documents: positionSnapshots.docs,
+        candidate,
+        bundle,
+      });
+      return {request: envelope.request, candidate, bundle, positions};
     });
   };
 

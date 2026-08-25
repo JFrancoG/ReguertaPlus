@@ -195,10 +195,11 @@ un orquestador local sin dependencia del SDK que ejecuta ese lifecycle contra un
 read-set autoritativo de mantenimiento y ambas rotaciones. Los artefactos internos
 usan schema v2 y revisiones `bundle-v2-*`; la petición conserva
 `schemaVersion = 2` y el resumen terminal público wire conserva
-`schemaVersion = 1`. El modo `activate` permanece
-limitado a un preflight estrictamente de solo lectura.
-Todavía no hay adaptador real de bytes/transformaciones, materialización de
-posiciones del candidato, barrera externa fiable, migración de writers, CAS de
+`schemaVersion = 1`. Stage materializa ya una proyección privada de inspección
+ligada por digest, y `activate` permanece limitado a un preflight estrictamente
+de solo lectura sobre candidato, bundle inmutable y posiciones.
+Todavía no hay adaptador real de bytes/transformaciones, barrera externa fiable,
+migración de writers, CAS de
 activación/publicación/recovery, trigger v2 conectado al orquestador, consumidores
 de sync/notificaciones/recovery, integración móvil, despliegue ni activación live
 mediante ese runtime; todas esas fronteras siguen fail-closed. La publicación humana
@@ -286,17 +287,21 @@ aceptan campos extra ni temporadas implicitas deducidas del reloj.
   Tras cargarlo, el lifecycle lee de nuevo el estado autoritativo; el resolver debe
   devolver un bundle ligado exactamente a ese read-set. El repositorio vuelve a
   cargar tanto el preview como el bundle persistidos y crea, sin sobreescritura,
-  la cabecera staged con su digest y linaje. Stage requiere mantenimiento cerrado
+  la cabecera staged con su digest/linaje y un documento inmutable por futuro
+  turno publico bajo `positions/{shiftId}`. Mercado conserva sus tres posiciones
+  ordenadas en el mismo documento. Cabecera, posiciones y terminalizacion se
+  crean en una sola transaccion privada. Stage requiere mantenimiento cerrado
   y el mismo estado del preview. Por ello, entrar en mantenimiento invalida un
   preview abierto y obliga a crear otro preview ya cerrado antes de stage. Stage
   tambien exige mediciones del futuro adaptador Firestore para los manifiestos
   forward e inverse: digest del manifiesto, escrituras documentales,
   transformaciones de campo, bytes serializados, revision del adaptador y digest
   de configuracion de indices.
-- `activate` solo dispone por ahora de un preflight de lectura. Carga y valida
-  unicamente el candidato staged persistido frente a `candidateId`, linaje de
-  bundle y `candidateDigest`; no carga el bundle, no reclama ni completa la
-  peticion y no escribe estado. El planner/runtime futuro debe recalcular y
+- `activate` solo dispone por ahora de un preflight de lectura. Carga y valida el
+  candidato staged, su bundle preview inmutable y todas las posiciones frente a
+  IDs, linajes, conteos y digests exactos; no reclama ni completa la peticion y
+  no escribe estado. El bundle sigue siendo la autoridad y las posiciones son
+  solo su proyeccion de inspeccion. El planner/runtime futuro debe recalcular y
   revalidar el snapshot live y el digest del bundle antes de cualquier CAS.
 
 El claim transaccional enlaza cada peticion con una operacion y un lease de
@@ -316,8 +321,8 @@ forma canónica y exacta. Los errores deterministas tipados de planificación o
 digest terminan con un resumen estable; los fallos de infraestructura se propagan
 sin terminalizar el lease para permitir un retry seguro. Para `activate` la misma
 transacción devuelve la ruta de preflight sin crear operación ni escribir;
-después solo ejecuta el preflight candidate-only, no lee el estado y no invoca al
-planner.
+después solo ejecuta el preflight del paquete candidato, no lee el estado live y
+no invoca al planner.
 
 ### Estado autoritativo y CAS local de mantenimiento
 
@@ -439,8 +444,9 @@ del adaptador para ambos sentidos. El presupuesto forward incluye tambien las
 escrituras que persisten las before-images exigidas por recovery. La autoridad de
 medicion (`adapterRevision` e `indexConfigurationDigest`) forma parte del snapshot
 de fairness y del estado esperado; cambiarla invalida la evidencia y el candidato.
-El repositorio ya prueba que preview, bundle y cabecera de candidato estan
-persistidos y ligados por digest, pero no calcula esas mediciones. No fabrica
+El repositorio ya prueba que preview, bundle, cabecera de candidato y posiciones
+de inspeccion estan persistidos y ligados por digest, pero no calcula esas
+mediciones. No fabrica
 evidencia: sin el adaptador real de bytes/transformaciones, stage sigue fail-closed
 en el flujo runtime.
 
@@ -476,7 +482,7 @@ en el flujo runtime.
 
 El planner y los manifests siguen siendo contrato/resultado puro. Los
 repositorios solo ejecutan transacciones privadas sobre peticiones, operaciones,
-bundles, la cabecera de candidato y el estado de mantenimiento; no ejecutan CAS
+bundles, candidatos/posiciones y el estado de mantenimiento; no ejecutan CAS
 de publicación, comandos de Sheets, recovery ni notificaciones.
 
 La partición prevista de acceso es:
@@ -486,8 +492,9 @@ La partición prevista de acceso es:
 - `shiftPlanningCandidates`: candidatos de dos subplanes, escritos solo por
   backend y legibles para revisión por admin; ningún cliente puede mutarlos. La
   cabecera persistida incluye linaje preview/stage, `expectedStateDigest`,
-  evidencia forward/inverse y su `candidateDigest`; la materializacion
-  inspeccionable de todas las posiciones sigue pendiente.
+  evidencia forward/inverse, conteos, `positionSetDigest` y su `candidateDigest`.
+  Su subcoleccion `positions` contiene una proyeccion inmutable y digerida por
+  turno planificado; solo esa subcoleccion anidada es legible por admin.
 - Solo backend, sin lectura ni escritura de cliente incluso para admin:
   `shiftPlanningState`, `shiftRotations`, `shiftRotationMappings`,
   `shiftPlanningBundles`, `shiftPlanningSyncCommands`,

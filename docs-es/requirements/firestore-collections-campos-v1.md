@@ -466,12 +466,14 @@ trigger runtime legacy.
 ## 4.8.c `shiftPlanningCandidates/{bundleId}`
 
 El repositorio backend local persiste una cabecera versionada de candidato staged
-con dos subplanes. Queda fuera de la proyeccion publica `shifts`, la exportacion
-a Sheets y las consultas de socios ordinarios. Las Rules estrictas permiten a
-admins activos enlazados leer, obtener y listar candidatos para revisarlos, pero
-niegan create, update y delete a todo cliente, incluido admin; solo el backend
-confiable puede escribirlos. Sigue pendiente materializar los documentos de
-posiciones inspeccionables del candidato.
+con dos subplanes y un documento inmutable de inspeccion por cada futuro turno
+publico planificado bajo `positions/{shiftId}`. Un documento de mercado conserva
+juntas sus tres posiciones asignadas en orden. Esta particion queda fuera de la
+proyeccion publica `shifts`, la exportacion a Sheets y las consultas de socios
+ordinarios. Las Rules estrictas permiten a admins activos enlazados leer, obtener
+y listar solo la cabecera y su subcoleccion `positions`, pero niegan create,
+update y delete a todo cliente, incluido admin; solo el backend confiable puede
+escribirlas.
 
 El contrato puro y el repositorio privado hacen cumplir esta cadena de artefactos:
 
@@ -489,18 +491,28 @@ El contrato puro y el repositorio privado hacen cumplir esta cadena de artefacto
    ese read-set. Stage requiere mantenimiento cerrado y el mismo estado que el
    preview; entrar en mantenimiento invalida por tanto un preview abierto y exige
    otro preview ya cerrado. El repositorio vuelve a cargar el preview y el bundle
-   origen, y despues crea sin sobreescritura una cabecera `status = staged` con IDs
-   de preview/stage origen, digest del recibo, digest del estado esperado,
-   revision/digest del bundle y evidencia transaccional completa.
+   origen, y despues terminaliza atomicamente la peticion/operacion existente y
+   crea sin sobreescritura una cabecera `status = staged` y todas las posiciones
+   de inspeccion.
+   La cabecera conserva IDs de preview/stage origen, digest del recibo, digest del
+   estado esperado, revision/digest del bundle, evidencia transaccional completa,
+   conteos exactos de documentos/asignaciones y `positionSetDigest`. Cada hija
+   contiene payload canonico, `positionDigest`, `candidateDigest` y linaje de
+   candidato/bundle. El replay exacto rechaza hijas ausentes, extra, aliasadas o
+   alteradas y nunca las reescribe.
 3. La frontera `activate` actual es un preflight de solo lectura. Carga y valida
-   unicamente el candidato staged persistido frente a `candidateId`, linaje de
-   bundle y `candidateDigest`; no reclama ni completa la peticion y no escribe.
-   El planner/runtime futuro debe recalcular y revalidar el snapshot live de
-   entradas y el digest del bundle antes de cualquier CAS o activacion publica.
+   el candidato staged persistido, su bundle preview inmutable y el conjunto
+   completo de posiciones frente a `candidateId`, ambos digests de artefacto,
+   linaje de bundle, evidencia transaccional, conteos y digests de conjunto y
+   posicion. No reclama ni completa la peticion y no escribe. El bundle preview
+   inmutable sigue siendo la autoridad de planificacion; las posiciones son una
+   proyeccion consultable de inspeccion, no otra autoridad. El planner/runtime
+   futuro debe recalcular y revalidar el snapshot live de entradas y el digest
+   del bundle antes de cualquier CAS o activacion publica.
 
 La funcion pura sigue sin side effects. El repositorio local/emulador prueba la
-persistencia privada de recibo, bundle, lifecycle y cabecera de candidato, pero
-aun no materializa posiciones ni implementa CAS de publicacion/activacion.
+persistencia privada de recibo, bundle, lifecycle, cabecera de candidato y
+posiciones de inspeccion, pero aun no implementa CAS de publicacion/activacion.
 Bundle, recibo, candidato y evidencia transaccional usan schema v2 interno de
 artefacto y revisiones `bundle-v2-*`. La peticion conserva `schemaVersion = 2` y
 el resumen terminal publico wire conserva `schemaVersion = 1`.
@@ -672,9 +684,10 @@ Estado de rollout de este corte: el parser wire v2, los planners puros
 deterministas y los repositorios Firestore privados existen como codigo
 local/emulador. El repositorio de peticiones posee claim/lease/fencing/takeover/replay, persiste
 atomicamente bundle y recibo de preview, vuelve a cargar preview/bundle
-persistidos antes de crear una cabecera stage sin sobreescritura y ofrece un
-preflight activate candidate-only de solo lectura. Un orquestador local sin
-dependencia del SDK enruta y reclama preview/stage transaccionalmente antes de
+persistidos antes de crear una cabecera stage sin sobreescritura con sus
+posiciones de inspeccion ligadas por digest, y ofrece un preflight activate de
+solo lectura sobre candidato, bundle inmutable y posiciones. Un orquestador
+local sin dependencia del SDK enruta y reclama preview/stage transaccionalmente antes de
 planificar, corta busy y replay terminal, carga estado autoritativo para preview,
 carga el preview exacto y despues estado autoritativo para stage, rechaza un
 resultado del resolver ligado a otro read-set, terminaliza solo fallos
@@ -682,9 +695,9 @@ deterministas tipados y enruta activate a ese preflight sin crear una operacion,
 leer estado ni escribir. El repositorio de estado lee atomicamente
 mantenimiento y ambas rotaciones, deriva un digest CAS canonico e implementa
 entrada y aborto idempotentes y desconectados del runtime.
-Siguen pendientes y fail-closed la medicion real de bytes/transformaciones, la
-materializacion de posiciones del candidato, las implementaciones live del plano
-de control de Google y el wiring fiable de la barrera de entrada, la migracion de
+Siguen pendientes y fail-closed la medicion real de bytes/transformaciones, las
+implementaciones live del plano de control de Google y el wiring fiable de la
+barrera de entrada, la migracion de
 writers y el CAS de activacion/recovery publico ligado al bundle, un trigger v2
 conectado al orquestador, consumidores de
 sync/notificacion/recovery, integracion movil, despliegue y cambios live. La implementacion legacy

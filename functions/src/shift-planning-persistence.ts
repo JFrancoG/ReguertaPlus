@@ -10,6 +10,9 @@ import {
   ShiftPlanningFailedSummary,
   ShiftPlanningRequestV2,
 } from "./shift-planning-wire.js";
+import {
+  ShiftPlanningPersistedCandidatePosition,
+} from "./shift-planning-candidate.js";
 
 export const SHIFT_PLANNING_PERSISTENCE_SCHEMA_VERSION = 1 as const;
 
@@ -137,6 +140,8 @@ export type ShiftPlanningPersistenceResult = "committed" | "replayed";
 export type ShiftPlanningActivationPreflight = {
   request: ShiftPlanningRequestV2;
   candidate: ShiftPlanningPersistedCandidate;
+  bundle: ShiftPlanningPersistedBundle;
+  positions: readonly ShiftPlanningPersistedCandidatePosition[];
 };
 
 export const buildShiftPlanningCompletedSummary = (

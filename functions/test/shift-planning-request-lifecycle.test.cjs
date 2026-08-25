@@ -592,7 +592,7 @@ test("persistence completion errors are not rewritten as business failure", asyn
   assert.equal(calls.some(([name]) => name === "failRequest"), false);
 });
 
-test("activate performs only candidate preflight", async () => {
+test("activate performs only candidate-package preflight", async () => {
   const value = request("activate");
   const preflight = {request: value, candidate: {candidateDigest: "exact"}};
   const {calls, persistence, statePersistence} = fakePersistence({

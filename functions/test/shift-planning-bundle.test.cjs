@@ -12,6 +12,10 @@ const {
 const {
   createShiftPlanningDigest,
 } = require("../lib/shift-planning-digest.js");
+const {
+  buildShiftPlanningCandidatePositionSet,
+  parseShiftPlanningCandidatePosition,
+} = require("../lib/shift-planning-candidate.js");
 
 const memberIds = Array.from(
   {length: 6},
@@ -752,9 +756,73 @@ test("binds stage and activate to the exact deterministic candidate", () => {
   );
   assert.equal(preview.previewReceipt.schemaVersion, 2);
   assert.equal(stage.stagedCandidate.schemaVersion, 2);
+  assert.equal(
+    stage.stagedCandidate.positionManifest.positionDocumentCount,
+    stage.delivery.shifts.length + stage.market.shifts.length,
+  );
+  assert.equal(
+    stage.stagedCandidate.positionManifest.assignmentPositionCount,
+    stage.delivery.shifts.length + (stage.market.shifts.length * 3),
+  );
+  assert.match(
+    stage.stagedCandidate.positionManifest.positionSetDigest,
+    /^shift-planning:v1:sha256:[a-f0-9]{64}$/,
+  );
+  const positionSet = buildShiftPlanningCandidatePositionSet({
+    candidateId: stage.bundleId,
+    bundleRevision: stage.bundleRevision,
+    bundleDigest: stage.bundleDigest,
+    writeEpoch: stage.activationWriteEpoch,
+    delivery: stage.delivery,
+    market: stage.market,
+  });
+  const deliveryPosition = positionSet.positions.find(
+    ({type}) => type === "delivery",
+  );
+  assert.ok(deliveryPosition);
+  assert.throws(
+    () => parseShiftPlanningCandidatePosition({
+      ...deliveryPosition,
+      positionId: "shift_delivery_20260230",
+      shiftId: "shift_delivery_20260230",
+      scheduledDate: "2026-02-30",
+    }),
+    errorCode("candidate_binding_mismatch"),
+  );
+  assert.throws(
+    () => parseShiftPlanningCandidatePosition({
+      ...deliveryPosition,
+      positionId: "shift_delivery_alias",
+      shiftId: "shift_delivery_alias",
+    }),
+    errorCode("candidate_binding_mismatch"),
+  );
   assert.equal(stage.transactionEvidence.schemaVersion, 2);
   assert.equal(stage.transactionEvidence.forward.schemaVersion, 2);
   assert.equal(stage.transactionEvidence.inverse.schemaVersion, 2);
+
+  const tamperedCandidate = {
+    ...stage.stagedCandidate,
+    positionManifest: {
+      ...stage.stagedCandidate.positionManifest,
+      positionDocumentCount:
+        stage.stagedCandidate.positionManifest.positionDocumentCount + 1,
+    },
+  };
+  assert.throws(
+    () => planShiftPlanningBundle(bundleInput({
+      request: request({
+        requestId: "request-activate-tampered-positions",
+        mode: "activate",
+        binding: {
+          ...candidateBinding(stage),
+          candidateDigest: createShiftPlanningDigest(tamperedCandidate),
+        },
+      }),
+      stagedCandidate: tamperedCandidate,
+    })),
+    errorCode("candidate_binding_mismatch"),
+  );
 
   const drifted = fairnessSnapshot();
   drifted.overrides.revision = "overrides-3";

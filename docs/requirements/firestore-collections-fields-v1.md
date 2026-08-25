@@ -353,11 +353,13 @@ wired to the legacy runtime trigger.
 ### 4.8.c `shiftPlanningCandidates/{bundleId}`
 
 The local backend repository persists a versioned two-subplan staged-candidate
-header. It is outside the public `shifts` projection, Sheets export, and ordinary
-member queries. Strict Rules allow active linked admins to read/get/list
-candidates for review, but every client, including admins, is denied create,
-update, and delete; only trusted backend code may write them. Materializing the
-candidate's inspectable position documents remains pending.
+header plus one immutable inspection document per planned public shift under
+`positions/{shiftId}`. A market document keeps its three ordered assignment
+positions together. This partition is outside the public `shifts` projection,
+Sheets export, and ordinary member queries. Strict Rules allow active linked
+admins to read/get/list only the candidate header and its `positions`
+subcollection; every client, including admins, is denied create, update, and
+delete. Only trusted backend code may write them.
 
 The pure contract and private repository enforce this artifact chain:
 
@@ -375,19 +377,27 @@ The pure contract and private repository enforce this artifact chain:
    read, and the resolved bundle must bind exactly that read-set. Stage requires
    closed maintenance and the same state as preview; maintenance entry therefore
    invalidates an open-state preview and requires a new closed-state preview.
-   The repository reloads the source preview and bundle, then creates without
-   overwrite one `status = staged` header containing the source preview/stage
-   IDs, preview-receipt digest, expected-state digest, bundle revision/digest,
-   and complete transaction evidence.
+   The repository reloads the source preview and bundle, then atomically
+   terminalizes the existing request/operation and creates without overwrite one
+   `status = staged` header plus every inspection position. The header contains source
+   preview/stage IDs, preview-receipt digest, expected-state digest, bundle
+   revision/digest, complete transaction evidence, exact document/assignment
+   counts, and `positionSetDigest`. Each child carries its canonical payload,
+   `positionDigest`, `candidateDigest`, and candidate/bundle lineage. Exact replay
+   verifies missing, extra, aliased, or altered children and never rewrites them.
 3. The current `activate` boundary is read-only preflight. It loads and verifies
-   only the persisted staged candidate against `candidateId`, bundle lineage, and
-   `candidateDigest`; it does not claim or complete the request and performs no
-   write. The future planner/runtime must recompute and revalidate the live input
-   snapshot and bundle digest before any CAS or public activation.
+   the persisted staged candidate, its immutable preview bundle, and the complete
+   position set against `candidateId`, both artifact digests, bundle lineage,
+   transaction evidence, counts, and set/position digests. It does not claim or
+   complete the request and performs no write. The immutable preview bundle
+   remains the planning authority; positions are a queryable inspection
+   projection, not a second authority. The future planner/runtime must recompute
+   and revalidate the live input snapshot and bundle digest before any CAS or
+   public activation.
 
 The pure function remains side-effect free. The local/emulator repository proves
-private receipt, bundle, lifecycle, and candidate-header persistence, but does
-not yet materialize candidate positions or implement publication/activation CAS.
+private receipt, bundle, lifecycle, candidate-header, and inspection-position
+persistence, but does not yet implement publication/activation CAS.
 Bundle, receipt, candidate, and transaction evidence use internal artifact schema
 v2 and `bundle-v2-*` revisions. The request remains `schemaVersion = 2`; the
 public wire terminal summary remains `schemaVersion = 1`.
@@ -551,7 +561,8 @@ Rollout state for this cut: the v2 wire parser, deterministic pure planners, and
 private Firestore repositories exist as local/emulator code. The request
 repository owns claim/lease/fencing/takeover/replay, atomically persists preview bundle plus
 receipt, reloads persisted preview/bundle before creating a non-overwritten stage
-header, and offers candidate-only read-only activation preflight. An SDK-free
+header plus its digest-bound inspection positions, and offers a read-only
+activation preflight over candidate, immutable bundle, and positions. An SDK-free
 local orchestrator transactionally routes and claims preview/stage before
 planning, short-circuits busy and terminal replay, loads authoritative state for
 preview, reloads the exact preview and then authoritative state for stage,
@@ -561,9 +572,9 @@ creating an operation or reading state. The state repository
 atomically reads maintenance plus both rotations, derives one canonical CAS
 digest, and implements runtime-disconnected, idempotent maintenance entry and
 abort.
-Still pending and fail-closed are real byte/transform measurement,
-candidate-position materialization, live Google control-plane implementations
-and trusted intake-barrier wiring, writer migration, bundle-bound public
+Still pending and fail-closed are real byte/transform measurement, live Google
+control-plane implementations and trusted intake-barrier wiring, writer
+migration, bundle-bound public
 activation/recovery CAS,
 a v2 trigger connected to the orchestrator, sync, notification and recovery
 consumers, mobile integration, deployment, and live data changes. The legacy

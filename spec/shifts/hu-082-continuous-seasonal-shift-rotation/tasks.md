@@ -175,24 +175,37 @@ occurred. Protected technical evidence remains outside the repository.
   round cohort.
 - [ ] Implement the Firestore request/candidate repository so preview persists its
   exact receipt, stage loads that receipt plus measured forward/inverse adapter
-  evidence, and activate loads only the staged candidate and verifies its
-  `candidateDigest` plus input snapshot/digest/revision.
+  evidence, and activate loads the exact staged candidate package—header,
+  immutable preview bundle, and positions—and verifies its `candidateDigest`
+  plus input snapshot/digest/revision.
   - [x] Private persistence cut: transactional claim/lease/fencing, immutable
     preview bundle/receipt, persisted-preview stage, non-overwriting candidate
-    header, terminal replay integrity, and candidate-only read-only activation
-    preflight are covered in the Firestore emulator.
+    header, terminal replay integrity, and read-only activation preflight are
+    covered in the Firestore emulator.
   - [x] Authoritative binding cut: after claim, preview loads the full current
     read-set; stage loads the exact persisted preview and then the current
     read-set. Both reject a resolver result that does not bind that exact state.
-  - [ ] Remaining: obtain real adapter measurements, materialize inspectable
-    candidate positions, recheck the complete live input snapshot during
-    activation, and execute activation through the maintenance/publication CAS.
+  - [x] Candidate-inspection cut: stage atomically creates one immutable child
+    per planned public shift, with market's three assignment positions kept
+    together. Header counts/set digest, per-child digest, candidate/bundle
+    lineage, exact replay, and read-only candidate+bundle+position preflight are
+    covered in the Firestore emulator. The immutable preview bundle remains the
+    authority; the children are an admin-inspection projection only.
+  - [ ] Remaining: obtain real adapter measurements, recheck the complete live
+    input snapshot during activation, and execute activation through the
+    maintenance/publication CAS.
 - [ ] Include membership, rotation, policy/config/calendar override, and enabled
   credit-ledger versions plus any migration-baseline revision/digest in the
   candidate lineage; transactionally recheck them and commit planned credit
   transitions only during exact activation.
 - [ ] Keep staged rotation/shifts admin-readable but outside normal member queries,
   Sheets export, active cursor/cohort state, and notification consumers.
+  - [x] Backend/Rules cut: only active linked admins can get/list the candidate
+    header and exact `positions` subcollection; all client writes and every other
+    nested candidate path remain denied. Stage and preflight write no public
+    shift, active cursor/cohort, Sheets command, or notification intent.
+  - [ ] Remaining: expose and verify equivalent admin-only inspection in Android
+    and iOS without adding candidate rows to normal member feeds.
 - [ ] Inventory current flat `shifts` readers and implement one measured atomic
   public promotion transaction for the combined delivery/market projection, both
   rotation/cursors, active bundle metadata, digest-bound sync commands, and held
@@ -218,7 +231,7 @@ occurred. Protected technical evidence remains outside the repository.
   - [x] Add the SDK-free local request orchestrator: claim before planning,
     short-circuit busy/replay, load persisted preview for stage, terminalize only
     typed deterministic failures, load the authoritative state for preview/stage,
-    and keep activate candidate-only/read-only.
+    and keep activate read-only over the exact candidate/bundle/position package.
   - [ ] Extend the lifecycle to the future v2 activation runtime and its recovery
     and retention policy before checking the parent task.
 - [ ] Write client-compatible `source = app` plus planner provenance.
@@ -357,8 +370,9 @@ occurred. Protected technical evidence remains outside the repository.
   idempotent, inbox upsert deduplicates, and FCM carries a stable event ID while
   retaining explicit possible-duplicate semantics.
   - [x] Emulator cut: preview writes only private request/operation/bundle state,
-    stage writes only its private candidate header, and activate preflight is
-    candidate-only and performs no write.
+    stage atomically writes only its private candidate header/positions plus
+    terminal lifecycle, and activate preflight verifies candidate, immutable
+    bundle, and positions without performing any write.
 - [ ] Prove canonical event/inbox/push artifacts contain only generic shift references,
   supported clients decode them, and stale/offline caches cannot expose member/date/
   assignment detail after authorization or revision changes.

@@ -630,7 +630,7 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
-    match /{env}/plus-collections/shiftPlanningCandidates/{bundleId}/{document=**} {
+    match /{env}/plus-collections/shiftPlanningCandidates/{bundleId}/positions/{positionId} {
       allow read: if isAdmin(env);
       allow create, update, delete: if false;
     }

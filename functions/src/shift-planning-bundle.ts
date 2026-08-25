@@ -28,6 +28,11 @@ import {
   ShiftPlanningAuthoritativeState,
   parseShiftPlanningAuthoritativeState,
 } from "./shift-planning-state-persistence.js";
+import {
+  ShiftPlanningCandidatePositionManifest,
+  buildShiftPlanningCandidatePositionSet,
+  parseShiftPlanningCandidatePositionManifest,
+} from "./shift-planning-candidate.js";
 import {isEligibleForShiftRotation} from "./shift-eligibility.js";
 import {
   ShiftPlanningEnvironment,
@@ -80,6 +85,7 @@ export type ShiftPlanningStagedCandidate = {
   sourcePreviewReceiptDigest: string;
   sourceStageRequestId: string;
   expectedStateDigest: string;
+  positionManifest: ShiftPlanningCandidatePositionManifest;
   transactionEvidence: ShiftPlanningTransactionEvidence;
 };
 
@@ -1916,6 +1922,7 @@ export const parseShiftPlanningStagedCandidateArtifact = (
     "sourcePreviewReceiptDigest",
     "sourceStageRequestId",
     "expectedStateDigest",
+    "positionManifest",
     "transactionEvidence",
   ], "stagedCandidate");
   if (
@@ -1968,6 +1975,9 @@ export const parseShiftPlanningStagedCandidateArtifact = (
       candidate.expectedStateDigest,
       "candidate.expectedStateDigest",
     ) || failState("Candidate expected-state digest must not be null."),
+    positionManifest: parseShiftPlanningCandidatePositionManifest(
+      candidate.positionManifest,
+    ),
     transactionEvidence: parseTransactionEvidenceArtifact(
       candidate.transactionEvidence,
     ),
@@ -2038,6 +2048,7 @@ const resolvePersistedPlanningChain = (input: {
     adapterRevision: string;
     indexConfigurationDigest: string;
   };
+  positionManifest: ShiftPlanningCandidatePositionManifest;
   transactionEvidence: unknown;
   persistedPreview: unknown;
   stagedCandidate: unknown;
@@ -2125,6 +2136,7 @@ const resolvePersistedPlanningChain = (input: {
       sourcePreviewReceiptDigest: previewReceiptDigest,
       sourceStageRequestId: input.request.requestId,
       expectedStateDigest: input.expectedStateDigest,
+      positionManifest: input.positionManifest,
       transactionEvidence,
     };
     return {
@@ -2160,7 +2172,9 @@ const resolvePersistedPlanningChain = (input: {
     stagedCandidate.environment !== input.request.environment ||
     stagedCandidate.requestedByUserId !== input.request.requestedByUserId ||
     stagedCandidate.sourceStageRequestId === input.request.requestId ||
-    stagedCandidate.expectedStateDigest !== input.expectedStateDigest
+    stagedCandidate.expectedStateDigest !== input.expectedStateDigest ||
+    createShiftPlanningDigest(stagedCandidate.positionManifest) !==
+      createShiftPlanningDigest(input.positionManifest)
   ) {
     throw new ShiftPlanningError(
       "candidate_binding_mismatch",
@@ -2410,6 +2424,14 @@ export const planShiftPlanningBundle = (
   });
   const revision = bundleRevision(bundleDigest);
   validateBinding(request, revision, bundleDigest);
+  const candidatePositionSet = buildShiftPlanningCandidatePositionSet({
+    candidateId: request.bundleId,
+    bundleRevision: revision,
+    bundleDigest,
+    writeEpoch: activationWriteEpoch,
+    delivery,
+    market,
+  });
   const forwardManifestDigest = createShiftPlanningDigest(forwardManifest);
   const inverseManifestDigest = createShiftPlanningDigest(inverseManifest);
   const persistedChain = resolvePersistedPlanningChain({
@@ -2421,6 +2443,7 @@ export const planShiftPlanningBundle = (
     inverseManifestDigest,
     budgets,
     authority: snapshot.transactionMeasurementAuthority,
+    positionManifest: candidatePositionSet.manifest,
     transactionEvidence: input.transactionEvidence,
     persistedPreview: input.persistedPreview,
     stagedCandidate: input.stagedCandidate,

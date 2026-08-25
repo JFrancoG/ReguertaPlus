@@ -18,6 +18,9 @@ const {
   buildShiftPlanningAuthoritativeState,
 } = require("../lib/shift-planning-state-persistence.js");
 const {
+  buildShiftPlanningCandidatePositionSet,
+} = require("../lib/shift-planning-candidate.js");
+const {
   buildShiftPlanningFailureSummary,
 } = require("../lib/shift-planning-wire.js");
 
@@ -77,6 +80,16 @@ const bundlePath = (revision = BUNDLE_REVISION) =>
 
 const candidatePath = (candidateId = "bundle-2026") =>
   `${ROOT}/shiftPlanningCandidates/${candidateId}`;
+
+const candidatePositionPath = (
+  positionId,
+  candidateId = "bundle-2026",
+) => `${candidatePath(candidateId)}/positions/${positionId}`;
+
+const candidatePositionPaths = (candidateId = "bundle-2026") => [
+  candidatePositionPath("shift_delivery_20260903", candidateId),
+  candidatePositionPath("shift_market_20260927", candidateId),
+];
 
 const planningDocumentPaths = async () => {
   const paths = [];
@@ -255,11 +268,53 @@ const stableBundleFields = () => ({
     },
   },
   delivery: {
-    shifts: [],
+    shifts: [{
+      type: "delivery",
+      date: "2026-09-03",
+      projectionSeasonStartYear: 2026,
+      rotationOwnerUserId: "member-1",
+      assignedUserIds: ["member-1"],
+      helperUserId: "member-2",
+      roundNumber: 2,
+      positionInRound: 2,
+      planningReason: "target",
+      source: "app",
+      origin: "planner",
+      planningRequestId: "bundle-2026",
+    }],
     affectedProjectionSeasonStartYears: [2026],
   },
   market: {
-    shifts: [],
+    shifts: [{
+      type: "market",
+      date: "2026-09-27",
+      projectionSeasonStartYear: 2026,
+      rotationOwnerUserIds: ["member-1", "member-2", "member-3"],
+      assignedUserIds: ["member-1", "member-2", "member-3"],
+      rotationPositions: [
+        {
+          rotationOwnerUserId: "member-1",
+          roundNumber: 2,
+          positionInRound: 2,
+          planningReason: "target",
+        },
+        {
+          rotationOwnerUserId: "member-2",
+          roundNumber: 2,
+          positionInRound: 3,
+          planningReason: "target",
+        },
+        {
+          rotationOwnerUserId: "member-3",
+          roundNumber: 2,
+          positionInRound: 4,
+          planningReason: "target",
+        },
+      ],
+      source: "app",
+      origin: "planner",
+      planningRequestId: "bundle-2026",
+    }],
     affectedProjectionSeasonStartYears: [2026],
   },
   manifests: {
@@ -313,6 +368,7 @@ const stageResult = (
   requestId = "stage-001",
   preview = previewResult(),
 ) => {
+  const stable = stableBundleFields();
   const evidence = {
     schemaVersion: 2,
     forward: {
@@ -353,10 +409,18 @@ const stageResult = (
     sourcePreviewReceiptDigest: preview.previewReceiptDigest,
     sourceStageRequestId: requestId,
     expectedStateDigest: preview.previewReceipt.expectedStateDigest,
+    positionManifest: buildShiftPlanningCandidatePositionSet({
+      candidateId: "bundle-2026",
+      bundleRevision: BUNDLE_REVISION,
+      bundleDigest: BUNDLE_DIGEST,
+      writeEpoch: stable.activationWriteEpoch,
+      delivery: stable.delivery,
+      market: stable.market,
+    }).manifest,
     transactionEvidence: evidence,
   };
   return {
-    ...stableBundleFields(),
+    ...stable,
     requestId,
     mode: "stage",
     transactionEvidence: evidence,
@@ -390,6 +454,32 @@ const completePreview = async (requestId = "preview-001") => {
     "committed",
   );
   return {acquired, result, summary};
+};
+
+const completeStageFixture = async (requestId = "stage-001") => {
+  const {result: preview} = await completePreview();
+  await seedRequest({
+    requestId,
+    mode: "stage",
+    binding: {
+      kind: "preview",
+      sourceRequestId: "preview-001",
+      bundleRevision: BUNDLE_REVISION,
+      bundleDigest: BUNDLE_DIGEST,
+    },
+  });
+  const acquired = await claim(requestId, `worker-${requestId}`);
+  assert.equal(acquired.kind, "process");
+  const result = stageResult(requestId, preview);
+  assert.equal(
+    await repository.completeStage({
+      token: acquired.token,
+      result,
+      summary: buildShiftPlanningCompletedSummary(result),
+    }),
+    "committed",
+  );
+  return {acquired, result};
 };
 
 test("completed summaries keep wire v1 for bundle v2 artifacts", () => {
@@ -661,9 +751,12 @@ test("stage loads the persisted preview and never overwrites a candidate", async
     }),
     (error) => error.code === "request_intent_conflict",
   );
-  assert.equal(
-    await repository.completeStage({token: acquired.token, result, summary}),
-    "committed",
+  assert.deepEqual(
+    (await Promise.all([
+      repository.completeStage({token: acquired.token, result, summary}),
+      repository.completeStage({token: acquired.token, result, summary}),
+    ])).sort(),
+    ["committed", "replayed"],
   );
   const stagedCandidatePath = candidatePath();
   const candidate = (await firestore.doc(stagedCandidatePath).get()).data();
@@ -671,6 +764,24 @@ test("stage loads the persisted preview and never overwrites a candidate", async
   assert.equal(
     createShiftPlanningDigest(candidate.candidate),
     candidate.candidateDigest,
+  );
+  const positionSnapshots = await firestore
+    .collection(`${stagedCandidatePath}/positions`)
+    .get();
+  assert.equal(positionSnapshots.size, 2);
+  const positions = positionSnapshots.docs
+    .map((snapshot) => snapshot.data())
+    .sort((left, right) => left.positionId.localeCompare(right.positionId));
+  assert.deepEqual(
+    positions.map(({position}) => position.type),
+    ["delivery", "market"],
+  );
+  assert.equal(positions[0].position.rotationPositions.length, 1);
+  assert.equal(positions[1].position.rotationPositions.length, 3);
+  assert.equal(
+    positions.every((position) =>
+      position.candidateDigest === candidate.candidateDigest),
+    true,
   );
   assert.equal(
     await repository.completeStage({token: acquired.token, result, summary}),
@@ -683,6 +794,7 @@ test("stage loads the persisted preview and never overwrites a candidate", async
     requestPath("stage-001"),
     operationPath("stage-001"),
     candidatePath(),
+    ...candidatePositionPaths(),
   ]);
 
   await firestore.doc(stagedCandidatePath).update({
@@ -837,7 +949,7 @@ test("stage rejects an identical candidate that predates completion", async () =
   );
 });
 
-test("activate preflight is read-only and uses only the persisted candidate", async () => {
+test("activate preflight reads the exact immutable candidate package", async () => {
   const {result: preview} = await completePreview();
   await seedRequest({
     requestId: "stage-activate",
@@ -869,15 +981,19 @@ test("activate preflight is read-only and uses only the persisted candidate", as
     },
   });
 
-  await firestore.doc(
-    `${ROOT}/shiftPlanningBundles/${BUNDLE_REVISION}`,
-  ).delete();
-
   const preflight = await repository.preflightActivation({
     environment: ENVIRONMENT,
     requestId: "activate-001",
   });
   assert.equal(preflight.candidate.candidateDigest, staged.stagedCandidateDigest);
+  assert.equal(
+    preflight.bundle.artifactDigest,
+    preflight.candidate.bundleArtifactDigest,
+  );
+  assert.deepEqual(
+    preflight.positions.map(({positionId}) => positionId),
+    ["shift_delivery_20260903", "shift_market_20260927"],
+  );
   assert.equal(
     (await firestore.doc(requestPath("activate-001")).get()).get("status"),
     "requested",
@@ -897,9 +1013,94 @@ test("activate preflight is read-only and uses only the persisted candidate", as
     operationPath("preview-001"),
     requestPath("stage-activate"),
     operationPath("stage-activate"),
+    bundlePath(),
     candidatePath(),
+    ...candidatePositionPaths(),
     requestPath("activate-001"),
   ]);
+});
+
+test("activate preflight rejects incomplete or altered candidate packages", async () => {
+  const {result: staged} = await completeStageFixture("stage-integrity");
+  await seedRequest({
+    requestId: "activate-integrity",
+    mode: "activate",
+    binding: {
+      kind: "candidate",
+      candidateId: "bundle-2026",
+      bundleRevision: BUNDLE_REVISION,
+      bundleDigest: BUNDLE_DIGEST,
+      candidateDigest: staged.stagedCandidateDigest,
+    },
+  });
+  const deliveryReference = firestore.doc(candidatePositionPaths()[0]);
+  const marketReference = firestore.doc(candidatePositionPaths()[1]);
+  const delivery = (await deliveryReference.get()).data();
+  const market = (await marketReference.get()).data();
+
+  await deliveryReference.delete();
+  await assert.rejects(
+    repository.preflightActivation({
+      environment: ENVIRONMENT,
+      requestId: "activate-integrity",
+    }),
+    (error) => error.code === "request_intent_conflict",
+  );
+  await deliveryReference.set(delivery);
+
+  const extraReference = firestore.doc(
+    candidatePositionPath("shift_market_extra"),
+  );
+  await extraReference.set(market);
+  await assert.rejects(
+    repository.preflightActivation({
+      environment: ENVIRONMENT,
+      requestId: "activate-integrity",
+    }),
+    (error) => error.code === "request_intent_conflict",
+  );
+  await extraReference.delete();
+
+  await marketReference.update({
+    "position.assignedUserIds": ["member-3", "member-2", "member-1"],
+  });
+  await assert.rejects(
+    repository.preflightActivation({
+      environment: ENVIRONMENT,
+      requestId: "activate-integrity",
+    }),
+    (error) => error.code === "request_intent_conflict",
+  );
+  await marketReference.set(market);
+  assert.equal(
+    (await repository.preflightActivation({
+      environment: ENVIRONMENT,
+      requestId: "activate-integrity",
+    })).positions.length,
+    2,
+  );
+
+  await firestore.doc(bundlePath()).delete();
+  await assert.rejects(
+    repository.preflightActivation({
+      environment: ENVIRONMENT,
+      requestId: "activate-integrity",
+    }),
+    (error) => error.code === "candidate_binding_mismatch",
+  );
+  assert.equal(
+    (await firestore.doc(requestPath("activate-integrity")).get())
+      .get("status"),
+    "requested",
+  );
+  assert.equal(
+    (await firestore.doc(operationPath("activate-integrity")).get()).exists,
+    false,
+  );
+  assert.equal(
+    (await firestore.collection(`${ROOT}/shifts`).get()).empty,
+    true,
+  );
 });
 
 test("activate preflight rejects an aliased candidate document path", async () => {
@@ -1063,6 +1264,7 @@ test("private runtime drives preview and stage but only preflights activate", as
     requestPath("stage-runtime"),
     operationPath("stage-runtime"),
     candidatePath(),
+    ...candidatePositionPaths(),
     requestPath("activate-runtime"),
   ]);
 });
