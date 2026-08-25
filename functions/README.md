@@ -200,10 +200,47 @@ limitado a un preflight estrictamente de solo lectura.
 Todavía no hay adaptador real de bytes/transformaciones, materialización de
 posiciones del candidato, barrera externa fiable, migración de writers, CAS de
 activación/publicación/recovery, trigger v2 conectado al orquestador, consumidores
-de sync/notificaciones/recovery, integración móvil, despliegue ni escritura live;
-todas esas fronteras siguen fail-closed. El trigger
+de sync/notificaciones/recovery, integración móvil, despliegue ni activación live
+mediante ese runtime; todas esas fronteras siguen fail-closed. La publicación humana
+de consulta se describe por separado a continuación. El trigger
 legacy `onShiftPlanningRequestCreated` de `src/index.ts` sigue siendo la
 implementación runtime activa y aún no consume este contrato v2.
+
+### Baseline comunicable sin activación de producción
+
+La vía urgente documentada en
+`spec/shifts/hu-082-continuous-seasonal-shift-rotation/communication-baseline.md`
+queda fuera del runtime: prepara offline, desde un snapshot autorizado de solo
+lectura cuyo manifest y digests se contrastan, una única propuesta completa de reparto
+y mercado. Sigue `proposal -> approved -> sealed -> rendered -> communicated` y no
+invoca el `preview` de producción, porque ese contrato permite persistir artefactos
+privados. La preparación, aprobación, sellado y render no escriben Firestore, Sheets,
+Drive, notificaciones, configuración ni estado visible en las apps. Después, una
+autorización separada puede copiar exclusivamente ese render saneado a pestañas de
+consulta del documento compartido, sin activar Firestore ni las apps.
+
+`assignmentDigest` liga UIDs y planes; `resolverDigest`, únicamente los pares
+UID/displayName; y `planningDigest` sella ambos junto a `sourceManifestDigest`. El
+paquete privado puede conservar UIDs, pero el render de audiencia devuelve únicamente
+las filas humanas de ambos turnos, sin ayudante de reparto: nunca expone UIDs, otros
+IDs, digests, metadata de lifecycle ni teléfonos. Una proposal no es comunicable: solo
+un seal con aprobación global exacta, atestación de cero escrituras y
+vigencia/supersesión ligadas por esa aprobación puede continuar. La vigencia aprobada
+no puede superar 15 minutos desde `approvedAt`; al render, el núcleo revalida el seal y
+comprueba con su propio reloj que `Date.now()` pertenece a `[sealedAt, validUntil)`.
+Este baseline offline no prueba currentness, supersession ni CAS autoritativos:
+HU-085 deberá resolverlos contra el registro de producción antes de activar.
+
+`planningDigest` no sustituye a `bundleDigest` ni `candidateDigest`. HU-085 debe
+enlazarlos mediante contraste de fuentes e igualdad de filas de ambos subplanes, o
+superseder, volver a aprobar/sellar y recomunicar el baseline completo antes de
+activar.
+
+El 2026-08-24 se completó una instancia real: 27 participantes, 54 asignaciones de
+reparto y 18 mercados de tres personas se publicaron en cinco pestañas de consulta. La
+lectura posterior verificó contenido, formato y privacidad; los turnos públicos de
+Firestore siguieron vacíos y ninguna app quedó activada. Los identificadores y la
+evidencia técnica exacta se conservan fuera del repositorio.
 
 Ruta de petición prevista:
 

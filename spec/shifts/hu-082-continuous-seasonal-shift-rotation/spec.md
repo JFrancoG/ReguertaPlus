@@ -49,6 +49,10 @@ apps.
 - **Effective assignee**: the member currently expected to perform the shift.
   HU-082 initially makes both identities equal; the separate concepts prevent
   future coverage or manual assignment from corrupting the queue.
+- **Communication baseline**: one non-activating delivery-plus-market package whose
+  `assignmentDigest` binds UID plans, `resolverDigest` binds UID/display-name pairs,
+  and `planningDigest` seals both plus the contrasted source manifest. A proposal or
+  approval-only package is never communicable; only a revalidated seal may be rendered.
 
 The earlier idea of requiring exactly two delivery turns per person and season
 is superseded by the round invariant. A generation creates as many complete
@@ -175,6 +179,29 @@ contract and deterministic planner behavior.
   twice to one market.
 
 ## Planning request and mobile read-back
+
+Before the production path is available, an urgent plan may follow the separate
+[non-activating communication baseline](communication-baseline.md). It uses one
+authorized, per-entry-contrasted read-only source manifest and one indivisible
+delivery-plus-market package, then follows
+`proposal -> approved -> sealed -> rendered -> communicated`. Proposal and approval
+states are reviewer-only. The exact global approval includes the complete
+`planningDigest`, zero-write attestation, `validUntil`, and supersession intent. A seal
+may be rendered only after it is revalidated and while the renderer's own clock is in
+`[sealedAt, validUntil)`; approval validity may span at most 15 minutes. This offline
+baseline does not prove authoritative currentness, supersession, or compare-and-set
+ownership; HU-085 must enforce those properties against its production registry.
+
+The private package may contain UIDs. `assignmentDigest` binds the UID plans,
+`resolverDigest` binds only the exact UID/display-name resolver, and `planningDigest`
+seals both plus `sourceManifestDigest`. Audience rows expose no UIDs, member/account/
+request/workbook IDs, or phone numbers. These communication digests are not synonyms
+for runtime `bundleDigest` or `candidateDigest`. HU-085 must reproduce the sealed
+lineage and both plans or supersede, reapprove, reseal, and recommunicate the complete
+two-type baseline before activation. Runtime preview/stage cannot waive this gate.
+After an additional maintainer authorization, the sanitized audience render may be
+published to dedicated consultation tabs in the shared workbook. That communication
+does not populate Firestore public shifts or activate either mobile app.
 
 - The standard seasonal request is one bundle containing explicit `delivery` and
   `market` subplans. Each subplan names its own target planning-frontier season;
@@ -371,6 +398,9 @@ contract and deterministic planner behavior.
   activation/repair/recovery marker and consumer contracts.
 - Contract, unit, security, integration, mobile, and boundary tests.
 - Bilingual requirement updates after ADR/spec approval.
+- Non-production source contrast, layered assignment/resolver/planning digests, global
+  approval, seal/render, privacy, and HU-085 supersession contract for one exact
+  delivery-plus-market package.
 
 ### Out of scope
 
@@ -382,6 +412,8 @@ contract and deterministic planner behavior.
 - A broad continuation of HU-081 beyond the narrow planning-request lifecycle.
 - Firebase deployment, live data repair, workbook mutation, or production
   configuration during the planning phase.
+- Treating the communication baseline as an app-visible/public activation or using
+  production `preview` to prepare the zero-write proposal.
 
 ## Linked functional requirements
 
@@ -437,6 +469,26 @@ English/Spanish requirement edits are accepted, this spec remains draft.
   admin feedback.
 - [ ] Real producers are excluded, while active common purchase managers from
   `Compras Regüerta` remain eligible.
+- [x] A non-activating communication proposal contains complete delivery and market
+  subplans from one immutable read-only source manifest whose entry digests and
+  manifest digest contrast exactly, and causes zero Firestore, Sheets, Drive-metadata,
+  notification, app-state, configuration, or deployment writes through rendering.
+- [x] `assignmentDigest` binds both UID plans, `resolverDigest` binds the complete
+  UID/display-name resolver, and `planningDigest` seals both plus
+  `sourceManifestDigest`. Any affected change produces a new digest and revision.
+- [x] Proposal and approval-only states cannot render. One global approval binds the
+  exact two-type `planningDigest`, zero-write attestation, `validUntil`, and supersession
+  intent; sealing recontrasts and recomputes every digest. Audience rendering
+  revalidates the seal and permits it only within its approval-bound window of at most
+  15 minutes.
+- [x] The private package may retain UIDs, while audience rows contain approved display
+  names but no UIDs, member/account/request/workbook IDs, or phone numbers.
+  Repository/public evidence contains only synthetic/opaque references and no PII.
+- [ ] HU-085 owns the authoritative registry, current/superseded state, and CAS. It
+  either proves row-by-row and input-lineage alignment between both runtime subplans
+  and the applicable sealed-and-communicated `planningDigest`, or supersedes,
+  reapproves, reseals, and recommunicates the complete two-type baseline before
+  activation.
 - [ ] The request accepts only the first incomplete planning-frontier season or
   exact replay independently for each typed subplan; partial overflow is merged,
   fully prefilled seasons advance that type's frontier, and any invalid subplan
@@ -548,6 +600,8 @@ English/Spanish requirement edits are accepted, this spec remains draft.
   approval gates.
 - HU-083 depends on the rotation and projection identities created here.
 - HU-085 depends transitively on the HU-082/HU-083 integrated result.
+- HU-085 also consumes the latest sealed communication `planningDigest`; it must
+  respect it exactly or complete the documented supersession/recommunication flow.
 
 ## Risks and mitigations
 
@@ -564,6 +618,9 @@ English/Spanish requirement edits are accepted, this spec remains draft.
   the authorized active-revision read-back passes.
 - **Cross-platform drift**: share wire fixtures and verify the same lifecycle,
   provenance, boundary, and failure cases on both clients.
+- **Communicated-plan drift**: contrast sources and seal both typed UID plans plus the
+  display-name resolver together; any source, assignment, or resolver change supersedes
+  the old digest and requires complete recommunication before HU-085 activation.
 
 ## Definition of Done
 
@@ -575,5 +632,14 @@ English/Spanish requirement edits are accepted, this spec remains draft.
 - [ ] iOS focused tests, UI smoke, release gate, and SwiftLint pass.
 - [ ] Local/emulator generation and mobile read-back fixtures pass without a
   shared-project deploy; live activation remains in HU-085.
+- [x] The layered assignment/resolver/planning digest, source contrast, global
+  approval/zero-write seal, bounded audience render, and HU-085 authoritative
+  registry/CAS handoff are documented without Firestore/runtime activation or
+  repository/public PII.
+- [x] The actual communicated baseline has complete private source contrasts, all three
+  digest layers, global approval/zero-write attestation, a render inside the at-most-
+  15-minute validity window, both audience subplans, and communication receipts. Its
+  separately authorized consultation-workbook publication passed live read-back while
+  Firestore public shifts remained empty.
 - [ ] Android/iOS parity is complete or an explicitly approved gap is recorded.
 - [ ] Issue, implementation branch, commits, and PR are linked.

@@ -31,6 +31,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-08-25 | ✨ feat(shifts): add consultation baseline
 - 2026-08-24 | ✨ feat(shifts): enforce planning intake barrier
 - 2026-08-24 | ✨ feat(shifts): bind planning artifacts to state
 - 2026-08-24 | ✨ feat(shifts): orchestrate seasonal planning lifecycle

@@ -10,10 +10,38 @@
 - [x] Freeze the exact base commit, implementation branch, and current issue
   state before code changes.
 - [x] Record the current develop test anomalies without repairing live data.
+- [x] Define the non-activating communication-baseline contract for one atomic
+  delivery-plus-market package: source-manifest contrast, UID-plan
+  `assignmentDigest`, UID/display-name `resolverDigest`, sealing `planningDigest`,
+  privacy, global approval/zero-write, render revalidation, supersession, and HU-085.
+- [x] Capture one authorized immutable read-only source manifest, contrast each entry
+  and digest, and prepare both complete subplans without production `preview` or write.
+- [x] Review the exact reviewer-only proposal and reproduce all three digest layers.
+  Obtain one global approval for the exact `planningDigest` plus zero-write attestation;
+  recontrast, recompute, and seal it before any audience rendering.
+- [x] Revalidate the seal at render time and require the renderer's own clock to remain
+  in its approval-bound `[sealedAt, validUntil)` window of at most 15 minutes; then
+  communicate both subplans as not active. The private package may retain UIDs;
+  audience rows contain approved display names but no UIDs, IDs, or phones. Keep
+  repository/public evidence opaque and PII-free.
+- [ ] Hand HU-085 the applicable sealed source manifest, `assignmentDigest`,
+  `resolverDigest`, `planningDigest`, and protected payloads. Require exact contrast/
+  alignment or a new globally approved, sealed, revalidated, and recommunicated bundle.
+  HU-085 owns authoritative current/superseded state and registry CAS; the offline
+  baseline's supersession field records intent only.
 
 Approval checkpoint: maintainer authorization on 2026-08-24; implementation branch
 `codex/hu-082-continuous-seasonal-shift-rotation` frozen from `d8fd646`. The
 observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
+
+Communication checkpoint: after zero-write preparation, exact review, approval, seal,
+and bounded render, the maintainer separately authorized consultation publication on
+2026-08-24. Five sanitized workbook tabs now communicate one 27-person package: 54
+weekly delivery assignments (52 target plus 2 carryover) and 18 three-person market
+events (10 target plus 8 carryover). Live read-back passed, historical tabs and existing
+permissions were preserved, and Firestore public shifts remained empty. This was a
+workbook communication side effect only; no runtime/app activation or deployment
+occurred. Protected technical evidence remains outside the repository.
 
 ## 1. Contract and RED fixtures
 
@@ -288,9 +316,10 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
 
 ## 6. Automated validation
 
-- [ ] Run Functions `npm run lint`.
-- [ ] Run Functions `npm run build`.
-- [ ] Run focused planner, contract, concurrency, backend security, and Rules
+- [x] Run Functions `npm run lint`.
+- [x] Run Functions `npm run build`.
+- [x] Run the communication-baseline focused and full planner unit suites.
+- [ ] Run remaining focused contract, concurrency, backend security, and Rules
   suites.
 - [ ] Run Android `app:testDebugUnitTest` and `app:lintDebug`.
 - [ ] Run Android connected UI tests when an emulator/device is available.
@@ -353,7 +382,13 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
   superseding revision, terminal reconciliation clears it, and candidate lineage
   cannot mix migration baselines.
 - [ ] Prove membership mismatch and invalid planning frontier fail atomically.
-- [ ] Record the handoff contract for HU-083; do not mutate production.
+- [ ] Record the handoff contract for HU-083; do not activate Firestore/app production.
+  The separately authorized consultation-workbook publication remains communication
+  evidence, not HU-083 sync or HU-085 activation evidence.
+- [x] Record zero Firestore/app activation and zero deployments for communication-
+  baseline preparation, then retain source-manifest contrasts, all three digests, exact
+  global approval, seal, render revalidation, separately authorized consultation-
+  workbook publication/read-back, and private communication receipts.
 
 ## 8. Closure
 
@@ -362,3 +397,5 @@ observed `TurnosTest 2025-26` anomalies remain evidence-only for HU-083.
 - [ ] Link focused commits and PR to issue #266.
 - [ ] Keep HU-083, HU-084, and HU-085 blockers/status synchronized without
   closing them implicitly.
+- [ ] Confirm HU-085 respects the communicated `planningDigest` or links the full
+  supersession/reapproval/reseal/recommunication evidence before activation.

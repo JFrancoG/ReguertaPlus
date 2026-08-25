@@ -93,12 +93,22 @@ round, with as many rounds as the calendar and cohort require.
 - Only drift found before authenticated submission starts can cancel an intent.
   `unknown` is possibly delivered, is never reclassified as unreleased, and uses
   at-least-once reconciliation/correction semantics.
+- Any urgent provisional list is one non-activating delivery-plus-market communication
+  baseline. `assignmentDigest` binds UID plans, `resolverDigest` binds UID/display-name
+  pairs, and `planningDigest` seals both plus the contrasted source manifest. Proposal
+  and approval-only states cannot render; only an exact globally approved,
+  preparation-zero-write-attested seal may be revalidated and communicated. A separate
+  maintainer authorization may copy the sanitized render to consultation-only workbook
+  tabs without activating Firestore or the apps. HU-085 must reproduce it or
+  supersede/reapprove/reseal/recommunicate before activation.
 
 ## Links
 
 - Spec: `spec/shifts/hu-082-continuous-seasonal-shift-rotation/spec.md`
 - Plan: `spec/shifts/hu-082-continuous-seasonal-shift-rotation/plan.md`
 - Tasks: `spec/shifts/hu-082-continuous-seasonal-shift-rotation/tasks.md`
+- Communication baseline:
+  `spec/shifts/hu-082-continuous-seasonal-shift-rotation/communication-baseline.md`
 - ADR: `docs/decisions/0013-model-shifts-as-continuous-rotations-with-seasonal-projections.md`
 
 ## Delivery gate
@@ -112,7 +122,14 @@ round, with as many rounds as the calendar and cohort require.
   apps; no live develop deploy is required.
 - [ ] Android/iOS admin inspection can render stage without exposing it to normal
   feeds, and current flat readers pass atomic/oversize activation tests.
-- [ ] No production mutation is included.
+- [x] Source contrast, layered digests, global approval/zero-write seal, audience
+  render revalidation, privacy, and HU-085 respect-or-supersede contract documented.
+- [x] Any real communication baseline has contrasted sources, all three digest layers,
+  one exact global approval/zero-write attestation, a revalidated seal/render for both
+  typed plans, and no PII in public artifacts or UIDs/phones in audience rows.
+- [x] No Firestore public-shift/runtime activation, deployment, notification, rotation,
+  or app-configuration mutation is included. The only live side effect is the separately
+  authorized publication of sanitized consultation tabs in the shared workbook.
 
 ## Local implementation checkpoint — contract/planner cut (2026-08-24)
 
@@ -324,6 +341,60 @@ Drive permission changed, and no Firebase or workbook data was read or mutated.
 The concrete idempotent evidence store, real adapter, writer migration,
 versioned mutation commands, activation/recovery CAS, and governed reopen remain
 pending.
+
+## Documentation checkpoint — communication baseline contract (2026-08-24)
+
+HU-082 now defines a separate urgent path for communicating a provisional plan
+without using the production runtime. One authorized read-only source manifest is
+contrasted entry by entry before it feeds one atomic delivery-plus-market proposal.
+`assignmentDigest` binds exact UID plans, `resolverDigest` binds exact UID/display-name
+pairs, and `planningDigest` seals both plus `sourceManifestDigest`.
+
+The proposal remains reviewer-only. One global approval must bind the exact
+`planningDigest` and zero-write attestation; sealing recontrasts/recomputes every
+digest. The approval also binds `validUntil` and supersession intent, with at most 15
+minutes from approval to expiry. The audience renderer revalidates the seal and uses
+its own clock to require `[sealedAt, validUntil)` before emitting approved display names
+without UIDs, member/account/request/workbook IDs, or phone numbers. Approval alone is
+never communicable.
+
+The offline baseline neither accepts nor emits a status manifest and does not prove
+authoritative currentness, supersession, or CAS ownership. Its supersession field is
+intent only; HU-085 owns the production registry and authoritative current/superseded
+transition.
+
+At this earlier documentation-only checkpoint, no real member list had yet been
+generated, approved, sealed, or communicated. It contained no real member, account,
+workbook, or service identifiers and performed no Firestore, Sheets, Drive,
+notification, deployment, configuration, or app write. The operational evidence
+checklist was still open at that point.
+
+HU-085 must link its separate runtime `bundleDigest`/`candidateDigest` to the applicable
+sealed-and-communicated `planningDigest`, recontrast `sourceManifestDigest`, and reproduce its
+`assignmentDigest`/`resolverDigest` through UID-based row equality plus the exact
+display-name resolver. Any difference requires an explicitly superseding proposal,
+global approval, seal, render revalidation, and complete recommunication before
+production activation; runtime readiness or staging cannot replace what was shared.
+Its authoritative registry and CAS determine which baseline is current or superseded.
+
+## Execution checkpoint - consultation publication (2026-08-24)
+
+The maintainer subsequently approved the exact two-type package and separately
+authorized publication of its sanitized audience render for cooperative consultation.
+Protected evidence outside the repository binds the source snapshot, layered digests,
+approval, seal, render, workbook transaction, and live read-back.
+
+The published consultation package covers 27 eligible participants, 54 weekly delivery
+assignments (52 target plus 2 carryover), and 18 three-person market events (10 target
+plus 8 carryover). Five new tabs contain one summary and two seasonal projections per
+shift type. Live read-back verified values, counts, formatting, blank observation cells,
+month separators, and forbidden-field absence. Historical tabs and existing Drive
+permissions were preserved.
+
+Firestore public shifts remained empty, so neither Android nor iOS reads this schedule
+yet. No rotation cursor, notification, runtime configuration, deployment, or app
+activation changed. HU-085 must still prove authoritative alignment/currentness or
+complete the supersession flow before activating the communicated schedule.
 
 ## Suggested labels
 

@@ -12,6 +12,15 @@ must agree before the result is usable. Google Sheets discovery/develop repair
 remain in HU-083, and production activation remains independently reversible in
 HU-085.
 
+An urgent member-facing provisional plan may be prepared earlier only through the
+separate [non-activating communication baseline](communication-baseline.md). That
+path contrasts one source manifest, binds UID plans in `assignmentDigest`, binds the
+UID/display-name resolver in `resolverDigest`, and seals both in `planningDigest`
+without invoking production preview or writing production through rendering. Only a
+globally approved, zero-write-attested seal may be revalidated and rendered. A separate
+maintainer authorization may publish only that sanitized render to consultation tabs;
+HU-085 must later reproduce it exactly or complete supersession and recommunication.
+
 ## 2. Authority and data model
 
 Introduce a versioned rotation state per environment and type with at least:
@@ -31,6 +40,13 @@ Add one seasonal activation-bundle aggregate containing the exact delivery and
 market subplan target/frontier, combined input/digest, staged/active revision,
 transaction budget, sync commands, notification batch, and leases on both type
 rotations. Per-type cursors remain independent; publication is all-or-nothing.
+
+Keep the communication digest layers distinct: `assignmentDigest` for source-bound UID
+plans, `resolverDigest` for the canonical UID/display-name resolver, and
+`planningDigest` sealing both plus `sourceManifestDigest`. They remain different from
+runtime `bundleDigest` and `candidateDigest`. HU-085 evidence links them by exact
+source contrast and row-by-row delivery/market alignment; it does not assume different
+digest schemas are equal.
 
 Each generated shift carries both `rotationOwnerUserId` and `assignedUserId`
 (or the plural equivalent for market). HU-082 initially copies each shift's
@@ -148,6 +164,8 @@ documented in the English and Spanish Firestore references before code lands.
 - Accept ADR-0013 after review.
 - Align RF-TURN-03/04/07 and RF-IA-02/03 in English and Spanish.
 - Update the bilingual Firestore collection reference and Functions README.
+- Maintain the non-activating communication-baseline contract, with no PII or real
+  member/workbook/account identifiers in repository or public issue evidence.
 - Preserve the historical HU-017/HU-020 artifacts; link this refinement rather
   than rewriting closed-story history.
 
@@ -160,6 +178,24 @@ documented in the English and Spanish Firestore references before code lands.
 - Freeze current Firestore, Functions, Android, and iOS behavior with fixtures.
 - Record the develop workbook and data anomalies for HU-083 without mutating
   them.
+- For an urgent provisional list, capture one explicitly authorized read-only source
+  manifest, contrast every entry/digest, and generate both complete typed plans
+  offline; do not invoke production `preview` or any production mutation boundary.
+- Build `assignmentDigest` from UID plans, `resolverDigest` from UID/display-name pairs,
+  and `planningDigest` from both plus `sourceManifestDigest`. Keep proposal and approval
+  states reviewer-only.
+- Obtain one exact global approval with zero-write attestation, recontrast/recompute and
+  seal, then revalidate the seal while rendering both plans only inside the renderer's
+  approval-bound `[sealedAt, validUntil)` window of at most 15 minutes. Audience rows
+  contain no UIDs, IDs, or phones. Retain only opaque, non-sensitive repository evidence.
+- Only after a separate maintainer authorization, publish the exact sanitized render to
+  dedicated consultation tabs, preserve historical tabs and Drive permissions, and
+  read back values, formatting, privacy, and zero Firestore/app activation.
+- Hand the applicable sealed source manifest and all three digests/protected payloads
+  to HU-085. Any later source, UID-plan, or resolver drift requires a new proposal,
+  global approval, seal, render revalidation, and complete recommunication. The offline
+  baseline records supersession intent but does not prove authoritative currentness,
+  supersession, or CAS; HU-085 owns those guarantees against its production registry.
 
 ### Phase 1 - RED contract and pure planners
 
@@ -377,8 +413,12 @@ the iOS slice, while the TypeScript gates are still mandatory.
 - Local pure tests and emulators first.
 - No shared-project Functions or Rules deploy for a develop-only test because
   both environment paths use the same deployed revision/ruleset.
-- No production deploy or data mutation in HU-082 without a separately approved
-  delivery step.
+- No production deploy or runtime/data activation in HU-082 without a separately
+  approved delivery step.
+- The separately approved consultation publication may write only the exact sanitized
+  audience render to dedicated workbook tabs. It does not authorize Firestore public
+  shifts, cursor changes, notifications, configuration, deployment, or mobile
+  activation; HU-085 remains that production gate.
 - Keep the existing reader compatible during migration. If the new state cannot
   be proven from existing data, fail closed and defer reconstruction to HU-083.
 - Rollback disables new request creation and preserves already published shifts;
@@ -397,3 +437,6 @@ the iOS slice, while the TypeScript gates are still mandatory.
   initiating authorization context.
 - **Scope creep from HU-081**: touch only the planning lifecycle required to
   show the generated result.
+- **Communicated baseline diverges from activation**: require HU-085 to attest exact
+  two-type alignment to the sealed `planningDigest` or supersede and recommunicate
+  before any production activation.
