@@ -75,6 +75,7 @@ documented in the English and Spanish Firestore references before code lands.
   - `functions/src/shift-rotation-store.ts`
   - `functions/src/delivery-shift-planner.ts`
   - `functions/src/market-shift-planner.ts`
+  - `functions/src/shift-planning-publication-contract.ts`
 - Keep `index.ts` as authorization/orchestration rather than the home of the
   algorithms.
 - Add transaction, idempotency, request status, notification, and provenance
@@ -100,6 +101,12 @@ documented in the English and Spanish Firestore references before code lands.
   marker/version/hash/path for recovery deletes. HU-083 implements the real handler;
   only the exact mutation no-ops, later ordinary edits/deletes stay active, and
   explicit outboxes remain authoritative under replay.
+- Freeze publication codec v1 before either materializer: exact flat public
+  assignment/completion/document revisions, additive installed-client fields,
+  changed-only backend marker validation, an immutable activation tombstone,
+  and lossless digest-bound before-images with update-time preconditions. Keep
+  marker-free payload digests and transaction-request digests separate so
+  neither becomes self-referential.
 - Retain terminal operation tombstones and per-event ledgers beyond the maximum
   configured delivery/retry horizon plus safety margin. Unknown changed backend-
   only markers fail closed/alert; cleanup never turns them into ordinary events.
@@ -243,9 +250,19 @@ documented in the English and Spanish Firestore references before code lands.
   migration if exceeded.
 - Include the atomic epoch/active-revision transition in the forward activation and
   inverse recovery transaction manifests and their measured budgets.
-- Keep the immutable bundle already persisted by preview outside both the
-  activation write-set and inverse recovery; retain it as replay evidence rather
-  than updating, restoring, or deleting it.
+- Keep the immutable bundle and staged candidate outside both the activation
+  write-set and inverse recovery; retain them as replay/inspection evidence rather
+  than updating, restoring, deleting, or capturing them as before-images.
+- Serialize only a fully resolved attempt: after all reads, require and populate
+  the empty internal batch of the exact pinned SDK `Transaction`, detach its
+  measured `Write` protos, seal it, and let the SDK commit that same object.
+  Guard commit with a detached token copy, reserialize immediately before
+  transport, reject byte drift, and require a new measurement after reset. Bind
+  the write-set and complete `CommitRequest` digests/bytes and recheck the
+  conservative cardinality/10-MiB gates before public writes. Stage retains only
+  structural budgets and measurement authority; it never persists synthetic
+  future evidence. Persist the eventual outcome through a separate non-circular
+  protocol rather than embedding the request digest inside its own request.
 - Emit stable digest-bound Sheets-sync command IDs in that transaction and define
   the exact manifest/idempotency/marker protocol. Prove it with a test consumer;
   HU-083 implements the real explicit pull/invoked multi-season worker. Pending
@@ -359,7 +376,9 @@ documented in the English and Spanish Firestore references before code lands.
 - Protocol tests with a fake consumer: immediate/delayed/replayed activation,
   repair, recovery, and sync-correction events follow the required audited-no-op
   vectors, recovery deletes validate, later ordinary edits/deletes remain normal,
-  and exact sync commands are idempotent. Real adapter evidence belongs to HU-083.
+  and exact sync commands are idempotent. Real sync-consumer evidence belongs to
+  HU-083; exact CommitRequest serialization remains owned by HU-082 and the
+  isolated/live rollout gate by HU-085.
 - Retention tests: rollback cleanup preserves registry tombstones/event ledgers,
   post-cleanup replay still no-ops, and an unknown changed backend marker fails
   closed without an export/notification.

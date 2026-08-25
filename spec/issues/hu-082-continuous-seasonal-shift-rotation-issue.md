@@ -142,12 +142,14 @@ two release-lease intents, Sheets-sync templates, and held assignment intents in
 one stable revision/digest.
 
 The pure artifact chain is now fail-closed. Stage requires the exact persisted
-preview receipt plus adapter measurements for both forward and inverse manifests;
-the conservative canonical gate is 500 document writes plus declared transforms
-and 10 MiB serialized in each direction. Forward budgeting includes persisted
-recovery before-images, and measurement authority is fairness/expected-state
-lineage: an adapter or index-configuration change invalidates the evidence and
-candidate. Until HU-084 owns exact credit transitions, any enabled or non-empty
+preview receipt and structural forward/inverse budgets; it rejects synthetic
+transaction measurements. The conservative canonical gate remains 500 document
+writes plus declared transforms and 10 MiB serialized in each direction, and the
+pinned serializer applies it only to a fully resolved real attempt. Forward
+budgeting includes persisted recovery before-images, while the immutable candidate
+is excluded from both write sets. Measurement authority is fairness/expected-state
+lineage: an adapter or index-configuration change invalidates the candidate for
+activation. Until HU-084 owns exact credit transitions, any enabled or non-empty
 credit ledger fails closed. Activate requires the persisted staged candidate and a
 `candidateDigest` over that complete candidate, not only the bundle digest. The
 pure model emits sync commands bound to workbook/partition epochs and
@@ -163,7 +165,8 @@ expose them. These Rules are local candidates and must not be deployed alone.
 
 That checkpoint was deliberately non-deployable. The legacy v1 trigger in
 `functions/src/index.ts`, unversioned direct `shifts` writers, persistence/CAS,
-preview/candidate repositories, adapter byte/transform measurements, request
+preview/candidate repositories, write-set materialization and per-attempt
+serializer invocation, request
 lifecycle, real sync/notification/recovery consumers, and Android/iOS v2 read-back
 remain pending. No transaction, Firebase project, Sheet, deploy, or production
 data mutation is part of this cut.
@@ -176,9 +179,10 @@ operation and lease; competing workers receive `busy`, an expired takeover
 increments the fencing epoch, stale owners cannot finish, and canonical terminal
 summaries replay without recalculation or artifact overwrite. Preview atomically
 persists its immutable bundle, exact receipt, request lifecycle, and operation.
-Stage reloads the persisted preview and bundle, requires candidate evidence to
-match the result exactly, and creates a digest-bound candidate header without
-accepting even an identical pre-existing collision.
+Stage reloads the persisted preview and bundle, validates the planned candidate
+lineage exactly without transaction evidence, and creates an immutable
+digest-bound candidate header without accepting even an identical pre-existing
+collision.
 
 The activation boundary added here is intentionally read-only and candidate-only:
 it validates an unclaimed activate request against the persisted staged candidate
@@ -189,8 +193,9 @@ claim contention, lease takeover/fencing, canonical failure summaries, terminal
 replay integrity, immutable preview persistence, stage collision/tamper handling,
 and zero-write activation preflight.
 
-This cut remains deliberately non-deployable. Real adapter byte/transform
-measurement, candidate-position materialization, maintenance/publication CAS,
+This cut remains deliberately non-deployable. Real write-set materialization and
+per-attempt serializer invocation, candidate-position materialization,
+maintenance/publication CAS,
 public activation, the v2 trigger, sync/notification/recovery consumers, mobile
 read-back, Rules deployment, Sheets access, and all shared/live mutations remain
 pending. The legacy v1 trigger is unchanged and remains the active runtime.
@@ -206,15 +211,17 @@ of being rewritten as business failures. The same transaction routes activate to
 candidate preflight without creating an operation or writing state; activate does
 not claim or resolve a bundle.
 
-The pure manifest/budget contract also keeps the immutable bundle already
-persisted by preview entirely outside activation and inverse recovery: it is not
-updated, restored, or deleted. Existing request, candidate, and operation records
-are classified as updates, while only genuinely new public projection, command,
-before-image, and held-intent documents are creates. Unit and Firestore emulator
+The pure manifest/budget contract also keeps the immutable bundle and staged
+candidate entirely outside activation and inverse recovery: neither is updated,
+restored, deleted, or captured as a before-image. Existing activation request and
+operation records are classified as updates, while only genuinely new public
+projection, command, before-image, and held-intent documents are creates. Unit
+and Firestore emulator
 coverage exercise the complete private `preview -> stage` path and prove the
 `activate` orchestration boundary performs no operation write. This orchestrator
 is not exported from `src/index.ts`; public CAS, authoritative live snapshot
-validation, adapter measurement, candidate materialization, consumers, mobile
+validation, exact public write-set materialization/per-attempt serialization,
+consumers, mobile
 integration, deployment, and every live mutation remain pending.
 
 ## Local implementation checkpoint — authoritative state CAS cut (2026-08-24)
@@ -243,16 +250,18 @@ abort replay revalidates both persisted conditions before returning.
 This cut remains non-deployable and is not wired from `src/index.ts`. The real
 Rules/IAM/queue barrier and read-back, initial governed state/bootstrap,
 affected-writer migration, activation/recovery public CAS, candidate positions,
-measurements, consumers, mobile integration, Sheets access, deploys, and
+write-set materialization/per-attempt measurements, consumers, mobile integration,
+Sheets access, deploys, and
 shared/live mutations remain pending.
 
 ## Local implementation checkpoint — authoritative artifact binding cut (2026-08-24)
 
 The SDK-free authoritative-state builder is now the single normalizer used by
 the Firestore state repository and bundle boundary. Bundle, preview receipt,
-staged candidate, and transaction evidence move to artifact schema v2 and
+and staged candidate use artifact schema v2 and
 `bundle-v2-*` revisions, while the existing request contract and public terminal
-summary remain at schema versions 2 and 1 respectively. `expectedState` contains the complete normalized
+summary remain at schema versions 2 and 1 respectively; attempt measurements use
+their own schema v1. `expectedState` contains the complete normalized
 maintenance document, both rotation aggregates, their environment-scoped digest,
 and the transaction-measurement authority. Receipts and candidates carry only
 its digest, so they remain transitively bound without duplicating the read-set.
@@ -276,7 +285,8 @@ wire-summary compatibility.
 
 This remains runtime-disconnected and non-deployable. No trigger, Rules, IAM,
 Sheet, shared Firebase project, public shift, mobile client, or production state
-was changed. Real barrier verification, writer migration, adapter measurements,
+was changed. Real barrier verification, writer migration, write-set materialization,
+per-attempt serializer invocation/evidence,
 candidate positions, live activation/recovery CAS, consumers, and mobile read-back
 remain pending.
 
@@ -395,6 +405,120 @@ Firestore public shifts remained empty, so neither Android nor iOS reads this sc
 yet. No rotation cursor, notification, runtime configuration, deployment, or app
 activation changed. HU-085 must still prove authoritative alignment/currentness or
 complete the supersession flow before activating the communicated schedule.
+
+## Local implementation checkpoint — immutable candidate positions (2026-08-25)
+
+Stage now creates one immutable admin-inspection child per planned public shift
+under the candidate's `positions` subcollection. Delivery keeps one rotation
+position; each market document keeps its complete ordered group of three. The
+header binds document/assignment counts and `positionSetDigest`; each child binds
+its canonical payload, position digest, candidate digest, and bundle lineage.
+Exact terminal replay verifies the complete set and rejects missing, extra,
+aliased, altered, or pre-existing collisions without overwrite. Activate remains
+read-only and validates candidate header, immutable preview bundle, and every
+position. The Firestore emulator covers persistence, replay, tamper, alias, and
+zero-public-write preflight. No runtime trigger, deployment, public shift, Sheet,
+notification, mobile client, or production state was changed.
+
+## Local implementation checkpoint — exact transaction serializer (2026-08-25)
+
+The staging contract no longer accepts or stores synthetic forward/inverse
+`transactionEvidence`. A future exact `CommitRequest` cannot exist during stage:
+activation/recovery IDs, before-images, payloads, preconditions, and the opaque
+transaction token are attempt-owned values that are not yet available. The staged
+candidate is now immutable outside both write sets and recovery before-images;
+future activation request/operation records are likewise no longer staged
+before-image targets. Forward/inverse structural budgets were reduced accordingly.
+This checkpoint supersedes the earlier local statement that stage required exact
+adapter measurements; request/public wire versions remain unchanged because that
+runtime has never been deployed.
+
+The new local serializer pins `@google-cloud/firestore` 8.7.0 behind adapter revision
+`firestore-grpc-v1-fs8.7.0-r1`. It can build a canonical reference batch and, for one
+completely resolved token-bound attempt, measures the supplied actual `WriteBatch`,
+serializes its full protobuf `CommitRequest`, and returns independent write-set and
+request digests, document/transform counts, maximum per-document transforms, byte
+count, manifest lineage, and index-configuration authority. It rejects SDK-shape or
+version drift, non-canonical or duplicate paths, extras/accessors/cycles, budget mismatch,
+more than 500 combined writes/transforms, more than 500 transforms on one document,
+or more than 10 MiB before any publication. The token is neither returned nor
+persisted. A successful measurement seals the SDK batch against later public
+or captured-payload mutations by replacing its operations with detached copies of
+the measured `Write` protos. A commit guard uses a detached measured-token copy,
+rejects a different token, and clears authority on reset so every retry must be
+measured again. Golden and mutation-drift unit vectors pass, and the private staging
+repository still passes its isolated Firestore-emulator suite with no public writes.
+
+This serializer does not yet materialize activation/recovery mutations or execute a
+domain CAS. Protobuf byte size does not include backend index-entry accounting, so
+the governed isolated-clone rehearsal remains required. Nothing was deployed and no
+shared Firebase, Sheets, IAM, Rules, mobile, or production state was changed.
+
+## Local implementation checkpoint — real transaction attempt adapter (2026-08-25)
+
+The local attempt adapter now receives the exact pinned SDK `Transaction` after all
+authoritative reads. It rejects a missing token, another Firestore owner, a read-only
+transaction, or any write already queued outside the adapter. It canonically populates
+the transaction's own empty internal `WriteBatch`, awaits a detached copy of the real
+opaque token, measures and seals that object, and returns only immutable in-memory
+measurement evidence. The SDK later commits that same object; it is not rebuilt.
+
+The serializer's guard now owns immutable operation storage and reserializes the full
+request immediately before transport. A changed token, owner, target, payload, or
+protobuf byte sequence fails closed. SDK reset removes commit authority and empties
+the guarded batch, so every retried callback must repeat all reads, resolution, and
+measurement. An emulator vector forced an `ABORTED` first attempt and proved that the
+second attempt received a different request digest and was the only one transported;
+another vector compared the measured digest/byte count with the exact observed commit
+request and rejected private `_ops` mutation.
+
+Validation passes on Node 22 with Functions lint/build, 151 planning unit vectors
+(including the 6 serializer vectors), 4 real-attempt emulator vectors, 13 staged-
+candidate repository emulator vectors, and 16 intake-barrier emulator vectors.
+
+The request digest cannot be persisted inside the same request whose bytes define
+that digest without creating a circular value. This cut therefore keeps measurement
+in memory and records immutable outcome evidence as a separate pending protocol. It
+also corrected the inverse manifest so a predecessor before-image exists only when
+activation actually mutates that helper; a semantic read guard alone no longer
+creates an unbudgeted restore.
+
+Before exact domain materialization, HU-082 still must freeze the public-shift
+assignment/completion codec, the backend mutation marker and activation terminal
+lifecycle, and the persisted before-image/recovery envelope. Forward/inverse payloads,
+complete live read-set revalidation, publication/recovery CAS, and outcome evidence
+remain fail-closed. No trigger, deployment, public shift, Sheet, notification, mobile,
+IAM, Rules, shared Firebase, or production state was changed.
+
+## Local implementation checkpoint — publication/recovery codecs (2026-08-25)
+
+Publication codec v1 now turns one staged position into an exact flat public
+shift payload while preserving the fields installed Android/iOS clients read and
+using `source = app`. It adds exact planner/bundle lineage, rotation ownership,
+one/three-person assignment cardinality, assignment/completion/document
+revisions, UTC-midnight date and write epoch. Completion is an exact union and
+incoherent helper/revision/timestamp state fails closed.
+
+A controlled write adds `lastBackendMutation`, bound to target path,
+marker-free payload digest, document revision, operation intent, bundle and
+epoch. Exact current-payload validation is required only when the marker changed
+in that event. A later ordinary edit may retain historical provenance and is not
+silenced merely because the old payload digest is stale.
+
+The same atomic activation is specified to create an immutable backend terminal
+with `operationKind = activation`, `state = committed`, ordered public mutation
+bindings, and contiguous before-image references. Before-images use tagged codec
+`firestore-value-v1`, preserve the supported Firestore value subset losslessly,
+bind target update-time plus capture/payload/envelope digests, and reject
+sentinels, references, custom/lossy structures, cycles, accessors, symbols,
+sparse/extraneous properties and tampering.
+
+Node 22 validation passes Functions lint/build, 6 focused codec vectors, and the
+157-vector planning unit suite. This cut remains pure: it does not run an
+activation/recovery transaction, write public shifts, persist attempt outcome
+evidence, open transport, deploy, or change shared Firebase/Sheets/production.
+The next cut can now materialize exact forward mutations and recheck the complete
+live snapshot inside the real transaction-attempt adapter.
 
 ## Suggested labels
 

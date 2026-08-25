@@ -214,6 +214,44 @@ revision/digest and atomically promotes both active rotations/projections.
 Because the immutable preview bundle predates activation, inverse recovery
 retains it outside its write-set and never updates, restores, or classifies it as
 an activation-created path to delete.
+The staged candidate has the same immutability boundary: activation/recovery never
+updates or restores it and never captures it as a before-image. Stage cannot own an
+exact future transaction measurement because activation/recovery IDs, before-images,
+preconditions, payloads, and the opaque Firestore transaction token do not exist yet.
+The exact serializer therefore accepts the actual `WriteBatch` owned by each fully
+resolved transaction attempt, runs before public writes, and binds both its ordered
+write-set digest and complete protobuf `CommitRequest` digest/byte count. The local
+attempt adapter now requires completed authoritative reads, the empty internal batch
+owned by that exact SDK `Transaction`, and its real opaque token. It canonically
+populates, measures, and seals that batch once per callback attempt; SDK reset clears
+the authority and forces the retry to rebuild and remeasure. Successful measurement
+replaces operations with detached measured `Write` copies, makes operation storage
+adapter-owned, and reserializes the complete request immediately before transport.
+A changed token or byte sequence fails closed. The measurement remains in memory
+because placing its own request digest inside that request would be circular;
+immutable outcome evidence needs a separate protocol. The index-configuration
+digest records the audited authority but does not replace the isolated-clone
+rehearsal needed for backend index-entry accounting.
+
+Before semantic materialization, publication codec v1 freezes the exact flat
+public payload, backend mutation marker, activation tombstone, and before-image
+envelope. New rows retain the fields consumed by installed clients and publish
+`source = app`; planner lineage, rotation ownership, assignment/completion and
+document revisions, and the monotonic epoch remain additive metadata. Delivery
+has exactly one assignee and market exactly three. A controlled write changes a
+`lastBackendMutation` marker bound to its target, marker-free payload digest,
+document revision, operation intent, bundle, and epoch. Only an event whose
+marker changed must match the current payload; a later ordinary edit may retain
+the historical marker and must not be suppressed.
+
+The same activation transaction creates an immutable `state = committed`
+operation tombstone binding its ordered public mutations and before-image
+references. Before-images preserve an exact tagged Firestore subset (maps,
+arrays, scalars, timestamps, bytes, and geopoints), their original update-time
+precondition, capture-contract digest, path, payload digest, and envelope digest.
+Lossy or unsupported values fail closed. These pure codecs freeze the input to
+the forward/inverse materializers; they do not yet execute either CAS or persist
+the separate non-circular transaction-outcome evidence.
 Activation is the acknowledged public-visibility boundary and queues Sheets sync
 plus held notification intents.
 

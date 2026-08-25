@@ -55,23 +55,6 @@ export type ShiftPlanningProjectionOccupancy = {
   lineageDigest: string;
 };
 
-export type ShiftPlanningTransactionMeasurement = {
-  schemaVersion: typeof SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION;
-  direction: "forward" | "inverse";
-  manifestDigest: string;
-  documentWriteCount: number;
-  fieldTransformCount: number;
-  requestByteCount: number;
-  adapterRevision: string;
-  indexConfigurationDigest: string;
-};
-
-export type ShiftPlanningTransactionEvidence = {
-  schemaVersion: typeof SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION;
-  forward: ShiftPlanningTransactionMeasurement;
-  inverse: ShiftPlanningTransactionMeasurement;
-};
-
 export type ShiftPlanningStagedCandidate = {
   schemaVersion: typeof SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION;
   status: "staged";
@@ -86,7 +69,6 @@ export type ShiftPlanningStagedCandidate = {
   sourceStageRequestId: string;
   expectedStateDigest: string;
   positionManifest: ShiftPlanningCandidatePositionManifest;
-  transactionEvidence: ShiftPlanningTransactionEvidence;
 };
 
 export type ShiftPlanningPreviewReceipt = {
@@ -116,7 +98,6 @@ export type ShiftPlanningBundleInput = {
     futureProjectionOccupancy?: readonly ShiftPlanningProjectionOccupancy[];
   };
   transactionWriteLimit?: number;
-  transactionEvidence?: unknown;
   persistedPreview?: unknown;
   stagedCandidate?: unknown;
 };
@@ -130,7 +111,7 @@ export type ShiftPlanningTransactionBudget = {
   activeStateWrites: 1;
   bundleMetadataWrites: 0;
   requestWrites: 1;
-  stagedCandidateWrites: 1;
+  stagedCandidateWrites: 0;
   syncCommandWrites: 2;
   operationRegistryWrites: 1;
   beforeImageWrites: number;
@@ -314,7 +295,7 @@ export type ShiftPlanningRecoveryManifest = {
   activeStateRestores: 1;
   bundleMetadataUpdates: 0;
   requestUpdates: 1;
-  stagedCandidateUpdates: 1;
+  stagedCandidateUpdates: 0;
   syncCommandDeletes: 2;
   operationRegistryUpdates: 1;
   heldIntentDeletes: number;
@@ -411,7 +392,6 @@ export type ShiftPlanningBundleResult = {
     forwardManifestDigest: string;
     inverseManifestDigest: string;
   };
-  transactionEvidence: ShiftPlanningTransactionEvidence | null;
   stagedCandidate: ShiftPlanningStagedCandidate | null;
   stagedCandidateDigest: string | null;
   previewReceipt: ShiftPlanningPreviewReceipt | null;
@@ -1071,11 +1051,11 @@ const transactionBudget = (
   const activeStateWrites = 1 as const;
   const bundleMetadataWrites = 0 as const;
   const requestWrites = 1 as const;
-  const stagedCandidateWrites = 1 as const;
+  const stagedCandidateWrites = 0 as const;
   const syncCommandWrites = 2 as const;
   const operationRegistryWrites = 1 as const;
   const commonUpdateWrites = predecessorHelperWrites + rotationWrites +
-    activeStateWrites + requestWrites + stagedCandidateWrites +
+    activeStateWrites + requestWrites +
     operationRegistryWrites + input.creditLedgerWrites;
   const createWrites = direction === "forward" ?
     publicShiftWrites + syncCommandWrites + input.heldIntentWrites +
@@ -1506,28 +1486,17 @@ const recoveryManifest = (input: {
       path: `${root}/shiftPlanningState/current`,
       contract: input.snapshot.authoritativeState.maintenance,
     },
-    {
-      path: `${root}/shiftPlanningCandidates/${input.request.bundleId}`,
-      contract: {
-        kind: "persistedStagedCandidate",
-        candidateId: input.request.bundleId,
-      },
-    },
-    {
-      path: `${root}/shiftPlanningRequests/{activationRequestId}`,
-      contract: {
-        kind: "persistedActivationRequest",
-      },
-    },
-    {
-      path: `${root}/shiftPlanningOperations/{operationId}`,
-      contract: {kind: "retainedTerminalOperationTombstone"},
-    },
   ];
-  if (input.delivery.predecessorGuard !== null) {
+  if (input.delivery.predecessorHelperUpdate !== null) {
+    const predecessorGuard = input.delivery.predecessorGuard;
+    if (predecessorGuard === null) {
+      return failState(
+        "Delivery predecessor update is missing its transaction guard.",
+      );
+    }
     beforeImageTargets.push({
-      path: `${root}/shifts/${input.delivery.predecessorGuard.shiftId}`,
-      contract: input.delivery.predecessorGuard,
+      path: `${root}/shifts/${predecessorGuard.shiftId}`,
+      contract: predecessorGuard,
     });
   }
   return {
@@ -1566,7 +1535,7 @@ const recoveryManifest = (input: {
     activeStateRestores: 1,
     bundleMetadataUpdates: 0,
     requestUpdates: 1,
-    stagedCandidateUpdates: 1,
+    stagedCandidateUpdates: 0,
     syncCommandDeletes: 2,
     operationRegistryUpdates: 1,
     heldIntentDeletes: input.recipients.length,
@@ -1652,206 +1621,6 @@ export const parseShiftPlanningExpectedState = (
   };
 };
 
-const parseTransactionMeasurement = (input: {
-  value: unknown;
-  direction: "forward" | "inverse";
-  manifestDigest: string;
-  budget: ShiftPlanningTransactionBudget;
-  authority: {
-    adapterRevision: string;
-    indexConfigurationDigest: string;
-  };
-}): ShiftPlanningTransactionMeasurement => {
-  const field = `transactionEvidence.${input.direction}`;
-  const measurement = requireRecord(input.value, field);
-  requireExactRecordFields(measurement, [
-    "schemaVersion",
-    "direction",
-    "manifestDigest",
-    "documentWriteCount",
-    "fieldTransformCount",
-    "requestByteCount",
-    "adapterRevision",
-    "indexConfigurationDigest",
-  ], field);
-  const manifestDigest = requireNullableDigest(
-    measurement.manifestDigest,
-    `${field}.manifestDigest`,
-  ) || failState(`${field}.manifestDigest must not be null.`);
-  const documentWriteCount = requireNonNegativeInteger(
-    measurement.documentWriteCount,
-    `${field}.documentWriteCount`,
-  );
-  const fieldTransformCount = requireNonNegativeInteger(
-    measurement.fieldTransformCount,
-    `${field}.fieldTransformCount`,
-  );
-  const requestByteCount = requireNonNegativeInteger(
-    measurement.requestByteCount,
-    `${field}.requestByteCount`,
-  );
-  const adapterRevision = requireDocumentIdentifier(
-    measurement.adapterRevision,
-    `${field}.adapterRevision`,
-  );
-  const indexConfigurationDigest = requireNullableDigest(
-    measurement.indexConfigurationDigest,
-    `${field}.indexConfigurationDigest`,
-  ) || failState(`${field}.indexConfigurationDigest must not be null.`);
-  if (
-    measurement.schemaVersion !== SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION ||
-    measurement.direction !== input.direction ||
-    manifestDigest !== input.manifestDigest ||
-    documentWriteCount !== input.budget.totalWrites ||
-    documentWriteCount + fieldTransformCount > input.budget.writeLimit ||
-    fieldTransformCount > SHIFT_PLANNING_FIRESTORE_TRANSACTION_WRITE_LIMIT ||
-    requestByteCount < 1 ||
-    requestByteCount > SHIFT_PLANNING_FIRESTORE_TRANSACTION_BYTE_LIMIT ||
-    adapterRevision !== input.authority.adapterRevision ||
-    indexConfigurationDigest !== input.authority.indexConfigurationDigest
-  ) {
-    throw new ShiftPlanningError(
-      "planning_bundle_oversize",
-      `${input.direction} transaction measurement is stale or exceeds limits.`,
-    );
-  }
-  return {
-    schemaVersion: SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION,
-    direction: input.direction,
-    manifestDigest,
-    documentWriteCount,
-    fieldTransformCount,
-    requestByteCount,
-    adapterRevision,
-    indexConfigurationDigest,
-  };
-};
-
-const parseTransactionEvidence = (input: {
-  value: unknown;
-  forwardManifestDigest: string;
-  inverseManifestDigest: string;
-  budgets: {
-    forward: ShiftPlanningTransactionBudget;
-    inverse: ShiftPlanningTransactionBudget;
-  };
-  authority: {
-    adapterRevision: string;
-    indexConfigurationDigest: string;
-  };
-}): ShiftPlanningTransactionEvidence => {
-  const evidence = requireRecord(input.value, "transactionEvidence");
-  requireExactRecordFields(
-    evidence,
-    ["schemaVersion", "forward", "inverse"],
-    "transactionEvidence",
-  );
-  if (evidence.schemaVersion !== SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION) {
-    return failState("Transaction evidence schema is unsupported.");
-  }
-  return {
-    schemaVersion: SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION,
-    forward: parseTransactionMeasurement({
-      value: evidence.forward,
-      direction: "forward",
-      manifestDigest: input.forwardManifestDigest,
-      budget: input.budgets.forward,
-      authority: input.authority,
-    }),
-    inverse: parseTransactionMeasurement({
-      value: evidence.inverse,
-      direction: "inverse",
-      manifestDigest: input.inverseManifestDigest,
-      budget: input.budgets.inverse,
-      authority: input.authority,
-    }),
-  };
-};
-
-const parseTransactionMeasurementArtifact = (input: {
-  value: unknown;
-  direction: "forward" | "inverse";
-}): ShiftPlanningTransactionMeasurement => {
-  const field = `transactionEvidence.${input.direction}`;
-  const measurement = requireRecord(input.value, field);
-  requireExactRecordFields(measurement, [
-    "schemaVersion",
-    "direction",
-    "manifestDigest",
-    "documentWriteCount",
-    "fieldTransformCount",
-    "requestByteCount",
-    "adapterRevision",
-    "indexConfigurationDigest",
-  ], field);
-  const documentWriteCount = requireNonNegativeInteger(
-    measurement.documentWriteCount,
-    `${field}.documentWriteCount`,
-  );
-  const fieldTransformCount = requireNonNegativeInteger(
-    measurement.fieldTransformCount,
-    `${field}.fieldTransformCount`,
-  );
-  const requestByteCount = requireNonNegativeInteger(
-    measurement.requestByteCount,
-    `${field}.requestByteCount`,
-  );
-  if (
-    measurement.schemaVersion !== SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION ||
-    measurement.direction !== input.direction ||
-    documentWriteCount + fieldTransformCount >
-      SHIFT_PLANNING_FIRESTORE_TRANSACTION_WRITE_LIMIT ||
-    requestByteCount < 1 ||
-    requestByteCount > SHIFT_PLANNING_FIRESTORE_TRANSACTION_BYTE_LIMIT
-  ) {
-    return failState(`${field} discriminators or limits are invalid.`);
-  }
-  return {
-    schemaVersion: SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION,
-    direction: input.direction,
-    manifestDigest: requireNullableDigest(
-      measurement.manifestDigest,
-      `${field}.manifestDigest`,
-    ) || failState(`${field}.manifestDigest must not be null.`),
-    documentWriteCount,
-    fieldTransformCount,
-    requestByteCount,
-    adapterRevision: requireDocumentIdentifier(
-      measurement.adapterRevision,
-      `${field}.adapterRevision`,
-    ),
-    indexConfigurationDigest: requireNullableDigest(
-      measurement.indexConfigurationDigest,
-      `${field}.indexConfigurationDigest`,
-    ) || failState(`${field}.indexConfigurationDigest must not be null.`),
-  };
-};
-
-const parseTransactionEvidenceArtifact = (
-  value: unknown,
-): ShiftPlanningTransactionEvidence => {
-  const evidence = requireRecord(value, "transactionEvidence");
-  requireExactRecordFields(
-    evidence,
-    ["schemaVersion", "forward", "inverse"],
-    "transactionEvidence",
-  );
-  if (evidence.schemaVersion !== SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION) {
-    return failState("Transaction evidence schema is unsupported.");
-  }
-  return {
-    schemaVersion: SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION,
-    forward: parseTransactionMeasurementArtifact({
-      value: evidence.forward,
-      direction: "forward",
-    }),
-    inverse: parseTransactionMeasurementArtifact({
-      value: evidence.inverse,
-      direction: "inverse",
-    }),
-  };
-};
-
 export const parseShiftPlanningPreviewReceipt = (
   value: unknown,
 ): ShiftPlanningPreviewReceipt => {
@@ -1923,7 +1692,6 @@ export const parseShiftPlanningStagedCandidateArtifact = (
     "sourceStageRequestId",
     "expectedStateDigest",
     "positionManifest",
-    "transactionEvidence",
   ], "stagedCandidate");
   if (
     candidate.schemaVersion !== SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION ||
@@ -1978,37 +1746,13 @@ export const parseShiftPlanningStagedCandidateArtifact = (
     positionManifest: parseShiftPlanningCandidatePositionManifest(
       candidate.positionManifest,
     ),
-    transactionEvidence: parseTransactionEvidenceArtifact(
-      candidate.transactionEvidence,
-    ),
   };
 };
 
 export const validateShiftPlanningStagedCandidate = (input: {
   value: unknown;
-  forwardManifestDigest: string;
-  inverseManifestDigest: string;
-  budgets: {
-    forward: ShiftPlanningTransactionBudget;
-    inverse: ShiftPlanningTransactionBudget;
-  };
-  authority: {
-    adapterRevision: string;
-    indexConfigurationDigest: string;
-  };
-}): ShiftPlanningStagedCandidate => {
-  const candidate = parseShiftPlanningStagedCandidateArtifact(input.value);
-  return {
-    ...candidate,
-    transactionEvidence: parseTransactionEvidence({
-      value: candidate.transactionEvidence,
-      forwardManifestDigest: input.forwardManifestDigest,
-      inverseManifestDigest: input.inverseManifestDigest,
-      budgets: input.budgets,
-      authority: input.authority,
-    }),
-  };
-};
+}): ShiftPlanningStagedCandidate =>
+  parseShiftPlanningStagedCandidateArtifact(input.value);
 
 const validateBinding = (
   request: ShiftPlanningRequestV2,
@@ -2038,35 +1782,21 @@ const resolvePersistedPlanningChain = (input: {
   revision: string;
   digest: string;
   expectedStateDigest: string;
-  forwardManifestDigest: string;
-  inverseManifestDigest: string;
-  budgets: {
-    forward: ShiftPlanningTransactionBudget;
-    inverse: ShiftPlanningTransactionBudget;
-  };
-  authority: {
-    adapterRevision: string;
-    indexConfigurationDigest: string;
-  };
   positionManifest: ShiftPlanningCandidatePositionManifest;
-  transactionEvidence: unknown;
   persistedPreview: unknown;
   stagedCandidate: unknown;
 }): {
-  transactionEvidence: ShiftPlanningTransactionEvidence | null;
   previewReceipt: ShiftPlanningPreviewReceipt | null;
   previewReceiptDigest: string | null;
   stagedCandidate: ShiftPlanningStagedCandidate | null;
   stagedCandidateDigest: string | null;
 } => {
-  const hasTransactionEvidence = input.transactionEvidence !== undefined &&
-    input.transactionEvidence !== null;
   const hasPersistedPreview = input.persistedPreview !== undefined &&
     input.persistedPreview !== null;
   const hasStagedCandidate = input.stagedCandidate !== undefined &&
     input.stagedCandidate !== null;
   if (input.request.mode === "preview") {
-    if (hasTransactionEvidence || hasPersistedPreview || hasStagedCandidate) {
+    if (hasPersistedPreview || hasStagedCandidate) {
       return failState("Preview cannot consume persisted-chain artifacts.");
     }
     const previewReceipt: ShiftPlanningPreviewReceipt = {
@@ -2082,7 +1812,6 @@ const resolvePersistedPlanningChain = (input: {
       expectedStateDigest: input.expectedStateDigest,
     };
     return {
-      transactionEvidence: null,
       previewReceipt,
       previewReceiptDigest: createShiftPlanningDigest(previewReceipt),
       stagedCandidate: null,
@@ -2090,11 +1819,10 @@ const resolvePersistedPlanningChain = (input: {
     };
   }
   if (input.request.mode === "stage") {
-    if (!hasTransactionEvidence || !hasPersistedPreview || hasStagedCandidate) {
+    if (!hasPersistedPreview || hasStagedCandidate) {
       throw new ShiftPlanningError(
         "preview_binding_mismatch",
-        "Stage requires one persisted preview and measured " +
-        "transaction evidence.",
+        "Stage requires one exact persisted preview.",
       );
     }
     const previewReceipt = parseShiftPlanningPreviewReceipt(
@@ -2115,13 +1843,6 @@ const resolvePersistedPlanningChain = (input: {
         "Persisted preview does not match the stage request and live bundle.",
       );
     }
-    const transactionEvidence = parseTransactionEvidence({
-      value: input.transactionEvidence,
-      forwardManifestDigest: input.forwardManifestDigest,
-      inverseManifestDigest: input.inverseManifestDigest,
-      budgets: input.budgets,
-      authority: input.authority,
-    });
     const previewReceiptDigest = createShiftPlanningDigest(previewReceipt);
     const stagedCandidate: ShiftPlanningStagedCandidate = {
       schemaVersion: SHIFT_PLANNING_BUNDLE_SCHEMA_VERSION,
@@ -2137,17 +1858,15 @@ const resolvePersistedPlanningChain = (input: {
       sourceStageRequestId: input.request.requestId,
       expectedStateDigest: input.expectedStateDigest,
       positionManifest: input.positionManifest,
-      transactionEvidence,
     };
     return {
-      transactionEvidence,
       previewReceipt,
       previewReceiptDigest,
       stagedCandidate,
       stagedCandidateDigest: createShiftPlanningDigest(stagedCandidate),
     };
   }
-  if (hasTransactionEvidence || hasPersistedPreview || !hasStagedCandidate) {
+  if (hasPersistedPreview || !hasStagedCandidate) {
     throw new ShiftPlanningError(
       "candidate_binding_mismatch",
       "Activate requires only the persisted staged candidate.",
@@ -2155,10 +1874,6 @@ const resolvePersistedPlanningChain = (input: {
   }
   const stagedCandidate = validateShiftPlanningStagedCandidate({
     value: input.stagedCandidate,
-    forwardManifestDigest: input.forwardManifestDigest,
-    inverseManifestDigest: input.inverseManifestDigest,
-    budgets: input.budgets,
-    authority: input.authority,
   });
   const stagedCandidateDigest = createShiftPlanningDigest(stagedCandidate);
   if (
@@ -2183,7 +1898,6 @@ const resolvePersistedPlanningChain = (input: {
     );
   }
   return {
-    transactionEvidence: stagedCandidate.transactionEvidence,
     previewReceipt: null,
     previewReceiptDigest: null,
     stagedCandidate,
@@ -2283,6 +1997,11 @@ const heldNotificationIntents = (input: {
 export const planShiftPlanningBundle = (
   input: ShiftPlanningBundleInput,
 ): ShiftPlanningBundleResult => {
+  if ("transactionEvidence" in input) {
+    failState(
+      "Planning cannot consume transaction evidence before a real attempt.",
+    );
+  }
   const request = parseShiftPlanningRequestV2(input.request);
   const snapshot = parseBundleFairnessSnapshot(
     input.fairnessSnapshot,
@@ -2439,12 +2158,7 @@ export const planShiftPlanningBundle = (
     revision,
     digest: bundleDigest,
     expectedStateDigest,
-    forwardManifestDigest,
-    inverseManifestDigest,
-    budgets,
-    authority: snapshot.transactionMeasurementAuthority,
     positionManifest: candidatePositionSet.manifest,
-    transactionEvidence: input.transactionEvidence,
     persistedPreview: input.persistedPreview,
     stagedCandidate: input.stagedCandidate,
   });
@@ -2501,7 +2215,6 @@ export const planShiftPlanningBundle = (
       forwardManifestDigest,
       inverseManifestDigest,
     },
-    transactionEvidence: persistedChain.transactionEvidence,
     stagedCandidate: persistedChain.stagedCandidate,
     stagedCandidateDigest: persistedChain.stagedCandidateDigest,
     previewReceipt: persistedChain.previewReceipt,

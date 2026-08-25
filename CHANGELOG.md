@@ -31,6 +31,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-08-25 | ✨ feat(shifts): add activation transaction contracts
 - 2026-08-25 | ✨ feat(shifts): add staged candidate positions
 - 2026-08-25 | ✨ feat(shifts): persist intake barrier evidence
 - 2026-08-25 | ✨ feat(shifts): add consultation baseline

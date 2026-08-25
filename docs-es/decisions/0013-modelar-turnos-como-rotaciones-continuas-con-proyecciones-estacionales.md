@@ -224,7 +224,47 @@ esa revisión/digest y promociona atómicamente ambas rotaciones/proyecciones
 activas. Como el bundle inmutable de preview es anterior a la activación, el
 recovery inverse lo retiene fuera de su write-set y nunca lo actualiza, restaura
 ni clasifica como una ruta creada por la activación que se deba borrar. La
-activación es el límite reconocido de visibilidad pública y encola
+frontera de inmutabilidad del candidato staged es la misma: activacion/recovery
+nunca lo actualizan ni restauran y nunca lo capturan como before-image. Stage no
+puede poseer una medicion exacta de una transaccion futura porque aun no existen
+los IDs de activacion/recovery, before-images, precondiciones, payloads ni el token
+opaco de la transaccion Firestore. Por ello, el serializador exacto acepta el
+`WriteBatch` real propiedad de cada intento transaccional completamente resuelto y
+se ejecuta antes de las escrituras publicas; liga el digest de su write-set ordenado
+y el digest/conteo de bytes del `CommitRequest` protobuf completo. El adaptador local
+de intento exige que hayan terminado las lecturas autoritativas, que el batch
+interno pertenezca a ese `Transaction` exacto del SDK y este vacio, y que exista su
+token opaco real. Puebla, mide y sella canonicamente ese batch una vez por callback;
+el reset del SDK borra la autoridad y obliga al retry a reconstruir y medir de nuevo.
+Una medicion correcta sustituye las operaciones por copias separadas de los protos
+`Write` medidos, hace que el almacenamiento de operaciones pertenezca al adaptador
+y reserializa la peticion completa justo antes del transporte. Otro token o una
+secuencia de bytes distinta falla en cerrado. La medicion permanece en memoria
+porque incluir su propio digest dentro de la peticion medida seria circular; la
+evidencia inmutable del resultado necesita otro protocolo. Su digest de
+configuracion de indices registra la autoridad auditada, pero no sustituye al
+ensayo en clon aislado necesario para contabilizar las entradas de indice del backend. La
+materializacion semantica queda precedida por un codec de publicacion v1 que fija
+el payload publico plano, el marcador de mutacion backend, el tombstone de
+activacion y el sobre de before-image. Las filas nuevas conservan los campos que
+leen las apps instaladas y publican `source = app`; linaje del planner, propiedad
+de rotacion, revisiones de asignacion/finalizacion/documento y epoch monotono son
+metadata aditiva. Reparto tiene exactamente un asignado y mercado exactamente
+tres. Una escritura controlada cambia `lastBackendMutation`, ligado a destino,
+digest del payload sin marcador, revision documental, intent de operacion,
+bundle y epoch. Solo un evento cuyo marcador cambia debe coincidir con el payload
+actual; una edicion ordinaria posterior puede conservar el marcador historico y
+no debe silenciarse.
+
+La misma transaccion de activacion crea un tombstone inmutable
+`state = committed` que liga sus mutaciones publicas ordenadas y referencias de
+before-image. Las before-images conservan un subconjunto Firestore taggeado
+exacto (mapas, arrays, escalares, timestamps, bytes y geopoints), la precondicion
+original de update-time, digest del contrato de captura, ruta, digest del payload
+y digest del sobre. Todo valor no soportado o con perdida falla cerrado. Estos
+codecs puros fijan la entrada de los materializadores forward/inverse; aun no
+ejecutan ninguno de los CAS ni persisten la evidencia transaccional no circular.
+La activación es el límite reconocido de visibilidad pública y encola
 sync de Sheets e intenciones de notificación retenidas.
 
 El primer despliegue conserva las apps instaladas que leen la colección plana

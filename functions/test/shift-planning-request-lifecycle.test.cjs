@@ -142,7 +142,6 @@ const completedResult = (value, resolvedState = authoritativeState()) => {
     },
     delivery: {shifts: [], affectedProjectionSeasonStartYears: [2026]},
     market: {shifts: [], affectedProjectionSeasonStartYears: [2026]},
-    transactionEvidence: isPreview ? null : {schemaVersion: 2},
     stagedCandidate: isPreview ? null : {schemaVersion: 2},
     stagedCandidateDigest: isPreview ? null :
       `shift-planning:v1:sha256:${"e".repeat(64)}`,

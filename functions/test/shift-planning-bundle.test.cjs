@@ -200,34 +200,6 @@ const candidateBinding = (result) => ({
   candidateDigest: result.stagedCandidateDigest || result.bundleDigest,
 });
 
-const transactionEvidence = (result, overrides = {}) => ({
-  schemaVersion: 2,
-  forward: {
-    schemaVersion: 2,
-    direction: "forward",
-    manifestDigest: result.transactionRequirements.forwardManifestDigest,
-    documentWriteCount: result.budgets.forward.totalWrites,
-    fieldTransformCount: 0,
-    requestByteCount: 250_000,
-    adapterRevision: "firestore-adapter-v1",
-    indexConfigurationDigest:
-      `shift-planning:v1:sha256:${"1".repeat(64)}`,
-    ...overrides.forward,
-  },
-  inverse: {
-    schemaVersion: 2,
-    direction: "inverse",
-    manifestDigest: result.transactionRequirements.inverseManifestDigest,
-    documentWriteCount: result.budgets.inverse.totalWrites,
-    fieldTransformCount: 0,
-    requestByteCount: 250_000,
-    adapterRevision: "firestore-adapter-v1",
-    indexConfigurationDigest:
-      `shift-planning:v1:sha256:${"1".repeat(64)}`,
-    ...overrides.inverse,
-  },
-});
-
 const stageFromPreview = (preview, overrides = {}) => planShiftPlanningBundle(
   bundleInput({
     request: request({
@@ -237,7 +209,6 @@ const stageFromPreview = (preview, overrides = {}) => planShiftPlanningBundle(
       binding: previewBinding(preview),
     }),
     persistedPreview: preview.previewReceipt,
-    transactionEvidence: transactionEvidence(preview),
     ...overrides,
   }),
 );
@@ -424,7 +395,7 @@ test("plans both independent frontiers into one side-effect-free preview", () =>
     result.manifests.inverse.restoreBeforeImages.length,
   );
   assert.equal(result.budgets.inverse.beforeImageWrites, 0);
-  assert.equal(result.transactionEvidence, null);
+  assert.equal("transactionEvidence" in result, false);
   assert.equal(result.stagedCandidate, null);
   assert.equal(result.previewReceipt.requestId, result.requestId);
   assert.match(
@@ -446,6 +417,18 @@ test("plans both independent frontiers into one side-effect-free preview", () =>
   assert.equal(
     result.manifests.inverse.restoreBeforeImages.some(
       ({targetPath}) => targetPath.includes("shiftPlanningBundles"),
+    ),
+    false,
+  );
+  assert.equal(result.budgets.forward.stagedCandidateWrites, 0);
+  assert.equal(result.budgets.inverse.stagedCandidateWrites, 0);
+  assert.equal(result.manifests.inverse.stagedCandidateUpdates, 0);
+  assert.equal(
+    result.manifests.inverse.restoreBeforeImages.some(
+      ({targetPath}) =>
+        targetPath.includes("shiftPlanningCandidates") ||
+        targetPath.includes("shiftPlanningRequests") ||
+        targetPath.includes("shiftPlanningOperations"),
     ),
     false,
   );
@@ -623,7 +606,6 @@ test("allows open preview but requires a closed-state re-preview for stage", () 
       authoritativeState: closedState,
       fairnessSnapshot: closedSnapshot,
       persistedPreview: openPreview.previewReceipt,
-      transactionEvidence: transactionEvidence(openPreview),
     })),
     errorCode("preview_binding_mismatch"),
   );
@@ -646,7 +628,6 @@ test("allows open preview but requires a closed-state re-preview for stage", () 
     authoritativeState: closedState,
     fairnessSnapshot: closedSnapshot,
     persistedPreview: closedPreview.previewReceipt,
-    transactionEvidence: transactionEvidence(closedPreview),
   })));
 });
 
@@ -797,9 +778,8 @@ test("binds stage and activate to the exact deterministic candidate", () => {
     }),
     errorCode("candidate_binding_mismatch"),
   );
-  assert.equal(stage.transactionEvidence.schemaVersion, 2);
-  assert.equal(stage.transactionEvidence.forward.schemaVersion, 2);
-  assert.equal(stage.transactionEvidence.inverse.schemaVersion, 2);
+  assert.equal("transactionEvidence" in stage, false);
+  assert.equal("transactionEvidence" in stage.stagedCandidate, false);
 
   const tamperedCandidate = {
     ...stage.stagedCandidate,
@@ -835,7 +815,6 @@ test("binds stage and activate to the exact deterministic candidate", () => {
       }),
       fairnessSnapshot: drifted,
       persistedPreview: preview.previewReceipt,
-      transactionEvidence: transactionEvidence(preview),
     })),
     errorCode("preview_binding_mismatch"),
   );
@@ -900,25 +879,13 @@ test("requires persisted preview and stage records in the exact mode chain", () 
   );
 });
 
-test("requires measured forward and inverse transaction budgets before stage", () => {
+test("keeps exact attempt measurements outside immutable stage", () => {
   const preview = planShiftPlanningBundle(bundleInput());
   assert.throws(
     () => stageFromPreview(preview, {
-      transactionEvidence: transactionEvidence(preview, {
-        forward: {requestByteCount: 10 * 1024 * 1024 + 1},
-      }),
+      transactionEvidence: {requestByteCount: 250_000},
     }),
-    errorCode("planning_bundle_oversize"),
-  );
-  assert.throws(
-    () => stageFromPreview(preview, {
-      transactionEvidence: transactionEvidence(preview, {
-        inverse: {
-          documentWriteCount: preview.budgets.inverse.totalWrites + 1,
-        },
-      }),
-    }),
-    errorCode("planning_bundle_oversize"),
+    errorCode("invalid_planning_state"),
   );
   assert.throws(
     () => planShiftPlanningBundle(bundleInput({transactionWriteLimit: 501})),
@@ -931,11 +898,64 @@ test("requires measured forward and inverse transaction budgets before stage", (
   const authorityPreview = planShiftPlanningBundle(bundleInput({
     fairnessSnapshot: changedAuthority,
   }));
-  assert.throws(
-    () => stageFromPreview(authorityPreview, {
-      fairnessSnapshot: changedAuthority,
-    }),
-    errorCode("planning_bundle_oversize"),
+  const authorityStage = stageFromPreview(authorityPreview, {
+    fairnessSnapshot: changedAuthority,
+  });
+  assert.equal(
+    authorityStage.expectedState.transactionMeasurementAuthority
+      .adapterRevision,
+    "firestore-adapter-v2",
+  );
+});
+
+test("captures a predecessor before-image only when activation mutates it", () => {
+  const continuity = (plannedHelperUserId) => ({
+    kind: "persistedAppend",
+    predecessor: {
+      shiftId: "shift_delivery_20260827",
+      scheduledDate: "2026-08-27",
+      effectiveLeadUserId: "member-6",
+      completion: {
+        state: "uncompleted",
+        assignmentRevision: 3,
+        completionRevision: 0,
+        plannedHelperUserId,
+      },
+    },
+  });
+  const result = planShiftPlanningBundle(bundleInput({
+    delivery: {continuity: continuity("member-1")},
+  }));
+
+  assert.ok(result.delivery.predecessorGuard);
+  assert.equal(result.delivery.predecessorHelperUpdate, null);
+  assert.equal(result.budgets.forward.predecessorHelperWrites, 0);
+  assert.equal(result.budgets.forward.beforeImageWrites, 3);
+  assert.equal(result.budgets.inverse.predecessorHelperWrites, 0);
+  assert.equal(result.manifests.inverse.predecessorHelperRestores, 0);
+  assert.equal(
+    result.manifests.inverse.restoreBeforeImages.some(
+      ({targetPath}) => targetPath.endsWith("/shift_delivery_20260827"),
+    ),
+    false,
+  );
+
+  const changed = planShiftPlanningBundle(bundleInput({
+    delivery: {continuity: continuity(null)},
+  }));
+  assert.deepEqual(changed.delivery.predecessorHelperUpdate, {
+    shiftId: "shift_delivery_20260827",
+    helperUserId: "member-1",
+  });
+  assert.equal(changed.budgets.forward.predecessorHelperWrites, 1);
+  assert.equal(changed.budgets.forward.beforeImageWrites, 4);
+  assert.equal(changed.budgets.inverse.predecessorHelperWrites, 1);
+  assert.equal(changed.manifests.inverse.predecessorHelperRestores, 1);
+  assert.equal(
+    changed.manifests.inverse.restoreBeforeImages.some(
+      ({targetPath}) => targetPath.endsWith("/shift_delivery_20260827"),
+    ),
+    true,
   );
 });
 

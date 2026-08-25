@@ -235,6 +235,43 @@ does not populate Firestore public shifts or activate either mobile app.
   normal member queries, Sheets export, and notification consumers. It advances
   neither active cursor and freezes neither cohort. Authorized admins can inspect
   both staged subplans.
+- The staged candidate is immutable and remains outside forward/inverse write
+  sets and recovery before-images. Stage rejects transaction measurements:
+  activation/recovery IDs, exact payloads and preconditions, before-images, and
+  the opaque transaction token are attempt-owned values that do not exist yet.
+  A pinned serializer measures the actual `WriteBatch` owned by each fully
+  resolved attempt before public writes and binds the ordered write set plus the
+  complete protobuf `CommitRequest`. The local attempt adapter now requires all
+  authoritative reads to finish first, owns the empty internal batch of that
+  exact SDK `Transaction`, populates it canonically, awaits its real opaque token,
+  and measures it once per callback attempt. Successful measurement seals later
+  public mutations and replaces the SDK closures with detached copies of the
+  measured `Write` protos. Its commit guard supplies a detached token copy,
+  rejects any different token, reserializes and compares the complete request
+  immediately before transport, and requires remeasurement after SDK reset. The
+    measurement remains in memory: its digest cannot be embedded in the same
+    request whose bytes define that digest. Immutable outcome evidence therefore
+    needs a separate non-circular protocol. Index authority remains digest-bound,
+    while backend index-entry accounting still requires the isolated-clone
+    rehearsal.
+- Publication codec v1 freezes the exact materializer-facing flat shift shape.
+  It retains the fields installed Android/iOS clients require and uses
+  `source = app`, while adding planner/bundle lineage, immutable rotation
+  ownership, assignment/completion/document revisions, and write epoch.
+  Delivery has one assignee and market exactly three; dates are UTC-midnight
+  Firestore timestamps. Completion is an exact `uncompleted|completed` union.
+- A controlled create/update changes `lastBackendMutation`, which binds target,
+  marker-free payload digest, document revision, operation intent, bundle, and
+  epoch. Exact payload validation applies only to an event whose marker changed.
+  A later ordinary edit retaining historical provenance remains an ordinary
+  event and must not be no-op'd because that old digest is stale.
+- The atomic activation creates an immutable backend terminal with
+  `operationKind = activation`, `state = committed`, its ordered public
+  mutations and contiguous before-image bindings. Tagged before-image codec
+  `firestore-value-v1` preserves the supported Firestore value subset plus exact
+  target update-time, capture-contract/payload/envelope digests, and restore
+  path. Unsupported or lossy values fail closed. These contracts do not yet
+  materialize or commit the forward/inverse CAS.
 - The digest covers every fairness input and its version: eligible membership,
   rotation/cursor, calendar and policy/configuration, relevant overrides, and,
   when HU-084 is enabled, the complete same-type coverage-credit ledger version.
@@ -259,7 +296,9 @@ does not populate Firestore public shifts or activate either mobile app.
   a separate collection and requires the entire public create/update/delete
   delivery-plus-market manifest, both rotation/cursor transitions, active
   metadata, Sheets-sync commands, and held intents to fit one Firestore
-  transaction. If the combined manifest exceeds any limit, activation fails
+  transaction. The exact attempt serializer enforces 500 combined document
+  writes and transforms, at most 500 transforms per document, and 10 MiB of
+  protobuf request bytes. If the combined manifest exceeds any limit, activation fails
   closed until supported clients migrate to an active-revision read contract;
   per-type or visible multi-batch promotion is forbidden.
 - Each mode has one exact bundle request that transitions through `requested`,

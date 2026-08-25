@@ -278,6 +278,7 @@ Delivery calendar strategy (canonical):
 
 ### 4.8 `shifts/{shiftId}`
 
+- `planningSchemaVersion`: integer|null (exact `1` for HU-082 planner rows)
 - `type`: string (`delivery`|`market`) (required)
 - `date`: timestamp (required)
 - `assignedUserIds`: array<string> (required)
@@ -300,6 +301,25 @@ Delivery calendar strategy (canonical):
   - `roundNumber`: integer (one-based)
   - `positionInRound`: integer (one-based)
 - `planningReason`: string|null (`target`|`boundaryRoundRemainder` for delivery; market positions may also use `finalGroupPadding`)
+- `assignmentRevision`: integer|null (positive for HU-082 planner rows)
+- `completion`: map|null (required for HU-082 planner rows)
+  - `state`: string (`uncompleted`|`completed`)
+  - `revision`: integer (`0` while uncompleted; positive when completed)
+  - `actualHelperUserId`: string|null (required for completed delivery)
+  - `helperSourceAssignmentRevision`: integer|null
+  - `completedAt`: timestamp|null
+- `documentRevision`: integer|null (positive monotonic planner revision)
+- `lastBackendMutation`: map|null (required for HU-082 controlled writes)
+  - `schemaVersion`: integer (exact `1`)
+  - `kind`: string (`activation`|`recovery`|`repair`|`syncCorrection`)
+  - `operationId`: string
+  - `operationIntentDigest`: string
+  - `bundleRevision`: string
+  - `bundleDigest`: string
+  - `writeEpoch`: integer
+  - `targetPath`: string
+  - `documentRevision`: integer
+  - `payloadDigest`: string (exact document digest without this marker)
 - `createdAt`: timestamp (required)
 - `updatedAt`: timestamp (required)
 
@@ -310,8 +330,18 @@ owner, round, or position. Planner-generated shifts remain compatible with
 current clients by using `source = app`; `origin = planner` and the lineage
 fields distinguish them from ordinary app edits. The bundle revision, digest,
 epoch, and complete ownership persistence listed here are the contract intended
-for the publication/activation adapter. This cut does not yet make that adapter
-or those writes active in `index.ts`.
+for the publication/activation adapter. Publication codec v1 now enforces one
+assigned UID for delivery, exactly three distinct UIDs for market, UTC-midnight
+dates, coherent assignment/completion/document revisions, and exact rotation
+shape. Existing clients continue consuming their unchanged required fields and
+ignore the additive planner metadata.
+
+The backend marker is historical provenance, not a permanent hash of every
+later ordinary edit. A candidate `onShiftWritten` validates path, payload,
+revision, bundle, epoch, and operation intent only when the marker changes in
+that event. If a normal later edit retains the same marker, it is handled
+normally even though the historical `payloadDigest` no longer matches. This
+cut freezes the pure codec but does not activate a writer in `index.ts`.
 
 ### 4.8.b `shiftPlanningRequests/{requestId}`
 
@@ -371,9 +401,8 @@ The pure contract and private repository enforce this artifact chain:
    read-set and its authoritative digest in the bundle's `expectedState`; the
    receipt retains only the transitive digest. Preview accepts either open or
    closed maintenance for inspection.
-2. `stage` must receive that exact persisted preview receipt and adapter-produced
-   `transactionEvidence` for both the forward activation and inverse recovery
-   manifests. It loads the persisted preview before a fresh authoritative-state
+2. `stage` must receive that exact persisted preview receipt. It loads the
+   persisted preview before a fresh authoritative-state
    read, and the resolved bundle must bind exactly that read-set. Stage requires
    closed maintenance and the same state as preview; maintenance entry therefore
    invalidates an open-state preview and requires a new closed-state preview.
@@ -381,14 +410,16 @@ The pure contract and private repository enforce this artifact chain:
    terminalizes the existing request/operation and creates without overwrite one
    `status = staged` header plus every inspection position. The header contains source
    preview/stage IDs, preview-receipt digest, expected-state digest, bundle
-   revision/digest, complete transaction evidence, exact document/assignment
-   counts, and `positionSetDigest`. Each child carries its canonical payload,
+   revision/digest, exact document/assignment counts, and `positionSetDigest`.
+   It contains no transaction measurement because the activation/recovery
+   request/operation IDs,
+   before-images, and opaque transaction token do not exist yet. Each child carries its canonical payload,
    `positionDigest`, `candidateDigest`, and candidate/bundle lineage. Exact replay
    verifies missing, extra, aliased, or altered children and never rewrites them.
 3. The current `activate` boundary is read-only preflight. It loads and verifies
    the persisted staged candidate, its immutable preview bundle, and the complete
    position set against `candidateId`, both artifact digests, bundle lineage,
-   transaction evidence, counts, and set/position digests. It does not claim or
+   counts, and set/position digests. It does not claim or
    complete the request and performs no write. The immutable preview bundle
    remains the planning authority; positions are a queryable inspection
    projection, not a second authority. The future planner/runtime must recompute
@@ -398,25 +429,46 @@ The pure contract and private repository enforce this artifact chain:
 The pure function remains side-effect free. The local/emulator repository proves
 private receipt, bundle, lifecycle, candidate-header, and inspection-position
 persistence, but does not yet implement publication/activation CAS.
-Bundle, receipt, candidate, and transaction evidence use internal artifact schema
-v2 and `bundle-v2-*` revisions. The request remains `schemaVersion = 2`; the
-public wire terminal summary remains `schemaVersion = 1`.
+Bundle, receipt, and candidate use internal artifact schema v2 and
+`bundle-v2-*` revisions. Transaction measurements use their own internal schema
+v1. The request remains `schemaVersion = 2`; the public wire terminal summary
+remains `schemaVersion = 1`.
 
-Transaction evidence is exact and adapter-specific for both directions. Each
-measurement binds `manifestDigest`, `documentWriteCount`,
-`fieldTransformCount`, `requestByteCount`, `adapterRevision`, and
-`indexConfigurationDigest`. The conservative canonical HU-082 adapter gate is
-500 combined planned document writes and declared field transforms, plus 10 MiB
-per serialized transaction request. The pure budget counts planned document
-mutations, including the forward writes that persist recovery before-images; only
-the future publication-measurement adapter can serialize the real writes and
-provide byte/transform evidence. Measurement authority (`adapterRevision` and
-`indexConfigurationDigest`) is part of both the fairness snapshot and the exact
-expected-state envelope. That envelope also contains the complete authoritative
-maintenance-plus-rotations read-set. Changing either authority or read-set
-invalidates evidence and the staged candidate. Stage fails closed when either
-direction is missing, stale, does not match its manifest/budget, or exceeds
-either ceiling.
+The staged candidate is immutable and is not updated, restored, or captured as a
+before-image by either direction. Future activation request and operation records
+are also excluded from staged before-image targets; their terminal lifecycle is
+owned by the attempt that creates/claims them. Stage rejects any supplied
+`transactionEvidence` instead of persisting a synthetic future measurement.
+
+The pinned adapter `firestore-grpc-v1-fs8.7.0-r1` serializes the actual
+canonically ordered `WriteBatch` of one completely resolved attempt only after
+its real transaction token is available. Its transaction-attempt boundary now
+requires completed authoritative reads and the empty internal batch owned by the
+same pinned SDK `Transaction`, then canonically populates, measures, and seals
+that batch. Firestore commits that same inspected object after the callback.
+Successful measurement replaces the SDK operation closures with detached copies
+of the measured `Write` protos and makes operation storage adapter-owned. The
+commit guard uses a detached measured-token copy and reserializes the full request
+immediately before transport; a different token or byte sequence fails closed.
+SDK reset clears that authority, so every retried callback must resolve and
+measure again. Each immutable
+in-memory measurement binds `direction`,
+`manifestDigest`, database name, `writeSetDigest`, `commitRequestDigest`,
+`documentWriteCount`, `fieldTransformCount`,
+`maximumFieldTransformsPerDocument`, `requestByteCount`, `adapterRevision`, and
+`indexConfigurationDigest`; the opaque token is never returned or persisted.
+The request digest also remains in memory because persisting it inside the same
+measured request would make the digest self-referential. An immutable attempt
+outcome therefore requires a separate non-circular persistence protocol.
+The conservative HU-082 gate is 500 combined planned document writes and field
+transforms, no more than 500 transforms on one document, plus 10 MiB per exact
+protobuf `CommitRequest`. The pure budget remains structural until activation or
+recovery has resolved every ID, payload, precondition, and before-image.
+Measurement authority remains part of the fairness snapshot and exact
+expected-state envelope, so authority/read-set drift invalidates the candidate.
+The index digest binds the audited configuration but protobuf bytes do not include
+backend index-entry accounting; the separately governed isolated-clone rehearsal
+remains mandatory before production activation.
 
 Other digest-bound pure bundle invariants are:
 
@@ -462,6 +514,25 @@ The following collection names are frozen for the private control plane:
   including the implemented request claim/lease/fencing lifecycle; future
   operation records also carry recovery paths, persisted before-image
   references/digests, active CAS, and monotonic recovery epoch.
+
+Publication codec v1 additionally freezes an activation terminal at
+`shiftPlanningOperations/{operationId}` with `operationKind = activation` and
+`state = committed`. It binds environment, request/candidate/bundle lineage,
+forward-manifest and expected-state digests, write epoch, callback
+`attemptedAt`, a target-sorted public-mutation manifest, contiguous before-image
+bindings, and `operationIntentDigest`. `attemptedAt` is the trusted callback
+clock sample rather than a server acknowledgement timestamp; the terminal
+document exists only if the same atomic transaction committed.
+
+Each persisted `beforeImages/{ordinal}` document binds its operation, bundle,
+manifest, epoch, contiguous ordinal, target/envelope paths, target snapshot
+update time, capture-contract digest, encoded payload digest, and envelope
+digest. Codec `firestore-value-v1` losslessly tags Firestore maps, arrays,
+null/boolean/finite-number/string scalars, `Timestamp`, bytes, and `GeoPoint`.
+Sentinels, references, dates/class instances, cycles, accessors, sparse/extra
+array properties, symbol/hidden map properties, and unsupported values fail
+closed. Recovery decodes only a revalidated envelope and uses
+`targetUpdateTime` in its CAS/precondition.
 
 All seven collections are backend-only: strict Rules deny every client read and
 write, including admin clients. Their internal field schemas are not a mobile

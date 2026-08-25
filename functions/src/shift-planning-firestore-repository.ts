@@ -770,7 +770,6 @@ const persistedCandidate = (
   const candidateDigest = result.stagedCandidateDigest;
   if (
     result.mode !== "stage" ||
-    result.transactionEvidence === null ||
     rawCandidate === null ||
     candidateDigest === null
   ) {
@@ -780,17 +779,9 @@ const persistedCandidate = (
   }
   const candidate = validateShiftPlanningStagedCandidate({
     value: rawCandidate,
-    forwardManifestDigest:
-      result.transactionRequirements.forwardManifestDigest,
-    inverseManifestDigest:
-      result.transactionRequirements.inverseManifestDigest,
-    budgets: result.budgets,
-    authority: result.expectedState.transactionMeasurementAuthority,
   });
   if (
     createShiftPlanningDigest(candidate) !== candidateDigest ||
-    createShiftPlanningDigest(candidate.transactionEvidence) !==
-      createShiftPlanningDigest(result.transactionEvidence) ||
     candidate.candidateId !== result.bundleId ||
     candidate.bundleId !== result.bundleId ||
     candidate.bundleRevision !== result.bundleRevision ||
@@ -941,13 +932,6 @@ const requireCandidateBundleLineage = (input: {
 }): void => {
   const validatedCandidate = validateShiftPlanningStagedCandidate({
     value: input.candidate.candidate,
-    forwardManifestDigest:
-      input.bundle.artifact.transactionRequirements.forwardManifestDigest,
-    inverseManifestDigest:
-      input.bundle.artifact.transactionRequirements.inverseManifestDigest,
-    budgets: input.bundle.artifact.budgets,
-    authority:
-      input.bundle.artifact.expectedState.transactionMeasurementAuthority,
   });
   if (
     input.bundle.environment !== input.candidate.environment ||

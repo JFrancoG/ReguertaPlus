@@ -117,10 +117,10 @@ occurred. Protected technical evidence remains outside the repository.
 - [ ] Add RED bundle cases where either subplan fails, drifts, replays, or exceeds
   budget; neither type may activate or emit side effects on failure.
 - [x] Add focused pure bundle cases for exact preview/stage/activate artifact
-  binding, staged `candidateDigest`, measured forward/inverse adapter evidence,
-  measurement-authority drift, before-image budgeting, disabled credit-ledger
+  binding, staged `candidateDigest`, rejection of stage-time transaction evidence,
+  measurement-authority lineage, before-image budgeting, disabled credit-ledger
   enforcement, the 500-write/10-MiB gate, future occupancy, common baseline,
-  cohort freeze, immutable preview-bundle exclusion from activation/recovery,
+  cohort freeze, immutable preview-bundle/candidate exclusion from activation/recovery,
   exact create/update/delete classification, and release/workbook-partition lease
   conflicts.
 - [ ] Add shared mobile fixtures for canonical source and planner provenance.
@@ -174,8 +174,8 @@ occurred. Protected technical evidence remains outside the repository.
 - [ ] Fail closed without mutation when live eligibility differs from the frozen
   round cohort.
 - [ ] Implement the Firestore request/candidate repository so preview persists its
-  exact receipt, stage loads that receipt plus measured forward/inverse adapter
-  evidence, and activate loads the exact staged candidate package—header,
+  exact receipt, stage loads that receipt without future transaction evidence,
+  and activate loads the exact staged candidate package—header,
   immutable preview bundle, and positions—and verifies its `candidateDigest`
   plus input snapshot/digest/revision.
   - [x] Private persistence cut: transactional claim/lease/fencing, immutable
@@ -191,9 +191,50 @@ occurred. Protected technical evidence remains outside the repository.
     lineage, exact replay, and read-only candidate+bundle+position preflight are
     covered in the Firestore emulator. The immutable preview bundle remains the
     authority; the children are an admin-inspection projection only.
-  - [ ] Remaining: obtain real adapter measurements, recheck the complete live
-    input snapshot during activation, and execute activation through the
-    maintenance/publication CAS.
+  - [x] Serializer cut: remove synthetic measurements from stage, keep the staged
+    candidate outside both write sets/before-images, pin Firestore 8.7.0 behind
+    `firestore-grpc-v1-fs8.7.0-r1`, and produce deterministic exact protobuf
+    write-set/request digests, transform counts, and bytes from a supplied actual
+    batch, require canonical target order, detach the measured `Write` protos, and
+    seal later public/payload mutations; guard commit with a detached token copy
+    and require remeasurement after reset, without committing or opening transport.
+    - [x] Validation: Functions lint/build, 6 serializer vectors, the 150-test
+      planning unit suite, and the 13-test isolated candidate-repository emulator
+      suite pass with no public write or deployment.
+  - [x] Transaction-attempt cut: require completed reads and the empty internal
+    batch owned by the exact pinned SDK `Transaction`; populate, measure, seal,
+    and commit that same object once per callback attempt. Reset requires a fresh
+    measurement, while the commit guard reserializes immediately before transport
+    and rejects private operation/token/byte drift. The exact measurement remains
+    in memory rather than becoming a self-referential write in its own request.
+    - [x] Fix manifest/budget drift so a predecessor before-image is captured only
+      when activation really changes its helper; a read-only predecessor guard
+      remains part of the CAS without becoming a recovery write.
+    - [x] Validation: Node 22 Functions lint/build, 151 planning unit vectors
+      including 6 serializer vectors, 4 real-attempt Firestore-emulator vectors,
+      13 candidate-repository emulator vectors, and 16 intake-barrier emulator
+      vectors pass with no shared/public write or deployment.
+  - [x] Freeze the exact public-shift assignment/completion codec, backend mutation
+    marker plus activation terminal lifecycle, and persisted before-image envelope
+    before claiming a semantic forward/inverse materializer.
+    - [x] Publication codec v1 keeps installed-client fields with `source = app`,
+      requires exact one/three-person assignment shape, revision/completion
+      invariants and UTC-midnight dates, and binds changed backend markers to the
+      marker-free payload plus operation/bundle/epoch. Historical unchanged
+      markers remain valid provenance on later ordinary edits.
+    - [x] Activation terminal v1 binds ordered public mutations and contiguous
+      before-images. `firestore-value-v1` round-trips exact supported Firestore
+      values with target update-time and contract/payload/envelope digests and
+      rejects sentinels, references, lossy/custom structures and hidden extras.
+    - [x] Validation: Node 22 Functions lint/build, 6 focused publication-contract
+      vectors, and the 157-vector planning unit suite pass without emulator,
+      shared/public write, transport, or deployment.
+  - [ ] Materialize the exact forward mutations, recheck the complete live input
+    snapshot, and pass them to the real attempt adapter inside the activation CAS.
+  - [ ] Materialize inverse mutations from persisted before-images and current
+    recovery CAS/epoch, including exact replacement semantics for after-only fields.
+  - [ ] Persist immutable non-circular backend-only attempt outcome evidence and
+    execute the maintenance/publication and recovery CAS paths.
 - [ ] Include membership, rotation, policy/config/calendar override, and enabled
   credit-ledger versions plus any migration-baseline revision/digest in the
   candidate lineage; transactionally recheck them and commit planned credit

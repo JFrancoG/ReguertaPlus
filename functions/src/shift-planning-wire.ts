@@ -841,7 +841,11 @@ const failureMessageKeys: Record<ShiftPlanningFailureCode, string> = {
   planning_release_lease_conflict: "planningReleaseLeaseConflict",
   maintenance_state_conflict: "maintenanceStateConflict",
   internal_planning_failure: "internalPlanningFailure",
+  invalid_planning_transaction: "invalidPlanningTransaction",
   planning_bundle_oversize: "planningBundleOversize",
+  planning_transaction_adapter_drift: "planningTransactionAdapterDrift",
+  invalid_planning_publication_contract:
+    "invalidPlanningPublicationContract",
   frozen_cohort_mismatch: "frozenCohortMismatch",
   invalid_rotation_cohort: "invalidRotationCohort",
   invalid_rotation_cursor: "invalidRotationCursor",

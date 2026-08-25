@@ -385,6 +385,7 @@ Estrategia canonica de calendario:
 
 | Campo | Tipo | Req | Editable | Notas |
 |---|---|---|---|---|
+| `planningSchemaVersion` | integer\|null | no | sistema | `1` exacto para filas planner HU-082 |
 | `type` | string | si | sistema/admin | `delivery`/`market` |
 | `date` | timestamp | si | sistema/admin | |
 | `assignedUserIds` | array<string> | si | sistema/admin | 1-2 en reparto, >=3 en mercado |
@@ -403,6 +404,10 @@ Estrategia canonica de calendario:
 | `positionInRound` | integer\|null | no | sistema | Posicion, desde 1, del propietario de reparto |
 | `rotationPositions` | array<map>\|null | no | sistema | Posiciones de mercado alineadas con `assignedUserIds` |
 | `planningReason` | string\|null | no | sistema | `target`/`boundaryRoundRemainder`; una posicion de mercado tambien puede ser `finalGroupPadding` |
+| `assignmentRevision` | integer\|null | no | sistema | Positiva para filas planner HU-082 |
+| `completion` | map\|null | no | sistema | Obligatorio para filas planner HU-082 |
+| `documentRevision` | integer\|null | no | sistema | Revision monotona positiva del documento planner |
+| `lastBackendMutation` | map\|null | no | sistema | Marcador de una escritura controlada HU-082 |
 | `createdAt` | timestamp | si | no | |
 | `updatedAt` | timestamp | si | sistema | |
 
@@ -415,8 +420,25 @@ reescribir propietario, ronda ni posicion. Los turnos generados conservan
 compatibilidad usando `source = app`; `origin = planner` y los campos de linaje
 los distinguen de una edicion ordinaria de la app. Revision, digest, epoca y
 persistencia completa de propiedad son el contrato previsto para el adaptador
-de publicacion/activacion. Este corte aun no activa ese adaptador ni esas
-escrituras en `index.ts`.
+de publicacion/activacion. El codec de publicacion v1 exige un UID asignado en
+reparto, exactamente tres distintos en mercado, fecha a medianoche UTC,
+revisiones coherentes y shape de rotacion exacto. Las apps actuales mantienen
+sus campos requeridos e ignoran esta metadata aditiva.
+
+`completion` tiene claves exactas `state`, `revision`, `actualHelperUserId`,
+`helperSourceAssignmentRevision` y `completedAt`. `uncompleted` exige revision
+0 y los otros valores nulos; `completed` exige revision positiva y timestamp,
+ademas de helper real y revision de asignacion valida en reparto.
+`lastBackendMutation` contiene `schemaVersion = 1`, `kind`, `operationId`,
+`operationIntentDigest`, revision/digest de bundle, `writeEpoch`, `targetPath`,
+`documentRevision` y `payloadDigest` del documento sin el propio marcador.
+
+El marcador es procedencia historica, no un hash permanente de toda edicion
+ordinaria posterior. El futuro `onShiftWritten` valida ruta, payload, revision,
+bundle, epoch e intent solo cuando el marcador cambia en ese evento. Una edicion
+normal que conserva el marcador se procesa normalmente aunque el digest
+historico ya no coincida. Este corte fija el codec puro pero aun no activa un
+writer en `index.ts`.
 
 ## 4.8.b `shiftPlanningRequests/{requestId}`
 
@@ -484,9 +506,8 @@ El contrato puro y el repositorio privado hacen cumplir esta cadena de artefacto
    rotaciones. El schema v2 de artefacto guarda ese read-set normalizado completo
    y su digest autoritativo en `expectedState`; el recibo conserva solo el digest
    transitivo. Preview acepta mantenimiento abierto o cerrado para inspeccion.
-2. `stage` debe recibir ese recibo de preview persistido exacto y
-   `transactionEvidence` producido por el adaptador para los manifiestos forward
-   de activacion e inverse de recovery. Carga el preview persistido antes de una
+2. `stage` debe recibir ese recibo de preview persistido exacto. Carga el
+   preview persistido antes de una
    lectura nueva del estado autoritativo y el bundle resuelto debe ligar exactamente
    ese read-set. Stage requiere mantenimiento cerrado y el mismo estado que el
    preview; entrar en mantenimiento invalida por tanto un preview abierto y exige
@@ -495,15 +516,18 @@ El contrato puro y el repositorio privado hacen cumplir esta cadena de artefacto
    crea sin sobreescritura una cabecera `status = staged` y todas las posiciones
    de inspeccion.
    La cabecera conserva IDs de preview/stage origen, digest del recibo, digest del
-   estado esperado, revision/digest del bundle, evidencia transaccional completa,
-   conteos exactos de documentos/asignaciones y `positionSetDigest`. Cada hija
+   estado esperado, revision/digest del bundle, conteos exactos de
+   documentos/asignaciones y `positionSetDigest`. No contiene medicion
+   transaccional porque aun no existen los IDs de peticion/operacion de
+   activacion/recovery, las
+   before-images ni el token opaco del intento real. Cada hija
    contiene payload canonico, `positionDigest`, `candidateDigest` y linaje de
    candidato/bundle. El replay exacto rechaza hijas ausentes, extra, aliasadas o
    alteradas y nunca las reescribe.
 3. La frontera `activate` actual es un preflight de solo lectura. Carga y valida
    el candidato staged persistido, su bundle preview inmutable y el conjunto
    completo de posiciones frente a `candidateId`, ambos digests de artefacto,
-   linaje de bundle, evidencia transaccional, conteos y digests de conjunto y
+   linaje de bundle, conteos y digests de conjunto y
    posicion. No reclama ni completa la peticion y no escribe. El bundle preview
    inmutable sigue siendo la autoridad de planificacion; las posiciones son una
    proyeccion consultable de inspeccion, no otra autoridad. El planner/runtime
@@ -513,26 +537,47 @@ El contrato puro y el repositorio privado hacen cumplir esta cadena de artefacto
 La funcion pura sigue sin side effects. El repositorio local/emulador prueba la
 persistencia privada de recibo, bundle, lifecycle, cabecera de candidato y
 posiciones de inspeccion, pero aun no implementa CAS de publicacion/activacion.
-Bundle, recibo, candidato y evidencia transaccional usan schema v2 interno de
-artefacto y revisiones `bundle-v2-*`. La peticion conserva `schemaVersion = 2` y
-el resumen terminal publico wire conserva `schemaVersion = 1`.
+Bundle, recibo y candidato usan schema v2 interno de artefacto y revisiones
+`bundle-v2-*`. Las mediciones transaccionales usan su propio schema v1 interno.
+La peticion conserva `schemaVersion = 2` y el resumen terminal publico wire
+conserva `schemaVersion = 1`.
 
-La evidencia transaccional es exacta y especifica del adaptador en ambos
-sentidos. Cada medicion liga `manifestDigest`, `documentWriteCount`,
-`fieldTransformCount`, `requestByteCount`, `adapterRevision` e
-`indexConfigurationDigest`. El gate conservador canonico del adaptador HU-082
-es de 500 escrituras documentales previstas mas transformaciones de campo
-declaradas, y 10 MiB por peticion transaccional serializada. El presupuesto puro
-cuenta las mutaciones documentales previstas, incluidas las escrituras forward que
-persisten las before-images de recovery; solo el futuro adaptador de medicion de
-publicacion puede serializar las escrituras reales y aportar evidencia de
-bytes/transformaciones. La autoridad de medicion (`adapterRevision` e
-`indexConfigurationDigest`) forma parte del snapshot de fairness y del envelope
-exacto de estado esperado. Ese envelope tambien contiene el read-set autoritativo
-completo de mantenimiento y rotaciones. Cambiar la autoridad o el read-set
-invalida la evidencia y el candidato staged. Stage falla cerrado si falta una
-direccion, esta obsoleta, no coincide con su manifiesto/presupuesto o supera
-cualquiera de los limites.
+El candidato staged es inmutable y ninguna direccion lo actualiza, restaura ni
+captura como before-image. Las futuras peticiones y operaciones de activacion
+tampoco son targets de before-image durante stage; su lifecycle terminal pertenece
+al intento que las crea/reclama. Stage rechaza cualquier `transactionEvidence`
+suministrado en vez de persistir una medicion futura sintetica.
+
+El adaptador fijado `firestore-grpc-v1-fs8.7.0-r1` serializa el `WriteBatch` real
+y ordenado canonicamente de un intento completamente resuelto solo cuando ya
+dispone de su token transaccional real. Su frontera de intento exige que hayan
+terminado las lecturas autoritativas y que el batch interno, vacio, pertenezca al
+mismo `Transaction` del SDK fijado; despues lo puebla, mide y sella canonicamente.
+Firestore confirma ese mismo objeto inspeccionado al terminar el callback. La
+medicion sustituye los closures del SDK por copias separadas de los protos `Write`
+medidos y hace que el almacenamiento de operaciones pertenezca al adaptador. El
+guard usa una copia separada del token y reserializa la peticion completa justo
+antes del transporte; otro token o una secuencia de bytes distinta falla en
+cerrado. El reset del SDK borra esa autoridad, por lo que cada callback reintentado
+debe resolver y medir de nuevo. Cada medicion
+inmutable en memoria liga `direction`,
+`manifestDigest`, nombre de base de datos, `writeSetDigest`,
+`commitRequestDigest`, `documentWriteCount`, `fieldTransformCount`,
+`maximumFieldTransformsPerDocument`, `requestByteCount`, `adapterRevision` e
+`indexConfigurationDigest`; el token opaco nunca se devuelve ni persiste. El
+digest de la peticion tambien permanece en memoria porque persistirlo dentro de
+esa misma peticion medida lo haria autorreferencial. El resultado inmutable del
+intento necesita por tanto otro protocolo de persistencia no circular. El gate
+conservador HU-082 es de 500 escrituras documentales previstas mas
+transformaciones, maximo 500 transformaciones sobre un documento y 10 MiB por
+`CommitRequest` protobuf exacto. El presupuesto puro sigue siendo estructural
+hasta que activacion o recovery resuelva todos los IDs, payloads, precondiciones y
+before-images. La autoridad de medicion permanece en el snapshot de fairness y el
+envelope exacto de estado esperado, por lo que el drift de autoridad/read-set
+invalida el candidato. El digest de indices liga la configuracion auditada, pero
+los bytes protobuf no incluyen el coste backend de entradas de indice; el ensayo
+separado y gobernado sobre clon aislado sigue siendo obligatorio antes de activar
+produccion.
 
 Otros invariantes del bundle puro ligados por digest son:
 
@@ -580,6 +625,24 @@ Los nombres siguientes quedan congelados para el plano de control privado:
   incluido el lifecycle ya implementado de claim/lease/fencing de peticiones;
   los registros futuros tambien llevan rutas de recovery, referencias/digests de
   before-images persistidas, CAS activo y epoca monotona de recovery.
+
+El codec de publicacion v1 fija ademas un terminal de activacion en
+`shiftPlanningOperations/{operationId}` con `operationKind = activation` y
+`state = committed`. Liga entorno, linaje de peticion/candidato/bundle, digests
+de manifest forward y estado esperado, epoch, `attemptedAt` del callback,
+manifiesto de mutaciones publicas ordenado por destino, referencias contiguas de
+before-image y `operationIntentDigest`. `attemptedAt` es la muestra de reloj
+fiable del callback, no un timestamp de ack; el terminal solo existe si la misma
+transaccion atomica hizo commit.
+
+Cada `beforeImages/{ordinal}` liga operacion, bundle, manifest, epoch, ordinal,
+rutas de destino/sobre, update-time del snapshot, digest del contrato de captura,
+digest del payload codificado y digest del sobre. `firestore-value-v1` etiqueta
+sin perdida mapas, arrays, escalares null/bool/numero finito/string, `Timestamp`,
+bytes y `GeoPoint`. Sentinels, referencias, fechas/instancias de clase, ciclos,
+accessors, propiedades extra o sparse de arrays, simbolos/propiedades ocultas de
+mapas y valores no soportados fallan cerrado. Recovery solo decodifica un sobre
+revalidado y usa `targetUpdateTime` en su CAS/precondicion.
 
 Las siete colecciones son solo backend: las Rules estrictas niegan cualquier
 lectura o escritura de cliente, tambien a admins. Sus esquemas internos no son

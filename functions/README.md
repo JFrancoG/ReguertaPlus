@@ -198,8 +198,13 @@ usan schema v2 y revisiones `bundle-v2-*`; la petición conserva
 `schemaVersion = 1`. Stage materializa ya una proyección privada de inspección
 ligada por digest, y `activate` permanece limitado a un preflight estrictamente
 de solo lectura sobre candidato, bundle inmutable y posiciones.
-Todavía no hay adaptador real de bytes/transformaciones, barrera externa fiable,
-migración de writers, CAS de
+Ya existe un serializador local del `CommitRequest` protobuf exacto para un
+write-set completamente resuelto y un token transaccional real. El adaptador de
+intento exige que terminen primero las lecturas, puebla el batch interno vacio del
+`Transaction`, lo mide y sella, y deja que el SDK confirme ese mismo objeto. Cada
+retry vuelve a resolver y medir; el guard reserializa justo antes del transporte.
+Este adaptador aun no se conecta al lifecycle ni materializa el dominio. Todavía no hay
+materializador forward/inverse, barrera externa fiable, migración de writers, CAS de
 activación/publicación/recovery, trigger v2 conectado al orquestador, consumidores
 de sync/notificaciones/recovery, integración móvil, despliegue ni activación live
 mediante ese runtime; todas esas fronteras siguen fail-closed. La publicación humana
@@ -293,10 +298,8 @@ aceptan campos extra ni temporadas implicitas deducidas del reloj.
   crean en una sola transaccion privada. Stage requiere mantenimiento cerrado
   y el mismo estado del preview. Por ello, entrar en mantenimiento invalida un
   preview abierto y obliga a crear otro preview ya cerrado antes de stage. Stage
-  tambien exige mediciones del futuro adaptador Firestore para los manifiestos
-  forward e inverse: digest del manifiesto, escrituras documentales,
-  transformaciones de campo, bytes serializados, revision del adaptador y digest
-  de configuracion de indices.
+  no acepta ni conserva evidencia transaccional: el candidato es inmutable y
+  anterior a los IDs, before-images y token del intento real.
 - `activate` solo dispone por ahora de un preflight de lectura. Carga y valida el
   candidato staged, su bundle preview inmutable y todas las posiciones frente a
   IDs, linajes, conteos y digests exactos; no reclama ni completa la peticion y
@@ -439,16 +442,54 @@ ninguna de ellas cuenta por si sola como evidencia de cierre HU-082.
 El gate canonico y conservador de HU-082 limita cada direccion a 500 escrituras
 documentales mas transformaciones declaradas y 10 MiB de peticion serializada.
 El planner puro calcula presupuestos forward/inverse, pero deja los bytes como
-`requiresPersistenceAdapter`: stage falla cerrado hasta recibir la medicion real
-del adaptador para ambos sentidos. El presupuesto forward incluye tambien las
-escrituras que persisten las before-images exigidas por recovery. La autoridad de
-medicion (`adapterRevision` e `indexConfigurationDigest`) forma parte del snapshot
-de fairness y del estado esperado; cambiarla invalida la evidencia y el candidato.
-El repositorio ya prueba que preview, bundle, cabecera de candidato y posiciones
-de inspeccion estan persistidos y ligados por digest, pero no calcula esas
-mediciones. No fabrica
-evidencia: sin el adaptador real de bytes/transformaciones, stage sigue fail-closed
-en el flujo runtime.
+`requiresPersistenceAdapter`. Stage valida ese presupuesto conservador, pero no
+fabrica una futura peticion exacta. La cabecera candidata queda fuera de los
+write-sets forward/inverse y de las before-images, igual que las futuras peticiones
+y operaciones de activacion. El serializador `firestore-grpc-v1-fs8.7.0-r1`
+puede construir un batch canonico de referencia y mide el `WriteBatch` real
+suministrado por un intento ya resuelto; liga `manifestDigest`, `writeSetDigest`,
+`commitRequestDigest`, conteos, bytes, revision del adaptador y autoridad de
+indices. El adaptador de intento exige lecturas terminadas, el batch interno vacio
+y la misma instancia fijada de Firestore; aplica ahi las mutaciones canonicas y
+espera el token real. Tras medir, sella el batch contra nuevas mutaciones y
+reemplaza sus operaciones por copias separadas de los protos `Write` medidos. El
+guard conserva solo una copia del token, reserializa la peticion justo antes del
+transporte y rechaza cualquier drift; el reset obliga a medir de nuevo. Ni el token
+ni el digest se persisten dentro de la propia peticion medida, porque ese digest
+seria autorreferencial.
+
+La autoridad de medicion (`adapterRevision` e `indexConfigurationDigest`) sigue
+formando parte del snapshot de fairness y del estado esperado; cambiarla invalida
+el candidato para una activacion posterior. El digest de indices liga la autoridad,
+pero el protobuf no calcula el coste de entradas de indice que aplica el backend:
+el ensayo posterior en un clon aislado sigue siendo obligatorio. El repositorio ya
+prueba que preview, bundle, cabecera candidata y posiciones de inspeccion estan
+persistidos y ligados por digest.
+
+El contrato puro `shift-planning-publication-contract.ts` fija ahora el codec v1
+que precede a la materializacion. Convierte cada posicion staged en un documento
+plano compatible con las apps instaladas (`type`, `date`, `assignedUserIds`,
+`helperUserId`, `status`, `source = app`, `createdAt`, `updatedAt`) y añade
+propiedad de rotacion, revisiones de asignacion/finalizacion, linaje, epoch y
+`documentRevision`. Reparto exige una asignacion y mercado exactamente tres.
+Las fechas se escriben como `Timestamp` a medianoche UTC.
+
+Cada escritura controlada cambia `lastBackendMutation`, ligado a ruta, revision,
+payload sin marcador, bundle, epoch y `operationIntentDigest`. La validacion
+estricta del evento exige esa coincidencia solo cuando el marcador acaba de
+cambiar. Una edicion ordinaria posterior puede conservar un marcador historico
+ya no coincidente: al no cambiar el marcador, el futuro consumidor HU-083 debe
+procesarla normalmente en vez de silenciarla.
+
+La activacion crea atomicamente un tombstone backend `state = committed` con el
+manifest, mutaciones publicas ordenadas y referencias de before-image. Su
+`attemptedAt` es la muestra de reloj del callback, no un timestamp de ack; la
+existencia del tombstone demuestra que la transaccion se confirmo. Las
+before-images usan el codec taggeado `firestore-value-v1`, conservan mapas,
+arrays, escalares, `Timestamp`, bytes y `GeoPoint`, y ligan payload, ruta,
+`targetUpdateTime`, contrato de captura y envelope por digest. Sentinels,
+referencias, clases, accessors, extras ocultos y valores con perdida fallan
+cerrado. Este corte aun no materializa ni ejecuta forward/inverse.
 
 ### Fronteras, manifests y side effects diferidos
 
@@ -492,7 +533,8 @@ La partición prevista de acceso es:
 - `shiftPlanningCandidates`: candidatos de dos subplanes, escritos solo por
   backend y legibles para revisión por admin; ningún cliente puede mutarlos. La
   cabecera persistida incluye linaje preview/stage, `expectedStateDigest`,
-  evidencia forward/inverse, conteos, `positionSetDigest` y su `candidateDigest`.
+  conteos, `positionSetDigest` y su `candidateDigest`; no contiene evidencia de
+  una futura transaccion.
   Su subcoleccion `positions` contiene una proyeccion inmutable y digerida por
   turno planificado; solo esa subcoleccion anidada es legible por admin.
 - Solo backend, sin lectura ni escritura de cliente incluso para admin:

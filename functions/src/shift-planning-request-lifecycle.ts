@@ -174,7 +174,6 @@ const requireResolvedBundle = (
     if (
       result.previewReceipt === null ||
       result.previewReceiptDigest === null ||
-      result.transactionEvidence !== null ||
       result.stagedCandidate !== null ||
       result.stagedCandidateDigest !== null
     ) {
@@ -186,7 +185,6 @@ const requireResolvedBundle = (
   }
   if (
     request.mode !== "stage" ||
-    result.transactionEvidence === null ||
     result.stagedCandidate === null ||
     result.stagedCandidateDigest === null ||
     result.previewReceipt === null ||

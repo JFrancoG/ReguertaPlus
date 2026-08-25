@@ -146,7 +146,7 @@ const seedRequest = async (input) => {
 
 const emptyBudget = (direction) => {
   const createWrites = direction === "forward" ? 2 : 0;
-  const updateWrites = 6;
+  const updateWrites = 5;
   const deleteWrites = direction === "inverse" ? 2 : 0;
   return {
     direction,
@@ -157,7 +157,7 @@ const emptyBudget = (direction) => {
     activeStateWrites: 1,
     bundleMetadataWrites: 0,
     requestWrites: 1,
-    stagedCandidateWrites: 1,
+    stagedCandidateWrites: 0,
     syncCommandWrites: 2,
     operationRegistryWrites: 1,
     beforeImageWrites: 0,
@@ -356,7 +356,6 @@ const previewResult = (requestId = "preview-001") => {
     ...stable,
     requestId,
     mode: "preview",
-    transactionEvidence: null,
     stagedCandidate: null,
     stagedCandidateDigest: null,
     previewReceipt: receipt,
@@ -369,33 +368,6 @@ const stageResult = (
   preview = previewResult(),
 ) => {
   const stable = stableBundleFields();
-  const evidence = {
-    schemaVersion: 2,
-    forward: {
-      schemaVersion: 2,
-      direction: "forward",
-      manifestDigest:
-        preview.transactionRequirements.forwardManifestDigest,
-      documentWriteCount: preview.budgets.forward.totalWrites,
-      fieldTransformCount: 0,
-      requestByteCount: 25_000,
-      adapterRevision: "firestore-adapter-v1",
-      indexConfigurationDigest:
-        `shift-planning:v1:sha256:${"c".repeat(64)}`,
-    },
-    inverse: {
-      schemaVersion: 2,
-      direction: "inverse",
-      manifestDigest:
-        preview.transactionRequirements.inverseManifestDigest,
-      documentWriteCount: preview.budgets.inverse.totalWrites,
-      fieldTransformCount: 0,
-      requestByteCount: 25_000,
-      adapterRevision: "firestore-adapter-v1",
-      indexConfigurationDigest:
-        `shift-planning:v1:sha256:${"c".repeat(64)}`,
-    },
-  };
   const candidate = {
     schemaVersion: 2,
     status: "staged",
@@ -417,13 +389,11 @@ const stageResult = (
       delivery: stable.delivery,
       market: stable.market,
     }).manifest,
-    transactionEvidence: evidence,
   };
   return {
     ...stable,
     requestId,
     mode: "stage",
-    transactionEvidence: evidence,
     stagedCandidate: candidate,
     stagedCandidateDigest: createShiftPlanningDigest(candidate),
     previewReceipt: preview.previewReceipt,
@@ -732,21 +702,17 @@ test("stage loads the persisted preview and never overwrites a candidate", async
   assert.equal(acquired.kind, "process");
   const result = stageResult("stage-001", preview);
   const summary = buildShiftPlanningCompletedSummary(result);
-  const divergentEvidence = {
+  const divergentCandidate = {
     ...result,
-    transactionEvidence: {
-      ...result.transactionEvidence,
-      forward: {
-        ...result.transactionEvidence.forward,
-        requestByteCount:
-          result.transactionEvidence.forward.requestByteCount + 1,
-      },
+    stagedCandidate: {
+      ...result.stagedCandidate,
+      sourceStageRequestId: "stage-other",
     },
   };
   await assert.rejects(
     repository.completeStage({
       token: acquired.token,
-      result: divergentEvidence,
+      result: divergentCandidate,
       summary,
     }),
     (error) => error.code === "request_intent_conflict",
@@ -850,10 +816,7 @@ test("stage rejects noncanonical or mismatched candidate lineage", async () => {
     (candidate) => ({...candidate, unexpected: true}),
     (candidate) => ({
       ...candidate,
-      transactionEvidence: {
-        ...candidate.transactionEvidence,
-        unexpected: true,
-      },
+      transactionEvidence: {unexpected: true},
     }),
     (candidate) => ({
       ...candidate,
