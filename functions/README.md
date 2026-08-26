@@ -503,11 +503,25 @@ Despues entrega esas mutaciones al adaptador real, que mide y sella el batch del
 `Transaction`; un vector de emulador confirma el commit atomico del mismo objeto.
 Los creditos no nulos siguen cerrados hasta HU-084.
 
+`shift-planning-inverse-materializer.ts` parte exclusivamente del bundle y
+manifest inverse persistidos, tombstone de activacion, request completada,
+before-images revalidadas y read-set actual. Exige que todos los creates sigan
+ligados a la activacion, que el CAS activo conserve bundle/digest/epoch exactos y
+que ambos release leases sigan sellados por esa operacion. El batch inverse borra
+solo esos creates y restaura targets con su `lastUpdateTime`. Recupera el lineage
+de negocio anterior, pero avanza un `writeEpoch` nuevo y revisiones monotonicamente
+superiores, limpia ambos leases y reemplaza el tombstone por un terminal de
+recovery ligado por digest. Para no dejar campos posteriores, la restauracion
+reescribe mapas top-level completos y usa `FieldValue.delete()` en los campos
+top-level que ya no deben existir. Before-images y request historica completada
+se conservan. Un vector de emulador confirma el mismo batch inverse medido y
+sellado por el adaptador real.
+
 El seam no esta conectado todavia desde `index.ts`: el caller futuro debe releer
 y recalcular roster, membership, configuracion/politica/calendario, overrides,
 workbook/particiones y estado autoritativo dentro de cada callback reintentado.
-No existe aun CAS productivo, materializador inverse, evidencia persistida del
-resultado no circular, despliegue ni escritura compartida.
+No existe aun CAS productivo conectado, evidencia persistida del resultado no
+circular, despliegue ni escritura compartida.
 
 ### Fronteras, manifests y side effects diferidos
 

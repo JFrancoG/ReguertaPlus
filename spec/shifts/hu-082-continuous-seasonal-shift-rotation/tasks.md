@@ -246,8 +246,27 @@ occurred. Protected technical evidence remains outside the repository.
       5/5 focused vectors with Firestore emulator, and 161/161 non-emulator
       planning unit vectors pass; the emulator-only vector is skipped by the
       ordinary unit lane. No shared/public write, transport, or deployment.
-  - [ ] Materialize inverse mutations from persisted before-images and current
+  - [x] Materialize inverse mutations from persisted before-images and current
     recovery CAS/epoch, including exact replacement semantics for after-only fields.
+    - [x] Revalidate persisted bundle/manifest, activation tombstone, completed
+      request, contiguous before-images, unchanged created targets, active
+      bundle/write-epoch CAS, and ownership of both sealed release leases.
+    - [x] Delete only activation-created documents; restore authoritative state
+      and any predecessor from before-images with `lastUpdateTime` preconditions,
+      clearing leases while advancing a strictly newer recovery epoch and
+      monotonic aggregate revisions.
+    - [x] Represent exact replacement as retained top-level values plus explicit
+      delete sentinels for after-only fields, and replace the activation terminal
+      with a digest-bound recovery terminal while retaining before-images and the
+      completed historical request.
+    - [x] Feed the exact inverse budget to the pinned real-attempt adapter;
+      focused pure vectors and a Firestore-emulator transaction prove atomic
+      delete/restore/epoch behavior. Runtime wiring and persisted non-circular
+      outcome evidence remain pending.
+    - [x] Validation: Node 22 Functions lint/build, 3/3 pure focused vectors,
+      4/4 focused vectors with Firestore emulator, and 164/164 non-emulator
+      planning unit vectors pass; the two emulator-only vectors are skipped by
+      the ordinary unit lane. No shared/public write, transport, or deployment.
   - [ ] Persist immutable non-circular backend-only attempt outcome evidence and
     execute the maintenance/publication and recovery CAS paths.
 - [ ] Include membership, rotation, policy/config/calendar override, and enabled

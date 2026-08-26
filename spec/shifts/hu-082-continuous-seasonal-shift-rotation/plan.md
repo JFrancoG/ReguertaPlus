@@ -104,7 +104,8 @@ documented in the English and Spanish Firestore references before code lands.
 - Freeze publication codec v1 before either materializer: exact flat public
   assignment/completion/document revisions, additive installed-client fields,
   changed-only backend marker validation, an immutable activation tombstone,
-  and lossless digest-bound before-images with update-time preconditions. Keep
+  and lossless digest-bound before-images with captured update-time evidence.
+  Recovery uses a fresh transaction-read update-time precondition. Keep
   marker-free payload digests and transaction-request digests separate so
   neither becomes self-referential.
 - Retain terminal operation tombstones and per-event ledgers beyond the maximum
@@ -270,6 +271,16 @@ documented in the English and Spanish Firestore references before code lands.
   then measure and seal that same SDK-owned batch. Keep the seam disconnected
   from `index.ts` until the real repository can reread every fairness input in
   each retry callback.
+- Materialize recovery only from the immutable activation tombstone and
+  revalidated persisted before-images. Require every created target to retain
+  the activation marker/payload, require the active bundle/epoch CAS and both
+  sealed release leases, then delete creates and restore guarded targets in one
+  measured inverse batch. Restore the prior business lineage while advancing a
+  fresh recovery epoch and aggregate revisions; use explicit delete sentinels
+  for top-level fields that exist only after activation. Replace the activation
+  terminal with a digest-bound recovery terminal, retain before-images and the
+  completed historical request, and keep this seam disconnected from `index.ts`
+  until runtime reads and non-circular outcome evidence are implemented.
 - Emit stable digest-bound Sheets-sync command IDs in that transaction and define
   the exact manifest/idempotency/marker protocol. Prove it with a test consumer;
   HU-083 implements the real explicit pull/invoked multi-season worker. Pending

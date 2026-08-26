@@ -259,8 +259,8 @@ no debe silenciarse.
 La misma transaccion de activacion crea un tombstone inmutable
 `state = committed` que liga sus mutaciones publicas ordenadas y referencias de
 before-image. Las before-images conservan un subconjunto Firestore taggeado
-exacto (mapas, arrays, escalares, timestamps, bytes y geopoints), la precondicion
-original de update-time, digest del contrato de captura, ruta, digest del payload
+exacto (mapas, arrays, escalares, timestamps, bytes y geopoints), el update-time
+original como evidencia, digest del contrato de captura, ruta, digest del payload
 y digest del sobre. Todo valor no soportado o con perdida falla cerrado. Estos
 codecs puros fijan la entrada de los materializadores forward/inverse.
 
@@ -275,11 +275,25 @@ forward y el manifest de creates inverse. Despues lo entrega al adaptador real
 del intento; un vector de emulador prueba que el mismo batch medido del SDK hace
 commit atomicamente. Los creditos no nulos siguen cerrados hasta HU-084.
 
+El materializador inverse local consume solo ese bundle persistido, tombstone de
+activacion, request completada, documentos actuales de activacion y before-images
+revalidadas. Rechaza creates cambiados, bundle/epoch activo obsoleto o cualquiera
+de los dos release leases que ya no siga sellado por esa activacion. Un unico
+batch inverse medido borra solo creates de activacion sin cambios y restaura
+targets protegidos. Vuelve el lineage de negocio anterior, pero `writeEpoch` de
+mantenimiento y revisiones de rotacion/estado avanzan monotonicamente y ambos
+leases se limpian. Los mapas conservados se reescriben completos y los campos
+top-level que solo existen despues usan sentinels de borrado explicitos. El
+registro de activacion se reemplaza exactamente por un tombstone de recovery
+ligado por digest; before-images y request historica completada quedan como
+evidencia de auditoria. Un vector de emulador Firestore prueba borrado,
+restauracion, epoch superior y reemplazo exacto del terminal de forma atomica.
+
 Este seam no esta conectado desde `index.ts`: produccion aun necesita un
 adaptador de repositorio que relea y recalcule todos los inputs de fairness dentro
-de cada callback transaccional reintentado. Siguen pendientes el materializador
-inverse, la evidencia persistida no circular del resultado, el ensayo gobernado,
-el CAS productivo, el despliegue y la activacion live.
+de cada callback transaccional reintentado. Siguen pendientes la evidencia
+persistida no circular del resultado, el ensayo gobernado, el CAS productivo, el
+despliegue y la activacion/recovery live.
 La activación es el límite reconocido de visibilidad pública y encola
 sync de Sheets e intenciones de notificación retenidas.
 

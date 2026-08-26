@@ -533,8 +533,9 @@ digest. Codec `firestore-value-v1` losslessly tags Firestore maps, arrays,
 null/boolean/finite-number/string scalars, `Timestamp`, bytes, and `GeoPoint`.
 Sentinels, references, dates/class instances, cycles, accessors, sparse/extra
 array properties, symbol/hidden map properties, and unsupported values fail
-closed. Recovery decodes only a revalidated envelope and uses
-`targetUpdateTime` in its CAS/precondition.
+closed. `targetUpdateTime` binds the snapshot captured by activation; recovery
+decodes only a revalidated envelope and uses the target's new transaction-read
+`lastUpdateTime` for its restore CAS/precondition.
 
 The forward materializer requires a complete live activate result whose
 persisted-artifact digest matches the staged bundle/candidate/position set. It
@@ -544,8 +545,26 @@ the two sync commands, held intents, before-images, and the activation terminal.
 Every update uses its transaction-read `lastUpdateTime`; the complete mutation
 set must equal the forward budget and inverse create manifest before the pinned
 attempt adapter measures and seals it. Emulator evidence is local only: runtime
-loading, inverse recovery, persisted outcome evidence, and production activation
-remain pending.
+loading, persisted outcome evidence, and production activation remain pending.
+
+The inverse materializer re-digests the bundle/manifest and validates the
+activation terminal, completed request, contiguous before-images, unchanged
+created targets, exact active bundle/write-epoch CAS, and both sealed release
+leases. It deletes activation creates and restores all before-image targets with
+their current transaction `lastUpdateTime`. Restoration returns the prior active
+business lineage while advancing one fresh recovery epoch and monotonically
+incrementing aggregate revisions; both release leases clear. Exact replacement
+sets every retained top-level value (thereby replacing nested maps) and attaches
+delete sentinels for current top-level fields absent from the desired restored
+document. The operation record becomes `operationKind = activationRecovery`,
+`state = committed`, with forward/inverse manifest bindings, activation/recovery
+epochs, deleted paths, before-image bindings, restored lineage, and a
+non-self-referential `recoveryIntentDigest`. Before-images and the completed
+activation request remain; the request write is a guarded historical-terminal
+touch, not a claim that recovery never occurred. The exact inverse budget is
+measured/sealed by the pinned adapter and proven locally in the Firestore
+emulator. Runtime loading/execution and persisted attempt outcome evidence are
+still pending.
 
 All seven collections are backend-only: strict Rules deny every client read and
 write, including admin clients. Their internal field schemas are not a mobile

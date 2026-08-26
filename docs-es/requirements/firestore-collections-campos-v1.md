@@ -643,8 +643,10 @@ digest del payload codificado y digest del sobre. `firestore-value-v1` etiqueta
 sin perdida mapas, arrays, escalares null/bool/numero finito/string, `Timestamp`,
 bytes y `GeoPoint`. Sentinels, referencias, fechas/instancias de clase, ciclos,
 accessors, propiedades extra o sparse de arrays, simbolos/propiedades ocultas de
-mapas y valores no soportados fallan cerrado. Recovery solo decodifica un sobre
-revalidado y usa `targetUpdateTime` en su CAS/precondicion.
+mapas y valores no soportados fallan cerrado. `targetUpdateTime` liga el snapshot
+capturado por activacion; recovery solo decodifica un sobre revalidado y usa el
+nuevo `lastUpdateTime` del target leido en la transaccion para su
+CAS/precondicion de restauracion.
 
 El materializador forward exige un resultado activate live completo cuyo digest
 de artefacto persistido coincida con bundle/candidato/posiciones staged. Crea cada
@@ -654,8 +656,27 @@ de sync, intenciones retenidas, before-images y terminal de activacion. Cada
 update usa su `lastUpdateTime` leido en la transaccion; el conjunto completo debe
 igualar presupuesto forward y manifest de creates inverse antes de que el
 adaptador fijado lo mida y selle. La evidencia de emulador es solo local: carga
-runtime, recovery inverse, evidencia persistida del resultado y activacion
-productiva siguen pendientes.
+runtime, evidencia persistida del resultado y activacion productiva siguen
+pendientes.
+
+El materializador inverse recalcula los digests de bundle/manifest y valida el
+terminal de activacion, request completada, before-images contiguas, targets
+creados sin cambios, CAS exacto de bundle activo/write-epoch y ambos release
+leases sellados. Borra los creates de activacion y restaura cada target de
+before-image con su `lastUpdateTime` transaccional actual. La restauracion
+recupera el lineage activo de negocio anterior mientras avanza un nuevo epoch de
+recovery e incrementa monotonicamente las revisiones de agregados; ambos leases
+se limpian. El reemplazo exacto asigna cada valor top-level conservado (y por ello
+reemplaza mapas anidados) y añade sentinels de borrado para campos top-level
+actuales ausentes del documento restaurado deseado. El registro de operacion pasa
+a `operationKind = activationRecovery`, `state = committed`, ligado a manifests
+forward/inverse, epochs de activacion/recovery, rutas borradas, bindings de
+before-images, lineage restaurado y `recoveryIntentDigest` no autorreferencial.
+Las before-images y request completada de activacion permanecen; la escritura de
+request es un touch protegido del terminal historico, no una afirmacion de que el
+recovery no ocurrio. El presupuesto inverse exacto se mide/sella con el adaptador
+fijado y queda probado localmente en emulador Firestore. La carga/ejecucion runtime
+y la evidencia persistida del resultado del intento siguen pendientes.
 
 Las siete colecciones son solo backend: las Rules estrictas niegan cualquier
 lectura o escritura de cliente, tambien a admins. Sus esquemas internos no son

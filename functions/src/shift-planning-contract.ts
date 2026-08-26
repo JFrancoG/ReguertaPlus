@@ -58,6 +58,7 @@ export type ShiftPlanningFailureCode =
   | "planning_transaction_adapter_drift"
   | "invalid_planning_publication_contract"
   | "invalid_planning_forward_materialization"
+  | "invalid_planning_inverse_materialization"
   | "frozen_cohort_mismatch"
   | "invalid_rotation_cohort"
   | "invalid_rotation_cursor"

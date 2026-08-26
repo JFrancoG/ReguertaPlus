@@ -270,8 +270,7 @@ does not populate Firestore public shifts or activate either mobile app.
   mutations and contiguous before-image bindings. Tagged before-image codec
   `firestore-value-v1` preserves the supported Firestore value subset plus exact
   target update-time, capture-contract/payload/envelope digests, and restore
-  path. Unsupported or lossy values fail closed. These contracts do not yet
-  materialize the inverse CAS.
+  path. Unsupported or lossy values fail closed.
 - The local forward materializer accepts only a complete live recomputation that
   reproduces the immutable staged artifact. It resolves every public create, the
   guarded predecessor-helper update, both rotation/lease transitions, active
@@ -282,8 +281,21 @@ does not populate Firestore public shifts or activate either mobile app.
   an emulator vector proves its atomic commit. The seam is not wired to
   `index.ts`, and each future retry must reread and recompute the complete
   fairness snapshot inside its own callback. Credits remain closed until HU-084;
-  inverse materialization and persisted non-circular outcome evidence remain
-  separate pending cuts.
+  persisted non-circular outcome evidence remains a separate pending cut.
+- The local inverse materializer revalidates the persisted bundle/inverse
+  manifest, activation tombstone, completed request, every before-image, every
+  created target, the exact active bundle/epoch CAS, and ownership of both sealed
+  release leases. It deletes only unchanged activation creates and restores each
+  before-image through `lastUpdateTime` CAS. Business lineage returns to the
+  preceding revision while maintenance `writeEpoch` and aggregate
+  `stateRevision` values advance monotonically; release leases are cleared. A
+  guarded exact-replacement update rewrites retained top-level maps and deletes
+  after-only fields. The activation tombstone becomes a digest-bound recovery
+  tombstone, while immutable before-images and the historical completed request
+  remain. The pinned attempt adapter measures/seals the exact inverse batch and
+  an emulator vector proves atomic delete/restore/epoch behavior. Runtime wiring,
+  persisted non-circular outcome evidence, rehearsal, and production execution
+  remain pending.
 - The digest covers every fairness input and its version: eligible membership,
   rotation/cursor, calendar and policy/configuration, relevant overrides, and,
   when HU-084 is enabled, the complete same-type coverage-credit ledger version.

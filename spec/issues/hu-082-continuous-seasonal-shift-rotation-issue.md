@@ -550,6 +550,32 @@ and there was no shared/public Firebase write or deployment. Exact inverse
 materialization, non-circular persisted attempt outcome evidence, governed clone
 rehearsal, production CAS, and activation remain pending.
 
+## Local implementation checkpoint — exact inverse materializer (2026-08-26)
+
+The local inverse materializer now accepts only a persisted bundle whose inverse
+manifest and structural budget re-digest exactly. It revalidates the immutable
+activation tombstone, completed request, contiguous before-images, unchanged
+activation-created documents, exact active bundle/write-epoch CAS, and both
+sealed release leases before constructing a mutation.
+
+One ordered inverse set deletes only the still-bound public shifts, sync commands,
+and held intents. It restores authoritative state and any guarded predecessor
+from before-images with transaction-read `lastUpdateTime` preconditions. The
+prior business lineage returns, both release leases clear, and maintenance epoch
+plus aggregate revisions advance monotonically. Exact replacement rewrites
+retained top-level values and explicitly deletes after-only fields. The activation
+tombstone becomes a digest-bound recovery tombstone; immutable before-images and
+the completed historical request remain available for audit.
+
+The pinned real-attempt adapter measures and seals this exact inverse batch. Pure
+vectors cover budgets, replacement, and drift rejection; a Firestore-emulator
+vector proves atomic delete, restore, higher epoch, tombstone replacement, and
+before-image retention. Node 22 Functions lint/build, 3/3 pure focused vectors,
+4/4 emulator vectors, and 164/164 non-emulator planning vectors pass; the normal
+lane skips both emulator-only vectors. The seam remains disconnected from
+`index.ts`; persisted non-circular outcome evidence, repository/runtime CAS
+wiring, rehearsal, deployment, and live activation/recovery remain pending.
+
 ## Suggested labels
 
 - `type:feature`

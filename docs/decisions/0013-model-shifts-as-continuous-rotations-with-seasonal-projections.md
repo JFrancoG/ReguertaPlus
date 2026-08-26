@@ -248,7 +248,7 @@ The same activation transaction creates an immutable `state = committed`
 operation tombstone binding its ordered public mutations and before-image
 references. Before-images preserve an exact tagged Firestore subset (maps,
 arrays, scalars, timestamps, bytes, and geopoints), their original update-time
-precondition, capture-contract digest, path, payload digest, and envelope digest.
+evidence, capture-contract digest, path, payload digest, and envelope digest.
 Lossy or unsupported values fail closed. These pure codecs freeze the input to
 the forward/inverse materializers.
 
@@ -262,11 +262,24 @@ budget and inverse create manifest. It then passes that set to the real pinned
 transaction-attempt adapter, and an emulator vector proves that the same measured
 SDK batch commits atomically. Non-zero credit writes remain closed until HU-084.
 
+The local inverse materializer consumes only that persisted bundle, activation
+tombstone, completed request, current activation documents, and revalidated
+before-images. It rejects changed creates, a stale active bundle/epoch, or either
+release lease not still sealed by that activation. One measured inverse batch
+deletes only unchanged activation creates and restores guarded targets. The prior
+business lineage returns, but maintenance `writeEpoch` and rotation/state
+revisions advance monotonically and both release leases clear. Retained maps are
+rewritten whole and top-level after-only fields use explicit delete sentinels.
+The activation record is exactly replaced by a digest-bound recovery tombstone;
+before-images and the completed historical request remain audit evidence. A
+Firestore-emulator vector proves atomic delete, restore, higher epoch, and exact
+terminal replacement.
+
 This seam is not connected from `index.ts`: production still needs a repository
 adapter that rereads and recomputes every fairness input inside each retried
-transaction callback. The inverse materializer, non-circular persisted outcome
-evidence, governed rehearsal, production CAS, deployment, and live activation
-remain pending.
+transaction callback. Non-circular persisted outcome evidence, governed
+rehearsal, production CAS, deployment, and live activation/recovery remain
+pending.
 Activation is the acknowledged public-visibility boundary and queues Sheets sync
 plus held notification intents.
 
