@@ -347,6 +347,22 @@ occurred. Protected technical evidence remains outside the repository.
       - [ ] Export recovery only through the IAM-restricted operator boundary
         after it enforces the maintenance allowlist for exact operation,
         revision, digest, and state.
+        - [x] Implement the SDK-backed local operator executor and strict command/
+          authorization codecs. Store one digest-bound authorization below the
+          activation operation and re-read it before execution and inside every
+          CAS retry; bind both IDs, bundle revision/digest, activation intent,
+          bounded time window, and exact closed maintenance state.
+        - [x] Prove malformed/extra/tampered/expired commands and maintenance-
+          epoch drift write nothing; prove exact recovery and outcome replay
+          converge through the allowlisted executor in the Firestore emulator.
+        - [x] Validation: Node 22 Functions lint/build, 186/186 planning vectors
+          with eleven emulator-only skips, 2/2 focused authorization vectors,
+          and 3/3 governed activation/allowlisted-recovery emulator vectors pass.
+          No shared Firebase write, HTTP export, deployment, or live recovery.
+        - [ ] Remaining: create and name the dedicated operator principal, export
+          the HTTP function with that exact `invoker`, add request/response audit
+          handling, and prove IAM allow/deny plus absence of direct data roles,
+          impersonation, and token-minting authority.
 - [ ] Include membership, rotation, policy/config/calendar override, and enabled
   credit-ledger versions plus any migration-baseline revision/digest in the
   candidate lineage; transactionally recheck them and commit planned credit

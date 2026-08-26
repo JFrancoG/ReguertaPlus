@@ -557,12 +557,23 @@ resolver inverse relee tombstone, bundle, request, before-images y todos los
 targets actuales de delete/restore. Un vector end-to-end de emulador prueba drift
 sin escrituras, activacion completa y recovery con epoch superior.
 
+`shift-planning-operator-recovery.ts` compone el unico puerto local autorizado
+para recovery. El comando minimo liga entorno, IDs de activacion/recovery y el
+digest de una autorizacion backend-only en
+`shiftPlanningOperations/{activationOperationId}/recoveryAuthorizations/`
+`{recoveryOperationId}`. Esa autorizacion sella revision/digest del bundle,
+digest del terminal forward, ventana temporal y el estado completo de
+mantenimiento esperado. El executor la relee antes de entrar y dentro de cada
+retry CAS; expiry, extras, digest, epoch, revision, lineage o terminal drift
+fallan antes de mutar. El replay terminal conserva la misma allowlist de entrada.
+
 El productor gobernado mantiene `shiftPlanningState/fairness` desde las fuentes
 reales y `index.ts` clasifica primero la version para conservar el trigger legacy,
 rechazar versiones desconocidas y enrutar localmente v2 a preview, stage o CAS de
 activacion. Recovery sigue sin endpoint exportado: falta encerrarlo en la frontera
-IAM/allowlist de operador. Tampoco existen aun ensayo en clon, despliegue ni
-escritura compartida.
+HTTP con la identidad IAM dedicada exacta. El puerto allowlisted ya existe, pero
+no se inventa un principal ni se exporta una ruta privada por defecto. Tampoco
+existen aun ensayo en clon, despliegue ni escritura compartida.
 
 ### Fronteras, manifests y side effects diferidos
 

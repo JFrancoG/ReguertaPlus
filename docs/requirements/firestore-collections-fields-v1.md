@@ -526,6 +526,17 @@ bindings, and `operationIntentDigest`. `attemptedAt` is the trusted callback
 clock sample rather than a server acknowledgement timestamp; the terminal
 document exists only if the same atomic transaction committed.
 
+An operator recovery is admitted only by the exact backend-owned document at
+`shiftPlanningOperations/{activationOperationId}/recoveryAuthorizations/`
+`{recoveryOperationId}`. Schema v1 fixes `mode = recovery`, `state = authorized`,
+environment and both operation IDs; bundle revision/digest; activation terminal
+intent digest; authorization window; and the complete expected maintenance
+binding (`stateRevision`, `writeEpoch`, closed status, active revision/digest,
+and last transition). `authorizationDigest` covers that canonical content with
+timestamps normalized to milliseconds. The local runtime reads this document
+before execution and again inside every recovery transaction retry. Clients,
+including admins, have no Rules read or write access to this nested allowlist.
+
 Each persisted `beforeImages/{ordinal}` document binds its operation, bundle,
 manifest, epoch, contiguous ordinal, target/envelope paths, target snapshot
 update time, capture-contract digest, encoded payload digest, and envelope

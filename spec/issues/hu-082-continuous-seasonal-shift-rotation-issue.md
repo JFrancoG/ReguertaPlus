@@ -723,6 +723,27 @@ stale source drift writes zero public shifts, activation and replay converge, an
 inverse recovery removes the activated projection. No shared Firebase write,
 transport, endpoint export, deployment, or live activation occurred.
 
+## Local implementation checkpoint — allowlisted recovery executor (2026-08-26)
+
+The inverse port now has a distinct local operator executor. Its strict command
+contains only environment, activation/recovery IDs, and one authorization digest.
+The backend-only authorization is nested below the activation operation and seals
+the exact bundle revision/digest, activation terminal intent, bounded validity
+window, and complete closed maintenance revision/epoch/active-lineage binding.
+The executor reads it before entry and again inside every Firestore retry, so
+expiry, tampering, revocation/replacement, or maintenance drift fails before any
+inverse mutation. Exact recovery and replay converge through the same boundary.
+
+Node 22 Functions lint/build, 186 planning vectors with eleven emulator-only
+skips, 2/2 focused authorization vectors, and 3/3 governed activation/recovery
+Firestore-emulator vectors pass.
+
+No HTTP function is exported yet. The next cut needs the exact dedicated operator
+service-account identity so `invoker` is explicit rather than invented or broadly
+private; it must also prove IAM denial for mobile/admin principals and absence of
+direct Firestore/Sheets, impersonation, and token-minting roles. Nothing is deployed
+or activated in a shared Firebase project.
+
 ## Suggested labels
 
 - `type:feature`

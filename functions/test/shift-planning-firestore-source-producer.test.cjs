@@ -28,6 +28,11 @@ const {
   createFirestoreShiftPlanningRuntime,
 } = require("../lib/shift-planning-firestore-runtime.js");
 const {
+  createFirestoreShiftPlanningOperatorRecoveryExecutor,
+  createShiftPlanningRecoveryAuthorization,
+  shiftPlanningRecoveryAuthorizationPath,
+} = require("../lib/shift-planning-operator-recovery.js");
+const {
   SHIFT_PLANNING_FIRESTORE_COMMIT_ADAPTER_REVISION,
 } = require(
   "../lib/shift-planning-firestore-transaction-serializer.js"
@@ -533,7 +538,7 @@ emulatorTest("invalid source drift preserves the last valid envelope", async () 
 });
 
 emulatorTest(
-  "routes governed activation and recovery through the v2 runtime",
+  "routes governed activation and allowlisted recovery",
   async () => {
     const database = new Firestore({projectId});
     await clear(database);
@@ -647,12 +652,91 @@ emulatorTest(
       ).get()).get("status"),
       "completed",
     );
-    const recovered = await runtime.executeRecovery({
+    const recoveryOperationId = "recovery-source-runtime-route";
+    const activationTerminal = await database.doc(
+      `${root}/shiftPlanningOperations/${operationId}`,
+    ).get();
+    const maintenanceTerminal = await database.doc(
+      `${root}/shiftPlanningState/current`,
+    ).get();
+    const authorizationInput = {
+      schemaVersion: 1,
+      mode: "recovery",
+      state: "authorized",
       environment,
       activationOperationId: operationId,
-      recoveryOperationId: "recovery-source-runtime-route",
+      recoveryOperationId,
+      bundleRevision: activationTerminal.get("bundleRevision"),
+      bundleDigest: activationTerminal.get("bundleDigest"),
+      activationOperationIntentDigest:
+        activationTerminal.get("operationIntentDigest"),
+      expectedMaintenance: {
+        stateRevision: maintenanceTerminal.get("stateRevision"),
+        writeEpoch: maintenanceTerminal.get("writeEpoch"),
+        maintenanceStatus: maintenanceTerminal.get("maintenanceStatus"),
+        activeRevision: maintenanceTerminal.get("activeRevision"),
+        activeDigest: maintenanceTerminal.get("activeDigest"),
+        lastTransitionId: maintenanceTerminal.get("lastTransitionId"),
+      },
+      authorizedAt: Timestamp.fromMillis(1_788_393_600_000),
+      expiresAt: Timestamp.fromMillis(1_788_397_200_000),
+    };
+    const driftedAuthorization = createShiftPlanningRecoveryAuthorization({
+      ...authorizationInput,
+      expectedMaintenance: {
+        ...authorizationInput.expectedMaintenance,
+        writeEpoch: authorizationInput.expectedMaintenance.writeEpoch + 1,
+      },
     });
+    const recoveryCommand = (authorization) => ({
+      schemaVersion: 1,
+      mode: "recovery",
+      environment,
+      activationOperationId: operationId,
+      recoveryOperationId,
+      authorizationDigest: authorization.authorizationDigest,
+    });
+    const authorizationReference = database.doc(
+      shiftPlanningRecoveryAuthorizationPath(
+        recoveryCommand(driftedAuthorization),
+      ),
+    );
+    await authorizationReference.create(driftedAuthorization);
+    const recoveryExecutor = createFirestoreShiftPlanningOperatorRecoveryExecutor(
+      database,
+      {clock: () => Timestamp.fromMillis(1_788_393_900_000)},
+    );
+    await assert.rejects(
+      recoveryExecutor.execute(recoveryCommand(driftedAuthorization)),
+      (error) => error.code === "invalid_planning_transaction",
+    );
+    assert.equal(
+      (await database.collection(`${root}/shifts`).get()).size,
+      chain.activate.delivery.shifts.length +
+        chain.activate.market.shifts.length,
+    );
+    const authorization = createShiftPlanningRecoveryAuthorization(
+      authorizationInput,
+    );
+    await authorizationReference.set(authorization);
+    const expiredExecutor = createFirestoreShiftPlanningOperatorRecoveryExecutor(
+      database,
+      {clock: () => authorization.expiresAt},
+    );
+    await assert.rejects(
+      expiredExecutor.execute(recoveryCommand(authorization)),
+      (error) => error.code === "invalid_planning_transaction",
+    );
+    const recovered = await recoveryExecutor.execute(
+      recoveryCommand(authorization),
+    );
     assert.equal(recovered.kind, "committed");
+    const recoveryReplay = await recoveryExecutor.execute(
+      recoveryCommand(authorization),
+    );
+    assert.equal(recoveryReplay.kind, "terminalReplay");
+    assert.equal(recovered.outcome.direction, "inverse");
+    assert.equal(recoveryReplay.outcome.outcomeDigest, recovered.outcome.outcomeDigest);
     assert.equal((await database.collection(`${root}/shifts`).get()).size, 0);
 
     await clear(database);

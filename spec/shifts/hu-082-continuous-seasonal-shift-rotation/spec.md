@@ -315,9 +315,12 @@ does not populate Firestore public shifts or activate either mobile app.
   reject a stale cached envelope before materialization. The local `index.ts`
   trigger preserves the unversioned legacy path and routes declared schema-v2
   preview/stage/activate requests through the governed runtime; unknown versions
-  fail closed. The inverse runtime port remains unexported until the IAM-only
-  maintenance allowlist is implemented. Rehearsal and production execution
-  remain pending.
+  fail closed. The inverse runtime now has a separate local operator executor
+  that requires one digest-bound authorization under the activation operation,
+  checks its exact operation/bundle/maintenance binding before execution and
+  inside every CAS retry, and rejects expired or drifting authority without
+  mutation. Its HTTP endpoint remains unexported until the exact dedicated IAM
+  invoker identity is fixed. Rehearsal and production execution remain pending.
 - The digest covers every fairness input and its version: eligible membership,
   rotation/cursor, calendar and policy/configuration, relevant overrides, and,
   when HU-084 is enabled, the complete same-type coverage-credit ledger version.
