@@ -319,8 +319,12 @@ does not populate Firestore public shifts or activate either mobile app.
   that requires one digest-bound authorization under the activation operation,
   checks its exact operation/bundle/maintenance binding before execution and
   inside every CAS retry, and rejects expired or drifting authority without
-  mutation. Its HTTP endpoint remains unexported until the exact dedicated IAM
-  invoker identity is fixed. Rehearsal and production execution remain pending.
+  mutation. Its local HTTP export is pinned only to
+  `reguerta-shifts-operator@reguerta-9f27f.iam.gserviceaccount.com`, accepts the
+  exact POST body without query parameters, and emits sanitized correlated audit
+  events and responses. HU-085 still owns creation of that principal, its sole
+  invoker binding, negative effective-access proof, deployment, rehearsal, and
+  production execution.
 - The digest covers every fairness input and its version: eligible membership,
   rotation/cursor, calendar and policy/configuration, relevant overrides, and,
   when HU-084 is enabled, the complete same-type coverage-credit ledger version.

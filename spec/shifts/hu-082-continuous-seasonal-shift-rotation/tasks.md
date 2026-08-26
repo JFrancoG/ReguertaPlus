@@ -359,10 +359,22 @@ occurred. Protected technical evidence remains outside the repository.
           with eleven emulator-only skips, 2/2 focused authorization vectors,
           and 3/3 governed activation/allowlisted-recovery emulator vectors pass.
           No shared Firebase write, HTTP export, deployment, or live recovery.
-        - [ ] Remaining: create and name the dedicated operator principal, export
-          the HTTP function with that exact `invoker`, add request/response audit
-          handling, and prove IAM allow/deny plus absence of direct data roles,
-          impersonation, and token-minting authority.
+        - [x] Pin the future dedicated operator identity to
+          `reguerta-shifts-operator@reguerta-9f27f.iam.gserviceaccount.com` and
+          export the local recovery Function with that exact `invoker`. Reject
+          non-POST, query-bearing, malformed, or extra-field commands before the
+          executor; correlate sanitized accepted/completed/rejected/unknown audit
+          events without logging bodies, authorization digests, member data, or
+          internal diagnostics. Do not select a runtime service account here.
+        - [x] Validation: Node 22 Functions lint/build, 193 planning vectors with
+          eleven emulator-only skips, 7/7 focused HTTP boundary vectors, and 3/3
+          governed activation/allowlisted-recovery Firestore-emulator vectors
+          pass. No shared Firebase write, IAM mutation, deployment, or live
+          recovery occurred.
+        - [ ] Remaining for the controlled HU-085 rollout: provision the named
+          operator principal, grant only exact endpoint invocation, deploy/read
+          back the binding, and prove IAM allow/deny plus absence of direct data,
+          workbook, impersonation, and token-minting authority.
 - [ ] Include membership, rotation, policy/config/calendar override, and enabled
   credit-ledger versions plus any migration-baseline revision/digest in the
   candidate lineage; transactionally recheck them and commit planned credit

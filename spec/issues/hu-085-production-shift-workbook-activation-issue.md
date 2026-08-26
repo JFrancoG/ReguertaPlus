@@ -37,8 +37,10 @@ Prefer one dedicated least-privilege runtime account applied only in the exact
 Function deploy. Because those revisions serve both paths, it needs minimum
 explicit access to both stable environment workbooks with protected cross-route
 guards; separate identities require first splitting Functions by environment.
-Use a distinct invoker-only operator principal for rollout commands. It receives
-no Firestore/Sheets role, workbook access, runtime impersonation, or token minting.
+Use the distinct invoker-only operator principal pinned in HU-082 as
+`reguerta-shifts-operator@reguerta-9f27f.iam.gserviceaccount.com` for rollout
+commands. HU-082 names it in source but does not provision it. It receives no
+Firestore/Sheets role, workbook access, runtime impersonation, or token minting.
 Every post-baseline data mutation—repair, migration/bootstrap, preview lifecycle,
 stage, activate, sync correction, recovery, or manifested cleanup—uses an exact
 operation ID/revision/digest through the candidate endpoint. Only the candidate

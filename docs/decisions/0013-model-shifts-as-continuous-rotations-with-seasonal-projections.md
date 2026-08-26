@@ -306,9 +306,12 @@ rebuilt and digest-compared inside every activation retry, so a stale cached
 envelope cannot authorize writes. The local `index.ts` trigger now routes
 unversioned documents through the unchanged legacy handler and schema-v2
 preview/stage/activate requests through the governed runtime. Unknown declared
-versions fail closed instead of falling back. Recovery is composed behind an
-internal port but is not exported until the separate IAM-only maintenance
-allowlist exists; rehearsal, deployment, and live execution remain pending.
+versions fail closed instead of falling back. Recovery is exported locally only
+through an exact-body HTTP adapter pinned to the future dedicated operator
+service-account email. That adapter adds sanitized correlated request/response
+audit handling and still requires the separate backend maintenance allowlist.
+HU-085 retains principal provisioning, exact invoker IAM and negative permission
+proof, rehearsal, deployment, and live execution.
 Activation is the acknowledged public-visibility boundary and queues Sheets sync
 plus held notification intents.
 

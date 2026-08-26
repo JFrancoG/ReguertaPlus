@@ -319,10 +319,12 @@ y comparar por digest ese read-set dentro de cada retry de activacion, por lo qu
 una envolvente cacheada obsoleta no puede autorizar escrituras. El trigger local
 de `index.ts` mantiene los documentos sin version en el handler legacy sin cambios
 y enruta preview/stage/activate schema v2 por el runtime gobernado. Una version
-declarada desconocida falla cerrado y nunca cae al escritor legacy. Recovery esta
-compuesto tras un puerto interno, pero no se exporta hasta disponer de la allowlist
-de mantenimiento IAM-only separada; siguen pendientes ensayo, despliegue y
-ejecucion live.
+declarada desconocida falla cerrado y nunca cae al escritor legacy. Recovery se
+exporta localmente solo mediante un adaptador HTTP de cuerpo exacto fijado al email
+de la futura cuenta de servicio dedicada del operador. El adaptador añade auditoria
+sanitizada y correlacionada de peticion/respuesta y sigue exigiendo la allowlist de
+mantenimiento backend separada. HU-085 conserva el aprovisionamiento del principal,
+el IAM de invocacion exacto y su prueba negativa, ensayo, despliegue y ejecucion live.
 La activación es el límite reconocido de visibilidad pública y encola
 sync de Sheets e intenciones de notificación retenidas.
 

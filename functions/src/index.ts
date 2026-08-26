@@ -59,12 +59,20 @@ import {
   classifyShiftPlanningCreatedRequest,
   createFirestoreShiftPlanningRuntime,
 } from "./shift-planning-firestore-runtime.js";
+import {
+  createFirestoreShiftPlanningOperatorRecoveryExecutor,
+} from "./shift-planning-operator-recovery.js";
+import {
+  createShiftPlanningOperatorRecoveryHttpFunction,
+} from "./shift-planning-operator-http.js";
 
 const firebaseApp = initializeApp();
 const auth = getAuth(firebaseApp);
 const firestore = getFirestore(firebaseApp);
 const messaging = getMessaging(firebaseApp);
 const shiftPlanningRuntime = createFirestoreShiftPlanningRuntime(firestore);
+const shiftPlanningRecoveryExecutor =
+  createFirestoreShiftPlanningOperatorRecoveryExecutor(firestore);
 
 setGlobalOptions({
   region: "europe-west1",
@@ -73,6 +81,12 @@ setGlobalOptions({
   memory: "256MiB",
   timeoutSeconds: 60,
 });
+
+export const executeShiftPlanningRecovery =
+  createShiftPlanningOperatorRecoveryHttpFunction(
+    shiftPlanningRecoveryExecutor,
+    logger,
+  );
 
 let ENV = "develop";
 

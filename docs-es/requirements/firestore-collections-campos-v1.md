@@ -728,8 +728,11 @@ ese escritor toda solicitud que declare schema v2. Preview/stage comparan las
 fuentes actuales en una transaccion de solo lectura antes de persistir su ciclo
 privado; activate entra directamente al CAS gobernado para que un replay terminal
 exacto no dependa de un preflight fuera de transaccion. El puerto inverse de
-recovery esta compuesto, pero sigue sin exportarse hasta implementar su frontera
-IAM-only ligada a una allowlist de mantenimiento. No se ha desplegado nada.
+recovery se exporta localmente solo mediante el adaptador HTTP de cuerpo exacto
+fijado al futuro email dedicado del operador, con auditoria sanitizada correlacionada
+y la allowlist de mantenimiento existente. HU-085 conserva el aprovisionamiento,
+el IAM de invocacion exacto, su prueba negativa y el despliegue. No se ha desplegado
+nada.
 
 `shiftPlanningState/sourcePolicy` es la autoridad backend-only schema v1 para
 los inputs que no pueden inferirse con seguridad desde colecciones de la app.

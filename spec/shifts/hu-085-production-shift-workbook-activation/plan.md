@@ -245,9 +245,11 @@ diff, or revision invalidates approval.
   digest/activity, revoke/read back the controller, and prove the candidate is the
   sole workbook data writer. Shared revisions retain minimum access to both stable
   workbooks with protected cross-route guards.
-- Provision the separate rollout operator principal/IAM for the exact operator-
-  only endpoint. Grant invoker only: no Firestore/Sheets role, runtime
-  impersonation, service-account token creation, or mobile-admin authority.
+- Provision the separate rollout operator principal
+  `reguerta-shifts-operator@reguerta-9f27f.iam.gserviceaccount.com` for the exact
+  operator-only endpoint. HU-082 pins this future identity but does not create it.
+  Grant invoker only: no Firestore/Sheets role, runtime impersonation,
+  service-account token creation, or mobile-admin authority.
 - Set the protected production workbook parameter and read back its fingerprint
   without exposing the value.
 - Immediately before every Phase 5+ migration, preview, stage, activation, sync,

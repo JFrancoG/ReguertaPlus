@@ -738,11 +738,22 @@ Node 22 Functions lint/build, 186 planning vectors with eleven emulator-only
 skips, 2/2 focused authorization vectors, and 3/3 governed activation/recovery
 Firestore-emulator vectors pass.
 
-No HTTP function is exported yet. The next cut needs the exact dedicated operator
-service-account identity so `invoker` is explicit rather than invented or broadly
-private; it must also prove IAM denial for mobile/admin principals and absence of
-direct Firestore/Sheets, impersonation, and token-minting roles. Nothing is deployed
-or activated in a shared Firebase project.
+The local HTTP recovery Function is now exported only for the exact future
+`reguerta-shifts-operator@reguerta-9f27f.iam.gserviceaccount.com` invoker. Its
+adapter accepts only POST with the exact body and no query parameters, returns a
+minimal correlated acknowledgement, and records sanitized accepted/completed/
+rejected/unknown audit events without request bodies, authorization digests,
+member data, or internal diagnostics. It deliberately does not select a Function
+runtime service account.
+
+Node 22 Functions lint/build, 193 planning vectors with eleven emulator-only
+skips, 7/7 focused HTTP boundary vectors, and 3/3 governed activation/recovery
+Firestore-emulator vectors pass.
+
+HU-085 still owns provisioning the named operator, granting and reading back its
+exact endpoint-only invocation, and proving IAM denial for mobile/admin principals
+plus absence of direct Firestore/Sheets, impersonation, and token-minting roles.
+Nothing is deployed or activated in a shared Firebase project.
 
 ## Suggested labels
 

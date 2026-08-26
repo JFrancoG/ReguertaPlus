@@ -293,8 +293,10 @@ documented in the English and Spanish Firestore references before code lands.
   outcome without another CAS, and fails closed when a committed terminal has
   lost that evidence. The inverse resolver now reloads the terminal, bundle,
   request, before-images, and all current delete/restore targets inside every
-  retry. Keep its composed recovery port unexported until the IAM-only operator
-  boundary can require a maintenance-allowlisted operation/revision/digest.
+  retry. Export that composed recovery port only through the HTTP declaration
+  pinned to the exact future IAM operator, with strict request/response audit
+  handling and the same maintenance-allowlisted operation/revision/digest. Live
+  principal provisioning and IAM allow/deny proof remain inside HU-085.
 - Emit stable digest-bound Sheets-sync command IDs in that transaction and define
   the exact manifest/idempotency/marker protocol. Prove it with a test consumer;
   HU-083 implements the real explicit pull/invoked multi-season worker. Pending

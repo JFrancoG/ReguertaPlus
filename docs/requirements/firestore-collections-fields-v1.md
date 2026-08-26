@@ -624,8 +624,11 @@ unversioned requests as legacy and routes every declared schema-v2 request away
 from that writer. Preview/stage use a read-only same-source comparison before
 private lifecycle persistence; activate enters the governed CAS directly so an
 exact terminal replay does not depend on an out-of-transaction preflight. The
-inverse recovery port is composed but remains unexported until its IAM-only,
-maintenance-allowlisted command boundary is implemented. Nothing is deployed.
+inverse recovery port is exported locally only through the exact-body HTTP adapter
+pinned to the future dedicated operator email, with sanitized correlated audit
+handling and the existing maintenance allowlist. HU-085 still owns principal
+provisioning, exact invoker IAM/negative permission proof, and deployment. Nothing
+is deployed.
 
 `shiftPlanningState/sourcePolicy` is the backend-only schema-v1 authority for
 inputs that cannot be inferred safely from application collections. It exactly

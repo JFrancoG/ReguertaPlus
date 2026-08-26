@@ -570,10 +570,13 @@ fallan antes de mutar. El replay terminal conserva la misma allowlist de entrada
 El productor gobernado mantiene `shiftPlanningState/fairness` desde las fuentes
 reales y `index.ts` clasifica primero la version para conservar el trigger legacy,
 rechazar versiones desconocidas y enrutar localmente v2 a preview, stage o CAS de
-activacion. Recovery sigue sin endpoint exportado: falta encerrarlo en la frontera
-HTTP con la identidad IAM dedicada exacta. El puerto allowlisted ya existe, pero
-no se inventa un principal ni se exporta una ruta privada por defecto. Tampoco
-existen aun ensayo en clon, despliegue ni escritura compartida.
+activacion. Recovery se exporta localmente con `onRequest` solo para el invoker
+futuro exacto `reguerta-shifts-operator@reguerta-9f27f.iam.gserviceaccount.com`.
+La frontera acepta solo POST, cuerpo exacto y cero query params; correlaciona
+respuestas y auditoria sanitizada sin registrar el cuerpo, digest de autorizacion,
+datos de miembros ni diagnosticos internos. No selecciona una service account de
+runtime. HU-085 aun debe aprovisionar el operador, otorgar y releer solo invocacion,
+probar permisos negativos, desplegar y ensayar; no existe escritura compartida.
 
 ### Fronteras, manifests y side effects diferidos
 
