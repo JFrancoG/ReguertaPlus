@@ -656,8 +656,7 @@ de sync, intenciones retenidas, before-images y terminal de activacion. Cada
 update usa su `lastUpdateTime` leido en la transaccion; el conjunto completo debe
 igualar presupuesto forward y manifest de creates inverse antes de que el
 adaptador fijado lo mida y selle. La evidencia de emulador es solo local: carga
-runtime, evidencia persistida del resultado y activacion productiva siguen
-pendientes.
+runtime y activacion productiva siguen pendientes.
 
 El materializador inverse recalcula los digests de bundle/manifest y valida el
 terminal de activacion, request completada, before-images contiguas, targets
@@ -676,7 +675,26 @@ Las before-images y request completada de activacion permanecen; la escritura de
 request es un touch protegido del terminal historico, no una afirmacion de que el
 recovery no ocurrio. El presupuesto inverse exacto se mide/sella con el adaptador
 fijado y queda probado localmente en emulador Firestore. La carga/ejecucion runtime
-y la evidencia persistida del resultado del intento siguen pendientes.
+sigue pendiente.
+
+Cuando una transaccion forward o inverse medida devuelve exito, el protocolo
+local de outcome crea
+`shiftPlanningOperations/{operationId}/attemptOutcomes/{attemptId}`. El
+`attemptId` estable es `{direction}-{commitRequestDigestHex}`. El schema v1 exige
+`operationKind = planningTransactionAttemptOutcome`, `state = committed` y
+`acknowledgement = transactionReturned`; liga entorno, intent de operacion,
+revision/digest del bundle, write epoch, direccion, `recordedAt` posterior al
+retorno, medicion exacta completa, `measurementDigest` y `outcomeDigest`. No
+guarda el token opaco de la transaccion ni afirma un acknowledgement de
+transporte de nivel inferior.
+
+El repositorio backend crea el outcome sin sobrescribir mediante una transaccion
+separada. Un outcome nuevo debe concordar con el terminal actual de activacion o
+recovery, incluidos intent, bundle, epoch y manifest especifico de la direccion.
+Los replays exactos convergen en el documento inmutable y una relectura
+independiente revalida ruta, clave, campos y digests. Un outcome forward exacto
+ya retenido sigue siendo evidencia historica valida despues de que el terminal
+padre pase a recovery. La invocacion runtime sigue pendiente.
 
 Las siete colecciones son solo backend: las Rules estrictas niegan cualquier
 lectura o escritura de cliente, tambien a admins. Sus esquemas internos no son

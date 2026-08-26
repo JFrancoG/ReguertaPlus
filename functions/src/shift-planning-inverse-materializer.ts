@@ -98,6 +98,29 @@ export type ShiftPlanningInverseRecoveryAttempt = {
 
 type UnknownRecord = Record<string, unknown>;
 
+const recoveryOperationFields = [
+  "schemaVersion",
+  "operationKind",
+  "state",
+  "operationId",
+  "recoveryOperationId",
+  "environment",
+  "requestId",
+  "bundleRevision",
+  "bundleDigest",
+  "forwardManifestDigest",
+  "inverseManifestDigest",
+  "activationOperationIntentDigest",
+  "expectedStateDigest",
+  "activationWriteEpoch",
+  "recoveryWriteEpoch",
+  "recoveredAt",
+  "restoreActiveLineage",
+  "deletedPaths",
+  "restoredBeforeImages",
+  "recoveryIntentDigest",
+] as const;
+
 const failInverse = (message: string): never => {
   throw new ShiftPlanningError(
     "invalid_planning_inverse_materialization",
@@ -126,6 +149,37 @@ const requireIdentifier = (value: unknown, name: string): string => {
     return failInverse(`${name} is not a valid identifier.`);
   }
   return value;
+};
+
+const requireDigest = (value: unknown, name: string): string => {
+  if (
+    typeof value !== "string" ||
+    !/^shift-planning:v1:sha256:[a-f0-9]{64}$/.test(value)
+  ) {
+    return failInverse(`${name} is not a planning digest.`);
+  }
+  return value;
+};
+
+const requireNonNegativeInteger = (value: unknown, name: string): number => {
+  if (!Number.isSafeInteger(value) || (value as number) < 0) {
+    return failInverse(`${name} must be a non-negative safe integer.`);
+  }
+  return value as number;
+};
+
+const requireExactFields = (
+  value: UnknownRecord,
+  fields: readonly string[],
+  name: string,
+): void => {
+  const actual = Object.keys(value);
+  if (
+    actual.length !== fields.length ||
+    actual.some((field) => !fields.includes(field))
+  ) {
+    failInverse(`${name} fields are not exact.`);
+  }
 };
 
 const requireTimestamp = (value: unknown, name: string): Timestamp => {
@@ -718,14 +772,213 @@ const createRecoveryOperation = (input: {
   };
   return {
     ...withoutDigest,
-    recoveryIntentDigest: createShiftPlanningDigest({
-      ...withoutDigest,
-      recoveredAt: {
-        seconds: withoutDigest.recoveredAt.seconds,
-        nanoseconds: withoutDigest.recoveredAt.nanoseconds,
-      },
-    }),
+    recoveryIntentDigest: createShiftPlanningDigest(
+      recoveryOperationDigestCore(withoutDigest),
+    ),
   };
+};
+
+const recoveryOperationDigestCore = (
+  value: Omit<
+    ShiftPlanningRecoveryOperationTerminal,
+    "recoveryIntentDigest"
+  >,
+): object => ({
+  ...value,
+  recoveredAt: {
+    seconds: value.recoveredAt.seconds,
+    nanoseconds: value.recoveredAt.nanoseconds,
+  },
+});
+
+/**
+ * Parses the terminal that replaces one committed activation after a valid
+ * inverse recovery. It preserves the original activation binding while adding
+ * the strictly newer recovery epoch and its own non-self-referential digest.
+ * @param {unknown} value Persisted recovery operation document.
+ * @return {ShiftPlanningRecoveryOperationTerminal} Canonical terminal.
+ */
+export const parseShiftPlanningRecoveryOperationTerminal = (
+  value: unknown,
+): ShiftPlanningRecoveryOperationTerminal => {
+  const operation = requireRecord(value, "recovery operation");
+  requireExactFields(
+    operation,
+    recoveryOperationFields,
+    "recovery operation",
+  );
+  if (
+    operation.schemaVersion !==
+      SHIFT_PLANNING_RECOVERY_OPERATION_SCHEMA_VERSION ||
+    operation.operationKind !== "activationRecovery" ||
+    operation.state !== "committed"
+  ) {
+    return failInverse("Recovery operation discriminators are invalid.");
+  }
+  const environment = operation.environment;
+  if (environment !== "develop" && environment !== "production") {
+    return failInverse("Recovery operation environment is invalid.");
+  }
+  const operationId = requireIdentifier(operation.operationId, "operationId");
+  const recoveryOperationId = requireIdentifier(
+    operation.recoveryOperationId,
+    "recoveryOperationId",
+  );
+  const requestId = requireIdentifier(operation.requestId, "requestId");
+  if (
+    operationId !== `request-${requestId}` ||
+    recoveryOperationId === operationId
+  ) {
+    return failInverse("Recovery operation identity is not canonical.");
+  }
+  const activationWriteEpoch = requireNonNegativeInteger(
+    operation.activationWriteEpoch,
+    "activation write epoch",
+  );
+  const recoveryWriteEpoch = requireNonNegativeInteger(
+    operation.recoveryWriteEpoch,
+    "recovery write epoch",
+  );
+  if (recoveryWriteEpoch <= activationWriteEpoch) {
+    return failInverse("Recovery write epoch is not strictly newer.");
+  }
+  const lineage = requireRecord(
+    operation.restoreActiveLineage,
+    "restored active lineage",
+  );
+  requireExactFields(
+    lineage,
+    ["revision", "digest"],
+    "restored active lineage",
+  );
+  const revision = lineage.revision === null ? null : requireIdentifier(
+    lineage.revision,
+    "restored active revision",
+  );
+  const digest = lineage.digest === null ? null : requireDigest(
+    lineage.digest,
+    "restored active digest",
+  );
+  if ((revision === null) !== (digest === null)) {
+    return failInverse("Restored active lineage is incomplete.");
+  }
+  if (!Array.isArray(operation.deletedPaths)) {
+    return failInverse("Recovery deleted paths must be an array.");
+  }
+  const deletedPaths = operation.deletedPaths.map((path) =>
+    requireDocumentPath(path, environment, "recovery deleted path"));
+  if (
+    deletedPaths.length < 1 ||
+    new Set(deletedPaths).size !== deletedPaths.length ||
+    deletedPaths.some((path, index) =>
+      index > 0 && deletedPaths[index - 1] >= path)
+  ) {
+    return failInverse("Recovery deleted paths are not canonical.");
+  }
+  if (!Array.isArray(operation.restoredBeforeImages)) {
+    return failInverse("Recovery before-image bindings must be an array.");
+  }
+  const restoredBeforeImages = operation.restoredBeforeImages.map(
+    (rawBinding, index): ShiftPlanningBeforeImageBinding => {
+      const binding = requireRecord(
+        rawBinding,
+        `recovery before-image binding ${index + 1}`,
+      );
+      requireExactFields(
+        binding,
+        ["ordinal", "targetPath", "envelopePath", "envelopeDigest"],
+        `recovery before-image binding ${index + 1}`,
+      );
+      const ordinal = requireNonNegativeInteger(
+        binding.ordinal,
+        "recovery before-image ordinal",
+      );
+      const targetPath = requireDocumentPath(
+        binding.targetPath,
+        environment,
+        "recovery before-image target",
+      );
+      const envelopePath = requireDocumentPath(
+        binding.envelopePath,
+        environment,
+        "recovery before-image envelope",
+      );
+      if (
+        ordinal !== index + 1 ||
+        envelopePath !== `${environment}/plus-collections/` +
+          `shiftPlanningOperations/${operationId}/beforeImages/${ordinal}`
+      ) {
+        return failInverse("Recovery before-image binding is not canonical.");
+      }
+      return {
+        ordinal,
+        targetPath,
+        envelopePath,
+        envelopeDigest: requireDigest(
+          binding.envelopeDigest,
+          "recovery before-image envelope digest",
+        ),
+      };
+    },
+  );
+  if (
+    restoredBeforeImages.length < 3 ||
+    new Set(restoredBeforeImages.map((item) => item.targetPath)).size !==
+      restoredBeforeImages.length
+  ) {
+    return failInverse("Recovery before-image bindings are incomplete.");
+  }
+  const withoutDigest: Omit<
+    ShiftPlanningRecoveryOperationTerminal,
+    "recoveryIntentDigest"
+  > = {
+    schemaVersion: SHIFT_PLANNING_RECOVERY_OPERATION_SCHEMA_VERSION,
+    operationKind: "activationRecovery",
+    state: "committed",
+    operationId,
+    recoveryOperationId,
+    environment,
+    requestId,
+    bundleRevision: requireIdentifier(
+      operation.bundleRevision,
+      "bundle revision",
+    ),
+    bundleDigest: requireDigest(operation.bundleDigest, "bundle digest"),
+    forwardManifestDigest: requireDigest(
+      operation.forwardManifestDigest,
+      "forward manifest digest",
+    ),
+    inverseManifestDigest: requireDigest(
+      operation.inverseManifestDigest,
+      "inverse manifest digest",
+    ),
+    activationOperationIntentDigest: requireDigest(
+      operation.activationOperationIntentDigest,
+      "activation operation intent digest",
+    ),
+    expectedStateDigest: requireDigest(
+      operation.expectedStateDigest,
+      "expected state digest",
+    ),
+    activationWriteEpoch,
+    recoveryWriteEpoch,
+    recoveredAt: requireTimestamp(operation.recoveredAt, "recoveredAt"),
+    restoreActiveLineage: {revision, digest},
+    deletedPaths,
+    restoredBeforeImages,
+  };
+  const recoveryIntentDigest = requireDigest(
+    operation.recoveryIntentDigest,
+    "recovery intent digest",
+  );
+  if (
+    recoveryIntentDigest !== createShiftPlanningDigest(
+      recoveryOperationDigestCore(withoutDigest),
+    )
+  ) {
+    return failInverse("Recovery operation intent digest does not match.");
+  }
+  return {...withoutDigest, recoveryIntentDigest};
 };
 
 /**

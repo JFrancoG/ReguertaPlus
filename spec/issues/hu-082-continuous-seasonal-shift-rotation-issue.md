@@ -576,6 +576,32 @@ lane skips both emulator-only vectors. The seam remains disconnected from
 `index.ts`; persisted non-circular outcome evidence, repository/runtime CAS
 wiring, rehearsal, deployment, and live activation/recovery remain pending.
 
+## Local implementation checkpoint — non-circular attempt outcomes (2026-08-26)
+
+The local outcome contract now creates immutable backend-only evidence only
+after a measured forward or inverse Firestore transaction returns successfully.
+Direction plus the exact commit-request digest derive the stable attempt key. The
+record binds operation intent, bundle, write epoch, direction-specific manifest,
+the complete measurement, a post-return timestamp, and rederived measurement and
+outcome digests. It persists neither the opaque transaction token nor a stronger
+transport acknowledgement claim.
+
+The Firestore repository creates a new outcome without overwrite in a separate
+transaction and first validates the authorizing activation or recovery terminal.
+An exact retry converges on the same immutable document, conflicting evidence
+fails closed, and an independent read-back revalidates the result. A previously
+retained forward outcome remains valid historical evidence after a later
+recovery replaces the parent terminal; only new evidence depends on its current
+state.
+
+Node 22 Functions lint/build, 3/3 pure focused vectors, 4/4 focused
+Firestore-emulator vectors, and 167/167 non-emulator planning vectors pass; the
+ordinary lane skips three emulator-only vectors. No shared/public write, runtime
+wiring, transport, deployment, or live activation/recovery occurred. The next
+cut is the runtime repository and orchestration that rereads each retry's
+authoritative inputs, executes the forward/recovery CAS, and records this
+post-return outcome.
+
 ## Suggested labels
 
 - `type:feature`

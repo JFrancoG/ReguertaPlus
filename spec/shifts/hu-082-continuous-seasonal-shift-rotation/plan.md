@@ -262,8 +262,13 @@ documented in the English and Spanish Firestore references before code lands.
   the write-set and complete `CommitRequest` digests/bytes and recheck the
   conservative cardinality/10-MiB gates before public writes. Stage retains only
   structural budgets and measurement authority; it never persists synthetic
-  future evidence. Persist the eventual outcome through a separate non-circular
-  protocol rather than embedding the request digest inside its own request.
+  future evidence. After a measured transaction returns successfully, persist a
+  separate immutable `transactionReturned` outcome rather than embedding the
+  request digest inside its own request. Key it by direction plus exact
+  commit-request digest; bind it to the operation terminal, intent, bundle,
+  epoch, manifest, and complete measurement. Create it without overwrite,
+  converge exact retries, and independently read it back. Do not persist the
+  opaque token or claim a lower-level transport acknowledgement.
 - Materialize the complete forward activation only after a live recomputation
   reproduces the staged artifact. Bind all public creates/guarded predecessor
   update, rotations/leases, active state, request terminal, sync commands, held
@@ -280,7 +285,7 @@ documented in the English and Spanish Firestore references before code lands.
   for top-level fields that exist only after activation. Replace the activation
   terminal with a digest-bound recovery terminal, retain before-images and the
   completed historical request, and keep this seam disconnected from `index.ts`
-  until runtime reads and non-circular outcome evidence are implemented.
+  until runtime reads and CAS orchestration are implemented.
 - Emit stable digest-bound Sheets-sync command IDs in that transaction and define
   the exact manifest/idempotency/marker protocol. Prove it with a test consumer;
   HU-083 implements the real explicit pull/invoked multi-season worker. Pending

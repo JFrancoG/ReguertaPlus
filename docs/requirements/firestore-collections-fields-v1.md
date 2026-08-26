@@ -545,7 +545,7 @@ the two sync commands, held intents, before-images, and the activation terminal.
 Every update uses its transaction-read `lastUpdateTime`; the complete mutation
 set must equal the forward budget and inverse create manifest before the pinned
 attempt adapter measures and seals it. Emulator evidence is local only: runtime
-loading, persisted outcome evidence, and production activation remain pending.
+loading and production activation remain pending.
 
 The inverse materializer re-digests the bundle/manifest and validates the
 activation terminal, completed request, contiguous before-images, unchanged
@@ -563,8 +563,26 @@ non-self-referential `recoveryIntentDigest`. Before-images and the completed
 activation request remain; the request write is a guarded historical-terminal
 touch, not a claim that recovery never occurred. The exact inverse budget is
 measured/sealed by the pinned adapter and proven locally in the Firestore
-emulator. Runtime loading/execution and persisted attempt outcome evidence are
-still pending.
+emulator. Runtime loading/execution is still pending.
+
+After a measured forward or inverse transaction returns successfully, the local
+outcome protocol creates
+`shiftPlanningOperations/{operationId}/attemptOutcomes/{attemptId}`. The stable
+`attemptId` is `{direction}-{commitRequestDigestHex}`. Schema v1 requires
+`operationKind = planningTransactionAttemptOutcome`, `state = committed`, and
+`acknowledgement = transactionReturned`; it binds environment, operation intent,
+bundle revision/digest, write epoch, direction, post-return `recordedAt`, the
+complete exact measurement, `measurementDigest`, and `outcomeDigest`. It stores
+neither the opaque transaction token nor a claim of lower-level transport
+acknowledgement.
+
+The backend repository creates the outcome without overwrite in a separate
+transaction. A new outcome must match the current activation or recovery
+terminal, including intent, bundle, epoch, and direction-specific manifest.
+Exact retries converge on the immutable document and an independent read-back
+revalidates its path, key, fields, and digests. An already retained exact forward
+outcome remains valid historical evidence after the parent terminal transitions
+to recovery. Runtime invocation remains pending.
 
 All seven collections are backend-only: strict Rules deny every client read and
 write, including admin clients. Their internal field schemas are not a mobile

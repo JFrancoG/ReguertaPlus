@@ -517,11 +517,26 @@ top-level que ya no deben existir. Before-images y request historica completada
 se conservan. Un vector de emulador confirma el mismo batch inverse medido y
 sellado por el adaptador real.
 
+`shift-planning-attempt-outcome.ts` fija el acuse backend-only que se construye
+solo despues de que la transaccion medida devuelve exito. Su ID estable combina
+direccion y digest exacto del `CommitRequest`; el documento liga intent, bundle,
+epoch, manifest, medicion completa, timestamp posterior al retorno y digests
+derivados, sin persistir el token opaco ni introducir su digest dentro de la
+peticion medida.
+
+`shift-planning-firestore-attempt-outcome-repository.ts` crea ese documento sin
+sobrescritura bajo `shiftPlanningOperations/{operationId}/attemptOutcomes`,
+valida el terminal forward o inverse que lo autoriza, hace converger el replay
+exacto y ejecuta una relectura independiente. Un replay historico exacto sigue
+siendo valido aunque el terminal de activacion haya pasado despues a recovery;
+un intento nuevo siempre debe concordar con el terminal actual.
+
 El seam no esta conectado todavia desde `index.ts`: el caller futuro debe releer
 y recalcular roster, membership, configuracion/politica/calendario, overrides,
-workbook/particiones y estado autoritativo dentro de cada callback reintentado.
-No existe aun CAS productivo conectado, evidencia persistida del resultado no
-circular, despliegue ni escritura compartida.
+workbook/particiones y estado autoritativo dentro de cada callback reintentado,
+ejecutar el CAS productivo y registrar el outcome posterior. No existe aun
+orquestacion productiva conectada, ensayo en clon, despliegue ni escritura
+compartida.
 
 ### Fronteras, manifests y side effects diferidos
 

@@ -228,10 +228,18 @@ the authority and forces the retry to rebuild and remeasure. Successful measurem
 replaces operations with detached measured `Write` copies, makes operation storage
 adapter-owned, and reserializes the complete request immediately before transport.
 A changed token or byte sequence fails closed. The measurement remains in memory
-because placing its own request digest inside that request would be circular;
-immutable outcome evidence needs a separate protocol. The index-configuration
-digest records the audited authority but does not replace the isolated-clone
-rehearsal needed for backend index-entry accounting.
+while that request commits because placing its own request digest inside the
+request would be circular. Once the measured transaction returns successfully, a
+separate backend-only protocol creates an immutable `transactionReturned`
+outcome beneath the committed operation. Direction plus exact commit-request
+digest form its stable key; it binds operation intent, bundle, epoch, manifest,
+the complete measurement, a post-return timestamp, and derived digests. The
+repository uses create-without-overwrite, validates the authorizing forward or
+inverse terminal, converges exact replay, and performs an independent read-back.
+It persists neither the opaque token nor a claim of lower-level transport
+acknowledgement. The index-configuration digest records the audited authority but
+does not replace the isolated-clone rehearsal needed for backend index-entry
+accounting.
 
 Before semantic materialization, publication codec v1 freezes the exact flat
 public payload, backend mutation marker, activation tombstone, and before-image
@@ -277,7 +285,7 @@ terminal replacement.
 
 This seam is not connected from `index.ts`: production still needs a repository
 adapter that rereads and recomputes every fairness input inside each retried
-transaction callback. Non-circular persisted outcome evidence, governed
+transaction callback and invokes the post-return outcome protocol. Governed
 rehearsal, production CAS, deployment, and live activation/recovery remain
 pending.
 Activation is the acknowledged public-visibility boundary and queues Sheets sync

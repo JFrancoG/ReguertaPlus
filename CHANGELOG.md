@@ -31,6 +31,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-08-26 | ✨ feat(shifts): persist attempt outcomes
 - 2026-08-26 | ✨ feat(shifts): materialize inverse recoveries
 - 2026-08-26 | ✨ feat(shifts): materialize forward activations
 - 2026-08-25 | ✨ feat(shifts): add activation transaction contracts

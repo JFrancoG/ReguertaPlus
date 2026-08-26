@@ -249,11 +249,17 @@ does not populate Firestore public shifts or activate either mobile app.
   measured `Write` protos. Its commit guard supplies a detached token copy,
   rejects any different token, reserializes and compares the complete request
   immediately before transport, and requires remeasurement after SDK reset. The
-    measurement remains in memory: its digest cannot be embedded in the same
-    request whose bytes define that digest. Immutable outcome evidence therefore
-    needs a separate non-circular protocol. Index authority remains digest-bound,
-    while backend index-entry accounting still requires the isolated-clone
-    rehearsal.
+  measurement remains in memory while that request commits: its digest cannot be
+  embedded in the same request whose bytes define that digest. After the measured
+  transaction returns successfully, a separate backend-only protocol persists an
+  immutable `transactionReturned` outcome under the committed operation. Its
+  stable key combines direction and exact commit-request digest; it binds the
+  complete measurement, intent, bundle, epoch, manifest, post-return timestamp,
+  and derived digests. Create-without-overwrite, exact replay convergence,
+  terminal-operation validation, and independent read-back fail closed without
+  claiming a transport acknowledgement token. Index authority remains
+  digest-bound, while backend index-entry accounting still requires the
+  isolated-clone rehearsal.
 - Publication codec v1 freezes the exact materializer-facing flat shift shape.
   It retains the fields installed Android/iOS clients require and uses
   `source = app`, while adding planner/bundle lineage, immutable rotation
@@ -280,8 +286,7 @@ does not populate Firestore public shifts or activate either mobile app.
   The real pinned attempt adapter measures and seals that same SDK-owned batch;
   an emulator vector proves its atomic commit. The seam is not wired to
   `index.ts`, and each future retry must reread and recompute the complete
-  fairness snapshot inside its own callback. Credits remain closed until HU-084;
-  persisted non-circular outcome evidence remains a separate pending cut.
+  fairness snapshot inside its own callback. Credits remain closed until HU-084.
 - The local inverse materializer revalidates the persisted bundle/inverse
   manifest, activation tombstone, completed request, every before-image, every
   created target, the exact active bundle/epoch CAS, and ownership of both sealed
@@ -294,8 +299,7 @@ does not populate Firestore public shifts or activate either mobile app.
   tombstone, while immutable before-images and the historical completed request
   remain. The pinned attempt adapter measures/seals the exact inverse batch and
   an emulator vector proves atomic delete/restore/epoch behavior. Runtime wiring,
-  persisted non-circular outcome evidence, rehearsal, and production execution
-  remain pending.
+  rehearsal, and production execution remain pending.
 - The digest covers every fairness input and its version: eligible membership,
   rotation/cursor, calendar and policy/configuration, relevant overrides, and,
   when HU-084 is enabled, the complete same-type coverage-credit ledger version.

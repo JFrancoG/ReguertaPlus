@@ -241,7 +241,7 @@ occurred. Protected technical evidence remains outside the repository.
     - [x] Feed the exact ordered mutations to the pinned real-attempt adapter;
       focused vectors and a Firestore-emulator transaction prove the same
       measured SDK batch commits atomically. Runtime repository wiring,
-      production CAS and persisted outcome evidence remain pending.
+      production CAS, and post-return outcome invocation remain pending.
     - [x] Validation: Node 22 Functions lint/build, 4/4 pure focused vectors,
       5/5 focused vectors with Firestore emulator, and 161/161 non-emulator
       planning unit vectors pass; the emulator-only vector is skipped by the
@@ -261,14 +261,26 @@ occurred. Protected technical evidence remains outside the repository.
       completed historical request.
     - [x] Feed the exact inverse budget to the pinned real-attempt adapter;
       focused pure vectors and a Firestore-emulator transaction prove atomic
-      delete/restore/epoch behavior. Runtime wiring and persisted non-circular
-      outcome evidence remain pending.
+      delete/restore/epoch behavior. Runtime wiring and post-return outcome
+      invocation remain pending.
     - [x] Validation: Node 22 Functions lint/build, 3/3 pure focused vectors,
       4/4 focused vectors with Firestore emulator, and 164/164 non-emulator
       planning unit vectors pass; the two emulator-only vectors are skipped by
       the ordinary unit lane. No shared/public write, transport, or deployment.
   - [ ] Persist immutable non-circular backend-only attempt outcome evidence and
     execute the maintenance/publication and recovery CAS paths.
+    - [x] Persist a canonical `transactionReturned` outcome only after the
+      measured transaction succeeds, keyed by direction and exact commit-request
+      digest and bound to intent, bundle, epoch, manifest, and full measurement.
+    - [x] Use create-without-overwrite semantics, exact replay convergence,
+      operation-terminal validation, and an independent read-back without
+      persisting the opaque token or embedding evidence in the measured request.
+    - [x] Validation: Node 22 Functions lint/build, 3/3 pure focused vectors,
+      4/4 focused Firestore-emulator vectors, and 167/167 non-emulator planning
+      vectors pass; the ordinary lane skips three emulator-only vectors. No
+      shared/public write, runtime connection, transport, or deployment.
+    - [ ] Wire the maintenance/publication and recovery CAS paths to the runtime
+      repository, recording each successful forward/inverse attempt outcome.
 - [ ] Include membership, rotation, policy/config/calendar override, and enabled
   credit-ledger versions plus any migration-baseline revision/digest in the
   candidate lineage; transactionally recheck them and commit planned credit

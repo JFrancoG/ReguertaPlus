@@ -240,8 +240,15 @@ Una medicion correcta sustituye las operaciones por copias separadas de los prot
 `Write` medidos, hace que el almacenamiento de operaciones pertenezca al adaptador
 y reserializa la peticion completa justo antes del transporte. Otro token o una
 secuencia de bytes distinta falla en cerrado. La medicion permanece en memoria
-porque incluir su propio digest dentro de la peticion medida seria circular; la
-evidencia inmutable del resultado necesita otro protocolo. Su digest de
+mientras esa peticion hace commit porque incluir su propio digest dentro de la
+peticion medida seria circular. Cuando la transaccion medida devuelve exito, un
+protocolo backend separado crea un outcome inmutable `transactionReturned` bajo
+la operacion confirmada. Direccion y digest exacto del `CommitRequest` forman su
+clave estable; liga intent, bundle, epoch, manifest, medicion completa, timestamp
+posterior al retorno y digests derivados. El repositorio crea sin sobrescribir,
+valida el terminal forward o inverse que lo autoriza, hace converger el replay
+exacto y realiza una relectura independiente. No persiste el token opaco ni
+afirma un acknowledgement de transporte de nivel inferior. Su digest de
 configuracion de indices registra la autoridad auditada, pero no sustituye al
 ensayo en clon aislado necesario para contabilizar las entradas de indice del backend. La
 materializacion semantica queda precedida por un codec de publicacion v1 que fija
@@ -291,8 +298,8 @@ restauracion, epoch superior y reemplazo exacto del terminal de forma atomica.
 
 Este seam no esta conectado desde `index.ts`: produccion aun necesita un
 adaptador de repositorio que relea y recalcule todos los inputs de fairness dentro
-de cada callback transaccional reintentado. Siguen pendientes la evidencia
-persistida no circular del resultado, el ensayo gobernado, el CAS productivo, el
+de cada callback transaccional reintentado e invoque el protocolo de outcome tras
+el retorno correcto. Siguen pendientes el ensayo gobernado, el CAS productivo, el
 despliegue y la activacion/recovery live.
 La activación es el límite reconocido de visibilidad pública y encola
 sync de Sheets e intenciones de notificación retenidas.
