@@ -306,8 +306,13 @@ does not populate Firestore public shifts or activate either mobile app.
   terminal missing its directional outcome fails closed. The local concrete
   resolver now rebuilds the forward read-set from a digest-bound live source,
   staged package, and authoritative documents, while recovery reloads every
-  terminal/before-image/current target. The governed live-source producer,
-  `index.ts` routing, rehearsal, and production execution remain pending.
+  terminal/before-image/current target. The governed live-source producer now
+  transactionally rebuilds the derived fairness envelope from bounded real
+  membership/device/calendar reads, canonical config, authoritative state and
+  rotations, and an exact backend-only source policy. Exact replay is write-free
+  and invalid or over-limit sources preserve the prior envelope. Same-CAS source
+  recheck, `index.ts` routing, rehearsal, and production execution remain
+  pending.
 - The digest covers every fairness input and its version: eligible membership,
   rotation/cursor, calendar and policy/configuration, relevant overrides, and,
   when HU-084 is enabled, the complete same-type coverage-credit ledger version.

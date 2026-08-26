@@ -308,9 +308,14 @@ inmutable, estado/rotaciones autoritativos y todos los targets de before-image.
 Su par inverse lee tombstone, bundle, request, before-images y todos los targets
 actuales de delete/restore. El emulador prueba drift valido sin escrituras
 publicas, activacion exacta y recovery con epoch superior. Este seam no esta
-conectado desde `index.ts`: siguen pendientes el productor gobernado que
-reconstruya la envolvente live desde las fuentes reales, routing, ensayo,
-despliegue y ejecucion live.
+conectado desde `index.ts`. El productor gobernado local ya reconstruye la
+envolvente live transaccionalmente desde proyecciones acotadas de miembros/
+dispositivos y calendario, config canonica, estado/rotaciones autoritativos y
+`shiftPlanningState/sourcePolicy` backend-only exacto. Hashea los destinos de
+notificacion, ignora metadatos de miembro exclusivos de autenticacion, no escribe
+en un replay exacto y conserva la ultima envolvente valida si una fuente esta
+mal formada o supera su limite. Siguen pendientes routing, recheck de fuentes
+en el mismo CAS, ensayo, despliegue y ejecucion live.
 La activación es el límite reconocido de visibilidad pública y encola
 sync de Sheets e intenciones de notificación retenidas.
 

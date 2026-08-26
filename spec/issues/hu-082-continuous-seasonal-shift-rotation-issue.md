@@ -655,6 +655,27 @@ activation/recovery occurred. The next cut is the governed producer that rebuild
 the live envelope from real sources plus v2 request/recovery routing while the
 legacy production trigger remains active.
 
+## Local implementation checkpoint — governed live-source producer (2026-08-26)
+
+The backend now transactionally rebuilds `shiftPlanningState/fairness` from
+bounded canonical sources: all member eligibility projections, device
+destination projections only for currently eligible members, `config/global`,
+`deliveryCalendar`, maintenance, both rotations, and the exact backend-owned
+`shiftPlanningState/sourcePolicy`. Authentication-only member metadata is
+excluded; raw notification credentials are hashed and never copied into the
+derived envelope. Stable full digests plus numeric per-member revisions capture
+membership, eligibility, destination deletion/change, calendar, config, policy,
+rotation, workbook, and migration-baseline drift.
+
+The producer creates or replaces the envelope only after the complete source
+read-set validates. Exact replay performs no write, and malformed or over-limit
+sources leave the preceding valid envelope unchanged. Firestore-emulator vectors
+prove create/replay, auth-only invariance, destination drift, and atomic
+fail-closed preservation. The producer remains local and disconnected from
+`index.ts`; the next cut must recompute the same sources inside the activation
+CAS before request/recovery routing is enabled. No shared/public Firebase write,
+transport, deployment, or live activation/recovery occurred.
+
 ## Suggested labels
 
 - `type:feature`

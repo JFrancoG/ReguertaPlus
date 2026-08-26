@@ -597,7 +597,23 @@ credit-ledger, workbook-partition, measurement-authority, and migration-baseline
 versions. The envelope is re-digested before planning; any valid live drift must
 recompute a different bundle and fail the staged candidate binding without
 writing. The governed producer that refreshes this envelope from real sources
-and `index.ts` routing remain pending.
+is now implemented locally. It transactionally reads bounded `users` and
+per-eligible-member `devices` projections, `config/global`, bounded
+`deliveryCalendar`, maintenance, both rotations, and
+`shiftPlanningState/sourcePolicy`. It excludes authentication-only member
+metadata, hashes notification credentials instead of copying them, derives
+stable per-member membership/eligibility/destination revisions, and creates or
+replaces `fairness` only after every source validates. Exact replay performs no
+write; an invalid or over-limit source leaves the preceding envelope intact.
+`index.ts` routing remains pending.
+
+`shiftPlanningState/sourcePolicy` is the backend-only schema-v1 authority for
+inputs that cannot be inferred safely from application collections. It exactly
+contains `environment`, `policyRevision`, delivery and market continuity/
+prefix/occupancy inputs, release-lease duration, the disabled HU-084 credit
+ledger, workbook partitions and sync/measurement authority, and the conservative
+transaction write limit. It is an input to the producer, never a client or
+derived-cache contract.
 
 All seven collections are backend-only: strict Rules deny every client read and
 write, including admin clients. Their internal field schemas are not a mobile
@@ -612,9 +628,12 @@ authoritative CAS read-set:
   `open` requires a null barrier; `closed` requires exact verified barrier
   evidence (`revision`, `digest`, `verifiedAtMillis`).
 - `shiftPlanningState/fairness` contains the exact schema-v1 live-source
-  envelope and digest that the future preview/stage producer must use and every
-  activation retry re-reads. It is not a client contract or an independently
-  trusted cache: the governed producer must rebuild it from the real sources.
+  envelope and digest that preview/stage must use and every activation retry
+  re-reads. It is not a client contract or an independently trusted cache: the
+  governed producer rebuilds it from the real sources.
+- `shiftPlanningState/sourcePolicy` contains the exact backend-owned non-derived
+  inputs consumed while rebuilding `fairness`; malformed, mismatched, or
+  unsupported policy fails closed.
 - `shiftRotations/delivery` and `shiftRotations/market` contain the exact typed
   aggregate, cursor, planning frontier, frozen-cohort state, paired active
   lineage, last idempotency key, migration baseline, and optional release lease.

@@ -709,9 +709,25 @@ conserva las versiones de membership/roster, rotaciones,
 configuracion/politica/calendario, overrides, credit ledger, particiones de
 workbook, autoridad de medicion y baseline de migracion. La envolvente se
 redigesta antes de planificar: cualquier drift live valido debe producir otro
-bundle y fallar el binding staged sin escribir. Siguen pendientes el productor
-gobernado que refresque esta envolvente desde las fuentes reales y el routing
-desde `index.ts`.
+bundle y fallar el binding staged sin escribir. El productor gobernado que
+refresca esta envolvente desde las fuentes reales ya esta implementado
+localmente. Lee transaccionalmente proyecciones acotadas de
+`users` y `devices` por miembro seleccionable, `config/global`,
+`deliveryCalendar` acotado, mantenimiento, ambas rotaciones y
+`shiftPlanningState/sourcePolicy`. Excluye metadatos de autenticacion que no
+afectan a fairness, hashea las credenciales de notificacion en vez de copiarlas,
+deriva revisiones estables de membership/eligibility/destination y solo crea o
+reemplaza `fairness` cuando todas las fuentes son validas. El replay exacto no
+escribe; una fuente invalida o fuera de limite conserva la ultima envolvente
+valida. Sigue pendiente el routing desde `index.ts`.
+
+`shiftPlanningState/sourcePolicy` es la autoridad backend-only schema v1 para
+los inputs que no pueden inferirse con seguridad desde colecciones de la app.
+Contiene exactamente `environment`, `policyRevision`, continuidad/prefijo/
+ocupacion de reparto y mercado, duracion del release lease, el credit ledger de
+HU-084 deshabilitado, particiones de workbook y autoridad de sync/medicion, y el
+limite conservador de escrituras. Es un input del productor, nunca un contrato
+cliente ni una cache derivada.
 
 Las siete colecciones son solo backend: las Rules estrictas niegan cualquier
 lectura o escritura de cliente, tambien a admins. Sus esquemas internos no son
@@ -726,10 +742,13 @@ un unico read-set autoritativo para CAS:
   exige barrera nula; `closed` exige evidencia exacta de barrera verificada
   (`revision`, `digest`, `verifiedAtMillis`).
 - `shiftPlanningState/fairness` contiene la envolvente live schema v1 exacta y
-  su digest, que debera usar el futuro productor de preview/stage y que se relee
-  dentro de cada retry de activacion. No es contrato cliente ni cache confiable
-  por si sola: el productor gobernado debe reconstruirla desde las fuentes
+  su digest, que deben usar preview/stage y que se relee dentro de cada retry de
+  activacion. No es contrato cliente ni cache confiable
+  por si sola: el productor gobernado la reconstruye desde las fuentes
   reales.
+- `shiftPlanningState/sourcePolicy` contiene los inputs backend no derivados
+  exactos que se consumen al reconstruir `fairness`; una politica mal formada,
+  no coincidente o no soportada falla cerrado.
 - `shiftRotations/delivery` y `shiftRotations/market` contienen el agregado
   tipado exacto, cursor, frontera de planificacion, estado de cohorte congelada,
   linaje activo emparejado, ultima clave de idempotencia, baseline de migracion

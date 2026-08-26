@@ -295,9 +295,14 @@ state/rotations, and every before-image target inside each forward retry. Its
 inverse counterpart reads the tombstone, bundle, request, before-images, and all
 current delete/restore targets. Emulator evidence proves valid source drift has
 zero public writes, then exact activation and higher-epoch recovery. This seam
-is not connected from `index.ts`: the governed producer that rebuilds the live
-envelope from real sources, routing, rehearsal, deployment, and live execution
-remain pending.
+is not connected from `index.ts`. The local governed producer now rebuilds the
+live envelope transactionally from bounded member/device and calendar
+projections, canonical config, authoritative state/rotations, and the exact
+backend-only `shiftPlanningState/sourcePolicy`. It hashes notification targets,
+ignores authentication-only member metadata, performs no write on exact replay,
+and preserves the last valid envelope when a source is malformed or exceeds its
+bound. Routing, same-CAS source recheck, rehearsal, deployment, and live
+execution remain pending.
 Activation is the acknowledged public-visibility boundary and queues Sheets sync
 plus held notification intents.
 

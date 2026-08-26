@@ -303,8 +303,15 @@ occurred. Protected technical evidence remains outside the repository.
       pass. The end-to-end resolver vector proves valid membership drift writes
       nothing, then exact activation and higher-epoch recovery. No shared/public
       Firebase write or deployment.
-    - [ ] Implement the governed producer that refreshes
-      `shiftPlanningState/fairness` from real sources and connect the v2
+    - [x] Implement the governed producer that refreshes
+      `shiftPlanningState/fairness` transactionally from bounded real sources,
+      with exact replay, stable digest-derived revisions, credential hashing,
+      and fail-closed preservation of the prior valid envelope.
+    - [x] Validation: Node 22 Functions lint/build, 2/2 focused producer
+      Firestore-emulator vectors, and 170/170 non-emulator planning vectors with
+      nine emulator-only skips pass. No shared/public Firebase write, routing,
+      transport, or deployment.
+    - [ ] Recheck those real sources in the activation CAS and connect the v2
       request/recovery routing from `index.ts`; retain the legacy production
       trigger until that replacement passes the governed rollout.
 - [ ] Include membership, rotation, policy/config/calendar override, and enabled
