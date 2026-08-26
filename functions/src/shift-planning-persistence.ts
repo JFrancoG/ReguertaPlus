@@ -137,6 +137,22 @@ export type ShiftPlanningPersistedBundle = {
 
 export type ShiftPlanningPersistenceResult = "committed" | "replayed";
 
+export type ShiftPlanningActivationRequestState =
+  | {
+    kind: "requested";
+    request: ShiftPlanningRequestV2;
+  }
+  | {
+    kind: "terminal";
+    request: ShiftPlanningRequestV2;
+    summary: ShiftPlanningTerminalSummary;
+    artifact: ShiftPlanningPersistedArtifact | null;
+  };
+
+export type ShiftPlanningActivationFailurePersistenceResult =
+  | ShiftPlanningPersistenceResult
+  | "activationCommitted";
+
 export type ShiftPlanningActivationPreflight = {
   request: ShiftPlanningRequestV2;
   candidate: ShiftPlanningPersistedCandidate;
@@ -194,6 +210,20 @@ export interface ShiftPlanningPersistence {
     token: ShiftPlanningClaimToken;
     summary: ShiftPlanningFailedSummary;
   }): Promise<ShiftPlanningPersistenceResult>;
+
+  inspectActivationRequest(input: {
+    environment: ShiftPlanningEnvironment;
+    requestId: string;
+  }): Promise<ShiftPlanningActivationRequestState>;
+
+  failActivationRequest(input: {
+    environment: ShiftPlanningEnvironment;
+    requestId: string;
+    operationId: string;
+    workerId: string;
+    leaseDurationMillis: number;
+    summary: ShiftPlanningFailedSummary;
+  }): Promise<ShiftPlanningActivationFailurePersistenceResult>;
 
   loadPersistedPreview(input: {
     environment: ShiftPlanningEnvironment;

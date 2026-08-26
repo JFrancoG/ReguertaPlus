@@ -4,7 +4,9 @@ import {
   planShiftPlanningBundle,
 } from "./shift-planning-bundle.js";
 import {ShiftPlanningError} from "./shift-planning-contract.js";
+import {createShiftPlanningDigest} from "./shift-planning-digest.js";
 import {
+  ShiftPlanningCasRejectedBeforeCommitError,
   ShiftPlanningFirestoreCasExecutionResult,
   createFirestoreShiftPlanningCasRuntime,
 } from "./shift-planning-firestore-cas-runtime.js";
@@ -29,6 +31,7 @@ import {
 } from "./shift-planning-inverse-materializer.js";
 import {
   ShiftPlanningRequestLifecycleResult,
+  buildShiftPlanningDeterministicFailureSummary,
   executeShiftPlanningRequest,
 } from "./shift-planning-request-lifecycle.js";
 import {
@@ -140,7 +143,33 @@ export const createFirestoreShiftPlanningRuntime = (
       const request = requireRequestIdentity(input);
       const operationId = `request-${request.requestId}`;
       if (request.mode === "activate") {
-        return {
+        const inspected = await persistence.inspectActivationRequest({
+          environment: request.environment,
+          requestId: request.requestId,
+        });
+        if (
+          createShiftPlanningDigest(inspected.request) !==
+          createShiftPlanningDigest(request)
+        ) {
+          return failRuntime("Activation event intent has changed in storage.");
+        }
+        if (
+          inspected.kind === "terminal" &&
+          inspected.summary.status === "failed"
+        ) {
+          return {
+            kind: "lifecycle",
+            result: {
+              kind: "terminalReplay",
+              request: inspected.request,
+              summary: inspected.summary,
+              artifact: inspected.artifact,
+            },
+          };
+        }
+        const executeActivation = async (): Promise<
+          ShiftPlanningFirestoreRequestRuntimeResult
+        > => ({
           kind: "activation",
           result: await casRuntime.executeForwardActivation({
             environment: request.environment,
@@ -155,7 +184,44 @@ export const createFirestoreShiftPlanningRuntime = (
                 requestId: request.requestId,
               }),
           }),
-        };
+        });
+        try {
+          return await executeActivation();
+        } catch (error) {
+          if (!(error instanceof ShiftPlanningCasRejectedBeforeCommitError)) {
+            throw error;
+          }
+          const summary = buildShiftPlanningDeterministicFailureSummary({
+            request,
+            error: error.planningError,
+          });
+          if (summary === null) {
+            return failRuntime(
+              "Pre-commit rejection has no deterministic planning summary.",
+            );
+          }
+          const persistenceResult = await persistence.failActivationRequest({
+            environment: request.environment,
+            requestId: request.requestId,
+            operationId,
+            workerId: input.workerId,
+            leaseDurationMillis:
+              SHIFT_PLANNING_REQUEST_LEASE_DURATION_MILLIS,
+            summary,
+          });
+          if (persistenceResult === "activationCommitted") {
+            return executeActivation();
+          }
+          return {
+            kind: "lifecycle",
+            result: {
+              kind: "failed",
+              request,
+              summary,
+              persistenceResult,
+            },
+          };
+        }
       }
 
       const result = await executeShiftPlanningRequest({

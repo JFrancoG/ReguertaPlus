@@ -349,6 +349,12 @@ does not populate Firestore public shifts or activate either mobile app.
   per-type or visible multi-batch promotion is forbidden.
 - Each mode has one exact bundle request that transitions through `requested`,
   `processing`, and one terminal state: `completed` or `failed`.
+- Activation may persist `failed` only for a typed deterministic planning error
+  thrown inside the Firestore transaction callback before it returns for commit.
+  That failure write uses request/operation CAS: a concurrent committed activation
+  wins and is replayed as completed. Transaction transport ambiguity, retry
+  exhaustion, post-return outcome retention/read-back failure, or any other
+  uncertain commit state remains retryable and must never overwrite either terminal.
 - A completed request records mode, bundle revision/digest, and per-type target
   season, generated count, affected projections, and machine-readable summary. A
   failure identifies its subplan with a stable code; raw backend messages are not

@@ -9,7 +9,10 @@ import {
   parseShiftPlanningCommittedAttemptOutcome,
 } from "./shift-planning-attempt-outcome.js";
 import {ShiftPlanningError} from "./shift-planning-contract.js";
-import {ShiftPlanningDigest} from "./shift-planning-digest.js";
+import {
+  ShiftPlanningDigest,
+  ShiftPlanningDigestError,
+} from "./shift-planning-digest.js";
 import {
   ShiftPlanningAttemptOutcomePersistence,
   ShiftPlanningAttemptOutcomePersistenceResult,
@@ -33,6 +36,24 @@ import {
 import {ShiftPlanningEnvironment} from "./shift-planning-wire.js";
 
 export const SHIFT_PLANNING_FIRESTORE_CAS_MAX_ATTEMPTS = 5 as const;
+
+/**
+ * Identifies a typed deterministic rejection inside the transaction callback.
+ */
+export class ShiftPlanningCasRejectedBeforeCommitError extends Error {
+  readonly planningError: ShiftPlanningError | ShiftPlanningDigestError;
+
+  /**
+   * Preserves the canonical planning failure without claiming commit ambiguity.
+   * @param {ShiftPlanningError | ShiftPlanningDigestError} planningError Typed
+   * deterministic callback rejection.
+   */
+  constructor(planningError: ShiftPlanningError | ShiftPlanningDigestError) {
+    super("Planning transaction was rejected before commit.");
+    this.name = "ShiftPlanningCasRejectedBeforeCommitError";
+    this.planningError = planningError;
+  }
+}
 
 export type ShiftPlanningFirestoreCasAttemptContext = {
   firestore: Firestore;
@@ -125,6 +146,16 @@ const failRuntime = (message: string): never => {
 
 const failOutcome = (message: string): never => {
   throw new ShiftPlanningError("invalid_planning_attempt_outcome", message);
+};
+
+const rethrowTransactionCallbackError = (error: unknown): never => {
+  if (
+    error instanceof ShiftPlanningError ||
+    error instanceof ShiftPlanningDigestError
+  ) {
+    throw new ShiftPlanningCasRejectedBeforeCommitError(error);
+  }
+  throw error;
 };
 
 const requireTimestamp = (value: unknown, name: string): Timestamp => {
@@ -365,22 +396,27 @@ export const createFirestoreShiftPlanningCasRuntime = (
         );
       }
       const attempt = await firestore.runTransaction(async (transaction) => {
-        const attemptedAt = now("forward attempt clock");
-        const resolution = await input.resolveAttempt({
-          firestore,
-          transaction,
-          attemptedAt,
-        });
-        return measureForwardAttempt({
-          ...resolution,
-          firestore,
-          transaction,
-          operationId,
-          workerId: input.workerId,
-          fencingEpoch: input.fencingEpoch,
-          leaseDurationMillis: input.leaseDurationMillis,
-          attemptedAt,
-        });
+        try {
+          const attemptedAt = now("forward attempt clock");
+          const resolution = await input.resolveAttempt({
+            firestore,
+            transaction,
+            attemptedAt,
+          });
+          const measured = await measureForwardAttempt({
+            ...resolution,
+            firestore,
+            transaction,
+            operationId,
+            workerId: input.workerId,
+            fencingEpoch: input.fencingEpoch,
+            leaseDurationMillis: input.leaseDurationMillis,
+            attemptedAt,
+          });
+          return measured;
+        } catch (error) {
+          return rethrowTransactionCallbackError(error);
+        }
       }, {maxAttempts: SHIFT_PLANNING_FIRESTORE_CAS_MAX_ATTEMPTS});
       const expectedOutcome = createShiftPlanningForwardActivationOutcome(
         attempt,
@@ -466,19 +502,24 @@ export const createFirestoreShiftPlanningCasRuntime = (
         return failOutcome("Recovery activation operation has drifted.");
       }
       const attempt = await firestore.runTransaction(async (transaction) => {
-        const recoveredAt = now("inverse attempt clock");
-        const resolution = await input.resolveAttempt({
-          firestore,
-          transaction,
-          attemptedAt: recoveredAt,
-        });
-        return measureInverseAttempt({
-          ...resolution,
-          firestore,
-          transaction,
-          recoveryOperationId,
-          recoveredAt,
-        });
+        try {
+          const recoveredAt = now("inverse attempt clock");
+          const resolution = await input.resolveAttempt({
+            firestore,
+            transaction,
+            attemptedAt: recoveredAt,
+          });
+          const measured = await measureInverseAttempt({
+            ...resolution,
+            firestore,
+            transaction,
+            recoveryOperationId,
+            recoveredAt,
+          });
+          return measured;
+        } catch (error) {
+          return rethrowTransactionCallbackError(error);
+        }
       }, {maxAttempts: SHIFT_PLANNING_FIRESTORE_CAS_MAX_ATTEMPTS});
       const expectedOutcome = createShiftPlanningInverseRecoveryOutcome(
         attempt,

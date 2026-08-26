@@ -8,9 +8,13 @@ const {
 } = require("@google-cloud/firestore");
 
 const {
+  ShiftPlanningError,
+} = require("../lib/shift-planning-contract.js");
+const {
   createShiftPlanningDigest,
 } = require("../lib/shift-planning-digest.js");
 const {
+  ShiftPlanningCasRejectedBeforeCommitError,
   createFirestoreShiftPlanningCasRuntime,
   createShiftPlanningForwardActivationOutcome,
   createShiftPlanningInverseRecoveryOutcome,
@@ -207,6 +211,60 @@ test("rejects an outcome clock that precedes its transaction attempt", () => {
     errorCode("invalid_planning_attempt_outcome"),
   );
 });
+
+test(
+  "marks only typed transaction callback rejections as pre-commit",
+  {skip: !process.env.FIRESTORE_EMULATOR_HOST},
+  async () => {
+    const database = new Firestore({projectId, databaseId: "(default)"});
+    const runtime = createFirestoreShiftPlanningCasRuntime(database);
+    await assert.rejects(
+      runtime.executeForwardActivation({
+        environment,
+        operationId: "request-activate-runtime-precommit",
+        workerId: "worker-runtime-precommit",
+        fencingEpoch: 1,
+        leaseDurationMillis: 60_000,
+        resolveAttempt: async () => {
+          throw new ShiftPlanningError(
+            "invalid_planning_transaction",
+            "Deterministic callback rejection.",
+          );
+        },
+      }),
+      (error) => {
+        assert.equal(
+          error instanceof ShiftPlanningCasRejectedBeforeCommitError,
+          true,
+        );
+        assert.equal(error.planningError.code, "invalid_planning_transaction");
+        return true;
+      },
+    );
+    const transportError = new Error("ambiguous transport failure");
+    await assert.rejects(
+      runtime.executeForwardActivation({
+        environment,
+        operationId: "request-activate-runtime-ambiguous",
+        workerId: "worker-runtime-ambiguous",
+        fencingEpoch: 1,
+        leaseDurationMillis: 60_000,
+        resolveAttempt: async () => {
+          throw transportError;
+        },
+      }),
+      (error) => {
+        assert.equal(error, transportError);
+        assert.equal(
+          error instanceof ShiftPlanningCasRejectedBeforeCommitError,
+          false,
+        );
+        return true;
+      },
+    );
+    await database.terminate();
+  },
+);
 
 test(
   "re-resolves every forward retry and retains only the committed attempt",

@@ -131,6 +131,26 @@ const deterministicFailureCode = (
   return null;
 };
 
+/**
+ * Converts only typed deterministic planning errors into the stable public
+ * failure summary. Infrastructure and ambiguous transport errors return null
+ * so callers keep them retryable instead of publishing a false terminal.
+ * @param {object} input Immutable request and observed failure.
+ * @return {ShiftPlanningFailedSummary | null} Stable terminal or null.
+ */
+export const buildShiftPlanningDeterministicFailureSummary = (input: {
+  request: ShiftPlanningRequestV2;
+  error: unknown;
+}): ShiftPlanningFailedSummary | null => {
+  const code = deterministicFailureCode(input.error);
+  return code === null ? null : buildShiftPlanningFailureSummary({
+    mode: input.request.mode,
+    bundleId: input.request.bundleId,
+    scope: failureScope(code),
+    code,
+  });
+};
+
 const invalidResolvedBundle = (message: string): never => {
   throw new ShiftPlanningError("internal_planning_failure", message);
 };
@@ -289,14 +309,11 @@ export const executeShiftPlanningRequest = async (
       request: claim.request,
     });
   } catch (error) {
-    const code = deterministicFailureCode(error);
-    if (code === null) throw error;
-    const summary = buildShiftPlanningFailureSummary({
-      mode: claim.request.mode,
-      bundleId: claim.request.bundleId,
-      scope: failureScope(code),
-      code,
+    const summary = buildShiftPlanningDeterministicFailureSummary({
+      request: claim.request,
+      error,
     });
+    if (summary === null) throw error;
     return {
       kind: "failed",
       request: claim.request,

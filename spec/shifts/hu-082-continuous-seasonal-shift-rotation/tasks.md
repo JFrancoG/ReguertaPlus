@@ -332,8 +332,18 @@ occurred. Protected technical evidence remains outside the repository.
         source-resolver plus 13/13 persistence-repository emulator vectors pass.
         No shared Firebase write, transport, endpoint export, deployment, or
         live activation occurred.
-      - [ ] Persist deterministic activation failures safely without replacing a
-        committed or transport-ambiguous terminal, then prove retry convergence.
+      - [x] Persist only typed deterministic activation failures rejected inside
+        the transaction callback before commit. Use request/operation CAS so a
+        concurrent completed activation wins; replay exact failed terminals and
+        leave transport, retry-exhaustion, and post-commit/outcome ambiguity
+        retryable without overwriting either terminal.
+      - [x] Validation: Node 22 Functions lint/build, 184/184 planning vectors
+        with eleven emulator-only skips, 6/6 focused CAS-runtime and 3/3
+        governed-runtime Firestore-emulator vectors pass. The tests distinguish
+        typed pre-commit rejection from ambiguous errors, prove failed replay,
+        require a new request for retry, and prove a late failure cannot replace
+        a completed activation. No shared Firebase write, endpoint, deployment,
+        or live activation occurred.
       - [ ] Export recovery only through the IAM-restricted operator boundary
         after it enforces the maintenance allowlist for exact operation,
         revision, digest, and state.

@@ -22,6 +22,9 @@ const {
   refreshShiftPlanningLiveSource,
 } = require("../lib/shift-planning-firestore-source-producer.js");
 const {
+  createFirestoreShiftPlanningRepository,
+} = require("../lib/shift-planning-firestore-repository.js");
+const {
   createFirestoreShiftPlanningRuntime,
 } = require("../lib/shift-planning-firestore-runtime.js");
 const {
@@ -32,6 +35,9 @@ const {
 const {
   buildShiftPlanningAuthoritativeState,
 } = require("../lib/shift-planning-state-persistence.js");
+const {
+  buildShiftPlanningFailureSummary,
+} = require("../lib/shift-planning-wire.js");
 
 const projectId = "demo-reguerta-hu082-source-producer";
 const environment = "develop";
@@ -557,15 +563,28 @@ emulatorTest(
       {merge: false},
     );
     const runtime = createFirestoreShiftPlanningRuntime(database);
-    await assert.rejects(
-      runtime.executeRequest({
-        environment,
-        requestId: chain.activateRequest.requestId,
-        request: chain.activateRequest,
-        workerId: "source-runtime-worker",
-      }),
-      (error) => error.code === "invalid_planning_transaction",
+    const rejected = await runtime.executeRequest({
+      environment,
+      requestId: chain.activateRequest.requestId,
+      request: chain.activateRequest,
+      workerId: "source-runtime-worker",
+    });
+    assert.equal(rejected.kind, "lifecycle");
+    assert.equal(rejected.result.kind, "failed");
+    assert.equal(
+      rejected.result.summary.failure.code,
+      "invalid_planning_transaction",
     );
+    assert.equal(rejected.result.persistenceResult, "committed");
+    const rejectedReplay = await runtime.executeRequest({
+      environment,
+      requestId: chain.activateRequest.requestId,
+      request: chain.activateRequest,
+      workerId: "source-runtime-worker",
+    });
+    assert.equal(rejectedReplay.kind, "lifecycle");
+    assert.equal(rejectedReplay.result.kind, "terminalReplay");
+    assert.equal(rejectedReplay.result.summary.status, "failed");
     assert.equal((await database.collection(`${root}/shifts`).get()).size, 0);
     assert.equal(
       (await database.doc(`${root}/shiftPlanningState/fairness`).get())
@@ -577,10 +596,17 @@ emulatorTest(
       device("synthetic-token-a"),
       {merge: false},
     );
+    const retryRequest = {
+      ...chain.activateRequest,
+      requestId: `${chain.activateRequest.requestId}-retry`,
+    };
+    await database.doc(
+      `${root}/shiftPlanningRequests/${retryRequest.requestId}`,
+    ).create(retryRequest);
     const activated = await runtime.executeRequest({
       environment,
-      requestId: chain.activateRequest.requestId,
-      request: chain.activateRequest,
+      requestId: retryRequest.requestId,
+      request: retryRequest,
       workerId: "source-runtime-worker",
     });
     assert.equal(activated.kind, "activation");
@@ -592,14 +618,35 @@ emulatorTest(
     );
     const replayed = await runtime.executeRequest({
       environment,
-      requestId: chain.activateRequest.requestId,
-      request: chain.activateRequest,
+      requestId: retryRequest.requestId,
+      request: retryRequest,
       workerId: "source-runtime-worker",
     });
     assert.equal(replayed.kind, "activation");
     assert.equal(replayed.result.kind, "terminalReplay");
 
-    const operationId = `request-${chain.activateRequest.requestId}`;
+    const operationId = `request-${retryRequest.requestId}`;
+    const repository = createFirestoreShiftPlanningRepository(database);
+    const lateFailure = await repository.failActivationRequest({
+      environment,
+      requestId: retryRequest.requestId,
+      operationId,
+      workerId: "late-failure-worker",
+      leaseDurationMillis: 300_000,
+      summary: buildShiftPlanningFailureSummary({
+        mode: "activate",
+        bundleId: retryRequest.bundleId,
+        scope: "bundle",
+        code: "invalid_planning_transaction",
+      }),
+    });
+    assert.equal(lateFailure, "activationCommitted");
+    assert.equal(
+      (await database.doc(
+        `${root}/shiftPlanningRequests/${retryRequest.requestId}`,
+      ).get()).get("status"),
+      "completed",
+    );
     const recovered = await runtime.executeRecovery({
       environment,
       activationOperationId: operationId,

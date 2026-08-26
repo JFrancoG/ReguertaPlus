@@ -31,6 +31,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-08-26 | ✨ feat(shifts): persist activation failures
 - 2026-08-26 | ✨ feat(shifts): route governed planning requests
 - 2026-08-26 | ✨ feat(shifts): recheck governed sources
 - 2026-08-26 | ✨ feat(shifts): produce governed sources

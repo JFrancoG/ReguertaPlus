@@ -538,7 +538,13 @@ materializador real recibe exclusivamente ese read-set y solo el intento que
 el runtime recupera un outcome exacto ya retenido sin repetir el CAS. Si existe
 un terminal de activacion o recovery confirmado pero falta su outcome
 direccional, falla cerrado para no duplicar una publicacion o restauracion cuyo
-ack se perdio.
+ack se perdio. Solo un error de planificacion tipado lanzado dentro del callback,
+antes de que este pueda retornar al commit, se clasifica como rechazo determinista
+pre-commit. El runtime lo persiste como `failed` mediante CAS contra el request y
+su operacion; un terminal `completed` concurrente gana y se relee como activacion
+confirmada. Errores de transporte, agotamiento de retries, retencion/read-back del
+outcome o cualquier ambiguedad posterior al callback permanecen reintentables y
+nunca se convierten en un falso terminal fallido.
 
 `shift-planning-firestore-source-resolver.ts` fija
 `shiftPlanningState/fairness` como la envolvente live backend-only. Su revision y
@@ -551,9 +557,11 @@ resolver inverse relee tombstone, bundle, request, before-images y todos los
 targets actuales de delete/restore. Un vector end-to-end de emulador prueba drift
 sin escrituras, activacion completa y recovery con epoch superior.
 
-El seam no esta conectado todavia desde `index.ts`: faltan el productor
-gobernado que mantenga `shiftPlanningState/fairness` desde las fuentes reales y
-el routing productivo v2. Tampoco existen aun ensayo en clon, despliegue ni
+El productor gobernado mantiene `shiftPlanningState/fairness` desde las fuentes
+reales y `index.ts` clasifica primero la version para conservar el trigger legacy,
+rechazar versiones desconocidas y enrutar localmente v2 a preview, stage o CAS de
+activacion. Recovery sigue sin endpoint exportado: falta encerrarlo en la frontera
+IAM/allowlist de operador. Tampoco existen aun ensayo en clon, despliegue ni
 escritura compartida.
 
 ### Fronteras, manifests y side effects diferidos
