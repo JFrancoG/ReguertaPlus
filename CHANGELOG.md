@@ -228,6 +228,7 @@ All notable changes to this project will be documented in this file.
 
 ### Maintenance
 
+- 2026-08-26 | 📦 build(android): update AGP to 9.3.2
 - 2026-08-20 | 📦 build(android): update Firebase tooling
 - 2026-08-18 | 📦 build(android): upgrade Gradle to 9.7.0
 - 2026-08-18 | 📦 build(android): refresh app dependencies
