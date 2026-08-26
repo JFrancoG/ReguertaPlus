@@ -608,7 +608,13 @@ write; an invalid or over-limit source leaves the preceding envelope intact.
 The concrete forward resolver requires a live-source rebuilder and compares its
 same-transaction digest with the cached envelope during every Firestore retry;
 underlying drift therefore fails before any activation mutation even when
-`fairness` itself was not refreshed. `index.ts` routing remains pending.
+`fairness` itself was not refreshed. The local `index.ts` trigger now classifies
+unversioned requests as legacy and routes every declared schema-v2 request away
+from that writer. Preview/stage use a read-only same-source comparison before
+private lifecycle persistence; activate enters the governed CAS directly so an
+exact terminal replay does not depend on an out-of-transaction preflight. The
+inverse recovery port is composed but remains unexported until its IAM-only,
+maintenance-allowlisted command boundary is implemented. Nothing is deployed.
 
 `shiftPlanningState/sourcePolicy` is the backend-only schema-v1 authority for
 inputs that cannot be inferred safely from application collections. It exactly

@@ -7,6 +7,7 @@ const {
   parseShiftPlanningMaintenanceState,
   parseShiftPlanningRequestV2,
   parseShiftRotationAggregateWire,
+  serializeShiftPlanningRequestV2,
   SHIFT_PLANNING_COLLECTIONS,
 } = require("../lib/shift-planning-wire.js");
 
@@ -31,9 +32,14 @@ const previewRequest = (overrides = {}) => ({
 
 test("parses an exact two-subplan preview request", () => {
   const {requestedAt, ...request} = previewRequest();
-  assert.deepEqual(parseShiftPlanningRequestV2({...request, requestedAt}), {
+  const parsed = parseShiftPlanningRequestV2({...request, requestedAt});
+  assert.deepEqual(parsed, {
     ...request,
     requestedAtMillis: requestedAt.toMillis(),
+  });
+  assert.deepEqual(serializeShiftPlanningRequestV2(parsed), {
+    ...request,
+    requestedAt,
   });
 });
 

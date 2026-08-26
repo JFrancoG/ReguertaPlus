@@ -307,8 +307,8 @@ envolvente ligada por digest `shiftPlanningState/fairness`, el paquete staged
 inmutable, estado/rotaciones autoritativos y todos los targets de before-image.
 Su par inverse lee tombstone, bundle, request, before-images y todos los targets
 actuales de delete/restore. El emulador prueba drift valido sin escrituras
-publicas, activacion exacta y recovery con epoch superior. Este seam no esta
-conectado desde `index.ts`. El productor gobernado local ya reconstruye la
+publicas, activacion exacta y recovery con epoch superior. El productor gobernado
+local ya reconstruye la
 envolvente live transaccionalmente desde proyecciones acotadas de miembros/
 dispositivos y calendario, config canonica, estado/rotaciones autoritativos y
 `shiftPlanningState/sourcePolicy` backend-only exacto. Hashea los destinos de
@@ -316,8 +316,13 @@ notificacion, ignora metadatos de miembro exclusivos de autenticacion, no escrib
 en un replay exacto y conserva la ultima envolvente valida si una fuente esta
 mal formada o supera su limite. El resolver forward concreto ya exige reconstruir
 y comparar por digest ese read-set dentro de cada retry de activacion, por lo que
-una envolvente cacheada obsoleta no puede autorizar escrituras. Siguen pendientes
-routing, ensayo, despliegue y ejecucion live.
+una envolvente cacheada obsoleta no puede autorizar escrituras. El trigger local
+de `index.ts` mantiene los documentos sin version en el handler legacy sin cambios
+y enruta preview/stage/activate schema v2 por el runtime gobernado. Una version
+declarada desconocida falla cerrado y nunca cae al escritor legacy. Recovery esta
+compuesto tras un puerto interno, pero no se exporta hasta disponer de la allowlist
+de mantenimiento IAM-only separada; siguen pendientes ensayo, despliegue y
+ejecucion live.
 La activación es el límite reconocido de visibilidad pública y encola
 sync de Sheets e intenciones de notificación retenidas.
 

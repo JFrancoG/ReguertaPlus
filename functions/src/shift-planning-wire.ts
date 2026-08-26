@@ -510,6 +510,30 @@ export const parseShiftPlanningRequestV2 = (
   };
 };
 
+/**
+ * Serializes one normalized request back to the exact Firestore wire shape.
+ * Persistence and planner adapters use this boundary instead of maintaining
+ * competing `requestedAt` conversions.
+ * @param {ShiftPlanningRequestV2} request Normalized request value.
+ * @return {object} Exact schema-v2 Firestore request document.
+ */
+export const serializeShiftPlanningRequestV2 = (
+  request: ShiftPlanningRequestV2,
+): object => ({
+  schemaVersion: request.schemaVersion,
+  requestId: request.requestId,
+  bundleId: request.bundleId,
+  environment: request.environment,
+  requestedByUserId: request.requestedByUserId,
+  requestedAt: Timestamp.fromMillis(request.requestedAtMillis),
+  mode: request.mode,
+  status: "requested",
+  expectedWriteEpoch: request.expectedWriteEpoch,
+  expectedActiveRevision: request.expectedActiveRevision,
+  subplans: request.subplans,
+  binding: request.binding,
+});
+
 const parseIntakeBarrier = (value: unknown): ShiftPlanningIntakeBarrier => {
   const barrier = requireRecord(value, "invalid_planning_state");
   requireExactKeys(

@@ -683,6 +683,42 @@ export const rebuildShiftPlanningLiveSourceInTransaction =
   buildSourceInTransaction;
 
 /**
+ * Loads the cached planning source only when the same read-only transaction can
+ * rebuild its governed inputs to the identical digest. This gives preview and
+ * stage a current source without adding a derived-state write to their allowed
+ * lifecycle effects.
+ * @param {object} input Firestore instance and environment to inspect.
+ * @return {Promise<ShiftPlanningLiveSourceDocument>} Current governed source.
+ */
+export const loadCurrentShiftPlanningLiveSource = async (input: {
+  firestore: Firestore;
+  environment: ShiftPlanningEnvironment;
+}): Promise<ShiftPlanningLiveSourceDocument> => {
+  const environment = requireEnvironment(input.environment);
+  return input.firestore.runTransaction(async (transaction) => {
+    const rebuilt = await buildSourceInTransaction({
+      firestore: input.firestore,
+      transaction,
+      environment,
+    });
+    const cachedSnapshot = await transaction.get(input.firestore.doc(
+      `${planningRoot(environment)}/shiftPlanningState/` +
+        SHIFT_PLANNING_LIVE_SOURCE_DOCUMENT_ID,
+    ));
+    const cached = parseShiftPlanningLiveSourceDocument(
+      requireSnapshot(cachedSnapshot, "planning live source").data(),
+    );
+    if (
+      cached.environment !== environment ||
+      cached.sourceDigest !== rebuilt.sourceDigest
+    ) {
+      return failSource("Planning live source is stale.");
+    }
+    return rebuilt;
+  });
+};
+
+/**
  * Creates a forward resolver that must rebuild every governed source inside
  * the same Firestore transaction attempt before activation can materialize.
  * @param {object} input Environment and immutable activation request identity.

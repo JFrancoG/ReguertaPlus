@@ -319,6 +319,24 @@ occurred. Protected technical evidence remains outside the repository.
       and higher-epoch recovery after the new source gate.
     - [ ] Connect v2 request/recovery routing from `index.ts`; retain the legacy
       production trigger until that replacement passes the governed rollout.
+      - [x] Classify every declared request version before legacy parsing;
+        preserve the unversioned handler and fail closed for unknown versions.
+      - [x] Route schema-v2 preview/stage through the private lifecycle and
+        activate directly through the governed CAS so exact terminal replay does
+        not require an out-of-transaction preflight.
+      - [x] Compose the inverse recovery runtime port and prove preview, stage,
+        stale-source zero-write activation, exact activation/replay, and recovery
+        against the Firestore emulator without exporting a recovery endpoint.
+      - [x] Validation: Node 22 Functions lint/build, 183 planning vectors with
+        ten emulator-only skips, 3/3 governed-runtime producer vectors, and 2/2
+        source-resolver plus 13/13 persistence-repository emulator vectors pass.
+        No shared Firebase write, transport, endpoint export, deployment, or
+        live activation occurred.
+      - [ ] Persist deterministic activation failures safely without replacing a
+        committed or transport-ambiguous terminal, then prove retry convergence.
+      - [ ] Export recovery only through the IAM-restricted operator boundary
+        after it enforces the maintenance allowlist for exact operation,
+        revision, digest, and state.
 - [ ] Include membership, rotation, policy/config/calendar override, and enabled
   credit-ledger versions plus any migration-baseline revision/digest in the
   candidate lineage; transactionally recheck them and commit planned credit
@@ -514,8 +532,8 @@ occurred. Protected technical evidence remains outside the repository.
     and either rotation-aggregate drift change the expected-state/manifests and
     invalidate the preview-to-stage chain; candidate and receipt retain the
     transitive `expectedStateDigest` binding.
-  - [ ] Remaining: transactionally re-read every live fairness input in the
-    activation CAS and prove the zero-public-write failure path.
+  - [x] Transactionally re-read every live fairness input in the activation CAS
+    and prove the stale cached-source zero-public-write failure path.
 - [ ] Prove current supported flat readers never see candidate or partial data,
   and transaction-budget overflow makes no public write and blocks rollout for a
   mobile active-revision migration.

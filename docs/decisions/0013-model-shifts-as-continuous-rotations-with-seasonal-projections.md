@@ -294,8 +294,8 @@ safe repair. The concrete local resolver now reads the digest-bound
 state/rotations, and every before-image target inside each forward retry. Its
 inverse counterpart reads the tombstone, bundle, request, before-images, and all
 current delete/restore targets. Emulator evidence proves valid source drift has
-zero public writes, then exact activation and higher-epoch recovery. This seam
-is not connected from `index.ts`. The local governed producer now rebuilds the
+zero public writes, then exact activation and higher-epoch recovery. The local
+governed producer now rebuilds the
 live envelope transactionally from bounded member/device and calendar
 projections, canonical config, authoritative state/rotations, and the exact
 backend-only `shiftPlanningState/sourcePolicy`. It hashes notification targets,
@@ -303,8 +303,12 @@ ignores authentication-only member metadata, performs no write on exact replay,
 and preserves the last valid envelope when a source is malformed or exceeds its
 bound. The concrete forward resolver now requires that producer read-set to be
 rebuilt and digest-compared inside every activation retry, so a stale cached
-envelope cannot authorize writes. Routing, rehearsal, deployment, and live
-execution remain pending.
+envelope cannot authorize writes. The local `index.ts` trigger now routes
+unversioned documents through the unchanged legacy handler and schema-v2
+preview/stage/activate requests through the governed runtime. Unknown declared
+versions fail closed instead of falling back. Recovery is composed behind an
+internal port but is not exported until the separate IAM-only maintenance
+allowlist exists; rehearsal, deployment, and live execution remain pending.
 Activation is the acknowledged public-visibility boundary and queues Sheets sync
 plus held notification intents.
 

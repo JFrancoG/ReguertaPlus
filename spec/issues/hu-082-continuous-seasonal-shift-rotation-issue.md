@@ -696,6 +696,33 @@ routing, transport, deployment, or live activation/recovery occurred. The next
 cut is the v2 request/recovery runtime routing while the legacy production
 trigger remains active.
 
+## Local implementation checkpoint — v2 request runtime routing (2026-08-26)
+
+The local Firestore trigger now classifies request schema before invoking any
+legacy parser. Unversioned documents retain the existing delivery/market handler;
+every declared schema-v2 document is isolated from that writer, and an unknown
+declared version fails closed. Preview and stage enter the persisted private
+lifecycle, while activate enters the governed retry-scoped CAS directly so an
+exact committed replay does not depend on a stale preflight outside the
+transaction.
+
+One canonical serializer now converts normalized request timestamps back to the
+exact Firestore wire contract. The same adapter also passes only the persisted
+preview receipt—not its repository envelope—back to the deterministic stage
+planner. These two real integration mismatches were exposed by the new emulator
+path rather than hidden behind lifecycle test doubles.
+
+The governed runtime composes inverse recovery but does not export an endpoint.
+Recovery remains blocked on the separate IAM-only boundary and its exact
+maintenance allowlist; deterministic activation-failure terminalization also
+remains pending. Node 22 Functions lint/build, 183 planning vectors with ten
+emulator-only skips, 3/3 governed-runtime producer vectors, and 2/2 source-resolver
+plus 13/13 persistence-repository emulator vectors pass. The emulator proves
+preview and stage remain private,
+stale source drift writes zero public shifts, activation and replay converge, and
+inverse recovery removes the activated projection. No shared Firebase write,
+transport, endpoint export, deployment, or live activation occurred.
+
 ## Suggested labels
 
 - `type:feature`

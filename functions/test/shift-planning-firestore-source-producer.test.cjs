@@ -22,6 +22,9 @@ const {
   refreshShiftPlanningLiveSource,
 } = require("../lib/shift-planning-firestore-source-producer.js");
 const {
+  createFirestoreShiftPlanningRuntime,
+} = require("../lib/shift-planning-firestore-runtime.js");
+const {
   SHIFT_PLANNING_FIRESTORE_COMMIT_ADAPTER_REVISION,
 } = require(
   "../lib/shift-planning-firestore-transaction-serializer.js"
@@ -405,6 +408,59 @@ emulatorTest("produces, replays, and versions real planning sources", async () =
   assert.equal(preview.delivery.shifts.length > 0, true);
   assert.equal(preview.market.shifts.length > 0, true);
 
+  const runtime = createFirestoreShiftPlanningRuntime(database);
+  const routedPreviewRequest = planningRequest({
+    requestId: "source-runtime-preview",
+    bundleId: "source-runtime-bundle",
+    mode: "preview",
+    binding: null,
+  });
+  await database.doc(
+    `${root}/shiftPlanningRequests/${routedPreviewRequest.requestId}`,
+  ).create(routedPreviewRequest);
+  const routedPreview = await runtime.executeRequest({
+    environment,
+    requestId: routedPreviewRequest.requestId,
+    request: routedPreviewRequest,
+    workerId: "source-runtime-worker",
+  });
+  assert.equal(routedPreview.kind, "lifecycle");
+  assert.equal(
+    routedPreview.result.kind,
+    "completed",
+    JSON.stringify(routedPreview.result),
+  );
+  const previewResult = routedPreview.result.result;
+  const routedStageRequest = planningRequest({
+    requestId: "source-runtime-stage",
+    bundleId: "source-runtime-bundle",
+    mode: "stage",
+    binding: {
+      kind: "preview",
+      sourceRequestId: routedPreviewRequest.requestId,
+      bundleRevision: previewResult.bundleRevision,
+      bundleDigest: previewResult.bundleDigest,
+    },
+  });
+  await database.doc(
+    `${root}/shiftPlanningRequests/${routedStageRequest.requestId}`,
+  ).create(routedStageRequest);
+  const routedStage = await runtime.executeRequest({
+    environment,
+    requestId: routedStageRequest.requestId,
+    request: routedStageRequest,
+    workerId: "source-runtime-worker",
+  });
+  assert.equal(routedStage.kind, "lifecycle");
+  assert.equal(routedStage.result.kind, "completed");
+  assert.equal(
+    (await database.doc(
+      `${root}/shiftPlanningCandidates/${routedStageRequest.bundleId}`,
+    ).get()).exists,
+    true,
+  );
+  assert.equal((await database.collection(`${root}/shifts`).get()).size, 0);
+
   const replayed = await refreshShiftPlanningLiveSource({
     firestore: database,
     environment,
@@ -471,7 +527,7 @@ emulatorTest("invalid source drift preserves the last valid envelope", async () 
 });
 
 emulatorTest(
-  "rechecks governed sources inside the activation transaction",
+  "routes governed activation and recovery through the v2 runtime",
   async () => {
     const database = new Firestore({projectId});
     await clear(database);
@@ -500,12 +556,14 @@ emulatorTest(
       device("synthetic-token-after-stage"),
       {merge: false},
     );
+    const runtime = createFirestoreShiftPlanningRuntime(database);
     await assert.rejects(
-      database.runTransaction((transaction) => resolver({
-        firestore: database,
-        transaction,
-        attemptedAt: Timestamp.fromMillis(1_788_393_900_000),
-      })),
+      runtime.executeRequest({
+        environment,
+        requestId: chain.activateRequest.requestId,
+        request: chain.activateRequest,
+        workerId: "source-runtime-worker",
+      }),
       (error) => error.code === "invalid_planning_transaction",
     );
     assert.equal((await database.collection(`${root}/shifts`).get()).size, 0);
@@ -514,6 +572,41 @@ emulatorTest(
         .get("sourceDigest"),
       produced.source.sourceDigest,
     );
+
+    await database.doc(`${root}/users/member-a/devices/device-1`).set(
+      device("synthetic-token-a"),
+      {merge: false},
+    );
+    const activated = await runtime.executeRequest({
+      environment,
+      requestId: chain.activateRequest.requestId,
+      request: chain.activateRequest,
+      workerId: "source-runtime-worker",
+    });
+    assert.equal(activated.kind, "activation");
+    assert.equal(activated.result.kind, "committed");
+    assert.equal(
+      (await database.collection(`${root}/shifts`).get()).size,
+      chain.activate.delivery.shifts.length +
+        chain.activate.market.shifts.length,
+    );
+    const replayed = await runtime.executeRequest({
+      environment,
+      requestId: chain.activateRequest.requestId,
+      request: chain.activateRequest,
+      workerId: "source-runtime-worker",
+    });
+    assert.equal(replayed.kind, "activation");
+    assert.equal(replayed.result.kind, "terminalReplay");
+
+    const operationId = `request-${chain.activateRequest.requestId}`;
+    const recovered = await runtime.executeRecovery({
+      environment,
+      activationOperationId: operationId,
+      recoveryOperationId: "recovery-source-runtime-route",
+    });
+    assert.equal(recovered.kind, "committed");
+    assert.equal((await database.collection(`${root}/shifts`).get()).size, 0);
 
     await clear(database);
     await database.terminate();

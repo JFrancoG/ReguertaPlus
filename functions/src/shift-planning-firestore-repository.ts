@@ -45,7 +45,6 @@ import {
 } from "./shift-planning-persistence.js";
 import {
   SHIFT_PLANNING_COLLECTIONS,
-  SHIFT_PLANNING_REQUEST_SCHEMA_VERSION,
   SHIFT_PLANNING_WIRE_SCHEMA_VERSION,
   ShiftPlanningCompletedSummary,
   ShiftPlanningEnvironment,
@@ -55,6 +54,7 @@ import {
   ShiftPlanningRequestV2,
   buildShiftPlanningFailureSummary,
   parseShiftPlanningRequestV2,
+  serializeShiftPlanningRequestV2,
 } from "./shift-planning-wire.js";
 
 type UnknownRecord = Record<string, unknown>;
@@ -528,20 +528,7 @@ const requireLifecycle = (value: unknown): ShiftPlanningPersistedLifecycle => {
   };
 };
 
-const requestIntentData = (request: ShiftPlanningRequestV2): object => ({
-  schemaVersion: SHIFT_PLANNING_REQUEST_SCHEMA_VERSION,
-  requestId: request.requestId,
-  bundleId: request.bundleId,
-  environment: request.environment,
-  requestedByUserId: request.requestedByUserId,
-  requestedAt: Timestamp.fromMillis(request.requestedAtMillis),
-  mode: request.mode,
-  status: "requested",
-  expectedWriteEpoch: request.expectedWriteEpoch,
-  expectedActiveRevision: request.expectedActiveRevision,
-  subplans: request.subplans,
-  binding: request.binding,
-});
+const requestIntentData = serializeShiftPlanningRequestV2;
 
 const requestEnvelopeData = (
   request: ShiftPlanningRequestV2,

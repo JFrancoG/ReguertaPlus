@@ -55,11 +55,16 @@ import {
 import {buildNotificationInboxDocument} from "./notification-inbox.js";
 import {buildMemberDirectoryDocument} from "./member-directory.js";
 import {isEligibleForShiftRotation} from "./shift-eligibility.js";
+import {
+  classifyShiftPlanningCreatedRequest,
+  createFirestoreShiftPlanningRuntime,
+} from "./shift-planning-firestore-runtime.js";
 
 const firebaseApp = initializeApp();
 const auth = getAuth(firebaseApp);
 const firestore = getFirestore(firebaseApp);
 const messaging = getMessaging(firebaseApp);
+const shiftPlanningRuntime = createFirestoreShiftPlanningRuntime(firestore);
 
 setGlobalOptions({
   region: "europe-west1",
@@ -3031,7 +3036,7 @@ const isShiftPlanningRequestType = (
 ): value is ShiftPlanningRequestType =>
   value === "delivery" || value === "market";
 
-const parseShiftPlanningRequest = (
+const parseLegacyShiftPlanningRequest = (
   snapshot: DocumentSnapshot,
 ): ShiftPlanningRequestRecord | null => {
   if (!snapshot.exists) {
@@ -3948,7 +3953,40 @@ export const onShiftPlanningRequestCreated = onDocumentCreatedWithAuthContext(
       return;
     }
 
-    const request = parseShiftPlanningRequest(snapshot);
+    const route = classifyShiftPlanningCreatedRequest(snapshot.data());
+    if (route === "unsupportedVersion") {
+      logger.error("Skipping unsupported shift planning request version", {
+        env,
+        requestId: event.params.requestId,
+      });
+      return;
+    }
+    if (route === "v2") {
+      try {
+        const result = await shiftPlanningRuntime.executeRequest({
+          environment: parseAppEnvironment(env),
+          requestId: event.params.requestId,
+          request: snapshot.data(),
+          workerId: "shift-planning-trigger-v2",
+        });
+        logger.info("✅ Shift planning v2 request routed", {
+          env,
+          requestId: event.params.requestId,
+          routeKind: result.kind,
+          resultKind: result.result.kind,
+        });
+      } catch (error) {
+        logger.error("❌ Shift planning v2 request failed", {
+          env,
+          requestId: event.params.requestId,
+          error,
+        });
+        throw error;
+      }
+      return;
+    }
+
+    const request = parseLegacyShiftPlanningRequest(snapshot);
     if (!request || request.status !== "requested") {
       logger.warn("Skipping malformed shift planning request", {
         env,

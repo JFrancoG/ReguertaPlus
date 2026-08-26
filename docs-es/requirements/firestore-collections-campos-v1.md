@@ -722,8 +722,14 @@ escribe; una fuente invalida o fuera de limite conserva la ultima envolvente
 valida. El resolver forward concreto exige un reconstructor de fuentes live y
 compara su digest, dentro de la misma transaccion, con la envolvente cacheada en cada
 retry Firestore. Por tanto, un drift subyacente falla antes de cualquier
-mutacion de activacion aunque `fairness` no se haya refrescado. Sigue pendiente
-el routing desde `index.ts`.
+mutacion de activacion aunque `fairness` no se haya refrescado. El trigger local
+de `index.ts` ya clasifica las solicitudes sin version como legacy y separa de
+ese escritor toda solicitud que declare schema v2. Preview/stage comparan las
+fuentes actuales en una transaccion de solo lectura antes de persistir su ciclo
+privado; activate entra directamente al CAS gobernado para que un replay terminal
+exacto no dependa de un preflight fuera de transaccion. El puerto inverse de
+recovery esta compuesto, pero sigue sin exportarse hasta implementar su frontera
+IAM-only ligada a una allowlist de mantenimiento. No se ha desplegado nada.
 
 `shiftPlanningState/sourcePolicy` es la autoridad backend-only schema v1 para
 los inputs que no pueden inferirse con seguridad desde colecciones de la app.

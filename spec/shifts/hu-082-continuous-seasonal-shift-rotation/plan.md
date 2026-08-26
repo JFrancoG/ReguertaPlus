@@ -276,7 +276,9 @@ documented in the English and Spanish Firestore references before code lands.
   then measure and seal that same SDK-owned batch. The local governed resolver
   now rebuilds bounded membership/device/config/calendar/policy inputs and the
   complete staged/authoritative/before-image read-set inside every retry. Keep
-  it disconnected from `index.ts` until request/recovery routing is implemented.
+  the local `index.ts` discriminator fail-closed: unversioned requests retain
+  the legacy handler, declared v2 preview/stage use the private lifecycle, and
+  activate enters the governed CAS without an external preflight.
 - Materialize recovery only from the immutable activation tombstone and
   revalidated persisted before-images. Require every created target to retain
   the activation marker/payload, require the active bundle/epoch CAS and both
@@ -291,7 +293,8 @@ documented in the English and Spanish Firestore references before code lands.
   outcome without another CAS, and fails closed when a committed terminal has
   lost that evidence. The inverse resolver now reloads the terminal, bundle,
   request, before-images, and all current delete/restore targets inside every
-  retry; keep the seam disconnected from `index.ts` until governed routing.
+  retry. Keep its composed recovery port unexported until the IAM-only operator
+  boundary can require a maintenance-allowlisted operation/revision/digest.
 - Emit stable digest-bound Sheets-sync command IDs in that transaction and define
   the exact manifest/idempotency/marker protocol. Prove it with a test consumer;
   HU-083 implements the real explicit pull/invoked multi-season worker. Pending
