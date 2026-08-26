@@ -311,9 +311,14 @@ occurred. Protected technical evidence remains outside the repository.
       Firestore-emulator vectors, and 170/170 non-emulator planning vectors with
       nine emulator-only skips pass. No shared/public Firebase write, routing,
       transport, or deployment.
-    - [ ] Recheck those real sources in the activation CAS and connect the v2
-      request/recovery routing from `index.ts`; retain the legacy production
-      trigger until that replacement passes the governed rollout.
+    - [x] Rebuild and compare those real sources inside every activation CAS
+      retry; require this dependency at the concrete resolver boundary and fail
+      with zero public writes when the cached fairness envelope is stale.
+    - [x] Validation: Node 22 Functions lint/build, 3/3 governed-source and 2/2
+      source-resolver Firestore-emulator vectors pass, including valid activation
+      and higher-epoch recovery after the new source gate.
+    - [ ] Connect v2 request/recovery routing from `index.ts`; retain the legacy
+      production trigger until that replacement passes the governed rollout.
 - [ ] Include membership, rotation, policy/config/calendar override, and enabled
   credit-ledger versions plus any migration-baseline revision/digest in the
   candidate lineage; transactionally recheck them and commit planned credit

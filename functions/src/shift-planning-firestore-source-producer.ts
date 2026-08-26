@@ -24,12 +24,16 @@ import {
   SHIFT_PLANNING_LIVE_SOURCE_DOCUMENT_ID,
   ShiftPlanningLiveSourceDocument,
   ShiftPlanningLiveSourceInputs,
+  createFirestoreShiftPlanningForwardActivationResolver,
   createShiftPlanningLiveSourceDocument,
   parseShiftPlanningLiveSourceDocument,
 } from "./shift-planning-firestore-source-resolver.js";
 import {
   SHIFT_PLANNING_FIRESTORE_COMMIT_ADAPTER_REVISION,
 } from "./shift-planning-firestore-transaction-serializer.js";
+import {
+  ShiftPlanningForwardActivationAttemptResolver,
+} from "./shift-planning-firestore-cas-runtime.js";
 import {buildShiftPlanningAuthoritativeState} from
   "./shift-planning-state-persistence.js";
 import {
@@ -677,6 +681,21 @@ const buildSourceInTransaction = async (input: {
  */
 export const rebuildShiftPlanningLiveSourceInTransaction =
   buildSourceInTransaction;
+
+/**
+ * Creates a forward resolver that must rebuild every governed source inside
+ * the same Firestore transaction attempt before activation can materialize.
+ * @param {object} input Environment and immutable activation request identity.
+ * @return {ShiftPlanningForwardActivationAttemptResolver} Governed resolver.
+ */
+export const createGovernedShiftPlanningForwardActivationResolver = (input: {
+  environment: ShiftPlanningEnvironment;
+  requestId: string;
+}): ShiftPlanningForwardActivationAttemptResolver =>
+  createFirestoreShiftPlanningForwardActivationResolver({
+    ...input,
+    rebuildLiveSource: buildSourceInTransaction,
+  });
 
 /**
  * Rebuilds and atomically refreshes the derived fairness envelope. Exact

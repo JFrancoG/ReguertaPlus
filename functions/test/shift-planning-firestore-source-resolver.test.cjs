@@ -353,6 +353,13 @@ const seedActivation = async (database, chain) => {
 const errorCode = (expectedCode) => (error) =>
   error instanceof Error && error.code === expectedCode;
 
+const rebuildPersistedSource = async ({firestore, transaction}) => {
+  const snapshot = await transaction.get(
+    firestore.doc(`${root}/shiftPlanningState/fairness`),
+  );
+  return parseShiftPlanningLiveSourceDocument(snapshot.data());
+};
+
 test("seals and revalidates the complete live source envelope", () => {
   const source = createShiftPlanningLiveSourceDocument({
     environment,
@@ -410,6 +417,7 @@ test(
           createFirestoreShiftPlanningForwardActivationResolver({
             environment,
             requestId: chain.activateRequest.requestId,
+            rebuildLiveSource: rebuildPersistedSource,
           }),
       }),
       errorCode("candidate_binding_mismatch"),
@@ -436,6 +444,7 @@ test(
         createFirestoreShiftPlanningForwardActivationResolver({
           environment,
           requestId: chain.activateRequest.requestId,
+          rebuildLiveSource: rebuildPersistedSource,
         }),
     });
     assert.equal(activation.kind, "committed");

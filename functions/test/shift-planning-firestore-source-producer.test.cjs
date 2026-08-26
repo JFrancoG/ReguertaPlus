@@ -14,6 +14,11 @@ const {
   planShiftPlanningBundle,
 } = require("../lib/shift-planning-bundle.js");
 const {
+  buildShiftPlanningCandidatePositionSet,
+  persistShiftPlanningCandidatePosition,
+} = require("../lib/shift-planning-candidate.js");
+const {
+  createGovernedShiftPlanningForwardActivationResolver,
   refreshShiftPlanningLiveSource,
 } = require("../lib/shift-planning-firestore-source-producer.js");
 const {
@@ -144,6 +149,159 @@ const calendarOverride = () => ({
   updatedBy: "admin-fixture",
   updatedAt: Timestamp.fromMillis(1_788_393_700_000),
 });
+
+const planningRequest = ({requestId, bundleId, mode, binding}) => ({
+  schemaVersion: 2,
+  requestId,
+  bundleId,
+  environment,
+  requestedByUserId: "member-a",
+  requestedAt: Timestamp.fromMillis(1_788_393_800_000),
+  mode,
+  status: "requested",
+  expectedWriteEpoch: 7,
+  expectedActiveRevision: null,
+  subplans: {
+    delivery: {targetSeasonStartYear: 2026},
+    market: {targetSeasonStartYear: 2026},
+  },
+  binding,
+});
+
+const persistedArtifact = (result) => ({
+  schemaVersion: result.schemaVersion,
+  bundleId: result.bundleId,
+  environment: result.environment,
+  bundleRevision: result.bundleRevision,
+  bundleDigest: result.bundleDigest,
+  expectedWriteEpoch: result.expectedWriteEpoch,
+  activationWriteEpoch: result.activationWriteEpoch,
+  expectedActiveRevision: result.expectedActiveRevision,
+  expectedState: result.expectedState,
+  frontiers: result.frontiers,
+  delivery: result.delivery,
+  market: result.market,
+  manifests: result.manifests,
+  budgets: result.budgets,
+  releaseLeaseIntents: result.releaseLeaseIntents,
+  syncCommands: result.syncCommands,
+  heldNotificationIntents: result.heldNotificationIntents,
+  transactionRequirements: result.transactionRequirements,
+});
+
+const buildPlanningChain = (source) => {
+  const authoritativeState = buildShiftPlanningAuthoritativeState({
+    environment,
+    maintenance: maintenance(),
+    rotations: {
+      delivery: rotation("delivery", ["member-a", "member-b", "manager-c"]),
+      market: rotation("market", ["manager-c", "member-b", "member-a"]),
+    },
+  });
+  const bundleId = "source-producer-bundle";
+  const previewRequest = planningRequest({
+    requestId: "source-producer-preview",
+    bundleId,
+    mode: "preview",
+    binding: null,
+  });
+  const preview = planShiftPlanningBundle({
+    request: previewRequest,
+    authoritativeState,
+    ...source.inputs,
+  });
+  const stageRequest = planningRequest({
+    requestId: "source-producer-stage",
+    bundleId,
+    mode: "stage",
+    binding: {
+      kind: "preview",
+      sourceRequestId: previewRequest.requestId,
+      bundleRevision: preview.bundleRevision,
+      bundleDigest: preview.bundleDigest,
+    },
+  });
+  const stage = planShiftPlanningBundle({
+    request: stageRequest,
+    authoritativeState,
+    ...source.inputs,
+    persistedPreview: preview.previewReceipt,
+  });
+  const activateRequest = planningRequest({
+    requestId: "source-producer-activate",
+    bundleId,
+    mode: "activate",
+    binding: {
+      kind: "candidate",
+      candidateId: stage.stagedCandidate.candidateId,
+      bundleRevision: stage.bundleRevision,
+      bundleDigest: stage.bundleDigest,
+      candidateDigest: stage.stagedCandidateDigest,
+    },
+  });
+  const activate = planShiftPlanningBundle({
+    request: activateRequest,
+    authoritativeState,
+    ...source.inputs,
+    stagedCandidate: stage.stagedCandidate,
+  });
+  return {stage, activate, activateRequest};
+};
+
+const seedStagedActivation = async (database, chain) => {
+  const artifact = persistedArtifact(chain.activate);
+  const bundle = {
+    schemaVersion: 1,
+    environment,
+    bundleId: chain.activate.bundleId,
+    bundleRevision: chain.activate.bundleRevision,
+    bundleDigest: chain.activate.bundleDigest,
+    artifactDigest: digest(artifact),
+    artifact,
+  };
+  const candidate = {
+    schemaVersion: 1,
+    status: "staged",
+    environment,
+    bundleId: chain.stage.bundleId,
+    bundleRevision: chain.stage.bundleRevision,
+    bundleDigest: chain.stage.bundleDigest,
+    candidate: chain.stage.stagedCandidate,
+    candidateDigest: chain.stage.stagedCandidateDigest,
+    bundleArtifactDigest: bundle.artifactDigest,
+  };
+  const positions = buildShiftPlanningCandidatePositionSet({
+    candidateId: candidate.bundleId,
+    bundleRevision: candidate.bundleRevision,
+    bundleDigest: candidate.bundleDigest,
+    writeEpoch: artifact.activationWriteEpoch,
+    delivery: artifact.delivery,
+    market: artifact.market,
+  }).positions.map((position) => persistShiftPlanningCandidatePosition({
+    position,
+    candidateDigest: candidate.candidateDigest,
+  }));
+  const batch = database.batch();
+  batch.create(
+    database.doc(`${root}/shiftPlanningBundles/${bundle.bundleRevision}`),
+    bundle,
+  );
+  const candidateReference = database.doc(
+    `${root}/shiftPlanningCandidates/${candidate.bundleId}`,
+  );
+  batch.create(candidateReference, candidate);
+  positions.forEach((position) => batch.create(
+    candidateReference.collection("positions").doc(position.positionId),
+    position,
+  ));
+  batch.create(
+    database.doc(
+      `${root}/shiftPlanningRequests/${chain.activateRequest.requestId}`,
+    ),
+    chain.activateRequest,
+  );
+  await batch.commit();
+};
 
 const seed = async (database) => {
   const eligibleIds = ["member-a", "member-b", "manager-c"];
@@ -311,3 +469,53 @@ emulatorTest("invalid source drift preserves the last valid envelope", async () 
   await clear(database);
   await database.terminate();
 });
+
+emulatorTest(
+  "rechecks governed sources inside the activation transaction",
+  async () => {
+    const database = new Firestore({projectId});
+    await clear(database);
+    await seed(database);
+    const produced = await refreshShiftPlanningLiveSource({
+      firestore: database,
+      environment,
+    });
+    const chain = buildPlanningChain(produced.source);
+    await seedStagedActivation(database, chain);
+    const resolver = createGovernedShiftPlanningForwardActivationResolver({
+      environment,
+      requestId: chain.activateRequest.requestId,
+    });
+    const resolved = await database.runTransaction((transaction) => resolver({
+      firestore: database,
+      transaction,
+      attemptedAt: Timestamp.fromMillis(1_788_393_900_000),
+    }));
+    assert.equal(
+      resolved.liveResult.bundleDigest,
+      chain.activate.bundleDigest,
+    );
+
+    await database.doc(`${root}/users/member-a/devices/device-1`).set(
+      device("synthetic-token-after-stage"),
+      {merge: false},
+    );
+    await assert.rejects(
+      database.runTransaction((transaction) => resolver({
+        firestore: database,
+        transaction,
+        attemptedAt: Timestamp.fromMillis(1_788_393_900_000),
+      })),
+      (error) => error.code === "invalid_planning_transaction",
+    );
+    assert.equal((await database.collection(`${root}/shifts`).get()).size, 0);
+    assert.equal(
+      (await database.doc(`${root}/shiftPlanningState/fairness`).get())
+        .get("sourceDigest"),
+      produced.source.sourceDigest,
+    );
+
+    await clear(database);
+    await database.terminate();
+  },
+);

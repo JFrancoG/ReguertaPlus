@@ -676,6 +676,26 @@ fail-closed preservation. The producer remains local and disconnected from
 CAS before request/recovery routing is enabled. No shared/public Firebase write,
 transport, deployment, or live activation/recovery occurred.
 
+## Local implementation checkpoint — same-CAS source recheck (2026-08-26)
+
+The concrete forward resolver now requires an explicit live-source rebuilder;
+there is no default path that can authorize activation from the cached
+`shiftPlanningState/fairness` envelope alone. The governed factory supplies the
+real transactional producer, which rereads bounded users, eligible-member
+devices, config, calendar, policy, maintenance, and both rotations during every
+Firestore retry and requires its digest to equal the persisted envelope before
+bundle recomputation or materialization.
+
+The focused emulator proves that changing a notification destination after
+stage, without refreshing `fairness`, fails inside the activation transaction
+with zero public shifts and leaves the cached envelope untouched. The existing
+resolver regression still proves exact activation and higher-epoch recovery.
+Node 22 Functions lint/build, 3/3 governed-source and 2/2 source-resolver
+Firestore-emulator vectors pass. No shared/public Firebase write, `index.ts`
+routing, transport, deployment, or live activation/recovery occurred. The next
+cut is the v2 request/recovery runtime routing while the legacy production
+trigger remains active.
+
 ## Suggested labels
 
 - `type:feature`

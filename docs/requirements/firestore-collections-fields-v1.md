@@ -605,7 +605,10 @@ metadata, hashes notification credentials instead of copying them, derives
 stable per-member membership/eligibility/destination revisions, and creates or
 replaces `fairness` only after every source validates. Exact replay performs no
 write; an invalid or over-limit source leaves the preceding envelope intact.
-`index.ts` routing remains pending.
+The concrete forward resolver requires a live-source rebuilder and compares its
+same-transaction digest with the cached envelope during every Firestore retry;
+underlying drift therefore fails before any activation mutation even when
+`fairness` itself was not refreshed. `index.ts` routing remains pending.
 
 `shiftPlanningState/sourcePolicy` is the backend-only schema-v1 authority for
 inputs that cannot be inferred safely from application collections. It exactly

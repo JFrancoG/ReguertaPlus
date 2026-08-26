@@ -719,7 +719,11 @@ afectan a fairness, hashea las credenciales de notificacion en vez de copiarlas,
 deriva revisiones estables de membership/eligibility/destination y solo crea o
 reemplaza `fairness` cuando todas las fuentes son validas. El replay exacto no
 escribe; una fuente invalida o fuera de limite conserva la ultima envolvente
-valida. Sigue pendiente el routing desde `index.ts`.
+valida. El resolver forward concreto exige un reconstructor de fuentes live y
+compara su digest, dentro de la misma transaccion, con la envolvente cacheada en cada
+retry Firestore. Por tanto, un drift subyacente falla antes de cualquier
+mutacion de activacion aunque `fairness` no se haya refrescado. Sigue pendiente
+el routing desde `index.ts`.
 
 `shiftPlanningState/sourcePolicy` es la autoridad backend-only schema v1 para
 los inputs que no pueden inferirse con seguridad desde colecciones de la app.

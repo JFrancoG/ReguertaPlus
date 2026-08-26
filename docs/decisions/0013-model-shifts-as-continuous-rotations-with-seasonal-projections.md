@@ -301,7 +301,9 @@ projections, canonical config, authoritative state/rotations, and the exact
 backend-only `shiftPlanningState/sourcePolicy`. It hashes notification targets,
 ignores authentication-only member metadata, performs no write on exact replay,
 and preserves the last valid envelope when a source is malformed or exceeds its
-bound. Routing, same-CAS source recheck, rehearsal, deployment, and live
+bound. The concrete forward resolver now requires that producer read-set to be
+rebuilt and digest-compared inside every activation retry, so a stale cached
+envelope cannot authorize writes. Routing, rehearsal, deployment, and live
 execution remain pending.
 Activation is the acknowledged public-visibility boundary and queues Sheets sync
 plus held notification intents.

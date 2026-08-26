@@ -31,6 +31,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-08-26 | ✨ feat(shifts): recheck governed sources
 - 2026-08-26 | ✨ feat(shifts): produce governed sources
 - 2026-08-26 | ✨ feat(shifts): resolve planning CAS sources
 - 2026-08-26 | ✨ feat(shifts): execute planning CAS runtime

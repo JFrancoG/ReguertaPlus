@@ -314,8 +314,10 @@ dispositivos y calendario, config canonica, estado/rotaciones autoritativos y
 `shiftPlanningState/sourcePolicy` backend-only exacto. Hashea los destinos de
 notificacion, ignora metadatos de miembro exclusivos de autenticacion, no escribe
 en un replay exacto y conserva la ultima envolvente valida si una fuente esta
-mal formada o supera su limite. Siguen pendientes routing, recheck de fuentes
-en el mismo CAS, ensayo, despliegue y ejecucion live.
+mal formada o supera su limite. El resolver forward concreto ya exige reconstruir
+y comparar por digest ese read-set dentro de cada retry de activacion, por lo que
+una envolvente cacheada obsoleta no puede autorizar escrituras. Siguen pendientes
+routing, ensayo, despliegue y ejecucion live.
 La activación es el límite reconocido de visibilidad pública y encola
 sync de Sheets e intenciones de notificación retenidas.
 

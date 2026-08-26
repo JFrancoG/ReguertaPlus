@@ -310,9 +310,10 @@ does not populate Firestore public shifts or activate either mobile app.
   transactionally rebuilds the derived fairness envelope from bounded real
   membership/device/calendar reads, canonical config, authoritative state and
   rotations, and an exact backend-only source policy. Exact replay is write-free
-  and invalid or over-limit sources preserve the prior envelope. Same-CAS source
-  recheck, `index.ts` routing, rehearsal, and production execution remain
-  pending.
+  and invalid or over-limit sources preserve the prior envelope. The governed
+  forward resolver must rebuild those sources inside every activation retry and
+  reject a stale cached envelope before materialization. `index.ts` routing,
+  rehearsal, and production execution remain pending.
 - The digest covers every fairness input and its version: eligible membership,
   rotation/cursor, calendar and policy/configuration, relevant overrides, and,
   when HU-084 is enabled, the complete same-type coverage-credit ledger version.

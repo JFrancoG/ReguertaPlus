@@ -1,4 +1,9 @@
-import {DocumentSnapshot, Timestamp} from "@google-cloud/firestore";
+import {
+  DocumentSnapshot,
+  Firestore,
+  Timestamp,
+  Transaction,
+} from "@google-cloud/firestore";
 import {
   SHIFT_PLANNING_FIRESTORE_TRANSACTION_WRITE_LIMIT,
   ShiftPlanningBundleInput,
@@ -72,6 +77,12 @@ export type ShiftPlanningLiveSourceDocument = {
   inputs: ShiftPlanningLiveSourceInputs;
   sourceDigest: ShiftPlanningDigest;
 };
+
+export type ShiftPlanningLiveSourceRebuilder = (input: {
+  firestore: Firestore;
+  transaction: Transaction;
+  environment: ShiftPlanningEnvironment;
+}) => Promise<ShiftPlanningLiveSourceDocument>;
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -316,16 +327,17 @@ const requireRecoveryReadDocument = (
 
 /**
  * Creates the concrete forward resolver used inside every Firestore retry. It
- * reloads the immutable staged package, the live source envelope, both
- * authoritative rotations/state, and every before-image target before the
- * runtime is allowed to materialize a write.
- * @param {object} input Environment and immutable activation request identity.
+ * reloads the immutable staged package, cached envelope, rebuilt governed
+ * source, both authoritative rotations/state, and every before-image target
+ * before the runtime is allowed to materialize a write.
+ * @param {object} input Environment, request identity, and source rebuilder.
  * @return {ShiftPlanningForwardActivationAttemptResolver} Retry-scoped
  * forward resolver.
  */
 export const createFirestoreShiftPlanningForwardActivationResolver = (input: {
   environment: ShiftPlanningEnvironment;
   requestId: string;
+  rebuildLiveSource: ShiftPlanningLiveSourceRebuilder;
 }): ShiftPlanningForwardActivationAttemptResolver => {
   const environment = requireEnvironment(input.environment);
   const requestId = requireIdentifier(input.requestId, "activation requestId");
@@ -377,8 +389,15 @@ export const createFirestoreShiftPlanningForwardActivationResolver = (input: {
     const source = parseShiftPlanningLiveSourceDocument(
       requireReadDocument(sourceSnapshot, "planning live source").data,
     );
+    const rebuiltSource = await input.rebuildLiveSource({
+      firestore,
+      transaction,
+      environment,
+    });
     if (
       source.environment !== environment ||
+      rebuiltSource.environment !== environment ||
+      rebuiltSource.sourceDigest !== source.sourceDigest ||
       candidate.bundleId !== binding.candidateId ||
       candidate.bundleRevision !== binding.bundleRevision ||
       candidate.bundleDigest !== binding.bundleDigest ||
@@ -388,7 +407,9 @@ export const createFirestoreShiftPlanningForwardActivationResolver = (input: {
       bundle.bundleDigest !== candidate.bundleDigest ||
       bundle.artifactDigest !== candidate.bundleArtifactDigest
     ) {
-      return failSource("Activation staged-package lineage has drifted.");
+      return failSource(
+        "Activation staged package or governed live source has drifted.",
+      );
     }
     const positionSnapshots = await transaction.get(
       candidateReference.collection("positions").limit(

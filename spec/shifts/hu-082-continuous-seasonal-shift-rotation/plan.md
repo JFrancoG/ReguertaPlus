@@ -273,11 +273,10 @@ documented in the English and Spanish Firestore references before code lands.
   reproduces the staged artifact. Bind all public creates/guarded predecessor
   update, rotations/leases, active state, request terminal, sync commands, held
   intents, tombstone, and before-images to the exact budget/inverse manifest,
-  then measure and seal that same SDK-owned batch. The local resolver now
-  rebuilds that read-set from the digest-bound live source envelope, staged
-  package, authoritative state/rotations, and before-image targets in every
-  retry; keep it disconnected from `index.ts` until the governed source producer
-  and routing are implemented.
+  then measure and seal that same SDK-owned batch. The local governed resolver
+  now rebuilds bounded membership/device/config/calendar/policy inputs and the
+  complete staged/authoritative/before-image read-set inside every retry. Keep
+  it disconnected from `index.ts` until request/recovery routing is implemented.
 - Materialize recovery only from the immutable activation tombstone and
   revalidated persisted before-images. Require every created target to retain
   the activation marker/payload, require the active bundle/epoch CAS and both
