@@ -846,6 +846,8 @@ const failureMessageKeys: Record<ShiftPlanningFailureCode, string> = {
   planning_transaction_adapter_drift: "planningTransactionAdapterDrift",
   invalid_planning_publication_contract:
     "invalidPlanningPublicationContract",
+  invalid_planning_forward_materialization:
+    "invalidPlanningForwardMaterialization",
   frozen_cohort_mismatch: "frozenCohortMismatch",
   invalid_rotation_cohort: "invalidRotationCohort",
   invalid_rotation_cursor: "invalidRotationCursor",

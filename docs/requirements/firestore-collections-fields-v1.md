@@ -422,13 +422,15 @@ The pure contract and private repository enforce this artifact chain:
    counts, and set/position digests. It does not claim or
    complete the request and performs no write. The immutable preview bundle
    remains the planning authority; positions are a queryable inspection
-   projection, not a second authority. The future planner/runtime must recompute
+   projection, not a second authority. The future runtime caller must recompute
    and revalidate the live input snapshot and bundle digest before any CAS or
    public activation.
 
-The pure function remains side-effect free. The local/emulator repository proves
+The planner remains side-effect free. The local/emulator repository proves
 private receipt, bundle, lifecycle, candidate-header, and inspection-position
-persistence, but does not yet implement publication/activation CAS.
+persistence. A separate local forward materializer now builds and seals the exact
+activation mutation set, but the repository/runtime does not yet load every live
+fairness input or execute the production publication CAS.
 Bundle, receipt, and candidate use internal artifact schema v2 and
 `bundle-v2-*` revisions. Transaction measurements use their own internal schema
 v1. The request remains `schemaVersion = 2`; the public wire terminal summary
@@ -533,6 +535,17 @@ Sentinels, references, dates/class instances, cycles, accessors, sparse/extra
 array properties, symbol/hidden map properties, and unsupported values fail
 closed. Recovery decodes only a revalidated envelope and uses
 `targetUpdateTime` in its CAS/precondition.
+
+The forward materializer requires a complete live activate result whose
+persisted-artifact digest matches the staged bundle/candidate/position set. It
+creates every flat public shift, optionally updates only the guarded predecessor
+helper, advances both rotations and active state, completes the request, creates
+the two sync commands, held intents, before-images, and the activation terminal.
+Every update uses its transaction-read `lastUpdateTime`; the complete mutation
+set must equal the forward budget and inverse create manifest before the pinned
+attempt adapter measures and seals it. Emulator evidence is local only: runtime
+loading, inverse recovery, persisted outcome evidence, and production activation
+remain pending.
 
 All seven collections are backend-only: strict Rules deny every client read and
 write, including admin clients. Their internal field schemas are not a mobile

@@ -271,7 +271,19 @@ does not populate Firestore public shifts or activate either mobile app.
   `firestore-value-v1` preserves the supported Firestore value subset plus exact
   target update-time, capture-contract/payload/envelope digests, and restore
   path. Unsupported or lossy values fail closed. These contracts do not yet
-  materialize or commit the forward/inverse CAS.
+  materialize the inverse CAS.
+- The local forward materializer accepts only a complete live recomputation that
+  reproduces the immutable staged artifact. It resolves every public create, the
+  guarded predecessor-helper update, both rotation/lease transitions, active
+  state, terminal request, sync commands, held intents, operation tombstone, and
+  contiguous before-images. Updates use the transaction-read `lastUpdateTime`;
+  the exact write set must match the forward budget and inverse create manifest.
+  The real pinned attempt adapter measures and seals that same SDK-owned batch;
+  an emulator vector proves its atomic commit. The seam is not wired to
+  `index.ts`, and each future retry must reread and recompute the complete
+  fairness snapshot inside its own callback. Credits remain closed until HU-084;
+  inverse materialization and persisted non-circular outcome evidence remain
+  separate pending cuts.
 - The digest covers every fairness input and its version: eligible membership,
   rotation/cursor, calendar and policy/configuration, relevant overrides, and,
   when HU-084 is enabled, the complete same-type coverage-credit ledger version.

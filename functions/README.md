@@ -203,12 +203,13 @@ write-set completamente resuelto y un token transaccional real. El adaptador de
 intento exige que terminen primero las lecturas, puebla el batch interno vacio del
 `Transaction`, lo mide y sella, y deja que el SDK confirme ese mismo objeto. Cada
 retry vuelve a resolver y medir; el guard reserializa justo antes del transporte.
-Este adaptador aun no se conecta al lifecycle ni materializa el dominio. Todavía no hay
-materializador forward/inverse, barrera externa fiable, migración de writers, CAS de
+El materializador forward local ya puede entregar al adaptador el dominio exacto,
+pero ese seam aun no se conecta al lifecycle/runtime. Todavía no hay materializador
+inverse, barrera externa fiable, migración de writers, CAS productivo de
 activación/publicación/recovery, trigger v2 conectado al orquestador, consumidores
-de sync/notificaciones/recovery, integración móvil, despliegue ni activación live
-mediante ese runtime; todas esas fronteras siguen fail-closed. La publicación humana
-de consulta se describe por separado a continuación. El trigger
+de sync/notificaciones/recovery, integración móvil, despliegue ni activación live;
+todas esas fronteras siguen fail-closed. La publicación humana de consulta se
+describe por separado a continuación. El trigger
 legacy `onShiftPlanningRequestCreated` de `src/index.ts` sigue siendo la
 implementación runtime activa y aún no consume este contrato v2.
 
@@ -489,7 +490,24 @@ before-images usan el codec taggeado `firestore-value-v1`, conservan mapas,
 arrays, escalares, `Timestamp`, bytes y `GeoPoint`, y ligan payload, ruta,
 `targetUpdateTime`, contrato de captura y envelope por digest. Sentinels,
 referencias, clases, accessors, extras ocultos y valores con perdida fallan
-cerrado. Este corte aun no materializa ni ejecuta forward/inverse.
+cerrado.
+
+`shift-planning-forward-materializer.ts` recompone el artefacto live completo y
+exige que reproduzca exactamente el bundle staged antes de construir ninguna
+mutacion. Resuelve todas las posiciones publicas, la actualizacion acotada del
+helper predecesor cuando existe, ambas rotaciones con sus leases, el estado
+activo, request terminal, comandos de Sheets, intenciones retenidas, tombstone y
+before-images. Cada update usa el `lastUpdateTime` leido en el mismo intento y el
+conjunto completo debe coincidir con presupuesto forward y manifest inverse.
+Despues entrega esas mutaciones al adaptador real, que mide y sella el batch del
+`Transaction`; un vector de emulador confirma el commit atomico del mismo objeto.
+Los creditos no nulos siguen cerrados hasta HU-084.
+
+El seam no esta conectado todavia desde `index.ts`: el caller futuro debe releer
+y recalcular roster, membership, configuracion/politica/calendario, overrides,
+workbook/particiones y estado autoritativo dentro de cada callback reintentado.
+No existe aun CAS productivo, materializador inverse, evidencia persistida del
+resultado no circular, despliegue ni escritura compartida.
 
 ### Fronteras, manifests y side effects diferidos
 

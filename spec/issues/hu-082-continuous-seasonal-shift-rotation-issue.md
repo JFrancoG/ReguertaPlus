@@ -520,6 +520,36 @@ evidence, open transport, deploy, or change shared Firebase/Sheets/production.
 The next cut can now materialize exact forward mutations and recheck the complete
 live snapshot inside the real transaction-attempt adapter.
 
+## Local implementation checkpoint — exact forward materializer (2026-08-26)
+
+The local forward materializer now accepts only an activate result whose complete
+live recomputation reproduces the immutable staged bundle, candidate, and
+position-set artifact. It rejects lineage, expected-state, measurement-authority,
+read-set, manifest, budget, inverse-create, or update-time drift before adding a
+mutation. Non-zero credit transitions remain closed until HU-084.
+
+One exact ordered set now contains every flat public create, the guarded
+predecessor-helper update when required, both rotation/cursor and sealed-release-
+lease transitions, active maintenance state, completed request lifecycle, two
+pending Sheets commands, held notification intents, contiguous before-images,
+and the immutable activation terminal. Public creates/updates receive their
+changed backend marker; every update uses the `lastUpdateTime` read by that
+transaction attempt. The set must equal both the forward structural budget and
+the inverse manifest's recoverable creates.
+
+The materializer passes those mutations to the pinned real-attempt adapter. A
+Firestore-emulator vector proves that the same measured and sealed SDK-owned
+batch commits atomically, including the terminal, completed request, and public
+documents. Node 22 validation passes Functions lint/build, 4/4 pure focused
+vectors, 5/5 emulator focused vectors, and 161/161 non-emulator planning unit
+vectors; the ordinary lane skips the one emulator-only vector.
+
+This remains an unwired local seam: `index.ts` does not invoke it, the runtime
+repository does not yet reread/recompute every fairness input within each retry,
+and there was no shared/public Firebase write or deployment. Exact inverse
+materialization, non-circular persisted attempt outcome evidence, governed clone
+rehearsal, production CAS, and activation remain pending.
+
 ## Suggested labels
 
 - `type:feature`

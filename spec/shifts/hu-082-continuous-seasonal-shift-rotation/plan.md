@@ -263,6 +263,13 @@ documented in the English and Spanish Firestore references before code lands.
   structural budgets and measurement authority; it never persists synthetic
   future evidence. Persist the eventual outcome through a separate non-circular
   protocol rather than embedding the request digest inside its own request.
+- Materialize the complete forward activation only after a live recomputation
+  reproduces the staged artifact. Bind all public creates/guarded predecessor
+  update, rotations/leases, active state, request terminal, sync commands, held
+  intents, tombstone, and before-images to the exact budget/inverse manifest,
+  then measure and seal that same SDK-owned batch. Keep the seam disconnected
+  from `index.ts` until the real repository can reread every fairness input in
+  each retry callback.
 - Emit stable digest-bound Sheets-sync command IDs in that transaction and define
   the exact manifest/idempotency/marker protocol. Prove it with a test consumer;
   HU-083 implements the real explicit pull/invoked multi-season worker. Pending

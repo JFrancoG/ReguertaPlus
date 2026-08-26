@@ -250,8 +250,23 @@ references. Before-images preserve an exact tagged Firestore subset (maps,
 arrays, scalars, timestamps, bytes, and geopoints), their original update-time
 precondition, capture-contract digest, path, payload digest, and envelope digest.
 Lossy or unsupported values fail closed. These pure codecs freeze the input to
-the forward/inverse materializers; they do not yet execute either CAS or persist
-the separate non-circular transaction-outcome evidence.
+the forward/inverse materializers.
+
+The local forward materializer now requires a complete live recomputation to
+reproduce the immutable staged artifact before it creates any write. It resolves
+all public positions, the guarded predecessor-helper update when present, both
+rotation/lease transitions, active state, request terminal, Sheets commands,
+held intents, before-images, and the activation tombstone. Every update carries
+the transaction-read `lastUpdateTime`; the exact set must match both the forward
+budget and inverse create manifest. It then passes that set to the real pinned
+transaction-attempt adapter, and an emulator vector proves that the same measured
+SDK batch commits atomically. Non-zero credit writes remain closed until HU-084.
+
+This seam is not connected from `index.ts`: production still needs a repository
+adapter that rereads and recomputes every fairness input inside each retried
+transaction callback. The inverse materializer, non-circular persisted outcome
+evidence, governed rehearsal, production CAS, deployment, and live activation
+remain pending.
 Activation is the acknowledged public-visibility boundary and queues Sheets sync
 plus held notification intents.
 

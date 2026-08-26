@@ -530,13 +530,15 @@ El contrato puro y el repositorio privado hacen cumplir esta cadena de artefacto
    linaje de bundle, conteos y digests de conjunto y
    posicion. No reclama ni completa la peticion y no escribe. El bundle preview
    inmutable sigue siendo la autoridad de planificacion; las posiciones son una
-   proyeccion consultable de inspeccion, no otra autoridad. El planner/runtime
+   proyeccion consultable de inspeccion, no otra autoridad. El caller runtime
    futuro debe recalcular y revalidar el snapshot live de entradas y el digest
    del bundle antes de cualquier CAS o activacion publica.
 
-La funcion pura sigue sin side effects. El repositorio local/emulador prueba la
+El planner sigue sin side effects. El repositorio local/emulador prueba la
 persistencia privada de recibo, bundle, lifecycle, cabecera de candidato y
-posiciones de inspeccion, pero aun no implementa CAS de publicacion/activacion.
+posiciones de inspeccion. Un materializador forward local separado ya construye
+y sella el conjunto exacto de mutaciones de activacion, pero repositorio/runtime
+aun no carga todos los inputs live de fairness ni ejecuta el CAS productivo.
 Bundle, recibo y candidato usan schema v2 interno de artefacto y revisiones
 `bundle-v2-*`. Las mediciones transaccionales usan su propio schema v1 interno.
 La peticion conserva `schemaVersion = 2` y el resumen terminal publico wire
@@ -643,6 +645,17 @@ bytes y `GeoPoint`. Sentinels, referencias, fechas/instancias de clase, ciclos,
 accessors, propiedades extra o sparse de arrays, simbolos/propiedades ocultas de
 mapas y valores no soportados fallan cerrado. Recovery solo decodifica un sobre
 revalidado y usa `targetUpdateTime` en su CAS/precondicion.
+
+El materializador forward exige un resultado activate live completo cuyo digest
+de artefacto persistido coincida con bundle/candidato/posiciones staged. Crea cada
+turno publico plano, actualiza opcionalmente solo el helper predecesor protegido,
+avanza ambas rotaciones y estado activo, completa la request y crea dos comandos
+de sync, intenciones retenidas, before-images y terminal de activacion. Cada
+update usa su `lastUpdateTime` leido en la transaccion; el conjunto completo debe
+igualar presupuesto forward y manifest de creates inverse antes de que el
+adaptador fijado lo mida y selle. La evidencia de emulador es solo local: carga
+runtime, recovery inverse, evidencia persistida del resultado y activacion
+productiva siguen pendientes.
 
 Las siete colecciones son solo backend: las Rules estrictas niegan cualquier
 lectura o escritura de cliente, tambien a admins. Sus esquemas internos no son

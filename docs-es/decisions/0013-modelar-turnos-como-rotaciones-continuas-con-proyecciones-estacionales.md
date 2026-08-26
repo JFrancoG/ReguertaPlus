@@ -262,8 +262,24 @@ before-image. Las before-images conservan un subconjunto Firestore taggeado
 exacto (mapas, arrays, escalares, timestamps, bytes y geopoints), la precondicion
 original de update-time, digest del contrato de captura, ruta, digest del payload
 y digest del sobre. Todo valor no soportado o con perdida falla cerrado. Estos
-codecs puros fijan la entrada de los materializadores forward/inverse; aun no
-ejecutan ninguno de los CAS ni persisten la evidencia transaccional no circular.
+codecs puros fijan la entrada de los materializadores forward/inverse.
+
+El materializador forward local exige ahora que un recalculo live completo
+reproduzca exactamente el artefacto staged inmutable antes de crear una sola
+escritura. Resuelve todas las posiciones publicas, la actualizacion protegida del
+helper predecesor cuando existe, ambas transiciones de rotacion/lease, estado
+activo, terminal de request, comandos de Sheets, intenciones retenidas,
+before-images y tombstone de activacion. Cada update lleva el `lastUpdateTime`
+leido por la transaccion y el conjunto exacto debe coincidir con el presupuesto
+forward y el manifest de creates inverse. Despues lo entrega al adaptador real
+del intento; un vector de emulador prueba que el mismo batch medido del SDK hace
+commit atomicamente. Los creditos no nulos siguen cerrados hasta HU-084.
+
+Este seam no esta conectado desde `index.ts`: produccion aun necesita un
+adaptador de repositorio que relea y recalcule todos los inputs de fairness dentro
+de cada callback transaccional reintentado. Siguen pendientes el materializador
+inverse, la evidencia persistida no circular del resultado, el ensayo gobernado,
+el CAS productivo, el despliegue y la activacion live.
 La activación es el límite reconocido de visibilidad pública y encola
 sync de Sheets e intenciones de notificación retenidas.
 

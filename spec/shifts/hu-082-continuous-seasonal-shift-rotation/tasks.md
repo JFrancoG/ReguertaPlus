@@ -229,8 +229,23 @@ occurred. Protected technical evidence remains outside the repository.
     - [x] Validation: Node 22 Functions lint/build, 6 focused publication-contract
       vectors, and the 157-vector planning unit suite pass without emulator,
       shared/public write, transport, or deployment.
-  - [ ] Materialize the exact forward mutations, recheck the complete live input
+  - [x] Materialize the exact forward mutations, recheck the complete live input
     snapshot, and pass them to the real attempt adapter inside the activation CAS.
+    - [x] Require the live activate result to reproduce the immutable staged
+      bundle/candidate/position set and reject lineage, read-set, manifest,
+      authority, budget, inverse-create, or update-time drift before mutation.
+    - [x] Build public creates plus the guarded predecessor-helper update, both
+      rotation/lease transitions, active state, terminal request, sync commands,
+      held intents, activation tombstone and contiguous before-images; keep
+      non-zero credit writes closed until HU-084.
+    - [x] Feed the exact ordered mutations to the pinned real-attempt adapter;
+      focused vectors and a Firestore-emulator transaction prove the same
+      measured SDK batch commits atomically. Runtime repository wiring,
+      production CAS and persisted outcome evidence remain pending.
+    - [x] Validation: Node 22 Functions lint/build, 4/4 pure focused vectors,
+      5/5 focused vectors with Firestore emulator, and 161/161 non-emulator
+      planning unit vectors pass; the emulator-only vector is skipped by the
+      ordinary unit lane. No shared/public write, transport, or deployment.
   - [ ] Materialize inverse mutations from persisted before-images and current
     recovery CAS/epoch, including exact replacement semantics for after-only fields.
   - [ ] Persist immutable non-circular backend-only attempt outcome evidence and
