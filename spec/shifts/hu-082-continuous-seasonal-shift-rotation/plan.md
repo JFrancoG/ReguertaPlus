@@ -274,8 +274,8 @@ documented in the English and Spanish Firestore references before code lands.
   update, rotations/leases, active state, request terminal, sync commands, held
   intents, tombstone, and before-images to the exact budget/inverse manifest,
   then measure and seal that same SDK-owned batch. Keep the seam disconnected
-  from `index.ts` until the real repository can reread every fairness input in
-  each retry callback.
+  from `index.ts` until the concrete repository can rebuild every fairness input
+  from its transaction read-set.
 - Materialize recovery only from the immutable activation tombstone and
   revalidated persisted before-images. Require every created target to retain
   the activation marker/payload, require the active bundle/epoch CAS and both
@@ -284,8 +284,12 @@ documented in the English and Spanish Firestore references before code lands.
   fresh recovery epoch and aggregate revisions; use explicit delete sentinels
   for top-level fields that exist only after activation. Replace the activation
   terminal with a digest-bound recovery terminal, retain before-images and the
-  completed historical request, and keep this seam disconnected from `index.ts`
-  until runtime reads and CAS orchestration are implemented.
+  completed historical request. Execute both directions through one local CAS
+  runtime that calls the resolver inside every retry, uses only the final
+  returned attempt for post-commit evidence, replays an already retained exact
+  outcome without another CAS, and fails closed when a committed terminal has
+  lost that evidence. Keep the seam disconnected from `index.ts` until the
+  concrete fairness-source resolver is implemented.
 - Emit stable digest-bound Sheets-sync command IDs in that transaction and define
   the exact manifest/idempotency/marker protocol. Prove it with a test consumer;
   HU-083 implements the real explicit pull/invoked multi-season worker. Pending

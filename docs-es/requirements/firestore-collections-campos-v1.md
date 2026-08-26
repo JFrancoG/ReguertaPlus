@@ -674,8 +674,9 @@ before-images, lineage restaurado y `recoveryIntentDigest` no autorreferencial.
 Las before-images y request completada de activacion permanecen; la escritura de
 request es un touch protegido del terminal historico, no una afirmacion de que el
 recovery no ocurrio. El presupuesto inverse exacto se mide/sella con el adaptador
-fijado y queda probado localmente en emulador Firestore. La carga/ejecucion runtime
-sigue pendiente.
+fijado y queda probado localmente en emulador Firestore. La ejecucion runtime
+local ya esta implementada; sigue pendiente la carga concreta y transaccional
+de las fuentes de fairness.
 
 Cuando una transaccion forward o inverse medida devuelve exito, el protocolo
 local de outcome crea
@@ -694,7 +695,11 @@ recovery, incluidos intent, bundle, epoch y manifest especifico de la direccion.
 Los replays exactos convergen en el documento inmutable y una relectura
 independiente revalida ruta, clave, campos y digests. Un outcome forward exacto
 ya retenido sigue siendo evidencia historica valida despues de que el terminal
-padre pase a recovery. La invocacion runtime sigue pendiente.
+padre pase a recovery. El runtime CAS local invoca el resolver dentro de cada
+retry Firestore y retiene solo el outcome del intento devuelto por
+`runTransaction`. Reproduce un outcome direccional exacto sin otro CAS y falla
+cerrado si un terminal confirmado ha perdido esa evidencia. Siguen pendientes la
+carga concreta de fuentes de fairness y el routing desde `index.ts`.
 
 Las siete colecciones son solo backend: las Rules estrictas niegan cualquier
 lectura o escritura de cliente, tambien a admins. Sus esquemas internos no son

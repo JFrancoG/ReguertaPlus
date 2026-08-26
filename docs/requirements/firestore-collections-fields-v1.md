@@ -563,7 +563,8 @@ non-self-referential `recoveryIntentDigest`. Before-images and the completed
 activation request remain; the request write is a guarded historical-terminal
 touch, not a claim that recovery never occurred. The exact inverse budget is
 measured/sealed by the pinned adapter and proven locally in the Firestore
-emulator. Runtime loading/execution is still pending.
+emulator. The local runtime execution seam is implemented; concrete
+transaction-scoped fairness-source loading remains pending.
 
 After a measured forward or inverse transaction returns successfully, the local
 outcome protocol creates
@@ -582,7 +583,11 @@ terminal, including intent, bundle, epoch, and direction-specific manifest.
 Exact retries converge on the immutable document and an independent read-back
 revalidates its path, key, fields, and digests. An already retained exact forward
 outcome remains valid historical evidence after the parent terminal transitions
-to recovery. Runtime invocation remains pending.
+to recovery. The local CAS runtime invokes the resolver inside every Firestore
+retry and retains only the outcome belonging to the attempt returned by
+`runTransaction`. It replays an exact existing directional outcome without
+another CAS and fails closed if a committed terminal has lost that evidence.
+Concrete fairness-source loading and `index.ts` routing remain pending.
 
 All seven collections are backend-only: strict Rules deny every client read and
 write, including admin clients. Their internal field schemas are not a mobile

@@ -296,11 +296,16 @@ ligado por digest; before-images y request historica completada quedan como
 evidencia de auditoria. Un vector de emulador Firestore prueba borrado,
 restauracion, epoch superior y reemplazo exacto del terminal de forma atomica.
 
-Este seam no esta conectado desde `index.ts`: produccion aun necesita un
-adaptador de repositorio que relea y recalcule todos los inputs de fairness dentro
-de cada callback transaccional reintentado e invoque el protocolo de outcome tras
-el retorno correcto. Siguen pendientes el ensayo gobernado, el CAS productivo, el
-despliegue y la activacion/recovery live.
+El runtime CAS local invoca su resolver dentro de cada callback Firestore
+reintentado, entrega solo el read-set de ese intento al materializador real
+forward/inverse y persiste outcome unicamente para el intento devuelto por
+`runTransaction`. Un outcome direccional exacto ya retenido se reproduce sin otro
+CAS. Un terminal de activacion o recovery confirmado que haya perdido ese outcome
+falla cerrado, porque repetir una mutacion despues de perder su acknowledgement
+no es una reparacion segura. Este seam no esta conectado desde `index.ts`:
+produccion aun necesita el resolver concreto que relea y recalcule
+transaccionalmente cada fuente de fairness. Siguen pendientes el ensayo
+gobernado, el despliegue y la activacion/recovery live.
 La activación es el límite reconocido de visibilidad pública y encola
 sync de Sheets e intenciones de notificación retenidas.
 

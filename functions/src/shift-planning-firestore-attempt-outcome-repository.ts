@@ -55,12 +55,12 @@ const requireExactReplay = (
   }
 };
 
-const requireOperationBinding = (
+export const requireShiftPlanningAttemptOutcomeOperationBinding = (
   value: unknown,
   expected: ShiftPlanningCommittedAttemptOutcome,
 ): void => {
-  try {
-    if (expected.direction === "forward") {
+  if (expected.direction === "forward") {
+    try {
       const operation = parseShiftPlanningActivationOperationTerminal(value);
       if (
         operation.environment !== expected.environment ||
@@ -75,7 +75,37 @@ const requireOperationBinding = (
         failOutcome("Forward outcome does not match its operation terminal.");
       }
       return;
+    } catch {
+      try {
+        const operation = parseShiftPlanningRecoveryOperationTerminal(value);
+        if (
+          operation.environment !== expected.environment ||
+          operation.operationId !== expected.operationId ||
+          operation.activationOperationIntentDigest !==
+            expected.operationIntentDigest ||
+          operation.bundleRevision !== expected.bundleRevision ||
+          operation.bundleDigest !== expected.bundleDigest ||
+          operation.activationWriteEpoch !== expected.writeEpoch ||
+          operation.forwardManifestDigest !==
+            expected.measurement.manifestDigest
+        ) {
+          failOutcome(
+            "Forward outcome does not match its recovered operation terminal.",
+          );
+        }
+        return;
+      } catch (error) {
+        if (
+          error instanceof ShiftPlanningError &&
+          error.code === "invalid_planning_attempt_outcome"
+        ) {
+          throw error;
+        }
+        return failOutcome("Forward outcome operation terminal is invalid.");
+      }
     }
+  }
+  try {
     const operation = parseShiftPlanningRecoveryOperationTerminal(value);
     if (
       operation.environment !== expected.environment ||
@@ -95,7 +125,7 @@ const requireOperationBinding = (
     ) {
       throw error;
     }
-    failOutcome("Attempt outcome operation terminal is invalid.");
+    failOutcome("Inverse outcome operation terminal is invalid.");
   }
 };
 
@@ -133,7 +163,7 @@ export const createFirestoreShiftPlanningAttemptOutcomePersistence = (
           return "replayed" as const;
         }
         const operationSnapshot = await transaction.get(operationReference);
-        requireOperationBinding(
+        requireShiftPlanningAttemptOutcomeOperationBinding(
           requireSnapshotData(
             operationSnapshot,
             "attempt outcome operation terminal",

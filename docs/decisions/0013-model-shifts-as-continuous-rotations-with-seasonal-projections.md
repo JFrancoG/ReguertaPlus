@@ -283,10 +283,15 @@ before-images and the completed historical request remain audit evidence. A
 Firestore-emulator vector proves atomic delete, restore, higher epoch, and exact
 terminal replacement.
 
-This seam is not connected from `index.ts`: production still needs a repository
-adapter that rereads and recomputes every fairness input inside each retried
-transaction callback and invokes the post-return outcome protocol. Governed
-rehearsal, production CAS, deployment, and live activation/recovery remain
+The local CAS runtime now invokes its resolver inside every retried Firestore
+callback, feeds only that attempt's read-set to the real forward/inverse
+materializer, and persists an outcome only for the attempt returned by
+`runTransaction`. An exact retained directional outcome replays without another
+CAS. A committed activation or recovery terminal missing that outcome fails
+closed, because repeating a mutation after losing its acknowledgement is not a
+safe repair. This seam is not connected from `index.ts`: production still needs
+the concrete resolver that transactionally rereads and recomputes every fairness
+source. Governed rehearsal, deployment, and live activation/recovery remain
 pending.
 Activation is the acknowledged public-visibility boundary and queues Sheets sync
 plus held notification intents.

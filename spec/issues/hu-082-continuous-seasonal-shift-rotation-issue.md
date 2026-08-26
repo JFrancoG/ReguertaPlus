@@ -602,6 +602,32 @@ cut is the runtime repository and orchestration that rereads each retry's
 authoritative inputs, executes the forward/recovery CAS, and records this
 post-return outcome.
 
+## Local implementation checkpoint — forward/inverse CAS runtime (2026-08-26)
+
+The local Firestore CAS runtime now owns retry-scoped forward activation and
+inverse recovery execution. It invokes the supplied resolver inside every SDK
+transaction callback, hands that callback's read-set to the real materializer,
+and persists a post-return outcome only for the attempt `runTransaction`
+actually committed. The trusted clock is sampled independently per attempt and
+again only after the successful return.
+
+Before mutation, the runtime reads at most the two expected directional outcomes
+under the operation. An exact retained outcome returns as a terminal replay
+without invoking the resolver or opening another CAS. A committed activation or
+recovery terminal with no matching outcome fails closed instead of risking a
+duplicate publication or restoration after acknowledgement loss. Recovery also
+requires the current parent to remain the exact activation terminal and binds
+the returned inverse attempt back to that parent identity.
+
+Node 22 Functions lint/build, 2/2 pure focused vectors, 5/5 focused CAS
+Firestore-emulator vectors, 4/4 outcome-repository emulator regressions, and
+169/169 non-emulator planning vectors pass; the ordinary lane skips six
+emulator-only vectors. No shared/public Firebase write, `index.ts` routing,
+transport, deployment, or live activation/recovery occurred. The next cut is the
+concrete transaction-scoped resolver for roster, membership,
+configuration/policy/calendar, overrides, workbook partitions, persisted staged
+artifacts, and authoritative state, followed by v2 request/recovery routing.
+
 ## Suggested labels
 
 - `type:feature`

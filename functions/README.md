@@ -531,11 +531,19 @@ exacto y ejecuta una relectura independiente. Un replay historico exacto sigue
 siendo valido aunque el terminal de activacion haya pasado despues a recovery;
 un intento nuevo siempre debe concordar con el terminal actual.
 
-El seam no esta conectado todavia desde `index.ts`: el caller futuro debe releer
-y recalcular roster, membership, configuracion/politica/calendario, overrides,
-workbook/particiones y estado autoritativo dentro de cada callback reintentado,
-ejecutar el CAS productivo y registrar el outcome posterior. No existe aun
-orquestacion productiva conectada, ensayo en clon, despliegue ni escritura
+`shift-planning-firestore-cas-runtime.ts` ejecuta los CAS forward e inverse. El
+resolver inyectado se llama dentro de cada callback que Firestore reintenta; el
+materializador real recibe exclusivamente ese read-set y solo el intento que
+`runTransaction` devuelve puede crear el outcome posterior. Antes de ejecutar,
+el runtime recupera un outcome exacto ya retenido sin repetir el CAS. Si existe
+un terminal de activacion o recovery confirmado pero falta su outcome
+direccional, falla cerrado para no duplicar una publicacion o restauracion cuyo
+ack se perdio.
+
+El seam no esta conectado todavia desde `index.ts`: falta el resolver concreto
+que relea y recalcule roster, membership, configuracion/politica/calendario,
+overrides, workbook/particiones y estado autoritativo desde cada transaccion. No
+existe aun routing productivo v2, ensayo en clon, despliegue ni escritura
 compartida.
 
 ### Fronteras, manifests y side effects diferidos

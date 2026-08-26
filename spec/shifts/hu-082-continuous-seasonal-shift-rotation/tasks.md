@@ -240,8 +240,9 @@ occurred. Protected technical evidence remains outside the repository.
       non-zero credit writes closed until HU-084.
     - [x] Feed the exact ordered mutations to the pinned real-attempt adapter;
       focused vectors and a Firestore-emulator transaction prove the same
-      measured SDK batch commits atomically. Runtime repository wiring,
-      production CAS, and post-return outcome invocation remain pending.
+      measured SDK batch commits atomically. The local CAS runtime and
+      post-return outcome invocation are implemented; concrete fairness-source
+      loading and production routing remain pending.
     - [x] Validation: Node 22 Functions lint/build, 4/4 pure focused vectors,
       5/5 focused vectors with Firestore emulator, and 161/161 non-emulator
       planning unit vectors pass; the emulator-only vector is skipped by the
@@ -261,8 +262,9 @@ occurred. Protected technical evidence remains outside the repository.
       completed historical request.
     - [x] Feed the exact inverse budget to the pinned real-attempt adapter;
       focused pure vectors and a Firestore-emulator transaction prove atomic
-      delete/restore/epoch behavior. Runtime wiring and post-return outcome
-      invocation remain pending.
+      delete/restore/epoch behavior. The local CAS runtime and post-return
+      outcome invocation are implemented; concrete source loading and production
+      routing remain pending.
     - [x] Validation: Node 22 Functions lint/build, 3/3 pure focused vectors,
       4/4 focused vectors with Firestore emulator, and 164/164 non-emulator
       planning unit vectors pass; the two emulator-only vectors are skipped by
@@ -279,8 +281,20 @@ occurred. Protected technical evidence remains outside the repository.
       4/4 focused Firestore-emulator vectors, and 167/167 non-emulator planning
       vectors pass; the ordinary lane skips three emulator-only vectors. No
       shared/public write, runtime connection, transport, or deployment.
-    - [ ] Wire the maintenance/publication and recovery CAS paths to the runtime
-      repository, recording each successful forward/inverse attempt outcome.
+    - [x] Execute forward publication and inverse recovery through a local
+      Firestore CAS runtime that invokes its resolver inside every SDK retry and
+      records only the successful attempt's post-return outcome.
+    - [x] Short-circuit exact terminal/outcome replays without another CAS and
+      fail closed when an already committed activation/recovery terminal has no
+      retained directional outcome.
+    - [x] Validation: Node 22 Functions lint/build, 2/2 pure focused vectors,
+      5/5 focused CAS Firestore-emulator vectors, 4/4 outcome-repository
+      emulator regressions, and 169/169 non-emulator planning vectors pass; the
+      ordinary lane skips six emulator-only vectors. No shared/public write,
+      trigger routing, transport, or deployment.
+    - [ ] Implement the concrete transaction-scoped fairness-source resolver and
+      connect the v2 request/recovery routing from `index.ts`; retain the legacy
+      production trigger until that replacement passes the governed rollout.
 - [ ] Include membership, rotation, policy/config/calendar override, and enabled
   credit-ledger versions plus any migration-baseline revision/digest in the
   candidate lineage; transactionally recheck them and commit planned credit

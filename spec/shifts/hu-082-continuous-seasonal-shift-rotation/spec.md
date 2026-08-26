@@ -284,9 +284,10 @@ does not populate Firestore public shifts or activate either mobile app.
   contiguous before-images. Updates use the transaction-read `lastUpdateTime`;
   the exact write set must match the forward budget and inverse create manifest.
   The real pinned attempt adapter measures and seals that same SDK-owned batch;
-  an emulator vector proves its atomic commit. The seam is not wired to
-  `index.ts`, and each future retry must reread and recompute the complete
-  fairness snapshot inside its own callback. Credits remain closed until HU-084.
+  an emulator vector proves its atomic commit. The local CAS runtime invokes its
+  resolver anew inside every Firestore retry, runs the real materializer on that
+  callback's read-set, and retains only the outcome returned by the successful
+  attempt. Credits remain closed until HU-084.
 - The local inverse materializer revalidates the persisted bundle/inverse
   manifest, activation tombstone, completed request, every before-image, every
   created target, the exact active bundle/epoch CAS, and ownership of both sealed
@@ -298,8 +299,13 @@ does not populate Firestore public shifts or activate either mobile app.
   after-only fields. The activation tombstone becomes a digest-bound recovery
   tombstone, while immutable before-images and the historical completed request
   remain. The pinned attempt adapter measures/seals the exact inverse batch and
-  an emulator vector proves atomic delete/restore/epoch behavior. Runtime wiring,
-  rehearsal, and production execution remain pending.
+  an emulator vector proves atomic delete/restore/epoch behavior. The same CAS
+  runtime executes recovery only while the activation terminal remains current,
+  then persists its inverse outcome after the transaction returns. Exact
+  terminal/outcome replays short-circuit without another CAS; a committed
+  terminal missing its directional outcome fails closed. The concrete
+  fairness-source resolver, `index.ts` routing, rehearsal, and production
+  execution remain pending.
 - The digest covers every fairness input and its version: eligible membership,
   rotation/cursor, calendar and policy/configuration, relevant overrides, and,
   when HU-084 is enabled, the complete same-type coverage-credit ledger version.
