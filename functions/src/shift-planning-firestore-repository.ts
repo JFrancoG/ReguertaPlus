@@ -718,7 +718,9 @@ const persistedBundle = (
   };
 };
 
-const parsePersistedBundle = (value: unknown): ShiftPlanningPersistedBundle => {
+export const parsePersistedBundle = (
+  value: unknown,
+): ShiftPlanningPersistedBundle => {
   const bundle = requireRecord(value, "persisted bundle");
   requireExactKeys(bundle, bundleKeys, "persisted bundle");
   const rawArtifact = requireRecord(
@@ -808,7 +810,7 @@ const persistedCandidate = (
   };
 };
 
-const parsePersistedCandidate = (
+export const parsePersistedCandidate = (
   value: unknown,
 ): ShiftPlanningPersistedCandidate => {
   const candidate = requireRecord(value, "persisted candidate");
@@ -890,7 +892,7 @@ const candidatePositionDocuments = (input: {
   }
 };
 
-const parseCandidatePositionDocuments = (input: {
+export const parseCandidatePositionDocuments = (input: {
   documents: readonly {id: string; data(): unknown}[];
   candidate: ShiftPlanningPersistedCandidate;
   bundle: ShiftPlanningPersistedBundle;

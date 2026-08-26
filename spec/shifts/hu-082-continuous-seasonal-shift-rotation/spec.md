@@ -303,9 +303,11 @@ does not populate Firestore public shifts or activate either mobile app.
   runtime executes recovery only while the activation terminal remains current,
   then persists its inverse outcome after the transaction returns. Exact
   terminal/outcome replays short-circuit without another CAS; a committed
-  terminal missing its directional outcome fails closed. The concrete
-  fairness-source resolver, `index.ts` routing, rehearsal, and production
-  execution remain pending.
+  terminal missing its directional outcome fails closed. The local concrete
+  resolver now rebuilds the forward read-set from a digest-bound live source,
+  staged package, and authoritative documents, while recovery reloads every
+  terminal/before-image/current target. The governed live-source producer,
+  `index.ts` routing, rehearsal, and production execution remain pending.
 - The digest covers every fairness input and its version: eligible membership,
   rotation/cursor, calendar and policy/configuration, relevant overrides, and,
   when HU-084 is enabled, the complete same-type coverage-credit ledger version.

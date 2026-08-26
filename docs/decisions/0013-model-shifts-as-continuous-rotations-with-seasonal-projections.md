@@ -289,10 +289,15 @@ materializer, and persists an outcome only for the attempt returned by
 `runTransaction`. An exact retained directional outcome replays without another
 CAS. A committed activation or recovery terminal missing that outcome fails
 closed, because repeating a mutation after losing its acknowledgement is not a
-safe repair. This seam is not connected from `index.ts`: production still needs
-the concrete resolver that transactionally rereads and recomputes every fairness
-source. Governed rehearsal, deployment, and live activation/recovery remain
-pending.
+safe repair. The concrete local resolver now reads the digest-bound
+`shiftPlanningState/fairness` envelope, immutable staged package, authoritative
+state/rotations, and every before-image target inside each forward retry. Its
+inverse counterpart reads the tombstone, bundle, request, before-images, and all
+current delete/restore targets. Emulator evidence proves valid source drift has
+zero public writes, then exact activation and higher-epoch recovery. This seam
+is not connected from `index.ts`: the governed producer that rebuilds the live
+envelope from real sources, routing, rehearsal, deployment, and live execution
+remain pending.
 Activation is the acknowledged public-visibility boundary and queues Sheets sync
 plus held notification intents.
 

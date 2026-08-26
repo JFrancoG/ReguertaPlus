@@ -628,6 +628,33 @@ concrete transaction-scoped resolver for roster, membership,
 configuration/policy/calendar, overrides, workbook partitions, persisted staged
 artifacts, and authoritative state, followed by v2 request/recovery routing.
 
+## Local implementation checkpoint — transaction-scoped source resolver (2026-08-26)
+
+The backend now seals the complete live input boundary at
+`shiftPlanningState/fairness`. Its schema-v1 revision/digest covers the normalized
+membership/roster, rotation, configuration/policy/calendar, override, disabled
+credit-ledger, workbook-partition, measurement-authority, migration-baseline,
+planning-boundary, occupancy, and write-limit inputs.
+
+Every forward retry reloads that envelope together with the exact activate
+request, immutable bundle, staged candidate/positions, authoritative state and
+rotations, and every before-image target before recomputing the live bundle. The
+inverse resolver reloads the activation tombstone, immutable bundle, completed
+request, complete before-image collection, and every current delete/restore
+target. Neither resolver writes before the real measured materializer owns the
+transaction.
+
+Node 22 Functions lint/build, 170/170 non-emulator planning vectors with seven
+emulator-only skips, 2/2 source-resolver, 5/5 CAS-runtime, and 4/4
+outcome-repository Firestore-emulator vectors pass. The end-to-end resolver
+vector proves a valid membership source drift rejects the staged binding with
+zero public writes, then proves exact activation and higher-epoch recovery
+through the real CAS runtime. No
+shared/public Firebase write, `index.ts` routing, transport, deployment, or live
+activation/recovery occurred. The next cut is the governed producer that rebuilds
+the live envelope from real sources plus v2 request/recovery routing while the
+legacy production trigger remains active.
+
 ## Suggested labels
 
 - `type:feature`

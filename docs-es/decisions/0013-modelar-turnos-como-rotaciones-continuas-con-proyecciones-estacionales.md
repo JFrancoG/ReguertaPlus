@@ -302,10 +302,15 @@ forward/inverse y persiste outcome unicamente para el intento devuelto por
 `runTransaction`. Un outcome direccional exacto ya retenido se reproduce sin otro
 CAS. Un terminal de activacion o recovery confirmado que haya perdido ese outcome
 falla cerrado, porque repetir una mutacion despues de perder su acknowledgement
-no es una reparacion segura. Este seam no esta conectado desde `index.ts`:
-produccion aun necesita el resolver concreto que relea y recalcule
-transaccionalmente cada fuente de fairness. Siguen pendientes el ensayo
-gobernado, el despliegue y la activacion/recovery live.
+no es una reparacion segura. El resolver local concreto ya lee en cada retry la
+envolvente ligada por digest `shiftPlanningState/fairness`, el paquete staged
+inmutable, estado/rotaciones autoritativos y todos los targets de before-image.
+Su par inverse lee tombstone, bundle, request, before-images y todos los targets
+actuales de delete/restore. El emulador prueba drift valido sin escrituras
+publicas, activacion exacta y recovery con epoch superior. Este seam no esta
+conectado desde `index.ts`: siguen pendientes el productor gobernado que
+reconstruya la envolvente live desde las fuentes reales, routing, ensayo,
+despliegue y ejecucion live.
 La activación es el límite reconocido de visibilidad pública y encola
 sync de Sheets e intenciones de notificación retenidas.
 

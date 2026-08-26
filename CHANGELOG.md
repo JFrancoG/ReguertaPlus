@@ -31,6 +31,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 2026-08-26 | ✨ feat(shifts): resolve planning CAS sources
 - 2026-08-26 | ✨ feat(shifts): execute planning CAS runtime
 - 2026-08-26 | ✨ feat(shifts): persist attempt outcomes
 - 2026-08-26 | ✨ feat(shifts): materialize inverse recoveries

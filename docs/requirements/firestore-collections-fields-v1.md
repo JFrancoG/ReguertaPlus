@@ -563,8 +563,9 @@ non-self-referential `recoveryIntentDigest`. Before-images and the completed
 activation request remain; the request write is a guarded historical-terminal
 touch, not a claim that recovery never occurred. The exact inverse budget is
 measured/sealed by the pinned adapter and proven locally in the Firestore
-emulator. The local runtime execution seam is implemented; concrete
-transaction-scoped fairness-source loading remains pending.
+emulator. The local transaction-scoped resolver now reloads the live source,
+staged package, authoritative state/rotations, and before-image targets for each
+forward retry; the inverse resolver reloads every recovery target.
 
 After a measured forward or inverse transaction returns successfully, the local
 outcome protocol creates
@@ -587,7 +588,16 @@ to recovery. The local CAS runtime invokes the resolver inside every Firestore
 retry and retains only the outcome belonging to the attempt returned by
 `runTransaction`. It replays an exact existing directional outcome without
 another CAS and fails closed if a committed terminal has lost that evidence.
-Concrete fairness-source loading and `index.ts` routing remain pending.
+`shiftPlanningState/fairness` is the backend-only live-source envelope. Schema
+v1 contains `environment`, `sourceRevision`, `inputs`, and `sourceDigest`.
+`inputs` exactly contains the normalized fairness snapshot, delivery and market
+boundary/occupancy inputs, and the conservative write limit. The nested snapshot
+retains membership/roster, rotation, config/policy/calendar, override,
+credit-ledger, workbook-partition, measurement-authority, and migration-baseline
+versions. The envelope is re-digested before planning; any valid live drift must
+recompute a different bundle and fail the staged candidate binding without
+writing. The governed producer that refreshes this envelope from real sources
+and `index.ts` routing remain pending.
 
 All seven collections are backend-only: strict Rules deny every client read and
 write, including admin clients. Their internal field schemas are not a mobile
@@ -601,6 +611,10 @@ authoritative CAS read-set:
   `activeRevision`/`activeDigest`, `intakeBarrier`, and `lastTransitionId`.
   `open` requires a null barrier; `closed` requires exact verified barrier
   evidence (`revision`, `digest`, `verifiedAtMillis`).
+- `shiftPlanningState/fairness` contains the exact schema-v1 live-source
+  envelope and digest that the future preview/stage producer must use and every
+  activation retry re-reads. It is not a client contract or an independently
+  trusted cache: the governed producer must rebuild it from the real sources.
 - `shiftRotations/delivery` and `shiftRotations/market` contain the exact typed
   aggregate, cursor, planning frontier, frozen-cohort state, paired active
   lineage, last idempotency key, migration baseline, and optional release lease.

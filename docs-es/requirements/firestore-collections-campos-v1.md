@@ -674,9 +674,10 @@ before-images, lineage restaurado y `recoveryIntentDigest` no autorreferencial.
 Las before-images y request completada de activacion permanecen; la escritura de
 request es un touch protegido del terminal historico, no una afirmacion de que el
 recovery no ocurrio. El presupuesto inverse exacto se mide/sella con el adaptador
-fijado y queda probado localmente en emulador Firestore. La ejecucion runtime
-local ya esta implementada; sigue pendiente la carga concreta y transaccional
-de las fuentes de fairness.
+fijado y queda probado localmente en emulador Firestore. El resolver local
+transaccional ya relee en cada retry forward la fuente live, paquete staged,
+estado/rotaciones autoritativos y targets de before-image; el resolver inverse
+relee todos los targets de recovery.
 
 Cuando una transaccion forward o inverse medida devuelve exito, el protocolo
 local de outcome crea
@@ -698,8 +699,19 @@ ya retenido sigue siendo evidencia historica valida despues de que el terminal
 padre pase a recovery. El runtime CAS local invoca el resolver dentro de cada
 retry Firestore y retiene solo el outcome del intento devuelto por
 `runTransaction`. Reproduce un outcome direccional exacto sin otro CAS y falla
-cerrado si un terminal confirmado ha perdido esa evidencia. Siguen pendientes la
-carga concreta de fuentes de fairness y el routing desde `index.ts`.
+cerrado si un terminal confirmado ha perdido esa evidencia.
+
+`shiftPlanningState/fairness` es la envolvente live backend-only. El schema v1
+contiene `environment`, `sourceRevision`, `inputs` y `sourceDigest`. `inputs`
+incluye exactamente el snapshot normalizado de fairness, fronteras/ocupacion de
+reparto y mercado y el limite conservador de escrituras. El snapshot anidado
+conserva las versiones de membership/roster, rotaciones,
+configuracion/politica/calendario, overrides, credit ledger, particiones de
+workbook, autoridad de medicion y baseline de migracion. La envolvente se
+redigesta antes de planificar: cualquier drift live valido debe producir otro
+bundle y fallar el binding staged sin escribir. Siguen pendientes el productor
+gobernado que refresque esta envolvente desde las fuentes reales y el routing
+desde `index.ts`.
 
 Las siete colecciones son solo backend: las Rules estrictas niegan cualquier
 lectura o escritura de cliente, tambien a admins. Sus esquemas internos no son
@@ -713,6 +725,11 @@ un unico read-set autoritativo para CAS:
   `activeRevision`/`activeDigest`, `intakeBarrier` y `lastTransitionId`. `open`
   exige barrera nula; `closed` exige evidencia exacta de barrera verificada
   (`revision`, `digest`, `verifiedAtMillis`).
+- `shiftPlanningState/fairness` contiene la envolvente live schema v1 exacta y
+  su digest, que debera usar el futuro productor de preview/stage y que se relee
+  dentro de cada retry de activacion. No es contrato cliente ni cache confiable
+  por si sola: el productor gobernado debe reconstruirla desde las fuentes
+  reales.
 - `shiftRotations/delivery` y `shiftRotations/market` contienen el agregado
   tipado exacto, cursor, frontera de planificacion, estado de cohorte congelada,
   linaje activo emparejado, ultima clave de idempotencia, baseline de migracion

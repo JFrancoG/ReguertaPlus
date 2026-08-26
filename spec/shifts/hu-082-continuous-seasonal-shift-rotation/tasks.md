@@ -292,9 +292,21 @@ occurred. Protected technical evidence remains outside the repository.
       emulator regressions, and 169/169 non-emulator planning vectors pass; the
       ordinary lane skips six emulator-only vectors. No shared/public write,
       trigger routing, transport, or deployment.
-    - [ ] Implement the concrete transaction-scoped fairness-source resolver and
-      connect the v2 request/recovery routing from `index.ts`; retain the legacy
-      production trigger until that replacement passes the governed rollout.
+    - [x] Implement the concrete transaction-scoped forward resolver over the
+      digest-bound live source, staged package, authoritative state/rotations,
+      positions, request, and before-image targets; implement the inverse
+      resolver over terminal, bundle, request, before-images, and every current
+      delete/restore target.
+    - [x] Validation: Node 22 Functions lint/build, 170/170 non-emulator
+      planning vectors with seven emulator-only skips, 2/2 source-resolver,
+      5/5 CAS-runtime, and 4/4 outcome-repository Firestore-emulator vectors
+      pass. The end-to-end resolver vector proves valid membership drift writes
+      nothing, then exact activation and higher-epoch recovery. No shared/public
+      Firebase write or deployment.
+    - [ ] Implement the governed producer that refreshes
+      `shiftPlanningState/fairness` from real sources and connect the v2
+      request/recovery routing from `index.ts`; retain the legacy production
+      trigger until that replacement passes the governed rollout.
 - [ ] Include membership, rotation, policy/config/calendar override, and enabled
   credit-ledger versions plus any migration-baseline revision/digest in the
   candidate lineage; transactionally recheck them and commit planned credit

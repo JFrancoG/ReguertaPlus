@@ -540,11 +540,21 @@ un terminal de activacion o recovery confirmado pero falta su outcome
 direccional, falla cerrado para no duplicar una publicacion o restauracion cuyo
 ack se perdio.
 
-El seam no esta conectado todavia desde `index.ts`: falta el resolver concreto
-que relea y recalcule roster, membership, configuracion/politica/calendario,
-overrides, workbook/particiones y estado autoritativo desde cada transaccion. No
-existe aun routing productivo v2, ensayo en clon, despliegue ni escritura
-compartida.
+`shift-planning-firestore-source-resolver.ts` fija
+`shiftPlanningState/fairness` como la envolvente live backend-only. Su revision y
+digest sellan el snapshot normalizado de roster/membership, rotaciones,
+configuracion/politica/calendario, overrides, credito deshabilitado, particiones
+de workbook, autoridad de medicion, baseline y fronteras de planificacion. Cada
+retry forward relee esa envolvente, request, bundle, candidato, posiciones,
+estado, rotaciones y targets de before-image antes de recomputar el bundle. El
+resolver inverse relee tombstone, bundle, request, before-images y todos los
+targets actuales de delete/restore. Un vector end-to-end de emulador prueba drift
+sin escrituras, activacion completa y recovery con epoch superior.
+
+El seam no esta conectado todavia desde `index.ts`: faltan el productor
+gobernado que mantenga `shiftPlanningState/fairness` desde las fuentes reales y
+el routing productivo v2. Tampoco existen aun ensayo en clon, despliegue ni
+escritura compartida.
 
 ### Fronteras, manifests y side effects diferidos
 
