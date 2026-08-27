@@ -799,6 +799,25 @@ trigger, shared Firebase/Sheets state, deployment, or live data changed.
 Node 22 Functions lint/build, 5/5 focused fake-consumer vectors, and 201 planning
 vectors with eleven emulator-only skips pass.
 
+## Local implementation checkpoint — public event retention (2026-08-27)
+
+The SDK-free producer contract now freezes a digest-bound maximum end-to-end
+delivery/retry horizon plus positive safety margin. Every controlled terminal has
+an immutable operation-retention binding and exclusive `retainUntil`; controlled
+no-ops create a stable ledger by classifier `eventDigest`, while an invalid,
+missing, or expired changed-marker authority creates one alertable rejected-event
+intent and keeps legacy per-row export/notification blocked.
+
+Cleanup fixtures protect the operation terminal, retention binding, and all bound
+event ledgers before and at the exact expiry instant, and make them eligible only
+after it. Deterministic backend-only paths are frozen under
+`shiftPlanningPublicEventLedgers`. HU-083 owns create-or-exact-replay Firestore
+persistence, real `onShiftWritten` and alert wiring, and integrated Sheets/
+notification evidence. No `index.ts`, trigger, deployment, or live state changed.
+
+Node 22 Functions lint/build, 5/5 focused retention vectors, and 206 planning
+vectors with eleven emulator-only skips pass.
+
 ## Suggested labels
 
 - `type:feature`

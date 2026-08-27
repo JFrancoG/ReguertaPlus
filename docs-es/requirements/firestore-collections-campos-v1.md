@@ -631,6 +631,9 @@ Los nombres siguientes quedan congelados para el plano de control privado:
   incluido el lifecycle ya implementado de claim/lease/fencing de peticiones;
   los registros futuros tambien llevan rutas de recovery, referencias/digests de
   before-images persistidas, CAS activo y epoca monotona de recovery.
+- `shiftPlanningPublicEventLedgers`: bindings inmutables de retencion de
+  operacion y terminales de evento publico controlado/rechazado. Los IDs estables
+  son `operation-{operationId}` y `event-{64 caracteres hex minusculos}`.
 
 El codec de publicacion v1 fija ademas un terminal de activacion en
 `shiftPlanningOperations/{operationId}` con `operationKind = activation` y
@@ -655,8 +658,32 @@ payload/revision/ruta, bundle/epoch/intent exactos del before-document de activa
 y con el manifest de borrado del terminal inverse. Un marcador retenido deja que
 ediciones/borrados ordinarios posteriores sigan la ruta normal. Un marcador
 eliminado, desconocido, falsificado o cambiado sin autoridad falla cerrado. Su
-`eventDigest` estable sera la clave idempotente del futuro ledger; HU-083 conserva
-la integracion real de trigger y retencion.
+`eventDigest` estable es la clave idempotente del ledger de evento controlado.
+
+El schema v1 de retencion pertenece al productor de HU-082 y su persistencia a
+HU-083. La politica ligada por digest contiene `policyRevision`, el horizonte
+maximo end-to-end aprobado `maximumDeliveryRetryHorizonMillis`, el
+`safetyMarginMillis` positivo y `policyDigest`. Un registro
+`operation-{operationId}` guarda exactamente
+`recordKind = publicEventOperationRetention`, `state = retained`, entorno,
+kind/ID/intent de la operacion controlada, `terminalAt` en milisegundos, snapshot
+completo de la politica, `retainUntil` exclusivo y `retentionDigest`. Debe crearse
+atomicamente con el productor del terminal controlado y no puede extender ni
+reescribir ese terminal.
+
+Un terminal `event-{digestHex}` guarda exactamente
+`recordKind = publicEventLedger`, `state = terminal`,
+`outcome = controlledNoOp|rejected`, destino/mutacion, snapshot de politica,
+`retainUntil` exclusivo, `eventDigest` y `ledgerDigest`. Los no-op controlados
+ligan kind/ID/intent de operacion, prohiben efectos legacy y no alertan. Los
+eventos rechazados de marcador cambiado ligan en cambio ID/tiempo estable de
+entrega, codigo de fallo, `alertRequired = true`, autoridad de operacion null y
+siguen prohibiendo efectos legacy. El replay exacto conserva el terminal
+original. Cleanup protege el terminal de operacion, el registro de retencion y
+cada terminal de evento ligado en `retainUntil`; solo son elegibles cuando el
+reloj de cleanup es estrictamente posterior. HU-083 conserva la persistencia
+real create-or-exact-replay, activacion de politica configurada, entrega de
+alertas, conexion del trigger y evidencia integrada.
 
 Cada `beforeImages/{ordinal}` liga operacion, bundle, manifest, epoch, ordinal,
 rutas de destino/sobre, update-time del snapshot, digest del contrato de captura,
@@ -763,7 +790,7 @@ HU-084 deshabilitado, particiones de workbook y autoridad de sync/medicion, y el
 limite conservador de escrituras. Es un input del productor, nunca un contrato
 cliente ni una cache derivada.
 
-Las siete colecciones son solo backend: las Rules estrictas niegan cualquier
+Las ocho colecciones son solo backend: las Rules estrictas niegan cualquier
 lectura o escritura de cliente, tambien a admins. Sus esquemas internos no son
 contrato movil en este corte.
 

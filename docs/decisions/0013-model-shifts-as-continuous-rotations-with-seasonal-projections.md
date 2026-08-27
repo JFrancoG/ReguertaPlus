@@ -359,8 +359,21 @@ correction registry terminals, validates changed create/update markers, and
 validates recovery deletes against both their activation before-document and the
 inverse deletion manifest. It returns a stable audited-no-op event digest; a
 retained marker remains ordinary and a changed marker without exact authority
-fails closed. HU-083 still owns the real `onShiftWritten` adapter and ledger
-retention.
+fails closed.
+
+The companion local retention producer now freezes schema v1 without wiring the
+trigger. A digest-bound policy carries the approved maximum end-to-end delivery/
+retry horizon plus a positive safety margin. A controlled terminal gets one
+immutable operation-retention binding whose exclusive `retainUntil` is derived
+from its terminal time; controlled decisions create one ledger identity from
+their stable `eventDigest`. Invalid, missing, expired, or detached authority
+instead creates a stable rejected-event ledger intent that requires an operator
+alert and forbids legacy row effects. Cleanup protects the operation terminal,
+retention binding, and bound ledgers at the exact boundary and may remove them
+only afterward. Deterministic records live under the backend-only
+`shiftPlanningPublicEventLedgers` namespace. HU-083 still owns durable create-or-
+exact-replay persistence, the real `onShiftWritten`/alert adapters, configured
+policy activation, and integrated side-effect evidence.
 
 The local HU-082 command substrate implements exact pending/processing/completed
 codecs, immutable-command digests, bounded polling, transactional claim or expired-

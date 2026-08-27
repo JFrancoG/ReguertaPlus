@@ -372,8 +372,21 @@ conectar el trigger. Reconoce terminales de activacion y registros exactos de
 reparacion/correccion de sync, valida marcadores create/update cambiados y valida
 recovery deletes contra su before-document de activacion y el manifest inverse de
 borrado. Devuelve un digest estable del no-op auditado; un marcador retenido sigue
-siendo ordinario y un marcador cambiado sin autoridad exacta falla cerrado. HU-083
-conserva el adaptador real de `onShiftWritten` y la retencion del ledger.
+siendo ordinario y un marcador cambiado sin autoridad exacta falla cerrado.
+
+El productor local complementario de retencion congela ahora el schema v1 sin
+conectar el trigger. Una politica ligada por digest contiene el horizonte maximo
+end-to-end aprobado de entrega/reintento y un margen de seguridad positivo. Cada
+terminal controlado obtiene un binding inmutable de retencion cuyo
+`retainUntil` exclusivo deriva del instante terminal; las decisiones controladas
+crean una identidad de ledger desde su `eventDigest` estable. Una autoridad
+invalida, ausente, expirada o desligada crea en cambio una intencion estable de
+ledger rechazado que exige alerta al operador y prohibe efectos legacy por fila.
+El cleanup protege terminal, binding y ledgers en el limite exacto y solo puede
+eliminarlos despues. Los registros deterministas viven en el namespace solo
+backend `shiftPlanningPublicEventLedgers`. HU-083 conserva la persistencia durable
+create-or-exact-replay, los adaptadores reales de `onShiftWritten`/alerta, la
+activacion de la politica configurada y la evidencia integrada de side effects.
 
 El sustrato local de HU-082 implementa codecs exactos pending/processing/completed,
 digest del comando inmutable, polling acotado, claim o takeover transaccional de

@@ -426,9 +426,24 @@ occurred. Protected technical evidence remains outside the repository.
   - [x] Validation: Node 22 Functions lint/build, 5/5 focused fake-consumer
     vectors and 201 planning vectors with eleven emulator-only skips pass. No
     shared Firebase/Sheets write, trigger export, deployment, or live event.
-- [ ] Define retention/fail-closed requirements for terminal operation tombstones
+- [x] Define retention/fail-closed requirements for terminal operation tombstones
   and per-event ledgers; prove the producer contract with fixtures and hand real
   consumer implementation/integration evidence to HU-083.
+  - [x] Freeze a digest-bound policy for the maximum end-to-end delivery/retry
+    horizon plus positive safety margin, one immutable operation-retention
+    binding, and deterministic backend-only operation/event ledger paths.
+  - [x] Produce stable controlled-no-op and rejected-event ledger terminals.
+    Unknown/expired/missing authority requires an alert and blocks legacy side
+    effects; cleanup protects the operation terminal, retention binding, and
+    ledgers through the exact exclusive-expiry boundary.
+  - [x] Prove exact replay, tamper rejection, delayed boundary delivery,
+    retained-marker ordinary routing, unknown-marker alert intent, and cleanup
+    eligibility with five SDK-free fixtures. HU-083 owns Firestore persistence,
+    `onShiftWritten` wiring, real alert/export/notification evidence, and policy
+    activation.
+  - [x] Validation: Node 22 Functions lint/build, 5/5 focused retention vectors,
+    and 206 planning vectors with eleven emulator-only skips pass. No shared
+    Firebase/Sheets write, trigger export, deployment, or live event occurred.
 - [ ] Make `requested -> processing -> completed|failed` idempotent and safe
   under retry or competing triggers.
   - [x] Implement and test that lifecycle for private `preview` and `stage`,

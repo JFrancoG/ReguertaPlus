@@ -477,6 +477,14 @@ does not populate Firestore public shifts or activate either mobile app.
   backend-only mutation marker arrives without a valid retained registry entry,
   `onShiftWritten` fails closed with no export/notification and alerts operators;
   it never reclassifies that event as an ordinary edit.
+  The local producer contract freezes schema v1 for that handoff: a digest-bound
+  policy names the maximum end-to-end horizon and positive margin; an immutable
+  operation binding computes exclusive `retainUntil`; controlled no-ops use the
+  classifier's `eventDigest`; and rejected changed-marker events use their stable
+  delivery event ID to create one alertable ledger identity. Cleanup protects
+  the operation terminal, retention binding, and event ledgers at the exact
+  boundary and becomes eligible only after it. HU-083 owns create-or-exact-replay
+  persistence and real trigger/alert evidence.
 - The operator-only execution contract has explicit, digest-bound modes for repair,
   migration/bootstrap, preview, stage, activate, controlled sync correction,
   recovery, and manifested cleanup. The operator only invokes an allowlisted

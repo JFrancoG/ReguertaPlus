@@ -37,7 +37,11 @@ develop-only Functions or Rules deploy.
   a changed create/update marker registered to that operation/digest, or a delete
   matches its before-image version/path manifest; never trust a retained or
   client-forgeable source/origin field alone. Retain operation tombstones/event
-  ledgers past the configured retry horizon.
+  ledgers past the configured retry horizon. Consume HU-082's exact schema-v1
+  retention policy, operation binding, controlled/rejected ledger codecs,
+  deterministic paths, and exclusive cleanup semantics; add only the durable
+  create-or-exact-replay repository, configured policy, alert channel, and real
+  trigger evidence here.
 - Add typed errors and structured, non-sensitive sync summaries.
 
 ### Audit and migration tooling

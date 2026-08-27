@@ -111,6 +111,10 @@ documented in the English and Spanish Firestore references before code lands.
 - Retain terminal operation tombstones and per-event ledgers beyond the maximum
   configured delivery/retry horizon plus safety margin. Unknown changed backend-
   only markers fail closed/alert; cleanup never turns them into ordinary events.
+  The local producer contract now freezes the digest-bound policy, exclusive
+  expiry, deterministic backend-only operation/event paths, controlled and
+  rejected ledger terminals, and cleanup protection set. HU-083 persists and
+  integrates those records with the real trigger and alert channel.
 - Keep held notification intents in a backend-owned outbox/path not watched by
   the existing notification trigger; release creates canonical events with
   stable idempotency keys.

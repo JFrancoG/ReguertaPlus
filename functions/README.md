@@ -600,6 +600,21 @@ falla cerrado. El `eventDigest` estable permite que el futuro ledger audite el
 replay sin convertirlo en exportacion o notificacion por fila. Este corte no
 conecta ni modifica el trigger legacy de `index.ts`.
 
+`shift-planning-public-event-retention.ts` fija el contrato productor que debe
+envolver ese clasificador. Una politica versionada y ligada por digest define el
+horizonte end-to-end maximo de entrega/reintento y un margen de seguridad
+positivo. Cada terminal controlado obtiene una retencion inmutable hasta
+`terminalAt + horizon + margin`; cada no-op controlado produce un ledger estable
+por `eventDigest`. Un marcador cambiado invalido produce en cambio un terminal
+`rejected`, deduplicado por el ID estable del evento, con alerta obligatoria y
+los side effects legacy bloqueados. El cleanup conserva el terminal de operacion,
+su binding de retencion y sus ledgers en el limite exacto, y solo los declara
+elegibles un milisegundo despues. Las rutas quedan congeladas bajo
+`shiftPlanningPublicEventLedgers/operation-{operationId}` y
+`shiftPlanningPublicEventLedgers/event-{digestHex}`. HU-083 debe persistir esas
+intenciones con create-or-exact-replay, conectar la alerta y demostrar el trigger
+real; este corte sigue sin modificar `index.ts` ni escribir Firestore.
+
 ### Fronteras, manifests y side effects diferidos
 
 - `futureProjectionOccupancy` se aporta por separado para reparto y mercado con

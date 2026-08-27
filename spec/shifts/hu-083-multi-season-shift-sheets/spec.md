@@ -95,7 +95,11 @@ unless an operational limit is demonstrated later.
   path against its exact manifest. Only those exact events no-op legacy side
   effects. A later ordinary edit/delete retaining old metadata still processes
   normally. Registry tombstones/event ledgers outlive the maximum delivery retry
-  window, so delayed replay cannot be reclassified after cleanup.
+  window, so delayed replay cannot be reclassified after cleanup. HU-082 supplies
+  the exact schema-v1 policy, operation-retention and controlled/rejected ledger
+  codecs, deterministic backend-only paths, and exclusive cleanup decision.
+  HU-083 persists them with create-or-exact-replay, configures the approved
+  policy, delivers rejection alerts, and proves the real trigger integration.
 
 ## Environment configuration boundary
 

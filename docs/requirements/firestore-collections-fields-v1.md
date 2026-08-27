@@ -520,6 +520,9 @@ The following collection names are frozen for the private control plane:
   including the implemented request claim/lease/fencing lifecycle; future
   operation records also carry recovery paths, persisted before-image
   references/digests, active CAS, and monotonic recovery epoch.
+- `shiftPlanningPublicEventLedgers`: immutable operation-retention bindings and
+  controlled/rejected public-event terminals. Stable IDs are
+  `operation-{operationId}` and `event-{64 lowercase digest hex}`.
 
 Publication codec v1 additionally freezes an activation terminal at
 `shiftPlanningOperations/{operationId}` with `operationKind = activation` and
@@ -543,8 +546,31 @@ controlled-mutation terminal. A recovery delete must match the exact activation
 before-document marker, payload/document revision/path, bundle/epoch/intent, and
 the recovery terminal deletion manifest. A retained marker routes later ordinary
 edits/deletes normally. A removed, unknown, forged, or otherwise unauthorized
-changed marker fails closed. Its stable `eventDigest` is the future event-ledger
-idempotency key; HU-083 still owns real trigger and retention integration.
+changed marker fails closed. Its stable `eventDigest` is the controlled-event
+ledger idempotency key.
+
+Retention schema v1 is producer-owned by HU-082 and persistence-owned by HU-083.
+The digest-bound policy contains `policyRevision`, the approved maximum end-to-
+end `maximumDeliveryRetryHorizonMillis`, positive `safetyMarginMillis`, and
+`policyDigest`. An `operation-{operationId}` record exactly stores
+`recordKind = publicEventOperationRetention`, `state = retained`, environment,
+controlled operation kind/ID/intent, millisecond `terminalAt`, the complete
+policy snapshot, exclusive `retainUntil`, and `retentionDigest`. It must be
+created atomically with the controlled terminal producer and cannot extend or
+rewrite that terminal.
+
+An `event-{digestHex}` terminal exactly stores `recordKind = publicEventLedger`,
+`state = terminal`, `outcome = controlledNoOp|rejected`, target/mutation,
+policy snapshot, exclusive `retainUntil`, `eventDigest`, and `ledgerDigest`.
+Controlled no-ops bind operation kind/ID/intent, forbid legacy side effects, and
+do not alert. Rejected changed-marker events instead bind the stable delivery
+event ID/time, failure code, `alertRequired = true`, null operation authority,
+and still forbid legacy side effects. Exact replay preserves the original
+terminal. Cleanup protects the operation terminal, operation-retention record,
+and every bound event terminal at `retainUntil`; they become eligible only when
+the cleanup clock is strictly later. HU-083 owns real create-or-exact-replay
+persistence, configured policy activation, alert delivery, trigger wiring, and
+integration evidence.
 
 An operator recovery is admitted only by the exact backend-owned document at
 `shiftPlanningOperations/{activationOperationId}/recoveryAuthorizations/`
@@ -658,7 +684,7 @@ ledger, workbook partitions and sync/measurement authority, and the conservative
 transaction write limit. It is an input to the producer, never a client or
 derived-cache contract.
 
-All seven collections are backend-only: strict Rules deny every client read and
+All eight collections are backend-only: strict Rules deny every client read and
 write, including admin clients. Their internal field schemas are not a mobile
 contract in this cut.
 

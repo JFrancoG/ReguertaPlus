@@ -58,6 +58,11 @@
     vectors. HU-083 still owns trigger wiring and real side-effect evidence.
 - [ ] Retain terminal operation tombstones/event ledgers past the maximum retry
   horizon and fail closed/alert on unknown changed backend markers.
+  - [x] Upstream HU-082 supplies schema-v1 retention policy, operation binding,
+    controlled/rejected ledger codecs, deterministic document paths, exclusive
+    cleanup semantics, and SDK-free producer fixtures. HU-083 still owns durable
+    create-or-exact-replay persistence, configured policy, alert delivery, and
+    real trigger/integration evidence.
 - [ ] Preserve manual fields according to the frozen contract.
 - [ ] For every imported/manual delivery-lead mutation, CAS/digest predecessor/
   current/successor assignment, completion, and revision across tabs. Reject equal

@@ -62,6 +62,13 @@ without authority fails closed. HU-083 must wire that contract into the real
 `onShiftWritten` trigger, persist its event ledger through the retry horizon, and
 prove real Sheets/notification suppression without reimplementing weaker parsing.
 
+HU-082 also supplies the schema-v1 retention producer: digest-bound end-to-end
+horizon plus safety margin, immutable operation retention, controlled/rejected
+event ledgers, deterministic backend-only paths, and exclusive cleanup semantics.
+HU-083 must persist them with create-or-exact-replay, configure the approved
+policy, deliver unknown-marker alerts, and prove real trigger behavior; it must
+not replace the upstream codecs with a looser local schema.
+
 ## Delivery gate
 
 - [ ] HU-082 and ADR-0013 integrated.
