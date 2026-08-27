@@ -52,6 +52,16 @@ must integrate the real multi-season Sheets adapter, durable external-attempt an
 read-back evidence, and ambiguous-outcome reconciliation; its overall dependency
 on the unfinished HU-082 story remains open.
 
+## Upstream checkpoint — HU-082 public event classifier (2026-08-27)
+
+HU-082 now supplies the SDK-free classifier and exact registry codecs for
+activation, repair, sync-correction, and recovery-delete events. It proves that
+only a changed and fully authorized marker becomes an audited no-op, while a
+retained marker leaves later ordinary edits/deletes active and a changed marker
+without authority fails closed. HU-083 must wire that contract into the real
+`onShiftWritten` trigger, persist its event ledger through the retry horizon, and
+prove real Sheets/notification suppression without reimplementing weaker parsing.
+
 ## Delivery gate
 
 - [ ] HU-082 and ADR-0013 integrated.

@@ -530,6 +530,22 @@ bindings, and `operationIntentDigest`. `attemptedAt` is the trusted callback
 clock sample rather than a server acknowledgement timestamp; the terminal
 document exists only if the same atomic transaction committed.
 
+Repair and sync-correction producers use the exact schema-v1 terminal
+`operationKind = controlledPublicMutation`, `state = committed`, with `kind`,
+operation/environment/bundle/epoch lineage, `committedAt`, target-sorted public
+create/update bindings, and `operationIntentDigest`. This record is the minimal
+allowlisted authority for a changed repair or sync-correction marker; it does not
+grant a client write path.
+
+The SDK-free event classifier treats a create/update as a controlled no-op only
+when its marker changed and the complete after-document matches its activation or
+controlled-mutation terminal. A recovery delete must match the exact activation
+before-document marker, payload/document revision/path, bundle/epoch/intent, and
+the recovery terminal deletion manifest. A retained marker routes later ordinary
+edits/deletes normally. A removed, unknown, forged, or otherwise unauthorized
+changed marker fails closed. Its stable `eventDigest` is the future event-ledger
+idempotency key; HU-083 still owns real trigger and retention integration.
+
 An operator recovery is admitted only by the exact backend-owned document at
 `shiftPlanningOperations/{activationOperationId}/recoveryAuthorizations/`
 `{recoveryOperationId}`. Schema v1 fixes `mode = recovery`, `state = authorized`,

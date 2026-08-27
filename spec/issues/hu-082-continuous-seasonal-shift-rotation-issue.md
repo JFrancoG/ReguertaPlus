@@ -778,6 +778,27 @@ skips, 3/3 focused sync-codec vectors, 5/5 sync-repository and 3/3 governed
 activation/recovery Firestore-emulator vectors pass. No shared Firebase/Sheets
 write, trigger export, deployment, or live sync occurred.
 
+## Local implementation checkpoint — public event classifier (2026-08-27)
+
+The SDK-free candidate consumer contract now distinguishes controlled public
+shift events from ordinary later edits. Activation and repair/sync-correction
+creates/updates no-op only when `lastBackendMutation` changed in that event and
+matches the exact operation registry, public payload/revision, bundle, epoch,
+target, and intent. A recovery delete additionally matches the exact activation
+before-document and inverse deletion manifest. Retained historical markers keep
+ordinary edits/deletes active; removed, missing, forged, or unsupported changed
+authority fails closed.
+
+Each controlled decision carries a stable `eventDigest`. Five focused fake-
+consumer vectors prove activation create/update and replay, repair, sync
+correction, recovery delete, ordinary retained-marker behavior, and tamper/missing-
+registry rejection without real export or notification. HU-083 still owns wiring
+the real trigger and durable terminal/event-ledger retention. No `index.ts`
+trigger, shared Firebase/Sheets state, deployment, or live data changed.
+
+Node 22 Functions lint/build, 5/5 focused fake-consumer vectors, and 201 planning
+vectors with eleven emulator-only skips pass.
+
 ## Suggested labels
 
 - `type:feature`

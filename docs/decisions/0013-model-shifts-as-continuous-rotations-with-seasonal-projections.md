@@ -353,6 +353,15 @@ backend mutation marker/manifest and audits it as a no-op. Retained provenance o
 a later ordinary edit does not suppress that edit. Terminal operation tombstones
 and event ledgers outlive every configured retry window.
 
+The local HU-082 public-event contract now implements that decision without
+wiring the trigger. It recognizes activation terminals plus exact repair/sync-
+correction registry terminals, validates changed create/update markers, and
+validates recovery deletes against both their activation before-document and the
+inverse deletion manifest. It returns a stable audited-no-op event digest; a
+retained marker remains ordinary and a changed marker without exact authority
+fails closed. HU-083 still owns the real `onShiftWritten` adapter and ledger
+retention.
+
 The local HU-082 command substrate implements exact pending/processing/completed
 codecs, immutable-command digests, bounded polling, transactional claim or expired-
 lease takeover, pre-batch active-lineage/partition authorization, and read-back-

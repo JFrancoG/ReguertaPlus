@@ -641,6 +641,23 @@ before-image y `operationIntentDigest`. `attemptedAt` es la muestra de reloj
 fiable del callback, no un timestamp de ack; el terminal solo existe si la misma
 transaccion atomica hizo commit.
 
+Los productores de reparacion y correccion de sync usan el terminal exacto schema
+v1 `operationKind = controlledPublicMutation`, `state = committed`, con `kind`,
+linaje de operacion/entorno/bundle/epoch, `committedAt`, bindings publicos
+create/update ordenados por destino y `operationIntentDigest`. Es la autoridad
+minima allowlisted para un marcador cambiado de reparacion o sync-correction; no
+concede ninguna ruta de escritura a clientes.
+
+El clasificador SDK-free solo trata un create/update como no-op controlado cuando
+su marcador cambia y el after-document completo coincide con su terminal de
+activacion o mutacion controlada. Un recovery delete debe coincidir con marcador,
+payload/revision/ruta, bundle/epoch/intent exactos del before-document de activacion
+y con el manifest de borrado del terminal inverse. Un marcador retenido deja que
+ediciones/borrados ordinarios posteriores sigan la ruta normal. Un marcador
+eliminado, desconocido, falsificado o cambiado sin autoridad falla cerrado. Su
+`eventDigest` estable sera la clave idempotente del futuro ledger; HU-083 conserva
+la integracion real de trigger y retencion.
+
 Cada `beforeImages/{ordinal}` liga operacion, bundle, manifest, epoch, ordinal,
 rutas de destino/sobre, update-time del snapshot, digest del contrato de captura,
 digest del payload codificado y digest del sobre. `firestore-value-v1` etiqueta

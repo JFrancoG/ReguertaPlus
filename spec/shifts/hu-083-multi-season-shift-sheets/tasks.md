@@ -53,6 +53,9 @@
   change for creates/updates or exact before-image version/path for deletes, plus
   the allowlisted registry/digest; no-op backend events without suppressing later
   ordinary events that retain old metadata.
+  - [x] Upstream HU-082 supplies the strict SDK-free classifier, repair/sync-
+    correction registry codec, stable controlled-event digest, and fake-consumer
+    vectors. HU-083 still owns trigger wiring and real side-effect evidence.
 - [ ] Retain terminal operation tombstones/event ledgers past the maximum retry
   horizon and fail closed/alert on unknown changed backend markers.
 - [ ] Preserve manual fields according to the frozen contract.

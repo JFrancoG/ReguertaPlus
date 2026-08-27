@@ -1393,7 +1393,7 @@ export const parseShiftPlanningActivationOperationTerminal = (
   return {...parsedWithoutDigest, operationIntentDigest};
 };
 
-const parseMarker = (
+export const parseShiftPlanningBackendMutationMarker = (
   value: unknown,
 ): ShiftPlanningBackendMutationMarker => {
   const marker = requireRecord(value, "public shift lastBackendMutation");
@@ -1528,7 +1528,9 @@ export const parseShiftPlanningPublicShiftDocument = (input: {
     input.targetPath,
     payloadRecord,
   );
-  const marker = parseMarker(document.lastBackendMutation);
+  const marker = parseShiftPlanningBackendMutationMarker(
+    document.lastBackendMutation,
+  );
   if (
     marker.targetPath !== materialization.targetPath
   ) {

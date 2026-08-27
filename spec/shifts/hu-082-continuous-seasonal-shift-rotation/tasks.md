@@ -412,10 +412,20 @@ occurred. Protected technical evidence remains outside the repository.
     emulator-only skips, 3/3 focused lifecycle vectors, 5/5 sync-repository and 3/3
     governed activation/recovery Firestore-emulator vectors pass. No shared
     Firebase/Sheets write, trigger export, deployment, or live sync occurred.
-- [ ] Define operation-registry/marker and fake-consumer vectors requiring
+- [x] Define operation-registry/marker and fake-consumer vectors requiring
   candidate `onShiftWritten` to validate before/after changes for creates/updates
   and exact before-image marker/version/path for recovery deletes, no-op only that
   operation, and leave later ordinary events active. HU-083 owns the real trigger.
+  - [x] Parse exact activation/recovery registry terminals and freeze the minimal
+    `controlledPublicMutation` terminal for repair/sync-correction create/update
+    bindings. Changed markers without exact authority fail closed.
+  - [x] Classify retained historical markers as ordinary, bind every controlled
+    no-op to a stable `eventDigest`, and prove create/update/delete, replay,
+    repair, sync-correction, recovery, missing-registry, and tampering cases with
+    an SDK-free fake consumer. No `index.ts` trigger is changed.
+  - [x] Validation: Node 22 Functions lint/build, 5/5 focused fake-consumer
+    vectors and 201 planning vectors with eleven emulator-only skips pass. No
+    shared Firebase/Sheets write, trigger export, deployment, or live event.
 - [ ] Define retention/fail-closed requirements for terminal operation tombstones
   and per-event ledgers; prove the producer contract with fixtures and hand real
   consumer implementation/integration evidence to HU-083.

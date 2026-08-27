@@ -367,6 +367,14 @@ no-op. Conservar procedencia en una edición ordinaria posterior no suprime esa
 edición. Los tombstones de operación y ledgers de evento sobreviven a todas las
 ventanas de reintento configuradas.
 
+El contrato local de eventos publicos de HU-082 implementa ya esa decision sin
+conectar el trigger. Reconoce terminales de activacion y registros exactos de
+reparacion/correccion de sync, valida marcadores create/update cambiados y valida
+recovery deletes contra su before-document de activacion y el manifest inverse de
+borrado. Devuelve un digest estable del no-op auditado; un marcador retenido sigue
+siendo ordinario y un marcador cambiado sin autoridad exacta falla cerrado. HU-083
+conserva el adaptador real de `onShiftWritten` y la retencion del ledger.
+
 El sustrato local de HU-082 implementa codecs exactos pending/processing/completed,
 digest del comando inmutable, polling acotado, claim o takeover transaccional de
 lease expirado, autorización de linaje/partición inmediatamente antes del batch y

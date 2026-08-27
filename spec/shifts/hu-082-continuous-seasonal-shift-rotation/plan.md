@@ -305,6 +305,13 @@ documented in the English and Spanish Firestore references before code lands.
   an immediate pre-batch active-lineage/partition authorization, and read-back-
   guarded completion. Its SDK-free executor proves idempotent lost-ack convergence
   with a fake consumer; real Sheets I/O and ambiguity evidence remain in HU-083.
+- Freeze the pure public-write event classifier before HU-083 changes the legacy
+  trigger. Activation and repair/sync-correction create/update events no-op only
+  when their marker changed and matches the exact operation registry; recovery
+  deletes additionally match their exact activation before-document and inverse
+  manifest. Retained markers keep later ordinary edits/deletes active, while an
+  unauthorized changed marker fails closed. A stable event digest gives the next
+  retention-ledger cut one replay key without performing per-row side effects.
 - Publish processing and stable terminal results idempotently.
 - Hold notifications for governed activation and release them idempotently only
   after the approved read-back gate.

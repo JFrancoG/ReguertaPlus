@@ -588,6 +588,18 @@ repositorio y demuestra con un consumidor falso que una confirmacion perdida se
 redescubre sin duplicar el efecto idempotente. HU-083 implementara la I/O real y
 la evidencia durable de resultados ambiguos; no se exporta aqui ningun trigger.
 
+`shift-planning-public-event-contract.ts` fija el filtro puro que el futuro
+`onShiftWritten` de HU-083 debe usar. Solo clasifica como no-op controlado un
+create/update cuyo `lastBackendMutation` haya cambiado en ese mismo evento y
+coincida exactamente con el terminal de activacion, reparacion o correccion de
+sync; un recovery delete exige que el before-document conserve ruta, revision,
+payload, bundle, epoch e intent de activacion y que su ruta figure en el terminal
+inverse. Un marcador retenido sin cambios en una edicion o borrado posterior se
+clasifica como operacion ordinaria. Un marcador cambiado sin registro valido
+falla cerrado. El `eventDigest` estable permite que el futuro ledger audite el
+replay sin convertirlo en exportacion o notificacion por fila. Este corte no
+conecta ni modifica el trigger legacy de `index.ts`.
+
 ### Fronteras, manifests y side effects diferidos
 
 - `futureProjectionOccupancy` se aporta por separado para reparto y mercado con

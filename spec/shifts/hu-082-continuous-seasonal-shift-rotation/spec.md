@@ -351,6 +351,15 @@ does not populate Firestore public shifts or activate either mobile app.
   revision and partition-digest read-back. An exception or ambiguous external
   result leaves the lease retained. HU-083 owns the real Sheets call, durable
   external-attempt evidence, and controlled ambiguity reconciliation.
+- The SDK-free public-write event classifier consumes the existing activation and
+  recovery terminals and one exact `controlledPublicMutation` terminal for repair
+  or sync correction. A create/update is a controlled no-op only when its marker
+  changed in that event and matches target, payload, document revision, bundle,
+  epoch, operation, and terminal digest. A recovery delete also requires the exact
+  activation before-document and a path in the inverse deletion manifest. Retained
+  historical markers leave later ordinary edits/deletes active; missing, unknown,
+  or forged changed-marker authority fails closed. HU-083 owns trigger I/O and the
+  durable event-ledger/retention integration.
 - Existing Android/iOS releases read the flat public `shifts` collection rather
   than an active-revision pointer. The initial rollout therefore keeps stage in
   a separate collection and requires the entire public create/update/delete
